@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+*phoebe
+
+#IDE files
+.project
