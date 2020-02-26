@@ -1,2 +1,2 @@
 # PHOEBE
-Phonon and Electron Boltzmann Equation
+Phonon and Electron Boltzmann Equations
