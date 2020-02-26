@@ -5,6 +5,6 @@ using namespace std;
 struct Element {
   string symbol;
   int atomicNumber;
-  float mass;
-  float massVariance;
+  double mass;
+  double massVariance;
 };
