@@ -15,7 +15,7 @@ SRC_EXT = cpp
 # Find all source files in the source directory, sorted by
 # most recently modified
 #SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
-SOURCES = src/main.cpp 
+SOURCES = src/main.cpp src/context.cpp src/transport_app.cpp
 
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place

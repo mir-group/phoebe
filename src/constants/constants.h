@@ -2,7 +2,7 @@
 #include <math.h>
 using namespace std;
 
-namespace constants {
+//namespace constants {
 //
 // mathematical constants
 //
@@ -33,7 +33,9 @@ const double rydbergSi      = hartreeSi / 2.;
 const double timeRy         = hBarSi / rydbergSi;
 const double kBoltzmannSi   = 1.38064852e-23;
 const double kBoltzmannRy   = kBoltzmannSi / rydbergSi;
-
+//
+// conversion
+//
 const double temperatureAuToSi = 1. / kBoltzmannRy;
 const double energyAuToEv   = rydbergSi / electronVoltSi;
 const double distanceAngToSi = 1.0e-10;
@@ -45,11 +47,11 @@ const double ryToCmm1 = 0.01 / ( hPlanckSi / electronVoltSi * speedLightSi );
 //
 // units for transport coefficients
 //
-const double thConductivityAuToSi = kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
-const double viscosityAuToSi = rydbergSi / hPlanckSi * twoPi * pow(bohrRadiusSi,2);
+const double thConductivityAuToSi = kBoltzmannSi*rydbergSi/bohrRadiusSi/hBarSi;
+const double viscosityAuToSi = rydbergSi /hPlanckSi*twoPi *pow(bohrRadiusSi,2);
 const double elConductivityAuToSi = pow(electronSi,2) / hBarSi / bohrRadiusSi;
 const double thermopowerAuToSi = - kBoltzmannRy / electronSi * rydbergSi;
 const double peltierAuToSi = - rydbergSi / electronSi;
 
-}
+//}
 

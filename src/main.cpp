@@ -1,16 +1,10 @@
 #include <iostream>
-#include "periodic_table.h"
+#include "transport_app.h"
 
-//using namespace periodicTable;
+int main(int argc, char** argv) {
 
-int main() {
-	using namespace pt;
-
-	std::cout << pt::periodicTable[7].symbol + "\n";
-	std::cout << pt::periodicTable[7].mass;
-	std::cout << "\n";
-	std::cout << pt::periodicTable[7].massVariance;
-	std::cout << "\n";
+	TransportApp transportApp;
+	transportApp.setup(argc, argv);
 
 	return(0);
 }
