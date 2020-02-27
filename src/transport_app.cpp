@@ -27,6 +27,6 @@ void TransportApp::setup(int argc, char** argv) {
 	Context context;
 	context.setupFromInput(inputFileName);
 
-	std::cout << context.qCoarseMesh;
+	std::cout << context.qCoarseMesh[0];
 	std::cout << "\n";
 };

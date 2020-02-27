@@ -5,6 +5,17 @@
 #include <fstream>
 #include <algorithm>
 
+//TODO: it would be nice to have a smoother handling of read errors, with
+//some informations provided to the user.
+// Also, we must provide default values if key is not found in input
+
+struct ParameterNotFound : public std::exception {
+	const char * what () const throw ()
+    {
+    	return "Input parameter not found";
+    }
+};
+
 bool lineHasPattern(std::string line, std::string pattern) {
 	bool bx = false;
 
@@ -12,6 +23,13 @@ bool lineHasPattern(std::string line, std::string pattern) {
 	std::string s;
 	std::string substr2;
 	size_t pos;
+
+//	Remove non alphanumeric characters
+	s.erase(std::remove_if(s.begin(), s.end(),
+			[](char c) { return !isalpha(c); } ), s.end());
+	if ( s.empty() ) {
+		return bx;
+	}
 
 	sep = "=";
 	pos = line.find(sep);
@@ -30,18 +48,18 @@ bool lineHasPattern(std::string line, std::string pattern) {
 
 bool parseBool(std::vector<std::string> lines, std::string pattern) {
 	bool x;
+	bool found = false;
 
 	for ( std::string line : lines) {
 		if ( lineHasPattern(line, pattern) ) {
+			found = true;
 			std::string delimeter = "=";
 			size_t pos = line.find(delimeter);
 			std::string s = line.substr(pos+1);
 
-//		    std::cout << s;
-
 		    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-//			s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
-			s.erase(std::remove_if(s.begin(), s.end(), [](char c) { return !isalpha(c); } ), s.end());
+			s.erase(std::remove_if(s.begin(), s.end(),
+					[](char c) { return !isalpha(c); } ), s.end());
 
 		    if ( s == "false" ) {
 		    	x = false;
@@ -55,6 +73,9 @@ bool parseBool(std::vector<std::string> lines, std::string pattern) {
 		    	throw "Couldn't fix boolean value";
 		    }
 		}
+	}
+	if ( not found ) {
+		throw ParameterNotFound();
 	}
 	return x;
 };
@@ -74,12 +95,13 @@ double parseDouble(std::vector<std::string> lines, std::string pattern) {
 		}
 	}
 	if ( not found ) {
-		throw "Failed to parse float. Pattern: " + pattern;
+		throw ParameterNotFound();
 	}
 	return x;
 };
 
-std::vector<double>  parseDoubleList(std::vector<std::string> lines, std::string pattern) {
+std::vector<double>  parseDoubleList(std::vector<std::string> lines,
+		std::string pattern) {
 	std::vector<double> x;
 	double xTemp;
 	bool found = false;
@@ -98,10 +120,10 @@ std::vector<double>  parseDoubleList(std::vector<std::string> lines, std::string
 			pos2 = line.find_last_of(delimeter);
 
 			if ( pos1 == std::string::npos ) {
-				throw "Error in parseIntList";
+				throw "Error in parseDoubleList";
 			}
 			if ( pos2 == std::string::npos ) {
-				throw "Error in parseIntList";
+				throw "Error in parseDoubleList";
 			}
 
 			s = line.substr(pos1+1,pos2-pos1-1);
@@ -124,7 +146,7 @@ std::vector<double>  parseDoubleList(std::vector<std::string> lines, std::string
 		}
 	}
 	if ( not found ) {
-		throw "Failed to parse intList. Pattern: " + pattern;
+		throw ParameterNotFound();
 	}
 	return x;
 };
@@ -144,12 +166,13 @@ int parseInt(std::vector<std::string> lines, std::string pattern) {
 		}
 	}
 	if ( not found ) {
-		throw "Failed to parse int. Pattern: " + pattern;
+		throw ParameterNotFound();
 	}
 	return x;
 };
 
-std::vector<int>  parseIntList(std::vector<std::string> lines, std::string pattern) {
+std::vector<int> parseIntList(std::vector<std::string> lines,
+		std::string pattern) {
 	std::vector<int> x;
 	int xTemp;
 	bool found = false;
@@ -194,22 +217,17 @@ std::vector<int>  parseIntList(std::vector<std::string> lines, std::string patte
 		}
 	}
 	if ( not found ) {
-		throw "Failed to parse intList. Pattern: " + pattern;
+		throw ParameterNotFound();
 	}
 	return x;
 };
 
 
 std::string parseString(std::vector<std::string> lines, std::string pattern) {
-//	std::cout << "Enter parseString";
-
 	std::string x = "";
 	bool found = false;
 
 	for ( std::string line : lines) {
-
-//		std::cout << lineHasPattern(line, pattern);
-//		std::cout << line;
 
 		if ( lineHasPattern(line, pattern) ) {
 			std::string delimeter;
@@ -241,7 +259,7 @@ std::string parseString(std::vector<std::string> lines, std::string pattern) {
 		}
 	}
 	if ( not found ) {
-		throw "Failed to parse string. Pattern: " + pattern;
+		throw ParameterNotFound();
 	}
 	return x;
 };
@@ -252,7 +270,7 @@ void Context::setQCoarseMesh(int* x) {
 	}
 };
 
-const int* Context::getQCoarseMesh() {
+std::vector<int> Context::getQCoarseMesh() {
 	return qCoarseMesh;
 };
 
@@ -269,30 +287,37 @@ void Context::setupFromInput(std::string fileName) {
 
 // parse each variable
 
-    double x;
-	std::vector<double> w;
-    int z;
-    std::string y;
+//    double x;
+//	std::vector<double> w;
+//    int z;
+//    std::string y;
 	std::vector<int> q;
-	bool t;
+//	bool t;
 
-	x = parseDouble(lines, "x");
-	std::cout << x;
-	std::cout << "\n";
-	y = parseString(lines, "y");
-	std::cout << y;
-	std::cout << "\n";
-	z = parseInt(lines, "z");
-	std::cout << z;
-	std::cout << "\n";
-	q = parseIntList(lines, "qCoarseMesh");
-	std::cout << q[0] << q[1] << q[2];
-	std::cout << "\n";
-	w = parseDoubleList(lines, "w");
-	std::cout << w[0] << " , " << w[1] << " , " << w[2];
-	std::cout << "\n";
-	t = parseBool(lines, "t");
-	std::cout << t;
-	std::cout << "\n";
+//	x = parseDouble(lines, "x");
+//	std::cout << x;
+//	std::cout << "\n";
+//	y = parseString(lines, "y");
+//	std::cout << y;
+//	std::cout << "\n";
+//	z = parseInt(lines, "z");
+//	std::cout << z;
+//	std::cout << "\n";
+//	q = parseIntList(lines, "qCoarseMesh");
+//	std::cout << q[0] << q[1] << q[2];
+//	std::cout << "\n";
+//	w = parseDoubleList(lines, "w");
+//	std::cout << w[0] << " , " << w[1] << " , " << w[2];
+//	std::cout << "\n";
+//	t = parseBool(lines, "t");
+//	std::cout << t;
+//	std::cout << "\n";
+
+	try {
+		q = parseIntList(lines, "qCoarseMesh");
+	}
+	catch (ParameterNotFound& e) {
+// Do nothing!
+	}
 
 };

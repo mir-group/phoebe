@@ -1,16 +1,17 @@
 #include <string>
+#include <vector>
 
 using namespace std;
 
 class Context {
 public:
-	int qCoarseMesh[3];
-	int qFineMesh[3];
-	int kCoarseMesh[3];
-	int kFineMesh[3];
+	std::vector<int> qCoarseMesh = {0,0,0};
+	std::vector<int> qFineMesh = {0,0,0};
+	std::vector<int> kCoarseMesh = {0,0,0};
+	std::vector<int> kFineMesh = {0,0,0};
 
 	void setQCoarseMesh(int* x);
-	const int* getQCoarseMesh();
+	std::vector<int> getQCoarseMesh();
 
 	void setupFromInput(string fileName);
 
