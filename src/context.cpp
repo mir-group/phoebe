@@ -24,10 +24,8 @@ bool lineHasPattern(std::string line, std::string pattern) {
 	std::string substr2;
 	size_t pos;
 
-//	Remove non alphanumeric characters
-	s.erase(std::remove_if(s.begin(), s.end(),
-			[](char c) { return !isalpha(c); } ), s.end());
-	if ( s.empty() ) {
+//	If line is empty, there's nothing for sure. Return false
+	if ( line.empty() ) {
 		return bx;
 	}
 
@@ -313,11 +311,14 @@ void Context::setupFromInput(std::string fileName) {
 //	std::cout << t;
 //	std::cout << "\n";
 
+	std::cout << "Sto qua\n";
+
 	try {
-		q = parseIntList(lines, "qCoarseMesh");
+		qCoarseMesh = parseIntList(lines, "qCoarseMesh");
 	}
 	catch (ParameterNotFound& e) {
 // Do nothing!
 	}
 
+	std::cout << qCoarseMesh[0] << "\n";
 };
