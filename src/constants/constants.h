@@ -33,17 +33,22 @@ const double rydbergSi      = hartreeSi / 2.;
 const double timeRy         = hBarSi / rydbergSi;
 const double kBoltzmannSi   = 1.38064852e-23;
 const double kBoltzmannRy   = kBoltzmannSi / rydbergSi;
+const double electronMassSi = 9.10938215e-31; // in Kg
+const double amuSi          = 1.660538782e-27; // in Kg
+
+
 //
 // conversion
 //
 const double temperatureAuToSi = 1. / kBoltzmannRy;
-const double energyAuToEv   = rydbergSi / electronVoltSi;
+const double energyRyToEv   = rydbergSi / electronVoltSi;
 const double distanceAngToSi = 1.0e-10;
-const double distanceAuToSi = bohrRadiusSi;
-const double timeAuToFs = timeRy * 1e15 * twoPi;
+const double distanceRyToSi = bohrRadiusSi;
+const double timeRyToFs = timeRy * 1e15 * twoPi;
 const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
-const double distanceAuToAng = bohrRadiusSi / distanceAngToSi;
+const double distanceRyToAng = bohrRadiusSi / distanceAngToSi;
 const double ryToCmm1 = 0.01 / ( hPlanckSi / electronVoltSi * speedLightSi );
+const double massRyToAmu = amuSi / electronMassSi / 2.;
 //
 // units for transport coefficients
 //

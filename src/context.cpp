@@ -289,7 +289,7 @@ void Context::setupFromInput(std::string fileName) {
 //	std::vector<double> w;
 //    int z;
 //    std::string y;
-	std::vector<int> q;
+//	std::vector<int> q;
 //	bool t;
 
 //	x = parseDouble(lines, "x");
@@ -311,14 +311,12 @@ void Context::setupFromInput(std::string fileName) {
 //	std::cout << t;
 //	std::cout << "\n";
 
-	std::cout << "Sto qua\n";
+//	std::cout << "Sto qua\n";
 
 	try {
 		qCoarseMesh = parseIntList(lines, "qCoarseMesh");
 	}
-	catch (ParameterNotFound& e) {
-// Do nothing!
-	}
+	catch (ParameterNotFound& e) {} // Do nothing!
 
 	std::cout << qCoarseMesh[0] << "\n";
 };
