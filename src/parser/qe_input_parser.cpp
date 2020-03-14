@@ -51,74 +51,7 @@ Eigen::MatrixXd calcReciprocalCell(const Eigen::Matrix3d& directUnitCell)
 	return reciprocalCell;
 }
 
-
-//void q_gen(int nsc, Eigen::MatrixXd& qbid, const Eigen::MatrixXd& at_blk,
-//		const Eigen::MatrixXd& bg_blk, const Eigen::MatrixXd& bg)
-//{
-//	// generate list of qpoints (qbid) that are G-vectors of the supercell but
-//	// not of the bulk
-//
-//	const int nr1=4, nr2=4, nr3=4, nrm=(2*nr1+1)*(2*nr2+1)*(2*nr3+1);
-//
-//	int ii = 0;
-//	Eigen::MatrixXd qbd(3,nrm);
-//	Eigen::VectorXd qnorm(nrm), qwork(3);
-//	Eigen::VectorXi idum(nrm);
-//
-//	for ( int i1=-nr1; i1<=nr1; i1++ ) {
-//		for ( int i2=-nr2; i2<=nr2; i2++ ) {
-//			for ( int i3=-nr3; i3<=nr3; i3++ ) {
-//				ii += 1;
-//				for ( int j=0; j<3; j++ ) {
-//					qwork(j) = i1 * bg(j,1) + i2 * bg(j,2) + i3 * bg(j,3);
-//				}
-//				qnorm(ii) = (qwork * qwork).value();
-//
-//				for ( int j=0; j<3; j++ ) {
-//					qbd.col(ii) = qwork * at_blk;
-//				}
-//				idum(ii) = 1;
-//			}
-//		}
-//	}
-//
-//	double delta;
-//	bool lbho;
-//	for ( int i=0; i<nrm-1; i++ ) {
-//		if ( idum(i) == 1 ) {
-//			for ( int j=i+1; j<nrm; j++ ) {
-//				if ( idum(j) == 1 ) {
-//					lbho = true;
-//					for ( int k=0; k<3; k++ ) {
-//						delta = qbd(k,i) - qbd(k,j);
-//						lbho = lbho && (abs(round(delta)-delta)< 1.0e-7);
-//					}
-//					if ( lbho ) {
-//						if ( qnorm(i) > qnorm(j) ) {
-//							qbd.col(i) = qbd.col(j);
-//							qnorm(i) = qnorm(j);
-//						}
-//						idum(j) = 0;
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	int iq = 0;
-//	for ( int i = 0; i<nrm ; i++ ) {
-//		if ( idum(i) == 1 ) {
-//			iq += 1;
-//			qbid.col(iq) = bg_blk * qbd.col(i);
-//		}
-//	}
-//
-//	if ( iq != nsc ) {
-//		error("probably nr1,nr2,nr3 too small", iq);
-//	}
-//}
-
-Eigen::MatrixXd wsinit(int& nrws, const Eigen::Matrix3d& unitCell) {
+Eigen::MatrixXd wsinit(const Eigen::Matrix3d& unitCell) {
 	const int nx=2;
 	int index = 0;
 	const int nrwsx = 200;
@@ -141,7 +74,7 @@ Eigen::MatrixXd wsinit(int& nrws, const Eigen::Matrix3d& unitCell) {
 			}
 		}
 	}
-	nrws = index;
+	int nrws = index;
 
 	Eigen::MatrixXd result(3,nrws);
 	for ( int i=0; i<nrws; i++ ) {
@@ -150,7 +83,7 @@ Eigen::MatrixXd wsinit(int& nrws, const Eigen::Matrix3d& unitCell) {
 	return result;
 }
 
-double wsweight(const Eigen::VectorXd& r, const Eigen::MatrixXd& rws, int nrws) {
+double wsweight(const Eigen::VectorXd& r, const Eigen::MatrixXd& rws) {
 	//! wsweights assigns this weight:
 	//! - if a point is inside the Wigner-Seitz cell:    weight=1
 	//! - if a point is outside the WS cell:             weight=0
@@ -164,12 +97,12 @@ double wsweight(const Eigen::VectorXd& r, const Eigen::MatrixXd& rws, int nrws) 
 
 	// rws: contains the list of nearest neighbor atoms
 	// r: the position of the reference point
-	// nrws: number of nearest neighbors
+	// rws.cols(): number of nearest neighbors
 
 	int nreq = 1;
 	double rrt, ck;
 
-	for ( int ir=0; ir<nrws; ir++ ) {
+	for ( int ir=0; ir<rws.cols(); ir++ ) {
 		rrt = r.transpose() * rws.col(ir);
 		ck = rrt - (rws.col(ir).transpose() * rws.col(ir)).value() / 2.;
 		if ( ck > 1.0e-6 ) {
@@ -185,11 +118,11 @@ double wsweight(const Eigen::VectorXd& r, const Eigen::MatrixXd& rws, int nrws) 
 	return x;
 }
 
-void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
+void rigidBulk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 		Eigen::Tensor<std::complex<double>,4>& dyn, const Eigen::VectorXd& q,
-		const Eigen::MatrixXd& tau, const Eigen::MatrixXd& epsil,
-		const Eigen::Tensor<double,3>& zeu, const Eigen::MatrixXd& bg,
-		const double omega, const double alat, const bool loto_2d,
+		const Eigen::MatrixXd& tau, const Eigen::MatrixXd& dielectricMatrix,
+		const Eigen::Tensor<double,3>& bornCharges, const Eigen::MatrixXd& bg,
+		const double volumeUnitCell, const double alat, const bool loto_2d,
 		const int sign) {
 	// compute the rigid-ion (long-range) term for q
 	// The long-range term used here, to be added to or subtracted from the
@@ -204,11 +137,11 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 	//   real(DP) &
 	//        q(3),           &! q-vector
 	//        tau(3,numAtoms),     &! atomic positions
-	//        epsil(3,3),     &! dielectric constant tensor
-	//        zeu(3,3,numAtoms),   &! effective charges tensor
+	//        dielectricMatrix(3,3),     &! dielectric constant tensor
+	//        bornCharges(3,3,numAtoms),   &! effective charges tensor
 	//        !at(3,3),        &! direct     lattice basis vectors
 	//        bg(3,3),        &! reciprocal lattice basis vectors
-	//        omega,          &! unit cell volume
+	//        volumeUnitCell,          &! unit cell volume
 	//        alat,           &! cell dimension units
 	//        sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
 	//   logical :: loto_2d ! 2D LOTO correction
@@ -218,7 +151,7 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 	// very rough estimate: geg/4/alph > gmax = 14
 	// (exp (-14) = 10^-6)
 
-	double geg, gp2, r; //  <q+G| epsil | q+G>,  For 2d loto: gp2, r
+	double geg, gp2, r; //  <q+G| dielectricMatrix | q+G>,  For 2d loto: gp2, r
 	int nr1x, nr2x, nr3x;
 	Eigen::VectorXd zag(3), zbg(3), zcg(3), fnat(3);
 	Eigen::MatrixXd reff(2,2);
@@ -228,8 +161,6 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 	double gmax = 14.;
 	double alph = 1.;
 	geg = gmax * alph * 4.;
-
-	std::cout << omega << " " << zeu(0,0,0) << "\n";
 
 	// Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
 	// Only for dimensions where periodicity is present, e.g. if nr1=1
@@ -255,23 +186,23 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 				sqrt( bg.col(2).transpose() * bg.col(2) )) + 1;
 	}
 
-   if ( abs(sign) != 1. ) {
+	if ( abs(sign) != 1. ) {
 		error("wrong value for sign", 1);
-   }
+	}
 
 	if ( loto_2d ) {
-		fac = sign * e2 * 4. * pi / omega * 0.5 * alat / bg(3,3);
+		fac = sign * e2 * 4. * pi / volumeUnitCell * 0.5 * alat / bg(3,3);
 		reff.setZero();
 		for ( int i=0; i<2; i++ ) {
 			for ( int j=0; j<2; j++ ) {
-				reff(i,j) = epsil(i,j) * 0.5 * twoPi / bg(3,3); // (eps)*c/2 in 2pi/a units
+				reff(i,j) = dielectricMatrix(i,j) * 0.5 * twoPi / bg(3,3); // (eps)*c/2 in 2pi/a units
 			}
 		}
 		for ( int i=0; i<2; i++ ) {
 			reff(i,i) = reff(i,i) - 0.5 * twoPi / bg(3,3); // (-1)*c/2 in 2pi/a units
 		}
 	} else {
-		fac = sign * e2 * 4. * pi / omega;
+		fac = sign * e2 * 4. * pi / volumeUnitCell;
 	}
 
 	Eigen::VectorXd g(3);
@@ -292,7 +223,7 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 						r = r / gp2;
 					}
 				} else {
-					geg = (g.transpose() * epsil * g).value();
+					geg = (g.transpose() * dielectricMatrix * g).value();
 				}
 
 				if ( geg > 0. && geg / alph / 4. < gmax ) {
@@ -306,12 +237,12 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 					for ( int na=0; na<numAtoms; na++ ) {
 
 						for ( int i=0; i<3; i++ ) {
-							zag(i) = g(0) * zeu(na,0,i) + g(1) * zeu(na,1,i) + g(2) * zeu(na,2,i);
+							zag(i) = g(0) * bornCharges(na,0,i) + g(1) * bornCharges(na,1,i) + g(2) * bornCharges(na,2,i);
 							fnat(i) = 0.;
 							for ( int nb=0; nb<numAtoms; nb++ ) {
 								arg = ( (tau.row(na)-tau.row(nb)) * g ).value();
 								arg *= twoPi;
-								zcg(i) = g(0) * zeu(nb,0,i) + g(1) * zeu(nb,1,i) + g(2) * zeu(nb,2,i);
+								zcg(i) = g(0) * bornCharges(nb,0,i) + g(1) * bornCharges(nb,1,i) + g(2) * bornCharges(nb,2,i);
 								fnat(i) += zcg(i) * cos(arg);
 							}
 						}
@@ -331,12 +262,11 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 					r = 0.;
 					gp2 = g(0)*g(0) + g(1)*g(1);
 					if ( gp2 > 1.0e-8) {
-						r = g(0) * reff(0,0)*g(0) + g(0) * reff(0,1)*g(1)
-													   + g(1) * reff(1,0)*g(0) + g(1) * reff(1,1)*g(1);
+						r = g(0) * reff(0,0)*g(0) + g(0) * reff(0,1)*g(1) + g(1) * reff(1,0)*g(0) + g(1) * reff(1,1)*g(1);
 						r = r / gp2;
 					}
 				} else {
-					geg = (g.transpose() * epsil * g).value();
+					geg = (g.transpose() * dielectricMatrix * g).value();
 				}
 
 				if ( geg > 0. && geg / alph / 4. < gmax ) {
@@ -349,11 +279,11 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 
 					for ( int nb=0; nb<numAtoms; nb++ ) {
 						for ( int i=0; i<3; i++ ) {
-							zbg(i) = g(0) * zeu(nb,0,i) + g(1) * zeu(nb,1,i) + g(2) * zeu(nb,2,i);
+							zbg(i) = g(0) * bornCharges(nb,0,i) + g(1) * bornCharges(nb,1,i) + g(2) * bornCharges(nb,2,i);
 						}
 						for ( int na=0; na<numAtoms; na++ ) {
 							for ( int i=0; i<3; i++ ) {
-								zag(i) = g(0) * zeu(na,0,i) + g(1) * zeu(na,1,i) + g(2) * zeu(na,2,i);
+								zag(i) = g(0) * bornCharges(na,0,i) + g(1) * bornCharges(na,1,i) + g(2) * bornCharges(na,2,i);
 							}
 							arg = ( (tau.row(na)-tau.row(nb)) * g ).value();
 							arg *= twoPi;
@@ -372,26 +302,24 @@ void rgd_blk(const int nr1, const int nr2, const int nr3, const int numAtoms,
 	}
 }
 
-void nonanal(const int numAtoms, const Eigen::VectorXi& itau_blk,
-		const Eigen::MatrixXd& epsil, const Eigen::VectorXd& q,
-		const Eigen::Tensor<double,3>& zeu,
-		const double& omega,
+void nonAnal(const int numAtoms, const Eigen::VectorXi& atomicSpecies,
+		const Eigen::MatrixXd& dielectricMatrix, const Eigen::VectorXd& q,
+		const Eigen::Tensor<double,3>& bornCharges,
+		const double& volumeUnitCell,
 		Eigen::Tensor<std::complex<double>,4>& dyn ) {
-	// add the nonanalytical term with macroscopic electric fields
+	// add the nonAnalytical term with macroscopic electric fields
 	// numAtoms: number of atoms in the cell (in the supercell in the case
 	//       of a dyn.mat. constructed in the mass approximation)
-	// nat_blk: number of atoms in the original cell (the same as nat if
-	//       we are not using the mass approximation to build a supercell)
-	// itau_blk(na): atom in the original cell corresponding to
+	// atomicSpecies(na): atom in the original cell corresponding to
 	//                atom na in the supercell
 	// dyn(3,3,numAtoms,numAtoms) ! dynamical matrix
 	// q(3), & ! polarization vector
-	// epsil(3,3),              & ! dielectric constant tensor
-	// zeu(3,3,nat_blk),        & ! effective charges tensor
-	// omega                      ! unit cell volume
+	// dielectricMatrix(3,3),              & ! dielectric constant tensor
+	// bornCharges(3,3,numAtoms),        & ! effective charges tensor
+	// volumeUnitCell                      ! unit cell volume
 
-	double qeq = (q.transpose() * epsil * q).value();
-	if ( qeq < 1.d-8 ) {
+	double qeq = (q.transpose() * dielectricMatrix * q).value();
+	if ( qeq < 1.e-8 ) {
 		warning("A direction for q was not specified: "
 				"TO-LO splitting will be absent");
 		return;
@@ -399,32 +327,32 @@ void nonanal(const int numAtoms, const Eigen::VectorXi& itau_blk,
 
 	Eigen::VectorXd zag(3), zbg(3);
 
-	int na_blk, nb_blk;
+	int iType, jType;
 
-	for ( int na=0; na<numAtoms; na++ ) {
-		na_blk = itau_blk(na);
-		for ( int nb=0; nb<numAtoms; nb++ ) {
-			nb_blk = itau_blk(nb);
+	for ( int it=0; it<numAtoms; it++ ) {
+		iType = atomicSpecies(it);
+		for ( int jt=0; jt<numAtoms; jt++ ) {
+			jType = atomicSpecies(jt);
 
 			for ( int i=0; i<3; i++ ) {
-				zag(i) = q(0)*zeu(na_blk,0,i) +  q(1)*zeu(na_blk,1,i) +
-						q(2)*zeu(na_blk,2,i);
-				zbg(i) = q(0)*zeu(nb_blk,0,i) +  q(1)*zeu(nb_blk,1,i) +
-						q(2)*zeu(nb_blk,2,i);
+				zag(i) = q(0)*bornCharges(iType,0,i) +  q(1)*bornCharges(iType,1,i) +
+						q(2)*bornCharges(iType,2,i);
+				zbg(i) = q(0)*bornCharges(jType,0,i) +  q(1)*bornCharges(jType,1,i) +
+						q(2)*bornCharges(jType,2,i);
 			}
 
 			for ( int i=0; i<3; i++ ) {
 				for ( int j=0; j<3; j++ ) {
-					dyn(i,j,na,nb) += 4. * pi * e2 * zag(i) * zbg(j) / qeq / omega;
+					dyn(i,j,it,jt) += 4. * pi * e2 * zag(i) * zbg(j) / qeq / volumeUnitCell;
 				}
 			}
 		}
 	}
 }
 
-void nonanal_ifc(const int numAtoms, const Eigen::VectorXi& itau_blk,
-		const Eigen::MatrixXd& epsil, const Eigen::VectorXd& q,
-		const Eigen::Tensor<double,3>& zeu, const double omega,
+void nonAnalIFC(const int numAtoms, const Eigen::VectorXi& atomicSpecies,
+		const Eigen::MatrixXd& dielectricMatrix, const Eigen::VectorXd& q,
+		const Eigen::Tensor<double,3>& bornCharges, const double volumeUnitCell,
 		const int nr1, const int nr2, const int nr3,
 		Eigen::Tensor<std::complex<double>, 4>& f_of_q)
 {
@@ -432,16 +360,14 @@ void nonanal_ifc(const int numAtoms, const Eigen::VectorXi& itau_blk,
 
 	// !  numAtoms: number of atoms in the cell (in the supercell in the case
 	// !       of a dyn.mat. constructed in the mass approximation)
-	// !  nat_blk: number of atoms in the original cell (the same as numAtoms if
-	// !       we are not using the mass approximation to build a supercell)
-	// !  itau_blk(na): atom in the original cell corresponding to
+	// !  atomicSpecies(na): atom in the original cell corresponding to
 	// !                atom na in the supercell
 
 	//	complex(DP), intent(inout) :: dyn(3,3,numAtoms,numAtoms),f_of_q(3,3,numAtoms,numAtoms) ! dynamical matrix
 	// real(DP), intent(in) :: q(3),  &! polarization vector
-	//      &       epsil(3,3),     &! dielectric constant tensor
-	//      &       zeu(3,3,nat_blk),   &! effective charges tensor
-	//      &       omega            ! unit cell volume
+	//      &       dielectricMatrix(3,3),     &! dielectric constant tensor
+	//      &       bornCharges(3,3,numAtoms),   &! effective charges tensor
+	//      &       volumeUnitCell            ! unit cell volume
 
 	Eigen::VectorXd zag(3), zbg(3); // eff. charges  times g-vector
 
@@ -449,7 +375,7 @@ void nonanal_ifc(const int numAtoms, const Eigen::VectorXi& itau_blk,
 		return;
 	}
 
-	double qeq = q.transpose() * epsil * q;
+	double qeq = q.transpose() * dielectricMatrix * q;
 
 	if ( qeq < 1.0e-8 ) {
 		return;
@@ -458,19 +384,19 @@ void nonanal_ifc(const int numAtoms, const Eigen::VectorXi& itau_blk,
 	int na_blk, nb_blk;
 
 	for ( int na=0; na<numAtoms; na++ ) {
-		na_blk = itau_blk(na);
+		na_blk = atomicSpecies(na);
 		for ( int nb=0; nb<numAtoms; nb++ ) {
-			nb_blk = itau_blk(nb);
+			nb_blk = atomicSpecies(nb);
 			for ( int i=0; i<3; i++ ) {
-				zag(i) = q(0)*zeu(na_blk,0,i) +  q(1)*zeu(na_blk,1,i) +
-						q(2)*zeu(na_blk,2,i);
-				zbg(i) = q(0)*zeu(nb_blk,0,i) +  q(1)*zeu(nb_blk,1,i) +
-						q(2)*zeu(nb_blk,2,i);
+				zag(i) = q(0)*bornCharges(na_blk,0,i) +  q(1)*bornCharges(na_blk,1,i) +
+						q(2)*bornCharges(na_blk,2,i);
+				zbg(i) = q(0)*bornCharges(nb_blk,0,i) +  q(1)*bornCharges(nb_blk,1,i) +
+						q(2)*bornCharges(nb_blk,2,i);
 			}
 			for ( int i=0; i<3; i++ ) {
 				for ( int j=0; j<3; j++ ) {
 					f_of_q(i,j,na,nb) = 4. * pi * e2 * zag(i) * zbg(j) / qeq
-							/ omega / (nr1*nr2*nr3);
+							/ volumeUnitCell / (nr1*nr2*nr3);
 				}
 			}
 		}
@@ -479,8 +405,8 @@ void nonanal_ifc(const int numAtoms, const Eigen::VectorXi& itau_blk,
 
 void frc_blk(Eigen::Tensor<std::complex<double>, 4>& dyn, const Eigen::VectorXd& q,
 		const Eigen::MatrixXd& tau, int numAtoms, int nr1, int nr2, int nr3,
-		const Eigen::Tensor<double, 7>& frc, const Eigen::MatrixXd& at,
-		const Eigen::MatrixXd& rws, const int nrws,
+		const Eigen::Tensor<double, 7>& forceConstants, const Eigen::MatrixXd& at,
+		const Eigen::MatrixXd& rws,
 		Eigen::Tensor<std::complex<double>, 4>& f_of_q, const bool frozenPhonon)
 {
 	// calculates the dynamical matrix at q from the (short-range part of the)
@@ -521,10 +447,10 @@ void frc_blk(Eigen::Tensor<std::complex<double>, 4>& dyn, const Eigen::VectorXd&
 								}
 							}
 
-							x = wsweight(r_ws, rws, nrws);
+							x = wsweight(r_ws, rws);
 
 							wscache(n3ForCache, n2ForCache, n1ForCache, nb, na)
-								= x;
+							= x;
 							total_weight += x;
 						}
 					}
@@ -579,7 +505,7 @@ void frc_blk(Eigen::Tensor<std::complex<double>, 4>& dyn, const Eigen::VectorXd&
 							for ( int ipol=0; ipol<3; ipol++ ) {
 								for ( int jpol=0; jpol<3; jpol++ ) {
 									dyn(ipol,jpol,na,nb) +=
-											(frc(m1,m2,m3,ipol,jpol,na,nb) +
+											(forceConstants(m1,m2,m3,ipol,jpol,na,nb) +
 													f_of_q(ipol,jpol,na,nb)) *
 													phase * weight;
 								}
@@ -593,85 +519,37 @@ void frc_blk(Eigen::Tensor<std::complex<double>, 4>& dyn, const Eigen::VectorXd&
 	}
 }
 
-void setupmat(const Eigen::VectorXd& q,
+void setupMat(const Eigen::VectorXd& q,
 		Eigen::Tensor<std::complex<double>, 4>& dyn, const int numAtoms,
 		const Eigen::MatrixXd& bg,
 		const Eigen::MatrixXd& tau,
-		const Eigen::VectorXi& itau_blk, const int nsc,
-		Eigen::Tensor<std::complex<double>, 4>& dyn_blk,
-		const int nat_blk, const Eigen::MatrixXd& at_blk,
-		const Eigen::MatrixXd& bg_blk,
-		const Eigen::MatrixXd& tau_blk,
-		const double omega_blk,
+		const Eigen::MatrixXd& at,
+		const double volumeUnitCell,
 		const bool loto_2d,
-		const Eigen::MatrixXd& epsil,
-		const Eigen::Tensor<double,3>& zeu,
-		const Eigen::Tensor<double,7>& frc,
+		const Eigen::MatrixXd& dielectricMatrix,
+		const Eigen::Tensor<double,3>& bornCharges,
+		const Eigen::Tensor<double,7>& forceConstants,
 		const int nr1, const int nr2, const int nr3,
 		const bool has_zstar,
 		const Eigen::MatrixXd &rws,
-		const int nrws,
 		const bool na_ifc,
 		Eigen::Tensor<std::complex<double>, 4>& f_of_q,
 		const bool frozenPhonon,
-		const Eigen::VectorXd& celldm)
+		const double& alat)
 {
 	// compute the dynamical matrix (the analytic part only)
 
-//	Eigen::MatrixXd qbid(3,nsc);
-//	q_gen(nsc, qbid, at_blk, bg_blk, bg);
-
-//	Eigen::VectorXd qp(3), qp2(3);
-
-//	Eigen::VectorXcd cfac(numAtoms);
-//	double arg;
-
-//	int iatBulk, jatBulk;
-
-//	for ( int iq=0; iq<nsc; iq++ ) {
-//		qp = q + qbid.col(iq);
-
-//	std::cout << "entro setupmat\n";
-
 	// Set matrix to zero
-		dyn_blk.setZero();
+	dyn.setZero();
 
-		frc_blk(dyn_blk, q, tau_blk, nat_blk, nr1, nr2, nr3,
-				frc, at_blk, rws, nrws, f_of_q, frozenPhonon);
+	frc_blk(dyn, q, tau, numAtoms, nr1, nr2, nr3,
+			forceConstants, at, rws, f_of_q, frozenPhonon);
 
-		double x = 0.;
-		for (int iat = 0; iat<numAtoms; iat++) {
-			for (int jat = 0; jat<numAtoms; jat++) {
-				for (int ipol = 0; ipol<3; ipol++) {
-					for (int jpol = 0; jpol<3; jpol++) {
-						x += abs(dyn_blk(ipol,jpol,iat,jat)*dyn_blk(ipol,jpol,iat,jat));
-					}
-				}
-			}
-		}
-		std::cout << x << "!\n";
-		std::cout << has_zstar << " " << !na_ifc << "\n";
+	if ( has_zstar && !na_ifc ) {
+		rigidBulk(nr1, nr2, nr3, numAtoms, dyn, q, tau,
+				dielectricMatrix, bornCharges, bg, volumeUnitCell, alat, loto_2d, +1.);
+	}
 
-		if ( has_zstar && !na_ifc ) {
-			rgd_blk(nr1, nr2, nr3, nat_blk, dyn_blk, q, tau_blk,
-					epsil, zeu, bg_blk, omega_blk, celldm(1), loto_2d, +1.);
-		}
-
-		x = 0.;
-		for (int iat = 0; iat<numAtoms; iat++) {
-			for (int jat = 0; jat<numAtoms; jat++) {
-				for (int ipol = 0; ipol<3; ipol++) {
-					for (int jpol = 0; jpol<3; jpol++) {
-						x += abs(dyn_blk(ipol,jpol,iat,jat)*dyn_blk(ipol,jpol,iat,jat));
-					}
-				}
-			}
-		}
-		std::cout << x << "!!\n";
-
-//		std::cout << "esco setupmat\n";
-
-//	} // iq
 }
 
 void dyndiag(const int numAtoms,
@@ -681,12 +559,10 @@ void dyndiag(const int numAtoms,
 		Eigen::VectorXd& w2, Eigen::Tensor<std::complex<double>,3>& z)
 {
 	// diagonalise the dynamical matrix
-	// On input:  amass = masses, in amu
+	// On input:  speciesMasses = masses, in amu
 	// On output: w2 = energies, z = displacements
 
 	// fill the two-indices dynamical matrix
-
-	std::cout << "entro dyndiag\n";
 
 	int nat3 = 3 * numAtoms;
 	int iType, jType;
@@ -694,19 +570,15 @@ void dyndiag(const int numAtoms,
 	Eigen::MatrixXcd dyn2Tmp(nat3, nat3);
 	Eigen::MatrixXcd dyn2(nat3, nat3);
 
-	double x = 0.;
-
 	for (int iat = 0; iat<numAtoms; iat++) {
 		for (int jat = 0; jat<numAtoms; jat++) {
 			for (int ipol = 0; ipol<3; ipol++) {
 				for (int jpol = 0; jpol<3; jpol++) {
 					dyn2Tmp(iat*3 + ipol, jat*3 + jpol) = dyn(ipol,jpol,iat,jat);
-					x += abs(dyn(ipol,jpol,iat,jat)*dyn(ipol,jpol,iat,jat));
 				}
 			}
 		}
 	}
-	std::cout << x << "\n";
 
 	// impose hermiticity
 
@@ -746,7 +618,7 @@ void dyndiag(const int numAtoms,
 
 	Eigen::MatrixXcd zTemp = eigensolver.eigenvectors();
 
-	//  displacements are eigenvectors divided by sqrt(amass)
+	//  displacements are eigenvectors divided by sqrt(speciesMasses)
 
 	for ( int iband=0; iband<nat3; iband++ ) {
 		for ( int iat=0; iat<numAtoms; iat++ ) {
@@ -756,8 +628,6 @@ void dyndiag(const int numAtoms,
 			}
 		}
 	}
-	std::cout << "esco dyndiag\n";
-
 };
 
 
@@ -806,51 +676,6 @@ void cryst_to_cart(Eigen::VectorXd& vec, const Eigen::MatrixXd& trmat,
 	}
 }
 
-//void set_tau (nat, nat_blk, at, at_blk, tau, tau_blk, &
-//		ityp, ityp_blk, itau_blk)
-//{
-//	const int NN1=8, NN2=8, NN3=8;
-//	const double small=1.e-8;
-//	Eigen::VectorXd r(3);
-//
-//	int na = 0;
-//
-//	for ( int i1=-NN1; i1<=NN1; i1++ ) {
-//		for ( int i2=-NN2; i2<=NN2; i2++ ) {
-//			for ( int i3=-NN3; i3<=NN3; i3++ ) {
-//				r(0) = i1*at_blk(0,0) + i2*at_blk(0,1) + i3*at_blk(0,2)
-//				r(1) = i1*at_blk(1,0) + i2*at_blk(1,1) + i3*at_blk(1,2)
-//				r(2) = i1*at_blk(2,0) + i2*at_blk(2,1) + i3*at_blk(2,2)
-//				cryst_to_cart(r, bg, -1);
-//
-//				if ( r(0) > -small && r(0) < 1.-small &&
-//						r(1) > -small && r(1) < 1.-small &&
-//						r(2) > -small && r(2) < 1.-small ) {
-//					cryst_to_cart(r, at, +1);
-//
-//					for ( int na_blk=0; na_blk<nat_blk; na_blk++ )
-//					{
-//						na += 1;
-//						if ( na > nat ) {
-//							errore("too many atoms",1);
-//						}
-//						tau.col(na) = tau_blk.col(na_blk) + r;
-//						ityp(na) = ityp_blk(na_blk);
-//						itau_blk(na) = na_blk;
-//					}
-//
-//				}
-//			}
-//		}
-//	}
-//
-//	if ( na != numAtoms )
-//	{
-//		errore("too few atoms: increase NNs",1);
-//	}
-//}
-
-
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
 	//  !     sets up the crystallographic vectors a1, a2, and a3.
@@ -872,7 +697,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 	//  !      91  1-face (A) centered orthorombic
 	//  !
 	//  !     celldm are parameters which fix the shape of the unit cell
-	//  !     omega is the unit-cell volume
+	//  !     volumeUnitCell is the unit-cell volume
 	//  !
 	//  !     NOTA BENE: all axis sets are right-handed
 	//  !     Boxes for US PPs do not work properly with left-handed axis
@@ -1185,33 +1010,27 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 }
 
 void diagonalize(const Eigen::VectorXd& q, const int numAtoms,
-		const int nat_blk,
-		const Eigen::MatrixXd& epsil,
-		const Eigen::Tensor<double, 3>& zeu, const bool na_ifc,
-		const Eigen::MatrixXi& itau_blk, // atomic types for each atom of the original cell
-		const double omega, const double omega_blk,
+		const Eigen::MatrixXd& dielectricMatrix,
+		const Eigen::Tensor<double, 3>& bornCharges, const bool na_ifc,
+		const Eigen::MatrixXi& atomicSpecies, // atomic types for each atom of the original cell
+		const double volumeUnitCell,
 		const int nr1, const int nr2, const int nr3,
 		const Eigen::MatrixXd& at, const Eigen::MatrixXd& bg,
-		const Eigen::MatrixXd& at_blk, const Eigen::MatrixXd& bg_blk,
 		const bool loto_2d,
 		const Eigen::MatrixXd& tau,
-		const Eigen::MatrixXd& tau_blk,
-		const int nsc,
-		const int nrws,
-		const Eigen::Tensor<double, 7> frc,
+		const Eigen::Tensor<double, 7> forceConstants,
 		const bool has_zstar,
-		const Eigen::VectorXd celldm,
+		const double& alat,
 		const Eigen::MatrixXd& rws,
 		const bool frozenPhonon,
-		const Eigen::VectorXi ityp,
-		const Eigen::VectorXd amass
+		const Eigen::VectorXd speciesMasses
 )
 // to be executed at every q-point, to get phonon frequencies and wavevectors
 {
 	Eigen::Tensor<std::complex<double>, 4> dyn(3,3,numAtoms,numAtoms);
 	dyn.setZero();
-//	Eigen::Tensor<std::complex<double>, 4> dyn_blk(3,3,numAtoms,numAtoms);
-//	dyn_blk.setZero();
+	//	Eigen::Tensor<std::complex<double>, 4> dyn_blk(3,3,numAtoms,numAtoms);
+	//	dyn_blk.setZero();
 
 	Eigen::Tensor<std::complex<double>,4> f_of_q(3,3,numAtoms,numAtoms);
 	f_of_q.setZero();
@@ -1227,55 +1046,38 @@ void diagonalize(const Eigen::VectorXd& q, const int numAtoms,
 
 		qhat = q / qq;
 
-		nonanal_ifc(numAtoms, itau_blk, epsil, qhat, zeu, omega,
+		nonAnalIFC(numAtoms, atomicSpecies, dielectricMatrix, qhat, bornCharges, volumeUnitCell,
 				nr1, nr2, nr3, f_of_q);
 	}
 
-	setupmat(q, dyn, numAtoms, bg, tau, itau_blk, nsc, dyn,
-			nat_blk, at_blk, bg_blk, tau_blk, omega_blk, loto_2d, epsil, zeu,
-			frc, nr1,nr2,nr3, has_zstar, rws, nrws, na_ifc, f_of_q,
-			frozenPhonon, celldm);
-
-	std::cout << "!-2" << dyn.sum() << "\n";
-
-	double x = 0.;
-	for (int iat = 0; iat<numAtoms; iat++) {
-		for (int jat = 0; jat<numAtoms; jat++) {
-			for (int ipol = 0; ipol<3; ipol++) {
-				for (int jpol = 0; jpol<3; jpol++) {
-					x += abs(dyn(ipol,jpol,iat,jat)*dyn(ipol,jpol,iat,jat));
-				}
-			}
-		}
-	}
-	std::cout << x << "\n";
-
+	setupMat(q, dyn, numAtoms, bg, tau,
+			at, volumeUnitCell, loto_2d, dielectricMatrix, bornCharges,
+			forceConstants, nr1,nr2,nr3, has_zstar, rws, na_ifc, f_of_q,
+			frozenPhonon, alat);
 
 	if ( !loto_2d && na_ifc ) {
 		qhat = q.transpose() * at;
 		if ( abs( qhat(0) - round(qhat(0) ) ) <= 1.0e-6 &&
-			 abs( qhat(1) - round(qhat(1) ) ) <= 1.0e-6 &&
-			 abs( qhat(2) - round(qhat(2) ) ) <= 1.0e-6 ) {
+				abs( qhat(1) - round(qhat(1) ) ) <= 1.0e-6 &&
+				abs( qhat(2) - round(qhat(2) ) ) <= 1.0e-6 ) {
 			// q = 0 : we need the direction q => 0 for the non-analytic part
 
 			qq = sqrt( ( qhat.transpose()*qhat ).value() );
 			if (qq != 0. ) {
 				qhat /= qq;
 			}
-			nonanal(numAtoms, itau_blk, epsil, qhat, zeu, omega, dyn);
+			nonAnal(numAtoms, atomicSpecies, dielectricMatrix, qhat, bornCharges, volumeUnitCell, dyn);
 		}
 	}
-
-	std::cout << "!-1" << dyn.sum() << "\n";
 
 	Eigen::VectorXd w2(numAtoms*3);
 	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
 
-	dyndiag(numAtoms, amass, ityp, dyn, w2, z);
+	dyndiag(numAtoms, speciesMasses, atomicSpecies, dyn, w2, z);
 }
 
 std::vector<std::string> split(const std::string& s, char delimiter)
-						{
+										{
 	std::vector<std::string> tokens;
 	std::string token;
 	std::istringstream tokenStream(s);
@@ -1293,7 +1095,7 @@ std::vector<std::string> split(const std::string& s, char delimiter)
 	}
 
 	return tokens;
-						}
+										}
 
 void QEParser::parsePhHarmonic(std::string fileName) {
 	//  Here we read the dynamical matrix of interatomic force constants
@@ -1305,12 +1107,6 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	// open input file
 	std::ifstream infile(fileName);
-
-	//    this would read all content
-	//	std::vector<std::string> lines;
-	//	while (std::getline(infile, line)) {
-	//		lines.push_back(line);
-	//	}
 
 	//  First line contains ibrav, celldm and other variables
 
@@ -1454,59 +1250,45 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	// Now we do postprocessing
 
-	double volume = calcVolume(directUnitCell, alat);
+	double volumeUnitCell = calcVolume(directUnitCell, alat);
 	Eigen::Matrix3d reciprocalUnitCell = calcReciprocalCell(directUnitCell);
-
-	std::cout << "volume: " << volume << "\n";
 
 	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
 		error("qCoarseGrid smaller than zero", 1);
 	}
 
 
-//	Now, let's try to diagonalize some points, and start debugging at q=0
+	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
 	Eigen::VectorXd q(3);
 	q << 0., 0., 0.2;
 
 	bool na_ifc = false;
 	bool loto_2d = false;
-	int nsc = 1;
 	bool frozenPhonon = false;
 
-//	bool has_zstar=false;  <- hasDielectric
+	//	bool has_zstar=false;  <- hasDielectric
 
 	Eigen::Matrix3d directUnitCellSup(3,3);
 	directUnitCellSup.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
 	directUnitCellSup.col(1) = directUnitCell.col(1) * qCoarseGrid(1);
 	directUnitCellSup.col(2) = directUnitCell.col(2) * qCoarseGrid(2);
 
-	int nrws;
-	Eigen::MatrixXd rws = wsinit(nrws, directUnitCellSup);
+	Eigen::MatrixXd rws = wsinit(directUnitCellSup);
 
-	Eigen::VectorXi itauBlk(numAtoms);
-	for ( int i=0; i<numAtoms; i++) {
-		itauBlk(i) = i;
-	}
-
-	diagonalize(q, numAtoms, numAtoms, dielectricMatrix,
+	diagonalize(q, numAtoms, dielectricMatrix,
 			bornCharges, na_ifc,
-			itauBlk,
-			volume, volume,
+			atomicSpecies,
+			volumeUnitCell,
 			qCoarseGrid(0), qCoarseGrid(1), qCoarseGrid(2),
-			directUnitCell, reciprocalUnitCell,
 			directUnitCell, reciprocalUnitCell,
 			loto_2d,
 			atomicPositions,
-			atomicPositions,
-			nsc,
-			nrws,
 			forceConstants,
 			hasDielectric,
-			celldm,
+			alat,
 			rws,
 			frozenPhonon,
-			atomicSpecies,
 			speciesMasses);
 
 	return;
