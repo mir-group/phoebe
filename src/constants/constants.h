@@ -36,6 +36,7 @@ const double kBoltzmannRy   = kBoltzmannSi / rydbergSi;
 const double electronMassSi = 9.10938215e-31; // in Kg
 const double amuSi          = 1.660538782e-27; // in Kg
 
+const double e2 = 2.;
 
 //
 // conversion
@@ -47,8 +48,13 @@ const double distanceRyToSi = bohrRadiusSi;
 const double timeRyToFs = timeRy * 1e15 * twoPi;
 const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
 const double distanceRyToAng = bohrRadiusSi / distanceAngToSi;
-const double ryToCmm1 = 0.01 / ( hPlanckSi / electronVoltSi * speedLightSi );
-const double massRyToAmu = amuSi / electronMassSi / 2.;
+const double massAmuToRy = amuSi / electronMassSi / 2.;
+const double massRyToAmu = 1. / massAmuToRy;
+
+const double TeraHertzAu = hPlanckSi / twoPi / hartreeSi * 1.0e+12;
+
+const double ryToTHz = 1. / TeraHertzAu / 2. / twoPi;
+const double ryToCmm1 = 1.0e10 * ryToTHz / speedLightSi;
 //
 // units for transport coefficients
 //
