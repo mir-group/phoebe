@@ -1,6 +1,7 @@
 #include <complex>
 #include <math.h>
-using namespace std;
+
+//using namespace std;
 
 //namespace constants {
 //
@@ -11,9 +12,9 @@ const double twoPi = 2. * pi;
 const double fourPi = 2. * pi;
 const double one = 1.;
 const double zero = 0.;
-const complex <double> complexZero (0.,0.);
-const complex <double> complexOne (1.,0.);
-const complex <double> complexI (0.,1.);
+const std::complex<double> complexZero={0.,0.};
+const std::complex<double> complexOne={1.,0.};
+const std::complex<double> complexI={0.,1.};
 //
 // small numbers
 //

@@ -1,5 +1,3 @@
-#include "qe_input_parser.h"
-#include "constants.h"
 #include <math.h> // round()
 #include <string>
 #include <vector>
@@ -8,30 +6,15 @@
 #include <iomanip>  // to declare istringstream
 #include <algorithm> // to use .remove_if
 #include <stdlib.h> // abs()
-
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Eigenvalues>
 #include <Eigen/Core>
-#include <assert.h>
+
 #include "phononH0.h"
-
-struct FileFormatNotRecognized : public std::exception {
-	const char * what () const throw () {
-		return "Error reading the file input parameter";
-	}
-};
-
-void error(std::string errMessage, int errCode) {
-	if ( errCode != 0 ) {
-		std::cout << errMessage << std::endl;
-		assert(errCode != 0);
-	}
-}
-
-void warning(std::string errMessage) {
-	std::cout << errMessage;
-}
+#include "qe_input_parser.h"
+#include "constants.h"
+#include "exceptions.h"
 
 double calcVolume(const Eigen::Matrix3d& directUnitCell, const double alat)
 {
@@ -538,7 +521,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 						for ( int r2=0; r2<qCoarseGrid[1]; r2++ ) {
 							for ( int r1=0; r1<qCoarseGrid[0]; r1++ ) {
 								std::getline(infile, line);
-								istringstream iss(line);
+								std::istringstream iss(line);
 								iss >> m1Test >> m2Test >> m3Test >> x;
 								forceConstants(r1, r2, r3, ic, jc, iat, jat) = x;
 							}
