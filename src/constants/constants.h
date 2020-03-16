@@ -8,6 +8,7 @@ using namespace std;
 //
 const double pi = 3.14159265358979323846;
 const double twoPi = 2. * pi;
+const double fourPi = 2. * pi;
 const double one = 1.;
 const double zero = 0.;
 const complex <double> complexZero (0.,0.);

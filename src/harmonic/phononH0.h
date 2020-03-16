@@ -1,0 +1,66 @@
+#include <Eigen/Dense>
+#include <unsupported/Eigen/CXX11/Tensor>
+#include <Eigen/Eigenvalues>
+#include <Eigen/Core>
+#include <math.h>
+
+class PhononH0 {
+public:
+	void setup(const Eigen::MatrixXd& directUnitCell_,
+			const Eigen::MatrixXd& reciprocalUnitCell_,
+			const double& latticeParameter_,
+			const double& volumeUnitCell_,
+			const Eigen::MatrixXi& atomicSpecies_,
+			const Eigen::VectorXd& speciesMasses_,
+			const Eigen::MatrixXd& atomicPositions_,
+			const Eigen::MatrixXd& dielectricMatrix_,
+			const Eigen::Tensor<double, 3>& bornCharges_,
+			Eigen::VectorXi& qCoarseGrid_,
+			const Eigen::Tensor<double, 7> forceConstants_);
+
+	void diagonalize(const Eigen::VectorXd& q, Eigen::VectorXd& energies,
+			Eigen::Tensor<std::complex<double>,3>& eigenvectors);
+
+	// void set_asr(const std::string sumRule);
+
+private:
+
+	// internal variables
+	Eigen::MatrixXd rws; // list of nearest neighbors positions
+	bool na_ifc;
+	bool loto_2d;
+	bool frozenPhonon;
+	bool hasDielectric;
+	int numAtoms;
+	int numBands;
+	Eigen::MatrixXd directUnitCell;
+	Eigen::MatrixXd reciprocalUnitCell;
+	double latticeParameter;
+	double volumeUnitCell;
+	Eigen::MatrixXi atomicSpecies;
+	Eigen::VectorXd speciesMasses;
+	Eigen::MatrixXd atomicPositions;
+	Eigen::MatrixXd dielectricMatrix;
+	Eigen::Tensor<double,3> bornCharges;
+	Eigen::VectorXi qCoarseGrid;
+	Eigen::Tensor<double,7> forceConstants;
+
+	// priivate methods, used to diagonalize the Dyn matrix
+	Eigen::MatrixXd wsinit(const Eigen::Matrix3d& unitCell);
+	double wsweight(const Eigen::VectorXd& r,
+			const Eigen::MatrixXd& rws);
+	void longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
+			const Eigen::VectorXd& q,
+			const int sign);
+	void nonAnaliticTerm(const Eigen::VectorXd& q,
+			Eigen::Tensor<std::complex<double>,4>& dyn);
+	void nonAnalIFC(const Eigen::VectorXd& q,
+			Eigen::Tensor<std::complex<double>, 4>& f_of_q);
+	void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
+			const Eigen::VectorXd& q,
+			Eigen::Tensor<std::complex<double>, 4>& f_of_q);
+	void dyndiag(Eigen::Tensor<std::complex<double>,4>& dyn,
+			Eigen::VectorXd& energies,
+			Eigen::Tensor<std::complex<double>,3>& z);
+
+};
