@@ -1,7 +1,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
-#include <vector>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 using namespace std;
 
@@ -23,7 +23,7 @@ class IFC3Parser {
    *  of unitcells.
    */
   void parseIFC3(string fileName, string format, int numTriplets, \
-		 vector<vector<vector<vector<double>>>> &ifc3Tensor, \
-		 vector<vector<vector<double>>> &cellPositions,\
-		 vector<vector<int>> &displacedAtoms);
+		 Eigen::Tensor<double,4> &ifc3Tensor, \
+		 Eigen::Tensor<double,3> &cellPositions,\
+		 Eigen::Tensor<int,2> &displacedAtoms);
 };
