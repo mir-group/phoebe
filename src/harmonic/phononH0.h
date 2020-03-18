@@ -24,7 +24,6 @@ public:
 //private:
 
 	// internal variables
-	Eigen::MatrixXd rws; // list of nearest neighbors positions
 	bool na_ifc;
 	bool loto_2d;
 	bool frozenPhonon;
@@ -42,9 +41,11 @@ public:
 	Eigen::Tensor<double,3> bornCharges;
 	Eigen::VectorXi qCoarseGrid;
 	Eigen::Tensor<double,7> forceConstants;
+	Eigen::Tensor<double, 5> wscache;
+	int nr1Big, nr2Big, nr3Big;
 
 	// private methods, used to diagonalize the Dyn matrix
-	Eigen::MatrixXd wsinit(const Eigen::Matrix3d& unitCell);
+	void wsinit(const Eigen::MatrixXd& unitCell);
 	double wsweight(const Eigen::VectorXd& r,
 			const Eigen::MatrixXd& rws);
 	void longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,

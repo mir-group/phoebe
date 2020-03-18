@@ -11,10 +11,10 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/Core>
 
-#include "phononH0.h"
-#include "qe_input_parser.h"
 #include "constants.h"
 #include "exceptions.h"
+#include "qe_input_parser.h"
+#include "phononH0.h"
 
 double calcVolume(const Eigen::Matrix3d& directUnitCell, const double alat)
 {
@@ -74,7 +74,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 	if ( ibrav == 0 ) {
 		if ( sqrt( a1.transpose()*a1 ) == 0 || sqrt( a2.transpose()*a2 ) == 0
 				|| sqrt( a3.transpose()*a3 ) == 0 ) {
-			error("wrong at for ibrav=0", 1);
+			Error e("wrong at for ibrav=0", 1);
 		}
 		if ( celldm(0) != 0. ) {
 			// ... input at are in units of alat => convert them to a.u.
@@ -90,7 +90,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 	}
 
 	if ( celldm(0) <= 0. ) {
-		error("wrong celldm(1)", 1 );
+		Error e("wrong celldm(1)", 1 );
 	}
 
 	//  index of bravais lattice supplied
@@ -124,7 +124,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		}
 	} else if ( ibrav == 4 ) {// hexagonal lattice
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		double cbya  = celldm(2);
 		a1(1) = celldm(0);
@@ -134,7 +134,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 
 	} else if (abs(ibrav) == 5) { // trigonal lattice
 		if ( celldm(3) <= -0.5 || celldm(3) >= 1. ) {
-			error("wrong celldm(4)", abs(ibrav));
+			Error e("wrong celldm(4)", abs(ibrav));
 		}
 
 		double term1 = sqrt(1. + 2. * celldm(3) );
@@ -170,7 +170,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		}
 	} else if (ibrav == 6) { // tetragonal lattice
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", 6);
+			Error e("wrong celldm(3)", 6);
 		}
 		double cbya = celldm(2);
 		a1(0) = celldm(0);
@@ -179,7 +179,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 
 	} else if (ibrav == 7) { // body centered tetragonal lattice
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", 7);
+			Error e("wrong celldm(3)", 7);
 		}
 		double cbya = celldm(2);
 		a2(0) = celldm(0) / 2.;
@@ -193,21 +193,21 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = a2(2);
 	} else if ( ibrav == 8 ) { // Simple orthorhombic lattice
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. )
 		{
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		a1(0) = celldm(0);
 		a2(1) = celldm(0) * celldm(1);
 		a3(2) = celldm(0) * celldm(2);
 	} else if ( abs(ibrav) == 9) { // One face (base) centered orthorhombic lattice  (C type)
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", abs(ibrav));
+			Error e("wrong celldm(2)", abs(ibrav));
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", abs(ibrav));
+			Error e("wrong celldm(3)", abs(ibrav));
 		}
 		if ( ibrav == 9 ) {// old PWscf description
 			a1(0) = 0.5 * celldm(0);
@@ -223,10 +223,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = celldm(0) * celldm(2);
 	} else if ( ibrav == 91 ) { // One face(base)centered orthorhombic lattice (A type)
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		a1(0) = celldm(0);
 		a2(1) = celldm(0) * celldm(1) * 0.5;
@@ -235,10 +235,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = - a2(2);
 	} else if (ibrav == 10) {// All face centered orthorhombic lattice
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		a2(0) = 0.5 * celldm(0);
 		a2(1) = a2(0) * celldm(1);
@@ -248,10 +248,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = a1(2);
 	} else if (ibrav == 11) { // Body centered orthorhombic lattice
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		a1(0) = 0.5 * celldm(0);
 		a1(1) = a1(0) * celldm(1);
@@ -264,13 +264,13 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = a1(2);
 	} else if (ibrav == 12) { // Simple monoclinic lattice, unique (i.e. orthogonal to a) axis: c
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		if ( abs(celldm(3)) >= 1. ) {
-			error("wrong celldm(4)", ibrav);
+			Error e("wrong celldm(4)", ibrav);
 		}
 		double sen = sqrt( 1. - celldm(3)*celldm(3) );
 		a1(0) = celldm(0);
@@ -279,13 +279,13 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = celldm(0) * celldm(2);
 	} else if ( ibrav == - 12 ) { // Simple monoclinic lattice, unique axis: b (more common)
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)",-ibrav);
+			Error e("wrong celldm(2)",-ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)",-ibrav);
+			Error e("wrong celldm(3)",-ibrav);
 		}
 		if ( abs(celldm(4))>=1. ) {
-			error("wrong celldm(5)",-ibrav);
+			Error e("wrong celldm(5)",-ibrav);
 		}
 		double sen = sqrt( 1. - celldm(4)*celldm(4) );
 		a1(0) = celldm(0);
@@ -294,13 +294,13 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = celldm(0) * celldm(2) * sen;
 	} else if ( ibrav == 13 ) { // One face centered monoclinic lattice unique axis c
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		if ( abs(celldm(3)) >= 1. ) {
-			error("wrong celldm(4)", ibrav);
+			Error e("wrong celldm(4)", ibrav);
 		}
 		double sen = sqrt( 1. - celldm(4)*celldm(4) );
 		a1(0) = 0.5 * celldm(0);
@@ -311,13 +311,13 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) =-a1(2);
 	} else if ( ibrav == -13 ) { // One face centered monoclinic lattice unique axis b
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", -ibrav);
+			Error e("wrong celldm(2)", -ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", -ibrav);
+			Error e("wrong celldm(3)", -ibrav);
 		}
 		if ( abs(celldm(4)) >= 1. ) {
-			error("wrong celldm(5)", -ibrav);
+			Error e("wrong celldm(5)", -ibrav);
 		}
 		double sen = sqrt( 1. - celldm(4)*celldm(4) );
 		a1(0) = 0.5 * celldm(0);
@@ -328,26 +328,26 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = celldm(0) * celldm(2) * sen;
 	} else if (ibrav == 14) { // Triclinic lattice
 		if ( celldm(1) <= 0. ) {
-			error("wrong celldm(2)", ibrav);
+			Error e("wrong celldm(2)", ibrav);
 		}
 		if ( celldm(2) <= 0. ) {
-			error("wrong celldm(3)", ibrav);
+			Error e("wrong celldm(3)", ibrav);
 		}
 		if ( abs(celldm(3)) >= 1. ) {
-			error("wrong celldm(4)", ibrav);
+			Error e("wrong celldm(4)", ibrav);
 		}
 		if ( abs(celldm(4)) >= 1. ) {
-			error("wrong celldm(5)", ibrav);
+			Error e("wrong celldm(5)", ibrav);
 		}
 		if ( abs(celldm(5)) >= 1. ) {
-			error("wrong celldm(6)", ibrav);
+			Error e("wrong celldm(6)", ibrav);
 		}
 		double singam = sqrt( 1. - celldm(5)*celldm(5) );
 		double term = ( 1. + 2. * celldm(3)*celldm(4)*celldm(5)
 				- celldm(3)*celldm(3) - celldm(4)*celldm(4) - celldm(5)*celldm(5));
 		if ( term < 0. )
 		{
-			error("celldm does not make sense, check your data", ibrav);
+			Error e("celldm does not make sense, check your data", ibrav);
 		}
 		term = sqrt( term / ( 1. - celldm(5)*celldm(5) ) );
 		a1(0) = celldm(0);
@@ -358,7 +358,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 		a3(2) = celldm(0) * celldm(2) * term;
 
 	} else {
-		error("nonexistent bravais lattice", ibrav);
+		Error e("nonexistent bravais lattice", ibrav);
 	}
 
 	if ( ibrav != 0 ) {
@@ -540,13 +540,13 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 	Eigen::Matrix3d reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 
 	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
-		error("qCoarseGrid smaller than zero", 1);
+		Error e("qCoarseGrid smaller than zero", 1);
 	}
 
 	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
 	Eigen::VectorXd q(3);
-	q << 0., 0., 0.2;
+	q << 0., 0., 0.;
 
 	PhononH0 dynamicalMatrix;
 
@@ -562,10 +562,15 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 			qCoarseGrid,
 			forceConstants);
 
-//	Eigen::VectorXd omega(numAtoms*3);
-//	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
-//
-//	dynamicalMatrix.diagonalize(q, omega, z);
+	dynamicalMatrix.setAcousticSumRule("crystal");
+
+	Eigen::VectorXd omega(numAtoms*3);
+	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
+
+	dynamicalMatrix.diagonalize(q, omega, z);
+
+	std::cout << "Finito\n";
+	std::cout << omega.transpose() * ryToCmm1 << std::endl;
 
 	return;
 };
