@@ -6,7 +6,7 @@
 
 class PhononH0 {
 public:
-	void setup(const Eigen::MatrixXd& directUnitCell_,
+	PhononH0(const Eigen::MatrixXd& directUnitCell_,
 			const Eigen::MatrixXd& reciprocalUnitCell_,
 			const double& latticeParameter_,
 			const double& volumeUnitCell_,

@@ -603,7 +603,7 @@ void cryst_to_cart(Eigen::VectorXd& vec, const Eigen::MatrixXd& trmat,
 }
 
 
-void PhononH0::setup(
+PhononH0::PhononH0(
 		const Eigen::MatrixXd& directUnitCell_,
 		const Eigen::MatrixXd& reciprocalUnitCell_,
 		const double& latticeParameter_,

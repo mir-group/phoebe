@@ -545,12 +545,8 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
-	Eigen::VectorXd q(3);
-	q << 0., 0., 0.;
 
-	PhononH0 dynamicalMatrix;
-
-	dynamicalMatrix.setup(directUnitCell,
+	PhononH0 dynamicalMatrix(directUnitCell,
 			reciprocalUnitCell,
 			alat,
 			volumeUnitCell,
@@ -566,6 +562,8 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	Eigen::VectorXd omega(numAtoms*3);
 	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
+	Eigen::VectorXd q(3);
+	q << 0., 0., 0.;
 
 	dynamicalMatrix.diagonalize(q, omega, z);
 
