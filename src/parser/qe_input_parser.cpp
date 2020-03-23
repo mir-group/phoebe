@@ -1,250 +1,462 @@
-#include "qe_input_parser.h"
-#include "constants.h"
+#include <math.h> // round()
 #include <string>
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <iomanip>  // to declare istringstream
 #include <algorithm> // to use .remove_if
-
+#include <stdlib.h> // abs()
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Eigenvalues>
 #include <Eigen/Core>
 
-struct FileFormatNotRecognized : public std::exception {
-	const char * what () const throw ()
-    {
-    	return "Error reading the file input parameter";
-    }
-};
+#include "constants.h"
+#include "exceptions.h"
+#include "qe_input_parser.h"
+#include "phononH0.h"
 
-//void setupmat(q,dyn,nat,at,bg,tau,itau_blk,nsc,alat, &
-//	     &         dyn_blk,nat_blk,at_blk,bg_blk,tau_blk,omega_blk, &
-//	     &         loto_2d, &
-//	     &         epsil,zeu,frc,nr1,nr2,nr3,has_zstar,rws,nrws,na_ifc,f_of_q,fd)
-//{
-//
-//	// compute the dynamical matrix (the analytic part only)
-//
-//	q_gen(nsc,qbid,at_blk,bg_blk,at,bg);
-//
-//	std::vector<double> qp[3];
-//	int nb_blk;
-//
-//	for ( int iq=0; iq<nsc; iq++ ) {
-//
-//	     for ( int k=0; k<3; k++ ) {
-//	        qp[k]= q[k] + qbid[k][iq];
-//	     }
-//
-//	     std::fill(dyn_blk, dyn_blk+nat3*nat3, {0.,0.}); // from <algorithm>
-//
-//	     CALL frc_blk (dyn_blk,qp,tau_blk,nat_blk,              &
-//	          &              nr1,nr2,nr3,frc,at_blk,bg_blk,rws,nrws,f_of_q,fd)
-//	      IF (has_zstar .and. .not.na_ifc) &
-//	           CALL rgd_blk(nr1,nr2,nr3,nat_blk,dyn_blk,qp,tau_blk,   &
-//	                         epsil,zeu,bg_blk,omega_blk,celldm(1), loto_2d,+1.d0)
-//	           ! LOTO 2D added celldm(1)=alat to passed arguments
-//	     !
-//
-//		 for ( int iat=0; iat<numAtoms; iat++ ) {
-//			iatBulk = itau_blk[iat];
-//			for ( int jat=0; jat<numAtoms; jat++ ) {
-//				jatBulk = itau_blk[jat];
-//
-//	            arg = twoPi * ( qp(1) * ( (tau(1,na)-tau_blk(1,na_blk)) -   &
-//	                                (tau(1,nb)-tau_blk(1,nb_blk)) ) + &
-//	                      qp(2) * ( (tau(2,na)-tau_blk(2,na_blk)) -   &
-//	                                (tau(2,nb)-tau_blk(2,nb_blk)) ) + &
-//	                      qp(3) * ( (tau(3,na)-tau_blk(3,na_blk)) -   &
-//	                                (tau(3,nb)-tau_blk(3,nb_blk)) ) )
-//	           cfac[jat] = { COS(arg)/nsc , SIN(arg)/nsc };
-//			}
-//
-//			for ( int i=0; i<3; i++ ) {
-//				for ( int j=0; j<3; j++ ) {
-//					for ( int jat=0; jat<numAtoms; jat++ ) {
-//						jatBulk = itau_blk[jat];
-//		                dyn[i][j][iat][jat] = dyn[i][j][iat][jat] + cfac[jta] *
-//		                     dyn_blk(i][j][iatBulk][jatBulk];
-//					}
-//				}
-//			}
-//		 } // iat
-//	} // iq
-//
-//	  return
-//}
-
-
-
-void dyndiag(int numAtoms, std::vector<double> speciesMasses,
-		std::vector<int> atomicSpecies,
-		const Eigen::Tensor<std::complex<double>,4>& dyn,
-		Eigen::VectorXd& w2, Eigen::Tensor<std::complex<double>,3>& z)
+double calcVolume(const Eigen::Matrix3d& directUnitCell, const double alat)
 {
-	// diagonalise the dynamical matrix
-	// On input:  amass = masses, in amu
-	// On output: w2 = energies, z = displacements
+	Eigen::Vector3d a1 = directUnitCell.col(0);
+	Eigen::Vector3d a2 = directUnitCell.col(1);
+	Eigen::Vector3d a3 = directUnitCell.col(2);
+	double volume;
+	volume = abs( a1.dot(( a2.cross(a3) )) );
+	volume+= abs( a2.dot(( a3.cross(a1) )) );
+	volume+= abs( a3.dot(( a1.cross(a2) )) );
+	volume *= alat * alat * alat / 3.;
+	return volume;
+}
 
-	// fill the two-indices dynamical matrix
-
-  	int nat3 = 3 * numAtoms;
-  	int iType, jType;
-  	std::complex<double> cx;
-  	Eigen::MatrixXcd dyn2Tmp(nat3, nat3);
-  	Eigen::MatrixXcd dyn2(nat3, nat3);
-
-	for (int iat = 0; iat<numAtoms; iat++) {
-		for (int jat = 0; jat<numAtoms; jat++) {
-			for (int ipol = 0; ipol<3; ipol++) {
-				for (int jpol = 0; jpol<3; jpol++) {
-					cx = dyn(ipol,jpol,iat,jat);
-					dyn2Tmp(iat*3 + ipol, jat*3 + jpol) = cx;
-				}
-			}
-		}
-	}
-
-    // impose hermiticity
-
-//	dyn2 = dyn2 + dyn2.adjoint().eval();
-//	dyn2 = dyn2Tmp + dyn2Tmp.adjoint();
-	for ( int i=0; i<nat3; i++ ) {
-		for ( int j=0; j<i-1; j++ ) {
-			cx = ( dyn2(i,j) + std::conj(dyn2(j,i)) ) / 2.;
-			dyn2(i,j) = cx;
-			dyn2(j,i) = std::conj(cx);
-		}
-	}
-
-    //  divide by the square root of masses
-
-	for ( int iat=0; iat<numAtoms; iat++ ) {
-		iType = atomicSpecies[iat];
-		for ( int jat = 0; jat < numAtoms; jat++ ) {
-			jType = atomicSpecies[jat];
-			for ( int ipol = 0; ipol < 3; ipol++ ) {
-				for ( int jpol = 0; jpol < 3; jpol++ ) {
-					 dyn2(iat*3 + ipol, jat*3 + jpol) /=
-							sqrt(speciesMasses[iType]*speciesMasses[jType]) / massRyToAmu;
-				}
-			}
-		}
-	}
-
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(dyn2);
-
-    w2 = eigensolver.eigenvalues();
-
-    Eigen::MatrixXcd zTemp = eigensolver.eigenvectors();
-
-    //  displacements are eigenvectors divided by sqrt(amass)
-
-    for ( int iband=0; iband<nat3; iband++ ) {
-	    for ( int iat=0; iat<numAtoms; iat++ ) {
-	    	iType = atomicSpecies[iat];
-	    	for ( int ipol=0; ipol<3; ipol++ ) {
-	    		z(ipol,iat,iband) = zTemp(iat*3 + ipol, iband) / sqrt(speciesMasses[iType] / massRyToAmu);
-	    	}
-	    }
-    }
-};
-
-std::vector<std::string> split(const std::string& s, char delimiter)
+Eigen::MatrixXd calcReciprocalCell(const Eigen::Matrix3d& directUnitCell)
 {
-   std::vector<std::string> tokens;
-   std::string token;
-   std::istringstream tokenStream(s);
+	Eigen::Matrix3d reciprocalCell = directUnitCell.inverse().transpose();
+	return reciprocalCell;
+}
 
-   if ( delimiter == ' ' ) {
-	   for (std::string s; tokenStream >> s; ) {
-		   tokens.push_back(s);
-	   }
-   } else {
-	   while (std::getline(tokenStream, token, delimiter)) {
-		   token.erase(std::remove_if(token.begin(), token.end(), ::isspace),
-				   token.end());
-		   tokens.push_back(token);
-	   }
-   }
+void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
+{
+	//  !     sets up the crystallographic vectors a1, a2, and a3.
+	//  !
+	//  !     ibrav is the structure index:
+	//  !       1  cubic P (sc)                8  orthorhombic P
+	//  !       2  cubic F (fcc)               9  1-face (C) centered orthorhombic
+	//  !       3  cubic I (bcc)              10  all face centered orthorhombic
+	//  !       4  hexagonal and trigonal P   11  body centered orthorhombic
+	//  !       5  trigonal R, 3-fold axis c  12  monoclinic P (unique axis: c)
+	//  !       6  tetragonal P (st)          13  one face (base) centered monoclinic
+	//  !       7  tetragonal I (bct)         14  triclinic P
+	//  !     Also accepted:
+	//  !       0  "free" structure          -12  monoclinic P (unique axis: b)
+	//  !      -3  cubic bcc with a more symmetric choice of axis
+	//  !      -5  trigonal R, threefold axis along (111)
+	//  !      -9  alternate description for base centered orthorhombic
+	//  !     -13  one face (base) centered monoclinic (unique axis: b)
+	//  !      91  1-face (A) centered orthorombic
+	//  !
+	//  !     celldm are parameters which fix the shape of the unit cell
+	//  !     volumeUnitCell is the unit-cell volume
+	//  !
+	//  !     NOTA BENE: all axis sets are right-handed
+	//  !     Boxes for US PPs do not work properly with left-handed axis
 
-   return tokens;
+	const double sr2 = 1.414213562373, sr3 = 1.732050807569;
+
+	//  user-supplied lattice vectors
+
+	Eigen::Vector3d a1, a2, a3;
+
+	a1 = unitCell.col(0);
+	a2 = unitCell.col(1);
+	a3 = unitCell.col(2);
+
+	if ( ibrav == 0 ) {
+		if ( sqrt( a1.transpose()*a1 ) == 0 || sqrt( a2.transpose()*a2 ) == 0
+				|| sqrt( a3.transpose()*a3 ) == 0 ) {
+			Error e("wrong at for ibrav=0", 1);
+		}
+		if ( celldm(0) != 0. ) {
+			// ... input at are in units of alat => convert them to a.u.
+			unitCell *= celldm(0);
+		} else {
+			// ... input at are in atomic units: define celldm(1) from a1
+			celldm(0) = sqrt( a1.transpose() * a1 );
+		}
+	} else {
+		a1.setZero();
+		a2.setZero();
+		a3.setZero();
+	}
+
+	if ( celldm(0) <= 0. ) {
+		Error e("wrong celldm(1)", 1 );
+	}
+
+	//  index of bravais lattice supplied
+
+	if ( ibrav == 1 ) { // simple cubic lattice
+		a1(0) = celldm(0);
+		a2(1) = celldm(0);
+		a3(2) = celldm(0);
+	} else if (ibrav == 2) { //     fcc lattice
+		double term = celldm(0) / 2.;
+		a1(0) =-term;
+		a1(2) = term;
+		a2(1) = term;
+		a2(2) = term;
+		a3(0) =-term;
+		a3(1) = term;
+	} else if (abs(ibrav) == 3) { // bcc lattice
+		double term = celldm(0) / 2.;
+		for ( int ir=0; ir<3; ir++ ) {
+			a1(ir) = term;
+			a2(ir) = term;
+			a3(ir) = term;
+		} if ( ibrav < 0 ) {
+			a1(0) = -a1(0);
+			a2(1) = -a2(1);
+			a3(2) = -a3(2);
+		} else {
+			a2(0) = -a2(0);
+			a3(0) = -a3(0);
+			a3(1) = -a3(1);
+		}
+	} else if ( ibrav == 4 ) {// hexagonal lattice
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		double cbya  = celldm(2);
+		a1(1) = celldm(0);
+		a2(1) =-celldm(0) / 2.;
+		a2(2) = celldm(0) * sr3 / 2.;
+		a3(3) = celldm(0) * cbya;
+
+	} else if (abs(ibrav) == 5) { // trigonal lattice
+		if ( celldm(3) <= -0.5 || celldm(3) >= 1. ) {
+			Error e("wrong celldm(4)", abs(ibrav));
+		}
+
+		double term1 = sqrt(1. + 2. * celldm(3) );
+		double term2 = sqrt(1. - celldm(3) );
+
+		if ( ibrav == 5 ) { // threefold axis along c (001)
+			a2(1) = sr2 * celldm(0) * term2 / sr3;
+			a2(2) = celldm(0) * term1 / sr3;
+			a1(0) = celldm(0) * term2 / sr2;
+			a1(1) =-a1(0) / sr3;
+			a1(2) = a2(2);
+			a3(0) =-a1(0);
+			a3(1) = a1(1);
+			a3(2) = a2(2);
+		} else if ( ibrav == -5 ) { // threefold axis along (111)
+			// Notice that in the cubic limit (alpha=90, celldm(4)=0, term1=term2=1)
+			// does not yield the x,y,z axis, but an equivalent rotated triplet:
+			//   a/3 (-1,2,2), a/3 (2,-1,2), a/3 (2,2,-1)
+			// If you prefer the x,y,z axis as cubic limit, you should modify the
+			// definitions of a1(1) and a1(2) as follows:'
+			// a1(1) = celldm(1)*(term1+2.0_dp*term2)/3.0_dp
+			// a1(2) = celldm(1)*(term1-term2)/3.0_dp
+			// (info by G. Pizzi and A. Cepellotti)
+			a1(0) = celldm(0) * ( term1 - 2. * term2 ) / 3.;
+			a1(1) = celldm(0) * ( term1 + term2 ) / 3.;
+			a1(2) = a1(1);
+			a2(0) = a1(2);
+			a2(1) = a1(0);
+			a2(2) = a1(1);
+			a3(0) = a1(1);
+			a3(1) = a1(2);
+			a3(2) = a1(0);
+		}
+	} else if (ibrav == 6) { // tetragonal lattice
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", 6);
+		}
+		double cbya = celldm(2);
+		a1(0) = celldm(0);
+		a2(1) = celldm(0);
+		a3(2) = celldm(0) * cbya;
+
+	} else if (ibrav == 7) { // body centered tetragonal lattice
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", 7);
+		}
+		double cbya = celldm(2);
+		a2(0) = celldm(0) / 2.;
+		a2(1) = a2(0);
+		a2(2) = cbya * celldm(0) / 2.;
+		a1(0) = a2(0);
+		a1(1) = - a2(0);
+		a1(2) = a2(2);
+		a3(0) = - a2(0);
+		a3(1) = - a2(0);
+		a3(2) = a2(2);
+	} else if ( ibrav == 8 ) { // Simple orthorhombic lattice
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. )
+		{
+			Error e("wrong celldm(3)", ibrav);
+		}
+		a1(0) = celldm(0);
+		a2(1) = celldm(0) * celldm(1);
+		a3(2) = celldm(0) * celldm(2);
+	} else if ( abs(ibrav) == 9) { // One face (base) centered orthorhombic lattice  (C type)
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", abs(ibrav));
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", abs(ibrav));
+		}
+		if ( ibrav == 9 ) {// old PWscf description
+			a1(0) = 0.5 * celldm(0);
+			a1(1) = a1(0) * celldm(1);
+			a2(0) = - a1(0);
+			a2(1) = a1(1);
+		} else {// alternate description
+			a1(0) =  0.5 * celldm(0);
+			a1(1) = -a1(0) * celldm(1);
+			a2(0) =  a1(0);
+			a2(1) = -a1(1);
+		}
+		a3(2) = celldm(0) * celldm(2);
+	} else if ( ibrav == 91 ) { // One face(base)centered orthorhombic lattice (A type)
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		a1(0) = celldm(0);
+		a2(1) = celldm(0) * celldm(1) * 0.5;
+		a2(2) = - celldm(0) * celldm(2) * 0.5;
+		a3(1) = a2(1);
+		a3(2) = - a2(2);
+	} else if (ibrav == 10) {// All face centered orthorhombic lattice
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		a2(0) = 0.5 * celldm(0);
+		a2(1) = a2(0) * celldm(1);
+		a1(0) = a2(0);
+		a1(2) = a2(0) * celldm(2);
+		a3(1) = a2(0) * celldm(1);
+		a3(2) = a1(2);
+	} else if (ibrav == 11) { // Body centered orthorhombic lattice
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		a1(0) = 0.5 * celldm(0);
+		a1(1) = a1(0) * celldm(1);
+		a1(2) = a1(0) * celldm(2);
+		a2(0) = - a1(0);
+		a2(1) = a1(1);
+		a2(2) = a1(2);
+		a3(0) = - a1(0);
+		a3(1) = - a1(1);
+		a3(2) = a1(2);
+	} else if (ibrav == 12) { // Simple monoclinic lattice, unique (i.e. orthogonal to a) axis: c
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		if ( abs(celldm(3)) >= 1. ) {
+			Error e("wrong celldm(4)", ibrav);
+		}
+		double sen = sqrt( 1. - celldm(3)*celldm(3) );
+		a1(0) = celldm(0);
+		a2(0) = celldm(0) * celldm(1) * celldm(3);
+		a2(1) = celldm(0) * celldm(1) * sen;
+		a3(2) = celldm(0) * celldm(2);
+	} else if ( ibrav == - 12 ) { // Simple monoclinic lattice, unique axis: b (more common)
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)",-ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)",-ibrav);
+		}
+		if ( abs(celldm(4))>=1. ) {
+			Error e("wrong celldm(5)",-ibrav);
+		}
+		double sen = sqrt( 1. - celldm(4)*celldm(4) );
+		a1(0) = celldm(0);
+		a2(1) = celldm(0) * celldm(1);
+		a3(0) = celldm(0) * celldm(2) * celldm(4);
+		a3(2) = celldm(0) * celldm(2) * sen;
+	} else if ( ibrav == 13 ) { // One face centered monoclinic lattice unique axis c
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		if ( abs(celldm(3)) >= 1. ) {
+			Error e("wrong celldm(4)", ibrav);
+		}
+		double sen = sqrt( 1. - celldm(4)*celldm(4) );
+		a1(0) = 0.5 * celldm(0);
+		a1(2) =-a1(0) * celldm(2);
+		a2(0) = celldm(0) * celldm(1) * celldm(2);
+		a2(1) = celldm(0) * celldm(1) * sen;
+		a3(0) = a1(0);
+		a3(2) =-a1(2);
+	} else if ( ibrav == -13 ) { // One face centered monoclinic lattice unique axis b
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", -ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", -ibrav);
+		}
+		if ( abs(celldm(4)) >= 1. ) {
+			Error e("wrong celldm(5)", -ibrav);
+		}
+		double sen = sqrt( 1. - celldm(4)*celldm(4) );
+		a1(0) = 0.5 * celldm(0);
+		a1(1) =-a1(0) * celldm(1);
+		a2(0) = a1(0);
+		a2(1) =-a1(1);
+		a3(0) = celldm(0) * celldm(2) * celldm(4);
+		a3(2) = celldm(0) * celldm(2) * sen;
+	} else if (ibrav == 14) { // Triclinic lattice
+		if ( celldm(1) <= 0. ) {
+			Error e("wrong celldm(2)", ibrav);
+		}
+		if ( celldm(2) <= 0. ) {
+			Error e("wrong celldm(3)", ibrav);
+		}
+		if ( abs(celldm(3)) >= 1. ) {
+			Error e("wrong celldm(4)", ibrav);
+		}
+		if ( abs(celldm(4)) >= 1. ) {
+			Error e("wrong celldm(5)", ibrav);
+		}
+		if ( abs(celldm(5)) >= 1. ) {
+			Error e("wrong celldm(6)", ibrav);
+		}
+		double singam = sqrt( 1. - celldm(5)*celldm(5) );
+		double term = ( 1. + 2. * celldm(3)*celldm(4)*celldm(5)
+				- celldm(3)*celldm(3) - celldm(4)*celldm(4) - celldm(5)*celldm(5));
+		if ( term < 0. )
+		{
+			Error e("celldm does not make sense, check your data", ibrav);
+		}
+		term = sqrt( term / ( 1. - celldm(5)*celldm(5) ) );
+		a1(0) = celldm(0);
+		a2(0) = celldm(0) * celldm(1) * celldm(5);
+		a2(1) = celldm(0) * celldm(1) * singam;
+		a3(0) = celldm(0) * celldm(2) * celldm(4);
+		a3(1) = celldm(0) * celldm(2) * (celldm(3)-celldm(4)*celldm(5))/singam;
+		a3(2) = celldm(0) * celldm(2) * term;
+
+	} else {
+		Error e("nonexistent bravais lattice", ibrav);
+	}
+
+	if ( ibrav != 0 ) {
+		unitCell.col(0) = a1;
+		unitCell.col(1) = a2;
+		unitCell.col(2) = a3;
+	}
+}
+
+std::vector<std::string> split(const std::string& s, char delimiter) {
+	std::vector<std::string> tokens;
+	std::string token;
+	std::istringstream tokenStream(s);
+
+	if ( delimiter == ' ' ) {
+		for (std::string s; tokenStream >> s; ) {
+			tokens.push_back(s);
+		}
+	} else {
+		while (std::getline(tokenStream, token, delimiter)) {
+			token.erase(std::remove_if(token.begin(), token.end(), ::isspace),
+					token.end());
+			tokens.push_back(token);
+		}
+	}
+
+	return tokens;
 }
 
 void QEParser::parsePhHarmonic(std::string fileName) {
-//  Here we read the dynamical matrix of interatomic force constants
-//	in real space.
-//	Since the file is typically small, we don't worry about memory management
+	//  Here we read the dynamical matrix of interatomic force constants
+	//	in real space.
+	//	Since the file is typically small, we don't worry about memory management
 
 	std::string line;
-    std::vector<std::string> lineSplit;
+	std::vector<std::string> lineSplit;
 
-// open input file
-    std::ifstream infile(fileName);
+	// open input file
+	std::ifstream infile(fileName);
 
-//    this would read all content
-//	std::vector<std::string> lines;
-//	while (std::getline(infile, line)) {
-//		lines.push_back(line);
-//	}
+	//  First line contains ibrav, celldm and other variables
 
-//  First line contains ibrav, celldm and other variables
+	std::getline(infile, line);
+	lineSplit = split(line, ' ');
 
-    std::getline(infile, line);
-    lineSplit = split(line, ' ');
+	int numElements = std::stoi(lineSplit[0]);
+	int numAtoms = std::stoi(lineSplit[1]);
+	int ibrav = std::stoi(lineSplit[2]);
 
-    int numElements = std::stoi(lineSplit[0]);
-    int numAtoms = std::stoi(lineSplit[1]);
-    int ibrav = std::stoi(lineSplit[2]);
+	Eigen::VectorXd celldm(6);
+	celldm(0) = std::stod(lineSplit[3]);
+	celldm(1) = std::stod(lineSplit[4]);
+	celldm(2) = std::stod(lineSplit[5]);
+	celldm(3) = std::stod(lineSplit[6]);
+	celldm(4) = std::stod(lineSplit[7]);
+	celldm(5) = std::stod(lineSplit[8]);
 
-    std::vector<double> celldm = {0.,0.,0.,0.,0.,0.};
-    celldm[0] = std::stod(lineSplit[3]);
-    celldm[1] = std::stod(lineSplit[4]);
-    celldm[2] = std::stod(lineSplit[5]);
-    celldm[3] = std::stod(lineSplit[6]);
-    celldm[4] = std::stod(lineSplit[7]);
-    celldm[5] = std::stod(lineSplit[8]);
-
-	std::vector<std::vector<double>> unitCell(3, std::vector<double> (3, 0.));
-    if ( ibrav == 0 ) {
-//    	In this case, unitCell is written in the file, in angstroms
-    	for ( int i=0; i<3; i++ ) {
+	Eigen::Matrix3d directUnitCell(3,3);
+	if ( ibrav == 0 ) {
+		// In this case, unitCell is written in the file, in angstroms
+		for ( int i=0; i<3; i++ ) {
 			std::getline(infile, line);
 			lineSplit = split(line, ' ');
 			for ( int j=0; j<3; j++) {
-				unitCell[i][j] = std::stod(lineSplit[j]) / distanceRyToAng;
+				directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceRyToAng;
 			}
-    	};
-    };
+		};
+	};
 
+	// generate the unit cell vectors (also for ibrav != 0)
+	latgen(ibrav, celldm, directUnitCell);
 
-//  Next, we read the atomic species
-    std::vector<std::string> speciesNames;
-    std::vector<double> speciesMasses;
-    for ( int i=0; i<numElements; i++ ) {
+	double alat = celldm(0);
+	directUnitCell /= alat; // bring unit cell in units of the lattice parameter
+
+	//  Next, we read the atomic species
+	std::vector<std::string> speciesNames;
+	Eigen::VectorXd speciesMasses(numElements);
+	for ( int i=0; i<numElements; i++ ) {
 		std::getline(infile, line);
 		lineSplit = split(line, '\'');
 		speciesNames.push_back(lineSplit[1]);
-		speciesMasses.push_back(std::stod(lineSplit[2]) / massRyToAmu );
-    };
+		speciesMasses(i) = std::stod(lineSplit[2]); // in rydbergs
+	};
 
-
-    //  we read the atomic positions
-    std::vector<std::vector<double>> atomicPositions(numAtoms,
-    		std::vector<double> (3,0.));
-    std::vector<int> atomicSpecies(numAtoms, 0);
-    for ( int i=0; i<numAtoms; i++ ) {
+	//  we read the atomic positions
+	Eigen::MatrixXd atomicPositions(numAtoms,3);
+	Eigen::VectorXi atomicSpecies(numAtoms);
+	for ( int i=0; i<numAtoms; i++ ) {
 		std::getline(infile, line);
 		lineSplit = split(line, ' ');
-		atomicSpecies[i] = std::stoi(lineSplit[1]);
-		atomicPositions[i][0] = std::stod(lineSplit[2]);
-		atomicPositions[i][1] = std::stod(lineSplit[3]);
-		atomicPositions[i][2] = std::stod(lineSplit[4]);
-    }
+		atomicSpecies(i) = std::stoi(lineSplit[1]) - 1;
+		atomicPositions(i,0) = std::stod(lineSplit[2]);
+		atomicPositions(i,1) = std::stod(lineSplit[3]);
+		atomicPositions(i,2) = std::stod(lineSplit[4]);
+	}
 
-//  Read if hasDielectric
+	//  Read if hasDielectric
 	std::getline(infile, line);
 	line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
 	bool hasDielectric;
@@ -254,59 +466,44 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 		hasDielectric = false;
 	}
 
-//	if there are the dielectric info, we can read dielectric matrix
-//	and the Born charges
+	//	if there are the dielectric info, we can read dielectric matrix
+	//	and the Born charges
+	Eigen::MatrixXd dielectricMatrix(3,3);
+	dielectricMatrix.setZero();
+	Eigen::Tensor<double,3> bornCharges(numAtoms, 3, 3);
+	bornCharges.setZero();
+
 	if ( hasDielectric ) {
-		std::vector<std::vector<double>> dielectricMatrix(3, std::vector<double> (3, 0.));
-	    for ( int i=0; i<3; i++) {
+		for ( int i=0; i<3; i++) {
 			std::getline(infile, line);
 			lineSplit = split(line, ' ');
 			for ( int j=0; j<3; j++) {
-				dielectricMatrix[i][j] = std::stod(lineSplit[j]);
+				dielectricMatrix(i,j) = std::stod(lineSplit[j]);
 			}
-	    }
+		}
 
-		std::vector<std::vector<std::vector<double>>> bornCharges(numAtoms,
-				std::vector<std::vector<double>> (3,
-						std::vector<double>(3,0.)) );
-	    for ( int iAtom=0; iAtom < numAtoms; iAtom++ ) {
-	    	std::getline(infile, line);
-	    	for ( int i=0; i<3; i++ ) {
-		    	std::getline(infile, line);
+		for ( int iAtom=0; iAtom < numAtoms; iAtom++ ) {
+			std::getline(infile, line);
+			for ( int i=0; i<3; i++ ) {
+				std::getline(infile, line);
 				lineSplit = split(line, ' ');
 				for ( int j=0; j<3; j++ ) {
-					bornCharges[iAtom][i][j] = std::stod(lineSplit[j]);
+					bornCharges(iAtom,i,j) = std::stod(lineSplit[j]);
 				}
-	    	}
-	    }
+			}
+		}
 	}
 
-//	Now we parse the coarse q grid
+	//	Now we parse the coarse q grid
 	std::getline(infile, line);
 	lineSplit = split(line, ' ');
-	std::vector<int> qCoarseGrid(3,0);
-	qCoarseGrid[0] = std::stoi(lineSplit[0]);
-	qCoarseGrid[1] = std::stoi(lineSplit[1]);
-	qCoarseGrid[2] = std::stoi(lineSplit[2]);
-
-//	dimensions of forceConstants
-//	(qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], 3, 3, nat, nat)
-
-
-
-	std::cout << qCoarseGrid[0];
-	std::cout << qCoarseGrid[1];
-	std::cout << qCoarseGrid[2];
-	std::cout << numAtoms << "\n";
-
-//  This would work:
-//	double * forceConstants = new double[qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2]*3*3*numAtoms*numAtoms];
-//	*(forceConstants+0) = 1.2;
-//	std::cout << *(forceConstants+0) << '\n';
-//	delete [] forceConstants;
+	Eigen::VectorXi qCoarseGrid(3);
+	qCoarseGrid(0) = std::stoi(lineSplit[0]);
+	qCoarseGrid(1) = std::stoi(lineSplit[1]);
+	qCoarseGrid(2) = std::stoi(lineSplit[2]);
 
 	Eigen::Tensor<double, 7> forceConstants(qCoarseGrid[0], qCoarseGrid[1],
-		qCoarseGrid[2], 3, 3, numAtoms, numAtoms);
+			qCoarseGrid[2], 3, 3, numAtoms, numAtoms);
 
 	int m1Test;
 	int m2Test;
@@ -324,7 +521,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 						for ( int r2=0; r2<qCoarseGrid[1]; r2++ ) {
 							for ( int r1=0; r1<qCoarseGrid[0]; r1++ ) {
 								std::getline(infile, line);
-								istringstream iss(line);
+								std::istringstream iss(line);
 								iss >> m1Test >> m2Test >> m3Test >> x;
 								forceConstants(r1, r2, r3, ic, jc, iat, jat) = x;
 							}
@@ -335,57 +532,44 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 		}
 	}
 
-    infile.close();
+	infile.close();
 
-    Eigen::MatrixXcd m(qCoarseGrid[2],2);
+	// Now we do postprocessing
 
+	double volumeUnitCell = calcVolume(directUnitCell, alat);
+	Eigen::Matrix3d reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 
+	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
+		Error e("qCoarseGrid smaller than zero", 1);
+	}
 
-//	Since I'm here, let's try to diagonalize phonons
-    // dyn(3,3,nat,nat)
-    // z(3*nat,3*nat), w2(3*nat,nq)
-//    set a q-point in cartesian coordinates
+	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
-//    dyn = {0.,0.};
+	PhononH0 dynamicalMatrix(directUnitCell,
+			reciprocalUnitCell,
+			alat,
+			volumeUnitCell,
+			atomicSpecies,
+			speciesMasses,
+			atomicPositions,
+			dielectricMatrix,
+			bornCharges,
+			qCoarseGrid,
+			forceConstants);
 
+	dynamicalMatrix.setAcousticSumRule("crystal");
 
+	Eigen::VectorXd omega(numAtoms*3);
+	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
+	Eigen::VectorXd q(3);
+	q << 0., 0., 0.;
 
+	dynamicalMatrix.diagonalize(q, omega, z);
 
-
-//
-//
-//	  ALLOCATE ( frc(nr1,nr2,nr3,3,3,nat,nat) )
-//	  frc(:,:,:,:,:,:,:) = 0.d0
-//	  DO i=1,3
-//	     DO j=1,3
-//	        DO na=1,nat
-//	           DO nb=1,nat
-//	              IF (ionode) READ (1,*) ibid, jbid, nabid, nbbid
-//	              CALL mp_bcast(ibid,ionode_id, world_comm)
-//	              CALL mp_bcast(jbid,ionode_id, world_comm)
-//	              CALL mp_bcast(nabid,ionode_id, world_comm)
-//	              CALL mp_bcast(nbbid,ionode_id, world_comm)
-//	              IF(i .NE.ibid  .OR. j .NE.jbid .OR.                   &
-//	                 na.NE.nabid .OR. nb.NE.nbbid)                      &
-//	                 CALL errore  ('readfc','error in reading',1)
-//	              IF (ionode) READ (1,*) (((m1bid, m2bid, m3bid,        &
-//	                          frc(m1,m2,m3,i,j,na,nb),                  &
-//	                           m1=1,nr1),m2=1,nr2),m3=1,nr3)
-//
-//	              CALL mp_bcast(frc(:,:,:,i,j,na,nb),ionode_id, world_comm)
-//	           END DO
-//	        END DO
-//	     END DO
-//	  END DO
-//
-
-
-
-
-
-//    std::cout << numElements << " , " << numAtoms <<  "!!!!\n";
+	std::cout << omega.transpose() * ryToCmm1 << std::endl;
 
 	return;
 };
+
 
 

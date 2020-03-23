@@ -15,7 +15,7 @@ SRC_EXT = cpp
 # Find all source files in the source directory, sorted by
 # most recently modified
 #SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
-SOURCES = src/main.cpp src/context.cpp src/transport_app.cpp src/parser/qe_input_parser.cpp
+SOURCES = src/exceptions/exceptions.cpp src/main.cpp src/context.cpp src/transport_app.cpp src/harmonic/phononH0.cpp src/parser/qe_input_parser.cpp
 
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place
@@ -24,8 +24,8 @@ OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 DEPS = $(OBJECTS:.o=.d)
 
 # flags #
-COMPILE_FLAGS = -std=c++17 -Wall -Wextra -g
-INCLUDES = -I include -I /usr/local/include
+COMPILE_FLAGS = -std=c++17 -Wall -Wextra -O3 # -g -O0
+INCLUDES = -I include -I /usr/local/include -I include/Eigen
 # Space-separated pkg-config libraries used by this project
 LIBS =
 
@@ -42,6 +42,7 @@ dirs:
 	@echo "Creating directories"
 	@mkdir -p $(dir $(OBJECTS))
 	@mkdir -p $(BIN_PATH)
+#	@tar -xvf lib/eigen-3.3.7.tar.gz -C lib # unzip eigen library 
 
 .PHONY: clean
 clean:
