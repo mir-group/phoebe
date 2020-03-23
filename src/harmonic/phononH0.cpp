@@ -785,10 +785,6 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 	if ( ( sumRule != "simple" ) && ( sumRule != "crystal" ) ) {
 		Error e("invalid Acoustic Sum Rule", 1);
 	}
-	//  if ( ( sumRule != "simple" ) && ( sumRule != "crystal" ) &&
-	//	   ( sumRule != "one-dim") && ( sumRule != "zero-dim" ) ) {
-	//     error("invalid Acoustic Sum Rule", 1);
-	//  }
 
 	if ( sumRule == "simple" ) {
 
@@ -830,33 +826,6 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		}
 	} else {
 
-		std::cout << "crystal\n";
-
-		//  if ( sumRule == "crystal") n=3
-		//  if ( sumRule == "one-dim" ) {
-		//     // the direction of periodicity is the rotation axis
-		//     // It will work only if the crystal axis considered is one of
-		//     // the cartesian axis (typically, ibrav=1, 6 or 8, or 4 along the
-		//     // z-direction)
-		//     if ( qCoarseGrid(0)*qCoarseGrid(1)*qCoarseGrid(2) == 1 ) axis = 3;
-		//     if ( (qCoarseGrid(0)!=1) && (qCoarseGrid(1)*qCoarseGrid(2)==1)) axis = 1;
-		//     if ( (qCoarseGrid(1)!=1) && (qCoarseGrid(0)*qCoarseGrid(2)==1)) axis = 2;
-		//     if ( (qCoarseGrid(2)!=1) && (qCoarseGrid(0)*qCoarseGrid(1)==1)) axis = 3;
-		//     if ( ((qCoarseGrid(0)!=1) && (qCoarseGrid(1)!=1))
-		//    		 || ((qCoarseGrid(1)!=1) && (qCoarseGrid(2)!=1))
-		//    		 || ((qCoarseGrid(0)!=1) && (qCoarseGrid(2) != 1) )) {
-		//        error("too many directions of periodicity in 1D system", 2);
-		//     }
-		//     if ( (ibrav.ne.1).and.(ibrav.ne.6).and.(ibrav.ne.8).and. &
-		//          ((ibrav.ne.4).or.(axis.ne.3)) ) then
-		//        write(stdout,*) 'sumRule: rotational axis may be wrong'
-		//     endif
-		//     write(stdout,'("sumRule rotation axis in 1D system= ",I4)') axis
-		//     n=4
-		//  }
-
-		//  if ( sumRule == "zero-dim") n=6;
-
 		// Acoustic Sum Rule on effective charges
 
 		// generating the vectors of the orthogonal of the subspace to project
@@ -886,34 +855,6 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				p += 1;
 			}
 		}
-
-		//  if (n.eq.4) then
-		//     do i=1,3
-		//        ! These are the 3 vectors associated with the
-		//        ! single rotational sum rule (1D system)
-		//        p=p+1
-		//        do na=1,nat
-		//           zeu_u(p,i,MOD(axis,3)+1,na)=-tau(MOD(axis+1,3)+1,na)
-		//           zeu_u(p,i,MOD(axis+1,3)+1,na)=tau(MOD(axis,3)+1,na)
-		//        enddo
-		//        !
-		//     enddo
-		//  endif
-		//  !
-		//  if (n.eq.6) then
-		//     do i=1,3
-		//        do j=1,3
-		//           ! These are the 3*3 vectors associated with the
-		//           ! three rotational sum rules (0D system - typ. molecule)
-		//           p=p+1
-		//           do na=1,nat
-		//              zeu_u(p,i,MOD(j,3)+1,na)=-tau(MOD(j+1,3)+1,na)
-		//              zeu_u(p,i,MOD(j+1,3)+1,na)=tau(MOD(j,3)+1,na)
-		//           enddo
-		//           !
-		//        enddo
-		//     enddo
-		//  endif
 
 		// Gram-Schmidt orthonormalization of the set of vectors created.
 
@@ -1033,145 +974,93 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 
 
-
-		//---------------------------------------------------------------------
 		// Acoustic Sum Rule on force constants
 
 		// generating the vectors of the orthogonal of the subspace to project
 		// the force-constants matrix on
 
-		Eigen::Tensor<double,8> ukvec(18*numAtoms, qCoarseGrid(0),
-				qCoarseGrid(1), qCoarseGrid(2), 3, 3, numAtoms, numAtoms);
-		ukvec.setZero();
+		int nr1 = qCoarseGrid(0);
+		int nr2 = qCoarseGrid(1);
+		int nr3 = qCoarseGrid(2);
 
-		Eigen::Tensor<double,7> frc_new(qCoarseGrid(0), qCoarseGrid(1),
-				qCoarseGrid(2), 3, 3, numAtoms, numAtoms);
+		Eigen::Tensor<double,8> uvec(18*numAtoms,nr1,nr2,nr3,3,3,numAtoms,numAtoms);
+		uvec.setZero();
+
+		Eigen::Tensor<double,7> frc_new(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
 		frc_new = forceConstants;
 
 		p = 0;
-		for ( int i=0; i<3; i++ ) {
-			for ( int j=0; j<3; j++ ) {
-				for ( int na=0; na<numAtoms; na++ ) {
+		for ( int i=1; i<=3; i++ ) {
+			for ( int j=1; j<=3; j++ ) {
+				for ( int na=1; na<=numAtoms; na++ ) {
 					// These are the 3*3*nat vectors associated with the
 					// translational acoustic sum rules
-					for ( int i0=0; i0<qCoarseGrid(0); i0++ ) {
-						for ( int i1=0; i1<qCoarseGrid(1); i1++ ) {
-							for ( int i2=0; i2<qCoarseGrid(2); i2++ ) {
-								for ( int i3=0; i3<numAtoms; i3++ ) {
-									ukvec(p,i1,i2,i3,i,j,na,i3) = 1.;
+					p += 1;
+
+					for ( int nb=1; nb<=numAtoms; nb++ ) {
+						for ( int n1=1; n1<=nr1; n1++ ) {
+							for ( int n2=1; n2<=nr2; n2++ ) {
+								for ( int n3=1; n3<=nr3; n3++ ) {
+									uvec(p-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) = 1.;
 								}
 							}
 						}
 					}
-					p += 1;
 				}
 			}
 		}
 
-//		//  if (n.eq.4) then
-//		//     do i=1,3
-//		//        do na=1,nat
-//		//           ! These are the 3*nat vectors associated with the
-//		//           ! single rotational sum rule (1D system)
-//		//           p=p+1
-//		//           do nb=1,nat
-//		//              u(p) % vec (:,:,:,i,MOD(axis,3)+1,na,nb)=-tau(MOD(axis+1,3)+1,nb)
-//		//              u(p) % vec (:,:,:,i,MOD(axis+1,3)+1,na,nb)=tau(MOD(axis,3)+1,nb)
-//		//           enddo
-//		//           !
-//		//        enddo
-//		//     enddo
-//		//  endif
-//
-//		//  if (n.eq.6) then
-//		//     do i=1,3
-//		//        do j=1,3
-//		//           do na=1,nat
-//		//              ! These are the 3*3*nat vectors associated with the
-//		//              ! three rotational sum rules (0D system - typ. molecule)
-//		//              p=p+1
-//		//              do nb=1,nat
-//		//                 u(p) % vec (:,:,:,i,MOD(j,3)+1,na,nb)=-tau(MOD(j+1,3)+1,nb)
-//		//                 u(p) % vec (:,:,:,i,MOD(j+1,3)+1,na,nb)=tau(MOD(j,3)+1,nb)
-//		//              enddo
-//		//              !
-//		//           enddo
-//		//        enddo
-//		//     enddo
-//		//  endif
-
-		Eigen::Tensor<int,3> ind_v(9*numAtoms*numAtoms*qCoarseGrid(0)
-				*qCoarseGrid(1)*qCoarseGrid(2),2,7);
-		Eigen::Tensor<double,2> v(9*numAtoms*numAtoms*qCoarseGrid(0)
-				*qCoarseGrid(1)*qCoarseGrid(2),2);
-		ind_v.setZero();
+		Eigen::Tensor<int,3> ind_v(9*numAtoms*numAtoms*nr1*nr2*nr3,2,7);
+		Eigen::Tensor<double,2> v(9*numAtoms*numAtoms*nr1*nr2*nr3,2);
 		v.setZero();
+		ind_v.setZero();
 
 		int m = 0;
-		int q, l, test1, test2, test3;
+		int q, l;
 
 		for ( int i=1; i<=3; i++ ) {
 			for ( int j=1; j<=3; j++ ) {
 				for ( int na=1; na<=numAtoms; na++ ) {
 					for ( int nb=1; nb<=numAtoms; nb++ ) {
-						for ( int n1=1; n1<=qCoarseGrid(0); n1++ ) {
-							for ( int n2=1; n2<=qCoarseGrid(1); n2++ ) {
-								for ( int n3=1; n3<=qCoarseGrid(2); n3++ ) {
-
-									// These are the vectors associated with
-									// the symmetry constraints
+						for ( int n1=1; n1<=nr1; n1++ ) {
+							for ( int n2=1; n2<=nr2; n2++ ) {
+								for ( int n3=1; n3<=nr3; n3++ ) {
+									// These are the vectors associated with the symmetry constraints
 									q = 1;
 									l = 1;
-
 									while ( ( l <= m ) && ( q != 0 ) ) {
-										if ( ( ind_v(l-1,0,0)==n1 ) &&
-											 ( ind_v(l-1,0,1)==n2 ) &&
-											 ( ind_v(l-1,0,2)==n3 ) &&
-											 ( ind_v(l-1,0,3)==i  ) &&
-											 ( ind_v(l-1,0,4)==j  ) &&
-											 ( ind_v(l-1,0,5)==na ) &&
-											 ( ind_v(l-1,0,6)==nb ) ) { q = 0; };
-										if ( ( ind_v(l-1,1,0)==n1 ) &&
-											 ( ind_v(l-1,1,1)==n2 ) &&
-											 ( ind_v(l-1,1,2)==n3 ) &&
-											 ( ind_v(l-1,1,3)==i  ) &&
-											 ( ind_v(l-1,1,4)==j  ) &&
-											 ( ind_v(l-1,1,5)==na ) &&
-											 ( ind_v(l-1,1,6)==nb ) ) { q = 0; };
+										if ( (ind_v(l-1,1-1,1-1)==n1) && (ind_v(l-1,1-1,2-1)==n2) &&
+												(ind_v(l-1,1-1,3-1)==n3) && (ind_v(l-1,1-1,4-1)==i) &&
+												(ind_v(l-1,1-1,5-1)==j)  && (ind_v(l-1,1-1,6-1)==na) &&
+												(ind_v(l-1,1-1,7-1)==nb)) { q=0; }
+										if ( (ind_v(l-1,2-1,1-1)==n1) && (ind_v(l-1,2-1,2-1)==n2) &&
+												(ind_v(l-1,2-1,3-1)==n3) && (ind_v(l-1,2-1,4-1)==i) &&
+												(ind_v(l-1,2-1,5-1)==j)  && (ind_v(l-1,2-1,6-1)==na) &&
+												(ind_v(l-1,2-1,7-1)==nb)) {q = 0;}
 										l += 1;
 									}
-
-									test1 = qCoarseGrid(0) + 1 - n1;
-									test1 = test1 % qCoarseGrid(0);
-									test1 += 1;
-									test2 = qCoarseGrid(1) + 1 - n2;
-									test2 = test2 % qCoarseGrid(1);
-									test2 += 1;
-									test3 = qCoarseGrid(2) + 1 - n3;
-									test3 = test3 % qCoarseGrid(2);
-									test3 += 1;
-									if ( ( n1==test1 ) &&
-										 ( n2==test2 ) &&
-										 ( n3==test3 ) &&
-										 ( i==j ) && ( na==nb ) ) { q = 0; };
+									if ( ( n1==((nr1+1-n1)%nr1)+1 ) &&
+											( n2==((nr2+1-n2)%nr2)+1 ) &&
+											( n3==((nr3+1-n3)%nr3)+1 ) &&
+											( i==j ) && ( na==nb ) ) { q=0; }
 									if ( q != 0 ) {
 										m += 1;
-										ind_v(m-1,0,0) = n1;
-										ind_v(m-1,0,1) = n2;
-										ind_v(m-1,0,2) = n3;
-										ind_v(m-1,0,3) = i;
-										ind_v(m-1,0,4) = j;
-										ind_v(m-1,0,5) = na;
-										ind_v(m-1,0,6) = nb;
-										v(m-1,0) = 1.0 / sqrt(2.);
-										ind_v(m-1,1,0) = test1;
-										ind_v(m-1,1,1) = test2;
-										ind_v(m-1,1,2) = test3;
-										ind_v(m-1,1,3) = j;
-										ind_v(m-1,1,4) = i;
-										ind_v(m-1,1,5) = nb;
-										ind_v(m-1,1,6) = na;
-										v(m-1,1) = - 1.0 / sqrt(2.);
+										ind_v(m-1,1-1,1-1) = n1;
+										ind_v(m-1,1-1,2-1) = n2;
+										ind_v(m-1,1-1,3-1) = n3;
+										ind_v(m-1,1-1,4-1) = i;
+										ind_v(m-1,1-1,5-1) = j;
+										ind_v(m-1,1-1,6-1) = na;
+										ind_v(m-1,1-1,7-1) = nb;
+										v(m-1,1-1) = 1. / sqrt(2.);
+										ind_v(m-1,2-1,1-1) = ((nr1+1-n1) % nr1) + 1;
+										ind_v(m-1,2-1,2-1) = ((nr2+1-n2) % nr2) + 1;
+										ind_v(m-1,2-1,3-1) = ((nr3+1-n3) % nr3) + 1;
+										ind_v(m-1,2-1,4-1) = j;
+										ind_v(m-1,2-1,5-1) = i;
+										ind_v(m-1,2-1,6-1) = nb;
+										ind_v(m-1,2-1,7-1) = na;
+										v(m-1,2-1) = - 1. / sqrt(2.);
 									}
 								}
 							}
@@ -1180,37 +1069,35 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				}
 			}
 		}
-		// rescale to c++ indices
-		ind_v -= ind_v.constant(1);
-
-		std::cout << "Fine prima parte\n";
 
 		// Gram-Schmidt orthonormalization of the set of vectors created.
 		// Note that the vectors corresponding to symmetry constraints are already
 		// orthonormalized by construction.
 
-		Eigen::Tensor<double,7> w(qCoarseGrid(0),qCoarseGrid(1),qCoarseGrid(2),
-				3,3,numAtoms,numAtoms);
-		Eigen::VectorXi u_less(6*3*numAtoms);
-
+		int n_less = 0;
+		Eigen::Tensor<double,7> w(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
+		Eigen::Tensor<double,7> x(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
 		w.setZero();
+		x.setZero();
+
+		Eigen::VectorXi u_less(6*3*numAtoms);
 		u_less.setZero();
+
 
 		int n1, n2, n3, i, j, na, nb, na1, i1, j1;
 
-		int n_less = 0;
 		for ( int k=1; k<=p; k++ ) {
-			// w = ukvec(k,:,:,:,:,:,:,:);
-			// x = ukvec(k,:,:,:,:,:,:,:);
-			for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-				for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-					for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-						for ( int i=0; i<3; i++ ) {
-							for ( int j=0; j<3; j++ ) {
-								for ( int na=0; na<numAtoms; na++ ) {
-									for ( int nb=0; nb<numAtoms; nb++ ) {
-										w(n1,n2,n3,i,j,na,nb) =
-												ukvec(k-1,n1,n2,n3,i,j,na,nb);
+			//			  w(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
+			//		      x(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
+			for ( int i=1; i<=3; i++ ) {
+				for ( int j=1; j<=3; j++ ) {
+					for ( int na=1; na<=numAtoms; na++ ) {
+						for ( int nb=1; nb<=numAtoms; nb++ ) {
+							for ( int n1=1; n1<=nr1; n1++ ) {
+								for ( int n2=1; n2<=nr2; n2++ ) {
+									for ( int n3=1; n3<=nr3; n3++ ) {
+										w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) = uvec(k-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
+										x(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) = uvec(k-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
 									}
 								}
 							}
@@ -1219,75 +1106,80 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				}
 			}
 
-			for ( int l=0; l<m; l++ ) {
-
-		        // call sp2(x,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
+			for ( int l=1; l<=m; l++ ) {
+//				call sp2(x,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal);
 				scal = 0.;
-				for ( int i=0; i<2; i++ ) {
-					scal += ukvec(k-1,ind_v(l,i,0), ind_v(l,i,1), ind_v(l,i,2),
-							ind_v(l,i,3), ind_v(l,i,4), ind_v(l,i,5),
-							ind_v(l,i,6)) * v(l,i);
+				for ( int r=1; r<=2; r++ ) {
+					n1 = ind_v(l-1,r-1,1-1);
+					n2 = ind_v(l-1,r-1,2-1);
+					n3 = ind_v(l-1,r-1,3-1);
+					i = ind_v(l-1,r-1,4-1);
+					j = ind_v(l-1,r-1,5-1);
+					na = ind_v(l-1,r-1,6-1);
+					nb = ind_v(l-1,r-1,7-1);
+					scal += w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) * v(l-1,r-1);
 				}
 
-				for ( int r=0; r<2; r++ ) {
-					n1 = ind_v(l,r,0);
-					n2 = ind_v(l,r,1);
-					n3 = ind_v(l,r,2);
-					i = ind_v(l,r,3);
-					j = ind_v(l,r,4);
-					na = ind_v(l,r,5);
-					nb = ind_v(l,r,6);
-					w(n1,n2,n3,i,j,na,nb) -= scal * v(l,r);
+				for ( int r=1; r<=2; r++ ) {
+					n1 = ind_v(l-1,r-1,1-1);
+					n2 = ind_v(l-1,r-1,2-1);
+					n3 = ind_v(l-1,r-1,3-1);
+					i = ind_v(l-1,r-1,4-1);
+					j = ind_v(l-1,r-1,5-1);
+					na = ind_v(l-1,r-1,6-1);
+					nb = ind_v(l-1,r-1,7-1);
+					w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) -= scal * v(l-1,r-1);
 				}
 			}
-			if ( k <= 9*numAtoms ) {
+
+			if ( k <= ( 9*numAtoms) ) {
 				na1 = k % numAtoms;
-				if ( na1 == 0 ) na1 = numAtoms;
-				j1 = ((k-na1)/numAtoms) % 3 + 1;
-				i1 = ((((k-na1)/numAtoms)-j1)/3) % 3 + 1;
+				if ( na1==0 ) { na1 = numAtoms; };
+				j1 = (((k-na1)/numAtoms) % 3) + 1;
+				i1 = (((((k-na1)/numAtoms)-j1+1)/3) % 3) + 1;
 			} else {
 				q = k - 9 * numAtoms;
-				//        if (n.eq.4) then
-				//           na1=MOD(q,nat)
-				//           if (na1.eq.0) na1=nat
-				//           i1=MOD((q-na1)/nat,3)+1
-				//        else
+				//		        if ( n == 4 ) {
+					//		           na1 = q % nat;
+				//		           if ( na1 == 0 ) { na1 = nat; }
+				//		           i1 = MOD((q-na1)/nat,3)+1
+				//		        } else {
 				na1 = q % numAtoms;
-				if ( na1 == 0 ) { na1 = numAtoms; }
-				j1 = ((q-na1)/numAtoms) % 3 +1;
-				i1 = ((((q-na1)/numAtoms)-j1)/3) % 3 + 1;
-				//        endif
+				if ( na1 == 0 ) na1 = numAtoms;
+				j1 = (((q-na1)/numAtoms) % 3) + 1;
+				i1 = (((((q-na1)/numAtoms)-j1+1)/3) % 3) + 1;
+				//		        }
 			}
 			for ( int q=1; q<=k-1; q++ ) {
 				r = 1;
-				for ( int i_less=0; i_less<n_less; i_less++ ) {
-					if ( u_less(i_less) == q ) {r = 0;};
+				for ( int i_less=1; i_less<=n_less; i_less++ ) {
+					if ( u_less(i_less-1) == q ) { r = 0; }
 				}
 				if ( r != 0 ) {
-			        // call sp3(x,u(q) % vec (:,:,:,:,:,:,:), i1,na1,nr1,nr2,nr3,nat,scal)
+//					call sp3(x,uvec(q-1,:,:,:,:,:,:,:),i1,na1,nr1,nr2,nr3,nat,scal)
 					scal = 0.;
-					for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-						for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-							for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-								for ( int j=0; j<3; j++ ) {
-									for ( int nb=0; nb<numAtoms; nb++){
-										scal += ukvec(k-1,n1,n2,n3,i1-1,j,na1-1,nb)
-									 * ukvec(q-1,n1,n2,n3,i1-1,j,na1-1,nb);
+					for ( int j=1; j<=3; j++ ) {
+						for ( int nb=1; nb<=numAtoms; nb++ ) {
+							for ( int n1=1; n1<=nr1; n1++ ) {
+								for ( int n2=1; n2<=nr2; n2++ ) {
+									for ( int n3=1; n3<=nr3; n3++ ) {
+										scal += x(n1-1,n2-1,n3-1,i1-1,j-1,na1-1,nb-1)
+												* uvec(q-1,n1-1,n2-1,n3-1,i1-1,j-1,na1-1,nb-1);
 									}
 								}
 							}
 						}
 					}
-					for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-						for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-							for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-								for ( int i=0; i<3; i++ ) {
-									for ( int j=0; j<3; j++ ) {
-										for ( int na=0; na<numAtoms; na++){
-											for ( int nb=0; nb<numAtoms; nb++){
-												w(n1,n2,n3,i1-1,j,na1-1,nb) -=
-														scal *
-														ukvec(q-1,n1,n2,n3,i1-1,j,na1-1,nb);
+
+					//		           w(:,:,:,:,:,:,:) -= scal * uvec(q-1,:,:,:,:,:,:,:)
+					for ( int i=1; i<=3; i++ ) {
+						for ( int j=1; j<=3; j++ ) {
+							for ( int na=1; na<=numAtoms; na++ ) {
+								for ( int nb=1; nb<=numAtoms; nb++ ) {
+									for ( int n1=1; n1<=nr1; n1++ ) {
+										for ( int n2=1; n2<=nr2; n2++ ) {
+											for ( int n3=1; n3<=nr3; n3++ ) {
+												w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) -= scal * uvec(q-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
 											}
 										}
 									}
@@ -1295,20 +1187,40 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 							}
 						}
 					}
+
 				}
 			}
-			sp1(w, w, norm2);
+
+//			call sp1(w,w,nr1,nr2,nr3,nat,norm2)
+			norm2 = 0.;
+			for ( int i=1; i<=3; i++ ) {
+				for ( int j=1; j<=3; j++ ) {
+					for ( int na=1; na<=numAtoms; na++ ) {
+						for ( int nb=1; nb<=numAtoms; nb++ ) {
+							for ( int n1=1; n1<=nr1; n1++ ) {
+								for ( int n2=1; n2<=nr2; n2++ ) {
+									for ( int n3=1; n3<=nr3; n3++ ) {
+										norm2 += w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1)
+												* w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
 			if ( norm2 > 1.0e-16 ) {
-				// ukvec(k,:,:,:,:,:,:,:) = w / sqrt(norm2);
-				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-							for ( int i=0; i<3; i++ ) {
-								for ( int j=0; j<3; j++ ) {
-									for ( int na=0; na<numAtoms; na++ ) {
-										for ( int nb=0; nb<numAtoms; nb++ ) {
-											ukvec(k-1,n1,n2,n3,i,j,na,nb) =
-													w(n1,n2,n3,i,j,na,nb)
+				// uvec(k-1,:,:,:,:,:,:,:) = w(:,:,:,:,:,:,:) / sqrt(norm2);
+				for ( int i=1; i<=3; i++ ) {
+					for ( int j=1; j<=3; j++ ) {
+						for ( int na=1; na<=numAtoms; na++ ) {
+							for ( int nb=1; nb<=numAtoms; nb++ ) {
+								for ( int n1=1; n1<=nr1; n1++ ) {
+									for ( int n2=1; n2<=nr2; n2++ ) {
+										for ( int n3=1; n3<=nr3; n3++ ) {
+											uvec(k-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) =
+													w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1)
 													/ sqrt(norm2);
 										}
 									}
@@ -1323,54 +1235,48 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			}
 		}
 
-		std::cout << n_less << "!\n";
-		std::cout << u_less(0) << " " << u_less(1) << " " << u_less(2) << "\n";
-
 		// Projection of the force-constants "vector" on the orthogonal of the
 		// subspace of the vectors verifying the sum rules and symmetry contraints
 
 		w.setZero();
-		for ( int l=0; l<m; l++ ) {
+		for ( int l=1; l<=m; l++ ) {
 
+//			call sp2(frc_new,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
 			scal = 0.;
-			for ( int i=0; i<2; i++ ) {
-			    scal += frc_new(ind_v(l,i,0), ind_v(l,i,1), ind_v(l,i,2),
-			    		ind_v(l,i,3), ind_v(l,i,4), ind_v(l,i,5),
-						ind_v(l,i,6)) * v(l,i);
+			for ( int i=1; i<=2; i++ ) {
+				scal += frc_new(ind_v(l-1,i-1,1-1), ind_v(l-1,i-1,2-1), ind_v(l-1,i-1,3-1),
+						ind_v(l-1,i-1,4-1), ind_v(l-1,i-1,5-1), ind_v(l-1,i-1,6-1),
+						ind_v(l-1,i-1,7-1)) * v(l-1,i-1);
 			}
-			// sp2(frc_new, v(l,:), ind_v(l,:,:), scal);
 
-			for ( int r=0; r<2; r++ ) {
-				n1 = ind_v(l,r,0);
-				n2 = ind_v(l,r,1);
-				n3 = ind_v(l,r,2);
-				i = ind_v(l,r,3);
-				j = ind_v(l,r,4);
-				na = ind_v(l,r,5);
-				nb = ind_v(l,r,6);
-				w(n1,n2,n3,i,j,na,nb) += scal * v(l,r);
+			for ( int r=1; r<=2; r++ ) {
+				n1 = ind_v(l-1,r-1,1-1);
+				n2 = ind_v(l-1,r-1,2-1);
+				n3 = ind_v(l-1,r-1,3-1);
+				i = ind_v(l-1,r-1,4-1);
+				j = ind_v(l-1,r-1,5-1);
+				na = ind_v(l-1,r-1,6-1);
+				nb = ind_v(l-1,r-1,7-1);
+				w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) += scal * v(l-1,r-1);
 			}
 		}
-
 		for ( int k=1; k<=p; k++ ) {
 			r = 1;
-			for ( int i_less=0; i_less<n_less; i_less++ ) {
-				if ( u_less(i_less) == k ) { r = 0; }
+			for ( int i_less=1; i_less<=n_less; i_less++ ) {
+				if ( u_less(i_less-1) == k ) { r = 0; }
 			}
 			if ( r != 0 ) {
 
-				// sp1(ukvec(k,:,:,:,:,:,:,:), frc_new, scal);
 				scal = 0.;
-				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-							for ( int i=0; i<3; i++ ) {
-								for ( int j=0; j<3; j++ ) {
-									for ( int na=0; na<numAtoms; na++ ) {
-										for ( int nb=0; nb<numAtoms; nb++ ) {
-											scal +=
-												ukvec(k-1,n1,n2,n3,i,j,na,nb)
-												* frc_new(n1,n2,n3,i,j,na,nb);
+				for ( int i=1; i<=3; i++ ) {
+					for ( int j=1; j<=3; j++ ) {
+						for ( int na=1; na<=numAtoms; na++ ) {
+							for ( int nb=1; nb<=numAtoms; nb++ ) {
+								for ( int n1=1; n1<=nr1; n1++ ) {
+									for ( int n2=1; n2<=nr2; n2++ ) {
+										for ( int n3=1; n3<=nr3; n3++ ) {
+											scal += uvec(k-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1)
+													* frc_new(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
 										}
 									}
 								}
@@ -1378,15 +1284,17 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 						}
 					}
 				}
-				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-							for ( int i=0; i<3; i++ ) {
-								for ( int j=0; j<3; j++ ) {
-									for ( int na=0; na<numAtoms; na++ ) {
-										for ( int nb=0; nb<numAtoms; nb++ ) {
-											w(n1,n2,n3,i,j,na,nb) += scal *
-												ukvec(k-1,n1,n2,n3,i,j,na,nb);
+
+				for ( int i=1; i<=3; i++ ) {
+					for ( int j=1; j<=3; j++ ) {
+						for ( int na=1; na<=numAtoms; na++ ) {
+							for ( int nb=1; nb<=numAtoms; nb++ ) {
+								for ( int n1=1; n1<=nr1; n1++ ) {
+									for ( int n2=1; n2<=nr2; n2++ ) {
+										for ( int n3=1; n3<=nr3; n3++ ) {
+											w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) +=
+													scal *
+													uvec(k-1,n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
 										}
 									}
 								}
@@ -1397,16 +1305,413 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			}
 		}
 
-		// Final substraction of the former projection to the initial frc, to get
-		// the new "projected" frc
+		// Final substraction of the former projection to the initial frc,
+		// to get the new "projected" frc
 
 		frc_new -= w;
-		sp1(w, w, norm2);
-		std::cout << "Difference between old and new force-constants: "
-				<< sqrt(norm2) << std::endl;
-		std::cout << "Puppa\n";
+		scal = 0.;
+		for ( int i=1; i<=3; i++ ) {
+			for ( int j=1; j<=3; j++ ) {
+				for ( int na=1; na<=numAtoms; na++ ) {
+					for ( int nb=1; nb<=numAtoms; nb++ ) {
+						for ( int n1=1; n1<=nr1; n1++ ) {
+							for ( int n2=1; n2<=nr2; n2++ ) {
+								for ( int n3=1; n3<=nr3; n3++ ) {
+									scal += w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1)
+											* w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		std::cout << "Norm of the difference between old and new "
+		"force-constants: " << sqrt(scal) << "\n";
 
 		forceConstants = frc_new;
+
+
+
+
+
+
+		// first attempt below
+
+//		//---------------------------------------------------------------------
+//		// Acoustic Sum Rule on force constants
+//
+//		// generating the vectors of the orthogonal of the subspace to project
+//		// the force-constants matrix on
+//
+//		Eigen::Tensor<double,8> ukvec(18*numAtoms, qCoarseGrid(0),
+//				qCoarseGrid(1), qCoarseGrid(2), 3, 3, numAtoms, numAtoms);
+//		ukvec.setZero();
+//
+//		Eigen::Tensor<double,7> frc_new(qCoarseGrid(0), qCoarseGrid(1),
+//				qCoarseGrid(2), 3, 3, numAtoms, numAtoms);
+//		frc_new = forceConstants;
+//
+//		p = 0;
+//		for ( int i=0; i<3; i++ ) {
+//			for ( int j=0; j<3; j++ ) {
+//				for ( int na=0; na<numAtoms; na++ ) {
+//					// These are the 3*3*nat vectors associated with the
+//					// translational acoustic sum rules
+//					for ( int i0=0; i0<qCoarseGrid(0); i0++ ) {
+//						for ( int i1=0; i1<qCoarseGrid(1); i1++ ) {
+//							for ( int i2=0; i2<qCoarseGrid(2); i2++ ) {
+//								for ( int i3=0; i3<numAtoms; i3++ ) {
+//									ukvec(p,i1,i2,i3,i,j,na,i3) = 1.;
+//								}
+//							}
+//						}
+//					}
+//					p += 1;
+//				}
+//			}
+//		}
+//
+////		//  if (n.eq.4) then
+////		//     do i=1,3
+////		//        do na=1,nat
+////		//           ! These are the 3*nat vectors associated with the
+////		//           ! single rotational sum rule (1D system)
+////		//           p=p+1
+////		//           do nb=1,nat
+////		//              u(p) % vec (:,:,:,i,MOD(axis,3)+1,na,nb)=-tau(MOD(axis+1,3)+1,nb)
+////		//              u(p) % vec (:,:,:,i,MOD(axis+1,3)+1,na,nb)=tau(MOD(axis,3)+1,nb)
+////		//           enddo
+////		//           !
+////		//        enddo
+////		//     enddo
+////		//  endif
+////
+////		//  if (n.eq.6) then
+////		//     do i=1,3
+////		//        do j=1,3
+////		//           do na=1,nat
+////		//              ! These are the 3*3*nat vectors associated with the
+////		//              ! three rotational sum rules (0D system - typ. molecule)
+////		//              p=p+1
+////		//              do nb=1,nat
+////		//                 u(p) % vec (:,:,:,i,MOD(j,3)+1,na,nb)=-tau(MOD(j+1,3)+1,nb)
+////		//                 u(p) % vec (:,:,:,i,MOD(j+1,3)+1,na,nb)=tau(MOD(j,3)+1,nb)
+////		//              enddo
+////		//              !
+////		//           enddo
+////		//        enddo
+////		//     enddo
+////		//  endif
+//
+//		Eigen::Tensor<int,3> ind_v(9*numAtoms*numAtoms*qCoarseGrid(0)
+//				*qCoarseGrid(1)*qCoarseGrid(2),2,7);
+//		Eigen::Tensor<double,2> v(9*numAtoms*numAtoms*qCoarseGrid(0)
+//				*qCoarseGrid(1)*qCoarseGrid(2),2);
+//		ind_v.setZero();
+//		v.setZero();
+//
+//		int m = 0;
+//		int q, l, test1, test2, test3;
+//
+//		for ( int i=1; i<=3; i++ ) {
+//			for ( int j=1; j<=3; j++ ) {
+//				for ( int na=1; na<=numAtoms; na++ ) {
+//					for ( int nb=1; nb<=numAtoms; nb++ ) {
+//						for ( int n1=1; n1<=qCoarseGrid(0); n1++ ) {
+//							for ( int n2=1; n2<=qCoarseGrid(1); n2++ ) {
+//								for ( int n3=1; n3<=qCoarseGrid(2); n3++ ) {
+//
+//									// These are the vectors associated with
+//									// the symmetry constraints
+//									q = 1;
+//									l = 1;
+//
+//									while ( ( l <= m ) && ( q != 0 ) ) {
+//										if ( ( ind_v(l-1,0,0)==n1 ) &&
+//											 ( ind_v(l-1,0,1)==n2 ) &&
+//											 ( ind_v(l-1,0,2)==n3 ) &&
+//											 ( ind_v(l-1,0,3)==i  ) &&
+//											 ( ind_v(l-1,0,4)==j  ) &&
+//											 ( ind_v(l-1,0,5)==na ) &&
+//											 ( ind_v(l-1,0,6)==nb ) ) { q = 0; };
+//										if ( ( ind_v(l-1,1,0)==n1 ) &&
+//											 ( ind_v(l-1,1,1)==n2 ) &&
+//											 ( ind_v(l-1,1,2)==n3 ) &&
+//											 ( ind_v(l-1,1,3)==i  ) &&
+//											 ( ind_v(l-1,1,4)==j  ) &&
+//											 ( ind_v(l-1,1,5)==na ) &&
+//											 ( ind_v(l-1,1,6)==nb ) ) { q = 0; };
+//										l += 1;
+//									}
+//
+//									test1 = qCoarseGrid(0) + 1 - n1;
+//									test1 = test1 % qCoarseGrid(0);
+//									test1 += 1;
+//									test2 = qCoarseGrid(1) + 1 - n2;
+//									test2 = test2 % qCoarseGrid(1);
+//									test2 += 1;
+//									test3 = qCoarseGrid(2) + 1 - n3;
+//									test3 = test3 % qCoarseGrid(2);
+//									test3 += 1;
+//									if ( ( n1==test1 ) &&
+//										 ( n2==test2 ) &&
+//										 ( n3==test3 ) &&
+//										 ( i==j ) && ( na==nb ) ) { q = 0; };
+//									if ( q != 0 ) {
+//										m += 1;
+//										ind_v(m-1,0,0) = n1;
+//										ind_v(m-1,0,1) = n2;
+//										ind_v(m-1,0,2) = n3;
+//										ind_v(m-1,0,3) = i;
+//										ind_v(m-1,0,4) = j;
+//										ind_v(m-1,0,5) = na;
+//										ind_v(m-1,0,6) = nb;
+//										v(m-1,0) = 1.0 / sqrt(2.);
+//										ind_v(m-1,1,0) = test1;
+//										ind_v(m-1,1,1) = test2;
+//										ind_v(m-1,1,2) = test3;
+//										ind_v(m-1,1,3) = j;
+//										ind_v(m-1,1,4) = i;
+//										ind_v(m-1,1,5) = nb;
+//										ind_v(m-1,1,6) = na;
+//										v(m-1,1) = - 1.0 / sqrt(2.);
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//		// rescale to c++ indices
+//		ind_v -= ind_v.constant(1);
+//
+//		std::cout << "Fine prima parte\n";
+//
+//		// Gram-Schmidt orthonormalization of the set of vectors created.
+//		// Note that the vectors corresponding to symmetry constraints are already
+//		// orthonormalized by construction.
+//
+//		Eigen::Tensor<double,7> w(qCoarseGrid(0),qCoarseGrid(1),qCoarseGrid(2),
+//				3,3,numAtoms,numAtoms);
+//		Eigen::VectorXi u_less(6*3*numAtoms);
+//
+//		w.setZero();
+//		u_less.setZero();
+//
+//		int n1, n2, n3, i, j, na, nb, na1, i1, j1;
+//
+//		int n_less = 0;
+//		for ( int k=1; k<=p; k++ ) {
+//			// w = ukvec(k,:,:,:,:,:,:,:);
+//			// x = ukvec(k,:,:,:,:,:,:,:);
+//			for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//				for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//					for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//						for ( int i=0; i<3; i++ ) {
+//							for ( int j=0; j<3; j++ ) {
+//								for ( int na=0; na<numAtoms; na++ ) {
+//									for ( int nb=0; nb<numAtoms; nb++ ) {
+//										w(n1,n2,n3,i,j,na,nb) =
+//												ukvec(k-1,n1,n2,n3,i,j,na,nb);
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//
+//			for ( int l=0; l<m; l++ ) {
+//
+//		        // call sp2(x,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
+//				scal = 0.;
+//				for ( int i=0; i<2; i++ ) {
+//					scal += ukvec(k-1,ind_v(l,i,0), ind_v(l,i,1), ind_v(l,i,2),
+//							ind_v(l,i,3), ind_v(l,i,4), ind_v(l,i,5),
+//							ind_v(l,i,6)) * v(l,i);
+//				}
+//
+//				for ( int r=0; r<2; r++ ) {
+//					n1 = ind_v(l,r,0);
+//					n2 = ind_v(l,r,1);
+//					n3 = ind_v(l,r,2);
+//					i = ind_v(l,r,3);
+//					j = ind_v(l,r,4);
+//					na = ind_v(l,r,5);
+//					nb = ind_v(l,r,6);
+//					w(n1,n2,n3,i,j,na,nb) -= scal * v(l,r);
+//				}
+//			}
+//			if ( k <= 9*numAtoms ) {
+//				na1 = k % numAtoms;
+//				if ( na1 == 0 ) na1 = numAtoms;
+//				j1 = ((k-na1)/numAtoms) % 3 + 1;
+//				i1 = ((((k-na1)/numAtoms)-j1)/3) % 3 + 1;
+//			} else {
+//				q = k - 9 * numAtoms;
+//				//        if (n.eq.4) then
+//				//           na1=MOD(q,nat)
+//				//           if (na1.eq.0) na1=nat
+//				//           i1=MOD((q-na1)/nat,3)+1
+//				//        else
+//				na1 = q % numAtoms;
+//				if ( na1 == 0 ) { na1 = numAtoms; }
+//				j1 = ((q-na1)/numAtoms) % 3 +1;
+//				i1 = ((((q-na1)/numAtoms)-j1)/3) % 3 + 1;
+//				//        endif
+//			}
+//			for ( int q=1; q<=k-1; q++ ) {
+//				r = 1;
+//				for ( int i_less=0; i_less<n_less; i_less++ ) {
+//					if ( u_less(i_less) == q ) {r = 0;};
+//				}
+//				if ( r != 0 ) {
+//			        // call sp3(x,u(q) % vec (:,:,:,:,:,:,:), i1,na1,nr1,nr2,nr3,nat,scal)
+//					scal = 0.;
+//					for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//						for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//							for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//								for ( int j=0; j<3; j++ ) {
+//									for ( int nb=0; nb<numAtoms; nb++){
+//										scal += ukvec(k-1,n1,n2,n3,i1-1,j,na1-1,nb)
+//									 * ukvec(q-1,n1,n2,n3,i1-1,j,na1-1,nb);
+//									}
+//								}
+//							}
+//						}
+//					}
+//					for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//						for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//							for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//								for ( int i=0; i<3; i++ ) {
+//									for ( int j=0; j<3; j++ ) {
+//										for ( int na=0; na<numAtoms; na++){
+//											for ( int nb=0; nb<numAtoms; nb++){
+//												w(n1,n2,n3,i1-1,j,na1-1,nb) -=
+//														scal *
+//														ukvec(q-1,n1,n2,n3,i1-1,j,na1-1,nb);
+//											}
+//										}
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//			sp1(w, w, norm2);
+//			if ( norm2 > 1.0e-16 ) {
+//				// ukvec(k,:,:,:,:,:,:,:) = w / sqrt(norm2);
+//				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//							for ( int i=0; i<3; i++ ) {
+//								for ( int j=0; j<3; j++ ) {
+//									for ( int na=0; na<numAtoms; na++ ) {
+//										for ( int nb=0; nb<numAtoms; nb++ ) {
+//											ukvec(k-1,n1,n2,n3,i,j,na,nb) =
+//													w(n1,n2,n3,i,j,na,nb)
+//													/ sqrt(norm2);
+//										}
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			} else {
+//				n_less += 1;
+//				u_less(n_less-1) = k;
+//			}
+//		}
+//
+//		std::cout << n_less << "!\n";
+//		std::cout << u_less(0) << " " << u_less(1) << " " << u_less(2) << "\n";
+//
+//		// Projection of the force-constants "vector" on the orthogonal of the
+//		// subspace of the vectors verifying the sum rules and symmetry contraints
+//
+//		w.setZero();
+//		for ( int l=0; l<m; l++ ) {
+//
+//			scal = 0.;
+//			for ( int i=0; i<2; i++ ) {
+//			    scal += frc_new(ind_v(l,i,0), ind_v(l,i,1), ind_v(l,i,2),
+//			    		ind_v(l,i,3), ind_v(l,i,4), ind_v(l,i,5),
+//						ind_v(l,i,6)) * v(l,i);
+//			}
+//			// sp2(frc_new, v(l,:), ind_v(l,:,:), scal);
+//
+//			for ( int r=0; r<2; r++ ) {
+//				n1 = ind_v(l,r,0);
+//				n2 = ind_v(l,r,1);
+//				n3 = ind_v(l,r,2);
+//				i = ind_v(l,r,3);
+//				j = ind_v(l,r,4);
+//				na = ind_v(l,r,5);
+//				nb = ind_v(l,r,6);
+//				w(n1,n2,n3,i,j,na,nb) += scal * v(l,r);
+//			}
+//		}
+//
+//		for ( int k=1; k<=p; k++ ) {
+//			r = 1;
+//			for ( int i_less=0; i_less<n_less; i_less++ ) {
+//				if ( u_less(i_less) == k ) { r = 0; }
+//			}
+//			if ( r != 0 ) {
+//
+//				// sp1(ukvec(k,:,:,:,:,:,:,:), frc_new, scal);
+//				scal = 0.;
+//				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//							for ( int i=0; i<3; i++ ) {
+//								for ( int j=0; j<3; j++ ) {
+//									for ( int na=0; na<numAtoms; na++ ) {
+//										for ( int nb=0; nb<numAtoms; nb++ ) {
+//											scal +=
+//												ukvec(k-1,n1,n2,n3,i,j,na,nb)
+//												* frc_new(n1,n2,n3,i,j,na,nb);
+//										}
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//				for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
+//					for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
+//						for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
+//							for ( int i=0; i<3; i++ ) {
+//								for ( int j=0; j<3; j++ ) {
+//									for ( int na=0; na<numAtoms; na++ ) {
+//										for ( int nb=0; nb<numAtoms; nb++ ) {
+//											w(n1,n2,n3,i,j,na,nb) += scal *
+//												ukvec(k-1,n1,n2,n3,i,j,na,nb);
+//										}
+//									}
+//								}
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+//
+//		// Final substraction of the former projection to the initial frc, to get
+//		// the new "projected" frc
+//
+//		frc_new -= w;
+//		sp1(w, w, norm2);
+//		std::cout << "Difference between old and new force-constants: "
+//				<< sqrt(norm2) << std::endl;
+//		std::cout << "Puppa\n";
+//
+//		forceConstants = frc_new;
 	}
 }
 
