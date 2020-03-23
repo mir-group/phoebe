@@ -993,13 +993,12 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		for ( int i=0; i<3; i++ ) {
 			for ( int j=0; j<3; j++ ) {
 				for ( int na=0; na<numAtoms; na++ ) {
-					// These are the 3*3*nat vectors associated with the
+					// These are the 3*3*numAtoms vectors associated with the
 					// translational acoustic sum rules
-
-					for ( int nb=0; nb<numAtoms; nb++ ) {
-						for ( int n1=0; n1<nr1; n1++ ) {
-							for ( int n2=0; n2<nr2; n2++ ) {
-								for ( int n3=0; n3<nr3; n3++ ) {
+					for ( int n1=0; n1<nr1; n1++ ) {
+						for ( int n2=0; n2<nr2; n2++ ) {
+							for ( int n3=0; n3<nr3; n3++ ) {
+								for ( int nb=0; nb<numAtoms; nb++ ) {
 									uvec(p,n1,n2,n3,i,j,na,nb) = 1.;
 								}
 							}
@@ -1018,31 +1017,37 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		int m = 0;
 		int q, l;
 
-		for ( int i=1; i<=3; i++ ) {
-			for ( int j=1; j<=3; j++ ) {
-				for ( int na=1; na<=numAtoms; na++ ) {
-					for ( int nb=1; nb<=numAtoms; nb++ ) {
-						for ( int n1=1; n1<=nr1; n1++ ) {
-							for ( int n2=1; n2<=nr2; n2++ ) {
-								for ( int n3=1; n3<=nr3; n3++ ) {
+		for ( int n1=0; n1<nr1; n1++ ) {
+			for ( int n2=0; n2<nr2; n2++ ) {
+				for ( int n3=0; n3<nr3; n3++ ) {
+					for ( int i=0; i<3; i++ ) {
+						for ( int j=0; j<3; j++ ) {
+							for ( int na=0; na<numAtoms; na++ ) {
+								for ( int nb=0; nb<numAtoms; nb++ ) {
 									// These are the vectors associated with the symmetry constraints
 									q = 1;
-									l = 1;
-									while ( ( l <= m ) && ( q != 0 ) ) {
-										if ( (ind_v(l-1,0,0)==n1) && (ind_v(l-1,0,1)==n2) &&
-												(ind_v(l-1,0,2)==n3) && (ind_v(l-1,0,3)==i) &&
-												(ind_v(l-1,0,4)==j)  && (ind_v(l-1,0,5)==na) &&
-												(ind_v(l-1,0,6)==nb)) { q=0; }
-										if ( (ind_v(l-1,1,0)==n1) && (ind_v(l-1,1,2-1)==n2) &&
-												(ind_v(l-1,1,2)==n3) && (ind_v(l-1,1,3)==i) &&
-												(ind_v(l-1,1,4)==j)  && (ind_v(l-1,1,5)==na) &&
-												(ind_v(l-1,1,6)==nb)) {q = 0;}
+									l = 0;
+									while ( ( l < m ) && ( q != 0 ) ) {
+										if ( (ind_v(l,0,0)==n1) &&
+											 (ind_v(l,0,1)==n2) &&
+											 (ind_v(l,0,2)==n3) &&
+											 (ind_v(l,0,3)==i)  &&
+											 (ind_v(l,0,4)==j)  &&
+											 (ind_v(l,0,5)==na) &&
+											 (ind_v(l,0,6)==nb)) { q = 0; }
+										if ( (ind_v(l,1,0)==n1) &&
+											 (ind_v(l,1,1)==n2) &&
+											 (ind_v(l,1,2)==n3) &&
+											 (ind_v(l,1,3)==i)  &&
+											 (ind_v(l,1,4)==j)  &&
+											 (ind_v(l,1,5)==na) &&
+											 (ind_v(l,1,6)==nb)) { q = 0;}
 										l += 1;
 									}
-									if ( ( n1==((nr1+1-n1)%nr1)+1 ) &&
-											( n2==((nr2+1-n2)%nr2)+1 ) &&
-											( n3==((nr3+1-n3)%nr3)+1 ) &&
-											( i==j ) && ( na==nb ) ) { q=0; }
+									if ( ( n1==((nr1+1-n1)%nr1) ) &&
+										 ( n2==((nr2+1-n2)%nr2) ) &&
+										 ( n3==((nr3+1-n3)%nr3) ) &&
+										 ( i==j ) && ( na==nb ) ) { q = 0; }
 									if ( q != 0 ) {
 										ind_v(m,0,0) = n1;
 										ind_v(m,0,1) = n2;
@@ -1052,9 +1057,9 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 										ind_v(m,0,5) = na;
 										ind_v(m,0,6) = nb;
 										v(m,0) = 1. / sqrt(2.);
-										ind_v(m,1,0) = ((nr1+1-n1) % nr1) + 1;
-										ind_v(m,1,1) = ((nr2+1-n2) % nr2) + 1;
-										ind_v(m,1,2) = ((nr3+1-n3) % nr3) + 1;
+										ind_v(m,1,0) = (nr1+1-n1) % nr1;
+										ind_v(m,1,1) = (nr2+1-n2) % nr2;
+										ind_v(m,1,2) = (nr3+1-n3) % nr3;
 										ind_v(m,1,3) = j;
 										ind_v(m,1,4) = i;
 										ind_v(m,1,5) = nb;
@@ -1089,13 +1094,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		for ( int k=1; k<=p; k++ ) {
 			// w(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
 			// x(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
-			for ( int i=0; i<3; i++ ) {
-				for ( int j=0; j<3; j++ ) {
-					for ( int na=0; na<numAtoms; na++ ) {
-						for ( int nb=0; nb<numAtoms; nb++ ) {
-							for ( int n1=0; n1<nr1; n1++ ) {
-								for ( int n2=0; n2<nr2; n2++ ) {
-									for ( int n3=0; n3<nr3; n3++ ) {
+			for ( int n1=0; n1<nr1; n1++ ) {
+				for ( int n2=0; n2<nr2; n2++ ) {
+					for ( int n3=0; n3<nr3; n3++ ) {
+						for ( int i=0; i<3; i++ ) {
+							for ( int j=0; j<3; j++ ) {
+								for ( int na=0; na<numAtoms; na++ ) {
+									for ( int nb=0; nb<numAtoms; nb++ ) {
 										w(n1,n2,n3,i,j,na,nb) = uvec(k-1,n1,n2,n3,i,j,na,nb);
 										x(n1,n2,n3,i,j,na,nb) = uvec(k-1,n1,n2,n3,i,j,na,nb);
 									}
@@ -1117,7 +1122,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 					j = ind_v(l,r,4);
 					na = ind_v(l,r,5);
 					nb = ind_v(l,r,6);
-					scal += w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) * v(l,r);
+					scal += w(n1,n2,n3,i,j,na,nb) * v(l,r);
 				}
 
 				for ( int r=0; r<2; r++ ) {
@@ -1128,7 +1133,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 					j = ind_v(l,r,4);
 					na = ind_v(l,r,5);
 					nb = ind_v(l,r,6);
-					w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) -= scal * v(l,r);
+					w(n1,n2,n3,i,j,na,nb) -= scal * v(l,r);
 				}
 			}
 
@@ -1158,11 +1163,11 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				if ( r != 0 ) {
 //					call sp3(x,uvec(q-1,:,:,:,:,:,:,:),i1,na1,nr1,nr2,nr3,nat,scal)
 					scal = 0.;
-					for ( int j=0; j<3; j++ ) {
-						for ( int nb=0; nb<numAtoms; nb++ ) {
-							for ( int n1=0; n1<nr1; n1++ ) {
-								for ( int n2=0; n2<nr2; n2++ ) {
-									for ( int n3=0; n3<nr3; n3++ ) {
+					for ( int n1=0; n1<nr1; n1++ ) {
+						for ( int n2=0; n2<nr2; n2++ ) {
+							for ( int n3=0; n3<nr3; n3++ ) {
+								for ( int j=0; j<3; j++ ) {
+									for ( int nb=0; nb<numAtoms; nb++ ) {
 										scal += x(n1,n2,n3,i1,j,na1-1,nb)
 												* uvec(q-1,n1,n2,n3,i1,j,na1-1,nb);
 									}
@@ -1171,14 +1176,14 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 						}
 					}
 
-					//		           w(:,:,:,:,:,:,:) -= scal * uvec(q-1,:,:,:,:,:,:,:)
-					for ( int i=0; i<3; i++ ) {
-						for ( int j=0; j<3; j++ ) {
-							for ( int na=0; na<numAtoms; na++ ) {
-								for ( int nb=0; nb<numAtoms; nb++ ) {
-									for ( int n1=0; n1<nr1; n1++ ) {
-										for ( int n2=0; n2<nr2; n2++ ) {
-											for ( int n3=0; n3<nr3; n3++ ) {
+					// w(:,:,:,:,:,:,:) -= scal * uvec(q-1,:,:,:,:,:,:,:)
+					for ( int n1=0; n1<nr1; n1++ ) {
+						for ( int n2=0; n2<nr2; n2++ ) {
+							for ( int n3=0; n3<nr3; n3++ ) {
+								for ( int i=0; i<3; i++ ) {
+									for ( int j=0; j<3; j++ ) {
+										for ( int na=0; na<numAtoms; na++ ) {
+											for ( int nb=0; nb<numAtoms; nb++ ) {
 												w(n1,n2,n3,i,j,na,nb) -= scal *
 														uvec(q-1,n1,n2,n3,i,j,na,nb);
 											}
@@ -1194,13 +1199,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 //			call sp1(w,w,nr1,nr2,nr3,nat,norm2)
 			norm2 = 0.;
-			for ( int i=0; i<3; i++ ) {
-				for ( int j=0; j<3; j++ ) {
-					for ( int na=0; na<numAtoms; na++ ) {
-						for ( int nb=0; nb<numAtoms; nb++ ) {
-							for ( int n1=0; n1<nr1; n1++ ) {
-								for ( int n2=0; n2<nr2; n2++ ) {
-									for ( int n3=0; n3<nr3; n3++ ) {
+			for ( int n1=0; n1<nr1; n1++ ) {
+				for ( int n2=0; n2<nr2; n2++ ) {
+					for ( int n3=0; n3<nr3; n3++ ) {
+						for ( int i=0; i<3; i++ ) {
+							for ( int j=0; j<3; j++ ) {
+								for ( int na=0; na<numAtoms; na++ ) {
+									for ( int nb=0; nb<numAtoms; nb++ ) {
 										norm2 += w(n1,n2,n3,i,j,na,nb)
 												* w(n1,n2,n3,i,j,na,nb);
 									}
@@ -1213,13 +1218,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 			if ( norm2 > 1.0e-16 ) {
 				// uvec(k-1,:,:,:,:,:,:,:) = w(:,:,:,:,:,:,:) / sqrt(norm2);
-				for ( int i=0; i<3; i++ ) {
-					for ( int j=0; j<3; j++ ) {
-						for ( int na=0; na<numAtoms; na++ ) {
-							for ( int nb=0; nb<numAtoms; nb++ ) {
-								for ( int n1=0; n1<nr1; n1++ ) {
-									for ( int n2=0; n2<nr2; n2++ ) {
-										for ( int n3=0; n3<nr3; n3++ ) {
+				for ( int n1=0; n1<nr1; n1++ ) {
+					for ( int n2=0; n2<nr2; n2++ ) {
+						for ( int n3=0; n3<nr3; n3++ ) {
+							for ( int i=0; i<3; i++ ) {
+								for ( int j=0; j<3; j++ ) {
+									for ( int na=0; na<numAtoms; na++ ) {
+										for ( int nb=0; nb<numAtoms; nb++ ) {
 											uvec(k-1,n1,n2,n3,i,j,na,nb) =
 													w(n1,n2,n3,i,j,na,nb)
 													/ sqrt(norm2);
@@ -1258,7 +1263,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				j = ind_v(l,r,4);
 				na = ind_v(l,r,5);
 				nb = ind_v(l,r,6);
-				w(n1-1,n2-1,n3-1,i-1,j-1,na-1,nb-1) += scal * v(l,r);
+				w(n1,n2,n3,i,j,na,nb) += scal * v(l,r);
 			}
 		}
 		for ( int k=0; k<p; k++ ) {
@@ -1269,13 +1274,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			if ( r != 0 ) {
 
 				scal = 0.;
-				for ( int i=0; i<3; i++ ) {
-					for ( int j=0; j<3; j++ ) {
-						for ( int na=0; na<numAtoms; na++ ) {
-							for ( int nb=0; nb<numAtoms; nb++ ) {
-								for ( int n1=0; n1<nr1; n1++ ) {
-									for ( int n2=0; n2<nr2; n2++ ) {
-										for ( int n3=0; n3<nr3; n3++ ) {
+				for ( int n1=0; n1<nr1; n1++ ) {
+					for ( int n2=0; n2<nr2; n2++ ) {
+						for ( int n3=0; n3<nr3; n3++ ) {
+							for ( int i=0; i<3; i++ ) {
+								for ( int j=0; j<3; j++ ) {
+									for ( int na=0; na<numAtoms; na++ ) {
+										for ( int nb=0; nb<numAtoms; nb++ ) {
 											scal += uvec(k,n1,n2,n3,i,j,na,nb)
 													* frc_new(n1,n2,n3,i,j,na,nb);
 										}
@@ -1286,13 +1291,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 					}
 				}
 
-				for ( int i=0; i<3; i++ ) {
-					for ( int j=0; j<3; j++ ) {
-						for ( int na=0; na<numAtoms; na++ ) {
-							for ( int nb=0; nb<numAtoms; nb++ ) {
-								for ( int n1=0; n1<nr1; n1++ ) {
-									for ( int n2=0; n2<nr2; n2++ ) {
-										for ( int n3=0; n3<nr3; n3++ ) {
+				for ( int n1=0; n1<nr1; n1++ ) {
+					for ( int n2=0; n2<nr2; n2++ ) {
+						for ( int n3=0; n3<nr3; n3++ ) {
+							for ( int i=0; i<3; i++ ) {
+								for ( int j=0; j<3; j++ ) {
+									for ( int na=0; na<numAtoms; na++ ) {
+										for ( int nb=0; nb<numAtoms; nb++ ) {
 											w(n1,n2,n3,i,j,na,nb) +=
 													scal *
 													uvec(k,n1,n2,n3,i,j,na,nb);
@@ -1311,13 +1316,13 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 		frc_new -= w;
 		scal = 0.;
-		for ( int i=0; i<3; i++ ) {
-			for ( int j=0; j<3; j++ ) {
-				for ( int na=0; na<numAtoms; na++ ) {
-					for ( int nb=0; nb<numAtoms; nb++ ) {
-						for ( int n1=0; n1<nr1; n1++ ) {
-							for ( int n2=0; n2<nr2; n2++ ) {
-								for ( int n3=0; n3<nr3; n3++ ) {
+		for ( int n1=0; n1<nr1; n1++ ) {
+			for ( int n2=0; n2<nr2; n2++ ) {
+				for ( int n3=0; n3<nr3; n3++ ) {
+					for ( int i=0; i<3; i++ ) {
+						for ( int j=0; j<3; j++ ) {
+							for ( int na=0; na<numAtoms; na++ ) {
+								for ( int nb=0; nb<numAtoms; nb++ ) {
 									scal += w(n1,n2,n3,i,j,na,nb)
 											* w(n1,n2,n3,i,j,na,nb);
 								}
