@@ -532,8 +532,6 @@ void PhononH0::dyndiag(Eigen::Tensor<std::complex<double>,4>& dyn,
 
 	Eigen::VectorXd w2 = eigensolver.eigenvalues();
 
-	std::cout << w2.transpose() << "\n";
-
 	for ( int i=0; i<numBands; i++ ) {
 		if ( w2(i) < 0 ) {
 			energies(i) = -sqrt(-w2(i));
@@ -741,6 +739,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 	if ( ( sumRule != "simple" ) && ( sumRule != "crystal" ) ) {
 		Error e("invalid Acoustic Sum Rule", 1);
 	}
+
+	std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
 
 	if ( sumRule == "simple" ) {
 
@@ -1281,6 +1281,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		forceConstants = frc_new;
 
 	}
+	std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
 }
 
 

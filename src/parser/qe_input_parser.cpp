@@ -545,7 +545,6 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
-
 	PhononH0 dynamicalMatrix(directUnitCell,
 			reciprocalUnitCell,
 			alat,
@@ -567,7 +566,6 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	dynamicalMatrix.diagonalize(q, omega, z);
 
-	std::cout << "Finito\n";
 	std::cout << omega.transpose() * ryToCmm1 << std::endl;
 
 	return;
