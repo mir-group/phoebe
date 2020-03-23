@@ -66,12 +66,4 @@ public:
 	void sp_zeu(Eigen::Tensor<double,3>& zeu_u,
 			Eigen::Tensor<double,3>& zeu_v,
 			double& scal);
-	void sp1(Eigen::Tensor<double,7>& u,
-			Eigen::Tensor<double,7>& v,
-			double& scal);
-	void sp2(Eigen::Tensor<double,7>u, Eigen::Tensor<double,1>& v,
-			Eigen::Tensor<int,2>& ind_v, double& scal);
-	void sp3(Eigen::Tensor<double,7>& u,
-			Eigen::Tensor<double,7>& v,
-			const int& i, const int& na, double& scal);
 };

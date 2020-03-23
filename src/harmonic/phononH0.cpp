@@ -25,7 +25,8 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 							+ unitCell(i,1)*jr + unitCell(i,2)*kr;
 				}
 
-				if ( tmpResult.col(index).transpose()*tmpResult.col(index) > 1.0e-6 ) {
+				if ( tmpResult.col(index).transpose()*tmpResult.col(index) >
+					1.0e-6 ) {
 					index += 1;
 				}
 				if ( index > nrwsx ) {
@@ -45,8 +46,8 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	// the shortRange() calculation
 
 	Eigen::VectorXd r_ws(3);
-	Eigen::Tensor<double,5> wscache_(2*nr3Big+1, 2*nr2Big+1, 2*nr1Big+1, numAtoms, numAtoms);
-//	wscache_.setZero();
+	Eigen::Tensor<double,5> wscache_(2*nr3Big+1, 2*nr2Big+1, 2*nr1Big+1,
+			numAtoms, numAtoms);
 
 	double x, total_weight;
 	int n1ForCache, n2ForCache, n3ForCache;
@@ -78,7 +79,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 						}
 
 						x = wsweight(r_ws, rws);
-						wscache_(n3ForCache, n2ForCache, n1ForCache, nb, na) = x;
+						wscache_(n3ForCache, n2ForCache, n1ForCache,nb,na) = x;
 						total_weight += x;
 					}
 				}
@@ -96,16 +97,16 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 
 double PhononH0::wsweight(const Eigen::VectorXd& r,
 		const Eigen::MatrixXd& rws) {
-	//! wsweights assigns this weight:
-	//! - if a point is inside the Wigner-Seitz cell:    weight=1
-	//! - if a point is outside the WS cell:             weight=0
-	//! - if a point q is on the border of the WS cell, it finds the number N
-	//!   of translationally equivalent point q+G  (where G is a lattice vector)
-	//!   that are also on the border of the cell. Then: weight = 1/N
+	// wsweights assigns this weight:
+	// - if a point is inside the Wigner-Seitz cell:    weight=1
+	// - if a point is outside the WS cell:             weight=0
+	// - if a point q is on the border of the WS cell, it finds the number N
+	//   of translationally equivalent point q+G  (where G is a lattice vector)
+	//   that are also on the border of the cell. Then: weight = 1/N
 	//
-	//! I.e. if a point is on the surface of the WS cell of a cubic lattice
-	//! it will have weight 1/2; on the vertex of the WS it would be 1/8;
-	//! the K point of an hexagonal lattice has weight 1/3 and so on.
+	// I.e. if a point is on the surface of the WS cell of a cubic lattice
+	// it will have weight 1/2; on the vertex of the WS it would be 1/8;
+	// the K point of an hexagonal lattice has weight 1/3 and so on.
 
 	// rws: contains the list of nearest neighbor atoms
 	// r: the position of the reference point
@@ -169,19 +170,22 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 		nr1x = 0;
 	} else {
 		nr1x = (int) ( sqrt(geg) /
-				sqrt( reciprocalUnitCell.col(0).transpose() * reciprocalUnitCell.col(0) )) + 1;
+				sqrt( reciprocalUnitCell.col(0).transpose() *
+						reciprocalUnitCell.col(0) )) + 1;
 	}
 	if ( qCoarseGrid(1) == 1 ) {
 		nr2x = 0;
 	} else {
 		nr2x = (int) ( sqrt(geg) /
-				sqrt( reciprocalUnitCell.col(1).transpose() * reciprocalUnitCell.col(1) )) + 1;
+				sqrt( reciprocalUnitCell.col(1).transpose() *
+						reciprocalUnitCell.col(1) )) + 1;
 	}
 	if ( qCoarseGrid(2) == 1 ) {
 		nr3x = 0;
 	} else {
 		nr3x = (int) ( sqrt(geg) /
-				sqrt( reciprocalUnitCell.col(2).transpose() * reciprocalUnitCell.col(2) )) + 1;
+				sqrt( reciprocalUnitCell.col(2).transpose() *
+						reciprocalUnitCell.col(2) )) + 1;
 	}
 
 	if ( abs(sign) != 1. ) {
@@ -189,15 +193,18 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	}
 
 	if ( loto_2d ) {
-		fac = sign * e2 * fourPi / volumeUnitCell * 0.5 * latticeParameter / reciprocalUnitCell(3,3);
+		fac = sign * e2 * fourPi / volumeUnitCell * 0.5 * latticeParameter
+				/ reciprocalUnitCell(3,3);
 		reff.setZero();
 		for ( int i=0; i<2; i++ ) {
 			for ( int j=0; j<2; j++ ) {
-				reff(i,j) = dielectricMatrix(i,j) * 0.5 * twoPi / reciprocalUnitCell(3,3); // (eps)*c/2 in 2pi/a units
+				reff(i,j) = dielectricMatrix(i,j) * 0.5 * twoPi
+						/ reciprocalUnitCell(3,3); // (eps)*c/2 in 2pi/a units
 			}
 		}
 		for ( int i=0; i<2; i++ ) {
-			reff(i,i) = reff(i,i) - 0.5 * twoPi / reciprocalUnitCell(3,3); // (-1)*c/2 in 2pi/a units
+			reff(i,i) = reff(i,i) - 0.5 * twoPi / reciprocalUnitCell(3,3);
+			// (-1)*c/2 in 2pi/a units
 		}
 	} else {
 		fac = sign * e2 * fourPi / volumeUnitCell;
@@ -208,16 +215,21 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	for ( int m1=-nr1x; m1<=nr1x; m1++ ) {
 		for ( int m2=-nr2x; m2<=nr2x; m2++ ) {
 			for ( int m3=-nr3x; m3<=nr3x; m3++ ) {
-				g(0) = m1*reciprocalUnitCell(0,0) + m2*reciprocalUnitCell(0,1) + m3*reciprocalUnitCell(0,2);
-				g(1) = m1*reciprocalUnitCell(1,0) + m2*reciprocalUnitCell(1,1) + m3*reciprocalUnitCell(1,2);
-				g(2) = m1*reciprocalUnitCell(2,0) + m2*reciprocalUnitCell(2,1) + m3*reciprocalUnitCell(2,2);
+				g(0) = m1*reciprocalUnitCell(0,0) + m2*reciprocalUnitCell(0,1)
+					+ m3*reciprocalUnitCell(0,2);
+				g(1) = m1*reciprocalUnitCell(1,0) + m2*reciprocalUnitCell(1,1)
+					+ m3*reciprocalUnitCell(1,2);
+				g(2) = m1*reciprocalUnitCell(2,0) + m2*reciprocalUnitCell(2,1)
+					+ m3*reciprocalUnitCell(2,2);
 
 				if (loto_2d) {
 					geg = (g.transpose()*g).value();
 					r = 0.;
 					gp2 = g(0)*g(0) + g(1)*g(1);
 					if ( gp2 > 1.0e-8 ) {
-						r = g(0) * reff(0,0) * g(0) + g(0) * reff(0,1) * g(1) + g(1) * reff(1,0) * g(0) + g(1) * reff(1,1) * g(1);
+						r = g(0) * reff(0,0) * g(0) + g(0) * reff(0,1) * g(1)
+								+ g(1) * reff(1,0) * g(0)
+								+ g(1) * reff(1,1) * g(1);
 						r = r / gp2;
 					}
 				} else {
@@ -227,7 +239,8 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 				if ( geg > 0. && geg / alph / 4. < gmax ) {
 
 					if ( loto_2d ) {
-						facgd = fac * exp( - geg / alph / 4.) / sqrt(geg) / ( 1. + r * sqrt(geg) );
+						facgd = fac * exp( - geg / alph / 4.) / sqrt(geg)
+								/ ( 1. + r * sqrt(geg) );
 					} else {
 						facgd = fac * exp( - geg / alph / 4. ) / geg;
 					}
@@ -235,12 +248,16 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 					for ( int na=0; na<numAtoms; na++ ) {
 
 						for ( int i=0; i<3; i++ ) {
-							zag(i) = g(0) * bornCharges(na,0,i) + g(1) * bornCharges(na,1,i) + g(2) * bornCharges(na,2,i);
+							zag(i) = g(0) * bornCharges(na,0,i)
+									+ g(1) * bornCharges(na,1,i)
+									+ g(2) * bornCharges(na,2,i);
 							fnat(i) = 0.;
 							for ( int nb=0; nb<numAtoms; nb++ ) {
 								arg = ( (atomicPositions.row(na)-atomicPositions.row(nb)) * g ).value();
 								arg *= twoPi;
-								zcg(i) = g(0) * bornCharges(nb,0,i) + g(1) * bornCharges(nb,1,i) + g(2) * bornCharges(nb,2,i);
+								zcg(i) = g(0) * bornCharges(nb,0,i)
+										+ g(1) * bornCharges(nb,1,i)
+										+ g(2) * bornCharges(nb,2,i);
 								fnat(i) += zcg(i) * cos(arg);
 							}
 						}
@@ -260,7 +277,9 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 					r = 0.;
 					gp2 = g(0)*g(0) + g(1)*g(1);
 					if ( gp2 > 1.0e-8) {
-						r = g(0) * reff(0,0)*g(0) + g(0) * reff(0,1)*g(1) + g(1) * reff(1,0)*g(0) + g(1) * reff(1,1)*g(1);
+						r = g(0) * reff(0,0)*g(0) + g(0) * reff(0,1)*g(1)
+								+ g(1) * reff(1,0)*g(0)
+								+ g(1) * reff(1,1)*g(1);
 						r = r / gp2;
 					}
 				} else {
@@ -270,18 +289,23 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 				if ( geg > 0. && geg / alph / 4. < gmax ) {
 
 					if ( loto_2d ) {
-						facgd = fac * exp(-geg/alph/4.) / sqrt(geg) / (1.+r*sqrt(geg));
+						facgd = fac * exp(-geg/alph/4.) / sqrt(geg)
+								/ (1.+r*sqrt(geg));
 					} else {
 						facgd = fac * exp( - geg / alph / 4. ) / geg;
 					}
 
 					for ( int nb=0; nb<numAtoms; nb++ ) {
 						for ( int i=0; i<3; i++ ) {
-							zbg(i) = g(0) * bornCharges(nb,0,i) + g(1) * bornCharges(nb,1,i) + g(2) * bornCharges(nb,2,i);
+							zbg(i) = g(0) * bornCharges(nb,0,i)
+									+ g(1) * bornCharges(nb,1,i)
+									+ g(2) * bornCharges(nb,2,i);
 						}
 						for ( int na=0; na<numAtoms; na++ ) {
 							for ( int i=0; i<3; i++ ) {
-								zag(i) = g(0) * bornCharges(na,0,i) + g(1) * bornCharges(na,1,i) + g(2) * bornCharges(na,2,i);
+								zag(i) = g(0) * bornCharges(na,0,i)
+										+ g(1) * bornCharges(na,1,i)
+										+ g(2) * bornCharges(na,2,i);
 							}
 							arg = ( (atomicPositions.row(na)-atomicPositions.row(nb)) * g ).value();
 							arg *= twoPi;
@@ -330,15 +354,18 @@ void PhononH0::nonAnaliticTerm(const Eigen::VectorXd& q,
 			jType = atomicSpecies(jt);
 
 			for ( int i=0; i<3; i++ ) {
-				zag(i) = q(0)*bornCharges(iType,0,i) +  q(1)*bornCharges(iType,1,i) +
-						q(2)*bornCharges(iType,2,i);
-				zbg(i) = q(0)*bornCharges(jType,0,i) +  q(1)*bornCharges(jType,1,i) +
-						q(2)*bornCharges(jType,2,i);
+				zag(i) = q(0)*bornCharges(iType,0,i)
+						+ q(1)*bornCharges(iType,1,i)
+						+ q(2)*bornCharges(iType,2,i);
+				zbg(i) = q(0)*bornCharges(jType,0,i)
+						+ q(1)*bornCharges(jType,1,i)
+						+ q(2)*bornCharges(jType,2,i);
 			}
 
 			for ( int i=0; i<3; i++ ) {
 				for ( int j=0; j<3; j++ ) {
-					dyn(i,j,it,jt) += fourPi * e2 * zag(i) * zbg(j) / qeq / volumeUnitCell;
+					dyn(i,j,it,jt) += fourPi * e2 * zag(i) * zbg(j) / qeq
+							/ volumeUnitCell;
 				}
 			}
 		}
@@ -348,17 +375,7 @@ void PhononH0::nonAnaliticTerm(const Eigen::VectorXd& q,
 void PhononH0::nonAnalIFC(const Eigen::VectorXd& q,
 		Eigen::Tensor<std::complex<double>, 4>& f_of_q) {
 	//     add the nonanalytical term with macroscopic electric fields
-
-	// !  numAtoms: number of atoms in the cell (in the supercell in the case
-	// !       of a dyn.mat. constructed in the mass approximation)
-	// !  atomicSpecies(na): atom in the original cell corresponding to
-	// !                atom na in the supercell
-
-	//	complex(DP), intent(inout) :: dyn(3,3,numAtoms,numAtoms),f_of_q(3,3,numAtoms,numAtoms) ! dynamical matrix
-	// real(DP), intent(in) :: q(3),  &! polarization vector
-	//      &       dielectricMatrix(3,3),     &! dielectric constant tensor
-	//      &       bornCharges(3,3,numAtoms),   &! effective charges tensor
-	//      &       volumeUnitCell            ! unit cell volume
+	// q(3) : polarization vector
 
 	Eigen::VectorXd zag(3), zbg(3); // eff. charges  times g-vector
 
@@ -382,10 +399,12 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd& q,
 		for ( int nb=0; nb<numAtoms; nb++ ) {
 			nb_blk = atomicSpecies(nb);
 			for ( int i=0; i<3; i++ ) {
-				zag(i) = q(0)*bornCharges(na_blk,0,i) +  q(1)*bornCharges(na_blk,1,i) +
-						q(2)*bornCharges(na_blk,2,i);
-				zbg(i) = q(0)*bornCharges(nb_blk,0,i) +  q(1)*bornCharges(nb_blk,1,i) +
-						q(2)*bornCharges(nb_blk,2,i);
+				zag(i) = q(0)*bornCharges(na_blk,0,i)
+						+ q(1)*bornCharges(na_blk,1,i)
+						+ q(2)*bornCharges(na_blk,2,i);
+				zbg(i) = q(0)*bornCharges(nb_blk,0,i)
+						+ q(1)*bornCharges(nb_blk,1,i)
+						+ q(2)*bornCharges(nb_blk,2,i);
 			}
 			for ( int i=0; i<3; i++ ) {
 				for ( int j=0; j<3; j++ ) {
@@ -404,59 +423,8 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
 
 	Eigen::VectorXd r(3), r_ws(3);
 	double arg, weight;
-//	static bool first = true;
 
 	int n1ForCache, n2ForCache, n3ForCache;
-
-//	const int nr1Big = 2 * qCoarseGrid(0);
-//	const int nr2Big = 2 * qCoarseGrid(1);
-//	const int nr3Big = 2 * qCoarseGrid(2);
-//
-//	static Eigen::Tensor<double, 5> wscache(2*nr3Big+1, 2*nr2Big+1, 2*nr1Big+1,
-//			numAtoms, numAtoms);
-//
-//	double x;
-//	if ( first ) {
-//		first = false;
-//		for ( int na=0; na<numAtoms; na++ ) {
-//			for ( int nb=0; nb<numAtoms; nb++ ) {
-//				total_weight = 0.;
-//
-//				// sum over r vectors in the supercell - very safe range!
-//
-//				for ( int n1=-nr1Big; n1<=nr1Big; n1++ ) {
-//					n1ForCache = n1 + nr1Big;
-//					for ( int n2=-nr2Big; n2<=nr2Big; n2++ ) {
-//						n2ForCache = n2 + nr2Big;
-//						for ( int n3=-nr3Big; n3<=nr3Big; n3++ ) {
-//							n3ForCache = n3 + nr3Big;
-//
-//							for ( int i=0; i<3; i++ ) {
-//								r(i) = n1 * directUnitCell(i,0) + n2 * directUnitCell(i,1) + n3*directUnitCell(i,2);
-//								r_ws(i) = r(i) + atomicPositions(na,i) - atomicPositions(nb,i);
-//								if ( frozenPhonon ) {
-//									r_ws(i) = r(i) + atomicPositions(nb,i) - atomicPositions(na,i);
-//								}
-//							}
-//
-//							x = wsweight(r_ws, rws);
-//std::cout << x << "\n";
-//							wscache(n3ForCache, n2ForCache, n1ForCache, nb, na)
-//							= x;
-//							total_weight += x;
-//						}
-//					}
-//				}
-//
-//				if ( abs( total_weight - qCoarseGrid(0) *
-//						qCoarseGrid(1) * qCoarseGrid(2) ) > 1.0e-8 ) {
-//					Error e("wrong total_weight", 1);
-//				}
-//			}
-//		}
-//	} // first_time only
-
-//	std::cout << wscache;
 
 	int m1, m2, m3;
 	std::complex<double> phase;
@@ -752,35 +720,23 @@ void PhononH0::diagonalize(const Eigen::VectorXd& q,
 
 void PhononH0::setAcousticSumRule(const std::string sumRule) {
 	double norm2;
-	//  integer :: u_less(6*3*nat),n_less,i_less
-	//  ! indices of the vectors u that are not independent to the preceding ones,
-	//  ! n_less = number of such vectors, i_less = temporary parameter
-	//  !
-	//  integer, allocatable :: ind_v(:,:,:)
-	//  real(DP), allocatable :: v(:,:)
-	//  ! These are the "vectors" associated with symmetry conditions, coded by
-	//  ! indicating the positions (i.e. the seven indices) of the non-zero elements (there
-	//  ! should be only 2 of them) and the value of that element. We do so in order
-	//  ! to limit the amount of memory used.
-	//  !
-	//  real(DP), allocatable :: w(:,:,:,:,:,:,:), x(:,:,:,:,:,:,:)
-	//  ! temporary vectors and parameters
-	//  real(DP) :: scal,norm2, sum
-	//  !
-	//  real(DP) :: zeu_u(6*3,3,3,nat)
-	//  ! These are the "vectors" associated with the sum rules on effective charges
-	//  !
-	//  integer :: zeu_less(6*3),nzeu_less,izeu_less
-	//  ! indices of the vectors zeu_u that are not independent to the preceding ones,
-	//  ! nzeu_less = number of such vectors, izeu_less = temporary parameter
-	//  !
-	//  real(DP) :: zeu_w(3,3,nat), zeu_x(3,3,nat)
-	//  ! temporary vectors
-
-	// Initialization. n is the number of sum rules to be considered
-	// (if sumRule!="simple")
-	// and 'axis' is the rotation axis in the case of a 1D system (i.e. the
-	// rotation axis is (Ox) if axis='1', (Oy) if axis='2' and (Oz) if axis='3')
+	//  VectorXi u_less(6*3*numAtoms)
+	//  indices of the vectors u that are not independent to the preceding ones
+	//  n_less = number of such vectors
+	//
+	//  Tensor<int> ind_v(:,:,:)
+	//  Tensor<double> v(:,:)
+	//  These are the "vectors" associated with symmetry conditions, coded by
+	//  indicating the positions (i.e. the seven indices) of the non-zero
+	//  elements (there should be only 2 of them) and the value of that element
+	//  We do so in order to limit the amount of memory used.
+	//
+	//  Tensor<double> zeu_u(6*3,3,3,numAtoms)
+	//  These are vectors associated with the sum rules on effective charges
+	//
+	//  Tensor<int> zeu_less(6*3)
+	//  indices of zeu_u vectors that are not independent to the preceding ones
+	//  ! nzeu_less = number of such vectors
 
 	if ( ( sumRule != "simple" ) && ( sumRule != "crystal" ) ) {
 		Error e("invalid Acoustic Sum Rule", 1);
@@ -946,8 +902,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			}
 		}
 
-		// Final substraction of the former projection to the initial zeu, to get
-		// the new "projected" zeu
+		// Final substraction of the former projection to the initial zeu, to
+		// get the new "projected" zeu
 
 		zeu_new -= zeu_w;
 		sp_zeu(zeu_w, zeu_w, norm2);
@@ -962,18 +918,6 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			}
 		}
 
-
-
-
-
-
-
-
-
-
-
-
-
 		// Acoustic Sum Rule on force constants
 
 		// generating the vectors of the orthogonal of the subspace to project
@@ -983,7 +927,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		int nr2 = qCoarseGrid(1);
 		int nr3 = qCoarseGrid(2);
 
-		Eigen::Tensor<double,8> uvec(18*numAtoms,nr1,nr2,nr3,3,3,numAtoms,numAtoms);
+		Eigen::Tensor<double,8> uvec(18*numAtoms,nr1,nr2,nr3,3,3,numAtoms,
+				numAtoms);
 		uvec.setZero();
 
 		Eigen::Tensor<double,7> frc_new(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
@@ -1024,7 +969,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 						for ( int j=0; j<3; j++ ) {
 							for ( int na=0; na<numAtoms; na++ ) {
 								for ( int nb=0; nb<numAtoms; nb++ ) {
-									// These are the vectors associated with the symmetry constraints
+									// These are the vectors associated with
+									// the symmetry constraints
 									q = 1;
 									l = 0;
 									while ( ( l < m ) && ( q != 0 ) ) {
@@ -1076,8 +1022,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		}
 
 		// Gram-Schmidt orthonormalization of the set of vectors created.
-		// Note that the vectors corresponding to symmetry constraints are already
-		// orthonormalized by construction.
+		// Note that the vectors corresponding to symmetry constraints are
+		// already orthonormalized by construction.
 
 		int n_less = 0;
 		Eigen::Tensor<double,7> w(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
@@ -1091,7 +1037,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 		int n1, n2, n3, i, j, na, nb, na1, i1, j1;
 
-		for ( int k=1; k<=p; k++ ) {
+		for ( int k=0; k<p; k++ ) {
 			// w(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
 			// x(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
 			for ( int n1=0; n1<nr1; n1++ ) {
@@ -1101,8 +1047,10 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 							for ( int j=0; j<3; j++ ) {
 								for ( int na=0; na<numAtoms; na++ ) {
 									for ( int nb=0; nb<numAtoms; nb++ ) {
-										w(n1,n2,n3,i,j,na,nb) = uvec(k-1,n1,n2,n3,i,j,na,nb);
-										x(n1,n2,n3,i,j,na,nb) = uvec(k-1,n1,n2,n3,i,j,na,nb);
+										w(n1,n2,n3,i,j,na,nb) =
+												uvec(k,n1,n2,n3,i,j,na,nb);
+										x(n1,n2,n3,i,j,na,nb) =
+												uvec(k,n1,n2,n3,i,j,na,nb);
 									}
 								}
 							}
@@ -1137,25 +1085,19 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				}
 			}
 
-			if ( k <= ( 9*numAtoms) ) {
-				na1 = k % numAtoms;
+			if ( k+1 <= ( 9*numAtoms) ) {
+				na1 = (k + 1)% numAtoms;
 				if ( na1==0 ) { na1 = numAtoms; };
-				j1 = (((k-na1)/numAtoms) % 3);
-				i1 = (((((k-na1)/numAtoms)-j1)/3) % 3);
+				j1 = (((k+1-na1)/numAtoms) % 3);
+				i1 = (((((k+1-na1)/numAtoms)-j1)/3) % 3);
 			} else {
-				q = k - 9 * numAtoms;
-				//		        if ( n == 4 ) {
-				//		           na1 = q % nat;
-				//		           if ( na1 == 0 ) { na1 = nat; }
-				//		           i1 = MOD((q-na1)/nat,3)+1
-				//		        } else {
+				q = k + 1 - 9 * numAtoms;
 				na1 = q % numAtoms;
 				if ( na1 == 0 ) na1 = numAtoms;
 				j1 = (((q-na1)/numAtoms) % 3);
 				i1 = (((((q-na1)/numAtoms)-j1)/3) % 3);
-				//		        }
 			}
-			for ( int q=1; q<=k-1; q++ ) {
+			for ( int q=0; q<k; q++ ) {
 				r = 1;
 				for ( int i_less=0; i_less<n_less; i_less++ ) {
 					if ( u_less(i_less) == q ) { r = 0; }
@@ -1169,7 +1111,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 								for ( int j=0; j<3; j++ ) {
 									for ( int nb=0; nb<numAtoms; nb++ ) {
 										scal += x(n1,n2,n3,i1,j,na1-1,nb)
-												* uvec(q-1,n1,n2,n3,i1,j,na1-1,nb);
+												* uvec(q,n1,n2,n3,i1,j,na1-1,nb);
 									}
 								}
 							}
@@ -1185,7 +1127,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 										for ( int na=0; na<numAtoms; na++ ) {
 											for ( int nb=0; nb<numAtoms; nb++ ) {
 												w(n1,n2,n3,i,j,na,nb) -= scal *
-														uvec(q-1,n1,n2,n3,i,j,na,nb);
+														uvec(q,n1,n2,n3,i,j,na,nb);
 											}
 										}
 									}
@@ -1225,7 +1167,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 								for ( int j=0; j<3; j++ ) {
 									for ( int na=0; na<numAtoms; na++ ) {
 										for ( int nb=0; nb<numAtoms; nb++ ) {
-											uvec(k-1,n1,n2,n3,i,j,na,nb) =
+											uvec(k,n1,n2,n3,i,j,na,nb) =
 													w(n1,n2,n3,i,j,na,nb)
 													/ sqrt(norm2);
 										}
@@ -1242,7 +1184,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		}
 
 		// Projection of the force-constants "vector" on the orthogonal of the
-		// subspace of the vectors verifying the sum rules and symmetry contraints
+		// subspace of the vectors verifying sum rules and symmetry contraints
 
 		w.setZero();
 		for ( int l=0; l<m; l++ ) {
@@ -1269,7 +1211,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 		for ( int k=0; k<p; k++ ) {
 			r = 1;
 			for ( int i_less=0; i_less<n_less; i_less++ ) {
-				if ( u_less(i_less) == k+1 ) { r = 0; }
+				if ( u_less(i_less) == k ) { r = 0; }
 			}
 			if ( r != 0 ) {
 
@@ -1353,69 +1295,6 @@ void PhononH0::sp_zeu(Eigen::Tensor<double,3>& zeu_u,
 		for ( int j=0; j<3; j++) {
 			for ( int na=0; na<numAtoms; na++) {
 				scal += zeu_u(i,j,na) * zeu_v(i,j,na);
-			}
-		}
-	}
-}
-
-
-void PhononH0::sp1(Eigen::Tensor<double,7>& u,
-		Eigen::Tensor<double,7>& v,
-		double& scal) {
-	// does the scalar product of two force-constants matrices u and v
-	// (considered as vectors in the R^(3*3*nat*nat*nr1*nr2*nr3) space,
-	// and coded in the usual way)
-	scal = 0.;
-	for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-		for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-			for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-				for ( int i=0; i<3; i++ ) {
-					for ( int j=0; j<3; j++ ) {
-						for ( int na=0; na<numAtoms; na++ ) {
-							for ( int nb=0; nb<numAtoms; nb++ ) {
-								scal += u(n1,n2,n3,i,j,na,nb)
-    	    									* v(n1,n2,n3,i,j,na,nb);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-
-void PhononH0::sp2(Eigen::Tensor<double,7>u,
-		Eigen::Tensor<double,1>& v,
-		Eigen::Tensor<int,2>& ind_v, double& scal) {
-	// Does the scalar product of two force-constants matrices u and v
-	// (considered as vectors in the R^(3*3*nat*nat*nr1*nr2*nr3) space).
-	// u is coded in the usual way but v is coded as explained when defining
-	// the vectors corresponding to the symmetry constraints
-	scal = 0.;
-	for ( int i=0; i<2; i++ ) {
-		scal += u(ind_v(i,0),ind_v(i,1),ind_v(i,2),ind_v(i,3),ind_v(i,4),
-				ind_v(i,5), ind_v(i,6)) * v(i);
-	}
-}
-
-
-void PhononH0::sp3(Eigen::Tensor<double,7>& u,
-		Eigen::Tensor<double,7>& v,
-		const int& i, const int& na, double& scal) {
-	// like sp1, but in the particular case when u is one of the u(k)%vec
-	// defined in set_asr (before orthonormalization). In this case most of the
-	// terms are zero (the ones that are not are characterized by i and na), so
-	// that a lot of computer time can be saved (during Gram-Schmidt).
-	scal = 0.;
-	for ( int n1=0; n1<qCoarseGrid(0); n1++ ) {
-		for ( int n2=0; n2<qCoarseGrid(1); n2++ ) {
-			for ( int n3=0; n3<qCoarseGrid(2); n3++ ) {
-				for ( int j=0; j<3; j++ ) {
-					for ( int nb=0; nb<numAtoms; nb++ ) {
-						scal += u(n1,n2,n3,i,j,na,nb) * v(n1,n2,n3,i,j,na,nb);
-					}
-				}
 			}
 		}
 	}
