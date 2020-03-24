@@ -733,13 +733,16 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 	//  indices of zeu_u vectors that are not independent to the preceding ones
 	//  ! nzeu_less = number of such vectors
 
-	if ( ( sumRule != "simple" ) && ( sumRule != "crystal" ) ) {
+	std::string sr = sumRule;
+    std::transform(sr.begin(), sr.end(), sr.begin(), ::tolower);
+
+	if ( ( sr != "simple" ) && ( sr != "crystal" ) ) {
 		Error e("invalid Acoustic Sum Rule", 1);
 	}
 
 	std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
 
-	if ( sumRule == "simple" ) {
+	if ( sr == "simple" ) {
 
 		// Simple Acoustic Sum Rule on effective charges
 

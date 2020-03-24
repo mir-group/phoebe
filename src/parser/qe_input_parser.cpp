@@ -529,7 +529,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
 
-	dynamicalMatrix.setAcousticSumRule("crystal");
+	dynamicalMatrix.setAcousticSumRule("Crystal");
 
 	Eigen::VectorXd omega(numAtoms*3);
 	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
