@@ -7,7 +7,7 @@
 
 class PhononH0 {
 public:
-	PhononH0(Crystal crystal,
+	PhononH0(Crystal& crystal,
 			const Eigen::MatrixXd& dielectricMatrix_,
 			const Eigen::Tensor<double, 3>& bornCharges_,
 			const Eigen::Tensor<double, 7>& forceConstants_);

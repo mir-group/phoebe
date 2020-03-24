@@ -15,7 +15,6 @@
 #include "exceptions.h"
 #include "qe_input_parser.h"
 #include "phononH0.h"
-#include "crystal.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {

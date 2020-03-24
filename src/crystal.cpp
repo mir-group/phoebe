@@ -91,12 +91,13 @@ Crystal::Crystal(double& alat_, Eigen::Matrix3d& directUnitCell_,
 		Error e("species masses and names are not aligned", 1);
 	}
 
-	numAtoms = atomicPositions.rows();
 
 	atomicSpecies = atomicSpecies_;
 	atomicPositions = atomicPositions_;
 	speciesMasses = speciesMasses_;
 	speciesNames = speciesNames_;
+
+	numAtoms = atomicPositions.rows();
 
 	Eigen::VectorXd atomicMasses_(numAtoms);
 	std::vector<std::string> atomicNames_(numAtoms);

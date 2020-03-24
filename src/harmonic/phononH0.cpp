@@ -9,7 +9,6 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "phononH0.h"
-#include "crystal.h"
 
 void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	const int nx = 2;
@@ -602,7 +601,7 @@ void cryst_to_cart(Eigen::VectorXd& vec, const Eigen::MatrixXd& trmat,
 }
 
 
-PhononH0::PhononH0(Crystal crystal,
+PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
 		const Eigen::Tensor<double, 7>& forceConstants_) {
@@ -610,7 +609,7 @@ PhononH0::PhononH0(Crystal crystal,
 	// in this section, we save as class properties a few variables
 	// that are needed for the diagonalization of phonon frequencies
 
-	// this variables might be used for extending future functionalities.
+	// these variables might be used for extending future functionalities.
 	// for the first tests, they can be left at these default values
 	// in the future, we might expose them to the user input
 	na_ifc = false;
