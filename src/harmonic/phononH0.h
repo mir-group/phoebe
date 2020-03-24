@@ -3,20 +3,14 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/Core>
 #include <math.h>
+#include "crystal.h"
 
 class PhononH0 {
 public:
-	PhononH0(const Eigen::MatrixXd& directUnitCell_,
-			const Eigen::MatrixXd& reciprocalUnitCell_,
-			const double& latticeParameter_,
-			const double& volumeUnitCell_,
-			const Eigen::MatrixXi& atomicSpecies_,
-			const Eigen::VectorXd& speciesMasses_,
-			const Eigen::MatrixXd& atomicPositions_,
+	PhononH0(Crystal crystal,
 			const Eigen::MatrixXd& dielectricMatrix_,
 			const Eigen::Tensor<double, 3>& bornCharges_,
-			Eigen::VectorXi& qCoarseGrid_,
-			const Eigen::Tensor<double, 7> forceConstants_);
+			const Eigen::Tensor<double, 7>& forceConstants_);
 	void diagonalize(const Eigen::VectorXd& q, Eigen::VectorXd& energies,
 			Eigen::Tensor<std::complex<double>,3>& eigenvectors);
 	void setAcousticSumRule(const std::string sumRule);

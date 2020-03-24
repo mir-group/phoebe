@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "phononH0.h"
+#include "crystal.h"
 
 void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	const int nx = 2;
@@ -601,18 +602,10 @@ void cryst_to_cart(Eigen::VectorXd& vec, const Eigen::MatrixXd& trmat,
 }
 
 
-PhononH0::PhononH0(
-		const Eigen::MatrixXd& directUnitCell_,
-		const Eigen::MatrixXd& reciprocalUnitCell_,
-		const double& latticeParameter_,
-		const double& volumeUnitCell_,
-		const Eigen::MatrixXi& atomicSpecies_,
-		const Eigen::VectorXd& speciesMasses_,
-		const Eigen::MatrixXd& atomicPositions_,
+PhononH0::PhononH0(Crystal crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
-		Eigen::VectorXi& qCoarseGrid_,
-		const Eigen::Tensor<double, 7> forceConstants_) {
+		const Eigen::Tensor<double, 7>& forceConstants_) {
 
 	// in this section, we save as class properties a few variables
 	// that are needed for the diagonalization of phonon frequencies
@@ -630,19 +623,24 @@ PhononH0::PhononH0(
 		hasDielectric = false;
 	}
 
-	directUnitCell = directUnitCell_;
-	reciprocalUnitCell = reciprocalUnitCell_;
-	latticeParameter = latticeParameter_;
-	volumeUnitCell = volumeUnitCell_;
-	atomicSpecies = atomicSpecies_;
-	speciesMasses = speciesMasses_;
-	atomicPositions = atomicPositions_;
+	directUnitCell = crystal.getDirectUnitCell();
+	reciprocalUnitCell = crystal.getReciprocalUnitCell();
+	latticeParameter = crystal.getLatticeParameter();
+	volumeUnitCell = crystal.getVolumeUnitCell();
+	atomicSpecies = crystal.getAtomicSpecies();
+	speciesMasses = crystal.getSpeciesMasses();
+	atomicPositions = crystal.getAtomicPositions();
 	dielectricMatrix = dielectricMatrix_;
 	bornCharges = bornCharges_;
-	qCoarseGrid = qCoarseGrid_;
 	forceConstants = forceConstants_;
 
-	numAtoms = atomicPositions.rows();
+	Eigen::VectorXi qCoarseGrid_(3);
+	qCoarseGrid_(0) = forceConstants.dimension(0);
+	qCoarseGrid_(1) = forceConstants.dimension(1);
+	qCoarseGrid_(2) = forceConstants.dimension(2);
+	qCoarseGrid = qCoarseGrid_;
+
+	numAtoms = crystal.getNumAtoms();
 	numBands = numAtoms * 3;
 
 	// now, I initialize an auxiliary set of vectors that are needed

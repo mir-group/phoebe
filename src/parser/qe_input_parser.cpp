@@ -15,25 +15,7 @@
 #include "exceptions.h"
 #include "qe_input_parser.h"
 #include "phononH0.h"
-
-double calcVolume(const Eigen::Matrix3d& directUnitCell, const double alat)
-{
-	Eigen::Vector3d a1 = directUnitCell.col(0);
-	Eigen::Vector3d a2 = directUnitCell.col(1);
-	Eigen::Vector3d a3 = directUnitCell.col(2);
-	double volume;
-	volume = abs( a1.dot(( a2.cross(a3) )) );
-	volume+= abs( a2.dot(( a3.cross(a1) )) );
-	volume+= abs( a3.dot(( a1.cross(a2) )) );
-	volume *= alat * alat * alat / 3.;
-	return volume;
-}
-
-Eigen::MatrixXd calcReciprocalCell(const Eigen::Matrix3d& directUnitCell)
-{
-	Eigen::Matrix3d reciprocalCell = directUnitCell.inverse().transpose();
-	return reciprocalCell;
-}
+#include "crystal.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
@@ -536,8 +518,8 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	// Now we do postprocessing
 
-	double volumeUnitCell = calcVolume(directUnitCell, alat);
-	Eigen::Matrix3d reciprocalUnitCell = calcReciprocalCell(directUnitCell);
+	Crystal crystal(alat, directUnitCell, atomicPositions, atomicSpecies,
+			speciesNames, speciesMasses);
 
 	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
 		Error e("qCoarseGrid smaller than zero", 1);
@@ -545,16 +527,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	//	Now, let's try to diagonalize some points, and start debugging at q=0
 
-	PhononH0 dynamicalMatrix(directUnitCell,
-			reciprocalUnitCell,
-			alat,
-			volumeUnitCell,
-			atomicSpecies,
-			speciesMasses,
-			atomicPositions,
-			dielectricMatrix,
-			bornCharges,
-			qCoarseGrid,
+	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
 
 	dynamicalMatrix.setAcousticSumRule("crystal");
