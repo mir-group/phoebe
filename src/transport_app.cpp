@@ -3,6 +3,7 @@
 #include "transport_app.h"
 #include "qe_input_parser.h"
 #include "context.h"
+#include "constants.h"
 #include "exceptions.h"
 #include "points.h"
 
@@ -32,28 +33,25 @@ void TransportApp::setup(int argc, char** argv) {
 	// Read the necessary input files
 
 	QEParser qeParser;
+
+	// structured binding
 	auto [crystal, phononH0] =
 			qeParser.parsePhHarmonic(context.getPhD2FileName());
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
+//  TODO: we could also use this syntax, if we fancy it
+//	PhH0 phH0;
+//	phH0.readFile();
 
-	std::cout << crystal.getDirectUnitCell() << "\n";
-	std::cout << crystal.getReciprocalUnitCell() << "\n";
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
 	Eigen::Vector3i mesh;
 	mesh << 4, 4, 4;
-//	KPoints kp(crystal, mesh);
+	Points ps(crystal, mesh);
 
 	// Test
-//	Eigen::VectorXd energies(3*crystal.getNumAtoms());
-//	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,crystal.getNumAtoms(),crystal.getNumAtoms()*3);
-//	Eigen::VectorXd q(3);
-//	q << 0.,0.,0.;
-//	phononH0.diagonalize(q, energies, eigenvectors);
-//	std::cout << energies.transpose();
-
-
-//	PhH0 phH0;
-//	phH0.readFile();
+	Eigen::VectorXd q(3);
+	q << 0.,0.,0.;
+	auto [energies, eigenvectors] = phononH0.diagonalize(q);
+	std::cout << energies.transpose() * ryToCmm1 << std::endl;
 //
 //	//	TODO: 'elph' shoudn't be a string, we should use a dictionary
 //	//	and store which are the allowed values of calculations.

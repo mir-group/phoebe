@@ -11,8 +11,9 @@ public:
 			const Eigen::MatrixXd& dielectricMatrix_,
 			const Eigen::Tensor<double, 3>& bornCharges_,
 			const Eigen::Tensor<double, 7>& forceConstants_);
-	void diagonalize(const Eigen::VectorXd& q, Eigen::VectorXd& energies,
-			Eigen::Tensor<std::complex<double>,3>& eigenvectors);
+	std::tuple<Eigen::VectorXd,
+		Eigen::Tensor<std::complex<double>,3>> diagonalize(
+				const Eigen::VectorXd& q);
 	void setAcousticSumRule(const std::string sumRule);
 	Eigen::Vector3i getCoarseGrid();
 

@@ -5,7 +5,7 @@
 
 class Points {
 public:
-	Points(Crystal* crystal_, const Eigen::Vector3i& mesh_);
+	Points(Crystal& crystal_, const Eigen::Vector3i& mesh_);
 	Eigen::Vector3i getMesh();
 
 	int getNumPoints();
@@ -17,10 +17,14 @@ public:
 	Eigen::MatrixXd getReducibleFromIrreducible(Eigen::Vector3d point);
 	Eigen::Vector3d getIrreducibleFromReducible(Eigen::Vector3d point);
 
-	int getIndexInverted(int ik);
+	Eigen::VectorXi getIndexReducibleFromIrreducible(int indexIrr);
+	int getIndexIrreducibleFromReducible(int indexRed);
+
+	int getIndexInverted(const int& ik);
 	int getIndex(const Eigen::Vector3d& point);
 
 	Eigen::Vector3d getPoint(int index, std::string basis);
+	Eigen::Vector3d getIrredPoint(int index, std::string basis);
 
 	Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d& point);
 	Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d& point);
@@ -35,7 +39,9 @@ private:
 	// points are internally stored in crystal coordinates
 	Eigen::MatrixXd irreduciblePoints;
 	Eigen::MatrixXd reduciblePoints;
-	Eigen::VectorXd reducibleWeights;
+	Eigen::VectorXd irreducibleWeights;
+	Eigen::VectorXi mapIrredPoints;
+	Eigen::VectorXi indexIrreduciblePoints;
 	int numPoints;
 	int numIrredPoints;
 

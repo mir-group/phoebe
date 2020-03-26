@@ -555,52 +555,6 @@ void PhononH0::dyndiag(Eigen::Tensor<std::complex<double>,4>& dyn,
 	}
 };
 
-// TODO: we will move this functionality somewhere else with a kpoints class
-void cryst_to_cart(Eigen::VectorXd& vec, const Eigen::MatrixXd& trmat,
-		const int iflag) {
-	//  !     This routine transforms the atomic positions or the k-point
-	//  !     components from crystallographic to cartesian coordinates
-	//  !     ( iflag=1 ) and viceversa ( iflag=-1 ).
-	//  !     Output cartesian coordinates are stored in the input ('vec') array
-	//  integer, intent(in) :: nvec, iflag
-	//  ! nvec:  number of vectors (atomic positions or k-points)
-	//  !        to be transformed from crystal to cartesian and vice versa
-	//  ! iflag: gives the direction of the transformation
-	//  real(DP), intent(in) :: trmat (3, 3)
-	//  ! trmat: transformation matrix
-	//  ! if iflag=1:
-	//  !    trmat = at ,  basis of the real-space lattice,       for atoms   or
-	//  !          = bg ,  basis of the reciprocal-space lattice, for k-points
-	//  ! if iflag=-1: the opposite
-	//  real(DP), intent(inout) :: vec (3, nvec)
-	//  ! coordinates of the vector (atomic positions or k-points) to be
-	//  ! transformed - overwritten on output
-	//  !
-	//  !    local variables
-	//  !
-	//  integer :: nv, kpol
-	//  ! counter on vectors
-	//  ! counter on polarizations
-	//  real(DP) :: vau (3)
-	//  ! workspace
-	//  !
-	//  !     Compute the cartesian coordinates of each vectors
-	//  !     (atomic positions or k-points components)
-	//  !
-	if ( iflag == 1 ) {
-		for ( int kpol=0; kpol<3; kpol++ )
-		{
-			vec = trmat * vec;
-		}
-	} else {
-		for ( int kpol=0; kpol<3; kpol++ )
-		{
-			vec = vec * trmat;
-		}
-	}
-}
-
-
 PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
@@ -657,9 +611,9 @@ PhononH0::PhononH0(Crystal& crystal,
 	PhononH0::wsinit(directUnitCellSup);
 }
 
-void PhononH0::diagonalize(const Eigen::VectorXd& q,
-		Eigen::VectorXd& energies,
-		Eigen::Tensor<std::complex<double>,3>& eigenvectors) {
+std::tuple<Eigen::VectorXd,
+		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
+				const Eigen::VectorXd& q) {
 	// to be executed at every qpoint to get phonon frequencies and wavevectors
 
 	Eigen::Tensor<std::complex<double>, 4> dyn(3,3,numAtoms,numAtoms);
@@ -709,7 +663,12 @@ void PhononH0::diagonalize(const Eigen::VectorXd& q,
 	}
 
 	// once everything is ready, here we scale by masses and diagonalize
+
+	Eigen::VectorXd energies(3*numAtoms);
+	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
+
 	dyndiag(dyn, energies, eigenvectors);
+	return {energies, eigenvectors};
 };
 
 

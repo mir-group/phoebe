@@ -2,8 +2,8 @@
 #include "points.h"
 #include "exceptions.h"
 
-Points::Points(Crystal* crystal_, const Eigen::Vector3i& mesh_) {
-	crystal = crystal_;
+Points::Points(Crystal& crystal_, const Eigen::Vector3i& mesh_) {
+	crystal = &crystal_;
 	setMesh(mesh_);
 	setIrreduciblePoints();
 
@@ -40,6 +40,18 @@ Points::Points(Crystal* crystal_, const Eigen::Vector3i& mesh_) {
 
 Eigen::Vector3d Points::getPoint(int index, std::string basis) {
 	Eigen::Vector3d pointCrystal = reduciblePoints.row(index);
+	if ( basis == "crystal" ) {
+		return pointCrystal;
+	} else if ( basis == "cartesian" ) {
+		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
+		return pointCartesian;
+	} else {
+		Error e("Wrong basis for getPoint", 1);
+	}
+}
+
+Eigen::Vector3d Points::getIrredPoint(int index, std::string basis) {
+	Eigen::Vector3d pointCrystal = irreduciblePoints.row(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
 	} else if ( basis == "cartesian" ) {
@@ -143,7 +155,7 @@ int Points::getIndex(const Eigen::Vector3d& point) {
 	return  ik;
 }
 
-int Points::getIndexInverted(int ik) {
+int Points::getIndexInverted(const int& ik) {
 	// given the index of point k, return the index of point -k
 	Eigen::Vector3d point = reduciblePoints.row(ik);
 	int ikx = (int)round(point(0) * mesh(0));
@@ -283,12 +295,14 @@ void Points::setIrreduciblePoints() {
 
 	Eigen::MatrixXd xk(numIrredPoints,3);
 	Eigen::VectorXd wk(numIrredPoints);
+	Eigen::VectorXi indexIrreduciblePoints_(numIrredPoints);
 
 	int i = 0;
 	for ( int j=0; j<numPoints; j++ ) {
 		if ( equiv(j)==j ) {
 			wk(i) = tmpWeight(j);
 			xk.row(i) = reduciblePoints.row(j);
+			indexIrreduciblePoints_(i) = j;
 			i += 1;
 		}
 	}
@@ -297,6 +311,29 @@ void Points::setIrreduciblePoints() {
 	wk /= wk.sum();
 
 	// save as class properties
-	reduciblePoints = xk;
-	reducibleWeights = wk;
+	irreduciblePoints = xk;
+	irreducibleWeights = wk;
+	mapIrredPoints = equiv;
+	indexIrreduciblePoints = indexIrreduciblePoints_;
+}
+
+Eigen::VectorXi Points::getIndexReducibleFromIrreducible(int indexIrr) {
+	std::vector<int> indexVec;
+	int sizeStar = 0;
+	for ( int ik=0; ik<numPoints; ik++ ) {
+		if ( mapIrredPoints(ik) == indexIrr ) {
+			indexVec.push_back(ik);
+			sizeStar += 1;
+		}
+	}
+	Eigen::VectorXi star(sizeStar);
+	for ( int ik=0; ik<sizeStar; ik++ ) {
+		star(ik) = indexVec[ik];
+	}
+	return star;
+}
+
+int Points::getIndexIrreducibleFromReducible(int indexRed) {
+	int ik = mapIrredPoints(indexRed);
+	return ik;
 }
