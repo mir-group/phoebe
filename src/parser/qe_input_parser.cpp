@@ -14,7 +14,7 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
-#include "phononH0.h"
+//#include "phononH0.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
@@ -369,10 +369,13 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
 	return tokens;
 }
 
-void QEParser::parsePhHarmonic(std::string fileName) {
+std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
 	//  Here we read the dynamical matrix of interatomic force constants
 	//	in real space.
-	//	Since the file is typically small, we don't worry about memory management
+
+	if ( fileName == "" ) {
+		Error e("Must provide a D2 file name",1);
+	}
 
 	std::string line;
 	std::vector<std::string> lineSplit;
@@ -439,7 +442,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 
 	//  Read if hasDielectric
 	std::getline(infile, line);
-	line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+	line.erase(std::remove_if(line.begin(), line.end(), ::isspace),line.end());
 	bool hasDielectric;
 	if ( line == "T" ) {
 		hasDielectric = true;
@@ -504,7 +507,7 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 								std::getline(infile, line);
 								std::istringstream iss(line);
 								iss >> m1Test >> m2Test >> m3Test >> x;
-								forceConstants(r1, r2, r3, ic, jc, iat, jat) = x;
+								forceConstants(r1,r2,r3,ic,jc,iat,jat) = x;
 							}
 						}
 					}
@@ -529,19 +532,5 @@ void QEParser::parsePhHarmonic(std::string fileName) {
 	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
 
-	dynamicalMatrix.setAcousticSumRule("Crystal");
-
-	Eigen::VectorXd omega(numAtoms*3);
-	Eigen::Tensor<std::complex<double>,3> z(3,numAtoms,numAtoms*3);
-	Eigen::VectorXd q(3);
-	q << 0., 0., 0.;
-
-	dynamicalMatrix.diagonalize(q, omega, z);
-
-	std::cout << omega.transpose() * ryToCmm1 << std::endl;
-
-	return;
+	return {crystal, dynamicalMatrix};
 };
-
-
-

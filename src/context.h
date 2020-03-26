@@ -1,14 +1,12 @@
 #include <string>
 #include <vector>
+#include <Eigen/Dense>
+#include <Eigen/Core>
+
 using namespace std;
 
 class Context {
 public:
-	std::vector<int> qCoarseMesh = {0,0,0};
-	std::vector<int> qFineMesh = {0,0,0};
-	std::vector<int> kCoarseMesh = {0,0,0};
-	std::vector<int> kFineMesh = {0,0,0};
-
 	std::string phD2FileName = "";
 	std::string phD3FileName = "";
 
@@ -54,18 +52,6 @@ public:
 	double bandGap = 0.;
 
 //  Setter and getter for all the variables above
-
-	void setQCoarseMesh(int* x);
-	std::vector<int> getQCoarseMesh();
-
-	void setQFineMesh(int* x);
-	std::vector<int> getQFineMesh();
-
-	void setKCoarseMesh(int* x);
-	std::vector<int> getKCoarseMesh();
-
-	void setKFineMesh(int* x);
-	std::vector<int> getKFineMesh();
 
 	void setPhD2FileName(std::string x);
 	std::string getPhD2FileName();

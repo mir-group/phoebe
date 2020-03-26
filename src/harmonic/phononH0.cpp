@@ -736,6 +736,8 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 	std::string sr = sumRule;
     std::transform(sr.begin(), sr.end(), sr.begin(), ::tolower);
 
+	if ( sr == "" ) { return; }
+
 	if ( ( sr != "simple" ) && ( sr != "crystal" ) ) {
 		Error e("invalid Acoustic Sum Rule", 1);
 	}
@@ -1301,7 +1303,6 @@ void PhononH0::sp_zeu(Eigen::Tensor<double,3>& zeu_u,
 	}
 }
 
-
-
-
-
+Eigen::Vector3i PhononH0::getCoarseGrid() {
+	return qCoarseGrid;
+}

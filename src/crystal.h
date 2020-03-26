@@ -22,6 +22,9 @@ private:
 	std::vector<std::string> speciesNames;
 	Eigen::VectorXd speciesMasses;
 
+	std::vector<Eigen::Matrix3d> symmetryRotations;
+	int numSymmetries;
+
 public:
 	Crystal(double& alat_, Eigen::Matrix3d& directUnitCell_,
 			Eigen::MatrixXd& atomicPositions_,
@@ -34,6 +37,9 @@ public:
 	int getNumAtoms();
 	double getLatticeParameter();
 	double getVolumeUnitCell();
+
+	std::vector<Eigen::Matrix3d> getSymmetryMatrices();
+	int getNumSymmetries();
 
 	Eigen::MatrixXd getAtomicPositions();
 	Eigen::VectorXi getAtomicSpecies();
