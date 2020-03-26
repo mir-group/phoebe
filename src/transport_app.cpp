@@ -34,7 +34,6 @@ void TransportApp::setup(int argc, char** argv) {
 
 	QEParser qeParser;
 
-	// structured binding
 	auto [crystal, phononH0] =
 			qeParser.parsePhHarmonic(context.getPhD2FileName());
 //  TODO: we could also use this syntax, if we fancy it
@@ -47,7 +46,6 @@ void TransportApp::setup(int argc, char** argv) {
 	mesh << 4, 4, 4;
 	Points ps(crystal, mesh);
 
-	// Test
 	Eigen::VectorXd q(3);
 	q << 0.,0.,0.;
 	auto [energies, eigenvectors] = phononH0.diagonalize(q);

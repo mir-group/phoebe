@@ -1,3 +1,14 @@
+# to fix in this makefile:
+# - unzip Eigen, if not done already, by
+#   tar -xvf lib/eigen-3.3.7.tar.gz -C lib
+# - make sure cmake is installed
+# - Install spglib, if not done already, by:
+#   unzip lib/spglib-1.14.1.zip -d lib
+#   mkdir lib/spglib-1.14.1/build
+#   (cd ./lib/spglib-1.14.1 && cmake -DCMAKE_INSTALL_PREFIX="")
+#   (cd ./lib/spglib-1.14.1 && make)
+#   (cd ./lib/spglib-1.14.1 && make DESTDIR=./build install)
+
 CXX = g++
 
 # path #
@@ -15,7 +26,7 @@ SRC_EXT = cpp
 # Find all source files in the source directory, sorted by
 # most recently modified
 #SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
-SOURCES = src/exceptions/exceptions.cpp src/main.cpp src/context.cpp src/crystal.cpp src/transport_app.cpp src/harmonic/phononH0.cpp src/parser/qe_input_parser.cpp
+SOURCES = src/exceptions/exceptions.cpp src/main.cpp src/context.cpp src/crystal.cpp src/transport_app.cpp src/harmonic/phononH0.cpp src/parser/qe_input_parser.cpp src/points.cpp
 
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place
@@ -24,17 +35,17 @@ OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 DEPS = $(OBJECTS:.o=.d)
 
 # flags #
-COMPILE_FLAGS = -std=c++17 -Wall -Wextra -O3 # -g -O0
+COMPILE_FLAGS = -std=c++17 -Wall -Wextra -O3 -L./lib/spglib   # -g -O0
 INCLUDES = -I include -I /usr/local/include -I include/Eigen
 # Space-separated pkg-config libraries used by this project
-LIBS =
+LIBS = lib/libsymspg.a
 
 .PHONY: default_target
 default_target: release
 
 .PHONY: release
 release: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS)
-release: dirs
+release: dirs libs
 	@$(MAKE) all
 
 .PHONY: dirs
@@ -42,7 +53,11 @@ dirs:
 	@echo "Creating directories"
 	@mkdir -p $(dir $(OBJECTS))
 	@mkdir -p $(BIN_PATH)
-#	@tar -xvf lib/eigen-3.3.7.tar.gz -C lib # unzip eigen library 
+
+.PHONY: libs
+libs:
+	@echo "Creating libraries"
+	(cd lib && make all)
 
 .PHONY: clean
 clean:
@@ -51,6 +66,10 @@ clean:
 	@echo "Deleting directories"
 	@$(RM) -r $(BUILD_PATH)
 	@$(RM) -r $(BIN_PATH)
+	(cd lib && make clean)
+
+
+# (cd ./lib && make clean)
 
 # checks the executable and symlinks to the output
 .PHONY: all
@@ -62,7 +81,7 @@ all: $(BIN_PATH)/$(BIN_NAME)
 # Creation of the executable
 $(BIN_PATH)/$(BIN_NAME): $(OBJECTS)
 	@echo "Linking: $@"
-	$(CXX) $(OBJECTS) -o $@
+	$(CXX) $(OBJECTS) -o $@ $(LIBS)
 
 # Add dependency files, if they exist
 -include $(DEPS)
@@ -72,4 +91,4 @@ $(BIN_PATH)/$(BIN_NAME): $(OBJECTS)
 # dependency files to provide header dependencies
 $(BUILD_PATH)/%.o: $(SRC_PATH)/%.$(SRC_EXT)
 	@echo "Compiling: $< -> $@"
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@ # $(LIBS)

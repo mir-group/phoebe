@@ -1,9 +1,8 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
 #include <complex>
 #include <math.h>
-
-//using namespace std;
-
-//namespace constants {
 //
 // mathematical constants
 //
@@ -66,5 +65,4 @@ const double elConductivityAuToSi = pow(electronSi,2) / hBarSi / bohrRadiusSi;
 const double thermopowerAuToSi = - kBoltzmannRy / electronSi * rydbergSi;
 const double peltierAuToSi = - rydbergSi / electronSi;
 
-//}
-
+#endif
