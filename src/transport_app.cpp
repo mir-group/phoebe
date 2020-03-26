@@ -4,6 +4,7 @@
 #include "qe_input_parser.h"
 #include "context.h"
 #include "exceptions.h"
+#include "points.h"
 
 using namespace std;
 
@@ -34,6 +35,13 @@ void TransportApp::setup(int argc, char** argv) {
 	auto [crystal, phononH0] =
 			qeParser.parsePhHarmonic(context.getPhD2FileName());
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
+
+	std::cout << crystal.getDirectUnitCell() << "\n";
+	std::cout << crystal.getReciprocalUnitCell() << "\n";
+
+	Eigen::Vector3i mesh;
+	mesh << 4, 4, 4;
+//	KPoints kp(crystal, mesh);
 
 	// Test
 //	Eigen::VectorXd energies(3*crystal.getNumAtoms());

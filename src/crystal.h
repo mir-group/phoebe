@@ -1,3 +1,6 @@
+#ifndef CRYSTAL_H
+#define CRYSTAL_H
+
 #include <string>
 #include <vector>
 #include <Eigen/Core>
@@ -48,3 +51,6 @@ public:
 	std::vector<std::string> getSpeciesNames();
 	Eigen::VectorXd getSpeciesMasses();
 };
+
+#endif
+

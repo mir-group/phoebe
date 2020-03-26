@@ -1,3 +1,6 @@
+#ifndef CONTEXT_H
+#define CONTEXT_H
+
 #include <string>
 #include <vector>
 #include <Eigen/Dense>
@@ -142,3 +145,5 @@ public:
 	void setupFromInput(string fileName);
 
 };
+
+#endif

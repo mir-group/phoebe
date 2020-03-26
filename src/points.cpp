@@ -1,5 +1,5 @@
 #include <cmath>
-#include "kpoints.h"
+#include "points.h"
 #include "exceptions.h"
 
 Points::Points(Crystal* crystal_, const Eigen::Vector3i& mesh_) {

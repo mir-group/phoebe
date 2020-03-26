@@ -1,3 +1,6 @@
+#ifndef POINTS_H
+#define POINTS_H
+
 #include "crystal.h"
 
 class Points {
@@ -46,3 +49,5 @@ class KPoints: public Points {
 
 class QPoints: public Points {
 };
+
+#endif
