@@ -9,7 +9,6 @@ class Crystal {
 private:
 	Eigen::Matrix3d directUnitCell;
 	Eigen::Matrix3d reciprocalUnitCell;
-	double alat;
 	double volumeUnitCell;
 	int numAtoms;
 	Eigen::Matrix3d calcReciprocalCell(const Eigen::Matrix3d directUnitCell);
@@ -29,7 +28,7 @@ private:
 	int numSymmetries;
 
 public:
-	Crystal(double& alat_, Eigen::Matrix3d& directUnitCell_,
+	Crystal(Eigen::Matrix3d& directUnitCell_,
 			Eigen::MatrixXd& atomicPositions_,
 			Eigen::VectorXi& atomicSpecies_,
 			std::vector<std::string>& speciesNames_,
@@ -38,7 +37,6 @@ public:
 	Eigen::Matrix3d getDirectUnitCell();
 	Eigen::Matrix3d getReciprocalUnitCell();
 	int getNumAtoms();
-	double getLatticeParameter();
 	double getVolumeUnitCell();
 
 	std::vector<Eigen::Matrix3d> getSymmetryMatrices();

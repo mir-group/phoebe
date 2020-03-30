@@ -1,4 +1,4 @@
-all: spglib-1.14.1 eigen-3.3.7
+all: spglib-1.14.1 eigen-3.3.7 pugixml-1.10
 
 eigen-3.3.7:
 	tar -xvf eigen-3.3.7.tar.gz
@@ -11,6 +11,11 @@ spglib-1.14.1:
 	   (cd ./spglib-1.14.1 && make)
 	   (cd ./spglib-1.14.1 && make DESTDIR=./build install)
 
+pugixml-1.10:
+	tar -xvf pugixml-1.10.tar.gz
+	touch .
+
 clean:
 	@$(RM) -r spglib-1.14.1
 	@$(RM) -r eigen-3.3.7
+	@$(RM) -r pugixml-1.10

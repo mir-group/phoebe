@@ -21,28 +21,26 @@ Eigen::Matrix3d Crystal::getDirectUnitCell() {
 }
 
 Eigen::Matrix3d Crystal::getReciprocalUnitCell() {
+	// note: reciprocalUnitCell is  in units of twoPi
+	// i.e. must be multiplied by twoPi
 	return reciprocalUnitCell;
 }
 
-double calcVolume(const Eigen::Matrix3d& directUnitCell, const double alat)
+double calcVolume(const Eigen::Matrix3d& directUnitCell)
 {
-	Eigen::Vector3d a1 = directUnitCell.col(0);
-	Eigen::Vector3d a2 = directUnitCell.col(1);
-	Eigen::Vector3d a3 = directUnitCell.col(2);
+	Eigen::Vector3d a1 = directUnitCell.row(0);
+	Eigen::Vector3d a2 = directUnitCell.row(1);
+	Eigen::Vector3d a3 = directUnitCell.row(2);
 	double volume;
 	volume = abs( a1.dot(( a2.cross(a3) )) );
 	volume+= abs( a2.dot(( a3.cross(a1) )) );
 	volume+= abs( a3.dot(( a1.cross(a2) )) );
-	volume *= alat * alat * alat / 3.;
+	volume /= 3.;
 	return volume;
 }
 
 int Crystal::getNumAtoms() {
 	return numAtoms;
-}
-
-double Crystal::getLatticeParameter() {
-	return alat;
 }
 
 double Crystal::getVolumeUnitCell() {
@@ -82,14 +80,13 @@ int Crystal::getNumSymmetries() {
 }
 
 
-Crystal::Crystal(double& alat_, Eigen::Matrix3d& directUnitCell_,
+Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		Eigen::MatrixXd& atomicPositions_,
 		Eigen::VectorXi& atomicSpecies_,
 		std::vector<std::string>& speciesNames_,
 		Eigen::VectorXd& speciesMasses_) {
-	alat = alat_;
 	setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
-	volumeUnitCell = calcVolume(directUnitCell, alat);
+	volumeUnitCell = calcVolume(directUnitCell);
 
 	if ( atomicSpecies_.size() != atomicPositions_.rows() ) {
 		Error e("atomic species and positions are not aligned", 1);

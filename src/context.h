@@ -14,7 +14,7 @@ public:
 	std::string phD3FileName = "";
 
 	std::string scratchFolder = "./out";
-	std::string elH0Name = "";
+	std::string electronH0Name = "";
 	std::string elPhFileName = "";
 
 	std::vector<std::string> calculation = {""};
@@ -65,8 +65,8 @@ public:
 	void setScratchFolder(std::string x);
 	std::string getScratchFolder();
 
-	void setElH0Name(std::string x);
-	std::string getElH0Name();
+	void setElctronH0Name(std::string x);
+	std::string getElectronH0Name();
 
 	void setElPhFileName(std::string x);
 	std::string getElPhFileName();

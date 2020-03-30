@@ -33,14 +33,16 @@ void TransportApp::setup(int argc, char** argv) {
 	// Read the necessary input files
 
 	QEParser qeParser;
-
 	auto [crystal, phononH0] =
 			qeParser.parsePhHarmonic(context.getPhD2FileName());
 //  TODO: we could also use this syntax, if we fancy it
 //	PhH0 phH0;
 //	phH0.readFile();
-
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
+
+	auto [crystalEl, electronH0Spline] =
+			qeParser.parseElHarmonicSpline(context.getElectronH0Name());
+	std::cout << "siamo usciti\n";
 
 	Eigen::Vector3i mesh;
 	mesh << 4, 4, 4;

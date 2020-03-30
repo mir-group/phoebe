@@ -11,10 +11,10 @@
 #include <Eigen/Eigenvalues>
 #include <Eigen/Core>
 
+#include "pugixml.hpp"
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
-//#include "phononH0.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
@@ -369,9 +369,11 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
 	return tokens;
 }
 
-std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
+std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileName) {
 	//  Here we read the dynamical matrix of interatomic force constants
 	//	in real space.
+
+	std::cout << "Entering phonon parsing\n";
 
 	if ( fileName == "" ) {
 		Error e("Must provide a D2 file name",1);
@@ -382,6 +384,10 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
 
 	// open input file
 	std::ifstream infile(fileName);
+
+	if ( not infile.is_open() ) {
+		Error e("Dynamical matrix file not found", 1);
+	}
 
 	//  First line contains ibrav, celldm and other variables
 
@@ -414,9 +420,6 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
 
 	// generate the unit cell vectors (also for ibrav != 0)
 	latgen(ibrav, celldm, directUnitCell);
-
-	double alat = celldm(0);
-	directUnitCell /= alat; // bring unit cell in units of the lattice parameter
 
 	//  Next, we read the atomic species
 	std::vector<std::string> speciesNames;
@@ -520,7 +523,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
 
 	// Now we do postprocessing
 
-	Crystal crystal(alat, directUnitCell, atomicPositions, atomicSpecies,
+	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
 			speciesNames, speciesMasses);
 
 	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
@@ -533,4 +536,154 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(std::string fileName) {
 			forceConstants);
 
 	return {crystal, dynamicalMatrix};
+};
+
+std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
+		const std::string fileName) {
+	//  Here we read the XML file of quantum espresso.
+
+	if ( fileName == "" ) {
+		Error e("Must provide an XLM file name",1);
+	}
+
+	std::vector<std::string> lineSplit;
+
+	// load and parse XML file using pugi library
+	// note that
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(fileName.c_str());
+
+	if ( not result ) {
+		Error e("Error parsing XML file", 1);
+	}
+
+//	pugi::xml_node root = doc.document_element();
+
+	pugi::xml_node output = doc.child("qes:espresso").child("output");
+
+	// atomic species
+
+	pugi::xml_node atomicSpeciesXML = output.child("atomic_species");
+	int numElements = atomicSpeciesXML.attribute("ntyp").as_int();
+	std::vector<std::string> speciesNames;
+	Eigen::VectorXd speciesMasses(numElements);
+	int i = 0;
+	for ( pugi::xml_node species: atomicSpeciesXML.children("species") ) {
+		speciesNames.push_back( species.attribute("name").value() );
+		speciesMasses(i) = species.child("mass").text().as_double(); // in amu
+		i += 1;
+	}
+
+	// atomic structure
+
+	pugi::xml_node atomicStructure = output.child("atomic_structure");
+	int numAtoms = atomicStructure.attribute("nat").as_int();
+
+	//  we read the atomic positions
+
+	pugi::xml_node atomicPositionsXML = atomicStructure.child("atomic_positions");
+	Eigen::MatrixXd atomicPositions(numAtoms,3);
+	Eigen::VectorXi atomicSpecies(numAtoms);
+	i = 0;
+	int atomId=0;
+	std::string thisAtomName;
+	for ( pugi::xml_node atom: atomicPositionsXML.children("atom") ) {
+		thisAtomName = atom.attribute("name").value();
+		// the XML doesn't describe atoms with a tag ID, but using names
+		// here I find the index of the species in speciesNames, given the name
+		std::vector<std::string>::iterator itr = std::find(speciesNames.begin(),
+				speciesNames.end(), thisAtomName);
+		if (itr != speciesNames.cend()) {
+			atomId = std::distance(speciesNames.begin(), itr);
+		}
+		else {
+			Error e("Element not found in XML", 1);
+		}
+		atomicSpecies(i) = atomId;
+
+		lineSplit = split(atom.child_value(), ' ');
+		atomicPositions(i,0) = std::stod(lineSplit[0]);
+		atomicPositions(i,1) = std::stod(lineSplit[1]);
+		atomicPositions(i,2) = std::stod(lineSplit[2]);
+		i += 1;
+	}
+
+	// we read the unit cell
+
+	Eigen::Matrix3d directUnitCell;
+	Eigen::Vector3d thisVals;
+	pugi::xml_node cell = atomicStructure.child("cell");
+	lineSplit = split(cell.child_value("a1"), ' ');
+	directUnitCell(0,0) = std::stod(lineSplit[0]);
+	directUnitCell(0,1) = std::stod(lineSplit[1]);
+	directUnitCell(0,2) = std::stod(lineSplit[2]);
+	lineSplit = split(cell.child_value("a2"), ' ');
+	directUnitCell(1,0) = std::stod(lineSplit[0]);
+	directUnitCell(1,1) = std::stod(lineSplit[1]);
+	directUnitCell(1,2) = std::stod(lineSplit[2]);
+	lineSplit = split(cell.child_value("a3"), ' ');
+	directUnitCell(2,0) = std::stod(lineSplit[0]);
+	directUnitCell(2,1) = std::stod(lineSplit[1]);
+	directUnitCell(2,2) = std::stod(lineSplit[2]);
+
+	// Now we parse the electronic structure
+
+	pugi::xml_node bandStructureXML = output.child("band_structure");
+	bool lsda = bandStructureXML.child("lsda").text().as_bool();
+	bool noncolin = bandStructureXML.child("noncolin").text().as_bool();
+	bool spinorbit = bandStructureXML.child("spinorbit").text().as_bool();
+	int numBands = bandStructureXML.child("nbnd").text().as_int();
+	int numElectrons = bandStructureXML.child("nelec").text().as_int();
+	double homo = bandStructureXML.child("highestOccupiedLevel").text().as_double();
+
+	int numIrredPoints = bandStructureXML.child("nks").text().as_int();
+
+	pugi::xml_node startingKPoints = bandStructureXML.child("starting_k_points");
+	// this may or may not be present! if so, I get mesh and offset
+	pugi::xml_node mp = startingKPoints.child("monkhorst_pack");
+	if ( mp ) {
+		Error e("Grid found in QE:XML, should have used full kpoints grid",1);
+	}
+	//	int nk1 = mp.attribute("nk1").as_int();
+	//	int nk2 = mp.attribute("nk2").as_int();
+	//	int nk3 = mp.attribute("nk3").as_int();
+	//	int k1 = mp.attribute("k1").as_int();
+	//	int k2 = mp.attribute("k2").as_int();
+	//	int k3 = mp.attribute("k3").as_int();
+	// band energies
+
+	Eigen::MatrixXd irredPoints(numIrredPoints, 3);
+	Eigen::VectorXd irredWeights(numIrredPoints);
+	Eigen::MatrixXd irredEnergies(numIrredPoints, numBands);
+	Eigen::MatrixXd irredOccupations(numIrredPoints, numBands);
+	irredWeights.setZero();
+	i = 0;
+	for ( pugi::xml_node kpoint: bandStructureXML.children("ks_energies") ) {
+		irredWeights(i) = kpoint.child("k_point").attribute("weight").as_double();
+		lineSplit = split(kpoint.child_value("k_point"), ' ');
+		irredPoints(i,0) = std::stod(lineSplit[0]);
+		irredPoints(i,1) = std::stod(lineSplit[1]);
+		irredPoints(i,2) = std::stod(lineSplit[2]);
+
+		lineSplit = split(kpoint.child_value("eigenvalues"), ' ');
+		for ( int j=0; j<numBands; j++ ) {
+			irredEnergies(i,j) = std::stod(lineSplit[j]);
+		}
+
+		lineSplit = split(kpoint.child_value("occupations"), ' ');
+		for ( int j=0; j<numBands; j++ ) {
+			irredOccupations(i,j) = std::stod(lineSplit[j]);
+		}
+
+		i += 1;
+	}
+
+	// Now we do postprocessing
+
+	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
+			speciesNames, speciesMasses);
+	std::cout << "676\n";
+	ElectronH0Spline electronH0; //crystal, bands);
+std::cout << "677\n";
+	return {crystal, electronH0};
 };

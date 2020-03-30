@@ -4,6 +4,7 @@
 #include <fstream>
 #include <algorithm>
 #include "context.h"
+#include "exceptions.h"
 
 //TODO: it would be nice to have a smoother handling of read errors, with
 //some informations provided to the user.
@@ -314,6 +315,12 @@ void Context::setupFromInput(std::string fileName) {
 	}
 	catch (ParameterNotFound& e) {} // Do nothing!
 
+	try {
+		std::string tmp = parseString(lines, "electronH0Name");
+		setElctronH0Name(tmp);
+	}
+	catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -331,3 +338,16 @@ void Context::setSumRuleD2(std::string x) {
 std::string Context::getSumRuleD2() {
 	return sumRuleD2;
 }
+
+void Context::setElctronH0Name(std::string x) {
+	electronH0Name = x;
+}
+
+std::string Context::getElectronH0Name() {
+	if ( electronH0Name == "" ) {
+		Error e("Electronic H0 filename not set", 1);
+	}
+	return electronH0Name;
+}
+
+

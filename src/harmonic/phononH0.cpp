@@ -193,8 +193,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	}
 
 	if ( loto_2d ) {
-		fac = sign * e2 * fourPi / volumeUnitCell * 0.5 * latticeParameter
-				/ reciprocalUnitCell(3,3);
+		fac = sign * e2 * fourPi / volumeUnitCell /2. /reciprocalUnitCell(3,3);
 		reff.setZero();
 		for ( int i=0; i<2; i++ ) {
 			for ( int j=0; j<2; j++ ) {
@@ -578,7 +577,6 @@ PhononH0::PhononH0(Crystal& crystal,
 
 	directUnitCell = crystal.getDirectUnitCell();
 	reciprocalUnitCell = crystal.getReciprocalUnitCell();
-	latticeParameter = crystal.getLatticeParameter();
 	volumeUnitCell = crystal.getVolumeUnitCell();
 	atomicSpecies = crystal.getAtomicSpecies();
 	speciesMasses = crystal.getSpeciesMasses();
@@ -600,9 +598,9 @@ PhononH0::PhononH0(Crystal& crystal,
 	// for the diagonalization, which are precomputed once and for all.
 
 	Eigen::MatrixXd directUnitCellSup(3,3);
-	directUnitCellSup.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
-	directUnitCellSup.col(1) = directUnitCell.col(1) * qCoarseGrid(1);
-	directUnitCellSup.col(2) = directUnitCell.col(2) * qCoarseGrid(2);
+	directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
+	directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
+	directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
 
 	nr1Big = 2 * qCoarseGrid(0);
 	nr2Big = 2 * qCoarseGrid(1);
