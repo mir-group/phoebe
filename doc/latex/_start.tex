@@ -1,0 +1,74 @@
+\hypertarget{_start_Download}{}\doxysection{Download}\label{_start_Download}
+This is the first paragraph. Separate paragraphs with empty lines.
+
+This is the second paragraph.\hypertarget{_start_Installation}{}\doxysection{Installation}\label{_start_Installation}
+\hypertarget{_start_Linux}{}\doxysubsection{Linux}\label{_start_Linux}
+\hypertarget{_start_MacOS}{}\doxysubsection{Mac\+OS}\label{_start_MacOS}
+This is List\+:
+\begin{DoxyItemize}
+\item First item. Bla bla bla bla bla bla bla bla bla bla bla
+\item Second item (use tab for nested items)
+\begin{DoxyItemize}
+\item nested item 1
+\item nested item 2
+\item nested item 3
+\end{DoxyItemize}
+\end{DoxyItemize}
+
+Numbered list\+:
+
+
+\begin{DoxyEnumerate}
+\item First item
+\item Second item
+\end{DoxyEnumerate}
+
+This is normal paragraph.
+
+This is code block.
+
+Now we will use horizontal ruler\+:
+
+\DoxyHorRuler{0}
+
+
+This will give you italic text\+: {\itshape it is important}.
+
+This will give you bold text\+: {\bfseries{it is very important}}
+
+To introduce a span of code, use backticks\+: for example, {\ttfamily printf()} function.
+
+Now we can add table with certain alignment\+:
+
+\tabulinesep=1mm
+\begin{longtabu}spread 0pt [c]{*{3}{|X[-1]}|}
+\hline
+\PBS\raggedleft \cellcolor{\tableheadbgcolor}\textbf{ Right }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Center }&\cellcolor{\tableheadbgcolor}\textbf{ Left  }\\\cline{1-3}
+\endfirsthead
+\hline
+\endfoot
+\hline
+\PBS\raggedleft \cellcolor{\tableheadbgcolor}\textbf{ Right }&\PBS\centering \cellcolor{\tableheadbgcolor}\textbf{ Center }&\cellcolor{\tableheadbgcolor}\textbf{ Left  }\\\cline{1-3}
+\endhead
+\PBS\raggedleft 1 &\PBS\centering 2 &3  \\\cline{1-3}
+\end{longtabu}
+
+
+We can also add code block in C style\+: 
+\begin{DoxyCode}{0}
+\DoxyCodeLine{\textcolor{keywordtype}{void} Animal::set\_maturity\_age( age\_type r )}
+\DoxyCodeLine{\{}
+\DoxyCodeLine{    maturity\_age\_ = r;}
+\DoxyCodeLine{\}}
+\end{DoxyCode}
+
+
+In case of problems, \href{http://google.com}{\texttt{ Google}} will help. More details see in section \mbox{\hyperlink{_start_Download}{Download}}.
+
+We can also add a figure\+: 
+
+In case of questions, please contact\+: \href{mailto:mail@mail.com}{\texttt{ mail@mail.\+com}} or check \href{http://www.google.com}{\texttt{ http\+://www.\+google.\+com}}
+
+Now equation in text\+: $E=mc^2$;
+
+On separate line\+: \[ a^2+b^2=c^2 \] 
