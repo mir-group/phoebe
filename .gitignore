@@ -37,7 +37,3 @@
 
 #MacOS specific files
 .DS_Store
-
-#Documentation related folders
-#html/
-#latex/
