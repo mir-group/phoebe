@@ -2,18 +2,18 @@
 
 using namespace std;
 
-void formTets(int grid[3], TetraData &tetra){
-  //Some internal variables
+void formTets(const int grid[3], TetraData &tetra){
+  // Some internal variables
   int counter,aux,ip1,jp1,kp1,ii,jj,kk;
   
   // Number of grid points
   int n1 = grid[0]; int n2 = grid[1]; int n3 = grid[2];
 
   // Number of tetrahedra
-  int numTetra = 6*n1*n2*n3;
+  tetra.numTetra = 6*n1*n2*n3;
 
-  // Allocate tetrahedron data holders 
-  tetra.tetrahedra = Eigen::MatrixXi(numTetra,6);
+  // Allocate tetrahedron data holders
+  tetra.tetrahedra = Eigen::MatrixXi(tetra.numTetra,6);
   tetra.qToTetCount = Eigen::VectorXi::Zero(n1*n2*n3);
   tetra.qToTet = Eigen::Tensor<int,3>(n1*n2*n3,24,2);
     
@@ -26,11 +26,10 @@ void formTets(int grid[3], TetraData &tetra){
     2,5,6,7,
     2,3,5,7,
     1,2,3,5;
-
+  
   // 8 corners of a subcell
   Eigen::MatrixXi subcellCorners(8,3);
   counter = 0;
-  //tetra.qToTetCount = ;
   for(int i = 0; i < n1; i++){
     ip1 = (i+1)%n1;
     for(int j = 0; j < n2; j++){
@@ -46,8 +45,6 @@ void formTets(int grid[3], TetraData &tetra){
 	  ip1,j,kp1,
 	  i,jp1,kp1,
 	  ip1,jp1,kp1;
-
-	//cout << i << j << k << i*n2*n3 + j*n3 + k << "\n";
 	
 	for(int it = 0; it < 6; it++){ //over 6 tetrahedra
 	  for(int iv = 0; iv < 4; iv++){ //over 4 vertices
@@ -74,16 +71,201 @@ void formTets(int grid[3], TetraData &tetra){
   }  
 }
 
+void fillTetsEigs(const int numBands, const Eigen::MatrixXd &energy, TetraData &tetra){
+  // Internal variables
+  int ik;
+  double temp[4];
+  size_t size = sizeof(temp)/sizeof(temp[0]);
+
+  // Allocate tetraEigVals
+  tetra.tetraEigVals = Eigen::Tensor<double,3>(tetra.numTetra,numBands,4);
+  
+  for(int it = 0; it < tetra.numTetra; it++){ //over tetrahedra
+    for(int ib = 0; ib < numBands; ib++){ //over bands
+      for(int iv = 0; iv < 4; iv++){ //over vertices
+	// Index of wave vector
+	ik = tetra.tetrahedra(it,iv);
+	// Fill tetrahedron vertex
+	tetra.tetraEigVals(it,ib,iv) = energy(ik,ib);
+	temp[iv] = energy(ik,ib); //save for later
+      }
+      //sort energies in the vertex
+      sort(temp,temp+size);
+      //refill tetrahedron vertex
+      for(int iv = 0; iv < 4; iv++) tetra.tetraEigVals(it,ib,iv) = temp[iv];
+    }
+  }
+}
+
+double fillTetsWeights(const double energy, const int ib, const int iq, const TetraData &tetra){
+  // Tetrahedron weight
+  double weight = 0.0;
+  // Internal variables
+  int it,iv,num;
+  double e1,e2,e3,e4,e1e,e2e,e3e,e4e,e21,e31,e41,e32,e42,e43;
+  bool c1,c2,c3,c4;
+  double tmp = 0.0;
+  
+  //Number of tetrahedra in which the wave vector belongs 
+  num = tetra.qToTetCount(iq);
+
+  for(int i = 0; i < num; i++){//over all tetrahedra
+    it = tetra.qToTet(iq,i,0); //get index of tetrahedron
+    iv = tetra.qToTet(iq,i,1); //get index of vertex
+
+    //Sorted energies at the 4 vertices
+    e1 = tetra.tetraEigVals(it,ib,0);
+    e2 = tetra.tetraEigVals(it,ib,1);
+    e3 = tetra.tetraEigVals(it,ib,2);
+    e4 = tetra.tetraEigVals(it,ib,3);
+    
+    //Define the shorthands
+    // Refer to Lambin and Vigneron prb 29.6 (1984): 3430 to understand
+    // what these mean.
+    e1e = e1-energy;
+    e2e = e2-energy;
+    e3e = e3-energy;
+    e4e = e4-energy;
+    e21 = e2-e1;
+    e31 = e3-e1;
+    e41 = e4-e1;
+    e32 = e3-e2;
+    e42 = e4-e2;
+    e43 = e4-e3;
+
+    //Check the inequalities
+    c1 = (e1 <= energy) && (energy <= e2);
+    c2 = (e2 <= energy) && (energy <= e3);
+    c3 = (e3 <= energy) && (energy <= e4);
+    
+    if( !((energy < e1) || (energy > e4)) ){
+      switch(iv)
+	{//switch over 4 vertices
+	case 0:
+	  if(c1){
+	    tmp = (e2e/e21 + e3e/e31 + e4e/e41)*pow(e1e,2)/e41/e31/e21;
+
+	    if(e1 == e2) tmp = 0.0;
+	  }else if(c2){
+	    tmp = -0.5*(e3e/pow(e31,2)*(e3e*e2e/e42/e32 + e4e*e1e/e41/e42 + e3e*e1e/e32/e41)
+			+ e4e/pow(e41,2)*(e4e*e1e/e42/e31 + e4e*e2e/e42/e32 + e3e*e1e/e31/e32));
+
+	    if(e2 == e3){
+	      tmp = -0.5*(e4e*e1e/e41/e42 + e1e/e41
+			  + e4e/pow(e41,2)*(e4e*e1e/e42/e31 + e4e/e42 + e1e/e31));
+	    }
+	  }else if(c3){
+	    tmp = pow(e4e,3)/pow(e41,2)/e42/e43;
+
+	    if(e3 == e4){
+	      tmp = pow(e4e,2)/pow(e41,2)/e42;
+	    }
+	  }
+	case 1:
+	  if(c1){
+	    tmp = -pow(e1e,3)/pow(e21,2)/e31/e41;
+
+	    if(e1 == e2) tmp = 0.0;
+	  }else if(c2){
+	    tmp = -0.5*(e3e/pow(e32,2)*(e3e*e2e/e42/e31 + e4e*e2e/e42/e41 + e3e*e1e/e31/e41)
+                        + e4e/pow(e42,2)*(e3e*e2e/e32/e31 + e4e*e1e/e41/e31 + e4e*e2e/e32/e41));
+
+	    if(e2 == e3){
+	      tmp = -0.5*(e4e/e42/e41
+			  + e4e/pow(e42,2)*(e4e*e1e/e41/e31 + 1.0));
+	    }
+	  }else if(c3){
+	    tmp = pow(e4e,3)/e41/pow(e42,2)/e43;
+
+	    if(e3 == e4) tmp = 0.0;
+	  }
+	case 2:
+	  if(c1){
+	    tmp = -pow(e1e,3)/e21/pow(e31,2)/e41;
+
+	    if(e1 == e2) tmp = 0.0;
+	  }else if(c2){
+	    tmp = 0.5*(e2e/pow(e32,2)*(e3e*e2e/e42/e31 + e4e*e2e/e42/e41 + e3e*e1e/e31/e41)
+		       + e1e/pow(e31,2)*(e3e*e2e/e42/e32 + e4e*e1e/e41/e42 + e3e*e1e/e32/e41));
+                   
+	    if(e2 == e3){
+	      tmp = 0.5*(e4e/e42/e41 + e1e/e31/e41
+			 + e1e/pow(e31,2)*(e4e*e1e/e41/e42 + e1e/e41));
+	    }
+	  }else if(c3){
+	    tmp = pow(e4e,3)/e41/e42/pow(e43,2);
+
+	    if(e3 == e4) tmp = 0.0;
+	  }
+	case 3:
+	  if(c1){
+	    tmp = -pow(e1e,3)/e21/e31/pow(e41,2);
+	    
+	    if(e1 == e2) tmp = 0.0;
+	  }else if(c2){
+	    tmp = 0.5*(e2e/pow(e42,2)*(e3e*e2e/e32/e31 + e4e*e1e/e41/e31 + e4e*e2e/e32/e41)
+		       + e1e/pow(e41,2)*(e4e*e1e/e42/e31 + e4e*e2e/e42/e32 + e3e*e1e/e31/e32));
+
+	    if(e2 == e3){
+	      tmp = 0.5*e1e/pow(e41,2)*(e4e*e1e/e42/e31 + e4e/e42 + e1e/e31);
+	    }
+	  }else if(c3){
+	    tmp = -(e3e/e43 + e2e/e42 + e1e/e41)*pow(e4e,2)/e41/e42/e43;
+                   
+	    if(e3 == e4) tmp = 0.0;
+	  }
+	} //switch over 4 vertices
+
+      if( (e1 == e2) && (e1 == e3) && (e1 == e4) & (energy == e1) ) tmp = 0.25;
+
+      weight = weight + tmp;
+    } //!((energy < e1) || (energy > e4))
+  } //over all tetrahedra
+
+  // Zero out extremely small weights
+  //if(weight < 1.0e-12) weight = 0.0;
+
+  // Normalize by number of tetrahedra
+  weight = weight/tetra.numTetra;
+
+  return weight;
+}
+
 int main(){
   
-  int grid[3] = {10,10,10};
+  int grid[3] = {2,2,2};
 
   TetraData tetra;
   formTets(grid,tetra);
 
-  cout << tetra.qToTetCount(0) << "\n";
-  cout << tetra.qToTet(1,3,0) << "\n";
-  cout << tetra.qToTet(1,3,1) << "\n";
+  int numBands = 2;
+  Eigen::MatrixXd energy(8,numBands);
+  energy << 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
+            1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7;
+
+  //cout << energy << "\n";
+  //cout << energy.row(0) << "\n";
+  //cout << energy.row(7) << "\n";
+  
+  fillTetsEigs(numBands,energy,tetra);
+
+  /*
+  for(int ib = 0; ib < numBands; ib++){
+    for(int iv = 0; iv < 4; iv++){
+      cout << tetra.tetraEigVals(0,ib,iv) << "\n";
+    }
+    cout << "--\n";
+  }
+  */
+
+  cout << "1/numTetra = " << 1.0/tetra.numTetra << "\n";
+  
+  double e = 0.1;
+  double weight = fillTetsWeights(e, 0, 0, tetra);
+  cout << "weight = " << weight << "\n";
+  //cout << tetra.qToTetCount(0) << "\n";
+  //cout << tetra.qToTet(1,3,0) << "\n";
+  //cout << tetra.qToTet(1,3,1) << "\n";
   
   return 0;
 }
