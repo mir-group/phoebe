@@ -39,5 +39,5 @@
 .DS_Store
 
 #Documentation related folders
-html/
-latex/
+#html/
+#latex/
