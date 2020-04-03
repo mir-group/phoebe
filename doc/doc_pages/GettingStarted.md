@@ -57,7 +57,7 @@ void Animal::set_maturity_age( age_type r )
 In case of problems, [Google] (http://google.com) will help. More details see in section [Download] (@ref Download).
 
 We can also add a figure:
-![Fig.1: Logo] (../Logo.png "Logo")
+![Fig.1: Logo] (../images/Logo.png "Logo")
 
 In case of questions, please contact: <mailto:mail@mail.com> or check <http://www.google.com>
 
