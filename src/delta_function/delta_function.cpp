@@ -223,7 +223,7 @@ double fillTetsWeights(const double energy, const int ib, const int iq, const Te
   } //over all tetrahedra
 
   // Zero out extremely small weights
-  //if(weight < 1.0e-12) weight = 0.0;
+  if(weight < 1.0e-12) weight = 0.0;
 
   // Normalize by number of tetrahedra
   weight = weight/tetra.numTetra;
@@ -231,41 +231,69 @@ double fillTetsWeights(const double energy, const int ib, const int iq, const Te
   return weight;
 }
 
+/*
+//A test for the tetrahedron method
 int main(){
-  
-  int grid[3] = {2,2,2};
-
+  //Number of bands
+  int numBands = 12;
+  //Grid points along the 3 lattice vectors
+  int grid[3] = {18,18,18};
+  //Total number of wave vectors
+  int nq = 18*18*18;
+  //Band structure
+  Eigen::MatrixXd energy(nq,numBands);
+  //Tetrahedron data
   TetraData tetra;
+
+  //Form tetrahedra
   formTets(grid,tetra);
-
-  int numBands = 2;
-  Eigen::MatrixXd energy(8,numBands);
-  energy << 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
-            1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7;
-
-  //cout << energy << "\n";
-  //cout << energy.row(0) << "\n";
-  //cout << energy.row(7) << "\n";
   
+  //Read test phonon angular frequency from file
+  // I'm abusing notation here as these are not energy but angular frequency...
+  ifstream infile("./phonon_dos_test/angfreq_wBAs18c");
+  for(int iq = 0; iq < nq; iq++){
+    for(int ib = 0; ib < numBands; ib++){
+      infile >> energy(iq,ib);
+    }
+  }
+
+  //Convert to frequency by dividing by 2pi
+  energy = energy/2.0/M_PI;
+
+  //cout << energy.row(0) << "\n";
+  //cout << energy.row(nq-1) << "\n";
+
+  //Fill tetrahedra with energies
   fillTetsEigs(numBands,energy,tetra);
 
-  /*
-  for(int ib = 0; ib < numBands; ib++){
-    for(int iv = 0; iv < 4; iv++){
-      cout << tetra.tetraEigVals(0,ib,iv) << "\n";
-    }
-    cout << "--\n";
+  //Array of uniform frequency to sample
+  int numFreq = 201;
+  double freq[numFreq];
+  double del = 0.125; //frequency spacing, THz
+  for(int i = 0; i < numFreq; i++){
+    freq[i] = i*del;
   }
-  */
-
-  cout << "1/numTetra = " << 1.0/tetra.numTetra << "\n";
   
-  double e = 0.1;
-  double weight = fillTetsWeights(e, 0, 0, tetra);
-  cout << "weight = " << weight << "\n";
-  //cout << tetra.qToTetCount(0) << "\n";
-  //cout << tetra.qToTet(1,3,0) << "\n";
-  //cout << tetra.qToTet(1,3,1) << "\n";
+  //Calculate phonon density of states (DOS) [1/THz]
+  // I'll implement a parallel version of this as a separate method later...
+  double weight; // tetrahedron weight
+  double dos[numFreq] = {0.0}; // phonon DOS initialized to zero
+  
+  for(int i = 0; i < numFreq; i++){
+    for(int iq = 0; iq < nq; iq++){
+      for(int ib = 0; ib < numBands; ib++){
+	weight = fillTetsWeights(freq[i],ib,iq,tetra);
+	dos[i] = dos[i] + weight;
+      }
+    }
+  }
+  
+  //Save phonon DOS to file
+  ofstream outfile("./phonon_dos_test/phonon_dos");
+  for(int i = 0; i < numFreq; i++){
+    outfile << freq[i] << "\t" << dos[i] << "\n";
+  }
   
   return 0;
 }
+*/

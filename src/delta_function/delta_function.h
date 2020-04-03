@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Dense>
 #include <algorithm>
