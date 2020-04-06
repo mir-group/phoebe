@@ -11,6 +11,7 @@ private:
 	Eigen::Matrix3d reciprocalUnitCell;
 	double volumeUnitCell;
 	int numAtoms;
+	int numSpecies;
 	Eigen::Matrix3d calcReciprocalCell(const Eigen::Matrix3d directUnitCell);
 	void setDirectUnitCell(Eigen::Matrix3d directUnitCell_);
 

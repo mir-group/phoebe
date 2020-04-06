@@ -104,6 +104,7 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 	speciesNames = speciesNames_;
 
 	numAtoms = atomicPositions.rows();
+	numSpecies = atomicSpecies.size();
 
 	Eigen::VectorXd atomicMasses_(numAtoms);
 	std::vector<std::string> atomicNames_(numAtoms);

@@ -549,15 +549,12 @@ std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
 	std::vector<std::string> lineSplit;
 
 	// load and parse XML file using pugi library
-	// note that
 	pugi::xml_document doc;
 	pugi::xml_parse_result result = doc.load_file(fileName.c_str());
 
 	if ( not result ) {
 		Error e("Error parsing XML file", 1);
 	}
-
-//	pugi::xml_node root = doc.document_element();
 
 	pugi::xml_node output = doc.child("qes:espresso").child("output");
 
@@ -644,13 +641,6 @@ std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
 	if ( mp ) {
 		Error e("Grid found in QE:XML, should have used full kpoints grid",1);
 	}
-	//	int nk1 = mp.attribute("nk1").as_int();
-	//	int nk2 = mp.attribute("nk2").as_int();
-	//	int nk3 = mp.attribute("nk3").as_int();
-	//	int k1 = mp.attribute("k1").as_int();
-	//	int k2 = mp.attribute("k2").as_int();
-	//	int k3 = mp.attribute("k3").as_int();
-	// band energies
 
 	Eigen::MatrixXd irredPoints(numIrredPoints, 3);
 	Eigen::VectorXd irredWeights(numIrredPoints);
@@ -682,8 +672,8 @@ std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
 
 	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
 			speciesNames, speciesMasses);
-	std::cout << "676\n";
+
 	ElectronH0Spline electronH0; //crystal, bands);
-std::cout << "677\n";
+
 	return {crystal, electronH0};
 };
