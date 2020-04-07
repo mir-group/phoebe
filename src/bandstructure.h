@@ -17,8 +17,7 @@ protected:
 
 	int getNumPoints();
 	int getIndex(Eigen::Vector3d& pointCoords);
-	double getWeight(const int pointIndex);
-	Eigen::Vector3d getPoint(const int pointIndex);
+	Point getPoint(const int& pointIndex);
 
 	FullPoints* fullPoints = nullptr;
 	IrreduciblePoints* irreduciblePoints = nullptr;

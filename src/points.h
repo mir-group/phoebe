@@ -3,6 +3,20 @@
 
 #include "crystal.h"
 
+class Point {
+public:
+	Point(Eigen::Vector3d crystalCoords_, Eigen::Vector3d crystalCoordsWS_,
+			const Eigen::Matrix3d& reciprocalUnitCell_);
+	Eigen::Vector3d getCoords(std::string basis="crystal",
+			bool inWignerSeitz=false);
+	double getWeight();
+private:
+	Eigen::Vector3d crystalCoords;
+	Eigen::Vector3d crystalCoordsWS;
+	const Eigen::Matrix3d& reciprocalUnitCell;
+	double weight;
+};
+
 class Points {
 public:
 	Points(Crystal& crystal_, const Eigen::Vector3i& mesh_,
@@ -12,9 +26,10 @@ public:
 	std::tuple<Eigen::Vector3i, Eigen::Vector3d> getMesh();
 	int getNumPoints();
 
-	Eigen::Vector3d getPoint(int index, std::string basis="crystal");
+	Point getPoint(const int& index);
+	Eigen::Vector3d getPointCoords(int& index, std::string basis="crystal");
 	int getIndex(const Eigen::Vector3d& point);
-	std::vector<Eigen::Vector3d> getPoints(std::string basis="crystal");
+	std::vector<Eigen::Vector3d> getPointsCoords(std::string basis="crystal");
 
 	Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d& point);
 	Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d& point);
@@ -35,7 +50,7 @@ protected:
 	void setIrreduciblePoints();
 
 	Eigen::Vector3d reduciblePoints(const int idx);
-	Eigen::Vector3d pointsCoords(int& index);
+	Eigen::Vector3d pointsCoords(const int& index);
 
 	Crystal* crystal;
 	Eigen::Vector3i mesh;
@@ -58,7 +73,7 @@ protected:
 class FullPoints: public Points {
 protected:
 	bool useIrreducible = false;
-	Eigen::Vector3d pointsCoords(int& index);
+	Eigen::Vector3d pointsCoords(const int& index);
 public:
 	int getIndexInverted(const int& ik);
 	FullPoints(Crystal& crystal_, const Eigen::Vector3i& mesh_,
@@ -68,7 +83,7 @@ public:
 class IrreduciblePoints: public Points {
 protected:
 	bool useIrreducible = true;
-	Eigen::Vector3d pointsCoords(int& index);
+	Eigen::Vector3d pointsCoords(const int& index);
 public:
 	IrreduciblePoints(Crystal& crystal_, const Eigen::Vector3i& mesh_,
 			const Eigen::Vector3d& offset_=Eigen::Vector3d::Zero());

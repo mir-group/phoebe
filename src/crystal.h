@@ -36,7 +36,7 @@ public:
 			Eigen::VectorXd& speciesMasses_);
 	//  Setter and getter for all the variables above
 	Eigen::Matrix3d getDirectUnitCell();
-	Eigen::Matrix3d getReciprocalUnitCell();
+	const Eigen::Matrix3d& getReciprocalUnitCell();
 	int getNumAtoms();
 	double getVolumeUnitCell();
 

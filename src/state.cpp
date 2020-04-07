@@ -1,13 +1,10 @@
 #include "bandstructure.h"
 #include "exceptions.h"
 
-State::State(Eigen::Vector3d& point_,
-		double& weight_,
+State::State(Point& point_,
 		Eigen::VectorXd& energies_,
 		Eigen::Tensor<std::complex<double>,3>& velocities_,
-		Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_) {
-	point = point_;
-	weight = weight_;
+		Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_) : point{point_} {
 	energies = energies_;
 	velocities = velocities_;
 	dnde = dnde_;
@@ -20,7 +17,7 @@ double State::getEnergy(const int bandIndex) {
 }
 
 double State::getWeight() {
-	return weight;
+	return point.getWeight();
 }
 
 Eigen::VectorXd State::getEnergies() {
@@ -61,27 +58,24 @@ Eigen::VectorXd State::getDnde() {
 	return dnde;
 }
 
-PhState::PhState(Eigen::Vector3d& point_,
-		double& weight_,
+ElState::ElState(Point& point_,
+		Eigen::VectorXd& energies_,
+		Eigen::Tensor<std::complex<double>,3>& velocities_,
+		Eigen::VectorXd& dnde_,
+		Eigen::VectorXd& dndt_) : State(point_, energies_,
+				velocities_, dnde_, dndt_) {};
+
+PhState::PhState(Point& point_,
 		Eigen::VectorXd& energies_,
 		Eigen::Tensor<std::complex<double>,3>& eigenvectors_,
 		Eigen::Tensor<std::complex<double>,3>& velocities_,
 		Eigen::VectorXd& dnde_,
 		Eigen::VectorXd& dndt_)
-               : State{point_, weight_, energies_, velocities_, dnde_, dndt_} {
+               : State{point_, energies_, velocities_, dnde_, dndt_} {
 	// we augment the base class initialization
 	eigenvectors = eigenvectors_;
 }
 
-ElState::ElState(Eigen::Vector3d& point_,
-		double& weight_,
-		Eigen::VectorXd& energies_,
-		Eigen::Tensor<std::complex<double>,3>& velocities_,
-		Eigen::VectorXd& dnde_,
-		Eigen::VectorXd& dndt_) : State(point_, weight_, energies_,
-				velocities_, dnde_, dndt_) {};
-
 Eigen::Tensor<std::complex<double>,3> PhState::getEigenvectors() {
 	return eigenvectors;
 }
-

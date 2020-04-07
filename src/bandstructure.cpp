@@ -77,15 +77,7 @@ int BaseBandStructure::getIndex(Eigen::Vector3d& pointCoords) {
 	}
 }
 
-double BaseBandStructure::getWeight(int pointIndex) {
-	if ( useIrreducible ) {
-		return irreduciblePoints->getWeight(pointIndex);
-	} else {
-		return fullPoints->getWeight(pointIndex);
-	}
-}
-
-Eigen::Vector3d BaseBandStructure::getPoint(const int pointIndex) {
+Point BaseBandStructure::getPoint(const int& pointIndex) {
 	if ( useIrreducible ) {
 		return irreduciblePoints->getPoint(pointIndex);
 	} else {
@@ -175,11 +167,9 @@ PhState PhBandStructure::getStateFromPointIndex(int pointIndex) {
 			eigenvectors.row(pointIndex), 3, numAtoms, numBands);
 	Eigen::VectorXd thisDndt = dndt.row(pointIndex);
 	Eigen::VectorXd thisDnde = dnde.row(pointIndex);
-	Eigen::Vector3d p;
-	p = getPoint(pointIndex);
-	double weight = getWeight(pointIndex);
+	Point p = getPoint(pointIndex);
 	Eigen::VectorXd thisEn = energies.row(pointIndex);
-	PhState s(p, weight, thisEn, thisEig,
+	PhState s(p, thisEn, thisEig,
 			thisVel, thisDndt, thisDnde);
 	return s;
 }
@@ -191,18 +181,17 @@ ElState ElBandStructure::getStateFromPointIndex(int pointIndex) {
 			velocities.row(pointIndex), numBands, numBands, 3);
 	Eigen::VectorXd thisDndt = dndt.row(pointIndex);
 	Eigen::VectorXd thisDnde = dnde.row(pointIndex);
-	Eigen::Vector3d p = getPoint(pointIndex);
-	double weight = getWeight(pointIndex);
-	ElState s(p, weight, thisEn, thisVel, thisDndt, thisDnde);
+	Point p = getPoint(pointIndex);
+	ElState s(p, thisEn, thisVel, thisDndt, thisDnde);
 	return s;
 }
 
 void PhBandStructure::populate(PhononH0 phononH0) {
 	std::vector<Eigen::Vector3d> points;
 	if ( useIrreducible ) {
-		points = irreduciblePoints->getPoints();
+		points = irreduciblePoints->getPointsCoords();
 	} else {
-		points = fullPoints->getPoints();
+		points = fullPoints->getPointsCoords();
 	}
 
 	for ( auto q : points ) {

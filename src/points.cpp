@@ -3,6 +3,42 @@
 #include "exceptions.h"
 #include <set>
 
+Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d& point,
+		const Eigen::Matrix3d& reciprocalUnitCell) {
+	return reciprocalUnitCell * point;
+}
+
+Point::Point(Eigen::Vector3d crystalCoords_, Eigen::Vector3d crystalCoordsWS_,
+		const Eigen::Matrix3d& reciprocalUnitCell_)
+		: reciprocalUnitCell(reciprocalUnitCell_) {
+	crystalCoords = crystalCoords_;
+	crystalCoordsWS = crystalCoordsWS_;
+}
+
+Eigen::Vector3d Point::getCoords(std::string basis, bool inWignerSeitz) {
+	if ( (basis != "crystal") && (basis != "cartesian") ) {
+		Error e("Point getCoordinates: basis must be crystal or cartesian", 1);
+	}
+
+	if ( not inWignerSeitz ) {
+		if ( basis == "crystal" ) {
+			return crystalCoords;
+		} else {
+			return crystalToCartesian(crystalCoords, reciprocalUnitCell);
+		}
+	} else {
+		if ( basis == "crystal" ) {
+			return crystalCoordsWS;
+		} else {
+			return crystalToCartesian(crystalCoordsWS, reciprocalUnitCell);
+		}
+	}
+}
+
+double Point::getWeight() {
+	return weight;
+}
+
 Points::Points(Crystal& crystal_, const Eigen::Vector3i& mesh_,
 		const Eigen::Vector3d& offset_,
 		const bool useIrreducible_) {
@@ -56,23 +92,28 @@ FullPoints::FullPoints(Crystal& crystal_, const Eigen::Vector3i& mesh_,
 				offset_, false) {
 }
 
-Eigen::Vector3d Points::pointsCoords(int& index){
+Eigen::Vector3d Points::pointsCoords(const int& index){
 	Error e("Base Points class doesn't have pointsCoords implemented", 1);
 	Eigen::Vector3d x;
 	return x.setZero();
 }
 
-Eigen::Vector3d IrreduciblePoints::pointsCoords(int& index) {
+Eigen::Vector3d IrreduciblePoints::pointsCoords(const int& index) {
 	Eigen::Vector3d x = irreduciblePoints.row(index);
 	return x;
 }
 
-Eigen::Vector3d FullPoints::pointsCoords(int& index) {
+Eigen::Vector3d FullPoints::pointsCoords(const int& index) {
 	Eigen::Vector3d x = reduciblePoints(index);
 	return x;
 }
 
-Eigen::Vector3d Points::getPoint(int index, std::string basis) {
+Point Points::getPoint(const int& index) {
+	Eigen::Vector3d p = pointsCoords(index);
+	return Point(p,crystalToWS(p,"crystal"),crystal->getReciprocalUnitCell());
+}
+
+Eigen::Vector3d Points::getPointCoords(int& index, std::string basis) {
 	Eigen::Vector3d pointCrystal = pointsCoords(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
@@ -84,7 +125,7 @@ Eigen::Vector3d Points::getPoint(int index, std::string basis) {
 	}
 }
 
-std::vector<Eigen::Vector3d> Points::getPoints(std::string basis) {
+std::vector<Eigen::Vector3d> Points::getPointsCoords(std::string basis) {
 	if ( basis != "crystal" && basis != "cartesian" ) {
 		Error e("Wrong basis for getPoint", 1);
 	}
@@ -255,8 +296,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::getMesh() {
 }
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d& point) {
-	Eigen::Vector3d p = crystal->getReciprocalUnitCell() * point;
-	return p;
+	return crystal->getReciprocalUnitCell() * point;
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d& point) {

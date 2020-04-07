@@ -20,7 +20,7 @@ Eigen::Matrix3d Crystal::getDirectUnitCell() {
 	return directUnitCell;
 }
 
-Eigen::Matrix3d Crystal::getReciprocalUnitCell() {
+const Eigen::Matrix3d& Crystal::getReciprocalUnitCell() {
 	// note: reciprocalUnitCell is  in units of twoPi
 	// i.e. must be multiplied by twoPi
 	return reciprocalUnitCell;
