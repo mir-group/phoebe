@@ -48,6 +48,10 @@ libs:
 	@echo "Creating libraries"
 	(cd lib && make all)
 
+.PHONY: doc
+doc:
+	(cd doc && doxygen)
+
 .PHONY: clean
 clean:
 	@echo "Deleting $(BIN_NAME) symlink"
@@ -56,7 +60,7 @@ clean:
 	@$(RM) -r $(BUILD_PATH)
 	@$(RM) -r $(BIN_PATH)
 	(cd lib && make clean)
-
+	@$(RM) -r doc/html doc/latex
 
 # (cd ./lib && make clean)
 
