@@ -10,13 +10,35 @@
 
 class PhononH0 {
 public:
+	/** Class to store the force constants and diagonalize the dynamical matrix
+	 * @param crystal: the object with the information on the crystal structure
+	 * @param dielectricMatrix: 3x3 matrix with the dielectric matrix
+	 * @param bornCharges: real tensor of size (numAtoms,3,3) with the Born
+	 * effective charges
+	 * @param forceConstants: a tensor of doubles with the force constants
+	 * size is (meshx, meshy, meshz, 3, 3, numAtoms, numAtoms)
+	 */
 	PhononH0(Crystal& crystal,
 			const Eigen::MatrixXd& dielectricMatrix_,
 			const Eigen::Tensor<double, 3>& bornCharges_,
 			const Eigen::Tensor<double, 7>& forceConstants_);
+
+	/** get the phonon energies (in Ry) at a single q-point.
+	 * @param q: a q-point in cartesian coordinates.
+	 * @return tuple(energies, eigenvectors): the energies are a double vector
+	 * of size (numBands=3*numAtoms). Eigenvectors are a complex tensor of
+	 * size (3,numAtoms,numBands). The eigenvector is rescaled by the
+	 * sqrt(masses) (masses in rydbergs)
+	 */
 	std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(
 				const Eigen::VectorXd& q);
+	/** Impose the acoustic sum rule on force constants and Born charges
+	 * @param sumRule: name of the sum rule to be used
+	 * Currently supported values are akin to those from Quantum ESPRESSO
+	 * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
+	 * (to find the closest matrix which satisfies the sum rule)
+	 */
 	void setAcousticSumRule(const std::string sumRule);
 private:
 	Eigen::Vector3i getCoarseGrid();

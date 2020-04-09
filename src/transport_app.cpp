@@ -40,6 +40,11 @@ void TransportApp::setup(int argc, char** argv) {
 //	phH0.readFile();
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
+	Eigen::VectorXd q(3);
+	q << 0.,0.,0.1;
+	auto [energies, eigenvectors] = phononH0.diagonalize(q);
+	std::cout << energies.transpose() * ryToCmm1 << std::endl;
+
 	auto [crystalEl, coarseElPoints, electronH0Spline] =
 			qeParser.parseElHarmonicSpline(context.getElectronH0Name(),
 					context.getElectronFourierCutoff());
@@ -49,10 +54,6 @@ void TransportApp::setup(int argc, char** argv) {
 	mesh << 4, 4, 4;
 	Points ps(crystal, mesh);
 
-	Eigen::VectorXd q(3);
-	q << 0.,0.,0.;
-	auto [energies, eigenvectors] = phononH0.diagonalize(q);
-	std::cout << energies.transpose() * ryToCmm1 << std::endl;
 //
 //	//	TODO: 'elph' shoudn't be a string, we should use a dictionary
 //	//	and store which are the allowed values of calculations.

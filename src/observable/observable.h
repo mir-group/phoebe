@@ -1,11 +1,8 @@
 #include <string>
 #include <vector>
 
-using namespace std;
-
-class Context {
+class Observable {
 public:
 	std::string units;
-
 	std::vector<double> getObservable(std::vector<double>);
 };

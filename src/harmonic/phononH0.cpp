@@ -10,6 +10,10 @@
 #include "exceptions.h"
 #include "phononH0.h"
 
+// Development note:
+// In this code, we define the reciprocal unit cell in bohr^-1,
+// whereas QE used units of 2Pi/alat. Some factors of 2Pi might need checking
+
 void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	const int nx = 2;
 	int index = 0;
@@ -193,17 +197,17 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	}
 
 	if ( loto_2d ) {
-		fac = sign * e2 * fourPi / volumeUnitCell /2. /reciprocalUnitCell(3,3);
+		fac = sign * e2 / volumeUnitCell / reciprocalUnitCell(3,3);
 		reff.setZero();
 		for ( int i=0; i<2; i++ ) {
 			for ( int j=0; j<2; j++ ) {
-				reff(i,j) = dielectricMatrix(i,j) * 0.5 * twoPi
-						/ reciprocalUnitCell(3,3); // (eps)*c/2 in 2pi/a units
+				reff(i,j) = dielectricMatrix(i,j) * 0.5
+						/ reciprocalUnitCell(3,3); // (eps)*c/2
 			}
 		}
 		for ( int i=0; i<2; i++ ) {
-			reff(i,i) = reff(i,i) - 0.5 * twoPi / reciprocalUnitCell(3,3);
-			// (-1)*c/2 in 2pi/a units
+			reff(i,i) = reff(i,i) - 0.5 / reciprocalUnitCell(3,3);
+			// (-1)*c/2
 		}
 	} else {
 		fac = sign * e2 * fourPi / volumeUnitCell;
@@ -253,7 +257,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 							fnat(i) = 0.;
 							for ( int nb=0; nb<numAtoms; nb++ ) {
 								arg = ( (atomicPositions.row(na)-atomicPositions.row(nb)) * g ).value();
-								arg *= twoPi;
 								zcg(i) = g(0) * bornCharges(nb,0,i)
 										+ g(1) * bornCharges(nb,1,i)
 										+ g(2) * bornCharges(nb,2,i);
@@ -307,7 +310,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 										+ g(2) * bornCharges(na,2,i);
 							}
 							arg = ( (atomicPositions.row(na)-atomicPositions.row(nb)) * g ).value();
-							arg *= twoPi;
 							phase = {cos(arg), sin(arg)};
 							facg = facgd * phase;
 							for ( int i=0; i<3; i++ ) {
@@ -464,7 +466,7 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
 
 							// note: maybe send m1 in m1-1 and m2,m3
 
-							arg = twoPi * (q.transpose() * r).value();
+							arg = (q.transpose() * r).value();
 							phase = {cos(arg),-sin(arg)};
 
 							for ( int ipol=0; ipol<3; ipol++ ) {

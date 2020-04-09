@@ -3,11 +3,12 @@
 #include "exceptions.h"
 #include "crystal.h"
 #include "spglib.h"
+#include "constants.h"
 
 Eigen::Matrix3d Crystal::calcReciprocalCell(
 		const Eigen::Matrix3d directUnitCell)
 {
-	Eigen::Matrix3d reciprocalCell = directUnitCell.inverse().transpose();
+	Eigen::Matrix3d reciprocalCell = twoPi * directUnitCell.inverse().transpose();
 	return reciprocalCell;
 }
 
@@ -16,7 +17,7 @@ void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
 	reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 }
 
-Eigen::Matrix3d Crystal::getDirectUnitCell() {
+const Eigen::Matrix3d& Crystal::getDirectUnitCell() {
 	return directUnitCell;
 }
 
@@ -39,43 +40,43 @@ double calcVolume(const Eigen::Matrix3d& directUnitCell)
 	return volume;
 }
 
-int Crystal::getNumAtoms() {
+const int& Crystal::getNumAtoms() {
 	return numAtoms;
 }
 
-double Crystal::getVolumeUnitCell() {
+const double& Crystal::getVolumeUnitCell() {
 	return volumeUnitCell;
 }
 
-Eigen::MatrixXd Crystal::getAtomicPositions() {
+const Eigen::MatrixXd& Crystal::getAtomicPositions() {
 	return atomicPositions;
 }
 
-Eigen::VectorXi Crystal::getAtomicSpecies() {
+const Eigen::VectorXi& Crystal::getAtomicSpecies() {
 	return atomicSpecies;
 }
 
-std::vector<std::string> Crystal::getAtomicNames() {
+const std::vector<std::string>& Crystal::getAtomicNames() {
 	return atomicNames;
 }
 
-Eigen::VectorXd Crystal::getAtomicMasses() {
+const Eigen::VectorXd& Crystal::getAtomicMasses() {
 	return atomicMasses;
 }
 
-std::vector<std::string> Crystal::getSpeciesNames() {
+const std::vector<std::string>& Crystal::getSpeciesNames() {
 	return speciesNames;
 }
 
-Eigen::VectorXd Crystal::getSpeciesMasses() {
+const Eigen::VectorXd& Crystal::getSpeciesMasses() {
 	return speciesMasses;
 }
 
-std::vector<Eigen::Matrix3d> Crystal::getSymmetryMatrices() {
+const std::vector<Eigen::Matrix3d>& Crystal::getSymmetryMatrices() {
 	return symmetryRotations;
 }
 
-int Crystal::getNumSymmetries() {
+const int& Crystal::getNumSymmetries() {
 	return numSymmetries;
 }
 
