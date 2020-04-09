@@ -317,7 +317,13 @@ void Context::setupFromInput(std::string fileName) {
 
 	try {
 		std::string tmp = parseString(lines, "electronH0Name");
-		setElctronH0Name(tmp);
+		setElectronH0Name(tmp);
+	}
+	catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double dval = parseDouble(lines, "electronFourierCutoff");
+		setElectronFourierCutoff(dval);
 	}
 	catch (ParameterNotFound& e) {} // Do nothing!
 
@@ -339,7 +345,7 @@ std::string Context::getSumRuleD2() {
 	return sumRuleD2;
 }
 
-void Context::setElctronH0Name(std::string x) {
+void Context::setElectronH0Name(std::string x) {
 	electronH0Name = x;
 }
 
@@ -350,4 +356,14 @@ std::string Context::getElectronH0Name() {
 	return electronH0Name;
 }
 
+void Context::setElectronFourierCutoff(double x) {
+	electronFourierCutoff = x;
+}
+
+double& Context::getElectronFourierCutoff() {
+	if ( electronFourierCutoff == 0. ) {
+		Error e("Electronic Fourier Cutoff not set", 1);
+	}
+	return electronFourierCutoff;
+}
 

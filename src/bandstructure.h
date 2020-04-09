@@ -15,24 +15,29 @@ protected:
 	std::string statistics = "";
 	bool useIrreducible = false;
 
-	int getNumPoints();
-	int getIndex(Eigen::Vector3d& pointCoords);
-	Point getPoint(const int& pointIndex);
-
 	FullPoints* fullPoints = nullptr;
 	IrreduciblePoints* irreduciblePoints = nullptr;
+	int getIndex(Eigen::Vector3d& pointCoords);
+
+	double homo;
+	int numValenceElectrons;
 public:
 	BaseBandStructure(int numBands_, FullPoints* fullPoints_=nullptr,
 			IrreduciblePoints* irreduciblePoints_=nullptr);
-
+	Point getPoint(const int& pointIndex);
+	int getNumPoints();
 	State getStateFromPointIndex(int index);
 	void setChemicalPotential(double chemPot);
 	void setTemperature(double temp);
 	void populate();
-	void setEnergies(Eigen::Vector3d& pointCoords,
-			Eigen::VectorXd& energies_);
+	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
+	void setEnergies(Point& point, Eigen::VectorXd& energies_);
 	void setVelocities(Eigen::Vector3d& pointCoords,
 			Eigen::Tensor<std::complex<double>,3>& velocities_);
+	int getNumBands();
+	bool hasIrreduciblePoints();
+	void setNumValenceElectrons(int numElectrons);
+	void setHomo(double homo);
 };
 
 class ElBandStructure: public BaseBandStructure {
@@ -40,6 +45,9 @@ protected:
 	std::string statistics = "fermi";
 public:
 	ElState getStateFromPointIndex(int index);
+	Eigen::VectorXd getBandEnergies(int& bandIndex);
+	ElBandStructure(int numBands_, FullPoints* fullPoints_=nullptr,
+			IrreduciblePoints* irreduciblePoints_=nullptr);
 };
 
 class PhBandStructure: public BaseBandStructure {

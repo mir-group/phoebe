@@ -41,8 +41,7 @@ double Point::getWeight() {
 
 Points::Points(Crystal& crystal_, const Eigen::Vector3i& mesh_,
 		const Eigen::Vector3d& offset_,
-		const bool useIrreducible_) {
-	crystal = &crystal_;
+		const bool useIrreducible_) : crystal{crystal_} {
 	setMesh(mesh_, offset_);
 
 	useIrreducible = useIrreducible_;
@@ -59,7 +58,7 @@ Points::Points(Crystal& crystal_, const Eigen::Vector3i& mesh_,
 	gVectors.setZero();
 	Eigen::MatrixXi igVectors_(3,nGvec);
 	igVectors = igVectors_;
-	Eigen::Matrix3d reciprocalUnitCell = crystal->getReciprocalUnitCell();
+	Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
 	igVectors.setZero();
 	Eigen::Vector3d vec;
 	nGvec = 1; // we skip the first point which is G=(0,0,0)
@@ -110,7 +109,7 @@ Eigen::Vector3d FullPoints::pointsCoords(const int& index) {
 
 Point Points::getPoint(const int& index) {
 	Eigen::Vector3d p = pointsCoords(index);
-	return Point(p,crystalToWS(p,"crystal"),crystal->getReciprocalUnitCell());
+	return Point(p,crystalToWS(p,"crystal"),crystal.getReciprocalUnitCell());
 }
 
 Eigen::Vector3d Points::getPointCoords(int& index, std::string basis) {
@@ -296,11 +295,11 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::getMesh() {
 }
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d& point) {
-	return crystal->getReciprocalUnitCell() * point;
+	return crystal.getReciprocalUnitCell() * point;
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d& point) {
-	Eigen::Vector3d p = point.transpose() * crystal->getReciprocalUnitCell();
+	Eigen::Vector3d p = point.transpose() * crystal.getReciprocalUnitCell();
 	return p;
 }
 
@@ -319,7 +318,7 @@ void Points::setIrreduciblePoints() {
 		equiv(nk) = nk;
 	}
 
-	std::vector<Eigen::Matrix3d> symms = crystal->getSymmetryMatrices();
+	std::vector<Eigen::Matrix3d> symms = crystal.getSymmetryMatrices();
 
 	Eigen::Vector3d rotatedPoint;
 	Eigen::Vector3d thisPoint;
@@ -471,7 +470,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 		}
 	}
 
-	if ( numTestPoints != mesh(0)*mesh(1)*mesh(2) ) {
+	if ( numTestPoints != mesh_(0)*mesh_(1)*mesh_(2) ) {
 		Error e("Mesh of points seems incomplete", 1);
 	}
 	return {mesh_, offset_};

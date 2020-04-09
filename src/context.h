@@ -53,6 +53,7 @@ public:
 	bool useWignerCorrection = true;
 
 	double bandGap = 0.;
+	double electronFourierCutoff = 0.;
 
 //  Setter and getter for all the variables above
 
@@ -65,8 +66,11 @@ public:
 	void setScratchFolder(std::string x);
 	std::string getScratchFolder();
 
-	void setElctronH0Name(std::string x);
+	void setElectronH0Name(std::string x);
 	std::string getElectronH0Name();
+
+	void setElectronFourierCutoff(double x);
+	double& getElectronFourierCutoff();
 
 	void setElPhFileName(std::string x);
 	std::string getElPhFileName();

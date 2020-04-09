@@ -40,8 +40,9 @@ void TransportApp::setup(int argc, char** argv) {
 //	phH0.readFile();
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
-	auto [crystalEl, electronH0Spline] =
-			qeParser.parseElHarmonicSpline(context.getElectronH0Name());
+	auto [crystalEl, coarseElPoints, electronH0Spline] =
+			qeParser.parseElHarmonicSpline(context.getElectronH0Name(),
+					context.getElectronFourierCutoff());
 	std::cout << "siamo usciti\n";
 
 	Eigen::Vector3i mesh;

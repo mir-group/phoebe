@@ -61,6 +61,15 @@ BaseBandStructure::BaseBandStructure(int numBands_, FullPoints* fullPoints_,
 
 }
 
+int BaseBandStructure::getNumBands() {
+	return numBands;
+}
+
+bool BaseBandStructure::hasIrreduciblePoints() {
+	return useIrreducible;
+}
+
+
 int BaseBandStructure::getNumPoints() {
 	if ( useIrreducible ) {
 		return irreduciblePoints->getNumPoints();
@@ -85,13 +94,19 @@ Point BaseBandStructure::getPoint(const int& pointIndex) {
 	}
 }
 
-void BaseBandStructure::populate() {
-	Error e("populate() not implemented in BaseBandStructure", 1);
-}
+//void BaseBandStructure::populate() {
+//	Error e("populate() not implemented in BaseBandStructure", 1);
+//}
 
-void BaseBandStructure::setEnergies(Eigen::Vector3d& pointCoords,
+void BaseBandStructure::setEnergies(Point& point,
 		Eigen::VectorXd& energies_) {
-	int ik = getIndex(pointCoords);
+	Eigen::Vector3d coords = point.getCoords();
+	int ik = getIndex(coords);
+	energies.row(ik) = energies_;
+}
+void BaseBandStructure::setEnergies(Eigen::Vector3d& coords,
+		Eigen::VectorXd& energies_) {
+	int ik = getIndex(coords);
 	energies.row(ik) = energies_;
 }
 
@@ -143,6 +158,14 @@ void BaseBandStructure::setOccupations() {
 	}
 }
 
+void BaseBandStructure::setNumValenceElectrons(int numElectrons) {
+	numValenceElectrons = numElectrons;
+}
+void BaseBandStructure::setHomo(double homo_) {
+	homo = homo_;
+}
+
+
 PhBandStructure::PhBandStructure(int numBands_,
 		FullPoints* fullPoints_,
 		IrreduciblePoints* irreduciblePoints_) : BaseBandStructure(
@@ -174,6 +197,11 @@ PhState PhBandStructure::getStateFromPointIndex(int pointIndex) {
 	return s;
 }
 
+ElBandStructure::ElBandStructure(int numBands_,
+		FullPoints* fullPoints_, IrreduciblePoints* irreduciblePoints_) :
+				BaseBandStructure(numBands_, fullPoints_, irreduciblePoints_) {
+}
+
 ElState ElBandStructure::getStateFromPointIndex(int pointIndex) {
 	Eigen::VectorXd thisEn = energies.row(pointIndex);
 	thisEn = thisEn.array() - chemicalPotential;
@@ -186,18 +214,23 @@ ElState ElBandStructure::getStateFromPointIndex(int pointIndex) {
 	return s;
 }
 
-void PhBandStructure::populate(PhononH0 phononH0) {
-	std::vector<Eigen::Vector3d> points;
-	if ( useIrreducible ) {
-		points = irreduciblePoints->getPointsCoords();
-	} else {
-		points = fullPoints->getPointsCoords();
-	}
-
-	for ( auto q : points ) {
-		auto [energies, eigenvectors] = phononH0.diagonalize(q);
-		setEnergies(q, energies);
-		setEigenvectors(q, eigenvectors);
-	}
+Eigen::VectorXd ElBandStructure::getBandEnergies(int& bandIndex) {
+	return energies.row(bandIndex);
 }
+
+//
+//void PhBandStructure::populate(PhononH0 phononH0) {
+//	std::vector<Eigen::Vector3d> points;
+//	if ( useIrreducible ) {
+//		points = irreduciblePoints->getPointsCoords();
+//	} else {
+//		points = fullPoints->getPointsCoords();
+//	}
+//
+//	for ( auto q : points ) {
+//		auto [energies, eigenvectors] = phononH0.diagonalize(q);
+//		setEnergies(q, energies);
+//		setEigenvectors(q, eigenvectors);
+//	}
+//}
 

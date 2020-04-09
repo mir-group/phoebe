@@ -1,3 +1,6 @@
+#ifndef PHONONH0_H
+#define PHONONH0_H
+
 #include <Eigen/Dense>
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Eigenvalues>
@@ -15,10 +18,8 @@ public:
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(
 				const Eigen::VectorXd& q);
 	void setAcousticSumRule(const std::string sumRule);
+private:
 	Eigen::Vector3i getCoarseGrid();
-
-//private:
-
 	// internal variables
 	bool na_ifc;
 	bool loto_2d;
@@ -63,3 +64,5 @@ public:
 			Eigen::Tensor<double,3>& zeu_v,
 			double& scal);
 };
+
+#endif

@@ -35,7 +35,7 @@ public:
 	Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d& point);
 	Eigen::Vector3d crystalToWS(const Eigen::Vector3d& pointCrystal,
 			const std::string& basis);
-	std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
+	static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
 			Eigen::MatrixXd& points);
 	double getWeight(int ik);
 
@@ -52,7 +52,7 @@ protected:
 	Eigen::Vector3d reduciblePoints(const int idx);
 	Eigen::Vector3d pointsCoords(const int& index);
 
-	Crystal* crystal;
+	Crystal& crystal;
 	Eigen::Vector3i mesh;
 	Eigen::Vector3d offset;
 	// points are internally stored in crystal coordinates

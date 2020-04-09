@@ -538,8 +538,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileNa
 	return {crystal, dynamicalMatrix};
 };
 
-std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
-		const std::string fileName) {
+std::tuple<Crystal, FullPoints, ElectronH0Spline> QEParser::parseElHarmonicSpline(
+		const std::string fileName, double& fourierCutoff) {
 	//  Here we read the XML file of quantum espresso.
 
 	if ( fileName == "" ) {
@@ -670,10 +670,30 @@ std::tuple<Crystal, ElectronH0Spline> QEParser::parseElHarmonicSpline(
 
 	// Now we do postprocessing
 
+	if ( lsda || noncolin || spinorbit ) {
+		Error e("spin is not yet supported" ,1);
+	}
+
 	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
 			speciesNames, speciesMasses);
 
-	ElectronH0Spline electronH0; //crystal, bands);
+	auto [mesh, offset] = Points::findMesh(irredPoints);
+	FullPoints coarsePoints(crystal, mesh, offset);
 
-	return {crystal, electronH0};
+	ElBandStructure coarseBandStructure(numBands, &coarsePoints);
+	// fill in the info on band structure
+	int index;
+	Eigen::Vector3d pointCoords;
+	Eigen::VectorXd thisEnergies(numBands);
+	for ( int ik=0; ik<numIrredPoints; ik++ ) {
+		pointCoords = irredPoints.row(ik);
+		thisEnergies = irredEnergies.row(ik);
+		coarseBandStructure.setEnergies(pointCoords, thisEnergies);
+	}
+	coarseBandStructure.setNumValenceElectrons(numElectrons);
+	coarseBandStructure.setHomo(homo);
+
+	ElectronH0Spline electronH0(crystal, coarseBandStructure, fourierCutoff);
+
+	return {crystal, coarsePoints, electronH0};
 };
