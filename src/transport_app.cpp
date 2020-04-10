@@ -6,22 +6,41 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "points.h"
+#include "io.h"
 
-using namespace std;
+char* getCmdOption(char ** begin, char ** end, const std::string & option)
+{
+    char ** itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end)
+    {
+        return *itr;
+    }
+    return 0;
+}
 
-//TransportApp::TransportApp() {};
+bool cmdOptionExists(char** begin, char** end, const std::string& option)
+{
+    return std::find(begin, end, option) != end;
+}
 
-void TransportApp::setup(int argc, char** argv) {
-	string inputFileName;
-	string outputFileName;
-
-	if ( argc < 5 ) {
-		Error e("Invalid input line arguments. "
-				"Syntax is phoebe -in input -out output.", 1);
+std::tuple<std::string, std::string> TransportApp::parseInputArgs(int argc,
+		char* argv[]) {
+	char * inputFileName = getCmdOption(argv, argv + argc, "-in");
+	char * outputFileName = getCmdOption(argv, argv + argc, "-out");
+	if ( not inputFileName ) {
+		Error e("Must provide an input file name on command line" ,1);
 	}
+	if ( outputFileName == nullptr ) {
+		Error e("Must provide an output file name on command line" ,1);
+	}
+	return {inputFileName, outputFileName};
+}
 
-	inputFileName = argv[2];
-	outputFileName = argv[4];
+TransportApp::TransportApp(int argc, char** argv) {
+
+auto [inputFileName, outputFileName] = parseInputArgs(argc, argv);
+
+	IO io(inputFileName, outputFileName);
 
 	std::cout << "Reading from input file: " << inputFileName << endl;
 
