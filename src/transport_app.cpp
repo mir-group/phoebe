@@ -1,4 +1,3 @@
-#include <iostream>
 #include <string>
 #include "transport_app.h"
 #include "qe_input_parser.h"
@@ -8,39 +7,10 @@
 #include "points.h"
 #include "io.h"
 
-char* getCmdOption(char ** begin, char ** end, const std::string & option)
-{
-    char ** itr = std::find(begin, end, option);
-    if (itr != end && ++itr != end)
-    {
-        return *itr;
-    }
-    return 0;
-}
-
-bool cmdOptionExists(char** begin, char** end, const std::string& option)
-{
-    return std::find(begin, end, option) != end;
-}
-
-std::tuple<std::string, std::string> TransportApp::parseInputArgs(int argc,
-		char* argv[]) {
-	char * inputFileName = getCmdOption(argv, argv + argc, "-in");
-	char * outputFileName = getCmdOption(argv, argv + argc, "-out");
-	if ( not inputFileName ) {
-		Error e("Must provide an input file name on command line" ,1);
-	}
-	if ( outputFileName == nullptr ) {
-		Error e("Must provide an output file name on command line" ,1);
-	}
-	return {inputFileName, outputFileName};
-}
-
 TransportApp::TransportApp(int argc, char** argv) {
+	IO io(argc, argv);
 
-auto [inputFileName, outputFileName] = parseInputArgs(argc, argv);
-
-	IO io(inputFileName, outputFileName);
+	std::string inputFileName = io.getInputFileName();
 
 	std::cout << "Reading from input file: " << inputFileName << endl;
 

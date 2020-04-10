@@ -10,6 +10,7 @@ private:
 	std::string outputFileName = "";
 	std::string inputFileName = "";
 public:
-	IO(std::string inputFileName_="", std::string outputFileName_="");
+	IO(int argc, char* argv[]);
 	~IO();
+	std::string getInputFileName();
 };
