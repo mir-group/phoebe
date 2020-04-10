@@ -208,9 +208,9 @@ int Points::getIndex(const Eigen::Vector3d& point) {
 	// input point must be in crystal coordinates!
 	Eigen::Vector3d p;
 	// multiply by grid
-	p(0) = point(0) * mesh(0);
-	p(1) = point(1) * mesh(1);
-	p(2) = point(2) * mesh(2);
+	p(0) = ( point(0) - offset(0) ) * mesh(0);
+	p(1) = ( point(1) - offset(1) ) * mesh(1);
+	p(2) = ( point(2) - offset(2) ) * mesh(2);
 	// fold in BZ
 	p(0) -= (double)mesh(0) * floor(round(p(0))/(double)mesh(0));
 	p(1) -= (double)mesh(1) * floor(round(p(1))/(double)mesh(1));
@@ -231,9 +231,9 @@ int IrreduciblePoints::getIndex(const Eigen::Vector3d& point) {
 int FullPoints::getIndexInverted(const int& ik) {
 	// given the index of point k, return the index of point -k
 	Eigen::Vector3d point = reduciblePoints(ik);
-	int ikx = (int)round(point(0) * mesh(0));
-	int iky = (int)round(point(1) * mesh(1));
-	int ikz = (int)round(point(2) * mesh(2));
+	int ikx = (int)round(( point(0) - offset(0) ) * mesh(0));
+	int iky = (int)round(( point(1) - offset(1) ) * mesh(1));
+	int ikz = (int)round(( point(2) - offset(2) ) * mesh(2));
 
 	int ikxm = - ikx;
 	int ikym = - iky;
