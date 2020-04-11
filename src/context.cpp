@@ -1,9 +1,10 @@
-#include "context.h"
 #include <string>
 #include <vector>
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include "context.h"
+#include "exceptions.h"
 
 //TODO: it would be nice to have a smoother handling of read errors, with
 //some informations provided to the user.
@@ -262,16 +263,6 @@ std::string parseString(std::vector<std::string> lines, std::string pattern) {
 	return x;
 };
 
-void Context::setQCoarseMesh(int* x) {
-	for (int i=0; i<3; i++) {
-		qCoarseMesh[i] = x[i];
-	}
-};
-
-std::vector<int> Context::getQCoarseMesh() {
-	return qCoarseMesh;
-};
-
 void Context::setupFromInput(std::string fileName) {
 	std::vector<std::string> lines;
 	std::string line;
@@ -314,9 +305,65 @@ void Context::setupFromInput(std::string fileName) {
 //	std::cout << "Sto qua\n";
 
 	try {
-		qCoarseMesh = parseIntList(lines, "qCoarseMesh");
+		std::string tmp = parseString(lines, "phD2FileName");
+		setPhD2FileName(tmp);
 	}
 	catch (ParameterNotFound& e) {} // Do nothing!
 
-	std::cout << qCoarseMesh[0] << "\n";
+	try {
+		setSumRuleD2(parseString(lines, "sumRuleD2"));
+	}
+	catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::string tmp = parseString(lines, "electronH0Name");
+		setElectronH0Name(tmp);
+	}
+	catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double dval = parseDouble(lines, "electronFourierCutoff");
+		setElectronFourierCutoff(dval);
+	}
+	catch (ParameterNotFound& e) {} // Do nothing!
+
 };
+
+void Context::setPhD2FileName(std::string x) {
+	phD2FileName = x;
+}
+
+std::string Context::getPhD2FileName() {
+	return phD2FileName;
+}
+
+void Context::setSumRuleD2(std::string x) {
+	sumRuleD2 = x;
+}
+
+std::string Context::getSumRuleD2() {
+	return sumRuleD2;
+}
+
+void Context::setElectronH0Name(std::string x) {
+	electronH0Name = x;
+}
+
+std::string Context::getElectronH0Name() {
+	if ( electronH0Name == "" ) {
+		Error e("Electronic H0 filename not set", 1);
+	}
+	return electronH0Name;
+}
+
+void Context::setElectronFourierCutoff(double x) {
+	electronFourierCutoff = x;
+}
+
+double& Context::getElectronFourierCutoff() {
+	if ( electronFourierCutoff == 0. ) {
+		Error e("Electronic Fourier Cutoff not set", 1);
+	}
+	return electronFourierCutoff;
+}
+

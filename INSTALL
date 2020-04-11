@@ -1,0 +1,14 @@
+Dependency:
+
+Must have installed:
+* cmake
+* a C++ compiler compatible with c++17
+
+In order to compile the documentation, you also need installed:
+* doxygen
+* graphviz
+
+Tested with gcc v9
+
+Test run:
+/path/to/build/bin/phoebe -in input.in -out output.out
