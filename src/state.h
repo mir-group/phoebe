@@ -20,6 +20,11 @@ public:
 			Eigen::Tensor<std::complex<double>,3>& velocities_,
 			Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_);
 
+	/** get the wavevector (Point object)
+	 * @return point: a Point object.
+	 */
+	Point getPoint();
+
 	/** get the energy of a single band
 	 * @param bandIndex: integer from 0 to numBands-1
 	 * @return energy: Bloch state energy in rydbergs.

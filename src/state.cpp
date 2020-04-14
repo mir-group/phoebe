@@ -12,6 +12,10 @@ State::State(Point& point_,
 	numBands = energies.size();
 }
 
+Point State::getPoint() {
+	return point;
+}
+
 double State::getEnergy(const int bandIndex) {
 	return energies(bandIndex);
 }

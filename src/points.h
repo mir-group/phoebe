@@ -3,12 +3,31 @@
 
 #include "crystal.h"
 
+/** Class used to pass a single wavevector
+ *
+ */
 class Point {
 public:
+	/** Constructor
+	 * @param crystalCoords: crystal coordinates of the point
+	 * @param crystalCoordsWS: crystal coordinates of the point folded in the
+	 * Wigner Seitz cell
+	 * @param reciprocalUnitCell: a 3x3 matrix with lattice vector in rec space
+	 */
 	Point(Eigen::Vector3d crystalCoords_, Eigen::Vector3d crystalCoordsWS_,
 			const Eigen::Matrix3d& reciprocalUnitCell_);
+
+	/** Get the coordinates of the k-point
+	 * @param basis: either "cartesian" or "crystal"
+	 * @param inWignerSeitz: default false, if true, folds point in WS cell.
+	 * @return coords: a 3d vector of coordinates
+	 */
 	Eigen::Vector3d getCoords(std::string basis="crystal",
 			bool inWignerSeitz=false);
+
+	/** Get the weight of the k-point (used for integrations over the BZ.
+	 * @return weight: a double.
+	 */
 	double getWeight();
 private:
 	Eigen::Vector3d crystalCoords;
