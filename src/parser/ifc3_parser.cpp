@@ -2,7 +2,7 @@
 
 using namespace std;
 
-void parseIFC3(string fileName, string format, int numTriplets, \
+void IFC3Parser::parseIFC3(string fileName, string format, int &numTriplets, \
 	       Eigen::Tensor<double,4> &ifc3Tensor,		\
 	       Eigen::Tensor<double,3> &cellPositions, \
 	       Eigen::Tensor<int,2> &displacedAtoms){
@@ -56,9 +56,10 @@ void parseIFC3(string fileName, string format, int numTriplets, \
 
   //TODO Round cellPositions to the nearest lattice vectors
 }
+
 /*
 int main(){
-  string ifc3FileName = "FORCE_CONSTANTS_3RD";
+  string ifc3FileName = "./silicon_test/FORCE_CONSTANTS_3RD";
   string format = "shengbte";
   int numTriplets;
   //vector<vector<vector<vector<double>>>> ifc3Tensor;
@@ -78,5 +79,4 @@ int main(){
   cout << ifc3Tensor(iTrip,1,2,1) << endl;
   
   return 0;
-}
-*/
+  }*/

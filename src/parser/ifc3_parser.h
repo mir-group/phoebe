@@ -22,7 +22,7 @@ class IFC3Parser {
    * @param[out] displacedAtoms Index of the displaced atom for every triplet
    *  of unitcells.
    */
-  void parseIFC3(string fileName, string format, int numTriplets, \
+  void parseIFC3(string fileName, string format, int &numTriplets, \
 		 Eigen::Tensor<double,4> &ifc3Tensor, \
 		 Eigen::Tensor<double,3> &cellPositions,\
 		 Eigen::Tensor<int,2> &displacedAtoms);

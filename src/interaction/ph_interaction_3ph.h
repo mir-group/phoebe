@@ -3,10 +3,45 @@
 #include <fstream>
 #include <complex>
 #include <cmath>
-#include <unsupported/Eigen/CX11/Tensor>
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Core>
+#include <Eigen/Dense>
 
 using namespace std;
+
+//----TESTING AREA----//
+
+/**
+ * Data structure to hold some crystal information.
+ *
+ * This is for testing purposes. Eventually this
+ * info will be read from Crystal class.
+ */
+struct CrystalInfo{
+  //Vector of atomic species types
+  Eigen::VectorXi types;
+  //Masses of the atom types
+  Eigen::VectorXd masses;  
+  //Number of atoms in the primitive cell
+  int numAtoms;
+  //Number of phonon branches
+  int numBands;
+};
+
+/**
+ * Data structure to hold three phonon modes' info.
+ *
+ * A mode \equiv (branch,wave vector).
+ */
+struct PhononTriplet{
+  int s1, s2, s3; //Three branches
+  //Indices picking out three wave vectors
+  //from the global full Brillouin zone:
+  int iq1, iq2, iq3; 
+  //The three eigenvectors:
+  Eigen::Tensor<complex<double>,3> ev1, ev2, ev3;
+};
+//--------------------//
 
 // * Function to calculate all V_plus/V_minus processes for a given IBZ mode
 // * Function to calculate single V_plus/V_minus
@@ -33,24 +68,20 @@ class PhInteraction3Ph{
    * @param[in] procType Character '+' or '-' to choose the +/- type process.
    * @return The complex matrix element.
    */
-  complex<double> calculateSingleV(const PhononTriplet &interactingPhonons, \
-			   const Eigen::tensor<complex,3> &phononEigenvectors, \
-			   const int numTriplets, const Eigen::tensor<double,4> &ifc3Tensor, \
-			   const Eigen::Tensor<double,3> &cellPositions,	\
-			   const Eigen::Tensor<int,2> &displacedAtoms,const Crystal &crystal,\
-			   const char procType);
-
-  /**
-   * Data structure to hold three phonon modes.
-   *
-   * A mode \equiv (branch,wave vector).
-   */
   /*
-  struct PhononTriplet{
-    int s1, s2, s3; //Three branches
-    //Indices picking out three wave vectors
-    //from the global full Brillouin zone:
-    int iq1, iq2, iq3; 
-  };
-  */
-}
+  double calculateSingleV(const PhononTriplet &interactingPhonons, \
+				   const Eigen::MatrixXd &q, \  
+				   const Eigen::tensor<complex,3> &phononEigenvectors, \
+				   const int numTriplets, const Eigen::tensor<double,4> &ifc3Tensor, \
+				   const Eigen::Tensor<double,3> &cellPositions, \
+				   const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
+				   const char procType);
+				   }*/
+  double calculateSingleV(const PhononTriplet &interactingPhonons, const Eigen::MatrixXd &q, \  
+				 const int numTriplets, const Eigen::Tensor<double,4> &ifc3Tensor, \
+				 const Eigen::Tensor<double,3> &cellPositions, \
+				 const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
+				 const char procType);
+ 
+};
+
