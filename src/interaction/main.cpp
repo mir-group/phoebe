@@ -1,4 +1,4 @@
-#include "ifc3_parser.h"
+#include "../parser/ifc3_parser.h"
 #include "ph_interaction_3ph.h"
 
 int main(){
@@ -76,9 +76,11 @@ int main(){
   int s1 = 0; //TA1
   int s2 = 1; //TA2
   int s3 = 2; //LA
-  int iq1 = 0; //Gamma
-  int iq2 = 5;
-  int iq3 = 9;
+  int iq1 = 6; //Gamma
+  int iq2 = 19;
+  int iq3 = 13;
+  cout << "triplet: (" << s1 << "," << iq1 << ") (" << s2 << "," << iq2 << ") (" << s3 << "," << iq3 << "):\n";
+  
   // Reshape the eigenvectors read from file
   Eigen::Tensor<complex<double>,3> ev1(3,numAtoms,numBands);
   Eigen::Tensor<complex<double>,3> ev2(3,numAtoms,numBands);
@@ -110,11 +112,116 @@ int main(){
 				 displacedAtoms, crysInfo, '+');
   double Vm2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
 				 displacedAtoms, crysInfo, '-');
-    
-  // Compare to result from ShengBTE
-  cout << Vp2 << " " << Vm2 << "\n";
-  // Test permutation symmetry
+ 
+  cout << "|V+|^2 = " << Vp2 << " |V-|^2 = " << Vm2 << "\n";
+  cout << "..............\n";
+  // TODO: Compare to result from ShengBTE
+  
+  // Test permutation symmetry: V^{-}(lam1,lam2,lam3) = V^{-}(lam1,lam3,lam2)
+  cout << "Test exchange symmetry of - process.\n";
+  cout << "Is V^{-}(lam1,lam2,lam3) = V^{-}(lam1,lam3,lam2)?\n";
+  // Form a triplet to test vertex calculator 
+  s1 = 0; //TA1
+  s3 = 1; //TA2
+  s2 = 2; //LA
+  iq1 = 6; //Gamma
+  iq3 = 19;
+  iq2 = 13;
+  cout << "triplet: (" << s1 << "," << iq1 << ") (" << s2 << "," << iq2 << ") (" << s3 << "," << iq3 << "):\n";
+  
+  // Reshape the eigenvectors read from file
+  for(int idim = 0; idim < 3; idim++){
+    for(int iat = 0; iat < numAtoms; iat++){
+      for(int ib = 0; ib < numBands; ib++){
+	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
+	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
+	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
+      }
+    }
+  }
+  
+  interactingPhonons.s1 = s1;
+  interactingPhonons.s2 = s2;
+  interactingPhonons.s3 = s3;
+  interactingPhonons.iq1 = iq1;
+  interactingPhonons.iq2 = iq2;
+  interactingPhonons.iq3 = iq3;
+  interactingPhonons.ev1 = ev1;
+  interactingPhonons.ev2 = ev2;
+  interactingPhonons.ev3 = ev3;
 
+  // Calculate single process vertex
+  Vp2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
+				 displacedAtoms, crysInfo, '+');
+  Vm2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
+				 displacedAtoms, crysInfo, '-');
+
+  cout << "|V+|^2 = " << Vp2 << " |V-|^2 = " << Vm2 << "\n";
+  cout << "..............\n";
+  // TODO: Compare to result from ShengBTE
+  /////////////////////////////////////
+
+  // Test time-reversal symmetry:
+  // 1. V^{-}(lam1,-lam2,lam3) = V^{+}(lam1,lam2,lam3)
+  // 1. V^{+}(lam1,-lam2,lam3) = V^{-}(lam1,lam2,lam3)
+
+  cout << "Test time-reversal mapping of + and - processes.\n";
+  cout << "1) Is V^{-}(lam1,-lam2,lam3) = V^{+}(lam1,lam2,lam3)?\n";
+  cout << "2) Is V^{+}(lam1,-lam2,lam3) = V^{-}(lam1,lam2,lam3)?\n";
+  // Form a triplet to test vertex calculator
+  s1 = 0; //TA1
+  s2 = 1; //TA2
+  s3 = 2; //LA
+  iq1 = 6; //Gamma
+  iq2 = 19;
+  //Demux assuming shengBTE ordering
+  int N = grid[0];
+  int qx = iq2%N;
+  int qy = (iq2/N)%N;
+  int qz = iq2/N/N;
+  //Negate and Umklapp
+  qx = (-qx+N)%N;
+  qy = (-qy+N)%N;
+  qz = (-qz+N)%N;
+  //Mux assuming shengBTE ordering
+  int TR_iq2 = (qz*N + qy)*N + qx;
+  iq2 = TR_iq2;
+  iq3 = 13;
+  
+  cout << "triplet: (" << s1 << "," << iq1 << ") (" << s2 << "," << iq2 << ") (" << s3 << "," << iq3 << "):\n";
+  
+  // Reshape the eigenvectors read from file
+  for(int idim = 0; idim < 3; idim++){
+    for(int iat = 0; iat < numAtoms; iat++){
+      for(int ib = 0; ib < numBands; ib++){
+	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
+	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
+	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
+      }
+    }
+  }
+  
+  interactingPhonons.s1 = s1;
+  interactingPhonons.s2 = s2;
+  interactingPhonons.s3 = s3;
+  interactingPhonons.iq1 = iq1;
+  interactingPhonons.iq2 = iq2;
+  interactingPhonons.iq3 = iq3;
+  interactingPhonons.ev1 = ev1;
+  interactingPhonons.ev2 = ev2;
+  interactingPhonons.ev3 = ev3;
+
+  // Calculate single process vertex
+  Vp2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
+				 displacedAtoms, crysInfo, '+');
+  Vm2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
+				 displacedAtoms, crysInfo, '-');
+    
+  cout << "|V+|^2 = " << Vp2 << " |V-|^2 = " << Vm2 << "\n";
+  cout << "..............\n";
+  // TODO: Compare to result from ShengBTE
+  /////////////////////////////////////
+  
   return 0;
 }
 
