@@ -136,6 +136,8 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
   int nyHalf = grid[1]/2+1;
   int nzHalf = grid[2]/2+1;
 
+  cout << nxHalf << " " << nyHalf << " " << nzHalf << "\n";
+
   PhononTriplet interactingPhonons;
   PhInteraction3Ph phInt;
 
@@ -147,9 +149,16 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
 
   // Grab irred phonon mode info:
   iq1 = mode.iq; //index of wave vector in the full BZ
-  q1 = mode.q; //Cartesian wave vector
   s1 = mode.s; //branch
+  
+  q1 = qFBZ.row(iq1);
 
+  //Demux 1st phonon wave vector
+  //!!WARNING: For testing purposes using ShengBTE ordering!!!
+  i1x = iq1%grid[0];
+  i1y = (iq1/grid[0])%grid[1];
+  i1z = iq1/grid[0]/grid[1];
+  
   interactingPhonons.s1 = s1;
   interactingPhonons.iq1 = iq1; 
   for(int idim = 0; idim < 3; idim++){
@@ -162,9 +171,9 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
   interactingPhonons.ev1 = ev1;
   
   // Sum over half space of 2nd phonon wave vectors
-  for(i2x = 0; i2x < nxHalf; i2x++){
+  for(i2z = 0; i2z < nzHalf; i2z++){	
     for(i2y = 0; i2y < nyHalf; i2y++){
-      for(i2z = 0; i2z < nzHalf; i2z++){	
+      for(i2x = 0; i2x < nxHalf; i2x++){
 	//Muxed index of 2nd phonon wave vector
 	//!!WARNING: For testing purposes using ShengBTE ordering!!!
 	iq2 = (iz*grid[1] + iy)*grid[0] + ix;
@@ -206,10 +215,15 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
 	    // Call calculateSingleV
 	    Vm2[count++] = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor, \
 						  cellPositions, displacedAtoms, crysInfo, '-');
+
+	    cout << "|V-|^2[(" << s1 << "," << iq1 << "), (" << ib << "," << iq2 << "), (" << jb << "," << iq3 << ")] = " \
+		 << Vm2[count-1] << "\n";
 	  }
 	}
-      }
+	//cout << "Calculated " << count << " V- processes.\n";
+	//exit(-1);
+      }    
     }
+    cout << "Calculated " << count << " V- processes.\n";
   }
-  cout << "Calculated " << count << " V- processes.\n";
 }

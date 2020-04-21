@@ -52,8 +52,6 @@ struct PhononMode{
   //Index picking out a single wave vectors
   //from the global full Brillouin zone:
   int iq; 
-  //Cartesian wave vector
-  Eigen::Vector3d q;
 };
 //--------------------//
 

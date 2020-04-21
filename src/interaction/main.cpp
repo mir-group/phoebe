@@ -1,4 +1,4 @@
-#include "../parser/ifc3_parser.h"
+#include "ifc3_parser.h"
 #include "ph_interaction_3ph.h"
 
 int main(){
@@ -13,7 +13,7 @@ int main(){
   //Number of atoms
   int numAtoms = 2;
   //Number of bands
-  int numBands = 3*numAtoms;
+  int numBranches = 3*numAtoms;
   //Number of types of atoms
   int numTypes = 1;
   //Types of atoms
@@ -25,7 +25,7 @@ int main(){
   //fill CrystalInfo
   CrystalInfo crysInfo;
   crysInfo.numAtoms = numAtoms;
-  crysInfo.numBands = numBands;
+  crysInfo.numBranches = numBranches;
   crysInfo.types = types;
   crysInfo.masses = masses;
   //------------end setup-----------//
@@ -57,13 +57,13 @@ int main(){
   // and has to be reshaped to conform to PHOEBE's format
   // of the eigenvector.
   string evFileName = "./silicon_test/evecs_full";
-  Eigen::Tensor<complex<double>,3> ev(nq,numBands,numBands);
+  Eigen::Tensor<complex<double>,3> ev(nq,numBranches,numBranches);
   ifstream evfile(evFileName);
   double re,im;
   complex<double> z;
   for(int iq = 0; iq < nq; iq++){
-    for(int ib = 0; ib < numBands; ib++){
-      for(int jb = 0; jb < numBands; jb++){
+    for(int ib = 0; ib < numBranches; ib++){
+      for(int jb = 0; jb < numBranches; jb++){
 	evfile >> re >> im;
 	z = complex<double>(re,im);
 	ev(iq,ib,jb) = z;
@@ -72,6 +72,37 @@ int main(){
   }
   evfile.close();
 
+  // For a single first phonon mode, calculate all V- processes:
+  int s1 = 2; //LA
+  //int iq1 = 0; //Gamma point in both FBZ and IBZ
+  int iq1 = 1; 
+
+  // Create 1st phonon mode
+  PhononMode ph1;
+  ph1.s = s1;
+  ph1.iq = iq1;
+
+  // Create indexMesh
+  // For testing purposes this is in ShengBTE ordering
+  Eigen::MatrixXi indexMesh(nq,3);
+  int count = 0;
+  for(int k = 0; k < grid[2]; k++){
+    for(int j = 0; j < grid[1]; j++){
+      for(int i = 0; i < grid[0]; i++){
+	indexMesh(count,0) = i;
+	indexMesh(count,1) = j;
+	indexMesh(count,2) = k;
+	count++;
+      }
+    }
+  }
+
+  cout << "Calculating irreducible set of V- for mode: (" << s1 << "," << iq1 << ")\n";
+  PhInteraction3Ph phInt;
+  phInt.calculateIrredVminus(nq, grid, ph1, indexMesh, q, ev, numTriplets, \
+			     ifc3Tensor, cellPositions, displacedAtoms, crysInfo);
+  			     
+  /*
   // Form a triplet to test vertex calculator
   int s1 = 0; //TA1
   int s2 = 1; //TA2
@@ -82,19 +113,19 @@ int main(){
   cout << "triplet: (" << s1 << "," << iq1 << ") (" << s2 << "," << iq2 << ") (" << s3 << "," << iq3 << "):\n";
   
   // Reshape the eigenvectors read from file
-  Eigen::Tensor<complex<double>,3> ev1(3,numAtoms,numBands);
-  Eigen::Tensor<complex<double>,3> ev2(3,numAtoms,numBands);
-  Eigen::Tensor<complex<double>,3> ev3(3,numAtoms,numBands);
+  Eigen::Tensor<complex<double>,3> ev1(3,numAtoms,numBranches);
+  Eigen::Tensor<complex<double>,3> ev2(3,numAtoms,numBranches);
+  Eigen::Tensor<complex<double>,3> ev3(3,numAtoms,numBranches);
   for(int idim = 0; idim < 3; idim++){
     for(int iat = 0; iat < numAtoms; iat++){
-      for(int ib = 0; ib < numBands; ib++){
+      for(int ib = 0; ib < numBranches; ib++){
 	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
 	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
 	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
       }
     }
   }
-  
+
   PhononTriplet interactingPhonons;
   interactingPhonons.s1 = s1;
   interactingPhonons.s2 = s2;
@@ -132,7 +163,7 @@ int main(){
   // Reshape the eigenvectors read from file
   for(int idim = 0; idim < 3; idim++){
     for(int iat = 0; iat < numAtoms; iat++){
-      for(int ib = 0; ib < numBands; ib++){
+      for(int ib = 0; ib < numBranches; ib++){
 	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
 	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
 	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
@@ -193,7 +224,7 @@ int main(){
   // Reshape the eigenvectors read from file
   for(int idim = 0; idim < 3; idim++){
     for(int iat = 0; iat < numAtoms; iat++){
-      for(int ib = 0; ib < numBands; ib++){
+      for(int ib = 0; ib < numBranches; ib++){
 	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
 	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
 	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
@@ -246,6 +277,7 @@ int main(){
   cout << cellPositions(iTrip,1,0) << " " << cellPositions(iTrip,1,1) << " " << cellPositions(iTrip,1,2) << " "  << endl;
   cout << displacedAtoms(iTrip,0) << " " << displacedAtoms(iTrip,1) << " " << displacedAtoms(iTrip,2) << " " << endl;
   cout << ifc3Tensor(iTrip,1,2,1) << endl;
+  */
+
   return 0;
 }
-*/
