@@ -25,7 +25,7 @@ struct CrystalInfo{
   //Number of atoms in the primitive cell
   int numAtoms;
   //Number of phonon branches
-  int numBands;
+  int numBranches;
 };
 
 /**
@@ -40,6 +40,20 @@ struct PhononTriplet{
   int iq1, iq2, iq3; 
   //The three eigenvectors:
   Eigen::Tensor<complex<double>,3> ev1, ev2, ev3;
+};
+
+/**
+ * Data structure to hold info of a single phonon mode.
+ *
+ * A mode \equiv (branch,wave vector).
+ */
+struct PhononMode{
+  int s; //Three branches
+  //Index picking out a single wave vectors
+  //from the global full Brillouin zone:
+  int iq; 
+  //Cartesian wave vector
+  Eigen::Vector3d q;
 };
 //--------------------//
 
@@ -82,6 +96,12 @@ class PhInteraction3Ph{
 				 const Eigen::Tensor<double,3> &cellPositions, \
 				 const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
 				 const char procType);
- 
+
+  void calculateIrredVminus(const int nq, const int *grid, const PhononMode &mode, \
+			    const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ, \
+			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets, \
+			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
+			    const Eigen::Tensor<double,3> &cellPositions, \
+			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
 };
 
