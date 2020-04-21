@@ -538,7 +538,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileNa
 	return {crystal, dynamicalMatrix};
 };
 
-std::tuple<Crystal, FullPoints, ElectronH0Spline> QEParser::parseElHarmonicSpline(
+std::tuple<Crystal, FullPoints, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		const std::string fileName, double& fourierCutoff) {
 	//  Here we read the XML file of quantum espresso.
 
@@ -693,7 +693,7 @@ std::tuple<Crystal, FullPoints, ElectronH0Spline> QEParser::parseElHarmonicSplin
 	coarseBandStructure.setNumValenceElectrons(numElectrons);
 	coarseBandStructure.setHomo(homo);
 
-	ElectronH0Spline electronH0(crystal, coarseBandStructure, fourierCutoff);
+	ElectronH0Fourier electronH0(crystal, coarseBandStructure, fourierCutoff);
 
 	return {crystal, coarsePoints, electronH0};
 };

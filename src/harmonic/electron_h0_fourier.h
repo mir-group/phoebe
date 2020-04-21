@@ -5,7 +5,7 @@
 /** Class for a Fourier-like interpolation of an electronic band
  *
  */
-class ElectronH0Spline {
+class ElectronH0Fourier {
 public:
 	/** Constructor of the Fourier interpolation
 	 * This class stores a copy of the electronic band structure on the coarse
@@ -16,7 +16,7 @@ public:
 	 * @param cutoff: a parameter used to define the number of coefficients
 	 * in the plane-wave interpolation.
 	 */
-	ElectronH0Spline(Crystal& crystal, ElBandStructure coarseBandStructure,
+	ElectronH0Fourier(Crystal& crystal, ElBandStructure coarseBandStructure,
 			double cutoff);
 
 	/** calculate the energy of a single electronic Bloch state.

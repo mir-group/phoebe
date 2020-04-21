@@ -34,8 +34,8 @@ TransportApp::TransportApp(int argc, char** argv) {
 	auto [energies, eigenvectors] = phononH0.diagonalize(q);
 	std::cout << energies.transpose() * ryToCmm1 << std::endl;
 
-	auto [crystalEl, coarseElPoints, electronH0Spline] =
-			qeParser.parseElHarmonicSpline(context.getElectronH0Name(),
+	auto [crystalEl, coarseElPoints, electronH0Fourier] =
+			qeParser.parseElHarmonicFourier(context.getElectronH0Name(),
 					context.getElectronFourierCutoff());
 	std::cout << "siamo usciti\n";
 

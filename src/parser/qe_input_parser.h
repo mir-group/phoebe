@@ -1,6 +1,6 @@
 #include <string>
 #include "phononH0.h"
-#include "electron_h0_spline.h"
+#include "electron_h0_fourier.h"
 
 /** Class used to parse the raw data from quantum Espresso
  *
@@ -27,7 +27,7 @@ public:
 	 * contains the band structure and the functionality to get the electronic
 	 * energy at an arbitrary k-point.
 	 */
-	std::tuple<Crystal, FullPoints, ElectronH0Spline> parseElHarmonicSpline(
+	std::tuple<Crystal, FullPoints, ElectronH0Fourier> parseElHarmonicFourier(
 			const std::string fileName, double& fourierCutoff);
 
 //	void parseElHarmonicWan(int argc, char** argv);

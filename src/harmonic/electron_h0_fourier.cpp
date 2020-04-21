@@ -1,11 +1,11 @@
 #include <string>
 #include <cmath>
 #include <unsupported/Eigen/Splines>
-#include "electron_h0_spline.h"
+#include "electron_h0_fourier.h"
 #include "exceptions.h"
 #include "constants.h"
 
-ElectronH0Spline::ElectronH0Spline(Crystal& crystal_,
+ElectronH0Fourier::ElectronH0Fourier(Crystal& crystal_,
 		ElBandStructure coarseBandStructure_, double cutoff_) :
 		crystal{crystal_}, coarseBandStructure{coarseBandStructure_} {
 	numBands = coarseBandStructure.getNumBands();
@@ -30,13 +30,13 @@ ElectronH0Spline::ElectronH0Spline(Crystal& crystal_,
 	expansionCoefficients = expansionCoefficients_;
 }
 
-double ElectronH0Spline::getRoughnessFunction(Eigen::Vector3d position) {
+double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 	double norm = position.norm();
 	return pow(1. - coeff1 * norm/minDistance,2)
 			+ coeff2 * pow(norm/minDistance,6);
 }
 
-std::complex<double> ElectronH0Spline::getStarFunction(
+std::complex<double> ElectronH0Fourier::getStarFunction(
 		Eigen::Vector3d& wavevector, Eigen::Vector3d& position) {
 	std::complex<double> starFunction, phase;
 	starFunction = complexZero;
@@ -50,7 +50,7 @@ std::complex<double> ElectronH0Spline::getStarFunction(
 	return starFunction;
 }
 
-Eigen::Vector3cd ElectronH0Spline::getDerivativeStarFunction(
+Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
 		Eigen::Vector3d& wavevector, Eigen::Vector3d& position) {
 	std::complex<double> phase;
 	Eigen::Vector3cd starFunctionDerivative;
@@ -64,7 +64,7 @@ Eigen::Vector3cd ElectronH0Spline::getDerivativeStarFunction(
 	return starFunctionDerivative;
 }
 
-void ElectronH0Spline::setPositionVectors() {
+void ElectronH0Fourier::setPositionVectors() {
 	// lattice parameters
 	Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
 	Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -105,7 +105,7 @@ void ElectronH0Spline::setPositionVectors() {
 	numPositionVectors = positionVectors.size();
 }
 
-Eigen::VectorXcd ElectronH0Spline::getLagrangeMultipliers(
+Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
 		Eigen::VectorXd energies) {
 	Eigen::VectorXcd multipliers(numDataPoints-1);
 	Eigen::VectorXcd deltaEnergies(numDataPoints-1);
@@ -139,7 +139,7 @@ Eigen::VectorXcd ElectronH0Spline::getLagrangeMultipliers(
 	return multipliers;
 }
 
-Eigen::VectorXcd ElectronH0Spline::getCoefficients(Eigen::VectorXd energies) {
+Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	Eigen::VectorXcd multipliers = getLagrangeMultipliers(energies);
 
 	Eigen::VectorXcd coefficients(numPositionVectors);
@@ -167,7 +167,7 @@ Eigen::VectorXcd ElectronH0Spline::getCoefficients(Eigen::VectorXd energies) {
 	return coefficients;
 }
 
-double ElectronH0Spline::getEnergy(Point& point, int& bandIndex) {
+double ElectronH0Fourier::getEnergy(Point& point, int& bandIndex) {
 	double energy = 0.;
 	std::complex<double> c;
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
@@ -179,7 +179,7 @@ double ElectronH0Spline::getEnergy(Point& point, int& bandIndex) {
 	return energy;
 }
 
-Eigen::VectorXd ElectronH0Spline::getEnergies(Point& point) {
+Eigen::VectorXd ElectronH0Fourier::getEnergies(Point& point) {
 	Eigen::VectorXd energies(numBands);
 	for ( int bandIndex=0; bandIndex<numBands; bandIndex++ ) {
 		energies(bandIndex) = getEnergy(point, bandIndex);
@@ -187,7 +187,7 @@ Eigen::VectorXd ElectronH0Spline::getEnergies(Point& point) {
 	return energies;
 }
 
-Eigen::Vector3d ElectronH0Spline::getGroupVelocity(Point& point,
+Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point& point,
 		int& bandIndex) {
 	Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
@@ -200,7 +200,7 @@ Eigen::Vector3d ElectronH0Spline::getGroupVelocity(Point& point,
 	return velocity;
 }
 
-Eigen::MatrixXd ElectronH0Spline::getGroupVelocities(Point& point) {
+Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point& point) {
 	Eigen::MatrixXd velocities(numBands,3);
 //	velocities.setZero();
 	for ( int bandIndex=0; bandIndex<numBands; bandIndex++ ) {
@@ -209,7 +209,7 @@ Eigen::MatrixXd ElectronH0Spline::getGroupVelocities(Point& point) {
 	return velocities;
 }
 
-ElBandStructure ElectronH0Spline::populateBandStructure(
+ElBandStructure ElectronH0Fourier::populateBandStructure(
 		FullPoints* fullPoints, IrreduciblePoints* irreduciblePoints) {
 
 	if ( ( fullPoints == nullptr ) && ( irreduciblePoints == nullptr ) ) {
