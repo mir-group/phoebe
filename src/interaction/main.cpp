@@ -4,7 +4,6 @@
 int main(){
   //const double amu=1.66053904e-27; //Kg
   
-  // TODO:
   //------Set up cubic silicon-------//
   //Grid points along the 3 lattice vectors
   int grid[3] = {20,20,20};
@@ -21,7 +20,7 @@ int main(){
   types << 0,0;
   //Masses of the types of atoms
   Eigen::VectorXd masses(numTypes);
-  masses << 27.976928; //amu
+  masses << 28.085509989600006; //amu
   //fill CrystalInfo
   CrystalInfo crysInfo;
   crysInfo.numAtoms = numAtoms;
@@ -71,11 +70,11 @@ int main(){
     }
   }
   evfile.close();
-
+  
   // For a single first phonon mode, calculate all V- processes:
-  int s1 = 2; //LA
-  //int iq1 = 0; //Gamma point in both FBZ and IBZ
-  int iq1 = 1; 
+  int s1 = 0; //TA1
+  int iq1 = 0; //Gamma point in both FBZ and IBZ
+  //int iq1 = 1; 
 
   // Create 1st phonon mode
   PhononMode ph1;
@@ -104,28 +103,29 @@ int main(){
   			     
   /*
   // Form a triplet to test vertex calculator
-  int s1 = 0; //TA1
-  int s2 = 1; //TA2
-  int s3 = 2; //LA
-  int iq1 = 6; //Gamma
-  int iq2 = 19;
-  int iq3 = 13;
+  int s1 = 0;
+  int s2 = 0;
+  int s3 = 0;
+  int iq1 = 0;
+  int iq2 = 0;
+  int iq3 = 0;
   cout << "triplet: (" << s1 << "," << iq1 << ") (" << s2 << "," << iq2 << ") (" << s3 << "," << iq3 << "):\n";
   
   // Reshape the eigenvectors read from file
   Eigen::Tensor<complex<double>,3> ev1(3,numAtoms,numBranches);
   Eigen::Tensor<complex<double>,3> ev2(3,numAtoms,numBranches);
   Eigen::Tensor<complex<double>,3> ev3(3,numAtoms,numBranches);
+
   for(int idim = 0; idim < 3; idim++){
     for(int iat = 0; iat < numAtoms; iat++){
       for(int ib = 0; ib < numBranches; ib++){
-	ev1(idim,iat,ib) = ev(iq1,ib,iat*numAtoms+idim);
-	ev2(idim,iat,ib) = ev(iq2,ib,iat*numAtoms+idim);
-	ev3(idim,iat,ib) = ev(iq3,ib,iat*numAtoms+idim);
+	ev1(idim,iat,ib) = ev(iq1,idim+3*iat,ib);
+	ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
+	ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
       }
     }
   }
-
+  
   PhononTriplet interactingPhonons;
   interactingPhonons.s1 = s1;
   interactingPhonons.s2 = s2;
@@ -139,13 +139,15 @@ int main(){
 
   // Calculate single process vertex
   PhInteraction3Ph phInt;
-  double Vp2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
+  //double Vp2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
 				 displacedAtoms, crysInfo, '+');
   double Vm2 = phInt.calculateSingleV(interactingPhonons, q, numTriplets, ifc3Tensor, cellPositions, \
 				 displacedAtoms, crysInfo, '-');
  
-  cout << "|V+|^2 = " << Vp2 << " |V-|^2 = " << Vm2 << "\n";
+  //cout << "|V+|^2 = " << Vp2 << " |V-|^2 = " << Vm2 << "\n";
   cout << "..............\n";
+  */
+  /*
   // TODO: Compare to result from ShengBTE
   
   // Test permutation symmetry: V^{-}(lam1,lam2,lam3) = V^{-}(lam1,lam3,lam2)

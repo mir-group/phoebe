@@ -23,7 +23,7 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
     exit(-1);
   }
   
-  complex<double> phase, V, V0;
+  complex<double> phase, V0, V;
   const std::complex<double> I(0, 1);
   int s1,s2,s3,it,ic,iDim,jDim,kDim,numAtoms,numBranches;
   double massNorm;
@@ -59,7 +59,8 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
   q1 = q.row(interactingPhonons.iq1);
   q2 = q.row(interactingPhonons.iq2);
   q3 = q.row(interactingPhonons.iq3);
-  
+
+  V = complex<double>(0.0,0.0);
   for(it = 0; it < numTriplets; it++){// sum over all triplets
     for(ic = 0; ic < 3; ic++){
       cell2Pos(ic) = cellPositions(it,0,ic);
@@ -79,10 +80,9 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
     }
          
     V0 = complex<double>(0.0,0.0);
-    
-    for(iDim = 0; iDim < 3; iDim++){
+    for(kDim = 0; kDim < 3; kDim++){
       for(jDim = 0; jDim < 3; jDim++){
-	for(kDim = 0; kDim < 3; kDim++){
+	for(iDim = 0; iDim < 3; iDim++){
 	  if(procType == '+'){
 	    V0 += ifc3Tensor(it,iDim,jDim,kDim)*	\
 	      ev1(iDim,displacedAtoms(it,0),s1)*	\
@@ -97,18 +97,9 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
 	}
       }
     }
-    V0 *= phase;
+    V += V0*phase;
   }
-
-  /*
-  if(procType == '+'){
-    cout << "V+ = " << V0 << "\n";
-  }else{
-    cout << "V- = " << V0 << "\n";
-  }
-  */
-  
-  return abs(V0*conj(V0)); //in units of ?
+  return pow(abs(V),2); //in units of ?
 }
 
 // getV(const PhononMode mode, procType){
@@ -164,7 +155,7 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
   for(int idim = 0; idim < 3; idim++){
     for(int iat = 0; iat < numAtoms; iat++){
       for(int ib = 0; ib < numBranches; ib++){
-	ev1(idim,iat,ib) = ev(iq1,ib,jb);
+	ev1(idim,iat,ib) = ev(iq1,idim+3*iat,ib);
       }
     }
   }
@@ -182,7 +173,7 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
 	for(int idim = 0; idim < 3; idim++){
 	  for(int iat = 0; iat < numAtoms; iat++){
 	    for(int ib = 0; ib < numBranches; ib++){
-	      ev2(idim,iat,ib) = ev(iq2,ib,jb);
+	      ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
 	    }
 	  }
 	}
@@ -199,7 +190,7 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
 	for(int idim = 0; idim < 3; idim++){
 	  for(int iat = 0; iat < numAtoms; iat++){
 	    for(int ib = 0; ib < numBranches; ib++){
-	      ev3(idim,iat,ib) = ev(iq3,ib,jb);
+	      ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
 	    }
 	  }
 	}
@@ -216,12 +207,10 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
 	    Vm2[count++] = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor, \
 						  cellPositions, displacedAtoms, crysInfo, '-');
 
-	    cout << "|V-|^2[(" << s1 << "," << iq1 << "), (" << ib << "," << iq2 << "), (" << jb << "," << iq3 << ")] = " \
+	    //cout << "|V-|^2[(" << s1 << "," << iq1 << "), (" << ib << "," << iq2 << "), (" << jb << "," << iq3 << ")] = " \
 		 << Vm2[count-1] << "\n";
 	  }
 	}
-	//cout << "Calculated " << count << " V- processes.\n";
-	//exit(-1);
       }    
     }
     cout << "Calculated " << count << " V- processes.\n";
