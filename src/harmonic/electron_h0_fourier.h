@@ -62,6 +62,9 @@ public:
 	std::tuple<Eigen::VectorXd,
 		std::optional<Eigen::Tensor<std::complex<double>,3>>>
 		diagonalize(Point & point);
+
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
+				Point & point);
 private:
 	FullPoints coarsePoints;
 	FullBandStructure coarseBandStructure;

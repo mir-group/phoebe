@@ -192,6 +192,18 @@ std::tuple<Eigen::VectorXd,
 	return {energies,eigvecs};
 }
 
+Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
+			Point & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+	auto v = getGroupVelocities(point);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		for ( long i=0; i<3; i++ ) {
+			velocity(ib,ib,i) = v(ib,i);
+		}
+	}
+}
+
 Eigen::VectorXd ElectronH0Fourier::getEnergies(Point& point) {
 	Eigen::VectorXd energies(numBands);
 	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {

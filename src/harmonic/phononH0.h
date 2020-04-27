@@ -34,6 +34,14 @@ public:
 	 */
 	std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
+
+	/** get the phonon velocities (in atomic units) at a single q-point.
+	 * @param q: a Point object with the wavevector coordinates.
+	 * @return velocity(numBands,numBands,3): values of the velocity operator
+	 * for this stata, in atomic units.
+	 */
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
+
 	/** Impose the acoustic sum rule on force constants and Born charges
 	 * @param sumRule: name of the sum rule to be used
 	 * Currently supported values are akin to those from Quantum ESPRESSO
@@ -80,9 +88,15 @@ private:
 	void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
 			const Eigen::VectorXd& q,
 			Eigen::Tensor<std::complex<double>, 4>& f_of_q);
-	void dyndiag(Eigen::Tensor<std::complex<double>,4>& dyn,
-			Eigen::VectorXd& energies,
-			Eigen::Tensor<std::complex<double>,3>& z);
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dyndiag(
+			Eigen::Tensor<std::complex<double>,4>& dyn);
+
+	// this is almost the same as diagonalize, but takes in input the
+	// cartesian coordinates
+	// also, we return the eigenvectors aligned with the dynamical matrix,
+	// and without the mass scaling.
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+				Eigen::Vector3d & q);
 
 	// methods for sum rule
 	void sp_zeu(Eigen::Tensor<double,3>& zeu_u,
