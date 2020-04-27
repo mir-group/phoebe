@@ -6,6 +6,8 @@
 #include "exceptions.h"
 #include "points.h"
 #include "io.h"
+#include "window.h"
+#include "statistics.h"
 
 TransportApp::TransportApp(int argc, char** argv) {
 	IO io(argc, argv);
@@ -21,46 +23,44 @@ TransportApp::TransportApp(int argc, char** argv) {
 
 	// Read the necessary input files
 
-	QEParser qeParser;
-	auto [crystal, phononH0] =
-			qeParser.parsePhHarmonic(context.getPhD2FileName());
-//  TODO: we could also use this syntax, if we fancy it
-//	PhH0 phH0;
-//	phH0.readFile();
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
+//	Eigen::VectorXd q(3);
+//	q << 0.,0.,0.1;
+//	auto [energies, eigenvectors] = phononH0.diagonalize(q);
+//	std::cout << energies.transpose() * ryToCmm1 << std::endl;
 
-	Eigen::VectorXd q(3);
-	q << 0.,0.,0.1;
-	auto [energies, eigenvectors] = phononH0.diagonalize(q);
-	std::cout << energies.transpose() * ryToCmm1 << std::endl;
-
-	auto [crystalEl, coarseElPoints, electronH0Fourier] =
-			qeParser.parseElHarmonicFourier(context.getElectronH0Name(),
-					context.getElectronFourierCutoff());
-	std::cout << "siamo usciti\n";
-
-	Eigen::Vector3i mesh;
-	mesh << 4, 4, 4;
-	Points ps(crystal, mesh);
+//	Eigen::Vector3i mesh;
+//	mesh << 4, 4, 4;
+//	Points ps(crystal, mesh);
 
 //
 //	//	TODO: 'elph' shoudn't be a string, we should use a dictionary
 //	//	and store which are the allowed values of calculations.
 //
-//	if ( context.getCalculation() == 'elph' ) {
-//
-//		if ( context.getInterpolation() == 'spline' ) {
-//			ElH0Spline elH0Spline;
-//			elH0Spline.readFile();
-//
-//		} else if ( context.getInterpolation() == "wannier" ) {
-////			ElH0Wannier elH0Wannier;
-////			elH0Wannier.readFile();
-//			stopWithError("Not implemented");
-//
-//		} else {
-//			stopWithError("key not recognized");
-//		}
-//	}
 
+	QEParser qeParser;
+
+	if ( context.getCalculation() == "electron-phonon" ) {
+		auto [crystalEl, electronH0Fourier] =
+				qeParser.parseElHarmonicFourier(context);
+	}
+
+	auto [crystalPh, phononH0] =
+			qeParser.parsePhHarmonic(context.getPhD2FileName());
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
+
+	// Now, we build the harmonic phonon properties
+	Statistics phStatistics(Statistics::bose);
+
+	// first we make compute the band structure on the fine grid
+	FullPoints fullQPoints(crystalPh, context.getKMesh());
+	bool withVelocities=true, withEigenvectors=true;
+	FullBandStructure fullPhBandStructure(phononH0.getNumBands(), phStatistics,
+			withVelocities, withEigenvectors, &fullQPoints);
+	fullPhBandStructure.populate(phononH0);
+
+	// then we apply a filter to retain only useful energies
+	Window phononWindow(context, phStatistics);
+	ActiveBandStructure phBandStructure(phStatistics);
+	phBandStructure.buildAsPostprocessing(phononWindow, fullPhBandStructure);
 };

@@ -7,8 +7,10 @@
 #include <Eigen/Core>
 #include <math.h>
 #include "crystal.h"
+#include "harmonic.h"
+#include "points.h"
 
-class PhononH0 {
+class PhononH0 : public HarmonicHamiltonian {
 public:
 	/** Class to store the force constants and diagonalize the dynamical matrix
 	 * @param crystal: the object with the information on the crystal structure
@@ -18,10 +20,10 @@ public:
 	 * @param forceConstants: a tensor of doubles with the force constants
 	 * size is (meshx, meshy, meshz, 3, 3, numAtoms, numAtoms)
 	 */
-	PhononH0(Crystal& crystal,
-			const Eigen::MatrixXd& dielectricMatrix_,
-			const Eigen::Tensor<double, 3>& bornCharges_,
-			const Eigen::Tensor<double, 7>& forceConstants_);
+	PhononH0(Crystal & crystal,
+			const Eigen::MatrixXd & dielectricMatrix_,
+			const Eigen::Tensor<double, 3> & bornCharges_,
+			const Eigen::Tensor<double, 7> & forceConstants_);
 
 	/** get the phonon energies (in Ry) at a single q-point.
 	 * @param q: a q-point in cartesian coordinates.
@@ -31,8 +33,7 @@ public:
 	 * sqrt(masses) (masses in rydbergs)
 	 */
 	std::tuple<Eigen::VectorXd,
-		Eigen::Tensor<std::complex<double>,3>> diagonalize(
-				const Eigen::VectorXd& q);
+		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
 	/** Impose the acoustic sum rule on force constants and Born charges
 	 * @param sumRule: name of the sum rule to be used
 	 * Currently supported values are akin to those from Quantum ESPRESSO
@@ -40,6 +41,8 @@ public:
 	 * (to find the closest matrix which satisfies the sum rule)
 	 */
 	void setAcousticSumRule(const std::string sumRule);
+
+	long getNumBands();
 private:
 	Eigen::Vector3i getCoarseGrid();
 	// internal variables
@@ -47,8 +50,8 @@ private:
 	bool loto_2d;
 	bool frozenPhonon;
 	bool hasDielectric;
-	int numAtoms;
-	int numBands;
+	long numAtoms;
+	long numBands;
 	Eigen::MatrixXd directUnitCell;
 	Eigen::MatrixXd reciprocalUnitCell;
 	double latticeParameter;
@@ -61,7 +64,7 @@ private:
 	Eigen::Vector3i qCoarseGrid;
 	Eigen::Tensor<double,7> forceConstants;
 	Eigen::Tensor<double, 5> wscache;
-	int nr1Big, nr2Big, nr3Big;
+	long nr1Big, nr2Big, nr3Big;
 
 	// private methods, used to diagonalize the Dyn matrix
 	void wsinit(const Eigen::MatrixXd& unitCell);
@@ -69,7 +72,7 @@ private:
 			const Eigen::MatrixXd& rws);
 	void longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 			const Eigen::VectorXd& q,
-			const int sign);
+			const long sign);
 	void nonAnaliticTerm(const Eigen::VectorXd& q,
 			Eigen::Tensor<std::complex<double>,4>& dyn);
 	void nonAnalIFC(const Eigen::VectorXd& q,

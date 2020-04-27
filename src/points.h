@@ -2,6 +2,7 @@
 #define POINTS_H
 
 #include "crystal.h"
+#include "eigen.h"
 
 // Forward declarator of Points, because Point ants to store Points as member
 // and Points has methods returning Point. Here we avoid recursive dependency.
@@ -37,6 +38,8 @@ public:
     Point operator - (Point & b);
 
     bool hasUmklapp();
+
+    long getIndex();
 private:
 	Eigen::Vector3d umklappVector;
 	long index;
@@ -48,6 +51,8 @@ public:
 	Points(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero(),
 			const bool useIrreducible_=false);
+	Points(const Points & obj); // copy constructor
+	Points & operator=(const Points & obj); // assignment operator
 
 	std::tuple<Eigen::Vector3i, Eigen::Vector3d> getMesh();
 	long getNumPoints();
@@ -66,6 +71,7 @@ public:
 
 	static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
 			const Eigen::MatrixXd & points);
+	Crystal & getCrystal();
 protected:
 	void setMesh(const Eigen::Vector3i & mesh_,
 			const Eigen::Vector3d & offset_);
@@ -95,7 +101,7 @@ protected:
 class FullPoints: public Points {
 protected:
 	bool useIrreducible = false;
-	Eigen::Vector3d pointsCoords(const long & index);
+//	Eigen::Vector3d pointsCoords(const long & index);
 public:
 	long getIndexInverted(const long & ik);
 	FullPoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
@@ -105,7 +111,7 @@ public:
 class IrreduciblePoints: public Points {
 protected:
 	bool useIrreducible = true;
-	Eigen::Vector3d pointsCoords(const long & index);
+//	Eigen::Vector3d pointsCoords(const long & index);
 public:
 	IrreduciblePoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
@@ -115,21 +121,25 @@ public:
 	long getIndexIrreducibleFromReducible(const long & indexRed);
 };
 
-class ActivePoints: public FullPoints {
+class ActivePoints: public Points {
 protected:
 	FullPoints & parentPoints;
 	Eigen::MatrixXd pointsList;
 
-	Eigen::VectorXi filteredToFullIndeces;
+	VectorXl filteredToFullIndeces;
 	long fullToFilteredIndeces(const long & indexIn);
-
 	Eigen::Vector3d pointsCoords(const long & index);
 public:
 	long getIndexInverted(const long & ik);
 	long getIndex(const Eigen::Vector3d & coords);
-	ActivePoints(Crystal & crystal_, FullPoints & parentPoints_,
-			Eigen::VectorXi filter_, const Eigen::Vector3i & mesh_,
-			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
+//	ActivePoints() = default; // default constructor, only to be used for
+	// temporary object initializations.
+	ActivePoints(FullPoints & parentPoints_, VectorXl filter_);
+	ActivePoints(const ActivePoints & obj); // copy constructor
+	ActivePoints & operator=(const ActivePoints & obj); // assignment operator
+};
+
+class PathPoints: public Points {
 };
 
 #endif

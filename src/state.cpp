@@ -1,85 +1,154 @@
 #include "bandstructure.h"
 #include "exceptions.h"
 
-State::State(Point& point_,
-		Eigen::VectorXd& energies_,
-		Eigen::Tensor<std::complex<double>,3>& velocities_,
-		Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_) : point{point_} {
-	energies = energies_;
-	velocities = velocities_;
-	dnde = dnde_;
-	dndt = dndt_;
-	numBands = energies.size();
+State::State(Point & point_,
+		double * energies_,
+		long numAtoms_, long numBands_,
+		std::complex<double> * velocities_,
+//		Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_,
+		std::complex<double> * eigenvectors_) : point{point_},
+		energies{energies_} {
+	if ( velocities_ != nullptr ) {
+		hasVelocities = true;
+		velocities = velocities_;
+	}
+	if ( eigenvectors_ != nullptr ) {
+		hasEigenvectors = true;
+		eigenvectors = eigenvectors_;
+	}
+//	dnde = dnde_;
+//	dndt = dndt_;
+	numBands = numBands_;
+	numAtoms = numAtoms_;
 }
 
 Point State::getPoint() {
 	return point;
 }
 
-double State::getEnergy(const int bandIndex) {
-	return energies(bandIndex);
-}
-
 double State::getWeight() {
 	return point.getWeight();
 }
 
-Eigen::VectorXd State::getEnergies() {
-	Eigen::VectorXd ens(numBands);
+double State::getEnergy(const long & bandIndex, double chemicalPotential) {
+	if ( bandIndex >= numBands ) {
+		Error e("band index too large in getEnergy" ,1);
+	}
+	return *(energies+bandIndex) - chemicalPotential;
+}
+
+Eigen::VectorXd State::getEnergies(double chemicalPotential) {
+	Eigen::VectorXd ens;
 	for ( int i=0; i<numBands; i++ ) {
-		ens(i) = energies(i);
+		ens(i) = *(energies+i) - chemicalPotential;
 	}
 	return ens;
 }
 
-Eigen::Vector3d State::getGroupVelocity(const int bandIndex) {
-	Eigen::Vector3d groupVelocity;
-	for ( int j=0; j<3; j++ ) {
-		groupVelocity(j) = velocities(bandIndex,bandIndex,j).real();
+Eigen::Vector3d State::getVelocity(const long & bandIndex) {
+	if ( ! hasVelocities ) {
+		Error e("State doesn't have velocities" ,1);
+	} else {
+		if ( bandIndex >= numBands ) {
+			Error e("band index too large in getVelocity" ,1);
+		}
+		std::complex<double> x;
+		Eigen::Vector3d groupVelocity;
+		for ( long j=0; j<3; j++ ) {
+			long ind = compressIndeces(bandIndex, bandIndex, j, numBands,
+					numBands, 3);
+			x = *(velocities+ind);
+			groupVelocity(j) = real(x);
+		}
+		return groupVelocity;
 	}
-	return groupVelocity;
 }
 
-Eigen::MatrixXd State::getGroupVelocities() {
-	Eigen::VectorXd groupVelocities(numBands,3);
-	for ( int i=0; i<numBands; i++ ) {
-		for ( int j=0; j<3; j++ ) {
-			groupVelocities(i,j) = velocities(i,i,j).real();
+Eigen::Vector3cd State::getVelocity(const long & bandIndex1,
+		const long & bandIndex2) {
+	if ( ! hasVelocities ) {
+		Error e("State doesn't have velocities" ,1);
+	} else {
+		if ( bandIndex1 >= numBands || bandIndex2 >= numBands ) {
+			Error e("band index too large in getVelocity" ,1);
 		}
+		Eigen::Vector3cd velocity;
+		for ( long j=0; j<3; j++ ) {
+			long ind = compressIndeces(bandIndex1,bandIndex2,j,numBands,
+					numBands, 3);
+			velocity(j) = *(velocities+ind);
+		}
+		return velocity;
 	}
-	return groupVelocities;
 }
 
 Eigen::Tensor<std::complex<double>,3> State::getVelocities() {
-	return velocities;
+	if ( ! hasEigenvectors ) {
+		Error e("State doesn't have velocities" ,1);
+	}
+	Eigen::Tensor<std::complex<double>,3> vels(3, numAtoms, numBands);
+	for ( long ib1=0; ib1<numBands; ib1++ ) {
+		for ( long ib2=0; ib2<numBands; ib2++ ) {
+			for ( long j=0; j<3; j++ ) {
+				long ind = compressIndeces(ib1, ib2, j, numBands, numBands, 3);
+				vels(ib1,ib2,j) = *(velocities+ind);
+			}
+		}
+	}
+	return vels;
 }
 
-Eigen::VectorXd State::getDndt() {
-	return dndt;
+Eigen::Tensor<std::complex<double>,3> State::getEigenvectors() {
+	if ( ! hasEigenvectors ) {
+		Error e("State doesn't have eigenvectors" ,1);
+	}
+	Eigen::Tensor<std::complex<double>,3> eigs(3, numAtoms, numBands);
+	for ( long j=0; j<3; j++ ) {
+		for ( long ia=0; ia<numAtoms; ia++ ) {
+			for ( long ib=0; ib<numBands; ib++ ) {
+				long ind = compressIndeces(j, ia, ib, 3, numAtoms, numBands);
+				eigs(j,ia,ib) = *(eigenvectors+ind);
+			}
+		}
+	}
+	return eigs;
 }
 
-Eigen::VectorXd State::getDnde() {
-	return dnde;
-}
 
-ElState::ElState(Point& point_,
-		Eigen::VectorXd& energies_,
-		Eigen::Tensor<std::complex<double>,3>& velocities_,
-		Eigen::VectorXd& dnde_,
-		Eigen::VectorXd& dndt_) : State(point_, energies_,
-				velocities_, dnde_, dndt_) {};
 
-PhState::PhState(Point& point_,
-		Eigen::VectorXd& energies_,
-		Eigen::Tensor<std::complex<double>,3>& eigenvectors_,
-		Eigen::Tensor<std::complex<double>,3>& velocities_,
-		Eigen::VectorXd& dnde_,
-		Eigen::VectorXd& dndt_)
-               : State{point_, energies_, velocities_, dnde_, dndt_} {
-	// we augment the base class initialization
-	eigenvectors = eigenvectors_;
-}
 
-Eigen::Tensor<std::complex<double>,3> PhState::getEigenvectors() {
-	return eigenvectors;
-}
+
+
+
+
+
+
+//Eigen::VectorXd State::getDndt() {
+//	return dndt;
+//}
+//
+//Eigen::VectorXd State::getDnde() {
+//	return dnde;
+//}
+
+//ElState::ElState(Point& point_,
+//		Eigen::VectorXd& energies_,
+//		Eigen::Tensor<std::complex<double>,3>& velocities_,
+//		Eigen::VectorXd& dnde_,
+//		Eigen::VectorXd& dndt_) : State(point_, energies_,
+//				velocities_, dnde_, dndt_) {};
+//
+//PhState::PhState(Point& point_,
+//		Eigen::VectorXd& energies_,
+//		Eigen::Tensor<std::complex<double>,3>& eigenvectors_,
+//		Eigen::Tensor<std::complex<double>,3>& velocities_,
+//		Eigen::VectorXd& dnde_,
+//		Eigen::VectorXd& dndt_)
+//               : State{point_, energies_, velocities_, dnde_, dndt_} {
+//	// we augment the base class initialization
+//	eigenvectors = eigenvectors_;
+//}
+//
+//Eigen::Tensor<std::complex<double>,3> PhState::getEigenvectors() {
+//	return eigenvectors;
+//}

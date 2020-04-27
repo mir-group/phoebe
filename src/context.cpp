@@ -5,6 +5,7 @@
 #include <algorithm>
 #include "context.h"
 #include "exceptions.h"
+#include "constants.h"
 
 //TODO: it would be nice to have a smoother handling of read errors, with
 //some informations provided to the user.
@@ -99,7 +100,7 @@ double parseDouble(std::vector<std::string> lines, std::string pattern) {
 	return x;
 };
 
-std::vector<double>  parseDoubleList(std::vector<std::string> lines,
+std::vector<double> parseDoubleList(std::vector<std::string> lines,
 		std::string pattern) {
 	std::vector<double> x;
 	double xTemp;
@@ -307,25 +308,75 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		std::string tmp = parseString(lines, "phD2FileName");
 		setPhD2FileName(tmp);
-	}
-	catch (ParameterNotFound& e) {} // Do nothing!
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
 		setSumRuleD2(parseString(lines, "sumRuleD2"));
-	}
-	catch (ParameterNotFound& e) {} // Do nothing!
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
 		std::string tmp = parseString(lines, "electronH0Name");
 		setElectronH0Name(tmp);
-	}
-	catch (ParameterNotFound& e) {} // Do nothing!
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
 		double dval = parseDouble(lines, "electronFourierCutoff");
 		setElectronFourierCutoff(dval);
-	}
-	catch (ParameterNotFound& e) {} // Do nothing!
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> vecMesh = parseDoubleList(lines, "qMesh");
+		Eigen::Vector3i qMesh_;
+		qMesh_(0) = vecMesh[0];
+		qMesh_(1) = vecMesh[1];
+		qMesh_(2) = vecMesh[2];
+		setQMesh(qMesh_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> vecMesh = parseDoubleList(lines, "kMesh");
+		Eigen::Vector3i kMesh_;
+		kMesh_(0) = vecMesh[0];
+		kMesh_(1) = vecMesh[1];
+		kMesh_(2) = vecMesh[2];
+		setKMesh(kMesh_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::string x = parseString(lines, "windowType");
+		setWindowType(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "windowEnergyLimit");
+		Eigen::Vector2d x_;
+		// we just make sure to order it
+		x_ << std::min(x[0],x[1]), std::max(x[0],x[1]);
+		setWindowEnergyLimit(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDouble(lines, "populationLimit");
+		setWindowPopulationLimit(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "chemicalPotentials");
+		Eigen::VectorXd x_(x.size());
+		for ( long i=0; i<x.size(); i++ ) {
+			x_(i) = x_[i] / energyRyToEv;
+		}
+		setChemicalPotentials(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "temperatures");
+		Eigen::VectorXd x_(x.size());
+		for ( long i=0; i<x.size(); i++ ) {
+			x_(i) = x_[i] / temperatureAuToSi;
+		}
+		setTemperatures(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
 
@@ -356,7 +407,7 @@ std::string Context::getElectronH0Name() {
 	return electronH0Name;
 }
 
-void Context::setElectronFourierCutoff(double x) {
+void Context::setElectronFourierCutoff(const double & x) {
 	electronFourierCutoff = x;
 }
 
@@ -365,5 +416,86 @@ double& Context::getElectronFourierCutoff() {
 		Error e("Electronic Fourier Cutoff not set", 1);
 	}
 	return electronFourierCutoff;
+}
+
+void Context::setCalculation(const std::string & x) {
+	calculation = x;
+}
+
+std::string Context::getCalculation() {
+	return calculation;
+}
+
+void Context::setQMesh(const Eigen::Vector3i & x) {
+	qMesh = x;
+}
+
+Eigen::Vector3i Context::getQMesh() {
+	return qMesh;
+}
+
+void Context::setKMesh(const Eigen::Vector3i & x) {
+	kMesh = x;
+}
+
+Eigen::Vector3i Context::getKMesh() {
+	return kMesh;
+}
+
+
+void Context::setWindowType(std::string x) {
+	windowType = x;
+}
+
+std::string Context::getWindowType() {
+	return windowType;
+}
+
+void Context::setWindowEnergyLimit(Eigen::Vector2d x) {
+	windowEnergyLimit = x;
+}
+
+Eigen::Vector2d Context::getWindowEnergyLimit() {
+	return windowEnergyLimit;
+}
+
+void Context::setWindowPopulationLimit(double x) {
+	windowPopulationLimit = x;
+}
+
+double Context::getWindowPopulationLimit() {
+	return windowPopulationLimit;
+}
+
+void Context::setChemicalPotentials(Eigen::VectorXd x) {
+	chemicalPotentials = x;
+}
+
+Eigen::VectorXd Context::getChemicalPotentials() {
+	return chemicalPotentials;
+}
+
+void Context::setTemperatures(Eigen::VectorXd x) {
+	temperatures = x;
+}
+
+Eigen::VectorXd Context::getTemperatures() {
+	return temperatures;
+}
+
+void Context::setNumValenceElectrons(long x) {
+	numValenceElectrons = x;
+}
+
+long Context::getNumValenceElectrons() {
+	return numValenceElectrons;
+}
+
+void Context::setHomo(double x) {
+	homo = x;
+}
+
+double Context::getHomo() {
+	return homo;
 }
 

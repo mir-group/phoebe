@@ -15,6 +15,7 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
+#include "statistics.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
@@ -538,9 +539,12 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileNa
 	return {crystal, dynamicalMatrix};
 };
 
-std::tuple<Crystal, FullPoints, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
-		const std::string fileName, double& fourierCutoff) {
+std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
+		Context & context) {
 	//  Here we read the XML file of quantum espresso.
+
+	std::string fileName = context.getElectronH0Name();
+	double fourierCutoff = context.getElectronFourierCutoff();
 
 	if ( fileName == "" ) {
 		Error e("Must provide an XLM file name",1);
@@ -680,9 +684,12 @@ std::tuple<Crystal, FullPoints, ElectronH0Fourier> QEParser::parseElHarmonicFour
 	auto [mesh, offset] = Points::findMesh(irredPoints);
 	FullPoints coarsePoints(crystal, mesh, offset);
 
-	ElBandStructure coarseBandStructure(numBands, &coarsePoints);
+	bool withVelocities = false;
+	bool withEigenvectors = false;
+	Statistics statistics(Statistics::fermi);
+	FullBandStructure coarseBandStructure(numBands, statistics,
+			withVelocities, withEigenvectors, &coarsePoints);
 	// fill in the info on band structure
-	int index;
 	Eigen::Vector3d pointCoords;
 	Eigen::VectorXd thisEnergies(numBands);
 	for ( int ik=0; ik<numIrredPoints; ik++ ) {
@@ -690,10 +697,12 @@ std::tuple<Crystal, FullPoints, ElectronH0Fourier> QEParser::parseElHarmonicFour
 		thisEnergies = irredEnergies.row(ik);
 		coarseBandStructure.setEnergies(pointCoords, thisEnergies);
 	}
-	coarseBandStructure.setNumValenceElectrons(numElectrons);
-	coarseBandStructure.setHomo(homo);
 
-	ElectronH0Fourier electronH0(crystal, coarseBandStructure, fourierCutoff);
+	context.setNumValenceElectrons(numElectrons);
+	context.setHomo(homo);
 
-	return {crystal, coarsePoints, electronH0};
+	ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
+			fourierCutoff);
+
+	return {crystal, electronH0};
 };

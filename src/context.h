@@ -3,8 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <Eigen/Dense>
-#include <Eigen/Core>
+#include "eigen.h"
 
 using namespace std;
 
@@ -15,30 +14,38 @@ private:
 	std::string scratchFolder = "./out";
 	std::string electronH0Name = "";
 	std::string elPhFileName = "";
-	std::vector<std::string> calculation = {""};
+	std::string calculation = "";
 	std::string sumRuleD2 = "";
 	std::string smearingType = "";
 	double smearingWidth = 0.;
-	std::vector<double> temperatures = {0.};
-	std::vector<double> isotopeCoupling = {0.};
+	Eigen::VectorXd temperatures;
+//	std::vector<double> isotopeCoupling = {0.};
 	std::vector<std::string> solverBTE = {"SMA"};
-//	std::vector<std::string> secondSoundWavevector = {0.,0.,0.};
-	std::vector<double> surfaceScatteringSize = {0.};
+//	std::vector<double> surfaceScatteringSize = {0.};
 	std::string surfaceScatteringDirection = "";
 	std::string transportRegime = "";
 	double variationalConvergenceThreshold = 1e-5;
 	double variationalMaxSteps = 1e-5;
-	std::vector<double> atomicMasses = {0.};
+	Eigen::VectorXd atomicMasses;
+
 	std::string windowType;
-	std::vector<double> windowLimits = {0.,0.};
+	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
+	double windowPopulationLimit;
+
 	std::string elPhInterpolationType = "";
-	std::vector<double> dopings = {0.};
-	std::vector<double> chemicalPotentials = {0.};
+	Eigen::VectorXd dopings;
+	Eigen::VectorXd chemicalPotentials;
 	double relaxationTime = 0.;
 	bool usePolarCorrection = true;
 	bool useWignerCorrection = true;
 	double bandGap = 0.;
 	double electronFourierCutoff = 0.;
+
+	Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
+	Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
+
+	double homo;
+	long numValenceElectrons;
 
 //  Setter and getter for all the variables above
 public:
@@ -75,7 +82,7 @@ public:
 	 * @param r: the cutoff value. r is the radius up to which all lattice
 	 * vectors (in real space) are used for the interpolation.
 	 */
-	void setElectronFourierCutoff(double r);
+	void setElectronFourierCutoff(const double & x);
 	/** gets the value of the cutoff to be used for the Fourier interpolation
 	 * of the band structure.
 	 * @return r: the cutoff value.
@@ -85,8 +92,16 @@ public:
 //	void setElPhFileName(std::string x);
 //	std::string getElPhFileName();
 
-//	void setCalculation(std::string x);
-//	std::string getCalculation();
+	/** sets the calculation type to be run.
+	 * @param x: the name of the calculation, e.g. "electron-phonon",
+	 * "phonon-phonon", or "coupled-electron-phonon".
+	 */
+	void setCalculation(const std::string & x);
+	/** gets the type of calculation to be run.
+	 * @return x: the name of the calculation, e.g. "electron-phonon" or
+	 * "phonon-phonon".
+	 */
+	std::string getCalculation();
 
 	/** sets the sum rule to be imposed on the lattice force constants.
 	 * @param x: the name of the sum rule, i.e. "simple" or "crystal".
@@ -98,6 +113,90 @@ public:
 	 * @return x: the name of the sum rule, i.e. "simple" or "crystal".
 	 */
 	std::string getSumRuleD2();
+
+	/** sets the fine mesh of phonon properties.
+	 * @param x: a vector of 3 integers representing the mesh of points.
+	 */
+	void setQMesh(const Eigen::Vector3i & x);
+	/** gets the mesh of points for harmonic phonon properties.
+	 * @return path: an array with 3 integers representing the q-point mesh.
+	 */
+	Eigen::Vector3i getQMesh();
+
+	/** sets the fine mesh of electronic properties.
+	 * @param x: a vector of 3 integers representing the mesh of k-points.
+	 */
+	void setKMesh(const Eigen::Vector3i & x);
+	/** gets the mesh of points for harmonic electronic properties.
+	 * @return path: an array with 3 integers representing the k-point mesh.
+	 */
+	Eigen::Vector3i getKMesh();
+
+	/** sets the Window type to be used to filter out states that don't
+	 * contribute to transport.
+	 * @param x: a string, which can take values "none", "energy", "population"
+	 */
+	void setWindowType(std::string windowType);
+	/** gets the Window type to be used to filter out states that don't
+	 * contribute to transport.
+	 * @return path: an array with 3 integers representing the k-point mesh.
+	 * @param windowType: a string, which can take values "none", "energy",
+	 * or "population"
+	 */
+	std::string getWindowType();
+
+	/** sets the values of energy limits to be used with a window on energies.
+	 * @param x: a vector of 2 doubles representing the minimum and maximum
+	 * values of energies that will be used
+	 */
+	void setWindowEnergyLimit(Eigen::Vector2d windowEnergyLimit);
+	/** gets the values of energy limits to be used with a window on energies.
+	 * @return x: a vector of 2 doubles representing the minimum and maximum
+	 * values of energies that will be used
+	 */
+	Eigen::Vector2d getWindowEnergyLimit();
+
+	/** sets the value of population above which a state is considered active.
+	 * i.e. the state will be used if its occupation number deviates from 0 or
+	 * 1 by at least this amount.
+	 * @param x: the <double> value of the population threshold.
+	 */
+	void setWindowPopulationLimit(double windowPopulationLimit);
+	/** gets the value of population above which a state is considered active.
+	 * i.e. the state will be used if its occupation number deviates from 0 or
+	 * 1 by at least this amount.
+	 * @return x: the <double> value of the population threshold.
+	 */
+	double getWindowPopulationLimit();
+
+	/** sets the value of chemical potentials to be used in the calculation
+	 * of transport properties. Values in rydbergs.
+	 * @param x: the <double> values of the chemical potentials.
+	 */
+	void setChemicalPotentials(Eigen::VectorXd x);
+	/** gets the value of chemical potentials (in Rydbergs) to be used in the
+	 * calculation of transport properties
+	 * @return x: the vector of values for chemical potentials
+	 */
+	Eigen::VectorXd getChemicalPotentials();
+
+	/** sets the value of temperatures to be used in the calculation
+	 * of transport properties. Values in rydbergs.
+	 * @param x: the <double> values of the temperatures.
+	 */
+	void setTemperatures(Eigen::VectorXd x);
+	/** gets the value of temperatures (in Rydbergs) to be used in the
+	 * calculation of transport properties
+	 * @return x: the vector of values for temperatures
+	 */
+	Eigen::VectorXd getTemperatures();
+
+	void setNumValenceElectrons(long numElectrons);
+	long getNumValenceElectrons();
+
+	void setHomo(double homo);
+	double getHomo();
+
 
 //	void setSmearingType(std::string x);
 //	std::string getSmearingType();

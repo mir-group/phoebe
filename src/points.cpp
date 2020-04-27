@@ -3,6 +3,7 @@
 #include "exceptions.h"
 #include <set>
 #include <iterator>
+#include "eigen.h"
 
 //Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d & point,
 //		const Eigen::Matrix3d & reciprocalUnitCell) {
@@ -13,6 +14,10 @@ Point::Point(long index_, Eigen::Vector3d umklappVector_, Points & points_)
 		: points(points_) {
 	umklappVector = umklappVector_;
 	index = index_;
+}
+
+long Point::getIndex() {
+	return index;
 }
 
 Eigen::Vector3d Point::getCoords(const std::string & basis,
@@ -115,18 +120,13 @@ FullPoints::FullPoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 				offset_, false) {
 }
 
-Eigen::Vector3d Points::pointsCoords(const long & index){
-	Error e("Base Points class doesn't have pointsCoords implemented", 1);
-	return Eigen::Vector3d::Zero();
-}
-
-Eigen::Vector3d IrreduciblePoints::pointsCoords(const long & index) {
-	Eigen::Vector3d x = irreduciblePoints.row(index);
-	return x;
-}
-
-Eigen::Vector3d FullPoints::pointsCoords(const long & index) {
-	Eigen::Vector3d x = reduciblePoints(index);
+Eigen::Vector3d Points::pointsCoords(const long & index) {
+	Eigen::Vector3d x;
+	if ( useIrreducible ) {
+		x = irreduciblePoints.row(index);
+	} else {
+		x = reduciblePoints(index);
+	}
 	return x;
 }
 
@@ -503,10 +503,15 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	return {mesh_, offset_};
 }
 
-ActivePoints::ActivePoints(Crystal & crystal_, FullPoints & parentPoints_,
-		Eigen::VectorXi filter, const Eigen::Vector3i & mesh_,
-		const Eigen::Vector3d & offset_) : FullPoints(crystal_, mesh_,
-				offset_), parentPoints(parentPoints_) {
+Crystal & Points::getCrystal() {
+	return crystal;
+}
+
+ActivePoints::ActivePoints(FullPoints & parentPoints_,
+		VectorXl filter) : Points(parentPoints_.getCrystal(),
+				std::get<0>(parentPoints_.getMesh()),
+				std::get<1>(parentPoints_.getMesh())),
+				parentPoints(parentPoints_) {
 	// this contain the list of indices of the points in the FullPoints class
 	// which we want to include in the ActivePoints class
 	filteredToFullIndeces = filter;
@@ -525,7 +530,55 @@ ActivePoints::ActivePoints(Crystal & crystal_, FullPoints & parentPoints_,
 		pointsList_.row(ikNew) = x;
 	}
 	pointsList = pointsList_;
+}
 
+ActivePoints::ActivePoints(const ActivePoints & obj) : Points(obj),
+		parentPoints(obj.parentPoints) {
+	// copy constructor
+	pointsList = obj.pointsList;
+	filteredToFullIndeces = obj.filteredToFullIndeces;
+}
+
+// copy assignment operator
+ActivePoints & ActivePoints::operator=(const ActivePoints & obj) {
+	if ( this != &obj ) {
+		parentPoints = obj.parentPoints;
+		pointsList = obj.pointsList;
+		filteredToFullIndeces = obj.filteredToFullIndeces;
+	}
+	return *this;
+}
+
+Points::Points(const Points & obj) : crystal(obj.crystal) {
+	mesh = obj.mesh;
+	offset = obj.offset;
+	irreduciblePoints = obj.irreduciblePoints;
+	irreducibleWeights = obj.irreducibleWeights;
+	mapReducibleToIrreducible = obj.mapReducibleToIrreducible;
+	mapIrreducibleToReducible = obj.mapIrreducibleToReducible;
+	indexIrreduciblePoints = obj.indexIrreduciblePoints;
+	numPoints = obj.numPoints;
+	numIrredPoints = numIrredPoints;
+	useIrreducible = useIrreducible;
+	gVectors = obj.gVectors;
+	igVectors = obj.igVectors;
+}
+
+Points & Points::operator=(const Points & obj) { // assignment operator
+	if ( this != &obj ) {
+		mesh = obj.mesh;
+		offset = obj.offset;
+		irreduciblePoints = obj.irreduciblePoints;
+		irreducibleWeights = obj.irreducibleWeights;
+		mapReducibleToIrreducible = obj.mapReducibleToIrreducible;
+		mapIrreducibleToReducible = obj.mapIrreducibleToReducible;
+		indexIrreduciblePoints = obj.indexIrreduciblePoints;
+		numPoints = obj.numPoints;
+		numIrredPoints = numIrredPoints;
+		useIrreducible = useIrreducible;
+		gVectors = obj.gVectors;
+		igVectors = obj.igVectors;
+	}
 }
 
 Eigen::Vector3d ActivePoints::pointsCoords(const long & index) {
@@ -536,6 +589,13 @@ long ActivePoints::getIndex(const Eigen::Vector3d & coords) {
 	long indexFull = parentPoints.getIndex(coords);
 	long ik = fullToFilteredIndeces(indexFull);
 	return ik;
+}
+
+long ActivePoints::getIndexInverted(const long & ik) {
+	long indexFull = filteredToFullIndeces(ik);
+	long indexFullInverted = parentPoints.getIndexInverted(indexFull);
+	long ikInv = fullToFilteredIndeces(indexFullInverted);
+	return ikInv;
 }
 
 long ActivePoints::fullToFilteredIndeces(const long & indexIn) {
