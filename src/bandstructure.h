@@ -7,6 +7,15 @@
 #include "window.h"
 #include "statistics.h"
 
+/** note:
+ * FullBandStructure uses matrices to store datas, since theya are to be
+ * computed in parallel
+ * ActiveBandStructure instead is meant to be kept in memory by each MPI
+ * process, and we store energies in vectors to be aligned with the
+ * vectors of populations.
+ */
+
+
 class FullBandStructure {
 private:
 	Statistics statistics;
@@ -47,14 +56,9 @@ public:
 			IrreduciblePoints* irreduciblePoints_=nullptr);
 	Point getPoint(const long & pointIndex);
 	long getNumPoints();
-//	State getStateFromPointIndex(const long & index);
 	State getState(Point & point);
-//	void setChemicalPotential(double chemPot);
-//	void setTemperature(double temp);
 	void populate(HarmonicHamiltonian & h0);
 	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
-//	void setVelocities(Eigen::Vector3d& pointCoords,
-//			Eigen::Tensor<std::complex<double>,3>& velocities_);
 	void setEnergies(Point& point, Eigen::VectorXd & energies_);
 	void setEigenvectors(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & eigenvectors_);
@@ -62,9 +66,6 @@ public:
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 	long getNumBands();
 	bool hasIrreduciblePoints();
-//	void setNumValenceElectrons(long numElectrons);
-//	void setHomo(double homo);
-
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 };
 
@@ -72,17 +73,36 @@ class ActiveBandStructure {
 private:
 	// note: we use std::vector because we want a variable number of bands
 	// per each k-point
-	std::vector<std::vector<double>> energies;
-	std::vector<std::vector<std::complex<double>>> velocities;
-	std::vector<std::vector<std::complex<double>>> eigenvectors;
-//	Eigen::VectorXd * dndt = nullptr;
-//	Eigen::VectorXd * dnde = nullptr;
+	std::vector<double> energies;
+	std::vector<double> groupVelocities;
+	std::vector<std::complex<double>> velocities;
+	std::vector<std::complex<double>> eigenvectors;
 	ActivePoints * activePoints = nullptr;
 	Statistics statistics;
 	bool hasEigenvectors = false;
 	long numStates = 0;
 	long numAtoms = 0;
-	std::vector<std::vector<long>> filteredBands;
+	VectorXl numBands;
+//	std::vector<std::vector<long>> filteredBands;
+
+	// map (compressed to uncompressed)
+	// inverse map (uncompressed to compressed)
+
+	// index management
+	// these are two auxiliary vectors to store indices
+	MatrixXl auxBloch2Comb;
+	VectorXl cumulativeKbOffset;
+	VectorXl cumulativeKbbOffset;
+	// this is the functionality to build the indices
+	void buildIndeces(); // to be called after building the band structure
+	// and these are the tools to convert indices
+
+	// utilities to convert Bloch indices into internal indices
+	long velBloch2Comb(long & ik, long & ib1, long & ib2, long & i);
+	long gvelBloch2Comb(long & ik, long & ib, long & i);
+	long eigBloch2Comb(long & ik, long & i, long & iat, long & ib);
+	long bloch2Comb(long & k, long & b);
+
 	long numPoints;
 	bool hasPoints();
 public:
@@ -91,6 +111,8 @@ public:
 	Point getPoint(const long & pointIndex);
 	long getNumStates();
 	State getState(Point & point);  // returns all bands at fixed k/q-point
+
+	std::tuple<long,long> comb2Bloch(long & is);
 
 	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,
 			HarmonicHamiltonian & h0);
