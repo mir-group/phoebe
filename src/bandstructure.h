@@ -2,10 +2,10 @@
 #define BANDSTRUCTURE_H
 
 #include "points.h"
-#include "phononH0.h"
 #include "state.h"
 #include "window.h"
 #include "statistics.h"
+#include "harmonic.h"
 
 /** note:
  * FullBandStructure uses matrices to store datas, since theya are to be

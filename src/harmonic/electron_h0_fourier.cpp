@@ -181,16 +181,44 @@ double ElectronH0Fourier::getEnergy(Point& point, long& bandIndex) {
 	return energy;
 }
 
-std::tuple<Eigen::VectorXd,
-	std::optional<Eigen::Tensor<std::complex<double>,3>>>
-	ElectronH0Fourier::diagonalize(Point & point) {
-	Eigen::VectorXd energies(numBands);
-	energies = getEnergies(point);
+double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
+		long & bandIndex) {
+	double energy = 0.;
+	std::complex<double> c;
+	for ( long m=0; m<numPositionVectors; m++ ) {
+		c = expansionCoefficients(bandIndex, m)
+				* getStarFunction(wavevector, positionVectors[m]);
+		energy += c.real();
+	}
+	return energy;
+}
+
+std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+		ElectronH0Fourier::diagonalize(Point & point) {
+
+	Eigen::Vector3d coords = point.getCoords("cartesian");
+	auto [energies,x] = diagonalizeFromCoords(coords);
+
 	// this is to return something aligned with the phonon case
 	// One should investigate how to return a null pointer
-	std::optional<Eigen::Tensor<std::complex<double>,3>> eigvecs;
+	Eigen::Tensor<std::complex<double>,3> eigvecs;
+	eigvecs.setZero();
+
 	return {energies,eigvecs};
 }
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d & wavevector){
+	Eigen::MatrixXcd eigvecs(numBands,numBands);
+	eigvecs.setZero();
+
+	Eigen::VectorXd energies(numBands);
+	for ( long ib = 0; ib<numBands; ib++ ) {
+		energies(ib) = getEnergyFromCoords(wavevector, ib);
+	}
+	return {energies,eigvecs};
+}
+
 
 Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
 			Point & point) {

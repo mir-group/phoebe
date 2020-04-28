@@ -6,12 +6,9 @@
 #include <iomanip>  // to declare istringstream
 #include <algorithm> // to use .remove_if
 #include <stdlib.h> // abs()
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-#include <Eigen/Eigenvalues>
-#include <Eigen/Core>
 
 #include "pugixml.hpp"
+#include "eigen.h"
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
@@ -374,8 +371,6 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileNa
 	//  Here we read the dynamical matrix of interatomic force constants
 	//	in real space.
 
-	std::cout << "Entering phonon parsing\n";
-
 	if ( fileName == "" ) {
 		Error e("Must provide a D2 file name",1);
 	}
@@ -705,4 +700,102 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 			fourierCutoff);
 
 	return {crystal, electronH0};
+};
+
+
+
+
+ElectronH0Wannier QEParser::parseElHarmonicWannier(
+		Context & context) {
+	//  Here we read the XML file of quantum espresso.
+
+	std::string fileName = context.getElectronH0Name();
+
+	if ( fileName == "" ) {
+		Error e("Must provide the Wannier90 TB file name",1);
+	}
+
+	std::string line;
+	std::vector<std::string> lineSplit;
+
+	// open input file
+	std::ifstream infile(fileName);
+
+	if ( not infile.is_open() ) {
+		Error e("Dynamical matrix file not found", 1);
+	}
+
+	//  First line contains the title and date
+	std::getline(infile, line);
+
+	//Then, we have the directUnitCell of the ctystal in angstroms
+	Eigen::Matrix3d directUnitCell(3,3);
+	for ( int i=0; i<3; i++ ) {
+		std::getline(infile, line);
+		lineSplit = split(line, ' ');
+		for ( int j=0; j<3; j++) {
+			directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceRyToAng;
+		}
+	};
+
+	// Next, we the number of Wannier functions / bands, after disentanglement
+	std::getline(infile, line);
+	long numWann = std::stoi(line);
+
+	// The number of irreducible vectors in real space
+	std::getline(infile, line);
+	long numVectors = std::stoi(line);
+
+	// now, we must read numVectors integers with the vector degeneracies
+	// there can be only up to 15 numbers per line
+	long numLines = numVectors / long(15);
+	if ( double(numVectors)/15. > 0. ) numLines += 1;
+	Eigen::VectorXd vectorsDegeneracies(numVectors);
+	long j = 0;
+	for ( long i=0; i<numLines; i++ ) {
+		std::getline(infile, line);
+		lineSplit = split(line, ' ');
+		for ( auto x : lineSplit ) {
+			long deg = std::stoi(x);
+			vectorsDegeneracies(j) = double(deg);
+			j += 1;
+		}
+	}
+
+	// now we read the Hamiltonian in real space
+	Eigen::MatrixXd crystalVectors(numVectors,3);
+	crystalVectors.setZero();
+	Eigen::Tensor<std::complex<double>,3> h0R(numVectors, numWann, numWann);
+	h0R.setZero();
+	for ( long iR=0; iR<numVectors; iR++ ) {
+		// first we have an empty line
+		std::getline(infile, line);
+
+		// then we read the lattice vector coordinates
+		std::getline(infile, line);
+		lineSplit = split(line, ' ');
+		crystalVectors(iR,0) = std::stod(lineSplit[0]);
+		crystalVectors(iR,1) = std::stod(lineSplit[1]);
+		crystalVectors(iR,2) = std::stod(lineSplit[2]);
+
+		for ( long i=0; i<numWann; i++ ) {
+			for ( long j=0; j<numWann; j++ ) {
+				std::getline(infile, line);
+				lineSplit = split(line, ' ');
+				double re = std::stod(lineSplit[2]);
+				double im = std::stod(lineSplit[3]);
+				h0R(iR, i, j) = {re,im};
+			}
+		}
+	}
+
+	// I need to convert crystalVectors in cartesian coordinates
+	// must check if I am aligning the unit cell correctly
+	crystalVectors = crystalVectors * directUnitCell;
+	// note: for Wannier90, lattice vectors are the rows of the matrix
+
+	ElectronH0Wannier electronH0(directUnitCell, crystalVectors,
+			vectorsDegeneracies, h0R);
+
+	return electronH0;
 };

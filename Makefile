@@ -15,7 +15,7 @@ SRC_EXT = cpp
 # Find all source files in the source directory, sorted by
 # most recently modified
 #SOURCES = $(shell find $(SRC_PATH) -name '*.$(SRC_EXT)' | sort -k 1nr | cut -f2-)
-SOURCES = src/exceptions/exceptions.cpp src/io.cpp src/main.cpp src/statistics.cpp src/context.cpp src/crystal.cpp src/transport_app.cpp src/harmonic/harmonic.cpp src/harmonic/phononH0.cpp src/points.cpp src/state.cpp src/bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/window.cpp src/pugixml.cpp src/parser/qe_input_parser.cpp
+SOURCES = src/exceptions/exceptions.cpp src/io.cpp src/main.cpp src/statistics.cpp src/context.cpp src/crystal.cpp src/transport_app.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/harmonic/window.cpp src/pugixml.cpp src/parser/qe_input_parser.cpp
 
 # Set the object file names, with the source directory stripped
 # from the path, and the build path prepended in its place

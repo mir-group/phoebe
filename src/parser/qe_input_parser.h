@@ -1,7 +1,8 @@
 #include <string>
-#include "phononH0.h"
+#include "phonon_h0.h"
 #include "context.h"
 #include "electron_h0_fourier.h"
+#include "electron_h0_wannier.h"
 
 /** Class used to parse the raw data from quantum Espresso
  *
@@ -30,6 +31,8 @@ public:
 	 */
 	std::tuple<Crystal, ElectronH0Fourier> parseElHarmonicFourier(
 			Context & context);
+
+	ElectronH0Wannier parseElHarmonicWannier(Context & context);
 
 //	void parseElHarmonicWan(int argc, char** argv);
 //	void parseElPhAnharmonicEPA(int argc, char** argv);

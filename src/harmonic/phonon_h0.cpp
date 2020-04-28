@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "eigen.h"
 #include "exceptions.h"
-#include "phononH0.h"
+#include "phonon_h0.h"
 
 Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		Point & point) {
