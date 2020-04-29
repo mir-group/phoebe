@@ -14,6 +14,11 @@ std::tuple<Eigen::VectorXd,Eigen::Tensor<std::complex<double>,3>>
   return {energies, eigvecs};
 }
 
+Eigen::VectorXd HarmonicHamiltonian::diagonalizeEnergy(Point & point) {
+	auto [energies, eigvecs] = diagonalize(point);
+	return energies;
+}
+
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d & k) {
 	Eigen::VectorXd energies(numBands);
