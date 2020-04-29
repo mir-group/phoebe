@@ -275,36 +275,6 @@ void Context::setupFromInput(std::string fileName) {
 	}
     infile.close();
 
-// parse each variable
-
-//    double x;
-//	std::vector<double> w;
-//    int z;
-//    std::string y;
-//	std::vector<int> q;
-//	bool t;
-
-//	x = parseDouble(lines, "x");
-//	std::cout << x;
-//	std::cout << "\n";
-//	y = parseString(lines, "y");
-//	std::cout << y;
-//	std::cout << "\n";
-//	z = parseInt(lines, "z");
-//	std::cout << z;
-//	std::cout << "\n";
-//	q = parseIntList(lines, "qCoarseMesh");
-//	std::cout << q[0] << q[1] << q[2];
-//	std::cout << "\n";
-//	w = parseDoubleList(lines, "w");
-//	std::cout << w[0] << " , " << w[1] << " , " << w[2];
-//	std::cout << "\n";
-//	t = parseBool(lines, "t");
-//	std::cout << t;
-//	std::cout << "\n";
-
-//	std::cout << "Sto qua\n";
-
 	try {
 		std::string tmp = parseString(lines, "phD2FileName");
 		setPhD2FileName(tmp);
@@ -325,7 +295,7 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::vector<double> vecMesh = parseDoubleList(lines, "qMesh");
+		std::vector<int> vecMesh = parseIntList(lines, "qMesh");
 		Eigen::Vector3i qMesh_;
 		qMesh_(0) = vecMesh[0];
 		qMesh_(1) = vecMesh[1];
@@ -334,7 +304,7 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::vector<double> vecMesh = parseDoubleList(lines, "kMesh");
+		std::vector<int> vecMesh = parseIntList(lines, "kMesh");
 		Eigen::Vector3i kMesh_;
 		kMesh_(0) = vecMesh[0];
 		kMesh_(1) = vecMesh[1];

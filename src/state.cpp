@@ -5,7 +5,6 @@ State::State(Point & point_,
 		double * energies_,
 		long numAtoms_, long numBands_,
 		std::complex<double> * velocities_,
-//		Eigen::VectorXd& dnde_, Eigen::VectorXd& dndt_,
 		std::complex<double> * eigenvectors_) : point{point_},
 		energies{energies_} {
 	if ( velocities_ != nullptr ) {
@@ -16,8 +15,6 @@ State::State(Point & point_,
 		hasEigenvectors = true;
 		eigenvectors = eigenvectors_;
 	}
-//	dnde = dnde_;
-//	dndt = dndt_;
 	numBands = numBands_;
 	numAtoms = numAtoms_;
 }
@@ -38,7 +35,7 @@ double State::getEnergy(const long & bandIndex, double chemicalPotential) {
 }
 
 Eigen::VectorXd State::getEnergies(double chemicalPotential) {
-	Eigen::VectorXd ens;
+	Eigen::VectorXd ens(numBands);
 	for ( int i=0; i<numBands; i++ ) {
 		ens(i) = *(energies+i) - chemicalPotential;
 	}
@@ -113,42 +110,3 @@ Eigen::Tensor<std::complex<double>,3> State::getEigenvectors() {
 	}
 	return eigs;
 }
-
-
-
-
-
-
-
-
-
-
-//Eigen::VectorXd State::getDndt() {
-//	return dndt;
-//}
-//
-//Eigen::VectorXd State::getDnde() {
-//	return dnde;
-//}
-
-//ElState::ElState(Point& point_,
-//		Eigen::VectorXd& energies_,
-//		Eigen::Tensor<std::complex<double>,3>& velocities_,
-//		Eigen::VectorXd& dnde_,
-//		Eigen::VectorXd& dndt_) : State(point_, energies_,
-//				velocities_, dnde_, dndt_) {};
-//
-//PhState::PhState(Point& point_,
-//		Eigen::VectorXd& energies_,
-//		Eigen::Tensor<std::complex<double>,3>& eigenvectors_,
-//		Eigen::Tensor<std::complex<double>,3>& velocities_,
-//		Eigen::VectorXd& dnde_,
-//		Eigen::VectorXd& dndt_)
-//               : State{point_, energies_, velocities_, dnde_, dndt_} {
-//	// we augment the base class initialization
-//	eigenvectors = eigenvectors_;
-//}
-//
-//Eigen::Tensor<std::complex<double>,3> PhState::getEigenvectors() {
-//	return eigenvectors;
-//}

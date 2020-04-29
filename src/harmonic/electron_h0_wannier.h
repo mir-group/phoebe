@@ -13,13 +13,13 @@ public:
 			Eigen::VectorXd & vectorsDegeneracies_,
 			Eigen::Tensor<std::complex<double>,3> & h0R_);
 
-	std::tuple<Eigen::VectorXd,
+	virtual std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
 
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
+	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
     const bool hasEigenvectors = false;
 protected:
-    std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+    virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
     	diagonalizeFromCoords(Eigen::Vector3d & k);
 
     Eigen::MatrixXd crystalVectors;

@@ -28,7 +28,7 @@ private:
 	double variationalMaxSteps = 1e-5;
 	Eigen::VectorXd atomicMasses;
 
-	std::string windowType;
+	std::string windowType = "nothing";
 	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
 	double windowPopulationLimit;
 

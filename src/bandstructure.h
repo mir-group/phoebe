@@ -52,8 +52,8 @@ private:
 public:
 	FullBandStructure(long numBands_, Statistics & statistics_,
 			bool withVelocities, bool withEigenvectors,
-			FullPoints* fullPoints_=nullptr,
-			IrreduciblePoints* irreduciblePoints_=nullptr);
+			FullPoints * fullPoints_=nullptr,
+			IrreduciblePoints * irreduciblePoints_=nullptr);
 	Point getPoint(const long & pointIndex);
 	long getNumPoints();
 	State getState(Point & point);
@@ -83,7 +83,6 @@ private:
 	long numStates = 0;
 	long numAtoms = 0;
 	VectorXl numBands;
-//	std::vector<std::vector<long>> filteredBands;
 
 	// map (compressed to uncompressed)
 	// inverse map (uncompressed to compressed)

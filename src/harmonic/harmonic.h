@@ -5,7 +5,7 @@
 
 class HarmonicHamiltonian {
 public:
-	std::tuple<Eigen::VectorXd,
+	virtual std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
 
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(

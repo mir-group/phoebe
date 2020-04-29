@@ -32,7 +32,7 @@ public:
 	 * size (3,numAtoms,numBands). The eigenvector is rescaled by the
 	 * sqrt(masses) (masses in rydbergs)
 	 */
-	std::tuple<Eigen::VectorXd,
+	virtual std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
 
 	/** get the phonon velocities (in atomic units) at a single q-point.
@@ -40,7 +40,7 @@ public:
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
 	 * for this stata, in atomic units.
 	 */
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
+	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
 
 	/** Impose the acoustic sum rule on force constants and Born charges
 	 * @param sumRule: name of the sum rule to be used
@@ -51,7 +51,7 @@ public:
 	void setAcousticSumRule(const std::string sumRule);
 
 	long getNumBands();
-private:
+protected:
 	Eigen::Vector3i getCoarseGrid();
 	// internal variables
 	bool na_ifc;
@@ -95,7 +95,7 @@ private:
 	// cartesian coordinates
 	// also, we return the eigenvectors aligned with the dynamical matrix,
 	// and without the mass scaling.
-	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
 				Eigen::Vector3d & q);
 
 	// methods for sum rule

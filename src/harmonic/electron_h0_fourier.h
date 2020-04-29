@@ -59,10 +59,10 @@ public:
 	FullBandStructure populateBandStructure(FullPoints * fullpoints=nullptr,
 			IrreduciblePoints * irreduciblePoints=nullptr);
 
-	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+	virtual std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
 		diagonalize(Point & point);
 
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
+	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 				Point & point);
 protected:
 	FullPoints coarsePoints;
@@ -89,7 +89,7 @@ protected:
 	const double coeff1 = 0.75; // 3/4
 	const double coeff2 = 0.75;
 	Eigen::Vector3d refWavevector;
-	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		diagonalizeFromCoords(Eigen::Vector3d & wavevector);
 	double getEnergyFromCoords(Eigen::Vector3d & wavevector, long & bandIndex);
 };

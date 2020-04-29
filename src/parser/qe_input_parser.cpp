@@ -702,9 +702,6 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	return {crystal, electronH0};
 };
 
-
-
-
 ElectronH0Wannier QEParser::parseElHarmonicWannier(
 		Context & context) {
 	//  Here we read the XML file of quantum espresso.

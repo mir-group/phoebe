@@ -21,21 +21,6 @@ Eigen::VectorXcd packXcd(Eigen::Tensor<std::complex<double>,3> a,
 	return b;
 }
 
-//Eigen::Tensor<std::complex<double>,3> unpackStdXcd(std::vector<std::complex<double>> b,
-//		long size1, long size2, long size3) {
-//	Eigen::Tensor<std::complex<double>,3> a(size1,size2,size3);
-//	long ind;
-//	for ( long i=0; i<size1; i++ ) {
-//		for ( long j=0; j<size2; j++ ) {
-//			for ( long k=0; k<size3; k++ ) {
-//				ind = compressIndeces(i, j, k, size1, size2, size3);
-//				a(i,j,k) = b[ind];
-//			}
-//		}
-//	}
-//	return a;
-//}
-
 std::vector<std::complex<double>> packStdXcd(Eigen::Tensor<std::complex<double>,3> a,
 		long size1, long size2, long size3) {
 	std::vector<std::complex<double>> b(size1*size2*size3);
@@ -49,21 +34,6 @@ std::vector<std::complex<double>> packStdXcd(Eigen::Tensor<std::complex<double>,
 	return b;
 }
 
-//Eigen::Tensor<std::complex<double>,3> unpackXcd(Eigen::VectorXcd b,
-//		long size1, long size2, long size3) {
-//	Eigen::Tensor<std::complex<double>,3> a(size1,size2,size3);
-//	long ind;
-//	for ( long i=0; i<size1; i++ ) {
-//		for ( long j=0; j<size2; j++ ) {
-//			for ( long k=0; k<size3; k++ ) {
-//				ind = compressIndeces(i, j, k, size1, size2, size3);
-//				a(i,j,k) = b(ind);
-//			}
-//		}
-//	}
-//	return a;
-//}
-
 FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
 		bool withVelocities, bool withEigenvectors,
 		FullPoints * fullPoints_, IrreduciblePoints * irreduciblePoints_) :
@@ -71,6 +41,19 @@ FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
 
 	numBands = numBands_;
 	numAtoms = numBands_ / 3;
+
+	if ( fullPoints_ != nullptr ) {
+		useIrreducible = false;
+		fullPoints = fullPoints_;
+	} else if ( irreduciblePoints_ != nullptr ) {
+		useIrreducible = true;
+		irreduciblePoints = irreduciblePoints_;
+	} else {
+		Error e("FullBandStructure must provide one Points mesh.", 1);
+	}
+	if ( ( fullPoints != nullptr ) && ( irreduciblePoints != nullptr ) ) {
+		Error e("FullBandStructure must provide only one Points mesh.", 1);
+	}
 
 	if ( withVelocities ) {
 		hasVelocities = true;
@@ -86,43 +69,18 @@ FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
 		eigenvectors = eigenvectors_;
 	}
 
-	if ( fullPoints != nullptr ) {
-		useIrreducible = false;
-		fullPoints = fullPoints_;
-	} else if ( irreduciblePoints != nullptr ) {
-		useIrreducible = true;
-		irreduciblePoints = irreduciblePoints_;
-	} else {
-		Error e("FullBandStructure must provide one Points mesh.", 1);
-	}
-	if ( ( fullPoints != nullptr ) && ( irreduciblePoints != nullptr ) ) {
-		Error e("FullBandStructure must provide only one Points mesh.", 1);
-	}
-
 	Eigen::MatrixXd energies_(getNumPoints(), numBands);
 	energies.setZero();
 	energies = energies_;
 
-//	Eigen::MatrixXd dndt_(getNumPoints(), numBands);
-//	Eigen::MatrixXd dnde_(getNumPoints(), numBands);
-//	dndt_.setZero();
-//	dnde_.setZero();
-//	dndt = dndt_;
-//	dnde = dnde_;
-
-	// here is some black magic
-	// http://dovgalecs.com/blog/eigen-how-to-get-in-and-out-data-from-eigen-matrix/
-	// we want to access the raw data of Eigen Matrix without moving it
-	// to do so, we need to use the map functionality of Eigen
-	Eigen::Map<Eigen::MatrixXd> (rawEnergies, energies.rows(), energies.cols() ) = energies;
-	// After the call to map, rawEnergies is a pointer to the beginning
-	// of the raw data. Note that by default, Eigen stores in column major
-	// so we had to specify that we want row-major order.
+	// now, I want to manipulate the Eigen matrices at lower level
+	// I create this pointer to data, so I can move it around
+	rawEnergies = energies.data();
 	if ( hasVelocities ) {
-		Eigen::Map<Eigen::MatrixXcd> (rawVelocities, velocities.rows(), velocities.cols()) = velocities;
+		rawVelocities = velocities.data();
 	}
 	if ( hasEigenvectors ) {
-		Eigen::Map<Eigen::MatrixXcd> (rawEigenvectors, eigenvectors.rows(), eigenvectors.cols()) = eigenvectors;
+		rawEigenvectors = eigenvectors.data();
 	}
 
 	energiesRows = numBands;
@@ -161,10 +119,6 @@ Point FullBandStructure::getPoint(const long& pointIndex) {
 		return fullPoints->getPoint(pointIndex);
 	}
 }
-
-//void FullBandStructure::populate() {
-//	Error e("populate() not implemented in FullBandStructure", 1);
-//}
 
 void FullBandStructure::setEnergies(Eigen::Vector3d& coords,
 		Eigen::VectorXd& energies_) {
@@ -225,7 +179,6 @@ void FullBandStructure::populate(HarmonicHamiltonian & h0) {
 	for ( long ik=0; ik<getNumPoints(); ik++ ) {
 		Point point = getPoint(ik);
 		auto [ens, eigvecs] = h0.diagonalize(point);
-
 		setEnergies(point, ens);
 		if ( hasEigenvectors ) {
 			setEigenvectors(point, eigvecs);
@@ -411,14 +364,12 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 
 	std::vector<long> filteredPoints;
 	std::vector<std::vector<long>> filteredBands;
-
 	// first we find the states that can be kept
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
 		Point point = fullBandStructure.getPoint(ik);
 		State s = fullBandStructure.getState(point);
 		auto theseEnergies = s.getEnergies();
 		auto [ens, bandsExtrema] = window.apply(theseEnergies);
-
 		if ( ens.empty() ) {
 			continue;
 		} else {
@@ -441,17 +392,16 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 		filter(i) = filteredPoints[i];
 	}
 	// store the number of bands per kpoint
-	VectorXl numBands(numPoints);
+	VectorXl numBands_(numPoints);
 	for ( long ik=0; ik<numPoints; ik++ ) {
-		numBands(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
+		numBands_(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
 	}
+	numBands = numBands_;
 	// total number of active states
 	numStates = numBands.sum();
-
 	// initialize the kpoints object
 	ActivePoints activePoints_(*fullBandStructure.fullPoints, filter);
 	activePoints = &activePoints_;
-
 	// construct the mapping from combined indices to Bloch indices
 	buildIndeces();
 

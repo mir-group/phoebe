@@ -47,13 +47,12 @@ TransportApp::TransportApp(int argc, char** argv) {
 	auto [crystalPh, phononH0] =
 			qeParser.parsePhHarmonic(context.getPhD2FileName());
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
 	// Now, we build the harmonic phonon properties
 	Statistics phStatistics(Statistics::bose);
 
 	// first we make compute the band structure on the fine grid
-	FullPoints fullQPoints(crystalPh, context.getKMesh());
+	FullPoints fullQPoints(crystalPh, context.getQMesh());
 	bool withVelocities=true, withEigenvectors=true;
 	FullBandStructure fullPhBandStructure(phononH0.getNumBands(), phStatistics,
 			withVelocities, withEigenvectors, &fullQPoints);
