@@ -95,8 +95,8 @@ class PhInteraction3Ph{
 				 const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
 				 const char procType);
 
-  void calculateIrredVminus(const int nq, const int *grid, const PhononMode &mode, \
-			    const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ, \
+  void calculateIrredVminus(const int *grid, const PhononMode &mode, \
+			    const Eigen::MatrixXd &qFBZ, \
 			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets, \
 			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
 			    const Eigen::Tensor<double,3> &cellPositions, \

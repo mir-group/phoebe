@@ -16,7 +16,7 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
 				 const int numTriplets, const Eigen::Tensor<double,4> &ifc3Tensor, \
 				 const Eigen::Tensor<double,3> &cellPositions, \
 				 const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
-				 char procType){
+				 const char procType){
   
   if((procType != '+') && (procType != '-')){
     cout << "Character procType can only be '+' or '-'.";
@@ -102,14 +102,9 @@ double PhInteraction3Ph::calculateSingleV(const PhononTriplet &interactingPhonon
   return pow(abs(V),2); //in units of ?
 }
 
-// getV(const PhononMode mode, procType){
-    // use symmetries to fetch from half q-space |V-|^{2} all |V-|^{2} and |V+|^{2} data.
-//}
-
-
 // * Function to calculate the minimal set of V_minus processes for a given IBZ mode
-void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], const PhononMode &mode, \
-					    const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ, \
+void PhInteraction3Ph::calculateIrredVminus(const int grid[3], const PhononMode &mode, \
+					    const Eigen::MatrixXd &qFBZ, \
 					    const Eigen::Tensor<complex<double>,3> &ev,const int numTriplets, \
 					    const Eigen::Tensor<double,4> &ifc3Tensor, \
 					    const Eigen::Tensor<double,3> &cellPositions, \
@@ -126,8 +121,6 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
   int nxHalf = grid[0]/2+1;
   int nyHalf = grid[1]/2+1;
   int nzHalf = grid[2]/2+1;
-
-  cout << nxHalf << " " << nyHalf << " " << nzHalf << "\n";
 
   PhononTriplet interactingPhonons;
   PhInteraction3Ph phInt;
@@ -215,4 +208,86 @@ void PhInteraction3Ph::calculateIrredVminus(const int nq, const int grid[3], con
     }
     cout << "Calculated " << count << " V- processes.\n";
   }
+}
+
+//Transition probabilities for a given irreducible phonon mode
+void PhInteraction3Ph::calculateIrredW(const int grid[3], const PhononMode &mode, \
+				       const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ,\
+				       const CrystalInfo &crysInfo, const Eigen::MatrixXd omega){
+
+  int iq1,iq2,s1,s2;
+
+  int numBranches = crysInfo.numBranches;
+  int nq = grid[0]*grid[1]*grid[2];
+
+  //TODO double a = pi*hbar/4.0
+  
+  //TODO Read irreducible set of V-(s2,q2;s3,q3) for given mode from file
+
+  // Grab irred phonon mode info:
+  iq1 = mode.iq; //index of wave vector in the full BZ
+  s1 = mode.s; //branch
+  omega1 = omega(iq1,s1); //irred mode energy
+  q1 = indexMesh.row(iq1);
+  
+  if(omega1 > 0){ //skip zero energy phonon
+    //TODO get Bose distribution for first phonon mode, n01
+
+    //Sum over second phonon wave vector in full BZ
+    for(iq2 = 0; iq2 < nq; iq2++){
+      q2 = indexMesh.row(iq2);
+
+      //Get final phonon wave vector location
+      //modulo reciprocal lattice vector
+      for(int iDim = 0; iDim < 3; iDim++){
+	//plus process
+	q3plus(iDim) = (q1(iDim)+q2(iDim))%grid[iDim];
+	//minus process
+	q3minus(iDim) = (q1(iDim)-q2(iDim))%grid[iDim];
+      }
+      //!!WARNING: For testing purposes using ShengBTE ordering!!!
+      iq3plus = (q3plus[2]*grid[1] + q3plus[1])*grid[0] + q3plus[0];
+      iq3minus = (q3minus[2]*grid[1] + q3minus[1])*grid[0] + q3minus[0];
+      
+      //Sum over second phonon branches
+      for(s2 = 0; s2 < numBranches; s2++){
+	omega2 = omega(iq2,s2); //second phonon ang. freq.
+
+	if(omega2 > 0){ //skip zero energy phonon
+	
+	  //TODO get Bose distribution for second phonon mode, n02
+
+	  //Sum over final phonon branches
+	  for(s3 = 0; s3 < numBranches; s3++){
+	    omega3 = omega(iq3,s3); //second phonon ang. freq.
+
+	    if(omega3 > 0){ //skip zero energy phonon
+	  
+	      //TODO get Bose distribution for final phonon mode, n03
+
+	      //TODO calculate tetrahedron weight for plus and minus processes
+
+	      if(tetWeightPlus > 0){
+		//TODO save second phonon mode id
+		//TODO save final phonon mode id
+		//TODO use symmetry to get Vplus2
+		//TODO Wplus(plusProcessCount++) = a*(n02+n03+1.0)/(omega1*omega2*omega3)*Vplus2*tetWeightPlus
+	      }
+
+	      if(tetWeightMinus > 0){
+		//TODO save second phonon mode id
+		//TODO save final phonon mode id
+		//TODO use symmetry to get Vminus2
+		//TODO Wminus(minusProcessCount++) = a*(n02+n03+1.0)/(omega1*omega2*omega3)*Vminus2*tetWeightMinus
+	      }
+	    }
+	  }//s3
+	}
+      }//s2
+    }//iq2
+  }
+
+  //TODO set units of Wplus and Wminus to THz
+
+  //TODO write all Wplus and Wminus processes to disk for future use
 }
