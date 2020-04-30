@@ -39,30 +39,20 @@ double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 }
 
 std::complex<double> ElectronH0Fourier::getStarFunction(
-		Eigen::Vector3d& wavevector, Eigen::Vector3d& position) {
-	std::complex<double> starFunction, phase;
-	starFunction = complexZero;
-
-	for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
-		phase = complexI * wavevector.transpose() * symmMatrix * position;
-		starFunction += exp(phase);
-	}
-	starFunction /= (double)crystal.getNumSymmetries();
-
+		Eigen::Vector3d& wavevector, long & iR) {
+	std::complex<double> phase = complexI * twoPi
+			* wavevector.transpose() * positionVectors[iR];
+	std::complex<double> starFunction = exp(phase)
+			/ double(positionDegeneracies[iR]);
 	return starFunction;
 }
 
 Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
-		Eigen::Vector3d& wavevector, Eigen::Vector3d& position) {
-	std::complex<double> phase;
-	Eigen::Vector3cd starFunctionDerivative;
-	starFunctionDerivative.setZero();
-
-	for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
-		phase = complexI * wavevector.transpose() * symmMatrix * position;
-		starFunctionDerivative += complexI * position * exp(phase);
-	}
-	starFunctionDerivative /= (double)crystal.getNumSymmetries();
+		Eigen::Vector3d& wavevector, long & iR) {
+	std::complex<double> phase = complexI * twoPi * wavevector.transpose()
+			* positionVectors[iR];
+	Eigen::Vector3cd starFunctionDerivative = complexI * positionVectors[iR]
+			* exp(phase) / double(positionDegeneracies[iR]);
 	return starFunctionDerivative;
 }
 
@@ -74,34 +64,61 @@ void ElectronH0Fourier::setPositionVectors() {
 	Eigen::Vector3d a3 = directUnitCell.row(2);
 
 	std::vector<Eigen::Vector3d> tmpVectors;
+	std::vector<bool> isDegenerate;
+	std::vector<long> tmpDegeneracies;
 	// the first vector is the vector zero
-	Eigen::Vector3d thisVec;
-	thisVec.setZero();
-	positionVectors.push_back(thisVec);
+	tmpVectors.push_back(Eigen::Vector3d::Zero());
 
 	long N0 = long(cutoff / a1.norm() * 2.);
 	long N1 = long(cutoff / a2.norm() * 2.);
 	long N2 = long(cutoff / a3.norm() * 2.);
 
 	// we also need the smallest non zero vector norm
-	double thisNorm;
 	minDistance = a1.norm();
 
 	// build the list of positions
 	for ( long i0=-N0; i0<=N0; i0++ ) {
 		for ( long i1=-N1; i1<=N1; i1++ ) {
 			for ( long i2=-N2; i2<=N2; i2++ ) {
-				thisVec = (double)i0 * a1 + (double)i1 * a1 + (double)i2 * a2;
+				Eigen::Vector3d thisVec = (double)i0 * a1 + (double)i1 * a1
+						+ (double)i2 * a2;
 				if ( ( i0 != 0 ) && ( i1 != 0 ) && ( i2 != 0 ) ) {
-					positionVectors.push_back(thisVec);
+					tmpVectors.push_back(thisVec);
+					isDegenerate.push_back(false);
+					tmpDegeneracies.push_back(1);
 
-					thisNorm = thisVec.norm();
+					double thisNorm = thisVec.norm();
 					if ( thisNorm < minDistance ) {
 						minDistance = thisNorm;
 					}
 
 				}
 			}
+		}
+	}
+
+	// now we build the list of irreducible vectors
+	for ( long iR=0; iR<tmpVectors.size(); iR++ ) {
+		Eigen::Vector3d vec = tmpVectors[iR];
+		if ( ! isDegenerate[iR] ) { // then we look for reducible points
+			for ( long iR2=iR+1; iR2<tmpVectors.size(); iR2++ ) {
+				if ( ! isDegenerate[iR2] ) {
+					for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
+						Eigen::Vector3d rotVec = symmMatrix * tmpVectors[iR2];
+						if ( (rotVec-vec).norm() < 1.0e-6 ) {
+							isDegenerate[iR2] = true;
+							tmpDegeneracies[iR] += 1;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for ( long iR=0; iR<tmpVectors.size(); iR++ ) {
+		if ( ! isDegenerate[iR] ) { // then we look for reducible points
+			positionVectors.push_back(tmpVectors[iR]);
+			positionDegeneracies.push_back(tmpDegeneracies[iR]);
 		}
 	}
 	numPositionVectors = positionVectors.size();
@@ -119,18 +136,17 @@ Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
 	}
 
 	Eigen::Vector3d iWavevector, jWavevector;
-	std::complex<double> smki, smkj, smk0;
-	double rho;
 
-	for ( auto position : positionVectors ) {
-		rho = getRoughnessFunction(position);
-		smk0 = getStarFunction(refWavevector, position);
+	for ( long iR=0; iR<numPositionVectors; iR++ ) {
+		Eigen::Vector3d position = positionVectors[iR];
+		double rho = getRoughnessFunction(position);
+		std::complex<double> smk0 = getStarFunction(refWavevector, iR);
 		for ( long i=0; i<numDataPoints-1; i++ ) {
 			iWavevector = coarseBandStructure.getPoint(i+1).getCoords("cartesian");
-			smki = getStarFunction(iWavevector, position);
+			std::complex<double> smki = getStarFunction(iWavevector, iR);
 			for ( long j=0; j<numDataPoints-1; j++ ) {
 				jWavevector = coarseBandStructure.getPoint(j+1).getCoords("cartesian");
-				smkj = getStarFunction(jWavevector, position);
+				std::complex<double> smkj = getStarFunction(jWavevector, iR);
 				h(i,j) += (smki-smk0) * std::conj(smkj-smk0) / rho;
 			}
 		}
@@ -145,16 +161,15 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	Eigen::VectorXcd multipliers = getLagrangeMultipliers(energies);
 
 	Eigen::VectorXcd coefficients(numPositionVectors);
-	Eigen::Vector3d position, wavevector;
-	std::complex<double> smk0;
+	Eigen::Vector3d wavevector;
 
 	for ( long m=1; m<numPositionVectors; m++ ) {
-		position = positionVectors[m];
-		smk0 = getStarFunction(refWavevector,position);
+		Eigen::Vector3d position = positionVectors[m];
+		std::complex<double> smk0 = getStarFunction(refWavevector,m);
 		for ( long i=1; i<numDataPoints; i++ ) {
 			wavevector = coarseBandStructure.getPoint(i).getCoords("cartesian");
 			coefficients(m) += multipliers(i)
-					* std::conj(getStarFunction(wavevector,position) - smk0);
+					* std::conj(getStarFunction(wavevector,m) - smk0);
 		}
 		coefficients(m) /= getRoughnessFunction(position);
 	}
@@ -163,7 +178,7 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	coefficients(0) = energies(0);
 	for ( long m=1; m<numPositionVectors; m++ ) {
 		coefficients(0) -= coefficients(m)
-				* getStarFunction(refWavevector, position);
+				* getStarFunction(refWavevector, m);
 	}
 
 	return coefficients;
@@ -171,11 +186,10 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 
 double ElectronH0Fourier::getEnergy(Point& point, long& bandIndex) {
 	double energy = 0.;
-	std::complex<double> c;
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
 	for ( long m=0; m<numPositionVectors; m++ ) {
-		c = expansionCoefficients(bandIndex, m)
-				* getStarFunction(wavevector, positionVectors[m]);
+		std::complex<double> c = expansionCoefficients(bandIndex, m)
+				* getStarFunction(wavevector, m);
 		energy += c.real();
 	}
 	return energy;
@@ -184,10 +198,9 @@ double ElectronH0Fourier::getEnergy(Point& point, long& bandIndex) {
 double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
 		long & bandIndex) {
 	double energy = 0.;
-	std::complex<double> c;
 	for ( long m=0; m<numPositionVectors; m++ ) {
-		c = expansionCoefficients(bandIndex, m)
-				* getStarFunction(wavevector, positionVectors[m]);
+		std::complex<double> c = expansionCoefficients(bandIndex, m)
+				* getStarFunction(wavevector, m);
 		energy += c.real();
 	}
 	return energy;
@@ -244,10 +257,9 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point& point,
 		long& bandIndex) {
 	Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
-	Eigen::Vector3cd c;
 	for ( long m=0; m<numPositionVectors; m++ ) {
-		c = expansionCoefficients(bandIndex, m)
-				* getDerivativeStarFunction(wavevector, positionVectors[m]);
+		Eigen::Vector3cd c = expansionCoefficients(bandIndex, m)
+				* getDerivativeStarFunction(wavevector, m);
 		velocity += c.real();
 	}
 	return velocity;
@@ -255,7 +267,6 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point& point,
 
 Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point& point) {
 	Eigen::MatrixXd velocities(numBands,3);
-//	velocities.setZero();
 	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {
 		velocities.row(bandIndex) = getGroupVelocity(point, bandIndex);
 	}

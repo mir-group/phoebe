@@ -23,20 +23,6 @@ TransportApp::TransportApp(int argc, char** argv) {
 
 	// Read the necessary input files
 
-//	Eigen::VectorXd q(3);
-//	q << 0.,0.,0.1;
-//	auto [energies, eigenvectors] = phononH0.diagonalize(q);
-//	std::cout << energies.transpose() * ryToCmm1 << std::endl;
-
-//	Eigen::Vector3i mesh;
-//	mesh << 4, 4, 4;
-//	Points ps(crystal, mesh);
-
-//
-//	//	TODO: 'elph' shoudn't be a string, we should use a dictionary
-//	//	and store which are the allowed values of calculations.
-//
-
 	QEParser qeParser;
 
 	if ( context.getCalculation() == "electron-phonon" ) {
@@ -61,5 +47,21 @@ TransportApp::TransportApp(int argc, char** argv) {
 	// then we apply a filter to retain only useful energies
 	Window phononWindow(context, phStatistics);
 	ActiveBandStructure phBandStructure(phStatistics);
-	phBandStructure.buildAsPostprocessing(phononWindow, fullPhBandStructure);
+	ActivePoints phQPoints = phBandStructure.buildAsPostprocessing(phononWindow,
+			fullPhBandStructure);
+	// note: phQPoints should not go out of scope
+	// instead window, phStatistics, FullPhBandStructure and FullPoints
+	// can all be left go out of scope
+
+	/** out of this TransportApp(), we have to store somewhere:
+	 * phQPoints, phBandStructure
+	 * CrystalEl, CrystalPh: need both to be referenced
+	 * context
+	 * phononH0, ElectronH0 are not strictly needed anymore
+	 * (note: we need phononH0 and ElectronH0,
+	 * for example, for the U matrices or Z charges in the polar correction)
+	 *
+	 */
+
+
 };

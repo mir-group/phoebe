@@ -77,14 +77,15 @@ protected:
 	long numDataPoints;
 	long numPositionVectors;
 	double minDistance;
+	std::vector<long> positionDegeneracies;
 	std::vector<Eigen::Vector3d> positionVectors;
 	void setPositionVectors();
 	Eigen::VectorXcd getLagrangeMultipliers(Eigen::VectorXd energies);
 	Eigen::VectorXcd getCoefficients(Eigen::VectorXd energies);
 	std::complex<double> getStarFunction(Eigen::Vector3d & wavevector,
-			Eigen::Vector3d & position);
+			long & iR);
 	Eigen::Vector3cd getDerivativeStarFunction(Eigen::Vector3d & wavevector,
-			Eigen::Vector3d & position);
+			long & iR);
 	double getRoughnessFunction(Eigen::Vector3d position);
 	const double coeff1 = 0.75; // 3/4
 	const double coeff2 = 0.75;
