@@ -91,7 +91,6 @@ void ElectronH0Fourier::setPositionVectors() {
 					if ( thisNorm < minDistance ) {
 						minDistance = thisNorm;
 					}
-
 				}
 			}
 		}
