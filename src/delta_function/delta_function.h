@@ -1,24 +1,22 @@
 #include <iostream>
 #include <fstream>
-#include <unsupported/Eigen/CXX11/Tensor>
-#include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
 
-using namespace std;
+#include "eigen.h"
 
 /**
  * Data structure to hold all data related to the tetrahedron method.
  */
 struct TetraData{
   /** Number of tetrahedra. */
-  int numTetra;
+  long numTetra;
   /** Holder for the indices of the vertices of of each tetrahedron. */
   Eigen::MatrixXi tetrahedra;
   /** Count of how many tetrahedra wave vector belongs to. */
   Eigen::VectorXi qToTetCount;
   /** Mapping of a wave vector to a tetrahedron. */
-  Eigen::Tensor<int,3> qToTet;
+  Eigen::Tensor<long,3> qToTet;
   /** Holder for the eigenvalues. */
   Eigen::Tensor<double,3> tetraEigVals;
 };
@@ -34,7 +32,7 @@ struct TetraData{
  * @param[out] tetra All the data related to the analytic tetrahedron method.
  *  
  */
-void formTets(const int grid[3], TetraData &tetra);
+void formTets(const Eigen::Vector3i & grid, TetraData & tetra);
 
 /**
  * Fill all tetrahedra with the eigenvalues.
@@ -47,13 +45,15 @@ void formTets(const int grid[3], TetraData &tetra);
  * @param[out] tetra All the data related to the analytic tetrahedron method.
  *
  */
-void fillTetsEigs(const int numBands, const Eigen::MatrixXd &energy, TetraData &tetra);
+void fillTetsEigs(const long & numBands, const Eigen::MatrixXd & energy,
+		TetraData & tetra);
 
 /**
  * Calculate tetrehedron weight.
  *
- * Method for calculating the tetrahedron weight (normalized by the number of tetrahedra)
- * for given wave vector and polarization following Lambin and Vigneron prb 29.6 (1984): 3430.
+ * Method for calculating the tetrahedron weight (normalized by the number of
+ * tetrahedra) for given wave vector and polarization following Lambin and
+ * Vigneron prb 29.6 (1984): 3430.
  *
  * @param[in] energy Energy of mode.
  * @param[in] ib Band index.
@@ -62,4 +62,5 @@ void fillTetsEigs(const int numBands, const Eigen::MatrixXd &energy, TetraData &
  * @returns The tetrahedron weight.
  *
  */
-double fillTetsWeights(const double energy, const int ib, const int iq, const TetraData &tetra);
+double fillTetsWeights(const double & energy, const long & ib, const long & iq,
+		const TetraData & tetra);
