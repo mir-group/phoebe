@@ -44,8 +44,17 @@ const int& Crystal::getNumAtoms() {
 	return numAtoms;
 }
 
-const double& Crystal::getVolumeUnitCell() {
-	return volumeUnitCell;
+double Crystal::getVolumeUnitCell(long dimensionality) {
+	double volume;
+	if ( dimensionality == 3 ) {
+		volume = volumeUnitCell;
+	} else if ( dimensionality == 2 ) {
+		volume = abs( directUnitCell(0,0)*directUnitCell(1,1)
+				- directUnitCell(0,1)*directUnitCell(1,0) );
+	} else {
+		volume = directUnitCell(2,2);
+	}
+	return volume;
 }
 
 const Eigen::MatrixXd& Crystal::getAtomicPositions() {
@@ -85,9 +94,11 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		Eigen::MatrixXd& atomicPositions_,
 		Eigen::VectorXi& atomicSpecies_,
 		std::vector<std::string>& speciesNames_,
-		Eigen::VectorXd& speciesMasses_) {
+		Eigen::VectorXd& speciesMasses_, long & dimensionality_) {
 	setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
 	volumeUnitCell = calcVolume(directUnitCell);
+
+	dimensionality = dimensionality_;
 
 	if ( atomicSpecies_.size() != atomicPositions_.rows() ) {
 		Error e("atomic species and positions are not aligned", 1);

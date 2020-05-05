@@ -9,6 +9,7 @@
 #include "crystal.h"
 #include "harmonic.h"
 #include "points.h"
+#include "statistics.h"
 
 class PhononH0 : public HarmonicHamiltonian {
 public:
@@ -50,8 +51,11 @@ public:
 	 */
 	void setAcousticSumRule(const std::string sumRule);
 
-	long getNumBands();
+//	long getNumBands();
+	Statistics getStatistics();
 protected:
+	Statistics statistics;
+
 	Eigen::Vector3i getCoarseGrid();
 	// internal variables
 	bool na_ifc;

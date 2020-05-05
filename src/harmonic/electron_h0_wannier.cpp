@@ -5,7 +5,8 @@
 ElectronH0Wannier::ElectronH0Wannier(Eigen::Matrix3d & directUnitCell_,
 		Eigen::MatrixXd & crystalVectors_,
 		Eigen::VectorXd & vectorsDegeneracies_,
-		Eigen::Tensor<std::complex<double>,3> & h0R_) {
+		Eigen::Tensor<std::complex<double>,3> & h0R_) :
+		statistics(Statistics::electron) {
 
 	crystalVectors = crystalVectors_;
 	vectorsDegeneracies = vectorsDegeneracies_;
@@ -27,6 +28,10 @@ ElectronH0Wannier::ElectronH0Wannier(Eigen::Matrix3d & directUnitCell_,
 
 	numBands = h0R.dimension(1);
 	numVectors = vectorsDegeneracies.size();
+}
+
+Statistics ElectronH0Wannier::getStatistics() {
+	return statistics;
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>

@@ -151,8 +151,8 @@ std::vector<double> parseDoubleList(std::vector<std::string> lines,
 	return x;
 };
 
-int parseInt(std::vector<std::string> lines, std::string pattern) {
-	int x = 0;
+long parseLong(std::vector<std::string> lines, std::string pattern) {
+	long x = 0;
 	bool found = false;
 
 	for ( std::string line : lines) {
@@ -171,10 +171,10 @@ int parseInt(std::vector<std::string> lines, std::string pattern) {
 	return x;
 };
 
-std::vector<int> parseIntList(std::vector<std::string> lines,
+std::vector<long> parseLongList(std::vector<std::string> lines,
 		std::string pattern) {
-	std::vector<int> x;
-	int xTemp;
+	std::vector<long> x;
+	long xTemp;
 	bool found = false;
 	std::string token, s;
 
@@ -191,10 +191,10 @@ std::vector<int> parseIntList(std::vector<std::string> lines,
 			pos2 = line.find_last_of(delimeter);
 
 			if ( pos1 == std::string::npos ) {
-				throw "Error in parseIntList";
+				throw "Error in parseLongList";
 			}
 			if ( pos2 == std::string::npos ) {
-				throw "Error in parseIntList";
+				throw "Error in parseLongList";
 			}
 
 			s = line.substr(pos1+1,pos2-pos1-1);
@@ -264,6 +264,57 @@ std::string parseString(std::vector<std::string> lines, std::string pattern) {
 	return x;
 };
 
+std::vector<std::string> parseStringList(std::vector<std::string> lines,
+		std::string pattern) {
+	std::vector<string> x;
+	std::string xTemp;
+	bool found = false;
+	std::string token, s;
+
+	for ( std::string line : lines) {
+		if ( lineHasPattern(line, pattern) ) {
+
+			std::string delimeter;
+			size_t pos1;
+			size_t pos2;
+
+			delimeter = "[";
+			pos1 = line.find_first_of(delimeter);
+			delimeter = "]";
+			pos2 = line.find_last_of(delimeter);
+
+			if ( pos1 == std::string::npos ) {
+				throw "Error in parseDoubleList";
+			}
+			if ( pos2 == std::string::npos ) {
+				throw "Error in parseDoubleList";
+			}
+
+			s = line.substr(pos1+1,pos2-pos1-1);
+			delimeter = ",";
+
+			while ((pos1 = s.find(delimeter)) != std::string::npos) {
+			    token = s.substr(0, pos1);
+
+				xTemp = token; // convert to integer
+				x.push_back(xTemp);
+
+			    s.erase(0, pos1 + delimeter.length());
+			}
+//			Must not forget the last element in the list
+			xTemp = s;
+			x.push_back(xTemp);
+
+			found = true;
+			break;
+		}
+	}
+	if ( not found ) {
+		throw ParameterNotFound();
+	}
+	return x;
+};
+
 void Context::setupFromInput(std::string fileName) {
 	std::vector<std::string> lines;
 	std::string line;
@@ -295,7 +346,7 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::vector<int> vecMesh = parseIntList(lines, "qMesh");
+		std::vector<long> vecMesh = parseLongList(lines, "qMesh");
 		Eigen::Vector3i qMesh_;
 		qMesh_(0) = vecMesh[0];
 		qMesh_(1) = vecMesh[1];
@@ -304,7 +355,7 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::vector<int> vecMesh = parseIntList(lines, "kMesh");
+		std::vector<long> vecMesh = parseLongList(lines, "kMesh");
 		Eigen::Vector3i kMesh_;
 		kMesh_(0) = vecMesh[0];
 		kMesh_(1) = vecMesh[1];
@@ -348,6 +399,31 @@ void Context::setupFromInput(std::string fileName) {
 		setTemperatures(x_);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
+	try {
+		std::string x = parseString(lines, "app");
+		setAppName(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<std::string> x = parseStringList(lines, "solverBTE");
+		setSolverBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDouble(lines, "convergenceThresholdBTE");
+		setConvergenceThresholdBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		long x = parseLong(lines, "maxIterationsBTE");
+		setMaxIterationsBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		long x = parseLong(lines, "dimensionality");
+		setDimensionality(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -388,12 +464,12 @@ double& Context::getElectronFourierCutoff() {
 	return electronFourierCutoff;
 }
 
-void Context::setCalculation(const std::string & x) {
-	calculation = x;
+void Context::setAppName(const std::string & x) {
+	appName = x;
 }
 
-std::string Context::getCalculation() {
-	return calculation;
+std::string Context::getAppName() {
+	return appName;
 }
 
 void Context::setQMesh(const Eigen::Vector3i & x) {
@@ -468,4 +544,40 @@ void Context::setHomo(double x) {
 double Context::getHomo() {
 	return homo;
 }
+
+void Context::setSolverBTE(std::vector<std::string> x) {
+	solverBTE = x;
+}
+
+std::vector<std::string> Context::getSolverBTE() {
+	return solverBTE;
+}
+
+void Context::setConvergenceThresholdBTE(double x) {
+	convergenceThresholdBTE = x;
+}
+
+double Context::getConvergenceThresholdBTE() {
+	return convergenceThresholdBTE;
+}
+
+void Context::setMaxIterationsBTE(long x) {
+	maxIterationsBTE = x;
+}
+
+long Context::getMaxIterationsBTE() {
+	return maxIterationsBTE;
+}
+
+void Context::setDimensionality(long x) {
+	dimensionality = x;
+}
+
+long Context::getDimensionality() {
+	return dimensionality;
+}
+
+
+
+
 

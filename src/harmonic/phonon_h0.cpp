@@ -123,9 +123,13 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 	}
 	return velocity;
 }
+//
+//long PhononH0::getNumBands() {
+//	return numBands;
+//}
 
-long PhononH0::getNumBands() {
-	return numBands;
+Statistics PhononH0::getStatistics() {
+	return statistics;
 }
 
 // Development note:
@@ -667,7 +671,8 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::dyndiag(
 PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
-		const Eigen::Tensor<double, 7>& forceConstants_) {
+		const Eigen::Tensor<double, 7>& forceConstants_)
+		: statistics(Statistics::phonon) {
 
 	// in this section, we save as class properties a few variables
 	// that are needed for the diagonalization of phonon frequencies

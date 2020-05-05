@@ -367,10 +367,11 @@ std::vector<std::string> split(const std::string& s, char delimiter) {
 	return tokens;
 }
 
-std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileName) {
+std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 	//  Here we read the dynamical matrix of interatomic force constants
 	//	in real space.
 
+	std::string fileName = context.getPhD2FileName();
 	if ( fileName == "" ) {
 		Error e("Must provide a D2 file name",1);
 	}
@@ -519,8 +520,9 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(const std::string fileNa
 
 	// Now we do postprocessing
 
+	long dimensionality = context.getDimensionality();
 	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
-			speciesNames, speciesMasses);
+			speciesNames, speciesMasses, dimensionality);
 
 	if ( qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0 ) {
 		Error e("qCoarseGrid smaller than zero", 1);
@@ -673,15 +675,16 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		Error e("spin is not yet supported" ,1);
 	}
 
+	long dimensionality = context.getDimensionality();
 	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
-			speciesNames, speciesMasses);
+			speciesNames, speciesMasses, dimensionality);
 
 	auto [mesh, offset] = Points::findMesh(irredPoints);
 	FullPoints coarsePoints(crystal, mesh, offset);
 
 	bool withVelocities = false;
 	bool withEigenvectors = false;
-	Statistics statistics(Statistics::fermi);
+	Statistics statistics(Statistics::electron);
 	FullBandStructure coarseBandStructure(numBands, statistics,
 			withVelocities, withEigenvectors, &coarsePoints);
 	// fill in the info on band structure

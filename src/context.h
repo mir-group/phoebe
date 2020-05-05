@@ -11,34 +11,34 @@ class Context {
 private:
 	std::string phD2FileName = "";
 	std::string phD3FileName = "";
-	std::string scratchFolder = "./out";
+//	std::string scratchFolder = "./out";
 	std::string electronH0Name = "";
-	std::string elPhFileName = "";
-	std::string calculation = "";
+//	std::string elPhFileName = "";
+	std::string appName = "";
 	std::string sumRuleD2 = "";
 	std::string smearingType = "";
 	double smearingWidth = 0.;
 	Eigen::VectorXd temperatures;
 //	std::vector<double> isotopeCoupling = {0.};
-	std::vector<std::string> solverBTE = {"SMA"};
+	std::vector<std::string> solverBTE = {"RTA"};
 //	std::vector<double> surfaceScatteringSize = {0.};
-	std::string surfaceScatteringDirection = "";
-	std::string transportRegime = "";
-	double variationalConvergenceThreshold = 1e-5;
-	double variationalMaxSteps = 1e-5;
-	Eigen::VectorXd atomicMasses;
+//	std::string surfaceScatteringDirection = "";
+//	std::string transportRegime = "";
+	double convergenceThresholdBTE = 1e-5;
+	long maxIterationsBTE = 50;
+//	Eigen::VectorXd atomicMasses;
 
 	std::string windowType = "nothing";
 	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
 	double windowPopulationLimit;
 
-	std::string elPhInterpolationType = "";
+//	std::string elPhInterpolationType = "";
 	Eigen::VectorXd dopings;
 	Eigen::VectorXd chemicalPotentials;
-	double relaxationTime = 0.;
-	bool usePolarCorrection = true;
-	bool useWignerCorrection = true;
-	double bandGap = 0.;
+//	double relaxationTime = 0.;
+//	bool usePolarCorrection = true;
+//	bool useWignerCorrection = true;
+//	double bandGap = 0.;
 	double electronFourierCutoff = 0.;
 
 	Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
@@ -46,6 +46,7 @@ private:
 
 	double homo;
 	long numValenceElectrons;
+	long dimensionality = 3;
 
 //  Setter and getter for all the variables above
 public:
@@ -96,12 +97,12 @@ public:
 	 * @param x: the name of the calculation, e.g. "electron-phonon",
 	 * "phonon-phonon", or "coupled-electron-phonon".
 	 */
-	void setCalculation(const std::string & x);
+	void setAppName(const std::string & x);
 	/** gets the type of calculation to be run.
 	 * @return x: the name of the calculation, e.g. "electron-phonon" or
 	 * "phonon-phonon".
 	 */
-	std::string getCalculation();
+	std::string getAppName();
 
 	/** sets the sum rule to be imposed on the lattice force constants.
 	 * @param x: the name of the sum rule, i.e. "simple" or "crystal".
@@ -197,69 +198,18 @@ public:
 	void setHomo(double homo);
 	double getHomo();
 
+	void setSolverBTE(std::vector<std::string> solverBTE);
+	std::vector<std::string> getSolverBTE();
 
-//	void setSmearingType(std::string x);
-//	std::string getSmearingType();
-//
-//	void setSmearingWidth(double x);
-//	double getSmearingWidth();
-//
-//	void setTemperatures(double* x);
-//	std::vector<double> getTemperatures();
-//
-//	void setIsotopeCoupling(double* x);
-//	std::vector<double> getIsotopeCoupling();
-//
-//	void setSolverBTE(std::string* x);
-//	std::vector<std::string> getSolverBTE();
-//
-//	void setSecondSoundWavevector(std::string* x);
-//	std::vector<double> getSecondSoundWavevector();
-//
-//	void setSurfaceScatteringSize(double* x);
-//	std::vector<double> getSurfaceScatteringSize();
-//
-//	void setSurfaceScatteringDirection(std::string x);
-//	std::string getSurfaceScatteringDirection ();
-//
-//	void setTransportRegime(std::string x);
-//	std::string getTransportRegime();
-//
-//	void setVariationalConvergenceThreshold(double x);
-//	double getVariationalConvergenceThreshold();
-//
-//	void setVariationalMaxSteps(int x);
-//	int getVariationalMaxSteps();
-//
-//	void setAtomicMasses(double* x);
-//	std::vector<double> getAtomicMasses();
-//
-//	void setWindowType(std::string x);
-//	std::string getWindowType();
-//
-//	void setWindowLimits(double* x);
-//	std::vector<double> getWindowLimits();
-//
-//	void setElPhInterpolationType(std::string x);
-//	std::string getElPhInterpolationType();
-//
-//	void setDopings(double* x);
-//	std::vector<double> getDopings();
-//
-//	void setChemicalPotentials(double* x);
-//	std::vector<double> getChemicalPotentials();
-//
-//	void setRelaxationTime(bool x);
-//	bool getRelaxationTime();
-//
-//	void setUsePolarCorrection(bool x);
-//	bool getUsePolarCorrection();
-//
-//	void setUseWignerCorrection(bool x);
-//	bool getUseWignerCorrection();
-//
-//	void setBandGap(double x);
-//	double getBanGap();
+	void setConvergenceThresholdBTE(double convergenceThresholdBTE);
+	double getConvergenceThresholdBTE();
+
+	void setMaxIterationsBTE(long maxIterationsBTE);
+	long getMaxIterationsBTE();
+
+	void setDimensionality(long dimensionality);
+	long getDimensionality();
+
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

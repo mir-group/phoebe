@@ -1,11 +1,13 @@
 #include "statistics.h"
 #include "exceptions.h"
 
-Statistics::Statistics(int statistics_) {
-	if ( statistics_ == fermi ) {
-		statistics = fermi;
-	} else if ( statistics_ == bose ) {
+Statistics::Statistics(int particle_) {
+	if ( particle_ == phonon ) {
 		statistics = bose;
+		particle = phonon;
+	} else if ( particle_ == electron ) {
+		statistics = fermi;
+		particle = electron;
 	} else {
 		Error e("Wrong initialization of Statistics", 1);
 	}
@@ -14,12 +16,20 @@ Statistics::Statistics(int statistics_) {
 // copy constructor
 Statistics::Statistics(const Statistics &obj) {
 	statistics = obj.statistics;
+	particle = obj.particle;
+	temperatures = obj.temperatures;
+	chemicalPotentials = obj.chemicalPotentials;
+	dopings = obj.dopings;
 }
 
 // copy assignment operator
 Statistics & Statistics::operator=(const Statistics & obj) {
 	if ( this != &obj ) {
 		statistics = obj.statistics;
+		particle = obj.particle;
+		temperatures = obj.temperatures;
+		chemicalPotentials = obj.chemicalPotentials;
+		dopings = obj.dopings;
 	}
 	return *this;
 }
@@ -40,6 +50,21 @@ bool Statistics::isBose() {
 	}
 }
 
+bool Statistics::isElectron() {
+	if ( particle == electron ) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+bool Statistics::isPhonon() {
+	if ( particle == phonon ) {
+		return true;
+	} else {
+		return false;
+	}
+}
 
 double Statistics::getPopulation(double energy, double temperature,
 		double chemicalPotential) {
@@ -92,8 +117,8 @@ double Statistics::getDnde(double energy, double temperature,
 	return dnde;
 }
 
-Eigen::MatrixXd Statistics::getDndt(Eigen::VectorXd energies,
-		Eigen::VectorXd temperatures, double chemicalPotential) {
+Eigen::VectorXd Statistics::getDndt(Eigen::VectorXd energies,
+		double temperature, double chemicalPotential) {
 	double x;
 	int numTemp = temperatures.size();
 	int numEn = temperatures.size();
@@ -107,8 +132,8 @@ Eigen::MatrixXd Statistics::getDndt(Eigen::VectorXd energies,
 	return dndt;
 }
 
-Eigen::MatrixXd Statistics::getDnde(Eigen::VectorXd energies,
-		Eigen::VectorXd temperatures, double chemicalPotential) {
+Eigen::VectorXd Statistics::getDnde(Eigen::VectorXd energies,
+		double temperature, double chemicalPotential) {
 	double x;
 	int numTemp = temperatures.size();
 	int numEn = temperatures.size();

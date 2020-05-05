@@ -18,7 +18,9 @@ public:
 
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
     const bool hasEigenvectors = false;
+    Statistics getStatistics();
 protected:
+    Statistics statistics;
     virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
     	diagonalizeFromCoords(Eigen::Vector3d & k);
 

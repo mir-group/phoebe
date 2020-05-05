@@ -9,7 +9,7 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		FullPoints coarsePoints_, FullBandStructure coarseBandStructure_,
 		double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
-		coarsePoints(coarsePoints_) {
+		coarsePoints(coarsePoints_), statistics(Statistics::electron) {
 	numBands = coarseBandStructure.getNumBands();
 	cutoff = cutoff_;
 	if ( coarseBandStructure.hasIrreduciblePoints() ) {
@@ -30,6 +30,10 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		expansionCoefficients_.row(iBand) = getCoefficients(energies);
 	}
 	expansionCoefficients = expansionCoefficients_;
+}
+
+Statistics ElectronH0Fourier::getStatistics() {
+	return statistics;
 }
 
 double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
@@ -279,7 +283,6 @@ FullBandStructure ElectronH0Fourier::populateBandStructure(
 		Error e("From populateBandStructure: must provide mesh of points", 1);
 	}
 
-	Statistics statistics(Statistics::fermi);
 	bool withVelocities = false;
 	bool withEigenvectors = false;
 	FullBandStructure denseBandStructure(numBands, statistics,

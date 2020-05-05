@@ -67,6 +67,7 @@ public:
 	long getNumBands();
 	bool hasIrreduciblePoints();
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
+	Statistics getStatistics();
 };
 
 class ActiveBandStructure {
@@ -106,10 +107,14 @@ private:
 	bool hasPoints();
 public:
 	ActiveBandStructure(Statistics & statistics_);
+	Statistics getStatistics();
 	long getNumPoints();
 	Point getPoint(const long & pointIndex);
 	long getNumStates();
 	State getState(Point & point);  // returns all bands at fixed k/q-point
+
+	double getEnergy(long & stateIndex);
+	Eigen::Vector3d getGroupVelocity(long & stateIndex);
 
 	std::tuple<long,long> comb2Bloch(long & is);
 

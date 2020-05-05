@@ -2,6 +2,7 @@
 #define HARMONIC_H
 
 #include "points.h"
+#include "statistics.h"
 
 class HarmonicHamiltonian {
 public:
@@ -12,6 +13,8 @@ public:
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 			Point & point);
 	const bool hasEigenvectors = true;
+	long getNumBands();
+	Statistics getStatistics();
 protected:
 	Eigen::Tensor<std::complex<double>,3>
 			internalDiagonalizeVelocity(

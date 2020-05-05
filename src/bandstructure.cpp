@@ -88,6 +88,14 @@ FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
 	eigenvectorsRows = numBands * numAtoms * 3;
 }
 
+Statistics FullBandStructure::getStatistics() {
+	return statistics;
+}
+
+Statistics ActiveBandStructure::getStatistics() {
+	return statistics;
+}
+
 long FullBandStructure::getNumBands() {
 	return numBands;
 }
@@ -516,4 +524,16 @@ void ActiveBandStructure::buildIndeces() {
 	auxBloch2Comb = auxBloch2Comb_;
 	cumulativeKbOffset = cumulativeKbOffset_;
 	cumulativeKbbOffset = cumulativeKbbOffset_;
+}
+
+double ActiveBandStructure::getEnergy(long & stateIndex) {
+	return energies[stateIndex];
+}
+
+Eigen::Vector3d ActiveBandStructure::getGroupVelocity(long & stateIndex) {
+	Eigen::Vector3d vel;
+	vel(0) = groupVelocities[stateIndex*3];
+	vel(1) = groupVelocities[stateIndex*3+1];
+	vel(2) = groupVelocities[stateIndex*3+2];
+	return vel;
 }

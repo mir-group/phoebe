@@ -1,3 +1,6 @@
+#ifndef H0FOURIER_H
+#define H0FOURIER_H
+
 #include <string>
 #include "points.h"
 #include "bandstructure.h"
@@ -64,7 +67,10 @@ public:
 
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 				Point & point);
+
+	Statistics getStatistics();
 protected:
+	Statistics statistics;
 	FullPoints coarsePoints;
 	FullBandStructure coarseBandStructure;
 
@@ -95,3 +101,4 @@ protected:
 	double getEnergyFromCoords(Eigen::Vector3d & wavevector, long & bandIndex);
 };
 
+#endif

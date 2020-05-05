@@ -26,6 +26,14 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	return {energies, eigvecs};
 }
 
+long HarmonicHamiltonian::getNumBands() {
+	return numBands;
+}
+
+Statistics HarmonicHamiltonian::getStatistics() {
+	Error e("Baseclass getStatistics not implemented", 1);
+}
+
 Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(
 				Point & point) {
   Eigen::Tensor<std::complex<double>,3> c(1,1,1);
@@ -36,8 +44,6 @@ Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(
 Eigen::Tensor<std::complex<double>,3>
 		HarmonicHamiltonian::internalDiagonalizeVelocity(
 				Eigen::Vector3d & coords, double & delta, double & threshold) {
-
-
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
 	velocity.setZero();
 
