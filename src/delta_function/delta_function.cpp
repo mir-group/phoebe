@@ -64,11 +64,11 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 				// Grab a label
 				long aux = verticesLabels(it,iv);
 				// Grab a corner of subcell
-				long ii = subcellCorners(aux, 0);
-				long jj = subcellCorners(aux, 1);
-				long kk = subcellCorners(aux, 2);
+				point(0) = double(subcellCorners(aux, 0)) / grid(0);
+				point(1) = double(subcellCorners(aux, 1)) / grid(1);
+				point(2) = double(subcellCorners(aux, 2)) / grid(2);
 				// Get muxed index of corner
-				aux = ii*grid(1)*grid(2) + jj*grid(2) + kk;
+				aux = fullPoints.getIndex(point);
 				// Save corner as a tetrahedron vertex
 				tetrahedra(iq,iv) = aux;
 				// Save mapping of a wave vector index
