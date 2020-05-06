@@ -101,5 +101,12 @@ class PhInteraction3Ph{
 			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
 			    const Eigen::Tensor<double,3> &cellPositions, \
 			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
+
+  void calculateAllVminus(const int *grid, const PhononMode &mode, \
+			    const Eigen::MatrixXd &qFBZ, \
+			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets, \
+			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
+			    const Eigen::Tensor<double,3> &cellPositions, \
+			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
 };
 

@@ -154,7 +154,7 @@ void PhInteraction3Ph::calculateIrredVminus(const int grid[3], const PhononMode 
   }
   interactingPhonons.ev1 = ev1;
   
-  // Sum over half space of 2nd phonon wave vectors
+  // Loop over half space of 2nd phonon wave vectors
   for(i2z = 0; i2z < nzHalf; i2z++){	
     for(i2y = 0; i2y < nyHalf; i2y++){
       for(i2x = 0; i2x < nxHalf; i2x++){
@@ -210,25 +210,157 @@ void PhInteraction3Ph::calculateIrredVminus(const int grid[3], const PhononMode 
   }
 }
 
-//Transition probabilities for a given irreducible phonon mode
-void PhInteraction3Ph::calculateIrredW(const int grid[3], const PhononMode &mode, \
-				       const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ,\
-				       const CrystalInfo &crysInfo, const Eigen::MatrixXd omega){
+// Function to calculate the full set of V_minus processes for a given IBZ mode
+void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode &mode, \
+					    const Eigen::MatrixXd &qFBZ, \
+					    const Eigen::Tensor<complex<double>,3> &ev,const int numTriplets, \
+					    const Eigen::Tensor<double,4> &ifc3Tensor, \
+					    const Eigen::Tensor<double,3> &cellPositions, \
+					    const Eigen::Tensor<int,2> &displacedAtoms, const CrystalInfo &crysInfo){
 
+  int ix,iy,iz,iq1,iq2,iq3,ib,jb,s1,s2,s3;
+  int i1x,i1y,i1z,i2x,i2y,i2z,i3x,i3y,i3z;
+  Eigen::Vector3d q1,q2,q3;
+  Eigen::Tensor<complex <double>,3> ev1(3,crysInfo.numAtoms,crysInfo.numBranches); 
+  Eigen::Tensor<complex <double>,3> ev2(3,crysInfo.numAtoms,crysInfo.numBranches);
+  Eigen::Tensor<complex <double>,3> ev3(3,crysInfo.numAtoms,crysInfo.numBranches);
+  
+  // Edge lengths of BZ
+  int nx = grid[0];
+  int ny = grid[1];
+  int nz = grid[2];
+  int gridSize = nx*ny*nz;
+
+  PhononTriplet interactingPhonons;
+  PhInteraction3Ph phInt;
+
+  int numAtoms = crysInfo.numAtoms;
+  int numBranches = crysInfo.numBranches;
+  double Vm2;
+
+  String fileName = "Vm2.iq"+String(iq1)+".s"+String(s1);
+  ofstream outFile;
+  outFile.open(fileName, ios::out | ios::app | ios::binary); 
+
+  // Grab irred phonon mode info:
+  iq1 = mode.iq; //index of wave vector in the full BZ
+  s1 = mode.s; //branch
+  
+  q1 = qFBZ.row(iq1);
+
+  //Demux 1st phonon wave vector
+  //!!WARNING: For testing purposes using ShengBTE ordering!!!
+  i1x = iq1%nx;
+  i1y = (iq1/nx)%ny;
+  i1z = iq1/nx/ny;
+  
+  interactingPhonons.s1 = s1;
+  interactingPhonons.iq1 = iq1; 
+  for(int idim = 0; idim < 3; idim++){
+    for(int iat = 0; iat < numAtoms; iat++){
+      for(int ib = 0; ib < numBranches; ib++){
+	ev1(idim,iat,ib) = ev(iq1,idim+3*iat,ib);
+      }
+    }
+  }
+  interactingPhonons.ev1 = ev1;
+  
+  // Loop over all 2nd phonon wave vectors
+  for(i2z = 0; i2z < nz; i2z++){	
+    for(i2y = 0; i2y < ny; i2y++){
+      for(i2x = 0; i2x < nx; i2x++){
+	//Muxed index of 2nd phonon wave vector
+	//!!WARNING: For testing purposes using ShengBTE ordering!!!
+	iq2 = (iz*ny + iy)*nx + ix;
+	
+	interactingPhonons.iq2 = iq2;
+	for(int idim = 0; idim < 3; idim++){
+	  for(int iat = 0; iat < numAtoms; iat++){
+	    for(int ib = 0; ib < numBranches; ib++){
+	      ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
+	    }
+	  }
+	}
+	interactingPhonons.ev2 = ev2;
+
+	// Third phonon wave vector (Umklapped, if needed)
+	i3x = (i1x - i2x + nx)%nx;
+	i3y = (i1y - i2y + ny)%ny;
+	i3z = (i1z - i2z + nz)%nz;
+	//!!WARNING: For testing purposes using ShengBTE ordering!!!
+	iq3 = (i3z*ny + i3y)*nx + i3x;
+	
+	interactingPhonons.iq3 = iq3;
+	for(int idim = 0; idim < 3; idim++){
+	  for(int iat = 0; iat < numAtoms; iat++){
+	    for(int ib = 0; ib < numBranches; ib++){
+	      ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
+	    }
+	  }
+	}
+	interactingPhonons.ev3 = ev3;
+	
+	// Sum over 2nd phonon branches
+	for(ib = 0; ib < numBranches; ib++){
+	  interactingPhonons.s2 = ib;
+	  // Sum over 3rd phonon branches
+	  for(jb = 0; jb < numBranches; jb++){
+	    interactingPhonons.s3 = jb;
+	    
+	    // Call calculateSingleV
+	    Vm2 = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor, \
+					 cellPositions, displacedAtoms, crysInfo, '-');
+
+	    // Write to disk
+	    outFile << Vm2;
+	  }
+	}
+      }    
+    }
+  }
+  outFile.close();
+}
+
+//Transition probabilities for a given irreducible phonon mode
+void PhInteraction3Ph::calculateAllW(const int grid[3], const PhononMode &mode, \
+				     const Eigen::MatrixXi &indexMesh, const Eigen::MatrixXd &qFBZ, \
+				     const CrystalInfo &crysInfo, const Eigen::MatrixXd omega, \
+				     const TetraData tetra){
   int iq1,iq2,s1,s2;
 
   int numBranches = crysInfo.numBranches;
   int nq = grid[0]*grid[1]*grid[2];
 
-  //TODO double a = pi*hbar/4.0
+  //TODO const double a = pi*hbar/4.0
   
-  //TODO Read irreducible set of V-(s2,q2;s3,q3) for given mode from file
-
   // Grab irred phonon mode info:
   iq1 = mode.iq; //index of wave vector in the full BZ
   s1 = mode.s; //branch
   omega1 = omega(iq1,s1); //irred mode energy
   q1 = indexMesh.row(iq1);
+
+  //Read full set of V-(q2,s2;q3,s3) for given mode from file
+  Eigen::Tensor<double,4> Vm2(nq,numBranches,nq,numBranches);
+  String fileName = "Vm2.iq"+String(iq1)+".s"+String(s1);
+  ifstream inFile;
+  inFile.open(fileName, ios::in | ios::binary);
+  for(iq2 = 0; iq2 < nq; iq2++){
+    for(iq3 = 0; iq3 < nq; iq3++){
+      for(s2 = 0; s2 < numBranches; s2++){
+	for(s3 = 0; s3 < numBranches; s3++){
+	  Vm2(iq2,s2,iq3,s3) << inFile;
+	}
+      }
+    }
+  }
+  inFile.close();
+
+  //Open W+, W-, and process counter files
+  String WPlusFileName = "Wp2.iq"+String(iq1)+".s"+String(s1);
+  String WMinusFileName = "Wm2.iq"+String(iq1)+".s"+String(s1);
+  ofstream WPlusFile, WMinusFile;
+  WPlusFile.open(WPlusFileName, ios::out | ios::app | ios::binary);
+  WMinusFile.open(WMinusFileName, ios::out | ios::app | ios::binary);
   
   if(omega1 > 0){ //skip zero energy phonon
     //TODO get Bose distribution for first phonon mode, n01
@@ -241,13 +373,13 @@ void PhInteraction3Ph::calculateIrredW(const int grid[3], const PhononMode &mode
       //modulo reciprocal lattice vector
       for(int iDim = 0; iDim < 3; iDim++){
 	//plus process
-	q3plus(iDim) = (q1(iDim)+q2(iDim))%grid[iDim];
+	q3Plus(iDim) = (q1(iDim)+q2(iDim))%grid[iDim];
 	//minus process
-	q3minus(iDim) = (q1(iDim)-q2(iDim))%grid[iDim];
+	q3Minus(iDim) = (q1(iDim)-q2(iDim))%grid[iDim];
       }
       //!!WARNING: For testing purposes using ShengBTE ordering!!!
-      iq3plus = (q3plus[2]*grid[1] + q3plus[1])*grid[0] + q3plus[0];
-      iq3minus = (q3minus[2]*grid[1] + q3minus[1])*grid[0] + q3minus[0];
+      iq3Plus = (q3Plus[2]*grid[1] + q3Plus[1])*grid[0] + q3Plus[0];
+      iq3Minus = (q3Minus[2]*grid[1] + q3Minus[1])*grid[0] + q3Minus[0];
       
       //Sum over second phonon branches
       for(s2 = 0; s2 < numBranches; s2++){
@@ -255,39 +387,70 @@ void PhInteraction3Ph::calculateIrredW(const int grid[3], const PhononMode &mode
 
 	if(omega2 > 0){ //skip zero energy phonon
 	
-	  //TODO get Bose distribution for second phonon mode, n02
-
+	  //Bose distribution for second phonon mode, n02
+	  n02 = bose(omega2);
+	  
 	  //Sum over final phonon branches
 	  for(s3 = 0; s3 < numBranches; s3++){
-	    omega3 = omega(iq3,s3); //second phonon ang. freq.
-
-	    if(omega3 > 0){ //skip zero energy phonon
+	    omega3Plus = omega(iq3Plus,s3); //third phonon(+) ang. freq.
+	    omega3Minus = omega(iq3Minus,s3); //third phonon(-) ang. freq.
 	  
-	      //TODO get Bose distribution for final phonon mode, n03
+	    //Bose distribution for final phonon mode, n03
+	    n03 = bose(omega3);
 
-	      //TODO calculate tetrahedron weight for plus and minus processes
+	    //calculate tetrahedron weight for plus and minus processes
+	    tetWeightPlus = fillTetsWeights(omega3-omega1,s2,iq2,tetra);
+	    tetWeightMinus = fillTetsWeights(omega1-omega3,s2,iq2,tetra);
 
-	      if(tetWeightPlus > 0){
-		//TODO save second phonon mode id
-		//TODO save final phonon mode id
-		//TODO use symmetry to get Vplus2
-		//TODO Wplus(plusProcessCount++) = a*(n02+n03+1.0)/(omega1*omega2*omega3)*Vplus2*tetWeightPlus
-	      }
+	    //Plus processes
+	    if(tetWeightPlus > 0 && omega3Plus > 0){
+	      //Increase processes counter
+	      plusProcessCount++;
+				
+	      //Time reverse second phonon to get Vplus2
+	      Vplus2 = Vm2(iq2,s2,timeReverse(iq3Plus),s3);
+		
+	      //Calculatate transition probility W+
+	      Wplus = a*(n02-n03)*Vplus2*tetWeightPlus \
+		/(omega1*omega2*omega3Plus)*5.60626442*1e8; //THz
+	      
+	      //Write plus process info to file
+	      WplusFile << iq2 << s2 << iq3 << s3 << Wplus;
+	    }
 
-	      if(tetWeightMinus > 0){
-		//TODO save second phonon mode id
-		//TODO save final phonon mode id
-		//TODO use symmetry to get Vminus2
-		//TODO Wminus(minusProcessCount++) = a*(n02+n03+1.0)/(omega1*omega2*omega3)*Vminus2*tetWeightMinus
-	      }
+	    //Minus processes
+	    if(tetWeightMinus > 0 && omega3Minus > 0){
+	      //Increase processes counter
+	      minusProcessCount++;
+		
+	      //Save second phonon mode id
+	      //Phonon2ModeMinus(minusProcessCount,0) = iq2;
+	      //Phonon2ModeMinus(minusProcessCount,1) = s2;
+
+	      //Save third phonon mode id
+	      //Phonon3ModeMinus(minusProcessCount,0) = iq3;
+	      //Phonon3ModeMinus(minusProcessCount,1) = s3;
+		
+	      Vminus2 = Vm2(iq2,s2,iq3Minus,s3);
+
+	      //Calculatate transition probility W-
+	      Wminus = a*(n02+n03+1.0)*Vminus2*tetWeightMinus \
+		/(omega1*omega2*omega3Minus)*5.60626442*1e8; //THz
+
+	      //Write minus process info to disk
+	      WminusFile << iq2 << s2 << iq3 << s3 << WMinus;
 	    }
 	  }//s3
 	}
       }//s2
     }//iq2
   }
+  WplusFile.close();
+  WminusFile.close();
 
-  //TODO set units of Wplus and Wminus to THz
-
-  //TODO write all Wplus and Wminus processes to disk for future use
+  //Write total number of plus and minus processes to disk
+  String counterFileName = "WCounter.iq"+String(iq1)+".s"+String(s1);
+  ofstream counterFile;
+  counterFile << plusProcessCount << minusProcessCount;
+  counterFile.close();
 }
