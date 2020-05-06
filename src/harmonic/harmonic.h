@@ -6,6 +6,7 @@
 
 class HarmonicHamiltonian {
 public:
+	HarmonicHamiltonian();
 	Eigen::VectorXd diagonalizeEnergy(Point & point);
 	std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
@@ -16,6 +17,7 @@ public:
 	long getNumBands();
 	Statistics getStatistics();
 protected:
+	Statistics statistics;
 	Eigen::Tensor<std::complex<double>,3>
 			internalDiagonalizeVelocity(
 				Eigen::Vector3d & coords, double & delta, double & threshold);

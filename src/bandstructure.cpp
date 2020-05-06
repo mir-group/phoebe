@@ -35,25 +35,24 @@ std::vector<std::complex<double>> packStdXcd(Eigen::Tensor<std::complex<double>,
 }
 
 FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
-		bool withVelocities, bool withEigenvectors,
-		FullPoints * fullPoints_, IrreduciblePoints * irreduciblePoints_) :
-			statistics{statistics_} {
+		bool withVelocities, bool withEigenvectors, FullPoints & fullPoints_) :
+			statistics{statistics_}, fullPoints(fullPoints_) {
 
 	numBands = numBands_;
 	numAtoms = numBands_ / 3;
 
-	if ( fullPoints_ != nullptr ) {
+//	if ( fullPoints_ != nullptr ) {
 		useIrreducible = false;
-		fullPoints = fullPoints_;
-	} else if ( irreduciblePoints_ != nullptr ) {
-		useIrreducible = true;
-		irreduciblePoints = irreduciblePoints_;
-	} else {
-		Error e("FullBandStructure must provide one Points mesh.", 1);
-	}
-	if ( ( fullPoints != nullptr ) && ( irreduciblePoints != nullptr ) ) {
-		Error e("FullBandStructure must provide only one Points mesh.", 1);
-	}
+//		fullPoints = fullPoints_;
+//	} else if ( irreduciblePoints_ != nullptr ) {
+//		useIrreducible = true;
+//		irreduciblePoints = irreduciblePoints_;
+//	} else {
+//		Error e("FullBandStructure must provide one Points mesh.", 1);
+//	}
+//	if ( ( fullPoints != nullptr ) && ( irreduciblePoints != nullptr ) ) {
+//		Error e("FullBandStructure must provide only one Points mesh.", 1);
+//	}
 
 	if ( withVelocities ) {
 		hasVelocities = true;
@@ -84,8 +83,44 @@ FullBandStructure::FullBandStructure(long numBands_, Statistics & statistics_,
 	}
 
 	energiesRows = numBands;
-	velocitiesRows = numBands*numBands*3;
+	velocitiesRows = numBands * numBands * 3;
 	eigenvectorsRows = numBands * numAtoms * 3;
+}
+
+// copy constructor
+FullBandStructure::FullBandStructure(const FullBandStructure & that) :
+	statistics(that.statistics), fullPoints(that.fullPoints),
+	energies(that.energies), velocities(that.velocities),
+	eigenvectors(that.eigenvectors), rawEnergies(that.rawEnergies),
+	rawVelocities(that.rawVelocities), rawEigenvectors(that.rawEigenvectors),
+	energiesRows(that.energiesRows), velocitiesRows(that.velocitiesRows),
+	eigenvectorsRows(that.eigenvectorsRows), numBands(that.numBands),
+	numAtoms(that.numAtoms), useIrreducible(that.useIrreducible),
+	hasEigenvectors(that.hasEigenvectors), hasVelocities(that.hasVelocities) {
+}
+
+FullBandStructure & FullBandStructure::operator = ( // copy assignment
+		const FullBandStructure & that) {
+	if ( this != &that ) {
+		statistics = that.statistics;
+		fullPoints = that.fullPoints;
+		energies = that.energies;
+		velocities = that.velocities;
+		eigenvectors = that.eigenvectors;
+		rawEnergies = that.rawEnergies;
+		rawVelocities = that.rawVelocities;
+		rawEigenvectors = that.rawEigenvectors;
+		energiesRows = that.energiesRows;
+		velocitiesRows = that.velocitiesRows;
+		eigenvectorsRows = that.eigenvectorsRows;
+		numBands = that.numBands;
+		numAtoms = that.numAtoms;
+		useIrreducible = that.useIrreducible;
+		hasEigenvectors = that.hasEigenvectors;
+		hasVelocities = that.hasVelocities;
+//		irreduciblePoints = that.irreduciblePoints;
+	}
+	return *this;
 }
 
 Statistics FullBandStructure::getStatistics() {
@@ -105,27 +140,27 @@ bool FullBandStructure::hasIrreduciblePoints() {
 }
 
 long FullBandStructure::getNumPoints() {
-	if ( useIrreducible ) {
-		return irreduciblePoints->getNumPoints();
-	} else {
-		return fullPoints->getNumPoints();
-	}
+//	if ( useIrreducible ) {
+//		return irreduciblePoints->getNumPoints();
+//	} else {
+	return fullPoints.getNumPoints();
+//	}
 }
 
 long FullBandStructure::getIndex(Eigen::Vector3d& pointCoords) {
-	if ( useIrreducible ) {
-		return irreduciblePoints->getIndex(pointCoords);
-	} else {
-		return fullPoints->getIndex(pointCoords);
-	}
+//	if ( useIrreducible ) {
+//		return irreduciblePoints->getIndex(pointCoords);
+//	} else {
+		return fullPoints.getIndex(pointCoords);
+//	}
 }
 
 Point FullBandStructure::getPoint(const long& pointIndex) {
-	if ( useIrreducible ) {
-		return irreduciblePoints->getPoint(pointIndex);
-	} else {
-		return fullPoints->getPoint(pointIndex);
-	}
+//	if ( useIrreducible ) {
+//		return irreduciblePoints->getPoint(pointIndex);
+//	} else {
+		return fullPoints.getPoint(pointIndex);
+//	}
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d& coords,
@@ -183,7 +218,7 @@ State FullBandStructure::getState(Point & point) {
 	return s;
 }
 
-void FullBandStructure::populate(HarmonicHamiltonian & h0) {
+void FullBandStructure::populate(PhononH0 & h0) {
 	for ( long ik=0; ik<getNumPoints(); ik++ ) {
 		Point point = getPoint(ik);
 		auto [ens, eigvecs] = h0.diagonalize(point);
@@ -368,7 +403,7 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 		hasEigenvectors = true;
 	}
 
-	numAtoms = fullBandStructure.fullPoints->getCrystal().getNumAtoms();
+	numAtoms = fullBandStructure.fullPoints.getCrystal().getNumAtoms();
 
 	std::vector<long> filteredPoints;
 	std::vector<std::vector<long>> filteredBands;
@@ -408,7 +443,7 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 	// total number of active states
 	numStates = numBands.sum();
 	// initialize the kpoints object
-	ActivePoints activePoints_(*fullBandStructure.fullPoints, filter);
+	ActivePoints activePoints_(fullBandStructure.fullPoints, filter);
 	activePoints = &activePoints_;
 	// construct the mapping from combined indices to Bloch indices
 	buildIndeces();

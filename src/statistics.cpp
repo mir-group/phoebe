@@ -34,6 +34,9 @@ Statistics & Statistics::operator=(const Statistics & obj) {
 	return *this;
 }
 
+Statistics::~Statistics() {
+}
+
 bool Statistics::isFermi() {
 	if ( statistics == fermi ) {
 		return true;

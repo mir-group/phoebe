@@ -59,8 +59,8 @@ public:
 	 * of the band structure computed over the input mesh of points.
 	 *
 	 */
-	FullBandStructure populateBandStructure(FullPoints * fullpoints=nullptr,
-			IrreduciblePoints * irreduciblePoints=nullptr);
+//	FullBandStructure populateBandStructure(FullPoints * fullpoints=nullptr,
+//			IrreduciblePoints * irreduciblePoints=nullptr);
 
 	virtual std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
 		diagonalize(Point & point);

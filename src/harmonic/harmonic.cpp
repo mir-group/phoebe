@@ -3,6 +3,9 @@
 #include "eigen.h"
 #include "points.h"
 
+HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
+}
+
 // note: these are dummy functions, that should be overwritten in the
 
 std::tuple<Eigen::VectorXd,Eigen::Tensor<std::complex<double>,3>>
@@ -31,7 +34,7 @@ long HarmonicHamiltonian::getNumBands() {
 }
 
 Statistics HarmonicHamiltonian::getStatistics() {
-	Error e("Baseclass getStatistics not implemented", 1);
+	return statistics;
 }
 
 Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(

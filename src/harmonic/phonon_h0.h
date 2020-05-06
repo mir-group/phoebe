@@ -25,6 +25,12 @@ public:
 			const Eigen::MatrixXd & dielectricMatrix_,
 			const Eigen::Tensor<double, 3> & bornCharges_,
 			const Eigen::Tensor<double, 7> & forceConstants_);
+	// copy constructor
+	PhononH0( const PhononH0 & that );
+	// copy assignment
+	PhononH0 & operator = ( const PhononH0 & that );
+
+	~PhononH0();
 
 	/** get the phonon energies (in Ry) at a single q-point.
 	 * @param q: a q-point in cartesian coordinates.
@@ -41,7 +47,8 @@ public:
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
 	 * for this stata, in atomic units.
 	 */
-	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
+	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
+			Point & point);
 
 	/** Impose the acoustic sum rule on force constants and Born charges
 	 * @param sumRule: name of the sum rule to be used
@@ -49,18 +56,23 @@ public:
 	 * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
 	 * (to find the closest matrix which satisfies the sum rule)
 	 */
-	void setAcousticSumRule(const std::string sumRule);
+	void setAcousticSumRule(const std::string & sumRule);
 
-//	long getNumBands();
+	long getNumBands();
 	Statistics getStatistics();
 protected:
 	Statistics statistics;
 
 	Eigen::Vector3i getCoarseGrid();
 	// internal variables
-	bool na_ifc;
-	bool loto_2d;
-	bool frozenPhonon;
+
+	// these 3 variables might be used for extending future functionalities.
+	// for the first tests, they can be left at these default values
+	// in the future, we might expose them to the user input
+	bool na_ifc = false;
+	bool loto_2d = false;
+	bool frozenPhonon = false;
+
 	bool hasDielectric;
 	long numAtoms;
 	long numBands;
@@ -79,21 +91,21 @@ protected:
 	long nr1Big, nr2Big, nr3Big;
 
 	// private methods, used to diagonalize the Dyn matrix
-	void wsinit(const Eigen::MatrixXd& unitCell);
-	double wsweight(const Eigen::VectorXd& r,
-			const Eigen::MatrixXd& rws);
-	void longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
-			const Eigen::VectorXd& q,
+	void wsinit(const Eigen::MatrixXd & unitCell);
+	double wsweight(const Eigen::VectorXd & r,
+			const Eigen::MatrixXd & rws);
+	void longRangeTerm(Eigen::Tensor<std::complex<double>,4> & dyn,
+			const Eigen::VectorXd & q,
 			const long sign);
-	void nonAnaliticTerm(const Eigen::VectorXd& q,
-			Eigen::Tensor<std::complex<double>,4>& dyn);
-	void nonAnalIFC(const Eigen::VectorXd& q,
-			Eigen::Tensor<std::complex<double>, 4>& f_of_q);
-	void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
-			const Eigen::VectorXd& q,
-			Eigen::Tensor<std::complex<double>, 4>& f_of_q);
+	void nonAnaliticTerm(const Eigen::VectorXd & q,
+			Eigen::Tensor<std::complex<double>,4> & dyn);
+	void nonAnalIFC(const Eigen::VectorXd & q,
+			Eigen::Tensor<std::complex<double>, 4> & f_of_q);
+	void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> & dyn,
+			const Eigen::VectorXd & q,
+			Eigen::Tensor<std::complex<double>, 4> & f_of_q);
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dyndiag(
-			Eigen::Tensor<std::complex<double>,4>& dyn);
+			Eigen::Tensor<std::complex<double>,4> & dyn);
 
 	// this is almost the same as diagonalize, but takes in input the
 	// cartesian coordinates
@@ -103,9 +115,8 @@ protected:
 				Eigen::Vector3d & q);
 
 	// methods for sum rule
-	void sp_zeu(Eigen::Tensor<double,3>& zeu_u,
-			Eigen::Tensor<double,3>& zeu_v,
-			double& scal);
+	void sp_zeu(Eigen::Tensor<double,3> & zeu_u,
+			Eigen::Tensor<double,3> & zeu_v, double & scal);
 };
 
 #endif

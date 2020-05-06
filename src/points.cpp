@@ -16,6 +16,24 @@ Point::Point(long index_, Eigen::Vector3d umklappVector_, Points & points_)
 	index = index_;
 }
 
+// copy constructor
+Point:: Point( const Point & that ) : umklappVector(that.umklappVector),
+		index(that.index), points(that.points) {
+}
+
+// copy assignment
+Point & Point::operator = ( const Point & that ) {
+	if ( this != &that ) {
+		umklappVector = that.umklappVector;
+		index = that.index;
+		points = that.points;
+	}
+	return *this;
+}
+
+Point::~Point() {
+}
+
 long Point::getIndex() {
 	return index;
 }
@@ -110,6 +128,9 @@ Points::Points(Crystal& crystal_, const Eigen::Vector3i & mesh_,
 	}
 }
 
+Points::~Points() {};
+FullPoints::~FullPoints() {};
+
 IrreduciblePoints::IrreduciblePoints(Crystal & crystal_,
 		const Eigen::Vector3i & mesh_, const Eigen::Vector3d & offset_) :
 				Points(crystal_, mesh_, offset_, true) {
@@ -118,6 +139,30 @@ IrreduciblePoints::IrreduciblePoints(Crystal & crystal_,
 FullPoints::FullPoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 		const Eigen::Vector3d & offset_) : Points(crystal_, mesh_,
 				offset_, false) {
+}
+
+// copy constructor
+FullPoints::FullPoints(const FullPoints & that) : Points(that) {
+	useIrreducible = useIrreducible;
+}
+
+// assignment operator
+FullPoints & FullPoints::operator=(const FullPoints & that) {
+	if ( this != &that ) {
+		mesh = that.mesh;
+		offset = that.offset;
+		irreduciblePoints = that.irreduciblePoints;
+		irreducibleWeights = that.irreducibleWeights;
+		mapReducibleToIrreducible = that.mapReducibleToIrreducible;
+		mapIrreducibleToReducible = that.mapIrreducibleToReducible;
+		indexIrreduciblePoints = that.indexIrreduciblePoints;
+		numPoints = that.numPoints;
+		numIrredPoints = numIrredPoints;
+		useIrreducible = useIrreducible;
+		gVectors = that.gVectors;
+		igVectors = that.igVectors;
+	}
+	return *this;
 }
 
 Eigen::Vector3d Points::pointsCoords(const long & index) {
@@ -232,17 +277,14 @@ long Points::getIndex(const Eigen::Vector3d & point) {
 	// given a point coordinate, finds its index in the points list
 	// input point must be in crystal coordinates!
 	Eigen::Vector3d p;
-	// multiply by grid
+	// multiply by grid, so that p now contains integers
 	p(0) = ( point(0) - offset(0) ) * mesh(0);
 	p(1) = ( point(1) - offset(1) ) * mesh(1);
 	p(2) = ( point(2) - offset(2) ) * mesh(2);
 	// fold in BZ
-	p(0) -= (double)mesh(0) * floor(round(p(0))/(double)mesh(0));
-	p(1) -= (double)mesh(1) * floor(round(p(1))/(double)mesh(1));
-	p(2) -= (double)mesh(2) * floor(round(p(2))/(double)mesh(2));
-	long i = (int)round(p(0));
-	long j = (int)round(p(1));
-	long k = (int)round(p(2));
+	long i = long(round(p(0))) % mesh(0);
+	long j = long(round(p(1))) % mesh(1);
+	long k = long(round(p(2))) % mesh(2);
 	long ik = i * mesh(2) * mesh(1) + j * mesh(2) + k;
 	return ik;
 }
@@ -256,17 +298,13 @@ long IrreduciblePoints::getIndex(const Eigen::Vector3d & point) {
 long FullPoints::getIndexInverted(const long & ik) {
 	// given the index of point k, return the index of point -k
 	Eigen::Vector3d point = reduciblePoints(ik);
-	long ikx = (int)round(( point(0) - offset(0) ) * mesh(0));
-	long iky = (int)round(( point(1) - offset(1) ) * mesh(1));
-	long ikz = (int)round(( point(2) - offset(2) ) * mesh(2));
+	long ikx = (long)round(( point(0) - offset(0) ) * mesh(0));
+	long iky = (long)round(( point(1) - offset(1) ) * mesh(1));
+	long ikz = (long)round(( point(2) - offset(2) ) * mesh(2));
 
-	long ikxm = - ikx;
-	long ikym = - iky;
-	long ikzm = - ikz;
-
-	ikxm -= (double)mesh(0) * floor((double)ikxm/(double)mesh(0));
-	ikym -= (double)mesh(1) * floor((double)ikym/(double)mesh(1));
-	ikzm -= (double)mesh(2) * floor((double)ikzm/(double)mesh(2));
+	long ikxm = - ikx % mesh(0);
+	long ikym = - iky % mesh(1);
+	long ikzm = - ikz % mesh(2);
 
 	long ikm = ikxm * mesh(2) * mesh(1) + ikym * mesh(2) + ikzm;
 	return ikm;
@@ -532,52 +570,52 @@ ActivePoints::ActivePoints(FullPoints & parentPoints_,
 	pointsList = pointsList_;
 }
 
-ActivePoints::ActivePoints(const ActivePoints & obj) : Points(obj),
-		parentPoints(obj.parentPoints) {
+ActivePoints::ActivePoints(const ActivePoints & that) : Points(that),
+		parentPoints(that.parentPoints) {
 	// copy constructor
-	pointsList = obj.pointsList;
-	filteredToFullIndeces = obj.filteredToFullIndeces;
+	pointsList = that.pointsList;
+	filteredToFullIndeces = that.filteredToFullIndeces;
 }
 
 // copy assignment operator
-ActivePoints & ActivePoints::operator=(const ActivePoints & obj) {
-	if ( this != &obj ) {
-		parentPoints = obj.parentPoints;
-		pointsList = obj.pointsList;
-		filteredToFullIndeces = obj.filteredToFullIndeces;
+ActivePoints & ActivePoints::operator=(const ActivePoints & that) {
+	if ( this != &that ) {
+		parentPoints = that.parentPoints;
+		pointsList = that.pointsList;
+		filteredToFullIndeces = that.filteredToFullIndeces;
 	}
 	return *this;
 }
 
-Points::Points(const Points & obj) : crystal(obj.crystal) {
-	mesh = obj.mesh;
-	offset = obj.offset;
-	irreduciblePoints = obj.irreduciblePoints;
-	irreducibleWeights = obj.irreducibleWeights;
-	mapReducibleToIrreducible = obj.mapReducibleToIrreducible;
-	mapIrreducibleToReducible = obj.mapIrreducibleToReducible;
-	indexIrreduciblePoints = obj.indexIrreduciblePoints;
-	numPoints = obj.numPoints;
+Points::Points(const Points & that) : crystal(that.crystal) {
+	mesh = that.mesh;
+	offset = that.offset;
+	irreduciblePoints = that.irreduciblePoints;
+	irreducibleWeights = that.irreducibleWeights;
+	mapReducibleToIrreducible = that.mapReducibleToIrreducible;
+	mapIrreducibleToReducible = that.mapIrreducibleToReducible;
+	indexIrreduciblePoints = that.indexIrreduciblePoints;
+	numPoints = that.numPoints;
 	numIrredPoints = numIrredPoints;
 	useIrreducible = useIrreducible;
-	gVectors = obj.gVectors;
-	igVectors = obj.igVectors;
+	gVectors = that.gVectors;
+	igVectors = that.igVectors;
 }
 
-Points & Points::operator=(const Points & obj) { // assignment operator
-	if ( this != &obj ) {
-		mesh = obj.mesh;
-		offset = obj.offset;
-		irreduciblePoints = obj.irreduciblePoints;
-		irreducibleWeights = obj.irreducibleWeights;
-		mapReducibleToIrreducible = obj.mapReducibleToIrreducible;
-		mapIrreducibleToReducible = obj.mapIrreducibleToReducible;
-		indexIrreduciblePoints = obj.indexIrreduciblePoints;
-		numPoints = obj.numPoints;
+Points & Points::operator=(const Points & that) { // assignment operator
+	if ( this != &that ) {
+		mesh = that.mesh;
+		offset = that.offset;
+		irreduciblePoints = that.irreduciblePoints;
+		irreducibleWeights = that.irreducibleWeights;
+		mapReducibleToIrreducible = that.mapReducibleToIrreducible;
+		mapIrreducibleToReducible = that.mapIrreducibleToReducible;
+		indexIrreduciblePoints = that.indexIrreduciblePoints;
+		numPoints = that.numPoints;
 		numIrredPoints = numIrredPoints;
 		useIrreducible = useIrreducible;
-		gVectors = obj.gVectors;
-		igVectors = obj.igVectors;
+		gVectors = that.gVectors;
+		igVectors = that.igVectors;
 	}
 }
 

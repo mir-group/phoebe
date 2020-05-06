@@ -12,11 +12,11 @@
 #include "phonon_transport_app.h"
 
 // app factory
-App * App::loadApp(std::string choice) {
+std::auto_ptr<App> App::loadApp(std::string choice) {
 	if ( choice == "phononTransport" ) {
-		return new PhononTransportApp;
+		return std::auto_ptr<App> (new PhononTransportApp);
 	} else if ( choice == "dos" ) {
-		return new DosApp;
+		return std::auto_ptr<App> (new DosApp);
 	}
 }
 
@@ -38,16 +38,16 @@ ElectronH0Wannier App::setupElectronH0Wannier(Context & context) {
 	return qeParser.parseElHarmonicWannier(context);
 }
 
-std::tuple<FullPoints, FullBandStructure> App::buildFullBandStructure(
-		Crystal & crystal, Eigen::Vector3i mesh, HarmonicHamiltonian & h0,
+FullBandStructure App::buildFullBandStructure(
+		FullPoints & fullPoints, PhononH0 & h0,
 		bool & withVelocities, bool & withEigenvectors) {
 	// we compute the band structure on a fine grid
 	Statistics statistics = h0.getStatistics();
-	FullPoints fullPoints(crystal, mesh);
-	FullBandStructure fullBandStructure(h0.getNumBands(), statistics,
-			withVelocities, withEigenvectors, &fullPoints);
+	long numBands = h0.getNumBands();
+	FullBandStructure fullBandStructure(numBands, statistics,
+			withVelocities, withEigenvectors, fullPoints);
 	fullBandStructure.populate(h0);
-	return {fullPoints, fullBandStructure};
+	return fullBandStructure;
 }
 
 std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(

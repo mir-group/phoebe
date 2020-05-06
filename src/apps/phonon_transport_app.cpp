@@ -23,13 +23,9 @@ void PhononTransportApp::run(Context & context) {
 	FullPoints fullQPoints(crystal, context.getQMesh());
 	bool withVelocities = true;
 	bool withEigenvectors = true;
-	Statistics statistics = phononH0.getStatistics();
-	FullBandStructure fullPhBandStructure(phononH0.getNumBands(), statistics,
-			withVelocities, withEigenvectors, &fullQPoints);
-	fullPhBandStructure.populate(phononH0);
 
-	auto [fullPoints,fullBandStructure] = buildFullBandStructure(crystal,
-			context.getQMesh(), phononH0, withVelocities, withEigenvectors);
+	auto fullBandStructure = buildFullBandStructure(fullQPoints, phononH0,
+			withVelocities, withEigenvectors);
 
 	// then we apply a filter to retain only useful energies
 	auto [activePoints, activeBandStructure] = restrictBandStructure(context,

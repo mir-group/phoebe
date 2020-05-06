@@ -276,30 +276,30 @@ Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point& point) {
 	return velocities;
 }
 
-FullBandStructure ElectronH0Fourier::populateBandStructure(
-		FullPoints* fullPoints, IrreduciblePoints* irreduciblePoints) {
-
-	if ( ( fullPoints == nullptr ) && ( irreduciblePoints == nullptr ) ) {
-		Error e("From populateBandStructure: must provide mesh of points", 1);
-	}
-
-	bool withVelocities = false;
-	bool withEigenvectors = false;
-	FullBandStructure denseBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, fullPoints, irreduciblePoints);
-
-	Points * points;
-	if ( fullPoints != nullptr ) {
-		points = fullPoints;
-	} else {
-		points = irreduciblePoints;
-	}
-
-	Eigen::VectorXd energies(numBands);
-	for ( long ik=0; ik<points->getNumPoints(); ik++ ) {
-		Point point = points->getPoint(ik);
-		energies = getEnergies(point);
-		denseBandStructure.setEnergies(point, energies);
-	}
-	return denseBandStructure;
-}
+//FullBandStructure ElectronH0Fourier::populateBandStructure(
+//		FullPoints & fullPoints) {
+//
+//	if ( ( fullPoints == nullptr ) && ( irreduciblePoints == nullptr ) ) {
+//		Error e("From populateBandStructure: must provide mesh of points", 1);
+//	}
+//
+//	bool withVelocities = false;
+//	bool withEigenvectors = false;
+//	FullBandStructure denseBandStructure(numBands, statistics,
+//			withVelocities, withEigenvectors, fullPoints, irreduciblePoints);
+//
+//	Points * points;
+//	if ( fullPoints != nullptr ) {
+//		points = fullPoints;
+//	} else {
+//		points = irreduciblePoints;
+//	}
+//
+//	Eigen::VectorXd energies(numBands);
+//	for ( long ik=0; ik<points->getNumPoints(); ik++ ) {
+//		Point point = points->getPoint(ik);
+//		energies = getEnergies(point);
+//		denseBandStructure.setEnergies(point, energies);
+//	}
+//	return denseBandStructure;
+//}

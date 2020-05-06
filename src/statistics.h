@@ -25,9 +25,9 @@ public:
 	// temporary object initializations
 
 	Statistics(int statistics_);
-
 	Statistics(const Statistics &obj);// copy constructor
 	Statistics & operator=(const Statistics & obj); // copy assignment operator
+	~Statistics();
 
 	bool isFermi();
 	bool isBose();

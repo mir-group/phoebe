@@ -33,11 +33,11 @@ public:
 	 *
 	 * @param[in] energy Energy of mode.
 	 */
-	double getTotalWeight(const double & energy);
+	double getDOS(const double & energy);
 
 private:
-	FullPoints & fullPoints;
-	FullBandStructure & fullBandStructure;
+	FullPoints fullPoints;
+	FullBandStructure fullBandStructure;
 
 	/** Number of tetrahedra. */
 	long numTetra;

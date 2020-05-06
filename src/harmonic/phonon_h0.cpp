@@ -7,6 +7,117 @@
 #include "exceptions.h"
 #include "phonon_h0.h"
 
+PhononH0::PhononH0(Crystal& crystal,
+		const Eigen::MatrixXd& dielectricMatrix_,
+		const Eigen::Tensor<double, 3>& bornCharges_,
+		const Eigen::Tensor<double, 7>& forceConstants_)
+		: statistics(Statistics::phonon) {
+
+	// in this section, we save as class properties a few variables
+	// that are needed for the diagonalization of phonon frequencies
+
+	if ( dielectricMatrix.sum() > 0. ) {
+		hasDielectric = true;
+	} else {
+		hasDielectric = false;
+	}
+
+	directUnitCell = crystal.getDirectUnitCell();
+	reciprocalUnitCell = crystal.getReciprocalUnitCell();
+	volumeUnitCell = crystal.getVolumeUnitCell();
+	atomicSpecies = crystal.getAtomicSpecies();
+	speciesMasses = crystal.getSpeciesMasses();
+	atomicPositions = crystal.getAtomicPositions();
+	dielectricMatrix = dielectricMatrix_;
+	bornCharges = bornCharges_;
+	forceConstants = forceConstants_;
+
+	Eigen::VectorXi qCoarseGrid_(3);
+	qCoarseGrid_(0) = forceConstants.dimension(0);
+	qCoarseGrid_(1) = forceConstants.dimension(1);
+	qCoarseGrid_(2) = forceConstants.dimension(2);
+	qCoarseGrid = qCoarseGrid_;
+
+	numAtoms = crystal.getNumAtoms();
+	numBands = numAtoms * 3;
+
+	// now, I initialize an auxiliary set of vectors that are needed
+	// for the diagonalization, which are precomputed once and for all.
+
+	Eigen::MatrixXd directUnitCellSup(3,3);
+	directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
+	directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
+	directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
+
+	nr1Big = 2 * qCoarseGrid(0);
+	nr2Big = 2 * qCoarseGrid(1);
+	nr3Big = 2 * qCoarseGrid(2);
+
+	PhononH0::wsinit(directUnitCellSup);
+}
+
+// copy constructor
+PhononH0::PhononH0( const PhononH0 & that ) :
+		statistics(that.statistics),
+		hasDielectric(that.hasDielectric),
+		numAtoms(that.numAtoms),
+		numBands(that.numBands),
+		directUnitCell(that.directUnitCell),
+		reciprocalUnitCell(that.reciprocalUnitCell),
+		latticeParameter(that.latticeParameter),
+		volumeUnitCell(that.volumeUnitCell),
+		atomicSpecies(that.atomicSpecies),
+		speciesMasses(that.speciesMasses),
+		atomicPositions(that.atomicPositions),
+		dielectricMatrix(that.dielectricMatrix),
+		bornCharges(that.bornCharges),
+		qCoarseGrid(that.qCoarseGrid),
+		forceConstants(that.forceConstants),
+		wscache(that.wscache),
+		nr1Big(that.nr1Big),
+		nr2Big(that.nr2Big),
+		nr3Big(that.nr3Big) {
+}
+
+// copy assignment
+PhononH0 & PhononH0::operator = ( const PhononH0 & that ) {
+	if ( this != & that ) {
+		statistics = that.statistics;
+		hasDielectric = that.hasDielectric;
+		numAtoms = that.numAtoms;
+		numBands = that.numBands;
+		directUnitCell = that.directUnitCell;
+		reciprocalUnitCell = that.reciprocalUnitCell;
+		latticeParameter = that.latticeParameter;
+		volumeUnitCell = that.volumeUnitCell;
+		atomicSpecies = that.atomicSpecies;
+		speciesMasses = that.speciesMasses;
+		atomicPositions = that.atomicPositions;
+		dielectricMatrix = that.dielectricMatrix;
+		bornCharges = that.bornCharges;
+		qCoarseGrid = that.qCoarseGrid;
+		forceConstants = that.forceConstants;
+		wscache = that.wscache;
+		nr1Big = that.nr1Big;
+		nr2Big = that.nr2Big;
+		nr3Big = that.nr3Big;
+	}
+	return *this;
+}
+
+PhononH0::~PhononH0() {
+//	statistics.~Statistics();
+//	if ( bornCharges.dimension(0)>0 ) {
+//		bornCharges.~Tensor();
+//	}
+//	if ( forceConstants.dimension(0)>0 ) {
+//		forceConstants.~Tensor();
+//	}
+//	if ( wscache.dimension(0)>0 ) {
+//		wscache.~Tensor();
+//	}
+}
+
 Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		Point & point) {
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
@@ -124,9 +235,9 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 	return velocity;
 }
 //
-//long PhononH0::getNumBands() {
-//	return numBands;
-//}
+long PhononH0::getNumBands() {
+	return numBands;
+}
 
 Statistics PhononH0::getStatistics() {
 	return statistics;
@@ -174,6 +285,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	Eigen::VectorXd r_ws(3);
 	Eigen::Tensor<double,5> wscache_(2*nr3Big+1, 2*nr2Big+1, 2*nr1Big+1,
 			numAtoms, numAtoms);
+	wscache_.setZero();
 
 	double x, total_weight;
 	long n1ForCache, n2ForCache, n3ForCache;
@@ -217,7 +329,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 			}
 		}
 	}
-	// save as class property
+	// save as class member
 	wscache = wscache_;
 }
 
@@ -256,8 +368,7 @@ double PhononH0::wsweight(const Eigen::VectorXd& r,
 }
 
 void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
-		const Eigen::VectorXd& q,
-		const long sign) {
+		const Eigen::VectorXd& q, const long sign) {
 	// this subroutine is the analogous of rgd_blk in QE
 	// compute the rigid-ion (long-range) term for q
 	// The long-range term used here, to be added to or subtracted from the
@@ -668,62 +779,6 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::dyndiag(
 	return {energies, eigenvectors};
 };
 
-PhononH0::PhononH0(Crystal& crystal,
-		const Eigen::MatrixXd& dielectricMatrix_,
-		const Eigen::Tensor<double, 3>& bornCharges_,
-		const Eigen::Tensor<double, 7>& forceConstants_)
-		: statistics(Statistics::phonon) {
-
-	// in this section, we save as class properties a few variables
-	// that are needed for the diagonalization of phonon frequencies
-
-	// these variables might be used for extending future functionalities.
-	// for the first tests, they can be left at these default values
-	// in the future, we might expose them to the user input
-	na_ifc = false;
-	loto_2d = false;
-	frozenPhonon = false;
-
-	if ( dielectricMatrix.sum() > 0. ) {
-		hasDielectric = true;
-	} else {
-		hasDielectric = false;
-	}
-
-	directUnitCell = crystal.getDirectUnitCell();
-	reciprocalUnitCell = crystal.getReciprocalUnitCell();
-	volumeUnitCell = crystal.getVolumeUnitCell();
-	atomicSpecies = crystal.getAtomicSpecies();
-	speciesMasses = crystal.getSpeciesMasses();
-	atomicPositions = crystal.getAtomicPositions();
-	dielectricMatrix = dielectricMatrix_;
-	bornCharges = bornCharges_;
-	forceConstants = forceConstants_;
-
-	Eigen::VectorXi qCoarseGrid_(3);
-	qCoarseGrid_(0) = forceConstants.dimension(0);
-	qCoarseGrid_(1) = forceConstants.dimension(1);
-	qCoarseGrid_(2) = forceConstants.dimension(2);
-	qCoarseGrid = qCoarseGrid_;
-
-	numAtoms = crystal.getNumAtoms();
-	numBands = numAtoms * 3;
-
-	// now, I initialize an auxiliary set of vectors that are needed
-	// for the diagonalization, which are precomputed once and for all.
-
-	Eigen::MatrixXd directUnitCellSup(3,3);
-	directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
-	directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
-	directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
-
-	nr1Big = 2 * qCoarseGrid(0);
-	nr2Big = 2 * qCoarseGrid(1);
-	nr3Big = 2 * qCoarseGrid(2);
-
-	PhononH0::wsinit(directUnitCellSup);
-}
-
 std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
 				Point & point) {
@@ -801,7 +856,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 	return {energies, eigenvectors};
 };
 
-void PhononH0::setAcousticSumRule(const std::string sumRule) {
+void PhononH0::setAcousticSumRule(const std::string & sumRule) {
 	double norm2;
 	//  VectorXi u_less(6*3*numAtoms)
 	//  indices of the vectors u that are not independent to the preceding ones
@@ -844,7 +899,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				for ( long na=0; na<numAtoms; na++ ) {
 					sum += bornCharges(na,i,j);
 				}
-				for ( long na=0; na<3; na++ ) {
+				for ( long na=0; na<numAtoms; na++ ) {
 					bornCharges(na,i,j) -= sum / numAtoms;
 				}
 			}
@@ -1376,8 +1431,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 
 void PhononH0::sp_zeu(Eigen::Tensor<double,3>& zeu_u,
-		Eigen::Tensor<double,3>& zeu_v,
-		double& scal) {
+		Eigen::Tensor<double,3>& zeu_v, double& scal) {
 	// does the scalar product of two effective charges matrices zeu_u and zeu_v
 	// (considered as vectors in the R^(3*3*nat) space, and coded in the usual way)
 

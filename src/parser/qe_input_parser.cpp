@@ -686,7 +686,7 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	bool withEigenvectors = false;
 	Statistics statistics(Statistics::electron);
 	FullBandStructure coarseBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, &coarsePoints);
+			withVelocities, withEigenvectors, coarsePoints);
 	// fill in the info on band structure
 	Eigen::Vector3d pointCoords;
 	Eigen::VectorXd thisEnergies(numBands);

@@ -48,6 +48,10 @@ private:
 	long numValenceElectrons;
 	long dimensionality = 3;
 
+	double dosMinEnergy = 0.;
+	double dosMaxEnergy = 1.;
+	double dosDeltaEnergy = 0.01;
+
 //  Setter and getter for all the variables above
 public:
 	/** sets the name of the file containing the lattice force constants.
@@ -210,6 +214,14 @@ public:
 	void setDimensionality(long dimensionality);
 	long getDimensionality();
 
+	void setDosMinEnergy(double x);
+	double getDosMinEnergy();
+
+	void setDosMaxEnergy(double x);
+	double getDosMaxEnergy();
+
+	void setDosDeltaEnergy(double x);
+	double getDosDeltaEnergy();
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

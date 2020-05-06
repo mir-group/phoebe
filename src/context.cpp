@@ -46,6 +46,14 @@ bool lineHasPattern(std::string line, std::string pattern) {
 	return bx;
 }
 
+bool lineHasUnits(std::string target, std::string pattern) {
+	bool hasIt = false;
+	if ( target.find(pattern) != std::string::npos ) {
+		hasIt = true;
+	}
+	return hasIt;
+}
+
 bool parseBool(std::vector<std::string> lines, std::string pattern) {
 	bool x;
 	bool found = false;
@@ -90,6 +98,35 @@ double parseDouble(std::vector<std::string> lines, std::string pattern) {
 			size_t pos = line.find(delimeter);
 			std::string value = line.substr(pos+1);
 			x = std::stod(value); // convert to double
+			found = true;
+			break;
+		}
+	}
+	if ( not found ) {
+		throw ParameterNotFound();
+	}
+	return x;
+};
+
+double parseDoubleWithUnits(std::vector<std::string> lines, std::string pattern) {
+	double x = 0.;
+	bool found = false;
+
+	for ( std::string line : lines) {
+		if ( lineHasPattern(line, pattern) ) {
+			std::string delimeter = "=";
+			size_t pos = line.find(delimeter);
+			std::string value = line.substr(pos+1);
+			x = std::stod(value); // convert to double
+
+			// now check the units and convert
+			if ( lineHasUnits(line, "eV") ) {
+				x /= energyRyToEv;
+			}
+			if ( lineHasUnits(line, "cmm1") ) {
+				x /= ryToCmm1;
+			}
+
 			found = true;
 			break;
 		}
@@ -424,6 +461,21 @@ void Context::setupFromInput(std::string fileName) {
 		setDimensionality(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
+	try {
+		double x = parseDoubleWithUnits(lines, "dosMinEnergy");
+		setDosMinEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "dosMaxEnergy");
+		setDosMaxEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "dosDeltaEnergy");
+		setDosDeltaEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -577,6 +629,29 @@ long Context::getDimensionality() {
 	return dimensionality;
 }
 
+void Context::setDosMinEnergy(double x) {
+	dosMinEnergy = x;
+}
+
+double Context::getDosMinEnergy() {
+	return dosMinEnergy;
+}
+
+void Context::setDosMaxEnergy(double x) {
+	dosMaxEnergy = x;
+}
+
+double Context::getDosMaxEnergy() {
+	return dosMaxEnergy;
+}
+
+void Context::setDosDeltaEnergy(double x) {
+	dosDeltaEnergy = x;
+}
+
+double Context::getDosDeltaEnergy() {
+	return dosDeltaEnergy;
+}
 
 
 

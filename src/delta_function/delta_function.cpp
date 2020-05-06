@@ -12,14 +12,15 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 
 	// number of grid points (wavevectors)
 	long numPoints = fullPoints.getNumPoints();
+	long numBands = fullBandStructure.getNumBands();
 
 	// Number of tetrahedra
 	numTetra = 6 * numPoints;
-
 	// Allocate tetrahedron data holders
-	tetrahedra = Eigen::MatrixXi(numTetra,6);
+	tetrahedra = Eigen::MatrixXi::Zero(numTetra,4);
 	qToTetCount = Eigen::VectorXi::Zero(numPoints);
 	qToTet = Eigen::Tensor<long,3>(numPoints,24,2);
+	qToTet.setZero();
 
 	// Label the vertices of each tetrahedron in a subcell
 	Eigen::MatrixXi verticesLabels(6,4);
@@ -67,15 +68,15 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 				point(0) = double(subcellCorners(aux, 0)) / grid(0);
 				point(1) = double(subcellCorners(aux, 1)) / grid(1);
 				point(2) = double(subcellCorners(aux, 2)) / grid(2);
-				// Get muxed index of corner
-				aux = fullPoints.getIndex(point);
+				// Get combined index of corner
+				long aux2 = fullPoints.getIndex(point);
 				// Save corner as a tetrahedron vertex
-				tetrahedra(iq,iv) = aux;
+				tetrahedra(iq,iv) = aux2;
 				// Save mapping of a wave vector index
 				// to the ordered pair (tetrahedron,vertex)
-				qToTetCount(aux) = qToTetCount(aux) + 1;
-				qToTet(aux, qToTetCount(aux)-1, 0) = iq;
-				qToTet(aux, qToTetCount(aux)-1, 1) = iv;
+				qToTetCount(aux2) = qToTetCount(aux2) + 1;
+				qToTet(aux2, qToTetCount(aux2)-1, 0) = iq;
+				qToTet(aux2, qToTetCount(aux2)-1, 1) = iv;
 			}
 		}
 	}
@@ -90,11 +91,11 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 	std::vector<double> temp(4);
 
 	// Allocate tetraEigVals
-	tetraEigVals = Eigen::Tensor<double,3>(numTetra,
-			fullBandStructure.getNumBands(), 4);
+	tetraEigVals = Eigen::Tensor<double,3>(numTetra, numBands, 4);
 
 	for ( long it = 0; it < numTetra; it++ ) { //over tetrahedra
-		for ( long ib = 0; ib < fullBandStructure.getNumBands(); ib++ ) { //over bands
+		 //over bands
+		for ( long ib = 0; ib < numBands; ib++ ) {
 			for ( long iv = 0; iv < 4; iv++ ) { //over vertices
 				// Index of wave vector
 				long ik = tetrahedra(it,iv);
@@ -106,6 +107,7 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 				tetraEigVals(it,ib,iv) = energy;
 				temp[iv] = energy; //save for later
 			}
+
 			//sort energies in the vertex
 			std::sort(temp.begin(),temp.end());
 			//refill tetrahedron vertex
@@ -114,12 +116,12 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 			}
 		}
 	}
-
 }
 
-double Tetrahedra::getTotalWeight(const double & energy) {
+double Tetrahedra::getDOS(const double & energy) {
 	// initialize tetrahedron weight
 	double weight = 0.;
+
 	for ( long iq=0; iq<fullBandStructure.getNumPoints(); iq++ ) {
 		for ( long ib=0; ib<fullBandStructure.getNumBands(); ib++ ) {
 			weight += getWeight(energy, iq, ib);
@@ -138,7 +140,6 @@ double Tetrahedra::getWeight(const double & energy, const long & iq,
 	double tmp = 0.0;
 
 	// loop on the number of tetrahedra in which the wave vector belongs
-
 	for ( long i = 0; i < qToTetCount(iq); i++ ) {//over all tetrahedra
 		long it = qToTet(iq,i,0); //get index of tetrahedron
 		long iv = qToTet(iq,i,1); //get index of vertex

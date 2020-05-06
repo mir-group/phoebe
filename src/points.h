@@ -21,6 +21,12 @@ public:
 	 */
 	Point(long index_, Eigen::Vector3d umklappVector, Points & points_);
 
+	// copy constructor
+	Point( const Point & that );
+	// copy assignment
+	Point & operator = ( const Point & that );
+	~Point();
+
 	/** Get the coordinates of the k-point
 	 * @param basis: either "cartesian" or "crystal"
 	 * @param inWignerSeitz: default false, if true, folds point in WS cell.
@@ -53,6 +59,7 @@ public:
 			const bool useIrreducible_=false);
 	Points(const Points & obj); // copy constructor
 	Points & operator=(const Points & obj); // assignment operator
+	~Points();
 
 	std::tuple<Eigen::Vector3i, Eigen::Vector3d> getMesh();
 	long getNumPoints();
@@ -106,6 +113,9 @@ public:
 	long getIndexInverted(const long & ik);
 	FullPoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
+	FullPoints(const FullPoints & obj); // copy constructor
+	FullPoints & operator=(const FullPoints & obj); // assignment operator
+	~FullPoints();
 };
 
 class IrreduciblePoints: public Points {

@@ -16,12 +16,12 @@ int main(int argc, char** argv) {
 	// decide which app to use
 
 	std::string appName = context.getAppName();
-	App * app = App::loadApp(appName);
+	std::auto_ptr<App> app = App::loadApp(appName);
 
 	// then launch it
 
 	app->run(context);
-
+std::cout << "Terminating program\n";
 	// here we should close the parallel environment
 
 	return(0);

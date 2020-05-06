@@ -6,6 +6,7 @@
 #include "window.h"
 #include "statistics.h"
 #include "harmonic.h"
+#include "phonon_h0.h"
 
 /** note:
  * FullBandStructure uses matrices to store datas, since theya are to be
@@ -14,7 +15,6 @@
  * process, and we store energies in vectors to be aligned with the
  * vectors of populations.
  */
-
 
 class FullBandStructure {
 private:
@@ -33,18 +33,16 @@ private:
 
 	long numBands = 0;
 	long numAtoms = 0;
-//	Eigen::MatrixXd dndt;
-//	Eigen::MatrixXd dnde;
-//	void setOccupations();
 	bool useIrreducible = false;
 
 	bool hasEigenvectors = false;
 	bool hasVelocities = false;
 
-	FullPoints * fullPoints = nullptr;
-	IrreduciblePoints * irreduciblePoints = nullptr;
-	long getIndex(Eigen::Vector3d & pointCoords);
+	FullPoints & fullPoints;
+//	FullPoints * fullPoints = nullptr;
+//	IrreduciblePoints * irreduciblePoints = nullptr;
 
+	long getIndex(Eigen::Vector3d & pointCoords);
 	friend class ActiveBandStructure;
 
 //	double homo; // set to zero in case of phonons
@@ -52,12 +50,16 @@ private:
 public:
 	FullBandStructure(long numBands_, Statistics & statistics_,
 			bool withVelocities, bool withEigenvectors,
-			FullPoints * fullPoints_=nullptr,
-			IrreduciblePoints * irreduciblePoints_=nullptr);
+			FullPoints & fullPoints_);
+//	FullPoints * fullPoints_=nullptr,
+//	IrreduciblePoints * irreduciblePoints_=nullptr);
+	FullBandStructure(const FullBandStructure & that);
+	FullBandStructure & operator = (const FullBandStructure & that);
+
 	Point getPoint(const long & pointIndex);
 	long getNumPoints();
 	State getState(Point & point);
-	void populate(HarmonicHamiltonian & h0);
+	void populate(PhononH0 & h0);
 	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
 	void setEnergies(Point& point, Eigen::VectorXd & energies_);
 	void setEigenvectors(Point & point,
