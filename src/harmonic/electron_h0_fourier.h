@@ -69,6 +69,9 @@ public:
 				Point & point);
 
 	Statistics getStatistics();
+
+	FullBandStructure populate(FullPoints & fullPoints,
+			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Statistics statistics;
 	FullPoints coarsePoints;

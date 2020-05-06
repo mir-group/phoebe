@@ -24,8 +24,8 @@ void PhononTransportApp::run(Context & context) {
 	bool withVelocities = true;
 	bool withEigenvectors = true;
 
-	auto fullBandStructure = buildFullBandStructure(fullQPoints, phononH0,
-			withVelocities, withEigenvectors);
+	FullBandStructure fullBandStructure = phononH0.populate(
+			fullQPoints, withVelocities, withEigenvectors);
 
 	// then we apply a filter to retain only useful energies
 	auto [activePoints, activeBandStructure] = restrictBandStructure(context,

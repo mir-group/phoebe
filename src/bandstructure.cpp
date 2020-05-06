@@ -218,20 +218,32 @@ State FullBandStructure::getState(Point & point) {
 	return s;
 }
 
-void FullBandStructure::populate(PhononH0 & h0) {
-	for ( long ik=0; ik<getNumPoints(); ik++ ) {
-		Point point = getPoint(ik);
-		auto [ens, eigvecs] = h0.diagonalize(point);
-		setEnergies(point, ens);
-		if ( hasEigenvectors ) {
-			setEigenvectors(point, eigvecs);
-		}
-		if ( hasVelocities) {
-			auto vels = h0.diagonalizeVelocity(point);
-			setVelocities(point, vels);
-		}
-	}
-}
+//void FullBandStructure::populate(PhononH0 & h0) {
+//	for ( long ik=0; ik<getNumPoints(); ik++ ) {
+//		Point point = getPoint(ik);
+//		auto [ens, eigvecs] = h0.diagonalize(point);
+//		setEnergies(point, ens);
+//		if ( hasEigenvectors ) {
+//			setEigenvectors(point, eigvecs);
+//		}
+//		if ( hasVelocities) {
+//			auto vels = h0.diagonalizeVelocity(point);
+//			setVelocities(point, vels);
+//		}
+//	}
+//}
+//
+//void FullBandStructure::populate(ElectronH0Fourier & h0) {
+//	for ( long ik=0; ik<getNumPoints(); ik++ ) {
+//		Point point = getPoint(ik);
+//		auto [ens, eigvecs] = h0.diagonalize(point);
+//		setEnergies(point, ens);
+//		if ( hasVelocities) {
+//			auto vels = h0.diagonalizeVelocity(point);
+//			setVelocities(point, vels);
+//		}
+//	}
+//}
 
 Eigen::VectorXd FullBandStructure::getBandEnergies(long & bandIndex) {
 	Eigen::VectorXd bandEnergies = energies.col(bandIndex);

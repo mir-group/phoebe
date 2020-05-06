@@ -6,7 +6,6 @@
 #include "window.h"
 #include "statistics.h"
 #include "harmonic.h"
-#include "phonon_h0.h"
 
 /** note:
  * FullBandStructure uses matrices to store datas, since theya are to be
@@ -59,7 +58,6 @@ public:
 	Point getPoint(const long & pointIndex);
 	long getNumPoints();
 	State getState(Point & point);
-	void populate(PhononH0 & h0);
 	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
 	void setEnergies(Point& point, Eigen::VectorXd & energies_);
 	void setEigenvectors(Point & point,

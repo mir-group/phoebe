@@ -15,7 +15,7 @@
 class App {
 public:
 	// technically, this is called a factory method
-	static std::auto_ptr<App> loadApp(std::string choice);
+	static std::unique_ptr<App> loadApp(std::string choice);
 	// note: auto_ptr transfers the ownership to the returned pointer itself
 	// in this way, the returned app is correctly destructed when out of scope
 	virtual void run(Context & context);

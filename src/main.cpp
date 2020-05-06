@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 	// decide which app to use
 
 	std::string appName = context.getAppName();
-	std::auto_ptr<App> app = App::loadApp(appName);
+	std::unique_ptr<App> app = App::loadApp(appName);
 
 	// then launch it
 

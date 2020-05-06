@@ -10,6 +10,7 @@
 #include "harmonic.h"
 #include "points.h"
 #include "statistics.h"
+#include "bandstructure.h"
 
 class PhononH0 : public HarmonicHamiltonian {
 public:
@@ -60,6 +61,9 @@ public:
 
 	long getNumBands();
 	Statistics getStatistics();
+
+	FullBandStructure populate(FullPoints & fullPoints,
+			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Statistics statistics;
 
