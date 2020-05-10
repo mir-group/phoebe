@@ -8,17 +8,28 @@
 
 class ElectronH0Wannier : public HarmonicHamiltonian {
 public:
-	ElectronH0Wannier(Eigen::Matrix3d & directUnitCell_,
-			Eigen::MatrixXd & crystalVectors_,
-			Eigen::VectorXd & vectorsDegeneracies_,
-			Eigen::Tensor<std::complex<double>,3> & h0R_);
+	ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
+			const Eigen::MatrixXd & crystalVectors_,
+			const Eigen::VectorXd & vectorsDegeneracies_,
+			const Eigen::Tensor<std::complex<double>,3> & h0R_);
 
-	virtual std::tuple<Eigen::VectorXd,
-		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
+	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalize(
+			Point & point);
 
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
-    const bool hasEigenvectors = false;
+    const bool hasEigenvectors = true;
     Statistics getStatistics();
+    long getNumBands();
+
+    // copy constructor
+    ElectronH0Wannier( const ElectronH0Wannier & that );
+    // copy assignment
+    ElectronH0Wannier & operator = ( const ElectronH0Wannier & that );
+    // empty constructor
+    ElectronH0Wannier();
+
+	FullBandStructure populate(FullPoints & fullPoints,
+			bool & withVelocities, bool & withEigenvectors);
 protected:
     Statistics statistics;
     virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>

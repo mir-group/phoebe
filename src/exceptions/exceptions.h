@@ -4,10 +4,10 @@
 
 class Error {
 public:
-	Error(std::string errMessage, int errCode);
+	Error(const std::string & errMessage, const int & errCode = 1);
 };
 
 class Warning {
 public:
-	Warning(std::string errMessage);
+	Warning(const std::string & errMessage);
 };

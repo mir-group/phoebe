@@ -2,16 +2,16 @@
 #include "constants.h"
 #include "exceptions.h"
 
-ElectronH0Wannier::ElectronH0Wannier(Eigen::Matrix3d & directUnitCell_,
-		Eigen::MatrixXd & crystalVectors_,
-		Eigen::VectorXd & vectorsDegeneracies_,
-		Eigen::Tensor<std::complex<double>,3> & h0R_) :
+ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
+		const Eigen::MatrixXd & crystalVectors_,
+		const Eigen::VectorXd & vectorsDegeneracies_,
+		const Eigen::Tensor<std::complex<double>,3> & h0R_) :
 		statistics(Statistics::electron) {
 
+	h0R = h0R_;
+	directUnitCell = directUnitCell_;
 	crystalVectors = crystalVectors_;
 	vectorsDegeneracies = vectorsDegeneracies_;
-	directUnitCell = directUnitCell_;
-	h0R = h0R_;
 
 	if ( crystalVectors.cols() != 3 ) {
 		Error e("WannierH0(): crystalVectors should have dimensions (R,3)", 1);
@@ -25,9 +25,45 @@ ElectronH0Wannier::ElectronH0Wannier(Eigen::Matrix3d & directUnitCell_,
 	if ( vectorsDegeneracies.size() != crystalVectors.rows() ) {
 		Error e("WannierH0(): degeneracies not aligned with vectors", 1);
 	}
-
 	numBands = h0R.dimension(1);
 	numVectors = vectorsDegeneracies.size();
+}
+
+// copy constructor
+ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
+	statistics(Statistics::electron) {
+		h0R = that.h0R;
+		directUnitCell = that.directUnitCell;
+		numBands = that.numBands;
+		crystalVectors = that.crystalVectors;
+		numVectors = that.numVectors;
+		vectorsDegeneracies = that.vectorsDegeneracies;
+}
+
+// copy assignment
+ElectronH0Wannier & ElectronH0Wannier::operator = (
+		const ElectronH0Wannier & that ) {
+	if ( this != & that ) {
+	    crystalVectors.resize(0,0);
+	    vectorsDegeneracies.resize(0);
+		h0R.resize(0,0,0);
+		statistics = that.statistics;
+		numVectors = that.numVectors;
+		numBands = that.numBands;
+	    crystalVectors = that.crystalVectors;
+	    vectorsDegeneracies = that.vectorsDegeneracies;
+		directUnitCell = that.directUnitCell;
+	    h0R = that.h0R;
+	}
+	return *this;
+}
+
+// default constructor
+ElectronH0Wannier::ElectronH0Wannier() : statistics(Statistics::electron) {
+}
+
+long ElectronH0Wannier::getNumBands() {
+	return numBands;
 }
 
 Statistics ElectronH0Wannier::getStatistics() {
@@ -58,18 +94,16 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	return {energies, eigenvectors};
 }
 
-std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-ElectronH0Wannier::diagonalize(Point & point) {
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Wannier::diagonalize(Point & point) {
 	Eigen::Vector3d k = point.getCoords("cartesian");
 
-	auto [energies,xxx] = diagonalizeFromCoords(k);
+	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
 
-	// dummy eigenvector in output
-	//TODO:  maybe we need to use these eigenvectors in a smarter way.
-	Eigen::Tensor<std::complex<double>,3> eigvecs(1,1,1);
-	eigvecs.setZero();
+	// note: the eigenvector matrix is the unitary transformation matrix U
+	// from the Bloch to the Wannier gauge.
 
-	return {energies, eigvecs};
+	return {energies, eigenvectors};
 }
 
 Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
@@ -81,3 +115,26 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
 			delta, threshold);
 	return velocity;
 }
+
+FullBandStructure ElectronH0Wannier::populate(FullPoints & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, statistics,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+		//TODO: I must fix the different shape of eigenvectors w.r.t. phonons
+//		if ( withEigenvectors ) {
+//			fullBandStructure.setEigenvectors(point, eigvecs);
+//		}
+	}
+	return fullBandStructure;
+}
+

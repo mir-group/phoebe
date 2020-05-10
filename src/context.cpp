@@ -6,6 +6,7 @@
 #include "context.h"
 #include "exceptions.h"
 #include "constants.h"
+#include <iterator>
 
 //TODO: it would be nice to have a smoother handling of read errors, with
 //some informations provided to the user.
@@ -34,7 +35,7 @@ bool lineHasPattern(std::string line, std::string pattern) {
 	sep = "=";
 	pos = line.find(sep);
 	if ( string::npos == pos ) {
-		throw "Delimeter not found";
+		throw ParameterNotFound();
 	}
 
 	s = line.substr(0,pos);
@@ -352,6 +353,73 @@ std::vector<std::string> parseStringList(std::vector<std::string> lines,
 	return x;
 };
 
+bool patternInString(const std::string & s, const std::string & pattern) {
+	if ( s.find(pattern) != std::string::npos ) {
+	    return true;
+	} else {
+		return false;
+	}
+}
+
+std::tuple<Eigen::MatrixXd , Eigen::VectorXi, std::vector<std::string>> parseCrystal(
+		std::vector<std::string> & lines) {
+
+	long iStart = -1;
+	long iEnd = -1;
+	long counter = 0;
+	for ( auto line : lines) {
+		if ( patternInString(line, "begin crystal") ) {
+			iStart = counter;
+		}
+		if ( patternInString(line, "end crystal") ) {
+			iEnd = counter;
+			break;
+		}
+		counter += 1;
+	}
+	if ( (iStart==-1) || (iEnd==-1) ) {
+		throw ParameterNotFound();
+	}
+
+	long numAtoms = iEnd - iStart - 1;
+	Eigen::MatrixXd atomicPositions(numAtoms,3);
+	Eigen::VectorXi atomicSpecies(numAtoms);
+	std::vector<std::string> speciesNames;
+
+	for ( counter=iStart+1; counter<iEnd; counter ++ ) {
+		std::string line = lines[counter];
+
+		// split line by spaces
+		std::stringstream ss(line);
+		std::istream_iterator<std::string> begin(ss);
+		std::istream_iterator<std::string> end;
+		std::vector<std::string> splitLine(begin, end);
+
+		std::string thisElement = splitLine[0];
+		// if new element, insert into list of species
+		if (std::find(speciesNames.begin(), speciesNames.end(), thisElement)
+				== speciesNames.end()) {
+			// thisElement not in speciesNames, add it
+			speciesNames.push_back(thisElement);
+		}
+		// find the index of the current element
+		long index = 0;
+		for ( auto speciesName : speciesNames ) {
+			if ( speciesName == thisElement ) {
+				break;
+			}
+			index += 1;
+		}
+		// save species and positions
+		atomicSpecies(counter-iStart-1) = index;
+		atomicPositions(counter-iStart-1,0) = std::stod(splitLine[1]);
+		atomicPositions(counter-iStart-1,1) = std::stod(splitLine[2]);
+		atomicPositions(counter-iStart-1,2) = std::stod(splitLine[3]);
+	}
+	atomicPositions /= distanceRyToAng;
+	return {atomicPositions,atomicSpecies,speciesNames};
+}
+
 void Context::setupFromInput(std::string fileName) {
 	std::vector<std::string> lines;
 	std::string line;
@@ -401,16 +469,17 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::string x = parseString(lines, "windowType");
-		setWindowType(x);
+		std::string win = parseString(lines, "windowType");
+		setWindowType(win);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::vector<double> x = parseDoubleList(lines, "windowEnergyLimit");
-		Eigen::Vector2d x_;
+		std::vector<double> winLim = parseDoubleList(lines, "windowEnergyLimit");
+		Eigen::Vector2d winLim_;
 		// we just make sure to order it
-		x_ << std::min(x[0],x[1]), std::max(x[0],x[1]);
-		setWindowEnergyLimit(x_);
+		winLim_[0] = std::min(winLim[0],winLim[1]);
+		winLim_[1] = std::max(winLim[0],winLim[1]);
+		setWindowEnergyLimit(winLim_);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
@@ -421,8 +490,8 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		std::vector<double> x = parseDoubleList(lines, "chemicalPotentials");
 		Eigen::VectorXd x_(x.size());
-		for ( long i=0; i<x.size(); i++ ) {
-			x_(i) = x_[i] / energyRyToEv;
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i] / energyRyToEv;
 		}
 		setChemicalPotentials(x_);
 	} catch (ParameterNotFound& e) {} // Do nothing!
@@ -430,14 +499,14 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		std::vector<double> x = parseDoubleList(lines, "temperatures");
 		Eigen::VectorXd x_(x.size());
-		for ( long i=0; i<x.size(); i++ ) {
-			x_(i) = x_[i] / temperatureAuToSi;
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i] / temperatureAuToSi;
 		}
 		setTemperatures(x_);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		std::string x = parseString(lines, "app");
+		std::string x = parseString(lines, "appName");
 		setAppName(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
@@ -474,6 +543,14 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		double x = parseDoubleWithUnits(lines, "dosDeltaEnergy");
 		setDosDeltaEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		// note: these should be given in input in cartesian coordinates
+		auto [atomicPositions,atomicSpecies,speciesNames]= parseCrystal(lines);
+		setInputAtomicPositions(atomicPositions);
+		setInputAtomicSpecies(atomicSpecies);
+		setInputSpeciesNames(speciesNames);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
@@ -651,6 +728,25 @@ void Context::setDosDeltaEnergy(double x) {
 
 double Context::getDosDeltaEnergy() {
 	return dosDeltaEnergy;
+}
+
+Eigen::MatrixXd Context::getInputAtomicPositions() {
+	return inputAtomicPositions;
+}
+Eigen::VectorXi Context::getInputAtomicSpecies() {
+	return inputAtomicSpecies;
+}
+std::vector<std::string> Context::getInputSpeciesNames() {
+	return inputSpeciesNames;
+}
+void Context::setInputAtomicPositions(Eigen::MatrixXd & atomicPositions) {
+	inputAtomicPositions = atomicPositions;
+}
+void Context::setInputAtomicSpecies(Eigen::VectorXi & atomicSpecies) {
+	inputAtomicSpecies = atomicSpecies;
+}
+void Context::setInputSpeciesNames(std::vector<std::string> & speciesNames) {
+	inputSpeciesNames = speciesNames;
 }
 
 

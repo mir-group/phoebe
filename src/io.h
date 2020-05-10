@@ -13,4 +13,6 @@ public:
 	IO(int argc, char* argv[]);
 	~IO();
 	std::string getInputFileName();
+	void welcome();
+	void goodbye();
 };

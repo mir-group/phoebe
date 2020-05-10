@@ -3,19 +3,24 @@
 
 #include "points.h"
 #include "statistics.h"
+#include "bandstructure.h"
+
+class FullBandStructure;
 
 class HarmonicHamiltonian {
 public:
 	HarmonicHamiltonian();
-	Eigen::VectorXd diagonalizeEnergy(Point & point);
+	virtual Eigen::VectorXd diagonalizeEnergy(Point & point);
 	std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
 
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
+	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 			Point & point);
 	const bool hasEigenvectors = true;
-	long getNumBands();
-	Statistics getStatistics();
+	virtual long getNumBands();
+	virtual Statistics getStatistics();
+	FullBandStructure populate(FullPoints & fullPoints,
+			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Statistics statistics;
 	Eigen::Tensor<std::complex<double>,3>

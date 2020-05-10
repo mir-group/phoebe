@@ -45,38 +45,36 @@ Eigen::VectorXd State::getEnergies(double chemicalPotential) {
 Eigen::Vector3d State::getVelocity(const long & bandIndex) {
 	if ( ! hasVelocities ) {
 		Error e("State doesn't have velocities" ,1);
-	} else {
-		if ( bandIndex >= numBands ) {
-			Error e("band index too large in getVelocity" ,1);
-		}
-		std::complex<double> x;
-		Eigen::Vector3d groupVelocity;
-		for ( long j=0; j<3; j++ ) {
-			long ind = compressIndeces(bandIndex, bandIndex, j, numBands,
-					numBands, 3);
-			x = *(velocities+ind);
-			groupVelocity(j) = real(x);
-		}
-		return groupVelocity;
 	}
+	if ( bandIndex >= numBands ) {
+		Error e("band index too large in getVelocity" ,1);
+	}
+	std::complex<double> x;
+	Eigen::Vector3d groupVelocity;
+	for ( long j=0; j<3; j++ ) {
+		long ind = compressIndeces(bandIndex, bandIndex, j, numBands,
+				numBands, 3);
+		x = *(velocities+ind);
+		groupVelocity(j) = real(x);
+	}
+	return groupVelocity;
 }
 
 Eigen::Vector3cd State::getVelocity(const long & bandIndex1,
 		const long & bandIndex2) {
 	if ( ! hasVelocities ) {
 		Error e("State doesn't have velocities" ,1);
-	} else {
-		if ( bandIndex1 >= numBands || bandIndex2 >= numBands ) {
-			Error e("band index too large in getVelocity" ,1);
-		}
-		Eigen::Vector3cd velocity;
-		for ( long j=0; j<3; j++ ) {
-			long ind = compressIndeces(bandIndex1,bandIndex2,j,numBands,
-					numBands, 3);
-			velocity(j) = *(velocities+ind);
-		}
-		return velocity;
 	}
+	if ( bandIndex1 >= numBands || bandIndex2 >= numBands ) {
+		Error e("band index too large in getVelocity" ,1);
+	}
+	Eigen::Vector3cd velocity;
+	for ( long j=0; j<3; j++ ) {
+		long ind = compressIndeces(bandIndex1,bandIndex2,j,numBands,
+				numBands, 3);
+		velocity(j) = *(velocities+ind);
+	}
+	return velocity;
 }
 
 Eigen::Tensor<std::complex<double>,3> State::getVelocities() {

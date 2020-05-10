@@ -6,7 +6,12 @@ public:
 	void run(Context & context);
 };
 
-class ElectronDosApp : public App {
+class ElectronWannierDosApp : public App {
+public:
+	void run(Context & context);
+};
+
+class ElectronFourierDosApp : public App {
 public:
 	void run(Context & context);
 };

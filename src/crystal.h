@@ -58,6 +58,11 @@ public:
 			std::vector<std::string>& speciesNames_,
 			Eigen::VectorXd& speciesMasses_,
 			long & dimensionality_);
+
+	Crystal(); // default empty constructor
+	Crystal(const Crystal & obj); // copy constructor
+	Crystal & operator=(const Crystal & obj); // assignment operator
+
 	//  Setter and getter for all the variables above
 
 	/** Returns the crystal unit cell in real space, in Bohr.

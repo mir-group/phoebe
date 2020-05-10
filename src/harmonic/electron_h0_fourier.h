@@ -62,7 +62,7 @@ public:
 //	FullBandStructure populateBandStructure(FullPoints * fullpoints=nullptr,
 //			IrreduciblePoints * irreduciblePoints=nullptr);
 
-	virtual std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
 		diagonalize(Point & point);
 
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
@@ -70,7 +70,7 @@ public:
 
 	Statistics getStatistics();
 
-	FullBandStructure populate(FullPoints & fullPoints,
+	virtual FullBandStructure populate(FullPoints & fullPoints,
 			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Statistics statistics;
@@ -86,7 +86,7 @@ protected:
 	long numDataPoints;
 	long numPositionVectors;
 	double minDistance;
-	std::vector<long> positionDegeneracies;
+	std::vector<double> positionDegeneracies;
 	std::vector<Eigen::Vector3d> positionVectors;
 	void setPositionVectors();
 	Eigen::VectorXcd getLagrangeMultipliers(Eigen::VectorXd energies);

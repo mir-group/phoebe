@@ -10,6 +10,7 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
 		coarsePoints(coarsePoints_), statistics(Statistics::electron) {
+
 	numBands = coarseBandStructure.getNumBands();
 	cutoff = cutoff_;
 	if ( coarseBandStructure.hasIrreduciblePoints() ) {
@@ -20,11 +21,12 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 
 	// to do the interpolation, we need the lattice vector basis:
 	setPositionVectors();
-
 	// now we look for the expansion coefficients that interpolates the bands
 	// note that setPositionVectors must stay above this call
-	Eigen::VectorXcd expansionCoefficients_(numBands, numPositionVectors);
+	Eigen::MatrixXcd expansionCoefficients_(numBands, numPositionVectors);
 	Eigen::VectorXd energies(numDataPoints);
+	expansionCoefficients_.setZero();
+	energies.setZero();
 	for ( long iBand=0; iBand<numBands; iBand++ ) {
 		energies = coarseBandStructure.getBandEnergies(iBand);
 		expansionCoefficients_.row(iBand) = getCoefficients(energies);
@@ -44,19 +46,18 @@ double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 
 std::complex<double> ElectronH0Fourier::getStarFunction(
 		Eigen::Vector3d& wavevector, long & iR) {
-	std::complex<double> phase = complexI * twoPi
+	std::complex<double> phase = complexI
 			* wavevector.transpose() * positionVectors[iR];
-	std::complex<double> starFunction = exp(phase)
-			/ double(positionDegeneracies[iR]);
+	std::complex<double> starFunction = exp(phase) / positionDegeneracies[iR];
 	return starFunction;
 }
 
 Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
 		Eigen::Vector3d& wavevector, long & iR) {
-	std::complex<double> phase = complexI * twoPi * wavevector.transpose()
-			* positionVectors[iR];
+	std::complex<double> phase = complexI
+			* wavevector.transpose() * positionVectors[iR];
 	Eigen::Vector3cd starFunctionDerivative = complexI * positionVectors[iR]
-			* exp(phase) / double(positionDegeneracies[iR]);
+			* exp(phase) / positionDegeneracies[iR];
 	return starFunctionDerivative;
 }
 
@@ -72,6 +73,8 @@ void ElectronH0Fourier::setPositionVectors() {
 	std::vector<long> tmpDegeneracies;
 	// the first vector is the vector zero
 	tmpVectors.push_back(Eigen::Vector3d::Zero());
+	isDegenerate.push_back(false);
+	tmpDegeneracies.push_back(1);
 
 	long N0 = long(cutoff / a1.norm() * 2.);
 	long N1 = long(cutoff / a2.norm() * 2.);
@@ -101,7 +104,7 @@ void ElectronH0Fourier::setPositionVectors() {
 	}
 
 	// now we build the list of irreducible vectors
-	for ( long iR=0; iR<tmpVectors.size(); iR++ ) {
+	for ( long iR=1; iR<tmpVectors.size(); iR++ ) { // we skip the first vector
 		Eigen::Vector3d vec = tmpVectors[iR];
 		if ( ! isDegenerate[iR] ) { // then we look for reducible points
 			for ( long iR2=iR+1; iR2<tmpVectors.size(); iR2++ ) {
@@ -121,7 +124,7 @@ void ElectronH0Fourier::setPositionVectors() {
 	for ( long iR=0; iR<tmpVectors.size(); iR++ ) {
 		if ( ! isDegenerate[iR] ) { // then we look for reducible points
 			positionVectors.push_back(tmpVectors[iR]);
-			positionDegeneracies.push_back(tmpDegeneracies[iR]);
+			positionDegeneracies.push_back(double(tmpDegeneracies[iR]));
 		}
 	}
 	numPositionVectors = positionVectors.size();
@@ -164,24 +167,24 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	Eigen::VectorXcd multipliers = getLagrangeMultipliers(energies);
 
 	Eigen::VectorXcd coefficients(numPositionVectors);
+	coefficients.setZero();
 	Eigen::Vector3d wavevector;
 
 	for ( long m=1; m<numPositionVectors; m++ ) {
-		Eigen::Vector3d position = positionVectors[m];
 		std::complex<double> smk0 = getStarFunction(refWavevector,m);
 		for ( long i=1; i<numDataPoints; i++ ) {
 			wavevector = coarseBandStructure.getPoint(i).getCoords("cartesian");
-			coefficients(m) += multipliers(i)
+			coefficients(m) += multipliers(i-1)
 					* std::conj(getStarFunction(wavevector,m) - smk0);
 		}
+		Eigen::Vector3d position = positionVectors[m];
 		coefficients(m) /= getRoughnessFunction(position);
 	}
 
 	// special case for R=0
 	coefficients(0) = energies(0);
 	for ( long m=1; m<numPositionVectors; m++ ) {
-		coefficients(0) -= coefficients(m)
-				* getStarFunction(refWavevector, m);
+		coefficients(0) -= coefficients(m) * getStarFunction(refWavevector, m);
 	}
 
 	return coefficients;
@@ -294,30 +297,3 @@ FullBandStructure ElectronH0Fourier::populate(FullPoints & fullPoints,
 	return fullBandStructure;
 }
 
-//FullBandStructure ElectronH0Fourier::populateBandStructure(
-//		FullPoints & fullPoints) {
-//
-//	if ( ( fullPoints == nullptr ) && ( irreduciblePoints == nullptr ) ) {
-//		Error e("From populateBandStructure: must provide mesh of points", 1);
-//	}
-//
-//	bool withVelocities = false;
-//	bool withEigenvectors = false;
-//	FullBandStructure denseBandStructure(numBands, statistics,
-//			withVelocities, withEigenvectors, fullPoints, irreduciblePoints);
-//
-//	Points * points;
-//	if ( fullPoints != nullptr ) {
-//		points = fullPoints;
-//	} else {
-//		points = irreduciblePoints;
-//	}
-//
-//	Eigen::VectorXd energies(numBands);
-//	for ( long ik=0; ik<points->getNumPoints(); ik++ ) {
-//		Point point = points->getPoint(ik);
-//		energies = getEnergies(point);
-//		denseBandStructure.setEnergies(point, energies);
-//	}
-//	return denseBandStructure;
-//}

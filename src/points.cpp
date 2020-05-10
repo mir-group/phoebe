@@ -1,14 +1,10 @@
 #include <cmath>
-#include "points.h"
-#include "exceptions.h"
 #include <set>
 #include <iterator>
+#include "points.h"
+#include "exceptions.h"
 #include "eigen.h"
-
-//Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d & point,
-//		const Eigen::Matrix3d & reciprocalUnitCell) {
-//	return reciprocalUnitCell * point;
-//}
+#include "utilities.h" // for mod()
 
 Point::Point(long index_, Eigen::Vector3d umklappVector_, Points & points_)
 		: points(points_) {
@@ -282,9 +278,9 @@ long Points::getIndex(const Eigen::Vector3d & point) {
 	p(1) = ( point(1) - offset(1) ) * mesh(1);
 	p(2) = ( point(2) - offset(2) ) * mesh(2);
 	// fold in BZ
-	long i = long(round(p(0))) % mesh(0);
-	long j = long(round(p(1))) % mesh(1);
-	long k = long(round(p(2))) % mesh(2);
+	long i = mod( long(round(p(0))) , mesh(0));
+	long j = mod(long(round(p(1))) , mesh(1));
+	long k = mod(long(round(p(2))) , mesh(2));
 	long ik = i * mesh(2) * mesh(1) + j * mesh(2) + k;
 	return ik;
 }
@@ -302,9 +298,9 @@ long FullPoints::getIndexInverted(const long & ik) {
 	long iky = (long)round(( point(1) - offset(1) ) * mesh(1));
 	long ikz = (long)round(( point(2) - offset(2) ) * mesh(2));
 
-	long ikxm = - ikx % mesh(0);
-	long ikym = - iky % mesh(1);
-	long ikzm = - ikz % mesh(2);
+	long ikxm = - mod(ikx , mesh(0));
+	long ikym = - mod(iky , mesh(1));
+	long ikzm = - mod(ikz , mesh(2));
 
 	long ikm = ikxm * mesh(2) * mesh(1) + ikym * mesh(2) + ikzm;
 	return ikm;
@@ -346,7 +342,7 @@ Eigen::Vector3d Points::reduciblePoints(const long & idx) {
 	long ikz = idx / (mesh(0) * mesh(1));
     long idx_ = idx - (ikz * mesh(0) * mesh(1));
     long iky = idx_ / mesh(0);
-    long ikx = idx_ % mesh(0);
+    long ikx = mod(idx_ , mesh(0));
 	Eigen::Vector3d p;
 	p(0) = ikx / (double)mesh(0) + offset(0);
 	p(1) = iky / (double)mesh(1) + offset(1);
@@ -363,7 +359,7 @@ Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d & point) {
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d & point) {
-	Eigen::Vector3d p = point.transpose() * crystal.getReciprocalUnitCell();
+	Eigen::Vector3d p = crystal.getReciprocalUnitCell().inverse() * point;
 	return p;
 }
 
@@ -405,16 +401,17 @@ void Points::setIrreduciblePoints() {
 				for ( long i=0; i<3; i++ ) {
 					rotatedPoint(i) -= round( rotatedPoint(i) );
 				}
-				xx = rotatedPoint(0) * mesh(0);
-				yy = rotatedPoint(1) * mesh(1);
-				zz = rotatedPoint(2) * mesh(2);
+				xx = rotatedPoint(0) * mesh(0) - offset(0);
+				yy = rotatedPoint(1) * mesh(1) - offset(1);
+				zz = rotatedPoint(2) * mesh(2) - offset(2);
 				inTheList = ( abs(xx-round(xx)) <=eps &&
 						abs(yy-round(yy)) <=eps &&
 						abs(zz-round(zz)) <=eps );
 				if ( inTheList ) {
-					ix = (int)round( ( rotatedPoint(0)+2 )*mesh(0) ) % mesh(0);
-					iy = (int)round( ( rotatedPoint(1)+2 )*mesh(1) ) % mesh(1);
-					iz = (int)round( ( rotatedPoint(2)+2 )*mesh(2) ) % mesh(2);
+					ix = mod(long(round(rotatedPoint(0)*mesh(0) - offset(0) + 2*mesh(0))), mesh(0) );
+					iy = mod(long(round(rotatedPoint(1)*mesh(1) - offset(1) + 2*mesh(1))), mesh(1) );
+					iz = mod(long(round(rotatedPoint(2)*mesh(2) - offset(2) + 2*mesh(2))), mesh(2) );
+
 					n = iz + iy*mesh(2) + ix*mesh(1)*mesh(2);
 					if ( n>ik && equiv(n)==n ) {
 						equiv(n) = ik;

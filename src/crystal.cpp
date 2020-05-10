@@ -210,6 +210,48 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 	symmetryRotations = symmetryRotations_;
 }
 
+// default empty constructor
+Crystal::Crystal() {
+}
+
+// copy constructor
+Crystal::Crystal(const Crystal & obj) {
+	directUnitCell = obj.directUnitCell;
+	reciprocalUnitCell = obj.reciprocalUnitCell;
+	volumeUnitCell = obj.volumeUnitCell;
+	numAtoms = obj.numAtoms;
+	numSpecies = obj.numSpecies;
+	dimensionality = obj.dimensionality;
+	atomicPositions = obj.atomicPositions;
+	atomicSpecies = obj.atomicSpecies;
+	atomicNames = obj.atomicNames;
+	atomicMasses = obj.atomicMasses;
+	speciesNames = obj.speciesNames;
+	speciesMasses = obj.speciesMasses;
+	symmetryRotations = obj.symmetryRotations;
+	numSymmetries = obj.numSymmetries;
+}
+
+// assignment operator
+Crystal & Crystal::operator=(const Crystal & obj) {
+	if ( this != &obj ) {
+		directUnitCell = obj.directUnitCell;
+		reciprocalUnitCell = obj.reciprocalUnitCell;
+		volumeUnitCell = obj.volumeUnitCell;
+		numAtoms = obj.numAtoms;
+		numSpecies = obj.numSpecies;
+		dimensionality = obj.dimensionality;
+		atomicPositions = obj.atomicPositions;
+		atomicSpecies = obj.atomicSpecies;
+		atomicNames = obj.atomicNames;
+		atomicMasses = obj.atomicMasses;
+		speciesNames = obj.speciesNames;
+		speciesMasses = obj.speciesMasses;
+		symmetryRotations = obj.symmetryRotations;
+		numSymmetries = obj.numSymmetries;
+	}
+	return *this;
+}
 
 
 

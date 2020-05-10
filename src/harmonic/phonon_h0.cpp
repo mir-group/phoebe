@@ -6,6 +6,7 @@
 #include "eigen.h"
 #include "exceptions.h"
 #include "phonon_h0.h"
+#include "utilities.h"
 
 PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
@@ -685,11 +686,11 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
 
 							// find vector corresponding to r in original cell
 
-							m1 = ( n1 + 1 ) % qCoarseGrid(0);
+							m1 = mod(( n1 + 1 ) , qCoarseGrid(0));
 							if ( m1 <= 0 ) { m1 += qCoarseGrid(0); };
-							m2 = ( n2 + 1 ) % qCoarseGrid(1);
+							m2 = mod(( n2 + 1 ) , qCoarseGrid(1));
 							if ( m2 <= 0 ) { m2 += qCoarseGrid(1); };
-							m3 = ( n3 + 1 ) % qCoarseGrid(2);
+							m3 = mod(( n3 + 1 ) , qCoarseGrid(2));
 							if ( m3 <= 0 ) { m3 += qCoarseGrid(2); };
 							m1 += -1;
 							m2 += -1;
@@ -1135,9 +1136,9 @@ void PhononH0::setAcousticSumRule(const std::string & sumRule) {
 											 (ind_v(l,1,6)==nb)) { q = 0;}
 										l += 1;
 									}
-									if ( ( n1==((nr1+1-n1)%nr1) ) &&
-										 ( n2==((nr2+1-n2)%nr2) ) &&
-										 ( n3==((nr3+1-n3)%nr3) ) &&
+									if ( ( n1==mod((nr1+1-n1),nr1) ) &&
+										 ( n2==mod((nr2+1-n2),nr2) ) &&
+										 ( n3==mod((nr3+1-n3),nr3) ) &&
 										 ( i==j ) && ( na==nb ) ) { q = 0; }
 									if ( q != 0 ) {
 										ind_v(m,0,0) = n1;
@@ -1148,9 +1149,9 @@ void PhononH0::setAcousticSumRule(const std::string & sumRule) {
 										ind_v(m,0,5) = na;
 										ind_v(m,0,6) = nb;
 										v(m,0) = 1. / sqrt(2.);
-										ind_v(m,1,0) = (nr1+1-n1) % nr1;
-										ind_v(m,1,1) = (nr2+1-n2) % nr2;
-										ind_v(m,1,2) = (nr3+1-n3) % nr3;
+										ind_v(m,1,0) = mod((nr1+1-n1) , nr1);
+										ind_v(m,1,1) = mod((nr2+1-n2) , nr2);
+										ind_v(m,1,2) = mod((nr3+1-n3) , nr3);
 										ind_v(m,1,3) = j;
 										ind_v(m,1,4) = i;
 										ind_v(m,1,5) = nb;
@@ -1231,16 +1232,16 @@ void PhononH0::setAcousticSumRule(const std::string & sumRule) {
 			}
 
 			if ( k+1 <= ( 9*numAtoms) ) {
-				na1 = (k + 1)% numAtoms;
+				na1 = mod(k + 1 , numAtoms);
 				if ( na1==0 ) { na1 = numAtoms; };
-				j1 = (((k+1-na1)/numAtoms) % 3);
-				i1 = (((((k+1-na1)/numAtoms)-j1)/3) % 3);
+				j1 = mod(((k+1-na1)/numAtoms) , 3);
+				i1 = mod(((((k+1-na1)/numAtoms)-j1)/3) , 3);
 			} else {
 				q = k + 1 - 9 * numAtoms;
-				na1 = q % numAtoms;
+				na1 = mod(q , numAtoms);
 				if ( na1 == 0 ) na1 = numAtoms;
-				j1 = (((q-na1)/numAtoms) % 3);
-				i1 = (((((q-na1)/numAtoms)-j1)/3) % 3);
+				j1 = mod(((q-na1)/numAtoms) , 3);
+				i1 = mod(((((q-na1)/numAtoms)-j1)/3) , 3);
 			}
 			for ( long q=0; q<k; q++ ) {
 				r = 1;

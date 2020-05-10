@@ -6,6 +6,11 @@
 HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
 }
 
+FullBandStructure HarmonicHamiltonian::populate(FullPoints & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+	Error e("base populate not implemented");
+}
+
 // note: these are dummy functions, that should be overwritten in the
 
 std::tuple<Eigen::VectorXd,Eigen::Tensor<std::complex<double>,3>>

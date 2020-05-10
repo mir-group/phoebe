@@ -52,6 +52,10 @@ private:
 	double dosMaxEnergy = 1.;
 	double dosDeltaEnergy = 0.01;
 
+	Eigen::MatrixXd inputAtomicPositions;
+	Eigen::VectorXi inputAtomicSpecies;
+	std::vector<std::string> inputSpeciesNames;
+
 //  Setter and getter for all the variables above
 public:
 	/** sets the name of the file containing the lattice force constants.
@@ -222,6 +226,17 @@ public:
 
 	void setDosDeltaEnergy(double x);
 	double getDosDeltaEnergy();
+
+	// Wannier90 output doesn't contain the crystal information.
+	// the user must then supplement it in the input
+	// at least, if there's no phonon run
+	// we may change the behavior in the future, parsing another file
+	Eigen::MatrixXd getInputAtomicPositions();
+	Eigen::VectorXi getInputAtomicSpecies();
+	std::vector<std::string> getInputSpeciesNames();
+	void setInputAtomicPositions(Eigen::MatrixXd & atomicPositions);
+	void setInputAtomicSpecies(Eigen::VectorXi & atomicSpecies);
+	void setInputSpeciesNames(std::vector<std::string> & speciesNames);
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

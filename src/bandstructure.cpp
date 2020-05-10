@@ -246,6 +246,7 @@ State FullBandStructure::getState(Point & point) {
 //}
 
 Eigen::VectorXd FullBandStructure::getBandEnergies(long & bandIndex) {
+	std::cout << "Sto qua\n";
 	Eigen::VectorXd bandEnergies = energies.col(bandIndex);
 	return bandEnergies;
 }

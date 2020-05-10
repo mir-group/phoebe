@@ -10,34 +10,33 @@
 #include "statistics.h"
 #include "dos_app.h"
 #include "phonon_transport_app.h"
+#include "utilities.h"
 
 // app factory
-std::unique_ptr<App> App::loadApp(std::string choice) {
+std::unique_ptr<App> App::loadApp(std::string & choice) {
 	if ( choice == "phononTransport" ) {
 		return std::unique_ptr<App> (new PhononTransportApp);
 	} else if ( choice == "phononDos" ) {
 		return std::unique_ptr<App> (new PhononDosApp);
-	} else if ( choice == "electronDos" ) {
-		return std::unique_ptr<App> (new ElectronDosApp);
+	} else if ( choice == "electronWannierDos" ) {
+		return std::unique_ptr<App> (new ElectronWannierDosApp);
+	} else if ( choice == "electronFourierDos" ) {
+		return std::unique_ptr<App> (new ElectronFourierDosApp);
+	} else {
+		return std::unique_ptr<App> (nullptr);
 	}
 }
 
 void App::run(Context & context) {
+	(void) context; // suppress unused variable compiler warnings
+	Error e("Base class app doesn't have a run()");
 }
 
 std::tuple<Crystal, PhononH0> App::setupPhononH0(Context & context) {
 	auto [crystal, phononH0] =
-			qeParser.parsePhHarmonic(context);
+			parser.parsePhHarmonic(context);
 	phononH0.setAcousticSumRule(context.getSumRuleD2());
 	return {crystal, phononH0};
-}
-
-std::tuple<Crystal, ElectronH0Fourier> App::setupElectronH0Fourier(Context & context) {
-	return qeParser.parseElHarmonicFourier(context);
-}
-
-ElectronH0Wannier App::setupElectronH0Wannier(Context & context) {
-	return qeParser.parseElHarmonicWannier(context);
 }
 
 std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(

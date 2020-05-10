@@ -1,6 +1,13 @@
-#include "element.h"
+#include <string>
 
-namespace pt {
+// define a container for info on atoms
+
+struct Element {
+  std::string symbol;
+  long atomicNumber;
+  double mass;
+  double massVariance;
+};
 
 // Define the periodic table. Mass variance at natural abundances
 
@@ -117,37 +124,13 @@ public:
 			{"Hs", 108, 269.0, 0.0},
 			{"Mt", 109, 276.0, 0.0}
 	};
-	void updateMass(string, double);
-	void updateMassVariance(string, double);
+	void setMass(const std::string & speciesName, double & x);
+	void setMassVariance(const std::string & speciesName, double & x);
+	double getMass(const std::string & speciesName);
+	double getMassVariance(const std::string & speciesName);
+private:
+	long findElementByStr(const std::string & x);
 };
-
-void PeriodicTable::updateMass(string symbol, double x) {
-	int i = 0;
-	for (i = 0; i <= int(sizeof(elements))-1; i++)
-	{
-		if ( symbol == elements[i].symbol )
-		{
-			break;
-		}
-	}
-	elements[i].mass = x;
-}
-
-void PeriodicTable::updateMassVariance(string symbol, double x) {
-	int i = 0;
-	for (i = 0; i < int(sizeof(elements)); i++)
-	{
-		if ( symbol == elements[i].symbol )
-		{
-			break;
-		}
-	}
-	elements[i].massVariance = x;
-}
-
-PeriodicTable periodicTable;
-
-}
 
 /*
  This is the python function used to compute the various element lines

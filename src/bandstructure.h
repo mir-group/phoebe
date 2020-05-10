@@ -58,17 +58,22 @@ public:
 	Point getPoint(const long & pointIndex);
 	long getNumPoints();
 	State getState(Point & point);
+	long getNumBands();
+	bool hasIrreduciblePoints();
+	Eigen::VectorXd getBandEnergies(long & bandIndex);
+	Statistics getStatistics();
+
 	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
 	void setEnergies(Point& point, Eigen::VectorXd & energies_);
 	void setEigenvectors(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & eigenvectors_);
 	void setVelocities(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
-	long getNumBands();
-	bool hasIrreduciblePoints();
-	Eigen::VectorXd getBandEnergies(long & bandIndex);
-	Statistics getStatistics();
 };
+
+
+class HarmonicHamiltonian; // forward declaration
+// could be avoided moving activeBandStructure to a new file
 
 class ActiveBandStructure {
 private:

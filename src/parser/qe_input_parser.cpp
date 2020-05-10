@@ -13,6 +13,8 @@
 #include "exceptions.h"
 #include "qe_input_parser.h"
 #include "statistics.h"
+#include "periodic_table.h"
+#include "utilities.h"
 
 void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 {
@@ -51,8 +53,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 	a3 = unitCell.col(2);
 
 	if ( ibrav == 0 ) {
-		if ( sqrt( a1.transpose()*a1 ) == 0 || sqrt( a2.transpose()*a2 ) == 0
-				|| sqrt( a3.transpose()*a3 ) == 0 ) {
+		if ( a1.norm() == 0. || a2.norm() == 0. || a3.norm() == 0. ) {
 			Error e("wrong at for ibrav=0", 1);
 		}
 		if ( celldm(0) != 0. ) {
@@ -60,7 +61,7 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 			unitCell *= celldm(0);
 		} else {
 			// ... input at are in atomic units: define celldm(1) from a1
-			celldm(0) = sqrt( a1.transpose() * a1 );
+			celldm(0) = a1.norm();
 		}
 	} else {
 		a1.setZero();
@@ -536,15 +537,38 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 	return {crystal, dynamicalMatrix};
 };
 
-std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
+bool QEParser::isQuantumEspressoXml(const std::string & fileName) {
+	if ( fileName.empty() ) {
+		Error e("Must provide an input H0 file name");
+	}
+	// open input file
+	std::ifstream infile(fileName);
+	if ( not infile.is_open() ) {
+		Error e("H0 file not found", 1);
+	}
+	std::string tag = "espresso";
+	std::string line;
+	bool tagFound = false;
+	while( std::getline(infile, line) && !tagFound ) {
+	    if ( line.find(tag) != string::npos ) {
+	    	tagFound = true;
+	    	break;
+	    }
+	}
+	infile.close();
+	return tagFound;
+}
+
+std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		Context & context) {
 	//  Here we read the XML file of quantum espresso.
 
-	std::string fileName = context.getElectronH0Name();
+	std::string fileName;
+	fileName = context.getElectronH0Name();
 	double fourierCutoff = context.getElectronFourierCutoff();
 
-	if ( fileName == "" ) {
-		Error e("Must provide an XLM file name",1);
+	if ( fileName.empty() ) {
+		Error e("Must provide an XML file name");
 	}
 
 	std::vector<std::string> lineSplit;
@@ -554,7 +578,7 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	pugi::xml_parse_result result = doc.load_file(fileName.c_str());
 
 	if ( not result ) {
-		Error e("Error parsing XML file", 1);
+		Error e("Error parsing XML file");
 	}
 
 	pugi::xml_node output = doc.child("qes:espresso").child("output");
@@ -576,6 +600,7 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	pugi::xml_node atomicStructure = output.child("atomic_structure");
 	int numAtoms = atomicStructure.attribute("nat").as_int();
+//	double alat = atomicStructure.attribute("alat").as_double();
 
 	//  we read the atomic positions
 
@@ -595,10 +620,11 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 			atomId = std::distance(speciesNames.begin(), itr);
 		}
 		else {
-			Error e("Element not found in XML", 1);
+			Error e("Element not found in XML");
 		}
 		atomicSpecies(i) = atomId;
 
+		// note: atomic positions are cartesians, in units of angstroms
 		lineSplit = split(atom.child_value(), ' ');
 		atomicPositions(i,0) = std::stod(lineSplit[0]);
 		atomicPositions(i,1) = std::stod(lineSplit[1]);
@@ -643,18 +669,60 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		Error e("Grid found in QE:XML, should have used full kpoints grid",1);
 	}
 
+	// Initialize the crystal class
+
+	long dimensionality = context.getDimensionality();
+	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
+			speciesNames, speciesMasses, dimensionality);
+//	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
+//			atomicPositions, atomicSpecies, speciesNames, speciesMasses,
+//			dimensionality));
+
+	// initialize reciprocal lattice cell
+	// I need this to convert kpoints from cartesian to crystal coordinates
+
+	pugi::xml_node basisSet = output.child("basis_set");
+	pugi::xml_node recCell = basisSet.child("reciprocal_lattice");
+	Eigen::Matrix3d bVectors;
+	lineSplit = split(recCell.child_value("b1"), ' ');
+	bVectors(0,0) = std::stod(lineSplit[0]);
+	bVectors(0,1) = std::stod(lineSplit[1]);
+	bVectors(0,2) = std::stod(lineSplit[2]);
+	lineSplit = split(recCell.child_value("b2"), ' ');
+	bVectors(1,0) = std::stod(lineSplit[0]);
+	bVectors(1,1) = std::stod(lineSplit[1]);
+	bVectors(1,2) = std::stod(lineSplit[2]);
+	lineSplit = split(recCell.child_value("b3"), ' ');
+	bVectors(2,0) = std::stod(lineSplit[0]);
+	bVectors(2,1) = std::stod(lineSplit[1]);
+	bVectors(2,2) = std::stod(lineSplit[2]);
+
+	// parse k-points and energies
+
 	Eigen::MatrixXd irredPoints(numIrredPoints, 3);
 	Eigen::VectorXd irredWeights(numIrredPoints);
 	Eigen::MatrixXd irredEnergies(numIrredPoints, numBands);
 	Eigen::MatrixXd irredOccupations(numIrredPoints, numBands);
+	irredPoints.setZero();
 	irredWeights.setZero();
+	irredEnergies.setZero();
+	irredOccupations.setZero();
 	i = 0;
+	Eigen::Vector3d p;
 	for ( pugi::xml_node kpoint: bandStructureXML.children("ks_energies") ) {
 		irredWeights(i) = kpoint.child("k_point").attribute("weight").as_double();
 		lineSplit = split(kpoint.child_value("k_point"), ' ');
-		irredPoints(i,0) = std::stod(lineSplit[0]);
-		irredPoints(i,1) = std::stod(lineSplit[1]);
-		irredPoints(i,2) = std::stod(lineSplit[2]);
+
+		// note:
+		// k_cart = bVectors * k_cryst
+
+		p(0) = std::stod(lineSplit[0]);
+		p(1) = std::stod(lineSplit[1]);
+		p(2) = std::stod(lineSplit[2]);
+
+		// convert from cartesian to crystal coordinates
+		p = bVectors.inverse() * p;
+		irredPoints.row(i) = p;
 
 		lineSplit = split(kpoint.child_value("eigenvalues"), ' ');
 		for ( int j=0; j<numBands; j++ ) {
@@ -669,15 +737,14 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		i += 1;
 	}
 
+	// QE XML energies are in Hartree units. Must convert to rydbergs
+	irredEnergies *= 2.;
+
 	// Now we do postprocessing
 
 	if ( lsda || noncolin || spinorbit ) {
-		Error e("spin is not yet supported" ,1);
+		Error e("spin is not yet supported");
 	}
-
-	long dimensionality = context.getDimensionality();
-	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
-			speciesNames, speciesMasses, dimensionality);
 
 	auto [mesh, offset] = Points::findMesh(irredPoints);
 	FullPoints coarsePoints(crystal, mesh, offset);
@@ -691,6 +758,8 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	Eigen::Vector3d pointCoords;
 	Eigen::VectorXd thisEnergies(numBands);
 	for ( int ik=0; ik<numIrredPoints; ik++ ) {
+		// note: kpoints in the XML files are not ordered in the same way
+		// as in the scf.in file
 		pointCoords = irredPoints.row(ik);
 		thisEnergies = irredEnergies.row(ik);
 		coarseBandStructure.setEnergies(pointCoords, thisEnergies);
@@ -701,11 +770,14 @@ std::tuple<Crystal, ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
 			fourierCutoff);
+//	std::unique_ptr<ElectronH0Fourier> electronH0(new ElectronH0Fourier(
+//			*crystal, coarsePoints, coarseBandStructure, fourierCutoff));
 
+//	return std::make_tuple(std::move(crystal),std::move(electronH0));
 	return {crystal, electronH0};
 };
 
-ElectronH0Wannier QEParser::parseElHarmonicWannier(
+std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		Context & context) {
 	//  Here we read the XML file of quantum espresso.
 
@@ -730,11 +802,13 @@ ElectronH0Wannier QEParser::parseElHarmonicWannier(
 
 	//Then, we have the directUnitCell of the ctystal in angstroms
 	Eigen::Matrix3d directUnitCell(3,3);
+	directUnitCell.setZero();
 	for ( int i=0; i<3; i++ ) {
 		std::getline(infile, line);
 		lineSplit = split(line, ' ');
 		for ( int j=0; j<3; j++) {
-			directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceRyToAng;
+			// unit cell is written in angstrom
+			directUnitCell(i,j) = std::stod(lineSplit[j]) / distanceRyToAng;
 		}
 	};
 
@@ -751,6 +825,7 @@ ElectronH0Wannier QEParser::parseElHarmonicWannier(
 	long numLines = numVectors / long(15);
 	if ( double(numVectors)/15. > 0. ) numLines += 1;
 	Eigen::VectorXd vectorsDegeneracies(numVectors);
+	vectorsDegeneracies.setZero();
 	long j = 0;
 	for ( long i=0; i<numLines; i++ ) {
 		std::getline(infile, line);
@@ -764,8 +839,8 @@ ElectronH0Wannier QEParser::parseElHarmonicWannier(
 
 	// now we read the Hamiltonian in real space
 	Eigen::MatrixXd crystalVectors(numVectors,3);
-	crystalVectors.setZero();
 	Eigen::Tensor<std::complex<double>,3> h0R(numVectors, numWann, numWann);
+	crystalVectors.setZero();
 	h0R.setZero();
 	for ( long iR=0; iR<numVectors; iR++ ) {
 		// first we have an empty line
@@ -782,9 +857,9 @@ ElectronH0Wannier QEParser::parseElHarmonicWannier(
 			for ( long j=0; j<numWann; j++ ) {
 				std::getline(infile, line);
 				lineSplit = split(line, ' ');
-				double re = std::stod(lineSplit[2]);
-				double im = std::stod(lineSplit[3]);
-				h0R(iR, i, j) = {re,im};
+				double re = std::stod(lineSplit[2]) / energyRyToEv;
+				double im = std::stod(lineSplit[3]) / energyRyToEv;
+				h0R(iR, i, j) = {re,im}; // the matrix was in eV
 			}
 		}
 	}
@@ -796,6 +871,29 @@ ElectronH0Wannier QEParser::parseElHarmonicWannier(
 
 	ElectronH0Wannier electronH0(directUnitCell, crystalVectors,
 			vectorsDegeneracies, h0R);
+//	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
+//			directUnitCell, crystalVectors, vectorsDegeneracies, h0R));
 
-	return electronH0;
+	long dimensionality = context.getDimensionality();
+	Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
+	Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
+	std::vector<std::string> speciesNames = context.getInputSpeciesNames();
+
+	// we default the masses to the conventional ones here.
+	Eigen::VectorXd speciesMasses(speciesNames.size());
+	PeriodicTable periodicTable;
+	long i = 0;
+	for ( auto speciesName : speciesNames ) {
+		speciesMasses[i] = periodicTable.getMass(speciesName);
+		i += 1;
+	}
+
+	Crystal crystal(directUnitCell, atomicPositions, atomicSpecies,
+			speciesNames, speciesMasses, dimensionality);
+//	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
+//			atomicPositions, atomicSpecies, speciesNames, speciesMasses,
+//			dimensionality));
+
+//	return std::make_tuple(std::move(crystal),std::move(electronH0));
+	return {crystal,electronH0};
 };

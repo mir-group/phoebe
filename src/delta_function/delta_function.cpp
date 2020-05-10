@@ -1,5 +1,6 @@
 #include "delta_function.h"
 #include "exceptions.h"
+#include "utilities.h"
 
 Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 		FullBandStructure & fullBandStructure_) : fullPoints(fullPoints_),
@@ -46,9 +47,9 @@ Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 		long i = long(point(0));
 		long j = long(point(1));
 		long k = long(point(2));
-		long ip1 = (i+1) % grid(0);
-		long jp1 = (j+1) % grid(1);
-		long kp1 = (k+1) % grid(2);
+		long ip1 = mod((i+1) , grid(0));
+		long jp1 = mod((j+1) , grid(1));
+		long kp1 = mod((k+1) , grid(2));
 
 		subcellCorners <<
 				i,j,k,
