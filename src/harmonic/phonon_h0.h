@@ -12,6 +12,7 @@
 #include "statistics.h"
 #include "bandstructure.h"
 
+
 class PhononH0 : public HarmonicHamiltonian {
 public:
 	/** Class to store the force constants and diagonalize the dynamical matrix
@@ -62,7 +63,8 @@ public:
 	long getNumBands();
 	Statistics getStatistics();
 
-	FullBandStructure populate(FullPoints & fullPoints,
+	template <typename T>
+	FullBandStructure populate(T & points,
 			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Statistics statistics;

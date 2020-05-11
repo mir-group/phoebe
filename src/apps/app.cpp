@@ -9,6 +9,7 @@
 #include "window.h"
 #include "statistics.h"
 #include "dos_app.h"
+#include "bands_app.h"
 #include "phonon_transport_app.h"
 #include "utilities.h"
 
@@ -22,6 +23,8 @@ std::unique_ptr<App> App::loadApp(std::string & choice) {
 		return std::unique_ptr<App> (new ElectronWannierDosApp);
 	} else if ( choice == "electronFourierDos" ) {
 		return std::unique_ptr<App> (new ElectronFourierDosApp);
+	} else if ( choice == "phononBands" ) {
+		return std::unique_ptr<App> (new PhononBandsApp);
 	} else {
 		return std::unique_ptr<App> (nullptr);
 	}

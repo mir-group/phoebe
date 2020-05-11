@@ -56,6 +56,9 @@ private:
 	Eigen::VectorXi inputAtomicSpecies;
 	std::vector<std::string> inputSpeciesNames;
 
+	Eigen::Tensor<double,3> pathExtrema;
+	double deltaPath = 0.05;
+
 //  Setter and getter for all the variables above
 public:
 	/** sets the name of the file containing the lattice force constants.
@@ -237,6 +240,12 @@ public:
 	void setInputAtomicPositions(Eigen::MatrixXd & atomicPositions);
 	void setInputAtomicSpecies(Eigen::VectorXi & atomicSpecies);
 	void setInputSpeciesNames(std::vector<std::string> & speciesNames);
+
+
+	void setPathExtrema(Eigen::Tensor<double,3> x);
+	Eigen::Tensor<double,3> getPathExtrema();
+	void setDeltaPath(double x);
+	double getDeltaPath();
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

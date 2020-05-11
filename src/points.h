@@ -149,7 +149,17 @@ public:
 	ActivePoints & operator=(const ActivePoints & obj); // assignment operator
 };
 
-class PathPoints: public Points {
+class PathPoints: public FullPoints {
+public:
+	PathPoints(Crystal & crystal_,
+			const Eigen::Tensor<double,3> & pathExtrema,
+			const double & delta);
+
+	long getIndex(const Eigen::Vector3d & coords);
+	long getIndexInverted(const long & ik);
+protected:
+	Eigen::Vector3d pointsCoords(const long & index);
+	Eigen::Matrix<double,3,Eigen::Dynamic> pointsList;
 };
 
 #endif

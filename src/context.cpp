@@ -420,6 +420,60 @@ std::tuple<Eigen::MatrixXd , Eigen::VectorXi, std::vector<std::string>> parseCry
 	return {atomicPositions,atomicSpecies,speciesNames};
 }
 
+
+
+
+
+Eigen::Tensor<double,3> parsePathExtrema(std::vector<std::string> & lines) {
+	long iStart = -1;
+	long iEnd = -1;
+	long counter = 0;
+	for ( auto line : lines) {
+		if ( patternInString(line, "begin point path") ) {
+			iStart = counter;
+		}
+		if ( patternInString(line, "end point path") ) {
+			iEnd = counter;
+			break;
+		}
+		counter += 1;
+	}
+	if ( (iStart==-1) || (iEnd==-1) ) {
+		throw ParameterNotFound();
+	}
+
+	long numSegments = iEnd - iStart - 1;
+	Eigen::Tensor<double,3> pathExtrema(numSegments,2,3);
+	pathExtrema.setZero();
+
+	long i = 0;
+	for ( counter=iStart+1; counter<iEnd; counter ++ ) {
+		std::string line = lines[counter];
+
+		// split line by spaces
+		std::stringstream ss(line);
+		std::istream_iterator<std::string> begin(ss);
+		std::istream_iterator<std::string> end;
+		std::vector<std::string> splitLine(begin, end);
+
+		pathExtrema(i,0,0) = std::stod(splitLine[1]);
+		pathExtrema(i,0,1) = std::stod(splitLine[2]);
+		pathExtrema(i,0,2) = std::stod(splitLine[3]);
+
+		pathExtrema(i,1,0) = std::stod(splitLine[5]);
+		pathExtrema(i,1,1) = std::stod(splitLine[6]);
+		pathExtrema(i,1,2) = std::stod(splitLine[7]);
+
+		i++;
+	}
+
+	return pathExtrema;
+}
+
+
+
+
+
 void Context::setupFromInput(std::string fileName) {
 	std::vector<std::string> lines;
 	std::string line;
@@ -551,6 +605,17 @@ void Context::setupFromInput(std::string fileName) {
 		setInputAtomicPositions(atomicPositions);
 		setInputAtomicSpecies(atomicSpecies);
 		setInputSpeciesNames(speciesNames);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		// note: these should be given in input in cartesian coordinates
+		auto pathExtrema_ = parsePathExtrema(lines);
+		setPathExtrema(pathExtrema_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDouble(lines, "deltaPath");
+		setDeltaPath(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
@@ -749,6 +814,19 @@ void Context::setInputSpeciesNames(std::vector<std::string> & speciesNames) {
 	inputSpeciesNames = speciesNames;
 }
 
+void Context::setPathExtrema(Eigen::Tensor<double,3> x) {
+	pathExtrema = x;
+}
+Eigen::Tensor<double,3> Context::getPathExtrema() {
+	return pathExtrema;
+}
+
+void Context::setDeltaPath(double x) {
+	deltaPath = x;
+}
+double Context::getDeltaPath() {
+	return deltaPath;
+}
 
 
 

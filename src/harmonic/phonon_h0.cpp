@@ -1450,14 +1450,18 @@ Eigen::Vector3i PhononH0::getCoarseGrid() {
 	return qCoarseGrid;
 }
 
-FullBandStructure PhononH0::populate(FullPoints & fullPoints,
+template <typename T>
+FullBandStructure PhononH0::populate(T & points,
 		bool & withVelocities, bool & withEigenvectors) {
 
 	FullBandStructure fullBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, fullPoints);
+			withVelocities, withEigenvectors, points);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
 		Point point = fullBandStructure.getPoint(ik);
+
+		std::cout << ik << " " << point.getCoords().transpose() << "\n";
+
 		auto [ens, eigvecs] = diagonalize(point);
 		fullBandStructure.setEnergies(point, ens);
 		if ( withVelocities) {
