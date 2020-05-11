@@ -10,6 +10,7 @@ HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d & k) {
+	(void) k;
 	Eigen::VectorXd energies(numBands);
 	Eigen::MatrixXcd eigvecs(numBands,numBands);
 	return {energies, eigvecs};

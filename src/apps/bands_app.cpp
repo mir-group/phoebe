@@ -40,3 +40,38 @@ void PhononBandsApp::run(Context & context) {
 	}
 	std::cout << "Finishing phonon bands calculation" << std::endl;
 }
+
+void ElectronWannierBandsApp::run(Context & context) {
+	std::cout << "Starting electron (Wannier) bands calculation" << std::endl;
+
+	// Read the necessary input files
+	auto [crystal, electronH0] = parser.parseElHarmonicWannier(context);
+
+	// first we make compute the band structure on the fine grid
+	PathPoints pathPoints(crystal, context.getPathExtrema(),
+			context.getDeltaPath());
+
+	bool withVelocities = false;
+	bool withEigenvectors = false;
+	FullBandStructure fullBandStructure = electronH0.populate(pathPoints,
+			withVelocities, withEigenvectors);
+
+	// Save phonon band structure to file
+	long numPoints = pathPoints.getNumPoints();
+	long numBands = electronH0.getNumBands();
+
+	std::ofstream outfile("./electron_bands.dat");
+	outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
+
+	for ( long ik=0; ik<numPoints; ik++ ) {
+		outfile << ik;
+		auto p = fullBandStructure.getPoint(ik);
+		auto s = fullBandStructure.getState(p);
+		Eigen::VectorXd energies = s.getEnergies();
+		for ( long ib=0; ib<numBands; ib++ ) {
+			outfile << "\t" << energies(ib) * energyRyToEv;
+		}
+		outfile << std::endl;
+	}
+	std::cout << "Finishing electron (Wannier) bands calculation" << std::endl;
+}

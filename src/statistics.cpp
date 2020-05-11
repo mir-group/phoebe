@@ -123,14 +123,11 @@ double Statistics::getDnde(double energy, double temperature,
 Eigen::VectorXd Statistics::getDndt(Eigen::VectorXd energies,
 		double temperature, double chemicalPotential) {
 	double x;
-	int numTemp = temperatures.size();
-	int numEn = temperatures.size();
-	Eigen::MatrixXd dndt(numEn, numTemp);
-	for ( int ib=0; ib<numEn; ib++ ) {
-		for ( int it=0; it<numTemp; it++ ) {
-			x = getDndt(energies(ib), temperatures(it), chemicalPotential);
-			dndt(ib,it) = x;
-		}
+	long numBands = energies.size();
+	Eigen::VectorXd dndt(numBands);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		x = getDndt(energies(ib), temperature, chemicalPotential);
+		dndt(ib) = x;
 	}
 	return dndt;
 }
@@ -138,14 +135,11 @@ Eigen::VectorXd Statistics::getDndt(Eigen::VectorXd energies,
 Eigen::VectorXd Statistics::getDnde(Eigen::VectorXd energies,
 		double temperature, double chemicalPotential) {
 	double x;
-	int numTemp = temperatures.size();
-	int numEn = temperatures.size();
-	Eigen::MatrixXd dnde(numEn, numTemp);
-	for ( int ib=0; ib<numEn; ib++ ) {
-		for ( int it=0; it<numTemp; it++ ) {
-			x = getDnde(energies(ib), temperatures(it), chemicalPotential);
-			dnde(ib,it) = x;
-		}
+	long numBands = energies.size();
+	Eigen::VectorXd dnde(numBands);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		x = getDnde(energies(ib), temperature, chemicalPotential);
+		dnde(ib) = x;
 	}
 	return dnde;
 }

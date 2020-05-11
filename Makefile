@@ -24,7 +24,8 @@ OBJECTS = $(SOURCES:$(SRC_PATH)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 DEPS = $(OBJECTS:.o=.d)
 
 # flags #
-COMPILE_FLAGS = -std=c++17 -Wall -Wextra -O3 -L./lib/spglib -g
+COMPILE_FLAGS = -std=c++17 -Wall -Wextra -O3 -L./lib/spglib -g -Wno-deprecated-copy -Wno-ignored-attributes # -isystem
+# Note: the Wno-* flags are to suppress warnings from the Eigen library
 INCLUDES = -I include -I /usr/local/include -I include/Eigen -I lib/pugixml-1.10/src
 # Space-separated pkg-config libraries used by this project
 LIBS = lib/libsymspg.a

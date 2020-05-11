@@ -3,26 +3,23 @@
 #include "exceptions.h"
 
 ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
-		const Eigen::MatrixXd & crystalVectors_,
+		const Eigen::Matrix<double,3,Eigen::Dynamic> & bravaisVectors_,
 		const Eigen::VectorXd & vectorsDegeneracies_,
 		const Eigen::Tensor<std::complex<double>,3> & h0R_) :
 		statistics(Statistics::electron) {
 
 	h0R = h0R_;
 	directUnitCell = directUnitCell_;
-	crystalVectors = crystalVectors_;
+	bravaisVectors = bravaisVectors_;
 	vectorsDegeneracies = vectorsDegeneracies_;
 
-	if ( crystalVectors.cols() != 3 ) {
-		Error e("WannierH0(): crystalVectors should have dimensions (R,3)", 1);
-	}
 	if ( h0R.dimension(1) != h0R.dimension(2) ) {
 		Error e("WannierH0(): h0R should have dimensions (R,bands,bands)", 1);
 	}
-	if ( h0R.dimension(0) != crystalVectors.rows() ) {
-		Error e("WannierH0(): h0R and crystalVectors not aligned", 1);
+	if ( h0R.dimension(0) != bravaisVectors.cols() ) {
+		Error e("WannierH0(): h0R and bravaisVectors not aligned", 1);
 	}
-	if ( vectorsDegeneracies.size() != crystalVectors.rows() ) {
+	if ( vectorsDegeneracies.size() != bravaisVectors.cols() ) {
 		Error e("WannierH0(): degeneracies not aligned with vectors", 1);
 	}
 	numBands = h0R.dimension(1);
@@ -35,7 +32,7 @@ ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
 		h0R = that.h0R;
 		directUnitCell = that.directUnitCell;
 		numBands = that.numBands;
-		crystalVectors = that.crystalVectors;
+		bravaisVectors = that.bravaisVectors;
 		numVectors = that.numVectors;
 		vectorsDegeneracies = that.vectorsDegeneracies;
 }
@@ -44,13 +41,13 @@ ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
 ElectronH0Wannier & ElectronH0Wannier::operator = (
 		const ElectronH0Wannier & that ) {
 	if ( this != & that ) {
-	    crystalVectors.resize(0,0);
+	    bravaisVectors.resize(0,0);
 	    vectorsDegeneracies.resize(0);
 		h0R.resize(0,0,0);
 		statistics = that.statistics;
 		numVectors = that.numVectors;
 		numBands = that.numBands;
-	    crystalVectors = that.crystalVectors;
+	    bravaisVectors = that.bravaisVectors;
 	    vectorsDegeneracies = that.vectorsDegeneracies;
 		directUnitCell = that.directUnitCell;
 	    h0R = that.h0R;
@@ -76,9 +73,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	Eigen::MatrixXcd h0K(numBands,numBands);
 	h0K.setZero();
 
-	for ( long iR=0; iR<crystalVectors.rows(); iR++ ) {
-		Eigen::Vector3d R = crystalVectors.row(iR);
-		double phase = twoPi * k.transpose() * R;
+	for ( long iR=0; iR<bravaisVectors.cols(); iR++ ) {
+		Eigen::Vector3d R = bravaisVectors.col(iR);
+		double phase = k.dot(R);
 		std::complex<double> phaseFactor = {cos(phase),sin(phase)};
 		for ( long m=0; m<numBands; m++ ) {
 			for ( long n=0; n<numBands; n++ ) {
@@ -87,6 +84,8 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		}
 	}
 
+//	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(numBands);
+//	eigensolver.compute(h0K);
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(h0K);
 	Eigen::VectorXd energies = eigensolver.eigenvalues();
 	Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();

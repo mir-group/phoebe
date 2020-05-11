@@ -794,7 +794,7 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 	std::ifstream infile(fileName);
 
 	if ( not infile.is_open() ) {
-		Error e("Dynamical matrix file not found", 1);
+		Error e("Wannier H0 file not found", 1);
 	}
 
 	//  First line contains the title and date
@@ -838,9 +838,9 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 	}
 
 	// now we read the Hamiltonian in real space
-	Eigen::MatrixXd crystalVectors(numVectors,3);
+	Eigen::MatrixXd bravaisVectors(3,numVectors);
 	Eigen::Tensor<std::complex<double>,3> h0R(numVectors, numWann, numWann);
-	crystalVectors.setZero();
+	bravaisVectors.setZero();
 	h0R.setZero();
 	for ( long iR=0; iR<numVectors; iR++ ) {
 		// first we have an empty line
@@ -849,9 +849,9 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		// then we read the lattice vector coordinates
 		std::getline(infile, line);
 		lineSplit = split(line, ' ');
-		crystalVectors(iR,0) = std::stod(lineSplit[0]);
-		crystalVectors(iR,1) = std::stod(lineSplit[1]);
-		crystalVectors(iR,2) = std::stod(lineSplit[2]);
+		bravaisVectors(0,iR) = std::stod(lineSplit[0]);
+		bravaisVectors(1,iR) = std::stod(lineSplit[1]);
+		bravaisVectors(2,iR) = std::stod(lineSplit[2]);
 
 		for ( long i=0; i<numWann; i++ ) {
 			for ( long j=0; j<numWann; j++ ) {
@@ -866,10 +866,10 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 
 	// I need to convert crystalVectors in cartesian coordinates
 	// must check if I am aligning the unit cell correctly
-	crystalVectors = crystalVectors * directUnitCell;
+	bravaisVectors = directUnitCell * bravaisVectors;
 	// note: for Wannier90, lattice vectors are the rows of the matrix
 
-	ElectronH0Wannier electronH0(directUnitCell, crystalVectors,
+	ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
 			vectorsDegeneracies, h0R);
 //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
 //			directUnitCell, crystalVectors, vectorsDegeneracies, h0R));

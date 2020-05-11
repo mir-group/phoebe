@@ -11,7 +11,7 @@
 class ElectronH0Wannier : public HarmonicHamiltonian {
 public:
 	ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
-			const Eigen::MatrixXd & crystalVectors_,
+			const Eigen::Matrix<double,3,Eigen::Dynamic> & bravaisVectors_,
 			const Eigen::VectorXd & vectorsDegeneracies_,
 			const Eigen::Tensor<std::complex<double>,3> & h0R_);
 
@@ -40,7 +40,7 @@ protected:
     virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
     	diagonalizeFromCoords(Eigen::Vector3d & k);
 
-    Eigen::MatrixXd crystalVectors;
+    Eigen::Matrix<double,3,Eigen::Dynamic> bravaisVectors;
     Eigen::VectorXd vectorsDegeneracies;
     Eigen::Matrix3d directUnitCell;
     Eigen::Tensor<std::complex<double>,3> h0R;

@@ -21,6 +21,9 @@ template<typename T>
 class FullBandStructure {
 private:
 	Statistics statistics;
+
+	T & points; // these may be FullPoints or PathPoints
+
 	MatrixXdRowMajor energies;
 	MatrixXcdRowMajor velocities;
 	MatrixXcdRowMajor eigenvectors;
@@ -40,7 +43,6 @@ private:
 	bool hasEigenvectors = false;
 	bool hasVelocities = false;
 
-	T & points; // these may be FullPoints or PathPoints
 
 	long getIndex(Eigen::Vector3d & pointCoords);
 	friend class ActiveBandStructure;
@@ -125,7 +127,7 @@ FullBandStructure<T>::FullBandStructure(long numBands_,
 	}
 
 	Eigen::MatrixXd energies_(getNumPoints(), numBands);
-	energies.setZero();
+	energies_.setZero();
 	energies = energies_;
 
 	// now, I want to manipulate the Eigen matrices at lower level

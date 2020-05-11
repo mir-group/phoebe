@@ -11,8 +11,11 @@
 PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
-		const Eigen::Tensor<double, 7>& forceConstants_)
-		: statistics(Statistics::phonon) {
+		const Eigen::Tensor<double, 7>& forceConstants_) :
+		statistics(Statistics::phonon),
+		bornCharges(bornCharges_),
+		forceConstants(forceConstants_)
+	{
 
 	// in this section, we save as class properties a few variables
 	// that are needed for the diagonalization of phonon frequencies
@@ -30,8 +33,6 @@ PhononH0::PhononH0(Crystal& crystal,
 	speciesMasses = crystal.getSpeciesMasses();
 	atomicPositions = crystal.getAtomicPositions();
 	dielectricMatrix = dielectricMatrix_;
-	bornCharges = bornCharges_;
-	forceConstants = forceConstants_;
 
 	Eigen::VectorXi qCoarseGrid_(3);
 	qCoarseGrid_(0) = forceConstants.dimension(0);
@@ -261,16 +262,16 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	// very rough estimate: geg/4/alph > gmax = 14
 	// (exp (-14) = 10^-6)
 
-	double geg, gp2, r; //  <q+G| dielectricMatrix | q+G>,  For 2d loto: gp2, r
 	long nr1x, nr2x, nr3x;
 	Eigen::VectorXd zag(3), zbg(3), zcg(3), fnat(3);
 	Eigen::MatrixXd reff(2,2);
-	double fac, facgd, arg;
+	double fac, facgd, arg, gp2;
 	std::complex<double> facg;
 
+	double r = 0.;
 	double gmax = 14.;
 	double alph = 1.;
-	geg = gmax * alph * 4.;
+	double geg = gmax * alph * 4.;
 
 	// Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
 	// Only for dimensions where periodicity is present, e.g. if nr1=1

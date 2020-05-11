@@ -288,14 +288,15 @@ Point<PathPoints> PathPoints::getPoint(const long & index) {
 
 Eigen::Vector3d Points::getPointCoords(const long & index,
 		const std::string & basis) {
+	if ( basis != "crystal" && basis != "cartesian" ) {
+		Error e("Wrong basis for getPoint", 1);
+	}
 	Eigen::Vector3d pointCrystal = reduciblePoints(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
-	} else if ( basis == "cartesian" ) {
+	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
 		return pointCartesian;
-	} else {
-		Error e("Wrong basis for getPoint", 1);
 	}
 }
 
@@ -303,38 +304,41 @@ Eigen::Vector3d Points::getPointCoords(const long & index,
 
 Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
 		const std::string & basis) {
+	if ( basis != "crystal" && basis != "cartesian" ) {
+		Error e("Wrong basis for getPoint", 1);
+	}
 	Eigen::Vector3d pointCrystal = irreduciblePoints.col(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
-	} else if ( basis == "cartesian" ) {
+	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
 		return pointCartesian;
-	} else {
-		Error e("Wrong basis for getPoint", 1);
 	}
 }
 Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
 		const std::string & basis) {
+	if ( basis != "crystal" && basis != "cartesian" ) {
+		Error e("Wrong basis for getPoint", 1);
+	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
-	} else if ( basis == "cartesian" ) {
+	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
 		return pointCartesian;
-	} else {
-		Error e("Wrong basis for getPoint", 1);
 	}
 }
 Eigen::Vector3d PathPoints::getPointCoords(const long & index,
 		const std::string & basis) {
+	if ( basis != "crystal" && basis != "cartesian" ) {
+		Error e("Wrong basis for getPoint", 1);
+	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
-	} else if ( basis == "cartesian" ) {
+	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
 		return pointCartesian;
-	} else {
-		Error e("Wrong basis for getPoint", 1);
 	}
 }
 
@@ -704,10 +708,15 @@ long ActivePoints::fullToFilteredIndeces(const long & indexIn) {
 	// save in memory the map of every point in the Full list into the
 	// ActivePoints list (and 0 if there's no mapping.
 	// But the list of kpoints might be too large!
+	long target = -1;
 	for ( long ik=0; ik<numPoints; ik++ ) {
 		if ( indexIn == filteredToFullIndeces(ik) ) {
-			return ik;
+			target = ik;
+			break;
 		}
 	}
-	Error e("Couldn't find the desired kpoint", 1);
+	if ( target == -1 ) {
+		Error e("Couldn't find the desired kpoint");
+	}
+	return target;
 }

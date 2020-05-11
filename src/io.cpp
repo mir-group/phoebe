@@ -30,6 +30,7 @@ IO::IO(int argc, char* argv[]) {
 		outputFileName = outputFileName_;
 		outputFile.open(outputFileName);
 		std::streambuf *coutbuf = std::cout.rdbuf(); //save old buf
+		(void) coutbuf; // suppress unused variable error
 		std::cout.rdbuf(outputFile.rdbuf()); //redirect std::cout to out.txt!
 	}
 };
