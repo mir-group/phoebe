@@ -6,8 +6,8 @@
 #include "statistics.h"
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
-		FullPoints coarsePoints_, FullBandStructure coarseBandStructure_,
-		double cutoff_) :
+		FullPoints coarsePoints_,
+		FullBandStructure<FullPoints> coarseBandStructure_, double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
 		coarsePoints(coarsePoints_), statistics(Statistics::electron) {
 
@@ -278,22 +278,3 @@ Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point& point) {
 	}
 	return velocities;
 }
-
-FullBandStructure ElectronH0Fourier::populate(FullPoints & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure fullBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-	}
-	return fullBandStructure;
-}
-

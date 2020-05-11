@@ -1449,28 +1449,3 @@ void PhononH0::sp_zeu(Eigen::Tensor<double,3>& zeu_u,
 Eigen::Vector3i PhononH0::getCoarseGrid() {
 	return qCoarseGrid;
 }
-
-template <typename T>
-FullBandStructure PhononH0::populate(T & points,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure fullBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, points);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-
-		std::cout << ik << " " << point.getCoords().transpose() << "\n";
-
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-		if ( withEigenvectors ) {
-			fullBandStructure.setVelocities(point, eigvecs);
-		}
-	}
-	return fullBandStructure;
-}

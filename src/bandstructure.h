@@ -3,18 +3,21 @@
 
 #include "points.h"
 #include "state.h"
-#include "window.h"
 #include "statistics.h"
-#include "harmonic.h"
+#include "exceptions.h"
+#include "utilities.h"
+
+class ActiveBandStructure; // forward declaration of friend class
 
 /** note:
- * FullBandStructure uses matrices to store datas, since theya are to be
+ * FullBandStructure uses matrices to store datas, since they are to be
  * computed in parallel
  * ActiveBandStructure instead is meant to be kept in memory by each MPI
  * process, and we store energies in vectors to be aligned with the
  * vectors of populations.
  */
 
+template<typename T>
 class FullBandStructure {
 private:
 	Statistics statistics;
@@ -37,21 +40,18 @@ private:
 	bool hasEigenvectors = false;
 	bool hasVelocities = false;
 
-	FullPoints & fullPoints;
-//	FullPoints * fullPoints = nullptr;
-//	IrreduciblePoints * irreduciblePoints = nullptr;
+	T & points; // these may be FullPoints or PathPoints
 
 	long getIndex(Eigen::Vector3d & pointCoords);
 	friend class ActiveBandStructure;
 
-//	double homo; // set to zero in case of phonons
-//	long numValenceElectrons;
+
+	Eigen::VectorXcd packXcd(Eigen::Tensor<std::complex<double>,3> a,
+			long size1, long size2, long size3);
+
 public:
 	FullBandStructure(long numBands_, Statistics & statistics_,
-			bool withVelocities, bool withEigenvectors,
-			FullPoints & fullPoints_);
-//	FullPoints * fullPoints_=nullptr,
-//	IrreduciblePoints * irreduciblePoints_=nullptr);
+			bool withVelocities, bool withEigenvectors, T & points_);
 	FullBandStructure(const FullBandStructure & that);
 	FullBandStructure & operator = (const FullBandStructure & that);
 
@@ -71,65 +71,213 @@ public:
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 };
 
+//auxiliary function to work with the velocity
+template<typename T>
+Eigen::VectorXcd FullBandStructure<T>::packXcd(
+		Eigen::Tensor<std::complex<double>,3> a,
+		long size1, long size2, long size3) {
+	Eigen::VectorXcd b(size1*size2*size3);
+	for ( long i=0; i<size1; i++ ) {
+		for ( long j=0; j<size2; j++ ) {
+			for ( long k=0; k<size3; k++ ) {
+				b(i*size2*size3 + j*size3 + k) = a(i,j,k);
+			}
+		}
+	}
+	return b;
+}
 
-class HarmonicHamiltonian; // forward declaration
-// could be avoided moving activeBandStructure to a new file
+//std::vector<std::complex<double>> packStdXcd(Eigen::Tensor<std::complex<double>,3> a,
+//		long size1, long size2, long size3) {
+//	std::vector<std::complex<double>> b(size1*size2*size3);
+//	for ( long i=0; i<size1; i++ ) {
+//		for ( long j=0; j<size2; j++ ) {
+//			for ( long k=0; k<size3; k++ ) {
+//				b[i*size2*size3 + j*size3 + k] = a(i,j,k);
+//			}
+//		}
+//	}
+//	return b;
+//}
 
-class ActiveBandStructure {
-private:
-	// note: we use std::vector because we want a variable number of bands
-	// per each k-point
-	std::vector<double> energies;
-	std::vector<double> groupVelocities;
-	std::vector<std::complex<double>> velocities;
-	std::vector<std::complex<double>> eigenvectors;
-	ActivePoints * activePoints = nullptr;
-	Statistics statistics;
-	bool hasEigenvectors = false;
-	long numStates = 0;
-	long numAtoms = 0;
-	VectorXl numBands;
 
-	// map (compressed to uncompressed)
-	// inverse map (uncompressed to compressed)
+template<typename T>
+FullBandStructure<T>::FullBandStructure(long numBands_,
+		Statistics & statistics_,
+		bool withVelocities, bool withEigenvectors, T & points_) :
+			statistics{statistics_}, points(points_) {
 
-	// index management
-	// these are two auxiliary vectors to store indices
-	MatrixXl auxBloch2Comb;
-	VectorXl cumulativeKbOffset;
-	VectorXl cumulativeKbbOffset;
-	// this is the functionality to build the indices
-	void buildIndeces(); // to be called after building the band structure
-	// and these are the tools to convert indices
+	numBands = numBands_;
+	numAtoms = numBands_ / 3;
 
-	// utilities to convert Bloch indices into internal indices
-	long velBloch2Comb(long & ik, long & ib1, long & ib2, long & i);
-	long gvelBloch2Comb(long & ik, long & ib, long & i);
-	long eigBloch2Comb(long & ik, long & i, long & iat, long & ib);
-	long bloch2Comb(long & k, long & b);
+	if ( withVelocities ) {
+		hasVelocities = true;
+		Eigen::MatrixXcd velocities_(getNumPoints(), numBands*numBands*3);
+		velocities_.setZero();
+		velocities = velocities_;
+	}
 
-	long numPoints;
-	bool hasPoints();
-public:
-	ActiveBandStructure(Statistics & statistics_);
-	Statistics getStatistics();
-	long getNumPoints();
-	Point getPoint(const long & pointIndex);
-	long getNumStates();
-	State getState(Point & point);  // returns all bands at fixed k/q-point
+	if ( withEigenvectors ) {
+		hasVelocities = true;
+		Eigen::MatrixXcd eigenvectors_(getNumPoints(),3*numAtoms*numBands);
+		eigenvectors_.setZero();
+		eigenvectors = eigenvectors_;
+	}
 
-	double getEnergy(long & stateIndex);
-	Eigen::Vector3d getGroupVelocity(long & stateIndex);
+	Eigen::MatrixXd energies_(getNumPoints(), numBands);
+	energies.setZero();
+	energies = energies_;
 
-	std::tuple<long,long> comb2Bloch(long & is);
+	// now, I want to manipulate the Eigen matrices at lower level
+	// I create this pointer to data, so I can move it around
+	rawEnergies = energies.data();
+	if ( hasVelocities ) {
+		rawVelocities = velocities.data();
+	}
+	if ( hasEigenvectors ) {
+		rawEigenvectors = eigenvectors.data();
+	}
 
-	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,
-			HarmonicHamiltonian & h0);
-	ActivePoints buildAsPostprocessing(Window & window,
-			FullBandStructure & fullBandStructure);
-};
+	energiesRows = numBands;
+	velocitiesRows = numBands * numBands * 3;
+	eigenvectorsRows = numBands * numAtoms * 3;
+}
 
-long compressIndeces(long i, long j, long k, long size1, long size2,
-		long size3);
+// copy constructor
+template<typename T>
+FullBandStructure<T>::FullBandStructure(const FullBandStructure & that) :
+	statistics(that.statistics), points(that.points),
+	energies(that.energies), velocities(that.velocities),
+	eigenvectors(that.eigenvectors), rawEnergies(that.rawEnergies),
+	rawVelocities(that.rawVelocities), rawEigenvectors(that.rawEigenvectors),
+	energiesRows(that.energiesRows), velocitiesRows(that.velocitiesRows),
+	eigenvectorsRows(that.eigenvectorsRows), numBands(that.numBands),
+	numAtoms(that.numAtoms), useIrreducible(that.useIrreducible),
+	hasEigenvectors(that.hasEigenvectors), hasVelocities(that.hasVelocities) {
+}
+
+template<typename T>
+FullBandStructure<T> & FullBandStructure<T>::operator = ( // copy assignment
+		const FullBandStructure & that) {
+	if ( this != &that ) {
+		statistics = that.statistics;
+		points = that.points;
+		energies = that.energies;
+		velocities = that.velocities;
+		eigenvectors = that.eigenvectors;
+		rawEnergies = that.rawEnergies;
+		rawVelocities = that.rawVelocities;
+		rawEigenvectors = that.rawEigenvectors;
+		energiesRows = that.energiesRows;
+		velocitiesRows = that.velocitiesRows;
+		eigenvectorsRows = that.eigenvectorsRows;
+		numBands = that.numBands;
+		numAtoms = that.numAtoms;
+		useIrreducible = that.useIrreducible;
+		hasEigenvectors = that.hasEigenvectors;
+		hasVelocities = that.hasVelocities;
+	}
+	return *this;
+}
+
+template<typename T>
+Statistics FullBandStructure<T>::getStatistics() {
+	return statistics;
+}
+
+template<typename T>
+long FullBandStructure<T>::getNumBands() {
+	return numBands;
+}
+
+template<typename T>
+bool FullBandStructure<T>::hasIrreduciblePoints() {
+	return useIrreducible;
+}
+
+template<typename T>
+long FullBandStructure<T>::getNumPoints() {
+	return points.getNumPoints();
+}
+
+template<typename T>
+long FullBandStructure<T>::getIndex(Eigen::Vector3d& pointCoords) {
+	return points.getIndex(pointCoords);
+}
+
+template<typename T>
+Point FullBandStructure<T>::getPoint(const long& pointIndex) {
+	return points.getPoint(pointIndex);
+}
+
+template<typename T>
+void FullBandStructure<T>::setEnergies(Eigen::Vector3d& coords,
+		Eigen::VectorXd& energies_) {
+	long ik = getIndex(coords);
+	energies.row(ik) = energies_;
+}
+
+template<typename T>
+void FullBandStructure<T>::setEnergies(Point & point,
+		Eigen::VectorXd& energies_) {
+	long ik = point.getIndex();
+	energies.row(ik) = energies_;
+}
+
+template<typename T>
+void FullBandStructure<T>::setVelocities(Point & point,
+		Eigen::Tensor<std::complex<double>,3>& velocities_) {
+	if ( ! hasVelocities ) {
+		Error e("FullBandStructure was initialized without velocities",1);
+	}
+	Eigen::VectorXcd tmpVelocities_(numBands*numBands*3);
+	tmpVelocities_ = packXcd(velocities_, numBands, numBands, 3);
+	long ik = point.getIndex();
+	velocities.row(ik) = tmpVelocities_;
+}
+
+template<typename T>
+void FullBandStructure<T>::setEigenvectors(Point & point,
+		Eigen::Tensor<std::complex<double>,3>& eigenvectors_) {
+	if ( ! hasEigenvectors ) {
+		Error e("FullBandStructure was initialized without eigvecs",1);
+	}
+	Eigen::VectorXcd tmp = packXcd(eigenvectors_, 3, numAtoms, numBands);
+	long ik = point.getIndex();
+	eigenvectors.row(ik) = tmp;
+}
+
+template<typename T>
+State FullBandStructure<T>::getState(Point & point) {
+	long pointIndex = point.getIndex();
+
+	// we construct the vector by defining begin() and end()
+	double * thisEn;
+	thisEn = rawEnergies + pointIndex * energiesRows;
+
+	// note: in some cases these are nullptr
+	std::complex<double> * thisVel = nullptr;
+	std::complex<double> * thisEig = nullptr;
+
+	if ( hasVelocities ) {
+		thisVel = rawVelocities + pointIndex * velocitiesRows;
+	}
+	if ( hasEigenvectors ) {
+		thisEig = rawEigenvectors + pointIndex * eigenvectorsRows;
+	}
+
+	State s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
+	return s;
+}
+
+template<typename T>
+Eigen::VectorXd FullBandStructure<T>::getBandEnergies(long & bandIndex) {
+	Eigen::VectorXd bandEnergies = energies.col(bandIndex);
+	return bandEnergies;
+}
+
+// here we make sure the compiler defines the implementations of FullBandStruc
+//template class FullBandStructure<FullPoints>;
+//template class FullBandStructure<PathPoints>;
 
 #endif

@@ -12,6 +12,8 @@
 #include "bands_app.h"
 #include "phonon_transport_app.h"
 #include "utilities.h"
+#include "active_bandstructure.h"
+#include "bandstructure.h"
 
 // app factory
 std::unique_ptr<App> App::loadApp(std::string & choice) {
@@ -43,7 +45,7 @@ std::tuple<Crystal, PhononH0> App::setupPhononH0(Context & context) {
 }
 
 std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
-		Context & context, FullBandStructure & fullBandStructure) {
+		Context & context, FullBandStructure<FullPoints> & fullBandStructure) {
 
 	Statistics statistics = fullBandStructure.getStatistics();
 

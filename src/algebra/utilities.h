@@ -13,4 +13,8 @@ long mod(long a, long b); //{
 // checks if string ends with a suffix
 bool hasSuffix(const std::string & str, const std::string & suffix);
 
+// combines three indices into one
+long compressIndeces(long i, long j, long k, long size1, long size2,
+		long size3);
+
 #endif

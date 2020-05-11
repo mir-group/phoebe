@@ -23,7 +23,7 @@ public:
 	 * in the plane-wave interpolation.
 	 */
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
-			FullBandStructure coarseBandStructure_, double cutoff);
+			FullBandStructure<FullPoints> coarseBandStructure_, double cutoff);
 
 	/** calculate the energy of a single electronic Bloch state.
 	 * @param point: the Point object representing the wavevector.
@@ -70,12 +70,13 @@ public:
 
 	Statistics getStatistics();
 
-	virtual FullBandStructure populate(FullPoints & fullPoints,
-			bool & withVelocities, bool & withEigenvectors);
+	template<typename Arg>
+	FullBandStructure<Arg> populate(Arg & fullPoints, bool & withVelocities,
+			bool & withEigenvectors);
 protected:
 	Statistics statistics;
 	FullPoints coarsePoints;
-	FullBandStructure coarseBandStructure;
+	FullBandStructure<FullPoints> coarseBandStructure;
 
 	Crystal & crystal;
 
@@ -103,5 +104,24 @@ protected:
 		diagonalizeFromCoords(Eigen::Vector3d & wavevector);
 	double getEnergyFromCoords(Eigen::Vector3d & wavevector, long & bandIndex);
 };
+
+template<typename Arg>
+FullBandStructure<Arg> ElectronH0Fourier::populate(Arg & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure<Arg> fullBandStructure(numBands, statistics,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long unsigned ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+	}
+	return fullBandStructure;
+}
 
 #endif

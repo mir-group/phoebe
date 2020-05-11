@@ -115,26 +115,3 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
 			delta, threshold);
 	return velocity;
 }
-
-FullBandStructure ElectronH0Wannier::populate(FullPoints & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure fullBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-		//TODO: I must fix the different shape of eigenvectors w.r.t. phonons
-//		if ( withEigenvectors ) {
-//			fullBandStructure.setEigenvectors(point, eigvecs);
-//		}
-	}
-	return fullBandStructure;
-}
-

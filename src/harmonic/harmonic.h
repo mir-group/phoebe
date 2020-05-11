@@ -5,7 +5,7 @@
 #include "statistics.h"
 #include "bandstructure.h"
 
-class FullBandStructure;
+template<typename T> class FullBandStructure;
 
 class HarmonicHamiltonian {
 public:
@@ -19,17 +19,29 @@ public:
 	const bool hasEigenvectors = true;
 	virtual long getNumBands();
 	virtual Statistics getStatistics();
-	FullBandStructure populate(FullPoints & fullPoints,
-			bool & withVelocities, bool & withEigenvectors);
+
+	template<typename Arg>
+	FullBandStructure<Arg> populate(Arg & fullPoints, bool & withVelocities,
+			bool & withEigenvectors);
 protected:
 	Statistics statistics;
-	Eigen::Tensor<std::complex<double>,3>
-			internalDiagonalizeVelocity(
+	Eigen::Tensor<std::complex<double>,3> internalDiagonalizeVelocity(
 				Eigen::Vector3d & coords, double & delta, double & threshold);
 
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		diagonalizeFromCoords(Eigen::Vector3d & k);
 	long numBands;
 };
+
+template<typename Arg>
+FullBandStructure<Arg> HarmonicHamiltonian::populate(Arg & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+	Error e("base populate not implemented");
+	(void) fullPoints;
+	(void) withVelocities;
+	(void) withEigenvectors;
+	FullBandStructure<Arg> t;
+	return t;
+}
 
 #endif

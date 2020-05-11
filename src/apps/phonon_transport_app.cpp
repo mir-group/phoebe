@@ -9,22 +9,22 @@
 #include "drift.h"
 #include "scattering.h"
 #include "observable.h"
+#include "bandstructure.h"
 
 void PhononTransportApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, phononH0] = setupPhononH0(context);
+	auto [crystal, phononH0] = parser.parsePhHarmonic(context);
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
 	// first we make compute the band structure on the fine grid
-
-	// here we branch into two versions:
 
 	FullPoints fullQPoints(crystal, context.getQMesh());
 	bool withVelocities = true;
 	bool withEigenvectors = true;
 
-	FullBandStructure fullBandStructure = phononH0.populate(
+	FullBandStructure<FullPoints> fullBandStructure = phononH0.populate(
 			fullQPoints, withVelocities, withEigenvectors);
 
 	// then we apply a filter to retain only useful energies
@@ -111,12 +111,14 @@ void PhononTransportApp::run(Context & context) {
 		for ( long iter=0; iter<context.getMaxIterationsBTE(); iter++ ) {
 			VectorBTE tOld = scatteringMatrix.dot(hOld);
 
-			Eigen::VectorXd alpha = ( gOld * hOld ).array() / ( hOld * tOld ).array();
+			Eigen::VectorXd alpha = ( gOld * hOld ).array()
+					/ ( hOld * tOld ).array();
 
 			VectorBTE fNew = fOld - hOld * alpha;
 			VectorBTE gNew = gOld - tOld * alpha;
 
-			Eigen::VectorXd beta = ( gNew * gNew ).array() / ( gOld * gOld ).array();
+			Eigen::VectorXd beta = ( gNew * gNew ).array()
+					/ ( gOld * gOld ).array();
 			VectorBTE hNew = - gNew + hOld * beta;
 
 			// action of scattering operator on vectors of populations:

@@ -8,7 +8,8 @@ void PhononBandsApp::run(Context & context) {
 	std::cout << "Starting phonon bands calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, phononH0] = setupPhononH0(context);
+	auto [crystal, phononH0] = parser.parsePhHarmonic(context);
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
 
 	// first we make compute the band structure on the fine grid
 	PathPoints pathPoints(crystal, context.getPathExtrema(),

@@ -12,7 +12,6 @@
 #include "statistics.h"
 #include "bandstructure.h"
 
-
 class PhononH0 : public HarmonicHamiltonian {
 public:
 	/** Class to store the force constants and diagonalize the dynamical matrix
@@ -63,9 +62,9 @@ public:
 	long getNumBands();
 	Statistics getStatistics();
 
-	template <typename T>
-	FullBandStructure populate(T & points,
-			bool & withVelocities, bool & withEigenvectors);
+	template<typename Arg>
+	FullBandStructure<Arg> populate(Arg & points, bool & withVelocities,
+			bool & withEigenvectors);
 protected:
 	Statistics statistics;
 
@@ -124,5 +123,30 @@ protected:
 	void sp_zeu(Eigen::Tensor<double,3> & zeu_u,
 			Eigen::Tensor<double,3> & zeu_v, double & scal);
 };
+
+template <typename Arg>
+FullBandStructure<Arg> PhononH0::populate(Arg & points, bool & withVelocities,
+		bool & withEigenvectors) {
+
+	FullBandStructure<Arg> fullBandStructure(numBands, statistics,
+			withVelocities, withEigenvectors, points);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+
+		std::cout << ik << " " << point.getCoords().transpose() << "\n";
+
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+		if ( withEigenvectors ) {
+			fullBandStructure.setVelocities(point, eigvecs);
+		}
+	}
+	return fullBandStructure;
+}
 
 #endif

@@ -1,3 +1,6 @@
+#ifndef EXCEPTIONS_H
+#define EXCEPTIONS_H
+
 #include <assert.h>
 #include <string>
 #include <iostream>
@@ -11,3 +14,5 @@ class Warning {
 public:
 	Warning(const std::string & errMessage);
 };
+
+#endif

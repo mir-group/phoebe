@@ -22,7 +22,8 @@ public:
 	 * @param[in] grid: the mesh points along the three lattice vectors.
 	 *
 	 */
-	Tetrahedra(FullPoints & fullPoints_, FullBandStructure & fullBandStructure_);
+	Tetrahedra(FullPoints & fullPoints_,
+			FullBandStructure<FullPoints> & fullBandStructure_);
 
 	/**
 	 * Calculate tetrehedron weight.
@@ -37,7 +38,7 @@ public:
 
 private:
 	FullPoints fullPoints;
-	FullBandStructure fullBandStructure;
+	FullBandStructure<FullPoints> fullBandStructure;
 
 	/** Number of tetrahedra. */
 	long numTetra;

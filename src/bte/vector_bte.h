@@ -3,7 +3,7 @@
 
 #include "eigen.h"
 #include "context.h"
-#include "bandstructure.h"
+#include "active_bandstructure.h"
 
 //class Observable;
 

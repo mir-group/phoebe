@@ -9,6 +9,8 @@
 #include "electron_h0_wannier.h"
 #include "qe_input_parser.h"
 #include "statistics.h"
+#include "bandstructure.h"
+#include "active_bandstructure.h"
 
 /** Base class for apps
  *
@@ -23,9 +25,8 @@ public:
 protected:
 	std::tuple<Crystal, PhononH0> setupPhononH0(Context & context);
 	std::tuple<ActivePoints, ActiveBandStructure> restrictBandStructure(
-			Context & context, FullBandStructure & fullBandStructure);
-	FullBandStructure buildFullBandStructure(FullPoints & fullPoints,
-			PhononH0 & h0, bool & withVelocities, bool & withEigenvectors);
+			Context & context,
+			FullBandStructure<FullPoints> & fullBandStructure);
 	QEParser parser;
 };
 

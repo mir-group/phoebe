@@ -3,7 +3,7 @@
 #include "utilities.h"
 
 Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
-		FullBandStructure & fullBandStructure_) : fullPoints(fullPoints_),
+		FullBandStructure<FullPoints> & fullBandStructure_) : fullPoints(fullPoints_),
 		fullBandStructure(fullBandStructure_) {
 
 	auto [grid, offset] = fullPoints.getMesh();
