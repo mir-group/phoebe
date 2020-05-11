@@ -55,19 +55,19 @@ public:
 	FullBandStructure(const FullBandStructure & that);
 	FullBandStructure & operator = (const FullBandStructure & that);
 
-	Point getPoint(const long & pointIndex);
+	Point<T> getPoint(const long & pointIndex);
 	long getNumPoints();
-	State getState(Point & point);
+	State<T> getState(Point<T> & point);
 	long getNumBands();
 	bool hasIrreduciblePoints();
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 	Statistics getStatistics();
 
 	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
-	void setEnergies(Point& point, Eigen::VectorXd & energies_);
-	void setEigenvectors(Point & point,
+	void setEnergies(Point<T> & point, Eigen::VectorXd & energies_);
+	void setEigenvectors(Point<T> & point,
 			Eigen::Tensor<std::complex<double>,3> & eigenvectors_);
-	void setVelocities(Point & point,
+	void setVelocities(Point<T> & point,
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 };
 
@@ -206,7 +206,7 @@ long FullBandStructure<T>::getIndex(Eigen::Vector3d& pointCoords) {
 }
 
 template<typename T>
-Point FullBandStructure<T>::getPoint(const long& pointIndex) {
+Point<T> FullBandStructure<T>::getPoint(const long& pointIndex) {
 	return points.getPoint(pointIndex);
 }
 
@@ -218,14 +218,14 @@ void FullBandStructure<T>::setEnergies(Eigen::Vector3d& coords,
 }
 
 template<typename T>
-void FullBandStructure<T>::setEnergies(Point & point,
+void FullBandStructure<T>::setEnergies(Point<T> & point,
 		Eigen::VectorXd& energies_) {
 	long ik = point.getIndex();
 	energies.row(ik) = energies_;
 }
 
 template<typename T>
-void FullBandStructure<T>::setVelocities(Point & point,
+void FullBandStructure<T>::setVelocities(Point<T> & point,
 		Eigen::Tensor<std::complex<double>,3>& velocities_) {
 	if ( ! hasVelocities ) {
 		Error e("FullBandStructure was initialized without velocities",1);
@@ -237,7 +237,7 @@ void FullBandStructure<T>::setVelocities(Point & point,
 }
 
 template<typename T>
-void FullBandStructure<T>::setEigenvectors(Point & point,
+void FullBandStructure<T>::setEigenvectors(Point<T> & point,
 		Eigen::Tensor<std::complex<double>,3>& eigenvectors_) {
 	if ( ! hasEigenvectors ) {
 		Error e("FullBandStructure was initialized without eigvecs",1);
@@ -248,7 +248,7 @@ void FullBandStructure<T>::setEigenvectors(Point & point,
 }
 
 template<typename T>
-State FullBandStructure<T>::getState(Point & point) {
+State<T> FullBandStructure<T>::getState(Point<T> & point) {
 	long pointIndex = point.getIndex();
 
 	// we construct the vector by defining begin() and end()
@@ -266,7 +266,7 @@ State FullBandStructure<T>::getState(Point & point) {
 		thisEig = rawEigenvectors + pointIndex * eigenvectorsRows;
 	}
 
-	State s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
+	State<T> s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
 	return s;
 }
 
@@ -275,9 +275,5 @@ Eigen::VectorXd FullBandStructure<T>::getBandEnergies(long & bandIndex) {
 	Eigen::VectorXd bandEnergies = energies.col(bandIndex);
 	return bandEnergies;
 }
-
-// here we make sure the compiler defines the implementations of FullBandStruc
-//template class FullBandStructure<FullPoints>;
-//template class FullBandStructure<PathPoints>;
 
 #endif

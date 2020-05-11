@@ -26,42 +26,11 @@ long ActiveBandStructure::getNumPoints() {
 	return activePoints->getNumPoints();
 }
 
-Point ActiveBandStructure::getPoint(const long & pointIndex) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
-	}
-	return activePoints->getPoint(pointIndex);
-}
-
 long ActiveBandStructure::getNumStates() {
 	if ( ! hasPoints() ) {
 		Error e("ActiveBandStructure hasn't been populated yet" ,1);
 	}
 	return numStates;
-}
-
-State ActiveBandStructure::getState(Point & point) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
-	}
-
-	long ik = point.getIndex();
-	long zero = 0;
-
-	long ind = bloch2Comb(ik,zero);
-	double * thisEn = &energies[ind];
-
-	ind = velBloch2Comb(ik,zero,zero,zero);
-	std::complex<double> * thisVel = &velocities[ind];
-
-	std::complex<double> * thisEig = nullptr;
-	if ( hasEigenvectors ) {
-		ind = eigBloch2Comb(ik,zero,zero,zero);
-		thisEig = &eigenvectors[ind];
-	}
-
-	State s(point, thisEn, numAtoms, numBands(ik), thisVel, thisEig);
-	return s;
 }
 
 ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,

@@ -6,6 +6,7 @@
 #include "harmonic.h"
 #include "points.h"
 #include "bandstructure.h"
+#include "constants.h"
 
 class ElectronH0Wannier : public HarmonicHamiltonian {
 public:
@@ -14,11 +15,12 @@ public:
 			const Eigen::VectorXd & vectorsDegeneracies_,
 			const Eigen::Tensor<std::complex<double>,3> & h0R_);
 
+	template<typename T>
 	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalize(
-			Point & point);
+			Point<T> & point);
 
-	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-			Point & point);
+	template<typename T>
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point<T> &point);
     const bool hasEigenvectors = true;
     Statistics getStatistics();
     long getNumBands();
@@ -30,8 +32,8 @@ public:
     // empty constructor
     ElectronH0Wannier();
 
-    template<typename Arg>
-    FullBandStructure<Arg> populate(Arg & fullPoints, bool & withVelocities,
+    template<typename T>
+    FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
     		bool &withEigenvectors);
 protected:
     Statistics statistics;
@@ -47,11 +49,11 @@ protected:
     long numVectors;
 };
 
-template<typename Arg>
-FullBandStructure<Arg> ElectronH0Wannier::populate(Arg & fullPoints,
+template<typename T>
+FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
 		bool & withVelocities, bool & withEigenvectors) {
 
-	FullBandStructure<Arg> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, statistics,
 			withVelocities, withEigenvectors, fullPoints);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
@@ -68,6 +70,30 @@ FullBandStructure<Arg> ElectronH0Wannier::populate(Arg & fullPoints,
 //		}
 	}
 	return fullBandStructure;
+}
+
+template<typename T>
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Wannier::diagonalize(Point<T> & point) {
+	Eigen::Vector3d k = point.getCoords("cartesian");
+
+	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
+
+	// note: the eigenvector matrix is the unitary transformation matrix U
+	// from the Bloch to the Wannier gauge.
+
+	return {energies, eigenvectors};
+}
+
+template<typename T>
+Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
+		Point<T> & point) {
+	Eigen::Vector3d coords = point.getCoords("cartesian");
+	double delta = 1.0e-8;
+	double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
+	auto velocity = HarmonicHamiltonian::internalDiagonalizeVelocity(coords,
+			delta, threshold);
+	return velocity;
 }
 
 #endif

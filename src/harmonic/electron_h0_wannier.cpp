@@ -93,25 +93,3 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 
 	return {energies, eigenvectors};
 }
-
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		ElectronH0Wannier::diagonalize(Point & point) {
-	Eigen::Vector3d k = point.getCoords("cartesian");
-
-	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
-
-	// note: the eigenvector matrix is the unitary transformation matrix U
-	// from the Bloch to the Wannier gauge.
-
-	return {energies, eigenvectors};
-}
-
-Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
-		Point & point) {
-	Eigen::Vector3d coords = point.getCoords("cartesian");
-	double delta = 1.0e-8;
-	double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
-	auto velocity = HarmonicHamiltonian::internalDiagonalizeVelocity(coords,
-			delta, threshold);
-	return velocity;
-}

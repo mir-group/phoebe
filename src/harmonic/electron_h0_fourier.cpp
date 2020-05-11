@@ -45,7 +45,7 @@ double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 }
 
 std::complex<double> ElectronH0Fourier::getStarFunction(
-		Eigen::Vector3d& wavevector, long & iR) {
+		Eigen::Vector3d & wavevector, long & iR) {
 	std::complex<double> phase = complexI
 			* wavevector.transpose() * positionVectors[iR];
 	std::complex<double> starFunction = exp(phase) / positionDegeneracies[iR];
@@ -53,7 +53,7 @@ std::complex<double> ElectronH0Fourier::getStarFunction(
 }
 
 Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
-		Eigen::Vector3d& wavevector, long & iR) {
+		Eigen::Vector3d & wavevector, long & iR) {
 	std::complex<double> phase = complexI
 			* wavevector.transpose() * positionVectors[iR];
 	Eigen::Vector3cd starFunctionDerivative = complexI * positionVectors[iR]
@@ -190,7 +190,8 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	return coefficients;
 }
 
-double ElectronH0Fourier::getEnergy(Point& point, long& bandIndex) {
+double ElectronH0Fourier::getEnergy(Point<FullPoints> & point,
+		long & bandIndex) {
 	double energy = 0.;
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
 	for ( long m=0; m<numPositionVectors; m++ ) {
@@ -213,7 +214,7 @@ double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
 }
 
 std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		ElectronH0Fourier::diagonalize(Point & point) {
+		ElectronH0Fourier::diagonalize(Point<FullPoints> & point) {
 
 	Eigen::Vector3d coords = point.getCoords("cartesian");
 	auto [energies,x] = diagonalizeFromCoords(coords);
@@ -240,7 +241,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 
 
 Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
-			Point & point) {
+			Point<FullPoints> & point) {
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
 	velocity.setZero();
 	auto v = getGroupVelocities(point);
@@ -251,7 +252,7 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
 	}
 }
 
-Eigen::VectorXd ElectronH0Fourier::getEnergies(Point& point) {
+Eigen::VectorXd ElectronH0Fourier::getEnergies(Point<FullPoints> & point) {
 	Eigen::VectorXd energies(numBands);
 	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {
 		energies(bandIndex) = getEnergy(point, bandIndex);
@@ -259,8 +260,8 @@ Eigen::VectorXd ElectronH0Fourier::getEnergies(Point& point) {
 	return energies;
 }
 
-Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point& point,
-		long& bandIndex) {
+Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point<FullPoints> & point,
+		long & bandIndex) {
 	Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
 	Eigen::Vector3d wavevector = point.getCoords("cartesian");
 	for ( long m=0; m<numPositionVectors; m++ ) {
@@ -271,7 +272,7 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point& point,
 	return velocity;
 }
 
-Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point& point) {
+Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point<FullPoints> & point) {
 	Eigen::MatrixXd velocities(numBands,3);
 	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {
 		velocities.row(bandIndex) = getGroupVelocity(point, bandIndex);

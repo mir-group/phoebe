@@ -30,26 +30,27 @@ public:
 	 * @param bandIndex: the number identifying the band from 0 to numBands-1
 	 * @return energy: in Rydbergs
 	 */
-	double getEnergy(Point & point, long & bandIndex);
+	double getEnergy(Point<FullPoints> & point, long & bandIndex);
 
 	/** get all electronic energies at a given wavevector
 	 * @param point: a Point representing the desired wavevector.
 	 * @return energies: a vector of size (numBands) of energies
 	 */
-	Eigen::VectorXd getEnergies(Point & point);
+	Eigen::VectorXd getEnergies(Point<FullPoints> & point);
 
 	/** compute the group velocity of a Bloch state.
 	 * @param point: a Point representing the desired wavevector.
 	 * @param bandIndex: the number identifying the band from 0 to numBands-1
 	 * @return velocity: a 3d vector with the group velocity
 	 */
-	Eigen::Vector3d getGroupVelocity(Point & point, long & bandIndex);
+	Eigen::Vector3d getGroupVelocity(Point<FullPoints> & point,
+			long & bandIndex);
 
 	/** compute the group velocities at a given wavevector
 	 * @param point: a Point representing the desired wavevector.
 	 * @return velocities: a matrix of size (numBands,3) of group velocities
 	 */
-	Eigen::MatrixXd getGroupVelocities(Point & point);
+	Eigen::MatrixXd getGroupVelocities(Point<FullPoints> & point);
 
 	/** compute the band structure on a mesh of points
 	 * Must provide only one of the two optional parameters
@@ -63,15 +64,15 @@ public:
 //			IrreduciblePoints * irreduciblePoints=nullptr);
 
 	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		diagonalize(Point & point);
+		diagonalize(Point<FullPoints> & point);
 
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-				Point & point);
+				Point<FullPoints> & point);
 
 	Statistics getStatistics();
 
-	template<typename Arg>
-	FullBandStructure<Arg> populate(Arg & fullPoints, bool & withVelocities,
+	template<typename T>
+	FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
 protected:
 	Statistics statistics;

@@ -44,9 +44,14 @@ public:
 	ActiveBandStructure(Statistics & statistics_);
 	Statistics getStatistics();
 	long getNumPoints();
-	Point getPoint(const long & pointIndex);
+
 	long getNumStates();
-	State getState(Point & point);  // returns all bands at fixed k/q-point
+
+	template <typename T>
+	Point<T> getPoint(const long & pointIndex);
+
+	template <typename T>
+	State<T> getState(Point<T> & point);  // returns all bands at fixed k/q-point
 
 	double getEnergy(long & stateIndex);
 	Eigen::Vector3d getGroupVelocity(long & stateIndex);
@@ -59,5 +64,39 @@ public:
 	ActivePoints buildAsPostprocessing(Window & window,
 			FullBandStructure<FullPoints> & fullBandStructure);
 };
+
+
+template <typename T>
+Point<T> ActiveBandStructure::getPoint(const long & pointIndex) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	return activePoints->getPoint(pointIndex);
+}
+
+template <typename T>
+State<T> ActiveBandStructure::getState(Point<T> & point) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+
+	long ik = point.getIndex();
+	long zero = 0;
+
+	long ind = bloch2Comb(ik,zero);
+	double * thisEn = &energies[ind];
+
+	ind = velBloch2Comb(ik,zero,zero,zero);
+	std::complex<double> * thisVel = &velocities[ind];
+
+	std::complex<double> * thisEig = nullptr;
+	if ( hasEigenvectors ) {
+		ind = eigBloch2Comb(ik,zero,zero,zero);
+		thisEig = &eigenvectors[ind];
+	}
+
+	State<T> s(point, thisEn, numAtoms, numBands(ik), thisVel, thisEig);
+	return s;
+}
 
 #endif

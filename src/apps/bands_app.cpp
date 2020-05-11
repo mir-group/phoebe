@@ -14,6 +14,13 @@ void PhononBandsApp::run(Context & context) {
 	// first we make compute the band structure on the fine grid
 	PathPoints pathPoints(crystal, context.getPathExtrema(),
 			context.getDeltaPath());
+
+	for ( int ik=0; ik<20; ik++ ) {
+		auto p = pathPoints.getPoint(ik);
+		std::cout << p.getCoords().transpose() << "!\n";
+	}
+
+
 	bool withVelocities = false;
 	bool withEigenvectors = false;
 	FullBandStructure fullBandStructure = phononH0.populate(pathPoints,

@@ -11,6 +11,7 @@
 #include "points.h"
 #include "statistics.h"
 #include "bandstructure.h"
+#include "constants.h"
 
 class PhononH0 : public HarmonicHamiltonian {
 public:
@@ -40,16 +41,17 @@ public:
 	 * size (3,numAtoms,numBands). The eigenvector is rescaled by the
 	 * sqrt(masses) (masses in rydbergs)
 	 */
-	virtual std::tuple<Eigen::VectorXd,
-		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
+	template<typename T>
+	std::tuple<Eigen::VectorXd,
+		Eigen::Tensor<std::complex<double>,3>> diagonalize(Point<T> & point);
 
 	/** get the phonon velocities (in atomic units) at a single q-point.
 	 * @param q: a Point object with the wavevector coordinates.
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
 	 * for this stata, in atomic units.
 	 */
-	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-			Point & point);
+	template<typename T>
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point<T> &point);
 
 	/** Impose the acoustic sum rule on force constants and Born charges
 	 * @param sumRule: name of the sum rule to be used
@@ -62,8 +64,8 @@ public:
 	long getNumBands();
 	Statistics getStatistics();
 
-	template<typename Arg>
-	FullBandStructure<Arg> populate(Arg & points, bool & withVelocities,
+	template<typename T>
+	FullBandStructure<T> populate(T & points, bool & withVelocities,
 			bool & withEigenvectors);
 protected:
 	Statistics statistics;
@@ -124,11 +126,11 @@ protected:
 			Eigen::Tensor<double,3> & zeu_v, double & scal);
 };
 
-template <typename Arg>
-FullBandStructure<Arg> PhononH0::populate(Arg & points, bool & withVelocities,
+template <typename T>
+FullBandStructure<T> PhononH0::populate(T & points, bool & withVelocities,
 		bool & withEigenvectors) {
 
-	FullBandStructure<Arg> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, statistics,
 			withVelocities, withEigenvectors, points);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
@@ -148,5 +150,147 @@ FullBandStructure<Arg> PhononH0::populate(Arg & points, bool & withVelocities,
 	}
 	return fullBandStructure;
 }
+
+template <typename T>
+std::tuple<Eigen::VectorXd,
+		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
+				Point<T> & point) {
+	Eigen::Vector3d q = point.getCoords("cartesian");
+	auto [energies, eigvecTemp] = diagonalizeFromCoords(q);
+
+	//  displacements are eigenvectors divided by sqrt(speciesMasses)
+
+	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
+	for ( long iband=0; iband<numBands; iband++ ) {
+		for ( long iat=0; iat<numAtoms; iat++ ) {
+			long iType = atomicSpecies(iat);
+			for ( long ipol=0; ipol<3; ipol++ ) {
+				eigenvectors(ipol,iat,iband) = eigvecTemp(iat*3 + ipol, iband)
+								/ sqrt(speciesMasses(iType));
+			}
+		}
+	}
+	return {energies, eigenvectors};
+}
+
+template <typename T>
+Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
+		Point<T> & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+
+	// if we are working at gamma, we set all velocities to zero.
+	Eigen::Vector3d coords = point.getCoords("cartesian");
+	if ( coords.norm() < 1.0e-6 )  {
+		return velocity;
+	}
+
+	// get the eigenvectors and the energies of the q-point
+	auto [energies,eigenvectors] = diagonalizeFromCoords(coords);
+
+	// now we compute the velocity operator, diagonalizing the expectation
+	// value of the derivative of the dynamical matrix.
+	// This works better than doing finite differences on the frequencies.
+	double deltaQ = 1.0e-8;
+	for ( long i=0; i<3; i++ ) {
+		// define q+ and q- from finite differences.
+		Eigen::Vector3d qPlus = coords;
+		Eigen::Vector3d qMins = coords;
+		qPlus(i) += deltaQ;
+		qMins(i) -= deltaQ;
+
+		// diagonalize the dynamical matrix at q+ and q-
+		auto [enPlus,eigPlus] = diagonalizeFromCoords(qPlus);
+		auto [enMins,eigMins] = diagonalizeFromCoords(qMins);
+
+		// build diagonal matrices with frequencies
+		Eigen::MatrixXd enPlusMat(numBands,numBands);
+		Eigen::MatrixXd enMinsMat(numBands,numBands);
+		enPlusMat.diagonal() << enPlus;
+		enMinsMat.diagonal() << enMins;
+
+		// build the dynamical matrix at the two wavevectors
+		// since we diagonalized it before, A = M.U.M*
+		Eigen::MatrixXcd sqrtDPlus(numBands,numBands);
+		sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
+		Eigen::MatrixXcd sqrtDMins(numBands,numBands);
+		sqrtDMins = eigMins * enMinsMat * eigMins.adjoint();
+
+		// now we can build the velocity operator
+		Eigen::MatrixXcd der(numBands,numBands);
+		der = (sqrtDPlus - sqrtDMins) / ( 2. * deltaQ );
+
+		// and to be safe, we reimpose hermiticity
+		der = 0.5 * ( der + der.adjoint() );
+
+		// now we rotate in the basis of the eigenvectors at q.
+		der = eigenvectors.adjoint() * der * eigenvectors;
+
+		for ( long ib1=0; ib1<numBands; ib1++ ) {
+			for ( long ib2=0; ib2<numBands; ib2++ ) {
+				velocity(ib1,ib2,i) = der(ib1,ib2);
+			}
+		}
+	}
+
+	// turns out that the above algorithm has problems with degenerate bands
+	// so, we diagonalize the velocity operator in the degenerate subspace,
+
+	for ( long ib=0; ib<numBands; ib++ ) {
+
+		// first, we check if the band is degenerate, and the size of the
+		// degenerate subspace
+		long sizeSubspace = 1;
+		for ( long ib2=ib+1; ib2<numBands; ib2++ ) {
+			// I consider bands degenerate if their frequencies are the same
+			// within 0.0001 cm^-1
+			if ( abs(energies(ib)-energies(ib2)) > 0.0001 / ryToCmm1 ) {
+				break;
+			}
+			sizeSubspace += 1;
+		}
+
+		if ( sizeSubspace > 1 ) {
+			Eigen::MatrixXcd subMat(sizeSubspace,sizeSubspace);
+			// we have to repeat for every direction
+			for ( long iCart=0; iCart<3; iCart++ ) {
+
+				// take the velocity matrix of the degenerate subspace
+				for ( long i=0; i<sizeSubspace; i++ ) {
+					for ( long j=0; j<sizeSubspace; j++ ) {
+						subMat(i,j) = velocity(ib+i,ib+j,iCart);
+					}
+				}
+
+				// reinforce hermiticity
+				subMat = 0.5 * ( subMat + subMat.adjoint());
+
+				// diagonalize the subMatrix
+				Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(subMat);
+				Eigen::MatrixXcd newEigvecs = eigensolver.eigenvectors();
+
+				// rotate the original matrix in the new basis
+				// that diagonalizes the subspace.
+				subMat = newEigvecs.adjoint() * subMat * newEigvecs;
+
+				// reinforce hermiticity
+				subMat = 0.5 * ( subMat + subMat.adjoint());
+
+				// substitute back
+				for ( long i=0; i<sizeSubspace; i++ ) {
+					for ( long j=0; j<sizeSubspace; j++ ) {
+						velocity(ib+i,ib+j,iCart) = subMat(i,j);
+					}
+				}
+			}
+		}
+
+		// we skip the bands in the subspace, since we corrected them already
+		ib += sizeSubspace - 1;
+	}
+	return velocity;
+}
+
+
 
 #endif
