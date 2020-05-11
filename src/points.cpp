@@ -65,7 +65,7 @@ ActivePoints::ActivePoints(FullPoints & parentPoints_,
 	numPoints = filteredToFullIndeces.size();
 
 	// we then construct the list of points
-	Eigen::MatrixXd pointsList_(numPoints,3);
+	Eigen::MatrixXd pointsList_(3,numPoints);
 
 	Eigen::Vector3d x;
 
@@ -73,7 +73,7 @@ ActivePoints::ActivePoints(FullPoints & parentPoints_,
 	for ( long ikNew=0; ikNew<numPoints; ikNew++ ) {
 		ik = filteredToFullIndeces(ikNew);
 		x = parentPoints.getPointCoords(ik);
-		pointsList_.row(ikNew) = x;
+		pointsList_.col(ikNew) = x;
 	}
 	pointsList = pointsList_;
 }
@@ -259,57 +259,75 @@ PathPoints & PathPoints::operator=(const PathPoints & that) {
 
 // getPoint methods
 
-Point<Points> Points::getPoint(const long & index) {
-	Eigen::Vector3d p = getPointCoords(index);
-	return Point(index, p, *this);
-}
+//Point<Points> Points::getPoint(const long & index) {
+//	Eigen::Vector3d p = getPointCoords(index);
+//	return Point<Points>(index, p, *this);
+//}
 
 Point<FullPoints> FullPoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point(index, p, *this);
+	return Point<FullPoints>(index, p, *this);
 }
 
 Point<IrreduciblePoints> IrreduciblePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point(index, p, *this);
+	return Point<IrreduciblePoints>(index, p, *this);
 }
 
 Point<ActivePoints> ActivePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point(index, p, *this);
+	return Point<ActivePoints>(index, p, *this);
 }
 
 Point<PathPoints> PathPoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point(index, p, *this);
+	return Point<PathPoints>(index, p, *this);
 }
 
-
-// pointsCoords
-
-Eigen::Vector3d Points::pointsCoords(const long & index) {
-	return reduciblePoints(index);
-}
-
-// FullPoints works just like Points
-
-Eigen::Vector3d IrreduciblePoints::pointsCoords(const long & index) {
-	return irreduciblePoints.col(index);
-}
-
-Eigen::Vector3d ActivePoints::pointsCoords(const long & index) {
-	return pointsList.col(index);
-}
-
-Eigen::Vector3d PathPoints::pointsCoords(const long & index) {
-	return pointsList.col(index);
-}
-
-// getPointCoords is a common interface to pointsCoords
+// getPointCoords is the tool to find the coordinates of a point
 
 Eigen::Vector3d Points::getPointCoords(const long & index,
 		const std::string & basis) {
-	Eigen::Vector3d pointCrystal = pointsCoords(index);
+	Eigen::Vector3d pointCrystal = reduciblePoints(index);
+	if ( basis == "crystal" ) {
+		return pointCrystal;
+	} else if ( basis == "cartesian" ) {
+		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
+		return pointCartesian;
+	} else {
+		Error e("Wrong basis for getPoint", 1);
+	}
+}
+
+//FullPoints just like Points
+
+Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
+		const std::string & basis) {
+	Eigen::Vector3d pointCrystal = irreduciblePoints.col(index);
+	if ( basis == "crystal" ) {
+		return pointCrystal;
+	} else if ( basis == "cartesian" ) {
+		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
+		return pointCartesian;
+	} else {
+		Error e("Wrong basis for getPoint", 1);
+	}
+}
+Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
+		const std::string & basis) {
+	Eigen::Vector3d pointCrystal = pointsList.col(index);
+	if ( basis == "crystal" ) {
+		return pointCrystal;
+	} else if ( basis == "cartesian" ) {
+		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
+		return pointCartesian;
+	} else {
+		Error e("Wrong basis for getPoint", 1);
+	}
+}
+Eigen::Vector3d PathPoints::getPointCoords(const long & index,
+		const std::string & basis) {
+	Eigen::Vector3d pointCrystal = pointsList.col(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
 	} else if ( basis == "cartesian" ) {
@@ -517,7 +535,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	if ( 3 != testPoints.cols() ) {
 		Error e("Wrong format specified for points to findMesh",1);
 	}
-	long numTestPoints = testPoints.rows();
+	long numTestPoints = testPoints.cols();
 
 	double value;
 	for ( long iCart=0; iCart<3; iCart++ ) {
@@ -615,15 +633,14 @@ void IrreduciblePoints::setIrreduciblePoints() {
 
 	// count irreducible points and order them
 
-	long numIrredPoints_ = 0;
+	long numIrredPoints = 0;
 	for ( long ik=0; ik<numPoints; ik++ ) {
 		if ( equiv(ik)==ik ) {
-			numIrredPoints_ += 1;
+			numIrredPoints += 1;
 		}
 	}
-	numIrredPoints = numIrredPoints_;
 
-	Eigen::MatrixXd xk(numIrredPoints,3);
+	Eigen::MatrixXd xk(3,numIrredPoints);
 	Eigen::VectorXd wk(numIrredPoints);
 	Eigen::VectorXi indexIrreduciblePoints_(numIrredPoints);
 
@@ -631,7 +648,7 @@ void IrreduciblePoints::setIrreduciblePoints() {
 	for ( long j=0; j<numPoints; j++ ) {
 		if ( equiv(j)==j ) {
 			wk(i) = tmpWeight(j);
-			xk.row(i) = reduciblePoints(j);
+			xk.col(i) = reduciblePoints(j);
 			indexIrreduciblePoints_(i) = j;
 			i += 1;
 		}

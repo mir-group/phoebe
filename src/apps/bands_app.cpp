@@ -15,12 +15,6 @@ void PhononBandsApp::run(Context & context) {
 	PathPoints pathPoints(crystal, context.getPathExtrema(),
 			context.getDeltaPath());
 
-	for ( int ik=0; ik<20; ik++ ) {
-		auto p = pathPoints.getPoint(ik);
-		std::cout << p.getCoords().transpose() << "!\n";
-	}
-
-
 	bool withVelocities = false;
 	bool withEigenvectors = false;
 	FullBandStructure fullBandStructure = phononH0.populate(pathPoints,
@@ -37,7 +31,6 @@ void PhononBandsApp::run(Context & context) {
 		outfile << ik;
 
 		auto p = fullBandStructure.getPoint(ik);
-		std::cout << p.getCoords().transpose() << "\n";
 		auto s = fullBandStructure.getState(p);
 		Eigen::VectorXd energies = s.getEnergies();
 		for ( long ib=0; ib<numBands; ib++ ) {

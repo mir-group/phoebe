@@ -92,7 +92,6 @@ protected:
 
 	// methods to be overwritten
 	Eigen::Vector3d reduciblePoints(const long & idx);
-	Eigen::Vector3d pointsCoords(const long & index);
 };
 
 class FullPoints: public Points {
@@ -118,7 +117,6 @@ protected:
 
 	//	Eigen::Vector3d pointsCoords(const long & index);
 	void setIrreduciblePoints();
-	Eigen::Vector3d pointsCoords(const long & index);
 public:
 	IrreduciblePoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
 			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
@@ -132,6 +130,8 @@ public:
 
 	long getNumPoints();
 	double getWeight(const long & ik);
+	Eigen::Vector3d getPointCoords(const long & index,
+			const std::string & basis="crystal");
 };
 
 class ActivePoints: public Points {
@@ -141,7 +141,6 @@ protected:
 
 	VectorXl filteredToFullIndeces;
 	long fullToFilteredIndeces(const long & indexIn);
-	Eigen::Vector3d pointsCoords(const long & index);
 public:
 	// constructors
 	ActivePoints(FullPoints & parentPoints_, VectorXl filter_);
@@ -151,6 +150,8 @@ public:
 	long getIndex(const Eigen::Vector3d & coords);
 	Point<ActivePoints> getPoint(const long & index);
 	long getIndexInverted(const long & ik);
+	Eigen::Vector3d getPointCoords(const long & index,
+			const std::string & basis="crystal");
 };
 
 class PathPoints: public FullPoints {
@@ -164,8 +165,9 @@ public:
 	Point<PathPoints> getPoint(const long & index);
 	long getIndex(const Eigen::Vector3d & coords);
 	long getIndexInverted(const long & ik);
+	Eigen::Vector3d getPointCoords(const long & index,
+			const std::string & basis="crystal");
 protected:
-	Eigen::Vector3d pointsCoords(const long & index);
 	Eigen::Matrix<double,3,Eigen::Dynamic> pointsList;
 };
 
