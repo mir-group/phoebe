@@ -70,7 +70,7 @@ public:
 	Eigen::Vector3d crystalToWS(const Eigen::Vector3d& pointCrystal,
 			const std::string& basis);
 	static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
-			const Eigen::MatrixXd & points);
+			const Eigen::Matrix<double,3,Eigen::Dynamic> & points);
 	Crystal & getCrystal();
 
 	// methods to be overwritten in subclasses

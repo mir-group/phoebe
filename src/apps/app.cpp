@@ -29,6 +29,8 @@ std::unique_ptr<App> App::loadApp(std::string & choice) {
 		return std::unique_ptr<App> (new PhononBandsApp);
 	} else if ( choice == "electronWannierBands" ) {
 		return std::unique_ptr<App> (new ElectronWannierBandsApp);
+	} else if ( choice == "electronFourierBands" ) {
+		return std::unique_ptr<App> (new ElectronFourierBandsApp);
 	} else {
 		return std::unique_ptr<App> (nullptr);
 	}

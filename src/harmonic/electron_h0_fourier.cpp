@@ -19,6 +19,10 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 	numDataPoints = coarseBandStructure.getNumPoints();
 	refWavevector = coarseBandStructure.getPoint(0).getCoords("cartesian");
 
+	for ( long i=0; i<10; i++ ) {
+		std::cout << coarseBandStructure.getPoint(i).getCoords("crystal").transpose() << "\n";
+	}
+
 	// to do the interpolation, we need the lattice vector basis:
 	setPositionVectors();
 	// now we look for the expansion coefficients that interpolates the bands
@@ -47,17 +51,17 @@ double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 std::complex<double> ElectronH0Fourier::getStarFunction(
 		Eigen::Vector3d & wavevector, long & iR) {
 	std::complex<double> phase = complexI
-			* wavevector.transpose() * positionVectors[iR];
-	std::complex<double> starFunction = exp(phase) / positionDegeneracies[iR];
+			* wavevector.transpose() * positionVectors.col(iR);
+	std::complex<double> starFunction = exp(phase) / positionDegeneracies(iR);
 	return starFunction;
 }
 
 Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
 		Eigen::Vector3d & wavevector, long & iR) {
 	std::complex<double> phase = complexI
-			* wavevector.transpose() * positionVectors[iR];
-	Eigen::Vector3cd starFunctionDerivative = complexI * positionVectors[iR]
-			* exp(phase) / positionDegeneracies[iR];
+			* wavevector.transpose() * positionVectors.col(iR);
+	Eigen::Vector3cd starFunctionDerivative = complexI * positionVectors.col(iR)
+			* exp(phase) / positionDegeneracies(iR);
 	return starFunctionDerivative;
 }
 
@@ -68,33 +72,32 @@ void ElectronH0Fourier::setPositionVectors() {
 	Eigen::Vector3d a2 = directUnitCell.row(1);
 	Eigen::Vector3d a3 = directUnitCell.row(2);
 
-	std::vector<Eigen::Vector3d> tmpVectors;
-	std::vector<bool> isDegenerate;
-	std::vector<long> tmpDegeneracies;
-	// the first vector is the vector zero
-	tmpVectors.push_back(Eigen::Vector3d::Zero());
-	isDegenerate.push_back(false);
-	tmpDegeneracies.push_back(1);
+	const long N0 = long(cutoff / a1.norm() * 6.);
+	const long N1 = long(cutoff / a2.norm() * 6.);
+	const long N2 = long(cutoff / a3.norm() * 6.);
+	long nMax = N0*N1*N2;
 
-	long N0 = long(cutoff / a1.norm() * 2.);
-	long N1 = long(cutoff / a2.norm() * 2.);
-	long N2 = long(cutoff / a3.norm() * 2.);
+	Eigen::MatrixXd tmpVectors(3,nMax);
+	std::vector<bool> isDegenerate(nMax, false);
+	Eigen::VectorXd tmpDegeneracies(nMax);
+	// the first vector is the vector zero
+	tmpVectors.setZero();
+	tmpDegeneracies.setZero();
+	tmpDegeneracies.array() += 1.;
 
 	// we also need the smallest non zero vector norm
 	minDistance = a1.norm();
 
-	// build the list of positions
+	// build the list of positions within the cutoff sphere
+	long numVec_ = 1;
 	for ( long i0=-N0; i0<=N0; i0++ ) {
 		for ( long i1=-N1; i1<=N1; i1++ ) {
 			for ( long i2=-N2; i2<=N2; i2++ ) {
-				Eigen::Vector3d thisVec = (double)i0 * a1 + (double)i1 * a1
-						+ (double)i2 * a2;
-				if ( ( i0 != 0 ) && ( i1 != 0 ) && ( i2 != 0 ) ) {
-					tmpVectors.push_back(thisVec);
-					isDegenerate.push_back(false);
-					tmpDegeneracies.push_back(1);
-
-					double thisNorm = thisVec.norm();
+				Eigen::Vector3d thisVec = i0 * a1 + i1 * a2 + i2 * a3;
+				double thisNorm = thisVec.norm();
+				if ( ( thisNorm > epsilon8 ) && ( thisNorm < cutoff ) ) {
+					tmpVectors.col(numVec_) = thisVec;
+					numVec_ += 1;
 					if ( thisNorm < minDistance ) {
 						minDistance = thisNorm;
 					}
@@ -103,31 +106,66 @@ void ElectronH0Fourier::setPositionVectors() {
 		}
 	}
 
+	if ( numDataPoints >= numVec_ ) {
+		Error e("The number of interpolating coefficients is smaller than data"
+				" points: increase Fourier cutoff");
+	}
+
+	// this is wrong: only one symmetry recognized
+	std::cout << "Symm mats\n";
+	std::cout << crystal.getSymmetryMatrices().size() << "\n";
+//	std::cout << crystal.getSymmetryMatrices()[0] << "\n";
+//	std::cout << crystal.getSymmetryMatrices()[1] << "\n";
+//	std::cout << crystal.getSymmetryMatrices()[2] << "\n";
+//	std::cout << crystal.getSymmetryMatrices()[3] << "\n";
+//	std::cout << crystal.getSymmetryMatrices()[4] << "\n";
+
+	// deactivate symmetries for debugging
+	Eigen::Matrix3d symmMatrix;
+	symmMatrix.setZero();
+	symmMatrix(0,0) = 1.;
+	symmMatrix(1,1) = 1.;
+	symmMatrix(2,2) = 1.;
+
 	// now we build the list of irreducible vectors
-	for ( long iR=1; iR<tmpVectors.size(); iR++ ) { // we skip the first vector
-		Eigen::Vector3d vec = tmpVectors[iR];
+	for ( long iR=1; iR<numVec_; iR++ ) { // skip first vec!
+		Eigen::Vector3d vec = tmpVectors.col(iR);
 		if ( ! isDegenerate[iR] ) { // then we look for reducible points
-			for ( long iR2=iR+1; iR2<tmpVectors.size(); iR2++ ) {
+			for ( long iR2=iR+1; iR2<numVec_; iR2++ ) {
 				if ( ! isDegenerate[iR2] ) {
-					for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
-						Eigen::Vector3d rotVec = symmMatrix * tmpVectors[iR2];
+//					for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
+						Eigen::Vector3d rotVec = symmMatrix * tmpVectors.col(iR2);
 						if ( (rotVec-vec).norm() < 1.0e-6 ) {
 							isDegenerate[iR2] = true;
-							tmpDegeneracies[iR] += 1;
+							tmpDegeneracies(iR) += 1;
 						}
-					}
+//					}
 				}
 			}
 		}
 	}
 
-	for ( long iR=0; iR<tmpVectors.size(); iR++ ) {
-		if ( ! isDegenerate[iR] ) { // then we look for reducible points
-			positionVectors.push_back(tmpVectors[iR]);
-			positionDegeneracies.push_back(double(tmpDegeneracies[iR]));
+	numPositionVectors = 0;
+	for ( long iR=0; iR<numVec_; iR++ ) {
+		if ( ! isDegenerate[iR] ) {
+			numPositionVectors += 1;
 		}
 	}
-	numPositionVectors = positionVectors.size();
+
+	Eigen::VectorXd positionDegeneracies_(numPositionVectors);
+	Eigen::MatrixXd positionVectors_(3,numPositionVectors);
+
+	long counter = 0;
+	for ( long iR=0; iR<numPositionVectors; iR++ ) {
+		if ( ! isDegenerate[iR] ) { // then we look for reducible points
+			positionVectors_.col(counter) = tmpVectors.col(iR);
+			positionDegeneracies_(counter) = tmpDegeneracies(iR);
+			counter += 1;
+		}
+	}
+
+	positionVectors = positionVectors_;
+	positionDegeneracies = positionDegeneracies_;
 }
 
 Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
@@ -144,7 +182,7 @@ Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
 	Eigen::Vector3d iWavevector, jWavevector;
 
 	for ( long iR=0; iR<numPositionVectors; iR++ ) {
-		Eigen::Vector3d position = positionVectors[iR];
+		Eigen::Vector3d position = positionVectors.col(iR);
 		double rho = getRoughnessFunction(position);
 		std::complex<double> smk0 = getStarFunction(refWavevector, iR);
 		for ( long i=0; i<numDataPoints-1; i++ ) {
@@ -177,7 +215,7 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 			coefficients(m) += multipliers(i-1)
 					* std::conj(getStarFunction(wavevector,m) - smk0);
 		}
-		Eigen::Vector3d position = positionVectors[m];
+		Eigen::Vector3d position = positionVectors.col(m);
 		coefficients(m) /= getRoughnessFunction(position);
 	}
 
@@ -188,18 +226,6 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 	}
 
 	return coefficients;
-}
-
-double ElectronH0Fourier::getEnergy(Point<FullPoints> & point,
-		long & bandIndex) {
-	double energy = 0.;
-	Eigen::Vector3d wavevector = point.getCoords("cartesian");
-	for ( long m=0; m<numPositionVectors; m++ ) {
-		std::complex<double> c = expansionCoefficients(bandIndex, m)
-				* getStarFunction(wavevector, m);
-		energy += c.real();
-	}
-	return energy;
 }
 
 double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
@@ -213,25 +239,10 @@ double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
 	return energy;
 }
 
-std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		ElectronH0Fourier::diagonalize(Point<FullPoints> & point) {
-
-	Eigen::Vector3d coords = point.getCoords("cartesian");
-	auto [energies,x] = diagonalizeFromCoords(coords);
-
-	// this is to return something aligned with the phonon case
-	// One should investigate how to return a null pointer
-	Eigen::Tensor<std::complex<double>,3> eigvecs;
-	eigvecs.setZero();
-
-	return {energies,eigvecs};
-}
-
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d & wavevector){
 	Eigen::MatrixXcd eigvecs(numBands,numBands);
 	eigvecs.setZero();
-
 	Eigen::VectorXd energies(numBands);
 	for ( long ib = 0; ib<numBands; ib++ ) {
 		energies(ib) = getEnergyFromCoords(wavevector, ib);
@@ -239,31 +250,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	return {energies,eigvecs};
 }
 
-
-Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
-			Point<FullPoints> & point) {
-	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
-	velocity.setZero();
-	auto v = getGroupVelocities(point);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		for ( long i=0; i<3; i++ ) {
-			velocity(ib,ib,i) = v(ib,i);
-		}
-	}
-}
-
-Eigen::VectorXd ElectronH0Fourier::getEnergies(Point<FullPoints> & point) {
-	Eigen::VectorXd energies(numBands);
-	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {
-		energies(bandIndex) = getEnergy(point, bandIndex);
-	}
-	return energies;
-}
-
-Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point<FullPoints> & point,
-		long & bandIndex) {
+Eigen::Vector3d ElectronH0Fourier::getGroupVelocityFromCoords(
+		Eigen::Vector3d & wavevector, long & bandIndex) {
 	Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
-	Eigen::Vector3d wavevector = point.getCoords("cartesian");
 	for ( long m=0; m<numPositionVectors; m++ ) {
 		Eigen::Vector3cd c = expansionCoefficients(bandIndex, m)
 				* getDerivativeStarFunction(wavevector, m);
@@ -272,10 +261,6 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocity(Point<FullPoints> & point,
 	return velocity;
 }
 
-Eigen::MatrixXd ElectronH0Fourier::getGroupVelocities(Point<FullPoints> & point) {
-	Eigen::MatrixXd velocities(numBands,3);
-	for ( long bandIndex=0; bandIndex<numBands; bandIndex++ ) {
-		velocities.row(bandIndex) = getGroupVelocity(point, bandIndex);
-	}
-	return velocities;
+long ElectronH0Fourier::getNumBands() {
+	return numBands;
 }

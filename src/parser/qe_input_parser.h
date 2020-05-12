@@ -34,14 +34,7 @@ public:
 			Context & context);
 	std::tuple<Crystal,ElectronH0Wannier> parseElHarmonicWannier(
 			Context & context);
-//	std::tuple<std::unique_ptr<Crystal>,
-//			std::unique_ptr<ElectronH0Fourier>> parseElHarmonicFourier(
-//			Context & context);
-//	std::tuple<std::unique_ptr<Crystal>,
-//			std::unique_ptr<ElectronH0Wannier>> parseElHarmonicWannier(
-//			Context & context);
 	bool isQuantumEspressoXml(const std::string & fileName);
-
 };
 
 #endif

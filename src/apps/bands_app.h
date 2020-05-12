@@ -10,7 +10,7 @@ public:
 	void run(Context & context);
 };
 
-//class ElectronFourierBandsApp : public App {
-//public:
-//	void run(Context & context);
-//};
+class ElectronFourierBandsApp : public App {
+public:
+	void run(Context & context);
+};

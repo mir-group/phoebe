@@ -25,61 +25,26 @@ public:
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
 			FullBandStructure<FullPoints> coarseBandStructure_, double cutoff);
 
-	/** calculate the energy of a single electronic Bloch state.
-	 * @param point: the Point object representing the wavevector.
-	 * @param bandIndex: the number identifying the band from 0 to numBands-1
-	 * @return energy: in Rydbergs
-	 */
-	double getEnergy(Point<FullPoints> & point, long & bandIndex);
-
-	/** get all electronic energies at a given wavevector
-	 * @param point: a Point representing the desired wavevector.
-	 * @return energies: a vector of size (numBands) of energies
-	 */
-	Eigen::VectorXd getEnergies(Point<FullPoints> & point);
-
-	/** compute the group velocity of a Bloch state.
-	 * @param point: a Point representing the desired wavevector.
-	 * @param bandIndex: the number identifying the band from 0 to numBands-1
-	 * @return velocity: a 3d vector with the group velocity
-	 */
-	Eigen::Vector3d getGroupVelocity(Point<FullPoints> & point,
-			long & bandIndex);
-
-	/** compute the group velocities at a given wavevector
-	 * @param point: a Point representing the desired wavevector.
-	 * @return velocities: a matrix of size (numBands,3) of group velocities
-	 */
-	Eigen::MatrixXd getGroupVelocities(Point<FullPoints> & point);
-
-	/** compute the band structure on a mesh of points
-	 * Must provide only one of the two optional parameters
-	 * @param (optional) fullPoints: k-point mesh to use for computing energies
-	 * @param (optional) irreduciblePoints: k-point mesh for computing energies
-	 * @return FullBandStructure: an FullBandStructure object with the values
-	 * of the band structure computed over the input mesh of points.
-	 *
-	 */
-//	FullBandStructure populateBandStructure(FullPoints * fullpoints=nullptr,
-//			IrreduciblePoints * irreduciblePoints=nullptr);
-
+	template<typename T>
 	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		diagonalize(Point<FullPoints> & point);
+		diagonalize(Point<T> & point);
 
-	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-				Point<FullPoints> & point);
+	template<typename T>
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
+				Point<T> & point);
 
 	Statistics getStatistics();
 
 	template<typename T>
 	FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
-protected:
-	Statistics statistics;
-	FullPoints coarsePoints;
-	FullBandStructure<FullPoints> coarseBandStructure;
 
+	long getNumBands();
+protected:
 	Crystal & crystal;
+	FullBandStructure<FullPoints> coarseBandStructure;
+	FullPoints coarsePoints;
+	Statistics statistics;
 
 	Eigen::MatrixXcd expansionCoefficients;
 
@@ -88,8 +53,8 @@ protected:
 	long numDataPoints;
 	long numPositionVectors;
 	double minDistance;
-	std::vector<double> positionDegeneracies;
-	std::vector<Eigen::Vector3d> positionVectors;
+	Eigen::VectorXd positionDegeneracies;
+	Eigen::MatrixXd positionVectors;
 	void setPositionVectors();
 	Eigen::VectorXcd getLagrangeMultipliers(Eigen::VectorXd energies);
 	Eigen::VectorXcd getCoefficients(Eigen::VectorXd energies);
@@ -104,17 +69,49 @@ protected:
 	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		diagonalizeFromCoords(Eigen::Vector3d & wavevector);
 	double getEnergyFromCoords(Eigen::Vector3d & wavevector, long & bandIndex);
+	Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d & wavevector,
+			long & bandIndex);
 };
 
-template<typename Arg>
-FullBandStructure<Arg> ElectronH0Fourier::populate(Arg & fullPoints,
+template<typename T>
+std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+		ElectronH0Fourier::diagonalize(Point<T> & point) {
+
+	Eigen::Vector3d coords = point.getCoords("cartesian");
+	auto [energies,x] = diagonalizeFromCoords(coords);
+
+	// this is to return something aligned with the phonon case
+	// One should investigate how to return a null pointer
+	Eigen::Tensor<std::complex<double>,3> eigvecs;
+	eigvecs.setZero();
+
+	return {energies,eigvecs};
+}
+
+template<typename T>
+Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
+			Point<T> & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+	Eigen::Vector3d coords = point.getCoords("cartesian");
+	for ( long ib=0; ib<numBands; ib++ ) {
+		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
+		for ( long i=0; i<3; i++ ) {
+			velocity(ib,ib,i) = v(i);
+		}
+	}
+	return velocity;
+}
+
+template<typename T>
+FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
 		bool & withVelocities, bool & withEigenvectors) {
 
-	FullBandStructure<Arg> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, statistics,
 			withVelocities, withEigenvectors, fullPoints);
 
-	for ( long unsigned ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point<T> point = fullBandStructure.getPoint(ik);
 		auto [ens, eigvecs] = diagonalize(point);
 		fullBandStructure.setEnergies(point, ens);
 		if ( withVelocities ) {

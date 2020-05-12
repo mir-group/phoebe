@@ -366,7 +366,7 @@ long Points::getIndex(const Eigen::Vector3d & point) {
 	p(1) = ( point(1) - offset(1) ) * mesh(1);
 	p(2) = ( point(2) - offset(2) ) * mesh(2);
 	// fold in BZ
-	long i = mod( long(round(p(0))) , mesh(0));
+	long i = mod(long(round(p(0))) , mesh(0));
 	long j = mod(long(round(p(1))) , mesh(1));
 	long k = mod(long(round(p(2))) , mesh(2));
 	long ik = i * mesh(2) * mesh(1) + j * mesh(2) + k;
@@ -528,7 +528,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::getMesh() {
 }
 
 std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
-		const Eigen::MatrixXd & testPoints) {
+		const Eigen::Matrix<double,3,Eigen::Dynamic> & testPoints) {
 	// given a list of kpoints, figures out the mesh and offset
 	// input points must be in crystal coordinates
 	Eigen::Vector3i mesh_(3);
@@ -536,17 +536,14 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	Eigen::Vector3d offset_(3);
 	offset_.setZero();
 
-	if ( 3 != testPoints.cols() ) {
-		Error e("Wrong format specified for points to findMesh",1);
-	}
 	long numTestPoints = testPoints.cols();
 
 	double value;
 	for ( long iCart=0; iCart<3; iCart++ ) {
 		std::set<double> s; // note that sets are ordered
 		for ( long i = 0; i < numTestPoints; i++ ) {
-			// round double to 6 decimal digits
-			value = std::ceil(testPoints(i,iCart) * pow(10.,8)) / pow(10.,8);
+			// round double to 8 decimal digits
+			value = std::ceil(testPoints(iCart,i) * pow(10.,8)) / pow(10.,8);
 			// fold number in [0,1[
 			while ( value < 0. ) {
 				value += 1.;

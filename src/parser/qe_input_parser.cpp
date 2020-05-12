@@ -600,11 +600,11 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	pugi::xml_node atomicStructure = output.child("atomic_structure");
 	int numAtoms = atomicStructure.attribute("nat").as_int();
-//	double alat = atomicStructure.attribute("alat").as_double();
 
 	//  we read the atomic positions
 
-	pugi::xml_node atomicPositionsXML = atomicStructure.child("atomic_positions");
+	pugi::xml_node atomicPositionsXML = atomicStructure.child(
+			"atomic_positions");
 	Eigen::MatrixXd atomicPositions(numAtoms,3);
 	Eigen::VectorXi atomicSpecies(numAtoms);
 	i = 0;
@@ -614,8 +614,8 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		thisAtomName = atom.attribute("name").value();
 		// the XML doesn't describe atoms with a tag ID, but using names
 		// here I find the index of the species in speciesNames, given the name
-		std::vector<std::string>::iterator itr = std::find(speciesNames.begin(),
-				speciesNames.end(), thisAtomName);
+		std::vector<std::string>::iterator itr = std::find(
+				speciesNames.begin(), speciesNames.end(), thisAtomName);
 		if (itr != speciesNames.cend()) {
 			atomId = std::distance(speciesNames.begin(), itr);
 		}
@@ -659,7 +659,6 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	int numBands = bandStructureXML.child("nbnd").text().as_int();
 	int numElectrons = bandStructureXML.child("nelec").text().as_int();
 	double homo = bandStructureXML.child("highestOccupiedLevel").text().as_double();
-
 	int numIrredPoints = bandStructureXML.child("nks").text().as_int();
 
 	pugi::xml_node startingKPoints = bandStructureXML.child("starting_k_points");
@@ -699,7 +698,7 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	// parse k-points and energies
 
-	Eigen::MatrixXd irredPoints(numIrredPoints, 3);
+	Eigen::Matrix<double,3,Eigen::Dynamic> irredPoints(3, numIrredPoints);
 	Eigen::VectorXd irredWeights(numIrredPoints);
 	Eigen::MatrixXd irredEnergies(numIrredPoints, numBands);
 	Eigen::MatrixXd irredOccupations(numIrredPoints, numBands);
@@ -722,7 +721,7 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 		// convert from cartesian to crystal coordinates
 		p = bVectors.inverse() * p;
-		irredPoints.row(i) = p;
+		irredPoints.col(i) = p;
 
 		lineSplit = split(kpoint.child_value("eigenvalues"), ' ');
 		for ( int j=0; j<numBands; j++ ) {
@@ -760,7 +759,7 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	for ( int ik=0; ik<numIrredPoints; ik++ ) {
 		// note: kpoints in the XML files are not ordered in the same way
 		// as in the scf.in file
-		pointCoords = irredPoints.row(ik);
+		pointCoords = irredPoints.col(ik);
 		thisEnergies = irredEnergies.row(ik);
 		coarseBandStructure.setEnergies(pointCoords, thisEnergies);
 	}
