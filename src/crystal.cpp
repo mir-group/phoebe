@@ -144,7 +144,10 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		for ( int j=0; j<3; j++ ) {
 			// note: spglib wants fractional positions
 			positionCartesian = atomicPositions.row(i);
-			positionCrystal = reciprocalUnitCell * positionCartesian;
+			// note on conversion:
+			// directUnitCell^T * RCryst = RCart
+			positionCrystal = reciprocalUnitCell.transpose().inverse()
+					* positionCartesian;
 			positionSPG[i][j] = positionCrystal(j);
 		}
 	}

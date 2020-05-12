@@ -537,13 +537,10 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	offset_.setZero();
 
 	long numTestPoints = testPoints.cols();
-
-	double value;
 	for ( long iCart=0; iCart<3; iCart++ ) {
 		std::set<double> s; // note that sets are ordered
 		for ( long i = 0; i < numTestPoints; i++ ) {
-			// round double to 8 decimal digits
-			value = std::ceil(testPoints(iCart,i) * pow(10.,8)) / pow(10.,8);
+			double value = testPoints(iCart,i);
 			// fold number in [0,1[
 			while ( value < 0. ) {
 				value += 1.;
@@ -554,12 +551,39 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 			s.insert( value );
 		}
 
-		if ( s.size() > 0 ) {
-			mesh_(iCart) = s.size();
-			auto first = s.begin(); // get iterator to 1st element of set s
-			offset_(iCart) = *first;
+		// a few things to remember for comparison.
+		// * there might be cases where deltaK is a periodic number (e.g. 1./6)
+		// * we are working with floats, so there can be rounding errors
+		//   and thus s might contain duplicates
+
+		// determine if there is a single point
+		bool isSingle = true;
+		for ( auto it=s.begin(); it!= s.end(); it++ ) {
+			if ( it != s.begin() ) { // if not in the first case
+				// the first condition is the trivial check on having a
+				// different point. The second condition is to exclude cases
+				// such that s = [0., 0.99999]
+				if ( (*it - *s.begin() > 1.0e-6) &&
+						(1.-*it + *s.begin() > 1.0e-6) ) {
+					isSingle = false;
+					break;
+				}
+			}
+		}
+
+		if ( isSingle ) { // no mesh, just a single point
+			mesh_(iCart) = 1;
+			offset_(iCart) = *s.begin();
 		} else {
-			Error e("findMesh error: something is wrong", 1);
+			double delta = 0.;
+			for ( auto it=s.begin(); it!= s.end(); it++ ) {
+				if ( *it - *s.begin() > 1.0e-6 ) { // avoid duplicates
+					delta = *it - *s.begin();
+					break;
+				}
+			}
+			mesh_(iCart) = long(round(1./delta+0.1));
+			offset_(iCart) = *s.begin();
 		}
 	}
 
