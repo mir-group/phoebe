@@ -34,3 +34,9 @@ double PeriodicTable::PeriodicTable::getMassVariance(const std::string &
 	long i = findElementByStr(speciesName);
 	return elements[i].massVariance;
 }
+
+long PeriodicTable::getIonicCharge(const std::string &
+		speciesName ) {
+	long i = findElementByStr(speciesName);
+	return elements[i].atomicNumber;
+}

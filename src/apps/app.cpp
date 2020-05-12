@@ -9,6 +9,7 @@
 #include "window.h"
 #include "statistics.h"
 #include "dos_app.h"
+#include "polarization_app.h"
 #include "bands_app.h"
 #include "phonon_transport_app.h"
 #include "utilities.h"
@@ -31,6 +32,8 @@ std::unique_ptr<App> App::loadApp(std::string & choice) {
 		return std::unique_ptr<App> (new ElectronWannierBandsApp);
 	} else if ( choice == "electronFourierBands" ) {
 		return std::unique_ptr<App> (new ElectronFourierBandsApp);
+	} else if ( choice == "electronPolarization" ) {
+		return std::unique_ptr<App> (new ElectronPolarizationApp);
 	} else {
 		return std::unique_ptr<App> (nullptr);
 	}

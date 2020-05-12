@@ -5,23 +5,36 @@
 ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 		const Eigen::Matrix<double,3,Eigen::Dynamic> & bravaisVectors_,
 		const Eigen::VectorXd & vectorsDegeneracies_,
-		const Eigen::Tensor<std::complex<double>,3> & h0R_) :
+		const Eigen::Tensor<std::complex<double>,3> & h0R_,
+		const Eigen::Tensor<std::complex<double>,4> & rMatrix_) :
 		statistics(Statistics::electron) {
 
 	h0R = h0R_;
+	rMatrix = rMatrix_;
 	directUnitCell = directUnitCell_;
 	bravaisVectors = bravaisVectors_;
 	vectorsDegeneracies = vectorsDegeneracies_;
 
 	if ( h0R.dimension(1) != h0R.dimension(2) ) {
-		Error e("WannierH0(): h0R should have dimensions (R,bands,bands)", 1);
+		Error e("WannierH0(): h0R should have dimensions (R,bands,bands)");
 	}
 	if ( h0R.dimension(0) != bravaisVectors.cols() ) {
-		Error e("WannierH0(): h0R and bravaisVectors not aligned", 1);
+		Error e("WannierH0(): h0R and bravaisVectors not aligned");
 	}
 	if ( vectorsDegeneracies.size() != bravaisVectors.cols() ) {
-		Error e("WannierH0(): degeneracies not aligned with vectors", 1);
+		Error e("WannierH0(): degeneracies not aligned with vectors");
 	}
+
+	if ( ( rMatrix.dimension(1) != h0R.dimension(0) ) ||
+			( rMatrix.dimension(2) != h0R.dimension(1) ) ||
+			( rMatrix.dimension(3) != h0R.dimension(2) ) ) {
+		Error e("WannierH0(): h0R and rMatrix should be aligned");
+	}
+
+	if ( rMatrix.dimension(0) != 3 ) {
+		Error e("WannierH0(): rMatrix should be a vector");
+	}
+
 	numBands = h0R.dimension(1);
 	numVectors = vectorsDegeneracies.size();
 }

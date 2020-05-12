@@ -85,7 +85,7 @@ void ElectronH0Fourier::setPositionVectors() {
 	tmpDegeneracies.array() += 1.;
 
 	// we also need the smallest non zero vector norm
-	minDistance = a1.norm();
+	minDistance = a1.norm(); // this is a first guess
 
 	// build the list of positions within the cutoff sphere
 	long numVec_ = 1;

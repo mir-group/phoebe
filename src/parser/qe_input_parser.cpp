@@ -839,8 +839,13 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 	// now we read the Hamiltonian in real space
 	Eigen::MatrixXd bravaisVectors(3,numVectors);
 	Eigen::Tensor<std::complex<double>,3> h0R(numVectors, numWann, numWann);
+	Eigen::Tensor<std::complex<double>,4>rMatrix(3,numVectors,numWann,numWann);
 	bravaisVectors.setZero();
 	h0R.setZero();
+	rMatrix.setZero();
+
+	// parse the Hamiltonian
+
 	for ( long iR=0; iR<numVectors; iR++ ) {
 		// first we have an empty line
 		std::getline(infile, line);
@@ -863,13 +868,46 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		}
 	}
 
+	// now parse the R matrix
+	// the format is similar, but we have a complex vector
+
+	for ( long iR=0; iR<numVectors; iR++ ) {
+		// first we have an empty line
+		std::getline(infile, line);
+
+		// then we read the lattice vector coordinates
+		std::getline(infile, line);
+		lineSplit = split(line, ' ');
+		// they have been initialized above, and they are the same
+//		bravaisVectors(0,iR) = std::stod(lineSplit[0]);
+//		bravaisVectors(1,iR) = std::stod(lineSplit[1]);
+//		bravaisVectors(2,iR) = std::stod(lineSplit[2]);
+
+		for ( long i=0; i<numWann; i++ ) {
+			for ( long j=0; j<numWann; j++ ) {
+				std::getline(infile, line);
+				lineSplit = split(line, ' ');
+				double re = std::stod(lineSplit[2]) / energyRyToEv;
+				double im = std::stod(lineSplit[3]) / energyRyToEv;
+				rMatrix(0, iR, i, j) = {re,im}; // the matrix was in eV
+				re = std::stod(lineSplit[4]) / energyRyToEv;
+				im = std::stod(lineSplit[5]) / energyRyToEv;
+				rMatrix(1, iR, i, j) = {re,im}; // the matrix was in eV
+				re = std::stod(lineSplit[6]) / energyRyToEv;
+				im = std::stod(lineSplit[7]) / energyRyToEv;
+				rMatrix(2, iR, i, j) = {re,im}; // the matrix was in eV
+			}
+		}
+	}
+
+
 	// I need to convert crystalVectors in cartesian coordinates
 	// must check if I am aligning the unit cell correctly
 	bravaisVectors = directUnitCell * bravaisVectors;
 	// note: for Wannier90, lattice vectors are the rows of the matrix
 
 	ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
-			vectorsDegeneracies, h0R);
+			vectorsDegeneracies, h0R, rMatrix);
 //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
 //			directUnitCell, crystalVectors, vectorsDegeneracies, h0R));
 

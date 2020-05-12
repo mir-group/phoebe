@@ -128,6 +128,7 @@ public:
 	void setMassVariance(const std::string & speciesName, double & x);
 	double getMass(const std::string & speciesName);
 	double getMassVariance(const std::string & speciesName);
+	long getIonicCharge(const std::string & speciesName);
 private:
 	long findElementByStr(const std::string & x);
 };
