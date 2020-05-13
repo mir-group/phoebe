@@ -1,8 +1,9 @@
 #include <iterator>
 #include <sstream>
 #include <vector>
+#include "utilities.h"
 
-long mod(long a, long b) {
+long mod(const long & a, const long & b) {
 	return ( a%b + b ) % b;
 }
 
@@ -11,8 +12,34 @@ bool hasSuffix(const std::string & str, const std::string & suffix) {
            str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
-long compressIndeces(long i, long j, long k, long size1, long size2,
-		long size3) {
+long compress3Indeces(const long & i1, const long & i2, const long & i3,
+		const long & size1, const long & size2, const long & size3) {
 	(void) size1;
-	return i*size2*size3 + j*size3 + k;
+	return i1 * size2 * size3 + i2 * size3 + i3;
+}
+
+std::tuple<long,long,long> decompress3Indeces(const long & iTot,
+		const long & size1, const long & size2, const long & size3) {
+	(void) size1;
+	long i1 = iTot / (size2 * size3);
+	long remainder = iTot - i1 * size2 * size3;
+	long i2 = remainder / size3;
+	remainder -= i2 * size3;
+	long i3 = remainder;
+	return {i1,i2,i3};
+}
+
+
+long compress2Indeces(const long & i1, const long & i2, const long & size1,
+		const long & size2) {
+	(void) size1;
+	return i1*size2 + i2;
+}
+
+std::tuple<long,long> decompress2Indeces(const long & iTot, const long & size1,
+		const long & size2) {
+	(void) size1;
+	long i1 = iTot / size2;
+	long i2 = iTot - i1 * size2;
+	return {i1,i2};
 }

@@ -153,7 +153,7 @@ Eigen::Vector3d State<T>::getVelocity(const long & bandIndex) {
 	std::complex<double> x;
 	Eigen::Vector3d groupVelocity;
 	for ( long j=0; j<3; j++ ) {
-		long ind = compressIndeces(bandIndex, bandIndex, j, numBands,
+		long ind = compress3Indeces(bandIndex, bandIndex, j, numBands,
 				numBands, 3);
 		x = *(velocities+ind);
 		groupVelocity(j) = real(x);
@@ -172,7 +172,7 @@ Eigen::Vector3cd State<T>::getVelocity(const long & bandIndex1,
 	}
 	Eigen::Vector3cd velocity;
 	for ( long j=0; j<3; j++ ) {
-		long ind = compressIndeces(bandIndex1,bandIndex2,j,numBands,
+		long ind = compress3Indeces(bandIndex1,bandIndex2,j,numBands,
 				numBands, 3);
 		velocity(j) = *(velocities+ind);
 	}
@@ -188,7 +188,7 @@ Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
 	for ( long ib1=0; ib1<numBands; ib1++ ) {
 		for ( long ib2=0; ib2<numBands; ib2++ ) {
 			for ( long j=0; j<3; j++ ) {
-				long ind = compressIndeces(ib1, ib2, j, numBands, numBands, 3);
+				long ind = compress3Indeces(ib1, ib2, j, numBands, numBands,3);
 				vels(ib1,ib2,j) = *(velocities+ind);
 			}
 		}
@@ -205,7 +205,7 @@ Eigen::Tensor<std::complex<double>,3> State<T>::getEigenvectors() {
 	for ( long j=0; j<3; j++ ) {
 		for ( long ia=0; ia<numAtoms; ia++ ) {
 			for ( long ib=0; ib<numBands; ib++ ) {
-				long ind = compressIndeces(j, ia, ib, 3, numAtoms, numBands);
+				long ind = compress3Indeces(j, ia, ib, 3, numAtoms, numBands);
 				eigs(j,ia,ib) = *(eigenvectors+ind);
 			}
 		}

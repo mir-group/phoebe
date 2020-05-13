@@ -196,7 +196,7 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 				ibOld++ ) {
 
 			for ( long i=0; i<3; i++) {
-				long indOld = compressIndeces(ibOld, ibOld, i,
+				long indOld = compress3Indeces(ibOld, ibOld, i,
 								oldNumBands, oldNumBands, 3);
 				groupVelocities.push_back(
 						fullBandStructure.velocities(ik,indOld).real());
@@ -205,7 +205,7 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 				for ( long ib2Old = filteredBands[ik][0];
 						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
 
-					long indOld = compressIndeces(ibOld, ib2Old, i,
+					long indOld = compress3Indeces(ibOld, ib2Old, i,
 									oldNumBands, oldNumBands, 3);
 					velocities.push_back(
 							fullBandStructure.velocities(ikOld,indOld));
@@ -221,7 +221,7 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 					long ib = 0;
 					for ( long ibOld = filteredBands[ik][0];
 							ibOld<filteredBands[ik][1]+1; ibOld++ ) {
-						long indOld = compressIndeces(i, iat, ibOld, 3,
+						long indOld = compress3Indeces(i, iat, ibOld, 3,
 								numAtoms, oldNumBands);
 						eigenvectors.push_back(
 								fullBandStructure.eigenvectors(ikOld,indOld));

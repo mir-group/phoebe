@@ -43,7 +43,6 @@ private:
 	bool hasEigenvectors = false;
 	bool hasVelocities = false;
 
-
 	long getIndex(Eigen::Vector3d & pointCoords);
 	friend class ActiveBandStructure;
 
@@ -57,6 +56,7 @@ public:
 	FullBandStructure(const FullBandStructure & that);
 	FullBandStructure & operator = (const FullBandStructure & that);
 
+	T getPoints();;
 	Point<T> getPoint(const long & pointIndex);
 	long getNumPoints();
 	State<T> getState(Point<T> & point);
@@ -65,7 +65,7 @@ public:
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 	Statistics getStatistics();
 
-	void setEnergies(Eigen::Vector3d& point, Eigen::VectorXd& energies_);
+	void setEnergies(Eigen::Vector3d & point, Eigen::VectorXd & energies_);
 	void setEnergies(Point<T> & point, Eigen::VectorXd & energies_);
 	void setEigenvectors(Point<T> & point,
 			Eigen::Tensor<std::complex<double>,3> & eigenvectors_);
@@ -82,26 +82,14 @@ Eigen::VectorXcd FullBandStructure<T>::packXcd(
 	for ( long i=0; i<size1; i++ ) {
 		for ( long j=0; j<size2; j++ ) {
 			for ( long k=0; k<size3; k++ ) {
-				b(i*size2*size3 + j*size3 + k) = a(i,j,k);
+
+				long idx = compress3Indeces(i, j, k, size1, size2, size3);
+				b(idx) = a(i,j,k);
 			}
 		}
 	}
 	return b;
 }
-
-//std::vector<std::complex<double>> packStdXcd(Eigen::Tensor<std::complex<double>,3> a,
-//		long size1, long size2, long size3) {
-//	std::vector<std::complex<double>> b(size1*size2*size3);
-//	for ( long i=0; i<size1; i++ ) {
-//		for ( long j=0; j<size2; j++ ) {
-//			for ( long k=0; k<size3; k++ ) {
-//				b[i*size2*size3 + j*size3 + k] = a(i,j,k);
-//			}
-//		}
-//	}
-//	return b;
-//}
-
 
 template<typename T>
 FullBandStructure<T>::FullBandStructure(long numBands_,
@@ -276,6 +264,11 @@ template<typename T>
 Eigen::VectorXd FullBandStructure<T>::getBandEnergies(long & bandIndex) {
 	Eigen::VectorXd bandEnergies = energies.col(bandIndex);
 	return bandEnergies;
+}
+
+template<typename T>
+T FullBandStructure<T>::getPoints() {
+	return points;
 }
 
 #endif

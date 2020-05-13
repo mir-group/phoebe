@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "eigen.h"
+#include <limits> // NaN
 
 using namespace std;
 
@@ -44,8 +45,11 @@ private:
 	Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
 	Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
 
-	double homo;
-	long numValenceElectrons;
+
+	double fermiLevel = std::numeric_limits<double>::quiet_NaN();
+	double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
+	bool hasSpinOrbit = false;
+
 	long dimensionality = 3;
 
 	double dosMinEnergy = 0.;
@@ -192,6 +196,17 @@ public:
 	 */
 	Eigen::VectorXd getChemicalPotentials();
 
+	/** sets the value of chemical potentials to be used in the calculation
+	 * of transport properties. Values in rydbergs.
+	 * @param x: the <double> values of the chemical potentials.
+	 */
+	void setDopings(Eigen::VectorXd x);
+	/** gets the value of chemical potentials (in Rydbergs) to be used in the
+	 * calculation of transport properties
+	 * @return x: the vector of values for chemical potentials
+	 */
+	Eigen::VectorXd getDopings();
+
 	/** sets the value of temperatures to be used in the calculation
 	 * of transport properties. Values in rydbergs.
 	 * @param x: the <double> values of the temperatures.
@@ -202,12 +217,6 @@ public:
 	 * @return x: the vector of values for temperatures
 	 */
 	Eigen::VectorXd getTemperatures();
-
-	void setNumValenceElectrons(long numElectrons);
-	long getNumValenceElectrons();
-
-	void setHomo(double homo);
-	double getHomo();
 
 	void setSolverBTE(std::vector<std::string> solverBTE);
 	std::vector<std::string> getSolverBTE();
@@ -246,6 +255,14 @@ public:
 	Eigen::Tensor<double,3> getPathExtrema();
 	void setDeltaPath(double x);
 	double getDeltaPath();
+
+	void setFermiLevel(const double & x);
+	double getFermiLevel();
+	void setNumOccupiedStates(double x);
+	double getNumOccupiedStates();
+	void setHasSpinOrbit(bool x);
+	bool getHasSpinOrbit();
+
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

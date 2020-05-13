@@ -551,6 +551,15 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
+		std::vector<double> x = parseDoubleList(lines, "dopings");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i];
+		}
+		setDopings(x_); // note: we store it as provided in input. in cm^-D
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
 		std::vector<double> x = parseDoubleList(lines, "temperatures");
 		Eigen::VectorXd x_(x.size());
 		for ( long unsigned i=0; i<x.size(); i++ ) {
@@ -616,6 +625,27 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		double x = parseDouble(lines, "deltaPath");
 		setDeltaPath(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDouble(lines, "fermiLevel"); // in eV
+		setFermiLevel( x / energyRyToEv );
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseBool(lines, "hasSpinOrbit");
+		setHasSpinOrbit(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		// note: numOccupiedStates refers to the number of states that are
+		// occupied
+		// for Wannier: the number of Wannier states that are full
+		// for Fourier: the number of occupied bands
+		// remember to NOT count the spin degeneracy
+		double x = parseDouble(lines, "numOccupiedStates");
+		if ( ! hasSpinOrbit ) x *= 2;
+		setNumOccupiedStates(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
@@ -715,28 +745,20 @@ Eigen::VectorXd Context::getChemicalPotentials() {
 	return chemicalPotentials;
 }
 
+void Context::setDopings(Eigen::VectorXd x) {
+	dopings = x;
+}
+
+Eigen::VectorXd Context::getDopings() {
+	return dopings;
+}
+
 void Context::setTemperatures(Eigen::VectorXd x) {
 	temperatures = x;
 }
 
 Eigen::VectorXd Context::getTemperatures() {
 	return temperatures;
-}
-
-void Context::setNumValenceElectrons(long x) {
-	numValenceElectrons = x;
-}
-
-long Context::getNumValenceElectrons() {
-	return numValenceElectrons;
-}
-
-void Context::setHomo(double x) {
-	homo = x;
-}
-
-double Context::getHomo() {
-	return homo;
 }
 
 void Context::setSolverBTE(std::vector<std::string> x) {
@@ -830,3 +852,21 @@ double Context::getDeltaPath() {
 
 
 
+void Context::setFermiLevel(const double & x) {
+	fermiLevel = x;
+}
+double Context::getFermiLevel() {
+	return fermiLevel;
+}
+void Context::setNumOccupiedStates(double x) {
+	numOccupiedStates = x;
+}
+double Context::getNumOccupiedStates() {
+	return numOccupiedStates;
+}
+void Context::setHasSpinOrbit(bool x) {
+	hasSpinOrbit = x;
+}
+bool Context::getHasSpinOrbit() {
+	return hasSpinOrbit;
+}

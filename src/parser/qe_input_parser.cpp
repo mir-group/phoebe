@@ -655,7 +655,7 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 	pugi::xml_node bandStructureXML = output.child("band_structure");
 	bool lsda = bandStructureXML.child("lsda").text().as_bool();
 	bool noncolin = bandStructureXML.child("noncolin").text().as_bool();
-	bool spinorbit = bandStructureXML.child("spinorbit").text().as_bool();
+	bool spinOrbit = bandStructureXML.child("spinorbit").text().as_bool();
 	int numBands = bandStructureXML.child("nbnd").text().as_int();
 	int numElectrons = bandStructureXML.child("nelec").text().as_int();
 	double homo = bandStructureXML.child("highestOccupiedLevel").text().as_double();
@@ -741,7 +741,7 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	// Now we do postprocessing
 
-	if ( lsda || noncolin || spinorbit ) {
+	if ( lsda || noncolin ) {
 		Error e("spin is not yet supported");
 	}
 
@@ -764,8 +764,10 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 		coarseBandStructure.setEnergies(pointCoords, thisEnergies);
 	}
 
-	context.setNumValenceElectrons(numElectrons);
-	context.setHomo(homo);
+	context.setHasSpinOrbit(spinOrbit);
+	if ( spinOrbit ) numElectrons /= 2.;
+	context.setNumOccupiedStates(numElectrons);
+	context.setFermiLevel(homo);
 
 	ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
 			fourierCutoff);
