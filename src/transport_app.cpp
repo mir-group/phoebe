@@ -1,64 +1,67 @@
-#include <iostream>
 #include <string>
 #include "transport_app.h"
 #include "qe_input_parser.h"
 #include "context.h"
+#include "constants.h"
+#include "exceptions.h"
+#include "points.h"
+#include "io.h"
+#include "window.h"
+#include "statistics.h"
 
-using namespace std;
+TransportApp::TransportApp(int argc, char** argv) {
+	IO io(argc, argv);
 
-//TransportApp::TransportApp() {};
+	std::string inputFileName = io.getInputFileName();
 
-void TransportApp::setup(int argc, char** argv) {
-	string inputFileName;
-	string outputFileName;
+	std::cout << "Reading from input file: " << inputFileName << endl;
 
-	if ( argc < 3 ) {
-		throw std::invalid_argument("Invalid input line arguments. "
-				"Must provide input file and output file.");
-	}
-
-	inputFileName = argv[1];
-	outputFileName = argv[2];
-
-	std::cout << inputFileName;
-	std::cout << "\n";
-	std::cout << outputFileName;
-	std::cout << "\n";
-
-//	Read user input file
+	// Read user input file
 
 	Context context;
 	context.setupFromInput(inputFileName);
 
-	std::cout << context.qCoarseMesh[0];
-	std::cout << "\n";
-
-//	Read the necessary input files
+	// Read the necessary input files
 
 	QEParser qeParser;
-	qeParser.parsePhHarmonic("SnSe.fc");
 
+	if ( context.getCalculation() == "electron-phonon" ) {
+		auto [crystalEl, electronH0Fourier] =
+				qeParser.parseElHarmonicFourier(context);
+	}
 
-//	PhH0 phH0;
-//	phH0.readFile();
-//
-//	//	TODO: 'elph' shoudn't be a string, we should use a dictionary
-//	//	and store which are the allowed values of calculations.
-//
-//	if ( context.getCalculation() == 'elph' ) {
-//
-//		if ( context.getInterpolation() == 'spline' ) {
-//			ElH0Spline elH0Spline;
-//			elH0Spline.readFile();
-//
-//		} else if ( context.getInterpolation() == "wannier" ) {
-////			ElH0Wannier elH0Wannier;
-////			elH0Wannier.readFile();
-//			stopWithError("Not implemented");
-//
-//		} else {
-//			stopWithError("key not recognized");
-//		}
-//	}
+	auto [crystalPh, phononH0] =
+			qeParser.parsePhHarmonic(context.getPhD2FileName());
+	phononH0.setAcousticSumRule(context.getSumRuleD2());
+
+	// Now, we build the harmonic phonon properties
+	Statistics phStatistics(Statistics::bose);
+
+	// first we make compute the band structure on the fine grid
+	FullPoints fullQPoints(crystalPh, context.getQMesh());
+	bool withVelocities=true, withEigenvectors=true;
+	FullBandStructure fullPhBandStructure(phononH0.getNumBands(), phStatistics,
+			withVelocities, withEigenvectors, &fullQPoints);
+	fullPhBandStructure.populate(phononH0);
+
+	// then we apply a filter to retain only useful energies
+	Window phononWindow(context, phStatistics);
+	ActiveBandStructure phBandStructure(phStatistics);
+	ActivePoints phQPoints = phBandStructure.buildAsPostprocessing(phononWindow,
+			fullPhBandStructure);
+	// note: phQPoints should not go out of scope
+	// instead window, phStatistics, FullPhBandStructure and FullPoints
+	// can all be left go out of scope
+
+	/** out of this TransportApp(), we have to store somewhere:
+	 * phQPoints, phBandStructure
+	 * CrystalEl, CrystalPh: need both to be referenced
+	 * context
+	 * phononH0, ElectronH0 are not strictly needed anymore
+	 * (note: we need phononH0 and ElectronH0,
+	 * for example, for the U matrices or Z charges in the polar correction)
+	 *
+	 */
+
 
 };

@@ -3,8 +3,7 @@
 
 int main(int argc, char** argv) {
 
-	TransportApp transportApp;
-	transportApp.setup(argc, argv);
+	TransportApp transportApp(argc, argv);
 
 //	transportApp.run(argc, argv);
 

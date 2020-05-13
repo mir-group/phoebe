@@ -145,7 +145,6 @@ void PeriodicTable::updateMassVariance(string symbol, double x) {
 	elements[i].massVariance = x;
 }
 
-
 PeriodicTable periodicTable;
 
 }

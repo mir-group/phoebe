@@ -5,6 +5,7 @@
 
 Error::Error(std::string errMessage, int errCode) {
 	if ( errCode != 0 ) {
+		std::cout << "Error!" << std::endl;
 		std::cout << errMessage << std::endl;
 		assert(errCode != 0);
 	}
