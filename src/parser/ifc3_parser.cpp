@@ -31,7 +31,14 @@ void IFC3Parser::parseIFC3(string fileName, string format, int &numTriplets, \
 
       // Read position of 3rd cell
       infile >> cellPositions(i,1,0) >> cellPositions(i,1,1) >> cellPositions(i,1,2);
-      
+
+      //Convert cell positions from Ang to nm
+      for(int a  = 0; a < 2; a++){
+	for(int b  = 0; b < 3; b++){
+	  cellPositions(i,a,b) = cellPositions(i,a,b)*0.1;
+	}
+      }
+	      
       // Read triplet atom indices
       infile >> displacedAtoms(i,0) >> displacedAtoms(i,1) >> displacedAtoms(i,2);
       for(int a  = 0; a < 3; a++)

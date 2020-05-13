@@ -6,6 +6,8 @@
 #include <unsupported/Eigen/CXX11/Tensor>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include "ifc3_parser.h"
+#include "delta_function.h"
 
 using namespace std;
 
@@ -80,27 +82,11 @@ class PhInteraction3Ph{
    * @param[in] procType Character '+' or '-' to choose the +/- type process.
    * @return The complex matrix element.
    */
-  /*
-  double calculateSingleV(const PhononTriplet &interactingPhonons, \
-				   const Eigen::MatrixXd &q, \  
-				   const Eigen::tensor<complex,3> &phononEigenvectors, \
-				   const int numTriplets, const Eigen::tensor<double,4> &ifc3Tensor, \
-				   const Eigen::Tensor<double,3> &cellPositions, \
-				   const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
-				   const char procType);
-				   }*/
   double calculateSingleV(const PhononTriplet &interactingPhonons, const Eigen::MatrixXd &q, \  
 				 const int numTriplets, const Eigen::Tensor<double,4> &ifc3Tensor, \
 				 const Eigen::Tensor<double,3> &cellPositions, \
 				 const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
 				 const char procType);
-
-  void calculateIrredVminus(const int *grid, const PhononMode &mode, \
-			    const Eigen::MatrixXd &qFBZ, \
-			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets, \
-			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
-			    const Eigen::Tensor<double,3> &cellPositions, \
-			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
 
   void calculateAllVminus(const int *grid, const PhononMode &mode, \
 			    const Eigen::MatrixXd &qFBZ, \
@@ -108,5 +94,9 @@ class PhInteraction3Ph{
 			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
 			    const Eigen::Tensor<double,3> &cellPositions, \
 			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
+
+  void calculateAllW(const double T,const int *grid, const PhononMode &mode, \
+		     const Eigen::MatrixXi &indexMesh, const CrystalInfo &crysInfo, \
+		     const Eigen::MatrixXd omega, const TetraData tetra);
 };
 
