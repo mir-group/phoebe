@@ -1,8 +1,10 @@
 #include <string>
+#include <fstream>
 #include "polarization_app.h"
 #include "exceptions.h"
 #include "constants.h"
 #include "periodic_table.h"
+#include "occupations.h"
 
 // Compute the electronic polarization using the Berry connection
 void ElectronPolarizationApp::run(Context & context) {
@@ -26,7 +28,8 @@ void ElectronPolarizationApp::run(Context & context) {
 
 	for ( long ik=0; ik<points.getNumPoints(); ik++ ) {
 		auto point = points.getPoint(ik);
-		std::vector<Eigen::MatrixXcd> thisBerryConnection = h0.getBerryConnection(point);
+		std::vector<Eigen::MatrixXcd> thisBerryConnection =
+				h0.getBerryConnection(point);
 		for ( long ib=0; ib<h0.getNumBands(); ib++ ) {
 			for ( long i=0; i<3; i++ ) {
 				std::complex x = thisBerryConnection[i](ib,ib);
@@ -35,6 +38,11 @@ void ElectronPolarizationApp::run(Context & context) {
 		}
 	}
 
+	Statistics statistics = h0.getStatistics();
+
+	// before moving on, we need to fix the chemical potential
+	Occupations occupations(context, bandStructure);
+
 	// now we can compute the polarization
 
 	Eigen::VectorXd temperatures = context.getTemperatures();
@@ -42,10 +50,8 @@ void ElectronPolarizationApp::run(Context & context) {
 	long nTemp = temperatures.size();
 	long nMu = chemicalPotentials.size();
 
-	Statistics statistics = h0.getStatistics();
 	Eigen::Tensor<std::complex<double>,3> polarization(nTemp, nMu, 3);
 	polarization.setZero();
-	double population;
 
 	for ( long ik=0; ik<points.getNumPoints(); ik++ ) {
 		auto point = bandStructure.getPoint(ik);
@@ -56,18 +62,17 @@ void ElectronPolarizationApp::run(Context & context) {
 			double energy = energies(ib);
 
 			for ( long it=0; it<nTemp; it++ ) {
-				double temp = temperatures(it);
-
 				for ( long imu=0; imu<nMu; imu++ ) {
-					double mu = chemicalPotentials(imu);
+					auto sc = occupations.getStatisticsCalc(it,imu);
+					double temp = sc.temperature;
+					double chemPot = sc.chemicalPotential;
 
-					population = statistics.getPopulation(energy, temp, mu);
-
+					double population = statistics.getPopulation(energy, temp,
+							chemPot);
 					for ( long i=0; i<3; i++ ) {
 						polarization(it,imu,i) -=
 								population * berryConnection(ik,ib,i);
 					}
-
 				}
 			}
 		}
@@ -102,11 +107,26 @@ void ElectronPolarizationApp::run(Context & context) {
 	}
 
 	// Save results to file
-//	std::ofstream outfile("./polarization.dat");
-//	outfile << "# Phonon density of states: frequency[Cmm1], Dos[1/Ry]\n";
-//	for ( long i=0; i<numEnergies; i++ ) {
-//		outfile << energies[i] * ryToCmm1 << "\t" << dos[i] << "\n";
-//	}
+	std::ofstream outfile("./polarization.dat");
+	outfile << "# Electrical polarization density: "
+			"chemical potential (eV), doping (cm^-3), temperature (K)"
+			"polarization[x,y,z] (a.u.)\n";
+	for ( long imu=0; imu<nMu; imu++ ) {
+		for ( long it=0; it<nTemp; it++ ) {
+			auto sc = occupations.getStatisticsCalc(it,imu);
+			double temp = sc.temperature;
+			double chemPot = sc.chemicalPotential;
+			double doping = sc.chemicalPotential;
+			outfile << chemPot * energyRyToEv << "\t" << doping;
+			outfile << "\t" << temp * temperatureAuToSi;
+			for ( long i=0; i<3; i++) {
+				outfile << "\t" << polarization(it,imu,0);
+			}
+			outfile << "\n";
+		}
+		outfile << "\n";
+	}
+
 	std::cout << "Electron polarization computed" << std::endl;
 }
 
