@@ -42,87 +42,68 @@ void ElectronPolarizationApp::run(Context & context) {
 
 	// before moving on, we need to fix the chemical potential
 	Occupations occupations(context, bandStructure);
+	auto numCalcs = occupations.getNumCalcs();
 
 	// now we can compute the polarization
 
-	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
-	long nTemp = temperatures.size();
-	long nMu = chemicalPotentials.size();
-
-	Eigen::Tensor<std::complex<double>,3> polarization(nTemp, nMu, 3);
+	Eigen::MatrixXd polarization(numCalcs, 3);
 	polarization.setZero();
 
-	for ( long ik=0; ik<points.getNumPoints(); ik++ ) {
-		auto point = bandStructure.getPoint(ik);
-		auto state = bandStructure.getState(point);
-		auto energies = state.getEnergies();
+	for ( long ik=0; ik<bandStructure.getNumPoints(); ik++ ) {
+		auto energies = bandStructure.getState(ik).getEnergies();
 
-		for ( long ib=0; ib<h0.getNumBands(); ib++ ) {
-			double energy = energies(ib);
+		for ( long ib=0; ib<bandStructure.getNumBands(); ib++ ) {
+			auto energy = energies(ib);
 
-			for ( long it=0; it<nTemp; it++ ) {
-				for ( long imu=0; imu<nMu; imu++ ) {
-					auto sc = occupations.getStatisticsCalc(it,imu);
-					double temp = sc.temperature;
-					double chemPot = sc.chemicalPotential;
+			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+				auto sc = occupations.getStatisticsCalc(iCalc);
+				auto temp = sc.temperature;
+				auto chemPot = sc.chemicalPotential;
 
-					double population = statistics.getPopulation(energy, temp,
-							chemPot);
-					for ( long i=0; i<3; i++ ) {
-						polarization(it,imu,i) -=
-								population * berryConnection(ik,ib,i);
-					}
+				auto population = statistics.getPopulation(energy, temp,
+						chemPot);
+				for ( long i=0; i<3; i++ ) {
+					polarization(iCalc,i) -=
+							population * berryConnection(ik,ib,i);
 				}
 			}
 		}
 	}
 
-	for ( long it=0; it<nTemp; it++ ) {
-		for ( long imu=0; imu<nMu; imu++ ) {
-			for ( long i=0; i<3; i++ ) {
-				polarization(it,imu,i) /= points.getNumPoints()
-						* crystal.getVolumeUnitCell();
-			}
-		}
-	}
+	double volume = crystal.getVolumeUnitCell();
+	polarization.array() /= points.getNumPoints() * volume;
 
 	// now we add the ionic term
 
 	PeriodicTable periodicTable;
 	Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
 	std::vector<std::string> atomicNames = crystal.getAtomicNames();
-	long numAtoms = crystal.getNumAtoms();
+	auto numAtoms = crystal.getNumAtoms();
 	for ( long ia=0; ia<numAtoms; ia++ ) {
 		Eigen::Vector3d position = atomicPositions.row(ia);
-		double charge = double(periodicTable.getIonicCharge(atomicNames[ia]));
-		for ( long it=0; it<nTemp; it++ ) {
-			for ( long imu=0; imu<nMu; imu++ ) {
-				for ( long i=0; i<3; i++ ) {
-					polarization(it,imu,i) += charge * position(i)
-							/ crystal.getVolumeUnitCell();
-				}
+		auto charge = periodicTable.getIonicCharge(atomicNames[ia]);
+		for ( long i=0; i<3; i++ ) {
+			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+				polarization(iCalc,i) += charge * position(i);
 			}
 		}
 	}
+	polarization.array() /= volume;
 
 	// Save results to file
 	std::ofstream outfile("./polarization.dat");
 	outfile << "# Electrical polarization density: "
 			"chemical potential (eV), doping (cm^-3), temperature (K)"
 			"polarization[x,y,z] (a.u.)\n";
-	for ( long imu=0; imu<nMu; imu++ ) {
-		for ( long it=0; it<nTemp; it++ ) {
-			auto sc = occupations.getStatisticsCalc(it,imu);
-			double temp = sc.temperature;
-			double chemPot = sc.chemicalPotential;
-			double doping = sc.chemicalPotential;
-			outfile << chemPot * energyRyToEv << "\t" << doping;
-			outfile << "\t" << temp * temperatureAuToSi;
-			for ( long i=0; i<3; i++) {
-				outfile << "\t" << polarization(it,imu,0);
-			}
-			outfile << "\n";
+	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+		auto sc = occupations.getStatisticsCalc(iCalc);
+		auto temp = sc.temperature;
+		auto chemPot = sc.chemicalPotential;
+		auto doping = sc.doping;
+		outfile << chemPot * energyRyToEv << "\t" << doping;
+		outfile << "\t" << temp * temperatureAuToSi;
+		for ( long i=0; i<3; i++) {
+			outfile << "\t" << polarization(iCalc,i);
 		}
 		outfile << "\n";
 	}

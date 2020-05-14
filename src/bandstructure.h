@@ -60,6 +60,7 @@ public:
 	Point<T> getPoint(const long & pointIndex);
 	long getNumPoints();
 	State<T> getState(Point<T> & point);
+	State<T> getState(const long & pointIndex);
 	long getNumBands();
 	bool hasIrreduciblePoints();
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
@@ -240,7 +241,13 @@ void FullBandStructure<T>::setEigenvectors(Point<T> & point,
 template<typename T>
 State<T> FullBandStructure<T>::getState(Point<T> & point) {
 	long pointIndex = point.getIndex();
+	State<T> state = getState(pointIndex);
+	return state;
+}
 
+template<typename T>
+State<T> FullBandStructure<T>::getState(const long & pointIndex) {
+	Point<T> point = getPoint(pointIndex);
 	// we construct the vector by defining begin() and end()
 	double * thisEn;
 	thisEn = rawEnergies + pointIndex * energiesRows;

@@ -881,27 +881,23 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		std::getline(infile, line);
 		lineSplit = split(line, ' ');
 		// they have been initialized above, and they are the same
-//		bravaisVectors(0,iR) = std::stod(lineSplit[0]);
-//		bravaisVectors(1,iR) = std::stod(lineSplit[1]);
-//		bravaisVectors(2,iR) = std::stod(lineSplit[2]);
 
 		for ( long i=0; i<numWann; i++ ) {
 			for ( long j=0; j<numWann; j++ ) {
 				std::getline(infile, line);
 				lineSplit = split(line, ' ');
-				double re = std::stod(lineSplit[2]) / energyRyToEv;
-				double im = std::stod(lineSplit[3]) / energyRyToEv;
+				double re = std::stod(lineSplit[2]) / distanceRyToAng;
+				double im = std::stod(lineSplit[3]) / distanceRyToAng;
 				rMatrix(0, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[4]) / energyRyToEv;
-				im = std::stod(lineSplit[5]) / energyRyToEv;
+				re = std::stod(lineSplit[4]) / distanceRyToAng;
+				im = std::stod(lineSplit[5]) / distanceRyToAng;
 				rMatrix(1, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[6]) / energyRyToEv;
-				im = std::stod(lineSplit[7]) / energyRyToEv;
+				re = std::stod(lineSplit[6]) / distanceRyToAng;
+				im = std::stod(lineSplit[7]) / distanceRyToAng;
 				rMatrix(2, iR, i, j) = {re,im}; // the matrix was in eV
 			}
 		}
 	}
-
 
 	// I need to convert crystalVectors in cartesian coordinates
 	// must check if I am aligning the unit cell correctly

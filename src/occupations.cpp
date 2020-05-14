@@ -155,10 +155,10 @@ double Occupations::fPop(const double & chemPot, const double & temp) {
 	// for computing the particle number
 	double fPop_ = 0.;
 	for ( long i=0; i<numStates; i++ ) {
-		fPop_ += statistics.getPopulation(energies(i), chemPot, temp);
+		fPop_ += statistics.getPopulation(energies(i), temp, chemPot);
 	}
 	fPop_ /= numPoints;
-	fPop_ -= numElectronsDoped;
+	fPop_ = numElectronsDoped - fPop_;
 	return fPop_;
 }
 
@@ -183,8 +183,8 @@ double Occupations::findChemicalPotentialFromDoping(const double & doping,
     double chemicalPotential = fermiLevel;
 
     // I choose the following  (generous) boundaries
-	double aX = energies.minCoeff() - 0.25; // - 3.5eV
-	double bX = energies.maxCoeff() + 0.25; // + 3.5eV
+	double aX = chemicalPotential - 0.25; // - 3.5eV
+	double bX = chemicalPotential + 0.25; // + 3.5eV
 	double aY = fPop(aX, temperature);
 	double bY = fPop(bX, temperature);
 
@@ -193,14 +193,14 @@ double Occupations::findChemicalPotentialFromDoping(const double & doping,
 	}
 
 	for ( long iter=0; iter<maxIter; iter++ ) {
-		if ( iter == maxIter ) {
+		if ( iter == maxIter-1 ) {
 	          Error e("Max iteration reached in finding mu");
 		}
 	    double cX = (aX + bX) / 2.;
 	    double cY = fPop(cX, temperature);
 
 	    // exit condition: the guess is exact or didn't change much
-		if ( ( cY == 0. ) && ( ( bX - aX ) * 0.5 < 1.0e-10 ) ) {
+		if ( ( cY == 0. ) || ( abs(bX - aX) < 1.0e-8 ) ) {
 			chemicalPotential = cX;
 			break; // go out of the loop
 		}
@@ -211,10 +211,6 @@ double Occupations::findChemicalPotentialFromDoping(const double & doping,
 		} else {
 		  bX = cX;
 		}
-
-		if ( maxIter == iter ) {
-			Error e("Didn't find the chemical potential");
-		}
 	}
 	return chemicalPotential;
 }
@@ -223,8 +219,8 @@ double Occupations::findDopingFromChemicalPotential(
 		const double & chemicalPotential, const double & temperature) {
 	double fPop = 0.;
 	for ( long i=0; i<numStates; i++ ) {
-		fPop += statistics.getPopulation(energies(i), chemicalPotential,
-				temperature);
+		fPop += statistics.getPopulation(energies(i), temperature,
+				chemicalPotential);
 	}
 	fPop /= numPoints;
 	double doping = (occupiedStates - fPop);

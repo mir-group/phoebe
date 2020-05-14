@@ -43,6 +43,7 @@ ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
 	statistics(Statistics::electron) {
 		h0R = that.h0R;
+		rMatrix = that.rMatrix;
 		directUnitCell = that.directUnitCell;
 		numBands = that.numBands;
 		bravaisVectors = that.bravaisVectors;
@@ -57,6 +58,7 @@ ElectronH0Wannier & ElectronH0Wannier::operator = (
 	    bravaisVectors.resize(0,0);
 	    vectorsDegeneracies.resize(0);
 		h0R.resize(0,0,0);
+		rMatrix.resize(0,0,0,0);
 		statistics = that.statistics;
 		numVectors = that.numVectors;
 		numBands = that.numBands;
@@ -64,6 +66,7 @@ ElectronH0Wannier & ElectronH0Wannier::operator = (
 	    vectorsDegeneracies = that.vectorsDegeneracies;
 		directUnitCell = that.directUnitCell;
 	    h0R = that.h0R;
+	    rMatrix = that.rMatrix;
 	}
 	return *this;
 }
