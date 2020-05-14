@@ -1,12 +1,12 @@
 #include <algorithm>
 #include "utilities.h"
-#include "occupations.h"
+#include "statistics_sweep.h"
 #include "bandstructure.h"
 #include "context.h"
 #include "constants.h"
 #include <cmath>
 
-Occupations::Occupations(Context & context,
+StatisticsSweep::StatisticsSweep(Context & context,
 		FullBandStructure<FullPoints> & fullBandStructure) :
 		statistics(Statistics::electron) {
 
@@ -35,7 +35,7 @@ Occupations::Occupations(Context & context,
     }
     numStates = energies.size();
 
-    // determine ground state occupations
+    // determine ground state StatisticsSweep
 
 	occupiedStates = context.getNumOccupiedStates();
 	if ( std::isnan(occupiedStates) ) {
@@ -121,7 +121,7 @@ Occupations::Occupations(Context & context,
 }
 
 // copy constructor
-Occupations::Occupations(const Occupations & that) :
+StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
 		statistics(Statistics::electron) {
 	numCalcs = that.numCalcs;
 	infoCalcs = that.infoCalcs;
@@ -133,7 +133,7 @@ Occupations::Occupations(const Occupations & that) :
 }
 
 // copy assignment
-Occupations & Occupations::operator = (const Occupations & that) {
+StatisticsSweep & StatisticsSweep::operator = (const StatisticsSweep & that) {
 	if ( this != &that ) {
 		statistics = that.statistics;
 		numCalcs = that.numCalcs;
@@ -149,7 +149,7 @@ Occupations & Occupations::operator = (const Occupations & that) {
 	return *this;
 }
 
-double Occupations::fPop(const double & chemPot, const double & temp) {
+double StatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	// fPop = 1/NK \sum_\mu FermiDirac(\mu) - N
 	// Note that I don`t normalize the integral, which is the same thing I did
 	// for computing the particle number
@@ -162,7 +162,7 @@ double Occupations::fPop(const double & chemPot, const double & temp) {
 	return fPop_;
 }
 
-double Occupations::findChemicalPotentialFromDoping(const double & doping,
+double StatisticsSweep::findChemicalPotentialFromDoping(const double & doping,
 		const double & temperature) {
 	// given the carrier concentration, finds the fermi energy
 	// temperature is set inside glob
@@ -215,7 +215,7 @@ double Occupations::findChemicalPotentialFromDoping(const double & doping,
 	return chemicalPotential;
 }
 
-double Occupations::findDopingFromChemicalPotential(
+double StatisticsSweep::findDopingFromChemicalPotential(
 		const double & chemicalPotential, const double & temperature) {
 	double fPop = 0.;
 	for ( long i=0; i<numStates; i++ ) {
@@ -228,7 +228,7 @@ double Occupations::findDopingFromChemicalPotential(
 	return doping;
 }
 
-struct CalcStatistics Occupations::getStatisticsCalc(const long & index) {
+struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & index) {
 	struct CalcStatistics sc;
 	sc.temperature = infoCalcs(index,0);
 	sc.chemicalPotential = infoCalcs(index,1);
@@ -236,13 +236,13 @@ struct CalcStatistics Occupations::getStatisticsCalc(const long & index) {
 	return sc;
 }
 
-struct CalcStatistics Occupations::getStatisticsCalc(const long & iTemp,
+struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & iTemp,
 		const long & iChemPot) {
 	long index = compress2Indeces(iTemp,iChemPot,nTemp,nChemPot);
-	return getStatisticsCalc(index);
+	return getCalcStatistics(index);
 }
 
-long Occupations::getNumCalcs() {
+long StatisticsSweep::getNumCalcs() {
 	return numCalcs;
 }
 

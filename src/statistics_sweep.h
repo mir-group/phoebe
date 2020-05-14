@@ -8,17 +8,17 @@ struct CalcStatistics {
 	double doping;
 };
 
-class Occupations {
+class StatisticsSweep {
 public:
-	Occupations(Context & context,
+	StatisticsSweep(Context & context,
 			FullBandStructure<FullPoints> & fullBandStructure);
 	// copy constructor
-	Occupations(const Occupations & that);
+	StatisticsSweep(const StatisticsSweep & that);
 	// copy assignment
-	Occupations & operator = (const Occupations & that);
+	StatisticsSweep & operator = (const StatisticsSweep & that);
 
-	CalcStatistics getStatisticsCalc(const long & index);
-	struct CalcStatistics getStatisticsCalc(const long & iTemp,
+	CalcStatistics getCalcStatistics(const long & index);
+	struct CalcStatistics getCalcStatistics(const long & iTemp,
 			const long & iChemPot);
 	long getNumCalcs();
 private:

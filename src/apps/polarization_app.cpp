@@ -4,7 +4,7 @@
 #include "exceptions.h"
 #include "constants.h"
 #include "periodic_table.h"
-#include "occupations.h"
+#include "statistics_sweep.h"
 
 // Compute the electronic polarization using the Berry connection
 void ElectronPolarizationApp::run(Context & context) {
@@ -41,8 +41,8 @@ void ElectronPolarizationApp::run(Context & context) {
 	Statistics statistics = h0.getStatistics();
 
 	// before moving on, we need to fix the chemical potential
-	Occupations occupations(context, bandStructure);
-	auto numCalcs = occupations.getNumCalcs();
+	StatisticsSweep statisticsSweep(context, bandStructure);
+	auto numCalcs = statisticsSweep.getNumCalcs();
 
 	// now we can compute the polarization
 
@@ -56,7 +56,7 @@ void ElectronPolarizationApp::run(Context & context) {
 			auto energy = energies(ib);
 
 			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
-				auto sc = occupations.getStatisticsCalc(iCalc);
+				auto sc = statisticsSweep.getCalcStatistics(iCalc);
 				auto temp = sc.temperature;
 				auto chemPot = sc.chemicalPotential;
 
@@ -96,7 +96,7 @@ void ElectronPolarizationApp::run(Context & context) {
 			"chemical potential (eV), doping (cm^-3), temperature (K)"
 			"polarization[x,y,z] (a.u.)\n";
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
-		auto sc = occupations.getStatisticsCalc(iCalc);
+		auto sc = statisticsSweep.getCalcStatistics(iCalc);
 		auto temp = sc.temperature;
 		auto chemPot = sc.chemicalPotential;
 		auto doping = sc.doping;
