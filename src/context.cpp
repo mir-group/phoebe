@@ -491,6 +491,11 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
+		std::string tmp = parseString(lines, "phD3FileName");
+		setPhD3FileName(tmp);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
 		setSumRuleD2(parseString(lines, "sumRuleD2"));
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
@@ -647,7 +652,6 @@ void Context::setupFromInput(std::string fileName) {
 		if ( ! hasSpinOrbit ) x *= 2;
 		setNumOccupiedStates(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
-
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -656,6 +660,14 @@ void Context::setPhD2FileName(std::string x) {
 
 std::string Context::getPhD2FileName() {
 	return phD2FileName;
+}
+
+void Context::setPhD3FileName(std::string x) {
+	phD3FileName = x;
+}
+
+std::string Context::getPhD3FileName() {
+	return phD3FileName;
 }
 
 void Context::setSumRuleD2(std::string x) {
@@ -849,8 +861,6 @@ void Context::setDeltaPath(double x) {
 double Context::getDeltaPath() {
 	return deltaPath;
 }
-
-
 
 void Context::setFermiLevel(const double & x) {
 	fermiLevel = x;

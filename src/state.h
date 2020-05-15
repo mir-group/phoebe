@@ -86,7 +86,7 @@ public:
 	Eigen::Tensor<std::complex<double>,3> getEigenvectors();
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
-	Point<T> & point; // in cryst coords
+	Point<T> & point;
 	double * energies;
 	long numBands;
 	long numAtoms;

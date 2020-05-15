@@ -28,7 +28,7 @@ void PhononTransportApp::run(Context & context) {
 			fullQPoints, withVelocities, withEigenvectors);
 
 	// then we apply a filter to retain only useful energies
-	auto [activePoints, activeBandStructure] = restrictBandStructure(context,
+	auto [points, bandStructure] = restrictBandStructure(context,
 			fullBandStructure);
 
 	// free up some memory
@@ -36,9 +36,8 @@ void PhononTransportApp::run(Context & context) {
 	phononH0.~PhononH0();
 
 	// set the chemical potentials to zero, load temperatures
-	context.getTemperatures();
-	Eigen::VectorXd chemicalPotentials(1);
-	chemicalPotentials.setZero();
+	StatisticsSweep statisticsSweep(context, bandStructure);
+	auto numCalcs = statisticsSweep.getNumCalcs();
 
 	// BTE solver
 
@@ -48,11 +47,11 @@ void PhononTransportApp::run(Context & context) {
 
 	// initialize populations
 
-	BulkTDrift drift(context, activeBandStructure);
+	BulkTDrift drift(context, bandStructure);
 
 	std::vector<std::string> solverBTE = context.getSolverBTE();
 
-	ScatteringMatrix scatteringMatrix(context);
+	ScatteringMatrix scatteringMatrix(context, bandStructure);
 
 	PhononThermalConductivity phTCond(context, crystal);
 	PhononThermalConductivity phTCondOld(context, crystal);
@@ -126,7 +125,7 @@ void PhononTransportApp::run(Context & context) {
 
 			phTCond.calcVariational(AfNew, fNew, bTilde);
 
-			auto diff = phTCond - phTCondOld;
+			VectorBTE diff = phTCond - phTCondOld;
 			if ( diff.getNorm().maxCoeff() < threshold ) {
 				break;
 			} else {

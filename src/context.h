@@ -76,8 +76,8 @@ public:
 	 */
 	std::string getPhD2FileName();
 
-//	void setPhD3FileName(std::string x);
-//	std::string getPhD3FileName();
+	void setPhD3FileName(std::string x);
+	std::string getPhD3FileName();
 
 //	void setScratchFolder(std::string x);
 //	std::string getScratchFolder();

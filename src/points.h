@@ -180,13 +180,13 @@ Point<T>::Point(long index_, Eigen::Vector3d umklappVector_, T & points_)
 
 // copy constructor
 template<typename T>
-Point<T>::Point( const Point & that ) : umklappVector(that.umklappVector),
+Point<T>::Point( const Point<T> & that ) : umklappVector(that.umklappVector),
 		index(that.index), points(that.points) {
 }
 
 // copy assignment
 template<typename T>
-Point<T> & Point<T>::operator = ( const Point & that ) {
+Point<T> & Point<T>::operator = ( const Point<T> & that ) {
 	if ( this != &that ) {
 		umklappVector = that.umklappVector;
 		index = that.index;
@@ -220,9 +220,23 @@ Eigen::Vector3d Point<T>::getCoords(const std::string & basis,
 	return coords;
 }
 
+template<>
+Eigen::Vector3d Point<Eigen::Vector3d>::getCoords(const std::string & basis,
+		const bool & inWignerSeitz) {
+	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
+		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
+	}
+	return points;
+}
+
 template<typename T>
 double Point<T>::getWeight() {
 	return points.getWeight(index);
+}
+
+template<>
+double Point<Eigen::Vector3d>::getWeight() {
+	return 1.;
 }
 
 template<typename T>

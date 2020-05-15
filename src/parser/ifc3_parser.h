@@ -1,9 +1,6 @@
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <unsupported/Eigen/CXX11/Tensor>
-
-using namespace std;
+#include "context.h"
+#include "crystal.h"
+#include "interaction_3ph.h"
 
 class IFC3Parser {
  public:
@@ -22,8 +19,6 @@ class IFC3Parser {
    * @param[out] displacedAtoms Index of the displaced atom for every triplet
    *  of unitcells.
    */
-  void parseIFC3(string fileName, string format, int &numTriplets, \
-		 Eigen::Tensor<double,4> &ifc3Tensor, \
-		 Eigen::Tensor<double,3> &cellPositions,\
-		 Eigen::Tensor<int,2> &displacedAtoms);
+	Interaction3Ph parseFromShengBTE(Context & context, Crystal & crystal_);
+//	Interaction3Ph parseFromQE(Context & context);
 };
