@@ -7,7 +7,9 @@
 class PhScatteringMatrix : public ScatteringMatrix {
 public:
 	PhScatteringMatrix(Context & context_,
-			ActiveBandStructure & bandStructure_,
+			StatisticsSweep & statisticsSweep_
+			FullBandStructure & innerBandStructure_,
+			FullBandStructure * outerBandStructure_ = nullptr,
 			Interaction3Ph * coupling3Ph_=nullptr
 //			InteractionIsotope * couplingIsotope_=nullptr,
 //			InteractionBoundary * couplingBoundary_=nullptr
@@ -19,9 +21,9 @@ private:
 	Interaction3Ph * coupling3Ph = nullptr;
 //	InteractionIsotope * couplingIsotope = nullptr;
 //	InteractionBoundary * couplingBoundary = nullptr;
-	virtual VectorBTE builderManager(VectorBTE * inPopulation);
-	VectorBTE builder3Ph(Eigen::MatrixXd * matrix=nullptr,
-			VectorBTE * inPopulation=nullptr);
-}
+
+	virtual void builder(Eigen::MatrixXd * matrix, VectorBTE * linewidth,
+			Vector3BTE * inPopulation, VectorBTE * outPopulation);
+};
 
 #endif

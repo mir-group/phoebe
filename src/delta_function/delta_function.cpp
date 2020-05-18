@@ -1,9 +1,48 @@
 #include "delta_function.h"
 #include "exceptions.h"
 #include "utilities.h"
+#include "constants.h"
 
-Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
-		FullBandStructure<FullPoints> & fullBandStructure_) : fullPoints(fullPoints_),
+GaussianDeltaFunction::GaussianDeltaFunction(Context & context_) {
+	inverseWidth = 1. / context.getSmearingWidth();
+	prefactor = 1. / context.getSmearingWidth() / sqrt(pi);
+}
+
+double GaussianDeltaFunction::getSmearing(const double & energy,
+		const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) {
+	double x = energy * inverseWidth;
+	return prefactor * exp( - x*x );
+}
+
+AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
+		Context & context_){
+	(void) context_;
+}
+
+AdaptiveGaussianDeltaFunction::setup(Points & points) {
+	auto mesh = points.getPoints();
+	qTensor = points.getCrystal().getReciprocalUnitCell();
+	qTensor.row(0) /= mesh(0);
+	qTensor.row(1) /= mesh(1);
+	qTensor.row(2) /= mesh(2);
+}
+
+double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
+		const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) {
+	double x = (qTensor * velocity).squaredNorm();
+	double smearing = prefactor * sqrt( x*x / 12.);
+	if ( smearing < smearingCutoff ) return 0.;
+	x = energy / smearing;
+	return exp( - x*x ) / sqrtPi / smearing;
+}
+
+Tetrahedra::Tetrahedra(Context & context_) {
+	(void) context_;
+}
+
+Tetrahedra::setup(FullPoints & fullPoints_,
+		FullBandStructure<FullPoints> & fullBandStructure_) :
+		fullPoints(fullPoints_),
 		fullBandStructure(fullBandStructure_) {
 
 	auto [grid, offset] = fullPoints.getMesh();
@@ -129,6 +168,12 @@ double Tetrahedra::getDOS(const double & energy) {
 		}
 	}
 	return weight;
+}
+
+double Tetrahedra::getSmearing(const double & energy,
+		const long & iq, const long & ib) {
+	// initialize tetrahedron weight
+	return getWeight(energy, iq, ib);
 }
 
 double Tetrahedra::getWeight(const double & energy, const long & iq,

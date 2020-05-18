@@ -79,17 +79,28 @@ public:
 	double getWeight();
 
 	/** get the eigenvectors for the current Point
-	 * @return eigenvectors: a complex tensor of size (3,numAtoms,numBands)
-	 * with the phonon eigenvectors. Returns zeros if the eigenvectors are not
-	 * set.
+	 * @input/output eigenvectors: a complex tensor of size
+	 * (3,numAtoms,numBands) with the phonon eigenvectors. Error if
+	 * the eigenvectors are not set.
 	 */
-	Eigen::Tensor<std::complex<double>,3> getEigenvectors();
+	void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> &
+			eigs) {
+
+	/** get the eigenvectors for the current Point
+	 * @input/output eigenvectors: a complex matrix of size (numBands,numBands)
+	 * with the electron eigenvectors. Error if eigenvectors are not set.
+	 */
+	void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs)
+
+
+	long getIndex(const long & bandIndex);
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
 	Point<T> & point;
 	double * energies;
 	long numBands;
 	long numAtoms;
+	long index;
 	std::complex<double> * velocities = nullptr;
 	std::complex<double> * eigenvectors = nullptr;
 	bool hasVelocities = false;
@@ -197,20 +208,42 @@ Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
 }
 
 template<typename T>
-Eigen::Tensor<std::complex<double>,3> State<T>::getEigenvectors() {
+void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs) {
 	if ( ! hasEigenvectors ) {
 		Error e("State doesn't have eigenvectors" ,1);
 	}
-	Eigen::Tensor<std::complex<double>,3> eigs(3, numAtoms, numBands);
+	Eigen::Tensor<std::complex<double>,3> eigs_(3, numAtoms, numBands);
 	for ( long j=0; j<3; j++ ) {
 		for ( long ia=0; ia<numAtoms; ia++ ) {
 			for ( long ib=0; ib<numBands; ib++ ) {
 				long ind = compress3Indeces(j, ia, ib, 3, numAtoms, numBands);
-				eigs(j,ia,ib) = *(eigenvectors+ind);
+				eigs_(j,ia,ib) = *(eigenvectors+ind);
+			}
+		}
+	}
+	eigs = eigs_;
+	return eigs;
+}
+
+template<typename T>
+void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs) {
+	if ( ! hasEigenvectors ) {
+		Error e("State doesn't have eigenvectors" ,1);
+	}
+	eigs = Eigen::MatrixXcd::Zero(numBands, numBands);
+	for ( long ib1=0; ib1<numBands; ib++ ) {
+		for ( long ib2=0; ib2<numBands; ib++ ) {
+				long ind = compress2Indeces(ib1, ib2, numBands, numBands);
+				eigs(ib1,ib2) = *(eigenvectors+ind);
 			}
 		}
 	}
 	return eigs;
+}
+
+template<typename T>
+long State<T>::getIndex(const long & bandIndex) {
+	return point.getIndex() + bandIndex;
 }
 
 #endif

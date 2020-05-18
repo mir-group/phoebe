@@ -2,13 +2,20 @@
 
 // default constructor
 VectorBTE::VectorBTE(Context & context_,
-		ActiveBandStructure & activeBandStructure_) :
+		ActiveBandStructure & activeBandStructure_,
+		const long & dimensionality_) :
 		context(context_), activeBandStructure(activeBandStructure_) {
 	Eigen::VectorXd temperatures = context.getTemperatures();
 	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
 	numChemPots = chemicalPotentials.size();
 	numTemps = temperatures.size();
-	dimensionality = context.getDimensionality();
+	if ( dimensionality_ == 0 ) {
+		dimensionality = context.getDimensionality();
+	} else if ( dimensionality <0 ) {
+		Error e("VectorBTE doesn't accept negative dimensions");
+	} else {
+		dimensionality = dimensionality_;
+	}
 	numCalcs = numTemps * numChemPots * dimensionality;
 	numStates = activeBandStructure.getNumStates();
 	data = Eigen::MatrixXd::Zero(numCalcs,numStates);
@@ -97,15 +104,12 @@ VectorBTE VectorBTE::sqrt() {
 }
 
 long VectorBTE::glob2Loc(long & imu, long & it, long & idim) {
-	long i = imu * numTemps * dimensionality + it * dimensionality + idim;
+	long i = compress3Indeces(imu,it,idim,numChemPots,numTemps,dimensionality);
 	return i;
 }
 
 std::tuple<long,long,long> VectorBTE::loc2Glob(long & i) {
-	long imu = i / (numTemps * dimensionality);
-	long remainder = i - imu * numTemps * dimensionality;
-	long it = remainder / dimensionality;
-	remainder -= it * dimensionality;
-	long idim = remainder;
+	auto [imu, it, idim] = decompress3Indeces(i, numChemPots, numTemps,
+			dimensionality);
 	return {imu,it,idim};
 }

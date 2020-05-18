@@ -5,13 +5,12 @@
 #include "context.h"
 #include "active_bandstructure.h"
 
-//class Observable;
-
-// base class
+template<typename T>
 class VectorBTE {
 public:
 	 // constructor
-	VectorBTE(Context & context_, ActiveBandStructure & activeBandStructure_);
+	VectorBTE(Context & context_, ActiveBandStructure & activeBandStructure_,
+			const long & dimensionality_=0);
 	// copy constructor
 	VectorBTE(const VectorBTE & that);
 	// copy assignment
@@ -37,13 +36,15 @@ public:
 	ActiveBandStructure & activeBandStructure;
 	long numChemPots;
 	long numTemps;
-	long dimensionality;
 	long numCalcs;
 	long numStates;
 	long glob2Loc(long & imu, long & it, long & idim);
 	std::tuple<long,long,long> loc2Glob(long & i);
 	Eigen::MatrixXd data;
-//	friend class Observable;
+	friend class ScatteringMatrix; // this is also to remember that
+	// if we change the index order of this class, we should check the
+	// ScatteringMatrix implementations: they are high efficiency methods
+	// so they need low-level access to the raw buffer
 };
 
 #endif

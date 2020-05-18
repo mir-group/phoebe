@@ -1,17 +1,23 @@
 #include "scattering.h"
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
-		ActiveBandStructure & bandStructure_,
-		StatisticsSweep & statisticsSweep_) :
-		context(context_), bandStructure(bandStructure_),
-		internalDiagonal(context,bandStructure),
-		statisticsSweep(statisticsSweep_) {
+		StatisticsSweep & statisticsSweep_,
+		FullBandStructure & innerBandStructure_,
+		FullBandStructure * outerBandStructure_) :
+		context(context_), statisticsSweep(statisticsSweep_),
+		innerBandStructure(innerBandStructure_),
+		outerBandStructure(outerBandStructure_),
+		internalDiagonal(context,bandStructure,1) {
 	if ( constantRTA ) return;
+
+	if ( outerBandStructure == nullptr ) {
+		outerBandStructure = innerBandStructure;
+	}
 
 	deltaFunctionSelection = context.getSmearingMethod();
 
-	numStates = bandStructure.getNumStates();
-	numPoints = bandStructure.getNumPoints();
+	numStates = outerBandStructure->getNumStates();
+	numPoints = outerBandStructure->getNumPoints();
 
 	// the difference arises from the fact that vectors in the BTE have
 	// numCalcs set to nTemp * 3, whereas the matrix only depends on nTemp.
@@ -33,16 +39,17 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 					"temperature and/or chemical potential in a single run");
 		}
 		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
-		internalDiagonal = builderManager();
+		builder(theMatrix,internalDiagonal,,); // calc matrix and linew.
 	} else {
-		setInternalDiagonal(); // these we can store also with low mem
+		builder(,internalDiagonal,,); // calc linewidths only
 	}
 }
 
 ScatteringMatrix(const ScatteringMatrix & that) :  // copy constructor
 	context(that.context),
-	bandStructure(that.bandStructure),
 	statisticsSweep(that.statisticsSweep),
+	innerBandStructure(that.innerBandStructure),
+	outerBandStructure(that.outerBandStructure),
 	constantRTA(that.constantRTA),
 	highMemory(that.highMemory),
 	hasCGScaling(that.hasCGScaling),
@@ -57,11 +64,12 @@ ScatteringMatrix(const ScatteringMatrix & that) :  // copy constructor
 ScatteringMatrix & operator=(const ScatteringMatrix & that) {//assignment op
 	if ( this != &that ) {
 		context = that.context;
-		bandStructure = that.bandStructure;
 		statisticsSweep = that.statisticsSweep;
+		innerBandStructure = that.innerBandStructure;
+		outerBandStructure = that.outerBandStructure;
 		constantRTA = that.constantRTA;
 		highMemory = that.highMemory;
-		hasCGScaling = thaht.hasCGScaling;
+		hasCGScaling = that.hasCGScaling;
 		internalDiagonal = that.internalDiagonal;
 		theMatrix = that.theMatrix;
 		numStates = that.numStates;
@@ -76,22 +84,12 @@ ScatteringMatrix & operator=(const ScatteringMatrix & that) {//assignment op
 VectorBTE ScatteringMatrix::diagonal() {
 	if ( constantRTA ) {
 		double crt = context.getConstantRelaxationTime();
-		VectorBTE diag(context,bandStructure);
+		VectorBTE diag(context,&outerBandStructure,1);
 		diag.setConst(1./crt);
 		return vector;
 	} else {
-		if ( ! hasCGScaling ) {
-			return internalDiagonal;
-		} else {
-			VectorBTE outVector(context,bandStructure);
-			outVector.setConst(1.);
-			return outVector;
-		}
+		return internalDiagonal;
 	}
-}
-
-void ScatteringMatrix::setInternalDiagonal() {
-	internalDiagonal = builderManager();
 }
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
@@ -101,7 +99,8 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		outPopulation -= internalDiagonal * inPopulation;
 		return outPopulation;
 	} else {
-		VectorBTE outPopulation = builderManager(&inPopulation);
+		VectorBTE outPopulation(context, &outerBandStructure);
+		builder(,,&inPopulation,&outPopulation);
 		outPopulation -= internalDiagonal * inPopulation;
 		return outPopulation;
 	}
@@ -116,7 +115,8 @@ VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 		}
 		return outPopulation;
 	} else {
-		VectorBTE outPopulation = builderManager(&inPopulation);
+		VectorBTE outPopulation(context,&outerBandStructure);
+		builder(,,&inPopulation,&outPopulation);
 		if ( hasCGScaling ) {
 			outPopulation = outPopulation + inPopulation
 					- internalDiagonal * inPopulation;
@@ -131,68 +131,4 @@ void ScatteringMatrix::setCGScaling() {
 
 void ScatteringMatrix::unsetCGScaling() {
 	hasCGScaling = false;
-}
-
-
-
-
-
-
-
-
-
-VectorBTE PhScatteringMatrix::builderManager(VectorBTE * inPopulation) {
-	VectorBTE outVector(context, bandStructure);
-	outVector.setConst(0.);
-	if ( inPopulation == nullptr ) {
-		// case in which we want to compute the diagonal only
-		if ( couplingPh3 != nullptr ) outVector += internal3Ph(,);
-	} else {
-		if ( highMemory ) {
-			if ( couplingPh3 != nullptr ) {
-				outVector += builder3Ph(*theMatrix,);
-			}
-		} else { // compute on the fly
-			if ( couplingPh3 != nullptr ) {
-				outVector += builder3Ph(,*inPopulation);
-			}
-		}
-	}
-	return outVector;
-}
-
-
-//VectorBTE builderPhIsotope(Eigen::MatrixXd * theMatrix=nullptr,
-//		VectorBTE * inPopulation=nullptr) {
-//}
-//
-//VectorBTE builderPhBoundary(Eigen::MatrixXd * theMatrix=nullptr,
-//		VectorBTE * inPopulation=nullptr) {
-//}
-
-// 3 cases:
-// theMatrix is passed: we compute and store in memory the scatt matrix
-//                      we return the diagonal
-// inPopulation is passed: compute sMatrix * vector, matrix not kept in memory
-//                      we return outVec = sMatrix*vector
-// neither is passed: we compute and return the diagonal of the scatt matrix
-VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
-		VectorBTE * inPopulation) {
-
-	VectorBTE outVector(context, bandStructure);
-
-	for ( i ) {
-		for ( j ) {
-			if ( inPopulation != nullptr ) {
-				outVector(i) = term * inPopulation(j);
-			if ( matrix != nullptr ) {
-				*matrix(i,j) += term;
-				outVector(i) += term; // cumulate the diagonal
-			} else {
-				outVector(i) += term; // cumulate the diagonal
-			}
-		}
-	}
-
-	return outVector;
 }

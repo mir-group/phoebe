@@ -2,21 +2,21 @@
 #include "constants.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
-			ActiveBandStructure & bandStructure_,
+			StatisticsSweep & statisticsSweep_
+			FullBandStructure & innerBandStructure_,
+			FullBandStructure * outerBandStructure_ = nullptr,
 			Interaction3Ph * coupling3Ph_=nullptr) :
-//			InteractionIsotope * couplingIsotope_=nullptr,
-//			InteractionBoundary * couplingBoundary_=nullptr
-			ScatteringMatrix(context_, bandStructure_) {
-	coupling3Ph = coupling3Ph_,
-//	couplingIsotope = couplingIsotope_,
-//	couplingBoundary = couplingBoundary_) {
+			ScatteringMatrix(context_, statisticsSweep_,
+					innerBandStructure_, outerBandStructure_) {
+	coupling3Ph = coupling3Ph_;
+//	couplingIsotope = couplingIsotope_;
+//	couplingBoundary = couplingBoundary_;
 }
 
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix & that) :
-		ScatteringMatrix(that), coupling3Ph(that.coupling3Ph)
+		ScatteringMatrix(that), coupling3Ph(that.coupling3Ph) {
 //		couplingIsotope(that.couplingIsotope);
 //		couplingBoundary(that.couplingBoundary);
-{
 }
 
 PhScatteringMatrix::PhScatteringMatrix & operator=(
@@ -30,74 +30,45 @@ PhScatteringMatrix::PhScatteringMatrix & operator=(
 	return *this;
 }
 
-
-VectorBTE PhScatteringMatrix::builderManager(VectorBTE * inPopulation) {
-	VectorBTE outVector(context, bandStructure);
-	outVector.setConst(0.);
-	if ( inPopulation == nullptr ) {
-		// case in which we want to compute the diagonal only
-		if ( couplingPh3 != nullptr ) outVector += internal3Ph(,);
-	} else {
-		if ( highMemory ) {
-			if ( couplingPh3 != nullptr ) {
-				outVector += builder3Ph(*theMatrix,);
-			}
-		} else { // compute on the fly
-			if ( couplingPh3 != nullptr ) {
-				outVector += builder3Ph(,*inPopulation);
-			}
-		}
-	}
-	return outVector;
-}
-
-
-//VectorBTE builderPhIsotope(Eigen::MatrixXd * theMatrix=nullptr,
-//		VectorBTE * inPopulation=nullptr) {
-//}
-//
-//VectorBTE builderPhBoundary(Eigen::MatrixXd * theMatrix=nullptr,
-//		VectorBTE * inPopulation=nullptr) {
-//}
-
 // 3 cases:
-// theMatrix is passed: we compute and store in memory the scatt matrix
-//                      we return the diagonal
-// inPopulation is passed: compute sMatrix * vector, matrix not kept in memory
-//                      we return outVec = sMatrix*vector
-// neither is passed: we compute and return the diagonal of the scatt matrix
-VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
-		VectorBTE * inPopulation) {
+// theMatrix and linedith is passed: we compute and store in memory the scatt
+//       matrix and the diagonal
+// inPopulation+outPopulation is passed: we compute the action of the
+//       scattering matrix on the in vector, returning outVec = sMatrix*vector
+// only linewidth is passed: we compute only the linewidths
+void PhScatteringMatrix::builder(
+		Eigen::MatrixXd * matrix, VectorBTE * linewidth,
+		Vector3BTE * inPopulation, VectorBTE * outPopulation) {
 
-	VectorBTE outVector(context, bandStructure);
-
-//	for ( i ) {
-//		for ( j ) {
-//			if ( inPopulation != nullptr ) {
-//				outVector(i) = term * inPopulation(j);
-//			if ( matrix != nullptr ) {
-//				*theMatrix(i,j) += term;
-//				outVector(i) += term; // cumulate the diagonal
-//			} else {
-//				outVector(i) += term; // cumulate the diagonal
-//			}
-//		}
-//	}
-
-	if ( ( matrix != nullptr || inPopulation != nullptr )
-			&& innerBandStructure != outerBandStructure ) {
-		Error e("To solve the BTE, we need equal inner/outer grids");
+	int switchCase;
+	if ( matrix != nullptr && linewidth != nullptr &&
+		inPopulation == nullptr && outPopulation == nullptr  ) {
+		switchCase = 0;
+	} else if ( matrix == nullptr && linewidth == nullptr &&
+		inPopulation != nullptr && outPopulation != nullptr  ) {
+		switchCase = 1;
+	} else if ( matrix == nullptr && linewidth != nullptr &&
+		inPopulation == nullptr && outPopulation == nullptr  ) {
+		switchCase = 2;
+	} else {
+		Error e("builder3Ph found a non-supported case");
 	}
+
+	if ( (linewidth != nullptr) && (linewidth->dimensionality!= 1) ) {
+		Error e("The linewidths shouldn't have dimensionality");
+	}
+
+	bool dontComputeQ3 = innerBandStructure == outerBandStructure;
 
 	auto statistics = bandStructure.getStatistics();
 	double energyCutoff = 1.0e-8;
 
-	numAtoms = ...;
+	numAtoms = innerBandStructure.getCrystal().getNumAtoms();
 
 	DiracDelta diracDelta(deltaFunctionSelection, statistics);
 
 	// precompute Bose populations
-	PopulationVectorBTE bose(context, bandStructure);
+	VectorBTE bose(context, bandStructure, 1);
 	for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++ ) {
 		double temperature = statisticsSweep.getCalcStatistics(iCalc
 				).temperature;
@@ -130,7 +101,7 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 		for( long iq2=0; iq2<numPoints; iq2++ ) {
 			auto q2 = innerBandStructure.getPoint(iq2);
-			long iq2Inv = bandStructure.getIndexInverse(iq2);
+			long iq2Inv = bandStructure.getPoints().getIndexInverse(iq2);
 			auto q2Reversed = bandStructure.getPoint(iq2Inv);
 
 			// note: + processes are phonon decay (1->2+3)
@@ -149,7 +120,7 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
-			if ( innerBandStructure == outerBandStructure ) {
+			if ( dontComputeQ3 ) {
 				auto q3Plus = q1 + q2;
 				auto q3Mins = q1 - q2;
 				auto states3Plus = bandStructure.getState(q3Plus);
@@ -162,11 +133,11 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 				state3MinsEnergies = states3Mins.getEnergies();
 
 				for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-					ind3 = ;
+					ind3 = state3Plus.getIndex(ib3);
 					bose3PlusData.col(ib3) = bose.data.col(ind3);
 				}
 				for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-					ind3 = ;
+					ind3 = state3Mins.getIndex(ib3);
 					bose3MinsData.col(ib3) = bose.data.col(ind3);
 				}
 			} else {
@@ -218,16 +189,15 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 			for ( long ib1=0; ib1<nb1; ib1++ ) {
 				en1 = state1Energies(ib1);
-				ind1 =;
+				ind1 = state1.getIndex(ib1);
 
 				for ( long ib2=0; ib2<nb2; ib2++ ) {
-					en2 = state2Energies(ib1);
-					ind2 =;
+					en2 = state2Energies(ib2);
+					ind2 = state2.getIndex(ib2);
 
 					// split into two cases since there may be different bands
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-						en3Plus = state3PlusEnergies(ib1);
-						ind3 = ;
+						en3Plus = state3PlusEnergies(ib3);
 
 //						deltaPlus = fillTetsWeights(omega3Plus-omega1,s2,iq2,tetra);
 //						deltaPlus = diracDelta(state1,state2,state3Plus);
@@ -259,27 +229,27 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 							// note: to increase performance, we are in fact
 							// using
-							if ( matrix != nullptr ) {
+
+							switch ( switchCase ) {
+							case (0):
 								// case of matrix construction
 								matrix(ind1,ind2) -= ratePlus1 + ratePlus2;
-								outVector.data(iCalc,ind1) +=
+								linewidth.data(iCalc,ind1) +=
 										0.5 * (ratePlus1 + ratePlus2);
-							} else if ( inPopulation != nullptr) {
+							case (1):
 								// case of matrix-vector multiplication
 
-								I miss a loop on the cartesian dir in iCart!
-
 								for ( long i : {0,1,2} ) {
-									outVector.data(3*iCalc+i,ind1) -=
+									outPopulation.data(3*iCalc+i,ind1) -=
 											0.5 * (ratePlus1 + ratePlus2) *
 											inPopulation.data(3*iCalc+i,ind2);
-									outVector.data(3*iCalc+i,ind1) +=
+									outPopulation.data(3*iCalc+i,ind1) +=
 											0.5 * (ratePlus1 + ratePlus2) *
 											inPopulation.data(3*iCalc+i,ind1);
 								}
-							} else {
+							case (2):
 								// case of linewidth construction
-								outVector.data(iCalc,ind1) +=
+								linewidth.data(iCalc,ind1) +=
 										0.5 * (ratePlus1 + ratePlus2);
 							}
 						}
@@ -287,7 +257,6 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 					for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
 						en3Plus = state3MinsEnergies(ib3);
-						ind3 = ;
 
 //						deltaMins = fillTetsWeights(omega1-omega3Mins,s2,iq2,tetra);
 						deltaMins = diracDelta.get(en1-en3Mins,state2);
@@ -310,6 +279,27 @@ VectorBTE PhScatteringMatrix::builder3Ph(Eigen::MatrixXd * matrix,
 
 							matrix(i,j) += rateMins;
 							outVector(i) += 0.5 * rateMins;
+
+							switch ( switchCase ) {
+							case (0):
+								// case of matrix construction
+								matrix(ind1,ind2) += rateMins;
+								linewidth.data(iCalc,ind1) += 0.5 * rateMins;
+							case (1):
+								// case of matrix-vector multiplication
+								for ( long i : {0,1,2} ) {
+									outPopulation.data(3*iCalc+i,ind1) +=
+											0.5 * rateMins *
+											inPopulation.data(3*iCalc+i,ind2);
+									outPopulation.data(3*iCalc+i,ind1) +=
+											0.5 * rateMins *
+											inPopulation.data(3*iCalc+i,ind1);
+								}
+							case (2):
+								// case of linewidth construction
+								linewidth.data(iCalc,ind1) += 0.5 * rateMins;
+							}
+
 						}
 					}
 				}
