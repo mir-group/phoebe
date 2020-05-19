@@ -2,12 +2,14 @@
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
 		StatisticsSweep & statisticsSweep_,
+		std::unique_ptr<DeltaFunction> smearing_,
 		FullBandStructure & innerBandStructure_,
-		FullBandStructure * outerBandStructure_) :
+		FullBandStructure * outerBandStructure_, ) :
 		context(context_), statisticsSweep(statisticsSweep_),
 		innerBandStructure(innerBandStructure_),
 		outerBandStructure(outerBandStructure_),
-		internalDiagonal(context,bandStructure,1) {
+		internalDiagonal(context,bandStructure,1),
+		smearing(smearing_) {
 	if ( constantRTA ) return;
 
 	if ( outerBandStructure == nullptr ) {
@@ -43,6 +45,11 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	} else {
 		builder(,internalDiagonal,,); // calc linewidths only
 	}
+
+//	std::unique_ptr<DeltaFunction> smearing = DeltaFunction::loadSmearing(
+//			context.getSmearingMethod(), context,
+//			innerBandStructure.getPoints(), innerBandStructure);
+
 }
 
 ScatteringMatrix(const ScatteringMatrix & that) :  // copy constructor

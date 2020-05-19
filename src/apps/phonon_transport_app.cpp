@@ -20,23 +20,27 @@ void PhononTransportApp::run(Context & context) {
 
 	// first we make compute the band structure on the fine grid
 
-	FullPoints fullQPoints(crystal, context.getQMesh());
+	FullPoints fullPoints(crystal, context.getQMesh());
 	bool withVelocities = true;
 	bool withEigenvectors = true;
 
-	FullBandStructure<FullPoints> fullBandStructure = phononH0.populate(
-			fullQPoints, withVelocities, withEigenvectors);
+	FullBandStructure<FullPoints> bandStructure = phononH0.populate(
+			fullPoints, withVelocities, withEigenvectors);
 
 	// then we apply a filter to retain only useful energies
-	auto [points, bandStructure] = restrictBandStructure(context,
-			fullBandStructure);
+//	auto [points, bandStructure] = restrictBandStructure(context,
+//			fullBandStructure);
 
 	// free up some memory
-	fullBandStructure.~FullBandStructure();
-	phononH0.~PhononH0();
+//	fullBandStructure.~FullBandStructure();
+//	phononH0.~PhononH0();
 
 	// set the chemical potentials to zero, load temperatures
 	StatisticsSweep statisticsSweep(context, bandStructure);
+
+//	auto [activePoints,activeBandStructure,statisticsSweep] =
+//		    applyTransportWindow(context, phononH0);
+
 	auto numCalcs = statisticsSweep.getNumCalcs();
 
 	// BTE solver

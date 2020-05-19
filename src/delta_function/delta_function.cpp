@@ -3,6 +3,27 @@
 #include "utilities.h"
 #include "constants.h"
 
+// app factory
+std::unique_ptr<DeltaFunction> DeltaFunction::loadSmearing(
+		const int & choice,
+		Context & context_,
+		FullPoints & fullPoints_,
+		FullBandStructure<FullPoints> & fullBandStructure_) {
+	if ( choice == gaussian ) {
+		return std::unique_ptr<DeltaFunction> (new GaussianDeltaFunction(
+				context_));
+	} else if ( choice == adaptiveGaussian ) {
+		return std::unique_ptr<DeltaFunction> (new
+				AdaptiveGaussianDeltaFunction(FullPoints & fullPoints_));
+	} else if ( choice == tetrahedron ) {
+		return std::unique_ptr<DeltaFunction> (new TetrahedronDeltaFunction(
+				FullPoints & fullPoints_,
+				FullBandStructure<FullPoints> & fullBandStructure_));
+	} else {
+		Error e("Unrecognized smearing choice");
+	}
+}
+
 GaussianDeltaFunction::GaussianDeltaFunction(Context & context_) {
 	inverseWidth = 1. / context.getSmearingWidth();
 	prefactor = 1. / context.getSmearingWidth() / sqrt(pi);
@@ -14,13 +35,8 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 	return prefactor * exp( - x*x );
 }
 
-AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
-		Context & context_){
-	(void) context_;
-}
-
-AdaptiveGaussianDeltaFunction::setup(Points & points) {
-	auto mesh = points.getPoints();
+AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(Points & points) {
+	auto [mesh,offset] = points.getMesh();
 	qTensor = points.getCrystal().getReciprocalUnitCell();
 	qTensor.row(0) /= mesh(0);
 	qTensor.row(1) /= mesh(1);
@@ -36,11 +52,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 	return exp( - x*x ) / sqrtPi / smearing;
 }
 
-Tetrahedra::Tetrahedra(Context & context_) {
-	(void) context_;
-}
-
-Tetrahedra::setup(FullPoints & fullPoints_,
+Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
 		FullBandStructure<FullPoints> & fullBandStructure_) :
 		fullPoints(fullPoints_),
 		fullBandStructure(fullBandStructure_) {

@@ -38,7 +38,8 @@ public:
 	long numPoints;
 	long numCalcs;
 
-	long deltaFunctionSelection;
+//	long deltaFunctionSelection;
+	std::unique_ptr<DeltaFunction> smearing;
 
 	// pure virtual function
 	// needs an implementation in every subclass

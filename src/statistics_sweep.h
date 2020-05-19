@@ -2,23 +2,45 @@
 #include "bandstructure.h"
 #include "statistics.h"
 
-struct CalcStatistics {
+struct PhCalcStatistics {
+	double temperature;
+};
+
+struct ElCalcStatistics {
 	double temperature;
 	double chemicalPotential;
 	double doping;
 };
 
-class StatisticsSweep {
+class PhStatisticsSweep {
 public:
-	StatisticsSweep(Context & context,
+	PhStatisticsSweep(Context & context);
+	// copy constructor
+	PhStatisticsSweep(const PhStatisticsSweep & that);
+	// copy assignment
+	PhStatisticsSweep & operator = (const PhStatisticsSweep & that);
+
+	struct PhCalcStatistics getCalcStatistics(const long & index);
+	long getNumCalcs();
+private:
+    Statistics statistics;
+	// the relevant quantities to be outputted:
+	long numCalcs;
+	long nTemp;
+	Eigen::VectorXd temperatures;
+};
+
+class ElStatisticsSweep {
+public:
+	ElStatisticsSweep(Context & context,
 			FullBandStructure<FullPoints> & fullBandStructure);
 	// copy constructor
-	StatisticsSweep(const StatisticsSweep & that);
+	ElStatisticsSweep(const ElStatisticsSweep & that);
 	// copy assignment
-	StatisticsSweep & operator = (const StatisticsSweep & that);
+	ElStatisticsSweep & operator = (const ElStatisticsSweep & that);
 
-	CalcStatistics getCalcStatistics(const long & index);
-	struct CalcStatistics getCalcStatistics(const long & iTemp,
+	struct ElCalcStatistics getCalcStatistics(const long & index);
+	struct ElCalcStatistics getCalcStatistics(const long & iTemp,
 			const long & iChemPot);
 	long getNumCalcs();
 private:

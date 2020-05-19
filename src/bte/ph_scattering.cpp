@@ -65,8 +65,6 @@ void PhScatteringMatrix::builder(
 
 	numAtoms = innerBandStructure.getCrystal().getNumAtoms();
 
-	DiracDelta diracDelta(deltaFunctionSelection, statistics);
-
 	// precompute Bose populations
 	VectorBTE bose(context, bandStructure, 1);
 	for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++ ) {
@@ -87,6 +85,7 @@ void PhScatteringMatrix::builder(
 	Eigen::Tensor<double,3> couplingPlus, couplingMins;
 	Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
 	Eigen::VectorXd bose3Plus, bose3Mins;
+	Eigen::Vector3d v1, v2;
 
 	for( long iq1=0; iq1<numPoints; iq1++ ) {
 
@@ -199,15 +198,25 @@ void PhScatteringMatrix::builder(
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 						en3Plus = state3PlusEnergies(ib3);
 
-//						deltaPlus = fillTetsWeights(omega3Plus-omega1,s2,iq2,tetra);
-//						deltaPlus = diracDelta(state1,state2,state3Plus);
-
-						// gaussian smearing:
-						deltaPlus1 = (en1 + en3Plus - en2 ) * sigmam1;
-						deltaPlus1 = exp( - deltaPlus1 * deltaPlus1 );
-
-						deltaPlus2 = (en1 - en2 - en3Plus) * sigmam1;
-						deltaPlus2 = exp( - deltaPlus2 * deltaPlus2 );
+						switch ( smearing.id ) {
+						case ( DeltaFunction::gaussian ):
+							deltaPlus1 = smearing.getSmearing(
+									en1 + en3Plus - en2 );
+							deltaPlus2 = smearing.getSmearing(
+									en1 - en2 - en3Plus);
+						case ( DeltaFunction::adaptiveGaussian ):
+							v1 = state1.getVelocity(ib1);
+							v2 = state2.getVelocity(ib2);
+							deltaPlus1 = smearing.getSmearing(
+									en1 + en3Plus - en2, v1-v2);
+							deltaPlus2 = smearing.getSmearing(
+									en1 - en2 - en3Plus, v1-v2);
+						default:
+							deltaPlus1 = smearing.getSmearing(
+									en3Plus-en1, iq2, ib2);
+							deltaPlus2 = smearing.getSmearing(
+									en3Plus+en1, iq2, ib2);
+						}
 
 						// loop on temperature
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {

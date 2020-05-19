@@ -4,10 +4,6 @@
 #include "statistics.h"
 #include "exceptions.h"
 
-// Development note:
-// In this code, we define the reciprocal unit cell in bohr^-1,
-// whereas QE used units of 2Pi/alat. Some factors of 2Pi might need checking
-
 Window::Window(Context & context, Statistics & statistics_) :
 	statistics{statistics_} {
 
@@ -30,6 +26,9 @@ Window::Window(Context & context, Statistics & statistics_) :
 		canOnTheFly = false;
 		populationThreshold = context.getWindowPopulationLimit();
 		if ( statistics.isFermi() ) {
+
+			FIX HERE: should get chemical potentials from StatisticSweep
+
 			chemicalPotentialMin = context.getChemicalPotentials().minCoeff();
 			chemicalPotentialMax = context.getChemicalPotentials().maxCoeff();
 		} else {

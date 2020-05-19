@@ -8,24 +8,30 @@
 #include "bandstructure.h"
 
 class DeltaFunction {
+public:
 	// here a smearing factory
+	static std::unique_ptr<App> loadSmearing(const int & choice);
+	static const int gaussian = 0;
+	static const int adaptiveGaussian = 1;
+	static const int tetrahedron = 2;
+	const int id = -1;
 };
 
 class GaussianDeltaFunction : public DeltaFunction {
 	GaussianDeltaFunction(Context & context_); // context to get amplitude
 	double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
+	const int id = 0;
 private:
 	double inverseWidth;
 	double prefactor;
 };
 
 class AdaptiveGaussianDeltaFunction : public DeltaFunction {
-	AdaptiveGaussianDeltaFunction(Context & context_);
+	AdaptiveGaussianDeltaFunction(Points & points);
 	double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity);
-	double setup(const double & energy,
-			const Eigen::Vector3d & velocity);
+	const int id = 1;
 private:
 	const double smearingCutoff = 1.0e-8;
 	const double prefactor = 1.;
@@ -36,7 +42,8 @@ private:
  * Class for approximating the Delta function with the tetrahedron method
  */
 class TetrahedronDeltaFunction : public DeltaFunction {
-	TetrahedronDeltaFunction(Context & context_);
+	const int id = 2;
+
 	/**
 	 * Form all tetrahedra for 3D wave vector mesh.
 	 *
@@ -47,7 +54,7 @@ class TetrahedronDeltaFunction : public DeltaFunction {
 	 * @param[in] grid: the mesh points along the three lattice vectors.
 	 *
 	 */
-	void setup(FullPoints & fullPoints_,
+	TetrahedronDeltaFunction(FullPoints & fullPoints_,
 			FullBandStructure<FullPoints> & fullBandStructure_);
 
 	/**
@@ -75,8 +82,8 @@ class TetrahedronDeltaFunction : public DeltaFunction {
 	 */
 	double getSmearing(const double & energy, const long & iq, const long &ib);
 private:
-	FullPoints * fullPoints = nullptr;
-	FullBandStructure<FullPoints> * fullBandStructure = nullptr;
+	FullPoints & fullPoints;
+	FullBandStructure<FullPoints> & fullBandStructure;
 
 	/** Number of tetrahedra. */
 	long numTetra;

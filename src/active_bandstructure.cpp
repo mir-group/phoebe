@@ -3,6 +3,76 @@
 #include "exceptions.h"
 #include "window.h"
 
+ActiveBandStructure::ActiveBandStructure(Statistics & statistics_) :
+		statistics(statistics_) {
+}
+
+// copy constructor
+ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure & that) :
+			statistics(that.statistics),
+			energies(that.energies),
+			groupVelocities(that.groupVelocities),
+			velocities(that.velocities),
+			eigenvectors(that.eigenvectors),
+			activePoints(that.activePoints),
+			hasEigenvectors(that.hasEigenvectors),
+			numStates(that.numStates),
+			numAtoms(that.numAtoms),
+			numBands(that.numBands),
+			auxBloch2Comb(that.auxBloch2Comb),
+			cumulativeKbOffset(that.cumulativeKbOffset),
+			cumulativeKbbOffset(that.cumulativeKbbOffset),
+			numPoints(that.numPoints) {
+}
+
+ActiveBandStructure & ActiveBandStructure::operator=(
+		const ActiveBandStructure & that) { // assignment operator
+	if ( this != & that ) {
+
+	}
+	return *this;
+}
+
+std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
+		ActiveBandStructure::builder(Context & context,
+				HarmonicHamiltonian h0, FullPoints & fullPoints) {
+
+	std::string inMethod = context.getWindowType();
+
+	if ( inMethod != "population" && inMethod != "energy" &&
+			inMethod != "nothing" ){
+		Error e("Unrecognized method called in Window()", 1);
+	}
+
+	if ( inMethod == "population" ) {
+		method = population;
+	} else if ( inMethod == "energy" ) {
+		method = energy;
+	} else {
+		method = nothing;
+	}
+
+	auto statistics = h0.getStatistics();
+
+	temperatures = context.getTemperatures();
+
+	Window window(context, statistics);
+
+	activeBandStructure(statistics);
+
+	if ( statistics.isPhonon ) {
+		chemicalPotentialMin = 0.;
+		chemicalPotentialMax = 0.;
+		temperatureMin = temperatures.minCoeff();
+		temperatureMax = temperatures.maxCoeff();
+		activePoints = buildOnTheFly(fullPoints, h0);
+		StatisticsSweep statisticsSweep(context, activeBandStructure);
+		return {activePoints,activeBandStructure,statisticsSweep};
+	} else {
+		Error e("apply window for electrons not implemented");
+	}
+}
+
 Statistics ActiveBandStructure::getStatistics() {
 	return statistics;
 }
@@ -13,10 +83,6 @@ bool ActiveBandStructure::hasPoints() {
 	} else {
 		return false;
 	}
-}
-
-ActiveBandStructure::ActiveBandStructure(Statistics & statistics_) :
-		statistics(statistics_) {
 }
 
 long ActiveBandStructure::getNumPoints() {
@@ -72,18 +138,28 @@ ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
 			if ( h0.hasEigenvectors ) {
 				std::complex<double> x;
 
-				for ( int i=0; i<3; i++ ) {
-					for ( int iat=0; iat<numAtoms; iat++ ) {
-						for ( long ibOld=bandsExtrema[0];
-								ibOld<bandsExtrema[1]+1; ibOld++ ) {
-							x = theseEigenvectors(i,iat,ibOld);
+				if ( statistics.isPhonon ) {
+					for ( int i=0; i<3; i++ ) {
+						for ( int iat=0; iat<numAtoms; iat++ ) {
+							for ( long ibOld=bandsExtrema[0];
+									ibOld<bandsExtrema[1]+1; ibOld++ ) {
+								x = theseEigenvectors(i,iat,ibOld);
+								filteredEigenvectors.push_back(x);
+							}
+						}
+					}
+				} else {
+					for ( long ibOld=bandsExtrema[0];
+							ibOld<bandsExtrema[1]+1; ibOld++ ) {
+						for ( long jbOld=bandsExtrema[0];
+								jbOld<bandsExtrema[1]+1; jbOld++ ) {
+							x = theseEigenvectors(ibOld,jbOld);
 							filteredEigenvectors.push_back(x);
 						}
 					}
 				}
 			}
 		}
-
 	}
 
 	numPoints = filteredPoints.size();
@@ -307,4 +383,35 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(long & stateIndex) {
 	vel(1) = groupVelocities[stateIndex*3+1];
 	vel(2) = groupVelocities[stateIndex*3+2];
 	return vel;
+}
+
+Point<ActivePoints> ActiveBandStructure::getPoint(const long & pointIndex) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	return activePoints->getPoint(pointIndex);
+}
+
+State<ActivePoints> ActiveBandStructure::getState(Point<ActivePoints> & point){
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+
+	long ik = point.getIndex();
+	long zero = 0;
+
+	long ind = bloch2Comb(ik,zero);
+	double * thisEn = &energies[ind];
+
+	ind = velBloch2Comb(ik,zero,zero,zero);
+	std::complex<double> * thisVel = &velocities[ind];
+
+	std::complex<double> * thisEig = nullptr;
+	if ( hasEigenvectors ) {
+		ind = eigBloch2Comb(ik,zero,zero,zero);
+		thisEig = &eigenvectors[ind];
+	}
+
+	State<T> s(point, thisEn, numAtoms, numBands(ik), thisVel, thisEig);
+	return s;
 }

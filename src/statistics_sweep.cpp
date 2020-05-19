@@ -6,7 +6,45 @@
 #include "constants.h"
 #include <cmath>
 
-StatisticsSweep::StatisticsSweep(Context & context,
+PhStatisticsSweep::PhStatisticsSweep(Context & context) :
+		statistics(Statistics::phonon) {
+	temperatures = context.getTemperatures();
+	nTemp = temperatures.size();
+	numCalcs = nTemp;
+}
+
+// copy constructor
+PhStatisticsSweep::PhStatisticsSweep(const PhStatisticsSweep & that) :
+		statistics(Statistics::phonon) {
+	numCalcs = that.numCalcs;
+	infoCalcs = that.infoCalcs;
+	nTemp = that.nTemp;
+	temperatures = that.temperatures;
+}
+
+// copy assignment
+PhStatisticsSweep & PhStatisticsSweep::operator = (
+		const PhStatisticsSweep & that) {
+	if ( this != &that ) {
+		statistics = that.statistics;
+		numCalcs = that.numCalcs;
+		nTemp = that.nTemp;
+		temperatures = that.temperatures;
+	}
+	return *this;
+}
+
+struct PhCalcStatistics PhStatisticsSweep::getCalcStatistics(const long & it) {
+	struct CalcStatistics sc;
+	sc.temperature = temperatures(it);
+	return sc;
+}
+
+long PhStatisticsSweep::getNumCalcs() {
+	return numCalcs;
+}
+
+ElStatisticsSweep::ElStatisticsSweep(Context & context,
 		FullBandStructure<FullPoints> & fullBandStructure) :
 		statistics(Statistics::electron) {
 
@@ -121,7 +159,7 @@ StatisticsSweep::StatisticsSweep(Context & context,
 }
 
 // copy constructor
-StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
+ElStatisticsSweep::ElStatisticsSweep(const ElStatisticsSweep & that) :
 		statistics(Statistics::electron) {
 	numCalcs = that.numCalcs;
 	infoCalcs = that.infoCalcs;
@@ -133,7 +171,8 @@ StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
 }
 
 // copy assignment
-StatisticsSweep & StatisticsSweep::operator = (const StatisticsSweep & that) {
+ElStatisticsSweep & ElStatisticsSweep::operator = (
+		const ElStatisticsSweep & that) {
 	if ( this != &that ) {
 		statistics = that.statistics;
 		numCalcs = that.numCalcs;
@@ -149,7 +188,7 @@ StatisticsSweep & StatisticsSweep::operator = (const StatisticsSweep & that) {
 	return *this;
 }
 
-double StatisticsSweep::fPop(const double & chemPot, const double & temp) {
+double ElStatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	// fPop = 1/NK \sum_\mu FermiDirac(\mu) - N
 	// Note that I don`t normalize the integral, which is the same thing I did
 	// for computing the particle number
@@ -162,7 +201,7 @@ double StatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	return fPop_;
 }
 
-double StatisticsSweep::findChemicalPotentialFromDoping(const double & doping,
+double ElStatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
 		const double & temperature) {
 	// given the carrier concentration, finds the fermi energy
 	// temperature is set inside glob
@@ -215,7 +254,7 @@ double StatisticsSweep::findChemicalPotentialFromDoping(const double & doping,
 	return chemicalPotential;
 }
 
-double StatisticsSweep::findDopingFromChemicalPotential(
+double ElStatisticsSweep::findDopingFromChemicalPotential(
 		const double & chemicalPotential, const double & temperature) {
 	double fPop = 0.;
 	for ( long i=0; i<numStates; i++ ) {
@@ -228,7 +267,7 @@ double StatisticsSweep::findDopingFromChemicalPotential(
 	return doping;
 }
 
-struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & index) {
+struct ElCalcStatistics ElStatisticsSweep::getCalcStatistics(const long&index){
 	struct CalcStatistics sc;
 	sc.temperature = infoCalcs(index,0);
 	sc.chemicalPotential = infoCalcs(index,1);
@@ -236,13 +275,13 @@ struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & index) {
 	return sc;
 }
 
-struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & iTemp,
+struct ElCalcStatistics ElStatisticsSweep::getCalcStatistics(const long &iTemp,
 		const long & iChemPot) {
 	long index = compress2Indeces(iTemp,iChemPot,nTemp,nChemPot);
 	return getCalcStatistics(index);
 }
 
-long StatisticsSweep::getNumCalcs() {
+long ElStatisticsSweep::getNumCalcs() {
 	return numCalcs;
 }
 
