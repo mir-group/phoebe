@@ -10,7 +10,10 @@
 class DeltaFunction {
 public:
 	// here a smearing factory
-	static std::unique_ptr<App> loadSmearing(const int & choice);
+	static DeltaFunction * smearingFactory(const int & choice,
+			Context & context,
+			FullPoints * fullPoints=nullptr,
+			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
 	static const int gaussian = 0;
 	static const int adaptiveGaussian = 1;
 	static const int tetrahedron = 2;

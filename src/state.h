@@ -83,14 +83,13 @@ public:
 	 * (3,numAtoms,numBands) with the phonon eigenvectors. Error if
 	 * the eigenvectors are not set.
 	 */
-	void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> &
-			eigs) {
+	void getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs);
 
 	/** get the eigenvectors for the current Point
 	 * @input/output eigenvectors: a complex matrix of size (numBands,numBands)
 	 * with the electron eigenvectors. Error if eigenvectors are not set.
 	 */
-	void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs)
+	void getEigenvectors(Eigen::MatrixXcd & eigs);
 
 
 	long getIndex(const long & bandIndex);
@@ -222,7 +221,6 @@ void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs) {
 		}
 	}
 	eigs = eigs_;
-	return eigs;
 }
 
 template<typename T>
@@ -231,14 +229,12 @@ void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs) {
 		Error e("State doesn't have eigenvectors" ,1);
 	}
 	eigs = Eigen::MatrixXcd::Zero(numBands, numBands);
-	for ( long ib1=0; ib1<numBands; ib++ ) {
-		for ( long ib2=0; ib2<numBands; ib++ ) {
-				long ind = compress2Indeces(ib1, ib2, numBands, numBands);
-				eigs(ib1,ib2) = *(eigenvectors+ind);
-			}
+	for ( long ib1=0; ib1<numBands; ib1++ ) {
+		for ( long ib2=0; ib2<numBands; ib2++ ) {
+			long ind = compress2Indeces(ib1, ib2, numBands, numBands);
+			eigs(ib1,ib2) = *(eigenvectors+ind);
 		}
 	}
-	return eigs;
 }
 
 template<typename T>

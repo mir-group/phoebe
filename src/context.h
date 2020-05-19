@@ -17,7 +17,7 @@ private:
 //	std::string elPhFileName = "";
 	std::string appName = "";
 	std::string sumRuleD2 = "";
-	std::string smearingType = "";
+	int smearingMethod = -1;
 	double smearingWidth = 0.;
 	Eigen::VectorXd temperatures;
 //	std::vector<double> isotopeCoupling = {0.};
@@ -62,6 +62,8 @@ private:
 
 	Eigen::Tensor<double,3> pathExtrema;
 	double deltaPath = 0.05;
+
+	double constantRelaxationTime = 0.;
 
 //  Setter and getter for all the variables above
 public:
@@ -263,6 +265,13 @@ public:
 	void setHasSpinOrbit(bool x);
 	bool getHasSpinOrbit();
 
+	void setSmearingMethod(const int & x);
+	int getSmearingMethod();
+	void setSmearingWidth(const double & x);
+	double getSmearingWidth();
+
+	void setConstantRelaxationTime(const double & x);
+	double getConstantRelaxationTime();
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

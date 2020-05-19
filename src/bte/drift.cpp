@@ -1,16 +1,16 @@
 #include "drift.h"
 
 BulkTDrift::BulkTDrift(Context & context,
-			ActiveBandStructure & activeBandStructure) :
-			VectorBTE(context, activeBandStructure) {
+		FullBandStructure<FullPoints> & bandStructure) :
+			VectorBTE(context, bandStructure) {
 
 	Eigen::VectorXd temperatures = context.getTemperatures();
 	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
 	Statistics statistics = activeBandStructure.getStatistics();
 
 	for ( long is=0; is<numStates; is++ ) {
-		double energy = activeBandStructure.getEnergy(is);
-		Eigen::Vector3d velocity = activeBandStructure.getGroupVelocity(is);
+		double energy = bandStructure.getEnergy(is);
+		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
 
 		for ( long idim=0; idim<dimensionality; idim++ ) {
 			double vel = velocity(idim);
@@ -29,16 +29,16 @@ BulkTDrift::BulkTDrift(Context & context,
 }
 
 BulkEDrift::BulkEDrift(Context & context,
-			ActiveBandStructure & activeBandStructure) :
-			VectorBTE(context, activeBandStructure) {
+			FullBandStructure<FullPoints> & bandStructure) :
+			VectorBTE(context, bandStructure) {
 
 	Eigen::VectorXd temperatures = context.getTemperatures();
 	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
-	Statistics statistics = activeBandStructure.getStatistics();
+	Statistics statistics = bandStructure.getStatistics();
 
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = activeBandStructure.getEnergy(is);
-		Eigen::Vector3d velocity = activeBandStructure.getGroupVelocity(is);
+		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
 
 		for ( long idim=0; idim<dimensionality; idim++ ) {
 			double vel = velocity(idim);

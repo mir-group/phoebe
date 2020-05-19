@@ -652,6 +652,32 @@ void Context::setupFromInput(std::string fileName) {
 		if ( ! hasSpinOrbit ) x *= 2;
 		setNumOccupiedStates(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::string x_ = parseString(lines, "smearingMethod");
+		int x;
+		if ( x_ == "gaussian" ) {
+			x = 0;
+		} else if ( x_ == "adaptiveGaussian" ) {
+			x = 1;
+		} else if ( x_ == "tetrahedron" ) {
+			x = 2;
+		} else {
+			x = -1;
+		}
+		setSmearingMethod(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "smearingWidth");
+		setSmearingWidth(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "constantRelaxationTime");
+		setConstantRelaxationTime(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -879,4 +905,28 @@ void Context::setHasSpinOrbit(bool x) {
 }
 bool Context::getHasSpinOrbit() {
 	return hasSpinOrbit;
+}
+
+void Context::setSmearingMethod(const int & x) {
+	smearingMethod = x;
+}
+
+int Context::getSmearingMethod() {
+	return smearingMethod;
+}
+
+void Context::setSmearingWidth(const double & x) {
+	smearingWidth = x;
+}
+
+double Context::getSmearingWidth() {
+	return smearingWidth;
+}
+
+void Context::setConstantRelaxationTime(const double & x) {
+	constantRelaxationTime = x;
+}
+
+double Context::getConstantRelaxationTime() {
+	return constantRelaxationTime;
 }

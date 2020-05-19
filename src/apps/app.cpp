@@ -51,18 +51,18 @@ std::tuple<Crystal, PhononH0> App::setupPhononH0(Context & context) {
 	return {crystal, phononH0};
 }
 
-std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
-		Context & context, FullBandStructure<FullPoints> & fullBandStructure) {
-
-	Statistics statistics = fullBandStructure.getStatistics();
-
-	// we create the window object
-	Window window(context, statistics);
-
-	// initialize activebandstructure
-	ActiveBandStructure activeBandStructure(statistics);
-	ActivePoints activePoints = activeBandStructure.buildAsPostprocessing(
-			window, fullBandStructure);
-	// note: activePoints should not go out of scope
-	return {activePoints, activeBandStructure};
-};
+//std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
+//		Context & context, FullBandStructure<FullPoints> & fullBandStructure) {
+//
+//	Statistics statistics = fullBandStructure.getStatistics();
+//
+//	// we create the window object
+//	Window window(context, statistics);
+//
+//	// initialize activebandstructure
+//	ActiveBandStructure activeBandStructure(statistics);
+//	ActivePoints activePoints = activeBandStructure.buildAsPostprocessing(
+//			window, fullBandStructure);
+//	// note: activePoints should not go out of scope
+//	return {activePoints, activeBandStructure};
+//};

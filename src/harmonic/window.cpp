@@ -4,40 +4,31 @@
 #include "statistics.h"
 #include "exceptions.h"
 
-Window::Window(Context & context, Statistics & statistics_) :
-	statistics{statistics_} {
+Window::Window(Context & context, Statistics & statistics_,
+		const double & temperatureMin_,
+		const double & temperatureMax_,
+		const double & chemicalPotentialMin_,
+		const double & chemicalPotentialMax_) :
+		statistics{statistics_},
+		temperatureMin{temperatureMin_},
+		temperatureMax{temperatureMax_},
+		chemicalPotentialMin{chemicalPotentialMin_},
+		chemicalPotentialMax{chemicalPotentialMax_} {
 
 	std::string inMethod = context.getWindowType();
-
-	if ( inMethod != "population" && inMethod != "energy" &&
-			inMethod != "nothing" ){
-		Error e("Unrecognized method called in Window()", 1);
-	}
-
 	if ( inMethod == "population" ) {
 		method = population;
 	} else if ( inMethod == "energy" ) {
 		method = energy;
-	} else {
+	} else if ( inMethod == "nothing" ) {
 		method = nothing;
+	} else {
+		Error e("Unrecognized method called in Window()", 1);
 	}
 
 	if ( method == population ) {
-		canOnTheFly = false;
 		populationThreshold = context.getWindowPopulationLimit();
-		if ( statistics.isFermi() ) {
-
-			FIX HERE: should get chemical potentials from StatisticSweep
-
-			chemicalPotentialMin = context.getChemicalPotentials().minCoeff();
-			chemicalPotentialMax = context.getChemicalPotentials().maxCoeff();
-		} else {
-			chemicalPotentialMin = 0.;
-			chemicalPotentialMax = 0.;
-		}
-		maxTemperature = context.getTemperatures().maxCoeff();
-	} else {
-		canOnTheFly = true;
+	} else if ( method == energy ) {
 		minEnergy = context.getWindowEnergyLimit().minCoeff();
 		maxEnergy = context.getWindowEnergyLimit().maxCoeff();
 	}
@@ -51,13 +42,13 @@ std::tuple<std::vector<double>,std::vector<long>> Window::apply(
 		Eigen::VectorXd dndtMin(numBands), dndtMax(numBands),
 				dndeMin(numBands), dndeMax(numBands);
 		for ( long ib=0; ib<numBands; ib++ ) {
-			dndtMin(ib) = statistics.getDndt(energies(ib), maxTemperature,
+			dndtMin(ib) = statistics.getDndt(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndtMax(ib) = statistics.getDndt(energies(ib), maxTemperature,
+			dndtMax(ib) = statistics.getDndt(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndeMin(ib) = statistics.getDnde(energies(ib), maxTemperature,
+			dndeMin(ib) = statistics.getDnde(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndeMax(ib) = statistics.getDnde(energies(ib), maxTemperature,
+			dndeMax(ib) = statistics.getDnde(energies(ib), temperatureMax,
 					chemicalPotentialMin);
 		}
 		auto [filteredEnergies, bandExtrema] = internalPopWindow(energies,
@@ -123,6 +114,3 @@ std::tuple<std::vector<double>,std::vector<long>> Window::internalEnWindow(
 	bandsExtrema.back();
 	return {filteredEnergies,bandsExtrema};
 }
-
-
-

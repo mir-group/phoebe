@@ -1,3 +1,4 @@
+#include <memory>
 #include "context.h"
 #include "bandstructure.h"
 #include "statistics.h"
@@ -13,6 +14,7 @@ public:
 	static std::unique_ptr<StatisticsSweep> * SweepFactory(
 			const std::string & choice, Context & context,
 			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
+	virtual long getNumCalcs();
 };
 
 class PhStatisticsSweep : public StatisticsSweep {
@@ -23,7 +25,7 @@ public:
 	// copy assignment
 	PhStatisticsSweep & operator = (const PhStatisticsSweep & that);
 
-	struct PhCalcStatistics getCalcStatistics(const long & index);
+	struct CalcStatistics getCalcStatistics(const long & index);
 	long getNumCalcs();
 private:
     Statistics statistics;
@@ -42,8 +44,8 @@ public:
 	// copy assignment
 	ElStatisticsSweep & operator = (const ElStatisticsSweep & that);
 
-	struct ElCalcStatistics getCalcStatistics(const long & index);
-	struct ElCalcStatistics getCalcStatistics(const long & iTemp,
+	struct CalcStatistics getCalcStatistics(const long & index);
+	struct CalcStatistics getCalcStatistics(const long & iTemp,
 			const long & iChemPot);
 	long getNumCalcs();
 private:

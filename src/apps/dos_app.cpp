@@ -21,9 +21,8 @@ void PhononDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
+			context, *fullPoints, *fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -65,9 +64,8 @@ void ElectronWannierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
+			context, *fullPoints, *fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -110,9 +108,8 @@ void ElectronFourierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
+			context, *fullPoints, *fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();

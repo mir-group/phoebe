@@ -24,9 +24,9 @@ public:
 	virtual void run(Context & context);
 protected:
 	std::tuple<Crystal, PhononH0> setupPhononH0(Context & context);
-	std::tuple<ActivePoints, ActiveBandStructure> restrictBandStructure(
-			Context & context,
-			FullBandStructure<FullPoints> & fullBandStructure);
+//	std::tuple<ActivePoints, ActiveBandStructure> restrictBandStructure(
+//			Context & context,
+//			FullBandStructure<FullPoints> & fullBandStructure);
 	QEParser parser;
 };
 

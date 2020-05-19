@@ -62,6 +62,7 @@ public:
 	State<T> getState(Point<T> & point);
 	State<T> getState(const long & pointIndex);
 	long getNumBands();
+	long getNumStates();
 	bool hasIrreduciblePoints();
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 	Statistics getStatistics();
@@ -179,6 +180,11 @@ Statistics FullBandStructure<T>::getStatistics() {
 template<typename T>
 long FullBandStructure<T>::getNumBands() {
 	return numBands;
+}
+
+template<typename T>
+long FullBandStructure<T>::getNumStates() {
+	return numBands*getNumPoints();
 }
 
 template<typename T>

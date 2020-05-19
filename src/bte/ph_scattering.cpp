@@ -2,13 +2,14 @@
 #include "constants.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
-			StatisticsSweep & statisticsSweep_
-			FullBandStructure & innerBandStructure_,
-			FullBandStructure * outerBandStructure_ = nullptr,
-			Interaction3Ph * coupling3Ph_=nullptr) :
-			ScatteringMatrix(context_, statisticsSweep_,
-					innerBandStructure_, outerBandStructure_) {
-	coupling3Ph = coupling3Ph_;
+			StatisticsSweep & statisticsSweep_,
+			DeltaFunction * smearing_,
+			FullBandStructure<FullPoints> & innerBandStructure_,
+			FullBandStructure<FullPoints> & outerBandStructure_,
+			Interaction3Ph * coupling3Ph_) :
+			ScatteringMatrix(context_, statisticsSweep_, smearing_,
+					innerBandStructure_, outerBandStructure_),
+			coupling3Ph(coupling3Ph_) {
 //	couplingIsotope = couplingIsotope_;
 //	couplingBoundary = couplingBoundary_;
 }
@@ -19,10 +20,10 @@ PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix & that) :
 //		couplingBoundary(that.couplingBoundary);
 }
 
-PhScatteringMatrix::PhScatteringMatrix & operator=(
+PhScatteringMatrix & PhScatteringMatrix::operator=(
 		const PhScatteringMatrix & that) {
 	ScatteringMatrix::operator=(that);
-	if ( this != that ) {
+	if ( this != &that ) {
 		coupling3Ph = that.coupling3Ph;
 //		couplingIsotope = that.couplingIsotope;
 //		couplingBoundary = that.couplingBoundary;
@@ -38,7 +39,7 @@ PhScatteringMatrix::PhScatteringMatrix & operator=(
 // only linewidth is passed: we compute only the linewidths
 void PhScatteringMatrix::builder(
 		Eigen::MatrixXd * matrix, VectorBTE * linewidth,
-		Vector3BTE * inPopulation, VectorBTE * outPopulation) {
+		VectorBTE * inPopulation, VectorBTE * outPopulation) {
 
 	int switchCase;
 	if ( matrix != nullptr && linewidth != nullptr &&
@@ -58,21 +59,34 @@ void PhScatteringMatrix::builder(
 		Error e("The linewidths shouldn't have dimensionality");
 	}
 
-	bool dontComputeQ3 = innerBandStructure == outerBandStructure;
+	bool dontComputeQ3 = &innerBandStructure == &outerBandStructure;
 
-	auto statistics = bandStructure.getStatistics();
+	auto statistics = outerBandStructure.getStatistics();
 	double energyCutoff = 1.0e-8;
 
-	numAtoms = innerBandStructure.getCrystal().getNumAtoms();
+	long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
 
 	// precompute Bose populations
-	VectorBTE bose(context, bandStructure, 1);
+	VectorBTE outerBose(context, outerBandStructure, 1);
 	for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++ ) {
 		double temperature = statisticsSweep.getCalcStatistics(iCalc
 				).temperature;
 		for ( long iState=0; iState<numStates; iState++ ) {
 			bose.data(iCalc,iState) = statistics.getPopulation(energy,
 					temperature);
+		}
+	}
+	VectorBTE innerBose(context, outerBandStructure, 1);
+	if ( &innerBandStructure == &outerBandStructure ) {
+		innerBose = outerBose;
+	} else {
+		for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++ ) {
+			double temperature = statisticsSweep.getCalcStatistics(iCalc
+					).temperature;
+			for ( long iState=0; iState<numStates; iState++ ) {
+				bose.data(iCalc,iState) = statistics.getPopulation(energy,
+						temperature);
+			}
 		}
 	}
 
@@ -100,17 +114,17 @@ void PhScatteringMatrix::builder(
 
 		for( long iq2=0; iq2<numPoints; iq2++ ) {
 			auto q2 = innerBandStructure.getPoint(iq2);
-			long iq2Inv = bandStructure.getPoints().getIndexInverse(iq2);
-			auto q2Reversed = bandStructure.getPoint(iq2Inv);
+			long iq2Inv = innerBandStructure.getPoints().getIndexInverse(iq2);
+			auto q2Reversed = innerBandStructure.getPoint(iq2Inv);
 
 			// note: + processes are phonon decay (1->2+3)
 			// note: - processes are phonon coalescence (1+2->3)
 
 			// we need the distinction, because the coupling for + process
 			// must be computed at -q2 = q2Reversed
-			auto states2 = bandStructure.getState(q2);
+			auto states2 = innerBandStructure.getState(q2);
 			auto state2Energies = states2.getEnergies();
-			auto states2Plus = bandStructure.getState(q2Reversed);
+			auto states2Plus = innerBandStructure.getState(q2Reversed);
 			auto nb2Plus = states2Plus.getNumBands();
 			auto nb2 = states2.getNumBands();
 			if ( nb2Plus != nb2) {
@@ -122,8 +136,8 @@ void PhScatteringMatrix::builder(
 			if ( dontComputeQ3 ) {
 				auto q3Plus = q1 + q2;
 				auto q3Mins = q1 - q2;
-				auto states3Plus = bandStructure.getState(q3Plus);
-				auto states3Mins = bandStructure.getState(q3Mins);
+				auto states3Plus = innerBandStructure.getState(q3Plus);
+				auto states3Mins = innerBandStructure.getState(q3Mins);
 
 				[couplingPlus, couplingMins] =
 						coupling3Ph->getCouplingSquared(states1, states2Plus,
@@ -133,11 +147,11 @@ void PhScatteringMatrix::builder(
 
 				for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 					ind3 = state3Plus.getIndex(ib3);
-					bose3PlusData.col(ib3) = bose.data.col(ind3);
+					bose3PlusData.col(ib3) = outerBose.data.col(ind3);
 				}
 				for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
 					ind3 = state3Mins.getIndex(ib3);
-					bose3MinsData.col(ib3) = bose.data.col(ind3);
+					bose3MinsData.col(ib3) = outerBose.data.col(ind3);
 				}
 			} else {
 				// otherwise, q3 doesn't fall into the same grid
@@ -221,8 +235,8 @@ void PhScatteringMatrix::builder(
 						// loop on temperature
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
-							bose1 = bose.data(iCalc,s1);
-							bose2 = bose.data(iCalc,s2);
+							bose1 = outerBose.data(iCalc,s1);
+							bose2 = innerBose.data(iCalc,s2);
 							bose3Plus = bose3Plusdata(iCalc,ib3);
 
 							//Calculate transition probability W+

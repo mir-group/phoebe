@@ -43,8 +43,10 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 
 std::tuple<Eigen::Tensor<std::complex<double>,3>,
 		Eigen::Tensor<std::complex<double>,3>>
-		Interaction3Ph::calcCouplingSquared(State & state1, State & state2,
-				State & state3Plus, State & state3Mins ) {
+		Interaction3Ph::calcCouplingSquared(State<FullPoints> & state1,
+				State<FullPoints> & state2,
+				State<FullPoints> & state3Plus,
+				State<FullPoints> & state3Mins ) {
 
 	Eigen::Vector3d cell2Pos, cell3Pos;
 

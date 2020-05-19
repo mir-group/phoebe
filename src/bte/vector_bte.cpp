@@ -2,13 +2,15 @@
 
 // default constructor
 VectorBTE::VectorBTE(Context & context_,
-		ActiveBandStructure & activeBandStructure_,
+		FullBandStructure<FullPoints> & bandStructure_,
 		const long & dimensionality_) :
-		context(context_), activeBandStructure(activeBandStructure_) {
+		context(context_), bandStructure(bandStructure_) {
+
 	Eigen::VectorXd temperatures = context.getTemperatures();
 	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
 	numChemPots = chemicalPotentials.size();
 	numTemps = temperatures.size();
+
 	if ( dimensionality_ == 0 ) {
 		dimensionality = context.getDimensionality();
 	} else if ( dimensionality <0 ) {
@@ -16,21 +18,22 @@ VectorBTE::VectorBTE(Context & context_,
 	} else {
 		dimensionality = dimensionality_;
 	}
+
 	numCalcs = numTemps * numChemPots * dimensionality;
-	numStates = activeBandStructure.getNumStates();
+	numStates = bandStructure.getNumStates();
 	data = Eigen::MatrixXd::Zero(numCalcs,numStates);
 }
 
 // copy constructor
 VectorBTE::VectorBTE(const VectorBTE & that)
-		: VectorBTE(that.context, that.activeBandStructure) {
+		: VectorBTE(that.context, that.bandStructure) {
 	data = that.data;
 }
 
 // copy assigmnent
 VectorBTE & VectorBTE::operator = (const VectorBTE & that) {
     if ( this != &that) {
-    	activeBandStructure = that.activeBandStructure;
+    	bandStructure = that.bandStructure;
 		context = that.context;
     	numChemPots = that.numChemPots;
 		numTemps = that.numTemps;
@@ -53,7 +56,7 @@ Eigen::VectorXd VectorBTE::operator * (const VectorBTE & that) {
 
 // product operator overload
 VectorBTE VectorBTE::operator * (const double & scalar) {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	for ( long i=0; i<numCalcs; i++ ) {
 		newPopulation.data.row(i) = this->data.row(i) * scalar;
 	}
@@ -62,7 +65,7 @@ VectorBTE VectorBTE::operator * (const double & scalar) {
 
 // product operator overload
 VectorBTE VectorBTE::operator * (const Eigen::VectorXd & vector) {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	for ( long i=0; i<numCalcs; i++ ) {
 		newPopulation.data.row(i) = this->data.row(i) * vector(i);
 	}
@@ -71,36 +74,40 @@ VectorBTE VectorBTE::operator * (const Eigen::VectorXd & vector) {
 
 // product operator overload
 VectorBTE VectorBTE::operator + (const VectorBTE & that) {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data = this->data + that.data;
 	return newPopulation;
 }
 
 // product operator overload
 VectorBTE VectorBTE::operator - (const VectorBTE & that) {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data = this->data - that.data;
 	return newPopulation;
 }
 
 // product operator overload
 VectorBTE VectorBTE::operator - () {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data = - this->data;
 	return newPopulation;
 }
 
 // product operator overload
 VectorBTE VectorBTE::operator / (const VectorBTE & that) {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data << this->data.array() / that.data.array();
 	return newPopulation;
 }
 
 VectorBTE VectorBTE::sqrt() {
-	VectorBTE newPopulation(context, activeBandStructure);
+	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data << this->data.array().sqrt();
 	return newPopulation;
+}
+
+void VectorBTE::setConst(const double & constant) {
+	data.setConstant(constant);
 }
 
 long VectorBTE::glob2Loc(long & imu, long & it, long & idim) {

@@ -5,11 +5,11 @@
 #include "context.h"
 #include "active_bandstructure.h"
 
-template<typename T>
 class VectorBTE {
 public:
 	 // constructor
-	VectorBTE(Context & context_, ActiveBandStructure & activeBandStructure_,
+	VectorBTE(Context & context_,
+			FullBandStructure<FullPoints> & bandStructure_,
 			const long & dimensionality_=0);
 	// copy constructor
 	VectorBTE(const VectorBTE & that);
@@ -31,13 +31,17 @@ public:
 	VectorBTE operator / (const VectorBTE & that);
 
 	VectorBTE sqrt();
+
+	void setConst(const double & constant);
+
 //protected:
 	Context & context;
-	ActiveBandStructure & activeBandStructure;
+	FullBandStructure<FullPoints> & bandStructure;
 	long numChemPots;
 	long numTemps;
 	long numCalcs;
 	long numStates;
+	long dimensionality;
 	long glob2Loc(long & imu, long & it, long & idim);
 	std::tuple<long,long,long> loc2Glob(long & i);
 	Eigen::MatrixXd data;

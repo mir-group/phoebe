@@ -5,27 +5,38 @@
 #include "eigen.h"
 #include "statistics.h"
 
-template<typename T>
 class Window {
 public:
-	Window(Context & context, Statistics & statistics_);
+	Window(Context & context, Statistics & statistics_,
+			const double & temperatureMin = 0.,
+			const double & temperatureMax = 0.,
+			const double & chemicalPotentialMin = 0.,
+			const double & chemicalPotentialMax = 0.);
+
+	// public interface to use the window, used by activeBandStructure
 	std::tuple<std::vector<double>,std::vector<long>> apply(
 			Eigen::VectorXd & energies);
-	bool canOnTheFly;
 
 	static const long nothing = 0;
 	static const long population = 1;
 	static const long energy = 2;
 private:
-	T & statisticsSweep;
-	int method;
+	Statistics & statistics;
 
+	// parameters for window
+	double temperatureMin, temperatureMax;
+	double chemicalPotentialMin, chemicalPotentialMax;
 	double populationThreshold = 0.;
 	double minEnergy = 0., maxEnergy = 0.;
-	long numBands;
-	double chemicalPotentialMin, chemicalPotentialMax;
-	double maxTemperature;
 
+	// selection of window type
+	int method;
+
+	// temp variable
+	long numBands;
+
+
+	// internal method to apply the window
 	std::tuple<std::vector<double>,std::vector<long>> internalPopWindow(
 			Eigen::VectorXd& energies,
 			Eigen::VectorXd& dndtMin, Eigen::VectorXd& dndtMax,
@@ -33,31 +44,5 @@ private:
 	std::tuple<std::vector<double>,std::vector<long>> internalEnWindow(
 			Eigen::VectorXd energies);
 };
-
-template<>
-Window::Window(const long & method_, T & statisticsSweep_) :
-	statisticSweep(statisticsSweep_), method(method_) {
-
-	if ( method != nothing || method != population || method != energy ) {
-		Error e("Unrecognized method called in Window()", 1);
-	}
-
-	if ( method == population ) {
-		canOnTheFly = false;
-		populationThreshold = context.getWindowPopulationLimit();
-		if ( statisticSweep.getStatistics().isFermi() ) {
-			chemicalPotentialMin = context.getChemicalPotentials().minCoeff();
-			chemicalPotentialMax = context.getChemicalPotentials().maxCoeff();
-		} else {
-			chemicalPotentialMin = 0.;
-			chemicalPotentialMax = 0.;
-		}
-		maxTemperature = context.getTemperatures().maxCoeff();
-	} else {
-		canOnTheFly = true;
-		minEnergy = context.getWindowEnergyLimit().minCoeff();
-		maxEnergy = context.getWindowEnergyLimit().maxCoeff();
-	}
-}
 
 #endif

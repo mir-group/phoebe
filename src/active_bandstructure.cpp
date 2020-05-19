@@ -33,46 +33,6 @@ ActiveBandStructure & ActiveBandStructure::operator=(
 	return *this;
 }
 
-std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
-		ActiveBandStructure::builder(Context & context,
-				HarmonicHamiltonian h0, FullPoints & fullPoints) {
-
-	std::string inMethod = context.getWindowType();
-
-	if ( inMethod != "population" && inMethod != "energy" &&
-			inMethod != "nothing" ){
-		Error e("Unrecognized method called in Window()", 1);
-	}
-
-	if ( inMethod == "population" ) {
-		method = population;
-	} else if ( inMethod == "energy" ) {
-		method = energy;
-	} else {
-		method = nothing;
-	}
-
-	auto statistics = h0.getStatistics();
-
-	temperatures = context.getTemperatures();
-
-	Window window(context, statistics);
-
-	activeBandStructure(statistics);
-
-	if ( statistics.isPhonon ) {
-		chemicalPotentialMin = 0.;
-		chemicalPotentialMax = 0.;
-		temperatureMin = temperatures.minCoeff();
-		temperatureMax = temperatures.maxCoeff();
-		activePoints = buildOnTheFly(fullPoints, h0);
-		StatisticsSweep statisticsSweep(context, activeBandStructure);
-		return {activePoints,activeBandStructure,statisticsSweep};
-	} else {
-		Error e("apply window for electrons not implemented");
-	}
-}
-
 Statistics ActiveBandStructure::getStatistics() {
 	return statistics;
 }
@@ -99,113 +59,31 @@ long ActiveBandStructure::getNumStates() {
 	return numStates;
 }
 
-ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
-		FullPoints & fullPoints, HarmonicHamiltonian & h0) {
-
-	// Note: eigenvectors are assumed to be phonon eigenvectors
-	// might need adjustments in the future.
-
-	if ( ! window.canOnTheFly ) {
-		Error e("Window cannot be applied in this way" ,1);
+std::vector<std::complex<double>> ActiveBandStructure::flattenEigenvectors(
+		Eigen::MatrixXd & eigvecsIn,
+		std::vector<long> bandsExtrema) {
+	std::vector<std::complex<double>> x(eigvecsIn.rows()*eigvecsIn.cols(),0.);
+	for ( long i=bandsExtrema[0]; i<bandsExtrema[1]+1; i++ ) {
+		for ( long j=bandsExtrema[0]; j<bandsExtrema[1]+1; j++ ) {
+			x.push_back(eigvecsIn(i,j));
+		}
 	}
+	return x;
+}
 
-	numAtoms = fullPoints.getCrystal().getNumAtoms();
-
-	std::vector<long> filteredPoints;
-	std::vector<std::vector<long>> filteredBands;
-	std::vector<double> filteredEnergies;
-	std::vector<std::complex<double>> filteredEigenvectors;
-
-	for ( long ik=0; ik<fullPoints.getNumPoints(); ik++ ) {
-		Point point = fullPoints.getPoint(ik);
-
-		auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
-		// eigenvectors(3,numAtoms,numBands)
-
-		auto [ens, bandsExtrema] = window.apply(theseEnergies);
-
-		if ( ens.empty() ) {
-			continue;
-		} else {
-
-			filteredPoints.push_back(ik);
-			filteredBands.push_back(bandsExtrema);
-
-			for ( long unsigned ib=0; ib<ens.size(); ib++ ) {
-				filteredEnergies.push_back(ens[ib]);
-			}
-
-			if ( h0.hasEigenvectors ) {
-				std::complex<double> x;
-
-				if ( statistics.isPhonon ) {
-					for ( int i=0; i<3; i++ ) {
-						for ( int iat=0; iat<numAtoms; iat++ ) {
-							for ( long ibOld=bandsExtrema[0];
-									ibOld<bandsExtrema[1]+1; ibOld++ ) {
-								x = theseEigenvectors(i,iat,ibOld);
-								filteredEigenvectors.push_back(x);
-							}
-						}
-					}
-				} else {
-					for ( long ibOld=bandsExtrema[0];
-							ibOld<bandsExtrema[1]+1; ibOld++ ) {
-						for ( long jbOld=bandsExtrema[0];
-								jbOld<bandsExtrema[1]+1; jbOld++ ) {
-							x = theseEigenvectors(ibOld,jbOld);
-							filteredEigenvectors.push_back(x);
-						}
-					}
-				}
+std::vector<std::complex<double>> ActiveBandStructure::flattenEigenvectors(
+		Eigen::Tensor<std::complex<double>,3> & eigvecsIn,
+		std::vector<long> bandsExtrema) {
+	std::vector<std::complex<double>> x(eigvecsIn.dimension(0)*
+			eigvecsIn.dimension(1)*eigvecsIn.dimension(2),0.);
+    for ( int i=0; i<3; i++ ) {
+		for ( int iat=0; iat<numAtoms; iat++ ) {
+			for ( long j=bandsExtrema[0]; j<bandsExtrema[1]+1; j++ ) {
+				x.push_back(eigvecsIn(i,iat,j));
 			}
 		}
 	}
-
-	numPoints = filteredPoints.size();
-	VectorXl filter(numPoints);
-	for ( long i=0; i<numPoints; i++ ) {
-		filter(i) = filteredPoints[i];
-	}
-
-	VectorXl numBands(numPoints);
-	for ( long ik=0; ik<numPoints; ik++ ) {
-		numBands(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
-	}
-
-	numStates = numBands.sum();
-
-	ActivePoints activePoints_(fullPoints, filter);
-	activePoints = &activePoints_;
-
-	energies = filteredEnergies;
-
-	if ( h0.hasEigenvectors ) {
-		hasEigenvectors = true;
-		std::vector<std::complex<double>> eigenvectors(numStates*3*numAtoms);
-		eigenvectors = filteredEigenvectors;
-	}
-
-	// now we add velocities
-	for ( long ik=0; ik<numPoints; ik++ ) {
-		Point point = activePoints_.getPoint(ik);
-
-		// thisVelocity is a tensor of dimensions (ib, ib, 3)
-		auto thisVelocity = h0.diagonalizeVelocity(point);
-
-		// now we filter it
-		for ( long ib1Old = filteredBands[ik][0];
-				ib1Old<filteredBands[ik][1]+1; ib1Old++ ) {
-			for ( long i=0; i<3; i++ ) {
-				groupVelocities.push_back(thisVelocity(ib1Old,ib1Old,i).real());
-				for ( long ib2Old = filteredBands[ik][0];
-						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
-					velocities.push_back(thisVelocity(ib1Old,ib2Old,i));
-				}
-			}
-		}
-	}
-	return activePoints_;
+	return x;
 }
 
 ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
@@ -234,7 +112,6 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 			for ( long ib=bandsExtrema[0]; ib<bandsExtrema[1]+1; ib++ ) {
 				energies.push_back(ens[ib]);
 			}
-
 		}
 	}
 
@@ -412,6 +289,7 @@ State<ActivePoints> ActiveBandStructure::getState(Point<ActivePoints> & point){
 		thisEig = &eigenvectors[ind];
 	}
 
-	State<T> s(point, thisEn, numAtoms, numBands(ik), thisVel, thisEig);
+	State<ActivePoints> s(point, thisEn, numAtoms, numBands(ik), thisVel,
+			thisEig);
 	return s;
 }

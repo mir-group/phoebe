@@ -3,12 +3,14 @@
 
 #include "context.h"
 #include "vector_bte.h"
+#include "delta_function.h"
 
 class ScatteringMatrix {
 public:
-	ScatteringMatrix(Context & context_, StatisticsSweep & statisticsSweep_
-			FullBandStructure & innerBandStructure_,
-			FullBandStructure * outerBandStructure_ = nullptr);
+	ScatteringMatrix(Context & context_, StatisticsSweep & statisticsSweep_,
+			DeltaFunction * smearing_,
+			FullBandStructure<FullPoints> & innerBandStructure_,
+			FullBandStructure<FullPoints> & outerBandStructure_);
 	ScatteringMatrix(const ScatteringMatrix & that); // copy constructor
 	ScatteringMatrix & operator=(const ScatteringMatrix & that);//assignment op
 
@@ -21,11 +23,13 @@ public:
 	void unsetCGScaling();
 
 //	std::tuple<Eigen::VectorXd,Eigen::MatrixXd> diagonalize();
- private:
+protected:
 	Context & context;
 	StatisticsSweep & statisticsSweep;
-	FullBandStructure & innerBandStructure;
-	FullBandStructure * outerBandStructure;
+	DeltaFunction * smearing;
+
+	FullBandStructure<FullPoints> & innerBandStructure;
+	FullBandStructure<FullPoints> & outerBandStructure;
 
 	 // constant relaxation time approximation -> the matrix is just a scalar
 	bool constantRTA = true;
@@ -33,18 +37,15 @@ public:
 	bool hasCGScaling = false;
 
 	VectorBTE internalDiagonal;
-	std::vector<Eigen::MatrixXd> theMatrix;
+	Eigen::MatrixXd theMatrix;
 	long numStates;
 	long numPoints;
 	long numCalcs;
 
-//	long deltaFunctionSelection;
-	std::unique_ptr<DeltaFunction> smearing;
-
 	// pure virtual function
 	// needs an implementation in every subclass
 	virtual void builder(Eigen::MatrixXd * matrix, VectorBTE * linewidth,
-			Vector3BTE * inPopulation, VectorBTE * outPopulation) = 0;
+			VectorBTE * inPopulation, VectorBTE * outPopulation) = 0;
 };
 
 #endif

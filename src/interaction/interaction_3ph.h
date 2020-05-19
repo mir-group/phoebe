@@ -1,3 +1,6 @@
+#ifndef PHINTERACTION_H
+#define PHINTERACTION_H
+
 #include <complex>
 #include "eigen.h"
 #include "state.h"
@@ -15,9 +18,10 @@ private:
 
 	std::tuple<Eigen::Tensor<std::complex<double>,3>,
 			Eigen::Tensor<std::complex<double>,3>>
-			PhInteraction3Ph::calcCouplingSquared(
-			State & state1, State & state2, State & state3);
-
+			calcCouplingSquared(State<FullPoints> & state1,
+					State<FullPoints> & state2,
+					State<FullPoints> & state3Plus,
+					State<FullPoints> & state3Mins);
 public:
 
 	Interaction3Ph(Crystal & crystal_,
@@ -31,8 +35,10 @@ public:
 	// this is an interface: we can compute it on the fly or read the cache.
 	std::tuple<Eigen::Tensor<std::complex<double>,3>,
 			Eigen::Tensor<std::complex<double>,3>>
-			PhInteraction3Ph::getCouplingSquared(
-			State & state1, State & state2, State & state3);
+			getCouplingSquared(State<FullPoints> & state1,
+					State<FullPoints> & state2,
+					State<FullPoints> & state3Plus,
+					State<FullPoints> & state3Mins);
 
 	/**
 	 * Calculate single three-phonon matrix element (V^{+}/V^{-1}).
@@ -56,20 +62,22 @@ public:
 	 * @return The complex matrix element.
 	 */
 
-//	double calculateSingleV(const PhononTriplet &interactingPhonons, const Eigen::MatrixXd &q, \
-//			const int numTriplets, const Eigen::Tensor<double,4> &ifc3Tensor, \
-//			const Eigen::Tensor<double,3> &cellPositions, \
-//			const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo, \
+//	double calculateSingleV(const PhononTriplet &interactingPhonons, const Eigen::MatrixXd &q,
+//			const int numTriplets, const Eigen::Tensor<double,4> &ifc3Tensor,
+//			const Eigen::Tensor<double,3> &cellPositions,
+//			const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo,
 //			const char procType);
 
-	//  void calculateAllVminus(const int *grid, const PhononMode &mode, \
-	//			    const Eigen::MatrixXd &qFBZ, \
-	//			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets, \
-	//			    const Eigen::Tensor<double,4> &ifc3Tensor,	\
-	//			    const Eigen::Tensor<double,3> &cellPositions, \
-	//			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
-	//
-	//  void calculateAllW(const double T,const int *grid, const PhononMode &mode, \
-	//		     const Eigen::MatrixXi &indexMesh, const CrystalInfo &crysInfo, \
-	//		     const Eigen::MatrixXd omega, const TetraData tetra);
+//  void calculateAllVminus(const int *grid, const PhononMode &mode,
+//			    const Eigen::MatrixXd &qFBZ,
+//			    const Eigen::Tensor<complex<double>,3> &ev, const int numTriplets,
+//			    const Eigen::Tensor<double,4> &ifc3Tensor,
+//			    const Eigen::Tensor<double,3> &cellPositions,
+//			    const Eigen::Tensor<int,2> &displacedAtoms,const CrystalInfo &crysInfo);
+//
+//  void calculateAllW(const double T,const int *grid, const PhononMode &mode,
+//		     const Eigen::MatrixXi &indexMesh, const CrystalInfo &crysInfo,
+//		     const Eigen::MatrixXd omega, const TetraData tetra);
 };
+
+#endif

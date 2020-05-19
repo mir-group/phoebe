@@ -4,21 +4,17 @@
 #include "constants.h"
 
 // app factory
-std::unique_ptr<DeltaFunction> DeltaFunction::loadSmearing(
+DeltaFunction * DeltaFunction::smearingFactory(
 		const int & choice,
-		Context & context_,
-		FullPoints & fullPoints_,
-		FullBandStructure<FullPoints> & fullBandStructure_) {
+		Context & context,
+		FullPoints * fullPoints,
+		FullBandStructure<FullPoints> * fullBandStructure) {
 	if ( choice == gaussian ) {
-		return std::unique_ptr<DeltaFunction> (new GaussianDeltaFunction(
-				context_));
+		return new GaussianDeltaFunction(context);
 	} else if ( choice == adaptiveGaussian ) {
-		return std::unique_ptr<DeltaFunction> (new
-				AdaptiveGaussianDeltaFunction(FullPoints & fullPoints_));
+		return new AdaptiveGaussianDeltaFunction(fullPoints);
 	} else if ( choice == tetrahedron ) {
-		return std::unique_ptr<DeltaFunction> (new TetrahedronDeltaFunction(
-				FullPoints & fullPoints_,
-				FullBandStructure<FullPoints> & fullBandStructure_));
+		return new TetrahedronDeltaFunction(*fullPoints, *fullBandStructure);
 	} else {
 		Error e("Unrecognized smearing choice");
 	}

@@ -9,12 +9,14 @@
 
 class BulkTDrift : public VectorBTE {
 public:
-	BulkTDrift(Context & context, ActiveBandStructure & activeBandStructure);
+	BulkTDrift(Context & context,
+			FullBandStructure<FullPoints> & bandStructure);
 };
 
 class BulkEDrift : public VectorBTE {
 public:
-	BulkEDrift(Context & context, ActiveBandStructure & activeBandStructure);
+	BulkEDrift(Context & context,
+			FullBandStructure<FullPoints> & bandStructure);
 };
 
 #endif

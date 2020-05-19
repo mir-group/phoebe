@@ -195,7 +195,7 @@ PhononThermalConductivity::PhononThermalConductivity(Context & context_,
 void PhononThermalConductivity::calcFromPopulation(VectorBTE & f,
 		VectorBTE & b) {
 	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd lambda = 1. / f.activeBandStructure.getNumPoints()
+	Eigen::VectorXd lambda = 1. / f.bandStructure.getNumPoints()
 			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
 	long numStates = f.numStates;
 
@@ -220,7 +220,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & f,
 void PhononThermalConductivity::calcVariational(VectorBTE & af,
 		VectorBTE & f, VectorBTE & b) {
 	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd lambda = 1. / f.activeBandStructure.getNumPoints()
+	Eigen::VectorXd lambda = 1. / f.bandStructure.getNumPoints()
 			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
 	long numStates = f.numStates;
 
