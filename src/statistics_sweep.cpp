@@ -6,6 +6,18 @@
 #include "constants.h"
 #include <cmath>
 
+std::unique_ptr<StatisticsSweep> * StatisticsSweep::SweepFactory(
+			const std::string & choice, Context & context,
+			FullBandStructure<FullPoints> * fullBandStructure) {
+	if ( choice == "electron" ) {
+		return std::unique_ptr<StatisticsSweep> (
+				new ElStatisticsSweep(context,*fullBandStructure));
+	} else {
+		return std::unique_ptr<StatisticsSweep> (
+				new PhStatisticsSweep(context));
+	}
+}
+
 PhStatisticsSweep::PhStatisticsSweep(Context & context) :
 		statistics(Statistics::phonon) {
 	temperatures = context.getTemperatures();
@@ -34,9 +46,11 @@ PhStatisticsSweep & PhStatisticsSweep::operator = (
 	return *this;
 }
 
-struct PhCalcStatistics PhStatisticsSweep::getCalcStatistics(const long & it) {
+struct CalcStatistics PhStatisticsSweep::getCalcStatistics(const long & it) {
 	struct CalcStatistics sc;
 	sc.temperature = temperatures(it);
+	sc.chemicalPotential = 0.;
+	sc.doping = 0.;
 	return sc;
 }
 
@@ -267,7 +281,7 @@ double ElStatisticsSweep::findDopingFromChemicalPotential(
 	return doping;
 }
 
-struct ElCalcStatistics ElStatisticsSweep::getCalcStatistics(const long&index){
+struct CalcStatistics ElStatisticsSweep::getCalcStatistics(const long & index){
 	struct CalcStatistics sc;
 	sc.temperature = infoCalcs(index,0);
 	sc.chemicalPotential = infoCalcs(index,1);
@@ -275,7 +289,7 @@ struct ElCalcStatistics ElStatisticsSweep::getCalcStatistics(const long&index){
 	return sc;
 }
 
-struct ElCalcStatistics ElStatisticsSweep::getCalcStatistics(const long &iTemp,
+struct CalcStatistics ElStatisticsSweep::getCalcStatistics(const long & iTemp,
 		const long & iChemPot) {
 	long index = compress2Indeces(iTemp,iChemPot,nTemp,nChemPot);
 	return getCalcStatistics(index);

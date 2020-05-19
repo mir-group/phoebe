@@ -2,17 +2,20 @@
 #include "bandstructure.h"
 #include "statistics.h"
 
-struct PhCalcStatistics {
-	double temperature;
-};
-
-struct ElCalcStatistics {
+struct CalcStatistics {
 	double temperature;
 	double chemicalPotential;
 	double doping;
 };
 
-class PhStatisticsSweep {
+class StatisticsSweep {
+public:
+	static std::unique_ptr<StatisticsSweep> * SweepFactory(
+			const std::string & choice, Context & context,
+			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
+};
+
+class PhStatisticsSweep : public StatisticsSweep {
 public:
 	PhStatisticsSweep(Context & context);
 	// copy constructor
@@ -30,7 +33,7 @@ private:
 	Eigen::VectorXd temperatures;
 };
 
-class ElStatisticsSweep {
+class ElStatisticsSweep : public StatisticsSweep {
 public:
 	ElStatisticsSweep(Context & context,
 			FullBandStructure<FullPoints> & fullBandStructure);
