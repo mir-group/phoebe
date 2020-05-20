@@ -67,6 +67,13 @@ public:
 	template<typename T>
 	FullBandStructure<T> populate(T & points, bool & withVelocities,
 			bool & withEigenvectors);
+
+	// this is almost the same as diagonalize, but takes in input the
+	// cartesian coordinates
+	// also, we return the eigenvectors aligned with the dynamical matrix,
+	// and without the mass scaling.
+	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+				Eigen::Vector3d & q);
 protected:
 	Statistics statistics;
 
@@ -113,13 +120,6 @@ protected:
 			Eigen::Tensor<std::complex<double>, 4> & f_of_q);
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dyndiag(
 			Eigen::Tensor<std::complex<double>,4> & dyn);
-
-	// this is almost the same as diagonalize, but takes in input the
-	// cartesian coordinates
-	// also, we return the eigenvectors aligned with the dynamical matrix,
-	// and without the mass scaling.
-	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-				Eigen::Vector3d & q);
 
 	// methods for sum rule
 	void sp_zeu(Eigen::Tensor<double,3> & zeu_u,

@@ -39,10 +39,8 @@ void PhononTransportApp::run(Context & context) {
 	BulkTDrift drift(context, bandStructure);
 
 	// build/initialize the scattering matrix and the smearing
-	auto smearing = DeltaFunction::smearingFactory(context.getSmearingMethod(),
-			context, &fullPoints, &bandStructure);
 	PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
-			smearing, bandStructure, bandStructure, &coupling3Ph);
+			bandStructure, bandStructure, &coupling3Ph);
 
 	// solve the BTE at the relaxation time approximation level
 	// we always do this, as it's the cheapest solver and is required to know

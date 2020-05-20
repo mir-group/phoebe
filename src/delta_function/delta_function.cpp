@@ -4,17 +4,15 @@
 #include "constants.h"
 
 // app factory
-DeltaFunction * DeltaFunction::smearingFactory(
-		const int & choice,
-		Context & context,
-		FullPoints * fullPoints,
-		FullBandStructure<FullPoints> * fullBandStructure) {
+DeltaFunction * DeltaFunction::smearingFactory(Context & context,
+		FullBandStructure<FullPoints> & fullBandStructure) {
+	auto choice = context.getSmearingMethod();
 	if ( choice == gaussian ) {
 		return new GaussianDeltaFunction(context);
 	} else if ( choice == adaptiveGaussian ) {
-		return new AdaptiveGaussianDeltaFunction(fullPoints);
+		return new AdaptiveGaussianDeltaFunction(fullBandStructure);
 	} else if ( choice == tetrahedron ) {
-		return new TetrahedronDeltaFunction(*fullPoints, *fullBandStructure);
+		return new TetrahedronDeltaFunction(fullBandStructure);
 	} else {
 		Error e("Unrecognized smearing choice");
 	}
@@ -31,8 +29,9 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 	return prefactor * exp( - x*x );
 }
 
-AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(Points & points) {
-	auto [mesh,offset] = points.getMesh();
+AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
+		FullBandStructure<FullPoints> & bandStructure) {
+	auto [mesh,offset] = bandStructure.getPoints().getMesh();
 	qTensor = points.getCrystal().getReciprocalUnitCell();
 	qTensor.row(0) /= mesh(0);
 	qTensor.row(1) /= mesh(1);
@@ -48,9 +47,8 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 	return exp( - x*x ) / sqrtPi / smearing;
 }
 
-Tetrahedra::Tetrahedra(FullPoints & fullPoints_,
-		FullBandStructure<FullPoints> & fullBandStructure_) :
-		fullPoints(fullPoints_),
+Tetrahedra::Tetrahedra(FullBandStructure<FullPoints> & fullBandStructure_) :
+		fullPoints(fullBandStructure.getPoints()),
 		fullBandStructure(fullBandStructure_) {
 
 	auto [grid, offset] = fullPoints.getMesh();

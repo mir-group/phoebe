@@ -1,44 +1,31 @@
 #include "scattering.h"
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
-		StatisticsSweep & statisticsSweep_,
-		DeltaFunction * smearing_,
+		StatisticsSweep * statisticsSweep_,
 		FullBandStructure<FullPoints> & innerBandStructure_,
 		FullBandStructure<FullPoints> & outerBandStructure_) :
 		context(context_), statisticsSweep(statisticsSweep_),
-		smearing(smearing_),
 		innerBandStructure(innerBandStructure_),
 		outerBandStructure(outerBandStructure_),
 		internalDiagonal(context,outerBandStructure,1) {
-	if ( constantRTA ) return;
 
 	numStates = outerBandStructure.getNumStates();
 	numPoints = outerBandStructure.getNumPoints();
+
+	if ( constantRTA ) return;
+
+	smearing = DeltaFunction::smearingFactory(context,innerBandStructure);
+
+	statisticsSweep = statisticsSweep;
 
 	// the difference arises from the fact that vectors in the BTE have
 	// numCalcs set to nTemp * 3, whereas the matrix only depends on nTemp.
 	// so, when we compute the action of the scattering matrix, we must take
 	// into account for this misalignment
 	if ( highMemory ) {
-		numCalcs = statisticsSweep.getNumCalcs();
+		numCalcs = statisticsSweep->getNumCalcs();
 	} else {
-		numCalcs = statisticsSweep.getNumCalcs() * context.getDimensionality();
-	}
-
-	if ( highMemory ) {
-
-		if ( numCalcs > 1 ) {
-			// note: one could write code around this
-			// but the methods are very memory intensive for production runs
-			Error e("High memory BTE methods can only work with one "
-					"temperature and/or chemical potential in a single run");
-		}
-		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
-		// calc matrix and linew.
-		builder(&theMatrix,&internalDiagonal,nullptr,nullptr);
-	} else {
-		// calc linewidths only
-		builder(nullptr,&internalDiagonal,nullptr,nullptr);
+		numCalcs = statisticsSweep->getNumCalcs() *context.getDimensionality();
 	}
 }
 

@@ -7,8 +7,7 @@
 
 class ScatteringMatrix {
 public:
-	ScatteringMatrix(Context & context_, StatisticsSweep & statisticsSweep_,
-			DeltaFunction * smearing_,
+	ScatteringMatrix(Context & context_, StatisticsSweep * statisticsSweep_,
 			FullBandStructure<FullPoints> & innerBandStructure_,
 			FullBandStructure<FullPoints> & outerBandStructure_);
 	ScatteringMatrix(const ScatteringMatrix & that); // copy constructor
@@ -25,7 +24,7 @@ public:
 //	std::tuple<Eigen::VectorXd,Eigen::MatrixXd> diagonalize();
 protected:
 	Context & context;
-	StatisticsSweep & statisticsSweep;
+	StatisticsSweep * statisticsSweep;
 	DeltaFunction * smearing;
 
 	FullBandStructure<FullPoints> & innerBandStructure;

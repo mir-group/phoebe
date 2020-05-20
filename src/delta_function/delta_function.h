@@ -10,10 +10,8 @@
 class DeltaFunction {
 public:
 	// here a smearing factory
-	static DeltaFunction * smearingFactory(const int & choice,
-			Context & context,
-			FullPoints * fullPoints=nullptr,
-			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
+	static DeltaFunction * smearingFactory(Context & context,
+			FullBandStructure<FullPoints> & fullBandStructure);
 	static const int gaussian = 0;
 	static const int adaptiveGaussian = 1;
 	static const int tetrahedron = 2;
@@ -31,9 +29,8 @@ private:
 };
 
 class AdaptiveGaussianDeltaFunction : public DeltaFunction {
-	AdaptiveGaussianDeltaFunction(Points & points);
-	double getSmearing(const double & energy,
-			const Eigen::Vector3d & velocity);
+	AdaptiveGaussianDeltaFunction(FullBandStructure<FullPoints>&bandStructure);
+	double getSmearing(const double & energy,const Eigen::Vector3d & velocity);
 	const int id = 1;
 private:
 	const double smearingCutoff = 1.0e-8;
@@ -57,8 +54,7 @@ class TetrahedronDeltaFunction : public DeltaFunction {
 	 * @param[in] grid: the mesh points along the three lattice vectors.
 	 *
 	 */
-	TetrahedronDeltaFunction(FullPoints & fullPoints_,
-			FullBandStructure<FullPoints> & fullBandStructure_);
+	TetrahedronDeltaFunction(FullBandStructure<FullPoints>&fullBandStructure_);
 
 	/**
 	 * Calculate tetrehedron weight.
