@@ -27,6 +27,21 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	} else {
 		numCalcs = statisticsSweep->getNumCalcs() *context.getDimensionality();
 	}
+
+	if ( highMemory ) {
+		if ( numCalcs > 1 ) {
+			// note: one could write code around this
+			// but the methods are very memory intensive for production runs
+			Error e("High memory BTE methods can only work with one "
+					"temperature and/or chemical potential in a single run");
+		}
+		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
+		// calc matrix and linew.
+		builder(&theMatrix, &internalDiagonal, nullptr, nullptr);
+	} else {
+		// calc linewidths only
+		builder(nullptr, &internalDiagonal, nullptr, nullptr);
+	}
 }
 
 // copy constructor

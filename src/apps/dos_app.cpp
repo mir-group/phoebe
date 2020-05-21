@@ -1,3 +1,5 @@
+#include <fstream>
+#include <iostream>
 #include <string>
 #include "dos_app.h"
 #include "exceptions.h"
@@ -21,8 +23,7 @@ void PhononDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
-			context, *fullPoints, *fullBandStructure);
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -64,8 +65,7 @@ void ElectronWannierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
-			context, *fullPoints, *fullBandStructure);
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -108,8 +108,7 @@ void ElectronFourierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	tetrahedra = DeltaFunction::smearingFactory(DeltaFunction::tetrahedron,
-			context, *fullPoints, *fullBandStructure);
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();

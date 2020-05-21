@@ -416,7 +416,7 @@ std::tuple<Eigen::MatrixXd , Eigen::VectorXi, std::vector<std::string>> parseCry
 		atomicPositions(counter-iStart-1,1) = std::stod(splitLine[2]);
 		atomicPositions(counter-iStart-1,2) = std::stod(splitLine[3]);
 	}
-	atomicPositions /= distanceRyToAng;
+	atomicPositions /= distanceBohrToAng;
 	return {atomicPositions,atomicSpecies,speciesNames};
 }
 

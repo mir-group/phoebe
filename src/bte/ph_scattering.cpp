@@ -16,21 +16,6 @@ PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 	if ( &innerBandStructure != &outerBandStructure && h0 == nullptr ) {
 		Error e("PhScatteringMatrix needs h0 for incommensurate grids");
 	}
-
-	if ( highMemory ) {
-		if ( numCalcs > 1 ) {
-			// note: one could write code around this
-			// but the methods are very memory intensive for production runs
-			Error e("High memory BTE methods can only work with one "
-					"temperature and/or chemical potential in a single run");
-		}
-		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
-		// calc matrix and linew.
-		builder(&theMatrix,&internalDiagonal,nullptr,nullptr);
-	} else {
-		// calc linewidths only
-		builder(nullptr,&internalDiagonal,nullptr,nullptr);
-	}
 }
 
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix & that) :
@@ -59,17 +44,17 @@ PhScatteringMatrix & PhScatteringMatrix::operator=(
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
 void PhScatteringMatrix::builder(
-		Eigen::MatrixXd * matrix, VectorBTE * linewidth,
+		Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 		VectorBTE * inPopulation, VectorBTE * outPopulation) {
 
-	int switchCase;
-	if ( matrix != nullptr && linewidth != nullptr &&
+	int switchCase = 0;
+	if ( matrix.rows() != 0 && linewidth != nullptr &&
 		inPopulation == nullptr && outPopulation == nullptr  ) {
 		switchCase = 0;
-	} else if ( matrix == nullptr && linewidth == nullptr &&
+	} else if ( matrix.rows() == 0 && linewidth == nullptr &&
 		inPopulation != nullptr && outPopulation != nullptr  ) {
 		switchCase = 1;
-	} else if ( matrix == nullptr && linewidth != nullptr &&
+	} else if ( matrix.rows() == 0 && linewidth != nullptr &&
 		inPopulation == nullptr && outPopulation == nullptr  ) {
 		switchCase = 2;
 	} else {
@@ -83,7 +68,6 @@ void PhScatteringMatrix::builder(
 	bool dontComputeQ3 = &innerBandStructure == &outerBandStructure;
 
 	auto statistics = outerBandStructure.getStatistics();
-	double energyCutoff = 1.0e-8;
 
 	long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
 	long numCalcs = statisticsSweep->getNumCalcs();
@@ -130,16 +114,22 @@ void PhScatteringMatrix::builder(
 
 	// note: these variables are only needed in the loop
 	// but since it's an expensive loop, we define them here once and for all
-	double ratePlus1, ratePlus2, rateMins;
-	double deltaPlus1, deltaPlus2, deltaMins;
+	long nb3Plus, nb3Mins, ind1, ind2;
+	double ratePlus1, ratePlus2, rateMins, deltaPlus1, deltaPlus2, deltaMins;
+	double en1, en2, en3Plus, en3Mins, bose1, bose2, bose3Plus, bose3Mins;
 	Eigen::Tensor<double,3> couplingPlus, couplingMins;
 	Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
-	Eigen::VectorXd bose3Plus, bose3Mins;
 	Eigen::Vector3d v1, v2;
-	long nb3Plus, nb3Mins;
 	Eigen::MatrixXd bose3PlusData, bose3MinsData;
-	double en1, en2, en3Plus, en3Mins, bose1, bose2;
-	long ind1, ind2;
+	Eigen::VectorXd eigvals3Plus, eigvals3Mins;
+	Eigen::MatrixXcd eigvecs3Plus, eigvecs3Mins;
+//	DetachedState states3Plus, states3Mins;
+
+//	double * eigvals3Plus_, eigvals3Mins_;
+//	std::complex<double> * eigvecs3Plus_, eigvecs3Mins_;
+//	std::complex<double> * velPtr=nullptr;
+//	std::vector<double> q3Plusv(3), q3Minsv(3);
+
 
 	for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
 
@@ -206,17 +196,19 @@ void PhScatteringMatrix::builder(
 						+ q2.getCoords("cartesian");
 				Eigen::Vector3d q3MinsC = q1.getCoords("cartesian")
 						- q2.getCoords("cartesian");
-				auto q3Plus = Point<Eigen::Vector3d>(-1,
-						Eigen::Vector3d::Zero(), q3PlusC);
-				auto q3Mins = Point<Eigen::Vector3d>(-1,
-						Eigen::Vector3d::Zero(), q3MinsC);
-				auto [eigvals1,eigvecs1] = h0->diagonalizeFromCoords(q3PlusC);
-				State<Eigen::Vector3d> states3Plus(q3Plus, eigvals1, numAtoms,
-						nb3Plus, nullptr, eigvecs1);
 
-				auto [eigvals2,eigvecs2] = h0->diagonalizeFromCoords(q3MinsC);
-				State<Eigen::Vector3d> states3Mins(q3Mins, eigvals2, numAtoms,
-						nb3Mins, nullptr, eigvecs2);
+				auto [eigvals3Plus,eigvecs3Plus] = h0->diagonalizeFromCoords(
+						q3PlusC);
+				auto [eigvals3Mins,eigvecs3Mins] = h0->diagonalizeFromCoords(
+						q3MinsC);
+
+				nb3Plus = eigvals3Plus.size();
+				nb3Mins = eigvals3Mins.size();
+
+				DetachedState states3Plus(q3PlusC, eigvals3Plus, numAtoms,
+						nb3Plus, eigvecs3Plus);
+				DetachedState states3Mins(q3MinsC, eigvals3Mins, numAtoms,
+						nb3Mins, eigvecs3Mins);
 
 				auto [couplingPlus, couplingMins] =
 						coupling3Ph->getCouplingSquared(states1, states2Plus,
@@ -224,8 +216,6 @@ void PhScatteringMatrix::builder(
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
-				nb3Plus = state3PlusEnergies.size();
-				nb3Mins = state3MinsEnergies.size();
 				bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
@@ -261,6 +251,7 @@ void PhScatteringMatrix::builder(
 									en1 + en3Plus - en2 );
 							deltaPlus2 = smearing->getSmearing(
 									en1 - en2 - en3Plus);
+							break;
 						case ( DeltaFunction::adaptiveGaussian ):
 							v1 = states1.getVelocity(ib1);
 							v2 = states2.getVelocity(ib2);
@@ -268,11 +259,13 @@ void PhScatteringMatrix::builder(
 									en1 + en3Plus - en2, v1-v2);
 							deltaPlus2 = smearing->getSmearing(
 									en1 - en2 - en3Plus, v1-v2);
+							break;
 						default:
 							deltaPlus1 = smearing->getSmearing(
 									en3Plus-en1, iq2, ib2);
 							deltaPlus2 = smearing->getSmearing(
 									en3Plus+en1, iq2, ib2);
+							break;
 						}
 
 						// loop on temperature
@@ -286,12 +279,12 @@ void PhScatteringMatrix::builder(
 							ratePlus1 = pi * 0.25
 									* bose3Plus * bose1 * ( bose2 + 1. )
 									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus;
+									* deltaPlus1;
 
 							ratePlus2 = pi * 0.25
 									* bose2 * bose3Plus * ( bose1 + 1. )
 									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus;
+									* deltaPlus2;
 
 							// note: to increase performance, we are in fact
 							// using
@@ -299,9 +292,10 @@ void PhScatteringMatrix::builder(
 							switch ( switchCase ) {
 							case (0):
 								// case of matrix construction
-								*matrix(ind1,ind2) -= ratePlus1 + ratePlus2;
+								matrix(ind1,ind2) -= ratePlus1 + ratePlus2;
 								linewidth->data(iCalc,ind1) +=
 										0.5 * (ratePlus1 + ratePlus2);
+								break;
 							case (1):
 								// case of matrix-vector multiplication
 
@@ -313,35 +307,40 @@ void PhScatteringMatrix::builder(
 											0.5 * (ratePlus1 + ratePlus2) *
 											inPopulation->data(3*iCalc+i,ind1);
 								}
+								break;
 							case (2):
 								// case of linewidth construction
 								linewidth->data(iCalc,ind1) +=
 										0.5 * (ratePlus1 + ratePlus2);
+								break;
 							}
 						}
 					}
 
 					for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-						en3Plus = state3MinsEnergies(ib3);
+						en3Mins = state3MinsEnergies(ib3);
 
 						switch ( smearing->id ) {
 						case ( DeltaFunction::gaussian ):
 							deltaMins  = smearing->getSmearing(
 									en1 + en2 - en3Mins );
+							break;
 						case ( DeltaFunction::adaptiveGaussian ):
 							v1 = states1.getVelocity(ib1);
 							v2 = states2.getVelocity(ib2);
 							deltaMins = smearing->getSmearing(
 									en1 + en2 - en3Mins, v1+v2);
+							break;
 						default:
 							deltaMins = smearing->getSmearing(
 									en1 - en3Mins, iq2, ib2);
+							break;
 						}
 
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
-							bose1 = bose.data(iCalc,ind1);
-							bose2 = bose.data(iCalc,ind2);
+							bose1 = outerBose.data(iCalc,ind1);
+							bose2 = innerBose.data(iCalc,ind2);
 							bose3Mins = bose3MinsData(iCalc,ib3);
 
 							//Calculatate transition probability W-
@@ -350,27 +349,27 @@ void PhScatteringMatrix::builder(
 									* couplingMins(ib1,ib2,ib3)
 									* deltaMins;
 
-							matrix(i,j) += rateMins;
-							outVector(i) += 0.5 * rateMins;
-
 							switch ( switchCase ) {
 							case (0):
 								// case of matrix construction
 								matrix(ind1,ind2) += rateMins;
-								linewidth.data(iCalc,ind1) += 0.5 * rateMins;
+								linewidth->data(iCalc,ind1) += 0.5 * rateMins;
+								break;
 							case (1):
 								// case of matrix-vector multiplication
 								for ( long i : {0,1,2} ) {
-									outPopulation.data(3*iCalc+i,ind1) +=
+									outPopulation->data(3*iCalc+i,ind1) +=
 											0.5 * rateMins *
-											inPopulation.data(3*iCalc+i,ind2);
-									outPopulation.data(3*iCalc+i,ind1) +=
+											inPopulation->data(3*iCalc+i,ind2);
+									outPopulation->data(3*iCalc+i,ind1) +=
 											0.5 * rateMins *
-											inPopulation.data(3*iCalc+i,ind1);
+											inPopulation->data(3*iCalc+i,ind1);
 								}
+								break;
 							case (2):
 								// case of linewidth construction
-								linewidth.data(iCalc,ind1) += 0.5 * rateMins;
+								linewidth->data(iCalc,ind1) += 0.5 * rateMins;
+								break;
 							}
 
 						}
@@ -379,6 +378,4 @@ void PhScatteringMatrix::builder(
 			}
 		}
 	}
-
-	return outVector;
 }

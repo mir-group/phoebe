@@ -18,13 +18,12 @@ private:
 	Eigen::Tensor<long,2> displacedAtoms;
 
 	template <typename A,typename B,typename C>
-	std::tuple<Eigen::Tensor<std::complex<double>,3>,
-			Eigen::Tensor<std::complex<double>,3>>
+	std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			calcCouplingSquared(State<A> & state1,
 					State<B> & state2Plus,
 					State<B> & state2Mins,
-					State<C> & state3Plus,
-					State<C> & state3Mins);
+					C & state3Plus,
+					C & state3Mins);
 
 	// we set to zero rates for scattering with states of energies <0.001 cm^-1
 	const double energyCutoff = 0.001 / ryToCmm1;
@@ -40,13 +39,12 @@ public:
 
 	// this is an interface: we can compute it on the fly or read the cache.
 	template <typename A,typename B,typename C>
-	std::tuple<Eigen::Tensor<std::complex<double>,3>,
-			Eigen::Tensor<std::complex<double>,3>>
+	std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			getCouplingSquared(State<A> & state1,
 					State<B> & state2Plus,
 					State<B> & state2Mins,
-					State<C> & state3Plus,
-					State<C> & state3Mins);
+					C & state3Plus,
+					C & state3Mins);
 
 	/**
 	 * Calculate single three-phonon matrix element (V^{+}/V^{-1}).
@@ -90,31 +88,32 @@ public:
 
 
 template <typename A,typename B,typename C>
-std::tuple<Eigen::Tensor<std::complex<double>,3>,
-		Eigen::Tensor<std::complex<double>,3>>
+std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		Interaction3Ph::getCouplingSquared(State<A> & state1,
 				State<B> & state2Plus, State<B> & state2Mins,
-				State<C> & state3Plus, State<C> & state3Mins) {
+				C & state3Plus, C & state3Mins) {
 	return calcCouplingSquared(state1, state2Plus, state2Mins,
 			state3Plus, state3Mins);
 }
 
 template <typename A,typename B,typename C>
-std::tuple<Eigen::Tensor<std::complex<double>,3>,
-		Eigen::Tensor<std::complex<double>,3>>
+std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		Interaction3Ph::calcCouplingSquared(State<A> & state1,
 				State<B> & state2Plus,
 				State<B> & state2Mins,
-				State<C> & state3Plus,
-				State<C> & state3Mins ) {
+				C & state3Plus,
+				C & state3Mins ) {
 
 	Eigen::Vector3d cell2Pos, cell3Pos;
 
-	auto ev1 = state1.getEigenvectors(); // size (3,numAtoms,numBands)
-	auto ev2Plus = state2Plus.getEigenvectors();
-	auto ev2Mins = state2Mins.getEigenvectors();
-	auto ev3Plus = state3Plus.getEigenvectors();
-	auto ev3Mins = state3Mins.getEigenvectors();
+	Eigen::Tensor<std::complex<double>,3> ev1, ev2Plus, ev2Mins, ev3Plus,
+			ev3Mins;
+
+	state1.getEigenvectors(ev1); // size (3,numAtoms,numBands)
+	state2Plus.getEigenvectors(ev2Plus);
+	state2Mins.getEigenvectors(ev2Mins);
+	state3Plus.getEigenvectors(ev3Plus);
+	state3Mins.getEigenvectors(ev3Mins);
 
 	//phonon branches:
 	// we allow the number of bands to be different in each direction
@@ -124,17 +123,11 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 	long nb3Mins = ev3Mins.dimension(2);
 
 	//Cartesian phonon wave vectors: q1,q2,q3
-	auto q1 = state1.getPoint().getCoords("cartesian");
-	auto q2Plus = state2Plus.getPoint().getCoords("cartesian");
-	auto q2Mins = state2Mins.getPoint().getCoords("cartesian");
-	auto q3Plus = state3Plus.getPoint().getCoords("cartesian");
-	auto q3Mins = state3Mins.getPoint().getCoords("cartesian");
-
-	auto energies1 = state1.getEnergies();
-	auto energies2 = state2Plus.getEnergies();
-//	energies2Mins = state2Mins.getEnergies(); // energies(-q) = energies(q)
-	auto energies3Plus = state3Plus.getEnergies();
-	auto energies3Mins = state3Mins.getEnergies();
+//	auto q1 = state1.getPoint().getCoords("cartesian");
+	auto q2Plus = state2Plus.getCoords("cartesian");
+	auto q2Mins = state2Mins.getCoords("cartesian");
+	auto q3Plus = state3Plus.getCoords("cartesian");
+	auto q3Mins = state3Mins.getCoords("cartesian");
 
 	Eigen::Tensor<std::complex<double>,3> vPlus(nb1,nb2,nb3Plus);
 	Eigen::Tensor<std::complex<double>,3> vMins(nb1,nb2,nb3Mins);
@@ -149,21 +142,11 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 		v0Mins.setZero();
 
 		for ( int ib1=0; ib1<nb1; ib1++ ) {
-			double omega1 = energies1(ib1);
-			if ( omega1 < energyCutoff ) continue;
-
 			for ( int ib2=0; ib2<nb2; ib2++ ) {
-				double omega2 = energies2(ib2);
-				if ( omega2 < energyCutoff ) continue;
-
 				for ( int ic3 : {0,1,2} ) {
 					for ( int ic2 : {0,1,2} ) {
 						for ( int ic1 : {0,1,2} ) {
 							for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
-								double omega3Plus = energies3Plus(ib3);
-								if ( omega3Plus < energyCutoff ) continue;
-								double freqsPlus = omega1 * omega2 * omega3Plus;
-
 								v0Plus(ib1,ib2,ib3) +=
 										ifc3Tensor(it,ic1,ic2,ic3)
 										* ev1(ic1,displacedAtoms(it,0),ib1)
@@ -172,10 +155,6 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 							}
 
 							for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
-								double omega3Mins = energies3Mins(ib3);
-								if ( omega3Mins < energyCutoff ) continue;
-								double freqsMins = omega1 * omega2 * omega3Mins;
-
 								v0Mins(ib1,ib2,ib3) +=
 										ifc3Tensor(it,ic1,ic2,ic3)
 										* ev1(ic1,displacedAtoms(it,0),ib1)
@@ -196,10 +175,10 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 		// As a convention, the first primitive cell in the triplet is
 		// restricted to the origin, so the phase for that cell is unity.
 
-		double arg = complexI *( q2Plus.dot(cell2Pos) - q3Plus.dot(cell3Pos) );
-		std::complex phasePlus = exp( complexI * arg );
-		arg = complexI * ( q2Mins.dot(cell2Pos) + q3Mins.dot(cell3Pos) );
-		std::complex phaseMins = exp(-complexI * arg );
+		double arg = q2Plus.dot(cell2Pos) - q3Plus.dot(cell3Pos);
+		std::complex<double> phasePlus = exp( complexI * arg );
+		arg = q2Mins.dot(cell2Pos) + q3Mins.dot(cell3Pos);
+		std::complex<double> phaseMins = exp(-complexI * arg );
 
 		for ( int ib1=0; ib1<nb1; ib1++ ) {
 			for ( int ib2=0; ib2<nb2; ib2++ ) {
@@ -217,15 +196,39 @@ std::tuple<Eigen::Tensor<std::complex<double>,3>,
 
 	Eigen::Tensor<double,3> couplingPlus(nb1,nb2,nb3Plus);
 	Eigen::Tensor<double,3> couplingMins(nb1,nb2,nb3Mins);
+	couplingPlus.setZero();
+	couplingMins.setZero();
+
+	auto energies1 = state1.getEnergies();
+	auto energies2 = state2Plus.getEnergies();
+//	energies2Mins = state2Mins.getEnergies(); // energies(-q) = energies(q)
+	auto energies3Plus = state3Plus.getEnergies();
+	auto energies3Mins = state3Mins.getEnergies();
+
 	for ( int ib1=0; ib1<nb1; ib1++ ) {
+		double omega1 = energies1(ib1);
+		if ( omega1 < energyCutoff ) continue;
+
 		for ( int ib2=0; ib2<nb2; ib2++ ) {
+			double omega2 = energies2(ib2);
+			if ( omega2 < energyCutoff ) continue;
+
+			// case +
 			for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
-				// case +
-				couplingPlus(ib1,ib2,ib3) += std::norm(vPlus(ib1,ib2,ib3));
+				double omega3Plus = energies3Plus(ib3);
+				if ( omega3Plus < energyCutoff ) continue;
+				double freqsPlus = omega1 * omega2 * omega3Plus;
+				couplingPlus(ib1,ib2,ib3) = std::norm(vPlus(ib1,ib2,ib3))
+						/ freqsPlus;
 			}
+
+			// case -
 			for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
-				// case -
-				couplingMins(ib1,ib2,ib3) += std::norm(vMins(ib1,ib2,ib3));
+				double omega3Mins = energies3Mins(ib3);
+				if ( omega3Mins < energyCutoff ) continue;
+				double freqsMins = omega1 * omega2 * omega3Mins;
+				couplingMins(ib1,ib2,ib3) = std::norm(vMins(ib1,ib2,ib3))
+						/ freqsMins;
 			}
 		}
 	}

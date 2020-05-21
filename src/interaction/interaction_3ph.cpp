@@ -1,4 +1,4 @@
-#include "ph_interaction_3ph.h"
+#include "interaction_3ph.h"
 
 // default constructor
 Interaction3Ph::Interaction3Ph(Crystal & crystal_,
@@ -14,7 +14,7 @@ Interaction3Ph::Interaction3Ph(Crystal & crystal_,
 }
 
 // copy constructor
-Interaction3Ph(const Interaction3Ph & that) :
+Interaction3Ph::Interaction3Ph(const Interaction3Ph & that) :
 	crystal(that.crystal),
 	numTriplets(that.numTriplets),
 	ifc3Tensor(that.ifc3Tensor),
@@ -23,23 +23,23 @@ Interaction3Ph(const Interaction3Ph & that) :
 }
 
 // assignment operator
-Interaction3Ph & operator=(const Interaction3Ph & that) {
+Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 	if ( this != &that ) {
-		crystal = that.crystal_;
-		numTriplets = that.numTriplets_;
-		ifc3Tensor = that.ifc3Tensor_;
-		cellPositions = that.cellPositions_;
-		displacedAtoms = that.displacedAtoms_;
+		crystal = that.crystal;
+		numTriplets = that.numTriplets;
+		ifc3Tensor = that.ifc3Tensor;
+		cellPositions = that.cellPositions;
+		displacedAtoms = that.displacedAtoms;
 	}
 	return *this;
 }
 
 //// Function to calculate the full set of V_minus processes for a given IBZ mode
-//void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode &mode,\
-//		const Eigen::MatrixXd &qFBZ,	\
-//		const Eigen::Tensor<complex<double>,3> &ev,const int numTriplets, \
-//		const Eigen::Tensor<double,4> &ifc3Tensor, \
-//		const Eigen::Tensor<double,3> &cellPositions,	\
+//void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode &mode,
+//		const Eigen::MatrixXd &qFBZ,
+//		const Eigen::Tensor<complex<double>,3> &ev,const int numTriplets,
+//		const Eigen::Tensor<double,4> &ifc3Tensor,
+//		const Eigen::Tensor<double,3> &cellPositions,
 //		const Eigen::Tensor<int,2> &displacedAtoms, const CrystalInfo &crysInfo){
 //
 //	int iq1,iq2,iq3,ib,jb,s1,s2,s3,idim,iat;
@@ -129,7 +129,7 @@ Interaction3Ph & operator=(const Interaction3Ph & that) {
 //						interactingPhonons.s3 = jb;
 //
 //						// Call calculateSingleV
-//						Vm2(iq2,ib,iq3,jb) = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor, \
+//						Vm2(iq2,ib,iq3,jb) = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor,
 //								cellPositions, displacedAtoms, crysInfo, '-');
 //
 //						//cout << iq2+1 << " " << ib+1 << " " << iq3+1 << " " << jb+1 << " " << Vm2(iq2,ib,iq3,jb) << "\n";
@@ -159,15 +159,15 @@ Interaction3Ph & operator=(const Interaction3Ph & that) {
 //}
 //
 ////Transition probabilities for a given irreducible phonon mode
-//void PhInteraction3Ph::calculateAllW(const double T,const int grid[3], const PhononMode &mode,\
-//		const Eigen::MatrixXi &indexMesh,const CrystalInfo &crysInfo,\
+//void PhInteraction3Ph::calculateAllW(const double T,const int grid[3], const PhononMode &mode,
+//		const Eigen::MatrixXi &indexMesh,const CrystalInfo &crysInfo,
 //		const Eigen::MatrixXd omega,const TetraData tetra){
 //
 //	int iq1,iq2,iq3,iq3Plus,iq3Minus,s1,s2,s3,iDim,plusProcessCount,minusProcessCount;
 //	int numBranches = crysInfo.numBranches;
 //	int nq = grid[0]*grid[1]*grid[2];
 //
-//	double omega1,omega2,omega3Plus,omega3Minus,n01,n02,n03Plus,n03Minus,Vplus2,Vminus2,\
+//	double omega1,omega2,omega3Plus,omega3Minus,n01,n02,n03Plus,n03Minus,Vplus2,Vminus2,
 //	Wplus,Wminus,tetWeightPlus,tetWeightMinus;
 //	const double a = M_PI*hbar/4.0*5.60626442*1.0e30;
 //
@@ -255,11 +255,11 @@ Interaction3Ph & operator=(const Interaction3Ph & that) {
 //							Vplus2 = Vm2(timeReverse(iq2,grid),s2,iq3Plus,s3);
 //
 //							//Calculatate transition probability W+
-//							Wplus = a*(n02-n03Plus)*Vplus2*tetWeightPlus \
+//							Wplus = a*(n02-n03Plus)*Vplus2*tetWeightPlus
 //									/(omega1*omega2*omega3Plus); //THz
 //
 //							//Write plus process info to file
-//							WplusFile << iq2 << " " << s2 << " " << iq3Plus << " " << s3 << " "\
+//							WplusFile << iq2 << " " << s2 << " " << iq3Plus << " " << s3 << " "
 //									<< Wplus << "\n";
 //						}
 //
@@ -271,11 +271,11 @@ Interaction3Ph & operator=(const Interaction3Ph & that) {
 //							Vminus2 = Vm2(iq2,s2,iq3Minus,s3);
 //
 //							//Calculatate transition probability W-
-//							Wminus = a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus	\
+//							Wminus = a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus
 //									/(omega1*omega2*omega3Minus); //THz
 //
 //							//Write minus process info to disk
-//							WminusFile << iq2 << " " << s2 << " " << iq3Minus << " " << s3 << " "\
+//							WminusFile << iq2 << " " << s2 << " " << iq3Minus << " " << s3 << " "
 //									<< Wminus << "\n";
 //						}
 //					}//s3

@@ -411,7 +411,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 			std::getline(infile, line);
 			lineSplit = split(line, ' ');
 			for ( int j=0; j<3; j++) {
-				directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceRyToAng;
+				directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceBohrToAng;
 			}
 		};
 	};
@@ -809,7 +809,7 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		lineSplit = split(line, ' ');
 		for ( int j=0; j<3; j++) {
 			// unit cell is written in angstrom
-			directUnitCell(i,j) = std::stod(lineSplit[j]) / distanceRyToAng;
+			directUnitCell(i,j) = std::stod(lineSplit[j]) / distanceBohrToAng;
 		}
 	};
 
@@ -886,14 +886,14 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 			for ( long j=0; j<numWann; j++ ) {
 				std::getline(infile, line);
 				lineSplit = split(line, ' ');
-				double re = std::stod(lineSplit[2]) / distanceRyToAng;
-				double im = std::stod(lineSplit[3]) / distanceRyToAng;
+				double re = std::stod(lineSplit[2]) / distanceBohrToAng;
+				double im = std::stod(lineSplit[3]) / distanceBohrToAng;
 				rMatrix(0, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[4]) / distanceRyToAng;
-				im = std::stod(lineSplit[5]) / distanceRyToAng;
+				re = std::stod(lineSplit[4]) / distanceBohrToAng;
+				im = std::stod(lineSplit[5]) / distanceBohrToAng;
 				rMatrix(1, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[6]) / distanceRyToAng;
-				im = std::stod(lineSplit[7]) / distanceRyToAng;
+				re = std::stod(lineSplit[6]) / distanceBohrToAng;
+				im = std::stod(lineSplit[7]) / distanceBohrToAng;
 				rMatrix(2, iR, i, j) = {re,im}; // the matrix was in eV
 			}
 		}

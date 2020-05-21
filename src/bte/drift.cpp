@@ -6,7 +6,7 @@ BulkTDrift::BulkTDrift(Context & context,
 
 	Eigen::VectorXd temperatures = context.getTemperatures();
 	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
-	Statistics statistics = activeBandStructure.getStatistics();
+	Statistics statistics = bandStructure.getStatistics();
 
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = bandStructure.getEnergy(is);
@@ -37,7 +37,7 @@ BulkEDrift::BulkEDrift(Context & context,
 	Statistics statistics = bandStructure.getStatistics();
 
 	for ( long is=0; is<numStates; is++ ) {
-		double energy = activeBandStructure.getEnergy(is);
+		double energy = bandStructure.getEnergy(is);
 		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
 
 		for ( long idim=0; idim<dimensionality; idim++ ) {

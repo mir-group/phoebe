@@ -44,7 +44,7 @@ protected:
 	// pure virtual function
 	// needs an implementation in every subclass
 	virtual void builder(Eigen::MatrixXd * matrix, VectorBTE * linewidth,
-			VectorBTE * inPopulation, VectorBTE * outPopulation) = 0;
+			VectorBTE * inPopulation, VectorBTE * outPopulation);
 };
 
 #endif

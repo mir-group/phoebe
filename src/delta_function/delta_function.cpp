@@ -2,6 +2,7 @@
 #include "exceptions.h"
 #include "utilities.h"
 #include "constants.h"
+#include "context.h"
 
 // app factory
 DeltaFunction * DeltaFunction::smearingFactory(Context & context,
@@ -15,16 +16,18 @@ DeltaFunction * DeltaFunction::smearingFactory(Context & context,
 		return new TetrahedronDeltaFunction(fullBandStructure);
 	} else {
 		Error e("Unrecognized smearing choice");
+		return nullptr;
 	}
 }
 
-GaussianDeltaFunction::GaussianDeltaFunction(Context & context_) {
+GaussianDeltaFunction::GaussianDeltaFunction(Context & context) {
 	inverseWidth = 1. / context.getSmearingWidth();
 	prefactor = 1. / context.getSmearingWidth() / sqrt(pi);
 }
 
 double GaussianDeltaFunction::getSmearing(const double & energy,
-		const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) {
+		const Eigen::Vector3d & velocity) {
+	(void) velocity;
 	double x = energy * inverseWidth;
 	return prefactor * exp( - x*x );
 }
@@ -32,14 +35,14 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
 		FullBandStructure<FullPoints> & bandStructure) {
 	auto [mesh,offset] = bandStructure.getPoints().getMesh();
-	qTensor = points.getCrystal().getReciprocalUnitCell();
+	qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
 	qTensor.row(0) /= mesh(0);
 	qTensor.row(1) /= mesh(1);
 	qTensor.row(2) /= mesh(2);
 }
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
-		const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) {
+		const Eigen::Vector3d & velocity) {
 	double x = (qTensor * velocity).squaredNorm();
 	double smearing = prefactor * sqrt( x*x / 12.);
 	if ( smearing < smearingCutoff ) return 0.;
@@ -47,10 +50,11 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 	return exp( - x*x ) / sqrtPi / smearing;
 }
 
-Tetrahedra::Tetrahedra(FullBandStructure<FullPoints> & fullBandStructure_) :
-		fullPoints(fullBandStructure.getPoints()),
+TetrahedronDeltaFunction::TetrahedronDeltaFunction(
+		FullBandStructure<FullPoints> & fullBandStructure_) :
 		fullBandStructure(fullBandStructure_) {
 
+	auto fullPoints = fullBandStructure.getPoints();
 	auto [grid, offset] = fullPoints.getMesh();
 	if ( offset.norm() > 0. ) {
 		Error e("We didnt' implement tetrahedra with offsets", 1);
@@ -164,7 +168,7 @@ Tetrahedra::Tetrahedra(FullBandStructure<FullPoints> & fullBandStructure_) :
 	}
 }
 
-double Tetrahedra::getDOS(const double & energy) {
+double TetrahedronDeltaFunction::getDOS(const double & energy) {
 	// initialize tetrahedron weight
 	double weight = 0.;
 
@@ -176,13 +180,13 @@ double Tetrahedra::getDOS(const double & energy) {
 	return weight;
 }
 
-double Tetrahedra::getSmearing(const double & energy,
+double TetrahedronDeltaFunction::getSmearing(const double & energy,
 		const long & iq, const long & ib) {
 	// initialize tetrahedron weight
 	return getWeight(energy, iq, ib);
 }
 
-double Tetrahedra::getWeight(const double & energy, const long & iq,
+double TetrahedronDeltaFunction::getWeight(const double & energy, const long & iq,
 		const long & ib) {
 
 	// initialize tetrahedron weight

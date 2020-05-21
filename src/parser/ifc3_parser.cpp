@@ -2,6 +2,7 @@
 #include <fstream>
 #include "ifc3_parser.h"
 #include "eigen.h"
+#include "constants.h"
 
 Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 		Crystal & crystal) {
@@ -17,9 +18,9 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 	infile >> numTriplets;
 
 	// Allocate readables
-	ifc3Tensor = Eigen::Tensor<double,4>(numTriplets,3,3,3);
-	cellPositions = Eigen::Tensor<double,3>(numTriplets,2,3);
-	displacedAtoms = Eigen::Tensor<long,2>(numTriplets,3);
+	Eigen::Tensor<double,4> ifc3Tensor(numTriplets,3,3,3);
+	Eigen::Tensor<double,3> cellPositions(numTriplets,2,3);
+	Eigen::Tensor<long,2> displacedAtoms(numTriplets,3);
 
 	for ( long i=0; i<numTriplets; i++ ) {// loop over all triplets
 		// Triplet counter

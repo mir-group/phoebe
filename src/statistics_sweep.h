@@ -1,3 +1,6 @@
+#ifndef SWEEP_H
+#define SWEEP_H
+
 #include <memory>
 #include "context.h"
 #include "bandstructure.h"
@@ -11,10 +14,13 @@ struct CalcStatistics {
 
 class StatisticsSweep {
 public:
-	static std::unique_ptr<StatisticsSweep> * SweepFactory(
+	static std::unique_ptr<StatisticsSweep> SweepFactory(
 			const std::string & choice, Context & context,
 			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
 	virtual long getNumCalcs();
+	virtual struct CalcStatistics getCalcStatistics(const long & index);
+	virtual struct CalcStatistics getCalcStatistics(const long & iTemp,
+			const long & iChemPot);
 };
 
 class PhStatisticsSweep : public StatisticsSweep {
@@ -79,3 +85,5 @@ private:
 	long nChemPot;
 	long nDop;
 };
+
+#endif

@@ -204,6 +204,26 @@ long Point<T>::getIndex() {
 	return index;
 }
 
+//std::enable_if< std::is_base_of<Eigen::Vector3d,T>::value > >
+//typename std::enable_if<std::is_same<T,Eigen::Vector3d>>>
+//template<class Eigen::Vector3d>
+//Eigen::Vector3d Point<Eigen::Vector3d>::getCoords(const std::string & basis,
+//		const bool & inWignerSeitz) {
+//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
+//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
+//	}
+//	return points;
+//}
+
+//template<>
+//Eigen::Vector3d Point<Eigen::Matrix<double, 3, 1, 0, 3, 1>>::getCoords(const std::string & basis,
+//		const bool & inWignerSeitz) {
+//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
+//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
+//	}
+//	return points;
+//}
+
 template<typename T>
 Eigen::Vector3d Point<T>::getCoords(const std::string & basis,
 		const bool & inWignerSeitz) {
@@ -220,24 +240,16 @@ Eigen::Vector3d Point<T>::getCoords(const std::string & basis,
 	return coords;
 }
 
-template<>
-Eigen::Vector3d Point<Eigen::Vector3d>::getCoords(const std::string & basis,
-		const bool & inWignerSeitz) {
-	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-	}
-	return points;
-}
 
 template<typename T>
 double Point<T>::getWeight() {
 	return points.getWeight(index);
 }
 
-template<>
-double Point<Eigen::Vector3d>::getWeight() {
-	return 1.;
-}
+//template<>
+//double Point<Eigen::Vector3d>::getWeight() {
+//	return 1.;
+//}
 
 template<typename T>
 bool Point<T>::hasUmklapp() {

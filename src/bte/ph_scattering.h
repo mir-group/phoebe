@@ -28,7 +28,7 @@ protected:
 //	InteractionBoundary * couplingBoundary = nullptr;
 	PhononH0 * h0;
 
-	virtual void builder(Eigen::MatrixXd * matrix, VectorBTE * linewidth,
+	virtual void builder(Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 			VectorBTE * inPopulation, VectorBTE * outPopulation);
 };
 

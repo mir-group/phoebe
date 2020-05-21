@@ -6,7 +6,7 @@
 #include "constants.h"
 #include <cmath>
 
-std::unique_ptr<StatisticsSweep> * StatisticsSweep::SweepFactory(
+std::unique_ptr<StatisticsSweep> StatisticsSweep::SweepFactory(
 			const std::string & choice, Context & context,
 			FullBandStructure<FullPoints> * fullBandStructure) {
 	if ( choice == "electron" ) {
@@ -29,7 +29,6 @@ PhStatisticsSweep::PhStatisticsSweep(Context & context) :
 PhStatisticsSweep::PhStatisticsSweep(const PhStatisticsSweep & that) :
 		statistics(Statistics::phonon) {
 	numCalcs = that.numCalcs;
-	infoCalcs = that.infoCalcs;
 	nTemp = that.nTemp;
 	temperatures = that.temperatures;
 }

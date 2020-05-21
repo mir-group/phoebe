@@ -1,11 +1,10 @@
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include <cmath>
+#ifndef DELTAF_H
+#define DELTAF_H
 
 #include "eigen.h"
 #include "points.h"
 #include "bandstructure.h"
+#include "context.h"
 
 class DeltaFunction {
 public:
@@ -16,23 +15,31 @@ public:
 	static const int adaptiveGaussian = 1;
 	static const int tetrahedron = 2;
 	const int id = -1;
+
+	virtual double getSmearing(const double & energy,
+			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
+	virtual double getSmearing(const double & energy, const long & iq,
+			const long &ib);
 };
 
 class GaussianDeltaFunction : public DeltaFunction {
-	GaussianDeltaFunction(Context & context_); // context to get amplitude
+public:
+	GaussianDeltaFunction(Context & context); // context to get amplitude
 	double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 	const int id = 0;
-private:
+protected:
 	double inverseWidth;
 	double prefactor;
 };
 
 class AdaptiveGaussianDeltaFunction : public DeltaFunction {
+public:
 	AdaptiveGaussianDeltaFunction(FullBandStructure<FullPoints>&bandStructure);
-	double getSmearing(const double & energy,const Eigen::Vector3d & velocity);
+	double getSmearing(const double & energy,
+			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 	const int id = 1;
-private:
+protected:
 	const double smearingCutoff = 1.0e-8;
 	const double prefactor = 1.;
 	Eigen::Matrix3d qTensor;
@@ -42,6 +49,7 @@ private:
  * Class for approximating the Delta function with the tetrahedron method
  */
 class TetrahedronDeltaFunction : public DeltaFunction {
+public:
 	const int id = 2;
 
 	/**
@@ -80,8 +88,7 @@ class TetrahedronDeltaFunction : public DeltaFunction {
 	 *
 	 */
 	double getSmearing(const double & energy, const long & iq, const long &ib);
-private:
-	FullPoints & fullPoints;
+protected:
 	FullBandStructure<FullPoints> & fullBandStructure;
 
 	/** Number of tetrahedra. */
@@ -98,3 +105,5 @@ private:
 	double getWeight(const double & energy, const long & iq, const long & ib);
 
 };
+
+#endif

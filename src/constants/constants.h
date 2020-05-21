@@ -7,6 +7,7 @@
 // mathematical constants
 //
 const double pi = 3.14159265358979323846;
+const double sqrtPi = sqrt(3.14159265358979323846);
 const double twoPi = 2. * pi;
 const double fourPi = 2. * pi;
 const double one = 1.;
@@ -49,7 +50,7 @@ const double distanceRyToSi = bohrRadiusSi;
 const double distanceBohrToCm = bohrRadiusSi * 100.;
 const double timeRyToFs = timeRy * 1e15 * twoPi;
 const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
-const double distanceRyToAng = bohrRadiusSi / distanceAngToSi;
+const double distanceBohrToAng = bohrRadiusSi / distanceAngToSi;
 const double massAmuToRy = amuSi / electronMassSi / 2.;
 const double massRyToAmu = 1. / massAmuToRy;
 

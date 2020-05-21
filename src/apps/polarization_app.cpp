@@ -41,7 +41,7 @@ void ElectronPolarizationApp::run(Context & context) {
 	Statistics statistics = h0.getStatistics();
 
 	// before moving on, we need to fix the chemical potential
-	StatisticsSweep statisticsSweep(context, bandStructure);
+	ElStatisticsSweep statisticsSweep(context, bandStructure);
 	auto numCalcs = statisticsSweep.getNumCalcs();
 
 	// now we can compute the polarization

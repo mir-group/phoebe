@@ -2,9 +2,46 @@
 #define STATE_H
 
 #include "points.h"
-#include "bandstructure.h"
+//#include "bandstructure.h"
 #include "exceptions.h"
 #include "utilities.h"
+
+class DetachedState {
+public:
+	// this class works just like state, but doesn't have a reference to a
+	// bandstructure.
+	// It's basically a simple container of energies and other stuff
+
+//	DetachedState();
+	DetachedState(Eigen::Vector3d & point_,
+			Eigen::VectorXd & energies_,
+			long numAtoms_,
+			long numBands_,
+			Eigen::MatrixXcd & eigenvectors_,
+			Eigen::Tensor<std::complex<double>,3> * velocities_=nullptr
+			);
+	DetachedState(const DetachedState & that); // copy constructor
+	DetachedState & operator=(const DetachedState & that); // assignment op
+
+	Eigen::Vector3d getCoords(const std::string & basis);
+	double getEnergy(const long & bandIndex, double chemicalPotential = 0.);
+	Eigen::VectorXd getEnergies(double chemicalPotential = 0.);
+	Eigen::Vector3d getVelocity(const long & bandIndex);
+	Eigen::Vector3cd getVelocity(const long & bandIndex1,
+			const long & bandIndex2);
+	Eigen::MatrixXd getGroupVelocities();
+	Eigen::Tensor<std::complex<double>,3> getVelocities();
+	void getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs);
+	void getEigenvectors(Eigen::MatrixXcd & eigs);
+protected:
+	// pointers to the bandstructure, I don't want to duplicate storage here
+	Eigen::Vector3d point;
+	Eigen::VectorXd energies;
+	long numAtoms;
+	long numBands;
+	Eigen::Tensor<std::complex<double>,3> velocities;
+	Eigen::MatrixXcd eigenvectors;
+};
 
 /** Class containing harmonic information for all bands at a given k-q point.
  * State is a base class. PhState and ElState should be used in the code.
@@ -27,11 +64,18 @@ public:
 			long numBands_,
 			std::complex<double> * velocities_=nullptr,
 			std::complex<double> * eigenvectors_=nullptr);
+	State(const State & that); // copy constructor
+	State & operator=(const State & that); // assignment operator
 
 	/** get the wavevector (Point object)
 	 * @return point: a Point object.
 	 */
 	Point<T> getPoint();
+
+	/** get the cartesian coordinates of a wavevector (Point object)
+	 * @return point: a Eigen::Vector3d object.
+	 */
+	Eigen::Vector3d getCoords(const std::string & basis);
 
 	/** get the energy of a single band
 	 * @param bandIndex: integer from 0 to numBands-1
@@ -91,7 +135,6 @@ public:
 	 */
 	void getEigenvectors(Eigen::MatrixXcd & eigs);
 
-
 	long getIndex(const long & bandIndex);
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
@@ -126,8 +169,37 @@ State<T>::State(Point<T> & point_,
 }
 
 template<typename T>
+State<T>::State(const State<T> & that) : // copy constructor
+	point(that.point), energies(that.energies), numBands(that.numBands),
+	numAtoms(that.numAtoms), index(that.index), velocities(that.velocities),
+	eigenvectors(that.eigenvectors), hasVelocities(that.hasVelocities),
+	hasEigenvectors(that.hasEigenvectors) {
+}
+
+template<typename T>
+State<T> & State<T>::operator=(const State<T> & that) { // assignment operator
+	if ( this != &that ) {
+		point = that.point;
+		energies = that.energies;
+		numBands = that.numBands;
+		numAtoms = that.numAtoms;
+		index = that.index;
+		velocities = that.velocities;
+		eigenvectors = that.eigenvectors;
+		hasVelocities = that.hasVelocities;
+		hasEigenvectors = that.hasEigenvectors;
+	}
+	return *this;
+}
+
+template<typename T>
 Point<T> State<T>::getPoint() {
 	return point;
+}
+
+template<typename T>
+Eigen::Vector3d State<T>::getCoords(const std::string & basis) {
+	return point.getCoords(basis);
 }
 
 template<typename T>
@@ -194,7 +266,7 @@ Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
 	if ( ! hasEigenvectors ) {
 		Error e("State doesn't have velocities" ,1);
 	}
-	Eigen::Tensor<std::complex<double>,3> vels(3, numAtoms, numBands);
+	Eigen::Tensor<std::complex<double>,3> vels(numBands, numBands, 3);
 	for ( long ib1=0; ib1<numBands; ib1++ ) {
 		for ( long ib2=0; ib2<numBands; ib2++ ) {
 			for ( long j=0; j<3; j++ ) {
