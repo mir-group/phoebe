@@ -26,8 +26,8 @@ public:
 	double getEnergy(long & stateIndex);
 	Eigen::Vector3d getGroupVelocity(long & stateIndex);
 
-	template<typename T>
-	static std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
+	template<typename T, typename S>
+	static std::tuple<ActivePoints, ActiveBandStructure, S>
 			builder(Context & context, T & h0, FullPoints & fullPoints);
 private:
 	Statistics statistics;
@@ -79,8 +79,8 @@ private:
 			FullBandStructure<FullPoints> & fullBandStructure);
 };
 
-template<typename T>
-std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
+template<typename T, typename S>
+std::tuple<ActivePoints, ActiveBandStructure, S>
 		ActiveBandStructure::builder(Context & context,
 				T & h0, FullPoints & fullPoints) {
 
@@ -97,7 +97,7 @@ std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
 		Window window(context, statistics, temperatureMin, temperatureMax);
 
 		auto aPoints = activeBandStructure.buildOnTheFly(window,fullPoints,h0);
-		PhStatisticsSweep statisticsSweep(context);
+		StatisticsSweep statisticsSweep(context);
 		return {aPoints, activeBandStructure, statisticsSweep};
 	} else {
 		Error e("apply window for electrons not implemented");

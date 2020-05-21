@@ -6,186 +6,155 @@
 #include "constants.h"
 #include <cmath>
 
-std::unique_ptr<StatisticsSweep> StatisticsSweep::SweepFactory(
-			const std::string & choice, Context & context,
-			FullBandStructure<FullPoints> * fullBandStructure) {
-	if ( choice == "electron" ) {
-		return std::unique_ptr<StatisticsSweep> (
-				new ElStatisticsSweep(context,*fullBandStructure));
-	} else {
-		return std::unique_ptr<StatisticsSweep> (
-				new PhStatisticsSweep(context));
-	}
-}
+StatisticsSweep::StatisticsSweep(Context & context,
+		FullBandStructure<FullPoints> * fullBandStructure) :
+		statistics( fullBandStructure!=nullptr ?
+				fullBandStructure->getStatistics() : Statistics::phonon)
+		{
 
-PhStatisticsSweep::PhStatisticsSweep(Context & context) :
-		statistics(Statistics::phonon) {
-	temperatures = context.getTemperatures();
-	nTemp = temperatures.size();
-	numCalcs = nTemp;
-}
-
-// copy constructor
-PhStatisticsSweep::PhStatisticsSweep(const PhStatisticsSweep & that) :
-		statistics(Statistics::phonon) {
-	numCalcs = that.numCalcs;
-	nTemp = that.nTemp;
-	temperatures = that.temperatures;
-}
-
-// copy assignment
-PhStatisticsSweep & PhStatisticsSweep::operator = (
-		const PhStatisticsSweep & that) {
-	if ( this != &that ) {
-		statistics = that.statistics;
-		numCalcs = that.numCalcs;
-		nTemp = that.nTemp;
-		temperatures = that.temperatures;
-	}
-	return *this;
-}
-
-struct CalcStatistics PhStatisticsSweep::getCalcStatistics(const long & it) {
-	struct CalcStatistics sc;
-	sc.temperature = temperatures(it);
-	sc.chemicalPotential = 0.;
-	sc.doping = 0.;
-	return sc;
-}
-
-long PhStatisticsSweep::getNumCalcs() {
-	return numCalcs;
-}
-
-ElStatisticsSweep::ElStatisticsSweep(Context & context,
-		FullBandStructure<FullPoints> & fullBandStructure) :
-		statistics(Statistics::electron) {
-
-	bool hasSpinOrbit =  context.getHasSpinOrbit();
-	if ( hasSpinOrbit ) {
-		spinFactor = 1.;
-	} else { // count spin degeneracy
-		spinFactor = 2.;
-	}
-
-	volume = fullBandStructure.getPoints().getCrystal().getVolumeUnitCell();
-
-    // flatten the energies (easier to work with)
-	numPoints = fullBandStructure.getNumPoints();
-	long numBands = fullBandStructure.getNumBands();
-	energies = Eigen::VectorXd::Zero(numBands*numPoints);
-    long i = 0;
-    for ( long ik=0; ik<numPoints; ik++) {
-    	auto point = fullBandStructure.getPoint(ik);
-    	auto state = fullBandStructure.getState(point);
-    	auto ens = state.getEnergies();
-        for ( long ib=0; ib<numBands; ib++) {
-        	energies(i) = ens(ib);
-        	i++;
-       	}
-    }
-    numStates = energies.size();
-
-    // determine ground state StatisticsSweep
-
-	occupiedStates = context.getNumOccupiedStates();
-	if ( std::isnan(occupiedStates) ) {
-		// in this case we try to compute it from the Fermi-level
-		fermiLevel = context.getFermiLevel();
-		if ( std::isnan(fermiLevel) ) {
-			Error e("Must provide either the Fermi level or the number of"
-					" occupied states");
+	if ( statistics.isPhonon() ) {
+		Eigen::VectorXd temperatures = context.getTemperatures();
+        nTemp = temperatures.size();
+        nDop = 1;
+        nChemPot = 1;
+        numCalcs = nTemp * std::max(nChemPot,nDop);
+        infoCalcs = Eigen::MatrixXd::Zero(numCalcs,3);
+		for ( long it=0; it<nTemp; it++ ) {
+			double temp = temperatures(it);
+			infoCalcs(it,0) = temp;
+			// note: the other two columns are set to zero above
 		}
-		occupiedStates = 0.;
-		for ( long i=0; i<numStates; i++ ) {
-			if ( energies(i) < fermiLevel ) {
-				occupiedStates += 1.;
+
+	} else { // isElectron()
+		// in this case, the class is more complicated, as it is tasked with
+		// the calculation of the chemical potential or the doping
+		// so, we first load parameters to compute these quantities
+
+		bool hasSpinOrbit =  context.getHasSpinOrbit();
+		if ( hasSpinOrbit ) {
+			spinFactor = 1.;
+		} else { // count spin degeneracy
+			spinFactor = 2.;
+		}
+
+		volume = fullBandStructure->getPoints().getCrystal(
+				).getVolumeUnitCell();
+
+		// flatten the energies (easier to work with)
+		numPoints = fullBandStructure->getNumPoints();
+		numBands = fullBandStructure->getNumBands();
+		numStates = numBands*numPoints;
+		energies = Eigen::VectorXd::Zero(numBands*numPoints);
+		long i = 0;
+		for ( long ik=0; ik<numPoints; ik++) {
+			auto state = fullBandStructure->getState(ik);
+			auto ens = state.getEnergies();
+			for ( long ib=0; ib<numBands; ib++) {
+				energies(i) = ens(ib);
+				i++;
 			}
 		}
-		occupiedStates /= numPoints;
-	} else {
-		occupiedStates /= spinFactor;
-		fermiLevel = energies.mean(); // first guess of Fermi level
-		// refine this guess at zero temperature and zero doping
-		fermiLevel = findChemicalPotentialFromDoping(0., 0.);
+
+		// determine ground state properties
+		// i.e. we define the number of filled bands and the fermi energy
+
+		occupiedStates = context.getNumOccupiedStates();
+		if ( std::isnan(occupiedStates) ) {
+			// in this case we try to compute it from the Fermi-level
+			fermiLevel = context.getFermiLevel();
+			if ( std::isnan(fermiLevel) ) {
+				Error e("Must provide either the Fermi level or the number of"
+						" occupied states");
+			}
+			occupiedStates = 0.;
+			for ( long i=0; i<numStates; i++ ) {
+				if ( energies(i) < fermiLevel ) {
+					occupiedStates += 1.;
+				}
+			}
+			occupiedStates /= numPoints;
+		} else {
+			occupiedStates /= spinFactor;
+			fermiLevel = energies.mean(); // first guess of Fermi level
+			// refine this guess at zero temperature and zero doping
+			fermiLevel = findChemicalPotentialFromDoping(0., 0.);
+		}
+
+		// load input sweep parameters
+
+		Eigen::VectorXd temperatures = context.getTemperatures();
+		Eigen::VectorXd dopings = context.getDopings();
+		Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
+
+		nChemPot = chemicalPotentials.size();
+		nDop = dopings.size();
+		nTemp = temperatures.size();
+		if ( (nDop == 0) && (nChemPot == 0) ) {
+			Error e("Didn't find chemical potentials or doping in input");
+		}
+
+		// now have two cases:
+		// if doping is passed in input, compute chemical potential
+		// or viceversa
+
+		Eigen::MatrixXd calcTable(nTemp*std::max(nChemPot,nDop),3);
+		calcTable.setZero();
+
+		// in this case, I have dopings, and want to find chemical potentials
+		if ( nChemPot == 0 ) {
+			nChemPot = nDop;
+
+			for ( long it=0; it<nTemp; it++ ) {
+				for ( long id=0; id<nDop; id++ ) {
+					double temp = temperatures(it);
+					double doping = dopings(id);
+					double chemPot = findChemicalPotentialFromDoping(doping, temp);
+
+					long iCalc = compress2Indeces(it,id,nTemp,nDop);
+					calcTable(iCalc,0) = temp;
+					calcTable(iCalc,1) = chemPot;
+					calcTable(iCalc,2) = doping;
+				}
+			}
+
+		// in this case, I have chemical potentials
+		} else if ( nDop == 0 ) {
+			nDop = nChemPot;
+
+			for ( long it=0; it<nTemp; it++ ) {
+				for ( long imu=0; imu<nChemPot; imu++ ) {
+					double temp = temperatures(it);
+					double chemPot = chemicalPotentials(imu);
+					double doping = findDopingFromChemicalPotential(chemPot, temp);
+
+					long iCalc = compress2Indeces(it,imu,nTemp,nChemPot);
+					calcTable(iCalc,0) = temp;
+					calcTable(iCalc,1) = chemPot;
+					calcTable(iCalc,2) = doping;
+				}
+			}
+		}
+
+		// clean memory
+		energies = Eigen::VectorXd::Zero(1);
+		// save potentials and dopings
+		infoCalcs = calcTable;
+		numCalcs = calcTable.rows();
 	}
-
-	// build chemical potentials and/or dopings
-
-    Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd dopings = context.getDopings();
-	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
-
-    nChemPot = chemicalPotentials.size();
-    nDop = dopings.size();
-    nTemp = temperatures.size();
-
-    if ( (nDop == 0) && (nChemPot == 0) ) {
-    	Error e("Didn't find chemical potentials or doping in input");
-    }
-
-    Eigen::MatrixXd calcTable(nTemp*std::max(nChemPot,nDop),3);
-    calcTable.setZero();
-
-	// in this case, I have dopings, and want to find chemical potentials
-    if ( nChemPot == 0 ) {
-    	nChemPot = nDop;
-
-		for ( long it=0; it<nTemp; it++ ) {
-			for ( long id=0; id<nDop; id++ ) {
-    			double temp = temperatures(it);
-    			double doping = dopings(id);
-    			double chemPot = findChemicalPotentialFromDoping(doping, temp);
-
-    			long iCalc = compress2Indeces(it,id,nTemp,nDop);
-    			calcTable(iCalc,0) = temp;
-    			calcTable(iCalc,1) = chemPot;
-    			calcTable(iCalc,2) = doping;
-    		}
-    	}
-
-	// in this case, I have chemical potentials
-    } else if ( nDop == 0 ) {
-    	nDop = nChemPot;
-
-		for ( long it=0; it<nTemp; it++ ) {
-			for ( long imu=0; imu<nChemPot; imu++ ) {
-    			double temp = temperatures(it);
-    			double chemPot = chemicalPotentials(imu);
-    			double doping = findDopingFromChemicalPotential(chemPot, temp);
-
-    			long iCalc = compress2Indeces(it,imu,nTemp,nChemPot);
-    			calcTable(iCalc,0) = temp;
-    			calcTable(iCalc,1) = chemPot;
-    			calcTable(iCalc,2) = doping;
-    		}
-    	}
-
-    }
-
-    // clean memory
-    energies = Eigen::VectorXd::Zero(1);
-
-    // save potentials and dopings
-    infoCalcs = calcTable;
-    numCalcs = calcTable.rows();
 }
 
 // copy constructor
-ElStatisticsSweep::ElStatisticsSweep(const ElStatisticsSweep & that) :
-		statistics(Statistics::electron) {
+StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
+		statistics(that.statistics) {
 	numCalcs = that.numCalcs;
 	infoCalcs = that.infoCalcs;
 	nTemp = that.nTemp;
 	nChemPot = that.nChemPot;
 	nDop = that.nDop;
-	occupiedStates = that.occupiedStates;
-	fermiLevel = that.fermiLevel;
 }
 
 // copy assignment
-ElStatisticsSweep & ElStatisticsSweep::operator = (
-		const ElStatisticsSweep & that) {
+StatisticsSweep & StatisticsSweep::operator = (const StatisticsSweep & that) {
 	if ( this != &that ) {
 		statistics = that.statistics;
 		numCalcs = that.numCalcs;
@@ -193,15 +162,11 @@ ElStatisticsSweep & ElStatisticsSweep::operator = (
 		nTemp = that.nTemp;
 		nChemPot = that.nChemPot;
 		nDop = that.nDop;
-		occupiedStates = that.occupiedStates;
-		fermiLevel = that.fermiLevel;
-		volume = that.volume;
-		spinFactor = that.spinFactor;
 	}
 	return *this;
 }
 
-double ElStatisticsSweep::fPop(const double & chemPot, const double & temp) {
+double StatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	// fPop = 1/NK \sum_\mu FermiDirac(\mu) - N
 	// Note that I don`t normalize the integral, which is the same thing I did
 	// for computing the particle number
@@ -214,7 +179,7 @@ double ElStatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	return fPop_;
 }
 
-double ElStatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
+double StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
 		const double & temperature) {
 	// given the carrier concentration, finds the fermi energy
 	// temperature is set inside glob
@@ -267,7 +232,7 @@ double ElStatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
 	return chemicalPotential;
 }
 
-double ElStatisticsSweep::findDopingFromChemicalPotential(
+double StatisticsSweep::findDopingFromChemicalPotential(
 		const double & chemicalPotential, const double & temperature) {
 	double fPop = 0.;
 	for ( long i=0; i<numStates; i++ ) {
@@ -280,7 +245,7 @@ double ElStatisticsSweep::findDopingFromChemicalPotential(
 	return doping;
 }
 
-struct CalcStatistics ElStatisticsSweep::getCalcStatistics(const long & index){
+struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & index) {
 	struct CalcStatistics sc;
 	sc.temperature = infoCalcs(index,0);
 	sc.chemicalPotential = infoCalcs(index,1);
@@ -288,13 +253,13 @@ struct CalcStatistics ElStatisticsSweep::getCalcStatistics(const long & index){
 	return sc;
 }
 
-struct CalcStatistics ElStatisticsSweep::getCalcStatistics(const long & iTemp,
+struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & iTemp,
 		const long & iChemPot) {
 	long index = compress2Indeces(iTemp,iChemPot,nTemp,nChemPot);
 	return getCalcStatistics(index);
 }
 
-long ElStatisticsSweep::getNumCalcs() {
+long StatisticsSweep::getNumCalcs() {
 	return numCalcs;
 }
 

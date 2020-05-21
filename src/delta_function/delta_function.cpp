@@ -32,6 +32,16 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 	return prefactor * exp( - x*x );
 }
 
+double GaussianDeltaFunction::getSmearing(const double & energy,
+		const long & iq, const long &ib) {
+	(void) energy;
+	(void) iq;
+	(void) ib;
+	Error e("GaussianDeltaFunction::getSmearing2 not implemented");
+	return 1.;
+}
+
+
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
 		FullBandStructure<FullPoints> & bandStructure) {
 	auto [mesh,offset] = bandStructure.getPoints().getMesh();
@@ -48,6 +58,15 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 	if ( smearing < smearingCutoff ) return 0.;
 	x = energy / smearing;
 	return exp( - x*x ) / sqrtPi / smearing;
+}
+
+double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
+		const long & iq, const long & ib) {
+	(void) energy;
+	(void) iq;
+	(void) ib;
+	Error e("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
+	return 1.;
 }
 
 TetrahedronDeltaFunction::TetrahedronDeltaFunction(
@@ -320,4 +339,12 @@ double TetrahedronDeltaFunction::getWeight(const double & energy, const long & i
 	// Normalize by number of tetrahedra
 	weight /= double(numTetra);
 	return weight;
+}
+
+double TetrahedronDeltaFunction::getSmearing(const double & energy,
+		const Eigen::Vector3d & velocity) {
+	(void) energy;
+	(void) velocity;
+	Error e("TetrahedronDeltaFunction getSmearing1 not implemented");
+	return 1.;
 }

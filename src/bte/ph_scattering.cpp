@@ -2,14 +2,13 @@
 #include "constants.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
-			PhStatisticsSweep & phStatisticsSweep_,
+			StatisticsSweep & statisticsSweep_,
 			FullBandStructure<FullPoints> & innerBandStructure_,
 			FullBandStructure<FullPoints> & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_,
 			PhononH0 * h0_) :
-			ScatteringMatrix(context_, &phStatisticsSweep_,
+			ScatteringMatrix(context_, statisticsSweep_,
 					innerBandStructure_, outerBandStructure_),
-			phStatisticsSweep(phStatisticsSweep_),
 			coupling3Ph(coupling3Ph_), h0(h0_) {
 //	couplingIsotope = couplingIsotope_;
 //	couplingBoundary = couplingBoundary_;
@@ -19,8 +18,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 }
 
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix & that) :
-		ScatteringMatrix(that), phStatisticsSweep(that.phStatisticsSweep),
-		coupling3Ph(that.coupling3Ph), h0(that.h0) {
+		ScatteringMatrix(that), coupling3Ph(that.coupling3Ph), h0(that.h0) {
 //		couplingIsotope(that.couplingIsotope);
 //		couplingBoundary(that.couplingBoundary);
 }
@@ -70,7 +68,7 @@ void PhScatteringMatrix::builder(
 	auto statistics = outerBandStructure.getStatistics();
 
 	long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-	long numCalcs = statisticsSweep->getNumCalcs();
+	long numCalcs = statisticsSweep.getNumCalcs();
 
 	long outerNumPoints = outerBandStructure.getNumPoints();
 	long innerNumPoints = innerBandStructure.getNumPoints();
@@ -83,8 +81,8 @@ void PhScatteringMatrix::builder(
 		for ( auto ib=0; ib<energies.size(); ib++ ) {
 			long is = state.getIndex(ib);
 			auto energy = energies(ib);
-			for ( long iCalc=0; iCalc<statisticsSweep->getNumCalcs(); iCalc++){
-				double temperature = statisticsSweep->getCalcStatistics(iCalc
+			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
+				double temperature = statisticsSweep.getCalcStatistics(iCalc
 						).temperature;
 				outerBose.data(iCalc,is) = statistics.getPopulation(energy,
 						temperature);
@@ -101,9 +99,9 @@ void PhScatteringMatrix::builder(
 			for ( auto ib=0; ib<energies.size(); ib++ ) {
 				long is = state.getIndex(ib);
 				auto energy = energies(ib);
-				for ( long iCalc=0; iCalc<statisticsSweep->getNumCalcs();
+				for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
 						iCalc++ ) {
-					double temperature = statisticsSweep->getCalcStatistics(
+					double temperature = statisticsSweep.getCalcStatistics(
 							iCalc).temperature;
 					outerBose.data(iCalc,is) = statistics.getPopulation(energy,
 							temperature);
@@ -220,7 +218,7 @@ void PhScatteringMatrix::builder(
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
 				for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
-					double temperature = statisticsSweep->getCalcStatistics(
+					double temperature = statisticsSweep.getCalcStatistics(
 							iCalc).temperature;
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 						bose3PlusData(iCalc,ib3) = statistics.getPopulation(

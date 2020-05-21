@@ -1,7 +1,7 @@
 #include "scattering.h"
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
-		StatisticsSweep * statisticsSweep_,
+		StatisticsSweep & statisticsSweep_,
 		FullBandStructure<FullPoints> & innerBandStructure_,
 		FullBandStructure<FullPoints> & outerBandStructure_) :
 		context(context_), statisticsSweep(statisticsSweep_),
@@ -16,31 +16,14 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 
 	smearing = DeltaFunction::smearingFactory(context,innerBandStructure);
 
-	statisticsSweep = statisticsSweep;
-
 	// the difference arises from the fact that vectors in the BTE have
 	// numCalcs set to nTemp * 3, whereas the matrix only depends on nTemp.
 	// so, when we compute the action of the scattering matrix, we must take
 	// into account for this misalignment
 	if ( highMemory ) {
-		numCalcs = statisticsSweep->getNumCalcs();
+		numCalcs = statisticsSweep.getNumCalcs();
 	} else {
-		numCalcs = statisticsSweep->getNumCalcs() *context.getDimensionality();
-	}
-
-	if ( highMemory ) {
-		if ( numCalcs > 1 ) {
-			// note: one could write code around this
-			// but the methods are very memory intensive for production runs
-			Error e("High memory BTE methods can only work with one "
-					"temperature and/or chemical potential in a single run");
-		}
-		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
-		// calc matrix and linew.
-		builder(&theMatrix, &internalDiagonal, nullptr, nullptr);
-	} else {
-		// calc linewidths only
-		builder(nullptr, &internalDiagonal, nullptr, nullptr);
+		numCalcs = statisticsSweep.getNumCalcs() * context.getDimensionality();
 	}
 }
 
@@ -81,6 +64,25 @@ ScatteringMatrix & ScatteringMatrix::operator=(const ScatteringMatrix & that) {
 	return *this;
 }
 
+void ScatteringMatrix::setup() {
+	// note: here we want to build the matrix or its diagonal
+	// builder is a pure virtual function, which is implemented in subclasses
+	// c++ discourages calls to pure virtual functions in the constructor
+	if ( highMemory ) {
+		if ( numCalcs > 1 ) {
+			// note: one could write code around this
+			// but the methods are very memory intensive for production runs
+			Error e("High memory BTE methods can only work with one "
+					"temperature and/or chemical potential in a single run");
+		}
+		theMatrix = Eigen::MatrixXd::Zero(numStates,numStates);
+		// calc matrix and linew.
+		builder(theMatrix, &internalDiagonal, nullptr, nullptr);
+	} else {
+		// calc linewidths only
+		builder(theMatrix, &internalDiagonal, nullptr, nullptr);
+	}
+}
 
 VectorBTE ScatteringMatrix::diagonal() {
 	if ( constantRTA ) {
@@ -107,7 +109,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		return outPopulation;
 	} else {
 		VectorBTE outPopulation(context, outerBandStructure);
-		builder(nullptr,nullptr,&inPopulation,&outPopulation);
+		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
 		// outPopulation = outPopulation - internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 			outPopulation.data(0,i) -=
@@ -140,7 +142,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 		return outPopulation;
 	} else {
 		VectorBTE outPopulation(context, outerBandStructure);
-		builder(nullptr,nullptr,&inPopulation,&outPopulation);
+		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
 		if ( hasCGScaling ) {
 			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 				outPopulation.data(0,i) += inPopulation.data(0,i)

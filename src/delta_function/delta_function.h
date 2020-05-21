@@ -17,16 +17,18 @@ public:
 	const int id = -1;
 
 	virtual double getSmearing(const double & energy,
-			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
+			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) = 0;
 	virtual double getSmearing(const double & energy, const long & iq,
-			const long &ib);
+			const long &ib) = 0;
 };
 
 class GaussianDeltaFunction : public DeltaFunction {
 public:
 	GaussianDeltaFunction(Context & context); // context to get amplitude
-	double getSmearing(const double & energy,
+	virtual double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
+	virtual double getSmearing(const double & energy, const long & iq,
+			const long &ib);
 	const int id = 0;
 protected:
 	double inverseWidth;
@@ -36,8 +38,10 @@ protected:
 class AdaptiveGaussianDeltaFunction : public DeltaFunction {
 public:
 	AdaptiveGaussianDeltaFunction(FullBandStructure<FullPoints>&bandStructure);
-	double getSmearing(const double & energy,
+	virtual double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
+	virtual double getSmearing(const double & energy, const long & iq,
+			const long &ib);
 	const int id = 1;
 protected:
 	const double smearingCutoff = 1.0e-8;
@@ -87,7 +91,10 @@ public:
 	 * @returns The tetrahedron weight.
 	 *
 	 */
-	double getSmearing(const double & energy, const long & iq, const long &ib);
+	virtual double getSmearing(const double & energy, const long & iq,
+			const long & ib);
+	virtual double getSmearing(const double & energy,
+			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 protected:
 	FullBandStructure<FullPoints> & fullBandStructure;
 

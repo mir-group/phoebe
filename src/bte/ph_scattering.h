@@ -9,7 +9,7 @@
 class PhScatteringMatrix : public ScatteringMatrix {
 public:
 	PhScatteringMatrix(Context & context_,
-			PhStatisticsSweep & phStatisticsSweep_,
+			StatisticsSweep & statisticsSweep_,
 			FullBandStructure<FullPoints> & innerBandStructure_,
 			FullBandStructure<FullPoints> & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_=nullptr,
@@ -21,8 +21,6 @@ public:
 	PhScatteringMatrix & operator=(const PhScatteringMatrix & that);
 
 protected:
-	PhStatisticsSweep & phStatisticsSweep;
-
 	Interaction3Ph * coupling3Ph;
 //	InteractionIsotope * couplingIsotope = nullptr;
 //	InteractionBoundary * couplingBoundary = nullptr;

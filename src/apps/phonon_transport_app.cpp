@@ -29,7 +29,7 @@ void PhononTransportApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// set the chemical potentials to zero, load temperatures
-	PhStatisticsSweep statisticsSweep(context);
+	StatisticsSweep statisticsSweep(context);
 
 	// load the 3phonon coupling
 	IFC3Parser ifc3Parser;
@@ -41,6 +41,7 @@ void PhononTransportApp::run(Context & context) {
 	// build/initialize the scattering matrix and the smearing
 	PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
 			bandStructure, bandStructure, &coupling3Ph);
+	scatteringMatrix.setup();
 
 	// solve the BTE at the relaxation time approximation level
 	// we always do this, as it's the cheapest solver and is required to know

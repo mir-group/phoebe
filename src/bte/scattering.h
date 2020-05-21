@@ -7,11 +7,13 @@
 
 class ScatteringMatrix {
 public:
-	ScatteringMatrix(Context & context_, StatisticsSweep * statisticsSweep_,
+	ScatteringMatrix(Context & context_, StatisticsSweep & statisticsSweep_,
 			FullBandStructure<FullPoints> & innerBandStructure_,
 			FullBandStructure<FullPoints> & outerBandStructure_);
 	ScatteringMatrix(const ScatteringMatrix & that); // copy constructor
 	ScatteringMatrix & operator=(const ScatteringMatrix & that);//assignment op
+
+	void setup();
 
 	VectorBTE diagonal();
 	VectorBTE offDiagonalDot(VectorBTE & inPopulation);
@@ -24,7 +26,7 @@ public:
 //	std::tuple<Eigen::VectorXd,Eigen::MatrixXd> diagonalize();
 protected:
 	Context & context;
-	StatisticsSweep * statisticsSweep;
+	StatisticsSweep & statisticsSweep;
 	DeltaFunction * smearing;
 
 	FullBandStructure<FullPoints> & innerBandStructure;
@@ -43,8 +45,8 @@ protected:
 
 	// pure virtual function
 	// needs an implementation in every subclass
-	virtual void builder(Eigen::MatrixXd * matrix, VectorBTE * linewidth,
-			VectorBTE * inPopulation, VectorBTE * outPopulation);
+	virtual void builder(Eigen::MatrixXd & matrix, VectorBTE * linewidth,
+			VectorBTE * inPopulation, VectorBTE * outPopulation) = 0;
 };
 
 #endif
