@@ -22,6 +22,7 @@ private:
 	double volumeUnitCell;
 	int numAtoms;
 	int numSpecies;
+	long dimensionality;
 
 	// vectors running over the number of atoms
 	Eigen::MatrixXd atomicPositions;
@@ -55,7 +56,13 @@ public:
 			Eigen::MatrixXd& atomicPositions_,
 			Eigen::VectorXi& atomicSpecies_,
 			std::vector<std::string>& speciesNames_,
-			Eigen::VectorXd& speciesMasses_);
+			Eigen::VectorXd& speciesMasses_,
+			long & dimensionality_);
+
+	Crystal(); // default empty constructor
+	Crystal(const Crystal & obj); // copy constructor
+	Crystal & operator=(const Crystal & obj); // assignment operator
+
 	//  Setter and getter for all the variables above
 
 	/** Returns the crystal unit cell in real space, in Bohr.
@@ -77,7 +84,7 @@ public:
 	/** get the volume of the crystal unit cell in Bohr^3
 	 *
 	 */
-	const double& getVolumeUnitCell();
+	double getVolumeUnitCell(long dimensionality = 3);
 
 	/** get the symmetry operations of the crystal, in cartesian coordinates.
 	 * For the time being, we only retain symmetry operations that don't use a

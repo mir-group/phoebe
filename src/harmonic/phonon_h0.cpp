@@ -6,126 +6,116 @@
 #include "eigen.h"
 #include "exceptions.h"
 #include "phonon_h0.h"
+#include "utilities.h"
 
-Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
-		Point & point) {
-	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
-	velocity.setZero();
+PhononH0::PhononH0(Crystal& crystal,
+		const Eigen::MatrixXd& dielectricMatrix_,
+		const Eigen::Tensor<double, 3>& bornCharges_,
+		const Eigen::Tensor<double, 7>& forceConstants_) :
+		statistics(Statistics::phonon),
+		bornCharges(bornCharges_),
+		forceConstants(forceConstants_)
+	{
 
-	// if we are working at gamma, we set all velocities to zero.
-	Eigen::Vector3d coords = point.getCoords("cartesian");
-	if ( coords.norm() < 1.0e-6 )  {
-		return velocity;
+	// in this section, we save as class properties a few variables
+	// that are needed for the diagonalization of phonon frequencies
+
+	if ( dielectricMatrix.sum() > 0. ) {
+		hasDielectric = true;
+	} else {
+		hasDielectric = false;
 	}
 
-	// get the eigenvectors and the energies of the q-point
-	auto [energies,eigenvectors] = diagonalizeFromCoords(coords);
+	directUnitCell = crystal.getDirectUnitCell();
+	reciprocalUnitCell = crystal.getReciprocalUnitCell();
+	volumeUnitCell = crystal.getVolumeUnitCell();
+	atomicSpecies = crystal.getAtomicSpecies();
+	speciesMasses = crystal.getSpeciesMasses();
+	atomicPositions = crystal.getAtomicPositions();
+	dielectricMatrix = dielectricMatrix_;
 
-	// now we compute the velocity operator, diagonalizing the expectation
-	// value of the derivative of the dynamical matrix.
-	// This works better than doing finite differences on the frequencies.
-	double deltaQ = 1.0e-8;
-	for ( long i=0; i<3; i++ ) {
-		// define q+ and q- from finite differences.
-		Eigen::Vector3d qPlus = coords;
-		Eigen::Vector3d qMins = coords;
-		qPlus(i) += deltaQ;
-		qMins(i) -= deltaQ;
+	Eigen::VectorXi qCoarseGrid_(3);
+	qCoarseGrid_(0) = forceConstants.dimension(0);
+	qCoarseGrid_(1) = forceConstants.dimension(1);
+	qCoarseGrid_(2) = forceConstants.dimension(2);
+	qCoarseGrid = qCoarseGrid_;
 
-		// diagonalize the dynamical matrix at q+ and q-
-		auto [enPlus,eigPlus] = diagonalizeFromCoords(qPlus);
-		auto [enMins,eigMins] = diagonalizeFromCoords(qMins);
+	numAtoms = crystal.getNumAtoms();
+	numBands = numAtoms * 3;
 
-		// build diagonal matrices with frequencies
-		Eigen::MatrixXd enPlusMat(numBands,numBands);
-		Eigen::MatrixXd enMinsMat(numBands,numBands);
-		enPlusMat.diagonal() << enPlus;
-		enMinsMat.diagonal() << enMins;
+	// now, I initialize an auxiliary set of vectors that are needed
+	// for the diagonalization, which are precomputed once and for all.
 
-		// build the dynamical matrix at the two wavevectors
-		// since we diagonalized it before, A = M.U.M*
-		Eigen::MatrixXcd sqrtDPlus(numBands,numBands);
-		sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
-		Eigen::MatrixXcd sqrtDMins(numBands,numBands);
-		sqrtDMins = eigMins * enMinsMat * eigMins.adjoint();
+	Eigen::MatrixXd directUnitCellSup(3,3);
+	directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
+	directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
+	directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
 
-		// now we can build the velocity operator
-		Eigen::MatrixXcd der(numBands,numBands);
-		der = (sqrtDPlus - sqrtDMins) / ( 2. * deltaQ );
+	nr1Big = 2 * qCoarseGrid(0);
+	nr2Big = 2 * qCoarseGrid(1);
+	nr3Big = 2 * qCoarseGrid(2);
 
-		// and to be safe, we reimpose hermiticity
-		der = 0.5 * ( der + der.adjoint() );
+	PhononH0::wsinit(directUnitCellSup);
+}
 
-		// now we rotate in the basis of the eigenvectors at q.
-		der = eigenvectors.adjoint() * der * eigenvectors;
+// copy constructor
+PhononH0::PhononH0( const PhononH0 & that ) :
+		statistics(that.statistics),
+		hasDielectric(that.hasDielectric),
+		numAtoms(that.numAtoms),
+		numBands(that.numBands),
+		directUnitCell(that.directUnitCell),
+		reciprocalUnitCell(that.reciprocalUnitCell),
+		latticeParameter(that.latticeParameter),
+		volumeUnitCell(that.volumeUnitCell),
+		atomicSpecies(that.atomicSpecies),
+		speciesMasses(that.speciesMasses),
+		atomicPositions(that.atomicPositions),
+		dielectricMatrix(that.dielectricMatrix),
+		bornCharges(that.bornCharges),
+		qCoarseGrid(that.qCoarseGrid),
+		forceConstants(that.forceConstants),
+		wscache(that.wscache),
+		nr1Big(that.nr1Big),
+		nr2Big(that.nr2Big),
+		nr3Big(that.nr3Big) {
+}
 
-		for ( long ib1=0; ib1<numBands; ib1++ ) {
-			for ( long ib2=0; ib2<numBands; ib2++ ) {
-				velocity(ib1,ib2,i) = der(ib1,ib2);
-			}
-		}
+// copy assignment
+PhononH0 & PhononH0::operator = ( const PhononH0 & that ) {
+	if ( this != & that ) {
+		statistics = that.statistics;
+		hasDielectric = that.hasDielectric;
+		numAtoms = that.numAtoms;
+		numBands = that.numBands;
+		directUnitCell = that.directUnitCell;
+		reciprocalUnitCell = that.reciprocalUnitCell;
+		latticeParameter = that.latticeParameter;
+		volumeUnitCell = that.volumeUnitCell;
+		atomicSpecies = that.atomicSpecies;
+		speciesMasses = that.speciesMasses;
+		atomicPositions = that.atomicPositions;
+		dielectricMatrix = that.dielectricMatrix;
+		bornCharges = that.bornCharges;
+		qCoarseGrid = that.qCoarseGrid;
+		forceConstants = that.forceConstants;
+		wscache = that.wscache;
+		nr1Big = that.nr1Big;
+		nr2Big = that.nr2Big;
+		nr3Big = that.nr3Big;
 	}
+	return *this;
+}
 
-	// turns out that the above algorithm has problems with degenerate bands
-	// so, we diagonalize the velocity operator in the degenerate subspace,
-
-	for ( long ib=0; ib<numBands; ib++ ) {
-
-		// first, we check if the band is degenerate, and the size of the
-		// degenerate subspace
-		long sizeSubspace = 1;
-		for ( long ib2=ib+1; ib2<numBands; ib2++ ) {
-			// I consider bands degenerate if their frequencies are the same
-			// within 0.0001 cm^-1
-			if ( abs(energies(ib)-energies(ib2)) > 0.0001 / ryToCmm1 ) {
-				break;
-			}
-			sizeSubspace += 1;
-		}
-
-		if ( sizeSubspace > 1 ) {
-			Eigen::MatrixXcd subMat(sizeSubspace,sizeSubspace);
-			// we have to repeat for every direction
-			for ( long iCart=0; iCart<3; iCart++ ) {
-
-				// take the velocity matrix of the degenerate subspace
-				for ( long i=0; i<sizeSubspace; i++ ) {
-					for ( long j=0; j<sizeSubspace; j++ ) {
-						subMat(i,j) = velocity(ib+i,ib+j,iCart);
-					}
-				}
-
-				// reinforce hermiticity
-				subMat = 0.5 * ( subMat + subMat.adjoint());
-
-				// diagonalize the subMatrix
-				Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(subMat);
-				Eigen::MatrixXcd newEigvecs = eigensolver.eigenvectors();
-
-				// rotate the original matrix in the new basis
-				// that diagonalizes the subspace.
-				subMat = newEigvecs.adjoint() * subMat * newEigvecs;
-
-				// reinforce hermiticity
-				subMat = 0.5 * ( subMat + subMat.adjoint());
-
-				// substitute back
-				for ( long i=0; i<sizeSubspace; i++ ) {
-					for ( long j=0; j<sizeSubspace; j++ ) {
-						velocity(ib+i,ib+j,iCart) = subMat(i,j);
-					}
-				}
-			}
-		}
-
-		// we skip the bands in the subspace, since we corrected them already
-		ib += sizeSubspace - 1;
-	}
-	return velocity;
+PhononH0::~PhononH0() {
 }
 
 long PhononH0::getNumBands() {
 	return numBands;
+}
+
+Statistics PhononH0::getStatistics() {
+	return statistics;
 }
 
 // Development note:
@@ -170,6 +160,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	Eigen::VectorXd r_ws(3);
 	Eigen::Tensor<double,5> wscache_(2*nr3Big+1, 2*nr2Big+1, 2*nr1Big+1,
 			numAtoms, numAtoms);
+	wscache_.setZero();
 
 	double x, total_weight;
 	long n1ForCache, n2ForCache, n3ForCache;
@@ -213,7 +204,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 			}
 		}
 	}
-	// save as class property
+	// save as class member
 	wscache = wscache_;
 }
 
@@ -252,8 +243,7 @@ double PhononH0::wsweight(const Eigen::VectorXd& r,
 }
 
 void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
-		const Eigen::VectorXd& q,
-		const long sign) {
+		const Eigen::VectorXd& q, const long sign) {
 	// this subroutine is the analogous of rgd_blk in QE
 	// compute the rigid-ion (long-range) term for q
 	// The long-range term used here, to be added to or subtracted from the
@@ -272,16 +262,16 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>,4>& dyn,
 	// very rough estimate: geg/4/alph > gmax = 14
 	// (exp (-14) = 10^-6)
 
-	double geg, gp2, r; //  <q+G| dielectricMatrix | q+G>,  For 2d loto: gp2, r
 	long nr1x, nr2x, nr3x;
 	Eigen::VectorXd zag(3), zbg(3), zcg(3), fnat(3);
 	Eigen::MatrixXd reff(2,2);
-	double fac, facgd, arg;
+	double fac, facgd, arg, gp2;
 	std::complex<double> facg;
 
+	double r = 0.;
 	double gmax = 14.;
 	double alph = 1.;
-	geg = gmax * alph * 4.;
+	double geg = gmax * alph * 4.;
 
 	// Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
 	// Only for dimensions where periodicity is present, e.g. if nr1=1
@@ -570,11 +560,11 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4>& dyn,
 
 							// find vector corresponding to r in original cell
 
-							m1 = ( n1 + 1 ) % qCoarseGrid(0);
+							m1 = mod(( n1 + 1 ) , qCoarseGrid(0));
 							if ( m1 <= 0 ) { m1 += qCoarseGrid(0); };
-							m2 = ( n2 + 1 ) % qCoarseGrid(1);
+							m2 = mod(( n2 + 1 ) , qCoarseGrid(1));
 							if ( m2 <= 0 ) { m2 += qCoarseGrid(1); };
-							m3 = ( n3 + 1 ) % qCoarseGrid(2);
+							m3 = mod(( n3 + 1 ) , qCoarseGrid(2));
 							if ( m3 <= 0 ) { m3 += qCoarseGrid(2); };
 							m1 += -1;
 							m2 += -1;
@@ -664,82 +654,6 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::dyndiag(
 	return {energies, eigenvectors};
 };
 
-PhononH0::PhononH0(Crystal& crystal,
-		const Eigen::MatrixXd& dielectricMatrix_,
-		const Eigen::Tensor<double, 3>& bornCharges_,
-		const Eigen::Tensor<double, 7>& forceConstants_) {
-
-	// in this section, we save as class properties a few variables
-	// that are needed for the diagonalization of phonon frequencies
-
-	// these variables might be used for extending future functionalities.
-	// for the first tests, they can be left at these default values
-	// in the future, we might expose them to the user input
-	na_ifc = false;
-	loto_2d = false;
-	frozenPhonon = false;
-
-	if ( dielectricMatrix.sum() > 0. ) {
-		hasDielectric = true;
-	} else {
-		hasDielectric = false;
-	}
-
-	directUnitCell = crystal.getDirectUnitCell();
-	reciprocalUnitCell = crystal.getReciprocalUnitCell();
-	volumeUnitCell = crystal.getVolumeUnitCell();
-	atomicSpecies = crystal.getAtomicSpecies();
-	speciesMasses = crystal.getSpeciesMasses();
-	atomicPositions = crystal.getAtomicPositions();
-	dielectricMatrix = dielectricMatrix_;
-	bornCharges = bornCharges_;
-	forceConstants = forceConstants_;
-
-	Eigen::VectorXi qCoarseGrid_(3);
-	qCoarseGrid_(0) = forceConstants.dimension(0);
-	qCoarseGrid_(1) = forceConstants.dimension(1);
-	qCoarseGrid_(2) = forceConstants.dimension(2);
-	qCoarseGrid = qCoarseGrid_;
-
-	numAtoms = crystal.getNumAtoms();
-	numBands = numAtoms * 3;
-
-	// now, I initialize an auxiliary set of vectors that are needed
-	// for the diagonalization, which are precomputed once and for all.
-
-	Eigen::MatrixXd directUnitCellSup(3,3);
-	directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
-	directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
-	directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
-
-	nr1Big = 2 * qCoarseGrid(0);
-	nr2Big = 2 * qCoarseGrid(1);
-	nr3Big = 2 * qCoarseGrid(2);
-
-	PhononH0::wsinit(directUnitCellSup);
-}
-
-std::tuple<Eigen::VectorXd,
-		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
-				Point & point) {
-	Eigen::Vector3d q = point.getCoords("cartesian");
-	auto [energies, eigvecTemp] = diagonalizeFromCoords(q);
-
-	//  displacements are eigenvectors divided by sqrt(speciesMasses)
-
-	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
-	for ( long iband=0; iband<numBands; iband++ ) {
-		for ( long iat=0; iat<numAtoms; iat++ ) {
-			long iType = atomicSpecies(iat);
-			for ( long ipol=0; ipol<3; ipol++ ) {
-				eigenvectors(ipol,iat,iband) = eigvecTemp(iat*3 + ipol, iband)
-								/ sqrt(speciesMasses(iType));
-			}
-		}
-	}
-	return {energies, eigenvectors};
-}
-
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 				Eigen::Vector3d & q) {
 	// to be executed at every qpoint to get phonon frequencies and wavevectors
@@ -796,7 +710,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 	return {energies, eigenvectors};
 };
 
-void PhononH0::setAcousticSumRule(const std::string sumRule) {
+void PhononH0::setAcousticSumRule(const std::string & sumRule) {
 	double norm2;
 	//  VectorXi u_less(6*3*numAtoms)
 	//  indices of the vectors u that are not independent to the preceding ones
@@ -839,7 +753,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 				for ( long na=0; na<numAtoms; na++ ) {
 					sum += bornCharges(na,i,j);
 				}
-				for ( long na=0; na<3; na++ ) {
+				for ( long na=0; na<numAtoms; na++ ) {
 					bornCharges(na,i,j) -= sum / numAtoms;
 				}
 			}
@@ -1075,9 +989,9 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 											 (ind_v(l,1,6)==nb)) { q = 0;}
 										l += 1;
 									}
-									if ( ( n1==((nr1+1-n1)%nr1) ) &&
-										 ( n2==((nr2+1-n2)%nr2) ) &&
-										 ( n3==((nr3+1-n3)%nr3) ) &&
+									if ( ( n1==mod((nr1+1-n1),nr1) ) &&
+										 ( n2==mod((nr2+1-n2),nr2) ) &&
+										 ( n3==mod((nr3+1-n3),nr3) ) &&
 										 ( i==j ) && ( na==nb ) ) { q = 0; }
 									if ( q != 0 ) {
 										ind_v(m,0,0) = n1;
@@ -1088,9 +1002,9 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 										ind_v(m,0,5) = na;
 										ind_v(m,0,6) = nb;
 										v(m,0) = 1. / sqrt(2.);
-										ind_v(m,1,0) = (nr1+1-n1) % nr1;
-										ind_v(m,1,1) = (nr2+1-n2) % nr2;
-										ind_v(m,1,2) = (nr3+1-n3) % nr3;
+										ind_v(m,1,0) = mod((nr1+1-n1) , nr1);
+										ind_v(m,1,1) = mod((nr2+1-n2) , nr2);
+										ind_v(m,1,2) = mod((nr3+1-n3) , nr3);
 										ind_v(m,1,3) = j;
 										ind_v(m,1,4) = i;
 										ind_v(m,1,5) = nb;
@@ -1171,16 +1085,16 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 			}
 
 			if ( k+1 <= ( 9*numAtoms) ) {
-				na1 = (k + 1)% numAtoms;
+				na1 = mod(k + 1 , numAtoms);
 				if ( na1==0 ) { na1 = numAtoms; };
-				j1 = (((k+1-na1)/numAtoms) % 3);
-				i1 = (((((k+1-na1)/numAtoms)-j1)/3) % 3);
+				j1 = mod(((k+1-na1)/numAtoms) , 3);
+				i1 = mod(((((k+1-na1)/numAtoms)-j1)/3) , 3);
 			} else {
 				q = k + 1 - 9 * numAtoms;
-				na1 = q % numAtoms;
+				na1 = mod(q , numAtoms);
 				if ( na1 == 0 ) na1 = numAtoms;
-				j1 = (((q-na1)/numAtoms) % 3);
-				i1 = (((((q-na1)/numAtoms)-j1)/3) % 3);
+				j1 = mod(((q-na1)/numAtoms) , 3);
+				i1 = mod(((((q-na1)/numAtoms)-j1)/3) , 3);
 			}
 			for ( long q=0; q<k; q++ ) {
 				r = 1;
@@ -1371,8 +1285,7 @@ void PhononH0::setAcousticSumRule(const std::string sumRule) {
 
 
 void PhononH0::sp_zeu(Eigen::Tensor<double,3>& zeu_u,
-		Eigen::Tensor<double,3>& zeu_v,
-		double& scal) {
+		Eigen::Tensor<double,3>& zeu_v, double& scal) {
 	// does the scalar product of two effective charges matrices zeu_u and zeu_v
 	// (considered as vectors in the R^(3*3*nat) space, and coded in the usual way)
 

@@ -5,8 +5,8 @@
 
 class Statistics {
 public:
-	static const int fermi = 0;
-	static const int bose = 1;
+	static const int electron = -1;
+	static const int phonon   = -2;
 
 	double getPopulation(double energy, double temperature,
 			double chemicalPotential=0.);
@@ -16,23 +16,33 @@ public:
 	double getDnde(double energy, double temperature,
 			double chemicalPotential=0.);
 
-	Eigen::MatrixXd getDndt(Eigen::VectorXd energies,
-			Eigen::VectorXd temperatures, double chemicalPotential=0.);
-	Eigen::MatrixXd getDnde(Eigen::VectorXd energies,
-			Eigen::VectorXd temperatures, double chemicalPotential=0.);
+	Eigen::VectorXd getDndt(Eigen::VectorXd energies,
+			double temperature, double chemicalPotential=0.);
+	Eigen::VectorXd getDnde(Eigen::VectorXd energies,
+			double temperature, double chemicalPotential=0.);
 
 //	Statistics() = default; // default constructor, to be used only for
 	// temporary object initializations
 
 	Statistics(int statistics_);
-
 	Statistics(const Statistics &obj);// copy constructor
 	Statistics & operator=(const Statistics & obj); // copy assignment operator
+	~Statistics();
 
 	bool isFermi();
 	bool isBose();
+	bool isElectron();
+	bool isPhonon();
 private:
+	static const int fermi = 0;
+	static const int bose = 1;
+
 	int statistics;
+	int particle;
+
+	Eigen::VectorXd temperatures;
+	Eigen::VectorXd chemicalPotentials;
+	Eigen::VectorXd dopings;
 };
 
 #endif

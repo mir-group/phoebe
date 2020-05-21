@@ -3,41 +3,30 @@
 #include "eigen.h"
 #include "points.h"
 
+HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
+}
+
 // note: these are dummy functions, that should be overwritten in the
-
-std::tuple<Eigen::VectorXd,Eigen::Tensor<std::complex<double>,3>>
-	HarmonicHamiltonian::diagonalize(Point & point) {
-  Eigen::VectorXd energies(1);
-  Eigen::Tensor<std::complex<double>,3> eigvecs(1,1,1);
-  energies.setZero();
-  eigvecs.setZero();
-  return {energies, eigvecs};
-}
-
-Eigen::VectorXd HarmonicHamiltonian::diagonalizeEnergy(Point & point) {
-	auto [energies, eigvecs] = diagonalize(point);
-	return energies;
-}
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d & k) {
+	(void) k;
 	Eigen::VectorXd energies(numBands);
 	Eigen::MatrixXcd eigvecs(numBands,numBands);
 	return {energies, eigvecs};
 }
 
-Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(
-				Point & point) {
-  Eigen::Tensor<std::complex<double>,3> c(1,1,1);
-  c.setZero();
-  return c;
+long HarmonicHamiltonian::getNumBands() {
+	return numBands;
+}
+
+Statistics HarmonicHamiltonian::getStatistics() {
+	return statistics;
 }
 
 Eigen::Tensor<std::complex<double>,3>
 		HarmonicHamiltonian::internalDiagonalizeVelocity(
 				Eigen::Vector3d & coords, double & delta, double & threshold) {
-
-
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
 	velocity.setZero();
 

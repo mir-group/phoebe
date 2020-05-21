@@ -44,8 +44,17 @@ const int& Crystal::getNumAtoms() {
 	return numAtoms;
 }
 
-const double& Crystal::getVolumeUnitCell() {
-	return volumeUnitCell;
+double Crystal::getVolumeUnitCell(long dimensionality) {
+	double volume;
+	if ( dimensionality == 3 ) {
+		volume = volumeUnitCell;
+	} else if ( dimensionality == 2 ) {
+		volume = abs( directUnitCell(0,0)*directUnitCell(1,1)
+				- directUnitCell(0,1)*directUnitCell(1,0) );
+	} else {
+		volume = directUnitCell(2,2);
+	}
+	return volume;
 }
 
 const Eigen::MatrixXd& Crystal::getAtomicPositions() {
@@ -85,9 +94,11 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		Eigen::MatrixXd& atomicPositions_,
 		Eigen::VectorXi& atomicSpecies_,
 		std::vector<std::string>& speciesNames_,
-		Eigen::VectorXd& speciesMasses_) {
+		Eigen::VectorXd& speciesMasses_, long & dimensionality_) {
 	setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
 	volumeUnitCell = calcVolume(directUnitCell);
+
+	dimensionality = dimensionality_;
 
 	if ( atomicSpecies_.size() != atomicPositions_.rows() ) {
 		Error e("atomic species and positions are not aligned", 1);
@@ -133,7 +144,10 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		for ( int j=0; j<3; j++ ) {
 			// note: spglib wants fractional positions
 			positionCartesian = atomicPositions.row(i);
-			positionCrystal = reciprocalUnitCell * positionCartesian;
+			// note on conversion:
+			// directUnitCell^T * RCryst = RCart
+			positionCrystal = reciprocalUnitCell.transpose().inverse()
+					* positionCartesian;
 			positionSPG[i][j] = positionCrystal(j);
 		}
 	}
@@ -199,6 +213,48 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 	symmetryRotations = symmetryRotations_;
 }
 
+// default empty constructor
+Crystal::Crystal() {
+}
+
+// copy constructor
+Crystal::Crystal(const Crystal & obj) {
+	directUnitCell = obj.directUnitCell;
+	reciprocalUnitCell = obj.reciprocalUnitCell;
+	volumeUnitCell = obj.volumeUnitCell;
+	numAtoms = obj.numAtoms;
+	numSpecies = obj.numSpecies;
+	dimensionality = obj.dimensionality;
+	atomicPositions = obj.atomicPositions;
+	atomicSpecies = obj.atomicSpecies;
+	atomicNames = obj.atomicNames;
+	atomicMasses = obj.atomicMasses;
+	speciesNames = obj.speciesNames;
+	speciesMasses = obj.speciesMasses;
+	symmetryRotations = obj.symmetryRotations;
+	numSymmetries = obj.numSymmetries;
+}
+
+// assignment operator
+Crystal & Crystal::operator=(const Crystal & obj) {
+	if ( this != &obj ) {
+		directUnitCell = obj.directUnitCell;
+		reciprocalUnitCell = obj.reciprocalUnitCell;
+		volumeUnitCell = obj.volumeUnitCell;
+		numAtoms = obj.numAtoms;
+		numSpecies = obj.numSpecies;
+		dimensionality = obj.dimensionality;
+		atomicPositions = obj.atomicPositions;
+		atomicSpecies = obj.atomicSpecies;
+		atomicNames = obj.atomicNames;
+		atomicMasses = obj.atomicMasses;
+		speciesNames = obj.speciesNames;
+		speciesMasses = obj.speciesMasses;
+		symmetryRotations = obj.symmetryRotations;
+		numSymmetries = obj.numSymmetries;
+	}
+	return *this;
+}
 
 
 
