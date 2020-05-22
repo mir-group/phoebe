@@ -53,6 +53,12 @@ libs:
 doc:
 	(cd doc && doxygen)
 
+.PHONY: test
+test:	libs
+	@echo "Creating tests"
+	(cd test && cmake CMakeLists.txt)
+	(cd test && make)
+
 .PHONY: clean
 clean:
 	@echo "Deleting $(BIN_NAME) symlink"
@@ -61,6 +67,7 @@ clean:
 	@$(RM) -r $(BUILD_PATH)
 	@$(RM) -r $(BIN_PATH)
 	(cd lib && make clean)
+	(cd test && make clean)
 	@$(RM) -r doc/html doc/latex
 
 # (cd ./lib && make clean)
