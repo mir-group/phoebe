@@ -8,54 +8,70 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 		Crystal & crystal) {
 
 	auto fileName = context.getPhD3FileName();
-	long tripletCount; // triplet counter
 
 	// Open IFC3 file
 	std::ifstream infile(fileName);
+	std::string line;
 
-	long numTriplets;
 	// Number of triplets
-	infile >> numTriplets;
+	std::getline(infile, line);
+	long numTriplets = std::stoi(line);
 
 	// Allocate readables
 	Eigen::Tensor<double,4> ifc3Tensor(numTriplets,3,3,3);
+	ifc3Tensor.setZero();
 	Eigen::Tensor<double,3> cellPositions(numTriplets,2,3);
+	cellPositions.setZero();
 	Eigen::Tensor<long,2> displacedAtoms(numTriplets,3);
+	displacedAtoms.setZero();
 
 	for ( long i=0; i<numTriplets; i++ ) {// loop over all triplets
-		// Triplet counter
-		infile >> tripletCount;
+
+		// empty line
+		std::getline(infile, line);
+		// line with a counter
+		std::getline(infile, line);
 
 		// Read position of 2nd cell
-		infile >> cellPositions(i,0,0) >> cellPositions(i,0,1)
-				>> cellPositions(i,0,2);
+		std::getline(infile, line);
+		std::istringstream iss(line);
+		std::string item;
+		int j = 0;
+		while ( iss >> item ) {
+			cellPositions(i,0,j) = std::stoi(item);
+			j++;
+		}
 
 		// Read position of 3rd cell
-		infile >> cellPositions(i,1,0) >> cellPositions(i,1,1)
-				>> cellPositions(i,1,2);
-
-		//Convert cell positions from Ang to Bohr
-		for ( long a : {0,1,2} ) {
-			for ( long b : {0,1,2} ) {
-				cellPositions(i,a,b) /= distanceBohrToAng;
-			}
+		std::getline(infile, line);
+		std::istringstream iss2(line);
+		j = 0;
+		while ( iss2 >> item ) {
+			cellPositions(i,1,j) = std::stoi(item);
+			j++;
 		}
 
 		// Read triplet atom indices
-		infile >> displacedAtoms(i,0) >> displacedAtoms(i,1)
-				>> displacedAtoms(i,2);
-		for ( long a : {0,1,2} ) {
-			displacedAtoms(i,a) = displacedAtoms(i,a) - 1;
-			// go to zero based indexing
+		std::getline(infile, line);
+		std::istringstream iss3(line);
+		j = 0;
+		long i0;
+		while ( iss3 >> i0 ) {
+			displacedAtoms(i,j) = i0 - 1;
+			j++;
 		}
 
 		// Read the 3x3x3 force constants tensor
+		long i1, i2, i3;
+		double d4;
 		for ( long a : {0,1,2} ) {
 			for ( long b : {0,1,2} ) {
 				for ( long c : {0,1,2} ) {
-					long tmp[3]; // temporary int holder
-					infile >> tmp[0] >> tmp[1] >> tmp[2] >>
-							ifc3Tensor(i,a,b,c);
+					std::getline(infile, line);
+					std::istringstream iss4(line);
+					while ( iss4 >> i1 >> i2 >> i3 >> d4 ) {
+						ifc3Tensor(i,a,b,c) = d4;
+					}
 				}
 			}
 		}

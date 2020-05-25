@@ -205,6 +205,8 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		// build diagonal matrices with frequencies
 		Eigen::MatrixXd enPlusMat(numBands,numBands);
 		Eigen::MatrixXd enMinsMat(numBands,numBands);
+		enPlusMat.setZero();
+		enMinsMat.setZero();
 		enPlusMat.diagonal() << enPlus;
 		enMinsMat.diagonal() << enMins;
 
