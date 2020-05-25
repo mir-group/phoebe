@@ -106,21 +106,17 @@ FullBandStructure<T>::FullBandStructure(long numBands_,
 
 	if ( withVelocities ) {
 		hasVelocities = true;
-		Eigen::MatrixXcd velocities_(getNumPoints(), numBands*numBands*3);
-		velocities_.setZero();
-		velocities = velocities_;
+		velocities = Eigen::MatrixXcd::Zero(getNumPoints(),
+				numBands*numBands*3);
 	}
 
 	if ( withEigenvectors ) {
-		hasVelocities = true;
-		Eigen::MatrixXcd eigenvectors_(getNumPoints(),3*numAtoms*numBands);
-		eigenvectors_.setZero();
-		eigenvectors = eigenvectors_;
+		hasEigenvectors = true;
+		eigenvectors = Eigen::MatrixXcd::Zero(getNumPoints(),
+				3*numAtoms*numBands);
 	}
 
-	Eigen::MatrixXd energies_(getNumPoints(), numBands);
-	energies_.setZero();
-	energies = energies_;
+	energies = Eigen::MatrixXd::Zero(getNumPoints(),numBands);
 
 	// now, I want to manipulate the Eigen matrices at lower level
 	// I create this pointer to data, so I can move it around

@@ -34,4 +34,17 @@ TEST (PointsTest, PointsHandling) {
 	auto p2 = points.getPoint(i4);
 	auto p3 = p1 + p2;
 	EXPECT_EQ ( p3.getCoords("cartesian").norm(),0.);
+
+	//
+
+	mesh << 2,2,2;
+	points = FullPoints(crystal, mesh);
+	long iq = 7;
+	p1 = points.getPoint(iq);
+	long iqr = points.getIndexInverted(iq);
+	p2 = points.getPoint(iqr);
+	p3 = p1 + p2;
+	EXPECT_EQ ( p3.getCoords().norm(),0.);
+
+
 }

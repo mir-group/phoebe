@@ -138,7 +138,7 @@ public:
 	long getIndex(const long & bandIndex);
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
-	Point<T> & point;
+	Point<T> point;
 	double * energies;
 	long numBands;
 	long numAtoms;
@@ -154,7 +154,7 @@ State<T>::State(Point<T> & point_,
 		double * energies_,
 		long numAtoms_, long numBands_,
 		std::complex<double> * velocities_,
-		std::complex<double> * eigenvectors_) : point{point_},
+		std::complex<double> * eigenvectors_) : point(point_),
 		energies{energies_} {
 	if ( velocities_ != nullptr ) {
 		hasVelocities = true;

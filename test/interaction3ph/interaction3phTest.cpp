@@ -1,4 +1,4 @@
-#include "gtest/gtest.h"
+//#include "gtest/gtest.h"
 #include "points.h"
 #include "state.h"
 #include "ifc3_parser.h"
@@ -6,13 +6,62 @@
 #include "ph_scattering.h"
 #include "bandstructure.h"
 
-TEST (PhScatteringMatrix, Linewidth) {
-	// in this test, we compute the 3ph interaction |V|^2 for three arbitrary
-	// points, and compare the results with the coupling computed by ShengBTE
+//TEST (Interaction3Ph, Coupling3Ph) {
+//	// in this test, we compute the 3ph interaction |V|^2 for three arbitrary
+//	// points, and compare the results with the coupling computed by ShengBTE
+//
+//	Context context;
+//	context.setPhD2FileName("interaction3ph/QEspresso.fc");
+//	context.setPhD3FileName("interaction3ph/ShengBTEForceConstants3rd");
+//	Eigen::VectorXd temperatures(1);
+//	temperatures << 300.;
+//	context.setTemperatures(temperatures);
+//	context.setSmearingMethod(2); // tetrahedron smearing
+//
+//	QEParser qeParser;
+//	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+//
+//	IFC3Parser ifc3Parser;
+//	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
+//
+//	// set up the mesh of qpoints of shengbte
+//	Eigen::Vector3i qMesh;
+//	qMesh << 2, 2, 2;
+//	FullPoints points(crystal, qMesh);
+//	bool withVelocities = true;
+//	bool withEigenvectors = true;
+//	FullBandStructure<FullPoints> bandStructure = phononH0.populate(points,
+//			withVelocities, withEigenvectors);
+//
+//	long iq1 = 2;
+//	long iq2 = 7;
+//
+//	auto q1 = bandStructure.getPoint(iq1);
+//	auto q2 = bandStructure.getPoint(iq2);
+//
+//	auto states1 = bandStructure.getState(iq1);
+//
+//	long iq2Inv = bandStructure.getPoints().getIndexInverted(iq2);
+//
+//	auto states2 = bandStructure.getState(iq2);
+//	auto states2Plus = bandStructure.getState(iq2Inv);
+//
+//	auto q3Plus = q1 + q2;
+//	auto q3Mins = q1 - q2;
+//
+//	auto states3Plus = bandStructure.getState(q3Plus);
+//	auto states3Mins = bandStructure.getState(q3Mins);
+//
+//	auto [couplingPlus, couplingMins] = coupling3Ph.getCouplingSquared(
+//			states1, states2Plus, states2,
+//			states3Plus, states3Mins);
+//	EXPECT_EQ ( 0., 0.);
+//}
 
+int main() {
 	Context context;
 	context.setPhD2FileName("interaction3ph/QEspresso.fc");
-	context.setPhD3FileName("itneraction3ph/ShengBTEForceConstants3rd");
+	context.setPhD3FileName("interaction3ph/ShengBTEForceConstants3rd");
 	Eigen::VectorXd temperatures(1);
 	temperatures << 300.;
 	context.setTemperatures(temperatures);
@@ -26,42 +75,33 @@ TEST (PhScatteringMatrix, Linewidth) {
 
 	// set up the mesh of qpoints of shengbte
 	Eigen::Vector3i qMesh;
-	qMesh << 8, 8, 8;
-	long numPoints = 8*8*8;
-
-	FullPoints innerPoints(crystal, qMesh);
-
-	Eigen::Vector3i outerMesh;
-	outerMesh << 1, 1, 1;
-	Eigen::Vector3d outerOffset;
-	outerOffset << 1/8., 0., 0.;
-
-	FullPoints outerPoints(crystal, outerMesh, outerOffset);
-
+	qMesh << 2, 2, 2;
+	FullPoints points(crystal, qMesh);
 	bool withVelocities = true;
 	bool withEigenvectors = true;
-	FullBandStructure<FullPoints> outerBandStructure = phononH0.populate(
-			outerPoints, withVelocities, withEigenvectors);
-	FullBandStructure<FullPoints> innerBandStructure = phononH0.populate(
-			innerPoints, withVelocities, withEigenvectors);
+	FullBandStructure<FullPoints> bandStructure = phononH0.populate(points,
+			withVelocities, withEigenvectors);
 
-	// set the chemical potentials to zero, load temperatures
-	StatisticsSweep statisticsSweep(context);
+	long iq1 = 2;
+	long iq2 = 7;
 
-	// build/initialize the scattering matrix and the smearing
-	PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
-			innerBandStructure, outerBandStructure, &coupling3Ph);
-	// compute linewidths
-	scatteringMatrix.setup();
+	auto q1 = bandStructure.getPoint(iq1);
+	auto q2 = bandStructure.getPoint(iq2);
 
-	// load the linewidth
-	VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
-	std::cout << sMatrixDiagonal.data(0,0) << "\t" <<
-			sMatrixDiagonal.data(0,1) << "\t" <<
-			sMatrixDiagonal.data(0,2) << "\t" <<
-			sMatrixDiagonal.data(0,3) << "\t" <<
-			sMatrixDiagonal.data(0,4) << "\t" <<
-			sMatrixDiagonal.data(0,5);
+	auto states1 = bandStructure.getState(iq1);
 
-	EXPECT_EQ ( sMatrixDiagonal.data(0,5), 0.);
+	long iq2Inv = bandStructure.getPoints().getIndexInverted(iq2);
+
+	auto states2 = bandStructure.getState(iq2);
+	auto states2Plus = bandStructure.getState(iq2Inv);
+
+	auto q3Plus = q1 + q2;
+	auto q3Mins = q1 - q2;
+
+	auto states3Plus = bandStructure.getState(q3Plus);
+	auto states3Mins = bandStructure.getState(q3Mins);
+
+	auto [couplingPlus, couplingMins] = coupling3Ph.getCouplingSquared(
+			states1, states2Plus, states2,
+			states3Plus, states3Mins);
 }

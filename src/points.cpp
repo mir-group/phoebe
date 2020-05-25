@@ -291,7 +291,8 @@ Eigen::Vector3d Points::getPointCoords(const long & index,
 	if ( basis != "crystal" && basis != "cartesian" ) {
 		Error e("Wrong basis for getPoint", 1);
 	}
-	Eigen::Vector3d pointCrystal = reduciblePoints(index);
+	Eigen::Vector3d pointCrystal;
+	pointCrystal = reduciblePoints(index);
 	if ( basis == "crystal" ) {
 		return pointCrystal;
 	} else {
@@ -409,9 +410,9 @@ long FullPoints::getIndexInverted(const long & ik) {
 	long iky = (long)round(( point(1) - offset(1) ) * mesh(1));
 	long ikz = (long)round(( point(2) - offset(2) ) * mesh(2));
 
-	long ikxm = - mod(ikx , mesh(0));
-	long ikym = - mod(iky , mesh(1));
-	long ikzm = - mod(ikz , mesh(2));
+	long ikxm = mod(-ikx , mesh(0));
+	long ikym = mod(-iky , mesh(1));
+	long ikzm = mod(-ikz , mesh(2));
 
 	long ikm = ikxm * mesh(2) * mesh(1) + ikym * mesh(2) + ikzm;
 	return ikm;

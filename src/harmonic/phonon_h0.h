@@ -138,12 +138,13 @@ FullBandStructure<T> PhononH0::populate(T & points, bool & withVelocities,
 
 		auto [ens, eigvecs] = diagonalize(point);
 		fullBandStructure.setEnergies(point, ens);
+
 		if ( withVelocities) {
 			auto vels = diagonalizeVelocity(point);
 			fullBandStructure.setVelocities(point, vels);
 		}
 		if ( withEigenvectors ) {
-			fullBandStructure.setVelocities(point, eigvecs);
+			fullBandStructure.setEigenvectors(point, eigvecs);
 		}
 	}
 	return fullBandStructure;
