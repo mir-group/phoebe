@@ -163,7 +163,8 @@ std::tuple<Eigen::VectorXd,
 		for ( long iat=0; iat<numAtoms; iat++ ) {
 			long iType = atomicSpecies(iat);
 			for ( long ipol=0; ipol<3; ipol++ ) {
-				eigenvectors(ipol,iat,iband) = eigvecTemp(iat*3 + ipol, iband)
+				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband)
 								/ sqrt(speciesMasses(iType));
 			}
 		}

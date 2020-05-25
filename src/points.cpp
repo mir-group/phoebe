@@ -6,44 +6,6 @@
 #include "constants.h"
 #include "utilities.h" // for mod()
 
-//template<>
-//Eigen::Vector3d Point<std::vector<double>>::getCoords(
-//		const std::string & basis, const bool & inWignerSeitz) {
-//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-//	}
-//	Eigen::Vector3d p;
-//	p(0) = points[0];
-//	p(1) = points[1];
-//	p(2) = points[2];
-//	return p;
-//}
-//
-//template<>
-//Eigen::Vector3d Point<Eigen::Vector3d>::getCoords(
-//		const std::string & basis, const bool & inWignerSeitz) {
-//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-//	}
-//	return points;
-//}
-
-//template<>
-//Eigen::Vector3d Point<Eigen::Matrix<double,3,1>>::getCoords(
-//		const std::string & basis,
-//		const bool & inWignerSeitz) {
-//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-//	}
-//	Eigen::Vector3d p = points;
-//	return p;
-//}
-//
-//template<>
-//double Point<Eigen::Vector3d>::getWeight() {
-//	return 1.;
-//}
-
 // default constructors
 
 Points::Points(Crystal& crystal_, const Eigen::Vector3i & mesh_,
