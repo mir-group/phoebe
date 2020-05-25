@@ -33,7 +33,7 @@ protected:
 	FullBandStructure<FullPoints> & outerBandStructure;
 
 	 // constant relaxation time approximation -> the matrix is just a scalar
-	bool constantRTA = true;
+	bool constantRTA = false;
 	bool highMemory = true;
 	bool hasCGScaling = false;
 

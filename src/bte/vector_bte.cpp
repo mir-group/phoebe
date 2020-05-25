@@ -13,13 +13,15 @@ VectorBTE::VectorBTE(Context & context_,
 
 	if ( dimensionality_ == 0 ) {
 		dimensionality = context.getDimensionality();
-	} else if ( dimensionality <0 ) {
+	} else if ( dimensionality_ < 0 ) {
 		Error e("VectorBTE doesn't accept negative dimensions");
+		dimensionality = 0;
 	} else {
 		dimensionality = dimensionality_;
 	}
 
-	numCalcs = numTemps * numChemPots * dimensionality;
+	numCalcs = numTemps * dimensionality;
+	if ( numChemPots > 0 ) numCalcs *= numChemPots;
 	numStates = bandStructure.getNumStates();
 	data = Eigen::MatrixXd::Zero(numCalcs,numStates);
 }
