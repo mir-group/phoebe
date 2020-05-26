@@ -1,5 +1,6 @@
-eigen-3.3.7
-spglib-1.14.1
-pugixml-1.10
-googletest-release*
-release-*
+eigen*
+googletest*
+pugixml*
+spglib*
+src
+lib-cfgcmd*

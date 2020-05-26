@@ -41,3 +41,11 @@
 
 .Makefile.swp
 
+#CMake stuff:
+*CMakeCache.txt
+*CMakeFiles
+*cmake_install.cmake
+CMakeDoxy*
+Makefile
+
+runTests
