@@ -3,7 +3,11 @@
 #define MATRIX_H
 
 // include statements
-#include <Eigen/Dense>
+#include <type_traits>
+#include <complex>
+#include <assert.h>
+#include <vector>
+#include "Blas.h" 
 
 //! Matrix parent class, which can be used to define matrix classes of different types
 /** \file matrix.h
@@ -14,15 +18,17 @@ class Matrix
     /// Class variables
     int nRows;
     int nCols;
-    T* mat; // pointer to the internal array structure
     
     public:
 
+        T* mat; // pointer to the internal array structure. NOTE: can we find a way to make this private?
+
         /// Matrix class constructors -----------------------------------
         Matrix(const int rows, const int cols); // Construct using row, col numbers
-        ~Matrix(){delete[] mat};   // currently relying on the default destructor instead
+        Matrix(); // default constructor
+        ~Matrix(){delete[] mat;}   // currently relying on the default destructor instead
         /// Copy constructor
-        Matrix(const Matrix& m1); 
+        Matrix(const Matrix<T>& m1); 
         
         /// Matrix class methods -----------------------------------
         int numRows() const;
@@ -31,7 +37,8 @@ class Matrix
         void reshape(const int rows, const int cols) { nRows = rows; nCols = cols; } 
         /// Print the matrix
         void print() const;
-        
+        void copy(const Matrix<T>& toCopy);         
+
         /// Index from a 1D array to a position in a 2D array (matrix)
         int index(int row,int col) const;
 
@@ -54,7 +61,7 @@ class Matrix
         void setCol(const int col, const Matrix<T>& value);
     
         /// Addition and subtraction member functions
-        // Brute force generic matrix addition.  
+        // Generic matrix addition.  
         template<typename U>
         Matrix<T>& operator+=(const Matrix<U>& m1) {
             assert( (m1.numRows() == nRows) && (m1.numCols() == nCols) );
@@ -62,19 +69,20 @@ class Matrix
             for(int s = 0; s<getSize(); s++) mat[s] += m1.mat[s];
             return *this;
         } 
-        // Brute force generic matrix subtraction. 
+        // Generic matrix subtraction. 
         template<typename U>
         Matrix<T>& operator-=(const Matrix<U>& m1) {
             assert( (m1.numRows() == nRows) && (m1.numCols() == nCols) );
             static_assert( std::is_same<T, typename std::common_type<U,T>::type >::value, "You cannot -= against a type which would return a type other than the lhs value." );
             for(int s = 0; s<getSize(); s++) mat[s] -= m1.mat[s];
             return *this;
-        } // Generic brute force matrix multiplication. 
+        } 
+        // Generic matrix multiplication. 
         template<typename U> Matrix<T>& operator*=(const Matrix<U>& m1) {
             assert(nRows == m1.numCols());
             static_assert( std::is_same<T, typename std::common_type<U,T>::type >::value, "You cannot *= against a type which would return a type other than the lhs value." );
 
-            Matrix<T> ret(nRows,m1.numCols()); // newly sized matrix 
+            Matrix<T> ret(nRows,m1.numCols());
             // Loop over the rows of this matrix
             for(int i =0; i<nRows; i++) {
                 // loop over the cols of this matrix and rows of m1
@@ -87,33 +95,20 @@ class Matrix
             return *this;
         }
 
-        /// Nonmember friend functions for operators like +, -, *. auto type here specifies the use of a "trailing return type" after the
-        /// function delcaration
-        // Generic brute force matrix addition. 
+        /// Dclaration of nonmember friend functions for operators like +, -, *. auto type here specifies the use of a "trailing return type"
+        // Generic matrix addition. 
         template<typename U, typename V>
-        friend auto operator+(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-            assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type; 
-            Matrix<W> c(m1.numRows(), m1.numCols());
-            for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] + m2[s];  
-            return c;
-        }
-        // Generic brute force matrix subtraction. 
+        friend auto operator+(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> ;
+        // Generic matrix subtraction. 
         template<typename U, typename V>
-        friend auto operator-(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-            assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type; 
-            Matrix<W> c(m1.numRows(), m1.numCols());
-            for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] - m2[s];
-            return c;
-        } 
+        friend auto operator-(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>; 
         /// Multiplication-based operations
         /// General matrix multiplication
         template<typename U, typename V>
-        friend auto operator*(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>  {
-            assert(m1.numCols() == m2.numRows());
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type;
-            Matrix<T> ret(m1.numRows,m1.numCols()); // newly sized matrix 
+        friend auto operator*(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>; 
+        /**    assert(m1.numCols() == m2.numRows());
+            typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
+            Matrix<T> ret(m1.numRows,m1.numCols()); 
 
             // Loop over the rows of this matrix
             for(int i =0; i<m1.numRows(); i++) {
@@ -124,33 +119,44 @@ class Matrix
                 }
             }
             return ret;
-        }
+        }**/
         // Matrix times a scalar. -- TODO: write specific versions with  z/dscal
         // Generic matrix * scalar product
         template<typename U, typename V>
-        friend auto operator*( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type;
-            Matrix<W> c(m1.numRows(), m2.numCols());
-            for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] * scalar;
-            return c;
+        friend auto operator*( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>; 
+/**
+        // Explict specialization of BLAS matrix-matrix mult for Matrix<complex<double>>
+        template <>
+        inline Matrix<std::complex<double>> operator*(const Matrix<std::complex<double>>& m1, const Matrix<std::complex<double>>& m2) {
+            assert(m1.numCols() == m2.numRows());
+            Matrix<std::complex<double>> ret(m1.numRows(),m2.numCols()); // newly sized matrix 
+            // throw away variables
+            char transa = 'n'; char transb = 'n';
+            std::complex<double> alpha(1.0,1.0);
+            std::complex<double> beta(0.0,0.0);
+            zgemm_(transa,transb,m1.numRows(),m2.numCols(),m1.numCols(),alpha,m1.mat,m1.numRows(), m2.mat,m2.numRows(),beta,ret.mat,m1.numRows());
+            return ret; 
         }
+        // Explicit specializiation of BLAS matrix-matrix mult for Matrix<double>
+        template <>
+        inline Matrix<double> operator*(const Matrix<double>& m1, const Matrix<double>& m2) {
+            assert(m1.numCols() == m2.numRows());
+            Matrix<double> ret(m1.numRows(),m2.numCols()); // newly sized matrix 
+            // throw away variables
+            char transa = 'n'; char transb = 'n'; // compute only reigs
+            double alpha = 1.0;
+            double beta = 0.0;
+            dgemm_(transa,transb,m1.numRows(),m2.numCols(),m1.numCols(),alpha,m1.mat,m1.numRows(), m2.mat,m2.numRows(),beta,ret.mat,m1.numRows());
+            return ret; 
+        }
+**/
         // TODO: replace with z or dscal
         // Generic matrix times a scalar, have to define again with argument order flipped.
         template<typename U, typename V>
-        friend auto operator*(const V scalar, const Matrix<U>& m1) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type;
-            Matrix<W> c(m1.numRows(), m1.numCols());
-            for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] * scalar;
-            return c;
-        }
+        friend auto operator*(const V scalar, const Matrix<U>& m1) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>; 
         // Generic matrix / a scalar -- TODO: replace with z or dscal
         template<typename U, typename V>
-        friend auto operator/( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-            typedef W = typename std::common_type<decltype(U{}),decltype(V{})>::type;
-            Matrix<W> c(m1.numRows(), m1.numCols());
-            for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] / scalar;
-            return c;
-        }
+        friend auto operator/( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>; 
         
         /// Unary negation
         Matrix<T> operator-() const;
@@ -164,16 +170,18 @@ class Matrix
         /// TODO: Get the imag part of a complex matrix
 
         /// Useful matrix functions
-        T det() const;          ///< Calculate the determinant of a diagonal matrix
+        T det();          ///< Calculate the determinant of a diagonal matrix
         T trace() const;        ///< Returns the trace of a matrix
         void transposeIP(Matrix<T>& m);     ///< A function to transpose in place
         Matrix<T> transpose();  ///< Diagonalize a matrix
         void conjugateIP(Matrix<T>& m);     ///< A function to transpose in place
+        //template <> void Matrix<std::complex<double>>::conjugateIP(Matrix<std::complex<double>>& m);
         Matrix<T> conjugate();  ///< Returns the complex conjugate of the matrix
         void eye();             ///< Sets this matrix as the identity
     
         /// Matrix algebra functions
-        void diagonalize(Matrix<T>& eigvecs, Matrix<T>& eigvals) const; ///< Diagonalize a real matrix
+        void diagonalize(Matrix<std::complex<double>>& eigvecs, Matrix<std::complex<double>>& eigvals); ///< Diagonalize a real matrix
+        //template<> void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals);
         Matrix<T> dagger(); ///<  Provide  A(dag)
 
     private:
@@ -181,6 +189,73 @@ class Matrix
 
     
 }; // end of class Matrix
+
+//  forward declarations to satisfy compiler 
+template <> void Matrix<std::complex<double>>::conjugateIP(Matrix<std::complex<double>>& m);
+template<> void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals);
+
+// Implementation of non-member matrix functions
+// Generic matrix addition
+template<typename U, typename V>
+auto operator+(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>{
+    assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W; 
+    Matrix<W> c(m1.numRows(), m1.numCols());
+    for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] + m2[s];  
+    return c;
+}
+
+// Generic matrix subtraction. 
+template<typename U, typename V>
+auto operator-(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
+    assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W; 
+    Matrix<W> c(m1.numRows(), m1.numCols());
+    for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] - m2[s];
+    return c;
+}
+// Generic matrix multiplication.  
+template<typename U, typename V>
+auto operator*(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
+    assert(m1.numCols() == m2.numRows());
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
+    Matrix<W> ret(m1.numRows,m1.numCols()); 
+
+    // Loop over the rows of this matrix
+    for(int i =0; i<m1.numRows(); i++) {
+        // loop over the cols of this matrix and rows of m1
+        for(int j =0; j<m1.numCols(); j++) {
+                // loop over the cols of m1
+                for(int k =0; k<m2.numCols(); k++) ret(i,k) += m1(i,j) * m2(j,k);
+        }
+    }
+    return ret;
+}
+// Generic matrix * scalar product
+template<typename U, typename V>
+auto operator*( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
+    Matrix<W> c(m1.numRows(), m1.numCols());
+    for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] * scalar;
+    return c;
+}
+// TODO: replace with z or dscal
+// Generic matrix times a scalar, have to define again with argument order flipped.
+template<typename U, typename V>
+auto operator*(const V scalar, const Matrix<U>& m1) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
+    Matrix<W> c(m1.numRows(), m1.numCols());
+    for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] * scalar;
+    return c;
+}
+// Generic matrix / a scalar -- TODO: replace with z or dscal
+template<typename U, typename V>
+auto operator/( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
+    typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
+    Matrix<W> c(m1.numRows(), m1.numCols());
+    for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1[s] / scalar;
+    return c;
+} 
 
 /* there may be a more glamorous/efficient way of doing this.
 this is here to fix linker errors which otherwise require the
