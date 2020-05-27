@@ -9,11 +9,14 @@ DetachedState::DetachedState(Eigen::Vector3d & point_,
 		long numAtoms_,
 		long numBands_,
 		Eigen::MatrixXcd & eigenvectors_,
-		Eigen::Tensor<std::complex<double>,3> * velocities_
-		) :
+		Eigen::Tensor<std::complex<double>,3> * velocities_) :
 		point(point_), energies(energies_), numAtoms(numAtoms_),
-		numBands(numBands_), velocities(*velocities_),
-		eigenvectors(eigenvectors_) {
+		numBands(numBands_), eigenvectors(eigenvectors_) {
+
+	if ( velocities_ != nullptr ) {
+		velocities = *velocities_;
+	}
+
 }
 
 DetachedState::DetachedState(const DetachedState & that) : // copy constructor
@@ -79,6 +82,7 @@ Eigen::Tensor<std::complex<double>,3> DetachedState::getVelocities() {
 void DetachedState::getEigenvectors(
 		Eigen::Tensor<std::complex<double>,3> & eigs) {
 	// in this case, we have phonon eigenvectors sized (3,numAtoms,numBands)
+	eigs = Eigen::Tensor<std::complex<double>,3>(3,numAtoms,numBands);
 	for ( long i = 0; i<numBands; i++ ) {
 		auto [ic,iat] = decompress2Indeces(i,3,numAtoms);
 		for ( long j = 0; j<numBands; j++ ) {

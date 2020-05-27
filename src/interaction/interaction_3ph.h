@@ -20,8 +20,7 @@ private:
 
 	template <typename A,typename B,typename C>
 	std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
-			calcCouplingSquared(A & state1,
-					B & state2Plus, B & state2Mins,
+			calcCouplingSquared(A & state1, B & state2,
 					C & state3Plus, C & state3Mins);
 
 	// we set to zero rates for scattering with states of energies <0.001 cm^-1
@@ -39,8 +38,7 @@ public:
 	// this is an interface: we can compute it on the fly or read the cache.
 	template <typename A,typename B,typename C>
 	std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
-			getCouplingSquared(A & state1,
-					B & state2Plus, B & state2Mins,
+			getCouplingSquared(A & state1, B & state2,
 					C & state3Plus, C & state3Mins);
 
 	/**
@@ -86,30 +84,25 @@ public:
 
 template <typename A,typename B,typename C>
 std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
-		Interaction3Ph::getCouplingSquared(A & state1,
-				B & state2Plus, B & state2Mins,
+		Interaction3Ph::getCouplingSquared(A & state1, B & state2,
 				C & state3Plus, C & state3Mins) {
-	return calcCouplingSquared(state1, state2Plus, state2Mins,
-			state3Plus, state3Mins);
+	return calcCouplingSquared(state1, state2, state3Plus, state3Mins);
 }
 
 template <typename A,typename B,typename C>
 std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
-		Interaction3Ph::calcCouplingSquared(A & state1,
-				B & state2Plus, B & state2Mins,
+		Interaction3Ph::calcCouplingSquared(A & state1, B & state2,
 				C & state3Plus, C & state3Mins ) {
 
 	Eigen::Vector3d cell2Pos, cell3Pos;
 
 	//Cartesian phonon wave vectors: q1,q2,q3
-	auto q2Plus = state2Plus.getCoords("cartesian");
-	auto q2Mins = state2Mins.getCoords("cartesian");
+	auto q2 = state2.getCoords("cartesian");
 	auto q3Plus = state3Plus.getCoords("cartesian");
 	auto q3Mins = state3Mins.getCoords("cartesian");
 
 	auto energies1 = state1.getEnergies();
-	auto energies2 = state2Plus.getEnergies();
-//	energies2Mins = state2Mins.getEnergies(); // energies(-q) = energies(q)
+	auto energies2 = state2.getEnergies();
 	auto energies3Plus = state3Plus.getEnergies();
 	auto energies3Mins = state3Mins.getEnergies();
 
@@ -125,18 +118,16 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 	vPlus.setZero();
 	vMins.setZero();
 
-	if ( true ) {
+	if ( false ) {
 
 		// this is the first implementation of this function
 		// it's reasonable, but it's about 30 times slower than the
 		// implementation below
 
-		Eigen::Tensor<std::complex<double>,3> ev1, ev2Plus, ev2Mins, ev3Plus,
-				ev3Mins;
+		Eigen::Tensor<std::complex<double>,3> ev1, ev2, ev3Plus, ev3Mins;
 
 		state1.getEigenvectors(ev1); // size (3,numAtoms,numBands)
-		state2Plus.getEigenvectors(ev2Plus);
-		state2Mins.getEigenvectors(ev2Mins);
+		state2.getEigenvectors(ev2);
 		state3Plus.getEigenvectors(ev3Plus);
 		state3Mins.getEigenvectors(ev3Mins);
 
@@ -152,11 +143,14 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 					for ( int ic3 : {0,1,2} ) {
 						for ( int ic2 : {0,1,2} ) {
 							for ( int ic1 : {0,1,2} ) {
+								// note: we should use ev2 without conjugation
+								// but computed at -q2. Instead we use it at
+								// +q2 and note that z^*(q)=z(-q)
 								for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
 									v0Plus(ib1,ib2,ib3) +=
 											ifc3Tensor(it,ic1,ic2,ic3)
 											* ev1(ic1,displacedAtoms(it,0),ib1)
-											* ev2Plus(ic2,displacedAtoms(it,1),ib2)
+									* std::conj(ev2(ic2,displacedAtoms(it,1),ib2))
 									* std::conj(ev3Plus(ic3,displacedAtoms(it,2),ib3));
 								}
 
@@ -164,7 +158,7 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 									v0Mins(ib1,ib2,ib3) +=
 											ifc3Tensor(it,ic1,ic2,ic3)
 											* ev1(ic1,displacedAtoms(it,0),ib1)
-									* std::conj(ev2Mins(ic2,displacedAtoms(it,1),ib2))
+									* std::conj(ev2(ic2,displacedAtoms(it,1),ib2))
 									* std::conj(ev3Mins(ic3,displacedAtoms(it,2),ib3));
 								}
 							}
@@ -181,10 +175,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			// As a convention, the first primitive cell in the triplet is
 			// restricted to the origin, so the phase for that cell is unity.
 
-			double arg = q2Plus.dot(cell2Pos) - q3Plus.dot(cell3Pos);
+			double arg = - q2.dot(cell2Pos) - q3Plus.dot(cell3Pos);
 			std::complex<double> phasePlus = exp( complexI * arg );
-			arg = q2Mins.dot(cell2Pos) + q3Mins.dot(cell3Pos);
-			std::complex<double> phaseMins = exp(-complexI * arg );
+			arg = - q2.dot(cell2Pos) - q3Mins.dot(cell3Pos);
+			std::complex<double> phaseMins = exp( complexI * arg );
 
 			for ( int ib1=0; ib1<nb1; ib1++ ) {
 				for ( int ib2=0; ib2<nb2; ib2++ ) {
@@ -207,16 +201,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		long numAtoms = crystal.getNumAtoms();
 		long numBands = numAtoms * 3;
 
-		Eigen::Tensor<std::complex<double>,3> vPlus(numBands,numBands,numBands);
-		Eigen::Tensor<std::complex<double>,3> vMins(numBands,numBands,numBands);
-		vPlus.setZero();
-		vMins.setZero();
-
-		Eigen::MatrixXcd ev1, ev2Plus, ev2Mins, ev3Plus, ev3Mins;
+		Eigen::MatrixXcd ev1, ev2, ev3Plus, ev3Mins;
 
 		state1.getEigenvectors(ev1); // size (3,numAtoms,numBands)
-		state2Plus.getEigenvectors(ev2Plus);
-		state2Mins.getEigenvectors(ev2Mins);
+		state2.getEigenvectors(ev2);
 		state3Plus.getEigenvectors(ev3Plus);
 		state3Mins.getEigenvectors(ev3Mins);
 
@@ -237,10 +225,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			// As a convention, the first primitive cell in the triplet is
 			// restricted to the origin, so the phase for that cell is unity.
 
-			double arg = q2Plus.dot(cell2Pos) - q3Plus.dot(cell3Pos);
+			double arg = - q2.dot(cell2Pos) - q3Plus.dot(cell3Pos);
 			std::complex<double> phasePlus = exp( complexI * arg );
-			arg = q2Mins.dot(cell2Pos) + q3Mins.dot(cell3Pos);
-			std::complex<double> phaseMins = exp(-complexI * arg );
+			arg = - q2.dot(cell2Pos) - q3Mins.dot(cell3Pos);
+			std::complex<double> phaseMins = exp( complexI * arg );
 
 			long ind1, ind2, ind3;
 
@@ -259,26 +247,75 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			}
 		}
 
-		for ( int iac1=0; iac1<numBands; iac1++ ) {
-			for ( int iac2=0; iac2<numBands; iac2++ ) {
-				for ( int iac3=0; iac3<numBands; iac3++ ) {
+		// this 6 loops are easier to read, but can be optimized as done below
+		// and we break them into 3 loops with 4 nested loops
+		// ( ~numBands^2 faster)
+//		for ( int iac1=0; iac1<numBands; iac1++ ) {
+//			for ( int iac2=0; iac2<numBands; iac2++ ) {
+//				for ( int iac3=0; iac3<numBands; iac3++ ) {
+//					for ( int ib1=0; ib1<nb1; ib1++ ) {
+//						for ( int ib2=0; ib2<nb2; ib2++ ) {
+//							for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
+//								vPlus(ib1,ib2,ib3) +=
+//										tmpPlus(iac1,iac2,iac3)
+//										* ev1(iac1,ib1)
+//										* std::conj(ev2(iac2,ib2))
+//										* std::conj(ev3Plus(iac3,ib3));
+//							}
+//							for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
+//								vMins(ib1,ib2,ib3) +=
+//										tmpMins(iac1,iac2,iac3)
+//										* ev1(iac1,ib1)
+//										* std::conj(ev2(iac2,ib2))
+//										* std::conj(ev3Mins(iac3,ib3));
+//							}
+//						}
+//					}
+//				}
+//			}
+//		}
+		Eigen::Tensor<std::complex<double>,3> tmp1Plus(nb1,numBands,numBands);
+		Eigen::Tensor<std::complex<double>,3> tmp1Mins(nb1,numBands,numBands);
+		tmp1Plus.setZero();
+		tmp1Mins.setZero();
+		for ( int iac2=0; iac2<numBands; iac2++ ) {
+			for ( int iac3=0; iac3<numBands; iac3++ ) {
+				for ( int iac1=0; iac1<numBands; iac1++ ) {
 					for ( int ib1=0; ib1<nb1; ib1++ ) {
-						for ( int ib2=0; ib2<nb2; ib2++ ) {
-							for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
-								vPlus(ib1,ib2,ib3) +=
-										tmpPlus(iac1,iac2,iac3)
-										* ev1(iac1,ib1)
-										* ev2Plus(iac2,ib2)
-										* std::conj(ev3Plus(iac3,ib3));
-							}
-							for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
-								vMins(ib1,ib2,ib3) +=
-										tmpMins(iac1,iac2,iac3)
-										* ev1(iac1,ib1)
-										* std::conj(ev2Mins(iac2,ib2))
-										* std::conj(ev3Mins(iac3,ib3));
-							}
-						}
+						tmp1Plus(ib1,iac2,iac3) += tmpPlus(iac1,iac2,iac3)
+								* ev1(iac1,ib1);
+						tmp1Mins(ib1,iac2,iac3) += tmpMins(iac1,iac2,iac3)
+								* ev1(iac1,ib1);
+					}
+				}
+			}
+		}
+		Eigen::Tensor<std::complex<double>,3> tmp2Plus(nb1,nb2,numBands);
+		Eigen::Tensor<std::complex<double>,3> tmp2Mins(nb1,nb2,numBands);
+		tmp2Plus.setZero();
+		tmp2Mins.setZero();
+		for ( int ib1=0; ib1<nb1; ib1++ ) {
+			for ( int iac3=0; iac3<numBands; iac3++ ) {
+				for ( int iac2=0; iac2<numBands; iac2++ ) {
+					for ( int ib2=0; ib2<nb2; ib2++ ) {
+						tmp2Plus(ib1,ib2,iac3) += tmp1Plus(ib1,iac2,iac3)
+								* std::conj(ev2(iac2,ib2));
+						tmp2Mins(ib1,ib2,iac3) += tmp1Mins(ib1,iac2,iac3)
+								* std::conj(ev2(iac2,ib2));
+					}
+				}
+			}
+		}
+		for ( int ib1=0; ib1<nb1; ib1++ ) {
+			for ( int ib2=0; ib2<nb2; ib2++ ) {
+				for ( int iac3=0; iac3<numBands; iac3++ ) {
+					for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
+						vPlus(ib1,ib2,ib3) += tmp2Plus(ib1,ib2,iac3)
+								* std::conj(ev3Plus(iac3,ib3));
+					}
+					for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
+						vMins(ib1,ib2,ib3) += tmp2Mins(ib1,ib2,iac3)
+								* std::conj(ev3Mins(iac3,ib3));
 					}
 				}
 			}

@@ -168,8 +168,7 @@ void PhScatteringMatrix::builder(
 				auto states3Mins = innerBandStructure.getState(q3Mins);
 
 				auto [couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
-						states1, states2Plus, states2,
-						states3Plus, states3Mins);
+						states1, states2, states3Plus, states3Mins);
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
@@ -209,8 +208,8 @@ void PhScatteringMatrix::builder(
 						nb3Mins, eigvecs3Mins);
 
 				auto [couplingPlus, couplingMins] =
-						coupling3Ph->getCouplingSquared(states1, states2Plus,
-								states2, states3Plus, states3Mins);
+						coupling3Ph->getCouplingSquared(states1, states2,
+								states3Plus, states3Mins);
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
