@@ -370,7 +370,7 @@ long Points::getIndex(const Eigen::Vector3d & point) {
 	long i = mod(long(round(p(0))) , mesh(0));
 	long j = mod(long(round(p(1))) , mesh(1));
 	long k = mod(long(round(p(2))) , mesh(2));
-	long ik = i * mesh(2) * mesh(1) + j * mesh(2) + k;
+	long ik = k * mesh(0) * mesh(1) + j * mesh(0) + i;
 	return ik;
 }
 
