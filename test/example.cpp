@@ -14,7 +14,7 @@ double squareRoot (const double & a) {
 TEST (SquareRootTest, PositiveNos) { 
     EXPECT_EQ (18.0, squareRoot (324.0));
     EXPECT_EQ (25.4, squareRoot (645.16));
-    EXPECT_EQ (50.3321, squareRoot (2533.310224));
+    EXPECT_EQ (50.332, squareRoot (2533.310224));
 }
 
 TEST (SquareRootTest, ZeroAndNegativeNos) { 

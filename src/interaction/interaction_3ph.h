@@ -233,11 +233,14 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			long ind1, ind2, ind3;
 
 			for ( int ic1 : {0,1,2} ) {
-				ind1 = compress2Indeces(ic1, displacedAtoms(it,0), 3, numAtoms);
+//				ind1 = compress2Indeces(ic1, displacedAtoms(it,0), 3, numAtoms);
+				ind1 = compress2Indeces(displacedAtoms(it,0), ic1, numAtoms,3 );
 				for ( int ic2 : {0,1,2} ) {
-					ind2 = compress2Indeces(ic2, displacedAtoms(it,1), 3, numAtoms);
+//					ind2 = compress2Indeces(ic2, displacedAtoms(it,1), 3, numAtoms);
+					ind2 = compress2Indeces(displacedAtoms(it,1), ic2, numAtoms, 3);
 					for ( int ic3 : {0,1,2} ) {
-						ind3 = compress2Indeces(ic3, displacedAtoms(it,2), 3, numAtoms);
+//						ind3 = compress2Indeces(ic3, displacedAtoms(it,2), 3, numAtoms);
+						ind3 = compress2Indeces(displacedAtoms(it,2), ic3, numAtoms, 3);
 						tmpPlus(ind1, ind2, ind3) +=
 								ifc3Tensor(it,ic1,ic2,ic3) * phasePlus;
 						tmpMins(ind1, ind2, ind3) +=

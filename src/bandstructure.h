@@ -254,7 +254,7 @@ void FullBandStructure<T>::setEigenvectors(Point<T> & point,
 	if ( ! hasEigenvectors ) {
 		Error e("FullBandStructure was initialized without eigvecs",1);
 	}
-	Eigen::VectorXcd tmp = packXcd(eigenvectors_, 3, numAtoms, numBands);
+	Eigen::VectorXcd tmp = packXcd(eigenvectors_, numAtoms, 3, numBands);
 	long ik = point.getIndex();
 	eigenvectors.row(ik) = tmp;
 }

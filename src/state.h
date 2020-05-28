@@ -287,7 +287,7 @@ void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs) {
 	for ( long j=0; j<3; j++ ) {
 		for ( long ia=0; ia<numAtoms; ia++ ) {
 			for ( long ib=0; ib<numBands; ib++ ) {
-				long ind = compress3Indeces(j, ia, ib, 3, numAtoms, numBands);
+				long ind = compress3Indeces(ia, j, ib, numAtoms, 3, numBands);
 				eigs_(j,ia,ib) = *(eigenvectors+ind);
 			}
 		}

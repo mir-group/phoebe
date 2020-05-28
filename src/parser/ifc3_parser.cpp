@@ -38,7 +38,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 		std::string item;
 		int j = 0;
 		while ( iss >> item ) {
-			cellPositions(i,0,j) = std::stoi(item);
+			cellPositions(i,0,j) = std::stod(item) / distanceBohrToAng;
 			j++;
 		}
 
@@ -47,7 +47,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 		std::istringstream iss2(line);
 		j = 0;
 		while ( iss2 >> item ) {
-			cellPositions(i,1,j) = std::stoi(item);
+			cellPositions(i,1,j) = std::stod(item) / distanceBohrToAng;
 			j++;
 		}
 
@@ -64,13 +64,14 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 		// Read the 3x3x3 force constants tensor
 		long i1, i2, i3;
 		double d4;
+		double conversion = pow(distanceBohrToAng,3) / energyRyToEv;
 		for ( long a : {0,1,2} ) {
 			for ( long b : {0,1,2} ) {
 				for ( long c : {0,1,2} ) {
 					std::getline(infile, line);
 					std::istringstream iss4(line);
 					while ( iss4 >> i1 >> i2 >> i3 >> d4 ) {
-						ifc3Tensor(i,a,b,c) = d4;
+						ifc3Tensor(i,a,b,c) = d4 * conversion;
 					}
 				}
 			}

@@ -84,7 +84,7 @@ void DetachedState::getEigenvectors(
 	// in this case, we have phonon eigenvectors sized (3,numAtoms,numBands)
 	eigs = Eigen::Tensor<std::complex<double>,3>(3,numAtoms,numBands);
 	for ( long i = 0; i<numBands; i++ ) {
-		auto [ic,iat] = decompress2Indeces(i,3,numAtoms);
+		auto [ic,iat] = decompress2Indeces(i,numAtoms,3);
 		for ( long j = 0; j<numBands; j++ ) {
 			eigs(ic,iat,j) = eigenvectors(i,j);
 		}
