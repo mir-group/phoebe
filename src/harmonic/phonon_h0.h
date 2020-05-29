@@ -162,11 +162,9 @@ std::tuple<Eigen::VectorXd,
 	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
 	for ( long iband=0; iband<numBands; iband++ ) {
 		for ( long iat=0; iat<numAtoms; iat++ ) {
-			long iType = atomicSpecies(iat);
 			for ( long ipol=0; ipol<3; ipol++ ) {
 				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
-				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband)
-								/ sqrt(speciesMasses(iType));
+				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
 			}
 		}
 	}

@@ -284,10 +284,10 @@ void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs) {
 		Error e("State doesn't have eigenvectors" ,1);
 	}
 	Eigen::Tensor<std::complex<double>,3> eigs_(3, numAtoms, numBands);
-	for ( long j=0; j<3; j++ ) {
+	for ( long ib=0; ib<numBands; ib++ ) {
 		for ( long ia=0; ia<numAtoms; ia++ ) {
-			for ( long ib=0; ib<numBands; ib++ ) {
-				long ind = compress3Indeces(ia, j, ib, numAtoms, 3, numBands);
+			for ( long j=0; j<3; j++ ) {
+				long ind = compress3Indeces(ib, ia, j, numBands, numAtoms, 3);
 				eigs_(j,ia,ib) = *(eigenvectors+ind);
 			}
 		}
@@ -304,7 +304,7 @@ void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs) {
 	for ( long ib1=0; ib1<numBands; ib1++ ) {
 		for ( long ib2=0; ib2<numBands; ib2++ ) {
 			long ind = compress2Indeces(ib1, ib2, numBands, numBands);
-			eigs(ib1,ib2) = *(eigenvectors+ind);
+			eigs(ib2,ib1) = *(eigenvectors+ind);
 		}
 	}
 }

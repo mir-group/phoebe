@@ -707,6 +707,21 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 	// once everything is ready, here we scale by masses and diagonalize
 
 	auto [energies, eigenvectors] = dyndiag(dyn);
+
+	// we normalize with the mass.
+	// In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+	// but instead (U^+) * M * U = I, where M is the mass matrix
+	// (M is diagonal with atomic masses on the diagonal)
+	for ( long iband=0; iband<numBands; iband++ ) {
+		for ( long iat=0; iat<numAtoms; iat++ ) {
+			long iType = atomicSpecies(iat);
+			for ( long ipol=0; ipol<3; ipol++ ) {
+				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+				eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
+			}
+		}
+	}
+
 	return {energies, eigenvectors};
 };
 
