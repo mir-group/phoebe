@@ -58,6 +58,10 @@ const double TeraHertzAu = hPlanckSi / twoPi / hartreeSi * 1.0e+12;
 
 const double ryToTHz = 1. / TeraHertzAu / 2. / twoPi;
 const double ryToCmm1 = 1.0e10 * ryToTHz / speedLightSi;
+
+// velocity tested for phonons
+const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
+
 //
 // units for transport coefficients
 //

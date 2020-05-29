@@ -73,7 +73,7 @@ public:
 	// also, we return the eigenvectors aligned with the dynamical matrix,
 	// and without the mass scaling.
 	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-				Eigen::Vector3d & q);
+				Eigen::Vector3d & q, const bool & withMassScaling=true);
 protected:
 	Statistics statistics;
 
@@ -183,8 +183,11 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		return velocity;
 	}
 
+	bool withMassScaling = false;
+
 	// get the eigenvectors and the energies of the q-point
-	auto [energies,eigenvectors] = diagonalizeFromCoords(coords);
+	auto [energies,eigenvectors] = diagonalizeFromCoords(coords,
+			withMassScaling);
 
 	// now we compute the velocity operator, diagonalizing the expectation
 	// value of the derivative of the dynamical matrix.
@@ -198,8 +201,8 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		qMins(i) -= deltaQ;
 
 		// diagonalize the dynamical matrix at q+ and q-
-		auto [enPlus,eigPlus] = diagonalizeFromCoords(qPlus);
-		auto [enMins,eigMins] = diagonalizeFromCoords(qMins);
+		auto [enPlus,eigPlus] = diagonalizeFromCoords(qPlus,withMassScaling);
+		auto [enMins,eigMins] = diagonalizeFromCoords(qMins,withMassScaling);
 
 		// build diagonal matrices with frequencies
 		Eigen::MatrixXd enPlusMat(numBands,numBands);
@@ -266,7 +269,8 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 				subMat = 0.5 * ( subMat + subMat.adjoint());
 
 				// diagonalize the subMatrix
-				Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(subMat);
+				Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(
+						subMat);
 				Eigen::MatrixXcd newEigvecs = eigensolver.eigenvectors();
 
 				// rotate the original matrix in the new basis

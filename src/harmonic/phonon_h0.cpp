@@ -655,7 +655,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::dyndiag(
 };
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
-				Eigen::Vector3d & q) {
+				Eigen::Vector3d & q, const bool & withMassScaling) {
 	// to be executed at every qpoint to get phonon frequencies and wavevectors
 
 	Eigen::Tensor<std::complex<double>, 4> dyn(3,3,numAtoms,numAtoms);
@@ -708,16 +708,18 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 
 	auto [energies, eigenvectors] = dyndiag(dyn);
 
-	// we normalize with the mass.
-	// In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
-	// but instead (U^+) * M * U = I, where M is the mass matrix
-	// (M is diagonal with atomic masses on the diagonal)
-	for ( long iband=0; iband<numBands; iband++ ) {
-		for ( long iat=0; iat<numAtoms; iat++ ) {
-			long iType = atomicSpecies(iat);
-			for ( long ipol=0; ipol<3; ipol++ ) {
-				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
-				eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
+	if ( withMassScaling ) {
+		// we normalize with the mass.
+		// In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+		// but instead (U^+) * M * U = I, where M is the mass matrix
+		// (M is diagonal with atomic masses on the diagonal)
+		for ( long iband=0; iband<numBands; iband++ ) {
+			for ( long iat=0; iat<numAtoms; iat++ ) {
+				long iType = atomicSpecies(iat);
+				for ( long ipol=0; ipol<3; ipol++ ) {
+					auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+					eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
+				}
 			}
 		}
 	}
