@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <vector>
 #include <iostream>
+#include <cmath>
 #include "Blas.h" 
 
 // Trick to allow type promotion below
@@ -48,7 +49,7 @@ class Matrix
 		/// Matrix class constructors -----------------------------------
 		Matrix(const int rows, const int cols); // Construct using row, col numbers
 		Matrix(); // default constructor
-		// TODO: currently relying on the default destructor instead.
+		// NOTE: currently relying on the default destructor instead.
 		// if I add this explicit delete, I get a double free error when the program exits 
 		//~Matrix(){delete[] mat;}  
 		/// Copy constructor
@@ -58,7 +59,9 @@ class Matrix
 		int numRows() const;
 		int numCols() const;
 		int getSize() const;
-		void reshape(const int rows, const int cols) { nRows = rows; nCols = cols; } 
+                /// A reshape function. Note, this is not the same as pythons -- python wraps around the rows, 
+                /// this function instead wraps down columns. This is because the matrix is set up in col major order. 
+		void reshape(const int rows, const int cols);
 		/// Print the matrix
 		void print() const;
 		void copy(const Matrix<T>& toCopy);         
@@ -155,8 +158,9 @@ class Matrix
 		template<typename U> friend Matrix<U> imag(const Matrix<std::complex<U>>& m);
 
 		/// Useful matrix functions
-		T det();          		///< Calculate the determinant of a diagonal matrix
 		T trace() const;        ///< Returns the trace of a matrix
+                T det();                        ///< Calculate the determinant of a diagonal matrix
+                double norm() const;         ///< Returns the Frobenius norm of a matrix 
 		void transposeIP(Matrix<T>& m);     ///< A function to transpose in place
 		Matrix<T> transpose();  			///< Diagonalize a matrix
 		void conjugateIP(Matrix<T>& m);     ///< A function to transpose in place

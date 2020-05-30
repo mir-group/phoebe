@@ -1,5 +1,4 @@
 #include "Matrix.h"
-#include <iostream>
 
 /* ------------- Constructors -------------- */
 // A default constructor to build a dense matrix of zeros to be filled
@@ -32,6 +31,11 @@ template <typename T> Matrix<T>::Matrix(const Matrix<T>& toCopy) {
 template <typename T> int Matrix<T>::numRows() const { return nRows; }
 template <typename T> int Matrix<T>::numCols() const { return nCols; }
 template <typename T> int Matrix<T>::getSize() const { return nCols*nRows; }
+template <typename T> void Matrix<T>::reshape(const int rows, const int cols) {
+        assert(rows*cols == getSize()); // new values need to fit the current dimensions
+        nRows = rows; 
+        nCols = cols; 
+}
 // Generalized print function
 template <typename T> void Matrix<T>::print() const {
 		for(int row = 0; row<nRows; row++){
@@ -199,10 +203,31 @@ template <> std::complex<double> Matrix<std::complex<double>>::det() {
 	//TODO: if det is zero (info > 0) do we want to throw a warning?
 	return det;
 }
-
-// transpose in place
-// TODO: It might be faster to use std::swap or something like it, 
-// But it won't work for complex values
+// Explicit specialization of norm for doubles
+template <> double Matrix<double>::norm() const { 
+        char norm = 'F'; // tells lapack to give us Frobenius norm 
+        int nr = nRows;
+        int nc = nCols;
+        double* work;
+        return dlange_(&norm, &nr, &nc, this->mat, &nr, work);
+}
+// Explicit specialization of norm for complex doubles
+template <> double Matrix<std::complex<double>>::norm() const {
+        char norm = 'F'; // tells lapack to give us Frobenius norm 
+        int nr = nRows;
+        int nc = nCols;
+        double* work;
+        return zlange_(&norm, &nr, &nc, this->mat, &nr, work);
+}
+// General function for the norm
+template <typename T> double Matrix<T>::norm() const {
+        T sumSq = 0; 
+        for(int row = 0; row<nRows; row++) {
+            for(int col=0; col<nCols; col++) sumSq += ((*this)(row,col) * (*this)(row,col)); 
+        }
+        return sqrt(sumSq); 
+}
+// Transpose in place
 template <typename T> void Matrix<T>::transposeIP(Matrix<T>& m){
 	for(int row = 0; row<nRows; row++) {
 		for(int col = 0; col<row; col++) std::swap(m(row, col), m(col, row));
