@@ -161,14 +161,15 @@ template <typename T> T Matrix<T>::trace() const {
  }
 // Explict specialization of determinant for a double matrix. 
 // Determinant using LU decomp (see pg 52 in Numerical Recipes)
-template <> double Matrix<double>::det() { 
+template <> double Matrix<double>::det() const { 
 	assert(nRows == nCols); // no det if non-square matrix
 	int info = 0;  
+        int nr = nRows;
 	Matrix<double> lu(*this); // need to make a copy of our data array
 	std::vector<int> pivot(nRows); // throw away argument
 
 	// get the LU decomp of the matrix, LAPACK routine for complex val array
-	dgetrf_(&nRows, &nCols, lu.mat, &nRows, pivot.data(), &info);
+	dgetrf_(&nr, &nr, lu.mat, &nr, pivot.data(), &info);
 	assert(info>=0); // if this not true, LU decomp failed somehow  
 
 	// Product of the diagonal elements = det
@@ -183,14 +184,15 @@ template <> double Matrix<double>::det() {
 	return det;
 }
 // Explicit specialization of determinant for a complex matrix. 
-template <> std::complex<double> Matrix<std::complex<double>>::det() {
+template <> std::complex<double> Matrix<std::complex<double>>::det() const{
 	assert(nRows == nCols); // no det if non-square matrix
 	int info = 0;
+        int nr = nRows;
 	Matrix<std::complex<double>> lu(*this); // need to make a copy of our data array
 	std::vector<int> pivot(nRows); // throw away argument
 
 	// get the LU decomp of the matrix, LAPACK routine for complex val array
-	zgetrf_(&nRows, &nCols, lu.mat, &nRows, pivot.data(), &info);
+	zgetrf_(&nr, &nr, lu.mat, &nr, pivot.data(), &info);
 	assert(info>=0); // if this not true, LU decomp failed somehow  
 
 	// Product of the diagonal elements = det
@@ -272,31 +274,33 @@ template <typename T> Matrix<T> Matrix<T>::dagger(){
 // TODO: should the arguments be already sized matrices, or just pointers to empty, uninitialized ones? 
 /// Diagonalize a complex double matrix 
 template <> 
-void Matrix<std::complex<double>>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals){
+void Matrix<std::complex<double>>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals) const {
 	assert( nRows == nCols );   // needs to be square
 	//TODO: assert( (this->det().imag() != 0) && (this->det().real() != 0));   // should not be singular
 
 	// throw away variables
 	Matrix<std::complex<double>> temp(*this); // copy 
 	char leig = 'N'; char reig = 'V'; // compute only reigs
+        int nr = nRows; 
 	int lwork = (65*nRows); // Supposedly a good choice, I've also seen 20*N.  
 	std::complex<double>* work = new std::complex<double>[lwork];
 	double* rwork = new double[2*nRows]; 
 	int info = 0; 
 	// TODO: set this up so it calls zheev if the matrix is hermitian. 
-	zgeev_(&leig, &reig, &nRows, temp.mat, &nRows, eigvals.mat, eigvecs.mat, &nRows, eigvecs.mat, &nRows, work, &lwork, rwork, &info);    
+	zgeev_(&leig, &reig, &nr, temp.mat, &nr, eigvals.mat, eigvecs.mat, &nr, eigvecs.mat, &nr, work, &lwork, rwork, &info);    
 
 	assert(info==0); // if it doesn't =0, there was an error. Different errors for info< or > 0.   
 }
 // Diagonalize for real double matrix 
 template <>
-void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals) {
+void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals) const {
 	assert( nRows == nCols );   // needs to be square
-	TODO: assert( this->det() != 0);   // should not be singular
+	assert( this->det() != 0);   // should not be singular
 
 	// throw away variables
 	Matrix<double> temp(*this); // copy of input matrix which will be overwritten 
 	char leig = 'N'; char reig = 'V'; // compute only reigs
+        int nr = nRows;
 	double* WR = new double[nRows]; // real part of eigvals
 	double* WI = new double[nRows]; // imaginary part of eigvals 
 	double* VL = new double[nRows*nRows]; // throw away for left eigenvectors
@@ -305,7 +309,7 @@ void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<
 	double* work = new double[lwork];
 	int info = 0;
 	// TODO: set this up so it calls dheev if the matrix is hermitian. 
-	dgeev_(&leig, &reig, &nRows, temp.mat, &nRows, WR, WI, VL, &nRows, VR, &nRows, work, &lwork, &info);
+	dgeev_(&leig, &reig, &nr, temp.mat, &nr, WR, WI, VL, &nr, VR, &nr, work, &lwork, &info);
     // set real and imag parts of eigenvalue output
 	for(int row = 0; row<nRows; row++){ 
 		eigvals(row,0).real(WR[row]);
@@ -336,9 +340,9 @@ void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<
 /// Calls the version for Matrix<double> after casting to double. 
 // I don't think this will ever be used, but it's here to be more complete
 template <typename T>
-void Matrix<T>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals){
+void Matrix<T>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals) const{
 	Matrix<double> temp(nRows,nCols); 
-	// TODO: can we throw a warning about this type cast? 
+	// TODO: is this typecast ok?
 	for(int s = 0; s<getSize(); s++) { temp.mat[s] = (T)*this.mat[s]; } 
 	// call the regular diag for doubles 
 	temp.diagonalize(eigvecs, eigvals); 

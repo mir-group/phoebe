@@ -15,16 +15,16 @@ template <typename T>
 struct identity_t { typedef T type; };
 
 // Allow promotion of complex types (for example, complex<double> * int)
-#define COMPLEX_OPS(OP)                                                 \
-	template <typename _Tp> std::complex<_Tp>                           \
+#define COMPLEX_OPS(OP)                                                         \
+	template <typename _Tp> std::complex<_Tp>                               \
 	operator OP(std::complex<_Tp> lhs, const typename identity_t<_Tp>::type & rhs) \
-	{                                                                     \
-		return lhs OP rhs;                                                \
-	}                                                                     \
-	template <typename _Tp> std::complex<_Tp>                             \
+	{                                                                       \
+		return lhs OP rhs;                                              \
+	}                                                                       \
+	template <typename _Tp> std::complex<_Tp>                               \
 	operator OP(const typename identity_t<_Tp>::type & lhs, const std::complex<_Tp> & rhs) \
-	{                                                                     \
-		return lhs OP rhs;                                                \
+	{                                                                       \
+		return lhs OP rhs;                                              \
 	}
 COMPLEX_OPS(+)
 COMPLEX_OPS(-)
@@ -34,7 +34,7 @@ COMPLEX_OPS(/)
 
 //! Matrix parent class, which can be used to define matrix classes of different types
 /** \file matrix.h
- * \brief Header file for a basic complex matrix parent class, as well as several specialized matrix types */
+ * \brief General templated matrix class, with explicit specialization for double and complex<double> types. */
 template <typename T>
 class Matrix
 {
@@ -159,7 +159,7 @@ class Matrix
 
 		/// Useful matrix functions
 		T trace() const;        ///< Returns the trace of a matrix
-                T det();                        ///< Calculate the determinant of a diagonal matrix
+                T det() const;                        ///< Calculate the determinant of a diagonal matrix
                 double norm() const;         ///< Returns the Frobenius norm of a matrix 
 		void transposeIP(Matrix<T>& m);     ///< A function to transpose in place
 		Matrix<T> transpose();  			///< Diagonalize a matrix
@@ -168,18 +168,17 @@ class Matrix
 		void eye();             ///< Sets this matrix as the identity
 	
 		/// Matrix algebra functions
-		void diagonalize(Matrix<std::complex<double>>& eigvecs, Matrix<std::complex<double>>& eigvals); ///< Diagonalize a real matrix
+		void diagonalize(Matrix<std::complex<double>>& eigvecs, Matrix<std::complex<double>>& eigvals) const; ///< Diagonalize a real matrix
 		Matrix<T> dagger(); ///<  Provide  A(dag)
 
 	private:
-		void resize(int rows, int cols);
 
 	
 }; // end of class Matrix
 
 //  forward declarations to satisfy compiler when explicitly specializing
 template <> void Matrix<std::complex<double>>::conjugateIP(Matrix<std::complex<double>>& m);
-template <> void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals);
+template <> void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::complex<double> >& eigvals) const;
 
 // Implementation of non-member matrix functions
 // Generic matrix addition
