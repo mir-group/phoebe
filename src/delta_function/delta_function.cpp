@@ -7,6 +7,22 @@
 DeltaFunction::~DeltaFunction() {
 }
 
+int DeltaFunction::getType() {
+	return id;
+}
+
+int GaussianDeltaFunction::getType() {
+	return id;
+}
+
+int AdaptiveGaussianDeltaFunction::getType() {
+	return id;
+}
+
+int TetrahedronDeltaFunction::getType() {
+	return id;
+}
+
 // app factory
 DeltaFunction * DeltaFunction::smearingFactory(Context & context,
 		FullBandStructure<FullPoints> & fullBandStructure) {

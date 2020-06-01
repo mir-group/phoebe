@@ -15,12 +15,14 @@ public:
 	static const int gaussian = 0;
 	static const int adaptiveGaussian = 1;
 	static const int tetrahedron = 2;
-	const int id = -1;
 
 	virtual double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero()) = 0;
 	virtual double getSmearing(const double & energy, const long & iq,
 			const long &ib) = 0;
+	virtual int getType();
+private:
+	int id = -1;
 };
 
 class GaussianDeltaFunction : public DeltaFunction {
@@ -30,8 +32,9 @@ public:
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 	virtual double getSmearing(const double & energy, const long & iq,
 			const long &ib);
-	const int id = 0;
+	virtual int getType();
 protected:
+	int id = 0;
 	double inverseWidth;
 	double prefactor;
 };
@@ -43,8 +46,9 @@ public:
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 	virtual double getSmearing(const double & energy, const long & iq,
 			const long &ib);
-	const int id = 1;
+	virtual int getType();
 protected:
+	int id = 1;
 	const double smearingCutoff = 1.0e-8;
 	const double prefactor = 1.;
 	Eigen::Matrix3d qTensor;
@@ -55,7 +59,7 @@ protected:
  */
 class TetrahedronDeltaFunction : public DeltaFunction {
 public:
-	const int id = 2;
+	virtual int getType();
 
 	/**
 	 * Form all tetrahedra for 3D wave vector mesh.
@@ -98,6 +102,7 @@ public:
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 protected:
 	FullBandStructure<FullPoints> & fullBandStructure;
+	int id = 2;
 
 	/** Number of tetrahedra. */
 	long numTetra;

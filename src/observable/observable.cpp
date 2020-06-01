@@ -44,56 +44,6 @@ Observable & Observable::operator = (const Observable & that) {
     return *this;
 }
 
-//void Observable::add(long & it, long & imu, double & term) {
-//	long is = glob2loc(imu,it);
-//	scalar(is) += term;
-//}
-//
-//void Observable::add(long & it, long & imu, double & term, long & i) {
-//	long is = glob2loc(imu,it);
-//	vectord(is,i) += term;
-//}
-//
-//void Observable::add(long & it, long & imu, double & term, long & i, long & j) {
-//	long is = glob2loc(imu,it);
-//	tensordxd(is,i,j) += term;
-//}
-//
-//void Observable::add(long & it, long & imu, double & term,
-//		int & i, int & j, int & k, int & l) {
-//	long is = glob2loc(imu,it);
-//	tensordxdxdxd(is,i,j,k,l) += term;
-//}
-//
-//void Observable::rescale(long & it, long & imu, double & term) {
-//	long is = glob2loc(imu,it);
-//	if ( type == isScalar ) {
-//		vectord(is) *= term;
-//	} else if ( type == isVector ) {
-//	 	for ( int i=0; i<dimensionality; i++ ) {
-//	 		vectord(is,i) *= term;
-//		}
-//	} else if ( type == is2Tensor ) {
-//	 	for ( int i=0; i<dimensionality; i++ ) {
-//		 	for ( int j=0; j<dimensionality; j++ ) {
-//				 		tensordxd(is,i,j) *= term;
-//		 	}
-//	 	}
-//	} else if ( type == is4Tensor ) {
-//	 	for ( int i=0; i<dimensionality; i++ ) {
-//		 	for ( int j=0; j<dimensionality; j++ ) {
-//			 	for ( int k=0; k<dimensionality; k++ ) {
-//				 	for ( int l=0; l<dimensionality; l++ ) {
-//				 		tensordxdxdxd(is,i,j,k,l) *= term;
-//				 	}
-//			 	}
-//		 	}
-//	 	}
-//	} else {
-//		Error e("type not defined in observable",1);
-//	}
-//}
-
 long Observable::glob2Loc(const long & imu, const long & it) {
 	return compress2Indeces(imu, it, numChemPots, numTemps);
 }
@@ -193,6 +143,10 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & f,
 	lambda << 1. / f.bandStructure.getNumPoints()
 			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
 	long numStates = f.numStates;
+
+	std::cout << 1. / f.bandStructure.getNumPoints() << " " <<
+			crystal.getVolumeUnitCell(dimensionality) << " " <<
+			temperatures << "\n";
 
 	tensordxd = Eigen::Tensor<double,3>(numCalcs,dimensionality,dimensionality);
 	tensordxd.setZero();

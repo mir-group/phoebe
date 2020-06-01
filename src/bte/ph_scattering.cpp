@@ -254,10 +254,10 @@ void PhScatteringMatrix::builder(
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 						en3Plus = state3PlusEnergies(ib3);
 
-						switch ( smearing->id ) {
+						switch ( smearing->getType() ) {
 						case ( DeltaFunction::gaussian ):
 							deltaPlus1 = smearing->getSmearing(
-									en1 + en3Plus - en2 );
+									en1 + en3Plus - en2);
 							deltaPlus2 = smearing->getSmearing(
 									en1 - en2 - en3Plus);
 							break;
@@ -329,7 +329,7 @@ void PhScatteringMatrix::builder(
 					for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
 						en3Mins = state3MinsEnergies(ib3);
 
-						switch ( smearing->id ) {
+						switch ( smearing->getType() ) {
 						case ( DeltaFunction::gaussian ):
 							deltaMins  = smearing->getSmearing(
 									en1 + en2 - en3Mins );
@@ -388,4 +388,7 @@ void PhScatteringMatrix::builder(
 		}
 	}
 	loopPrint.close();
+
+	std::cout << linewidth->data * ryToCmm1 << "!!!\n";
+
 }

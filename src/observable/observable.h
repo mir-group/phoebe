@@ -16,12 +16,6 @@ public:
 	// diff operator overload
 	Observable operator - (const Observable & that);
 
-//	void add(long & it, long & imu, double & term);
-//	void add(long & it, long & imu, double & term, long & i);
-//	void add(long & it, long & imu, double & term, long & i, long  & j);
-//	void add(long & it, long & imu, double & term, long & i, long & j, long & k, long & l);
-//	void rescale(long & it, long & imu, double & term);
-
 	Eigen::VectorXd getNorm();
 protected:
 	Context & context;
@@ -47,13 +41,13 @@ protected:
 	long glob2Loc(const long & imu, const long & it);
 	std::tuple<long,long> loc2Glob(const long & i);
 
-	void calcFromPopulation(VectorBTE & population);
+	void calcFromPopulation(VectorBTE & f, VectorBTE & b);
 };
 
 class PhononThermalConductivity : public Observable {
 public:
 	PhononThermalConductivity(Context & context_, Crystal & crystal_);
-	void calcFromPopulation(VectorBTE & f, VectorBTE & b);
+	virtual void calcFromPopulation(VectorBTE & f, VectorBTE & b);
 	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & b);
 	void print();
 protected:
