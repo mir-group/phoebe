@@ -46,6 +46,9 @@ void PhononTransportApp::run(Context & context) {
 	// we always do this, as it's the cheapest solver and is required to know
 	// the diagonal for the exact method.
 
+	std::cout << "\n";
+	std::cout << "Solving BTE within the relaxation time approximation.\n";
+
 	VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
 	// compute the populations
@@ -54,6 +57,7 @@ void PhononTransportApp::run(Context & context) {
 	// compute the thermal conductivity
 	PhononThermalConductivity phTCond(context, crystal);
 	phTCond.calcFromPopulation(popRTA, drift);
+	phTCond.print();
 
 	// if needed, we solve the BTE exactly
 

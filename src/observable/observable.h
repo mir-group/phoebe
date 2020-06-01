@@ -44,8 +44,8 @@ protected:
 	Eigen::Tensor<double,3> tensordxd; // e.g. conductivity
 	Eigen::Tensor<double,5> tensordxdxdxd; // e.g. viscosity
 
-	long glob2Loc(long & imu, long & it);
-	std::tuple<long,long> loc2Glob(long & i);
+	long glob2Loc(const long & imu, const long & it);
+	std::tuple<long,long> loc2Glob(const long & i);
 
 	void calcFromPopulation(VectorBTE & population);
 };
@@ -55,6 +55,7 @@ public:
 	PhononThermalConductivity(Context & context_, Crystal & crystal_);
 	void calcFromPopulation(VectorBTE & f, VectorBTE & b);
 	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & b);
+	void print();
 protected:
 	int type = is2Tensor;
 };

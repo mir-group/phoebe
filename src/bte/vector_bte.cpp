@@ -28,11 +28,16 @@ VectorBTE::VectorBTE(Context & context_,
 
 // copy constructor
 VectorBTE::VectorBTE(const VectorBTE & that)
-		: VectorBTE(that.context, that.bandStructure) {
+		: context(that.context), bandStructure(that.bandStructure) {
+	numChemPots = that.numChemPots;
+	numTemps = that.numTemps;
+	numCalcs = that.numCalcs;
+	numStates = that.numStates;
+	dimensionality = that.dimensionality;
 	data = that.data;
 }
 
-// copy assigmnent
+// copy assignment
 VectorBTE & VectorBTE::operator = (const VectorBTE & that) {
     if ( this != &that) {
     	bandStructure = that.bandStructure;
@@ -88,17 +93,32 @@ VectorBTE VectorBTE::operator - (const VectorBTE & that) {
 	return newPopulation;
 }
 
-// product operator overload
+// difference operator overload
 VectorBTE VectorBTE::operator - () {
 	VectorBTE newPopulation(context, bandStructure);
 	newPopulation.data = - this->data;
 	return newPopulation;
 }
 
-// product operator overload
+// division operator overload
 VectorBTE VectorBTE::operator / (const VectorBTE & that) {
 	VectorBTE newPopulation(context, bandStructure);
-	newPopulation.data << this->data.array() / that.data.array();
+	//
+	if ( dimensionality == that.dimensionality ) {
+		newPopulation.data << this->data.array() / that.data.array();
+	} else if ( that.dimensionality == 1 ) {
+		long i1, i2;
+		for ( long imu=0; imu<numChemPots; imu++ ) {
+			for ( long it=0; it<numTemps; it++ ) {
+				i2 = glob2Loc(imu,it,0);
+				for ( long idim=0; idim<dimensionality; idim++ ) {
+					i1 = glob2Loc(imu,it,idim);
+					newPopulation.data.row(i1) = this->data.row(i1).array()
+							/ that.data.row(i2).array();
+				}
+			}
+		}
+	}
 	return newPopulation;
 }
 
@@ -112,12 +132,12 @@ void VectorBTE::setConst(const double & constant) {
 	data.setConstant(constant);
 }
 
-long VectorBTE::glob2Loc(long & imu, long & it, long & idim) {
+long VectorBTE::glob2Loc(const long & imu, const long & it, const long & idim){
 	long i = compress3Indeces(imu,it,idim,numChemPots,numTemps,dimensionality);
 	return i;
 }
 
-std::tuple<long,long,long> VectorBTE::loc2Glob(long & i) {
+std::tuple<long,long,long> VectorBTE::loc2Glob(const long & i) {
 	auto [imu, it, idim] = decompress3Indeces(i, numChemPots, numTemps,
 			dimensionality);
 	return {imu,it,idim};

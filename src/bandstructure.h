@@ -46,6 +46,7 @@ private:
 	long getIndex(Eigen::Vector3d & pointCoords);
 	friend class ActiveBandStructure;
 
+
 public:
 	FullBandStructure(long numBands_, Statistics & statistics_,
 			bool withVelocities, bool withEigenvectors, T & points_);
@@ -72,6 +73,7 @@ public:
 	void setEigenvectors(Point<T> & point, Eigen::MatrixXcd & eigenvectors_);
 	void setVelocities(Point<T> & point,
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
+	long getIndex(const int & ik, const int & ib);
 };
 
 template<typename T>
@@ -308,6 +310,11 @@ Eigen::VectorXd FullBandStructure<T>::getBandEnergies(long & bandIndex) {
 template<typename T>
 T FullBandStructure<T>::getPoints() {
 	return points;
+}
+
+template<typename T>
+long FullBandStructure<T>::getIndex(const int & ik, const int & ib) {
+	return ik * numBands + ib;
 }
 
 #endif

@@ -27,6 +27,10 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	}
 }
 
+ScatteringMatrix::~ScatteringMatrix() {
+	delete smearing;
+}
+
 // copy constructor
 ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix & that) :
 	context(that.context),

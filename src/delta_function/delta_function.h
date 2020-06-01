@@ -8,6 +8,7 @@
 
 class DeltaFunction {
 public:
+	virtual ~DeltaFunction();
 	// here a smearing factory
 	static DeltaFunction * smearingFactory(Context & context,
 			FullBandStructure<FullPoints> & fullBandStructure);

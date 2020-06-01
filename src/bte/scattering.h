@@ -12,6 +12,7 @@ public:
 			FullBandStructure<FullPoints> & outerBandStructure_);
 	ScatteringMatrix(const ScatteringMatrix & that); // copy constructor
 	ScatteringMatrix & operator=(const ScatteringMatrix & that);//assignment op
+	~ScatteringMatrix();
 
 	void setup();
 

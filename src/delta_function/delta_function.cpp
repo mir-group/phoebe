@@ -4,6 +4,9 @@
 #include "constants.h"
 #include "context.h"
 
+DeltaFunction::~DeltaFunction() {
+}
+
 // app factory
 DeltaFunction * DeltaFunction::smearingFactory(Context & context,
 		FullBandStructure<FullPoints> & fullBandStructure) {

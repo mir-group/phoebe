@@ -134,15 +134,12 @@ public:
 	 * with the electron eigenvectors. Error if eigenvectors are not set.
 	 */
 	void getEigenvectors(Eigen::MatrixXcd & eigs);
-
-	long getIndex(const long & bandIndex);
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
 	Point<T> point;
 	double * energies;
 	long numBands;
 	long numAtoms;
-	long index;
 	std::complex<double> * velocities = nullptr;
 	std::complex<double> * eigenvectors = nullptr;
 	bool hasVelocities = false;
@@ -171,7 +168,7 @@ State<T>::State(Point<T> & point_,
 template<typename T>
 State<T>::State(const State<T> & that) : // copy constructor
 	point(that.point), energies(that.energies), numBands(that.numBands),
-	numAtoms(that.numAtoms), index(that.index), velocities(that.velocities),
+	numAtoms(that.numAtoms), velocities(that.velocities),
 	eigenvectors(that.eigenvectors), hasVelocities(that.hasVelocities),
 	hasEigenvectors(that.hasEigenvectors) {
 }
@@ -183,7 +180,6 @@ State<T> & State<T>::operator=(const State<T> & that) { // assignment operator
 		energies = that.energies;
 		numBands = that.numBands;
 		numAtoms = that.numAtoms;
-		index = that.index;
 		velocities = that.velocities;
 		eigenvectors = that.eigenvectors;
 		hasVelocities = that.hasVelocities;
@@ -307,11 +303,6 @@ void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs) {
 			eigs(ib2,ib1) = *(eigenvectors+ind);
 		}
 	}
-}
-
-template<typename T>
-long State<T>::getIndex(const long & bandIndex) {
-	return point.getIndex() + bandIndex;
 }
 
 #endif

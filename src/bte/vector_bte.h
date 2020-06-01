@@ -42,8 +42,8 @@ public:
 	long numCalcs;
 	long numStates;
 	long dimensionality;
-	long glob2Loc(long & imu, long & it, long & idim);
-	std::tuple<long,long,long> loc2Glob(long & i);
+	long glob2Loc(const long & imu, const long & it, const long & idim);
+	std::tuple<long,long,long> loc2Glob(const long & i);
 	Eigen::MatrixXd data;
 	friend class ScatteringMatrix; // this is also to remember that
 	// if we change the index order of this class, we should check the

@@ -12,34 +12,22 @@ class Context {
 private:
 	std::string phD2FileName = "";
 	std::string phD3FileName = "";
-//	std::string scratchFolder = "./out";
 	std::string electronH0Name = "";
-//	std::string elPhFileName = "";
 	std::string appName = "";
 	std::string sumRuleD2 = "";
 	int smearingMethod = -1;
 	double smearingWidth = 0.;
 	Eigen::VectorXd temperatures;
-//	std::vector<double> isotopeCoupling = {0.};
 	std::vector<std::string> solverBTE = {"RTA"};
-//	std::vector<double> surfaceScatteringSize = {0.};
-//	std::string surfaceScatteringDirection = "";
-//	std::string transportRegime = "";
 	double convergenceThresholdBTE = 1e-5;
 	long maxIterationsBTE = 50;
-//	Eigen::VectorXd atomicMasses;
 
 	std::string windowType = "nothing";
 	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
 	double windowPopulationLimit;
 
-//	std::string elPhInterpolationType = "";
 	Eigen::VectorXd dopings;
-	Eigen::VectorXd chemicalPotentials;
-//	double relaxationTime = 0.;
-//	bool usePolarCorrection = true;
-//	bool useWignerCorrection = true;
-//	double bandGap = 0.;
+	Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
 	double electronFourierCutoff = 0.;
 
 	Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();

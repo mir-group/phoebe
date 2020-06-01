@@ -1,5 +1,6 @@
 #include "ph_scattering.h"
 #include "constants.h"
+#include "io.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 			StatisticsSweep & statisticsSweep_,
@@ -79,7 +80,7 @@ void PhScatteringMatrix::builder(
 		auto state = outerBandStructure.getState(ik);
 		auto energies = state.getEnergies();
 		for ( auto ib=0; ib<energies.size(); ib++ ) {
-			long is = state.getIndex(ib);
+			long is = outerBandStructure.getIndex(ik,ib);
 			auto energy = energies(ib);
 			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
 				double temperature = statisticsSweep.getCalcStatistics(iCalc
@@ -94,10 +95,10 @@ void PhScatteringMatrix::builder(
 		innerBose = outerBose;
 	} else {
 		for ( auto ik=0; ik<innerNumPoints; ik++ ) {
-			auto state = outerBandStructure.getState(ik);
+			auto state = innerBandStructure.getState(ik);
 			auto energies = state.getEnergies();
 			for ( auto ib=0; ib<energies.size(); ib++ ) {
-				long is = state.getIndex(ib);
+				long is = innerBandStructure.getIndex(ik,ib);
 				auto energy = energies(ib);
 				for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
 						iCalc++ ) {
@@ -128,8 +129,11 @@ void PhScatteringMatrix::builder(
 //	std::complex<double> * velPtr=nullptr;
 //	std::vector<double> q3Plusv(3), q3Minsv(3);
 
+	LoopPrint loopPrint("computing scattering matrix", "q-points",
+			outerNumPoints);
 
 	for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
+		loopPrint.update();
 
 		// note: for computing linewidths on a path, we must distinguish
 		// that q1 and q2 are on different meshes, and that q3+/- may not fall
@@ -167,22 +171,28 @@ void PhScatteringMatrix::builder(
 				auto states3Plus = innerBandStructure.getState(q3Plus);
 				auto states3Mins = innerBandStructure.getState(q3Mins);
 
-				auto [couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
-						states1, states2, states3Plus, states3Mins);
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
 				nb3Plus = state3PlusEnergies.size();
 				nb3Mins = state3MinsEnergies.size();
+
+				auto [cp,cm] = coupling3Ph->getCouplingSquared(
+						states1, states2, states3Plus, states3Mins);
+				couplingPlus = cp;
+				couplingMins = cm;
+
 				bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
 				for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-					auto ind3 = states3Plus.getIndex(ib3);
+					auto ind3 = outerBandStructure.getIndex(q3Plus.getIndex(),
+							ib3);
 					bose3PlusData.col(ib3) = outerBose.data.col(ind3);
 				}
 				for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-					auto ind3 = states3Mins.getIndex(ib3);
+					auto ind3 = outerBandStructure.getIndex(q3Mins.getIndex(),
+							ib3);
 					bose3MinsData.col(ib3) = outerBose.data.col(ind3);
 				}
 			} else {
@@ -207,9 +217,11 @@ void PhScatteringMatrix::builder(
 				DetachedState states3Mins(q3MinsC, eigvals3Mins, numAtoms,
 						nb3Mins, eigvecs3Mins);
 
-				auto [couplingPlus, couplingMins] =
-						coupling3Ph->getCouplingSquared(states1, states2,
-								states3Plus, states3Mins);
+				auto [cp,cm] = coupling3Ph->getCouplingSquared(states1,
+						states2, states3Plus, states3Mins);
+				couplingPlus = cp;
+				couplingMins = cm;
+
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
@@ -232,11 +244,11 @@ void PhScatteringMatrix::builder(
 
 			for ( long ib1=0; ib1<nb1; ib1++ ) {
 				en1 = state1Energies(ib1);
-				ind1 = states1.getIndex(ib1);
+				ind1 = outerBandStructure.getIndex(iq1,ib1);
 
 				for ( long ib2=0; ib2<nb2; ib2++ ) {
 					en2 = state2Energies(ib2);
-					ind2 = states2.getIndex(ib2);
+					ind2 = innerBandStructure.getIndex(iq2,ib2);
 
 					// split into two cases since there may be different bands
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
@@ -375,4 +387,5 @@ void PhScatteringMatrix::builder(
 			}
 		}
 	}
+	loopPrint.close();
 }
