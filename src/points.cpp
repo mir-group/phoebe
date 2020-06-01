@@ -286,14 +286,13 @@ Point<PathPoints> PathPoints::getPoint(const long & index) {
 
 // getPointCoords is the tool to find the coordinates of a point
 
-Eigen::Vector3d Points::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+Eigen::Vector3d Points::getPointCoords(const long & index, const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal;
 	pointCrystal = reduciblePoints(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -304,12 +303,12 @@ Eigen::Vector3d Points::getPointCoords(const long & index,
 //FullPoints just like Points
 
 Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = irreduciblePoints.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -317,12 +316,12 @@ Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
 	}
 }
 Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -330,12 +329,12 @@ Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
 	}
 }
 Eigen::Vector3d PathPoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -437,7 +436,7 @@ Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d & point) {
 }
 
 Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d & pointCrystal,
-		const std::string & basis) {
+		const int & basis) {
 
 	Eigen::Vector3d pointCart = crystalToCartesian(pointCrystal);
 
@@ -453,11 +452,11 @@ Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d & pointCrystal,
 		}
 	}
 
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong input to Wigner Seitz folding", 1);
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong input to Wigner Seitz folding");
 	}
 
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		Eigen::Vector3i igVec = igVectors.col(iws);
 		Eigen::Vector3d pointCrystalWS = pointCrystal;
 		for ( long i=0; i<3; i++) {
@@ -589,7 +588,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	}
 
 	if ( numTestPoints != mesh_(0)*mesh_(1)*mesh_(2) ) {
-		Error e("Mesh of points seems incomplete", 1);
+		Error e("Mesh of points seems incomplete");
 	}
 	return {mesh_, offset_};
 }
@@ -649,7 +648,7 @@ void IrreduciblePoints::setIrreduciblePoints() {
 						tmpWeight(ik) += 1.;
 					} else {
 						if ( equiv(n)!=ik || n<ik ) {
-							Error e("Error in finding irred kpoints",1);
+							Error e("Error in finding irred kpoints");
 						}
 					}
 				}

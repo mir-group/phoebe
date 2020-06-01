@@ -23,7 +23,7 @@ public:
 	DetachedState(const DetachedState & that); // copy constructor
 	DetachedState & operator=(const DetachedState & that); // assignment op
 
-	Eigen::Vector3d getCoords(const std::string & basis);
+	Eigen::Vector3d getCoords(const int & basis);
 	double getEnergy(const long & bandIndex, double chemicalPotential = 0.);
 	Eigen::VectorXd getEnergies(double chemicalPotential = 0.);
 	Eigen::Vector3d getVelocity(const long & bandIndex);
@@ -75,7 +75,7 @@ public:
 	/** get the cartesian coordinates of a wavevector (Point object)
 	 * @return point: a Eigen::Vector3d object.
 	 */
-	Eigen::Vector3d getCoords(const std::string & basis);
+	Eigen::Vector3d getCoords(const int & basis);
 
 	/** get the energy of a single band
 	 * @param bandIndex: integer from 0 to numBands-1
@@ -194,7 +194,7 @@ Point<T> State<T>::getPoint() {
 }
 
 template<typename T>
-Eigen::Vector3d State<T>::getCoords(const std::string & basis) {
+Eigen::Vector3d State<T>::getCoords(const int & basis) {
 	return point.getCoords(basis);
 }
 

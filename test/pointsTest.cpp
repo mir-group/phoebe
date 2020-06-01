@@ -33,7 +33,7 @@ TEST (PointsTest, PointsHandling) {
 	long i4 = points.getIndexInverted(4);
 	auto p2 = points.getPoint(i4);
 	auto p3 = p1 + p2;
-	EXPECT_EQ ( p3.getCoords("cartesian").norm(),0.);
+	EXPECT_EQ ( p3.getCoords(Points::cartesianCoords).norm(),0.);
 
 	//
 

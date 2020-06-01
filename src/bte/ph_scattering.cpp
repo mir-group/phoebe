@@ -146,22 +146,9 @@ void PhScatteringMatrix::builder(
 
 		for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
 			auto q2 = innerBandStructure.getPoint(iq2);
-			long iq2Inv = innerBandStructure.getPoints().getIndexInverted(iq2);
-			auto q2Reversed = innerBandStructure.getPoint(iq2Inv);
-
-			// note: + processes are phonon decay (1->2+3)
-			// note: - processes are phonon coalescence (1+2->3)
-
-			// we need the distinction, because the coupling for + process
-			// must be computed at -q2 = q2Reversed
 			auto states2 = innerBandStructure.getState(q2);
 			auto state2Energies = states2.getEnergies();
-			auto states2Plus = innerBandStructure.getState(q2Reversed);
 			auto nb2 = state2Energies.size();
-			auto nb2Plus = states2Plus.getEnergies().size();
-			if ( nb2Plus != nb2) {
-				Error e("Unexpected nb2 in building the scattering matrix");
-			}
 
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
@@ -199,10 +186,10 @@ void PhScatteringMatrix::builder(
 				// otherwise, q3 doesn't fall into the same grid
 				// and we must therefore compute it from the hamiltonian
 
-				Eigen::Vector3d q3PlusC = q1.getCoords("cartesian")
-						+ q2.getCoords("cartesian");
-				Eigen::Vector3d q3MinsC = q1.getCoords("cartesian")
-						- q2.getCoords("cartesian");
+				Eigen::Vector3d q3PlusC = q1.getCoords(Points::cartesianCoords)
+						+ q2.getCoords(Points::cartesianCoords);
+				Eigen::Vector3d q3MinsC = q1.getCoords(Points::cartesianCoords)
+						- q2.getCoords(Points::cartesianCoords);
 
 				auto [eigvals3Plus,eigvecs3Plus] = h0->diagonalizeFromCoords(
 						q3PlusC);
@@ -288,12 +275,12 @@ void PhScatteringMatrix::builder(
 							ratePlus1 = pi * 0.25
 									* bose3Plus * bose1 * ( bose2 + 1. )
 									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus1;
+									* deltaPlus1 / innerNumPoints;
 
 							ratePlus2 = pi * 0.25
 									* bose2 * bose3Plus * ( bose1 + 1. )
 									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus2;
+									* deltaPlus2 / innerNumPoints;
 
 							// note: to increase performance, we are in fact
 							// using
@@ -356,7 +343,7 @@ void PhScatteringMatrix::builder(
 							rateMins = pi * 0.25
 									* bose1 * bose2 * ( bose3Mins + 1. )
 									* couplingMins(ib1,ib2,ib3)
-									* deltaMins;
+									* deltaMins / innerNumPoints;
 
 							switch ( switchCase ) {
 							case (0):
@@ -390,5 +377,14 @@ void PhScatteringMatrix::builder(
 	loopPrint.close();
 
 	std::cout << linewidth->data * ryToCmm1 << "!!!\n";
+
+	// we place the linewidths back in the diagonal of the scattering matrix
+	// this because we need an MPI_allreduce on linewidth
+	if ( switchCase == 0 ) { // case of matrix construction
+		long iCalc = 0;
+		for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {
+			matrix(i,i) += linewidth->data(iCalc,i);
+		}
+	}
 
 }

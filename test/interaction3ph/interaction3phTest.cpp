@@ -367,9 +367,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 				evm3(i,j) = evv3(idim,iat,j);
 			}
 		}
-		q1 = p1.getCoords("cartesian");
-		q2 = p2.getCoords("cartesian");
-		q3 = p3.getCoords("cartesian");
+		q1 = p1.getCoords(Points::cartesianCoords);
+		q2 = p2.getCoords(Points::cartesianCoords);
+		q3 = p3.getCoords(Points::cartesianCoords);
 	}
 
 	// note: the reference was generated without the normalization by energies
@@ -451,8 +451,8 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	auto p3Mins = states3Mins.getPoint();
 
 	// check that the sum of Point works
-	ASSERT_EQ((p3PlusTest.getCoords("cartesian")-p3Plus.getCoords("cartesian")).norm(), 0.);
-	ASSERT_EQ((p3MinsTest.getCoords("cartesian")-p3Mins.getCoords("cartesian")).norm(), 0.);
+	ASSERT_EQ((p3PlusTest.getCoords(Points::cartesianCoords)-p3Plus.getCoords(Points::cartesianCoords)).norm(), 0.);
+	ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords)-p3Mins.getCoords(Points::cartesianCoords)).norm(), 0.);
 
 	auto [couplingPlus2,couplingMins2] = coupling3Ph.getCouplingSquared(
 			states1, states2, states3Plus, states3Mins);

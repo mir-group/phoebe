@@ -36,7 +36,7 @@ TEST (PhononH0, Velocity) {
 	auto v0 = groupV.col(0);
 	auto v1 = groupV.col(1);
 	auto v2 = groupV.col(2);
-	auto q = p.getCoords("cartesian");
+	auto q = p.getCoords(Points::cartesianCoords);
 
 	// for these three acoustic modes, check velocity is parallel to wavevector
 	ASSERT_NEAR(v0.dot(q)/q.norm()/v0.norm(), 1., 0.04);

@@ -34,7 +34,7 @@ public:
 	 * @param inWignerSeitz: default false, if true, folds point in WS cell.
 	 * @return coords: a 3d vector of coordinates
 	 */
-	Eigen::Vector3d getCoords(const std::string & basis="crystal",
+	Eigen::Vector3d getCoords(const int & basis=0,
 			const bool & inWignerSeitz=false);
 
 	/** Get the weight of the k-point (used for integrations over the BZ.
@@ -68,7 +68,7 @@ public:
 	Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d & point);
 	Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d & point);
 	Eigen::Vector3d crystalToWS(const Eigen::Vector3d& pointCrystal,
-			const std::string& basis);
+			const int & basis);
 	static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
 			const Eigen::Matrix<double,3,Eigen::Dynamic> & points);
 	Crystal & getCrystal();
@@ -76,10 +76,14 @@ public:
 	// methods to be overwritten in subclasses
 	Point<Points> getPoint(const long & index);
 	Eigen::Vector3d getPointCoords(const long & index,
-			const std::string & basis="crystal");
+			const int & basis=crystalCoords);
 	long getIndex(const Eigen::Vector3d & point);
 	double getWeight(const long & ik);
 
+	// note: constexpr tells the compiler that the class member is
+	// available at compilation time
+	static constexpr const int crystalCoords = 0;
+	static constexpr const int cartesianCoords = 1;
 protected:
 	void setMesh(const Eigen::Vector3i &mesh_,const Eigen::Vector3d & offset_);
 	Crystal & crystal;
@@ -131,7 +135,7 @@ public:
 	long getNumPoints();
 	double getWeight(const long & ik);
 	Eigen::Vector3d getPointCoords(const long & index,
-			const std::string & basis="crystal");
+			const int & basis=crystalCoords);
 };
 
 class ActivePoints: public Points {
@@ -151,7 +155,7 @@ public:
 	Point<ActivePoints> getPoint(const long & index);
 	long getIndexInverted(const long & ik);
 	Eigen::Vector3d getPointCoords(const long & index,
-			const std::string & basis="crystal");
+			const int & basis=crystalCoords);
 };
 
 class PathPoints: public FullPoints {
@@ -166,7 +170,7 @@ public:
 	long getIndex(const Eigen::Vector3d & coords);
 	long getIndexInverted(const long & ik);
 	Eigen::Vector3d getPointCoords(const long & index,
-			const std::string & basis="crystal");
+			const int & basis=crystalCoords);
 protected:
 	Eigen::Matrix<double,3,Eigen::Dynamic> pointsList;
 };
@@ -225,15 +229,15 @@ long Point<T>::getIndex() {
 //}
 
 template<typename T>
-Eigen::Vector3d Point<T>::getCoords(const std::string & basis,
+Eigen::Vector3d Point<T>::getCoords(const int & basis,
 		const bool & inWignerSeitz) {
-	if ( ( basis != "crystal" ) && ( basis != "cartesian" ) ) {
+	if ( ( basis != 0 ) && ( basis != 1 ) ) {
 		Error e("Point getCoordinates: basis must be crystal or cartesian", 1);
 	}
 	Eigen::Vector3d coords;
 	if ( not inWignerSeitz ) {
-		Eigen::Vector3d crystalCoords = points.getPointCoords(index,"crystal");
-		coords = points.crystalToWS(crystalCoords, basis);
+		Eigen::Vector3d crysCoords = points.getPointCoords(index, 0);
+		coords = points.crystalToWS(crysCoords, basis);
 	} else {
 		coords = points.getPointCoords(index, basis);
 	}

@@ -12,6 +12,7 @@
 #include "statistics.h"
 #include "bandstructure.h"
 #include "constants.h"
+#include "points.h"
 
 class PhononH0 : public HarmonicHamiltonian {
 public:
@@ -154,7 +155,7 @@ template <typename T>
 std::tuple<Eigen::VectorXd,
 		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
 				Point<T> & point) {
-	Eigen::Vector3d q = point.getCoords("cartesian");
+	Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
 	auto [energies, eigvecTemp] = diagonalizeFromCoords(q);
 
 	//  displacements are eigenvectors divided by sqrt(speciesMasses)
@@ -178,7 +179,7 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 	velocity.setZero();
 
 	// if we are working at gamma, we set all velocities to zero.
-	Eigen::Vector3d coords = point.getCoords("cartesian");
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
 	if ( coords.norm() < 1.0e-6 )  {
 		return velocity;
 	}

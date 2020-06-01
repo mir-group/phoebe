@@ -7,6 +7,7 @@
 #include "constants.h"
 #include "crystal.h"
 #include "utilities.h"
+#include "points.h"
 
 // * Class to calculate the coupling of a 3-phonon interaction given three
 // * phonon modes.
@@ -97,9 +98,9 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 	Eigen::Vector3d cell2Pos, cell3Pos;
 
 	//Cartesian phonon wave vectors: q1,q2,q3
-	auto q2 = state2.getCoords("cartesian");
-	auto q3Plus = state3Plus.getCoords("cartesian");
-	auto q3Mins = state3Mins.getCoords("cartesian");
+	auto q2 = state2.getCoords(Points::cartesianCoords);
+	auto q3Plus = state3Plus.getCoords(Points::cartesianCoords);
+	auto q3Mins = state3Mins.getCoords(Points::cartesianCoords);
 
 	auto energies1 = state1.getEnergies();
 	auto energies2 = state2.getEnergies();

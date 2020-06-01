@@ -37,8 +37,8 @@ DetachedState & DetachedState::operator=(const DetachedState & that) {// assign
 	return *this;
 }
 
-Eigen::Vector3d DetachedState::getCoords(const std::string & basis) {
-	if ( basis != "cartesian" ) {
+Eigen::Vector3d DetachedState::getCoords(const int & basis) {
+	if ( basis != Points::cartesianCoords ) {
 		Error e("Basis not supported in DetachedState");
 	}
 	return point;

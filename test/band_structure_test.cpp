@@ -71,7 +71,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
 	// now we check that we get the same eigenvectors in the two different
 	// shapes
-	auto k = point.getCoords("cartesian");
+	auto k = point.getCoords(Points::cartesianCoords);
 	auto [ensC, eigvecsC] = phononH0.diagonalizeFromCoords(k);
 	x1 = ( ens - ensC ).norm();
 	ASSERT_EQ(x1, 0.);

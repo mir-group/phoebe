@@ -125,7 +125,8 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 
 	for ( long iq=0; iq<fullPoints.getNumPoints(); iq++ ) {
 		// point is a vector with coordinates between 0 and 1
-		Eigen::Vector3d point = fullPoints.getPointCoords(iq, "crystal");
+		Eigen::Vector3d point = fullPoints.getPointCoords(iq,
+				Points::crystalCoords);
 		// scale it to integers between 0 and grid size
 		point(0) *= grid(0);
 		point(1) *= grid(1);

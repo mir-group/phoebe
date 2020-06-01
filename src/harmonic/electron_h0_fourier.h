@@ -77,7 +77,7 @@ template<typename T>
 std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
 		ElectronH0Fourier::diagonalize(Point<T> & point) {
 
-	Eigen::Vector3d coords = point.getCoords("cartesian");
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
 	auto [energies,x] = diagonalizeFromCoords(coords);
 
 	// this is to return something aligned with the phonon case
@@ -93,7 +93,7 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
 			Point<T> & point) {
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
 	velocity.setZero();
-	Eigen::Vector3d coords = point.getCoords("cartesian");
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
 	for ( long ib=0; ib<numBands; ib++ ) {
 		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
 		for ( long i=0; i<3; i++ ) {

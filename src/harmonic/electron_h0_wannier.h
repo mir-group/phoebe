@@ -80,7 +80,7 @@ FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
 template<typename T>
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		ElectronH0Wannier::diagonalize(Point<T> & point) {
-	Eigen::Vector3d k = point.getCoords("cartesian");
+	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
 
 	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
 
@@ -93,7 +93,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 template<typename T>
 Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
 		Point<T> & point) {
-	Eigen::Vector3d coords = point.getCoords("cartesian");
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
 	double delta = 1.0e-8;
 	double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
 	auto velocity = HarmonicHamiltonian::internalDiagonalizeVelocity(coords,
@@ -104,7 +104,7 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
 template<typename T>
 std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
 		Point<T> & point) {
-	Eigen::Vector3d k = point.getCoords("cartesian");
+	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
 
 	// first we diagonalize the hamiltonian
 	auto [ens, eigvecs] = diagonalize(point);

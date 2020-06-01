@@ -17,7 +17,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		Error e("input electronic band structure must be specified on grid",1);
 	}
 	numDataPoints = coarseBandStructure.getNumPoints();
-	refWavevector = coarseBandStructure.getPoint(0).getCoords("cartesian");
+	refWavevector = coarseBandStructure.getPoint(0).getCoords(
+			Points::cartesianCoords);
 
 	// to do the interpolation, we need the lattice vector basis:
 	setPositionVectors();
@@ -195,7 +196,8 @@ Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
 	for ( long iR=0; iR<numPositionVectors; iR++ ) {
 		for ( long i=0; i<numDataPoints; i++ ) {
 			iWavevector =
-					coarseBandStructure.getPoint(i).getCoords("cartesian");
+					coarseBandStructure.getPoint(i).getCoords(
+							Points::cartesianCoords);
 			std::complex<double> smki = getStarFunction(iWavevector, iR);
 			smk(i,iR) = smki;
 		}
@@ -230,7 +232,7 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 		std::complex<double> smk0 = getStarFunction(refWavevector,m);
 		for ( long i=1; i<numDataPoints; i++ ) {
 			wavevector = coarseBandStructure.getPoint(i
-					).getCoords("cartesian");
+					).getCoords(Points::cartesianCoords);
 			coefficients(m) += multipliers(i-1)
 					* std::conj(getStarFunction(wavevector,m) - smk0);
 		}

@@ -7,6 +7,7 @@
 #include "exceptions.h"
 #include "phonon_h0.h"
 #include "utilities.h"
+#include "points.h"
 
 PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
