@@ -28,7 +28,6 @@ public:
 	void close();
 private:
 	long reportEvery;
-	long numRep = 10;
 	long numSteps;
 	std::string task;
 	std::string step;
