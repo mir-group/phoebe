@@ -5,6 +5,9 @@
 #include "eigen.h"
 #include "exceptions.h"
 
+const int crystalCoords_ = 0;
+const int cartesianCoords_ = 1;
+
 //// Forward declarator of Points, because Point ants to store Points as member
 //// and Points has methods returning Point. Here we avoid recursive dependency.
 //class Points;
@@ -34,7 +37,7 @@ public:
 	 * @param inWignerSeitz: default false, if true, folds point in WS cell.
 	 * @return coords: a 3d vector of coordinates
 	 */
-	Eigen::Vector3d getCoords(const int & basis=0,
+	Eigen::Vector3d getCoords(const int & basis=crystalCoords_,
 			const bool & inWignerSeitz=false);
 
 	/** Get the weight of the k-point (used for integrations over the BZ.
@@ -231,12 +234,13 @@ long Point<T>::getIndex() {
 template<typename T>
 Eigen::Vector3d Point<T>::getCoords(const int & basis,
 		const bool & inWignerSeitz) {
-	if ( ( basis != 0 ) && ( basis != 1 ) ) {
-		Error e("Point getCoordinates: basis must be crystal or cartesian", 1);
+	if ( ( basis != crystalCoords_ ) && ( basis != cartesianCoords_ ) ) {
+		Error e("Point getCoordinates: basis must be crystal or cartesian");
 	}
 	Eigen::Vector3d coords;
 	if ( not inWignerSeitz ) {
-		Eigen::Vector3d crysCoords = points.getPointCoords(index, 0);
+		Eigen::Vector3d crysCoords = points.getPointCoords(index,
+				crystalCoords_);
 		coords = points.crystalToWS(crysCoords, basis);
 	} else {
 		coords = points.getPointCoords(index, basis);
@@ -267,7 +271,7 @@ bool Point<T>::hasUmklapp() {
 template<typename T>
 Point<T> Point<T>::operator + (Point & b) {
 	if ( &b.points != &points ) {
-		Error e("Points sum should refer to points of the same mesh", 1);
+		Error e("Points sum should refer to points of the same mesh");
 	}
 	Eigen::Vector3d coords = getCoords() + b.getCoords();
 	long ik = points.getIndex(coords);
@@ -279,7 +283,7 @@ Point<T> Point<T>::operator + (Point & b) {
 template<typename T>
 Point<T> Point<T>::operator - (Point & b) {
 	if ( &b.points != &points ) {
-		Error e("Points sum should refer to points of the same mesh", 1);
+		Error e("Points sum should refer to points of the same mesh");
 	}
 	Eigen::Vector3d coords = getCoords() - b.getCoords();
 	long ik = points.getIndex(coords);
