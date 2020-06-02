@@ -31,8 +31,7 @@ void PhononTransportApp::run(Context & context) {
 	StatisticsSweep statisticsSweep(context);
 
 	// load the 3phonon coupling
-	IFC3Parser ifc3Parser;
-	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
+	auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
 	// initialize populations
 	BulkTDrift drift(context, bandStructure);
