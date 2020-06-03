@@ -13,8 +13,6 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	numPoints = outerBandStructure.getNumPoints();
 
 	double constantRelaxationTime = context.getConstantRelaxationTime();
-	std::cout << constantRelaxationTime << "<______>\n";
-	//constantRTA = context.
 	if ( constantRelaxationTime > 0. ) {
 		constantRTA = true;
 	}
