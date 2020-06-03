@@ -32,7 +32,6 @@ protected:
 	const int is2Tensor = 2;
 	const int is4Tensor = 3;
 
-
 	Eigen::VectorXd scalar; // e.g. specific heat
 	Eigen::MatrixXd vectord; // e.g. sound speed
 	Eigen::Tensor<double,3> tensordxd; // e.g. conductivity
@@ -41,16 +40,18 @@ protected:
 	long glob2Loc(const long & imu, const long & it);
 	std::tuple<long,long> loc2Glob(const long & i);
 
-	void calcFromPopulation(VectorBTE & f, VectorBTE & b);
+//	void calcFromPopulation(VectorBTE & n);
 };
 
 class PhononThermalConductivity : public Observable {
 public:
-	PhononThermalConductivity(Context & context_, Crystal & crystal_);
-	virtual void calcFromPopulation(VectorBTE & f, VectorBTE & b);
-	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & b);
+	PhononThermalConductivity(Context & context_, Crystal & crystal_,
+			FullBandStructure<FullPoints> & bandStructure_);
+	virtual void calcFromPopulation(VectorBTE & n);
+//	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & b);
 	void print();
 protected:
+	FullBandStructure<FullPoints> & bandStructure;
 	int type = is2Tensor;
 };
 
