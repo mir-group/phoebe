@@ -1,9 +1,9 @@
-
-// include statements
-// TODO: if we don't compile with MPI, we can't import it, so maybe this should be in an ifdef
 #include <vector>
 #include <complex>
+#include <chrono>
+#ifdef MPI_AVAIL
 #include <mpi.h>
+#endif
 
 #ifndef MPICONTROLLER_H
 #define MPICONTROLLER_H
@@ -13,14 +13,18 @@ class MPIcontroller{
     //MPI_Comm com; // MPI communicator -- might not need this, can just call default comm "MPI_COMM_WORLD"
     int size; // number of MPI processses
     int rank;
+   
+    #ifdef MPI_AVAIL 
     double startTime; // the time for the entire mpi operation
-    double lastTime;
-    
+    #else 
+    std::chrono::steady_clock::time_point startTime; 
+    #endif    
+
     public:
         // MPIcontroller class constructors -----------------------------------
         /** a constructor which sets up the MPI environment, initializes the communicator, and starts a timer **/
         MPIcontroller();
-        ~MPIcontroller(){ if (!MPI::Is_finalized()) finalize(); }
+        ~MPIcontroller(); //{ if (!MPI::Is_finalized()) finalize(); }
         
         // Calls finalize and potentially reports statistics, time or handles errors
         void finalize() const; 
@@ -45,17 +49,13 @@ class MPIcontroller{
 
         // Error reporting and statistics
         void errorReport(int errCode) const; // collect errors from processes and reports them, then kills the code
-        // TODO: upgrade this function so that it also takes a string. Then, append the string to some buffer stored in this object
-        //     fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
-        // or at least, something that prints a time statistic for a given block
         void time() const; // returns time elapsed since mpi started
     
         // IO functions
-        // do we want some parallel hdf5 options? how does that work?
-        // wgropp.cs.illinois.edu/courses/cs598-s16/lectures/lecture32.pdf  -- look at slide 10 here?
-        // need to think about how to do this properly. Also, are we doing parallel hdf5?
-        //void mpiWrite();
-        //void mpiRead();
+        // TODO: implement these functions, if we need them. 
+        void mpiWrite();
+        void mpiRead();
+        void mpiAppend(); 
             
 };
 
@@ -63,6 +63,7 @@ class MPIcontroller{
 // // and then we can define specific implementations of this for types which are not standard
 // // https://stackoverflow.com/questions/42490331/generic-mpi-code
 namespace mpi { 
+        #ifdef MPI_AVAIL
         // Forward declaration for a basic container type 
         template <typename ...> struct containerType;
 
@@ -91,14 +92,15 @@ namespace mpi {
                 static inline size_t getSize(std::vector<T>* data) { return data->size(); }
                 static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
         };
-        // TODO: A container for an array
-
-        // TODO: Define here a container for a matrix
+        // TODO: Define any other useful containers (a matrix? a standard array?)
+  
+        #endif
 }
 
 // default constructor
 MPIcontroller::MPIcontroller(){
     
+    #ifdef MPI_AVAIL
     // start the MPI environment
     MPI_Init(NULL, NULL);
     
@@ -114,77 +116,104 @@ MPIcontroller::MPIcontroller(){
     // set this so that MPI returns errors and lets us handle them, rather
     // than using the default, MPI_ERRORS_ARE_FATAL
     MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+    #else
+ 
+    startTime = std::chrono::steady_clock::now();
+    #endif
+}
+
+// default destructor
+MPIcontroller::~MPIcontroller(){
+    #ifdef MPI_AVAIL
+    if (!MPI::Is_finalized()) finalize();
+    #endif
 }
 
 // TODO: any other stats would like to output here? 
 void MPIcontroller::finalize() const {
+    #ifdef MPI_AVAIL
     fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
     MPI_Finalize();
+    #else
+    fprintf(stdout, "Final time for rank %3d: %3f\n ", 0,  - startTime );   
+    #endif
 }
 
 // Collective communications functions -----------------------------------
 template<typename T> void MPIcontroller::bcast(T* dataIn) const{
-
     using namespace mpi;     
+    #ifdef MPI_AVAIL
     if(size==1) return; 
     int errCode;
 
     errCode = MPI_Bcast( containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD);
     if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-    
+    #endif
 }
 template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
-
     using namespace mpi;     
+    #ifdef MPI_AVAIL
     if(size==1) return; 
     int errCode;
 
     errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
     if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
+    #endif
 }
 template<typename T> void MPIcontroller::reduceMax(T* dataIn, T* dataOut) const{
-    
     using namespace mpi; 
+    #ifdef MPI_AVAIL
     if(size==1) return; 
     int errCode;
 
     errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
     if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
+    #endif
 }
 template<typename T> void MPIcontroller::reduceMin(T* dataIn, T* dataOut) const{
-
     using namespace mpi;     
+    #ifdef MPI_AVAIL
     if(size==1) return; 
     int errCode;
 
     errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
     if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
+    #endif
 }
 
 // Asynchronous support functions -----------------------------------
 void MPIcontroller::barrier(){
-    
+    #ifdef MPI_AVAIL
     if(size==1) return; 
     int errCode;
     
     errCode = MPI_Barrier(MPI_COMM_WORLD);
     if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
+    #endif
 }
 
 // Utility functions  -----------------------------------
 
 // get the error string and print it to stderr before returning
 void MPIcontroller::errorReport(int errCode) const{
+    #ifdef MPI_AVAIL
     char errString[BUFSIZ];
     int lengthOfString;
     
     MPI_Error_string(errCode, errString, &lengthOfString);
     fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
     MPI_Abort(MPI_COMM_WORLD, errCode);
+    #else 
+    // TODO: how are we throwing non-mpi errors? 
+    #endif
 }
 
 void MPIcontroller::time() const{
-    fprintf(stdout, "Time for rank %3d : %3f\n", rank, MPI_Wtime() - lastTime );
+    #ifdef MPI_AVAIL
+    fprintf(stdout, "Time for rank %3d : %3f\n", rank, MPI_Wtime() - startTime );
+    #else
+    std::cout << "Time for rank 0 :" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - seconds).count() << " secs" << std::endl;
+    #endif
 }
 
 
