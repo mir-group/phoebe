@@ -1,7 +1,9 @@
 #include <vector>
 #include <complex>
 #include <chrono>
-#ifdef MPI_AVAIL
+#include <iostream>
+
+#ifdef MPI_AVAIL 
 #include <mpi.h>
 #endif
 
@@ -24,7 +26,7 @@ class MPIcontroller{
 		// MPIcontroller class constructors -----------------------------------
 		/** a constructor which sets up the MPI environment, initializes the communicator, and starts a timer **/
 		MPIcontroller();
-		~MPIcontroller(); //{ if (!MPI::Is_finalized()) finalize(); }
+		~MPIcontroller(); 
 		
 		// Calls finalize and potentially reports statistics, time or handles errors
 		void finalize() const; 
@@ -115,7 +117,7 @@ MPIcontroller::MPIcontroller(){
 	
 	// set this so that MPI returns errors and lets us handle them, rather
 	// than using the default, MPI_ERRORS_ARE_FATAL
-	MPI_Errhandler_set(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+	MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 	#else
  
 	startTime = std::chrono::steady_clock::now();
@@ -135,7 +137,7 @@ void MPIcontroller::finalize() const {
 	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
 	MPI_Finalize();
 	#else
-	fprintf(stdout, "Final time for rank %3d: %3f\n ", 0,  - startTime );   
+        std::cout << "Final time for rank 0 : " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count() << " mu.secs" << std::endl;
 	#endif
 }
 
@@ -212,9 +214,8 @@ void MPIcontroller::time() const{
 	#ifdef MPI_AVAIL
 	fprintf(stdout, "Time for rank %3d : %3f\n", rank, MPI_Wtime() - startTime );
 	#else
-	std::cout << "Time for rank 0 :" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - seconds).count() << " secs" << std::endl;
+	std::cout << "Time for rank 0 :" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - startTime).count() << " secs" << std::endl;
 	#endif
 }
-
 
 #endif
