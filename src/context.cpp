@@ -127,7 +127,12 @@ double parseDoubleWithUnits(std::vector<std::string> lines, std::string pattern)
 			if ( lineHasUnits(line, "cmm1") ) {
 				x /= ryToCmm1;
 			}
-
+			if ( lineHasUnits(line, "ps") ) {
+				x /= timeRyToFs * 1.0e-3;
+			}
+			if ( lineHasUnits(line, "fs") ) {
+				x /= timeRyToFs;
+			}
 			found = true;
 			break;
 		}

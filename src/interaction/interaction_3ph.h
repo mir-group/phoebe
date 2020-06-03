@@ -234,18 +234,15 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			long ind1, ind2, ind3;
 
 			for ( int ic1 : {0,1,2} ) {
-//				ind1 = compress2Indeces(ic1, displacedAtoms(it,0), 3, numAtoms);
 				ind1 = compress2Indeces(displacedAtoms(it,0), ic1, numAtoms,3 );
 				for ( int ic2 : {0,1,2} ) {
-//					ind2 = compress2Indeces(ic2, displacedAtoms(it,1), 3, numAtoms);
 					ind2 = compress2Indeces(displacedAtoms(it,1), ic2, numAtoms, 3);
 					for ( int ic3 : {0,1,2} ) {
-//						ind3 = compress2Indeces(ic3, displacedAtoms(it,2), 3, numAtoms);
 						ind3 = compress2Indeces(displacedAtoms(it,2), ic3, numAtoms, 3);
 						tmpPlus(ind1, ind2, ind3) +=
-								ifc3Tensor(it,ic1,ic2,ic3) * phasePlus;
+								ifc3Tensor(ic3,ic2,ic1,it) * phasePlus;
 						tmpMins(ind1, ind2, ind3) +=
-								ifc3Tensor(it,ic1,ic2,ic3) * phaseMins;
+								ifc3Tensor(ic3,ic2,ic1,it) * phaseMins;
 					}
 				}
 			}
@@ -282,10 +279,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		Eigen::Tensor<std::complex<double>,3> tmp1Mins(nb1,numBands,numBands);
 		tmp1Plus.setZero();
 		tmp1Mins.setZero();
-		for ( int iac2=0; iac2<numBands; iac2++ ) {
-			for ( int iac3=0; iac3<numBands; iac3++ ) {
-				for ( int iac1=0; iac1<numBands; iac1++ ) {
-					for ( int ib1=0; ib1<nb1; ib1++ ) {
+		for ( int iac3=0; iac3<numBands; iac3++ ) {
+			for ( int iac2=0; iac2<numBands; iac2++ ) {
+				for ( int ib1=0; ib1<nb1; ib1++ ) {
+					for ( int iac1=0; iac1<numBands; iac1++ ) {
 						tmp1Plus(ib1,iac2,iac3) += tmpPlus(iac1,iac2,iac3)
 								* ev1(iac1,ib1);
 						tmp1Mins(ib1,iac2,iac3) += tmpMins(iac1,iac2,iac3)
@@ -298,10 +295,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		Eigen::Tensor<std::complex<double>,3> tmp2Mins(nb1,nb2,numBands);
 		tmp2Plus.setZero();
 		tmp2Mins.setZero();
-		for ( int ib1=0; ib1<nb1; ib1++ ) {
-			for ( int iac3=0; iac3<numBands; iac3++ ) {
-				for ( int iac2=0; iac2<numBands; iac2++ ) {
-					for ( int ib2=0; ib2<nb2; ib2++ ) {
+		for ( int iac3=0; iac3<numBands; iac3++ ) {
+			for ( int ib1=0; ib1<nb1; ib1++ ) {
+				for ( int ib2=0; ib2<nb2; ib2++ ) {
+					for ( int iac2=0; iac2<numBands; iac2++ ) {
 						tmp2Plus(ib1,ib2,iac3) += tmp1Plus(ib1,iac2,iac3)
 								* std::conj(ev2(iac2,ib2));
 						tmp2Mins(ib1,ib2,iac3) += tmp1Mins(ib1,iac2,iac3)
@@ -310,14 +307,16 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 				}
 			}
 		}
-		for ( int ib1=0; ib1<nb1; ib1++ ) {
-			for ( int ib2=0; ib2<nb2; ib2++ ) {
-				for ( int iac3=0; iac3<numBands; iac3++ ) {
-					for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
+		for ( int ib2=0; ib2<nb2; ib2++ ) {
+			for ( int ib1=0; ib1<nb1; ib1++ ) {
+				for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
+					for ( int iac3=0; iac3<numBands; iac3++ ) {
 						vPlus(ib1,ib2,ib3) += tmp2Plus(ib1,ib2,iac3)
 								* std::conj(ev3Plus(iac3,ib3));
 					}
-					for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
+				}
+				for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
+					for ( int iac3=0; iac3<numBands; iac3++ ) {
 						vMins(ib1,ib2,ib3) += tmp2Mins(ib1,ib2,iac3)
 								* std::conj(ev3Mins(iac3,ib3));
 					}
@@ -328,35 +327,19 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 
 	Eigen::Tensor<double,3> couplingPlus(nb1,nb2,nb3Plus);
 	Eigen::Tensor<double,3> couplingMins(nb1,nb2,nb3Mins);
-	couplingPlus.setZero();
-	couplingMins.setZero();
-
-	for ( int ib1=0; ib1<nb1; ib1++ ) {
-		double omega1 = energies1(ib1);
-		if ( omega1 < energyCutoff ) continue;
-
+	// case +
+	for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
 		for ( int ib2=0; ib2<nb2; ib2++ ) {
-			double omega2 = energies2(ib2);
-			if ( omega2 < energyCutoff ) continue;
-
-			// case +
-			for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
-				double omega3Plus = energies3Plus(ib3);
-				if ( omega3Plus < energyCutoff ) continue;
-
-				double freqsPlus = omega1 * omega2 * omega3Plus;
-				couplingPlus(ib1,ib2,ib3) = std::norm(vPlus(ib1,ib2,ib3))
-						/ freqsPlus;
+			for ( int ib1=0; ib1<nb1; ib1++ ) {
+				couplingPlus(ib1,ib2,ib3) = std::norm(vPlus(ib1,ib2,ib3));
 			}
-
-			// case -
-			for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
-				double omega3Mins = energies3Mins(ib3);
-				if ( omega3Mins < energyCutoff ) continue;
-
-				double freqsMins = omega1 * omega2 * omega3Mins;
-				couplingMins(ib1,ib2,ib3) = std::norm(vMins(ib1,ib2,ib3))
-						/ freqsMins;
+		}
+	}
+	// case -
+	for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
+		for ( int ib2=0; ib2<nb2; ib2++ ) {
+			for ( int ib1=0; ib1<nb1; ib1++ ) {
+				couplingMins(ib1,ib2,ib3) = std::norm(vMins(ib1,ib2,ib3));
 			}
 		}
 	}

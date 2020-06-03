@@ -12,6 +12,13 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	numStates = outerBandStructure.getNumStates();
 	numPoints = outerBandStructure.getNumPoints();
 
+	double constantRelaxationTime = context.getConstantRelaxationTime();
+	std::cout << constantRelaxationTime << "<______>\n";
+	//constantRTA = context.
+	if ( constantRelaxationTime > 0. ) {
+		constantRTA = true;
+	}
+
 	if ( constantRTA ) return;
 
 	smearing = DeltaFunction::smearingFactory(context,innerBandStructure);
@@ -72,6 +79,9 @@ void ScatteringMatrix::setup() {
 	// note: here we want to build the matrix or its diagonal
 	// builder is a pure virtual function, which is implemented in subclasses
 	// c++ discourages calls to pure virtual functions in the constructor
+
+	if ( constantRTA ) return; // nothing to construct
+
 	if ( highMemory ) {
 		if ( numCalcs > 1 ) {
 			// note: one could write code around this
