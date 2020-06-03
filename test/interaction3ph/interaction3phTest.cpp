@@ -468,9 +468,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 		for ( int j=0; j<numBands; j++ ) {
 			for ( int k=0; k<numBands; k++ ) {
 				x1 += pow(couplingPlus(i,j,k) -
-						couplingPlus2(i,j,k) * en1(i) * en2(j) * en3Plus(k),2);
+						couplingPlus2(i,j,k),2);
 				x2 += pow(couplingMins(i,j,k) -
-						couplingMins2(i,j,k) * en1(i) * en2(j) * en3Mins(k),2);
+						couplingMins2(i,j,k),2);
 			}
 		}
 	}
