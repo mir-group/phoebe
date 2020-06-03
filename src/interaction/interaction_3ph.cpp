@@ -11,6 +11,25 @@ Interaction3Ph::Interaction3Ph(Crystal & crystal_,
 		ifc3Tensor(ifc3Tensor_),
 		cellPositions(cellPositions_),
 		displacedAtoms(displacedAtoms_) {
+
+	long numAtoms = crystal.getNumAtoms();
+
+	// these are lookout tables used for speeding up the construction of the
+	// coupling (and avoiding recomputing the same indeces.
+	tableAtCIndex1 = Eigen::MatrixXi::Zero(3,numTriplets);
+	tableAtCIndex2 = Eigen::MatrixXi::Zero(3,numTriplets);
+	tableAtCIndex3 = Eigen::MatrixXi::Zero(3,numTriplets);
+	for ( int ic : {0,1,2} ) {
+		for ( long it=0; it<numTriplets; it++ ) {
+			tableAtCIndex1(ic,it) =
+					compress2Indeces(displacedAtoms(it,0), ic, numAtoms, 3);
+			tableAtCIndex2(ic,it) =
+					compress2Indeces(displacedAtoms(it,1), ic, numAtoms, 3);
+			tableAtCIndex3(ic,it) =
+					compress2Indeces(displacedAtoms(it,2), ic, numAtoms, 3);
+		}
+	}
+
 }
 
 // copy constructor

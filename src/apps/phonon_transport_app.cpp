@@ -11,6 +11,7 @@
 #include "observable.h"
 #include "bandstructure.h"
 #include "ifc3_parser.h"
+#include "phonon_thermal_cond.h"
 
 void PhononTransportApp::run(Context & context) {
 
@@ -50,10 +51,18 @@ void PhononTransportApp::run(Context & context) {
 
 	VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
-//	for ( auto ik=0; ik<bandStructure.getNumPoints(); ik++ ) {
+//	LoopPrint loopPrint("computing scattering matrix", "q-points",
+//			bandStructure.getNumPoints());
+//		for ( auto ik=0; ik<bandStructure.getNumPoints(); ik++ ) {
+//		loopPrint.update();
 //		auto statistics = phononH0.getStatistics();
 //		auto state = bandStructure.getState(ik);
 //		auto energies = state.getEnergies();
+//
+//		std::cout << ik << " "
+//				<< state.getPoint().getCoords(Points::crystalCoords).transpose()
+//				<< energies.transpose() << "\n";
+//
 //		for ( auto ib=0; ib<energies.size(); ib++ ) {
 //			long is = bandStructure.getIndex(ik,ib);
 //			auto energy = energies(ib);
@@ -61,12 +70,13 @@ void PhononTransportApp::run(Context & context) {
 //			double temperature = statisticsSweep.getCalcStatistics(iCalc
 //					).temperature;
 //			auto bose = statistics.getPopulation(energy, temperature);
-//			std::cout << ik << " " << ib << " ! "
-//					<< 1. / sMatrixDiagonal.data(0,is) * timeRyToFs * 1.0e-3
-//					//* bose * (bose+1.)
-//					<< "\n"; // rel times in picoseconds!
+////			std::cout << ik << " " << ib << " ! "
+////					<< 1. / sMatrixDiagonal.data(0,is) * timeRyToFs * 1.0e-3
+////					//* bose * (bose+1.)
+////					<< "\n"; // rel times in picoseconds!
 //		}
 //	}
+//	loopPrint.close();
 
 	// compute the populations.
 	// Note: this is the total phonon population n (n != f(1+f) Delta n)

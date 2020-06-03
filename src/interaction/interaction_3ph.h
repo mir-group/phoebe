@@ -18,6 +18,9 @@ private:
 	Eigen::Tensor<double,4> ifc3Tensor;
 	Eigen::Tensor<double,3> cellPositions;
 	Eigen::Tensor<long,2> displacedAtoms;
+	Eigen::MatrixXi tableAtCIndex1;
+	Eigen::MatrixXi tableAtCIndex2;
+	Eigen::MatrixXi tableAtCIndex3;
 
 	template <typename A,typename B,typename C>
 	std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
@@ -151,7 +154,7 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 									v0Plus(ib1,ib2,ib3) +=
 											ifc3Tensor(it,ic1,ic2,ic3)
 											* ev1(ic1,displacedAtoms(it,0),ib1)
-									* std::conj(ev2(ic2,displacedAtoms(it,1),ib2))
+									* ev2(ic2,displacedAtoms(it,1),ib2)
 									* std::conj(ev3Plus(ic3,displacedAtoms(it,2),ib3));
 								}
 
@@ -176,7 +179,7 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			// As a convention, the first primitive cell in the triplet is
 			// restricted to the origin, so the phase for that cell is unity.
 
-			double arg = - q2.dot(cell2Pos) - q3Plus.dot(cell3Pos);
+			double arg = + q2.dot(cell2Pos) - q3Plus.dot(cell3Pos);
 			std::complex<double> phasePlus = exp( complexI * arg );
 			arg = - q2.dot(cell2Pos) - q3Mins.dot(cell3Pos);
 			std::complex<double> phaseMins = exp( complexI * arg );
@@ -216,29 +219,31 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		tmpPlus.setZero();
 		tmpMins.setZero();
 
-		for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
+		long ind1, ind2, ind3;
+		double argP, argM;
 
-			for ( int ic : {0,1,2} ) {
-				cell2Pos(ic) = cellPositions(it,0,ic);
-				cell3Pos(ic) = cellPositions(it,1,ic);
-			}
+		for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
 
 			// As a convention, the first primitive cell in the triplet is
 			// restricted to the origin, so the phase for that cell is unity.
 
-			double arg = - q2.dot(cell2Pos) - q3Plus.dot(cell3Pos);
-			std::complex<double> phasePlus = exp( complexI * arg );
-			arg = - q2.dot(cell2Pos) - q3Mins.dot(cell3Pos);
-			std::complex<double> phaseMins = exp( complexI * arg );
-
-			long ind1, ind2, ind3;
+			argP = 0.;
+			argM = 0.;
+			for ( int ic : {0,1,2} ) {
+				argP += + q2(ic)*cellPositions(it,0,ic)
+						- q3Plus(ic)*cellPositions(it,1,ic);
+				argM += - q2(ic)*cellPositions(it,0,ic)
+						- q3Mins(ic)*cellPositions(it,1,ic);
+			}
+			std::complex<double> phasePlus = exp( complexI * argP );
+			std::complex<double> phaseMins = exp( complexI * argM );
 
 			for ( int ic1 : {0,1,2} ) {
-				ind1 = compress2Indeces(displacedAtoms(it,0), ic1, numAtoms,3 );
+				ind1 = tableAtCIndex1(ic1,it);
 				for ( int ic2 : {0,1,2} ) {
-					ind2 = compress2Indeces(displacedAtoms(it,1), ic2, numAtoms, 3);
+					ind2 = tableAtCIndex2(ic2,it);
 					for ( int ic3 : {0,1,2} ) {
-						ind3 = compress2Indeces(displacedAtoms(it,2), ic3, numAtoms, 3);
+						ind3 = tableAtCIndex3(ic3,it);
 						tmpPlus(ind1, ind2, ind3) +=
 								ifc3Tensor(ic3,ic2,ic1,it) * phasePlus;
 						tmpMins(ind1, ind2, ind3) +=
@@ -295,18 +300,19 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 		Eigen::Tensor<std::complex<double>,3> tmp2Mins(nb1,nb2,numBands);
 		tmp2Plus.setZero();
 		tmp2Mins.setZero();
-		for ( int iac3=0; iac3<numBands; iac3++ ) {
-			for ( int ib1=0; ib1<nb1; ib1++ ) {
+		for ( int ib1=0; ib1<nb1; ib1++ ) {
+			for ( int iac3=0; iac3<numBands; iac3++ ) {
 				for ( int ib2=0; ib2<nb2; ib2++ ) {
 					for ( int iac2=0; iac2<numBands; iac2++ ) {
 						tmp2Plus(ib1,ib2,iac3) += tmp1Plus(ib1,iac2,iac3)
-								* std::conj(ev2(iac2,ib2));
+								* ev2(iac2,ib2);
 						tmp2Mins(ib1,ib2,iac3) += tmp1Mins(ib1,iac2,iac3)
 								* std::conj(ev2(iac2,ib2));
 					}
 				}
 			}
 		}
+		// the last loop is split in two because nb3 is not the same for + and -
 		for ( int ib2=0; ib2<nb2; ib2++ ) {
 			for ( int ib1=0; ib1<nb1; ib1++ ) {
 				for ( int ib3=0; ib3<nb3Plus; ib3++ ) {
@@ -315,6 +321,10 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 								* std::conj(ev3Plus(iac3,ib3));
 					}
 				}
+			}
+		}
+		for ( int ib2=0; ib2<nb2; ib2++ ) {
+			for ( int ib1=0; ib1<nb1; ib1++ ) {
 				for ( int ib3=0; ib3<nb3Mins; ib3++ ) {
 					for ( int iac3=0; iac3<numBands; iac3++ ) {
 						vMins(ib1,ib2,ib3) += tmp2Mins(ib1,ib2,iac3)

@@ -152,23 +152,15 @@ void PhScatteringMatrix::builder(
 
 		for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
 			auto q2 = innerBandStructure.getPoint(iq2);
-//			auto states2 = innerBandStructure.getState(q2);
-
-			auto iq2Inv = innerBandStructure.getPoints().getIndexInverted(iq2);
-			auto q2Inv = innerBandStructure.getPoint(iq2Inv);
-
 			auto states2 = innerBandStructure.getState(q2);
-
 			auto state2Energies = states2.getEnergies();
 			auto nb2 = state2Energies.size();
 
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
 			if ( dontComputeQ3 ) {
-				//	auto q3Plus = q1 + q2;
-				//	auto q3Mins = q1 - q2; // this should be the one to use
 				auto q3Plus = q1 + q2;
-				auto q3Mins = q2 - q1;
+				auto q3Mins = q1 - q2;
 				auto states3Plus = innerBandStructure.getState(q3Plus);
 				auto states3Mins = innerBandStructure.getState(q3Mins);
 
@@ -181,10 +173,6 @@ void PhScatteringMatrix::builder(
 						states1, states2, states3Plus, states3Mins);
 				couplingPlus = cp;
 				couplingMins = cm;
-//				couplingPlus = Eigen::Tensor<double,3>(nb1,nb2,nb3Plus);
-//				couplingMins = Eigen::Tensor<double,3>(nb1,nb2,nb3Mins);
-//				couplingPlus.setConstant(1.);
-//				couplingMins.setConstant(1.);
 
 				bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
@@ -416,10 +404,6 @@ void PhScatteringMatrix::builder(
 		}
 	}
 	loopPrint.close();
-
-	for ( long is=0; is<6*numPoints; is++ ) {
-	std::cout << linewidth->data(0,is) * ryToCmm1 << "  !!!\n";
-	}
 
 	if ( switchCase == 0 ) {
 		long numStates = outerBose.data.cols();
