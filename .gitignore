@@ -34,6 +34,18 @@
 
 #IDE files
 .project
+.pydevproject
 
 #MacOS specific files
 .DS_Store
+
+.Makefile.swp
+
+#CMake stuff:
+*CMakeCache.txt
+*CMakeFiles
+*cmake_install.cmake
+CMakeDoxy*
+Makefile
+
+runTests

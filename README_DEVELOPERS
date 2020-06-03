@@ -1,0 +1,13 @@
+To run tests:
+* make test (from base directory)
+* cd test
+* ./runTests
+
+To add a new test:
+* create a test/*.h and test/*.cpp file with the test description
+  Please have a look at test/test.h test/test.cpp for some simple examples
+* open test/CMakeLists.txt
+  replace the line "add_executable(runTests existingTest.cpp)"
+  with "add_executable(runTests existingTest.cpp newTest.cpp)"
+* Run the tests
+

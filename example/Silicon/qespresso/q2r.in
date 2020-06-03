@@ -1,0 +1,4 @@
+ &input
+   fildyn='silicon.dyn',
+   flfrc='silicon.fc'
+ /

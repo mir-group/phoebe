@@ -3,14 +3,15 @@
 #include <iostream>
 #include "exceptions.h"
 
-Error::Error(std::string errMessage, int errCode) {
+Error::Error(const std::string & errMessage, const int & errCode) {
 	if ( errCode != 0 ) {
+		std::cout << "Error!" << std::endl;
 		std::cout << errMessage << std::endl;
-		assert(errCode != 0);
+		exit(errCode);
 	}
 }
 
-Warning::Warning(std::string errMessage) {
+Warning::Warning(const std::string & errMessage) {
 	std::cout << errMessage;
 }
 

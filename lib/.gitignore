@@ -1,1 +1,6 @@
-eigen-3.3.7
+eigen*
+googletest*
+pugixml*
+spglib*
+src
+lib-cfgcmd*

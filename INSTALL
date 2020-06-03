@@ -1,0 +1,20 @@
+The installation requires:
+* cmake
+* gcc, version compatible with c++17
+* internet connection (we will download external libraries)
+
+To install Phoebe, type:
+* cmake CMakeLists.txt
+* make
+
+This will create two executables: 
+* phoebe
+* runTests (for developers)
+
+In order to compile the documentation, you need to have installed:
+* doxygen
+* graphviz
+Then type
+* make doc
+
+Tested with gcc v9. Note that old compilers may not support c++17.
