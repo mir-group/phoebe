@@ -97,7 +97,8 @@ void LoopPrint::update() {
 
 	currentStep += 1;
 
-	if ( currentStep <= 3 || currentStep%reportEvery==0 ) {
+	if ( currentStep <= 2 || (currentStep+1)%reportEvery==0
+			|| currentStep == numSteps-1 ) {
 
 		time_t currentTime;
 		currentTime = time(NULL);
@@ -117,13 +118,14 @@ void LoopPrint::update() {
 					* ( numSteps - currentStep + 1. );
 		}
 
-		if ( (currentStep==0 || currentStep==2 ) || currentStep%reportEvery==0 ) {
+		if ( (currentStep==0 || currentStep==2 || currentStep == numSteps-1 )
+				|| (currentStep+1)%reportEvery==0 ) {
 
-			long percentage = double(currentStep)/numSteps*100.;
+			long percentage = double(currentStep+1)/numSteps*100.;
 
 			std::cout << s << " | ";
 			std::cout << std::setw(3) << percentage << "% | ";
-			std::cout << std::setw(stepDigits) << currentStep
+			std::cout << std::setw(stepDigits) << currentStep+1
 					<< std::setw(stepDigits) << " / " << numSteps;
 			if ( currentStep >2 ) {
 				std::cout << " | remaining: " << timeLeft << " s.\n";

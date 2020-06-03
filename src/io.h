@@ -31,7 +31,7 @@ private:
 	long numSteps;
 	std::string task;
 	std::string step;
-	long currentStep = 0;
+	long currentStep = -1;
 	time_t initialTime;
 	long deltaTime;
 	long stepDigits;
