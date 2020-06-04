@@ -52,6 +52,7 @@ protected:
 	const double smearingCutoff = 1.0e-8;
 	const double prefactor = 1.;
 	Eigen::Matrix3d qTensor;
+	const double erf2 = 0.9953222650189527;
 };
 
 /**

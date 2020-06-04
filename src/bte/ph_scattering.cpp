@@ -124,7 +124,10 @@ void PhScatteringMatrix::builder(
 	double en1, en2, en3Plus, en3Mins, bose1, bose2, bose3Plus, bose3Mins;
 	Eigen::Tensor<double,3> couplingPlus, couplingMins;
 	Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
-	Eigen::Vector3d v1, v2;
+	Eigen::Vector3d v1, v2, v3, v;
+	Eigen::MatrixXd v2s, v3ps, v3ms;
+
+
 	Eigen::MatrixXd bose3PlusData, bose3MinsData;
 	Eigen::VectorXd eigvals3Plus, eigvals3Mins;
 	Eigen::MatrixXcd eigvecs3Plus, eigvecs3Mins;
@@ -164,6 +167,10 @@ void PhScatteringMatrix::builder(
 				auto q3Mins = q1 - q2;
 				auto states3Plus = innerBandStructure.getState(q3Plus);
 				auto states3Mins = innerBandStructure.getState(q3Mins);
+
+				v2s = states2.getGroupVelocities();
+				v3ps = states3Plus.getGroupVelocities();
+				v3ms = states3Mins.getGroupVelocities();
 
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
@@ -264,10 +271,10 @@ void PhScatteringMatrix::builder(
 									en1 + en2 - en3Plus);
 							break;
 						case ( DeltaFunction::adaptiveGaussian ):
-							v1 = states1.getVelocity(ib1);
-							v2 = states2.getVelocity(ib2);
+							v = v2s.row(ib2) - v3ps.row(ib3);
 							deltaPlus = smearing->getSmearing(
-									en1 + en2 - en3Plus, v1+v2);
+									en1 + en2 - en3Plus, v);
+//if ( deltaPlus > 1.0e-16 ) std::cout << deltaPlus << "\n";
 							break;
 						default:
 							deltaPlus = smearing->getSmearing(
@@ -275,8 +282,8 @@ void PhScatteringMatrix::builder(
 							break;
 						}
 
-//						deltaPlus = 1.;
-//						couplingPlus(ib1,ib2,ib3) = 1.;
+
+					    if ( deltaPlus < 0 ) continue;
 
 						// loop on temperature
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
@@ -338,24 +345,22 @@ void PhScatteringMatrix::builder(
 									en2 + en3Mins - en1 );
 							break;
 						case ( DeltaFunction::adaptiveGaussian ):
-							v1 = states1.getVelocity(ib1);
-							v2 = states2.getVelocity(ib2);
+							v = v2s.row(ib2) - v3ms.row(ib3);
 							deltaMins1 = smearing->getSmearing(
-									en1 + en3Mins - en2, v1-v2);
+									en1 + en3Mins - en2, v);
 							deltaMins2 = smearing->getSmearing(
-									en2 + en3Mins - en1, v1-v2);
+									en2 + en3Mins - en1, v);
 							break;
 						default:
 							deltaMins1 = smearing->getSmearing(
-									en1 - en3Mins, iq2, ib2);
+									en2 - en3Mins, iq1, ib1);
 							deltaMins2 = smearing->getSmearing(
 									en1 - en3Mins, iq2, ib2);
 							break;
 						}
 
-//						deltaMins1 = 1.;
-//						deltaMins2 = 1.;
-//						couplingMins(ib1,ib2,ib3) = 1.;
+						if ( deltaMins1 < 0 ) deltaMins1 = 0.;
+						if ( deltaMins2 < 0 ) deltaMins2 = 0.;
 
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
@@ -443,6 +448,8 @@ void PhScatteringMatrix::builder(
 		}
 	}
 
-
+	for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {
+		std::cout << linewidth->data(0,i) << " !-! \n";
+	}
 
 }
