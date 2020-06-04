@@ -30,98 +30,103 @@ Interaction3Ph::Interaction3Ph(Crystal & crystal_,
 	numAtoms = crystal.getNumAtoms();
 	numBands = numAtoms * 3;
 
-	// these are lookout tables used for speeding up the construction of the
-	// coupling (and avoiding recomputing the same indeces.
-	tableAtCIndex1 = Eigen::MatrixXi::Zero(3,numTriplets);
-	tableAtCIndex2 = Eigen::MatrixXi::Zero(3,numTriplets);
-	tableAtCIndex3 = Eigen::MatrixXi::Zero(3,numTriplets);
-	for ( int ic : {0,1,2} ) {
+	if ( ! useD3Caching ) {
+
+		// these are lookout tables used for speeding up the construction of
+		// the coupling (and avoiding recomputing the same indeces.
+		tableAtCIndex1 = Eigen::MatrixXi::Zero(3,numTriplets);
+		tableAtCIndex2 = Eigen::MatrixXi::Zero(3,numTriplets);
+		tableAtCIndex3 = Eigen::MatrixXi::Zero(3,numTriplets);
+		for ( int ic : {0,1,2} ) {
+			for ( long it=0; it<numTriplets; it++ ) {
+				tableAtCIndex1(ic,it) =
+						compress2Indeces(displacedAtoms(it,0), ic, numAtoms,3);
+				tableAtCIndex2(ic,it) =
+						compress2Indeces(displacedAtoms(it,1), ic, numAtoms,3);
+				tableAtCIndex3(ic,it) =
+						compress2Indeces(displacedAtoms(it,2), ic, numAtoms,3);
+			}
+		}
+
+	} else {
+
+		nr2 = 0; nr3 = 0;
+		std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
+
 		for ( long it=0; it<numTriplets; it++ ) {
-			tableAtCIndex1(ic,it) =
-					compress2Indeces(displacedAtoms(it,0), ic, numAtoms, 3);
-			tableAtCIndex2(ic,it) =
-					compress2Indeces(displacedAtoms(it,1), ic, numAtoms, 3);
-			tableAtCIndex3(ic,it) =
-					compress2Indeces(displacedAtoms(it,2), ic, numAtoms, 3);
-		}
-	}
+			// load the position of the 2 atom in the current triplet
+			Eigen::Vector3d position2, position3;
+			for ( int ic : {0,1,2} ) {
+				position2(ic) = cellPositions(it,0,ic);
+				position3(ic) = cellPositions(it,1,ic);
+			}
+			// now check if this element is in the list.
+			bool found2 = false;
+			if ( std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
+					position2) != tmpCellPositions2.end() ) {
+				found2 = true;
+			}
+			bool found3 = false;
+			if ( std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
+					position3) != tmpCellPositions3.end() ) {
+				found3 = true;
+			}
 
-
-
-
-	nr2 = 0; nr3 = 0;
-	std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
-
-	for ( long it=0; it<numTriplets; it++ ) {
-		// load the position of the 2 atom in the current triplet
-		Eigen::Vector3d position2, position3;
-		for ( int ic : {0,1,2} ) {
-			position2(ic) = cellPositions(it,0,ic);
-			position3(ic) = cellPositions(it,1,ic);
-		}
-		// now check if this element is in the list.
-		bool found2 = false;
-		if ( std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
-				position2) != tmpCellPositions2.end() ) {
-			found2 = true;
-		}
-		bool found3 = false;
-		if ( std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
-				position3) != tmpCellPositions3.end() ) {
-			found3 = true;
+			if ( ! found2 ) {
+				tmpCellPositions2.push_back(position2);
+				nr2++;
+			}
+			if ( ! found3 ) {
+				tmpCellPositions3.push_back(position3);
+				nr3++;
+			}
 		}
 
-		if ( ! found2 ) {
-			tmpCellPositions2.push_back(position2);
-			nr2++;
+		cellPositions2 = Eigen::MatrixXd::Zero(3,nr2);
+		cellPositions3 = Eigen::MatrixXd::Zero(3,nr3);
+		for ( int i=0; i<nr2; i++ ) {
+			cellPositions2.col(i) = tmpCellPositions2[i];
 		}
-		if ( ! found3 ) {
-			tmpCellPositions3.push_back(position3);
-			nr3++;
-		}
-	}
-
-	cellPositions2 = Eigen::MatrixXd::Zero(3,nr2);
-	cellPositions3 = Eigen::MatrixXd::Zero(3,nr3);
-	for ( int i=0; i<nr2; i++ ) {
-		cellPositions2.col(i) = tmpCellPositions2[i];
-	}
-	for ( int i=0; i<nr3; i++ ) {
-		cellPositions3.col(i) = tmpCellPositions3[i];
-	}
-
-	D3 = Eigen::Tensor<double,5>(numBands,numBands,numBands,nr2,nr3);
-	D3.setZero();
-
-	for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
-		long ia1 = displacedAtoms(it,0);
-		long ia2 = displacedAtoms(it,1);
-		long ia3 = displacedAtoms(it,2);
-
-		Eigen::Vector3d position2, position3;
-		for ( int ic : {0,1,2} ) {
-			position2(ic) = cellPositions(it,0,ic);
-			position3(ic) = cellPositions(it,1,ic);
+		for ( int i=0; i<nr3; i++ ) {
+			cellPositions3.col(i) = tmpCellPositions3[i];
 		}
 
-		long ir2 = findIndexRow(cellPositions2, position2);
-		long ir3 = findIndexRow(cellPositions3, position3);
+		D3 = Eigen::Tensor<double,5>(numBands,numBands,numBands,nr2,nr3);
+		D3.setZero();
 
-		for ( int ic1 : {0,1,2} ) {
-			for ( int ic2 : {0,1,2} ) {
-				for ( int ic3 : {0,1,2} ) {
 
-					auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-					auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-					auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+		for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
+			long ia1 = displacedAtoms(it,0);
+			long ia2 = displacedAtoms(it,1);
+			long ia3 = displacedAtoms(it,2);
 
-					D3(ind1,ind2,ind3,ir2,ir3) =
-							ifc3Tensor(ic3,ic2,ic1,it);
+			Eigen::Vector3d position2, position3;
+			for ( int ic : {0,1,2} ) {
+				position2(ic) = cellPositions(it,0,ic);
+				position3(ic) = cellPositions(it,1,ic);
+			}
+
+			long ir2 = findIndexRow(cellPositions2, position2);
+			long ir3 = findIndexRow(cellPositions3, position3);
+
+			for ( int ic1 : {0,1,2} ) {
+				for ( int ic2 : {0,1,2} ) {
+					for ( int ic3 : {0,1,2} ) {
+
+						auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+						auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+						auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+
+						D3(ind1,ind2,ind3,ir2,ir3) =
+								ifc3Tensor(ic3,ic2,ic1,it);
+					}
 				}
 			}
 		}
+		ifc3Tensor.resize(0,0,0,0);
+		cellPositions.resize(0,0,0);
+		displacedAtoms.resize(0,0);
 	}
-
 
 }
 

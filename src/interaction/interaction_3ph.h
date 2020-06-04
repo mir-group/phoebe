@@ -33,17 +33,16 @@ private:
 	slowestCalcCouplingSquared(A & state1, B & state2,
 					C & state3Plus, C & state3Mins);
 
-	// we set to zero rates for scattering with states of energies <0.001 cm^-1
-	const double energyCutoff = 0.001 / ryToCmm1;
-
-
-
-
-
+	// variables for the caching mechanism.
+	// TODO: sparsify D3[+/-]Cached over the indices ir2 and ir3
+	bool useD3Caching = true;
 	Eigen::MatrixXd cellPositions2;
 	Eigen::MatrixXd cellPositions3;
 	Eigen::Tensor<double,5> D3;
 	long nr2, nr3, numAtoms, numBands;
+	long cachedIndex = -1;
+	Eigen::Tensor<std::complex<double>,4> D3PlusCached;
+	Eigen::Tensor<std::complex<double>,4> D3MinsCached;
 
 public:
 
@@ -117,6 +116,7 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 	Eigen::Vector3d cell2Pos, cell3Pos;
 
 	//Cartesian phonon wave vectors: q1,q2,q3
+	auto q1 = state1.getCoords(Points::cartesianCoords);
 	auto q2 = state2.getCoords(Points::cartesianCoords);
 	auto q3Plus = state3Plus.getCoords(Points::cartesianCoords);
 	auto q3Mins = state3Mins.getCoords(Points::cartesianCoords);
@@ -158,12 +158,48 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 	long ind1, ind2, ind3;
 	double argP, argM;
 
-	Eigen::Tensor<std::complex<double>,4> D3PlusTmp(numBands,numBands,numBands,nr3);
-	Eigen::Tensor<std::complex<double>,4> D3MinsTmp(numBands,numBands,numBands,nr3);
-	D3PlusTmp.setZero();
-	D3MinsTmp.setZero();
+	if ( useD3Caching ) {
+		if ( state2.getPoint().getIndex() != cachedIndex ) {
+			cachedIndex = state2.getPoint().getIndex();
 
-	for ( long ir2=0; ir2<nr2; ir2++ ) { // sum over all triplets
+			D3PlusCached = Eigen::Tensor<std::complex<double>,4>(numBands,numBands,numBands,nr3);
+			D3MinsCached = Eigen::Tensor<std::complex<double>,4>(numBands,numBands,numBands,nr3);
+			D3PlusCached.setZero();
+			D3MinsCached.setZero();
+
+			for ( long ir2=0; ir2<nr2; ir2++ ) { // sum over all triplets
+				for ( long ir3=0; ir3<nr3; ir3++ ) { // sum over all triplets
+
+					// As a convention, the first primitive cell in the triplet is
+					// restricted to the origin, so the phase for that cell is unity.
+
+					argP = 0.;
+					argM = 0.;
+					for ( int ic : {0,1,2} ) {
+						argP += + q2(ic) * ( cellPositions2(ic,ir2)
+										- cellPositions3(ic,ir3) );
+						argM += - q2(ic) * ( cellPositions2(ic,ir2)
+									- cellPositions3(ic,ir3) );
+					}
+
+					std::complex<double> phasePlus = exp( complexI * argP );
+					std::complex<double> phaseMins = exp( complexI * argM );
+					for ( long ind1=0; ind1<numBands; ind1++ ) {
+						for ( long ind2=0; ind2<numBands; ind2++ ) {
+							for ( long ind3=0; ind3<numBands; ind3++ ) {
+								D3PlusCached(ind1,ind2,ind3,ir3) +=
+										D3(ind1,ind2,ind3,ir2,ir3)
+										* phasePlus;
+								D3MinsCached(ind1,ind2,ind3,ir3) +=
+										D3(ind1,ind2,ind3,ir2,ir3)
+										* phaseMins;
+							}
+						}
+					}
+				}
+			}
+		}
+
 		for ( long ir3=0; ir3<nr3; ir3++ ) { // sum over all triplets
 
 			// As a convention, the first primitive cell in the triplet is
@@ -172,55 +208,61 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 			argP = 0.;
 			argM = 0.;
 			for ( int ic : {0,1,2} ) {
-				argP += + q2(ic) * cellPositions2(ic,ir2);
-				argM += - q2(ic) * cellPositions2(ic,ir2);
+				argP += - q1(ic) * cellPositions3(ic,ir3);
+				argM += - q1(ic) * cellPositions3(ic,ir3);
 			}
 			std::complex<double> phasePlus = exp( complexI * argP );
 			std::complex<double> phaseMins = exp( complexI * argM );
-			for ( long ind1=0; ind1<numBands; ind1++ ) {
-				for ( long ind2=0; ind2<numBands; ind2++ ) {
-					for ( long ind3=0; ind3<numBands; ind3++ ) {
-						D3PlusTmp(ind1,ind2,ind3,ir3) +=
-								D3(ind1,ind2,ind3,ir2,ir3)
+
+			for ( long iac1=0; iac1<numBands; iac1++ ) {
+				for ( long iac2=0; iac2<numBands; iac2++ ) {
+					for ( long iac3=0; iac3<numBands; iac3++ ) {
+
+						tmpPlus(iac1,iac2,iac3) +=
+								D3PlusCached(iac1,iac2,iac3,ir3)
 								* phasePlus;
-						D3MinsTmp(ind1,ind2,ind3,ir3) +=
-								D3(ind1,ind2,ind3,ir2,ir3)
+						tmpMins(iac1,iac2,iac3) +=
+								D3MinsCached(iac1,iac2,iac3,ir3)
 								* phaseMins;
 					}
 				}
 			}
 		}
-	}
 
-	for ( long ir3=0; ir3<nr3; ir3++ ) { // sum over all triplets
+	} else {
 
-		// As a convention, the first primitive cell in the triplet is
-		// restricted to the origin, so the phase for that cell is unity.
+		for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
 
-		argP = 0.;
-		argM = 0.;
-		for ( int ic : {0,1,2} ) {
-			argP += - q3Plus(ic) * cellPositions3(ic,ir3);
-			argM += - q3Mins(ic) * cellPositions3(ic,ir3);
-		}
-		std::complex<double> phasePlus = exp( complexI * argP );
-		std::complex<double> phaseMins = exp( complexI * argM );
+			// As a convention, the first primitive cell in the triplet is
+			// restricted to the origin, so the phase for that cell is unity.
 
-		for ( long iac1=0; iac1<numBands; iac1++ ) {
-			for ( long iac2=0; iac2<numBands; iac2++ ) {
-				for ( long iac3=0; iac3<numBands; iac3++ ) {
+			argP = 0.;
+			argM = 0.;
+			for ( int ic : {0,1,2} ) {
+				argP += + q2(ic)*cellPositions(it,0,ic)
+						- q3Plus(ic)*cellPositions(it,1,ic);
+				argM += - q2(ic)*cellPositions(it,0,ic)
+						- q3Mins(ic)*cellPositions(it,1,ic);
+			}
+			std::complex<double> phasePlus = exp( complexI * argP );
+			std::complex<double> phaseMins = exp( complexI * argM );
 
-					tmpPlus(iac1,iac2,iac3) +=
-							D3PlusTmp(iac1,iac2,iac3,ir3)
-							* phasePlus;
-					tmpMins(iac1,iac2,iac3) +=
-							D3MinsTmp(iac1,iac2,iac3,ir3)
-							* phaseMins;
+			for ( int ic1 : {0,1,2} ) {
+				ind1 = tableAtCIndex1(ic1,it);
+				for ( int ic2 : {0,1,2} ) {
+					ind2 = tableAtCIndex2(ic2,it);
+					for ( int ic3 : {0,1,2} ) {
+						ind3 = tableAtCIndex3(ic3,it);
+						tmpPlus(ind1, ind2, ind3) +=
+								ifc3Tensor(ic3,ic2,ic1,it) * phasePlus;
+						tmpMins(ind1, ind2, ind3) +=
+								ifc3Tensor(ic3,ic2,ic1,it) * phaseMins;
+					}
 				}
 			}
 		}
-	}
 
+	}
 
 	// now we want to multiply
 	// vPlus(ib1,ib2,ib3) = tmpPlus(iac1,iac2,iac3) * ev1(iac1,ib1)

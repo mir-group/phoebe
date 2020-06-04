@@ -136,25 +136,26 @@ void PhScatteringMatrix::builder(
 //	std::vector<double> q3Plusv(3), q3Minsv(3);
 
 	LoopPrint loopPrint("computing scattering matrix", "q-points",
-			outerNumPoints);
+			outerNumPoints*innerNumPoints);
 
-	for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
-		loopPrint.update();
+	for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
+		auto q2 = innerBandStructure.getPoint(iq2);
+		auto states2 = innerBandStructure.getState(q2);
+		auto state2Energies = states2.getEnergies();
+		auto nb2 = state2Energies.size();
 
-		// note: for computing linewidths on a path, we must distinguish
-		// that q1 and q2 are on different meshes, and that q3+/- may not fall
-		// into known meshes and therefore needs to be computed
+		for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
+			loopPrint.update();
 
-		auto states1 = outerBandStructure.getState(iq1);
-		auto q1 = states1.getPoint();
-		auto state1Energies = states1.getEnergies();
-		auto nb1 = state1Energies.size();
+			// note: for computing linewidths on a path, we must distinguish
+			// that q1 and q2 are on different meshes, and that q3+/- may not fall
+			// into known meshes and therefore needs to be computed
 
-		for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
-			auto q2 = innerBandStructure.getPoint(iq2);
-			auto states2 = innerBandStructure.getState(q2);
-			auto state2Energies = states2.getEnergies();
-			auto nb2 = state2Energies.size();
+			auto states1 = outerBandStructure.getState(iq1);
+			auto q1 = states1.getPoint();
+			auto state1Energies = states1.getEnergies();
+			auto nb1 = state1Energies.size();
+
 
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
