@@ -40,7 +40,7 @@ private:
 	Eigen::MatrixXd cellPositions3;
 	Eigen::Tensor<double,5> D3;
 	long nr2, nr3, numAtoms, numBands;
-	long cachedIndex = -1;
+	Eigen::Vector3d cachedCoords;
 	Eigen::Tensor<std::complex<double>,4> D3PlusCached;
 	Eigen::Tensor<std::complex<double>,4> D3MinsCached;
 
@@ -159,8 +159,8 @@ std::tuple<Eigen::Tensor<double,3>, Eigen::Tensor<double,3>>
 	double argP, argM;
 
 	if ( useD3Caching ) {
-		if ( state2.getPoint().getIndex() != cachedIndex ) {
-			cachedIndex = state2.getPoint().getIndex();
+		if ( state2.getCoords(Points::cartesianCoords) != cachedCoords ) {
+			cachedCoords = state2.getCoords(Points::cartesianCoords);
 
 			D3PlusCached = Eigen::Tensor<std::complex<double>,4>(numBands,numBands,numBands,nr3);
 			D3MinsCached = Eigen::Tensor<std::complex<double>,4>(numBands,numBands,numBands,nr3);
