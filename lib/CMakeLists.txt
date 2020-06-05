@@ -8,7 +8,6 @@ FetchContent_Declare(googletest
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/googletest
 )
 FetchContent_MakeAvailable(googletest)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include)
 
 ExternalProject_Add(spglib_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/spglib_build
@@ -38,5 +37,6 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
+    ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
 )
 
