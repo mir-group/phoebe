@@ -4,10 +4,13 @@ The installation requires:
 * internet connection (we will download external libraries)
 
 To install Phoebe, type:
-* cmake CMakeLists.txt
-* make
+git submodule update --init
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
 
-This will create two executables: 
+This will create two executables:
 * phoebe
 * runTests (for developers)
 
