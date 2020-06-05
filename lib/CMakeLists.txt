@@ -1,13 +1,15 @@
 add_subdirectory(lib/kokkos)
 
 include(ExternalProject)
+include(FetchContent)
 
-ExternalProject_Add(googletest_dep
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/googletest_build
-    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/googletest_src
+FetchContent_Declare(googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    INSTALL_COMMAND ""
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/googletest
 )
+FetchContent_MakeAvailable(googletest)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include)
+
 ExternalProject_Add(spglib_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/spglib_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/spglib_src
@@ -28,13 +30,11 @@ ExternalProject_Add(eigen_dep
 )
 
 link_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest_build/lib
     ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_build
 )
 
 include_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}/googletest_src/googletest/include
     ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src

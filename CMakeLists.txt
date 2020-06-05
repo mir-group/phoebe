@@ -18,15 +18,18 @@ FILE(GLOB TEST_SOURCES ${CMAKE_SOURCE_DIR}/test/*.cpp ${CMAKE_SOURCE_DIR}/test/i
 include_directories(include)
 
 include(lib/CMakeLists.txt)
+include(GoogleTest)
 
 add_executable(phoebe src/main.cpp ${SOURCE_FILES})
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
 
-add_dependencies(phoebe googletest_dep spglib_dep pugixml_dep eigen_dep)
-add_dependencies(runTests googletest_dep spglib_dep pugixml_dep eigen_dep)
+add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
+add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
-target_link_libraries(phoebe gtest_main symspg pugixml)
-target_link_libraries(runTests gtest_main symspg pugixml)
+target_link_libraries(phoebe symspg pugixml)
+
+target_link_libraries(runTests symspg pugixml gtest_main)
+gtest_discover_tests(runTests)
 
 
 ############# DOCS ############
