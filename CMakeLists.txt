@@ -28,8 +28,12 @@ add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
 target_link_libraries(phoebe symspg pugixml)
 
+enable_testing()
 target_link_libraries(runTests symspg pugixml gtest_main)
-gtest_discover_tests(runTests)
+gtest_discover_tests(
+    runTests
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 
 ############# DOCS ############
