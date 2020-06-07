@@ -8,7 +8,6 @@
 #include <iostream>
 #include <string>
 #include <time.h>
-#include <type_traits>
 
 class IO {
 private:

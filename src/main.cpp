@@ -1,38 +1,46 @@
+// The compilation only works if Kokkos is first.
+// Fun times.
+// clang-format off
+#include <Kokkos_Core.hpp>
 #include "app.h"
 #include "context.h"
 #include "io.h"
+// clang-format on
 
-int main(int argc, char** argv) {
+int main(int argc, char *argv[]) {
 
-	// here launch parallel environment
+  // here launch parallel environment
 
-	// setup input/output
+  Kokkos::initialize(argc, argv);
 
-	IO io(argc, argv);
-	io.welcome();
+  // setup input/output
 
-	// Read user input file
+  IO io(argc, argv);
+  io.welcome();
 
-	Context context;
-	context.setupFromInput(io.getInputFileName());
+  // Read user input file
 
-	// decide which app to use
+  Context context;
+  context.setupFromInput(io.getInputFileName());
 
-	std::string appName = context.getAppName();
-	std::unique_ptr<App> app = App::loadApp(appName);
-	if ( app != nullptr ) {
-		// launch it
+  // decide which app to use
 
-		app->run(context);
-	} else {
-		std::cout << "No app to launch found." << std::endl;
-	}
+  std::string appName = context.getAppName();
+  std::unique_ptr<App> app = App::loadApp(appName);
+  if (app != nullptr) {
+    // launch it
 
-	// exiting program
+    app->run(context);
+  } else {
+    std::cout << "No app to launch found." << std::endl;
+  }
 
-	io.goodbye();
+  // exiting program
 
-	// here close parallel environment
+  io.goodbye();
 
-	return(0);
+  // here close parallel environment
+  Kokkos::finalize();
+
+  return (0);
 }
