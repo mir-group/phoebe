@@ -1,5 +1,6 @@
 #include "phonon_thermal_cond.h"
 #include "constants.h"
+#include <time.h>
 
 PhononThermalConductivity::PhononThermalConductivity(
 		StatisticsSweep & statisticsSweep_,
@@ -101,42 +102,25 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 	}
 }
 
-
-//void PhononThermalConductivity::calcVariational(VectorBTE & af,
-//		VectorBTE & f, VectorBTE & b) {
-//	Eigen::VectorXd temperatures = context.getTemperatures();
-//	Eigen::VectorXd lambda = 1. / f.bandStructure.getNumPoints()
-//			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
-//	long numStates = f.numStates;
-//
-//	for ( long it=0; it<numTemps; it++ ) {
-//		for ( long imu=0; imu<numChemPots; imu++ ) {
-//			long icLoc = glob2Loc(imu, it);
-//			for ( long i=0; i<dimensionality; i++ ) {
-//				for ( long j=0; j<dimensionality; j++ ) {
-//					long icPop1 = f.glob2Loc(imu,it,i);
-//					long icPop2 = b.glob2Loc(imu,it,j);
-//					for ( long istate=0; istate<numStates; istate++ ) {
-//						tensordxd(icLoc,i,j) += 0.5 * f.data(icPop1,istate)
-//								* af.data(icPop2,istate);
-//						tensordxd(icLoc,i,j) -= f.data(icPop1,istate)
-//								* b.data(icPop2,istate);
-//					}
-//					tensordxd(icLoc,i,j) /= lambda(it);
-//				}
-//			}
-//		}
-//	}
-//}
-
 void PhononThermalConductivity::print() {
+
+	std::string units;
+	if ( dimensionality == 1 ) {
+		units = "W m / K";
+	} else if ( dimensionality == 2 ) {
+		units = "W / K";
+	} else {
+		units = "W / m / K";
+	}
+
+	std::cout << "\n";
+	std::cout << "Thermal Conductivity (" << units << ")\n";
+
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 
-		std::cout << "\n";
-		std::cout << "Thermal Conductivity (W/m/K)\n";
 		std::cout.precision(5);
 		std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
 		std::cout << std::scientific;
@@ -151,7 +135,16 @@ void PhononThermalConductivity::print() {
 }
 
 void PhononThermalConductivity::print(const int & iter) {
-	std::cout << "Iteration: " << iter << "\n";
+	// get the time
+	time_t currentTime;
+	currentTime = time(NULL);
+	// and format the time nicely
+	char s[200];
+	struct tm * p = localtime(&currentTime);
+	strftime(s, 200, "%F, %T", p);
+
+
+	std::cout << "Iteration: " << iter << " | " << s << "\n";
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;

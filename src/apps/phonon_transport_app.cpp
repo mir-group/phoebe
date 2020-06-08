@@ -12,6 +12,7 @@
 #include "bandstructure.h"
 #include "ifc3_parser.h"
 #include "phonon_thermal_cond.h"
+#include "phonon_viscosity.h"
 
 void PhononTransportApp::run(Context & context) {
 
@@ -44,6 +45,8 @@ void PhononTransportApp::run(Context & context) {
 	// the diagonal for the exact method.
 
 	std::cout << "\n";
+	std::cout << std::string(80, '-') << "\n";
+	std::cout << "\n";
 	std::cout << "Solving BTE within the relaxation time approximation.\n";
 
 	// compute the phonon populations in the relaxation time approximation.
@@ -59,6 +62,14 @@ void PhononTransportApp::run(Context & context) {
 	phTCond.calcFromPopulation(popRTA);
 	phTCond.print();
 
+	// compute the thermal conductivity
+	PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
+	phViscosity.calcRTA(phononRelTimes);
+	phViscosity.print();
+
+	std::cout << std::string(80, '-') << "\n";
+	std::cout << "\n";
+
 	// if requested, we solve the BTE exactly
 
 	std::vector<std::string> solverBTE = context.getSolverBTE();
@@ -73,6 +84,7 @@ void PhononTransportApp::run(Context & context) {
 	if ( doIterative ) {
 
 		std::cout << "Starting Omini Sparavigna BTE solver\n";
+		std::cout << "\n";
 
 		// initialize the (old) thermal conductivity
 		PhononThermalConductivity phTCondOld =  phTCond;
@@ -112,10 +124,14 @@ void PhononTransportApp::run(Context & context) {
 		phTCond.print();
 		std::cout << "Finished Omini Sparavigna BTE solver\n";
 		std::cout << "\n";
+		std::cout << std::string(80, '-') << "\n";
+		std::cout << "\n";
 	}
 
 	if ( doVariational ) {
 		std::cout << "Starting variational BTE solver\n";
+		std::cout << "\n";
+
 		// note: each iteration should take approximately twice as long as
 		// the iterative method above (in the way it's written here.
 
@@ -190,6 +206,8 @@ void PhononTransportApp::run(Context & context) {
 		phTCond.print();
 
 		std::cout << "Finished variational BTE solver\n";
+		std::cout << "\n";
+		std::cout << std::string(80, '-') << "\n";
 		std::cout << "\n";
 	}
 }
