@@ -1,58 +1,58 @@
-#include <string>
 #include "app.h"
-#include "qe_input_parser.h"
-#include "context.h"
-#include "constants.h"
-#include "exceptions.h"
-#include "points.h"
-#include "io.h"
-#include "window.h"
-#include "statistics.h"
-#include "dos_app.h"
-#include "polarization_app.h"
-#include "bands_app.h"
-#include "phonon_transport_app.h"
-#include "utilities.h"
 #include "active_bandstructure.h"
+#include "bands_app.h"
 #include "bandstructure.h"
+#include "constants.h"
+#include "context.h"
+#include "dos_app.h"
+#include "exceptions.h"
+#include "io.h"
+#include "phonon_transport_app.h"
+#include "points.h"
+#include "polarization_app.h"
+#include "qe_input_parser.h"
+#include "statistics.h"
+#include "utilities.h"
+#include "window.h"
+#include <string>
 
 // app factory
-std::unique_ptr<App> App::loadApp(std::string & choice) {
-	if ( choice == "phononTransport" ) {
-		return std::unique_ptr<App> (new PhononTransportApp);
-	} else if ( choice == "phononDos" ) {
-		return std::unique_ptr<App> (new PhononDosApp);
-	} else if ( choice == "electronWannierDos" ) {
-		return std::unique_ptr<App> (new ElectronWannierDosApp);
-	} else if ( choice == "electronFourierDos" ) {
-		return std::unique_ptr<App> (new ElectronFourierDosApp);
-	} else if ( choice == "phononBands" ) {
-		return std::unique_ptr<App> (new PhononBandsApp);
-	} else if ( choice == "electronWannierBands" ) {
-		return std::unique_ptr<App> (new ElectronWannierBandsApp);
-	} else if ( choice == "electronFourierBands" ) {
-		return std::unique_ptr<App> (new ElectronFourierBandsApp);
-	} else if ( choice == "electronPolarization" ) {
-		return std::unique_ptr<App> (new ElectronPolarizationApp);
-	} else {
-		return std::unique_ptr<App> (nullptr);
-	}
+std::unique_ptr<App> App::loadApp(std::string &choice) {
+  if (choice == "phononTransport") {
+    return std::unique_ptr<App>(new PhononTransportApp);
+  } else if (choice == "phononDos") {
+    return std::unique_ptr<App>(new PhononDosApp);
+  } else if (choice == "electronWannierDos") {
+    return std::unique_ptr<App>(new ElectronWannierDosApp);
+  } else if (choice == "electronFourierDos") {
+    return std::unique_ptr<App>(new ElectronFourierDosApp);
+  } else if (choice == "phononBands") {
+    return std::unique_ptr<App>(new PhononBandsApp);
+  } else if (choice == "electronWannierBands") {
+    return std::unique_ptr<App>(new ElectronWannierBandsApp);
+  } else if (choice == "electronFourierBands") {
+    return std::unique_ptr<App>(new ElectronFourierBandsApp);
+  } else if (choice == "electronPolarization") {
+    return std::unique_ptr<App>(new ElectronPolarizationApp);
+  } else {
+    return std::unique_ptr<App>(nullptr);
+  }
 }
 
-void App::run(Context & context) {
-	(void) context; // suppress unused variable compiler warnings
-	Error e("Base class app doesn't have a run()");
+void App::run(Context &context) {
+  (void)context; // suppress unused variable compiler warnings
+  Error e("Base class app doesn't have a run()");
 }
 
-std::tuple<Crystal, PhononH0> App::setupPhononH0(Context & context) {
-	auto [crystal, phononH0] =
-			parser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
-	return {crystal, phononH0};
+std::tuple<Crystal, PhononH0> App::setupPhononH0(Context &context) {
+  auto [crystal, phononH0] = parser.parsePhHarmonic(context);
+  phononH0.setAcousticSumRule(context.getSumRuleD2());
+  return {crystal, phononH0};
 }
 
-//std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
-//		Context & context, FullBandStructure<FullPoints> & fullBandStructure) {
+// std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
+//		Context & context, FullBandStructure<FullPoints> &
+//fullBandStructure) {
 //
 //	Statistics statistics = fullBandStructure.getStatistics();
 //

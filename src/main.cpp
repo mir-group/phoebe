@@ -1,11 +1,7 @@
-// The compilation only works if Kokkos is first.
-// Fun times.
-// clang-format off
-#include <Kokkos_Core.hpp>
 #include "app.h"
 #include "context.h"
 #include "io.h"
-// clang-format on
+#include <Kokkos_Core.hpp>
 
 int main(int argc, char *argv[]) {
 
