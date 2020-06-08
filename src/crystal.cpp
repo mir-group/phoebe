@@ -89,6 +89,13 @@ const int& Crystal::getNumSymmetries() {
 	return numSymmetries;
 }
 
+long Crystal::getDimensionality() {
+	return dimensionality;
+}
+
+long Crystal::getNumSpecies() {
+	return numSpecies;
+}
 
 Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		Eigen::MatrixXd& atomicPositions_,

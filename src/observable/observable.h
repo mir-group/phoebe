@@ -8,7 +8,7 @@
 class Observable {
 public:
 	 // constructor
-	Observable(Context & context_, Crystal & crystal_);
+	Observable(StatisticsSweep & statisticsSweep_, Crystal & crystal_);
 	// copy constructor
 	Observable(const Observable & that);
 	// copy assignment
@@ -18,15 +18,15 @@ public:
 
 	Eigen::VectorXd getNorm();
 protected:
-	Context & context;
+	StatisticsSweep & statisticsSweep;
 	Crystal & crystal;
 
 	long numChemPots;
 	long numTemps;
-	long dimensionality = 3; // to fix the dimensionality of quantities (if vectors)
+	long dimensionality = 3;
 	long numCalcs;
 
-	int type;
+	virtual int whichType();
 	const int isScalar = 0;
 	const int isVector = 1;
 	const int is2Tensor = 2;
@@ -39,6 +39,8 @@ protected:
 
 	long glob2Loc(const long & imu, const long & it);
 	std::tuple<long,long> loc2Glob(const long & i);
+
+	void baseOperatorMinus(Observable & newObservable, const Observable &that);
 
 //	void calcFromPopulation(VectorBTE & n);
 };

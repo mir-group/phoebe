@@ -126,6 +126,8 @@ Interaction3Ph::Interaction3Ph(Crystal & crystal_,
 		ifc3Tensor.resize(0,0,0,0);
 		cellPositions.resize(0,0,0);
 		displacedAtoms.resize(0,0);
+
+		cachedCoords << -111.,-111.,-111.;
 	}
 
 }
@@ -136,7 +138,21 @@ Interaction3Ph::Interaction3Ph(const Interaction3Ph & that) :
 	numTriplets(that.numTriplets),
 	ifc3Tensor(that.ifc3Tensor),
 	cellPositions(that.cellPositions),
-	displacedAtoms(that.displacedAtoms) {
+	displacedAtoms(that.displacedAtoms),
+	tableAtCIndex1(that.tableAtCIndex1),
+	tableAtCIndex2(that.tableAtCIndex2),
+	tableAtCIndex3(that.tableAtCIndex3),
+	useD3Caching(that.useD3Caching),
+	cellPositions2(that.cellPositions2),
+	cellPositions3(that.cellPositions3),
+	D3(that.D3),
+	nr2(that.nr2),
+	nr3(that.nr3),
+	numAtoms(that.numAtoms),
+	numBands(that.numBands),
+	cachedCoords(that.cachedCoords),
+	D3PlusCached(that.D3PlusCached),
+	D3MinsCached(that.D3MinsCached) {
 }
 
 // assignment operator
@@ -147,6 +163,21 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 		ifc3Tensor = that.ifc3Tensor;
 		cellPositions = that.cellPositions;
 		displacedAtoms = that.displacedAtoms;
+		tableAtCIndex1 = that.tableAtCIndex1;
+		tableAtCIndex2 = that.tableAtCIndex2;
+		tableAtCIndex3 = that.tableAtCIndex3;
+
+		useD3Caching = that.useD3Caching;
+		cellPositions2 = that.cellPositions2;
+		cellPositions3 = that.cellPositions3;
+		D3 = that.D3;
+		nr2 = that.nr2;
+		nr3 = that.nr3;
+		numAtoms = that.numAtoms;
+		numBands = that.numBands;
+		cachedCoords = that.cachedCoords;
+		D3PlusCached = that.D3PlusCached;
+		D3MinsCached = that.D3MinsCached;
 	}
 	return *this;
 }

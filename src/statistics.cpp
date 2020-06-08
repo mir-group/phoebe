@@ -14,7 +14,7 @@ Statistics::Statistics(int particle_) {
 }
 
 // copy constructor
-Statistics::Statistics(const Statistics &obj) {
+Statistics::Statistics(const Statistics & obj) {
 	statistics = obj.statistics;
 	particle = obj.particle;
 	temperatures = obj.temperatures;
@@ -69,8 +69,8 @@ bool Statistics::isPhonon() {
 	}
 }
 
-double Statistics::getPopulation(double energy, double temperature,
-		double chemicalPotential) {
+double Statistics::getPopulation(const double & energy,
+		const double & temperature, const double & chemicalPotential) {
 	double population = 0.;
 	double y = ( energy - chemicalPotential ) / temperature;
 
@@ -92,36 +92,36 @@ double Statistics::getPopulation(double energy, double temperature,
 	return population;
 }
 
-double Statistics::getDndt(double energy, double temperature,
-		double chemicalPotential) {
-	double arg, x, y;
-	y = energy - chemicalPotential;
-	arg = y / 2. / temperature;
-	if ( statistics == bose ) {
-		x = sinh(arg); // n(n+1) = 1/4/sinh^2
-	} else {
-		x = cosh(arg); // n(1-n) = 1/4/cosh^2
-	}
-	double dndt = y / temperature / temperature / 4. / x / x;
+double Statistics::getDndt(const double & energy, const double & temperature,
+		const double & chemicalPotential) {
+	double x = getPopPopPm1(energy, temperature, chemicalPotential);
+	double y = energy - chemicalPotential;
+	double dndt = x * y / temperature / temperature;
 	return dndt;
 }
 
-double Statistics::getDnde(double energy, double temperature,
-		double chemicalPotential) {
-	double arg, x, y;
-	y = energy - chemicalPotential;
-	arg = y / 2. / temperature;
+double Statistics::getDnde(const double & energy, const double & temperature,
+		const double & chemicalPotential) {
+	double x = getPopPopPm1(energy, temperature, chemicalPotential);
+	double dnde = - x / temperature;
+	return dnde;
+}
+
+double Statistics::getPopPopPm1(const double & energy,
+		const double & temperature, const double & chemicalPotential) {
+	double x = energy - chemicalPotential;
+	double arg = x / 2. / temperature;
 	if ( statistics == bose ) {
 		x = sinh(arg);
 	} else {
 		x = cosh(arg);
 	}
-	double dnde = - 1. / temperature / 4. / x / x;
-	return dnde;
+	x = 0.25 / x / x;
+	return x;
 }
 
-Eigen::VectorXd Statistics::getDndt(Eigen::VectorXd energies,
-		double temperature, double chemicalPotential) {
+Eigen::VectorXd Statistics::getDndt(const Eigen::VectorXd & energies,
+		const double & temperature, const double & chemicalPotential) {
 	double x;
 	long numBands = energies.size();
 	Eigen::VectorXd dndt(numBands);
@@ -132,8 +132,8 @@ Eigen::VectorXd Statistics::getDndt(Eigen::VectorXd energies,
 	return dndt;
 }
 
-Eigen::VectorXd Statistics::getDnde(Eigen::VectorXd energies,
-		double temperature, double chemicalPotential) {
+Eigen::VectorXd Statistics::getDnde(const Eigen::VectorXd & energies,
+		const double & temperature, const double & chemicalPotential) {
 	double x;
 	long numBands = energies.size();
 	Eigen::VectorXd dnde(numBands);

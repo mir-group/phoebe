@@ -317,6 +317,10 @@ std::vector<std::string> parseStringList(std::vector<std::string> lines,
 	for ( std::string line : lines) {
 		if ( lineHasPattern(line, pattern) ) {
 
+			// remove empty spaces
+		    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+
+
 			std::string delimeter;
 			size_t pos1;
 			size_t pos2;
@@ -339,13 +343,17 @@ std::vector<std::string> parseStringList(std::vector<std::string> lines,
 			while ((pos1 = s.find(delimeter)) != std::string::npos) {
 			    token = s.substr(0, pos1);
 
-				xTemp = token; // convert to integer
+			    // we also remove the " symbols
+			    token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
+
+				xTemp = token;
 				x.push_back(xTemp);
 
 			    s.erase(0, pos1 + delimeter.length());
 			}
-//			Must not forget the last element in the list
+			// Must not forget the last element in the list
 			xTemp = s;
+			xTemp.erase(std::remove(xTemp.begin(), xTemp.end(), '"'), xTemp.end());
 			x.push_back(xTemp);
 
 			found = true;
@@ -683,6 +691,11 @@ void Context::setupFromInput(std::string fileName) {
 		setConstantRelaxationTime(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
+	try {
+		double x = parseBool(lines, "scatteringMatrixInMemory");
+		setScatteringMatrixInMemory(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -934,4 +947,12 @@ void Context::setConstantRelaxationTime(const double & x) {
 
 double Context::getConstantRelaxationTime() {
 	return constantRelaxationTime;
+}
+
+void Context::setScatteringMatrixInMemory(const bool & x) {
+	scatteringMatrixInMemory = x;
+}
+
+bool Context::getScatteringMatrixInMemory() {
+	return scatteringMatrixInMemory;
 }

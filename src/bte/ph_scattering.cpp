@@ -81,7 +81,7 @@ void PhScatteringMatrix::builder(
 	long innerNumPoints = innerBandStructure.getNumPoints();
 
 	// precompute Bose populations
-	VectorBTE outerBose(context, outerBandStructure, 1);
+	VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
 	for ( auto ik=0; ik<outerNumPoints; ik++ ) {
 		auto state = outerBandStructure.getState(ik);
 		auto energies = state.getEnergies();
@@ -96,7 +96,7 @@ void PhScatteringMatrix::builder(
 			}
 		}
 	}
-	VectorBTE innerBose(context, outerBandStructure, 1);
+	VectorBTE innerBose(statisticsSweep, outerBandStructure, 1);
 	if ( &innerBandStructure == &outerBandStructure ) {
 		innerBose = outerBose;
 	} else {
@@ -411,31 +411,28 @@ void PhScatteringMatrix::builder(
 	}
 	loopPrint.close();
 
-	if ( switchCase == 0 ) {
-		long numStates = outerBose.data.cols();
-		long iCalc = 0;
-
+	// some phonons like acoustifc at gamma, with omega = 0,
+	// might have zero frequencies, and infinite populations. We set those
+	// matrix elements to zero.
+	if ( switchCase==0 ) {
 		// case of matrix construction
-		// we rescale the matrix in order to have S symmetrized
-		for ( long ind1=0; ind1<numStates; ind1++ ) {
-			bose1 = outerBose.data(iCalc,ind1);
-			linewidth->data(iCalc,ind1) /= bose1;
-			for ( long ind2=0; ind2<numStates; ind2++ ) {
-				bose2 = outerBose.data(iCalc,ind2);
-				matrix(ind1,ind2) /= sqrt(bose1*bose2);
+		for ( auto is1 : excludeIndeces ) {
+			linewidth->data.col(is1).setZero();
+			for ( auto is2 : excludeIndeces ) {
+				matrix(is1,is2) = 0.;
 			}
 		}
-	} else if ( switchCase == 2) {
-		long numStates = outerBose.data.cols();
-		long numCalcs = outerBose.data.rows();
 
+	} else if ( switchCase == 1 ) {
+		// case of matrix-vector multiplication
+		for ( auto is1 : excludeIndeces ) {
+			outPopulation->data.col(is1).setZero();
+		}
+
+	} else if ( switchCase == 2 ) {
 		// case of linewidth construction
-		// there's still a missing norm done later
-		for ( long ind1=0; ind1<numStates; ind1++ ) {
-			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
-				bose1 = outerBose.data(iCalc,ind1);
-				linewidth->data(iCalc,ind1) /= bose1;
-			}
+		for ( auto is1 : excludeIndeces ) {
+			linewidth->data.col(is1).setZero();
 		}
 	}
 
@@ -446,10 +443,6 @@ void PhScatteringMatrix::builder(
 		for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {
 			matrix(i,i) = linewidth->data(iCalc,i);
 		}
-	}
-
-	for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {
-		std::cout << linewidth->data(0,i) << " !-! \n";
 	}
 
 }

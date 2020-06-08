@@ -129,6 +129,10 @@ public:
 	 * the vector has size (numSpecies)
 	 */
 	const Eigen::VectorXd& getSpeciesMasses();
+
+	long getDimensionality();
+
+	long getNumSpecies();
 };
 
 #endif

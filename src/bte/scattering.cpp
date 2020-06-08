@@ -1,4 +1,5 @@
 #include "scattering.h"
+#include "constants.h"
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
 		StatisticsSweep & statisticsSweep_,
@@ -7,7 +8,7 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 		context(context_), statisticsSweep(statisticsSweep_),
 		innerBandStructure(innerBandStructure_),
 		outerBandStructure(outerBandStructure_),
-		internalDiagonal(context,outerBandStructure,1) {
+		internalDiagonal(statisticsSweep, outerBandStructure, 1) {
 
 	numStates = outerBandStructure.getNumStates();
 	numPoints = outerBandStructure.getNumPoints();
@@ -15,9 +16,10 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 	double constantRelaxationTime = context.getConstantRelaxationTime();
 	if ( constantRelaxationTime > 0. ) {
 		constantRTA = true;
+		return;
 	}
 
-	if ( constantRTA ) return;
+	highMemory = context.getScatteringMatrixInMemory();
 
 	smearing = DeltaFunction::smearingFactory(context,innerBandStructure);
 
@@ -29,6 +31,15 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 		numCalcs = statisticsSweep.getNumCalcs();
 	} else {
 		numCalcs = statisticsSweep.getNumCalcs() * context.getDimensionality();
+	}
+
+	// we want to know the state index of acoustic modes at gamma,
+	// so that we can set their populations to zero
+	for ( long is=0; is<numStates; is++ ) {
+		double en = outerBandStructure.getEnergy(is);
+		if ( en < 0.1 / ryToCmm1 ) { // cutoff at 0.1 cm^-1
+			excludeIndeces.push_back(is);
+		}
 	}
 }
 
@@ -50,7 +61,8 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix & that) :
 	theMatrix(that.theMatrix),
 	numStates(that.numStates),
 	numPoints(that.numPoints),
-	numCalcs(that.numCalcs) {
+	numCalcs(that.numCalcs),
+	excludeIndeces(that.excludeIndeces) {
 }
 
 //assignment operator
@@ -69,6 +81,7 @@ ScatteringMatrix & ScatteringMatrix::operator=(const ScatteringMatrix & that) {
 		numStates = that.numStates;
 		numPoints = that.numPoints;
 		numCalcs = that.numCalcs;
+		excludeIndeces = that.excludeIndeces;
 	}
 	return *this;
 }
@@ -99,7 +112,7 @@ void ScatteringMatrix::setup() {
 VectorBTE ScatteringMatrix::diagonal() {
 	if ( constantRTA ) {
 		double crt = context.getConstantRelaxationTime();
-		VectorBTE diag(context,outerBandStructure,1);
+		VectorBTE diag(statisticsSweep,outerBandStructure,1);
 		diag.setConst(1./crt);
 		return diag;
 	} else {
@@ -111,22 +124,29 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 	if ( highMemory ) {
 		// it's just the full matrix product, minus the diagonal contribution
 		VectorBTE outPopulation = dot(inPopulation);
-//		outPopulation -= internalDiagonal * inPopulation;
-		// must resolve the different cartesian indices
+
+		// outPopulation -= internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-			outPopulation.data(0,i) -=
-				- internalDiagonal.data(0,i/internalDiagonal.dimensionality)
-				* inPopulation.data(0,i);
+			auto [imu,it,idim] = inPopulation.loc2Glob(i);
+			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			for ( long is=0; is<numStates; is++ ) {
+				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
+						* inPopulation.data(i,is);
+			}
 		}
 		return outPopulation;
 	} else {
-		VectorBTE outPopulation(context, outerBandStructure);
+		VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+				inPopulation.dimensionality);
 		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
 		// outPopulation = outPopulation - internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-			outPopulation.data(0,i) -=
-				- internalDiagonal.data(0,i/internalDiagonal.dimensionality)
-				* inPopulation.data(0,i);
+			auto [imu,it,idim] = inPopulation.loc2Glob(i);
+			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			for ( long is=0; is<numStates; is++ ) {
+				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
+							* inPopulation.data(i,is);
+			}
 		}
 		return outPopulation;
 	}
@@ -134,42 +154,179 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 
 VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 	if ( highMemory ) {
-		VectorBTE outPopulation(context, outerBandStructure);
+		VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+				inPopulation.dimensionality);
+		outPopulation.data.setZero();
 		// note: we are assuming that ScatteringMatrix has numCalcs = 1
-		for ( auto i=0; i<numStates; i++ ) {
-			for ( auto j=0; j<numStates; j++ ) {
-				outPopulation.data(0,i) +=
-						theMatrix(i,j) * inPopulation.data(0,j);
+		for ( auto i1=0; i1<numStates; i1++ ) {
+			for ( auto j1=0; j1<numStates; j1++ ) {
+				for ( int idim=0; idim<inPopulation.dimensionality; idim++ ) {
+					outPopulation.data(idim,i1) +=
+							theMatrix(i1,j1) * inPopulation.data(idim,j1);
+				}
 			}
 		}
-		if ( hasCGScaling ) {
-			// notice that the linewidths are "scalar",
-			// populations instead have cartesian indeces
-			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-				outPopulation.data(0,i) += inPopulation.data(0,i)
-					-internalDiagonal.data(0,i/internalDiagonal.dimensionality)
-					* inPopulation.data(0,i);
-			}
-		}
+		// normalization
+//		outPopulation.data /= numPoints;
 		return outPopulation;
 	} else {
-		VectorBTE outPopulation(context, outerBandStructure);
+		VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+				inPopulation.dimensionality);
 		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
 		if ( hasCGScaling ) {
 			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-				outPopulation.data(0,i) += inPopulation.data(0,i)
-					-internalDiagonal.data(0,i/internalDiagonal.dimensionality)
-					* inPopulation.data(0,i);
+				auto [imu,it,idim] = inPopulation.loc2Glob(i);
+				auto j = internalDiagonal.glob2Loc(imu,it,0);
+				for ( long is=0; is<numStates; is++ ) {
+					outPopulation.data(i,is) += inPopulation.data(i,is)
+						- internalDiagonal.data(j,is)
+						* inPopulation.data(i,is);
+				}
 			}
 		}
 		return outPopulation;
 	}
 }
 
-void ScatteringMatrix::setCGScaling() {
-	hasCGScaling = true;
+// set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
+void ScatteringMatrix::a2Omega() {
+
+	if ( ! highMemory ) {
+		Error e("a2Omega only works if the matrix is stored in memory");
+	}
+
+	if ( theMatrix.rows() == 0 ) {
+		Error e("The scattering matrix hasn't been built yet");
+	}
+
+	if ( isMatrixOmega ) { // it's already with the scaling of omega
+		return;
+	}
+
+	long iCalc = 0; // as there can only be one temperature
+
+	auto statistics = outerBandStructure.getStatistics();
+	auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+	double temp = calcStatistics.temperature;
+	double chemPot = calcStatistics.chemicalPotential;
+
+	for ( long ind1=0; ind1<numStates; ind1++ ) {
+		double en1 = outerBandStructure.getEnergy(ind1);
+		double pop1 = statistics.getPopulation(en1, temp, chemPot);
+
+		double term1;
+		if ( statistics.isFermi() ) {
+			term1 = pop1 * (1. - pop1);
+		} else {
+			term1 = pop1 * (1. + pop1);
+		}
+		internalDiagonal.data(iCalc,ind1) /= term1;
+
+		for ( long ind2=0; ind2<numStates; ind2++ ) {
+			double en2 = outerBandStructure.getEnergy(ind2);
+			double pop2 = statistics.getPopulation(en2, temp, chemPot);
+
+			double term2;
+			if ( statistics.isFermi() ) {
+				term2 = pop2 * (1. - pop2);
+			} else {
+				term2 = pop2 * (1. + pop2);
+			}
+			theMatrix(ind1,ind2) /= sqrt( term1 * term2 );
+		}
+	}
+	isMatrixOmega = true;
 }
 
-void ScatteringMatrix::unsetCGScaling() {
-	hasCGScaling = false;
+
+
+// add a flag to remember if we have A or Omega
+void ScatteringMatrix::omega2A() {
+
+	if ( ! highMemory ) {
+		Error e("a2Omega only works if the matrix is stored in memory");
+	}
+
+	if ( theMatrix.rows() == 0 ) {
+		Error e("The scattering matrix hasn't been built yet");
+	}
+
+	if ( ! isMatrixOmega ) { // it's already with the scaling of A
+		return;
+	}
+
+	long iCalc = 0; // as there can only be one temperature
+
+	auto statistics = outerBandStructure.getStatistics();
+	auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+	double temp = calcStatistics.temperature;
+	double chemPot = calcStatistics.chemicalPotential;
+
+	for ( long ind1=0; ind1<numStates; ind1++ ) {
+		double en1 = outerBandStructure.getEnergy(ind1);
+		double pop1 = statistics.getPopulation(en1, temp, chemPot);
+
+		double term1;
+		if ( statistics.isFermi() ) {
+			term1 = pop1 * (1. - pop1);
+		} else {
+			term1 = pop1 * (1. + pop1);
+		}
+		internalDiagonal.data(iCalc,ind1) *= term1;
+
+		for ( long ind2=0; ind2<numStates; ind2++ ) {
+			double en2 = outerBandStructure.getEnergy(ind2);
+			double pop2 = statistics.getPopulation(en2, temp, chemPot);
+
+			double term2;
+			if ( statistics.isFermi() ) {
+				term2 = pop2 * (1. - pop2);
+			} else {
+				term2 = pop2 * (1. + pop2);
+			}
+			theMatrix(ind1,ind2) *= sqrt( term1 * term2 );
+		}
+	}
+	isMatrixOmega = false;
+}
+
+// to compute the RTA, get the single mode relaxation times
+VectorBTE ScatteringMatrix::getSingleModeTimes() {
+	if ( constantRTA ) {
+		double crt = context.getConstantRelaxationTime();
+		VectorBTE diag(statisticsSweep,outerBandStructure,1);
+		diag.setConst(crt);
+		return diag;
+	} else {
+		VectorBTE times = internalDiagonal;
+		if ( isMatrixOmega ) {
+			for ( long iCalc=0; iCalc<internalDiagonal.numCalcs; iCalc++ ) {
+				for ( long is=0; is<internalDiagonal.numStates; is++ ) {
+					times.data(iCalc,is) = 1. / times.data(iCalc,is);
+				}
+			}
+			return times;
+		} else { // A_nu,nu = N(1+-N) / tau
+			auto statistics = outerBandStructure.getStatistics();
+			for ( long iCalc=0; iCalc<internalDiagonal.numCalcs; iCalc++ ) {
+				auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+				double temp = calcStatistics.temperature;
+				double chemPot = calcStatistics.chemicalPotential;
+
+				for ( long is=0; is<internalDiagonal.numStates; is++ ) {
+					double en = outerBandStructure.getEnergy(is);
+					double population = statistics.getPopulation(en, temp,
+							chemPot);
+					if ( statistics.isFermi() ) {
+						times.data(iCalc,is) = population * ( 1. - population )
+								/ times.data(iCalc,is);
+					} else {
+						times.data(iCalc,is) = population * ( 1. + population )
+								/ times.data(iCalc,is);
+					}
+				}
+			}
+			return times;
+		}
+	}
 }
