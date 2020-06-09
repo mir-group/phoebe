@@ -308,54 +308,62 @@ std::string parseString(std::vector<std::string> lines, std::string pattern) {
 };
 
 std::vector<std::string> parseStringList(std::vector<std::string> lines,
-                                         std::string pattern) {
-  std::vector<std::string> x;
-  std::string xTemp;
-  bool found = false;
-  std::string token, s;
+		std::string pattern) {
+	std::vector<std::string> x;
+	std::string xTemp;
+	bool found = false;
+	std::string token, s;
 
-  for (std::string line : lines) {
-    if (lineHasPattern(line, pattern)) {
+	for ( std::string line : lines) {
+		if ( lineHasPattern(line, pattern) ) {
 
-      std::string delimeter;
-      size_t pos1;
-      size_t pos2;
+			// remove empty spaces
+		    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 
-      delimeter = "[";
-      pos1 = line.find_first_of(delimeter);
-      delimeter = "]";
-      pos2 = line.find_last_of(delimeter);
 
-      if (pos1 == std::string::npos) {
-        throw "Error in parseDoubleList";
-      }
-      if (pos2 == std::string::npos) {
-        throw "Error in parseDoubleList";
-      }
+			std::string delimeter;
+			size_t pos1;
+			size_t pos2;
 
-      s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-      delimeter = ",";
+			delimeter = "[";
+			pos1 = line.find_first_of(delimeter);
+			delimeter = "]";
+			pos2 = line.find_last_of(delimeter);
 
-      while ((pos1 = s.find(delimeter)) != std::string::npos) {
-        token = s.substr(0, pos1);
+			if ( pos1 == std::string::npos ) {
+				throw "Error in parseDoubleList";
+			}
+			if ( pos2 == std::string::npos ) {
+				throw "Error in parseDoubleList";
+			}
 
-        xTemp = token; // convert to integer
-        x.push_back(xTemp);
+			s = line.substr(pos1+1,pos2-pos1-1);
+			delimeter = ",";
 
-        s.erase(0, pos1 + delimeter.length());
-      }
-      //			Must not forget the last element in the list
-      xTemp = s;
-      x.push_back(xTemp);
+			while ((pos1 = s.find(delimeter)) != std::string::npos) {
+			    token = s.substr(0, pos1);
 
-      found = true;
-      break;
-    }
-  }
-  if (not found) {
-    throw ParameterNotFound();
-  }
-  return x;
+			    // we also remove the " symbols
+			    token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
+
+				xTemp = token;
+				x.push_back(xTemp);
+
+			    s.erase(0, pos1 + delimeter.length());
+			}
+			// Must not forget the last element in the list
+			xTemp = s;
+			xTemp.erase(std::remove(xTemp.begin(), xTemp.end(), '"'), xTemp.end());
+			x.push_back(xTemp);
+
+			found = true;
+			break;
+		}
+	}
+	if ( not found ) {
+		throw ParameterNotFound();
+	}
+	return x;
 };
 
 bool patternInString(const std::string &s, const std::string &pattern) {
@@ -472,239 +480,214 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
 }
 
 void Context::setupFromInput(std::string fileName) {
-  std::vector<std::string> lines;
-  std::string line;
+	std::vector<std::string> lines;
+	std::string line;
 
-  // open input file and read content
+// open input file and read content
   std::ifstream infile(fileName);
-  while (std::getline(infile, line)) {
-    lines.push_back(line);
-  }
-  infile.close();
+	while (std::getline(infile, line)) {
+		lines.push_back(line);
+	}
+    infile.close();
 
-  try {
-    std::string tmp = parseString(lines, "phD2FileName");
-    setPhD2FileName(tmp);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string tmp = parseString(lines, "phD2FileName");
+		setPhD2FileName(tmp);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::string tmp = parseString(lines, "phD3FileName");
-    setPhD3FileName(tmp);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string tmp = parseString(lines, "phD3FileName");
+		setPhD3FileName(tmp);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    setSumRuleD2(parseString(lines, "sumRuleD2"));
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		setSumRuleD2(parseString(lines, "sumRuleD2"));
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::string tmp = parseString(lines, "electronH0Name");
-    setElectronH0Name(tmp);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string tmp = parseString(lines, "electronH0Name");
+		setElectronH0Name(tmp);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double dval = parseDouble(lines, "electronFourierCutoff");
-    setElectronFourierCutoff(dval);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double dval = parseDouble(lines, "electronFourierCutoff");
+		setElectronFourierCutoff(dval);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<long> vecMesh = parseLongList(lines, "qMesh");
-    Eigen::Vector3i qMesh_;
-    qMesh_(0) = vecMesh[0];
-    qMesh_(1) = vecMesh[1];
-    qMesh_(2) = vecMesh[2];
-    setQMesh(qMesh_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<long> vecMesh = parseLongList(lines, "qMesh");
+		Eigen::Vector3i qMesh_;
+		qMesh_(0) = vecMesh[0];
+		qMesh_(1) = vecMesh[1];
+		qMesh_(2) = vecMesh[2];
+		setQMesh(qMesh_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<long> vecMesh = parseLongList(lines, "kMesh");
-    Eigen::Vector3i kMesh_;
-    kMesh_(0) = vecMesh[0];
-    kMesh_(1) = vecMesh[1];
-    kMesh_(2) = vecMesh[2];
-    setKMesh(kMesh_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<long> vecMesh = parseLongList(lines, "kMesh");
+		Eigen::Vector3i kMesh_;
+		kMesh_(0) = vecMesh[0];
+		kMesh_(1) = vecMesh[1];
+		kMesh_(2) = vecMesh[2];
+		setKMesh(kMesh_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::string win = parseString(lines, "windowType");
-    setWindowType(win);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string win = parseString(lines, "windowType");
+		setWindowType(win);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<double> winLim = parseDoubleList(lines, "windowEnergyLimit");
-    Eigen::Vector2d winLim_;
-    // we just make sure to order it
-    winLim_[0] = std::min(winLim[0], winLim[1]);
-    winLim_[1] = std::max(winLim[0], winLim[1]);
-    setWindowEnergyLimit(winLim_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<double> winLim = parseDoubleList(lines, "windowEnergyLimit");
+		Eigen::Vector2d winLim_;
+		// we just make sure to order it
+		winLim_[0] = std::min(winLim[0],winLim[1]);
+		winLim_[1] = std::max(winLim[0],winLim[1]);
+		setWindowEnergyLimit(winLim_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDouble(lines, "populationLimit");
-    setWindowPopulationLimit(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDouble(lines, "populationLimit");
+		setWindowPopulationLimit(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<double> x = parseDoubleList(lines, "chemicalPotentials");
-    Eigen::VectorXd x_(x.size());
-    for (long unsigned i = 0; i < x.size(); i++) {
-      x_(i) = x[i] / energyRyToEv;
-    }
-    setChemicalPotentials(x_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<double> x = parseDoubleList(lines, "chemicalPotentials");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i] / energyRyToEv;
+		}
+		setChemicalPotentials(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<double> x = parseDoubleList(lines, "dopings");
-    Eigen::VectorXd x_(x.size());
-    for (long unsigned i = 0; i < x.size(); i++) {
-      x_(i) = x[i];
-    }
-    setDopings(x_); // note: we store it as provided in input. in cm^-D
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<double> x = parseDoubleList(lines, "dopings");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i];
+		}
+		setDopings(x_); // note: we store it as provided in input. in cm^-D
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<double> x = parseDoubleList(lines, "temperatures");
-    Eigen::VectorXd x_(x.size());
-    for (long unsigned i = 0; i < x.size(); i++) {
-      x_(i) = x[i] / temperatureAuToSi;
-    }
-    setTemperatures(x_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<double> x = parseDoubleList(lines, "temperatures");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i] / temperatureAuToSi;
+		}
+		setTemperatures(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::string x = parseString(lines, "appName");
-    setAppName(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string x = parseString(lines, "appName");
+		setAppName(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::vector<std::string> x = parseStringList(lines, "solverBTE");
-    setSolverBTE(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::vector<std::string> x = parseStringList(lines, "solverBTE");
+		setSolverBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDouble(lines, "convergenceThresholdBTE");
-    setConvergenceThresholdBTE(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDouble(lines, "convergenceThresholdBTE");
+		setConvergenceThresholdBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    long x = parseLong(lines, "maxIterationsBTE");
-    setMaxIterationsBTE(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		long x = parseLong(lines, "maxIterationsBTE");
+		setMaxIterationsBTE(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    long x = parseLong(lines, "dimensionality");
-    setDimensionality(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		long x = parseLong(lines, "dimensionality");
+		setDimensionality(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDoubleWithUnits(lines, "dosMinEnergy");
-    setDosMinEnergy(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDoubleWithUnits(lines, "dosMinEnergy");
+		setDosMinEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDoubleWithUnits(lines, "dosMaxEnergy");
-    setDosMaxEnergy(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDoubleWithUnits(lines, "dosMaxEnergy");
+		setDosMaxEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDoubleWithUnits(lines, "dosDeltaEnergy");
-    setDosDeltaEnergy(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDoubleWithUnits(lines, "dosDeltaEnergy");
+		setDosDeltaEnergy(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    // note: these should be given in input in cartesian coordinates
-    auto [atomicPositions, atomicSpecies, speciesNames] = parseCrystal(lines);
-    setInputAtomicPositions(atomicPositions);
-    setInputAtomicSpecies(atomicSpecies);
-    setInputSpeciesNames(speciesNames);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		// note: these should be given in input in cartesian coordinates
+		auto [atomicPositions,atomicSpecies,speciesNames]= parseCrystal(lines);
+		setInputAtomicPositions(atomicPositions);
+		setInputAtomicSpecies(atomicSpecies);
+		setInputSpeciesNames(speciesNames);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    // note: these should be given in input in cartesian coordinates
-    auto pathExtrema_ = parsePathExtrema(lines);
-    setPathExtrema(pathExtrema_);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		// note: these should be given in input in cartesian coordinates
+		auto pathExtrema_ = parsePathExtrema(lines);
+		setPathExtrema(pathExtrema_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDouble(lines, "deltaPath");
-    setDeltaPath(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDouble(lines, "deltaPath");
+		setDeltaPath(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDouble(lines, "fermiLevel"); // in eV
-    setFermiLevel(x / energyRyToEv);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDouble(lines, "fermiLevel"); // in eV
+		setFermiLevel( x / energyRyToEv );
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseBool(lines, "hasSpinOrbit");
-    setHasSpinOrbit(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseBool(lines, "hasSpinOrbit");
+		setHasSpinOrbit(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    // note: numOccupiedStates refers to the number of states that are
-    // occupied
-    // for Wannier: the number of Wannier states that are full
-    // for Fourier: the number of occupied bands
-    // remember to NOT count the spin degeneracy
-    double x = parseDouble(lines, "numOccupiedStates");
-    if (!hasSpinOrbit)
-      x *= 2;
-    setNumOccupiedStates(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		// note: numOccupiedStates refers to the number of states that are
+		// occupied
+		// for Wannier: the number of Wannier states that are full
+		// for Fourier: the number of occupied bands
+		// remember to NOT count the spin degeneracy
+		double x = parseDouble(lines, "numOccupiedStates");
+		if ( ! hasSpinOrbit ) x *= 2;
+		setNumOccupiedStates(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    std::string x_ = parseString(lines, "smearingMethod");
-    int x;
-    if (x_ == "gaussian") {
-      x = 0;
-    } else if (x_ == "adaptiveGaussian") {
-      x = 1;
-    } else if (x_ == "tetrahedron") {
-      x = 2;
-    } else {
-      x = -1;
-    }
-    setSmearingMethod(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		std::string x_ = parseString(lines, "smearingMethod");
+		int x;
+		if ( x_ == "gaussian" ) {
+			x = 0;
+		} else if ( x_ == "adaptiveGaussian" ) {
+			x = 1;
+		} else if ( x_ == "tetrahedron" ) {
+			x = 2;
+		} else {
+			x = -1;
+		}
+		setSmearingMethod(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDoubleWithUnits(lines, "smearingWidth");
-    setSmearingWidth(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDoubleWithUnits(lines, "smearingWidth");
+		setSmearingWidth(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
 
-  try {
-    double x = parseDoubleWithUnits(lines, "constantRelaxationTime");
-    setConstantRelaxationTime(x);
-  } catch (ParameterNotFound &e) {
-  } // Do nothing!
+	try {
+		double x = parseDoubleWithUnits(lines, "constantRelaxationTime");
+		setConstantRelaxationTime(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseBool(lines, "scatteringMatrixInMemory");
+		setScatteringMatrixInMemory(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) { phD2FileName = x; }
@@ -849,4 +832,14 @@ void Context::setConstantRelaxationTime(const double &x) {
   constantRelaxationTime = x;
 }
 
-double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
+double Context::getConstantRelaxationTime() {
+	return constantRelaxationTime;
+}
+
+void Context::setScatteringMatrixInMemory(const bool & x) {
+	scatteringMatrixInMemory = x;
+}
+
+bool Context::getScatteringMatrixInMemory() {
+	return scatteringMatrixInMemory;
+}

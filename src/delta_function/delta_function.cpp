@@ -72,11 +72,25 @@ AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 		const Eigen::Vector3d & velocity) {
-	double x = (qTensor * velocity).squaredNorm();
-	double smearing = prefactor * sqrt( x*x / 12.);
-	if ( smearing < smearingCutoff ) return 0.;
-	x = energy / smearing;
-	return exp( - x*x ) / sqrtPi / smearing;
+
+	if ( velocity.norm() == 0. && energy == 0. ) {
+		// in this case, velocities are parallel, there shouldn't be
+		// scattering unless energy is strictly conserved
+		return 1.;
+	}
+
+	double sigma = 0.;
+    for ( int i : {0,1,2} ) {
+        sigma += pow( qTensor.row(i).dot(velocity) , 2);
+    }
+    sigma = prefactor * sqrt(sigma / 6.);
+
+    if ( sigma == 0. ) return 0.;
+
+	if ( abs(energy) > 2. * sigma ) return 0.;
+	double x = energy / sigma;
+	// note: the factor ERF_2 corrects for the cutoff at 2*sigma
+	return exp( - x*x ) / sqrtPi / sigma / erf2;
 }
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,

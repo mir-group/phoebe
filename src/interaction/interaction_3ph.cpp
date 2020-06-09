@@ -118,11 +118,15 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
   }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
+  ifc3Tensor.resize(0, 0, 0, 0);
+  cellPositions.resize(0, 0, 0);
+  displacedAtoms.resize(0, 0);
+
+  cachedCoords << -111., -111., -111.;
 
   Kokkos::realloc(D3_k, numBands, numBands, numBands, nr2, nr3);
   Kokkos::realloc(D3PlusCached_k, numBands, numBands, numBands, nr3);
   Kokkos::realloc(D3MinsCached_k, numBands, numBands, numBands, nr3);
-
   auto D3_h = Kokkos::create_mirror_view(D3_k);
   for (int i1 = 0; i1 < numBands; i1++) {
     for (int i2 = 0; i2 < numBands; i2++) {
@@ -142,9 +146,13 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
     : crystal(that.crystal), numTriplets(that.numTriplets),
       ifc3Tensor(that.ifc3Tensor), cellPositions(that.cellPositions),
-      displacedAtoms(that.displacedAtoms) {
-  std::cout << "CALLING COPY CONSTRUCTOR" << std::endl;
-}
+      displacedAtoms(that.displacedAtoms), tableAtCIndex1(that.tableAtCIndex1),
+      tableAtCIndex2(that.tableAtCIndex2), tableAtCIndex3(that.tableAtCIndex3),
+      useD3Caching(that.useD3Caching), cellPositions2(that.cellPositions2),
+      cellPositions3(that.cellPositions3), D3(that.D3), nr2(that.nr2),
+      nr3(that.nr3), numAtoms(that.numAtoms), numBands(that.numBands),
+      cachedCoords(that.cachedCoords), D3PlusCached(that.D3PlusCached),
+      D3MinsCached(that.D3MinsCached) {}
 
 // assignment operator
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
@@ -154,8 +162,22 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     ifc3Tensor = that.ifc3Tensor;
     cellPositions = that.cellPositions;
     displacedAtoms = that.displacedAtoms;
+    tableAtCIndex1 = that.tableAtCIndex1;
+    tableAtCIndex2 = that.tableAtCIndex2;
+    tableAtCIndex3 = that.tableAtCIndex3;
+
+    useD3Caching = that.useD3Caching;
+    cellPositions2 = that.cellPositions2;
+    cellPositions3 = that.cellPositions3;
+    D3 = that.D3;
+    nr2 = that.nr2;
+    nr3 = that.nr3;
+    numAtoms = that.numAtoms;
+    numBands = that.numBands;
+    cachedCoords = that.cachedCoords;
+    D3PlusCached = that.D3PlusCached;
+    D3MinsCached = that.D3MinsCached;
   }
-  std::cout << "CALLING COPY CONSTRUCTOR" << std::endl;
   return *this;
 }
 

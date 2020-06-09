@@ -5,14 +5,27 @@
 
 class PhononThermalConductivity : public Observable {
 public:
-	PhononThermalConductivity(Context & context_, Crystal & crystal_,
+	PhononThermalConductivity(StatisticsSweep & statisticsSweep_,
+			Crystal & crystal_,
 			FullBandStructure<FullPoints> & bandStructure_);
+	// copy constructor
+	PhononThermalConductivity(const PhononThermalConductivity & that);
+	// copy assignment
+	PhononThermalConductivity & operator = (
+			const PhononThermalConductivity & that);
+
+	PhononThermalConductivity operator - (
+			const PhononThermalConductivity & that);
+
 	virtual void calcFromPopulation(VectorBTE & n);
-//	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & b);
+	virtual void calcFromCanonicalPopulation(VectorBTE & f);
+	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & scalingCG);
 	void print();
+	void print(const int & iter);
+
 protected:
+	virtual int whichType();
 	FullBandStructure<FullPoints> & bandStructure;
-	int type = is2Tensor;
 };
 
 #endif

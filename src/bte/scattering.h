@@ -21,8 +21,12 @@ public:
 	VectorBTE dot(VectorBTE & inPopulation);
 
 	// note: CGScalign only affects the results of dot() and diagonal()
-	void setCGScaling();
-	void unsetCGScaling();
+//	void setCGScaling();
+//	void unsetCGScaling();
+
+	VectorBTE getSingleModeTimes();
+	void a2Omega();
+	void omega2A();
 
 //	std::tuple<Eigen::VectorXd,Eigen::MatrixXd> diagonalize();
 protected:
@@ -37,12 +41,15 @@ protected:
 	bool constantRTA = false;
 	bool highMemory = true;
 	bool hasCGScaling = false;
+	bool isMatrixOmega = false;
 
 	VectorBTE internalDiagonal;
 	Eigen::MatrixXd theMatrix;
 	long numStates;
 	long numPoints;
 	long numCalcs;
+
+	std::vector<long> excludeIndeces;
 
 	// pure virtual function
 	// needs an implementation in every subclass

@@ -263,3 +263,10 @@ long StatisticsSweep::getNumCalcs() {
 	return numCalcs;
 }
 
+long StatisticsSweep::getNumChemicalPotentials() {
+	return nChemPot;
+}
+
+long StatisticsSweep::getNumTemperatures() {
+	return nTemp;
+}

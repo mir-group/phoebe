@@ -25,6 +25,9 @@ public:
 	struct CalcStatistics getCalcStatistics(const long & iTemp,
 			const long & iChemPot);
 	long getNumCalcs();
+	long getNumChemicalPotentials();
+	long getNumTemperatures();
+
 protected:
     Statistics statistics;
 	long numCalcs;
