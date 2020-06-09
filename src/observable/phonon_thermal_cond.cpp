@@ -105,6 +105,21 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
 		VectorBTE & relaxonV, VectorBTE & relaxationTimes) {
 
+	// we decide to skip relaxon states
+	// 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
+	// 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
+	//    because we set some matrix rows/cols to zero
+	bool hasAcousticGamma = false;
+	auto s = bandStructure.getState(0);
+	auto ens = s.getEnergies();
+	if ( ens.size() == crystal.getNumAtoms()*3) hasAcousticGamma = true;
+	long firstState;
+	if ( hasAcousticGamma ) {
+		firstState = 4;
+	} else {
+		firstState = 1;
+	}
+
 	tensordxd.setZero();
 
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
@@ -112,7 +127,7 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
 		double c = specificHeat.get(imu,it);
 		// is = 3 is a temporary patch, I should discard the first three
 		// rows/columns altogether + I skip the bose eigenvector
-		for ( long is=4; is<relaxationTimes.numStates; is++ ) {
+		for ( long is=firstState; is<relaxationTimes.numStates; is++ ) {
 
 			if ( relaxationTimes.data(iCalc,is) <= 0. ) continue;
 //			std::cout << iCalc << " " << is << " " << c << " "
