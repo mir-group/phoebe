@@ -90,6 +90,16 @@ void PhononTransportApp::run(Context & context) {
 		if ( s.compare("relaxons") == 0 ) doRelaxons = true;
 	}
 
+	// here we do validation of the input, to check for consistency
+	if ( doRelaxons && ! context.getScatteringMatrixInMemory() ) {
+		Error e("Relaxons require matrix kept in memory");
+	}
+	if ( context.getScatteringMatrixInMemory() &&
+			statisticsSweep.getNumCalcs() != 1 ) {
+		Error e("If scattering matrix is kept in memory, only one "
+				"temperature/chemical potential is allowed in a run");
+	}
+
 	if ( doIterative ) {
 
 		std::cout << "Starting Omini Sparavigna BTE solver\n";
