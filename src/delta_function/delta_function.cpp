@@ -111,6 +111,10 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 	if ( offset.norm() > 0. ) {
 		Error e("We didnt' implement tetrahedra with offsets", 1);
 	}
+	if ( grid(0) == 1 || grid(1) == 1 || grid(2) == 1 ) {
+		Error e("Tetrahedron method with k-grid dimensionality<3 not "
+				"supported");
+	}
 
 	// number of grid points (wavevectors)
 	long numPoints = fullPoints.getNumPoints();
