@@ -61,10 +61,12 @@ public:
 	long getNumBands();
 	long getNumStates();
 	bool hasIrreduciblePoints();
+
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 	Statistics getStatistics();
 	double getEnergy(long & stateIndex);
 	Eigen::Vector3d getGroupVelocity(long & stateIndex);
+	Eigen::Vector3d getWavevector(long & stateIndex);
 
 	void setEnergies(Eigen::Vector3d & point, Eigen::VectorXd & energies_);
 	void setEnergies(Point<T> & point, Eigen::VectorXd & energies_);
@@ -201,6 +203,12 @@ Eigen::Vector3d FullBandStructure<T>::getGroupVelocity(long & stateIndex) {
 		vel(i) = velocities(ind,ik).real();
 	}
 	return vel;
+}
+
+template<typename T>
+Eigen::Vector3d FullBandStructure<T>::getWavevector(long & stateIndex) {
+	auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+	return points.getPoint(ik).getCoords(Points::cartesianCoords);
 }
 
 template<typename T>

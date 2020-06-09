@@ -258,6 +258,10 @@ void PhononTransportApp::run(Context & context) {
 		phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
 		phTCond.print();
 
+		phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
+				scatteringMatrix, eigenvectors);
+		phViscosity.print();
+
 		std::cout << "Finished relaxons BTE solver\n";
 		std::cout << "\n";
 		std::cout << std::string(80, '-') << "\n";

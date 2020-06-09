@@ -2,6 +2,8 @@
 #define PHONONVISCOSITY_H
 
 #include "observable.h"
+#include "drift.h"
+#include "ph_scattering.h"
 
 class PhononViscosity : public Observable {
 public:
@@ -15,6 +17,8 @@ public:
 	virtual void calcRTA(VectorBTE & n);
 	void print();
 
+	virtual void calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
+			PhScatteringMatrix & sMatrix, Eigen::MatrixXd & eigenvectors);
 protected:
 	virtual int whichType();
 	FullBandStructure<FullPoints> & bandStructure;

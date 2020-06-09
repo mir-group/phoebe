@@ -1,6 +1,6 @@
+#include <iomanip>
 #include "phonon_viscosity.h"
 #include "constants.h"
-#include <iomanip>
 
 PhononViscosity::PhononViscosity(StatisticsSweep & statisticsSweep_,
 		Crystal & crystal_, FullBandStructure<FullPoints> & bandStructure_) :
@@ -68,6 +68,119 @@ void PhononViscosity::calcRTA(VectorBTE & tau) {
 										* norm;
 							}
 						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void PhononViscosity::calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
+		PhScatteringMatrix & sMatrix, Eigen::MatrixXd & eigenvectors) {
+
+	if ( numCalcs > 1 ) {
+		Error e("Viscosity for relaxons only for 1 temperature");
+	}
+
+	// we decide to skip relaxon states
+	// 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
+	// 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
+	//    because we set some matrix rows/cols to zero
+	bool hasAcousticGamma = false;
+	auto s = bandStructure.getState(0);
+	auto ens = s.getEnergies();
+	if ( ens.size() == crystal.getNumAtoms()*3) hasAcousticGamma = true;
+	long firstState;
+	if ( hasAcousticGamma ) {
+		firstState = 4;
+	} else {
+		firstState = 1;
+	}
+
+	double volume = crystal.getVolumeUnitCell(dimensionality);
+	double numPoints = double(bandStructure.getNumPoints());
+	long numStates = bandStructure.getNumStates();
+	auto statistics = bandStructure.getStatistics();
+
+	// to simplify, here I do everything considering there is a single
+	// temperature (due to memory constraints)
+
+	Eigen::VectorXd A(dimensionality);
+	A.setZero();
+
+	long iCalc = 0;
+	auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+	double temp = calcStat.temperature;
+	double chemPot = calcStat.chemicalPotential;
+
+	for ( long is = firstState; is<numStates; is++ ) {
+		auto en = bandStructure.getEnergy(is);
+		double bosep1 = statistics.getPopPopPm1(en, temp, chemPot); // = n(n+1)
+		auto q = bandStructure.getWavevector(is);
+		for ( long idim=0; idim<dimensionality; idim++ ) {
+			A(idim) += bosep1 * q(idim) * q(idim);
+		}
+	}
+	A /= temp * bandStructure.getNumPoints() * volume;
+
+	Eigen::MatrixXd driftEigenvector(3,numStates);
+	driftEigenvector.setZero();
+	for ( long is = firstState; is<numStates; is++ ) {
+		auto en = bandStructure.getEnergy(is);
+		double bosep1 = statistics.getPopPopPm1(en, temp, chemPot); // = n(n+1)
+		auto q = bandStructure.getWavevector(is);
+		for ( auto idim : {0,1,2} ) {
+			driftEigenvector(idim,is) = q(idim)
+					* sqrt(bosep1 / temp / A(idim));
+		}
+	}
+
+	Eigen::MatrixXd D(3,3);
+	D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
+	D /= volume * bandStructure.getNumPoints();
+
+	Eigen::Tensor<double,3> tmpDriftEigvecs(3,3,numStates);
+	tmpDriftEigvecs.setZero();
+	Eigen::MatrixXd W(3, 3);
+	W.setZero();
+	for ( long is=firstState; is<bandStructure.getNumStates(); is++ ) {
+		auto v = bandStructure.getGroupVelocity(is);
+		for ( auto i : {0,1,2} ) {
+			for ( auto j : {0,1,2} ) {
+				tmpDriftEigvecs(i,j,is) = driftEigenvector(j,is) * v(i);
+				W(i,j) += vector0.data(0,is) * v(i) * driftEigenvector(j,is);
+			}
+		}
+	}
+	W /= volume * numPoints;
+
+	Eigen::Tensor<double,3> w(3,3,numStates);
+	w.setZero();
+	for ( auto i : {0,1,2} ) {
+		for ( auto j : {0,1,2} ) {
+			Eigen::VectorXd x(numStates);
+			for ( long is=0; is<numStates; is++ ) {
+				x(is) = tmpDriftEigvecs(i,j,is);
+			}
+			auto x2 = x.transpose() * eigenvectors;
+			for ( long is=0; is<numStates; is++ ) {
+				w(i,j,is) = x2(is) / volume / numPoints;
+			}
+		}
+	}
+
+	// Eq. 9, Simoncelli PRX (2019)
+	tensordxdxdxd.setZero();
+	for ( long is=firstState; is<numStates; is++ ) {
+		for ( long i=0; i<dimensionality; i++ ) {
+			for ( long j=0; j<dimensionality; j++ ) {
+				for ( long k=0; k<dimensionality; k++ ) {
+					for ( long l=0; l<dimensionality; l++ ) {
+						tensordxdxdxd(iCalc,i,j,k,l) +=
+								0.5 * ( w(i,j,is) * w(k,l,is)
+										+ w(i,l,is) * w(k,j,is) )
+								* A(i) * A(k)
+								* relTimes.data(0,is);
 					}
 				}
 			}

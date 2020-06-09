@@ -19,6 +19,7 @@ public:
 	VectorBTE diagonal();
 	VectorBTE offDiagonalDot(VectorBTE & inPopulation);
 	VectorBTE dot(VectorBTE & inPopulation);
+	Eigen::MatrixXd dot(const Eigen::MatrixXd & otherMatrix);
 
 	VectorBTE getSingleModeTimes();
 	void a2Omega();

@@ -121,6 +121,10 @@ VectorBTE ScatteringMatrix::diagonal() {
 	}
 }
 
+Eigen::MatrixXd ScatteringMatrix::dot(const Eigen::MatrixXd & otherMatrix) {
+	return theMatrix * otherMatrix;
+}
+
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 	if ( highMemory ) {
 		// it's just the full matrix product, minus the diagonal contribution
