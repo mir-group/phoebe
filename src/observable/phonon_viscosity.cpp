@@ -33,40 +33,34 @@ void PhononViscosity::calcRTA(VectorBTE & tau) {
 	auto statistics = bandStructure.getStatistics();
 	tensordxdxdxd.setZero();
 
-	for ( long ik=0; ik<bandStructure.getNumPoints(); ik++ ) {
-		auto s = bandStructure.getState(ik);
-		auto ens = s.getEnergies();
-		auto vel = s.getVelocities();
-		auto q = s.getCoords(Points::cartesianCoords);
+	for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
+		auto en = bandStructure.getEnergy(is);
+		auto vel = bandStructure.getGroupVelocity(is);
+		auto q = bandStructure.getWavevector(is);
 
-		for ( long ib=0; ib<ens.size(); ib++ ) {
-			long is = bandStructure.getIndex(ik,ib);
-			double en = ens(ib);
+		// skip the acoustic phonons
+		if ( q.norm()==0. && en<0.1 / ryToCmm1 ) continue;
 
-			// skip the acoustic phonons
-			if ( q.norm()==0. && ib<3 ) continue;
+		for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
-			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+			auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+			double temperature = calcStat.temperature;
+			double chemPot = calcStat.chemicalPotential;
+			double bosep1 = statistics.getPopPopPm1(en,temperature,chemPot);
 
-				auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-				double temperature = calcStat.temperature;
-				double chemPot = calcStat.chemicalPotential;
-				double bose = statistics.getPopulation(en,temperature,chemPot);
-
-				for ( long i=0; i<dimensionality; i++ ) {
-					for ( long j=0; j<dimensionality; j++ ) {
-						for ( long k=0; k<dimensionality; k++ ) {
-							for ( long l=0; l<dimensionality; l++ ) {
-								tensordxdxdxd(iCalc,i,j,k,l) +=
-										q(i)
-										* vel(ib,ib,j).real()
-										* q(k)
-										* vel(ib,ib,l).real()
-										* bose * ( 1. + bose )
-										* tau.data(iCalc,is)
-										/ temperature
-										* norm;
-							}
+			for ( long i=0; i<dimensionality; i++ ) {
+				for ( long j=0; j<dimensionality; j++ ) {
+					for ( long k=0; k<dimensionality; k++ ) {
+						for ( long l=0; l<dimensionality; l++ ) {
+							tensordxdxdxd(iCalc,i,j,k,l) +=
+									q(i)
+									* vel(j)
+									* q(k)
+									* vel(l)
+									* bosep1
+									* tau.data(iCalc,is)
+									/ temperature
+									* norm;
 						}
 					}
 				}
