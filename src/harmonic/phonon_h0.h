@@ -1,10 +1,7 @@
 #ifndef PHONONH0_H
 #define PHONONH0_H
 
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-#include <Eigen/Eigenvalues>
-#include <Eigen/Core>
+#include "eigen.h"
 #include <math.h>
 #include "crystal.h"
 #include "harmonic.h"

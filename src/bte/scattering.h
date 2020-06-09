@@ -20,15 +20,11 @@ public:
 	VectorBTE offDiagonalDot(VectorBTE & inPopulation);
 	VectorBTE dot(VectorBTE & inPopulation);
 
-	// note: CGScalign only affects the results of dot() and diagonal()
-//	void setCGScaling();
-//	void unsetCGScaling();
-
 	VectorBTE getSingleModeTimes();
 	void a2Omega();
 	void omega2A();
 
-//	std::tuple<Eigen::VectorXd,Eigen::MatrixXd> diagonalize();
+	std::tuple<VectorBTE,Eigen::MatrixXd> diagonalize();
 protected:
 	Context & context;
 	StatisticsSweep & statisticsSweep;

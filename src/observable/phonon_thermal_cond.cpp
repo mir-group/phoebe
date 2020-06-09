@@ -102,6 +102,39 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 	}
 }
 
+void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
+		VectorBTE & relaxonV, VectorBTE & relaxationTimes) {
+
+	tensordxd.setZero();
+
+	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+		auto [imu,it] = loc2Glob(iCalc);
+		double c = specificHeat.get(imu,it);
+		// is = 3 is a temporary patch, I should discard the first three
+		// rows/columns altogether + I skip the bose eigenvector
+		for ( long is=4; is<relaxationTimes.numStates; is++ ) {
+
+			if ( relaxationTimes.data(iCalc,is) <= 0. ) continue;
+//			std::cout << iCalc << " " << is << " " << c << " "
+//					<< relaxonV.data.col(is).transpose() << " "
+//					<< relaxonV.data.col(is).transpose() << " "
+//					<< relaxationTimes.data(iCalc,is) << "\n";
+
+			for ( long i=0; i<dimensionality; i++ ) {
+				for ( long j=0; j<dimensionality; j++ ) {
+					auto i1 = relaxonV.glob2Loc(imu,it,i);
+					auto j1 = relaxonV.glob2Loc(imu,it,j);
+
+					tensordxd(iCalc,i,j) += c
+							* relaxonV.data(i1,is)
+							* relaxonV.data(j1,is)
+							* relaxationTimes.data(iCalc,is);
+				}
+			}
+		}
+	}
+}
+
 void PhononThermalConductivity::print() {
 
 	std::string units;

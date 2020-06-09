@@ -33,6 +33,7 @@ public:
 	VectorBTE operator / (VectorBTE & that);
 
 	VectorBTE sqrt();
+	VectorBTE reciprocal();
 
 	void setConst(const double & constant);
 

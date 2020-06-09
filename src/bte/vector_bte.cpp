@@ -173,6 +173,12 @@ VectorBTE VectorBTE::sqrt() {
 	return newPopulation;
 }
 
+VectorBTE VectorBTE::reciprocal() {
+	VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
+	newPopulation.data << 1. / this->data.array();
+	return newPopulation;
+}
+
 void VectorBTE::setConst(const double & constant) {
 	data.setConstant(constant);
 }

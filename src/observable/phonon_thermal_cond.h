@@ -2,6 +2,7 @@
 #define PHONONCONDUCTIVITY_H
 
 #include "observable.h"
+#include "specific_heat.h"
 
 class PhononThermalConductivity : public Observable {
 public:
@@ -20,6 +21,8 @@ public:
 	virtual void calcFromPopulation(VectorBTE & n);
 	virtual void calcFromCanonicalPopulation(VectorBTE & f);
 	void calcVariational(VectorBTE & af, VectorBTE & f, VectorBTE & scalingCG);
+	void calcFromRelaxons(SpecificHeat & specificHeat, VectorBTE & relaxonV,
+			VectorBTE & relaxationTimes);
 	void print();
 	void print(const int & iter);
 
