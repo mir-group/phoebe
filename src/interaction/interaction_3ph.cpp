@@ -142,7 +142,9 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
     : crystal(that.crystal), numTriplets(that.numTriplets),
       ifc3Tensor(that.ifc3Tensor), cellPositions(that.cellPositions),
-      displacedAtoms(that.displacedAtoms) {}
+      displacedAtoms(that.displacedAtoms) {
+  std::cout << "CALLING COPY CONSTRUCTOR" << std::endl;
+}
 
 // assignment operator
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
@@ -153,6 +155,7 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     cellPositions = that.cellPositions;
     displacedAtoms = that.displacedAtoms;
   }
+  std::cout << "CALLING COPY CONSTRUCTOR" << std::endl;
   return *this;
 }
 

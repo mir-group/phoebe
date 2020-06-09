@@ -128,6 +128,7 @@ void LoopPrint::update() {
         std::cout << "\n";
       }
     }
+    std::cout << std::resetiosflags(std::cout.flags());
   }
 }
 

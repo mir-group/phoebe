@@ -10,6 +10,7 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
 #include <complex>
+#include <iomanip>
 
 // * Class to calculate the coupling of a 3-phonon interaction given three
 // * phonon modes.
@@ -24,7 +25,7 @@ private:
   Eigen::MatrixXi tableAtCIndex2;
   Eigen::MatrixXi tableAtCIndex3;
 
-  Kokkos::View<Kokkos::complex<double> *****> D3_k;
+  Kokkos::View<double *****> D3_k;
   Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
   Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
 
@@ -181,6 +182,7 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
           phasePlus(ir2, ir3) = exp(complexI * argP);
           phaseMins(ir2, ir3) = exp(complexI * argM);
         });
+    // std::cout << phasePlus(5, 8) << ", " << phaseMins(5, 8) << std::endl;
 
     Kokkos::parallel_for(
         Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
@@ -199,6 +201,10 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
           D3MinsCached_k(ind1, ind2, ind3, ir3) = tmpm;
         });
   }
+
+  //  std::cout << D3PlusCached_k(1, 1, 1, 1) << ", " << D3MinsCached_k(1, 1, 1,
+  //  1)
+  //            << std::endl;
   Kokkos::View<Kokkos::complex<double> *> phasePlus("pp", nr3),
       phaseMins("pm", nr3);
 
@@ -309,9 +315,7 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   Eigen::Tensor<double, 3> couplingPlus(nb1, nb2, nb3Plus);
   auto vPlus_h = Kokkos::create_mirror_view(vPlus);
   Kokkos::deep_copy(vPlus_h, vPlus);
-  auto norm = [](auto x) {
-    return std::sqrt(x.real() * x.real() + x.imag() * x.imag());
-  };
+  auto norm = [](auto x) { return x.real() * x.real() + x.imag() * x.imag(); };
 // case +
 #pragma omp parallel for collapse(3)
   for (int ib1 = 0; ib1 < nb1; ib1++) {
