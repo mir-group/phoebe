@@ -57,7 +57,6 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix & that) :
 	outerBandStructure(that.outerBandStructure),
 	constantRTA(that.constantRTA),
 	highMemory(that.highMemory),
-	hasCGScaling(that.hasCGScaling),
 	internalDiagonal(that.internalDiagonal),
 	theMatrix(that.theMatrix),
 	numStates(that.numStates),
@@ -76,7 +75,6 @@ ScatteringMatrix & ScatteringMatrix::operator=(const ScatteringMatrix & that) {
 		outerBandStructure = that.outerBandStructure;
 		constantRTA = that.constantRTA;
 		highMemory = that.highMemory;
-		hasCGScaling = that.hasCGScaling;
 		internalDiagonal = that.internalDiagonal;
 		theMatrix = that.theMatrix;
 		numStates = that.numStates;
@@ -178,17 +176,6 @@ VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 		VectorBTE outPopulation(statisticsSweep, outerBandStructure,
 				inPopulation.dimensionality);
 		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
-		if ( hasCGScaling ) {
-			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-				auto [imu,it,idim] = inPopulation.loc2Glob(i);
-				auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
-				for ( long is=0; is<numStates; is++ ) {
-					outPopulation.data(i,is) += inPopulation.data(i,is)
-						- internalDiagonal.data(j,is)
-						* inPopulation.data(i,is);
-				}
-			}
-		}
 		return outPopulation;
 	}
 }

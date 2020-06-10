@@ -101,27 +101,51 @@ public:
 protected:
 	Context & context;
 	StatisticsSweep & statisticsSweep;
+
+	// Smearing is a pointer created in constructor with a smearing factory
+	// Used in the construction of the scattering matrix to approximate the
+	// Dirac-delta function in transition rates.
 	DeltaFunction * smearing;
 
 	FullBandStructure<FullPoints> & innerBandStructure;
 	FullBandStructure<FullPoints> & outerBandStructure;
 
-	 // constant relaxation time approximation -> the matrix is just a scalar
+	// constant relaxation time approximation -> the matrix is just a scalar
+	// and there are simplified evaluations taking place
 	bool constantRTA = false;
-	bool highMemory = true;
-	bool hasCGScaling = false;
-	bool isMatrixOmega = false;
+	bool highMemory = true; // whether the matrix is kept in memory
+	bool isMatrixOmega = false; // whether the matrix is Omega or A
+	// A acts on the canonical population, omega on the population
+	// A acts on f, omega on n, with n = bose(bose+1)f e.g. for phonons
 
+	// we save the diagonal matrix element in a dedicated vector
 	VectorBTE internalDiagonal;
+	// the scattering matrix, initialized if highMemory==true
 	Eigen::MatrixXd theMatrix;
-	long numStates;
-	long numPoints;
-	long numCalcs;
 
+
+	long numStates; // number of Bloch states (i.e. the size of theMatrix)
+	long numPoints; // number of wavevectors
+	long numCalcs; // number of "Calculations", i.e. number of temperatures and
+	// chemical potentials on which we compute scattering.
+
+	// this is to exclude problematic Bloch states, e.g. acoustic phonon modes
+	// at gamma, which have zero frequencies and thus have several non-analytic
+	// behaviors (e.g. Bose--Einstein population=infinity). We set to zero
+	// terms related to these states.
 	std::vector<long> excludeIndeces;
 
-	// pure virtual function
-	// needs an implementation in every subclass
+	/** Method that actually computes the scattering matrix.
+	 * Pure virtual function: needs an implementation in every subclass.
+	 * Builder has three behaviors:
+	 * 1) if matrix.size()==0 and linewidth is passed, builder computes the
+	 * quasiparticle linewidths.
+	 * 2) if matrix.size > 0 and linewidth is passed, builder computes the
+	 * quasiparticle linewidths and the scattering matrix. Memory intensive!
+	 * 3) if matrix.size()==0, linewidth is not passed, but we pass in+out
+	 * populations, we compute outPopulation = scattMatrix * inPopulation.
+	 * This doesn't require to store the matrix in memory.
+	 */
 	virtual void builder(Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 			VectorBTE * inPopulation, VectorBTE * outPopulation) = 0;
 };
