@@ -17,7 +17,7 @@ public:
 	void print();
 	void print(const int & iter);
 
-	double get(const long & imu, const long & it);
+	double get(const ChemPotIndex & imu, const TempIndex & it);
 
 protected:
 	virtual int whichType();

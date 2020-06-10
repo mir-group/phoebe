@@ -133,7 +133,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		// outPopulation -= internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 			auto [imu,it,idim] = inPopulation.loc2Glob(i);
-			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
 			for ( long is=0; is<numStates; is++ ) {
 				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
 						* inPopulation.data(i,is);
@@ -147,7 +147,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		// outPopulation = outPopulation - internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 			auto [imu,it,idim] = inPopulation.loc2Glob(i);
-			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
 			for ( long is=0; is<numStates; is++ ) {
 				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
 							* inPopulation.data(i,is);
@@ -181,7 +181,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 		if ( hasCGScaling ) {
 			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 				auto [imu,it,idim] = inPopulation.loc2Glob(i);
-				auto j = internalDiagonal.glob2Loc(imu,it,0);
+				auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
 				for ( long is=0; is<numStates; is++ ) {
 					outPopulation.data(i,is) += inPopulation.data(i,is)
 						- internalDiagonal.data(j,is)

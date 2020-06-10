@@ -5,6 +5,7 @@
 #include "context.h"
 #include "bandstructure.h"
 #include "statistics.h"
+#include "utilities.h"
 
 struct CalcStatistics {
 	double temperature;
@@ -22,8 +23,8 @@ public:
 	StatisticsSweep & operator = (const StatisticsSweep & that);
 
 	struct CalcStatistics getCalcStatistics(const long & index);
-	struct CalcStatistics getCalcStatistics(const long & iTemp,
-			const long & iChemPot);
+	struct CalcStatistics getCalcStatistics(const TempIndex & iTemp,
+			const ChemPotIndex & iChemPot);
 	long getNumCalcs();
 	long getNumChemicalPotentials();
 	long getNumTemperatures();

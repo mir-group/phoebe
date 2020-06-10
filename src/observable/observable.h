@@ -37,8 +37,8 @@ protected:
 	Eigen::Tensor<double,3> tensordxd; // e.g. conductivity
 	Eigen::Tensor<double,5> tensordxdxdxd; // e.g. viscosity
 
-	long glob2Loc(const long & imu, const long & it);
-	std::tuple<long,long> loc2Glob(const long & i);
+	long glob2Loc(const ChemPotIndex & imu, const TempIndex & it);
+	std::tuple<ChemPotIndex,TempIndex> loc2Glob(const long & i);
 
 	void baseOperatorMinus(Observable & newObservable, const Observable &that);
 

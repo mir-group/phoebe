@@ -13,7 +13,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 
 		for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 			auto [imu,it,idim] = loc2Glob(iCalc);
-			double vel = velocity(idim);
+			double vel = velocity(idim.get());
 			auto calcStat = statisticsSweep.getCalcStatistics(it,imu);
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;
@@ -37,7 +37,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 
 		for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 			auto [imu,it,idim] = loc2Glob(iCalc);
-			double vel = velocity(idim);
+			double vel = velocity(idim.get());
 			auto calcStat = statisticsSweep.getCalcStatistics(it,imu);
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;

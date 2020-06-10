@@ -95,7 +95,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE & that,
 
 		for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 			auto [imu,it,idim] = loc2Glob(iCalc);
-			auto i2 = that.glob2Loc(imu,it,0);
+			auto i2 = that.glob2Loc(imu,it,DimIndex(0));
 
 			if ( operatorType == operatorSums ) {
 				newPopulation.data.row(iCalc) = this->data.row(iCalc).array()
@@ -183,15 +183,18 @@ void VectorBTE::setConst(const double & constant) {
 	data.setConstant(constant);
 }
 
-long VectorBTE::glob2Loc(const long & imu, const long & it, const long & idim){
-	long i = compress3Indeces(imu,it,idim,numChemPots,numTemps,dimensionality);
+long VectorBTE::glob2Loc(const ChemPotIndex & imu, const TempIndex & it,
+		const DimIndex & idim){
+	long i = compress3Indeces(imu.get(),it.get(),idim.get(),
+			numChemPots,numTemps,dimensionality);
 	return i;
 }
 
-std::tuple<long,long,long> VectorBTE::loc2Glob(const long & i) {
+std::tuple<ChemPotIndex,TempIndex,DimIndex> VectorBTE::loc2Glob(
+		const long & i) {
 	auto [imu, it, idim] = decompress3Indeces(i, numChemPots, numTemps,
 			dimensionality);
-	return {imu,it,idim};
+	return {ChemPotIndex(imu),TempIndex(it),DimIndex(idim)};
 }
 
 void VectorBTE::canonical2Population() {

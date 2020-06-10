@@ -72,7 +72,7 @@ int SpecificHeat::whichType() {
 	return isScalar;
 }
 
-double SpecificHeat::get(const long & imu, const long & it) {
+double SpecificHeat::get(const ChemPotIndex & imu, const TempIndex & it) {
 	auto i = glob2Loc(imu,it);
 	return scalar(i);
 }

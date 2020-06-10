@@ -62,7 +62,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & n) {
 				auto [imu,it] = loc2Glob(iCalc);
 
 				for ( long i=0; i<dimensionality; i++ ) {
-					long icPop = n.glob2Loc(imu,it,i);
+					long icPop = n.glob2Loc(imu,it,DimIndex(i));
 					for ( long j=0; j<dimensionality; j++ ) {
 							tensordxd(iCalc,i,j) +=
 									n.data(icPop,is) * vel(ib,ib,j).real()
@@ -90,9 +90,9 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 		auto [imu,it] = loc2Glob(iCalc);
 
 		for ( long i=0; i<dimensionality; i++ ) {
-			long icPop1 = f.glob2Loc(imu,it,i);
+			long icPop1 = f.glob2Loc(imu,it,DimIndex(i));
 			for ( long j=0; j<dimensionality; j++ ) {
-				long icPop2 = f.glob2Loc(imu,it,j);
+				long icPop2 = f.glob2Loc(imu,it,DimIndex(j));
 				for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
 					tensordxd(iCalc,i,j) -=
 							f.data(icPop1,is) * af.data(icPop2,is) * norm;
@@ -137,8 +137,8 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
 
 			for ( long i=0; i<dimensionality; i++ ) {
 				for ( long j=0; j<dimensionality; j++ ) {
-					auto i1 = relaxonV.glob2Loc(imu,it,i);
-					auto j1 = relaxonV.glob2Loc(imu,it,j);
+					auto i1 = relaxonV.glob2Loc(imu,it,DimIndex(i));
+					auto j1 = relaxonV.glob2Loc(imu,it,DimIndex(j));
 
 					tensordxd(iCalc,i,j) += c
 							* relaxonV.data(i1,is)
