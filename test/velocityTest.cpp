@@ -5,7 +5,7 @@
 TEST (PhononH0, Velocity) {
 //int main() {
 	Context context;
-	context.setPhD2FileName("./test/interaction3ph/QEspresso.fc");
+	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
