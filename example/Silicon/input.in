@@ -7,5 +7,8 @@ phD3FileName = "ShengBTEForceConstants3rd"
 qMesh = [4,4,4]
 temperatures = [300.]
 
-smearingMethod = "gaussian"
+smearingMethod = "adaptiveGaussian"
 smearingWidth = 10. cmm1
+
+solverBTE = ["variational","relaxons"]
+scatteringMatrixInMemory = true

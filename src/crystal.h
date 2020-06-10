@@ -3,8 +3,12 @@
 
 #include <string>
 #include <vector>
-#include <Eigen/Core>
+#include "eigen.h"
 
+/** Object to store the information on the crystal unit cell,
+ *such as atomic positions, crystal lattice vectors, etc...
+ * Note that fractional occupancies are not supported.
+ */
 class Crystal {
 private:
 	/** utility function to invert the direct unit cell
@@ -17,6 +21,14 @@ private:
 	 */
 	void setDirectUnitCell(Eigen::Matrix3d directUnitCell_);
 
+	/** These are the internal quantities used to store
+	 * - lattice vectors
+	 * - reciprocal lattice vectors
+	 * - (real space) crystal unit cell volume
+	 * - number of atoms in unit cell
+	 * - number of atomic species in the crystal
+	 * - dimensionality (to log whether we work in 1, 2, or 3D.
+	 */
 	Eigen::Matrix3d directUnitCell;
 	Eigen::Matrix3d reciprocalUnitCell;
 	double volumeUnitCell;
@@ -24,16 +36,17 @@ private:
 	int numSpecies;
 	long dimensionality;
 
-	// vectors running over the number of atoms
-	Eigen::MatrixXd atomicPositions;
-	Eigen::VectorXi atomicSpecies;
-	std::vector<std::string> atomicNames;
-	Eigen::VectorXd atomicMasses;
+	// these vectors/matrices  running over the number of atoms
+	Eigen::MatrixXd atomicPositions; // size (numAtoms,3)
+	Eigen::VectorXi atomicSpecies; // size (numAtoms)
+	std::vector<std::string> atomicNames; // size (numAtoms)
+	Eigen::VectorXd atomicMasses; // size (numAtoms)
 
 	// vectors running over the number of species
-	std::vector<std::string> speciesNames;
-	Eigen::VectorXd speciesMasses;
+	std::vector<std::string> speciesNames; // size (numSpecies)
+	Eigen::VectorXd speciesMasses; // size (numSpecies)
 
+	// Untested for now
 	std::vector<Eigen::Matrix3d> symmetryRotations;
 	int numSymmetries;
 
@@ -82,7 +95,9 @@ public:
 	const int& getNumAtoms();
 
 	/** get the volume of the crystal unit cell in Bohr^3
-	 *
+	 * @param dimensionality: returns the volume of the unit cell on a reduced
+	 * dimensionality. If 2D, it is ASSUMED that the z-direction is the non
+	 * periodic direction. If 1D, it's assumed that z is the periodic direction
 	 */
 	double getVolumeUnitCell(long dimensionality = 3);
 
@@ -130,8 +145,14 @@ public:
 	 */
 	const Eigen::VectorXd& getSpeciesMasses();
 
+	/** return the dimensionality of the crystal, i.e. a number from 1 to 3
+	 *
+	 */
 	long getDimensionality();
 
+	/** Return the number of atomic species present in the crystal
+	 *
+	 */
 	long getNumSpecies();
 };
 
