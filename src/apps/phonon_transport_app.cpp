@@ -242,14 +242,17 @@ void PhononTransportApp::run(Context & context) {
 
 		VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
 		for ( long iCalc=0; iCalc<relaxonV.numCalcs; iCalc++ ) {
+
+		  double norm = 1./ crystal.getVolumeUnitCell(context.getDimensionality())
+			      / bandStructure.getNumPoints();
+		  
 			auto [imu,it,idim] = relaxonV.loc2Glob(iCalc);
+			int idimIndex  = idim.get();
 			auto jCalc = boseEigenvector.glob2Loc(imu,it,DimIndex(0));
 			for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
-				auto v = bandStructure.getGroupVelocity(is);
+			  Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
 				relaxonV.data(iCalc,is) = boseEigenvector.data(jCalc,is)
-						* v(idim.get()) /
-						(crystal.getVolumeUnitCell(context.getDimensionality())
-								* bandStructure.getNumPoints());
+				  * norm * v(idimIndex);
 			}
 			relaxonV.data.row(iCalc) = relaxonV.data.row(iCalc) * eigenvectors;
 		}
