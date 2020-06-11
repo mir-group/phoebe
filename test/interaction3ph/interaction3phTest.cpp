@@ -29,7 +29,6 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -257,7 +256,6 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);

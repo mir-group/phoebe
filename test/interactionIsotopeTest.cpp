@@ -16,7 +16,6 @@ TEST (InteractionIsotope,Wphisoiq4) {
   context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
   QEParser qeParser;
   auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-  phononH0.setAcousticSumRule("simple");
 
   //Total number of wave vectors
   int nq = 8*8*8;

@@ -16,7 +16,6 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   QEParser qeParser;
   auto [crystal, phononH0] = qeParser.parsePhHarmonic(context);
-  phononH0.setAcousticSumRule("simple");
 
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();

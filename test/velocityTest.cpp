@@ -9,7 +9,6 @@ TEST (PhononH0, Velocity) {
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	// now, let's create a fine mesh
 
