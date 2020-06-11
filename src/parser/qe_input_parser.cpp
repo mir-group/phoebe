@@ -419,12 +419,6 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 	// generate the unit cell vectors (also for ibrav != 0)
 	latgen(ibrav, celldm, directUnitCell);
 
-	std::cout << numElements << "\n";
-	std::cout << numAtoms << "\n";
-	std::cout << ibrav << "\n";
-	std::cout << celldm.transpose() << "\n";
-	std::cout << directUnitCell << "\n";
-
 	//  Next, we read the atomic species
 	std::vector<std::string> speciesNames;
 	Eigen::VectorXd speciesMasses(numElements);
