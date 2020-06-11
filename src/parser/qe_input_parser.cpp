@@ -107,10 +107,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 			Error e("wrong celldm(2)", ibrav);
 		}
 		double cbya  = celldm(2);
-		a1(1) = celldm(0);
-		a2(1) =-celldm(0) / 2.;
-		a2(2) = celldm(0) * sr3 / 2.;
-		a3(3) = celldm(0) * cbya;
+		a1(0) = celldm(0);
+		a2(0) =-celldm(0) / 2.;
+		a2(1) = celldm(0) * sr3 / 2.;
+		a3(2) = celldm(0) * cbya;
 
 	} else if (abs(ibrav) == 5) { // trigonal lattice
 		if ( celldm(3) <= -0.5 || celldm(3) >= 1. ) {
@@ -418,6 +418,12 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 
 	// generate the unit cell vectors (also for ibrav != 0)
 	latgen(ibrav, celldm, directUnitCell);
+
+	std::cout << numElements << "\n";
+	std::cout << numAtoms << "\n";
+	std::cout << ibrav << "\n";
+	std::cout << celldm.transpose() << "\n";
+	std::cout << directUnitCell << "\n";
 
 	//  Next, we read the atomic species
 	std::vector<std::string> speciesNames;
