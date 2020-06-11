@@ -35,6 +35,14 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+############# PARALLEL ############
+option(MPI_AVAIL "Build with MPI wrappers" ON) 
+if (MPI_AVAIL) 
+  find_package(MPI REQUIRED)
+  target_link_libraries(phoebe MPI::MPI_CXX)
+  target_link_libraries(runTests MPI::MPI_CXX)
+  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
+endif()
 
 ############# DOCS ############
 
