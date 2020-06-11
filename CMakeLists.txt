@@ -60,7 +60,7 @@ IF (BUILD_DOC)
         add_custom_target(
             doc
             COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc
             COMMENT "Generating API documentation with Doxygen"
             VERBATIM)
     ENDIF()

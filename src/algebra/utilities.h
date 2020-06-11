@@ -31,8 +31,12 @@ long compress2Indeces(const long & i1, const long & i2, const long & size1,
 std::tuple<long,long> decompress2Indeces(const long & iTot, const long & size1,
 		const long & size2);
 
-// This is a class taken from
-// https://www.fluentcpp.com/2017/05/05/news-strong-types-are-free/
+/** Class for implementing strong typing.
+ * In fact, when using the methods (de)compress2(3)indices, it's easy to
+ * mix the order of indices. This class can be used to enforce the type
+ * of the index, without incurring in a penalty in the code speed.
+ * Taken from https://www.fluentcpp.com/2017/05/05/news-strong-types-are-free/
+ */
 template <typename T, typename Parameter>
 class NamedType
 {

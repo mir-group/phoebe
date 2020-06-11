@@ -3,6 +3,8 @@
 
 #include "observable.h"
 
+/** Class for computing and storing the specific heat of a crystal.
+ */
 class SpecificHeat : public Observable {
 public:
 	/** Constructor method
@@ -16,22 +18,18 @@ public:
 			FullBandStructure<FullPoints> & bandStructure_);
 
 	/** Copy constructor
-	 *
 	 */
 	SpecificHeat(const SpecificHeat & that);
 
 	/** Copy assignment operator
-	 *
 	 */
 	SpecificHeat & operator = (const SpecificHeat & that);
 
 	/** Computes the specific heat at all requested temperatures.
-	 *
 	 */
 	virtual void calc();
 
 	/** Prints to screen the specific heat at all desired temperatures.
-	 *
 	 */
 	void print();
 
