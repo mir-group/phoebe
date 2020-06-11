@@ -8,7 +8,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
-    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -g -Wno-deprecated-copy -Wno-ignored-attributes")
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 

@@ -8,6 +8,7 @@
 #include "state.h"
 #include "utilities.h"
 #include <Kokkos_Core.hpp>
+#include <chrono>
 #include <cmath>
 #include <complex>
 #include <iomanip>
@@ -49,6 +50,11 @@ private:
   Eigen::Vector3d cachedCoords;
   Eigen::Tensor<std::complex<double>, 4> D3PlusCached;
   Eigen::Tensor<std::complex<double>, 4> D3MinsCached;
+
+  typedef std::chrono::steady_clock::time_point time_point;
+  typedef std::chrono::steady_clock::duration time_delta;
+
+  std::vector<time_delta> dts;
 
 public:
   Interaction3Ph(
@@ -143,13 +149,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   long nb3Plus = state3Plus.getNumBands();
   long nb3Mins = state3Mins.getNumBands();
 
-  // Eigen::Tensor<std::complex<double>, 3> vPlus(nb1, nb2, nb3Plus);
-  // Eigen::Tensor<std::complex<double>, 3> vMins(nb1, nb2, nb3Mins);
-  // vPlus.setZero();
-  // vMins.setZero();
-  Kokkos::View<Kokkos::complex<double> ***> vPlus("vp", nb1, nb2, nb3Plus),
-      vMins("vm", nb1, nb2, nb3Mins);
-
   // this is a bit more convoluted than the implementation above,
   // but it should be faster, as we break loops in two sections
 
@@ -164,14 +163,21 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   state3Plus.getEigenvectors(ev3Plus);
   state3Mins.getEigenvectors(ev3Mins);
 
+  time_point t0, t1;
+  auto tosec = [](auto dt) {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(dt).count() /
+           1e9;
+  };
+
   if (state2.getCoords(Points::cartesianCoords) != cachedCoords) {
     cachedCoords = state2.getCoords(Points::cartesianCoords);
-    Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr2, nr3),
-        phaseMins("pm", nr2, nr3);
+    Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
+        phaseMins("pm", nr3, nr2);
 
+    t0 = std::chrono::steady_clock::now();
     Kokkos::parallel_for(
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr2, nr3}),
-        KOKKOS_LAMBDA(int ir2, int ir3) {
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
+        KOKKOS_LAMBDA(int ir3, int ir2) {
           double argP = 0, argM = 0;
           for (int ic : {0, 1, 2}) {
             argP += +q2_k(ic) *
@@ -179,11 +185,15 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
             argM += -q2_k(ic) *
                     (cellPositions2_k(ir2, ic) - cellPositions3_k(ir3, ic));
           }
-          phasePlus(ir2, ir3) = exp(complexI * argP);
-          phaseMins(ir2, ir3) = exp(complexI * argM);
+          phasePlus(ir3, ir2) = exp(complexI * argP);
+          phaseMins(ir3, ir2) = exp(complexI * argM);
         });
-    // std::cout << phasePlus(5, 8) << ", " << phaseMins(5, 8) << std::endl;
+    t1 = std::chrono::steady_clock::now();
+    dts[0] += t1 - t0;
+    std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
+    // std::cout << phasePlus(5, 8) << ", " << phaseMins(5, 8) << "\n";
 
+    t0 = std::chrono::steady_clock::now();
     Kokkos::parallel_for(
         Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
             {0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
@@ -192,22 +202,27 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
           for (int ir2 = 0; ir2 < nr2; ir2++) { // sum over all triplets
 
             // As a convention, the first primitive cell in the triplet is
-            // restricted to the origin, so the phase for that cell is unity.
+            // restricted to the origin, so the phase for that cell is
+            // unity.
 
-            tmpp += D3_k(ind1, ind2, ind3, ir2, ir3) * phasePlus(ir2, ir3);
-            tmpm += D3_k(ind1, ind2, ind3, ir2, ir3) * phaseMins(ir2, ir3);
+            tmpp += D3_k(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
+            tmpm += D3_k(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
           }
           D3PlusCached_k(ind1, ind2, ind3, ir3) = tmpp;
           D3MinsCached_k(ind1, ind2, ind3, ir3) = tmpm;
         });
+    t1 = std::chrono::steady_clock::now();
+    dts[1] += t1 - t0;
+    std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
   }
 
   //  std::cout << D3PlusCached_k(1, 1, 1, 1) << ", " << D3MinsCached_k(1, 1, 1,
   //  1)
-  //            << std::endl;
+  //            << "\n";
   Kokkos::View<Kokkos::complex<double> *> phasePlus("pp", nr3),
       phaseMins("pm", nr3);
 
+  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       nr3, KOKKOS_LAMBDA(int ir3) {
         double argP = 0, argM = 0;
@@ -218,6 +233,9 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
         phasePlus(ir3) = exp(complexI * argP);
         phaseMins(ir3) = exp(complexI * argM);
       });
+  t1 = std::chrono::steady_clock::now();
+  dts[2] += t1 - t0;
+  std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
 
   // As a convention, the first primitive cell in the triplet is
   // restricted to the origin, so the phase for that cell is unity.
@@ -230,10 +248,24 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   Kokkos::View<Kokkos::complex<double> ***> tmpPlus("tmpp", numBands, numBands,
                                                     numBands),
       tmpMins("tmpm", numBands, numBands, numBands);
-  Kokkos::parallel_for(
-      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
-                                             {numBands, numBands, numBands}),
-      KOKKOS_LAMBDA(int iac1, int iac2, int iac3) {
+  // Kokkos::parallel_for(
+  //      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
+  //                                             {numBands, numBands,
+  //                                             numBands}),
+  //      KOKKOS_LAMBDA(int iac1, int iac2, int iac3) {
+  //        Kokkos::complex<double> tmpp = 0, tmpm = 0;
+  //        for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
+  //          tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(ir3);
+  //          tmpm += D3MinsCached_k(iac1, iac2, iac3, ir3) * phaseMins(ir3);
+  //        }
+  //        tmpPlus(iac1, iac2, iac3) = tmpp;
+  //        tmpMins(iac1, iac2, iac3) = tmpm;
+  //      });
+  t0 = std::chrono::steady_clock::now();
+#pragma omp parallel for collapse(3)
+  for (int iac1 = 0; iac1 < numBands; iac1++) {
+    for (int iac2 = 0; iac2 < numBands; iac2++) {
+      for (int iac3 = 0; iac3 < numBands; iac3++) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
           tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(ir3);
@@ -241,7 +273,12 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
         }
         tmpPlus(iac1, iac2, iac3) = tmpp;
         tmpMins(iac1, iac2, iac3) = tmpm;
-      });
+      }
+    }
+  }
+  t1 = std::chrono::steady_clock::now();
+  dts[3] += t1 - t0;
+  std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
 
   // now we want to multiply
   // vPlus(ib1,ib2,ib3) = tmpPlus(iac1,iac2,iac3) * ev1(iac1,ib1)
@@ -261,18 +298,22 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
                                                      numBands),
       tmp1Mins("t1m", nb1, numBands, numBands);
 
+  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
                                              {nb1, numBands, numBands}),
       KOKKOS_LAMBDA(int ib1, int iac2, int iac3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int iac1 = 0; iac1 < numBands; iac1++) {
-          tmpp += tmpPlus(iac1, iac2, iac3) * ev1(iac1, ib1);
-          tmpm += tmpMins(iac1, iac2, iac3) * ev1(iac1, ib1);
+          tmpp += tmpPlus(iac1, iac2, iac3) * ev1(ib1, iac1);
+          tmpm += tmpMins(iac1, iac2, iac3) * ev1(ib1, iac1);
         }
-        tmp1Plus(ib1, iac2, iac3) = tmpp;
-        tmp1Mins(ib1, iac2, iac3) = tmpm;
+        tmp1Plus(ib1, iac3, iac2) = tmpp;
+        tmp1Mins(ib1, iac3, iac2) = tmpm;
       });
+  t1 = std::chrono::steady_clock::now();
+  dts[4] += t1 - t0;
+  std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
   // Eigen::Tensor<std::complex<double>, 3> tmp2Plus(nb1, nb2, numBands);
   // Eigen::Tensor<std::complex<double>, 3> tmp2Mins(nb1, nb2, numBands);
   // tmp2Plus.setZero();
@@ -280,44 +321,60 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   Kokkos::View<Kokkos::complex<double> ***> tmp2Plus("t2p", nb1, nb2, numBands),
       tmp2Mins("t2m", nb1, nb2, numBands);
 
+  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, numBands}),
       KOKKOS_LAMBDA(int ib1, int ib2, int iac3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int iac2 = 0; iac2 < numBands; iac2++) {
-          tmpp += tmp1Plus(ib1, iac2, iac3) * ev2(iac2, ib2);
-          tmpm += tmp1Mins(ib1, iac2, iac3) * Kokkos::conj(ev2(iac2, ib2));
+          tmpp += tmp1Plus(ib1, iac3, iac2) * ev2(ib2, iac2);
+          tmpm += tmp1Mins(ib1, iac3, iac2) * Kokkos::conj(ev2(ib2, iac2));
         }
         tmp2Plus(ib1, ib2, iac3) = tmpp;
         tmp2Mins(ib1, ib2, iac3) = tmpm;
       });
+  t1 = std::chrono::steady_clock::now();
+  dts[5] += t1 - t0;
+  std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
+
+  Kokkos::View<Kokkos::complex<double> ***> vPlus("vp", nb1, nb2, nb3Plus),
+      vMins("vm", nb1, nb2, nb3Mins);
 
   // the last loop is split in two because nb3 is not the same for + and -
+  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, nb3Plus}),
       KOKKOS_LAMBDA(int ib1, int ib2, int ib3) {
         Kokkos::complex<double> tmpp = 0;
         for (int iac3 = 0; iac3 < numBands; iac3++) {
-          tmpp += tmp2Plus(ib1, ib2, iac3) * Kokkos::conj(ev3Plus(iac3, ib3));
+          tmpp += tmp2Plus(ib1, ib2, iac3) * Kokkos::conj(ev3Plus(ib3, iac3));
         }
         vPlus(ib1, ib2, ib3) = tmpp;
       });
+  t1 = std::chrono::steady_clock::now();
+  dts[6] += t1 - t0;
+  std::cout << "vp loop: " << tosec(dts[6]) << "\n";
+
+  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, nb3Mins}),
       KOKKOS_LAMBDA(int ib1, int ib2, int ib3) {
         Kokkos::complex<double> tmpm = 0;
         for (int iac3 = 0; iac3 < numBands; iac3++) {
-          tmpm += tmp2Mins(ib1, ib2, iac3) * Kokkos::conj(ev3Mins(iac3, ib3));
+          tmpm += tmp2Mins(ib1, ib2, iac3) * Kokkos::conj(ev3Mins(ib3, iac3));
         }
         vMins(ib1, ib2, ib3) = tmpm;
       });
+  t1 = std::chrono::steady_clock::now();
+  dts[7] += t1 - t0;
+  std::cout << "vm loop: " << tosec(dts[7]) << "\n";
 
   Eigen::Tensor<double, 3> couplingPlus(nb1, nb2, nb3Plus);
   auto vPlus_h = Kokkos::create_mirror_view(vPlus);
   Kokkos::deep_copy(vPlus_h, vPlus);
   auto norm = [](auto x) { return x.real() * x.real() + x.imag() * x.imag(); };
-// case +
-#pragma omp parallel for collapse(3)
+  // case +
+  t0 = std::chrono::steady_clock::now();
   for (int ib1 = 0; ib1 < nb1; ib1++) {
     for (int ib2 = 0; ib2 < nb2; ib2++) {
       for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
@@ -325,11 +382,14 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       }
     }
   }
+  t1 = std::chrono::steady_clock::now();
+  dts[8] += t1 - t0;
+  std::cout << "cp loop: " << tosec(dts[8]) << "\n";
+
   // case -
   Eigen::Tensor<double, 3> couplingMins(nb1, nb2, nb3Mins);
   auto vMins_h = Kokkos::create_mirror_view(vMins);
   Kokkos::deep_copy(vMins_h, vMins);
-#pragma omp parallel for collapse(3)
   for (int ib1 = 0; ib1 < nb1; ib1++) {
     for (int ib2 = 0; ib2 < nb2; ib2++) {
       for (int ib3 = 0; ib3 < nb3Mins; ib3++) {
@@ -337,6 +397,9 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       }
     }
   }
+  t1 = std::chrono::steady_clock::now();
+  dts[9] += t1 - t0;
+  std::cout << "cm loop: " << tosec(dts[9]) << "\n";
   return {couplingPlus, couplingMins};
 }
 

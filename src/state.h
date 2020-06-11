@@ -325,7 +325,7 @@ void State<T>::getEigenvectors(Kokkos::View<Kokkos::complex<double> **> &eigs) {
   for (long ib1 = 0; ib1 < numBands; ib1++) {
     for (long ib2 = 0; ib2 < numBands; ib2++) {
       long ind = compress2Indeces(ib1, ib2, numBands, numBands);
-      eigs_h(ib2, ib1) = *(eigenvectors + ind);
+      eigs_h(ib1, ib2) = *(eigenvectors + ind);
     }
   }
   Kokkos::deep_copy(eigs, eigs_h);

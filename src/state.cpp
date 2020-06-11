@@ -97,7 +97,7 @@ void DetachedState::getEigenvectors(
   auto eigs_h = Kokkos::create_mirror_view(eigs);
   for (long ib1 = 0; ib1 < numBands; ib1++) {
     for (long ib2 = 0; ib2 < numBands; ib2++) {
-      eigs_h(ib1, ib2) = eigenvectors(ib1, ib2);
+      eigs_h(ib2, ib1) = eigenvectors(ib1, ib2);
     }
   }
   Kokkos::deep_copy(eigs, eigs_h);

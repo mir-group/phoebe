@@ -20,7 +20,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
                                Eigen::Tensor<double, 3> &cellPositions_,
                                Eigen::Tensor<long, 2> &displacedAtoms_)
     : crystal(crystal_), numTriplets(numTriplets_), ifc3Tensor(ifc3Tensor_),
-      cellPositions(cellPositions_), displacedAtoms(displacedAtoms_) {
+      cellPositions(cellPositions_), displacedAtoms(displacedAtoms_), dts(10) {
 
   numAtoms = crystal.getNumAtoms();
   numBands = numAtoms * 3;
@@ -124,7 +124,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
 
   cachedCoords << -111., -111., -111.;
 
-  Kokkos::realloc(D3_k, numBands, numBands, numBands, nr2, nr3);
+  Kokkos::realloc(D3_k, numBands, numBands, numBands, nr3, nr2);
   Kokkos::realloc(D3PlusCached_k, numBands, numBands, numBands, nr3);
   Kokkos::realloc(D3MinsCached_k, numBands, numBands, numBands, nr3);
   auto D3_h = Kokkos::create_mirror_view(D3_k);
@@ -133,7 +133,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
       for (int i3 = 0; i3 < numBands; i3++) {
         for (int i4 = 0; i4 < nr2; i4++) {
           for (int i5 = 0; i5 < nr3; i5++) {
-            D3_h(i1, i2, i3, i4, i5) = D3(i1, i2, i3, i4, i5);
+            D3_h(i1, i2, i3, i5, i4) = D3(i1, i2, i3, i4, i5);
           }
         }
       }
