@@ -7,13 +7,14 @@
 #include "delta_function.h"
 #include "electron_h0_fourier.h"
 #include "utilities.h"
+#include "qe_input_parser.h"
 
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context & context) {
 	std::cout << "Starting phonon DoS calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, phononH0] = setupPhononH0(context);
+	auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getQMesh());
@@ -55,7 +56,7 @@ void ElectronWannierDosApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, h0] = parser.parseElHarmonicWannier(context);
+	auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getKMesh());
@@ -98,7 +99,7 @@ void ElectronFourierDosApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, h0] = parser.parseElHarmonicFourier(context);
+	auto [crystal, h0] = QEParser::parseElHarmonicFourier(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getKMesh());

@@ -22,12 +22,6 @@ public:
 	// note: auto_ptr transfers the ownership to the returned pointer itself
 	// in this way, the returned app is correctly destructed when out of scope
 	virtual void run(Context & context);
-protected:
-	std::tuple<Crystal, PhononH0> setupPhononH0(Context & context);
-//	std::tuple<ActivePoints, ActiveBandStructure> restrictBandStructure(
-//			Context & context,
-//			FullBandStructure<FullPoints> & fullBandStructure);
-	QEParser parser;
 };
 
 #endif

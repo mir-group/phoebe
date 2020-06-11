@@ -14,13 +14,13 @@
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
 #include "specific_heat.h"
+#include "qe_input_parser.h"
 
 void PhononTransportApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, phononH0] = parser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
+	auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
 
 	// first we make compute the band structure on the fine grid
 

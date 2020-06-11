@@ -18,7 +18,7 @@ public:
 	 * @return PhononH0: the object containing the force Constants and the
 	 * functionality to compute the phonon energies.
 	 */
-	std::tuple<Crystal, PhononH0> parsePhHarmonic(Context & context);
+	static std::tuple<Crystal, PhononH0> parsePhHarmonic(Context & context);
 
 	/** parsing of electronic band structure for Fourier interpolation.
 	 * This class parses the XML file of Quantum ESPRESSO, which should contain
@@ -29,7 +29,7 @@ public:
 	 * the coarse grid of points, with all the infrastructure necessary to
 	 * interpolate it on finer grids of k-points.
 	 */
-	std::tuple<Crystal,ElectronH0Fourier> parseElHarmonicFourier(
+	static std::tuple<Crystal,ElectronH0Fourier> parseElHarmonicFourier(
 			Context & context);
 
 	/** parsing of electronic band structure for Wannier interpolation.
@@ -41,7 +41,7 @@ public:
 	 * electronic Hamiltonian in the Wannier representation, and capable of
 	 * interpolating the band structure on a fine grid of k-points.
 	 */
-	std::tuple<Crystal,ElectronH0Wannier> parseElHarmonicWannier(
+	static std::tuple<Crystal,ElectronH0Wannier> parseElHarmonicWannier(
 			Context & context);
 private:
 	bool isQuantumEspressoXml(const std::string & fileName);

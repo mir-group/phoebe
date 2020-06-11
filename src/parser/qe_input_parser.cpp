@@ -533,6 +533,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 
 	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
+	dynamicalMatrix.setAcousticSumRule(context.getSumRuleD2());
 
 	return {crystal, dynamicalMatrix};
 };
