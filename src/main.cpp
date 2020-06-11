@@ -1,23 +1,24 @@
 #include "app.h"
 #include "context.h"
 #include "io.h"
+#include "mpi/mpiHelper.h"
 
 int main(int argc, char** argv) {
 
 	// here launch parallel environment
+	// Call proxy function from MPI Helper, which makes mpi object 
+	// globally available. 
+        initEnv(); 
 
 	// setup input/output
-
 	IO io(argc, argv);
-	io.welcome();
+	if(mpi->mpiHead()) io.welcome();
 
 	// Read user input file
-
 	Context context;
 	context.setupFromInput(io.getInputFileName());
-
+ 
 	// decide which app to use
-
 	std::string appName = context.getAppName();
 	std::unique_ptr<App> app = App::loadApp(appName);
 	if ( app != nullptr ) {
@@ -29,10 +30,10 @@ int main(int argc, char** argv) {
 	}
 
 	// exiting program
-
 	io.goodbye();
 
 	// here close parallel environment
+        mpi->finalize(); 
 
 	return(0);
 }

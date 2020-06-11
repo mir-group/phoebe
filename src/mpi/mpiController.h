@@ -1,19 +1,19 @@
+#ifndef MPICONTROLLER_H
+#define MPICONTROLLER_H
+
 #include <vector>
 #include <complex>
 #include <chrono>
-#include <iostream>
+//#include <iostream>
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
 #endif
 
-#ifndef MPICONTROLLER_H
-#define MPICONTROLLER_H
-
 class MPIcontroller{
 	
 	//MPI_Comm com; // MPI communicator -- might not need this, can just call default comm "MPI_COMM_WORLD"
-	int size; // number of MPI processses
+	int size = 0; // number of MPI processses
 	int rank;
 
 	#ifdef MPI_AVAIL 
@@ -36,6 +36,7 @@ class MPIcontroller{
 		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
 		template<typename T> void reduceMax(T* dataIn, T* dataOut) const;
 		template<typename T> void reduceMin(T* dataIn, T* dataOut) const;
+                template<typename T> void gather(T* dataIn, T* dataOut) const; 
 
 		// point to point functions -----------------------------------
 		//template<typename T> void send(T&& data) const;
@@ -59,163 +60,107 @@ class MPIcontroller{
 		void mpiRead();
 		void mpiAppend(); 
 			
+                // Labor division helper functions
+                void divideWork(size_t numTasks); // divide up a set of work 
+                size_t workHead(); // get the first task assigned to a rank
+                size_t workTail(); // get the last task assigned to a rank
+
+        private: 
+                // store labor division information
+                std::vector<size_t> workDivisionHeads; // start points for each rank's work
+                std::vector<size_t> workDivisionTails; // end points for each rank's work
 };
 
 // we need to use the concept of a "type traits" object to serialize the standard cpp types
 // // and then we can define specific implementations of this for types which are not standard
 // // https://stackoverflow.com/questions/42490331/generic-mpi-code
-namespace mpi { 
-		#ifdef MPI_AVAIL
-		// Forward declaration for a basic container type 
-		template <typename ...> struct containerType;
+namespace mpiContainer {
+        #ifdef MPI_AVAIL
+        // Forward declaration for a basic container type 
+        template <typename ...> struct containerType;
 
-		// Define a macro to shorthand define this container for scalar types
-		// Size for basic scalar types will always be 1
-		#define MPIDataType(cppType,mpiType) \
-		template<> struct containerType<cppType> { \
-				static inline cppType* getAddress(cppType* data) { return data; } \
-				static inline size_t getSize(cppType* data) { return 1; } \
-				static inline MPI_Datatype getMPItype() { return mpiType; } \
-		};
+        // Define a macro to shorthand define this container for scalar types
+        // Size for basic scalar types will always be 1
+        #define MPIDataType(cppType,mpiType) \
+        template<> struct containerType<cppType> { \
+                        static inline cppType* getAddress(cppType* data) { return data; } \
+                        static inline size_t getSize(cppType* data) { if(!data) return 0; return 1; } \
+                        static inline MPI_Datatype getMPItype() { return mpiType; } \
+        };
 
-		// Use definition to generate containers for scalar types
-		MPIDataType(int, MPI_INT)
-		MPIDataType(unsigned int, MPI_UNSIGNED)
-		MPIDataType(float, MPI_FLOAT)
-		MPIDataType(double, MPI_DOUBLE)
+        // Use definition to generate containers for scalar types
+        MPIDataType(int, MPI_INT)
+        MPIDataType(unsigned int, MPI_UNSIGNED)
+        MPIDataType(float, MPI_FLOAT)
+        MPIDataType(double, MPI_DOUBLE)
 
-		MPIDataType(std::complex<double>, MPI_DOUBLE)
-		MPIDataType(std::complex<float>, MPI_FLOAT)
-		#undef MPIDataType 
+        MPIDataType(std::complex<double>, MPI_DOUBLE)
+        MPIDataType(std::complex<float>, MPI_FLOAT)
+        #undef MPIDataType 
 
-		// A container for a std::vector
-		template<typename T> struct containerType<std::vector<T>>{
-				static inline T* getAddress(std::vector<T>* data) { return data->data(); }
-				static inline size_t getSize(std::vector<T>* data) { return data->size(); }
-				static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
-		};
-		// TODO: Define any other useful containers (a matrix? a standard array?)
-  
-		#endif
-}
+        // A container for a std::vector
+        template<typename T> struct containerType<std::vector<T>>{
+                        static inline T* getAddress(std::vector<T>* data) { return data->data(); }
+                        static inline size_t getSize(std::vector<T>* data) { return data->size(); }
+                        static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+        };
+        // TODO: Define any other useful containers (a matrix? a standard array?)
 
-// default constructor
-MPIcontroller::MPIcontroller(){
-	
-	#ifdef MPI_AVAIL
-	// start the MPI environment
-	MPI_Init(NULL, NULL);
-	
-	// get the number of processes
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	
-	// get rank of current process
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
-	// start a timer
-	startTime = MPI_Wtime();
-	
-	// set this so that MPI returns errors and lets us handle them, rather
-	// than using the default, MPI_ERRORS_ARE_FATAL
-	MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
-	#else
- 
-	startTime = std::chrono::steady_clock::now();
-	#endif
-}
-
-// default destructor
-MPIcontroller::~MPIcontroller(){
-	#ifdef MPI_AVAIL
-	if (!MPI::Is_finalized()) finalize();
-	#endif
-}
-
-// TODO: any other stats would like to output here? 
-void MPIcontroller::finalize() const {
-	#ifdef MPI_AVAIL
-	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
-	MPI_Finalize();
-	#else
-        std::cout << "Final time for rank 0 : " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count() << " mu.secs" << std::endl;
-	#endif
+        #endif
 }
 
 // Collective communications functions -----------------------------------
 template<typename T> void MPIcontroller::bcast(T* dataIn) const{
-	using namespace mpi;     
-	#ifdef MPI_AVAIL
-	if(size==1) return; 
-	int errCode;
+        using namespace mpiContainer;
+        #ifdef MPI_AVAIL
+        if(size==1) return;
+        int errCode;
 
-	errCode = MPI_Bcast( containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD);
-	if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-	#endif
+        errCode = MPI_Bcast( containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD);
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #endif
 }
 template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
-	using namespace mpi;     
-	#ifdef MPI_AVAIL
-	if(size==1) return; 
-	int errCode;
+        using namespace mpiContainer;
+        #ifdef MPI_AVAIL
+        if(size==1) return;
+        int errCode;
 
-	errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
-	if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-	#endif
+        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #endif
 }
 template<typename T> void MPIcontroller::reduceMax(T* dataIn, T* dataOut) const{
-	using namespace mpi; 
-	#ifdef MPI_AVAIL
-	if(size==1) return; 
-	int errCode;
+        using namespace mpiContainer;
+        #ifdef MPI_AVAIL
+        if(size==1) return;
+        int errCode;
 
-	errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
-	if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-	#endif
+        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #endif
 }
 template<typename T> void MPIcontroller::reduceMin(T* dataIn, T* dataOut) const{
-	using namespace mpi;     
-	#ifdef MPI_AVAIL
-	if(size==1) return; 
-	int errCode;
+        using namespace mpiContainer;
+        #ifdef MPI_AVAIL
+        if(size==1) return;
+        int errCode;
 
-	errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
-	if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-	#endif
+        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #endif
 }
 
-// Asynchronous support functions -----------------------------------
-void MPIcontroller::barrier(){
-	#ifdef MPI_AVAIL
-	if(size==1) return; 
-	int errCode;
-	
-	errCode = MPI_Barrier(MPI_COMM_WORLD);
-	if(errCode != MPI_SUCCESS) {  errorReport(errCode); } 
-	#endif
-}
+template<typename T> void MPIcontroller::gather(T* dataIn, T* dataOut) const {
+        using namespace mpiContainer; 
+        #ifdef MPI_AVAIL
+        int errCode; 
 
-// Utility functions  -----------------------------------
-
-// get the error string and print it to stderr before returning
-void MPIcontroller::errorReport(int errCode) const{
-	#ifdef MPI_AVAIL
-	char errString[BUFSIZ];
-	int lengthOfString;
-	
-	MPI_Error_string(errCode, errString, &lengthOfString);
-	fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
-	MPI_Abort(MPI_COMM_WORLD, errCode);
-	#else 
-	// TODO: how are we throwing non-mpi errors? 
-	#endif
-}
-
-void MPIcontroller::time() const{
-	#ifdef MPI_AVAIL
-	fprintf(stdout, "Time for rank %3d : %3f\n", rank, MPI_Wtime() - startTime );
-	#else
-	std::cout << "Time for rank 0 :" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - startTime).count() << " secs" << std::endl;
-	#endif
+        errCode = MPI_Gather(containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(),containerType<T>::getAddress(dataOut), containerType<T>::getSize(dataIn), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD); 
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #else
+        dataOut = dataIn; // I think we can just switch the pointers. 
+        #endif
 }
 
 #endif
