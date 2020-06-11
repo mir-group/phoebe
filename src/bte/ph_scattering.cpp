@@ -86,7 +86,8 @@ void PhScatteringMatrix::builder(
 		auto state = outerBandStructure.getState(ik);
 		auto energies = state.getEnergies();
 		for ( auto ib=0; ib<energies.size(); ib++ ) {
-			long is = outerBandStructure.getIndex(ik,ib);
+			long is = outerBandStructure.getIndex(WavevectorIndex(ik),
+					BandIndex(ib));
 			auto energy = energies(ib);
 			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
 				double temperature = statisticsSweep.getCalcStatistics(iCalc
@@ -104,7 +105,8 @@ void PhScatteringMatrix::builder(
 			auto state = innerBandStructure.getState(ik);
 			auto energies = state.getEnergies();
 			for ( auto ib=0; ib<energies.size(); ib++ ) {
-				long is = innerBandStructure.getIndex(ik,ib);
+				long is = innerBandStructure.getIndex(WavevectorIndex(ik),
+						BandIndex(ib));
 				auto energy = energies(ib);
 				for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
 						iCalc++ ) {
@@ -186,13 +188,15 @@ void PhScatteringMatrix::builder(
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
 				for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-					auto ind3 = outerBandStructure.getIndex(q3Plus.getIndex(),
-							ib3);
+					auto ind3 = outerBandStructure.getIndex(
+							WavevectorIndex(q3Plus.getIndex()),
+							BandIndex(ib3));
 					bose3PlusData.col(ib3) = outerBose.data.col(ind3);
 				}
 				for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-					auto ind3 = outerBandStructure.getIndex(q3Mins.getIndex(),
-							ib3);
+					auto ind3 = outerBandStructure.getIndex(
+							WavevectorIndex(q3Mins.getIndex()),
+							BandIndex(ib3));
 					bose3MinsData.col(ib3) = outerBose.data.col(ind3);
 				}
 			} else {
@@ -244,14 +248,16 @@ void PhScatteringMatrix::builder(
 
 			for ( long ib1=0; ib1<nb1; ib1++ ) {
 				en1 = state1Energies(ib1);
-				ind1 = outerBandStructure.getIndex(iq1,ib1);
+				ind1 = outerBandStructure.getIndex(WavevectorIndex(iq1),
+						BandIndex(ib1));
 				if ( en1 < energyCutoff ) {
 					continue;
 				}
 
 				for ( long ib2=0; ib2<nb2; ib2++ ) {
 					en2 = state2Energies(ib2);
-					ind2 = innerBandStructure.getIndex(iq2,ib2);
+					ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
+							BandIndex(ib2));
 					if ( en2 < energyCutoff ) {
 						continue;
 					}

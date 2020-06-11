@@ -53,7 +53,8 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & n) {
 		auto en = s.getEnergies();
 		auto vel = s.getVelocities();
 		for ( long ib=0; ib<en.size(); ib++ ) {
-			long is = bandStructure.getIndex(ik,ib);
+			long is = bandStructure.getIndex(WavevectorIndex(ik),
+					BandIndex(ib));
 
 			// skip the acoustic phonons
 			if ( s.getCoords(Points::crystalCoords).norm()==0. && ib<3 ) continue;

@@ -203,9 +203,10 @@ public:
 	 * band index. ik runs from 0 to numPoints-1, ib from 0 to numBands-1.
 	 * It's used to view the various matrices such as energy as a 1D vector,
 	 * and can be used in combination with get() methods.
+	 * @param wavevectorIndex: strong-typed index on wavevector
 	 * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
 	 */
-	long getIndex(const int & ik, const int & ib);
+	long getIndex(const WavevectorIndex & ik, const BandIndex & ib);
 };
 
 template<typename T>
@@ -456,8 +457,9 @@ T FullBandStructure<T>::getPoints() {
 }
 
 template<typename T>
-long FullBandStructure<T>::getIndex(const int & ik, const int & ib) {
-	return ik * numBands + ib;
+long FullBandStructure<T>::getIndex(const WavevectorIndex & ik,
+		const BandIndex & ib) {
+	return ik.get() * numBands + ib.get();
 }
 
 #endif

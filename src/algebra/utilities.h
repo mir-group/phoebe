@@ -52,5 +52,7 @@ using DimIndex = NamedType<double, struct DimTag>;
 using CalcIndex = NamedType<double, struct CalcTag>;
 using TempIndex = NamedType<double, struct TempTag>;
 using ChemPotIndex = NamedType<double, struct ChemPotTag>;
+using WavevectorIndex = NamedType<double, struct WavevectorTag>;
+using BandIndex = NamedType<double, struct BandTag>;
 
 #endif
