@@ -108,9 +108,6 @@ PhononH0 & PhononH0::operator = ( const PhononH0 & that ) {
 	return *this;
 }
 
-PhononH0::~PhononH0() {
-}
-
 long PhononH0::getNumBands() {
 	return numBands;
 }

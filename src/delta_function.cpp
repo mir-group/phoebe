@@ -111,6 +111,10 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 	if ( offset.norm() > 0. ) {
 		Error e("We didnt' implement tetrahedra with offsets", 1);
 	}
+	if ( grid(0) == 1 || grid(1) == 1 || grid(2) == 1 ) {
+		Error e("Tetrahedron method with k-grid dimensionality<3 not "
+				"supported");
+	}
 
 	// number of grid points (wavevectors)
 	long numPoints = fullPoints.getNumPoints();
@@ -230,6 +234,7 @@ double TetrahedronDeltaFunction::getDOS(const double & energy) {
 			weight += getWeight(energy, iq, ib);
 		}
 	}
+	weight /= fullBandStructure.getNumPoints();
 	return weight;
 }
 
@@ -239,8 +244,8 @@ double TetrahedronDeltaFunction::getSmearing(const double & energy,
 	return getWeight(energy, iq, ib);
 }
 
-double TetrahedronDeltaFunction::getWeight(const double & energy, const long & iq,
-		const long & ib) {
+double TetrahedronDeltaFunction::getWeight(const double & energy,
+		const long & iq, const long & ib) {
 
 	// initialize tetrahedron weight
 	double weight = 0.;
@@ -371,7 +376,7 @@ double TetrahedronDeltaFunction::getWeight(const double & energy, const long & i
 	if ( weight < 1.0e-12 ) weight = 0.;
 
 	// Normalize by number of tetrahedra
-	weight /= double(numTetra);
+	weight /= 6.;
 	return weight;
 }
 

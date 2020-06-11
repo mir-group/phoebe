@@ -316,7 +316,7 @@ void PhScatteringMatrix::builder(
 											ratePlus *
 											inPopulation->data(3*iCalc+i,ind2);
 									outPopulation->data(3*iCalc+i,ind1) +=
-											0.5 * ratePlus *
+											ratePlus *
 											inPopulation->data(3*iCalc+i,ind1);
 								}
 								break;
@@ -388,11 +388,11 @@ void PhScatteringMatrix::builder(
 							case (1):
 								// case of matrix-vector multiplication
 								for ( long i : {0,1,2} ) {
-									outPopulation->data(3*iCalc+i,ind1) +=
-											- (rateMins1+rateMins2) *
+									outPopulation->data(3*iCalc+i,ind1) -=
+											(rateMins1+rateMins2) *
 											inPopulation->data(3*iCalc+i,ind2);
 									outPopulation->data(3*iCalc+i,ind1) +=
-											0.5 * (rateMins1+rateMins2) *
+											0.5 * rateMins2 *
 											inPopulation->data(3*iCalc+i,ind1);
 								}
 								break;

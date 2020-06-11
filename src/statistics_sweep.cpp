@@ -253,9 +253,9 @@ struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & index) {
 	return sc;
 }
 
-struct CalcStatistics StatisticsSweep::getCalcStatistics(const long & iTemp,
-		const long & iChemPot) {
-	long index = compress2Indeces(iTemp,iChemPot,nTemp,nChemPot);
+struct CalcStatistics StatisticsSweep::getCalcStatistics(
+		const TempIndex & iTemp, const ChemPotIndex & iChemPot) {
+	long index = compress2Indeces(iTemp.get(),iChemPot.get(),nTemp,nChemPot);
 	return getCalcStatistics(index);
 }
 

@@ -6,8 +6,10 @@
 #include "bandstructure.h"
 #include "harmonic.h"
 
-/** Class for a Fourier-like interpolation of an electronic band
- *
+/** Class for a Fourier-like interpolation of an electronic band structure.
+ * Takes the information on the band structure computed on a uniform coarse
+ * grid of k-points, and interpolates it to finer grids with a plane wave based
+ * method.
  */
 class ElectronH0Fourier : public HarmonicHamiltonian {
 public:
@@ -25,20 +27,49 @@ public:
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
 			FullBandStructure<FullPoints> coarseBandStructure_, double cutoff);
 
+	/** get the electronic energies (in Ry) at a single k-point.
+	 * Energies don't have any reference value, and must be used in connection
+	 * with a chemical potential.
+	 * @param k: a point object with the wavevector. Must have the cartesian
+	 * coordinates of the wavevector.
+	 * @return tuple(energies, eigenvectors): the energies are a double vector
+	 * of size (numBands). Eigenvectors of size (numBands,numBands), but are
+	 * simply set to zero, since there is no diagonalization happening here.
+	 */
 	template<typename T>
 	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
 		diagonalize(Point<T> & point);
 
+	/** get the electron velocities (in atomic units) at a single k-point.
+	 * @param k: a Point object with the wavevector coordinates.
+	 * @return velocity(numBands,numBands,3): values of the velocity operator
+	 * for this state, in atomic units. Note that the off-diagonal matrix
+	 * elements are set to zero, because this kind of interpolation, at the
+	 * moment, doesn't have any information on the off-diagonal elements.
+	 */
 	template<typename T>
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 				Point<T> & point);
 
+    /** Method to return that the underlying is that of an electronic Fermion.
+     */
 	Statistics getStatistics();
 
+	/** This method constructs an electron bandstructure.
+	 * @param points: the object with the list/mesh of wavevectors
+	 * @param withVelocities: if true, compute the electron velocity operator.
+	 * @param withEigenvectors: can only be false, as there are no eigenvectors
+	 * with this kind of interpolation.
+	 * @return FullBandStructure: the bandstructure object containing the
+	 * complete electronic band structure.
+	 */
 	template<typename T>
 	FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
 
+	/** Get the total number of bands available at ech wavevector.
+	 *
+	 */
 	long getNumBands();
 protected:
 	Crystal & crystal;

@@ -12,7 +12,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   // bandstructure object correctly and consistently
 
   Context context;
-  context.setPhD2FileName("test/interaction3ph/QEspresso.fc");
+  context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 
   QEParser qeParser;
   auto [crystal, phononH0] = qeParser.parsePhHarmonic(context);

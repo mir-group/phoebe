@@ -1,10 +1,7 @@
 #ifndef PHONONH0_H
 #define PHONONH0_H
 
-#include <Eigen/Dense>
-#include <unsupported/Eigen/CXX11/Tensor>
-#include <Eigen/Eigenvalues>
-#include <Eigen/Core>
+#include "eigen.h"
 #include <math.h>
 #include "crystal.h"
 #include "harmonic.h"
@@ -14,9 +11,16 @@
 #include "constants.h"
 #include "points.h"
 
+/** class that computes phonon energies, velocities and eigenvectors.
+ * FIrst, it contains the force constants, i.e. the second derivative of the
+ * total energy w.r.t. ionic displacements. Additionally, it has all the
+ * infrastructure to Fourier transform this matrix, and diagonalize it to get
+ * the harmonic phonon properties.
+ */
 class PhononH0 : public HarmonicHamiltonian {
 public:
-	/** Class to store the force constants and diagonalize the dynamical matrix
+
+	/** Constructor, which stores all input data.
 	 * @param crystal: the object with the information on the crystal structure
 	 * @param dielectricMatrix: 3x3 matrix with the dielectric matrix
 	 * @param bornCharges: real tensor of size (numAtoms,3,3) with the Born
@@ -28,15 +32,18 @@ public:
 			const Eigen::MatrixXd & dielectricMatrix_,
 			const Eigen::Tensor<double, 3> & bornCharges_,
 			const Eigen::Tensor<double, 7> & forceConstants_);
-	// copy constructor
+
+	/** Copy constructor
+	 */
 	PhononH0( const PhononH0 & that );
-	// copy assignment
+
+	/** Copy assignment operator
+	 */
 	PhononH0 & operator = ( const PhononH0 & that );
 
-	~PhononH0();
-
 	/** get the phonon energies (in Ry) at a single q-point.
-	 * @param q: a q-point in cartesian coordinates.
+	 * @param q: a point object with the wavevector. Must know the cartesian
+	 * coordinates of the wavevector.
 	 * @return tuple(energies, eigenvectors): the energies are a double vector
 	 * of size (numBands=3*numAtoms). Eigenvectors are a complex tensor of
 	 * size (3,numAtoms,numBands). The eigenvector is rescaled by the
@@ -49,7 +56,7 @@ public:
 	/** get the phonon velocities (in atomic units) at a single q-point.
 	 * @param q: a Point object with the wavevector coordinates.
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
-	 * for this stata, in atomic units.
+	 * for this state, in atomic units.
 	 */
 	template<typename T>
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point<T> &point);
@@ -62,17 +69,35 @@ public:
 	 */
 	void setAcousticSumRule(const std::string & sumRule);
 
+	/** Returns the number of phonon bands for the crystal in consideration.
+	 */
 	long getNumBands();
+
+	/** Returns the underlying phonon-boson statistics.
+	 */
 	Statistics getStatistics();
 
+	/** This method constructs a phonon bandstructure.
+	 * @param points: the object with the list/mesh of wavevectors
+	 * @param withVelocities: if true, compute the phonon velocity operator.
+	 * @param withEigenvectors: if true, stores the phonon eigenvectors.
+	 * @return FullBandStructure: the bandstructure object containing the
+	 * complete phonon band structure.
+	 */
 	template<typename T>
 	FullBandStructure<T> populate(T & points, bool & withVelocities,
 			bool & withEigenvectors);
 
-	// this is almost the same as diagonalize, but takes in input the
-	// cartesian coordinates
-	// also, we return the eigenvectors aligned with the dynamical matrix,
-	// and without the mass scaling.
+	/** Equivalent to diagonalize() computes phonon eigenvals/vecs given the
+	 * wavevector, but the wavevector is passed by coordinates.
+	 * @param q: a 3d eigen vector with the cartesian coordinates of the
+	 * phonon wavevector.
+	 * @param withMassScaling: if true, rescales the eigenvectors by the
+	 * mass z -> z/sqrt(m)
+	 * @return eigenvalues: all values of phonon energies for this point.
+	 * @return eigenvectors: the phonon eigenvectors, in matrix form, for this
+	 * point.
+	 */
 	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
 				Eigen::Vector3d & q, const bool & withMassScaling=true);
 protected:
@@ -122,7 +147,7 @@ protected:
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dyndiag(
 			Eigen::Tensor<std::complex<double>,4> & dyn);
 
-	// methods for sum rule
+	// methods for sum rule on Born charges
 	void sp_zeu(Eigen::Tensor<double,3> & zeu_u,
 			Eigen::Tensor<double,3> & zeu_v, double & scal);
 };

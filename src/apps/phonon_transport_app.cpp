@@ -10,6 +10,7 @@
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
+#include "specific_heat.h"
 
 void PhononTransportApp::run(Context & context) {
 
@@ -64,6 +65,12 @@ void PhononTransportApp::run(Context & context) {
 	phViscosity.calcRTA(phononRelTimes);
 	phViscosity.print();
 
+	// compute the specific heat
+	SpecificHeat specificHeat(statisticsSweep, crystal, bandStructure);
+	specificHeat.calc();
+	specificHeat.print();
+
+	std::cout << "\n";
 	std::cout << std::string(80, '-') << "\n";
 	std::cout << "\n";
 
@@ -73,9 +80,21 @@ void PhononTransportApp::run(Context & context) {
 
 	bool doIterative = false;
 	bool doVariational = false;
+	bool doRelaxons = false;
 	for ( auto s : solverBTE ) {
 		if ( s.compare("iterative") == 0 ) doIterative = true;
 		if ( s.compare("variational") == 0 ) doVariational = true;
+		if ( s.compare("relaxons") == 0 ) doRelaxons = true;
+	}
+
+	// here we do validation of the input, to check for consistency
+	if ( doRelaxons && ! context.getScatteringMatrixInMemory() ) {
+		Error e("Relaxons require matrix kept in memory");
+	}
+	if ( context.getScatteringMatrixInMemory() &&
+			statisticsSweep.getNumCalcs() != 1 ) {
+		Error e("If scattering matrix is kept in memory, only one "
+				"temperature/chemical potential is allowed in a run");
 	}
 
 	if ( doIterative ) {
@@ -203,6 +222,47 @@ void PhononTransportApp::run(Context & context) {
 		phTCond.print();
 
 		std::cout << "Finished variational BTE solver\n";
+		std::cout << "\n";
+		std::cout << std::string(80, '-') << "\n";
+		std::cout << "\n";
+	}
+
+	if ( doRelaxons ) {
+		std::cout << "Starting relaxons BTE solver\n";
+
+		scatteringMatrix.a2Omega();
+		auto [eigenvalues, eigenvectors] = scatteringMatrix.diagonalize();
+		// EV such that Omega = V D V^-1
+		// eigenvectors(phonon index, eigenvalue index)
+
+		Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
+
+		VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
+		for ( long iCalc=0; iCalc<relaxonV.numCalcs; iCalc++ ) {
+
+		  double norm = 1./ crystal.getVolumeUnitCell(context.getDimensionality())
+			      / bandStructure.getNumPoints();
+		  
+			auto [imu,it,idim] = relaxonV.loc2Glob(iCalc);
+			int idimIndex  = idim.get();
+			auto jCalc = boseEigenvector.glob2Loc(imu,it,DimIndex(0));
+			for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
+			  Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
+				relaxonV.data(iCalc,is) = boseEigenvector.data(jCalc,is)
+				  * norm * v(idimIndex);
+			}
+			relaxonV.data.row(iCalc) = relaxonV.data.row(iCalc) * eigenvectors;
+		}
+
+		VectorBTE relaxationTimes = eigenvalues.reciprocal();
+		phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
+		phTCond.print();
+
+		phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
+				scatteringMatrix, eigenvectors);
+		phViscosity.print();
+
+		std::cout << "Finished relaxons BTE solver\n";
 		std::cout << "\n";
 		std::cout << std::string(80, '-') << "\n";
 		std::cout << "\n";

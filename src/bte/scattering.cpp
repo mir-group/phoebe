@@ -1,5 +1,6 @@
 #include "scattering.h"
 #include "constants.h"
+#include <algorithm>
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
 		StatisticsSweep & statisticsSweep_,
@@ -56,7 +57,6 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix & that) :
 	outerBandStructure(that.outerBandStructure),
 	constantRTA(that.constantRTA),
 	highMemory(that.highMemory),
-	hasCGScaling(that.hasCGScaling),
 	internalDiagonal(that.internalDiagonal),
 	theMatrix(that.theMatrix),
 	numStates(that.numStates),
@@ -75,7 +75,6 @@ ScatteringMatrix & ScatteringMatrix::operator=(const ScatteringMatrix & that) {
 		outerBandStructure = that.outerBandStructure;
 		constantRTA = that.constantRTA;
 		highMemory = that.highMemory;
-		hasCGScaling = that.hasCGScaling;
 		internalDiagonal = that.internalDiagonal;
 		theMatrix = that.theMatrix;
 		numStates = that.numStates;
@@ -120,6 +119,10 @@ VectorBTE ScatteringMatrix::diagonal() {
 	}
 }
 
+Eigen::MatrixXd ScatteringMatrix::dot(const Eigen::MatrixXd & otherMatrix) {
+	return theMatrix * otherMatrix;
+}
+
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 	if ( highMemory ) {
 		// it's just the full matrix product, minus the diagonal contribution
@@ -128,7 +131,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		// outPopulation -= internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 			auto [imu,it,idim] = inPopulation.loc2Glob(i);
-			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
 			for ( long is=0; is<numStates; is++ ) {
 				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
 						* inPopulation.data(i,is);
@@ -142,7 +145,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE & inPopulation) {
 		// outPopulation = outPopulation - internalDiagonal * inPopulation;
 		for ( long i=0; i<outPopulation.numCalcs; i++ ) {
 			auto [imu,it,idim] = inPopulation.loc2Glob(i);
-			auto j = internalDiagonal.glob2Loc(imu,it,0);
+			auto j = internalDiagonal.glob2Loc(imu,it,DimIndex(0));
 			for ( long is=0; is<numStates; is++ ) {
 				outPopulation.data(i,is) -= internalDiagonal.data(j,is)
 							* inPopulation.data(i,is);
@@ -173,17 +176,6 @@ VectorBTE ScatteringMatrix::dot(VectorBTE & inPopulation) {
 		VectorBTE outPopulation(statisticsSweep, outerBandStructure,
 				inPopulation.dimensionality);
 		builder(theMatrix,nullptr,&inPopulation,&outPopulation);
-		if ( hasCGScaling ) {
-			for ( long i=0; i<outPopulation.numCalcs; i++ ) {
-				auto [imu,it,idim] = inPopulation.loc2Glob(i);
-				auto j = internalDiagonal.glob2Loc(imu,it,0);
-				for ( long is=0; is<numStates; is++ ) {
-					outPopulation.data(i,is) += inPopulation.data(i,is)
-						- internalDiagonal.data(j,is)
-						* inPopulation.data(i,is);
-				}
-			}
-		}
 		return outPopulation;
 	}
 }
@@ -211,6 +203,10 @@ void ScatteringMatrix::a2Omega() {
 	double chemPot = calcStatistics.chemicalPotential;
 
 	for ( long ind1=0; ind1<numStates; ind1++ ) {
+
+		if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1)
+				!= excludeIndeces.end()) continue;
+
 		double en1 = outerBandStructure.getEnergy(ind1);
 		double pop1 = statistics.getPopulation(en1, temp, chemPot);
 
@@ -223,6 +219,10 @@ void ScatteringMatrix::a2Omega() {
 		internalDiagonal.data(iCalc,ind1) /= term1;
 
 		for ( long ind2=0; ind2<numStates; ind2++ ) {
+
+			if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
+					!= excludeIndeces.end()) continue;
+
 			double en2 = outerBandStructure.getEnergy(ind2);
 			double pop2 = statistics.getPopulation(en2, temp, chemPot);
 
@@ -263,6 +263,10 @@ void ScatteringMatrix::omega2A() {
 	double chemPot = calcStatistics.chemicalPotential;
 
 	for ( long ind1=0; ind1<numStates; ind1++ ) {
+
+		if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1)
+				!= excludeIndeces.end()) continue;
+
 		double en1 = outerBandStructure.getEnergy(ind1);
 		double pop1 = statistics.getPopulation(en1, temp, chemPot);
 
@@ -275,6 +279,10 @@ void ScatteringMatrix::omega2A() {
 		internalDiagonal.data(iCalc,ind1) *= term1;
 
 		for ( long ind2=0; ind2<numStates; ind2++ ) {
+
+			if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
+					!= excludeIndeces.end()) continue;
+
 			double en2 = outerBandStructure.getEnergy(ind2);
 			double pop2 = statistics.getPopulation(en2, temp, chemPot);
 
@@ -329,4 +337,20 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 			return times;
 		}
 	}
+}
+
+std::tuple<VectorBTE,Eigen::MatrixXd> ScatteringMatrix::diagonalize() {
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(theMatrix);
+	Eigen::VectorXd eigenvalues = eigensolver.eigenvalues();
+	Eigen::MatrixXd eigenvectors = eigensolver.eigenvectors();
+	// place eigenvalues in an VectorBTE object
+	VectorBTE eigvals(statisticsSweep,outerBandStructure,1);
+	eigvals.data.row(0) = eigenvalues;
+
+	// correct normalization of eigenvectors
+	double volume = outerBandStructure.getPoints().getCrystal(
+			).getVolumeUnitCell(context.getDimensionality());
+	eigenvectors *= sqrt(numPoints * volume);
+
+	return {eigvals, eigenvectors};
 }

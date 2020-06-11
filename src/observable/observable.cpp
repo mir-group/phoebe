@@ -39,12 +39,13 @@ Observable & Observable::operator = (const Observable & that) {
     return *this;
 }
 
-long Observable::glob2Loc(const long & imu, const long & it) {
-	return compress2Indeces(imu, it, numChemPots, numTemps);
+long Observable::glob2Loc(const ChemPotIndex & imu, const TempIndex & it) {
+	return compress2Indeces(imu.get(), it.get(), numChemPots, numTemps);
 }
 
-std::tuple<long,long> Observable::loc2Glob(const long & i) {
-	return decompress2Indeces(i, numChemPots, numTemps);
+std::tuple<ChemPotIndex,TempIndex> Observable::loc2Glob(const long & i) {
+	auto [imu, it] = decompress2Indeces(i, numChemPots, numTemps);
+	return {ChemPotIndex(imu), TempIndex(it)};
 }
 
 Observable Observable::operator - (const Observable & that) {

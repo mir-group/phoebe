@@ -105,16 +105,20 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 	setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
 	volumeUnitCell = calcVolume(directUnitCell);
 
+	if ( volumeUnitCell <= 0. ) {
+		Error e("Unexpected non positive volume");
+	}
+
 	dimensionality = dimensionality_;
 
 	if ( atomicSpecies_.size() != atomicPositions_.rows() ) {
-		Error e("atomic species and positions are not aligned", 1);
+		Error e("atomic species and positions are not aligned");
 	}
 	if ( atomicPositions_.cols() != 3 ) {
-		Error e("atomic positions need three coordinates", 1);
+		Error e("atomic positions need three coordinates");
 	}
 	if ( (int)speciesMasses_.size() != (int)speciesNames_.size() ) {
-		Error e("species masses and names are not aligned", 1);
+		Error e("species masses and names are not aligned");
 	}
 
 	atomicSpecies = atomicSpecies_;
@@ -218,10 +222,6 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		}
 	}
 	symmetryRotations = symmetryRotations_;
-}
-
-// default empty constructor
-Crystal::Crystal() {
 }
 
 // copy constructor

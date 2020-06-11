@@ -17,9 +17,6 @@ Statistics::Statistics(int particle_) {
 Statistics::Statistics(const Statistics & obj) {
 	statistics = obj.statistics;
 	particle = obj.particle;
-	temperatures = obj.temperatures;
-	chemicalPotentials = obj.chemicalPotentials;
-	dopings = obj.dopings;
 }
 
 // copy assignment operator
@@ -27,14 +24,8 @@ Statistics & Statistics::operator=(const Statistics & obj) {
 	if ( this != &obj ) {
 		statistics = obj.statistics;
 		particle = obj.particle;
-		temperatures = obj.temperatures;
-		chemicalPotentials = obj.chemicalPotentials;
-		dopings = obj.dopings;
 	}
 	return *this;
-}
-
-Statistics::~Statistics() {
 }
 
 bool Statistics::isFermi() {
@@ -74,6 +65,9 @@ double Statistics::getPopulation(const double & energy,
 	double population = 0.;
 	double y = ( energy - chemicalPotential ) / temperature;
 
+	//note: since the value of the exponential might be noisy for small/large
+	// numbers, we make sure that the population is >=0 (or <=1 for fermions)
+
 	if ( statistics == bose ) {
 		population = 1. / ( exp(y) - 1 );
 		if ( population < 0. ) {
@@ -112,34 +106,10 @@ double Statistics::getPopPopPm1(const double & energy,
 	double x = energy - chemicalPotential;
 	double arg = x / 2. / temperature;
 	if ( statistics == bose ) {
-		x = sinh(arg);
+		x = sinh(arg); // numerically more stable than n(n+1)
 	} else {
-		x = cosh(arg);
+		x = cosh(arg); // numerically more stable than f(1-f)
 	}
 	x = 0.25 / x / x;
 	return x;
-}
-
-Eigen::VectorXd Statistics::getDndt(const Eigen::VectorXd & energies,
-		const double & temperature, const double & chemicalPotential) {
-	double x;
-	long numBands = energies.size();
-	Eigen::VectorXd dndt(numBands);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		x = getDndt(energies(ib), temperature, chemicalPotential);
-		dndt(ib) = x;
-	}
-	return dndt;
-}
-
-Eigen::VectorXd Statistics::getDnde(const Eigen::VectorXd & energies,
-		const double & temperature, const double & chemicalPotential) {
-	double x;
-	long numBands = energies.size();
-	Eigen::VectorXd dnde(numBands);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		x = getDnde(energies(ib), temperature, chemicalPotential);
-		dnde(ib) = x;
-	}
-	return dnde;
 }

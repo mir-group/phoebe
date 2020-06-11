@@ -13,9 +13,9 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 
 	numBands = coarseBandStructure.getNumBands();
 	cutoff = cutoff_;
-	if ( coarseBandStructure.hasIrreduciblePoints() ) {
-		Error e("input electronic band structure must be specified on grid",1);
-	}
+//	if ( coarseBandStructure.hasIrreduciblePoints() ) {
+//		Error e("input electronic band structure must be specified on grid",1);
+//	}
 	numDataPoints = coarseBandStructure.getNumPoints();
 	refWavevector = coarseBandStructure.getPoint(0).getCoords(
 			Points::cartesianCoords);

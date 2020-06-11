@@ -62,7 +62,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & n) {
 				auto [imu,it] = loc2Glob(iCalc);
 
 				for ( long i=0; i<dimensionality; i++ ) {
-					long icPop = n.glob2Loc(imu,it,i);
+					long icPop = n.glob2Loc(imu,it,DimIndex(i));
 					for ( long j=0; j<dimensionality; j++ ) {
 							tensordxd(iCalc,i,j) +=
 									n.data(icPop,is) * vel(ib,ib,j).real()
@@ -90,12 +90,60 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 		auto [imu,it] = loc2Glob(iCalc);
 
 		for ( long i=0; i<dimensionality; i++ ) {
-			long icPop1 = f.glob2Loc(imu,it,i);
+			long icPop1 = f.glob2Loc(imu,it,DimIndex(i));
 			for ( long j=0; j<dimensionality; j++ ) {
-				long icPop2 = f.glob2Loc(imu,it,j);
+				long icPop2 = f.glob2Loc(imu,it,DimIndex(j));
 				for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
 					tensordxd(iCalc,i,j) -=
 							f.data(icPop1,is) * af.data(icPop2,is) * norm;
+				}
+			}
+		}
+	}
+}
+
+void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
+		VectorBTE & relaxonV, VectorBTE & relaxationTimes) {
+
+	// we decide to skip relaxon states
+	// 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
+	// 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
+	//    because we set some matrix rows/cols to zero
+	bool hasAcousticGamma = false;
+	auto s = bandStructure.getState(0);
+	auto ens = s.getEnergies();
+	if ( ens.size() == crystal.getNumAtoms()*3) hasAcousticGamma = true;
+	long firstState;
+	if ( hasAcousticGamma ) {
+		firstState = 4;
+	} else {
+		firstState = 1;
+	}
+
+	tensordxd.setZero();
+
+	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
+		auto [imu,it] = loc2Glob(iCalc);
+		double c = specificHeat.get(imu,it);
+		// is = 3 is a temporary patch, I should discard the first three
+		// rows/columns altogether + I skip the bose eigenvector
+		for ( long is=firstState; is<relaxationTimes.numStates; is++ ) {
+
+			if ( relaxationTimes.data(iCalc,is) <= 0. ) continue;
+//			std::cout << iCalc << " " << is << " " << c << " "
+//					<< relaxonV.data.col(is).transpose() << " "
+//					<< relaxonV.data.col(is).transpose() << " "
+//					<< relaxationTimes.data(iCalc,is) << "\n";
+
+			for ( long i=0; i<dimensionality; i++ ) {
+				for ( long j=0; j<dimensionality; j++ ) {
+					auto i1 = relaxonV.glob2Loc(imu,it,DimIndex(i));
+					auto j1 = relaxonV.glob2Loc(imu,it,DimIndex(j));
+
+					tensordxd(iCalc,i,j) += c
+							* relaxonV.data(i1,is)
+							* relaxonV.data(j1,is)
+							* relaxationTimes.data(iCalc,is);
 				}
 			}
 		}
