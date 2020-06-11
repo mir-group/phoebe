@@ -71,10 +71,6 @@ ElectronH0Wannier & ElectronH0Wannier::operator = (
 	return *this;
 }
 
-// default constructor
-ElectronH0Wannier::ElectronH0Wannier() : statistics(Statistics::electron) {
-}
-
 long ElectronH0Wannier::getNumBands() {
 	return numBands;
 }
@@ -100,8 +96,6 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		}
 	}
 
-//	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(numBands);
-//	eigensolver.compute(h0K);
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(h0K);
 	Eigen::VectorXd energies = eigensolver.eigenvalues();
 	Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();

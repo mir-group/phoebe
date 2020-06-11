@@ -2,25 +2,21 @@
 #include <cmath>
 #include "constants.h"
 
-Observable::Observable(Context & context_, Crystal & crystal_) :
-		context(context_), crystal(crystal_) {
-	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
-	numChemPots = chemicalPotentials.size();
-	numTemps = temperatures.size();
-	numCalcs = numTemps * numChemPots;
-	dimensionality = context.getDimensionality();
-	//note: each subclass should define type
+Observable::Observable(StatisticsSweep & statisticsSweep_, Crystal & crystal_):
+	statisticsSweep(statisticsSweep_), crystal(crystal_) {
+	numCalcs = statisticsSweep.getNumCalcs();
+	numChemPots = statisticsSweep.getNumChemicalPotentials();
+	numTemps = statisticsSweep.getNumTemperatures();
+	dimensionality = crystal.getDimensionality();
 }
 
 // copy constructor
 Observable::Observable(const Observable & that) :
-		context(that.context), crystal(that.crystal) {
+		statisticsSweep(that.statisticsSweep), crystal(that.crystal) {
+	dimensionality = that.dimensionality;
 	numChemPots = that.numChemPots;
 	numTemps = that.numTemps;
-	dimensionality = that.dimensionality;
 	numCalcs = that.numCalcs;
-	type = that.type;
 	scalar = that.scalar;
 	vectord = that.vectord;
 	tensordxd = that.tensordxd;
@@ -30,12 +26,11 @@ Observable::Observable(const Observable & that) :
 // copy assigmnent
 Observable & Observable::operator = (const Observable & that) {
     if ( this != &that) {
-    	context = that.context;
+    	statisticsSweep = that.statisticsSweep;
     	crystal = that.crystal;
-		numChemPots = that.numChemPots;
-		numTemps = that.numTemps;
+    	numChemPots = that.numChemPots;
+    	numTemps = that.numTemps;
 		numCalcs = that.numCalcs;
-		type = that.type;
 		scalar = that.scalar;
 		vectord = that.vectord;
 		tensordxd = that.tensordxd;
@@ -44,27 +39,34 @@ Observable & Observable::operator = (const Observable & that) {
     return *this;
 }
 
-long Observable::glob2Loc(const long & imu, const long & it) {
-	return compress2Indeces(imu, it, numChemPots, numTemps);
+long Observable::glob2Loc(const ChemPotIndex & imu, const TempIndex & it) {
+	return compress2Indeces(imu.get(), it.get(), numChemPots, numTemps);
 }
 
-std::tuple<long,long> Observable::loc2Glob(const long & i) {
-	return decompress2Indeces(i, numChemPots, numTemps);
+std::tuple<ChemPotIndex,TempIndex> Observable::loc2Glob(const long & i) {
+	auto [imu, it] = decompress2Indeces(i, numChemPots, numTemps);
+	return {ChemPotIndex(imu), TempIndex(it)};
 }
 
 Observable Observable::operator - (const Observable & that) {
-	Observable newObservable(context, crystal);
-	if ( type == isScalar ) {
+	Observable newObservable(statisticsSweep, crystal);
+	baseOperatorMinus(newObservable, that);
+	return newObservable;
+}
+
+void Observable::baseOperatorMinus(Observable & newObservable,
+		const Observable & that) {
+	if ( whichType() == isScalar ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			newObservable.scalar(is) = scalar(is) - that.scalar(is);
 		}
-	} else if ( type == isVector ) {
+	} else if ( whichType() == isVector ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				newObservable.vectord(is,i) = vectord(is,i) - that.vectord(is,i);
 			}
 		}
-	} else if ( type == is2Tensor ) {
+	} else if ( whichType() == is2Tensor ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				for ( int j=0; j<dimensionality; j++ ) {
@@ -73,7 +75,7 @@ Observable Observable::operator - (const Observable & that) {
 				}
 		 	}
 	 	}
-	} else if ( type == is4Tensor ) {
+	} else if ( whichType() == is4Tensor ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				for ( int j=0; j<dimensionality; j++ ) {
@@ -88,24 +90,27 @@ Observable Observable::operator - (const Observable & that) {
 		 	}
 	 	}
 	}
-	return newObservable;
+}
+
+int Observable::whichType() {
+	return isScalar;
 }
 
 Eigen::VectorXd Observable::getNorm() {
 	Eigen::VectorXd norm(numCalcs);
 	norm.setZero();
-	if ( type == isScalar ) {
+	if ( whichType() == isScalar ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			norm(is) = abs(scalar(is));
 		}
-	} else if ( type == isVector ) {
+	} else if ( whichType() == isVector ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				norm(is) += vectord(is,i) * vectord(is,i);
 			}
 			norm(is) = sqrt(norm(is)) / double(dimensionality);
 		}
-	} else if ( type == is2Tensor ) {
+	} else if ( whichType() == is2Tensor ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				for ( int j=0; j<dimensionality; j++ ) {
@@ -114,7 +119,7 @@ Eigen::VectorXd Observable::getNorm() {
 		 	}
 			norm(is) = sqrt(norm(is)) / double(dimensionality*dimensionality);
 	 	}
-	} else if ( type == is4Tensor ) {
+	} else if ( whichType() == is4Tensor ) {
 		for ( long is=0; is<numCalcs; is++ ) {
 			for ( int i=0; i<dimensionality; i++ ) {
 				for ( int j=0; j<dimensionality; j++ ) {
@@ -130,91 +135,4 @@ Eigen::VectorXd Observable::getNorm() {
 	 	}
 	}
 	return norm;
-}
-
-PhononThermalConductivity::PhononThermalConductivity(Context & context_,
-		Crystal & crystal_) : Observable(context_, crystal_) {
-};
-
-void PhononThermalConductivity::calcFromPopulation(VectorBTE & f,
-		VectorBTE & b) {
-	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd lambda(numTemps);
-	lambda << 1. / f.bandStructure.getNumPoints()
-			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
-	long numStates = f.numStates;
-
-	std::cout << 1. / f.bandStructure.getNumPoints() << " " <<
-			crystal.getVolumeUnitCell(dimensionality) << " " <<
-			temperatures << "\n";
-
-	tensordxd = Eigen::Tensor<double,3>(numCalcs,dimensionality,dimensionality);
-	tensordxd.setZero();
-
-	for ( long it=0; it<numTemps; it++ ) {
-		for ( long imu=0; imu<numChemPots; imu++ ) {
-			long icLoc = glob2Loc(imu, it);
-			for ( long i=0; i<dimensionality; i++ ) {
-				for ( long j=0; j<dimensionality; j++ ) {
-					long icPop1 = f.glob2Loc(imu,it,i);
-					long icPop2 = b.glob2Loc(imu,it,j);
-					//TODO: I'm skipping the acoustic phonons
-					// we should clean this offset
-					for ( long istate=3; istate<numStates; istate++ ) {
-						tensordxd(icLoc,i,j) += f.data(icPop1,istate)
-								* b.data(icPop2,istate);
-					}
-					tensordxd(icLoc,i,j) /= lambda(it);
-				}
-			}
-		}
-	}
-}
-
-void PhononThermalConductivity::calcVariational(VectorBTE & af,
-		VectorBTE & f, VectorBTE & b) {
-	Eigen::VectorXd temperatures = context.getTemperatures();
-	Eigen::VectorXd lambda = 1. / f.bandStructure.getNumPoints()
-			/ crystal.getVolumeUnitCell(dimensionality) / temperatures.array();
-	long numStates = f.numStates;
-
-	for ( long it=0; it<numTemps; it++ ) {
-		for ( long imu=0; imu<numChemPots; imu++ ) {
-			long icLoc = glob2Loc(imu, it);
-			for ( long i=0; i<dimensionality; i++ ) {
-				for ( long j=0; j<dimensionality; j++ ) {
-					long icPop1 = f.glob2Loc(imu,it,i);
-					long icPop2 = b.glob2Loc(imu,it,j);
-					for ( long istate=0; istate<numStates; istate++ ) {
-						tensordxd(icLoc,i,j) += 0.5 * f.data(icPop1,istate)
-								* af.data(icPop2,istate);
-						tensordxd(icLoc,i,j) -= f.data(icPop1,istate)
-								* b.data(icPop2,istate);
-					}
-					tensordxd(icLoc,i,j) /= lambda(it);
-				}
-			}
-		}
-	}
-}
-
-void PhononThermalConductivity::print() {
-	auto temperatures = context.getTemperatures();
-	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
-		auto [imu,it] = loc2Glob(iCalc);
-
-		std::cout << "\n";
-		std::cout << "Thermal Conductivity (W/m/K)\n";
-		std::cout.precision(5);
-		std::cout << "Temperature: " << temperatures(it)*temperatureAuToSi
-				<< " (K)\n";
-		std::cout << std::scientific;
-		for ( long i=0; i<dimensionality; i++ ) {
-			for ( long j=0; j<dimensionality; j++ ) {
-				std::cout << tensordxd(iCalc,i,j)*thConductivityAuToSi << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
 }

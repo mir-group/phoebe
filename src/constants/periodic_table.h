@@ -2,6 +2,8 @@
 
 // define a container for info on atoms
 
+/** Element is a struct representing some basic atomic info needed for Phoebe
+ */
 struct Element {
   std::string symbol;
   long atomicNumber;
@@ -9,8 +11,10 @@ struct Element {
   double massVariance;
 };
 
-// Define the periodic table. Mass variance at natural abundances
-
+/** PeriodicTable is a class containing information on the periodic table.
+ * In particular, it has a list of Element structs for all atomic elements.
+ * Additionally. some methods to retrieve info from the table.
+ */
 class PeriodicTable {
 public:
 	struct Element elements[109] = {
@@ -124,12 +128,41 @@ public:
 			{"Hs", 108, 269.0, 0.0},
 			{"Mt", 109, 276.0, 0.0}
 	};
+
+	/** setMass can be used to modify the atomic mass of an atom.
+	 * Otherwise, the "natural" mass is used.
+	 * @param speciesName: string with atomic name
+	 * @oaram x: value of the mass, in a.m.u.
+	 */
 	void setMass(const std::string & speciesName, double & x);
+
+	/** setMassVariance is used to modify the atomic mass variance of an atom.
+	 * Otherwise, natural abundances are used.
+	 * @param speciesName: string with atomic name
+	 * @oaram x: value of the mass variance, adimensional.
+	 */
 	void setMassVariance(const std::string & speciesName, double & x);
+
+	/** getMass is used to get the mass of an atomic species
+	 * @param speciesName: the name of the element to be inspected
+	 * @return mass: the atomic mass in a.m.u.
+	 */
 	double getMass(const std::string & speciesName);
+
+	/** getMassVariance is used to get the mass variance of an atomic species
+	 * @param speciesName: the name of the element to be inspected
+	 * @return mass: the atomic mass in a.m.u.
+	 */
 	double getMassVariance(const std::string & speciesName);
+
+	/** Given a name, finds the atomic number.
+	 * @param speciesName: the name of the element to be inspected
+	 * @return atomicNumber: returns an integer with the atomic number
+	 */
 	long getIonicCharge(const std::string & speciesName);
 private:
+	/** Given the element name, finds the index in the array of elements.
+	 */
 	long findElementByStr(const std::string & x);
 };
 

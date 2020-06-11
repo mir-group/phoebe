@@ -107,10 +107,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 			Error e("wrong celldm(2)", ibrav);
 		}
 		double cbya  = celldm(2);
-		a1(1) = celldm(0);
-		a2(1) =-celldm(0) / 2.;
-		a2(2) = celldm(0) * sr3 / 2.;
-		a3(3) = celldm(0) * cbya;
+		a1(0) = celldm(0);
+		a2(0) =-celldm(0) / 2.;
+		a2(1) = celldm(0) * sr3 / 2.;
+		a3(2) = celldm(0) * cbya;
 
 	} else if (abs(ibrav) == 5) { // trigonal lattice
 		if ( celldm(3) <= -0.5 || celldm(3) >= 1. ) {
@@ -533,6 +533,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 
 	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
+	dynamicalMatrix.setAcousticSumRule(context.getSumRuleD2());
 
 	return {crystal, dynamicalMatrix};
 };

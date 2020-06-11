@@ -72,11 +72,25 @@ AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 		const Eigen::Vector3d & velocity) {
-	double x = (qTensor * velocity).squaredNorm();
-	double smearing = prefactor * sqrt( x*x / 12.);
-	if ( smearing < smearingCutoff ) return 0.;
-	x = energy / smearing;
-	return exp( - x*x ) / sqrtPi / smearing;
+
+	if ( velocity.norm() == 0. && energy == 0. ) {
+		// in this case, velocities are parallel, there shouldn't be
+		// scattering unless energy is strictly conserved
+		return 1.;
+	}
+
+	double sigma = 0.;
+    for ( int i : {0,1,2} ) {
+        sigma += pow( qTensor.row(i).dot(velocity) , 2);
+    }
+    sigma = prefactor * sqrt(sigma / 6.);
+
+    if ( sigma == 0. ) return 0.;
+
+	if ( abs(energy) > 2. * sigma ) return 0.;
+	double x = energy / sigma;
+	// note: the factor ERF_2 corrects for the cutoff at 2*sigma
+	return exp( - x*x ) / sqrtPi / sigma / erf2;
 }
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
@@ -96,6 +110,10 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 	auto [grid, offset] = fullPoints.getMesh();
 	if ( offset.norm() > 0. ) {
 		Error e("We didnt' implement tetrahedra with offsets", 1);
+	}
+	if ( grid(0) == 1 || grid(1) == 1 || grid(2) == 1 ) {
+		Error e("Tetrahedron method with k-grid dimensionality<3 not "
+				"supported");
 	}
 
 	// number of grid points (wavevectors)
@@ -216,6 +234,7 @@ double TetrahedronDeltaFunction::getDOS(const double & energy) {
 			weight += getWeight(energy, iq, ib);
 		}
 	}
+	weight /= fullBandStructure.getNumPoints();
 	return weight;
 }
 
@@ -225,8 +244,8 @@ double TetrahedronDeltaFunction::getSmearing(const double & energy,
 	return getWeight(energy, iq, ib);
 }
 
-double TetrahedronDeltaFunction::getWeight(const double & energy, const long & iq,
-		const long & ib) {
+double TetrahedronDeltaFunction::getWeight(const double & energy,
+		const long & iq, const long & ib) {
 
 	// initialize tetrahedron weight
 	double weight = 0.;
@@ -357,7 +376,7 @@ double TetrahedronDeltaFunction::getWeight(const double & energy, const long & i
 	if ( weight < 1.0e-12 ) weight = 0.;
 
 	// Normalize by number of tetrahedra
-	weight /= double(numTetra);
+	weight /= 6.;
 	return weight;
 }
 

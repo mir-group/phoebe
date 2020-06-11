@@ -22,6 +22,8 @@ private:
 	double convergenceThresholdBTE = 1e-5;
 	long maxIterationsBTE = 50;
 
+	bool scatteringMatrixInMemory = true;
+
 	std::string windowType = "nothing";
 	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
 	double windowPopulationLimit;
@@ -260,6 +262,10 @@ public:
 
 	void setConstantRelaxationTime(const double & x);
 	double getConstantRelaxationTime();
+
+	void setScatteringMatrixInMemory(const bool & x);
+	bool getScatteringMatrixInMemory();
+
 
 	/** Reads the user-provided input file and saves the input parameters
 	 * @param fileName: path to the input file

@@ -46,6 +46,12 @@ void PhScatteringMatrix::builder(
 		Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 		VectorBTE * inPopulation, VectorBTE * outPopulation) {
 
+	// notes: + process is (1+2) -> 3
+	//        - processes are (1+3)->2 and (3+2)->1
+
+	const double energyCutoff = 0.001 / ryToCmm1; // discard states with small
+	// energies (smaller than 0.001 cm^-1
+
 	int switchCase = 0;
 	if ( matrix.rows() != 0 && linewidth != nullptr &&
 		inPopulation == nullptr && outPopulation == nullptr  ) {
@@ -75,12 +81,13 @@ void PhScatteringMatrix::builder(
 	long innerNumPoints = innerBandStructure.getNumPoints();
 
 	// precompute Bose populations
-	VectorBTE outerBose(context, outerBandStructure, 1);
+	VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
 	for ( auto ik=0; ik<outerNumPoints; ik++ ) {
 		auto state = outerBandStructure.getState(ik);
 		auto energies = state.getEnergies();
 		for ( auto ib=0; ib<energies.size(); ib++ ) {
-			long is = outerBandStructure.getIndex(ik,ib);
+			long is = outerBandStructure.getIndex(WavevectorIndex(ik),
+					BandIndex(ib));
 			auto energy = energies(ib);
 			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
 				double temperature = statisticsSweep.getCalcStatistics(iCalc
@@ -90,7 +97,7 @@ void PhScatteringMatrix::builder(
 			}
 		}
 	}
-	VectorBTE innerBose(context, outerBandStructure, 1);
+	VectorBTE innerBose(statisticsSweep, outerBandStructure, 1);
 	if ( &innerBandStructure == &outerBandStructure ) {
 		innerBose = outerBose;
 	} else {
@@ -98,7 +105,8 @@ void PhScatteringMatrix::builder(
 			auto state = innerBandStructure.getState(ik);
 			auto energies = state.getEnergies();
 			for ( auto ib=0; ib<energies.size(); ib++ ) {
-				long is = innerBandStructure.getIndex(ik,ib);
+				long is = innerBandStructure.getIndex(WavevectorIndex(ik),
+						BandIndex(ib));
 				auto energy = energies(ib);
 				for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
 						iCalc++ ) {
@@ -114,11 +122,14 @@ void PhScatteringMatrix::builder(
 	// note: these variables are only needed in the loop
 	// but since it's an expensive loop, we define them here once and for all
 	long nb3Plus, nb3Mins, ind1, ind2;
-	double ratePlus1, ratePlus2, rateMins, deltaPlus1, deltaPlus2, deltaMins;
+	double ratePlus, rateMins1, rateMins2, deltaPlus, deltaMins1, deltaMins2;
 	double en1, en2, en3Plus, en3Mins, bose1, bose2, bose3Plus, bose3Mins;
 	Eigen::Tensor<double,3> couplingPlus, couplingMins;
 	Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
-	Eigen::Vector3d v1, v2;
+	Eigen::Vector3d v1, v2, v3, v;
+	Eigen::MatrixXd v2s, v3ps, v3ms;
+
+
 	Eigen::MatrixXd bose3PlusData, bose3MinsData;
 	Eigen::VectorXd eigvals3Plus, eigvals3Mins;
 	Eigen::MatrixXcd eigvecs3Plus, eigvecs3Mins;
@@ -130,25 +141,26 @@ void PhScatteringMatrix::builder(
 //	std::vector<double> q3Plusv(3), q3Minsv(3);
 
 	LoopPrint loopPrint("computing scattering matrix", "q-points",
-			outerNumPoints);
+			outerNumPoints*innerNumPoints);
 
-	for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
-		loopPrint.update();
+	for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
+		auto q2 = innerBandStructure.getPoint(iq2);
+		auto states2 = innerBandStructure.getState(q2);
+		auto state2Energies = states2.getEnergies();
+		auto nb2 = state2Energies.size();
 
-		// note: for computing linewidths on a path, we must distinguish
-		// that q1 and q2 are on different meshes, and that q3+/- may not fall
-		// into known meshes and therefore needs to be computed
+		for( long iq1=0; iq1<outerNumPoints; iq1++ ) {
+			loopPrint.update();
 
-		auto states1 = outerBandStructure.getState(iq1);
-		auto q1 = states1.getPoint();
-		auto state1Energies = states1.getEnergies();
-		auto nb1 = state1Energies.size();
+			// note: for computing linewidths on a path, we must distinguish
+			// that q1 and q2 are on different meshes, and that q3+/- may not fall
+			// into known meshes and therefore needs to be computed
 
-		for( long iq2=0; iq2<innerNumPoints; iq2++ ) {
-			auto q2 = innerBandStructure.getPoint(iq2);
-			auto states2 = innerBandStructure.getState(q2);
-			auto state2Energies = states2.getEnergies();
-			auto nb2 = state2Energies.size();
+			auto states1 = outerBandStructure.getState(iq1);
+			auto q1 = states1.getPoint();
+			auto state1Energies = states1.getEnergies();
+			auto nb1 = state1Energies.size();
+
 
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
@@ -158,12 +170,15 @@ void PhScatteringMatrix::builder(
 				auto states3Plus = innerBandStructure.getState(q3Plus);
 				auto states3Mins = innerBandStructure.getState(q3Mins);
 
+				v2s = states2.getGroupVelocities();
+				v3ps = states3Plus.getGroupVelocities();
+				v3ms = states3Mins.getGroupVelocities();
+
 				state3PlusEnergies = states3Plus.getEnergies();
 				state3MinsEnergies = states3Mins.getEnergies();
 
 				nb3Plus = state3PlusEnergies.size();
 				nb3Mins = state3MinsEnergies.size();
-
 				auto [cp,cm] = coupling3Ph->getCouplingSquared(
 						states1, states2, states3Plus, states3Mins);
 				couplingPlus = cp;
@@ -173,13 +188,15 @@ void PhScatteringMatrix::builder(
 				bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
 				for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-					auto ind3 = outerBandStructure.getIndex(q3Plus.getIndex(),
-							ib3);
+					auto ind3 = outerBandStructure.getIndex(
+							WavevectorIndex(q3Plus.getIndex()),
+							BandIndex(ib3));
 					bose3PlusData.col(ib3) = outerBose.data.col(ind3);
 				}
 				for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-					auto ind3 = outerBandStructure.getIndex(q3Mins.getIndex(),
-							ib3);
+					auto ind3 = outerBandStructure.getIndex(
+							WavevectorIndex(q3Mins.getIndex()),
+							BandIndex(ib3));
 					bose3MinsData.col(ib3) = outerBose.data.col(ind3);
 				}
 			} else {
@@ -231,38 +248,48 @@ void PhScatteringMatrix::builder(
 
 			for ( long ib1=0; ib1<nb1; ib1++ ) {
 				en1 = state1Energies(ib1);
-				ind1 = outerBandStructure.getIndex(iq1,ib1);
+				ind1 = outerBandStructure.getIndex(WavevectorIndex(iq1),
+						BandIndex(ib1));
+				if ( en1 < energyCutoff ) {
+					continue;
+				}
 
 				for ( long ib2=0; ib2<nb2; ib2++ ) {
 					en2 = state2Energies(ib2);
-					ind2 = innerBandStructure.getIndex(iq2,ib2);
+					ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
+							BandIndex(ib2));
+					if ( en2 < energyCutoff ) {
+						continue;
+					}
 
 					// split into two cases since there may be different bands
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 						en3Plus = state3PlusEnergies(ib3);
+						if ( en3Plus < energyCutoff ) {
+							continue;
+						}
+
+						double enProd = en1 * en2 * en3Plus;
 
 						switch ( smearing->getType() ) {
 						case ( DeltaFunction::gaussian ):
-							deltaPlus1 = smearing->getSmearing(
-									en1 + en3Plus - en2);
-							deltaPlus2 = smearing->getSmearing(
-									en1 - en2 - en3Plus);
+							deltaPlus = smearing->getSmearing(
+									en1 + en2 - en3Plus);
 							break;
 						case ( DeltaFunction::adaptiveGaussian ):
-							v1 = states1.getVelocity(ib1);
-							v2 = states2.getVelocity(ib2);
-							deltaPlus1 = smearing->getSmearing(
-									en1 + en3Plus - en2, v1-v2);
-							deltaPlus2 = smearing->getSmearing(
-									en1 - en2 - en3Plus, v1-v2);
+							v = v2s.row(ib2) - v3ps.row(ib3);
+							deltaPlus = smearing->getSmearing(
+									en1 + en2 - en3Plus, v);
+//if ( deltaPlus > 1.0e-16 ) std::cout << deltaPlus << "\n";
 							break;
 						default:
-							deltaPlus1 = smearing->getSmearing(
+							deltaPlus = smearing->getSmearing(
 									en3Plus-en1, iq2, ib2);
-							deltaPlus2 = smearing->getSmearing(
-									en3Plus+en1, iq2, ib2);
 							break;
 						}
+
+
+					    if ( deltaPlus < 0 ) continue;
 
 						// loop on temperature
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
@@ -272,15 +299,10 @@ void PhScatteringMatrix::builder(
 							bose3Plus = bose3PlusData(iCalc,ib3);
 
 							//Calculate transition probability W+
-							ratePlus1 = pi * 0.25
-									* bose3Plus * bose1 * ( bose2 + 1. )
+							ratePlus = pi * 0.25
+									* bose1 * bose2 * ( bose3Plus + 1. )
 									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus1 / innerNumPoints;
-
-							ratePlus2 = pi * 0.25
-									* bose2 * bose3Plus * ( bose1 + 1. )
-									* couplingPlus(ib1,ib2,ib3)
-									* deltaPlus2 / innerNumPoints;
+									* deltaPlus / innerNumPoints / enProd;
 
 							// note: to increase performance, we are in fact
 							// using
@@ -288,26 +310,26 @@ void PhScatteringMatrix::builder(
 							switch ( switchCase ) {
 							case (0):
 								// case of matrix construction
-								matrix(ind1,ind2) -= ratePlus1 + ratePlus2;
-								linewidth->data(iCalc,ind1) +=
-										0.5 * (ratePlus1 + ratePlus2);
+								// we build the scattering matrix S
+								matrix(ind1,ind2) += ratePlus;
+								linewidth->data(iCalc,ind1) += ratePlus;
 								break;
 							case (1):
 								// case of matrix-vector multiplication
-
+								// we build the scattering matrix A = S*n(n+1)
 								for ( long i : {0,1,2} ) {
-									outPopulation->data(3*iCalc+i,ind1) -=
-											0.5 * (ratePlus1 + ratePlus2) *
+									outPopulation->data(3*iCalc+i,ind1) +=
+											ratePlus *
 											inPopulation->data(3*iCalc+i,ind2);
 									outPopulation->data(3*iCalc+i,ind1) +=
-											0.5 * (ratePlus1 + ratePlus2) *
+											ratePlus *
 											inPopulation->data(3*iCalc+i,ind1);
 								}
 								break;
 							case (2):
 								// case of linewidth construction
-								linewidth->data(iCalc,ind1) +=
-										0.5 * (ratePlus1 + ratePlus2);
+								// there's still a missing norm done later
+								linewidth->data(iCalc,ind1) += ratePlus;
 								break;
 							}
 						}
@@ -315,23 +337,36 @@ void PhScatteringMatrix::builder(
 
 					for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
 						en3Mins = state3MinsEnergies(ib3);
+						if ( en3Mins < energyCutoff ) {
+							continue;
+						}
+
+						double enProd = en1 * en2 * en3Mins;
 
 						switch ( smearing->getType() ) {
 						case ( DeltaFunction::gaussian ):
-							deltaMins  = smearing->getSmearing(
-									en1 + en2 - en3Mins );
+							deltaMins1 = smearing->getSmearing(
+									en1 + en3Mins - en2 );
+							deltaMins2 = smearing->getSmearing(
+									en2 + en3Mins - en1 );
 							break;
 						case ( DeltaFunction::adaptiveGaussian ):
-							v1 = states1.getVelocity(ib1);
-							v2 = states2.getVelocity(ib2);
-							deltaMins = smearing->getSmearing(
-									en1 + en2 - en3Mins, v1+v2);
+							v = v2s.row(ib2) - v3ms.row(ib3);
+							deltaMins1 = smearing->getSmearing(
+									en1 + en3Mins - en2, v);
+							deltaMins2 = smearing->getSmearing(
+									en2 + en3Mins - en1, v);
 							break;
 						default:
-							deltaMins = smearing->getSmearing(
+							deltaMins1 = smearing->getSmearing(
+									en2 - en3Mins, iq1, ib1);
+							deltaMins2 = smearing->getSmearing(
 									en1 - en3Mins, iq2, ib2);
 							break;
 						}
+
+						if ( deltaMins1 < 0 ) deltaMins1 = 0.;
+						if ( deltaMins2 < 0 ) deltaMins2 = 0.;
 
 						for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
@@ -340,31 +375,37 @@ void PhScatteringMatrix::builder(
 							bose3Mins = bose3MinsData(iCalc,ib3);
 
 							//Calculatate transition probability W-
-							rateMins = pi * 0.25
-									* bose1 * bose2 * ( bose3Mins + 1. )
+							rateMins1 = pi * 0.25
+									* bose3Mins * bose1 * ( bose2 + 1. )
 									* couplingMins(ib1,ib2,ib3)
-									* deltaMins / innerNumPoints;
+									* deltaMins1 / innerNumPoints / enProd;
+							rateMins2 = pi * 0.25
+									* bose2 * bose3Mins * ( bose1 + 1. )
+									* couplingMins(ib1,ib2,ib3)
+									* deltaMins2 / innerNumPoints / enProd;
 
 							switch ( switchCase ) {
 							case (0):
 								// case of matrix construction
-								matrix(ind1,ind2) += rateMins;
-								linewidth->data(iCalc,ind1) += 0.5 * rateMins;
+								matrix(ind1,ind2) -= rateMins1 + rateMins2;
+								linewidth->data(iCalc,ind1) +=
+										0.5 * rateMins2;
 								break;
 							case (1):
 								// case of matrix-vector multiplication
 								for ( long i : {0,1,2} ) {
-									outPopulation->data(3*iCalc+i,ind1) +=
-											0.5 * rateMins *
+									outPopulation->data(3*iCalc+i,ind1) -=
+											(rateMins1+rateMins2) *
 											inPopulation->data(3*iCalc+i,ind2);
 									outPopulation->data(3*iCalc+i,ind1) +=
-											0.5 * rateMins *
+											0.5 * rateMins2 *
 											inPopulation->data(3*iCalc+i,ind1);
 								}
 								break;
 							case (2):
 								// case of linewidth construction
-								linewidth->data(iCalc,ind1) += 0.5 * rateMins;
+								linewidth->data(iCalc,ind1) +=
+										0.5 * rateMins2;
 								break;
 							}
 
@@ -376,14 +417,37 @@ void PhScatteringMatrix::builder(
 	}
 	loopPrint.close();
 
-	std::cout << linewidth->data * ryToCmm1 << "!!!\n";
+	// some phonons like acoustifc at gamma, with omega = 0,
+	// might have zero frequencies, and infinite populations. We set those
+	// matrix elements to zero.
+	if ( switchCase==0 ) {
+		// case of matrix construction
+		for ( auto is1 : excludeIndeces ) {
+			linewidth->data.col(is1).setZero();
+			for ( auto is2 : excludeIndeces ) {
+				matrix(is1,is2) = 0.;
+			}
+		}
+
+	} else if ( switchCase == 1 ) {
+		// case of matrix-vector multiplication
+		for ( auto is1 : excludeIndeces ) {
+			outPopulation->data.col(is1).setZero();
+		}
+
+	} else if ( switchCase == 2 ) {
+		// case of linewidth construction
+		for ( auto is1 : excludeIndeces ) {
+			linewidth->data.col(is1).setZero();
+		}
+	}
 
 	// we place the linewidths back in the diagonal of the scattering matrix
 	// this because we need an MPI_allreduce on linewidth
 	if ( switchCase == 0 ) { // case of matrix construction
 		long iCalc = 0;
 		for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {
-			matrix(i,i) += linewidth->data(iCalc,i);
+			matrix(i,i) = linewidth->data(iCalc,i);
 		}
 	}
 

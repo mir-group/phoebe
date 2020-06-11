@@ -31,5 +31,28 @@ long compress2Indeces(const long & i1, const long & i2, const long & size1,
 std::tuple<long,long> decompress2Indeces(const long & iTot, const long & size1,
 		const long & size2);
 
+/** Class for implementing strong typing.
+ * In fact, when using the methods (de)compress2(3)indices, it's easy to
+ * mix the order of indices. This class can be used to enforce the type
+ * of the index, without incurring in a penalty in the code speed.
+ * Taken from https://www.fluentcpp.com/2017/05/05/news-strong-types-are-free/
+ */
+template <typename T, typename Parameter>
+class NamedType
+{
+public:
+    explicit NamedType(T const& value) : value_(value) {}
+    T& get() { return value_; }
+    T const& get() const {return value_; }
+private:
+    T value_;
+};
+
+using DimIndex = NamedType<double, struct DimTag>;
+using CalcIndex = NamedType<double, struct CalcTag>;
+using TempIndex = NamedType<double, struct TempTag>;
+using ChemPotIndex = NamedType<double, struct ChemPotTag>;
+using WavevectorIndex = NamedType<double, struct WavevectorTag>;
+using BandIndex = NamedType<double, struct BandTag>;
 
 #endif

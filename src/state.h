@@ -259,7 +259,7 @@ Eigen::Vector3cd State<T>::getVelocity(const long & bandIndex1,
 
 template<typename T>
 Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
-	if ( ! hasEigenvectors ) {
+	if ( ! hasVelocities ) {
 		Error e("State doesn't have velocities" ,1);
 	}
 	Eigen::Tensor<std::complex<double>,3> vels(numBands, numBands, 3);
@@ -269,6 +269,23 @@ Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
 				long ind = compress3Indeces(ib1, ib2, j, numBands, numBands,3);
 				vels(ib1,ib2,j) = *(velocities+ind);
 			}
+		}
+	}
+	return vels;
+}
+
+template<typename T>
+Eigen::MatrixXd State<T>::getGroupVelocities() {
+	if ( ! hasVelocities ) {
+		Error e("State doesn't have velocities" ,1);
+	}
+	std::complex<double> x;
+	Eigen::MatrixXd vels(numBands, 3);
+	for ( long ib1=0; ib1<numBands; ib1++ ) {
+		for ( long j=0; j<3; j++ ) {
+			long ind = compress3Indeces(ib1, ib1, j, numBands, numBands,3);
+			x = *(velocities+ind);
+			vels(ib1,j) = x.real();
 		}
 	}
 	return vels;

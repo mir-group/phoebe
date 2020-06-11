@@ -51,7 +51,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 	long numTriplets = std::stoi(line);
 
 	// Allocate readables
-	Eigen::Tensor<double,4> ifc3Tensor(numTriplets,3,3,3);
+	Eigen::Tensor<double,4> ifc3Tensor(3,3,3,numTriplets);
 	ifc3Tensor.setZero();
 	Eigen::Tensor<double,3> cellPositions(numTriplets,2,3);
 	cellPositions.setZero();
@@ -104,7 +104,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context & context,
 					std::getline(infile, line);
 					std::istringstream iss4(line);
 					while ( iss4 >> i1 >> i2 >> i3 >> d4 ) {
-						ifc3Tensor(i,a,b,c) = d4 * conversion;
+						ifc3Tensor(c,b,a,i) = d4 * conversion;
 					}
 				}
 			}
@@ -198,12 +198,10 @@ Interaction3Ph IFC3Parser::parseFromQE(Context & context, Crystal & crystal) {
     infile.close();
     infile.clear();
 
-    std::cout << numTriplets << "!\n";
-
     // now that we know the number of triplets, we build the matrix
 
 	// Allocate readables
-	Eigen::Tensor<double,4> ifc3Tensor(numTriplets,3,3,3);
+	Eigen::Tensor<double,4> ifc3Tensor(3,3,3,numTriplets);
 	ifc3Tensor.setZero();
 	Eigen::Tensor<double,3> cellPositions(numTriplets,2,3);
 	cellPositions.setZero();
@@ -268,7 +266,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context & context, Crystal & crystal) {
 									displacedAtoms(it,1) = na2;
 									displacedAtoms(it,2) = na3;
 
-									ifc3Tensor(it,j1,j2,j3) = x1;
+									ifc3Tensor(j3,j2,j1,it) = x1;
 									it++;
                         		}
                         	}

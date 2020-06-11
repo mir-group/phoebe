@@ -1,3 +1,6 @@
+# Build folders
+*build*/
+
 # Prerequisites
 *.d
 
@@ -49,4 +52,4 @@ CMakeDoxy*
 Makefile
 
 runTests
-build
+

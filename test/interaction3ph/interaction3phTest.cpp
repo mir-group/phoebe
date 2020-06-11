@@ -24,8 +24,8 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	// manifold
 
 	Context context;
-	context.setPhD2FileName("test/interaction3ph/QEspresso.fc");
-	context.setPhD3FileName("test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
+	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
@@ -175,7 +175,7 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
 	referenceCoupling.setZero();
-	std::ifstream tfile("./test/interaction3ph/referenceCmins000");
+	std::ifstream tfile("../test/interaction3ph/referenceCmins000");
 	int i_, j_, k_;
 	double x;
     if (tfile.is_open()) {
@@ -252,8 +252,8 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	// manifold
 
 	Context context;
-	context.setPhD2FileName("./test/interaction3ph/QEspresso.fc");
-	context.setPhD3FileName("./test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
+	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
@@ -290,7 +290,7 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 
 		// Read full BZ wave vectors (Cartesian) from file
 		Eigen::MatrixXd q(nq,3);
-		std::ifstream qfile("./test/interaction3ph/qpoints_full_cart");
+		std::ifstream qfile("../test/interaction3ph/qpoints_full_cart");
 		for ( long iq = 0; iq < nq; iq++ ) {
 			for ( long ip = 0; ip < 3; ip++ ) {
 				double x;
@@ -305,7 +305,7 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 		// Note that this is read as outputted by ShengBTE
 		// and has to be reshaped to conform to PHOEBE's format
 		// of the eigenvector.
-		std::ifstream evfile("./test/interaction3ph/evecs_full");
+		std::ifstream evfile("../test/interaction3ph/evecs_full");
 		Eigen::Tensor<complex<double>,3> ev(nq,numBands,numBands);
 		for(long iq = 0; iq < nq; iq++){
 			double re,im;
@@ -388,7 +388,7 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
 	referenceCoupling.setZero();
-	std::ifstream tfile("./test/interaction3ph/referenceCMins10-210-200");
+	std::ifstream tfile("../test/interaction3ph/referenceCMins10-210-200");
 	int i_, j_, k_;
     if (tfile.is_open()) {
 		double x1, x2;
@@ -468,9 +468,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 		for ( int j=0; j<numBands; j++ ) {
 			for ( int k=0; k<numBands; k++ ) {
 				x1 += pow(couplingPlus(i,j,k) -
-						couplingPlus2(i,j,k) * en1(i) * en2(j) * en3Plus(k),2);
+						couplingPlus2(i,j,k),2);
 				x2 += pow(couplingMins(i,j,k) -
-						couplingMins2(i,j,k) * en1(i) * en2(j) * en3Mins(k),2);
+						couplingMins2(i,j,k),2);
 			}
 		}
 	}
