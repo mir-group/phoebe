@@ -692,8 +692,22 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		double x = parseBool(lines, "scatteringMatrixInMemory");
+		bool x = parseBool(lines, "scatteringMatrixInMemory");
 		setScatteringMatrixInMemory(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		bool x = parseBool(lines, "doIsotopes");
+		setDoIsotopes(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "massVariance");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i];
+		}
+		setMassVariance(x_);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
@@ -956,3 +970,20 @@ void Context::setScatteringMatrixInMemory(const bool & x) {
 bool Context::getScatteringMatrixInMemory() {
 	return scatteringMatrixInMemory;
 }
+
+void Context::setMassVariance(const Eigen::VectorXd & x) {
+	massVariance = x;
+}
+
+Eigen::VectorXd Context::getMassVariance() {
+	return massVariance;
+}
+
+void Context::setDoIsotopes(const bool & x) {
+	doIsotopes = x;
+}
+
+bool Context::getDoIsotopes() {
+	return doIsotopes;
+}
+

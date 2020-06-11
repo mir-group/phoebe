@@ -14,17 +14,17 @@ public:
 			FullBandStructure<FullPoints> & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_=nullptr,
 			PhononH0 * h0=nullptr);
-//			InteractionIsotope * couplingIsotope_=nullptr,
-//			InteractionBoundary * couplingBoundary_=nullptr
 
 	PhScatteringMatrix(const PhScatteringMatrix & that);
+
 	PhScatteringMatrix & operator=(const PhScatteringMatrix & that);
 
 protected:
 	Interaction3Ph * coupling3Ph;
-//	InteractionIsotope * couplingIsotope = nullptr;
-//	InteractionBoundary * couplingBoundary = nullptr;
 	PhononH0 * h0;
+
+	Eigen::VectorXd massVariance;
+	bool doIsotopes;
 
 	virtual void builder(Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 			VectorBTE * inPopulation, VectorBTE * outPopulation);
