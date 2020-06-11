@@ -271,3 +271,13 @@ void PhononTransportApp::run(Context & context) {
 		std::cout << "\n";
 	}
 }
+
+void PhononTransportApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getQMesh(), "qMesh");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+	throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
+	throwErrorIfUnset(context.getTemperatures(), "temperatures");
+	throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
+	throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+}

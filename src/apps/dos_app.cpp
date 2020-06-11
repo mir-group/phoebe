@@ -135,3 +135,34 @@ void ElectronFourierDosApp::run(Context & context) {
 	}
 	std::cout << "Electronic DoS computed" << std::endl;
 }
+
+void PhononDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getQMesh(), "qMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+}
+
+void ElectronWannierDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getQMesh(), "kMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	std::string crystalMsg = "crystal structure";
+	throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+}
+
+void ElectronFourierDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getQMesh(), "kMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	throwErrorIfUnset(context.getElectronFourierCutoff(),
+			"electronFourierCutoff");
+}
