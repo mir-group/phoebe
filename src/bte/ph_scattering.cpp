@@ -135,39 +135,27 @@ void PhScatteringMatrix::builder(
 
 	// precompute Bose populations
 	VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
-	for ( auto ik=0; ik<outerNumPoints; ik++ ) {
-		auto state = outerBandStructure.getState(ik);
-		auto energies = state.getEnergies();
-		for ( auto ib=0; ib<energies.size(); ib++ ) {
-			long is = outerBandStructure.getIndex(WavevectorIndex(ik),
-					BandIndex(ib));
-			auto energy = energies(ib);
-			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
-				double temperature = statisticsSweep.getCalcStatistics(iCalc
-						).temperature;
-				outerBose.data(iCalc,is) = particle.getPopulation(energy,
-						temperature);
-			}
+	for ( long is=0; is<outerBandStructure.getNumStates(); is++ ) {
+		double energy = outerBandStructure.getEnergy(is);
+		for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
+			double temperature = statisticsSweep.getCalcStatistics(iCalc
+					).temperature;
+			outerBose.data(iCalc,is) = particle.getPopulation(energy,
+					temperature);
 		}
 	}
 	VectorBTE innerBose(statisticsSweep, outerBandStructure, 1);
 	if ( &innerBandStructure == &outerBandStructure ) {
 		innerBose = outerBose;
 	} else {
-		for ( auto ik=0; ik<innerNumPoints; ik++ ) {
-			auto state = innerBandStructure.getState(ik);
-			auto energies = state.getEnergies();
-			for ( auto ib=0; ib<energies.size(); ib++ ) {
-				long is = innerBandStructure.getIndex(WavevectorIndex(ik),
-						BandIndex(ib));
-				auto energy = energies(ib);
-				for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
-						iCalc++ ) {
-					double temperature = statisticsSweep.getCalcStatistics(
-							iCalc).temperature;
-					outerBose.data(iCalc,is) = particle.getPopulation(energy,
-							temperature);
-				}
+		for ( long is=0; is<innerBandStructure.getNumStates(); is++ ) {
+			double energy = innerBandStructure.getEnergy(is);
+			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs();
+					iCalc++ ) {
+				double temperature = statisticsSweep.getCalcStatistics(
+						iCalc).temperature;
+				outerBose.data(iCalc,is) = particle.getPopulation(energy,
+						temperature);
 			}
 		}
 	}
@@ -386,8 +374,6 @@ void PhScatteringMatrix::builder(
 						}
 					}
 
-
-
 					// split into two cases since there may be different bands
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
 						en3Plus = state3PlusEnergies(ib3);
@@ -406,7 +392,6 @@ void PhScatteringMatrix::builder(
 							v = v2s.row(ib2) - v3ps.row(ib3);
 							deltaPlus = smearing->getSmearing(
 									en1 + en2 - en3Plus, v);
-//if ( deltaPlus > 1.0e-16 ) std::cout << deltaPlus << "\n";
 							break;
 						default:
 							deltaPlus = smearing->getSmearing(
@@ -451,7 +436,6 @@ void PhScatteringMatrix::builder(
 								break;
 							case (2):
 								// case of linewidth construction
-								// there's still a missing norm done later
 								linewidth->data(iCalc,ind1) += ratePlus;
 								break;
 							}
