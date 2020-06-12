@@ -106,7 +106,6 @@ public:
 	FullPoints & operator=(const FullPoints & obj); // assignment operator
 
 	Point getPoint(const long & index);
-	long getIndexInverted(const long & ik);
 };
 
 class IrreduciblePoints: public Points {
@@ -140,20 +139,19 @@ public:
 
 class ActivePoints: public Points {
 protected:
-	FullPoints & parentPoints;
+	Points & parentPoints;
 	Eigen::MatrixXd pointsList;
 
 	VectorXl filteredToFullIndeces;
 	long fullToFilteredIndeces(const long & indexIn);
 public:
 	// constructors
-	ActivePoints(FullPoints & parentPoints_, VectorXl filter_);
+	ActivePoints(Points & parentPoints_, VectorXl filter_);
 	ActivePoints(const ActivePoints & obj); // copy constructor
 	ActivePoints & operator=(const ActivePoints & obj); // assignment operator
 
 	long getIndex(const Eigen::Vector3d & coords);
 	Point getPoint(const long & index);
-	long getIndexInverted(const long & ik);
 	Eigen::Vector3d getPointCoords(const long & index,
 			const int & basis=crystalCoords);
 };
@@ -168,7 +166,6 @@ public:
 
 	Point getPoint(const long & index);
 	long getIndex(const Eigen::Vector3d & coords);
-	long getIndexInverted(const long & ik);
 	Eigen::Vector3d getPointCoords(const long & index,
 			const int & basis=crystalCoords);
 protected:

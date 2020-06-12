@@ -31,7 +31,7 @@ public:
 	 * @param context: object with user input.
 	 */
 	StatisticsSweep(Context & context,
-			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
+			FullBandStructure * fullBandStructure=nullptr);
 
 	/** Copy constructor
 	 */

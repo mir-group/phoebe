@@ -15,7 +15,7 @@ public:
 	 */
 	SpecificHeat(StatisticsSweep & statisticsSweep_,
 			Crystal & crystal_,
-			FullBandStructure<FullPoints> & bandStructure_);
+			FullBandStructure & bandStructure_);
 
 	/** Copy constructor
 	 */
@@ -43,7 +43,7 @@ public:
 
 protected:
 	virtual int whichType();
-	FullBandStructure<FullPoints> & bandStructure;
+	FullBandStructure & bandStructure;
 };
 
 #endif

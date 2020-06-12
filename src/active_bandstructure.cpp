@@ -87,7 +87,7 @@ std::vector<std::complex<double>> ActiveBandStructure::flattenEigenvectors(
 }
 
 ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
-		FullBandStructure<FullPoints> & fullBandStructure) {
+		FullBandStructure & fullBandStructure) {
 
 	if ( fullBandStructure.hasEigenvectors ) {
 		hasEigenvectors = true;
@@ -132,7 +132,8 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 	// total number of active states
 	numStates = numBands.sum();
 	// initialize the kpoints object
-	ActivePoints activePoints_(fullBandStructure.points, filter);
+	auto fullPoints = fullBandStructure.getPoints();
+	ActivePoints activePoints_(fullPoints, filter);
 	activePoints = &activePoints_;
 	// construct the mapping from combined indices to Bloch indices
 	buildIndeces();

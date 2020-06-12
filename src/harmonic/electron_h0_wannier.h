@@ -66,9 +66,8 @@ public:
 	 * @return FullBandStructure: the bandstructure object containing the
 	 * complete electronic band structure.
 	 */
-    template<typename T>
-    FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
-    		bool &withEigenvectors);
+    FullBandStructure populate(Points & fullPoints, bool & withVelocities,
+    		bool & withEigenvectors);
 
     /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
      * @param point: the Point coordinates of the wavevector.
@@ -96,28 +95,5 @@ protected:
     long numBands;
     long numVectors;
 };
-
-template<typename T>
-FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure<T> fullBandStructure(numBands, particle,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-		//TODO: I must fix the different shape of eigenvectors w.r.t. phonons
-//		if ( withEigenvectors ) {
-//			fullBandStructure.setEigenvectors(point, eigvecs);
-//		}
-	}
-	return fullBandStructure;
-}
 
 #endif

@@ -5,8 +5,8 @@
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 			StatisticsSweep & statisticsSweep_,
-			FullBandStructure<FullPoints> & innerBandStructure_,
-			FullBandStructure<FullPoints> & outerBandStructure_,
+			FullBandStructure & innerBandStructure_,
+			FullBandStructure & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_,
 			PhononH0 * h0_) :
 			ScatteringMatrix(context_, statisticsSweep_,

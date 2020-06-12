@@ -57,14 +57,23 @@ TEST (InteractionIsotope,Wphisoiq4) {
 
 	//Eigenvector and angular frequencies at iq
 	auto ip = points.getPoint(iq);
-	auto [omegasiq,eviq] = phononH0.diagonalize(ip);
+	auto [omegasiq,ev1] = phononH0.diagonalize(ip);
 	//auto vsiq = phononH0.diagonalizeVelocity(ip);
 
 	for ( int jq = 0; jq < nq; jq++ ) { //integrate over
 		auto jp = points.getPoint(jq);
 		//Eigenvector and angular frequencies at jq
-		auto [omegasjq,evjq] = phononH0.diagonalize(jp);
+		auto [omegasjq,ev2] = phononH0.diagonalize(jp);
 		//auto vsjq = phononH0.diagonalizeVelocity(jp);
+
+		Eigen::Tensor<std::complex<double>,3> eviq, evjq;
+		for ( int i=0; i<numBands; i++ ) {
+			for ( int j=0; j<numBands; j++ ) {
+				auto [iat,idim] = decompress2Indeces(i,numAtoms,3);
+				eviq(idim,iat,j) = ev1(i,j);
+				evjq(idim,iat,j) = ev2(i,j);
+			}
+		}
 
 		//phonon branches of the test q-point
 		for ( int ib = 0; ib < numBands; ib++ ) {

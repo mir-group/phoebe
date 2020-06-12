@@ -1318,23 +1318,22 @@ Eigen::Vector3i PhononH0::getCoarseGrid() {
 	return qCoarseGrid;
 }
 
-std::tuple<Eigen::VectorXd,
-		Eigen::Tensor<std::complex<double>,3>> PhononH0::diagonalize(
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalize(
 				Point & point) {
 	Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
-	auto [energies, eigvecTemp] = diagonalizeFromCoords(q);
+	auto [energies, eigenvectors] = diagonalizeFromCoords(q);
 
 	//  displacements are eigenvectors divided by sqrt(speciesMasses)
 
-	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
-	for ( long iband=0; iband<numBands; iband++ ) {
-		for ( long iat=0; iat<numAtoms; iat++ ) {
-			for ( long ipol=0; ipol<3; ipol++ ) {
-				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
-				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
-			}
-		}
-	}
+//	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
+//	for ( long iband=0; iband<numBands; iband++ ) {
+//		for ( long iat=0; iat<numAtoms; iat++ ) {
+//			for ( long ipol=0; ipol<3; ipol++ ) {
+//				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+//				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
+//			}
+//		}
+//	}
 	return {energies, eigenvectors};
 }
 
@@ -1459,4 +1458,27 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		ib += sizeSubspace - 1;
 	}
 	return velocity;
+}
+
+FullBandStructure PhononH0::populate(Points & points, bool & withVelocities,
+		bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, points);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+
+		if ( withVelocities) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+		if ( withEigenvectors ) {
+			fullBandStructure.setEigenvectors(point, eigvecs);
+		}
+	}
+	return fullBandStructure;
 }

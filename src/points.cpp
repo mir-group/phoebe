@@ -53,7 +53,7 @@ IrreduciblePoints::IrreduciblePoints(Crystal & crystal_,
 	setIrreduciblePoints();
 }
 
-ActivePoints::ActivePoints(FullPoints & parentPoints_,
+ActivePoints::ActivePoints(Points & parentPoints_,
 		VectorXl filter) : Points(parentPoints_.getCrystal(),
 				std::get<0>(parentPoints_.getMesh()),
 				std::get<1>(parentPoints_.getMesh())),
@@ -402,30 +402,6 @@ long PathPoints::getIndex(const Eigen::Vector3d & coords) {
 		}
 	}
 	return counter;
-}
-
-// methods to find the index of the point -k, given k
-
-long FullPoints::getIndexInverted(const long & ik) {
-	// given the index of point k, return the index of point -k
-	Eigen::Vector3d point = reduciblePoints(ik);
-	long ikx = (long)round(( point(0) - offset(0) ) * mesh(0));
-	long iky = (long)round(( point(1) - offset(1) ) * mesh(1));
-	long ikz = (long)round(( point(2) - offset(2) ) * mesh(2));
-
-	long ikxm = mod(-ikx , mesh(0));
-	long ikym = mod(-iky , mesh(1));
-	long ikzm = mod(-ikz , mesh(2));
-
-	long ikm = ikxm * mesh(2) * mesh(1) + ikym * mesh(2) + ikzm;
-	return ikm;
-}
-
-long ActivePoints::getIndexInverted(const long & ik) {
-	long indexFull = filteredToFullIndeces(ik);
-	long indexFullInverted = parentPoints.getIndexInverted(indexFull);
-	long ikInv = fullToFilteredIndeces(indexFullInverted);
-	return ikInv;
 }
 
 // change of basis methods

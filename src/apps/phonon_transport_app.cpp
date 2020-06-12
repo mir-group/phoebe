@@ -27,7 +27,7 @@ void PhononTransportApp::run(Context & context) {
 	FullPoints fullPoints(crystal, context.getQMesh());
 	bool withVelocities = true;
 	bool withEigenvectors = true;
-	FullBandStructure<FullPoints> bandStructure = phononH0.populate(
+	FullBandStructure bandStructure = phononH0.populate(
 			fullPoints, withVelocities, withEigenvectors);
 
 	// set the chemical potentials to zero, load temperatures

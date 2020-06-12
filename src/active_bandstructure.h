@@ -76,7 +76,7 @@ private:
 			std::vector<long> bandsExtrema);
 
 	ActivePoints buildAsPostprocessing(Window & window,
-			FullBandStructure<FullPoints> & fullBandStructure);
+			FullBandStructure & fullBandStructure);
 };
 
 template<typename T>

@@ -30,7 +30,11 @@ TEST (PointsTest, PointsHandling) {
 	EXPECT_EQ ((mesh-mesh_).norm(),0.);
 
 	auto p1 = points.getPoint(4);
-	long i4 = points.getIndexInverted(4);
+
+	// find the index of the inverted point
+	long i4 = points.getIndex(-p1.getCoords(Points::cartesianCoords));
+//	long i4 = points.getIndexInverted(4);
+
 	auto p2 = points.getPoint(i4);
 	auto p3 = p1 + p2;
 	EXPECT_EQ ( p3.getCoords(Points::cartesianCoords).norm(),0.);
@@ -41,7 +45,8 @@ TEST (PointsTest, PointsHandling) {
 	points = FullPoints(crystal, mesh);
 	long iq = 7;
 	p1 = points.getPoint(iq);
-	long iqr = points.getIndexInverted(iq);
+//	long iqr = points.getIndexInverted(iq);
+	long iqr = points.getIndex(-p1.getCoords(Points::cartesianCoords));
 	p2 = points.getPoint(iqr);
 	p3 = p1 + p2;
 	EXPECT_EQ ( p3.getCoords().norm(),0.);

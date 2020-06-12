@@ -136,11 +136,11 @@ Eigen::Tensor<std::complex<double>,3>
 	return velocity;
 }
 
-std::tuple<Eigen::VectorXd,Eigen::Tensor<std::complex<double>,3>>
-		HarmonicHamiltonian::diagonalize(Point & point) {
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> HarmonicHamiltonian::diagonalize(
+		Point & point) {
 	(void) point;
 	Eigen::VectorXd energies(1);
-	Eigen::Tensor<std::complex<double>,3> eigvecs(1,1,1);
+	Eigen::MatrixXcd eigvecs(1,1);
 	energies.setZero();
 	eigvecs.setZero();
 	return {energies, eigvecs};
@@ -152,4 +152,15 @@ Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(
 	Eigen::Tensor<std::complex<double>,3> c(1,1,1);
 	c.setZero();
 	return c;
+}
+
+FullBandStructure HarmonicHamiltonian::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+	Error e("base populate not implemented");
+	(void) fullPoints;
+	(void) withVelocities;
+	(void) withEigenvectors;
+	FullBandStructure t(numBands, particle, withVelocities, withEigenvectors,
+			fullPoints);
+	return t;
 }

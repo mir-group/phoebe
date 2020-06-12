@@ -25,7 +25,7 @@ public:
 	 * in the plane-wave interpolation.
 	 */
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
-			FullBandStructure<FullPoints> coarseBandStructure_, double cutoff);
+			FullBandStructure coarseBandStructure_, double cutoff);
 
 	/** get the electronic energies (in Ry) at a single k-point.
 	 * Energies don't have any reference value, and must be used in connection
@@ -36,8 +36,7 @@ public:
 	 * of size (numBands). Eigenvectors of size (numBands,numBands), but are
 	 * simply set to zero, since there is no diagonalization happening here.
 	 */
-	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-			diagonalize(Point & point);
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point & point);
 
 	/** get the electron velocities (in atomic units) at a single k-point.
 	 * @param k: a Point object with the wavevector coordinates.
@@ -60,8 +59,7 @@ public:
 	 * @return FullBandStructure: the bandstructure object containing the
 	 * complete electronic band structure.
 	 */
-	template<typename T>
-	FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
+	FullBandStructure populate(Points & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
 
 	/** Get the total number of bands available at ech wavevector.
@@ -70,7 +68,7 @@ public:
 	long getNumBands();
 protected:
 	Crystal & crystal;
-	FullBandStructure<FullPoints> coarseBandStructure;
+	FullBandStructure coarseBandStructure;
 	FullPoints coarsePoints;
 	Particle particle;
 
@@ -100,24 +98,5 @@ protected:
 	Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d & wavevector,
 			long & bandIndex);
 };
-
-template<typename T>
-FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure<T> fullBandStructure(numBands, particle,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-	}
-	return fullBandStructure;
-}
 
 #endif

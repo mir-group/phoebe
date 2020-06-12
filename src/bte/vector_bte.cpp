@@ -3,7 +3,7 @@
 
 // default constructor
 VectorBTE::VectorBTE(StatisticsSweep & statisticsSweep_,
-		FullBandStructure<FullPoints> & bandStructure_,
+		FullBandStructure & bandStructure_,
 		const long & dimensionality_) :
 		statisticsSweep(statisticsSweep_), bandStructure(bandStructure_) {
 

@@ -7,7 +7,7 @@
 #include <cmath>
 
 StatisticsSweep::StatisticsSweep(Context & context,
-		FullBandStructure<FullPoints> * fullBandStructure) :
+		FullBandStructure * fullBandStructure) :
 		particle( fullBandStructure!=nullptr ?
 				fullBandStructure->getParticle() : Particle::phonon)
 		{

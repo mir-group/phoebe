@@ -49,8 +49,7 @@ public:
 	 * size (3,numAtoms,numBands). The eigenvector is rescaled by the
 	 * sqrt(masses) (masses in rydbergs)
 	 */
-	std::tuple<Eigen::VectorXd,
-			Eigen::Tensor<std::complex<double>,3>> diagonalize(Point & point);
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point & point);
 
 	/** get the phonon velocities (in atomic units) at a single q-point.
 	 * @param q: a Point object with the wavevector coordinates.
@@ -82,8 +81,7 @@ public:
 	 * @return FullBandStructure: the bandstructure object containing the
 	 * complete phonon band structure.
 	 */
-	template<typename T>
-	FullBandStructure<T> populate(T & points, bool & withVelocities,
+	FullBandStructure populate(Points & points, bool & withVelocities,
 			bool & withEigenvectors);
 
 	/** Equivalent to diagonalize() computes phonon eigenvals/vecs given the
@@ -149,29 +147,5 @@ protected:
 	void sp_zeu(Eigen::Tensor<double,3> & zeu_u,
 			Eigen::Tensor<double,3> & zeu_v, double & scal);
 };
-
-template <typename T>
-FullBandStructure<T> PhononH0::populate(T & points, bool & withVelocities,
-		bool & withEigenvectors) {
-
-	FullBandStructure<T> fullBandStructure(numBands, particle,
-			withVelocities, withEigenvectors, points);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-
-		if ( withVelocities) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-		if ( withEigenvectors ) {
-			fullBandStructure.setEigenvectors(point, eigvecs);
-		}
-	}
-	return fullBandStructure;
-}
 
 #endif

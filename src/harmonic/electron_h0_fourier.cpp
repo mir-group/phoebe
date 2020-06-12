@@ -7,7 +7,7 @@
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		FullPoints coarsePoints_,
-		FullBandStructure<FullPoints> coarseBandStructure_, double cutoff_) :
+		FullBandStructure coarseBandStructure_, double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
 		coarsePoints(coarsePoints_), particle(Particle::electron) {
 
@@ -286,16 +286,16 @@ long ElectronH0Fourier::getNumBands() {
 	return numBands;
 }
 
-std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 		ElectronH0Fourier::diagonalize(Point & point) {
 
 	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	auto [energies,x] = diagonalizeFromCoords(coords);
+	auto [energies,eigvecs] = diagonalizeFromCoords(coords);
 
 	// this is to return something aligned with the phonon case
 	// One should investigate how to return a null pointer
-	Eigen::Tensor<std::complex<double>,3> eigvecs;
-	eigvecs.setZero();
+//	Eigen::MatrixXcdTensor<std::complex<double>,3> eigvecs;
+//	eigvecs.setZero();
 
 	return {energies,eigvecs};
 }
@@ -312,4 +312,22 @@ Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
 		}
 	}
 	return velocity;
+}
+
+FullBandStructure ElectronH0Fourier::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+	}
+	return fullBandStructure;
 }
