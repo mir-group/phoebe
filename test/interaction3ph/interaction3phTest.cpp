@@ -26,6 +26,7 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	Context context;
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
@@ -253,6 +254,7 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	Context context;
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
