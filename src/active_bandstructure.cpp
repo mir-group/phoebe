@@ -262,14 +262,14 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(long & stateIndex) {
 	return vel;
 }
 
-Point<ActivePoints> ActiveBandStructure::getPoint(const long & pointIndex) {
+Point ActiveBandStructure::getPoint(const long & pointIndex) {
 	if ( ! hasPoints() ) {
 		Error e("ActiveBandStructure hasn't been populated yet" ,1);
 	}
 	return activePoints->getPoint(pointIndex);
 }
 
-State<ActivePoints> ActiveBandStructure::getState(Point<ActivePoints> & point){
+State ActiveBandStructure::getState(Point & point){
 	if ( ! hasPoints() ) {
 		Error e("ActiveBandStructure hasn't been populated yet" ,1);
 	}
@@ -289,7 +289,7 @@ State<ActivePoints> ActiveBandStructure::getState(Point<ActivePoints> & point){
 		thisEig = &eigenvectors[ind];
 	}
 
-	State<ActivePoints> s(point, thisEn, numAtoms, numBands(ik), thisVel,
+	State s(point, thisEn, numAtoms, numBands(ik), thisVel,
 			thisEig);
 	return s;
 }

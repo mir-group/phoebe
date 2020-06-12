@@ -19,15 +19,15 @@ public:
 	long getNumPoints();
 	long getNumStates();
 
-	Point<ActivePoints> getPoint(const long & pointIndex);
+	Point getPoint(const long & pointIndex);
 
-	State<ActivePoints> getState(Point<ActivePoints> & point);  // returns all bands at fixed k/q-point
+	State getState(Point & point);  // returns all bands at fixed k/q-point
 
 	double getEnergy(long & stateIndex);
 	Eigen::Vector3d getGroupVelocity(long & stateIndex);
 
-	template<typename T, typename S>
-	static std::tuple<ActivePoints, ActiveBandStructure, S>
+	template<typename T>
+	static std::tuple<ActivePoints, ActiveBandStructure>
 			builder(Context & context, T & h0, FullPoints & fullPoints);
 private:
 	Particle particle;
@@ -79,8 +79,8 @@ private:
 			FullBandStructure<FullPoints> & fullBandStructure);
 };
 
-template<typename T, typename S>
-std::tuple<ActivePoints, ActiveBandStructure, S>
+template<typename T>
+std::tuple<ActivePoints, ActiveBandStructure>
 		ActiveBandStructure::builder(Context & context,
 				T & h0, FullPoints & fullPoints) {
 

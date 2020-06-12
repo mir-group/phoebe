@@ -30,17 +30,14 @@ public:
 	 * complex unitary transformation matrix U, connecting the Wannier gauge
 	 * with the Bloch gauge.
 	 */
-	template<typename T>
-	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalize(
-			Point<T> & point);
+	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalize(Point & point);
 
 	/** get the electron velocities (in atomic units) at a single k-point.
 	 * @param k: a Point object with the wavevector coordinates.
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
 	 * for this state, in atomic units.
 	 */
-	template<typename T>
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point<T> &point);
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point &point);
 
 	// checks whether this object can compute eigenvectors.
     const bool hasEigenvectors = true;
@@ -79,8 +76,7 @@ public:
      * a matrix <u_mk| nabla_k |u_nk> for a fixed wavevector. The Berry
      * connection is actually just the diagonal matrix elements.
      */
-    template<typename T>
-    std::vector<Eigen::MatrixXcd> getBerryConnection(Point<T> & point);
+    std::vector<Eigen::MatrixXcd> getBerryConnection(Point & point);
 protected:
     Particle particle;
     virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -109,7 +105,7 @@ FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
 			withVelocities, withEigenvectors, fullPoints);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point<T> point = fullBandStructure.getPoint(ik);
+		Point point = fullBandStructure.getPoint(ik);
 		auto [ens, eigvecs] = diagonalize(point);
 		fullBandStructure.setEnergies(point, ens);
 		if ( withVelocities ) {
@@ -122,69 +118,6 @@ FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
 //		}
 	}
 	return fullBandStructure;
-}
-
-template<typename T>
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		ElectronH0Wannier::diagonalize(Point<T> & point) {
-	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
-
-	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
-
-	// note: the eigenvector matrix is the unitary transformation matrix U
-	// from the Bloch to the Wannier gauge.
-
-	return {energies, eigenvectors};
-}
-
-template<typename T>
-Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
-		Point<T> & point) {
-	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	double delta = 1.0e-8;
-	double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
-	auto velocity = HarmonicHamiltonian::internalDiagonalizeVelocity(coords,
-			delta, threshold);
-	return velocity;
-}
-
-template<typename T>
-std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
-		Point<T> & point) {
-	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
-
-	// first we diagonalize the hamiltonian
-	auto [ens, eigvecs] = diagonalize(point);
-
-	// note: the eigenvector matrix is the unitary transformation matrix U
-	// from the Bloch to the Wannier gauge.
-
-	std::vector<Eigen::MatrixXcd> bc;
-
-	for ( long i=0; i<3; i++ ) {
-
-		// now construct the berryConnection in reciprocal space and Wannier gauge
-		Eigen::MatrixXcd berryConnectionW(numBands,numBands);
-		berryConnectionW.setZero();
-
-		for ( long iR=0; iR<bravaisVectors.cols(); iR++ ) {
-			Eigen::Vector3d R = bravaisVectors.col(iR);
-			double phase = k.dot(R);
-			std::complex<double> phaseFactor = {cos(phase),sin(phase)};
-			for ( long m=0; m<numBands; m++ ) {
-				for ( long n=0; n<numBands; n++ ) {
-					berryConnectionW(m,n) +=
-							phaseFactor * rMatrix(i,iR,m,n)
-							/ vectorsDegeneracies(iR);
-				}
-			}
-		}
-
-		Eigen::MatrixXcd berryConnection(numBands,numBands);
-		berryConnection = eigvecs.adjoint() * berryConnectionW * eigvecs;
-		bc.push_back(berryConnection);
-	}
-	return bc;
 }
 
 #endif

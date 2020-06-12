@@ -78,7 +78,7 @@ public:
 	/** Returns a wavevector, given a wavevector index.
 	 * The wavevector index runs from 0 to numPoints-1
 	 */
-	Point<T> getPoint(const long & pointIndex);
+	Point getPoint(const long & pointIndex);
 
 	/** Returns the total number of k/q-points.
 	 * @return numPoints: the total number of wavevectors of the bandStructure.
@@ -103,15 +103,15 @@ public:
 	 * @param point: a Point object containing the desired wavevector
 	 * @return State: a State object evaluated at Point.
 	 */
-	State<T> getState(Point<T> & point);
+	State getState(Point & point);
 
 	/** Returns a State object
-	 * Same as getState(Point<T> & point), but the wavevector is identified
+	 * Same as getState(Point & point), but the wavevector is identified
 	 * with its integer index
 	 * @param pointIndex: index of the wavevector, range [0,numPoints[
 	 * @return State: a State object evaluated at Point.
 	 */
-	State<T> getState(const long & pointIndex);
+	State getState(const long & pointIndex);
 
 	/** Returns all electronic energies for all wavevectors at fixed band index
 	 * Used by the Fourier interpolation of the band structure.
@@ -166,7 +166,7 @@ public:
 	/** This method overrides setEnergies, but uses a Point object to find the
 	 * k-point.
 	 */
-	void setEnergies(Point<T> & point, Eigen::VectorXd & energies_);
+	void setEnergies(Point & point, Eigen::VectorXd & energies_);
 
 	/** Method to save quasiparticle eigenvectors inside FullBandStructure().
 	 * Note that in this case, eigenvectors are passed as a rank-3 tensor, used
@@ -176,7 +176,7 @@ public:
 	 * The wavevector index on the mesh is a property of that Point object.
 	 * @param eigenvectors: a rank-3 tensor of size (numBands,numAtoms,3)
 	 */
-	void setEigenvectors(Point<T> & point,
+	void setEigenvectors(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & eigenvectors_);
 
 	/** Method to save quasiparticle eigenvectors inside FullBandStructure().
@@ -187,7 +187,7 @@ public:
 	 * which should come from the same Point class stored in FullBandStructure
 	 * @param eigenvectors: a complex matrix of size (numBands,numBands)
 	 */
-	void setEigenvectors(Point<T> & point, Eigen::MatrixXcd & eigenvectors_);
+	void setEigenvectors(Point & point, Eigen::MatrixXcd & eigenvectors_);
 
 	/** Saves in the class the velocities computed at a particular point.
 	 * @param point: a Point object representing the wavevector where these
@@ -196,7 +196,7 @@ public:
 	 * containing the matrix elements of the velocity operator. Diagonal
 	 * elements are the quasiparticle group velocities.
 	 */
-	void setVelocities(Point<T> & point,
+	void setVelocities(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 
 	/** Builds a Bloch state index, which runs on both wavevector index and
@@ -309,7 +309,7 @@ long FullBandStructure<T>::getIndex(Eigen::Vector3d& pointCoords) {
 }
 
 template<typename T>
-Point<T> FullBandStructure<T>::getPoint(const long& pointIndex) {
+Point FullBandStructure<T>::getPoint(const long& pointIndex) {
 	return points.getPoint(pointIndex);
 }
 
@@ -344,14 +344,14 @@ void FullBandStructure<T>::setEnergies(Eigen::Vector3d& coords,
 }
 
 template<typename T>
-void FullBandStructure<T>::setEnergies(Point<T> & point,
+void FullBandStructure<T>::setEnergies(Point & point,
 		Eigen::VectorXd& energies_) {
 	long ik = point.getIndex();
 	energies.col(ik) = energies_;
 }
 
 template<typename T>
-void FullBandStructure<T>::setVelocities(Point<T> & point,
+void FullBandStructure<T>::setVelocities(Point & point,
 		Eigen::Tensor<std::complex<double>,3>& velocities_) {
 	if ( ! hasVelocities ) {
 		Error e("FullBandStructure was initialized without velocities",1);
@@ -372,7 +372,7 @@ void FullBandStructure<T>::setVelocities(Point<T> & point,
 }
 
 template<typename T>
-void FullBandStructure<T>::setEigenvectors(Point<T> & point,
+void FullBandStructure<T>::setEigenvectors(Point & point,
 		Eigen::Tensor<std::complex<double>,3> & eigenvectors_) {
 	if ( ! hasEigenvectors ) {
 		Error e("FullBandStructure was initialized without eigvecs",1);
@@ -393,7 +393,7 @@ void FullBandStructure<T>::setEigenvectors(Point<T> & point,
 }
 
 template<typename T>
-void FullBandStructure<T>::setEigenvectors(Point<T> & point,
+void FullBandStructure<T>::setEigenvectors(Point & point,
 		Eigen::MatrixXcd & eigenvectors_) {
 	if ( ! hasEigenvectors ) {
 		Error e("FullBandStructure was initialized without eigvecs",1);
@@ -412,15 +412,15 @@ void FullBandStructure<T>::setEigenvectors(Point<T> & point,
 }
 
 template<typename T>
-State<T> FullBandStructure<T>::getState(Point<T> & point) {
+State FullBandStructure<T>::getState(Point & point) {
 	long pointIndex = point.getIndex();
-	State<T> state = getState(pointIndex);
+	State state = getState(pointIndex);
 	return state;
 }
 
 template<typename T>
-State<T> FullBandStructure<T>::getState(const long & pointIndex) {
-	Point<T> point = getPoint(pointIndex);
+State FullBandStructure<T>::getState(const long & pointIndex) {
+	Point point = getPoint(pointIndex);
 	// we construct the vector by defining begin() and end()
 	// note that rawEnergies points at the start of the matrix
 	// and pointIndex*energiesCols skips the first pointIndex-1 wavevectors
@@ -441,7 +441,7 @@ State<T> FullBandStructure<T>::getState(const long & pointIndex) {
 		thisEig = rawEigenvectors + pointIndex * eigenvectorsCols;
 	}
 
-	State<T> s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
+	State s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
 	return s;
 }
 

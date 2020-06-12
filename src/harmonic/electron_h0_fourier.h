@@ -36,9 +36,8 @@ public:
 	 * of size (numBands). Eigenvectors of size (numBands,numBands), but are
 	 * simply set to zero, since there is no diagonalization happening here.
 	 */
-	template<typename T>
 	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		diagonalize(Point<T> & point);
+			diagonalize(Point & point);
 
 	/** get the electron velocities (in atomic units) at a single k-point.
 	 * @param k: a Point object with the wavevector coordinates.
@@ -47,9 +46,7 @@ public:
 	 * elements are set to zero, because this kind of interpolation, at the
 	 * moment, doesn't have any information on the off-diagonal elements.
 	 */
-	template<typename T>
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-				Point<T> & point);
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
 
     /** Method to return that the underlying is that of an electronic Fermion.
      */
@@ -105,36 +102,6 @@ protected:
 };
 
 template<typename T>
-std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		ElectronH0Fourier::diagonalize(Point<T> & point) {
-
-	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	auto [energies,x] = diagonalizeFromCoords(coords);
-
-	// this is to return something aligned with the phonon case
-	// One should investigate how to return a null pointer
-	Eigen::Tensor<std::complex<double>,3> eigvecs;
-	eigvecs.setZero();
-
-	return {energies,eigvecs};
-}
-
-template<typename T>
-Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
-			Point<T> & point) {
-	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
-	velocity.setZero();
-	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
-		for ( long i=0; i<3; i++ ) {
-			velocity(ib,ib,i) = v(i);
-		}
-	}
-	return velocity;
-}
-
-template<typename T>
 FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
 		bool & withVelocities, bool & withEigenvectors) {
 
@@ -142,7 +109,7 @@ FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
 			withVelocities, withEigenvectors, fullPoints);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point<T> point = fullBandStructure.getPoint(ik);
+		Point point = fullBandStructure.getPoint(ik);
 		auto [ens, eigvecs] = diagonalize(point);
 		fullBandStructure.setEnergies(point, ens);
 		if ( withVelocities ) {

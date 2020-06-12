@@ -285,3 +285,31 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocityFromCoords(
 long ElectronH0Fourier::getNumBands() {
 	return numBands;
 }
+
+std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
+		ElectronH0Fourier::diagonalize(Point & point) {
+
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	auto [energies,x] = diagonalizeFromCoords(coords);
+
+	// this is to return something aligned with the phonon case
+	// One should investigate how to return a null pointer
+	Eigen::Tensor<std::complex<double>,3> eigvecs;
+	eigvecs.setZero();
+
+	return {energies,eigvecs};
+}
+
+Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
+			Point & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
+		for ( long i=0; i<3; i++ ) {
+			velocity(ib,ib,i) = v(i);
+		}
+	}
+	return velocity;
+}

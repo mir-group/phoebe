@@ -149,9 +149,13 @@ PathPoints::PathPoints(Crystal & crystal_,
 // copy constructors
 
 // copy constructor
-Points::Points(const Points & that) : crystal(that.crystal), mesh(that.mesh),
-	offset(that.offset), numPoints(that.numPoints), gVectors(that.gVectors),
-	igVectors(that.igVectors) {
+Points::Points(const Points & that) :
+		crystal(that.crystal),
+		mesh(that.mesh),
+		offset(that.offset),
+		numPoints(that.numPoints),
+		gVectors(that.gVectors),
+		igVectors(that.igVectors) {
 }
 
 // copy constructor
@@ -259,29 +263,29 @@ PathPoints & PathPoints::operator=(const PathPoints & that) {
 
 // getPoint methods
 
-//Point<Points> Points::getPoint(const long & index) {
-//	Eigen::Vector3d p = getPointCoords(index);
-//	return Point<Points>(index, p, *this);
-//}
-
-Point<FullPoints> FullPoints::getPoint(const long & index) {
+Point Points::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<FullPoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<IrreduciblePoints> IrreduciblePoints::getPoint(const long & index) {
+Point FullPoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<IrreduciblePoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<ActivePoints> ActivePoints::getPoint(const long & index) {
+Point IrreduciblePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<ActivePoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<PathPoints> PathPoints::getPoint(const long & index) {
+Point ActivePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<PathPoints>(index, p, *this);
+	return Point(index, p, *this);
+}
+
+Point PathPoints::getPoint(const long & index) {
+	Eigen::Vector3d p = getPointCoords(index);
+	return Point(index, p, *this);
 }
 
 // getPointCoords is the tool to find the coordinates of a point
@@ -740,4 +744,82 @@ long ActivePoints::fullToFilteredIndeces(const long & indexIn) {
 		Error e("Couldn't find the desired kpoint");
 	}
 	return target;
+}
+
+////////////////
+
+Point::Point(long index_, Eigen::Vector3d umklappVector_, Points & points_)
+		: points(points_) {
+	umklappVector = umklappVector_;
+	index = index_;
+}
+
+// copy constructor
+Point::Point( const Point & that ) : umklappVector(that.umklappVector),
+		index(that.index), points(that.points) {
+}
+
+// copy assignment
+Point & Point::operator = ( const Point & that ) {
+	if ( this != &that ) {
+		umklappVector = that.umklappVector;
+		index = that.index;
+		points = that.points;
+	}
+	return *this;
+}
+
+long Point::getIndex() {
+	return index;
+}
+
+Eigen::Vector3d Point::getCoords(const int & basis,
+		const bool & inWignerSeitz) {
+	if ( ( basis != crystalCoords_ ) && ( basis != cartesianCoords_ ) ) {
+		Error e("Point getCoordinates: basis must be crystal or cartesian");
+	}
+	Eigen::Vector3d coords;
+	if ( not inWignerSeitz ) {
+		Eigen::Vector3d crysCoords = points.getPointCoords(index,
+				crystalCoords_);
+		coords = points.crystalToWS(crysCoords, basis);
+	} else {
+		coords = points.getPointCoords(index, basis);
+	}
+	return coords;
+}
+
+
+double Point::getWeight() {
+	return points.getWeight(index);
+}
+
+bool Point::hasUmklapp() {
+	if ( umklappVector.norm() < 1.0e-8 ) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+Point Point::operator + (Point & b) {
+	if ( &b.points != &points ) {
+		Error e("Points sum should refer to points of the same mesh");
+	}
+	Eigen::Vector3d coords = getCoords() + b.getCoords();
+	long ik = points.getIndex(coords);
+	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
+	Point p(ik, umklappVector, points);
+    return p;
+}
+
+Point Point::operator - (Point & b) {
+	if ( &b.points != &points ) {
+		Error e("Points sum should refer to points of the same mesh");
+	}
+	Eigen::Vector3d coords = getCoords() - b.getCoords();
+	long ik = points.getIndex(coords);
+	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
+	Point p(ik, umklappVector, points);
+    return p;
 }
