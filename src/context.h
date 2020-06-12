@@ -60,8 +60,12 @@ private:
 	double deltaPath = 0.05;
 
 	double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
-	bool doIsotopes = true; // add isotopic scattering in phonon scatt matrix
+	bool withIsotopeScattering = true; // add isotopic scattering in phonon scatt matrix
 	Eigen::VectorXd massVariance; // mass variance for isotope scattering
+
+	// add RTA boundary scattering in phonon scatt matrix
+	// boundary length for isotope scattering
+	double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
 //  Setter and getter for all the variables above
 public:
@@ -274,10 +278,15 @@ public:
 	void setScatteringMatrixInMemory(const bool & x);
 	bool getScatteringMatrixInMemory();
 
-	void setDoIsotopes(const bool & x);
-	bool getDoIsotopes();
+	void setWithIsotopeScattering(const bool & x);
+	bool getWithIsotopeScattering();
 	void setMassVariance(const Eigen::VectorXd & x);
 	Eigen::VectorXd getMassVariance();
+
+//	void setWithRTABoundaryScattering(const bool & x);
+//	bool getWithRTABoundaryScattering();
+	void setBoundaryLength(const double & x);
+	double getBoundaryLength();
 
 
 	/** Reads the user-provided input file and saves the input parameters

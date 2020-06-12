@@ -26,6 +26,9 @@ protected:
 	Eigen::VectorXd massVariance;
 	bool doIsotopes;
 
+	double boundaryLength;
+	bool doBoundary;
+
 	virtual void builder(Eigen::MatrixXd & matrix, VectorBTE * linewidth,
 			VectorBTE * inPopulation, VectorBTE * outPopulation);
 };

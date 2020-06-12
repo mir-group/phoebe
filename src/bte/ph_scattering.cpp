@@ -55,11 +55,24 @@ PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 	} else {
 		doIsotopes = false;
 	}
+
+	doBoundary = false;
+	boundaryLength = context.getBoundaryLength();
+	if ( ! std::isnan(boundaryLength) ) {
+		if ( boundaryLength > 0. ) {
+			doBoundary = true;
+		}
+	}
 }
 
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix & that) :
-		ScatteringMatrix(that), coupling3Ph(that.coupling3Ph), h0(that.h0),
-		massVariance(that.massVariance), doIsotopes(that.doIsotopes) {
+		ScatteringMatrix(that),
+		coupling3Ph(that.coupling3Ph),
+		h0(that.h0),
+		massVariance(that.massVariance),
+		doIsotopes(that.doIsotopes),
+		boundaryLength(that.boundaryLength),
+		doBoundary(that.doBoundary) {
 }
 
 PhScatteringMatrix & PhScatteringMatrix::operator=(
@@ -70,6 +83,8 @@ PhScatteringMatrix & PhScatteringMatrix::operator=(
 		h0 = that.h0;
 		massVariance = that.massVariance;
 		doIsotopes = that.doIsotopes;
+		boundaryLength = that.boundaryLength;
+		doBoundary = that.doBoundary;
 	}
 	return *this;
 }
@@ -525,7 +540,43 @@ void PhScatteringMatrix::builder(
 	}
 	loopPrint.close();
 
-	// some phonons like acoustifc at gamma, with omega = 0,
+	// Add boundary scattering
+
+	if ( doBoundary ) {
+		for ( long is1=0; is1<numStates; is1++ ) {
+			double energy = outerBandStructure.getEnergy(is1);
+			auto vel = outerBandStructure.getGroupVelocity(is1);
+			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++) {
+
+				double temperature = statisticsSweep.getCalcStatistics(
+						iCalc).temperature;
+				// n(n+1)
+				double termPop = particle.getPopPopPm1(energy, temperature);
+				double rate = vel.squaredNorm() / boundaryLength * termPop;
+
+				switch ( switchCase ) {
+				case (0):
+					// case of matrix construction
+					matrix(is1,is1) += rate; // this is redundant, see below
+					linewidth->data(iCalc,is1) += rate;
+					break;
+				case (1):
+					// case of matrix-vector multiplication
+					for ( long i : {0,1,2} ) {
+						outPopulation->data(3*iCalc+i,is1) +=
+								rate * inPopulation->data(3*iCalc+i,is1);
+					}
+					break;
+				case (2):
+					// case of linewidth construction
+					linewidth->data(iCalc,is1) += rate;
+					break;
+				}
+			}
+		}
+	}
+
+	// some phonons like acoustic modes at the gamma, with omega = 0,
 	// might have zero frequencies, and infinite populations. We set those
 	// matrix elements to zero.
 	if ( switchCase==0 ) {
@@ -551,7 +602,7 @@ void PhScatteringMatrix::builder(
 	}
 
 	// we place the linewidths back in the diagonal of the scattering matrix
-	// this because we need an MPI_allreduce on linewidth
+	// this because we may need an MPI_allreduce on the linewidths
 	if ( switchCase == 0 ) { // case of matrix construction
 		long iCalc = 0;
 		for ( long i=0; i<outerBandStructure.getNumStates(); i++ ) {

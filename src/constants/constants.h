@@ -48,6 +48,7 @@ const double energyRyToEv   = rydbergSi / electronVoltSi;
 const double distanceAngToSi = 1.0e-10;
 const double distanceRyToSi = bohrRadiusSi;
 const double distanceBohrToCm = bohrRadiusSi * 100.;
+const double distanceBohrToMum = bohrRadiusSi * 1000000.;
 const double timeRyToFs = timeRy * 1e15 * twoPi;
 const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
 const double distanceBohrToAng = bohrRadiusSi / distanceAngToSi;
