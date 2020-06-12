@@ -47,7 +47,7 @@ public:
 
     /** Method to return that the underlying is that of an electronic Fermion.
      */
-    Statistics getStatistics();
+    Particle getParticle();
 
     /** get the total number of bands.
      * This is a constant for all wavevectors.
@@ -82,7 +82,7 @@ public:
     template<typename T>
     std::vector<Eigen::MatrixXcd> getBerryConnection(Point<T> & point);
 protected:
-    Statistics statistics;
+    Particle particle;
     virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
     	diagonalizeFromCoords(Eigen::Vector3d & k);
 
@@ -105,7 +105,7 @@ template<typename T>
 FullBandStructure<T> ElectronH0Wannier::populate(T & fullPoints,
 		bool & withVelocities, bool & withEigenvectors) {
 
-	FullBandStructure<T> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, particle,
 			withVelocities, withEigenvectors, fullPoints);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {

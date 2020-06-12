@@ -8,7 +8,7 @@
 #include "points.h"
 #include "io.h"
 #include "window.h"
-#include "statistics.h"
+#include "particle.h"
 #include "dos_app.h"
 #include "polarization_app.h"
 #include "bands_app.h"

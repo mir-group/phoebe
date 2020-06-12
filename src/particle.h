@@ -1,5 +1,5 @@
-#ifndef STATISTICS_H
-#define STATISTICS_H
+#ifndef PARTICLE_H
+#define PARTICLE_H
 
 #include "eigen.h"
 
@@ -8,7 +8,7 @@
  * occupation numbers, i.e. Fermi-Dirac or Bose-Einstein distributions, their
  * derivatives w.r.t. temperature or energy, and factors N(N+1) or F(1-F).
  */
-class Statistics {
+class Particle {
 public:
 	static const int electron = -1;
 	static const int phonon   = -2;
@@ -18,15 +18,15 @@ public:
 	 * @param statistics: an integer equal to Statistics::electron or
 	 * Statistics::phonon.
 	 */
-	Statistics(int statistics_);
+	Particle(int kind_);
 
 	/** Copy constructor
 	 */
-	Statistics(const Statistics & obj);
+	Particle(const Particle & obj);
 
 	/** Copy assignment operator
 	 */
-	Statistics & operator=(const Statistics & obj);
+	Particle & operator=(const Particle & obj);
 
 	/** Returns either a Bose--Einstein or a Fermi--Dirac distribution,
 	 * depending on the value of "statistics".
@@ -90,7 +90,7 @@ private:
 	int statistics;
 	// identifies whether we have an electron or a phonon
 	// Note: we keep particle != statistics because we might add particles
-	int particle;
+	int kind;
 };
 
 #endif

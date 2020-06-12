@@ -7,7 +7,7 @@ ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 		const Eigen::VectorXd & vectorsDegeneracies_,
 		const Eigen::Tensor<std::complex<double>,3> & h0R_,
 		const Eigen::Tensor<std::complex<double>,4> & rMatrix_) :
-		statistics(Statistics::electron) {
+		particle(Particle::electron) {
 
 	h0R = h0R_;
 	rMatrix = rMatrix_;
@@ -41,7 +41,7 @@ ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 
 // copy constructor
 ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
-	statistics(Statistics::electron) {
+	particle(Particle::electron) {
 		h0R = that.h0R;
 		rMatrix = that.rMatrix;
 		directUnitCell = that.directUnitCell;
@@ -59,7 +59,7 @@ ElectronH0Wannier & ElectronH0Wannier::operator = (
 	    vectorsDegeneracies.resize(0);
 		h0R.resize(0,0,0);
 		rMatrix.resize(0,0,0,0);
-		statistics = that.statistics;
+		particle = that.particle;
 		numVectors = that.numVectors;
 		numBands = that.numBands;
 	    bravaisVectors = that.bravaisVectors;
@@ -75,8 +75,8 @@ long ElectronH0Wannier::getNumBands() {
 	return numBands;
 }
 
-Statistics ElectronH0Wannier::getStatistics() {
-	return statistics;
+Particle ElectronH0Wannier::getParticle() {
+	return particle;
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>

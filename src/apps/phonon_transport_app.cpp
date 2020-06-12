@@ -3,7 +3,7 @@
 #include "context.h"
 #include "constants.h"
 #include "exceptions.h"
-#include "statistics.h"
+#include "particle.h"
 #include "io.h"
 #include "vector_bte.h"
 #include "drift.h"

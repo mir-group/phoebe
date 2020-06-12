@@ -2,7 +2,7 @@
 #define HARMONIC_H
 
 #include "points.h"
-#include "statistics.h"
+#include "particle.h"
 #include "bandstructure.h"
 
 template<typename T> class FullBandStructure;
@@ -21,13 +21,13 @@ public:
 
 	const bool hasEigenvectors = true;
 	virtual long getNumBands();
-	virtual Statistics getStatistics();
+	virtual Particle getParticle();
 
 	template<typename Arg>
 	FullBandStructure<Arg> populate(Arg & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
 protected:
-	Statistics statistics;
+	Particle particle;
 	Eigen::Tensor<std::complex<double>,3> internalDiagonalizeVelocity(
 				Eigen::Vector3d & coords, double & delta, double & threshold);
 

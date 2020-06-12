@@ -198,7 +198,7 @@ std::tuple<ChemPotIndex,TempIndex,DimIndex> VectorBTE::loc2Glob(
 }
 
 void VectorBTE::canonical2Population() {
-	auto statistics = bandStructure.getStatistics();
+	auto particle = bandStructure.getParticle();
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto [imu, it, idim] = loc2Glob(iCalc);
 		auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
@@ -206,14 +206,14 @@ void VectorBTE::canonical2Population() {
 		auto chemPot = calcStatistics.chemicalPotential;
 		for ( long is=0; is<numStates; is++ ) {
 			double en = bandStructure.getEnergy(is);
-			double term = statistics.getPopPopPm1(en, temp, chemPot);
+			double term = particle.getPopPopPm1(en, temp, chemPot);
 			data(iCalc,is) *= term;
 		}
 	}
 }
 
 void VectorBTE::population2Canonical() {
-	auto statistics = bandStructure.getStatistics();
+	auto particle = bandStructure.getParticle();
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto [imu, it, idim] = loc2Glob(iCalc);
 		auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
@@ -221,7 +221,7 @@ void VectorBTE::population2Canonical() {
 		auto chemPot = calcStatistics.chemicalPotential;
 		for ( long is=0; is<numStates; is++ ) {
 			double en = bandStructure.getEnergy(is);
-			double term = statistics.getPopPopPm1(en, temp, chemPot);
+			double term = particle.getPopPopPm1(en, temp, chemPot);
 			data(iCalc,is) /= term;
 		}
 	}

@@ -6,7 +6,7 @@
 #include "crystal.h"
 #include "harmonic.h"
 #include "points.h"
-#include "statistics.h"
+#include "particle.h"
 #include "bandstructure.h"
 #include "constants.h"
 #include "points.h"
@@ -73,9 +73,9 @@ public:
 	 */
 	long getNumBands();
 
-	/** Returns the underlying phonon-boson statistics.
+	/** Returns the underlying phonon-boson particle.
 	 */
-	Statistics getStatistics();
+	Particle getParticle();
 
 	/** This method constructs a phonon bandstructure.
 	 * @param points: the object with the list/mesh of wavevectors
@@ -101,7 +101,7 @@ public:
 	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
 				Eigen::Vector3d & q, const bool & withMassScaling=true);
 protected:
-	Statistics statistics;
+	Particle particle;
 
 	Eigen::Vector3i getCoarseGrid();
 	// internal variables
@@ -156,7 +156,7 @@ template <typename T>
 FullBandStructure<T> PhononH0::populate(T & points, bool & withVelocities,
 		bool & withEigenvectors) {
 
-	FullBandStructure<T> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, particle,
 			withVelocities, withEigenvectors, points);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {

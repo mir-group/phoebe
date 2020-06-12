@@ -8,11 +8,11 @@
 
 StatisticsSweep::StatisticsSweep(Context & context,
 		FullBandStructure<FullPoints> * fullBandStructure) :
-		statistics( fullBandStructure!=nullptr ?
-				fullBandStructure->getStatistics() : Statistics::phonon)
+		particle( fullBandStructure!=nullptr ?
+				fullBandStructure->getParticle() : Particle::phonon)
 		{
 
-	if ( statistics.isPhonon() ) {
+	if ( particle.isPhonon() ) {
 		Eigen::VectorXd temperatures = context.getTemperatures();
         nTemp = temperatures.size();
         nDop = 1;
@@ -145,7 +145,7 @@ StatisticsSweep::StatisticsSweep(Context & context,
 
 // copy constructor
 StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
-		statistics(that.statistics) {
+		particle(that.particle) {
 	numCalcs = that.numCalcs;
 	infoCalcs = that.infoCalcs;
 	nTemp = that.nTemp;
@@ -156,7 +156,7 @@ StatisticsSweep::StatisticsSweep(const StatisticsSweep & that) :
 // copy assignment
 StatisticsSweep & StatisticsSweep::operator = (const StatisticsSweep & that) {
 	if ( this != &that ) {
-		statistics = that.statistics;
+		particle = that.particle;
 		numCalcs = that.numCalcs;
 		infoCalcs = that.infoCalcs;
 		nTemp = that.nTemp;
@@ -172,7 +172,7 @@ double StatisticsSweep::fPop(const double & chemPot, const double & temp) {
 	// for computing the particle number
 	double fPop_ = 0.;
 	for ( long i=0; i<numStates; i++ ) {
-		fPop_ += statistics.getPopulation(energies(i), temp, chemPot);
+		fPop_ += particle.getPopulation(energies(i), temp, chemPot);
 	}
 	fPop_ /= numPoints;
 	fPop_ = numElectronsDoped - fPop_;
@@ -236,7 +236,7 @@ double StatisticsSweep::findDopingFromChemicalPotential(
 		const double & chemicalPotential, const double & temperature) {
 	double fPop = 0.;
 	for ( long i=0; i<numStates; i++ ) {
-		fPop += statistics.getPopulation(energies(i), temperature,
+		fPop += particle.getPopulation(energies(i), temperature,
 				chemicalPotential);
 	}
 	fPop /= numPoints;

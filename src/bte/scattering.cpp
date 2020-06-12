@@ -197,7 +197,7 @@ void ScatteringMatrix::a2Omega() {
 
 	long iCalc = 0; // as there can only be one temperature
 
-	auto statistics = outerBandStructure.getStatistics();
+	auto particle = outerBandStructure.getParticle();
 	auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
 	double temp = calcStatistics.temperature;
 	double chemPot = calcStatistics.chemicalPotential;
@@ -208,14 +208,8 @@ void ScatteringMatrix::a2Omega() {
 				!= excludeIndeces.end()) continue;
 
 		double en1 = outerBandStructure.getEnergy(ind1);
-		double pop1 = statistics.getPopulation(en1, temp, chemPot);
-
-		double term1;
-		if ( statistics.isFermi() ) {
-			term1 = pop1 * (1. - pop1);
-		} else {
-			term1 = pop1 * (1. + pop1);
-		}
+		// n(n+1) for bosons, n(1-n) for fermions
+		double term1 = particle.getPopPopPm1(en1, temp, chemPot);
 		internalDiagonal.data(iCalc,ind1) /= term1;
 
 		for ( long ind2=0; ind2<numStates; ind2++ ) {
@@ -224,14 +218,9 @@ void ScatteringMatrix::a2Omega() {
 					!= excludeIndeces.end()) continue;
 
 			double en2 = outerBandStructure.getEnergy(ind2);
-			double pop2 = statistics.getPopulation(en2, temp, chemPot);
+			// n(n+1) for bosons, n(1-n) for fermions
+			double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
-			double term2;
-			if ( statistics.isFermi() ) {
-				term2 = pop2 * (1. - pop2);
-			} else {
-				term2 = pop2 * (1. + pop2);
-			}
 			theMatrix(ind1,ind2) /= sqrt( term1 * term2 );
 		}
 	}
@@ -257,7 +246,7 @@ void ScatteringMatrix::omega2A() {
 
 	long iCalc = 0; // as there can only be one temperature
 
-	auto statistics = outerBandStructure.getStatistics();
+	auto particle = outerBandStructure.getParticle();
 	auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
 	double temp = calcStatistics.temperature;
 	double chemPot = calcStatistics.chemicalPotential;
@@ -268,14 +257,10 @@ void ScatteringMatrix::omega2A() {
 				!= excludeIndeces.end()) continue;
 
 		double en1 = outerBandStructure.getEnergy(ind1);
-		double pop1 = statistics.getPopulation(en1, temp, chemPot);
 
-		double term1;
-		if ( statistics.isFermi() ) {
-			term1 = pop1 * (1. - pop1);
-		} else {
-			term1 = pop1 * (1. + pop1);
-		}
+		// n(n+1) for bosons, n(1-n) for fermions
+		double term1 = particle.getPopPopPm1(en1, temp, chemPot);
+
 		internalDiagonal.data(iCalc,ind1) *= term1;
 
 		for ( long ind2=0; ind2<numStates; ind2++ ) {
@@ -284,14 +269,9 @@ void ScatteringMatrix::omega2A() {
 					!= excludeIndeces.end()) continue;
 
 			double en2 = outerBandStructure.getEnergy(ind2);
-			double pop2 = statistics.getPopulation(en2, temp, chemPot);
+			// n(n+1) for bosons, n(1-n) for fermions
+			double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
-			double term2;
-			if ( statistics.isFermi() ) {
-				term2 = pop2 * (1. - pop2);
-			} else {
-				term2 = pop2 * (1. + pop2);
-			}
 			theMatrix(ind1,ind2) *= sqrt( term1 * term2 );
 		}
 	}
@@ -315,7 +295,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 			}
 			return times;
 		} else { // A_nu,nu = N(1+-N) / tau
-			auto statistics = outerBandStructure.getStatistics();
+			auto particle = outerBandStructure.getParticle();
 			for ( long iCalc=0; iCalc<internalDiagonal.numCalcs; iCalc++ ) {
 				auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
 				double temp = calcStatistics.temperature;
@@ -323,15 +303,11 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 
 				for ( long is=0; is<internalDiagonal.numStates; is++ ) {
 					double en = outerBandStructure.getEnergy(is);
-					double population = statistics.getPopulation(en, temp,
-							chemPot);
-					if ( statistics.isFermi() ) {
-						times.data(iCalc,is) = population * ( 1. - population )
-								/ times.data(iCalc,is);
-					} else {
-						times.data(iCalc,is) = population * ( 1. + population )
-								/ times.data(iCalc,is);
-					}
+
+					// n(n+1) for bosons, n(1-n) for fermions
+					double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+
+					times.data(iCalc,is) = popTerm / times.data(iCalc,is);
 				}
 			}
 			return times;

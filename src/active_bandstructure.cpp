@@ -3,13 +3,13 @@
 #include "exceptions.h"
 #include "window.h"
 
-ActiveBandStructure::ActiveBandStructure(Statistics & statistics_) :
-		statistics(statistics_) {
+ActiveBandStructure::ActiveBandStructure(Particle & particle_) :
+		particle(particle_) {
 }
 
 // copy constructor
 ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure & that) :
-			statistics(that.statistics),
+			particle(that.particle),
 			energies(that.energies),
 			groupVelocities(that.groupVelocities),
 			velocities(that.velocities),
@@ -33,8 +33,8 @@ ActiveBandStructure & ActiveBandStructure::operator=(
 	return *this;
 }
 
-Statistics ActiveBandStructure::getStatistics() {
-	return statistics;
+Particle ActiveBandStructure::getParticle() {
+	return particle;
 }
 
 bool ActiveBandStructure::hasPoints() {

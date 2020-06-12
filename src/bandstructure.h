@@ -3,7 +3,7 @@
 
 #include "points.h"
 #include "state.h"
-#include "statistics.h"
+#include "particle.h"
 #include "exceptions.h"
 #include "utilities.h"
 
@@ -17,7 +17,7 @@ template<typename T>
 class FullBandStructure {
 private:
 	// stores the quasiparticle kind
-	Statistics statistics;
+	Particle particle;
 
 	// link to the underlying mesh of points
 	T & points; // these may be FullPoints or PathPoints
@@ -53,13 +53,13 @@ private:
 public:
 	/** Constructor of the FullBandStructure
 	 * @param numBands: an integer with the number of bands in the system
-	 * @param statistics: a Statistics object that contains the type of
+	 * @param particle: a Particle object that contains the type of
 	 * quasiparticle
 	 * @param withVelocities: a boolean to decide whether to store velocities
 	 * @param withEigenvectors: a boolean to decide whether to store eigenvecs
 	 * @param points: the underlying mesh of wavevectors.
 	 */
-	FullBandStructure(long numBands_, Statistics & statistics_,
+	FullBandStructure(long numBands_, Particle & particle_,
 			bool withVelocities, bool withEigenvectors, T & points_);
 
 	/** Copy constructor
@@ -121,11 +121,11 @@ public:
 	 */
 	Eigen::VectorXd getBandEnergies(long & bandIndex);
 
-	/** Get the Statistics object associated with this class
-	 * @return statistics: a Statistics object, describing e.g. whether this
+	/** Get the Particle object associated with this class
+	 * @return particle: a Particle object, describing e.g. whether this
 	 * is a phonon or electron bandStructure
 	 */
-	Statistics getStatistics();
+	Particle getParticle();
 
 	/** Returns the energy of a quasiparticle from its Bloch index
 	 * Used for accessing the bandstructure in the BTE.
@@ -211,9 +211,9 @@ public:
 
 template<typename T>
 FullBandStructure<T>::FullBandStructure(long numBands_,
-		Statistics & statistics_,
+		Particle & particle_,
 		bool withVelocities, bool withEigenvectors, T & points_) :
-			statistics{statistics_}, points(points_) {
+			particle{particle_}, points(points_) {
 
 	numBands = numBands_;
 	numAtoms = numBands_ / 3;
@@ -250,7 +250,7 @@ FullBandStructure<T>::FullBandStructure(long numBands_,
 // copy constructor
 template<typename T>
 FullBandStructure<T>::FullBandStructure(const FullBandStructure & that) :
-	statistics(that.statistics), points(that.points),
+	particle(that.particle), points(that.points),
 	energies(that.energies), velocities(that.velocities),
 	eigenvectors(that.eigenvectors), rawEnergies(that.rawEnergies),
 	rawVelocities(that.rawVelocities), rawEigenvectors(that.rawEigenvectors),
@@ -264,7 +264,7 @@ template<typename T>
 FullBandStructure<T> & FullBandStructure<T>::operator = ( // copy assignment
 		const FullBandStructure & that) {
 	if ( this != &that ) {
-		statistics = that.statistics;
+		particle = that.particle;
 		points = that.points;
 		energies = that.energies;
 		velocities = that.velocities;
@@ -284,8 +284,8 @@ FullBandStructure<T> & FullBandStructure<T>::operator = ( // copy assignment
 }
 
 template<typename T>
-Statistics FullBandStructure<T>::getStatistics() {
-	return statistics;
+Particle FullBandStructure<T>::getParticle() {
+	return particle;
 }
 
 template<typename T>

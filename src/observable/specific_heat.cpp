@@ -26,14 +26,14 @@ void SpecificHeat::calc() {
 	double norm = 1. / bandStructure.getNumPoints()
 			/ crystal.getVolumeUnitCell(dimensionality);
 	scalar.setZero();
-	auto statistics = bandStructure.getStatistics();
+	auto particle = bandStructure.getParticle();
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 		double chemPot = calcStat.chemicalPotential;
 		for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
 			auto en = bandStructure.getEnergy(is);
-			auto dndt = statistics.getDndt(en, temp, chemPot);
+			auto dndt = particle.getDndt(en, temp, chemPot);
 			scalar(iCalc) += dndt * en * norm;
 		}
 	}

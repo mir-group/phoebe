@@ -53,7 +53,7 @@ public:
 
     /** Method to return that the underlying is that of an electronic Fermion.
      */
-	Statistics getStatistics();
+	Particle getParticle();
 
 	/** This method constructs an electron bandstructure.
 	 * @param points: the object with the list/mesh of wavevectors
@@ -75,7 +75,7 @@ protected:
 	Crystal & crystal;
 	FullBandStructure<FullPoints> coarseBandStructure;
 	FullPoints coarsePoints;
-	Statistics statistics;
+	Particle particle;
 
 	Eigen::MatrixXcd expansionCoefficients;
 
@@ -138,7 +138,7 @@ template<typename T>
 FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
 		bool & withVelocities, bool & withEigenvectors) {
 
-	FullBandStructure<T> fullBandStructure(numBands, statistics,
+	FullBandStructure<T> fullBandStructure(numBands, particle,
 			withVelocities, withEigenvectors, fullPoints);
 
 	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {

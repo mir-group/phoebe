@@ -19,7 +19,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 	}
 
 	// setup here the isotopic scattering
-	if ( context.getDoIsotopes() ) {
+	if ( context.getWithIsotopeScattering() ) {
 
 		auto crystal = outerBandStructure.getPoints().getCrystal();
 		int numAtoms = crystal.getNumAtoms();
@@ -110,7 +110,7 @@ void PhScatteringMatrix::builder(
 
 	bool dontComputeQ3 = &innerBandStructure == &outerBandStructure;
 
-	auto statistics = outerBandStructure.getStatistics();
+	auto particle = outerBandStructure.getParticle();
 
 	long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
 	long numCalcs = statisticsSweep.getNumCalcs();
@@ -130,7 +130,7 @@ void PhScatteringMatrix::builder(
 			for ( long iCalc=0; iCalc<statisticsSweep.getNumCalcs(); iCalc++){
 				double temperature = statisticsSweep.getCalcStatistics(iCalc
 						).temperature;
-				outerBose.data(iCalc,is) = statistics.getPopulation(energy,
+				outerBose.data(iCalc,is) = particle.getPopulation(energy,
 						temperature);
 			}
 		}
@@ -150,7 +150,7 @@ void PhScatteringMatrix::builder(
 						iCalc++ ) {
 					double temperature = statisticsSweep.getCalcStatistics(
 							iCalc).temperature;
-					outerBose.data(iCalc,is) = statistics.getPopulation(energy,
+					outerBose.data(iCalc,is) = particle.getPopulation(energy,
 							temperature);
 				}
 			}
@@ -277,11 +277,11 @@ void PhScatteringMatrix::builder(
 					double temperature = statisticsSweep.getCalcStatistics(
 							iCalc).temperature;
 					for ( long ib3=0; ib3<nb3Plus; ib3++ ) {
-						bose3PlusData(iCalc,ib3) = statistics.getPopulation(
+						bose3PlusData(iCalc,ib3) = particle.getPopulation(
 								state3PlusEnergies(ib3), temperature);
 					}
 					for ( long ib3=0; ib3<nb3Mins; ib3++ ) {
-						bose3MinsData(iCalc,ib3) = statistics.getPopulation(
+						bose3MinsData(iCalc,ib3) = particle.getPopulation(
 								state3MinsEnergies(ib3), temperature);
 					}
 				}

@@ -6,7 +6,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 		const long & dimensionality_) :
 		VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = bandStructure.getEnergy(is);
 		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
@@ -19,7 +19,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;
 
-			double x = statistics.getDndt(energy, temperature,
+			double x = particle.getDndt(energy, temperature,
 					chemicalPotential) * vel;
 			data(iCalc,is) = x;
 		}
@@ -31,7 +31,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 		const long & dimensionality_) :
 				VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = bandStructure.getEnergy(is);
 		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
@@ -44,7 +44,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;
 
-			double x = statistics.getDnde(energy, temperature,
+			double x = particle.getDnde(energy, temperature,
 					chemicalPotential) * vel;
 			data(iCalc,is) = x;
 		}
@@ -58,7 +58,7 @@ Vector0::Vector0(StatisticsSweep & statisticsSweep_,
 
 	data.setZero();
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto [imu,it,idim] = loc2Glob(iCalc);
@@ -68,7 +68,7 @@ Vector0::Vector0(StatisticsSweep & statisticsSweep_,
 
 		for ( long is=0; is<numStates; is++ ) {
 			double energy = bandStructure.getEnergy(is);
-			double dnde = statistics.getDnde(energy,temp,chemPot);
+			double dnde = particle.getDnde(energy,temp,chemPot);
 			// note dnde = n(n+1)/T  (for bosons)
 			auto c = specificHeat.get(imu,it);
 			double x = - dnde / temp / c;

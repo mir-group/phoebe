@@ -3,11 +3,11 @@
 
 #include "context.h"
 #include "eigen.h"
-#include "statistics.h"
+#include "particle.h"
 
 class Window {
 public:
-	Window(Context & context, Statistics & statistics_,
+	Window(Context & context, Particle & particle_,
 			const double & temperatureMin = 0.,
 			const double & temperatureMax = 0.,
 			const double & chemicalPotentialMin = 0.,
@@ -21,7 +21,7 @@ public:
 	static const long population = 1;
 	static const long energy = 2;
 private:
-	Statistics & statistics;
+	Particle & particle;
 
 	// parameters for window
 	double temperatureMin, temperatureMax;

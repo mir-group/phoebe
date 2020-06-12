@@ -3,7 +3,7 @@
 #include "eigen.h"
 #include "points.h"
 
-HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
+HarmonicHamiltonian::HarmonicHamiltonian() : particle(Particle::phonon) {
 }
 
 // note: these are dummy functions, that should be overwritten in the
@@ -20,8 +20,8 @@ long HarmonicHamiltonian::getNumBands() {
 	return numBands;
 }
 
-Statistics HarmonicHamiltonian::getStatistics() {
-	return statistics;
+Particle HarmonicHamiltonian::getParticle() {
+	return particle;
 }
 
 Eigen::Tensor<std::complex<double>,3>

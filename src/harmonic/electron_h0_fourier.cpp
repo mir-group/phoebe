@@ -3,13 +3,13 @@
 #include "electron_h0_fourier.h"
 #include "exceptions.h"
 #include "constants.h"
-#include "statistics.h"
+#include "particle.h"
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		FullPoints coarsePoints_,
 		FullBandStructure<FullPoints> coarseBandStructure_, double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
-		coarsePoints(coarsePoints_), statistics(Statistics::electron) {
+		coarsePoints(coarsePoints_), particle(Particle::electron) {
 
 	numBands = coarseBandStructure.getNumBands();
 	cutoff = cutoff_;
@@ -38,8 +38,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 	expansionCoefficients = expansionCoefficients_;
 }
 
-Statistics ElectronH0Fourier::getStatistics() {
-	return statistics;
+Particle ElectronH0Fourier::getParticle() {
+	return particle;
 }
 
 double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {

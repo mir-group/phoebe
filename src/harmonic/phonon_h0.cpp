@@ -13,7 +13,7 @@ PhononH0::PhononH0(Crystal& crystal,
 		const Eigen::MatrixXd& dielectricMatrix_,
 		const Eigen::Tensor<double, 3>& bornCharges_,
 		const Eigen::Tensor<double, 7>& forceConstants_) :
-		statistics(Statistics::phonon),
+		particle(Particle::phonon),
 		bornCharges(bornCharges_),
 		forceConstants(forceConstants_)
 	{
@@ -61,7 +61,7 @@ PhononH0::PhononH0(Crystal& crystal,
 
 // copy constructor
 PhononH0::PhononH0( const PhononH0 & that ) :
-		statistics(that.statistics),
+		particle(that.particle),
 		hasDielectric(that.hasDielectric),
 		numAtoms(that.numAtoms),
 		numBands(that.numBands),
@@ -85,7 +85,7 @@ PhononH0::PhononH0( const PhononH0 & that ) :
 // copy assignment
 PhononH0 & PhononH0::operator = ( const PhononH0 & that ) {
 	if ( this != & that ) {
-		statistics = that.statistics;
+		particle = that.particle;
 		hasDielectric = that.hasDielectric;
 		numAtoms = that.numAtoms;
 		numBands = that.numBands;
@@ -112,8 +112,8 @@ long PhononH0::getNumBands() {
 	return numBands;
 }
 
-Statistics PhononH0::getStatistics() {
-	return statistics;
+Particle PhononH0::getParticle() {
+	return particle;
 }
 
 // Development note:
