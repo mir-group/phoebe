@@ -135,7 +135,6 @@ void ElectronFourierDosApp::run(Context & context) {
         }
         std::cout << "Electronic DoS computed" << std::endl;
 }
-
 void PhononDosApp::checkRequirements(Context & context) {
         throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
         throwErrorIfUnset(context.getQMesh(), "qMesh");
@@ -166,4 +165,3 @@ void ElectronFourierDosApp::checkRequirements(Context & context) {
         throwErrorIfUnset(context.getElectronFourierCutoff(),
                         "electronFourierCutoff");
 }
-

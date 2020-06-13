@@ -7,7 +7,7 @@ ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 		const Eigen::VectorXd & vectorsDegeneracies_,
 		const Eigen::Tensor<std::complex<double>,3> & h0R_,
 		const Eigen::Tensor<std::complex<double>,4> & rMatrix_) :
-		statistics(Statistics::electron) {
+		particle(Particle::electron) {
 
 	h0R = h0R_;
 	rMatrix = rMatrix_;
@@ -41,7 +41,7 @@ ElectronH0Wannier::ElectronH0Wannier(const Eigen::Matrix3d & directUnitCell_,
 
 // copy constructor
 ElectronH0Wannier::ElectronH0Wannier( const ElectronH0Wannier & that ) :
-	statistics(Statistics::electron) {
+	particle(Particle::electron) {
 		h0R = that.h0R;
 		rMatrix = that.rMatrix;
 		directUnitCell = that.directUnitCell;
@@ -59,7 +59,7 @@ ElectronH0Wannier & ElectronH0Wannier::operator = (
 	    vectorsDegeneracies.resize(0);
 		h0R.resize(0,0,0);
 		rMatrix.resize(0,0,0,0);
-		statistics = that.statistics;
+		particle = that.particle;
 		numVectors = that.numVectors;
 		numBands = that.numBands;
 	    bravaisVectors = that.bravaisVectors;
@@ -75,8 +75,20 @@ long ElectronH0Wannier::getNumBands() {
 	return numBands;
 }
 
-Statistics ElectronH0Wannier::getStatistics() {
-	return statistics;
+Particle ElectronH0Wannier::getParticle() {
+	return particle;
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Wannier::diagonalize(Point & point) {
+	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
+
+	auto [energies,eigenvectors] = diagonalizeFromCoords(k);
+
+	// note: the eigenvector matrix is the unitary transformation matrix U
+	// from the Bloch to the Wannier gauge.
+
+	return {energies, eigenvectors};
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -101,4 +113,74 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 	Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();
 
 	return {energies, eigenvectors};
+}
+
+Eigen::Tensor<std::complex<double>,3> ElectronH0Wannier::diagonalizeVelocity(
+		Point & point) {
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	double delta = 1.0e-8;
+	double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
+	auto velocity = HarmonicHamiltonian::internalDiagonalizeVelocity(coords,
+			delta, threshold);
+	return velocity;
+}
+
+std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
+		Point & point) {
+	Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
+
+	// first we diagonalize the hamiltonian
+	auto [ens, eigvecs] = diagonalize(point);
+
+	// note: the eigenvector matrix is the unitary transformation matrix U
+	// from the Bloch to the Wannier gauge.
+
+	std::vector<Eigen::MatrixXcd> bc;
+
+	for ( long i=0; i<3; i++ ) {
+
+		// now construct the berryConnection in reciprocal space and Wannier gauge
+		Eigen::MatrixXcd berryConnectionW(numBands,numBands);
+		berryConnectionW.setZero();
+
+		for ( long iR=0; iR<bravaisVectors.cols(); iR++ ) {
+			Eigen::Vector3d R = bravaisVectors.col(iR);
+			double phase = k.dot(R);
+			std::complex<double> phaseFactor = {cos(phase),sin(phase)};
+			for ( long m=0; m<numBands; m++ ) {
+				for ( long n=0; n<numBands; n++ ) {
+					berryConnectionW(m,n) +=
+							phaseFactor * rMatrix(i,iR,m,n)
+							/ vectorsDegeneracies(iR);
+				}
+			}
+		}
+
+		Eigen::MatrixXcd berryConnection(numBands,numBands);
+		berryConnection = eigvecs.adjoint() * berryConnectionW * eigvecs;
+		bc.push_back(berryConnection);
+	}
+	return bc;
+}
+
+FullBandStructure ElectronH0Wannier::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+		//TODO: I must fix the different shape of eigenvectors w.r.t. phonons
+//		if ( withEigenvectors ) {
+//			fullBandStructure.setEigenvectors(point, eigvecs);
+//		}
+	}
+	return fullBandStructure;
 }

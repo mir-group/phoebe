@@ -18,8 +18,7 @@ public:
 	 * used in the BTE.
 	 */
 	PhononThermalConductivity(StatisticsSweep & statisticsSweep_,
-			Crystal & crystal_,
-			FullBandStructure<FullPoints> & bandStructure_);
+			Crystal & crystal_, FullBandStructure & bandStructure_);
 
 	/** Copy constructor
 	 *
@@ -87,7 +86,7 @@ public:
 
 protected:
 	virtual int whichType();
-	FullBandStructure<FullPoints> & bandStructure;
+	FullBandStructure & bandStructure;
 };
 
 #endif

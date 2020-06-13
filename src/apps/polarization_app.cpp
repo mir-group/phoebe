@@ -39,7 +39,7 @@ void ElectronPolarizationApp::run(Context & context) {
 		}
 	}
 
-	Statistics statistics = h0.getStatistics();
+	Particle particle = h0.getParticle();
 
 	// before moving on, we need to fix the chemical potential
 	StatisticsSweep statisticsSweep(context, &bandStructure);
@@ -61,7 +61,7 @@ void ElectronPolarizationApp::run(Context & context) {
 				auto temp = sc.temperature;
 				auto chemPot = sc.chemicalPotential;
 
-				auto population = statistics.getPopulation(energy, temp,
+				auto population = particle.getPopulation(energy, temp,
 						chemPot);
 				for ( long i=0; i<3; i++ ) {
 					polarization(iCalc,i) -=

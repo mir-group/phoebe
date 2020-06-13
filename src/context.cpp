@@ -133,6 +133,9 @@ double parseDoubleWithUnits(std::vector<std::string> lines, std::string pattern)
 			if ( lineHasUnits(line, "fs") ) {
 				x /= timeRyToFs;
 			}
+			if ( lineHasUnits(line, "mum") ) {
+				x /= distanceBohrToMum;
+			}
 			found = true;
 			break;
 		}
@@ -692,8 +695,32 @@ void Context::setupFromInput(std::string fileName) {
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
-		double x = parseBool(lines, "scatteringMatrixInMemory");
+		bool x = parseBool(lines, "scatteringMatrixInMemory");
 		setScatteringMatrixInMemory(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		bool x = parseBool(lines, "withIsotopeScattering");
+		setWithIsotopeScattering(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "massVariance");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i];
+		}
+		setMassVariance(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+//	try {
+//		bool x = parseBool(lines, "withRTABoundaryScattering");
+//		setWithRTABoundaryScattering(x);
+//	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "boundaryLength");
+		setBoundaryLength(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 };
@@ -956,3 +983,37 @@ void Context::setScatteringMatrixInMemory(const bool & x) {
 bool Context::getScatteringMatrixInMemory() {
 	return scatteringMatrixInMemory;
 }
+
+void Context::setMassVariance(const Eigen::VectorXd & x) {
+	massVariance = x;
+}
+
+Eigen::VectorXd Context::getMassVariance() {
+	return massVariance;
+}
+
+void Context::setWithIsotopeScattering(const bool & x) {
+	withIsotopeScattering = x;
+}
+
+bool Context::getWithIsotopeScattering() {
+	return withIsotopeScattering;
+}
+
+
+void Context::setBoundaryLength(const double & x) {
+	boundaryLength = x;
+}
+
+double Context::getBoundaryLength() {
+	return boundaryLength;
+}
+
+//void Context::setWithRTABoundaryScattering(const bool & x) {
+//	doIsotopes = x;
+//}
+//
+//bool Context::getWithRTABoundaryScattering() {
+//	return doIsotopes;
+//}
+

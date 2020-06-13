@@ -8,6 +8,12 @@
 
 using namespace std;
 
+/** Class containing the user input variables.
+ * This class is mostly a container for the input variables.
+ *
+ * To add a new variable, write a get/set method, and modify setupFromInput().
+ * The new variable should be set to
+ */
 class Context {
 private:
 	std::string phD2FileName = "";
@@ -16,24 +22,24 @@ private:
 	std::string appName = "";
 	std::string sumRuleD2 = "";
 	int smearingMethod = -1;
-	double smearingWidth = 0.;
+	double smearingWidth = std::numeric_limits<double>::quiet_NaN();
 	Eigen::VectorXd temperatures;
-	std::vector<std::string> solverBTE = {"RTA"};
+	std::vector<std::string> solverBTE;
 	double convergenceThresholdBTE = 1e-5;
 	long maxIterationsBTE = 50;
 
 	bool scatteringMatrixInMemory = true;
 
-	std::string windowType = "nothing";
-	Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
-	double windowPopulationLimit;
+	std::string windowType = "";
+	Eigen::Vector2d windowEnergyLimit;
+	double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
 	Eigen::VectorXd dopings;
 	Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
-	double electronFourierCutoff = 0.;
+	double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
-	Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
-	Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
+	Eigen::Vector3i qMesh;
+	Eigen::Vector3i kMesh;
 
 
 	double fermiLevel = std::numeric_limits<double>::quiet_NaN();
@@ -42,9 +48,9 @@ private:
 
 	long dimensionality = 3;
 
-	double dosMinEnergy = 0.;
-	double dosMaxEnergy = 1.;
-	double dosDeltaEnergy = 0.01;
+	double dosMinEnergy = std::numeric_limits<double>::quiet_NaN();
+	double dosMaxEnergy = std::numeric_limits<double>::quiet_NaN();
+	double dosDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
 
 	Eigen::MatrixXd inputAtomicPositions;
 	Eigen::VectorXi inputAtomicSpecies;
@@ -53,7 +59,13 @@ private:
 	Eigen::Tensor<double,3> pathExtrema;
 	double deltaPath = 0.05;
 
-	double constantRelaxationTime = 0.;
+	double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
+	bool withIsotopeScattering = true; // add isotopic scattering in phonon scatt matrix
+	Eigen::VectorXd massVariance; // mass variance for isotope scattering
+
+	// add RTA boundary scattering in phonon scatt matrix
+	// boundary length for isotope scattering
+	double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
 //  Setter and getter for all the variables above
 public:
@@ -265,6 +277,16 @@ public:
 
 	void setScatteringMatrixInMemory(const bool & x);
 	bool getScatteringMatrixInMemory();
+
+	void setWithIsotopeScattering(const bool & x);
+	bool getWithIsotopeScattering();
+	void setMassVariance(const Eigen::VectorXd & x);
+	Eigen::VectorXd getMassVariance();
+
+//	void setWithRTABoundaryScattering(const bool & x);
+//	bool getWithRTABoundaryScattering();
+	void setBoundaryLength(const double & x);
+	double getBoundaryLength();
 
 
 	/** Reads the user-provided input file and saves the input parameters

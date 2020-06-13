@@ -26,10 +26,10 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	Context context;
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -254,10 +254,10 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	Context context;
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 	context.setPhD3FileName("../test/interaction3ph/ShengBTEForceConstants3rd");
+	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -355,18 +355,18 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 		auto p1 = points.getPoint(iq1);
 		auto p2 = points.getPoint(iq2);
 		auto p3 = points.getPoint(iq3);
-		auto [energies1,evv1] = phononH0.diagonalize(p1);
-		auto [energies2,evv2] = phononH0.diagonalize(p2);
-		auto [energies3,evv3] = phononH0.diagonalize(p3);
+		auto [energies1,evm1] = phononH0.diagonalize(p1);
+		auto [energies2,evm2] = phononH0.diagonalize(p2);
+		auto [energies3,evm3] = phononH0.diagonalize(p3);
 
-		for ( int i=0; i<numBands; i++ ) {
-			for ( int j=0; j<numBands; j++ ) {
-				auto [iat,idim] = decompress2Indeces(i,numAtoms,3);
-				evm1(i,j) = evv1(idim,iat,j);
-				evm2(i,j) = evv2(idim,iat,j);
-				evm3(i,j) = evv3(idim,iat,j);
-			}
-		}
+//		for ( int i=0; i<numBands; i++ ) {
+//			for ( int j=0; j<numBands; j++ ) {
+//				auto [iat,idim] = decompress2Indeces(i,numAtoms,3);
+//				evm1(i,j) = evv1(idim,iat,j);
+//				evm2(i,j) = evv2(idim,iat,j);
+//				evm3(i,j) = evv3(idim,iat,j);
+//			}
+//		}
 		q1 = p1.getCoords(Points::cartesianCoords);
 		q2 = p2.getCoords(Points::cartesianCoords);
 		q3 = p3.getCoords(Points::cartesianCoords);
@@ -435,7 +435,7 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	FullPoints points(crystal, qMesh);
 	bool withVelocities = true;
 	bool withEigenvectors = true;
-	FullBandStructure<FullPoints> bandStructure = phononH0.populate(points,
+	FullBandStructure bandStructure = phononH0.populate(points,
 			withVelocities, withEigenvectors);
 
 	auto states1 = bandStructure.getState(iq1);

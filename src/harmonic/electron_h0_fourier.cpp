@@ -3,13 +3,13 @@
 #include "electron_h0_fourier.h"
 #include "exceptions.h"
 #include "constants.h"
-#include "statistics.h"
+#include "particle.h"
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 		FullPoints coarsePoints_,
-		FullBandStructure<FullPoints> coarseBandStructure_, double cutoff_) :
+		FullBandStructure coarseBandStructure_, double cutoff_) :
 		crystal(crystal_), coarseBandStructure(coarseBandStructure_),
-		coarsePoints(coarsePoints_), statistics(Statistics::electron) {
+		coarsePoints(coarsePoints_), particle(Particle::electron) {
 
 	numBands = coarseBandStructure.getNumBands();
 	cutoff = cutoff_;
@@ -38,8 +38,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 	expansionCoefficients = expansionCoefficients_;
 }
 
-Statistics ElectronH0Fourier::getStatistics() {
-	return statistics;
+Particle ElectronH0Fourier::getParticle() {
+	return particle;
 }
 
 double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
@@ -284,4 +284,50 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocityFromCoords(
 
 long ElectronH0Fourier::getNumBands() {
 	return numBands;
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Fourier::diagonalize(Point & point) {
+
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	auto [energies,eigvecs] = diagonalizeFromCoords(coords);
+
+	// this is to return something aligned with the phonon case
+	// One should investigate how to return a null pointer
+//	Eigen::MatrixXcdTensor<std::complex<double>,3> eigvecs;
+//	eigvecs.setZero();
+
+	return {energies,eigvecs};
+}
+
+Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
+			Point & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
+		for ( long i=0; i<3; i++ ) {
+			velocity(ib,ib,i) = v(i);
+		}
+	}
+	return velocity;
+}
+
+FullBandStructure ElectronH0Fourier::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+	}
+	return fullBandStructure;
 }

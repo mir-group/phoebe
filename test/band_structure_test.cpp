@@ -16,7 +16,6 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   QEParser qeParser;
   auto [crystal, phononH0] = qeParser.parsePhHarmonic(context);
-  phononH0.setAcousticSumRule("simple");
 
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();
@@ -31,7 +30,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   bool withVelocities = true;
   bool withEigenvectors = true;
-  FullBandStructure<FullPoints> bandStructure =
+  FullBandStructure bandStructure =
       phononH0.populate(points, withVelocities, withEigenvectors);
 
   long ik = 7;
@@ -63,7 +62,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   for (long ib = 0; ib < numBands; ib++) {
     for (long ia = 0; ia < numAtoms; ia++) {
       for (long ic = 0; ic < 3; ic++) {
-        c2 += pow(eigvecsT(ib, ia, ic) - eigvecs(ib, ia, ic), 2);
+        c2 += pow(eigvecsT(ib*numAtoms+ia, ic) - eigvecs(ib, ia, ic), 2);
       }
     }
   }

@@ -4,7 +4,7 @@
 #include <memory>
 #include "context.h"
 #include "bandstructure.h"
-#include "statistics.h"
+#include "particle.h"
 #include "utilities.h"
 
 /** Container for temperature, chemical potential, doping, to be used.
@@ -31,7 +31,7 @@ public:
 	 * @param context: object with user input.
 	 */
 	StatisticsSweep(Context & context,
-			FullBandStructure<FullPoints> * fullBandStructure=nullptr);
+			FullBandStructure * fullBandStructure=nullptr);
 
 	/** Copy constructor
 	 */
@@ -76,7 +76,7 @@ public:
 	long getNumTemperatures();
 
 protected:
-    Statistics statistics;
+    Particle particle;
 	long numCalcs;
 	Eigen::MatrixXd infoCalcs;
 	long nTemp;

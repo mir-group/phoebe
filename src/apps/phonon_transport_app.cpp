@@ -3,7 +3,7 @@
 #include "context.h"
 #include "constants.h"
 #include "exceptions.h"
-#include "statistics.h"
+#include "particle.h"
 #include "io.h"
 #include "vector_bte.h"
 #include "drift.h"
@@ -27,7 +27,7 @@ void PhononTransportApp::run(Context & context) {
 	FullPoints fullPoints(crystal, context.getQMesh());
 	bool withVelocities = true;
 	bool withEigenvectors = true;
-	FullBandStructure<FullPoints> bandStructure = phononH0.populate(
+	FullBandStructure bandStructure = phononH0.populate(
 			fullPoints, withVelocities, withEigenvectors);
 
 	// set the chemical potentials to zero, load temperatures
@@ -270,4 +270,14 @@ void PhononTransportApp::run(Context & context) {
 		std::cout << std::string(80, '-') << "\n";
 		std::cout << "\n";
 	}
+}
+
+void PhononTransportApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getQMesh(), "qMesh");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+	throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
+	throwErrorIfUnset(context.getTemperatures(), "temperatures");
+	throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
+	throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
 }

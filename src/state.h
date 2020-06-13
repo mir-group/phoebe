@@ -2,7 +2,6 @@
 #define STATE_H
 
 #include "points.h"
-//#include "bandstructure.h"
 #include "exceptions.h"
 #include "utilities.h"
 
@@ -12,7 +11,6 @@ public:
 	// bandstructure.
 	// It's basically a simple container of energies and other stuff
 
-//	DetachedState();
 	DetachedState(Eigen::Vector3d & point_,
 			Eigen::VectorXd & energies_,
 			long numAtoms_,
@@ -43,11 +41,9 @@ protected:
 	Eigen::MatrixXcd eigenvectors;
 };
 
-/** Class containing harmonic information for all bands at a given k-q point.
+/** Class containing harmonic information for all bands at a given k(q) point.
  * State is a base class. PhState and ElState should be used in the code.
  */
-
-template<typename T>
 class State {
 public:
 	/** Class constructor
@@ -58,7 +54,7 @@ public:
 	 * this point. Dimensions(numBands,numBands,3). The diagonal over bands is
 	 * the group velocity, the off-diagonal are linked to the dipole operator.
 	 */
-	State(Point<T> & point_,
+	State(Point & point_,
 			double * energies_,
 			long numAtoms_,
 			long numBands_,
@@ -70,7 +66,7 @@ public:
 	/** get the wavevector (Point object)
 	 * @return point: a Point object.
 	 */
-	Point<T> getPoint();
+	Point getPoint();
 
 	/** get the cartesian coordinates of a wavevector (Point object)
 	 * @return point: a Eigen::Vector3d object.
@@ -136,7 +132,7 @@ public:
 	void getEigenvectors(Eigen::MatrixXcd & eigs);
 protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
-	Point<T> point;
+	Point point;
 	double * energies;
 	long numBands;
 	long numAtoms;
@@ -145,181 +141,5 @@ protected:
 	bool hasVelocities = false;
 	bool hasEigenvectors = false;
 };
-
-template<typename T>
-State<T>::State(Point<T> & point_,
-		double * energies_,
-		long numAtoms_, long numBands_,
-		std::complex<double> * velocities_,
-		std::complex<double> * eigenvectors_) : point(point_),
-		energies{energies_} {
-	if ( velocities_ != nullptr ) {
-		hasVelocities = true;
-		velocities = velocities_;
-	}
-	if ( eigenvectors_ != nullptr ) {
-		hasEigenvectors = true;
-		eigenvectors = eigenvectors_;
-	}
-	numBands = numBands_;
-	numAtoms = numAtoms_;
-}
-
-template<typename T>
-State<T>::State(const State<T> & that) : // copy constructor
-	point(that.point), energies(that.energies), numBands(that.numBands),
-	numAtoms(that.numAtoms), velocities(that.velocities),
-	eigenvectors(that.eigenvectors), hasVelocities(that.hasVelocities),
-	hasEigenvectors(that.hasEigenvectors) {
-}
-
-template<typename T>
-State<T> & State<T>::operator=(const State<T> & that) { // assignment operator
-	if ( this != &that ) {
-		point = that.point;
-		energies = that.energies;
-		numBands = that.numBands;
-		numAtoms = that.numAtoms;
-		velocities = that.velocities;
-		eigenvectors = that.eigenvectors;
-		hasVelocities = that.hasVelocities;
-		hasEigenvectors = that.hasEigenvectors;
-	}
-	return *this;
-}
-
-template<typename T>
-Point<T> State<T>::getPoint() {
-	return point;
-}
-
-template<typename T>
-Eigen::Vector3d State<T>::getCoords(const int & basis) {
-	return point.getCoords(basis);
-}
-
-template<typename T>
-double State<T>::getWeight() {
-	return point.getWeight();
-}
-
-template<typename T>
-double State<T>::getEnergy(const long & bandIndex, double chemicalPotential) {
-	if ( bandIndex >= numBands ) {
-		Error e("band index too large in getEnergy" ,1);
-	}
-	return *(energies+bandIndex) - chemicalPotential;
-}
-
-template<typename T>
-Eigen::VectorXd State<T>::getEnergies(double chemicalPotential) {
-	Eigen::VectorXd ens(numBands);
-	for ( int i=0; i<numBands; i++ ) {
-		ens(i) = *(energies+i) - chemicalPotential;
-	}
-	return ens;
-}
-
-template<typename T>
-Eigen::Vector3d State<T>::getVelocity(const long & bandIndex) {
-	if ( ! hasVelocities ) {
-		Error e("State doesn't have velocities" ,1);
-	}
-	if ( bandIndex >= numBands ) {
-		Error e("band index too large in getVelocity" ,1);
-	}
-	std::complex<double> x;
-	Eigen::Vector3d groupVelocity;
-	for ( long j=0; j<3; j++ ) {
-		long ind = compress3Indeces(bandIndex, bandIndex, j, numBands,
-				numBands, 3);
-		x = *(velocities+ind);
-		groupVelocity(j) = real(x);
-	}
-	return groupVelocity;
-}
-
-template<typename T>
-Eigen::Vector3cd State<T>::getVelocity(const long & bandIndex1,
-		const long & bandIndex2) {
-	if ( ! hasVelocities ) {
-		Error e("State doesn't have velocities" ,1);
-	}
-	if ( bandIndex1 >= numBands || bandIndex2 >= numBands ) {
-		Error e("band index too large in getVelocity" ,1);
-	}
-	Eigen::Vector3cd velocity;
-	for ( long j=0; j<3; j++ ) {
-		long ind = compress3Indeces(bandIndex1,bandIndex2,j,numBands,
-				numBands, 3);
-		velocity(j) = *(velocities+ind);
-	}
-	return velocity;
-}
-
-template<typename T>
-Eigen::Tensor<std::complex<double>,3> State<T>::getVelocities() {
-	if ( ! hasVelocities ) {
-		Error e("State doesn't have velocities" ,1);
-	}
-	Eigen::Tensor<std::complex<double>,3> vels(numBands, numBands, 3);
-	for ( long ib1=0; ib1<numBands; ib1++ ) {
-		for ( long ib2=0; ib2<numBands; ib2++ ) {
-			for ( long j=0; j<3; j++ ) {
-				long ind = compress3Indeces(ib1, ib2, j, numBands, numBands,3);
-				vels(ib1,ib2,j) = *(velocities+ind);
-			}
-		}
-	}
-	return vels;
-}
-
-template<typename T>
-Eigen::MatrixXd State<T>::getGroupVelocities() {
-	if ( ! hasVelocities ) {
-		Error e("State doesn't have velocities" ,1);
-	}
-	std::complex<double> x;
-	Eigen::MatrixXd vels(numBands, 3);
-	for ( long ib1=0; ib1<numBands; ib1++ ) {
-		for ( long j=0; j<3; j++ ) {
-			long ind = compress3Indeces(ib1, ib1, j, numBands, numBands,3);
-			x = *(velocities+ind);
-			vels(ib1,j) = x.real();
-		}
-	}
-	return vels;
-}
-
-template<typename T>
-void State<T>::getEigenvectors(Eigen::Tensor<std::complex<double>,3> & eigs) {
-	if ( ! hasEigenvectors ) {
-		Error e("State doesn't have eigenvectors" ,1);
-	}
-	Eigen::Tensor<std::complex<double>,3> eigs_(3, numAtoms, numBands);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		for ( long ia=0; ia<numAtoms; ia++ ) {
-			for ( long j=0; j<3; j++ ) {
-				long ind = compress3Indeces(ib, ia, j, numBands, numAtoms, 3);
-				eigs_(j,ia,ib) = *(eigenvectors+ind);
-			}
-		}
-	}
-	eigs = eigs_;
-}
-
-template<typename T>
-void State<T>::getEigenvectors(Eigen::MatrixXcd & eigs) {
-	if ( ! hasEigenvectors ) {
-		Error e("State doesn't have eigenvectors" ,1);
-	}
-	eigs = Eigen::MatrixXcd::Zero(numBands, numBands);
-	for ( long ib1=0; ib1<numBands; ib1++ ) {
-		for ( long ib2=0; ib2<numBands; ib2++ ) {
-			long ind = compress2Indeces(ib1, ib2, numBands, numBands);
-			eigs(ib2,ib1) = *(eigenvectors+ind);
-		}
-	}
-}
 
 #endif

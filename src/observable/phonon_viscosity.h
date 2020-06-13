@@ -18,7 +18,7 @@ public:
 	 * velocities computed on a mesh of wavevectors.
 	 */
 	PhononViscosity(StatisticsSweep & statisticsSweep_, Crystal & crystal_,
-			FullBandStructure<FullPoints> & bandStructure_);
+			FullBandStructure & bandStructure_);
 
 	/** copy constructor
 	 */
@@ -49,7 +49,7 @@ public:
 			PhScatteringMatrix & sMatrix, Eigen::MatrixXd & eigenvectors);
 protected:
 	virtual int whichType();
-	FullBandStructure<FullPoints> & bandStructure;
+	FullBandStructure & bandStructure;
 };
 
 #endif

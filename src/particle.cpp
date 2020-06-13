@@ -1,34 +1,34 @@
-#include "statistics.h"
+#include "particle.h"
 #include "exceptions.h"
 
-Statistics::Statistics(int particle_) {
-	if ( particle_ == phonon ) {
+Particle::Particle(int kind_) {
+	if ( kind_ == phonon ) {
 		statistics = bose;
-		particle = phonon;
-	} else if ( particle_ == electron ) {
+		kind = phonon;
+	} else if ( kind_ == electron ) {
 		statistics = fermi;
-		particle = electron;
+		kind = electron;
 	} else {
-		Error e("Wrong initialization of Statistics", 1);
+		Error e("Wrong initialization of Particle", 1);
 	}
 }
 
 // copy constructor
-Statistics::Statistics(const Statistics & obj) {
+Particle::Particle(const Particle & obj) {
 	statistics = obj.statistics;
-	particle = obj.particle;
+	kind = obj.kind;
 }
 
 // copy assignment operator
-Statistics & Statistics::operator=(const Statistics & obj) {
+Particle & Particle::operator=(const Particle & obj) {
 	if ( this != &obj ) {
 		statistics = obj.statistics;
-		particle = obj.particle;
+		kind = obj.kind;
 	}
 	return *this;
 }
 
-bool Statistics::isFermi() {
+bool Particle::isFermi() {
 	if ( statistics == fermi ) {
 		return true;
 	} else {
@@ -36,7 +36,7 @@ bool Statistics::isFermi() {
 	}
 }
 
-bool Statistics::isBose() {
+bool Particle::isBose() {
 	if ( statistics == bose ) {
 		return true;
 	} else {
@@ -44,23 +44,23 @@ bool Statistics::isBose() {
 	}
 }
 
-bool Statistics::isElectron() {
-	if ( particle == electron ) {
+bool Particle::isElectron() {
+	if ( kind == electron ) {
 		return true;
 	} else {
 		return false;
 	}
 }
 
-bool Statistics::isPhonon() {
-	if ( particle == phonon ) {
+bool Particle::isPhonon() {
+	if ( kind == phonon ) {
 		return true;
 	} else {
 		return false;
 	}
 }
 
-double Statistics::getPopulation(const double & energy,
+double Particle::getPopulation(const double & energy,
 		const double & temperature, const double & chemicalPotential) {
 	double population = 0.;
 	double y = ( energy - chemicalPotential ) / temperature;
@@ -86,7 +86,7 @@ double Statistics::getPopulation(const double & energy,
 	return population;
 }
 
-double Statistics::getDndt(const double & energy, const double & temperature,
+double Particle::getDndt(const double & energy, const double & temperature,
 		const double & chemicalPotential) {
 	double x = getPopPopPm1(energy, temperature, chemicalPotential);
 	double y = energy - chemicalPotential;
@@ -94,14 +94,14 @@ double Statistics::getDndt(const double & energy, const double & temperature,
 	return dndt;
 }
 
-double Statistics::getDnde(const double & energy, const double & temperature,
+double Particle::getDnde(const double & energy, const double & temperature,
 		const double & chemicalPotential) {
 	double x = getPopPopPm1(energy, temperature, chemicalPotential);
 	double dnde = - x / temperature;
 	return dnde;
 }
 
-double Statistics::getPopPopPm1(const double & energy,
+double Particle::getPopPopPm1(const double & energy,
 		const double & temperature, const double & chemicalPotential) {
 	double x = energy - chemicalPotential;
 	double arg = x / 2. / temperature;

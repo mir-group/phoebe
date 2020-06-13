@@ -12,7 +12,7 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
-#include "statistics.h"
+#include "particle.h"
 #include "periodic_table.h"
 #include "utilities.h"
 
@@ -751,8 +751,8 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	bool withVelocities = false;
 	bool withEigenvectors = false;
-	Statistics statistics(Statistics::electron);
-	FullBandStructure coarseBandStructure(numBands, statistics,
+	Particle particle(Particle::electron);
+	FullBandStructure coarseBandStructure(numBands, particle,
 			withVelocities, withEigenvectors, coarsePoints);
 	// fill in the info on band structure
 	Eigen::Vector3d pointCoords;

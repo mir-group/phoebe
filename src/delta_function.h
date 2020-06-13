@@ -26,7 +26,7 @@ public:
 	 * computed on a mesh of wavevectors in the Brillouin zone.
 	 */
 	static DeltaFunction * smearingFactory(Context & context,
-			FullBandStructure<FullPoints> & fullBandStructure);
+			FullBandStructure & fullBandStructure);
 
 	// These are integers identifying the smearing selection of the user.
 	static const int gaussian = 0;
@@ -101,7 +101,7 @@ public:
 	 * @param bandStructure: mainly to see what mesh of points and crystal is
 	 * being used, and to prepare a suitable scaling of velocities.
 	 */
-	AdaptiveGaussianDeltaFunction(FullBandStructure<FullPoints>&bandStructure);
+	AdaptiveGaussianDeltaFunction(FullBandStructure & bandStructure);
 
 	/** Method to obtain the value of smearing.
 	 * @param energy: the energy difference.
@@ -114,7 +114,7 @@ public:
 	/** phantom method that should not be used. Will throw an error.
 	 */
 	virtual double getSmearing(const double & energy, const long & iq,
-			const long &ib);
+			const long & ib);
 
 	/** returns an integer identifying this class as AdaptiveGaussian
 	 * @return int: id.
@@ -151,7 +151,7 @@ public:
 	 * @param[in] bandStructure: the bandstructure on which the dirac delta
 	 * will be computed.
 	 */
-	TetrahedronDeltaFunction(FullBandStructure<FullPoints>&fullBandStructure_);
+	TetrahedronDeltaFunction(FullBandStructure & fullBandStructure_);
 
 	/** Calculate the total tetrehedron weight for all states at given energy.
 	 *
@@ -181,7 +181,7 @@ public:
 	virtual double getSmearing(const double & energy,
 			const Eigen::Vector3d & velocity=Eigen::Vector3d::Zero());
 protected:
-	FullBandStructure<FullPoints> & fullBandStructure;
+	FullBandStructure & fullBandStructure;
 	int id = DeltaFunction::tetrahedron;
 
 	/** Number of tetrahedra. */

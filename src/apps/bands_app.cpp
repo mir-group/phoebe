@@ -110,3 +110,30 @@ void ElectronFourierBandsApp::run(Context & context) {
 	}
 	std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
 }
+
+void PhononBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+}
+
+void ElectronWannierBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+
+	std::string crystalMsg = "crystal structure";
+	throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+}
+
+void ElectronFourierBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+	throwErrorIfUnset(context.getElectronFourierCutoff(),
+			"electronFourierCutoff");
+}
+

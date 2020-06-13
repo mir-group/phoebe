@@ -25,7 +25,7 @@ int TetrahedronDeltaFunction::getType() {
 
 // app factory
 DeltaFunction * DeltaFunction::smearingFactory(Context & context,
-		FullBandStructure<FullPoints> & fullBandStructure) {
+		FullBandStructure & fullBandStructure) {
 	auto choice = context.getSmearingMethod();
 	if ( choice == gaussian ) {
 		return new GaussianDeltaFunction(context);
@@ -62,7 +62,7 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
-		FullBandStructure<FullPoints> & bandStructure) {
+		FullBandStructure & bandStructure) {
 	auto [mesh,offset] = bandStructure.getPoints().getMesh();
 	qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
 	qTensor.row(0) /= mesh(0);
@@ -103,7 +103,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 }
 
 TetrahedronDeltaFunction::TetrahedronDeltaFunction(
-		FullBandStructure<FullPoints> & fullBandStructure_) :
+		FullBandStructure & fullBandStructure_) :
 		fullBandStructure(fullBandStructure_) {
 
 	auto fullPoints = fullBandStructure.getPoints();

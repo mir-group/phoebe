@@ -2,11 +2,10 @@
 #include "drift.h"
 
 BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
-		FullBandStructure<FullPoints> & bandStructure_,
-		const long & dimensionality_) :
+		FullBandStructure & bandStructure_, const long & dimensionality_) :
 		VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = bandStructure.getEnergy(is);
 		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
@@ -19,7 +18,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;
 
-			double x = statistics.getDndt(energy, temperature,
+			double x = particle.getDndt(energy, temperature,
 					chemicalPotential) * vel;
 			data(iCalc,is) = x;
 		}
@@ -27,11 +26,10 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 }
 
 BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
-		FullBandStructure<FullPoints> & bandStructure_,
-		const long & dimensionality_) :
+		FullBandStructure & bandStructure_, const long & dimensionality_) :
 				VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 	for ( long is=0; is<numStates; is++ ) {
 		double energy = bandStructure.getEnergy(is);
 		Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
@@ -44,7 +42,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 			auto chemicalPotential = calcStat.chemicalPotential;
 			auto temperature = calcStat.temperature;
 
-			double x = statistics.getDnde(energy, temperature,
+			double x = particle.getDnde(energy, temperature,
 					chemicalPotential) * vel;
 			data(iCalc,is) = x;
 		}
@@ -52,13 +50,12 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 }
 
 Vector0::Vector0(StatisticsSweep & statisticsSweep_,
-		FullBandStructure<FullPoints> & bandStructure_,
-		SpecificHeat & specificHeat) :
+		FullBandStructure & bandStructure_, SpecificHeat & specificHeat) :
 		VectorBTE(statisticsSweep_, bandStructure_, 1) {
 
 	data.setZero();
 
-	Statistics statistics = bandStructure.getStatistics();
+	Particle particle = bandStructure.getParticle();
 
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto [imu,it,idim] = loc2Glob(iCalc);
@@ -68,7 +65,7 @@ Vector0::Vector0(StatisticsSweep & statisticsSweep_,
 
 		for ( long is=0; is<numStates; is++ ) {
 			double energy = bandStructure.getEnergy(is);
-			double dnde = statistics.getDnde(energy,temp,chemPot);
+			double dnde = particle.getDnde(energy,temp,chemPot);
 			// note dnde = n(n+1)/T  (for bosons)
 			auto c = specificHeat.get(imu,it);
 			double x = - dnde / temp / c;

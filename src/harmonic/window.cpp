@@ -1,15 +1,15 @@
 #include "context.h"
 #include "eigen.h"
 #include "window.h"
-#include "statistics.h"
+#include "particle.h"
 #include "exceptions.h"
 
-Window::Window(Context & context, Statistics & statistics_,
+Window::Window(Context & context, Particle & particle_,
 		const double & temperatureMin_,
 		const double & temperatureMax_,
 		const double & chemicalPotentialMin_,
 		const double & chemicalPotentialMax_) :
-		statistics{statistics_},
+		particle{particle_},
 		temperatureMin{temperatureMin_},
 		temperatureMax{temperatureMax_},
 		chemicalPotentialMin{chemicalPotentialMin_},
@@ -42,13 +42,13 @@ std::tuple<std::vector<double>,std::vector<long>> Window::apply(
 		Eigen::VectorXd dndtMin(numBands), dndtMax(numBands),
 				dndeMin(numBands), dndeMax(numBands);
 		for ( long ib=0; ib<numBands; ib++ ) {
-			dndtMin(ib) = statistics.getDndt(energies(ib), temperatureMax,
+			dndtMin(ib) = particle.getDndt(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndtMax(ib) = statistics.getDndt(energies(ib), temperatureMax,
+			dndtMax(ib) = particle.getDndt(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndeMin(ib) = statistics.getDnde(energies(ib), temperatureMax,
+			dndeMin(ib) = particle.getDnde(energies(ib), temperatureMax,
 					chemicalPotentialMin);
-			dndeMax(ib) = statistics.getDnde(energies(ib), temperatureMax,
+			dndeMax(ib) = particle.getDnde(energies(ib), temperatureMax,
 					chemicalPotentialMin);
 		}
 		auto [filteredEnergies, bandExtrema] = internalPopWindow(energies,

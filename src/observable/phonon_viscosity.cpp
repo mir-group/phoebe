@@ -3,7 +3,7 @@
 #include "constants.h"
 
 PhononViscosity::PhononViscosity(StatisticsSweep & statisticsSweep_,
-		Crystal & crystal_, FullBandStructure<FullPoints> & bandStructure_) :
+		Crystal & crystal_, FullBandStructure & bandStructure_) :
 				Observable(statisticsSweep_, crystal_),
 				bandStructure(bandStructure_) {
 
@@ -30,7 +30,7 @@ void PhononViscosity::calcRTA(VectorBTE & tau) {
 	double norm = 1. / bandStructure.getNumPoints()
 			/ crystal.getVolumeUnitCell(dimensionality);
 
-	auto statistics = bandStructure.getStatistics();
+	auto particle = bandStructure.getParticle();
 	tensordxdxdxd.setZero();
 
 	for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
@@ -46,7 +46,7 @@ void PhononViscosity::calcRTA(VectorBTE & tau) {
 			auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 			double temperature = calcStat.temperature;
 			double chemPot = calcStat.chemicalPotential;
-			double bosep1 = statistics.getPopPopPm1(en,temperature,chemPot);
+			double bosep1 = particle.getPopPopPm1(en,temperature,chemPot);
 
 			for ( long i=0; i<dimensionality; i++ ) {
 				for ( long j=0; j<dimensionality; j++ ) {
@@ -94,7 +94,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
 	double volume = crystal.getVolumeUnitCell(dimensionality);
 	double numPoints = double(bandStructure.getNumPoints());
 	long numStates = bandStructure.getNumStates();
-	auto statistics = bandStructure.getStatistics();
+	auto particle = bandStructure.getParticle();
 
 	// to simplify, here I do everything considering there is a single
 	// temperature (due to memory constraints)
@@ -109,7 +109,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
 
 	for ( long is = firstState; is<numStates; is++ ) {
 		auto en = bandStructure.getEnergy(is);
-		double bosep1 = statistics.getPopPopPm1(en, temp, chemPot); // = n(n+1)
+		double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
 		auto q = bandStructure.getWavevector(is);
 		for ( long idim=0; idim<dimensionality; idim++ ) {
 			A(idim) += bosep1 * q(idim) * q(idim);
@@ -121,7 +121,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
 	driftEigenvector.setZero();
 	for ( long is = firstState; is<numStates; is++ ) {
 		auto en = bandStructure.getEnergy(is);
-		double bosep1 = statistics.getPopPopPm1(en, temp, chemPot); // = n(n+1)
+		double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
 		auto q = bandStructure.getWavevector(is);
 		for ( auto idim : {0,1,2} ) {
 			driftEigenvector(idim,is) = q(idim)
@@ -206,8 +206,10 @@ void PhononViscosity::print() {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 
-		std::cout.precision(5);
+		std::cout << std::fixed;
+		std::cout.precision(2);
 		std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
+		std::cout.precision(5);
 		std::cout << std::scientific;
 		for ( long i=0; i<dimensionality; i++ ) {
 			for ( long j=0; j<dimensionality; j++ ) {

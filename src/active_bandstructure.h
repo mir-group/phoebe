@@ -5,32 +5,32 @@
 #include "bandstructure.h"
 #include "state.h"
 #include "window.h"
-#include "statistics.h"
+#include "particle.h"
 #include "statistics_sweep.h"
 #include "harmonic.h"
 
 class ActiveBandStructure {
 public:
-	ActiveBandStructure(Statistics & statistics_);
+	ActiveBandStructure(Particle & particle_);
 	ActiveBandStructure(const ActiveBandStructure & that);// copy
 	ActiveBandStructure & operator=(const ActiveBandStructure & that); // assign
 
-	Statistics getStatistics();
+	Particle getParticle();
 	long getNumPoints();
 	long getNumStates();
 
-	Point<ActivePoints> getPoint(const long & pointIndex);
+	Point getPoint(const long & pointIndex);
 
-	State<ActivePoints> getState(Point<ActivePoints> & point);  // returns all bands at fixed k/q-point
+	State getState(Point & point);  // returns all bands at fixed k/q-point
 
 	double getEnergy(long & stateIndex);
 	Eigen::Vector3d getGroupVelocity(long & stateIndex);
 
-	template<typename T, typename S>
-	static std::tuple<ActivePoints, ActiveBandStructure, S>
+	template<typename T>
+	static std::tuple<ActivePoints, ActiveBandStructure>
 			builder(Context & context, T & h0, FullPoints & fullPoints);
 private:
-	Statistics statistics;
+	Particle particle;
 
 	// note: we don't store a matrix: we are storing an object (Nk,Nb),
 	// with a variable number of bands Nb per point
@@ -76,25 +76,25 @@ private:
 			std::vector<long> bandsExtrema);
 
 	ActivePoints buildAsPostprocessing(Window & window,
-			FullBandStructure<FullPoints> & fullBandStructure);
+			FullBandStructure & fullBandStructure);
 };
 
-template<typename T, typename S>
-std::tuple<ActivePoints, ActiveBandStructure, S>
+template<typename T>
+std::tuple<ActivePoints, ActiveBandStructure>
 		ActiveBandStructure::builder(Context & context,
 				T & h0, FullPoints & fullPoints) {
 
-	Statistics statistics = h0.getStatistics();
+	Particle particle = h0.getParticle();
 
 	Eigen::VectorXd temperatures = context.getTemperatures();
 
-	ActiveBandStructure activeBandStructure(statistics);
+	ActiveBandStructure activeBandStructure(particle);
 
-	if ( statistics.isPhonon() ) {
+	if ( particle.isPhonon() ) {
 		double temperatureMin = temperatures.minCoeff();
 		double temperatureMax = temperatures.maxCoeff();
 
-		Window window(context, statistics, temperatureMin, temperatureMax);
+		Window window(context, particle, temperatureMin, temperatureMax);
 
 		auto aPoints = activeBandStructure.buildOnTheFly(window,fullPoints,h0);
 		StatisticsSweep statisticsSweep(context);
