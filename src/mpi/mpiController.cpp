@@ -11,11 +11,9 @@
 // default constructor
 MPIcontroller::MPIcontroller(){
 
-        fprintf(stdout,"inside the controller");	
 	#ifdef MPI_AVAIL
 	// start the MPI environment
 	MPI_Init(NULL, NULL);
-        fprintf(stdout,"initialized the env");  
 	// get the number of processes
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	
@@ -24,7 +22,6 @@ MPIcontroller::MPIcontroller(){
 	
 	// start a timer
 	startTime = MPI_Wtime();
-	fprintf(stdout,"started the timer"); 
 	// set this so that MPI returns errors and lets us handle them, rather
 	// than using the default, MPI_ERRORS_ARE_FATAL
 	MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
@@ -32,7 +29,6 @@ MPIcontroller::MPIcontroller(){
  
 	startTime = std::chrono::steady_clock::now();
 	#endif
-        fprintf(stdout, "started the timer and finished");
 }
 
 // default destructor
@@ -75,8 +71,16 @@ void MPIcontroller::time() const{
 	std::cout << "Time for rank 0 :" << std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - startTime).count() << " secs" << std::endl;
 	#endif
 }
+// Asynchronous support functions -----------------------------------------
+void MPIcontroller::barrier() const{ 
+        #ifdef MPI_AVAIL
+        int errCode; 
+        errCode = MPI_Barrier(MPI_COMM_WORLD); 
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+        #endif
+}
 
-// Labor division functions -----------------------------------------i
+// Labor division functions -----------------------------------------
 void MPIcontroller::divideWork(size_t numTasks) {
         // each should be nranks long
         workDivisionHeads.resize(size);  
@@ -85,9 +89,10 @@ void MPIcontroller::divideWork(size_t numTasks) {
         for(int r = 0; r<size; r++) {
                 workDivisionHeads[r] = (numTasks * r)/size;
                 workDivisionTails[r] = (numTasks * (r+1))/size;
+                // if(rank==0) fprintf(stdout, "rank %3d : %3d %3d \n", rank,  workDivisionHeads[r], workDivisionTails[r]); // for debugging work division
         }
 }
 
-size_t MPIcontroller::workHead() { return workDivisionHeads[rank]; }
-size_t MPIcontroller::workTail() { return workDivisionTails[rank]; } 
+int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
+int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
 

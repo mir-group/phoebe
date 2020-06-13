@@ -1,5 +1,5 @@
-#ifndef MPIHELPER_H
-#define MPIHELPER_H
+#ifndef MPIASSIST_H
+#define MPIASSIST_H
 
 #include "mpiController.h"
 
@@ -8,7 +8,7 @@
 extern MPIcontroller* mpi; 
 
 // Function to initialize MPI environment
-void initEnv(); 
+void initMPI(); 
 
 
 #endif

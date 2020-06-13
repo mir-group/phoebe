@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 	// here launch parallel environment
 	// Call proxy function from MPI Helper, which makes mpi object 
 	// globally available. 
-        initEnv(); 
+        initMPI(); 
 
 	// setup input/output
 	IO io(argc, argv);
@@ -30,9 +30,10 @@ int main(int argc, char** argv) {
 	}
 
 	// exiting program
-	io.goodbye();
+	if(mpi->mpiHead()) io.goodbye();
 
 	// here close parallel environment
+        mpi->barrier(); 
         mpi->finalize(); 
 
 	return(0);

@@ -12,7 +12,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 
-SET (SOURCE_FILES src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/algebra/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/statistics.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/harmonic/window.cpp src/bte/vector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp)
+SET (SOURCE_FILES src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/algebra/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/statistics.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/harmonic/window.cpp src/bte/vector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp)
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
 include_directories(include)
@@ -36,11 +36,25 @@ gtest_discover_tests(
 )
 
 ############# PARALLEL ############
+#option(MPI_AVAIL "Build with MPI wrappers" ON) 
+#if (MPI_AVAIL) 
+#  find_package(MPI REQUIRED)
+#  target_link_libraries(phoebe MPI::MPI_CXX)
+#  target_link_libraries(runTests MPI::MPI_CXX)
+#  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
+#endif()
+
+############# PARALLEL ############
 option(MPI_AVAIL "Build with MPI wrappers" ON) 
 if (MPI_AVAIL) 
   find_package(MPI REQUIRED)
-  target_link_libraries(phoebe MPI::MPI_CXX)
-  target_link_libraries(runTests MPI::MPI_CXX)
+  #target_link_libraries(phoebe MPI::MPI_CXX)
+  #target_link_libraries(runTests MPI::MPI_CXX)
+  include_directories(${MPI_CXX_INCLUDE_PATH})
+  target_compile_options(phoebe PRIVATE ${MPI_CXX_COMPILE_FLAGS})
+  target_compile_options(runTests PRIVATE ${MPI_CXX_COMPILE_FLAGS})
+  target_link_libraries(phoebe ${MPI_CXX_LIBRARIES} ${MPI_CXX_LINK_FLAGS})
+  target_link_libraries(runTests ${MPI_CXX_LIBRARIES} ${MPI_CXX_LINK_FLAGS})
   add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
 endif()
 

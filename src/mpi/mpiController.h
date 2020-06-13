@@ -36,14 +36,14 @@ class MPIcontroller{
 		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
 		template<typename T> void reduceMax(T* dataIn, T* dataOut) const;
 		template<typename T> void reduceMin(T* dataIn, T* dataOut) const;
-                template<typename T> void gather(T* dataIn, T* dataOut) const; 
+                template<typename T> void gatherv(T* dataIn, T* dataOut) const; 
 
 		// point to point functions -----------------------------------
 		//template<typename T> void send(T&& data) const;
 		//template<typename T> void recv(T&& data) const;
 	
 		// Asynchronous functions
-		void barrier();
+		void barrier() const;
 	
 		// Utility functions -----------------------------------
 		bool mpiHead() const{ return rank==0; } // a function to tell us if this process is the head
@@ -62,13 +62,13 @@ class MPIcontroller{
 			
                 // Labor division helper functions
                 void divideWork(size_t numTasks); // divide up a set of work 
-                size_t workHead(); // get the first task assigned to a rank
-                size_t workTail(); // get the last task assigned to a rank
+                int workHead(); // get the first task assigned to a rank
+                int workTail(); // get the last task assigned to a rank
 
         private: 
                 // store labor division information
-                std::vector<size_t> workDivisionHeads; // start points for each rank's work
-                std::vector<size_t> workDivisionTails; // end points for each rank's work
+                std::vector<int> workDivisionHeads; // start points for each rank's work
+                std::vector<int> workDivisionTails; // end points for each rank's work
 };
 
 // we need to use the concept of a "type traits" object to serialize the standard cpp types
@@ -150,13 +150,17 @@ template<typename T> void MPIcontroller::reduceMin(T* dataIn, T* dataOut) const{
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
+//int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+//               void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
 
-template<typename T> void MPIcontroller::gather(T* dataIn, T* dataOut) const {
+template<typename T> void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
         using namespace mpiContainer; 
         #ifdef MPI_AVAIL
         int errCode; 
+        std::vector<int> workDivs(size); 
+        for(int i = 0; i<size; i++) workDivs[i] = workDivisionTails[i] - workDivisionHeads[i]; 
 
-        errCode = MPI_Gather(containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(),containerType<T>::getAddress(dataOut), containerType<T>::getSize(dataIn), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD); 
+        errCode = MPI_Gatherv(containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(),containerType<T>::getAddress(dataOut), workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD); 
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #else
         dataOut = dataIn; // I think we can just switch the pointers. 
