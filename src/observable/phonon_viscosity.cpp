@@ -206,8 +206,10 @@ void PhononViscosity::print() {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 
-		std::cout.precision(5);
+		std::cout << std::fixed;
+		std::cout.precision(2);
 		std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
+		std::cout.precision(5);
 		std::cout << std::scientific;
 		for ( long i=0; i<dimensionality; i++ ) {
 			for ( long j=0; j<dimensionality; j++ ) {

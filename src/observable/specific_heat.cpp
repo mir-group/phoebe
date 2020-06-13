@@ -59,10 +59,12 @@ void SpecificHeat::print() {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 
-		std::cout.precision(5);
+		std::cout << std::fixed;
+		std::cout.precision(2);
 		std::cout << "Temperature: " << temp * temperatureAuToSi
 				<< " (K), C = ";
 		std::cout << std::scientific;
+		std::cout.precision(5);
 		std::cout << scalar(iCalc)*conversion;
 		std::cout << "\n";
 	}

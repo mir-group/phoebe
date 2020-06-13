@@ -1,6 +1,7 @@
 #include "phonon_thermal_cond.h"
 #include "constants.h"
 #include <time.h>
+#include <iomanip>
 
 PhononThermalConductivity::PhononThermalConductivity(
 		StatisticsSweep & statisticsSweep_,
@@ -170,12 +171,15 @@ void PhononThermalConductivity::print() {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
 
-		std::cout.precision(5);
+		std::cout << std::fixed;
+		std::cout.precision(2);
 		std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-		std::cout << std::scientific;
+		std::cout.precision(5);
 		for ( long i=0; i<dimensionality; i++ ) {
+			std::cout << "  " << std::scientific;
 			for ( long j=0; j<dimensionality; j++ ) {
-				std::cout << tensordxd(iCalc,i,j)*thConductivityAuToSi << " ";
+				std::cout << " " << std::setw(13) << std::right;
+				std::cout << tensordxd(iCalc,i,j)*thConductivityAuToSi;
 			}
 			std::cout << "\n";
 		}
@@ -197,8 +201,10 @@ void PhononThermalConductivity::print(const int & iter) {
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
 		double temp = calcStat.temperature;
-		std::cout.precision(5);
+		std::cout << std::fixed;
+		std::cout.precision(2);
 		std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+		std::cout.precision(5);
 		for ( long i=0; i<dimensionality; i++ ) {
 			std::cout << std::scientific;
 			std::cout << tensordxd(iCalc,i,i)*thConductivityAuToSi << " ";
