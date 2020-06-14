@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
 	if(mpi->mpiHead()) io.goodbye();
 
 	// here close parallel environment
+	// make sure all processes finish before printing end info 
         mpi->barrier(); 
         mpi->finalize(); 
 
