@@ -83,6 +83,10 @@ void MPIcontroller::barrier() const{
 
 // Labor division functions -----------------------------------------
 void MPIcontroller::divideWork(size_t numTasks) {
+        // clear just in case there was a prior call
+        workDivisionHeads.clear(); 
+        workDivisionTails.clear(); 
+
         // each should be nranks long
         workDivisionHeads.resize(size);  
         workDivisionTails.resize(size); 

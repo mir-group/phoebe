@@ -36,7 +36,7 @@ gtest_discover_tests(
 )
 
 ############# PARALLEL ############
-option(MPI_AVAIL "Build with MPI wrappers" OFF) 
+option(MPI_AVAIL "Build with MPI wrappers" ON) 
 if (MPI_AVAIL) 
   find_package(MPI REQUIRED)
   target_link_libraries(phoebe MPI::MPI_CXX)
