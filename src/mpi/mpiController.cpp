@@ -26,7 +26,8 @@ MPIcontroller::MPIcontroller(){
 	// than using the default, MPI_ERRORS_ARE_FATAL
 	MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 	#else
- 
+        size = 1;
+        rank = 0;  
 	startTime = std::chrono::steady_clock::now();
 	#endif
 }
@@ -44,7 +45,7 @@ void MPIcontroller::finalize() const {
 	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
 	MPI_Finalize();
 	#else
-        std::cout << "Final time for rank 0 : " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count() << " mu.secs" << std::endl;
+        std::cout << "Total runtime: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()*1e-6 << " secs" << std::endl;
 	#endif
 }
 
