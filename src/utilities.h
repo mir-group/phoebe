@@ -31,6 +31,14 @@ long compress2Indeces(const long & i1, const long & i2, const long & size1,
 std::tuple<long,long> decompress2Indeces(const long & iTot, const long & size1,
 		const long & size2);
 
+// A function to allocate a dynamically sized array. It tricks the 
+// compiler into thinking the size is a constant via the const identifier
+// on the argument. This resolves issues with VLAs -- see crystal.cpp
+template <typename T> T* allocate(T *&array, const unsigned int size){
+        array = new T [size];
+        return array;
+}
+
 /** Class for implementing strong typing.
  * In fact, when using the methods (de)compress2(3)indices, it's easy to
  * mix the order of indices. This class can be used to enforce the type

@@ -4,12 +4,7 @@
 #include "crystal.h"
 #include "spglib.h"
 #include "constants.h"
-
-// temporary function -- will be moved someplace better. 
-template <typename T> T* allocate(T *&array, const unsigned int size){
-            array = new T [size];
-            return array; 
-}
+#include "utilities.h"
 
 Eigen::Matrix3d Crystal::calcReciprocalCell(
 		const Eigen::Matrix3d directUnitCell)
@@ -151,18 +146,17 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
         // Declare and allocate c-style arrays for spglib calls
         double (*positionSPG)[3];
         allocate(positionSPG,numAtoms);
-        //positionSPG = new double[3] [numAtom];
         int* typesSPG;
-        typesSPG = new int[numAtoms];
+        allocate(typesSPG,numAtoms); 
+        //typesSPG = new int[numAtoms];
 
-	double latticeSPG[3][3];// = {{0.}}; // TODO:: remove
+	double latticeSPG[3][3];
 	for ( int i=0; i<3; i++ ) {
 		for ( int j=0; j<3; j++ ) {
 			latticeSPG[i][j] = directUnitCell(i,j);
 		}
 	}
 
-	//double positionSPG[numAtoms][3] = {{0.}}; // TODO: remove
 	Eigen::Vector3d positionCrystal;
 	Eigen::Vector3d positionCartesian;
 	for ( int i=0; i<numAtoms; i++ ) {
@@ -176,7 +170,6 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 			positionSPG[i][j] = positionCrystal(j);
 		}
 	}
-	//int typesSPG[numAtoms]; // TODO: remove
 	for ( int i=0; i<numAtoms; i++ ) {
 		typesSPG[i] = atomicSpecies(i) + 1;
 	}
