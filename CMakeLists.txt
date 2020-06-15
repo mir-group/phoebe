@@ -44,6 +44,13 @@ if (MPI_AVAIL)
   add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
 endif()
 
+option(OMP_AVAIL "Build with OMP" OFF)
+if(OMP_AVAIL)
+        find_package(OpenMP)
+        target_link_libraries(phoebe OpenMP::OpenMP_CXX)
+        target_link_libraries(runTests OpenMP::OpenMP_CXX) 
+        add_definitions("-DOMP_AVAIL") 
+endif()
 ############# DOCS ############
 
 # check if Doxygen is installed
