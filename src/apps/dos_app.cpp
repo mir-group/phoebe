@@ -104,12 +104,14 @@ void ElectronWannierDosApp::run(Context & context) {
 
         std::vector<double> energies(workFraction);
         // loop over the energies that this process should work on
+        #pragma omp parallel for 
         for (int i=start; i<stop; i++ ) {
                 energies[i-start] = i * deltaEnergy + minEnergy;
         }
 
         // Calculate density of states (DOS) [1/Ry], for energies on this process
         std::vector<double> dos(workFraction, 0.); // DOS initialized to zero
+        #pragma omp parallel for
         for ( int i=0; i<workFraction; i++ ) {
                 dos[i] += tetrahedra.getDOS(energies[i]);
         }
