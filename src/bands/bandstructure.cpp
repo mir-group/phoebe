@@ -16,6 +16,7 @@ Points BaseBandStructure::getPoints() {
 
 Point BaseBandStructure::getPoint(const long & pointIndex) {
 	Error e("BaseBandStructure method not implemented");
+	(void) pointIndex;
 }
 
 long BaseBandStructure::getNumPoints() {
@@ -30,6 +31,7 @@ long BaseBandStructure::getNumBands() {
 
 State BaseBandStructure::getState(Point & point) {
 	Error e("BaseBandStructure method not implemented");
+	(void) point;
 }
 
 State BaseBandStructure::getState(const long & pointIndex) {
@@ -40,6 +42,8 @@ State BaseBandStructure::getState(const long & pointIndex) {
 long BaseBandStructure::getIndex(const WavevectorIndex & ik,
 		const BandIndex & ib) {
 	Error e("BaseBandStructure method not implemented");
+	(void) ik;
+	(void) ib;
 	return 0;
 }
 
@@ -50,32 +54,41 @@ long BaseBandStructure::getNumStates() {
 
 const double & BaseBandStructure::getEnergy(const long & stateIndex) {
 	Error e("BaseBandStructure method not implemented");
+	(void) stateIndex;
 	return 0.;
 }
 
 Eigen::Vector3d BaseBandStructure::getGroupVelocity(const long & stateIndex) {
 	Error e("BaseBandStructure method not implemented");
+	(void) stateIndex;
 	return Eigen::Vector3d::Zero();
 }
 
 Eigen::Vector3d BaseBandStructure::getWavevector(const long & stateIndex) {
 	Error e("BaseBandStructure method not implemented");
+	(void) stateIndex;
 	return Eigen::Vector3d::Zero();
 }
 
 void BaseBandStructure::setEnergies(Point & point,
 		Eigen::VectorXd& energies_) {
 	Error e("BaseBandStructure method not implemented");
+	(void) point;
+	(void) energies_;
 }
 
 void BaseBandStructure::setVelocities(Point & point,
 		Eigen::Tensor<std::complex<double>,3>& velocities_) {
 	Error e("BaseBandStructure method not implemented");
+	(void) point;
+	(void) velocities_;
 }
 
 void BaseBandStructure::setEigenvectors(Point & point,
 		Eigen::MatrixXcd & eigenvectors_) {
 	Error e("BaseBandStructure method not implemented");
+	(void) point;
+	(void) eigenvectors_;
 }
 
 //-----------------------------------------------------------------------------

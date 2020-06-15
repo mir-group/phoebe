@@ -1,1 +1,1 @@
-../src/bandstructure.h
+../src/bands/bandstructure.h
