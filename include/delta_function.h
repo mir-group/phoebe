@@ -1,1 +1,1 @@
-../src/delta_function/delta_function.h
+../src/delta_function.h

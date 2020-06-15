@@ -1,3 +1,4 @@
+#include <cmath>
 #include <string>
 #include "app.h"
 #include "qe_input_parser.h"
@@ -7,7 +8,7 @@
 #include "points.h"
 #include "io.h"
 #include "window.h"
-#include "statistics.h"
+#include "particle.h"
 #include "dos_app.h"
 #include "polarization_app.h"
 #include "bands_app.h"
@@ -17,7 +18,12 @@
 #include "bandstructure.h"
 
 // app factory
-std::unique_ptr<App> App::loadApp(std::string & choice) {
+std::unique_ptr<App> App::loadApp(const std::string & choice) {
+	// check if the app choice is valid, otherwise we stop.
+	if ( std::find(choices.begin(), choices.end(), choice ) == choices.end()) {
+		Error e("The app name is not valid, didn't find an app to launch.");
+	}
+
 	if ( choice == "phononTransport" ) {
 		return std::unique_ptr<App> (new PhononTransportApp);
 	} else if ( choice == "phononDos" ) {
@@ -44,25 +50,67 @@ void App::run(Context & context) {
 	Error e("Base class app doesn't have a run()");
 }
 
-std::tuple<Crystal, PhononH0> App::setupPhononH0(Context & context) {
-	auto [crystal, phononH0] =
-			parser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
-	return {crystal, phononH0};
+// no requirements for the base class.
+void App::checkRequirements(Context & context) {
+	(void) context; // suppress unused variable compiler warnings
 }
 
-std::tuple<ActivePoints, ActiveBandStructure> App::restrictBandStructure(
-		Context & context, FullBandStructure<FullPoints> & fullBandStructure) {
+void App::throwErrorIfUnset(const std::string & x, const std::string & name) {
+	if ( x.empty() ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
 
-	Statistics statistics = fullBandStructure.getStatistics();
+void App::throwErrorIfUnset(const std::vector<std::string> & x,
+		const std::string & name) {
+	if ( x.size() == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
 
-	// we create the window object
-	Window window(context, statistics);
+void App::throwErrorIfUnset(const double & x, const std::string & name) {
+	if ( std::isnan(x) ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
 
-	// initialize activebandstructure
-	ActiveBandStructure activeBandStructure(statistics);
-	ActivePoints activePoints = activeBandStructure.buildAsPostprocessing(
-			window, fullBandStructure);
-	// note: activePoints should not go out of scope
-	return {activePoints, activeBandStructure};
-};
+void App::throwErrorIfUnset(const Eigen::VectorXi & x,
+		const std::string & name) {
+	if ( x.size() == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
+
+void App::throwErrorIfUnset(const Eigen::Vector3i & x,
+		const std::string & name) {
+	if ( x.size() == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
+
+void App::throwErrorIfUnset(const Eigen::VectorXd & x,
+		const std::string & name) {
+	if ( x.size() == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
+
+void App::throwErrorIfUnset(const Eigen::MatrixXd & x,
+		const std::string & name) {
+	if ( x.rows() == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
+
+void App::throwErrorIfUnset(const Eigen::Tensor<double,3> & x,
+		const std::string & name) {
+	if ( x.dimension(0) == 0 ) {
+		Error e("Input variable " + name + " hasn't been found in input");
+	}
+}
+
+void App::throwWarningIfUnset(const std::string & x, const std::string & name){
+	if ( x.empty() ) {
+		Warning e("Input variable " + name + " hasn't been found in input");
+	}
+}

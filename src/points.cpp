@@ -53,7 +53,7 @@ IrreduciblePoints::IrreduciblePoints(Crystal & crystal_,
 	setIrreduciblePoints();
 }
 
-ActivePoints::ActivePoints(FullPoints & parentPoints_,
+ActivePoints::ActivePoints(Points & parentPoints_,
 		VectorXl filter) : Points(parentPoints_.getCrystal(),
 				std::get<0>(parentPoints_.getMesh()),
 				std::get<1>(parentPoints_.getMesh())),
@@ -149,9 +149,13 @@ PathPoints::PathPoints(Crystal & crystal_,
 // copy constructors
 
 // copy constructor
-Points::Points(const Points & that) : crystal(that.crystal), mesh(that.mesh),
-	offset(that.offset), numPoints(that.numPoints), gVectors(that.gVectors),
-	igVectors(that.igVectors) {
+Points::Points(const Points & that) :
+		crystal(that.crystal),
+		mesh(that.mesh),
+		offset(that.offset),
+		numPoints(that.numPoints),
+		gVectors(that.gVectors),
+		igVectors(that.igVectors) {
 }
 
 // copy constructor
@@ -259,40 +263,40 @@ PathPoints & PathPoints::operator=(const PathPoints & that) {
 
 // getPoint methods
 
-//Point<Points> Points::getPoint(const long & index) {
-//	Eigen::Vector3d p = getPointCoords(index);
-//	return Point<Points>(index, p, *this);
-//}
-
-Point<FullPoints> FullPoints::getPoint(const long & index) {
+Point Points::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<FullPoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<IrreduciblePoints> IrreduciblePoints::getPoint(const long & index) {
+Point FullPoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<IrreduciblePoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<ActivePoints> ActivePoints::getPoint(const long & index) {
+Point IrreduciblePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<ActivePoints>(index, p, *this);
+	return Point(index, p, *this);
 }
 
-Point<PathPoints> PathPoints::getPoint(const long & index) {
+Point ActivePoints::getPoint(const long & index) {
 	Eigen::Vector3d p = getPointCoords(index);
-	return Point<PathPoints>(index, p, *this);
+	return Point(index, p, *this);
+}
+
+Point PathPoints::getPoint(const long & index) {
+	Eigen::Vector3d p = getPointCoords(index);
+	return Point(index, p, *this);
 }
 
 // getPointCoords is the tool to find the coordinates of a point
 
-Eigen::Vector3d Points::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+Eigen::Vector3d Points::getPointCoords(const long & index, const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
-	Eigen::Vector3d pointCrystal = reduciblePoints(index);
-	if ( basis == "crystal" ) {
+	Eigen::Vector3d pointCrystal;
+	pointCrystal = reduciblePoints(index);
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -303,12 +307,12 @@ Eigen::Vector3d Points::getPointCoords(const long & index,
 //FullPoints just like Points
 
 Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = irreduciblePoints.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -316,12 +320,12 @@ Eigen::Vector3d IrreduciblePoints::getPointCoords(const long & index,
 	}
 }
 Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -329,12 +333,12 @@ Eigen::Vector3d ActivePoints::getPointCoords(const long & index,
 	}
 }
 Eigen::Vector3d PathPoints::getPointCoords(const long & index,
-		const std::string & basis) {
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong basis for getPoint", 1);
+		const int & basis) {
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong basis for getPoint");
 	}
 	Eigen::Vector3d pointCrystal = pointsList.col(index);
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		return pointCrystal;
 	} else {
 		Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -369,7 +373,7 @@ long Points::getIndex(const Eigen::Vector3d & point) {
 	long i = mod(long(round(p(0))) , mesh(0));
 	long j = mod(long(round(p(1))) , mesh(1));
 	long k = mod(long(round(p(2))) , mesh(2));
-	long ik = i * mesh(2) * mesh(1) + j * mesh(2) + k;
+	long ik = k * mesh(0) * mesh(1) + j * mesh(0) + i;
 	return ik;
 }
 
@@ -400,30 +404,6 @@ long PathPoints::getIndex(const Eigen::Vector3d & coords) {
 	return counter;
 }
 
-// methods to find the index of the point -k, given k
-
-long FullPoints::getIndexInverted(const long & ik) {
-	// given the index of point k, return the index of point -k
-	Eigen::Vector3d point = reduciblePoints(ik);
-	long ikx = (long)round(( point(0) - offset(0) ) * mesh(0));
-	long iky = (long)round(( point(1) - offset(1) ) * mesh(1));
-	long ikz = (long)round(( point(2) - offset(2) ) * mesh(2));
-
-	long ikxm = - mod(ikx , mesh(0));
-	long ikym = - mod(iky , mesh(1));
-	long ikzm = - mod(ikz , mesh(2));
-
-	long ikm = ikxm * mesh(2) * mesh(1) + ikym * mesh(2) + ikzm;
-	return ikm;
-}
-
-long ActivePoints::getIndexInverted(const long & ik) {
-	long indexFull = filteredToFullIndeces(ik);
-	long indexFullInverted = parentPoints.getIndexInverted(indexFull);
-	long ikInv = fullToFilteredIndeces(indexFullInverted);
-	return ikInv;
-}
-
 // change of basis methods
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d & point) {
@@ -436,7 +416,7 @@ Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d & point) {
 }
 
 Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d & pointCrystal,
-		const std::string & basis) {
+		const int & basis) {
 
 	Eigen::Vector3d pointCart = crystalToCartesian(pointCrystal);
 
@@ -452,11 +432,11 @@ Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d & pointCrystal,
 		}
 	}
 
-	if ( basis != "crystal" && basis != "cartesian" ) {
-		Error e("Wrong input to Wigner Seitz folding", 1);
+	if ( basis != crystalCoords && basis != cartesianCoords ) {
+		Error e("Wrong input to Wigner Seitz folding");
 	}
 
-	if ( basis == "crystal" ) {
+	if ( basis == crystalCoords ) {
 		Eigen::Vector3i igVec = igVectors.col(iws);
 		Eigen::Vector3d pointCrystalWS = pointCrystal;
 		for ( long i=0; i<3; i++) {
@@ -588,7 +568,7 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
 	}
 
 	if ( numTestPoints != mesh_(0)*mesh_(1)*mesh_(2) ) {
-		Error e("Mesh of points seems incomplete", 1);
+		Error e("Mesh of points seems incomplete");
 	}
 	return {mesh_, offset_};
 }
@@ -648,7 +628,7 @@ void IrreduciblePoints::setIrreduciblePoints() {
 						tmpWeight(ik) += 1.;
 					} else {
 						if ( equiv(n)!=ik || n<ik ) {
-							Error e("Error in finding irred kpoints",1);
+							Error e("Error in finding irred kpoints");
 						}
 					}
 				}
@@ -740,4 +720,82 @@ long ActivePoints::fullToFilteredIndeces(const long & indexIn) {
 		Error e("Couldn't find the desired kpoint");
 	}
 	return target;
+}
+
+////////////////
+
+Point::Point(long index_, Eigen::Vector3d umklappVector_, Points & points_)
+		: points(points_) {
+	umklappVector = umklappVector_;
+	index = index_;
+}
+
+// copy constructor
+Point::Point( const Point & that ) : umklappVector(that.umklappVector),
+		index(that.index), points(that.points) {
+}
+
+// copy assignment
+Point & Point::operator = ( const Point & that ) {
+	if ( this != &that ) {
+		umklappVector = that.umklappVector;
+		index = that.index;
+		points = that.points;
+	}
+	return *this;
+}
+
+long Point::getIndex() {
+	return index;
+}
+
+Eigen::Vector3d Point::getCoords(const int & basis,
+		const bool & inWignerSeitz) {
+	if ( ( basis != crystalCoords_ ) && ( basis != cartesianCoords_ ) ) {
+		Error e("Point getCoordinates: basis must be crystal or cartesian");
+	}
+	Eigen::Vector3d coords;
+	if ( not inWignerSeitz ) {
+		Eigen::Vector3d crysCoords = points.getPointCoords(index,
+				crystalCoords_);
+		coords = points.crystalToWS(crysCoords, basis);
+	} else {
+		coords = points.getPointCoords(index, basis);
+	}
+	return coords;
+}
+
+
+double Point::getWeight() {
+	return points.getWeight(index);
+}
+
+bool Point::hasUmklapp() {
+	if ( umklappVector.norm() < 1.0e-8 ) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+Point Point::operator + (Point & b) {
+	if ( &b.points != &points ) {
+		Error e("Points sum should refer to points of the same mesh");
+	}
+	Eigen::Vector3d coords = getCoords() + b.getCoords();
+	long ik = points.getIndex(coords);
+	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
+	Point p(ik, umklappVector, points);
+    return p;
+}
+
+Point Point::operator - (Point & b) {
+	if ( &b.points != &points ) {
+		Error e("Points sum should refer to points of the same mesh");
+	}
+	Eigen::Vector3d coords = getCoords() - b.getCoords();
+	long ik = points.getIndex(coords);
+	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
+	Point p(ik, umklappVector, points);
+    return p;
 }

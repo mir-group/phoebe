@@ -13,20 +13,17 @@ int main(int argc, char** argv) {
 
 	// Read user input file
 
-	Context context;
-	context.setupFromInput(io.getInputFileName());
+	Context context; // instantiate class container of the user input
+	context.setupFromInput(io.getInputFileName()); // read the user input
 
 	// decide which app to use
+	std::unique_ptr<App> app = App::loadApp(context.getAppName());
 
-	std::string appName = context.getAppName();
-	std::unique_ptr<App> app = App::loadApp(appName);
-	if ( app != nullptr ) {
-		// launch it
+	// check that the user passed all the necessary input
+	app->checkRequirements(context);
 
-		app->run(context);
-	} else {
-		std::cout << "No app to launch found." << std::endl;
-	}
+	// launch it
+	app->run(context);
 
 	// exiting program
 

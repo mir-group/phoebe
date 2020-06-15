@@ -12,7 +12,7 @@
 #include "constants.h"
 #include "exceptions.h"
 #include "qe_input_parser.h"
-#include "statistics.h"
+#include "particle.h"
 #include "periodic_table.h"
 #include "utilities.h"
 
@@ -107,10 +107,10 @@ void latgen(const int ibrav, Eigen::VectorXd& celldm, Eigen::Matrix3d& unitCell)
 			Error e("wrong celldm(2)", ibrav);
 		}
 		double cbya  = celldm(2);
-		a1(1) = celldm(0);
-		a2(1) =-celldm(0) / 2.;
-		a2(2) = celldm(0) * sr3 / 2.;
-		a3(3) = celldm(0) * cbya;
+		a1(0) = celldm(0);
+		a2(0) =-celldm(0) / 2.;
+		a2(1) = celldm(0) * sr3 / 2.;
+		a3(2) = celldm(0) * cbya;
 
 	} else if (abs(ibrav) == 5) { // trigonal lattice
 		if ( celldm(3) <= -0.5 || celldm(3) >= 1. ) {
@@ -411,7 +411,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 			std::getline(infile, line);
 			lineSplit = split(line, ' ');
 			for ( int j=0; j<3; j++) {
-				directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceRyToAng;
+				directUnitCell(i,j) = std::stod(lineSplit[j]); // / distanceBohrToAng;
 			}
 		};
 	};
@@ -533,6 +533,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context & context) {
 
 	PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
 			forceConstants);
+	dynamicalMatrix.setAcousticSumRule(context.getSumRuleD2());
 
 	return {crystal, dynamicalMatrix};
 };
@@ -750,8 +751,8 @@ std::tuple<Crystal,ElectronH0Fourier> QEParser::parseElHarmonicFourier(
 
 	bool withVelocities = false;
 	bool withEigenvectors = false;
-	Statistics statistics(Statistics::electron);
-	FullBandStructure coarseBandStructure(numBands, statistics,
+	Particle particle(Particle::electron);
+	FullBandStructure coarseBandStructure(numBands, particle,
 			withVelocities, withEigenvectors, coarsePoints);
 	// fill in the info on band structure
 	Eigen::Vector3d pointCoords;
@@ -809,7 +810,7 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 		lineSplit = split(line, ' ');
 		for ( int j=0; j<3; j++) {
 			// unit cell is written in angstrom
-			directUnitCell(i,j) = std::stod(lineSplit[j]) / distanceRyToAng;
+			directUnitCell(i,j) = std::stod(lineSplit[j]) / distanceBohrToAng;
 		}
 	};
 
@@ -886,14 +887,14 @@ std::tuple<Crystal,ElectronH0Wannier> QEParser::parseElHarmonicWannier(
 			for ( long j=0; j<numWann; j++ ) {
 				std::getline(infile, line);
 				lineSplit = split(line, ' ');
-				double re = std::stod(lineSplit[2]) / distanceRyToAng;
-				double im = std::stod(lineSplit[3]) / distanceRyToAng;
+				double re = std::stod(lineSplit[2]) / distanceBohrToAng;
+				double im = std::stod(lineSplit[3]) / distanceBohrToAng;
 				rMatrix(0, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[4]) / distanceRyToAng;
-				im = std::stod(lineSplit[5]) / distanceRyToAng;
+				re = std::stod(lineSplit[4]) / distanceBohrToAng;
+				im = std::stod(lineSplit[5]) / distanceBohrToAng;
 				rMatrix(1, iR, i, j) = {re,im}; // the matrix was in eV
-				re = std::stod(lineSplit[6]) / distanceRyToAng;
-				im = std::stod(lineSplit[7]) / distanceRyToAng;
+				re = std::stod(lineSplit[6]) / distanceBohrToAng;
+				im = std::stod(lineSplit[7]) / distanceBohrToAng;
 				rMatrix(2, iR, i, j) = {re,im}; // the matrix was in eV
 			}
 		}

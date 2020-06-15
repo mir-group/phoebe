@@ -12,7 +12,7 @@ Error::Error(const std::string & errMessage, const int & errCode) {
 }
 
 Warning::Warning(const std::string & errMessage) {
-	std::cout << errMessage;
+	std::cout << "WARNING: " << errMessage << std::endl;
 }
 
 struct FileFormatNotRecognized : public std::exception {

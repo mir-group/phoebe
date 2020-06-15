@@ -5,13 +5,14 @@
 #include "constants.h"
 #include "periodic_table.h"
 #include "statistics_sweep.h"
+#include "qe_input_parser.h"
 
 // Compute the electronic polarization using the Berry connection
 void ElectronPolarizationApp::run(Context & context) {
 	std::cout << "Starting electron polarization calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, h0] = parser.parseElHarmonicWannier(context);
+	auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints points(crystal, context.getKMesh());
@@ -38,10 +39,10 @@ void ElectronPolarizationApp::run(Context & context) {
 		}
 	}
 
-	Statistics statistics = h0.getStatistics();
+	Particle particle = h0.getParticle();
 
 	// before moving on, we need to fix the chemical potential
-	StatisticsSweep statisticsSweep(context, bandStructure);
+	StatisticsSweep statisticsSweep(context, &bandStructure);
 	auto numCalcs = statisticsSweep.getNumCalcs();
 
 	// now we can compute the polarization
@@ -60,7 +61,7 @@ void ElectronPolarizationApp::run(Context & context) {
 				auto temp = sc.temperature;
 				auto chemPot = sc.chemicalPotential;
 
-				auto population = statistics.getPopulation(energy, temp,
+				auto population = particle.getPopulation(energy, temp,
 						chemPot);
 				for ( long i=0; i<3; i++ ) {
 					polarization(iCalc,i) -=

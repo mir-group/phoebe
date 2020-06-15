@@ -6,8 +6,10 @@
 #include "bandstructure.h"
 #include "harmonic.h"
 
-/** Class for a Fourier-like interpolation of an electronic band
- *
+/** Class for a Fourier-like interpolation of an electronic band structure.
+ * Takes the information on the band structure computed on a uniform coarse
+ * grid of k-points, and interpolates it to finer grids with a plane wave based
+ * method.
  */
 class ElectronH0Fourier : public HarmonicHamiltonian {
 public:
@@ -23,28 +25,52 @@ public:
 	 * in the plane-wave interpolation.
 	 */
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
-			FullBandStructure<FullPoints> coarseBandStructure_, double cutoff);
+			FullBandStructure coarseBandStructure_, double cutoff);
 
-	template<typename T>
-	std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		diagonalize(Point<T> & point);
+	/** get the electronic energies (in Ry) at a single k-point.
+	 * Energies don't have any reference value, and must be used in connection
+	 * with a chemical potential.
+	 * @param k: a point object with the wavevector. Must have the cartesian
+	 * coordinates of the wavevector.
+	 * @return tuple(energies, eigenvectors): the energies are a double vector
+	 * of size (numBands). Eigenvectors of size (numBands,numBands), but are
+	 * simply set to zero, since there is no diagonalization happening here.
+	 */
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point & point);
 
-	template<typename T>
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-				Point<T> & point);
+	/** get the electron velocities (in atomic units) at a single k-point.
+	 * @param k: a Point object with the wavevector coordinates.
+	 * @return velocity(numBands,numBands,3): values of the velocity operator
+	 * for this state, in atomic units. Note that the off-diagonal matrix
+	 * elements are set to zero, because this kind of interpolation, at the
+	 * moment, doesn't have any information on the off-diagonal elements.
+	 */
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
 
-	Statistics getStatistics();
+    /** Method to return that the underlying is that of an electronic Fermion.
+     */
+	Particle getParticle();
 
-	template<typename T>
-	FullBandStructure<T> populate(T & fullPoints, bool & withVelocities,
+	/** This method constructs an electron bandstructure.
+	 * @param points: the object with the list/mesh of wavevectors
+	 * @param withVelocities: if true, compute the electron velocity operator.
+	 * @param withEigenvectors: can only be false, as there are no eigenvectors
+	 * with this kind of interpolation.
+	 * @return FullBandStructure: the bandstructure object containing the
+	 * complete electronic band structure.
+	 */
+	FullBandStructure populate(Points & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
 
+	/** Get the total number of bands available at ech wavevector.
+	 *
+	 */
 	long getNumBands();
 protected:
 	Crystal & crystal;
-	FullBandStructure<FullPoints> coarseBandStructure;
+	FullBandStructure coarseBandStructure;
 	FullPoints coarsePoints;
-	Statistics statistics;
+	Particle particle;
 
 	Eigen::MatrixXcd expansionCoefficients;
 
@@ -72,54 +98,5 @@ protected:
 	Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d & wavevector,
 			long & bandIndex);
 };
-
-template<typename T>
-std::tuple<Eigen::VectorXd, Eigen::Tensor<std::complex<double>,3>>
-		ElectronH0Fourier::diagonalize(Point<T> & point) {
-
-	Eigen::Vector3d coords = point.getCoords("cartesian");
-	auto [energies,x] = diagonalizeFromCoords(coords);
-
-	// this is to return something aligned with the phonon case
-	// One should investigate how to return a null pointer
-	Eigen::Tensor<std::complex<double>,3> eigvecs;
-	eigvecs.setZero();
-
-	return {energies,eigvecs};
-}
-
-template<typename T>
-Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
-			Point<T> & point) {
-	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
-	velocity.setZero();
-	Eigen::Vector3d coords = point.getCoords("cartesian");
-	for ( long ib=0; ib<numBands; ib++ ) {
-		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
-		for ( long i=0; i<3; i++ ) {
-			velocity(ib,ib,i) = v(i);
-		}
-	}
-	return velocity;
-}
-
-template<typename T>
-FullBandStructure<T> ElectronH0Fourier::populate(T & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure<T> fullBandStructure(numBands, statistics,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point<T> point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-	}
-	return fullBandStructure;
-}
 
 #endif

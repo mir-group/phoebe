@@ -5,19 +5,41 @@
 #include "bandstructure.h"
 #include "state.h"
 #include "window.h"
-#include "statistics.h"
+#include "particle.h"
+#include "statistics_sweep.h"
 #include "harmonic.h"
 
 class ActiveBandStructure {
+public:
+	ActiveBandStructure(Particle & particle_);
+	ActiveBandStructure(const ActiveBandStructure & that);// copy
+	ActiveBandStructure & operator=(const ActiveBandStructure & that); // assign
+
+	Particle getParticle();
+	long getNumPoints();
+	long getNumStates();
+
+	Point getPoint(const long & pointIndex);
+
+	State getState(Point & point);  // returns all bands at fixed k/q-point
+
+	double getEnergy(long & stateIndex);
+	Eigen::Vector3d getGroupVelocity(long & stateIndex);
+
+	template<typename T>
+	static std::tuple<ActivePoints, ActiveBandStructure>
+			builder(Context & context, T & h0, FullPoints & fullPoints);
 private:
-	// note: we use std::vector because we want a variable number of bands
-	// per each k-point
+	Particle particle;
+
+	// note: we don't store a matrix: we are storing an object (Nk,Nb),
+	// with a variable number of bands Nb per point
 	std::vector<double> energies;
 	std::vector<double> groupVelocities;
 	std::vector<std::complex<double>> velocities;
 	std::vector<std::complex<double>> eigenvectors;
+
 	ActivePoints * activePoints = nullptr;
-	Statistics statistics;
 	bool hasEigenvectors = false;
 	long numStates = 0;
 	long numAtoms = 0;
@@ -37,66 +59,138 @@ private:
 	long gvelBloch2Comb(long & ik, long & ib, long & i);
 	long eigBloch2Comb(long & ik, long & i, long & iat, long & ib);
 	long bloch2Comb(long & k, long & b);
+	std::tuple<long,long> comb2Bloch(long & is);
 
 	long numPoints;
 	bool hasPoints();
-public:
-	ActiveBandStructure(Statistics & statistics_);
-	Statistics getStatistics();
-	long getNumPoints();
 
-	long getNumStates();
+	template<typename T>
+	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,T &h0);
 
-	template <typename T>
-	Point<T> getPoint(const long & pointIndex);
+	std::vector<std::complex<double>> flattenEigenvectors(
+			Eigen::MatrixXd & eigvecsIn,
+			std::vector<long> bandsExtrema);
 
-	template <typename T>
-	State<T> getState(Point<T> & point);  // returns all bands at fixed k/q-point
-
-	double getEnergy(long & stateIndex);
-	Eigen::Vector3d getGroupVelocity(long & stateIndex);
-
-	std::tuple<long,long> comb2Bloch(long & is);
-
-	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,
-			HarmonicHamiltonian & h0);
+	std::vector<std::complex<double>> flattenEigenvectors(
+			Eigen::Tensor<std::complex<double>,3> & eigvecsIn,
+			std::vector<long> bandsExtrema);
 
 	ActivePoints buildAsPostprocessing(Window & window,
-			FullBandStructure<FullPoints> & fullBandStructure);
+			FullBandStructure & fullBandStructure);
 };
 
+template<typename T>
+std::tuple<ActivePoints, ActiveBandStructure>
+		ActiveBandStructure::builder(Context & context,
+				T & h0, FullPoints & fullPoints) {
 
-template <typename T>
-Point<T> ActiveBandStructure::getPoint(const long & pointIndex) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	Particle particle = h0.getParticle();
+
+	Eigen::VectorXd temperatures = context.getTemperatures();
+
+	ActiveBandStructure activeBandStructure(particle);
+
+	if ( particle.isPhonon() ) {
+		double temperatureMin = temperatures.minCoeff();
+		double temperatureMax = temperatures.maxCoeff();
+
+		Window window(context, particle, temperatureMin, temperatureMax);
+
+		auto aPoints = activeBandStructure.buildOnTheFly(window,fullPoints,h0);
+		StatisticsSweep statisticsSweep(context);
+		return {aPoints, activeBandStructure, statisticsSweep};
+	} else {
+		Error e("apply window for electrons not implemented");
 	}
-	return activePoints->getPoint(pointIndex);
 }
 
-template <typename T>
-State<T> ActiveBandStructure::getState(Point<T> & point) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+
+template<typename T>
+ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
+		FullPoints & fullPoints, T & h0) {
+
+	// Note: eigenvectors are assumed to be phonon eigenvectors
+	// might need adjustments in the future.
+
+	numAtoms = fullPoints.getCrystal().getNumAtoms();
+
+	std::vector<long> filteredPoints;
+	std::vector<std::vector<long>> filteredBands;
+	std::vector<double> filteredEnergies;
+	std::vector<std::complex<double>> filteredEigenvectors;
+
+	for ( long ik=0; ik<fullPoints.getNumPoints(); ik++ ) {
+		Point point = fullPoints.getPoint(ik);
+
+		auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
+		// eigenvectors(3,numAtoms,numBands)
+
+		auto [ens, bandsExtrema] = window.apply(theseEnergies);
+
+		if ( ens.empty() ) {
+			continue;
+		} else {
+
+			filteredPoints.push_back(ik);
+			filteredBands.push_back(bandsExtrema);
+
+			for ( long unsigned ib=0; ib<ens.size(); ib++ ) {
+				filteredEnergies.push_back(ens[ib]);
+			}
+
+			if ( h0.hasEigenvectors ) {
+				auto x = flattenEigenvectors(theseEigenvectors, bandsExtrema);
+				for ( auto i=0; i<x.size(); i++ ) {
+					filteredEigenvectors.push_back(x);
+				}
+			}
+		}
 	}
 
-	long ik = point.getIndex();
-	long zero = 0;
-
-	long ind = bloch2Comb(ik,zero);
-	double * thisEn = &energies[ind];
-
-	ind = velBloch2Comb(ik,zero,zero,zero);
-	std::complex<double> * thisVel = &velocities[ind];
-
-	std::complex<double> * thisEig = nullptr;
-	if ( hasEigenvectors ) {
-		ind = eigBloch2Comb(ik,zero,zero,zero);
-		thisEig = &eigenvectors[ind];
+	numPoints = filteredPoints.size();
+	VectorXl filter(numPoints);
+	for ( long i=0; i<numPoints; i++ ) {
+		filter(i) = filteredPoints[i];
 	}
 
-	State<T> s(point, thisEn, numAtoms, numBands(ik), thisVel, thisEig);
-	return s;
+	VectorXl numBands(numPoints);
+	for ( long ik=0; ik<numPoints; ik++ ) {
+		numBands(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
+	}
+
+	numStates = numBands.sum();
+
+	ActivePoints activePoints_(fullPoints, filter);
+	activePoints = &activePoints_;
+
+	energies = filteredEnergies;
+
+	if ( h0.hasEigenvectors ) {
+		hasEigenvectors = true;
+		std::vector<std::complex<double>> eigenvectors(numStates*3*numAtoms);
+		eigenvectors = filteredEigenvectors;
+	}
+
+	// now we add velocities
+	for ( long ik=0; ik<numPoints; ik++ ) {
+		Point point = activePoints_.getPoint(ik);
+
+		// thisVelocity is a tensor of dimensions (ib, ib, 3)
+		auto thisVelocity = h0.diagonalizeVelocity(point);
+
+		// now we filter it
+		for ( long ib1Old = filteredBands[ik][0];
+				ib1Old<filteredBands[ik][1]+1; ib1Old++ ) {
+			for ( long i=0; i<3; i++ ) {
+				groupVelocities.push_back(thisVelocity(ib1Old,ib1Old,i).real());
+				for ( long ib2Old = filteredBands[ik][0];
+						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
+					velocities.push_back(thisVelocity(ib1Old,ib2Old,i));
+				}
+			}
+		}
+	}
+	return activePoints_;
 }
 
 #endif

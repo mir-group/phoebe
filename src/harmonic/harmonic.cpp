@@ -3,7 +3,7 @@
 #include "eigen.h"
 #include "points.h"
 
-HarmonicHamiltonian::HarmonicHamiltonian() : statistics(Statistics::phonon) {
+HarmonicHamiltonian::HarmonicHamiltonian() : particle(Particle::phonon) {
 }
 
 // note: these are dummy functions, that should be overwritten in the
@@ -20,8 +20,8 @@ long HarmonicHamiltonian::getNumBands() {
 	return numBands;
 }
 
-Statistics HarmonicHamiltonian::getStatistics() {
-	return statistics;
+Particle HarmonicHamiltonian::getParticle() {
+	return particle;
 }
 
 Eigen::Tensor<std::complex<double>,3>
@@ -134,4 +134,33 @@ Eigen::Tensor<std::complex<double>,3>
 		ib += sizeSubspace - 1;
 	}
 	return velocity;
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> HarmonicHamiltonian::diagonalize(
+		Point & point) {
+	(void) point;
+	Eigen::VectorXd energies(1);
+	Eigen::MatrixXcd eigvecs(1,1);
+	energies.setZero();
+	eigvecs.setZero();
+	return {energies, eigvecs};
+}
+
+Eigen::Tensor<std::complex<double>,3> HarmonicHamiltonian::diagonalizeVelocity(
+		Point & point) {
+	(void) point;
+	Eigen::Tensor<std::complex<double>,3> c(1,1,1);
+	c.setZero();
+	return c;
+}
+
+FullBandStructure HarmonicHamiltonian::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+	Error e("base populate not implemented");
+	(void) fullPoints;
+	(void) withVelocities;
+	(void) withEigenvectors;
+	FullBandStructure t(numBands, particle, withVelocities, withEigenvectors,
+			fullPoints);
+	return t;
 }

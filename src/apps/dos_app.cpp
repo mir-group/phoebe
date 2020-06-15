@@ -1,3 +1,5 @@
+#include <fstream>
+#include <iostream>
 #include <string>
 #include "dos_app.h"
 #include "exceptions.h"
@@ -5,13 +7,14 @@
 #include "delta_function.h"
 #include "electron_h0_fourier.h"
 #include "utilities.h"
+#include "qe_input_parser.h"
 
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context & context) {
 	std::cout << "Starting phonon DoS calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, phononH0] = setupPhononH0(context);
+	auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getQMesh());
@@ -21,9 +24,7 @@ void PhononDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -55,7 +56,7 @@ void ElectronWannierDosApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, h0] = parser.parseElHarmonicWannier(context);
+	auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getKMesh());
@@ -65,9 +66,7 @@ void ElectronWannierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -100,7 +99,7 @@ void ElectronFourierDosApp::run(Context & context) {
 
 	// Read the necessary input files
 
-	auto [crystal, h0] = parser.parseElHarmonicFourier(context);
+	auto [crystal, h0] = QEParser::parseElHarmonicFourier(context);
 
 	// first we make compute the band structure on the fine grid
 	FullPoints fullPoints(crystal, context.getKMesh());
@@ -110,9 +109,7 @@ void ElectronFourierDosApp::run(Context & context) {
 			fullPoints, withVelocities, withEigenvectors);
 
 	// Form tetrahedra and fill them with eigenvalues
-	Tetrahedra tetrahedra(fullPoints, fullBandStructure);
-	// Hard coded limits of energy. Later change them to user input?
-	// Array of uniform frequencies to sample
+	TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
 	double minEnergy = context.getDosMinEnergy();
 	double maxEnergy = context.getDosMaxEnergy();
@@ -137,4 +134,35 @@ void ElectronFourierDosApp::run(Context & context) {
 				<< dos[i]/energyRyToEv << "\n";
 	}
 	std::cout << "Electronic DoS computed" << std::endl;
+}
+
+void PhononDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getQMesh(), "qMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+}
+
+void ElectronWannierDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getQMesh(), "kMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	std::string crystalMsg = "crystal structure";
+	throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+}
+
+void ElectronFourierDosApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getQMesh(), "kMesh");
+	throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+	throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+	throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+	throwErrorIfUnset(context.getElectronFourierCutoff(),
+			"electronFourierCutoff");
 }

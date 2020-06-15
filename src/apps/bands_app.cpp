@@ -3,13 +3,13 @@
 #include <fstream>
 #include "eigen.h"
 #include "constants.h"
+#include "qe_input_parser.h"
 
 void PhononBandsApp::run(Context & context) {
 	std::cout << "Starting phonon bands calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, phononH0] = parser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule(context.getSumRuleD2());
+	auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
 
 	// first we make compute the band structure on the fine grid
 	PathPoints pathPoints(crystal, context.getPathExtrema(),
@@ -45,7 +45,7 @@ void ElectronWannierBandsApp::run(Context & context) {
 	std::cout << "Starting electron (Wannier) bands calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, electronH0] = parser.parseElHarmonicWannier(context);
+	auto [crystal, electronH0] = QEParser::parseElHarmonicWannier(context);
 
 	// first we make compute the band structure on the fine grid
 	PathPoints pathPoints(crystal, context.getPathExtrema(),
@@ -80,7 +80,7 @@ void ElectronFourierBandsApp::run(Context & context) {
 	std::cout << "Starting electron (Fourier) bands calculation" << std::endl;
 
 	// Read the necessary input files
-	auto [crystal, electronH0] = parser.parseElHarmonicFourier(context);
+	auto [crystal, electronH0] = QEParser::parseElHarmonicFourier(context);
 
 	// first we make compute the band structure on the fine grid
 	PathPoints pathPoints(crystal, context.getPathExtrema(),
@@ -110,3 +110,30 @@ void ElectronFourierBandsApp::run(Context & context) {
 	}
 	std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
 }
+
+void PhononBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+	throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+}
+
+void ElectronWannierBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+
+	std::string crystalMsg = "crystal structure";
+	throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg) ;
+	throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+}
+
+void ElectronFourierBandsApp::checkRequirements(Context & context) {
+	throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+	throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+	throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
+	throwErrorIfUnset(context.getElectronFourierCutoff(),
+			"electronFourierCutoff");
+}
+

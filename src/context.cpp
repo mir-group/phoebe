@@ -127,7 +127,15 @@ double parseDoubleWithUnits(std::vector<std::string> lines, std::string pattern)
 			if ( lineHasUnits(line, "cmm1") ) {
 				x /= ryToCmm1;
 			}
-
+			if ( lineHasUnits(line, "ps") ) {
+				x /= timeRyToFs * 1.0e-3;
+			}
+			if ( lineHasUnits(line, "fs") ) {
+				x /= timeRyToFs;
+			}
+			if ( lineHasUnits(line, "mum") ) {
+				x /= distanceBohrToMum;
+			}
 			found = true;
 			break;
 		}
@@ -312,6 +320,10 @@ std::vector<std::string> parseStringList(std::vector<std::string> lines,
 	for ( std::string line : lines) {
 		if ( lineHasPattern(line, pattern) ) {
 
+			// remove empty spaces
+		    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
+
+
 			std::string delimeter;
 			size_t pos1;
 			size_t pos2;
@@ -334,13 +346,17 @@ std::vector<std::string> parseStringList(std::vector<std::string> lines,
 			while ((pos1 = s.find(delimeter)) != std::string::npos) {
 			    token = s.substr(0, pos1);
 
-				xTemp = token; // convert to integer
+			    // we also remove the " symbols
+			    token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
+
+				xTemp = token;
 				x.push_back(xTemp);
 
 			    s.erase(0, pos1 + delimeter.length());
 			}
-//			Must not forget the last element in the list
+			// Must not forget the last element in the list
 			xTemp = s;
+			xTemp.erase(std::remove(xTemp.begin(), xTemp.end(), '"'), xTemp.end());
 			x.push_back(xTemp);
 
 			found = true;
@@ -416,7 +432,7 @@ std::tuple<Eigen::MatrixXd , Eigen::VectorXi, std::vector<std::string>> parseCry
 		atomicPositions(counter-iStart-1,1) = std::stod(splitLine[2]);
 		atomicPositions(counter-iStart-1,2) = std::stod(splitLine[3]);
 	}
-	atomicPositions /= distanceRyToAng;
+	atomicPositions /= distanceBohrToAng;
 	return {atomicPositions,atomicSpecies,speciesNames};
 }
 
@@ -488,6 +504,11 @@ void Context::setupFromInput(std::string fileName) {
 	try {
 		std::string tmp = parseString(lines, "phD2FileName");
 		setPhD2FileName(tmp);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::string tmp = parseString(lines, "phD3FileName");
+		setPhD3FileName(tmp);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
 	try {
@@ -648,6 +669,60 @@ void Context::setupFromInput(std::string fileName) {
 		setNumOccupiedStates(x);
 	} catch (ParameterNotFound& e) {} // Do nothing!
 
+	try {
+		std::string x_ = parseString(lines, "smearingMethod");
+		int x;
+		if ( x_ == "gaussian" ) {
+			x = 0;
+		} else if ( x_ == "adaptiveGaussian" ) {
+			x = 1;
+		} else if ( x_ == "tetrahedron" ) {
+			x = 2;
+		} else {
+			x = -1;
+		}
+		setSmearingMethod(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "smearingWidth");
+		setSmearingWidth(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "constantRelaxationTime");
+		setConstantRelaxationTime(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		bool x = parseBool(lines, "scatteringMatrixInMemory");
+		setScatteringMatrixInMemory(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		bool x = parseBool(lines, "withIsotopeScattering");
+		setWithIsotopeScattering(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		std::vector<double> x = parseDoubleList(lines, "massVariance");
+		Eigen::VectorXd x_(x.size());
+		for ( long unsigned i=0; i<x.size(); i++ ) {
+			x_(i) = x[i];
+		}
+		setMassVariance(x_);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
+//	try {
+//		bool x = parseBool(lines, "withRTABoundaryScattering");
+//		setWithRTABoundaryScattering(x);
+//	} catch (ParameterNotFound& e) {} // Do nothing!
+
+	try {
+		double x = parseDoubleWithUnits(lines, "boundaryLength");
+		setBoundaryLength(x);
+	} catch (ParameterNotFound& e) {} // Do nothing!
+
 };
 
 void Context::setPhD2FileName(std::string x) {
@@ -656,6 +731,14 @@ void Context::setPhD2FileName(std::string x) {
 
 std::string Context::getPhD2FileName() {
 	return phD2FileName;
+}
+
+void Context::setPhD3FileName(std::string x) {
+	phD3FileName = x;
+}
+
+std::string Context::getPhD3FileName() {
+	return phD3FileName;
 }
 
 void Context::setSumRuleD2(std::string x) {
@@ -850,8 +933,6 @@ double Context::getDeltaPath() {
 	return deltaPath;
 }
 
-
-
 void Context::setFermiLevel(const double & x) {
 	fermiLevel = x;
 }
@@ -870,3 +951,69 @@ void Context::setHasSpinOrbit(bool x) {
 bool Context::getHasSpinOrbit() {
 	return hasSpinOrbit;
 }
+
+void Context::setSmearingMethod(const int & x) {
+	smearingMethod = x;
+}
+
+int Context::getSmearingMethod() {
+	return smearingMethod;
+}
+
+void Context::setSmearingWidth(const double & x) {
+	smearingWidth = x;
+}
+
+double Context::getSmearingWidth() {
+	return smearingWidth;
+}
+
+void Context::setConstantRelaxationTime(const double & x) {
+	constantRelaxationTime = x;
+}
+
+double Context::getConstantRelaxationTime() {
+	return constantRelaxationTime;
+}
+
+void Context::setScatteringMatrixInMemory(const bool & x) {
+	scatteringMatrixInMemory = x;
+}
+
+bool Context::getScatteringMatrixInMemory() {
+	return scatteringMatrixInMemory;
+}
+
+void Context::setMassVariance(const Eigen::VectorXd & x) {
+	massVariance = x;
+}
+
+Eigen::VectorXd Context::getMassVariance() {
+	return massVariance;
+}
+
+void Context::setWithIsotopeScattering(const bool & x) {
+	withIsotopeScattering = x;
+}
+
+bool Context::getWithIsotopeScattering() {
+	return withIsotopeScattering;
+}
+
+
+void Context::setBoundaryLength(const double & x) {
+	boundaryLength = x;
+}
+
+double Context::getBoundaryLength() {
+	return boundaryLength;
+}
+
+//void Context::setWithRTABoundaryScattering(const bool & x) {
+//	doIsotopes = x;
+//}
+//
+//bool Context::getWithRTABoundaryScattering() {
+//	return doIsotopes;
+//}
+
