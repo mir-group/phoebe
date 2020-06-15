@@ -14,6 +14,9 @@ int main(int argc, char** argv) {
 	IO io(argc, argv);
 	if(mpi->mpiHead()) io.welcome();
 
+        // Print parallelization info
+        if(mpi->mpiHead()) parallelInfo(); 
+
 	// Read user input file
 	Context context; // instantiate class container of the user input
 	context.setupFromInput(io.getInputFileName()); // read the user input
