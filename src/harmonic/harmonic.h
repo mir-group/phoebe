@@ -11,26 +11,27 @@ class HarmonicHamiltonian {
 public:
 	HarmonicHamiltonian();
 
+	const bool hasEigenvectors = true;
+
+	virtual long getNumBands();
+
+	virtual Particle getParticle();
+
 	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(
 			Point & point);
 
+	virtual std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalizeFromCoords(
+			Eigen::Vector3d & k);
+
 	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
 			Point & point);
-
-	const bool hasEigenvectors = true;
-	virtual long getNumBands();
-	virtual Particle getParticle();
 
 	virtual FullBandStructure populate(Points & fullPoints,
 			bool & withVelocities, bool & withEigenvectors);
 protected:
 	Particle particle;
-	Eigen::Tensor<std::complex<double>,3> internalDiagonalizeVelocity(
-				Eigen::Vector3d & coords, double & delta, double & threshold);
 
-	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		diagonalizeFromCoords(Eigen::Vector3d & k);
-	long numBands;
+	long numBands = 0;
 };
 
 #endif

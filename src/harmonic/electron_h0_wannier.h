@@ -20,6 +20,23 @@ public:
 			const Eigen::Tensor<std::complex<double>,3> & h0R_,
 			const Eigen::Tensor<std::complex<double>,4> & rMatrix_);
 
+    /** Copy constructor
+     */
+    ElectronH0Wannier( const ElectronH0Wannier & that );
+
+    /** Copy assignment
+     */
+    ElectronH0Wannier & operator = ( const ElectronH0Wannier & that );
+
+    /** Method to return that the underlying is that of an electronic Fermion.
+     */
+    Particle getParticle();
+
+    /** get the total number of bands.
+     * This is a constant for all wavevectors.
+     */
+    long getNumBands();
+
 	/** get the electronic energies (in Ry) at a single k-point.
 	 * Energies don't have any reference value, and must be used in connection
 	 * with a chemical potential.
@@ -32,32 +49,15 @@ public:
 	 */
 	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalize(Point & point);
 
-	/** get the electron velocities (in atomic units) at a single k-point.
+    virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+    	diagonalizeFromCoords(Eigen::Vector3d & k);
+
+    /** get the electron velocities (in atomic units) at a single k-point.
 	 * @param k: a Point object with the wavevector coordinates.
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
 	 * for this state, in atomic units.
 	 */
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point &point);
-
-	// checks whether this object can compute eigenvectors.
-    const bool hasEigenvectors = true;
-
-    /** Method to return that the underlying is that of an electronic Fermion.
-     */
-    Particle getParticle();
-
-    /** get the total number of bands.
-     * This is a constant for all wavevectors.
-     */
-    long getNumBands();
-
-    /** Copy constructor
-     */
-    ElectronH0Wannier( const ElectronH0Wannier & that );
-
-    /** Copy assignment
-     */
-    ElectronH0Wannier & operator = ( const ElectronH0Wannier & that );
 
 	/** This method constructs an electron bandstructure.
 	 * @param points: the object with the list/mesh of wavevectors
@@ -78,8 +78,6 @@ public:
     std::vector<Eigen::MatrixXcd> getBerryConnection(Point & point);
 protected:
     Particle particle;
-    virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-    	diagonalizeFromCoords(Eigen::Vector3d & k);
 
     // list of lattice vectors, used for the Fourier transform from real
     // to reciprocal space

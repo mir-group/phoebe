@@ -116,9 +116,127 @@ Particle PhononH0::getParticle() {
 	return particle;
 }
 
-// Development note:
-// In this code, we define the reciprocal unit cell in bohr^-1,
-// whereas QE used units of 2Pi/alat. Some factors of 2Pi might need checking
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalize(
+				Point & point) {
+	Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
+	bool withMassScaling = true;
+	auto [energies, eigenvectors] = diagonalizeFromCoords(q, withMassScaling);
+
+	//  displacements are eigenvectors divided by sqrt(speciesMasses)
+
+//	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
+//	for ( long iband=0; iband<numBands; iband++ ) {
+//		for ( long iat=0; iat<numAtoms; iat++ ) {
+//			for ( long ipol=0; ipol<3; ipol++ ) {
+//				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+//				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
+//			}
+//		}
+//	}
+	return {energies, eigenvectors};
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
+				Eigen::Vector3d & q) {
+	bool withMassScaling = true;
+	return diagonalizeFromCoords(q, withMassScaling);
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
+				Eigen::Vector3d & q, const bool & withMassScaling) {
+	// to be executed at every qpoint to get phonon frequencies and wavevectors
+
+	Eigen::Tensor<std::complex<double>, 4> dyn(3,3,numAtoms,numAtoms);
+	dyn.setZero();
+
+	Eigen::Tensor<std::complex<double>,4> f_of_q(3,3,numAtoms,numAtoms);
+	f_of_q.setZero();
+
+	Eigen::VectorXd qhat(3);
+	double qq;
+
+	// for now, this part is not executed
+	if ( na_ifc ) {
+		qq = sqrt( q.transpose()*q ); // q is the qpoint coordinate
+		if ( abs(qq) < 1.0e-8 ) {
+			qq = 1.;
+		}
+
+		qhat = q / qq;
+
+		nonAnalIFC(qhat, f_of_q);
+	}
+
+	// first, the short range term, which is just a Fourier transform
+	shortRangeTerm(dyn, q, f_of_q);
+
+	// then the long range term, which uses some convergence
+	// tricks by X. Gonze et al.
+	if ( hasDielectric && !na_ifc ) {
+		longRangeTerm(dyn, q, +1.);
+	}
+
+	// finally, the nonanalytic term from Born charges
+	if ( !loto_2d && na_ifc ) {
+		qhat = q.transpose() * directUnitCell;
+		if ( abs( qhat(0) - round(qhat(0) ) ) <= 1.0e-6 &&
+				abs( qhat(1) - round(qhat(1) ) ) <= 1.0e-6 &&
+				abs( qhat(2) - round(qhat(2) ) ) <= 1.0e-6 ) {
+			// q = 0 : we need the direction q => 0 for the non-analytic part
+
+			qq = sqrt( ( qhat.transpose()*qhat ).value() );
+			if (qq != 0. ) {
+				qhat /= qq;
+			}
+			nonAnaliticTerm(qhat, dyn);
+		}
+	}
+
+	// once everything is ready, here we scale by masses and diagonalize
+
+	auto [energies, eigenvectors] = dyndiag(dyn);
+
+	if ( withMassScaling ) {
+		// we normalize with the mass.
+		// In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+		// but instead (U^+) * M * U = I, where M is the mass matrix
+		// (M is diagonal with atomic masses on the diagonal)
+		for ( long iband=0; iband<numBands; iband++ ) {
+			for ( long iat=0; iat<numAtoms; iat++ ) {
+				long iType = atomicSpecies(iat);
+				for ( long ipol=0; ipol<3; ipol++ ) {
+					auto ind = compress2Indeces(iat,ipol,numAtoms,3);
+					eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
+				}
+			}
+		}
+	}
+
+	return {energies, eigenvectors};
+};
+
+FullBandStructure PhononH0::populate(Points & points, bool & withVelocities,
+		bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, points);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+
+		if ( withVelocities) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+		if ( withEigenvectors ) {
+			fullBandStructure.setEigenvectors(point, eigvecs);
+		}
+	}
+	return fullBandStructure;
+}
 
 void PhononH0::wsinit(const Eigen::MatrixXd& unitCell) {
 	const long nx = 2;
@@ -648,79 +766,6 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::dyndiag(
 		}
 	}
 	Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();
-
-	return {energies, eigenvectors};
-};
-
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
-				Eigen::Vector3d & q, const bool & withMassScaling) {
-	// to be executed at every qpoint to get phonon frequencies and wavevectors
-
-	Eigen::Tensor<std::complex<double>, 4> dyn(3,3,numAtoms,numAtoms);
-	dyn.setZero();
-
-	Eigen::Tensor<std::complex<double>,4> f_of_q(3,3,numAtoms,numAtoms);
-	f_of_q.setZero();
-
-	Eigen::VectorXd qhat(3);
-	double qq;
-
-	// for now, this part is not executed
-	if ( na_ifc ) {
-		qq = sqrt( q.transpose()*q ); // q is the qpoint coordinate
-		if ( abs(qq) < 1.0e-8 ) {
-			qq = 1.;
-		}
-
-		qhat = q / qq;
-
-		nonAnalIFC(qhat, f_of_q);
-	}
-
-	// first, the short range term, which is just a Fourier transform
-	shortRangeTerm(dyn, q, f_of_q);
-
-	// then the long range term, which uses some convergence
-	// tricks by X. Gonze et al.
-	if ( hasDielectric && !na_ifc ) {
-		longRangeTerm(dyn, q, +1.);
-	}
-
-	// finally, the nonanalytic term from Born charges
-	if ( !loto_2d && na_ifc ) {
-		qhat = q.transpose() * directUnitCell;
-		if ( abs( qhat(0) - round(qhat(0) ) ) <= 1.0e-6 &&
-				abs( qhat(1) - round(qhat(1) ) ) <= 1.0e-6 &&
-				abs( qhat(2) - round(qhat(2) ) ) <= 1.0e-6 ) {
-			// q = 0 : we need the direction q => 0 for the non-analytic part
-
-			qq = sqrt( ( qhat.transpose()*qhat ).value() );
-			if (qq != 0. ) {
-				qhat /= qq;
-			}
-			nonAnaliticTerm(qhat, dyn);
-		}
-	}
-
-	// once everything is ready, here we scale by masses and diagonalize
-
-	auto [energies, eigenvectors] = dyndiag(dyn);
-
-	if ( withMassScaling ) {
-		// we normalize with the mass.
-		// In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
-		// but instead (U^+) * M * U = I, where M is the mass matrix
-		// (M is diagonal with atomic masses on the diagonal)
-		for ( long iband=0; iband<numBands; iband++ ) {
-			for ( long iat=0; iat<numAtoms; iat++ ) {
-				long iType = atomicSpecies(iat);
-				for ( long ipol=0; ipol<3; ipol++ ) {
-					auto ind = compress2Indeces(iat,ipol,numAtoms,3);
-					eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
-				}
-			}
-		}
-	}
 
 	return {energies, eigenvectors};
 };
@@ -1318,25 +1363,6 @@ Eigen::Vector3i PhononH0::getCoarseGrid() {
 	return qCoarseGrid;
 }
 
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalize(
-				Point & point) {
-	Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
-	auto [energies, eigenvectors] = diagonalizeFromCoords(q);
-
-	//  displacements are eigenvectors divided by sqrt(speciesMasses)
-
-//	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
-//	for ( long iband=0; iband<numBands; iband++ ) {
-//		for ( long iat=0; iat<numAtoms; iat++ ) {
-//			for ( long ipol=0; ipol<3; ipol++ ) {
-//				auto ind = compress2Indeces(iat,ipol,numAtoms,3);
-//				eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
-//			}
-//		}
-//	}
-	return {energies, eigenvectors};
-}
-
 Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		Point & point) {
 	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
@@ -1458,27 +1484,4 @@ Eigen::Tensor<std::complex<double>,3> PhononH0::diagonalizeVelocity(
 		ib += sizeSubspace - 1;
 	}
 	return velocity;
-}
-
-FullBandStructure PhononH0::populate(Points & points, bool & withVelocities,
-		bool & withEigenvectors) {
-
-	FullBandStructure fullBandStructure(numBands, particle,
-			withVelocities, withEigenvectors, points);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-
-		if ( withVelocities) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-		if ( withEigenvectors ) {
-			fullBandStructure.setEigenvectors(point, eigvecs);
-		}
-	}
-	return fullBandStructure;
 }

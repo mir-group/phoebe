@@ -8,6 +8,7 @@
 #include "utilities.h"
 
 class BaseBandStructure {
+public:
 	virtual Particle getParticle();
 
 	virtual Points getPoints();

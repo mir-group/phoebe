@@ -41,6 +41,14 @@ public:
 	 */
 	PhononH0 & operator = ( const PhononH0 & that );
 
+	/** Returns the number of phonon bands for the crystal in consideration.
+	 */
+	long getNumBands();
+
+	/** Returns the underlying phonon-boson particle.
+	 */
+	Particle getParticle();
+
 	/** get the phonon energies (in Ry) at a single q-point.
 	 * @param q: a point object with the wavevector. Must know the cartesian
 	 * coordinates of the wavevector.
@@ -50,39 +58,6 @@ public:
 	 * sqrt(masses) (masses in rydbergs)
 	 */
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point & point);
-
-	/** get the phonon velocities (in atomic units) at a single q-point.
-	 * @param q: a Point object with the wavevector coordinates.
-	 * @return velocity(numBands,numBands,3): values of the velocity operator
-	 * for this state, in atomic units.
-	 */
-	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
-
-	/** Impose the acoustic sum rule on force constants and Born charges
-	 * @param sumRule: name of the sum rule to be used
-	 * Currently supported values are akin to those from Quantum ESPRESSO
-	 * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
-	 * (to find the closest matrix which satisfies the sum rule)
-	 */
-	void setAcousticSumRule(const std::string & sumRule);
-
-	/** Returns the number of phonon bands for the crystal in consideration.
-	 */
-	long getNumBands();
-
-	/** Returns the underlying phonon-boson particle.
-	 */
-	Particle getParticle();
-
-	/** This method constructs a phonon bandstructure.
-	 * @param points: the object with the list/mesh of wavevectors
-	 * @param withVelocities: if true, compute the phonon velocity operator.
-	 * @param withEigenvectors: if true, stores the phonon eigenvectors.
-	 * @return FullBandStructure: the bandstructure object containing the
-	 * complete phonon band structure.
-	 */
-	FullBandStructure populate(Points & points, bool & withVelocities,
-			bool & withEigenvectors);
 
 	/** Equivalent to diagonalize() computes phonon eigenvals/vecs given the
 	 * wavevector, but the wavevector is passed by coordinates.
@@ -94,8 +69,35 @@ public:
 	 * @return eigenvectors: the phonon eigenvectors, in matrix form, for this
 	 * point.
 	 */
-	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-				Eigen::Vector3d & q, const bool & withMassScaling=true);
+	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalizeFromCoords(
+				Eigen::Vector3d & q, const bool & withMassScaling);
+	std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalizeFromCoords(
+				Eigen::Vector3d & q);
+
+	/** get the phonon velocities (in atomic units) at a single q-point.
+	 * @param q: a Point object with the wavevector coordinates.
+	 * @return velocity(numBands,numBands,3): values of the velocity operator
+	 * for this state, in atomic units.
+	 */
+	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
+
+	/** This method constructs a phonon bandstructure.
+	 * @param points: the object with the list/mesh of wavevectors
+	 * @param withVelocities: if true, compute the phonon velocity operator.
+	 * @param withEigenvectors: if true, stores the phonon eigenvectors.
+	 * @return FullBandStructure: the bandstructure object containing the
+	 * complete phonon band structure.
+	 */
+	FullBandStructure populate(Points & points, bool & withVelocities,
+			bool & withEigenvectors);
+
+	/** Impose the acoustic sum rule on force constants and Born charges
+	 * @param sumRule: name of the sum rule to be used
+	 * Currently supported values are akin to those from Quantum ESPRESSO
+	 * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
+	 * (to find the closest matrix which satisfies the sum rule)
+	 */
+	void setAcousticSumRule(const std::string & sumRule);
 protected:
 	Particle particle;
 

@@ -38,9 +38,103 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal & crystal_,
 	expansionCoefficients = expansionCoefficients_;
 }
 
+// Copy constructor
+ElectronH0Fourier::ElectronH0Fourier( const ElectronH0Fourier & that ) :
+	crystal(that.crystal),
+	coarseBandStructure(that.coarseBandStructure),
+	coarsePoints(that.coarsePoints),
+	particle(that.particle),
+	expansionCoefficients(that.expansionCoefficients),
+	numBands(that.numBands),
+	cutoff(that.cutoff),
+	numDataPoints(that.numDataPoints),
+	numPositionVectors(that.numPositionVectors),
+	minDistance(that.minDistance),
+	positionDegeneracies(that.positionDegeneracies),
+	positionVectors(that.positionVectors),
+	refWavevector(that.refWavevector) {
+}
+
+// Copy assignment
+ElectronH0Fourier & ElectronH0Fourier::operator = (
+		const ElectronH0Fourier & that ) {
+	if ( this != & that ) {
+		crystal = that.crystal;
+		coarseBandStructure = that.coarseBandStructure;
+		coarsePoints = that.coarsePoints;
+		particle = that.particle;
+		expansionCoefficients = that.expansionCoefficients;
+		numBands = that.numBands;
+		cutoff = that.cutoff;
+		numDataPoints = that.numDataPoints;
+		numPositionVectors = that.numPositionVectors;
+		minDistance = that.minDistance;
+		positionDegeneracies = that.positionDegeneracies;
+		positionVectors = that.positionVectors;
+		refWavevector = that.refWavevector;
+	}
+	return *this;
+}
+
 Particle ElectronH0Fourier::getParticle() {
 	return particle;
 }
+
+long ElectronH0Fourier::getNumBands() {
+	return numBands;
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Fourier::diagonalize(Point & point) {
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	auto [energies,eigvecs] = diagonalizeFromCoords(coords);
+	return {energies,eigvecs};
+}
+
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d & wavevector){
+	Eigen::MatrixXcd eigvecs(1,1);
+	eigvecs.setZero();
+	Eigen::VectorXd energies(numBands);
+	for ( long ib = 0; ib<numBands; ib++ ) {
+		energies(ib) = getEnergyFromCoords(wavevector, ib);
+	}
+	return {energies,eigvecs};
+}
+
+Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
+			Point & point) {
+	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
+	velocity.setZero();
+	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+	for ( long ib=0; ib<numBands; ib++ ) {
+		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
+		for ( long i=0; i<3; i++ ) {
+			velocity(ib,ib,i) = v(i);
+		}
+	}
+	return velocity;
+}
+
+FullBandStructure ElectronH0Fourier::populate(Points & fullPoints,
+		bool & withVelocities, bool & withEigenvectors) {
+
+	FullBandStructure fullBandStructure(numBands, particle,
+			withVelocities, withEigenvectors, fullPoints);
+
+	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
+		Point point = fullBandStructure.getPoint(ik);
+		auto [ens, eigvecs] = diagonalize(point);
+		fullBandStructure.setEnergies(point, ens);
+		if ( withVelocities ) {
+			auto vels = diagonalizeVelocity(point);
+			fullBandStructure.setVelocities(point, vels);
+		}
+	}
+	return fullBandStructure;
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
 	double norm = position.norm();
@@ -260,17 +354,6 @@ double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d & wavevector,
 	return energy;
 }
 
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d & wavevector){
-	Eigen::MatrixXcd eigvecs(numBands,numBands);
-	eigvecs.setZero();
-	Eigen::VectorXd energies(numBands);
-	for ( long ib = 0; ib<numBands; ib++ ) {
-		energies(ib) = getEnergyFromCoords(wavevector, ib);
-	}
-	return {energies,eigvecs};
-}
-
 Eigen::Vector3d ElectronH0Fourier::getGroupVelocityFromCoords(
 		Eigen::Vector3d & wavevector, long & bandIndex) {
 	Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
@@ -280,54 +363,4 @@ Eigen::Vector3d ElectronH0Fourier::getGroupVelocityFromCoords(
 		velocity += c.real();
 	}
 	return velocity;
-}
-
-long ElectronH0Fourier::getNumBands() {
-	return numBands;
-}
-
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		ElectronH0Fourier::diagonalize(Point & point) {
-
-	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	auto [energies,eigvecs] = diagonalizeFromCoords(coords);
-
-	// this is to return something aligned with the phonon case
-	// One should investigate how to return a null pointer
-//	Eigen::MatrixXcdTensor<std::complex<double>,3> eigvecs;
-//	eigvecs.setZero();
-
-	return {energies,eigvecs};
-}
-
-Eigen::Tensor<std::complex<double>,3> ElectronH0Fourier::diagonalizeVelocity(
-			Point & point) {
-	Eigen::Tensor<std::complex<double>,3> velocity(numBands,numBands,3);
-	velocity.setZero();
-	Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-	for ( long ib=0; ib<numBands; ib++ ) {
-		Eigen::Vector3d v = getGroupVelocityFromCoords(coords,ib);
-		for ( long i=0; i<3; i++ ) {
-			velocity(ib,ib,i) = v(i);
-		}
-	}
-	return velocity;
-}
-
-FullBandStructure ElectronH0Fourier::populate(Points & fullPoints,
-		bool & withVelocities, bool & withEigenvectors) {
-
-	FullBandStructure fullBandStructure(numBands, particle,
-			withVelocities, withEigenvectors, fullPoints);
-
-	for ( long ik=0; ik<fullBandStructure.getNumPoints(); ik++ ) {
-		Point point = fullBandStructure.getPoint(ik);
-		auto [ens, eigvecs] = diagonalize(point);
-		fullBandStructure.setEnergies(point, ens);
-		if ( withVelocities ) {
-			auto vels = diagonalizeVelocity(point);
-			fullBandStructure.setVelocities(point, vels);
-		}
-	}
-	return fullBandStructure;
 }

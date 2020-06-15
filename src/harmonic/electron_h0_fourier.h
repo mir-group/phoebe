@@ -27,6 +27,23 @@ public:
 	ElectronH0Fourier(Crystal & crystal_, FullPoints coarsePoints_,
 			FullBandStructure coarseBandStructure_, double cutoff);
 
+	/** Copy constructor
+     */
+	ElectronH0Fourier( const ElectronH0Fourier & that );
+
+    /** Copy assignment
+     */
+	ElectronH0Fourier & operator = ( const ElectronH0Fourier & that );
+
+    /** Method to return that the underlying is that of an electronic Fermion.
+     */
+	Particle getParticle();
+
+	/** Get the total number of bands available at ech wavevector.
+	 *
+	 */
+	long getNumBands();
+
 	/** get the electronic energies (in Ry) at a single k-point.
 	 * Energies don't have any reference value, and must be used in connection
 	 * with a chemical potential.
@@ -38,6 +55,9 @@ public:
 	 */
 	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point & point);
 
+	std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+		diagonalizeFromCoords(Eigen::Vector3d & wavevector);
+
 	/** get the electron velocities (in atomic units) at a single k-point.
 	 * @param k: a Point object with the wavevector coordinates.
 	 * @return velocity(numBands,numBands,3): values of the velocity operator
@@ -46,10 +66,6 @@ public:
 	 * moment, doesn't have any information on the off-diagonal elements.
 	 */
 	Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(Point & point);
-
-    /** Method to return that the underlying is that of an electronic Fermion.
-     */
-	Particle getParticle();
 
 	/** This method constructs an electron bandstructure.
 	 * @param points: the object with the list/mesh of wavevectors
@@ -61,11 +77,6 @@ public:
 	 */
 	FullBandStructure populate(Points & fullPoints, bool & withVelocities,
 			bool & withEigenvectors);
-
-	/** Get the total number of bands available at ech wavevector.
-	 *
-	 */
-	long getNumBands();
 protected:
 	Crystal & crystal;
 	FullBandStructure coarseBandStructure;
@@ -81,6 +92,8 @@ protected:
 	double minDistance;
 	Eigen::VectorXd positionDegeneracies;
 	Eigen::MatrixXd positionVectors;
+	Eigen::Vector3d refWavevector;
+
 	void setPositionVectors();
 	Eigen::VectorXcd getLagrangeMultipliers(Eigen::VectorXd energies);
 	Eigen::VectorXcd getCoefficients(Eigen::VectorXd energies);
@@ -91,9 +104,6 @@ protected:
 	double getRoughnessFunction(Eigen::Vector3d position);
 	const double coeff1 = 0.75; // 3/4
 	const double coeff2 = 0.75;
-	Eigen::Vector3d refWavevector;
-	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-		diagonalizeFromCoords(Eigen::Vector3d & wavevector);
 	double getEnergyFromCoords(Eigen::Vector3d & wavevector, long & bandIndex);
 	Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d & wavevector,
 			long & bandIndex);
