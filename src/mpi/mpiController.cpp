@@ -12,8 +12,25 @@
 MPIcontroller::MPIcontroller(){
 
 	#ifdef MPI_AVAIL
+        int errCode; 
 	// start the MPI environment
-	MPI_Init(NULL, NULL);
+        #ifdef OMP_AVAIL
+                // need to specify threading style -- 
+                // MPI_THREAD_MULTIPLE might be better, but FUNNELED is simpler. 
+                int provided;
+                errCode = MPI_Init_thread(0, 0, MPI_THREAD_SINGLE, &provided);
+                if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+                //std::cout << "Provided level of threading: " << provided << std::endl;  
+        #else 
+                // simple mpi init with MPI_THREAD_SINGLE
+                errCode = MPI_Init(NULL, NULL);
+        #endif  
+        // set this so that MPI returns errors and lets us handle them, rather
+        // than using the default, MPI_ERRORS_ARE_FATAL
+        MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+        // If there was an init problem, kill the code
+        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
+
 	// get the number of processes
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 	
@@ -22,10 +39,9 @@ MPIcontroller::MPIcontroller(){
 	
 	// start a timer
 	startTime = MPI_Wtime();
-	// set this so that MPI returns errors and lets us handle them, rather
-	// than using the default, MPI_ERRORS_ARE_FATAL
-	MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+
 	#else
+        // To maintain consistency when running in serial
         size = 1;
         rank = 0;  
 	startTime = std::chrono::steady_clock::now();

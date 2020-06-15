@@ -10,5 +10,7 @@ extern MPIcontroller* mpi;
 // Function to initialize MPI environment
 void initMPI(); 
 
+// Prints info about omp num threads and mpi processes
+void parallelInfo(); 
 
 #endif
