@@ -11,24 +11,37 @@ ActiveBandStructure::ActiveBandStructure(Particle & particle_) :
 ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure & that) :
 			particle(that.particle),
 			energies(that.energies),
-			groupVelocities(that.groupVelocities),
 			velocities(that.velocities),
 			eigenvectors(that.eigenvectors),
 			activePoints(that.activePoints),
 			hasEigenvectors(that.hasEigenvectors),
 			numStates(that.numStates),
 			numAtoms(that.numAtoms),
+			numPoints(that.numPoints),
 			numBands(that.numBands),
+			numFullBands(that.numFullBands),
 			auxBloch2Comb(that.auxBloch2Comb),
 			cumulativeKbOffset(that.cumulativeKbOffset),
-			cumulativeKbbOffset(that.cumulativeKbbOffset),
-			numPoints(that.numPoints) {
+			cumulativeKbbOffset(that.cumulativeKbbOffset) {
 }
 
 ActiveBandStructure & ActiveBandStructure::operator=(
 		const ActiveBandStructure & that) { // assignment operator
 	if ( this != & that ) {
-
+		particle = that.particle;
+		energies = that.energies;
+		velocities = that.velocities;
+		eigenvectors = that.eigenvectors;
+		activePoints = that.activePoints;
+		hasEigenvectors = that.hasEigenvectors;
+		numStates = that.numStates;
+		numAtoms = that.numAtoms;
+		numPoints = that.numPoints;
+		numBands = that.numBands;
+		numFullBands = that.numFullBands;
+		auxBloch2Comb = that.auxBloch2Comb;
+		cumulativeKbOffset = that.cumulativeKbOffset;
+		cumulativeKbbOffset = that.cumulativeKbbOffset;
 	}
 	return *this;
 }
@@ -45,11 +58,62 @@ bool ActiveBandStructure::hasPoints() {
 	}
 }
 
+Points ActiveBandStructure::getPoints() {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	return *activePoints;
+}
+
+Point ActiveBandStructure::getPoint(const long & pointIndex) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	return activePoints->getPoint(pointIndex);
+}
+
 long ActiveBandStructure::getNumPoints() {
 	if ( ! hasPoints() ) {
 		Error e("ActiveBandStructure hasn't been populated yet" ,1);
 	}
-	return activePoints->getNumPoints();
+	return numPoints;
+}
+
+long ActiveBandStructure::getNumBands() {
+	Error e("ActiveBandStructure doesn't have constant number of bands");
+	return 0;
+}
+
+State ActiveBandStructure::getState(Point & point){
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+
+	long ik = point.getIndex();
+
+	long ind = bloch2Comb(ik,0);
+	double * thisEn = &energies[ind];
+
+	ind = velBloch2Comb(ik,0,0,0);
+	std::complex<double> * thisVel = &velocities[ind];
+
+	std::complex<double> * thisEig = nullptr;
+	if ( hasEigenvectors ) {
+		ind = eigBloch2Comb(ik,0,0);
+		thisEig = &eigenvectors[ind];
+	}
+
+	State s(point, thisEn, numAtoms, numBands(ik), thisVel,
+			thisEig);
+	return s;
+}
+
+long ActiveBandStructure::getIndex(const WavevectorIndex & ik,
+		const BandIndex & ib) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	return bloch2Comb(ik.get(), ib.get());
 }
 
 long ActiveBandStructure::getNumStates() {
@@ -59,31 +123,65 @@ long ActiveBandStructure::getNumStates() {
 	return numStates;
 }
 
-std::vector<std::complex<double>> ActiveBandStructure::flattenEigenvectors(
-		Eigen::MatrixXd & eigvecsIn,
-		std::vector<long> bandsExtrema) {
-	std::vector<std::complex<double>> x(eigvecsIn.rows()*eigvecsIn.cols(),0.);
-	for ( long i=bandsExtrema[0]; i<bandsExtrema[1]+1; i++ ) {
-		for ( long j=bandsExtrema[0]; j<bandsExtrema[1]+1; j++ ) {
-			x.push_back(eigvecsIn(i,j));
-		}
+const double & ActiveBandStructure::getEnergy(const long & stateIndex) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
 	}
-	return x;
+	return energies[stateIndex];
 }
 
-std::vector<std::complex<double>> ActiveBandStructure::flattenEigenvectors(
-		Eigen::Tensor<std::complex<double>,3> & eigvecsIn,
-		std::vector<long> bandsExtrema) {
-	std::vector<std::complex<double>> x(eigvecsIn.dimension(0)*
-			eigvecsIn.dimension(1)*eigvecsIn.dimension(2),0.);
-    for ( int i=0; i<3; i++ ) {
-		for ( int iat=0; iat<numAtoms; iat++ ) {
-			for ( long j=bandsExtrema[0]; j<bandsExtrema[1]+1; j++ ) {
-				x.push_back(eigvecsIn(i,iat,j));
+Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long & stateIndex){
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	auto[ik,ib] = comb2Bloch(stateIndex);
+	Eigen::Vector3d vel;
+	vel(0) = velocities[velBloch2Comb(ik, ib, ib, 0)].real();
+	vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
+	vel(2) = velocities[velBloch2Comb(ik, ib, ib, 2)].real();
+	return vel;
+}
+
+Eigen::Vector3d ActiveBandStructure::getWavevector(const long & stateIndex) {
+	if ( ! hasPoints() ) {
+		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	}
+	auto[ik,ib] = comb2Bloch(stateIndex);
+	Point p = activePoints->getPoint(ik);
+	return p.getCoords(Points::cartesianCoords);
+}
+
+void ActiveBandStructure::setEnergies(Point & point,
+		Eigen::VectorXd & energies_) {
+	long ik = point.getIndex();
+	for ( long ib=0; ib<energies_.size(); ib++ ) {
+		long index = bloch2Comb(ik,ib);
+		energies[index] = energies_(ib);
+	}
+}
+
+void ActiveBandStructure::setEigenvectors(Point & point,
+		Eigen::MatrixXcd & eigenvectors_) {
+	long ik = point.getIndex();
+	for ( long i=0; i<eigenvectors_.rows(); i++ ) {
+		for ( long j=0; j<eigenvectors_.cols(); j++ ) {
+			long index = eigBloch2Comb(ik,i,j);
+			eigenvectors[index] = eigenvectors_(i,j);
+		}
+	}
+}
+
+void ActiveBandStructure::setVelocities(Point & point,
+		Eigen::Tensor<std::complex<double>,3> & velocities_) {
+	long ik = point.getIndex();
+	for ( long ib1=0; ib1<velocities_.dimension(0); ib1++ ) {
+		for ( long ib2=0; ib2<velocities_.dimension(1); ib2++ ) {
+			for ( long j : {0,1,2} ) {
+				long index = velBloch2Comb(ik,ib1,ib2,j);
+				velocities[index] = velocities_(ib1,ib2,j);
 			}
 		}
 	}
-	return x;
 }
 
 ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
@@ -152,9 +250,6 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 			for ( long i=0; i<3; i++) {
 				long indOld = compress3Indeces(ibOld, ibOld, i,
 								oldNumBands, oldNumBands, 3);
-				groupVelocities.push_back(
-						fullBandStructure.velocities(ik,indOld).real());
-
 				long ib2 = 0;
 				for ( long ib2Old = filteredBands[ik][0];
 						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
@@ -188,41 +283,22 @@ ActivePoints ActiveBandStructure::buildAsPostprocessing(Window & window,
 	return activePoints_;
 }
 
-long ActiveBandStructure::velBloch2Comb(long & ik, long & ib1, long & ib2,
-		long & i) {
-	long is;
-	long offset = cumulativeKbbOffset(ik);
-	is = ik * offset + ib1 * numBands(ik) * 3 + ib2 * 3 + i;
-	return is;
+long ActiveBandStructure::velBloch2Comb(const long & ik, const long & ib1,
+		const long & ib2, const long & i) {
+	return ik * cumulativeKbbOffset(ik) + ib1 * numBands(ik) * 3 + ib2 * 3 + i;
 }
 
-long ActiveBandStructure::gvelBloch2Comb(long & ik, long & ib, long & i) {
-	long is;
-	long offset = cumulativeKbOffset(ik)*3;
-	is = ik * offset + ib * 3 + i;
-	return is;
+long ActiveBandStructure::eigBloch2Comb(const long & ik, const long & ib1,
+		const long & ib2) {
+	return ik * cumulativeKbOffset(ik) + ib1 * numFullBands + ib2;
 }
 
-long ActiveBandStructure::eigBloch2Comb(long & ik, long & i, long & iat,
-		long & ib) {
-	long is;
-	long offset = cumulativeKbOffset(ik);
-	is = ik * offset + i * numBands(ik) * numAtoms + iat * numBands(ik) + ib;
-	return is;
+long ActiveBandStructure::bloch2Comb(const long & ik, const long & ib) {
+	return ik * cumulativeKbOffset(ik) + ib;
 }
 
-long ActiveBandStructure::bloch2Comb(long & ik, long & ib) {
-	long is;
-	long offset = cumulativeKbOffset(ik);
-	is = ik * offset + ib;
-	return is;
-}
-
-std::tuple<long,long> ActiveBandStructure::comb2Bloch(long & is) {
-	long ik, ib;
-	ik = auxBloch2Comb(is,0);
-	ib = auxBloch2Comb(is,1);
-	return {ik,ib};
+std::tuple<long,long> ActiveBandStructure::comb2Bloch(const long & is) {
+	return {auxBloch2Comb(is,0),auxBloch2Comb(is,1)};
 }
 
 void ActiveBandStructure::buildIndeces() {
@@ -233,7 +309,8 @@ void ActiveBandStructure::buildIndeces() {
 	cumulativeKbOffset_(0) = 0;
 	cumulativeKbbOffset_(0) = 0;
 	for ( long ik=1; ik<numPoints; ik++ ) {
-		cumulativeKbOffset_(ik) = cumulativeKbOffset_(ik-1) + numBands(ik-1);
+		cumulativeKbOffset_(ik) = cumulativeKbOffset_(ik-1)
+				+ numBands(ik-1) * numFullBands;
 		cumulativeKbbOffset_(ik) = cumulativeKbbOffset_(ik-1)
 				+ 3 * numBands(ik-1) * numBands(ik-1);
 	}
@@ -249,48 +326,4 @@ void ActiveBandStructure::buildIndeces() {
 	auxBloch2Comb = auxBloch2Comb_;
 	cumulativeKbOffset = cumulativeKbOffset_;
 	cumulativeKbbOffset = cumulativeKbbOffset_;
-}
-
-double ActiveBandStructure::getEnergy(long & stateIndex) {
-	return energies[stateIndex];
-}
-
-Eigen::Vector3d ActiveBandStructure::getGroupVelocity(long & stateIndex) {
-	Eigen::Vector3d vel;
-	vel(0) = groupVelocities[stateIndex*3];
-	vel(1) = groupVelocities[stateIndex*3+1];
-	vel(2) = groupVelocities[stateIndex*3+2];
-	return vel;
-}
-
-Point ActiveBandStructure::getPoint(const long & pointIndex) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
-	}
-	return activePoints->getPoint(pointIndex);
-}
-
-State ActiveBandStructure::getState(Point & point){
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
-	}
-
-	long ik = point.getIndex();
-	long zero = 0;
-
-	long ind = bloch2Comb(ik,zero);
-	double * thisEn = &energies[ind];
-
-	ind = velBloch2Comb(ik,zero,zero,zero);
-	std::complex<double> * thisVel = &velocities[ind];
-
-	std::complex<double> * thisEig = nullptr;
-	if ( hasEigenvectors ) {
-		ind = eigBloch2Comb(ik,zero,zero,zero);
-		thisEig = &eigenvectors[ind];
-	}
-
-	State s(point, thisEn, numAtoms, numBands(ik), thisVel,
-			thisEig);
-	return s;
 }
