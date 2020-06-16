@@ -5,7 +5,7 @@
 
 PhononThermalConductivity::PhononThermalConductivity(
 		StatisticsSweep & statisticsSweep_,
-		Crystal & crystal_, FullBandStructure & bandStructure_) :
+		Crystal & crystal_, BaseBandStructure & bandStructure_) :
 				Observable(statisticsSweep_, crystal_),
 				bandStructure(bandStructure_) {
 

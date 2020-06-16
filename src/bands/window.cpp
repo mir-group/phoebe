@@ -114,3 +114,7 @@ std::tuple<std::vector<double>,std::vector<long>> Window::internalEnWindow(
 	bandsExtrema.back();
 	return {filteredEnergies,bandsExtrema};
 }
+
+long Window::getMethodUsed() {
+	return method;
+}

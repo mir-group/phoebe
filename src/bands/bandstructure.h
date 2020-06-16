@@ -15,6 +15,7 @@ public:
 	virtual Point getPoint(const long & pointIndex);
 	virtual long getNumPoints();
 	virtual long getNumBands(); // this only works in FullBandStructure
+	virtual long hasWindow();
 
 	virtual State getState(Point & point);
 
@@ -95,6 +96,8 @@ public:
 	 * @return numPoints: the total number of wavevectors of the bandStructure.
 	 */
 	long getNumBands();
+
+	long hasWindow();
 
 	/** Returns a State object.
 	 * The state object, defined elsewhere, is a container that holds all bands

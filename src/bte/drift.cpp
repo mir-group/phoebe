@@ -2,7 +2,7 @@
 #include "drift.h"
 
 BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
-		FullBandStructure & bandStructure_, const long & dimensionality_) :
+		BaseBandStructure & bandStructure_, const long & dimensionality_) :
 		VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
 	Particle particle = bandStructure.getParticle();
@@ -26,7 +26,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep & statisticsSweep_,
 }
 
 BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
-		FullBandStructure & bandStructure_, const long & dimensionality_) :
+		BaseBandStructure & bandStructure_, const long & dimensionality_) :
 				VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
 
 	Particle particle = bandStructure.getParticle();
@@ -50,7 +50,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep & statisticsSweep_,
 }
 
 Vector0::Vector0(StatisticsSweep & statisticsSweep_,
-		FullBandStructure & bandStructure_, SpecificHeat & specificHeat) :
+		BaseBandStructure & bandStructure_, SpecificHeat & specificHeat) :
 		VectorBTE(statisticsSweep_, bandStructure_, 1) {
 
 	data.setZero();

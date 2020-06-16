@@ -25,6 +25,7 @@ public:
 	// returns the number of active points
 	long getNumPoints();
 	long getNumBands(); // this only works in FullBandStructure
+	long hasWindow();
 
 	State getState(const long & pointIndex);
 	State getState(Point & point);  // returns all bands at fixed k/q-point
@@ -44,8 +45,11 @@ public:
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 
 	static std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
-			builder(Context & context, HarmonicHamiltonian & h0,
-					FullPoints & fullPoints);
+			builder(Context & context,
+					HarmonicHamiltonian & h0,
+					FullPoints & fullPoints,
+					const bool & withEigenvectors=true,
+					const bool & withVelocities=true);
 protected:
 	// stores the quasiparticle kind
 	Particle particle;
@@ -65,6 +69,7 @@ protected:
 
 	VectorXl numBands;
 	long numFullBands;
+	long windowMethod;
 
 	// index management
 	// these are two auxiliary vectors to store indices
@@ -84,7 +89,8 @@ protected:
 	std::tuple<long,long> comb2Bloch(const long & is);
 
 	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,
-			HarmonicHamiltonian & h0);
+			HarmonicHamiltonian & h0, const bool & withEigenvectors=true,
+			const bool & withVelocities=true);
 
 	ActivePoints buildAsPostprocessing(Window & window,
 			FullBandStructure & fullBandStructure);

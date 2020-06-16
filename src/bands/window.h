@@ -20,6 +20,8 @@ public:
 	static const long nothing = 0;
 	static const long population = 1;
 	static const long energy = 2;
+
+	long getMethodUsed();
 private:
 	Particle & particle;
 

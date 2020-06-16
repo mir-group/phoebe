@@ -10,8 +10,8 @@ class PhScatteringMatrix : public ScatteringMatrix {
 public:
 	PhScatteringMatrix(Context & context_,
 			StatisticsSweep & statisticsSweep_,
-			FullBandStructure & innerBandStructure_,
-			FullBandStructure & outerBandStructure_,
+			BaseBandStructure & innerBandStructure_,
+			BaseBandStructure & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_=nullptr,
 			PhononH0 * h0=nullptr);
 

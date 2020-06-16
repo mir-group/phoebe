@@ -20,6 +20,7 @@ ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure & that) :
 			numPoints(that.numPoints),
 			numBands(that.numBands),
 			numFullBands(that.numFullBands),
+			windowMethod(that.windowMethod),
 			auxBloch2Comb(that.auxBloch2Comb),
 			cumulativeKbOffset(that.cumulativeKbOffset),
 			cumulativeKbbOffset(that.cumulativeKbbOffset) {
@@ -39,6 +40,7 @@ ActiveBandStructure & ActiveBandStructure::operator=(
 		numPoints = that.numPoints;
 		numBands = that.numBands;
 		numFullBands = that.numFullBands;
+		windowMethod = that.windowMethod;
 		auxBloch2Comb = that.auxBloch2Comb;
 		cumulativeKbOffset = that.cumulativeKbOffset;
 		cumulativeKbbOffset = that.cumulativeKbbOffset;
@@ -60,28 +62,36 @@ bool ActiveBandStructure::hasPoints() {
 
 Points ActiveBandStructure::getPoints() {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	return *activePoints;
 }
 
 Point ActiveBandStructure::getPoint(const long & pointIndex) {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	return activePoints->getPoint(pointIndex);
 }
 
 long ActiveBandStructure::getNumPoints() {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	return numPoints;
 }
 
 long ActiveBandStructure::getNumBands() {
-	Error e("ActiveBandStructure doesn't have constant number of bands");
-	return 0;
+	if ( windowMethod == Window::nothing ) {
+		return numFullBands;
+	} else {
+		Error e("ActiveBandStructure doesn't have constant number of bands");
+		return 0;
+	}
+}
+
+long ActiveBandStructure::hasWindow() {
+	return windowMethod;
 }
 
 State ActiveBandStructure::getState(const long & pointIndex) {
@@ -91,7 +101,7 @@ State ActiveBandStructure::getState(const long & pointIndex) {
 
 State ActiveBandStructure::getState(Point & point){
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 
 	long ik = point.getIndex();
@@ -99,11 +109,14 @@ State ActiveBandStructure::getState(Point & point){
 	long ind = bloch2Comb(ik,0);
 	double * thisEn = &energies[ind];
 
-	ind = velBloch2Comb(ik,0,0,0);
-	std::complex<double> * thisVel = &velocities[ind];
+	std::complex<double> * thisVel = nullptr;
+	if ( velocities.size() != 0 ) {
+		ind = velBloch2Comb(ik,0,0,0);
+		std::complex<double> * thisVel = &velocities[ind];
+	}
 
 	std::complex<double> * thisEig = nullptr;
-	if ( hasEigenvectors ) {
+	if ( eigenvectors.size() != 0 ) {
 		ind = eigBloch2Comb(ik,0,0);
 		thisEig = &eigenvectors[ind];
 	}
@@ -116,28 +129,28 @@ State ActiveBandStructure::getState(Point & point){
 long ActiveBandStructure::getIndex(const WavevectorIndex & ik,
 		const BandIndex & ib) {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	return bloch2Comb(ik.get(), ib.get());
 }
 
 long ActiveBandStructure::getNumStates() {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	return numStates;
 }
 
 const double & ActiveBandStructure::getEnergy(const long & stateIndex) {
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	if ( energies.size() == 0 ) {
+		Error e("ActiveBandStructure energies haven't been populated");
 	}
 	return energies[stateIndex];
 }
 
 Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long & stateIndex){
-	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+	if ( velocities.size() == 0 ) {
+		Error e("ActiveBandStructure velocities haven't been populated");
 	}
 	auto[ik,ib] = comb2Bloch(stateIndex);
 	Eigen::Vector3d vel;
@@ -370,7 +383,10 @@ void ActiveBandStructure::buildIndeces() {
 
 std::tuple<ActivePoints, ActiveBandStructure,StatisticsSweep>
 		ActiveBandStructure::builder(Context & context,
-				HarmonicHamiltonian & h0, FullPoints & fullPoints) {
+				HarmonicHamiltonian & h0,
+				FullPoints & fullPoints,
+				const bool & withEigenvectors,
+				const bool & withVelocities) {
 
 	Particle particle = h0.getParticle();
 
@@ -384,7 +400,8 @@ std::tuple<ActivePoints, ActiveBandStructure,StatisticsSweep>
 
 		Window window(context, particle, temperatureMin, temperatureMax);
 
-		auto aPoints = activeBandStructure.buildOnTheFly(window,fullPoints,h0);
+		auto aPoints = activeBandStructure.buildOnTheFly(window, fullPoints,
+				h0, withEigenvectors, withVelocities);
 		StatisticsSweep statisticsSweep(context);
 		return {aPoints, activeBandStructure, statisticsSweep};
 	} else {
@@ -393,7 +410,9 @@ std::tuple<ActivePoints, ActiveBandStructure,StatisticsSweep>
 }
 
 ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
-		FullPoints & fullPoints, HarmonicHamiltonian & h0) {
+		FullPoints & fullPoints, HarmonicHamiltonian & h0,
+		const bool & withEigenvectors,
+		const bool & withVelocities) {
 	// this function proceeds in three logical blocks:
 	// 1- we find out the list of "relevant" points
 	// 2- initialize internal raw buffer for energies, velocities, eigvecs
@@ -465,11 +484,15 @@ ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
 	buildIndeces();
 
 	energies.resize(numEnStates,0.);
-	velocities.resize(numVelStates,complexZero);
-	if ( h0.hasEigenvectors ) {
+	if ( withVelocities ) {
+		velocities.resize(numVelStates,complexZero);
+	}
+	if ( withEigenvectors ) {
 		hasEigenvectors = true;
 		eigenvectors.resize(numEigStates,complexZero);
 	}
+
+	windowMethod = window.getMethodUsed();
 
 	/////////////////
 
@@ -489,7 +512,7 @@ ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
 		}
 		setEnergies(point, eigEns);
 
-		if ( h0.hasEigenvectors ) {
+		if ( withEigenvectors ) {
 			// we are reducing the basis size!
 			// the first index has the size of the Hamiltonian
 			// the second index has the size of the filtered bands
@@ -503,26 +526,28 @@ ActivePoints ActiveBandStructure::buildOnTheFly(Window & window,
 			setEigenvectors(point, theseEigvecs);
 		}
 
-		// thisVelocity is a tensor of dimensions (ib, ib, 3)
-		auto thisVelocity = h0.diagonalizeVelocity(point);
+		if ( withVelocities ) {
+			// thisVelocity is a tensor of dimensions (ib, ib, 3)
+			auto thisVelocity = h0.diagonalizeVelocity(point);
 
-		// now we filter it
-		Eigen::Tensor<std::complex<double>,3> thisVels(numBands(ik),
-				numBands(ik),3);
-		long ib1New = 0;
-		for ( long ib1Old = filteredBands[ik][0];
-				ib1Old<filteredBands[ik][1]+1; ib1Old++ ) {
-			long ib2New = 0;
-			for ( long ib2Old = filteredBands[ik][0];
-					ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
-				for ( long i=0; i<3; i++ ) {
-					thisVels(ib1New,ib2New,i) = thisVelocity(ib1Old,ib2Old,i);
+			// now we filter it
+			Eigen::Tensor<std::complex<double>,3> thisVels(numBands(ik),
+					numBands(ik),3);
+			long ib1New = 0;
+			for ( long ib1Old = filteredBands[ik][0];
+					ib1Old<filteredBands[ik][1]+1; ib1Old++ ) {
+				long ib2New = 0;
+				for ( long ib2Old = filteredBands[ik][0];
+						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
+					for ( long i=0; i<3; i++ ) {
+						thisVels(ib1New,ib2New,i) = thisVelocity(ib1Old,ib2Old,i);
+					}
+					ib2New++;
 				}
-				ib2New++;
+				ib1New++;
 			}
-			ib1New++;
+			setVelocities(point, thisVels);
 		}
-		setVelocities(point, thisVels);
 	}
 
 	return activePoints_;

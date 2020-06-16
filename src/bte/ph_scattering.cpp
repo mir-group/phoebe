@@ -5,8 +5,8 @@
 
 PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 			StatisticsSweep & statisticsSweep_,
-			FullBandStructure & innerBandStructure_,
-			FullBandStructure & outerBandStructure_,
+			BaseBandStructure & innerBandStructure_,
+			BaseBandStructure & outerBandStructure_,
 			Interaction3Ph * coupling3Ph_,
 			PhononH0 * h0_) :
 			ScatteringMatrix(context_, statisticsSweep_,
@@ -123,7 +123,19 @@ void PhScatteringMatrix::builder(
 		Error e("The linewidths shouldn't have dimensionality");
 	}
 
-	bool dontComputeQ3 = &innerBandStructure == &outerBandStructure;
+	// three conditions must be met to avoid recomputing q3
+	// 1 - q1 and q2 mesh must be the same
+	// 2 - the mesh is gamma-centered
+	// 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
+	//     at the border)
+	auto [mesh,offset] = outerBandStructure.getPoints().getMesh();
+	bool dontComputeQ3;
+	if ( (&innerBandStructure == &outerBandStructure) && (offset.norm()==0.)
+			&& innerBandStructure.hasWindow() == 0 ) {
+		dontComputeQ3 = true;
+	} else {
+		dontComputeQ3 = false;
+	}
 
 	auto particle = outerBandStructure.getParticle();
 
@@ -208,21 +220,21 @@ void PhScatteringMatrix::builder(
 			// if the meshes are the same (and gamma centered)
 			// q3 will fall into the same grid, and it's easy to get
 			if ( dontComputeQ3 ) {
-				auto q3Plus = q1 + q2;
-				auto q3Mins = q1 - q2;
-				auto states3Plus = innerBandStructure.getState(q3Plus);
-				auto states3Mins = innerBandStructure.getState(q3Mins);
-
 				v1s = states1.getGroupVelocities();
 				v2s = states2.getGroupVelocities();
+
+				auto q3Plus = q1 + q2;
+				auto states3Plus = innerBandStructure.getState(q3Plus);
 				v3ps = states3Plus.getGroupVelocities();
-				v3ms = states3Mins.getGroupVelocities();
-
 				state3PlusEnergies = states3Plus.getEnergies();
-				state3MinsEnergies = states3Mins.getEnergies();
-
 				nb3Plus = state3PlusEnergies.size();
+
+				auto q3Mins = q1 - q2;
+				auto states3Mins = innerBandStructure.getState(q3Mins);
+				v3ms = states3Mins.getGroupVelocities();
+				state3MinsEnergies = states3Mins.getEnergies();
 				nb3Mins = state3MinsEnergies.size();
+
 				auto [cp,cm] = coupling3Ph->getCouplingSquared(
 						states1, states2, states3Plus, states3Mins);
 				couplingPlus = cp;

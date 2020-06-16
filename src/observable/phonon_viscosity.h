@@ -14,11 +14,11 @@ public:
 	 * @param statisticsSweep: object with info on the temperature and chemical
 	 * potential loops
 	 * @param crystal: object with the crystal structure
-	 * @param FullBandStructure: object with the quasiparticle energies and
+	 * @param BaseBandStructure: object with the quasiparticle energies and
 	 * velocities computed on a mesh of wavevectors.
 	 */
 	PhononViscosity(StatisticsSweep & statisticsSweep_, Crystal & crystal_,
-			FullBandStructure & bandStructure_);
+			BaseBandStructure & bandStructure_);
 
 	/** copy constructor
 	 */
@@ -49,7 +49,7 @@ public:
 			PhScatteringMatrix & sMatrix, Eigen::MatrixXd & eigenvectors);
 protected:
 	virtual int whichType();
-	FullBandStructure & bandStructure;
+	BaseBandStructure & bandStructure;
 };
 
 #endif

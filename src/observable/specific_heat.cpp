@@ -2,7 +2,7 @@
 #include "constants.h"
 
 SpecificHeat::SpecificHeat(StatisticsSweep & statisticsSweep_,
-		Crystal & crystal_, FullBandStructure & bandStructure_) :
+		Crystal & crystal_, BaseBandStructure & bandStructure_) :
 				Observable(statisticsSweep_, crystal_),
 				bandStructure(bandStructure_) {
 	scalar = Eigen::VectorXd::Zero(numCalcs);

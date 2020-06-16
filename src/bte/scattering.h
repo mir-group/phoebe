@@ -23,8 +23,8 @@ public:
 	 * e.g. this could be a path of points or a uniform mesh of points
 	 */
 	ScatteringMatrix(Context & context_, StatisticsSweep & statisticsSweep_,
-			FullBandStructure & innerBandStructure_,
-			FullBandStructure & outerBandStructure_);
+			BaseBandStructure & innerBandStructure_,
+			BaseBandStructure & outerBandStructure_);
 
 	/** Copy constructor
 	 *
@@ -107,8 +107,8 @@ protected:
 	// Dirac-delta function in transition rates.
 	DeltaFunction * smearing;
 
-	FullBandStructure & innerBandStructure;
-	FullBandStructure & outerBandStructure;
+	BaseBandStructure & innerBandStructure;
+	BaseBandStructure & outerBandStructure;
 
 	// constant relaxation time approximation -> the matrix is just a scalar
 	// and there are simplified evaluations taking place

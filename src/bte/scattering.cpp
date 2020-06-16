@@ -4,8 +4,8 @@
 
 ScatteringMatrix::ScatteringMatrix(Context & context_,
 		StatisticsSweep & statisticsSweep_,
-		FullBandStructure & innerBandStructure_,
-		FullBandStructure & outerBandStructure_) :
+		BaseBandStructure & innerBandStructure_,
+		BaseBandStructure & outerBandStructure_) :
 		context(context_), statisticsSweep(statisticsSweep_),
 		innerBandStructure(innerBandStructure_),
 		outerBandStructure(outerBandStructure_),

@@ -25,7 +25,7 @@ int TetrahedronDeltaFunction::getType() {
 
 // app factory
 DeltaFunction * DeltaFunction::smearingFactory(Context & context,
-		FullBandStructure & fullBandStructure) {
+		BaseBandStructure & fullBandStructure) {
 	auto choice = context.getSmearingMethod();
 	if ( choice == gaussian ) {
 		return new GaussianDeltaFunction(context);
@@ -62,7 +62,7 @@ double GaussianDeltaFunction::getSmearing(const double & energy,
 
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
-		FullBandStructure & bandStructure) {
+		BaseBandStructure & bandStructure) {
 	auto [mesh,offset] = bandStructure.getPoints().getMesh();
 	qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
 	qTensor.row(0) /= mesh(0);
@@ -103,7 +103,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double & energy,
 }
 
 TetrahedronDeltaFunction::TetrahedronDeltaFunction(
-		FullBandStructure & fullBandStructure_) :
+		BaseBandStructure & fullBandStructure_) :
 		fullBandStructure(fullBandStructure_) {
 
 	auto fullPoints = fullBandStructure.getPoints();
@@ -119,6 +119,9 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 	// number of grid points (wavevectors)
 	long numPoints = fullPoints.getNumPoints();
 	long numBands = fullBandStructure.getNumBands();
+	// note: the code will fail at numBands if we are using ActiveBandStructure
+	// this is intentional, as the implementation of tetrahedra works only
+	// assuming a full grid of wavevectors.
 
 	// Number of tetrahedra
 	numTetra = 6 * numPoints;

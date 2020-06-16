@@ -29,6 +29,11 @@ long BaseBandStructure::getNumBands() {
 	return 0;
 }
 
+long BaseBandStructure::hasWindow() {
+	Error e("BaseBandStructure method not implemented");
+	return 0;
+}
+
 State BaseBandStructure::getState(Point & point) {
 	Error e("BaseBandStructure method not implemented");
 	(void) point;
@@ -183,6 +188,10 @@ long FullBandStructure::getNumPoints() {
 
 long FullBandStructure::getNumBands() {
 	return numBands;
+}
+
+long FullBandStructure::hasWindow() {
+	return 0;
 }
 
 State FullBandStructure::getState(Point & point) {

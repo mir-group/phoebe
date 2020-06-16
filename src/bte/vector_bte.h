@@ -24,7 +24,7 @@ public:
 	 * for vector quantities like phonon populations f(blochIndeces,cartesian).
 	 */
 	VectorBTE(StatisticsSweep & statisticsSweep_,
-			FullBandStructure & bandStructure_,
+			BaseBandStructure & bandStructure_,
 			const long & dimensionality_=3);
 	// copy constructor
 	VectorBTE(const VectorBTE & that);
@@ -66,7 +66,7 @@ public:
 
 	// we store auxiliary objects and parameters
 	StatisticsSweep & statisticsSweep;
-	FullBandStructure & bandStructure;
+	BaseBandStructure & bandStructure;
 	long numCalcs;
 	long numStates;
 	long numChemPots;

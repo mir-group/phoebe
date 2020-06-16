@@ -10,7 +10,7 @@
 class BulkTDrift : public VectorBTE {
 public:
 	BulkTDrift(StatisticsSweep & statisticsSweep_,
-			FullBandStructure & bandStructure_,
+			BaseBandStructure & bandStructure_,
 			const long & dimensionality_=3);
 };
 
@@ -20,7 +20,7 @@ public:
 class BulkEDrift : public VectorBTE {
 public:
 	BulkEDrift(StatisticsSweep & statisticsSweep_,
-			FullBandStructure & bandStructure_,
+			BaseBandStructure & bandStructure_,
 			const long & dimensionality_=3);
 };
 
@@ -31,7 +31,7 @@ public:
 class Vector0 : public VectorBTE {
 public:
 	Vector0(StatisticsSweep & statisticsSweep_,
-			FullBandStructure & bandStructure_, SpecificHeat & specificHeat);
+			BaseBandStructure & bandStructure_, SpecificHeat & specificHeat);
 };
 
 #endif
