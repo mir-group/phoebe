@@ -54,7 +54,7 @@ IrreduciblePoints::IrreduciblePoints(Crystal & crystal_,
 }
 
 ActivePoints::ActivePoints(Points & parentPoints_,
-		VectorXl filter) : Points(parentPoints_.getCrystal(),
+		Eigen::VectorXi filter) : Points(parentPoints_.getCrystal(),
 				std::get<0>(parentPoints_.getMesh()),
 				std::get<1>(parentPoints_.getMesh())),
 				parentPoints(parentPoints_) {

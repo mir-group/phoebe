@@ -221,7 +221,7 @@ State FullBandStructure::getState(const long & pointIndex) {
 		thisEig = rawEigenvectors + pointIndex * eigenvectorsCols;
 	}
 
-	State s(point, thisEn, numAtoms, numBands, thisVel, thisEig);
+	State s(point, thisEn, numBands, numBands, thisVel, thisEig);
 	return s;
 }
 
@@ -297,7 +297,7 @@ void FullBandStructure::setEigenvectors(Point & point,
 		for ( long j=0; j<numBands; j++ ) {
 			// Note: State must know this order of index compression
 			long idx = compress2Indeces(i, j, numBands, numBands);
-			tmp(idx) = eigenvectors_(j,i);
+			tmp(idx) = eigenvectors_(i,j);
 		}
 	}
 	long ik = point.getIndex();

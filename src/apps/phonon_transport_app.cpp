@@ -25,20 +25,23 @@ void PhononTransportApp::run(Context & context) {
 	// first we make compute the band structure on the fine grid
 
 	FullPoints fullPoints(crystal, context.getQMesh());
-	bool withVelocities = true;
-	bool withEigenvectors = true;
-	FullBandStructure bandStructure = phononH0.populate(
-			fullPoints, withVelocities, withEigenvectors);
 
-	// set the chemical potentials to zero, load temperatures
-	StatisticsSweep statisticsSweep(context);
+//	bool withVelocities = true;
+//	bool withEigenvectors = true;
+//	FullBandStructure bandStructure = phononH0.populate(
+//			fullPoints, withVelocities, withEigenvectors);
+//	// set the chemical potentials to zero, load temperatures
+//	StatisticsSweep statisticsSweep(context);
+
+	auto [bandStructure, statisticsSweep] =
+			ActiveBandStructure::builder(context, phononH0, fullPoints);
 
 	// load the 3phonon coupling
 	auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
 	// build/initialize the scattering matrix and the smearing
 	PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
-			bandStructure, bandStructure, &coupling3Ph);
+			bandStructure, bandStructure, &coupling3Ph, &phononH0);
 	scatteringMatrix.setup();
 
 	// solve the BTE at the relaxation time approximation level

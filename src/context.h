@@ -30,7 +30,7 @@ private:
 
 	bool scatteringMatrixInMemory = true;
 
-	std::string windowType = "";
+	std::string windowType = "nothing";
 	Eigen::Vector2d windowEnergyLimit;
 	double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 

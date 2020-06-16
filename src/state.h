@@ -13,8 +13,8 @@ public:
 
 	DetachedState(Eigen::Vector3d & point_,
 			Eigen::VectorXd & energies_,
-			long numAtoms_,
-			long numBands_,
+			long numBands1_,
+			long numBands2_,
 			Eigen::MatrixXcd & eigenvectors_,
 			Eigen::Tensor<std::complex<double>,3> * velocities_=nullptr
 			);
@@ -35,8 +35,8 @@ protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
 	Eigen::Vector3d point;
 	Eigen::VectorXd energies;
-	long numAtoms;
-	long numBands;
+	long numBands1;
+	long numBands2;
 	Eigen::Tensor<std::complex<double>,3> velocities;
 	Eigen::MatrixXcd eigenvectors;
 };
@@ -56,8 +56,8 @@ public:
 	 */
 	State(Point & point_,
 			double * energies_,
-			long numAtoms_,
-			long numBands_,
+			long numBands1_,
+			long numBands2_,
 			std::complex<double> * velocities_=nullptr,
 			std::complex<double> * eigenvectors_=nullptr);
 	State(const State & that); // copy constructor
@@ -134,8 +134,8 @@ protected:
 	// pointers to the bandstructure, I don't want to duplicate storage here
 	Point point;
 	double * energies;
-	long numBands;
-	long numAtoms;
+	long numBands1; // this is full
+	long numBands2; // this is reduced by the window
 	std::complex<double> * velocities = nullptr;
 	std::complex<double> * eigenvectors = nullptr;
 	bool hasVelocities = false;

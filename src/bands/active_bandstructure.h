@@ -12,7 +12,7 @@
 
 class ActiveBandStructure : public BaseBandStructure {
 public:
-	ActiveBandStructure(Particle & particle_);
+	ActiveBandStructure(Particle & particle_, ActivePoints & activePoints);
 	ActiveBandStructure(const ActiveBandStructure & that);// copy
 	ActiveBandStructure & operator=(const ActiveBandStructure & that); //assign
 
@@ -44,7 +44,7 @@ public:
 	void setVelocities(Point & point,
 			Eigen::Tensor<std::complex<double>,3> & velocities_);
 
-	static std::tuple<ActivePoints, ActiveBandStructure, StatisticsSweep>
+	static std::tuple<ActiveBandStructure, StatisticsSweep>
 			builder(Context & context,
 					HarmonicHamiltonian & h0,
 					FullPoints & fullPoints,
@@ -53,6 +53,7 @@ public:
 protected:
 	// stores the quasiparticle kind
 	Particle particle;
+	ActivePoints activePoints;
 
 	// note: we don't store a matrix: we are storing an object (Nk,Nb),
 	// with a variable number of bands Nb per point
@@ -60,22 +61,20 @@ protected:
 	std::vector<std::complex<double>> velocities;
 	std::vector<std::complex<double>> eigenvectors;
 
-	ActivePoints * activePoints = nullptr;
 	bool hasEigenvectors = false;
 	long numStates = 0;
-	long numAtoms = 0;
 	long numPoints;
 	bool hasPoints();
 
-	VectorXl numBands;
+	Eigen::VectorXi numBands;
 	long numFullBands;
 	long windowMethod;
 
 	// index management
 	// these are two auxiliary vectors to store indices
-	MatrixXl auxBloch2Comb;
-	VectorXl cumulativeKbOffset;
-	VectorXl cumulativeKbbOffset;
+	Eigen::MatrixXi auxBloch2Comb;
+	Eigen::VectorXi cumulativeKbOffset;
+	Eigen::VectorXi cumulativeKbbOffset;
 	// this is the functionality to build the indices
 	void buildIndeces(); // to be called after building the band structure
 	// and these are the tools to convert indices
@@ -88,12 +87,12 @@ protected:
 	long bloch2Comb(const long & k, const long & b);
 	std::tuple<long,long> comb2Bloch(const long & is);
 
-	ActivePoints buildOnTheFly(Window & window, FullPoints & fullPoints,
+	void buildOnTheFly(Window & window, FullPoints & fullPoints,
 			HarmonicHamiltonian & h0, const bool & withEigenvectors=true,
 			const bool & withVelocities=true);
 
-	ActivePoints buildAsPostprocessing(Window & window,
-			FullBandStructure & fullBandStructure);
+//	ActivePoints buildAsPostprocessing(Window & window,
+//			FullBandStructure & fullBandStructure);
 };
 
 #endif

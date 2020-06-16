@@ -142,11 +142,11 @@ protected:
 	Points & parentPoints;
 	Eigen::MatrixXd pointsList;
 
-	VectorXl filteredToFullIndeces;
+	Eigen::VectorXi filteredToFullIndeces;
 	long fullToFilteredIndeces(const long & indexIn);
 public:
 	// constructors
-	ActivePoints(Points & parentPoints_, VectorXl filter_);
+	ActivePoints(Points & parentPoints_, Eigen::VectorXi filter_);
 	ActivePoints(const ActivePoints & obj); // copy constructor
 	ActivePoints & operator=(const ActivePoints & obj); // assignment operator
 
