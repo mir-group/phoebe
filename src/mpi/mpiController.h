@@ -72,8 +72,7 @@ class MPIcontroller{
 };
 
 // we need to use the concept of a "type traits" object to serialize the standard cpp types
-// // and then we can define specific implementations of this for types which are not standard
-// // https://stackoverflow.com/questions/42490331/generic-mpi-code
+// and then we can define specific implementations of this for types which are not standard
 namespace mpiContainer {
         #ifdef MPI_AVAIL
         // Forward declaration for a basic container type 
