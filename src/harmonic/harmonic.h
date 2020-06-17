@@ -9,29 +9,29 @@ class FullBandStructure;
 
 class HarmonicHamiltonian {
 public:
-	HarmonicHamiltonian();
+    HarmonicHamiltonian();
 
-	const bool hasEigenvectors = true;
+    const bool hasEigenvectors = true;
 
-	virtual long getNumBands();
+    virtual long getNumBands();
 
-	virtual Particle getParticle();
+    virtual Particle getParticle();
 
-	virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(
-			Point & point);
+    virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(
+            Point &point);
 
-	virtual std::tuple<Eigen::VectorXd,Eigen::MatrixXcd> diagonalizeFromCoords(
-			Eigen::Vector3d & k);
+    virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+            Eigen::Vector3d &k);
 
-	virtual Eigen::Tensor<std::complex<double>,3> diagonalizeVelocity(
-			Point & point);
+    virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(
+            Point &point);
 
-	virtual FullBandStructure populate(Points & fullPoints,
-			bool & withVelocities, bool & withEigenvectors);
+    virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
+            bool &withEigenvectors);
 protected:
-	Particle particle;
+    Particle particle;
 
-	long numBands = 0;
+    long numBands = 0;
 };
 
 #endif

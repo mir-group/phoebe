@@ -9,18 +9,18 @@
  */
 class Error {
 public:
-	/** object constructor.
-	 * @param errorMessage: message to be print to the user.
-	 * @param errCode: return integer error code, should be different from 0!
-	 */
-	Error(const std::string & errMessage, const int & errCode = 1);
+    /** object constructor.
+     * @param errorMessage: message to be print to the user.
+     * @param errCode: return integer error code, should be different from 0!
+     */
+    Error(const std::string &errMessage, const int &errCode = 1);
 };
 
 /** Object to print a warning to the user, without stopping the code
  */
 class Warning {
 public:
-	Warning(const std::string & errMessage);
+    Warning(const std::string &errMessage);
 };
 
 #endif
