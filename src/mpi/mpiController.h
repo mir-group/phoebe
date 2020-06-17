@@ -4,7 +4,6 @@
 #include <vector>
 #include <complex>
 #include <chrono>
-//#include <iostream>
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
@@ -182,8 +181,6 @@ template<typename T> void MPIcontroller::reduceMin(T* dataIn, T* dataOut) const{
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
-//int MPI_Gather(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-//               void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
 
 template<typename T> void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
         using namespace mpiContainer; 
