@@ -7,16 +7,54 @@
 #include "exceptions.h"
 #include "utilities.h"
 
+/** Base class for describing objects containing the band structure, i.e.
+ * the harmonic properties of a quasiparticle, as a function of wavevectors
+ * (Points).
+ */
 class BaseBandStructure {
 public:
+    /** Get the Particle object associated with this class
+     * @return particle: a Particle object, describing e.g. whether this
+     * is a phonon or electron bandStructure
+     */
     virtual Particle getParticle();
 
+    /** Returns the wavevectors on which the bandstructure is computed.
+     * @return Points: the object representing the Brillouin zone wavevectors.
+     */
     virtual Points getPoints();
+
+    /** Returns a wavevector, given a wavevector index.
+     * The wavevector index runs from 0 to numPoints-1
+     */
     virtual Point getPoint(const long &pointIndex);
+
+    /** Returns the total number of k/q-points.
+     * @return numPoints: the total number of wavevectors of the bandStructure.
+     */
     virtual long getNumPoints();
-    virtual long getNumBands(); // this only works in FullBandStructure
+
+    /** Returns the number of bands.
+     * @return numPoints: the total number of wavevectors of the bandStructure.
+     * If the number of bands is not constant, calls an error.
+     */
+    virtual long getNumBands();
+
+    /** Checks whether the bandStructure has been built discarding some Bloch
+     * states from those available.
+     * @return windowMethod: one of the values of Window::filterMethod. 0 for
+     * no filter.
+     */
     virtual long hasWindow();
 
+    /** Returns a State object.
+     * The state object, defined elsewhere, is a container that holds all bands
+     * eigenvalues, eigenvectors and velocities (if available), at a fixed
+     * wavevector. This is used in particular for the construction of the
+     * scattering operator.
+     * @param point: a Point object containing the desired wavevector
+     * @return State: a State object evaluated at Point.
+     */
     virtual State getState(Point &point);
 
     /** Returns a State object
@@ -28,21 +66,80 @@ public:
     virtual State getState(const long &pointIndex);
 
     // needed in the BTE
+    /** Builds a Bloch state index, which combines both wavevector index and
+     * band index.
+     * It's used to view the various matrices such as energy as a 1D vector,
+     * and can be used in combination with get() methods.
+     * @param wavevectorIndex: strong-typed index on wavevector
+     * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+     */
     virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+
+    /** Returns the total number of Bloch states.
+     * @return numStates: the integer number of Bloch states.
+     */
     virtual long getNumStates();
+
+    /** Returns the energy of a quasiparticle from its Bloch index
+     * Used for accessing the bandstructure in the BTE.
+     * @param stateIndex: an integer index in range [0,numStates[
+     * @return energy: the value of the QP energy for that given Bloch index.
+     * Phonon energies are referred to zero, with negative energies being
+     * actually complex phonon frequencies. Electronic energies are not saved
+     * with any particular reference, and should be used together with the
+     * chemical potential computed by StatisticsSweep. By policy, it's in
+     * rydbergs units.
+     */
     virtual const double& getEnergy(const long &stateIndex);
+
+    /** Returns the energy of a quasiparticle from its Bloch index
+     * Used for accessing the bandstructure in the BTE.
+     * @param stateIndex: an integer index in range [0,numStates[
+     * @return velocity: a 3d vector with velocity. By policy, we save it in
+     * the cartesian basis and in atomic rydberg units.
+     */
     virtual Eigen::Vector3d getGroupVelocity(const long &stateIndex);
+
+    /** Returns the energy of a quasiparticle from its Bloch index
+     * Used for accessing the bandstructure in the BTE.
+     * @param stateIndex: an integer index in range [0,numStates[
+     * @return wavevector: a 3d vector with the wavevector in cartesian
+     * coordinates in units of Bohr^-1.
+     */
     virtual Eigen::Vector3d getWavevector(const long &stateIndex);
 
-    // we need the same logic to flatten indices
+    /** Method to save quasiparticle eigenvectors inside FullBandStructure().
+     * @param point: a vector of 3 crystal coordinates. The method will look
+     * for the wavevector index.
+     * @param energies: a vector of size (numBands) with the quasiparticle
+     * energies
+     */
     virtual void setEnergies(Point &point, Eigen::VectorXd &energies_);
+
+    /** Method to save quasiparticle eigenvectors inside FullBandStructure().
+     * Note that in this case, eigenvectors are passed as a matrix, which is
+     * the case e.g. for the Wannier interpolation, where the eigenvectors
+     * represent the unitary transformation matrix U for Wannier localization.
+     * @param point: a Point object with the coordinates of the wavevector,
+     * which should come from the same Point class stored in FullBandStructure
+     * @param eigenvectors: a complex matrix of size (numBands,numBands)
+     */
     virtual void setEigenvectors(Point &point, Eigen::MatrixXcd &eigenvectors_);
+
+    /** Saves in the class the velocities computed at a particular point.
+     * @param point: a Point object representing the wavevector where these
+     * velocities have been computed.
+     * @param velocities: a rank-3 tensor of size (numBands,numBands,3)
+     * containing the matrix elements of the velocity operator. Diagonal
+     * elements are the quasiparticle group velocities.
+     */
     virtual void setVelocities(Point &point,
             Eigen::Tensor<std::complex<double>, 3> &velocities_);
 };
 
 class ActiveBandStructure;
 // forward declaration of friend class
+// we could remove this by making ActiveBS a subclass of FullBS
 
 /** FullBandStructure is the class that stores the energies, velocities and
  * eigenvectors of a quasiparticle computed on a set of wavevectors (as defined

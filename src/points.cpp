@@ -263,28 +263,23 @@ PathPoints& PathPoints::operator=(const PathPoints &that) {
 // getPoint methods
 
 Point Points::getPoint(const long &index) {
-    Eigen::Vector3d p = getPointCoords(index);
-    return Point(index, p, *this);
+    return Point(*this, index);
 }
 
 Point FullPoints::getPoint(const long &index) {
-    Eigen::Vector3d p = getPointCoords(index);
-    return Point(index, p, *this);
+    return Point(*this, index);
 }
 
 Point IrreduciblePoints::getPoint(const long &index) {
-    Eigen::Vector3d p = getPointCoords(index);
-    return Point(index, p, *this);
+    return Point(*this, index);
 }
 
 Point ActivePoints::getPoint(const long &index) {
-    Eigen::Vector3d p = getPointCoords(index);
-    return Point(index, p, *this);
+    return Point(*this, index);
 }
 
 Point PathPoints::getPoint(const long &index) {
-    Eigen::Vector3d p = getPointCoords(index);
-    return Point(index, p, *this);
+    return Point(*this, index);
 }
 
 // getPointCoords is the tool to find the coordinates of a point
@@ -738,7 +733,7 @@ long ActivePoints::fullToFilteredIndeces(const long &indexIn) {
 
 ////////////////
 
-Point::Point(long index_, Eigen::Vector3d umklappVector_, Points &points_) :
+Point::Point(Points &points_, long index_, Eigen::Vector3d umklappVector_) :
         points(points_) {
     umklappVector = umklappVector_;
     index = index_;
@@ -798,7 +793,7 @@ Point Point::operator +(Point &b) {
     Eigen::Vector3d coords = getCoords() + b.getCoords();
     long ik = points.getIndex(coords);
     Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-    Point p(ik, umklappVector, points);
+    Point p(points, ik, umklappVector);
     return p;
 }
 
@@ -809,6 +804,6 @@ Point Point::operator -(Point &b) {
     Eigen::Vector3d coords = getCoords() - b.getCoords();
     long ik = points.getIndex(coords);
     Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-    Point p(ik, umklappVector, points);
+    Point p(points, ik, umklappVector);
     return p;
 }

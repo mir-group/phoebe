@@ -27,17 +27,14 @@ public:
             BaseBandStructure &outerBandStructure_);
 
     /** Copy constructor
-     *
      */
     ScatteringMatrix(const ScatteringMatrix &that);
 
-    /** Assignment operator
-     *
+    /** Copy assignment operator
      */
     ScatteringMatrix& operator=(const ScatteringMatrix &that);
 
     /** Destructor
-     *
      */
     ~ScatteringMatrix();
 

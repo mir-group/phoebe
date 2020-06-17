@@ -25,30 +25,91 @@ public:
      */
     VectorBTE(StatisticsSweep &statisticsSweep_,
             BaseBandStructure &bandStructure_, const long &dimensionality_ = 3);
-    // copy constructor
+
+    /** Copy constructor
+     */
     VectorBTE(const VectorBTE &that);
-    // copy assignment
+
+    /** Copy assignment operator
+     */
     VectorBTE& operator =(const VectorBTE &that);
-    // scalar product
+
+    /** Computes the scalar product between two VectorBTE objects.
+     * The scalar product of x and y, is defined such as
+     * z(iCalc) = sum_i x(iCalc,i) y(iCalc,i), where i is an index over Bloch
+     * states, and iCalc is an index over temperatures and chemical potentials.
+     * @param that: the second vector used in the scalar product
+     */
     Eigen::VectorXd dot(const VectorBTE &that);
-    // product operator overload
+
+    /** element wise product between two VectorBTE objects x and y.
+     * If the dimensionality of the two objects is the same, we compute
+     * element-wise result = x*y.
+     * If y has dimensionality 1, we compute x(every dim)*y(0), and the result
+     * has the dimensionality of x.
+     * @param that: the second VectorBTE object y, such that result = *this*y
+     */
     VectorBTE operator *(VectorBTE &that);
-    // product operator overload
+
+    /** Computes the product of a VectorBTE with a scalar, i.e. all elements
+     * of vectorBTE x -> x * scalar.
+     * @param scalar: a double with the constant factor to be used in the
+     * element-wise multiplication.
+     */
     VectorBTE operator *(const double &scalar);
-    // product operator overload
+
+    /** Computes the product of a VectorBTE with a vector. The vector has
+     * size equal to the number of calculations (i.e. number of temperatures
+     * times the number of chemical potentials) used in the run. Given a
+     * calculation index iCalc, the result is an element-wise x(it)*vector(it).
+     * @param vector: a double vector to be used in the product, of size
+     * equal to numCalcs.
+     */
     VectorBTE operator *(const Eigen::VectorXd &vector);
-    // sum operator overload
+
+    /** element wise sum between two VectorBTE objects x and y.
+     * If the dimensionality of the two objects is the same, we compute
+     * element-wise result = x+y.
+     * If y has dimensionality 1, we compute x(every dim)+y(0), and the result
+     * has the dimensionality of x.
+     * @param that: the second VectorBTE object y, such that result = *this+y
+     */
     VectorBTE operator +(VectorBTE &that);
-    // diff operator overload
+
+    /** element wise difference between two VectorBTE objects x and y.
+     * If the dimensionality of the two objects is the same, we compute
+     * element-wise result = x-y.
+     * If y has dimensionality 1, we compute x(every dim)-y(0), and the result
+     * has the dimensionality of x.
+     * @param that: the second VectorBTE object y, such that result = *this-y
+     */
     VectorBTE operator -(VectorBTE &that);
-    // diff operator overload
+
+    /** Invert the sign of the VectorBTE content i.e. x -> -x
+     */
     VectorBTE operator -();
-    // division operator overload
+
+    /** element wise division between two VectorBTE objects x and y.
+     * If the dimensionality of the two objects is the same, we compute
+     * element-wise result = x/y.
+     * If y has dimensionality 1, we compute x(every dim)/y(0), and the result
+     * has the dimensionality of x.
+     * @param that: the second VectorBTE object y, such that result = *this/y
+     */
     VectorBTE operator /(VectorBTE &that);
 
+    /** Replace the content of VectorBTE with its square root
+     * (element-wise x -> sqrt(x) ).
+     */
     VectorBTE sqrt();
+    /** Replace the content of VectorBTE with its reciprocal
+     * (element-wise x -> 1/x).
+     */
     VectorBTE reciprocal();
 
+    /** Set the whole content (raw buffer) of VectorBTE to a scalar value.
+     * @param constant: the value to be used in the set.
+     */
     void setConst(const double &constant);
 
     /** Convert an out-of-equilibrium population from the canonical form f to

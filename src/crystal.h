@@ -148,12 +148,10 @@ public:
     const Eigen::VectorXd& getSpeciesMasses();
 
     /** return the dimensionality of the crystal, i.e. a number from 1 to 3
-     *
      */
     long getDimensionality();
 
     /** Return the number of atomic species present in the crystal
-     *
      */
     long getNumSpecies();
 };
