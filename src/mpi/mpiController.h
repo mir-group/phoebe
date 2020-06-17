@@ -28,14 +28,36 @@ class MPIcontroller{
 		MPIcontroller();
 		~MPIcontroller(); 
 		
-		// Calls finalize and potentially reports statistics, time or handles errors
+		/** Calls finalize and potentially reports statistics */
 		void finalize() const; 
 	
 		// Collective communications functions -----------------------------------
+                /** Wrapper for the MPI_Broadcast function. 
+                *  @param dataIn: pointer to data structure to broadcast   
+                */ 
 		template<typename T> void bcast(T* dataIn) const;
+                /** Wrapper for MPI_Reduce in the case of a summation. 
+                * @param dataIn: pointer to sent data from each rank. 
+                * @param dataOut: pointer to buffer to receive summed data.               
+                */       
 		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
+                /** Wrapper for MPI_Reduce which identifies the maximum of distributed data 
+                * @param dataIn: pointer to sent data from each rank. 
+                * @param dataOut: pointer to buffer to receive max item from data.               
+                */     
 		template<typename T> void reduceMax(T* dataIn, T* dataOut) const;
+                /** Wrapper for MPI_Reduce which identifies the minimum of distributed data 
+                * @param dataIn: pointer to sent data from each rank. 
+                * @param dataOut: pointer to buffer to receive min item from data.               
+                */
 		template<typename T> void reduceMin(T* dataIn, T* dataOut) const;
+                /** Wrapper for MPI_Gatherv which collects data from different ranks
+                * and combines it into one buffer.        
+                * @param dataIn: pointer to sent data from each rank, with length
+                *       of the number of points belonging to this rank.   
+                * @param dataOut: pointer to output buffer, allocated only by the 
+                *       head rank, of length to contain all data from all processes.   
+                */
                 template<typename T> void gatherv(T* dataIn, T* dataOut) const; 
 
 		// point to point functions -----------------------------------
@@ -43,11 +65,22 @@ class MPIcontroller{
 		//template<typename T> void recv(T&& data) const;
 	
 		// Asynchronous functions
+                /** Wrapper for MPI_Barrier() 
+                */
 		void barrier() const;
 	
 		// Utility functions -----------------------------------
-		bool mpiHead() const{ return rank==0; } // a function to tell us if this process is the head
+                /** Simple function to tell us if this process is the head
+                * @return isRank: returns true if this rank is the head. 
+                */
+		bool mpiHead() const{ return rank==0; }
+                /** Function to return the rank of a process. 
+                * @return rank: the rank of this process.
+                */
 		int getRank() const { return rank; }
+                /** Function to return the number of ranks available. 
+                * @return size: number of ranks 
+                */
 		int getSize() const { return size; }    
 
 		// Error reporting and statistics
