@@ -33,13 +33,18 @@ void PhononViscosity::calcRTA(VectorBTE & tau) {
 	auto particle = bandStructure.getParticle();
 	tensordxdxdxd.setZero();
 
+	auto excludeIndeces = tau.excludeIndeces;
+
 	for ( long is=0; is<bandStructure.getNumStates(); is++ ) {
 		auto en = bandStructure.getEnergy(is);
+
 		auto vel = bandStructure.getGroupVelocity(is);
 		auto q = bandStructure.getWavevector(is);
 
 		// skip the acoustic phonons
-		if ( q.norm()==0. && en<0.1 / ryToCmm1 ) continue;
+//		if ( q.norm()==0. && en<0.1 / ryToCmm1 ) continue;
+		if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
+				!= excludeIndeces.end() ) continue;
 
 		for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 
@@ -80,16 +85,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 & vector0, VectorBTE & relTimes,
 	// 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
 	// 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
 	//    because we set some matrix rows/cols to zero
-	bool hasAcousticGamma = false;
-	auto s = bandStructure.getState(0);
-	auto ens = s.getEnergies();
-	if ( ens.size() == crystal.getNumAtoms()*3) hasAcousticGamma = true;
-	long firstState;
-	if ( hasAcousticGamma ) {
-		firstState = 4;
-	} else {
-		firstState = 1;
-	}
+	long firstState = 1;
+	firstState += relTimes.excludeIndeces.size();
 
 	double volume = crystal.getVolumeUnitCell(dimensionality);
 	double numPoints = double(bandStructure.getNumPoints());

@@ -4,11 +4,9 @@
 #include <iomanip>
 
 PhononThermalConductivity::PhononThermalConductivity(
-		StatisticsSweep & statisticsSweep_,
-		Crystal & crystal_, BaseBandStructure & bandStructure_) :
-				Observable(statisticsSweep_, crystal_),
-				bandStructure(bandStructure_) {
-
+		StatisticsSweep & statisticsSweep_, Crystal & crystal_,
+		BaseBandStructure & bandStructure_) :
+		Observable(statisticsSweep_, crystal_), bandStructure(bandStructure_) {
 	tensordxd = Eigen::Tensor<double,3>(numCalcs,dimensionality,dimensionality);
 	tensordxd.setZero();
 };
@@ -49,6 +47,8 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & n) {
 
 	tensordxd.setZero();
 
+	auto excludeIndeces = n.excludeIndeces;
+
 	for ( long ik=0; ik<bandStructure.getNumPoints(); ik++ ) {
 		auto s = bandStructure.getState(ik);
 		auto en = s.getEnergies();
@@ -58,7 +58,9 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE & n) {
 					BandIndex(ib));
 
 			// skip the acoustic phonons
-			if ( s.getCoords(Points::crystalCoords).norm()==0. && ib<3 ) continue;
+			if ( std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
+					!= excludeIndeces.end() ) continue;
+//			if ( en < 0.1 / ryToCmm1 ) continue;
 
 			for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 				auto [imu,it] = loc2Glob(iCalc);
@@ -90,7 +92,6 @@ void PhononThermalConductivity::calcVariational(VectorBTE & af, VectorBTE & f,
 
 	for ( long iCalc=0; iCalc<numCalcs; iCalc++ ) {
 		auto [imu,it] = loc2Glob(iCalc);
-
 		for ( long i=0; i<dimensionality; i++ ) {
 			long icPop1 = f.glob2Loc(imu,it,DimIndex(i));
 			for ( long j=0; j<dimensionality; j++ ) {
@@ -111,16 +112,8 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat & specificHeat,
 	// 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
 	// 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
 	//    because we set some matrix rows/cols to zero
-	bool hasAcousticGamma = false;
-	auto s = bandStructure.getState(0);
-	auto ens = s.getEnergies();
-	if ( ens.size() == crystal.getNumAtoms()*3) hasAcousticGamma = true;
-	long firstState;
-	if ( hasAcousticGamma ) {
-		firstState = 4;
-	} else {
-		firstState = 1;
-	}
+	long firstState = 1;
+	firstState += relaxationTimes.excludeIndeces.size();
 
 	tensordxd.setZero();
 

@@ -284,9 +284,10 @@ void ScatteringMatrix::omega2A() {
 VectorBTE ScatteringMatrix::getSingleModeTimes() {
 	if ( constantRTA ) {
 		double crt = context.getConstantRelaxationTime();
-		VectorBTE diag(statisticsSweep,outerBandStructure,1);
-		diag.setConst(crt);
-		return diag;
+		VectorBTE times(statisticsSweep,outerBandStructure,1);
+		times.setConst(crt);
+		times.excludeIndeces = excludeIndeces;
+		return times;
 	} else {
 		VectorBTE times = internalDiagonal;
 		if ( isMatrixOmega ) {
@@ -295,6 +296,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 					times.data(iCalc,is) = 1. / times.data(iCalc,is);
 				}
 			}
+			times.excludeIndeces = excludeIndeces;
 			return times;
 		} else { // A_nu,nu = N(1+-N) / tau
 			auto particle = outerBandStructure.getParticle();
@@ -312,6 +314,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 					times.data(iCalc,is) = popTerm / times.data(iCalc,is);
 				}
 			}
+			times.excludeIndeces = excludeIndeces;
 			return times;
 		}
 	}
@@ -324,6 +327,7 @@ std::tuple<VectorBTE,Eigen::MatrixXd> ScatteringMatrix::diagonalize() {
 	// place eigenvalues in an VectorBTE object
 	VectorBTE eigvals(statisticsSweep,outerBandStructure,1);
 	eigvals.data.row(0) = eigenvalues;
+	eigvals.excludeIndeces = excludeIndeces;
 
 	// correct normalization of eigenvectors
 	double volume = outerBandStructure.getPoints().getCrystal(
