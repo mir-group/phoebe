@@ -37,7 +37,6 @@ private:
 	// temp variable
 	long numBands;
 
-
 	// internal method to apply the window
 	std::tuple<std::vector<double>,std::vector<long>> internalPopWindow(
 			Eigen::VectorXd& energies,

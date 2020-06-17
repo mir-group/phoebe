@@ -161,7 +161,7 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long & stateIndex){
 
 Eigen::Vector3d ActiveBandStructure::getWavevector(const long & stateIndex) {
 	if ( ! hasPoints() ) {
-		Error e("ActiveBandStructure hasn't been populated yet" ,1);
+		Error e("ActiveBandStructure hasn't been populated yet");
 	}
 	auto[ik,ib] = comb2Bloch(stateIndex);
 	Point p = activePoints.getPoint(ik);
@@ -341,7 +341,7 @@ long ActiveBandStructure::velBloch2Comb(const long & ik, const long & ib1,
 
 long ActiveBandStructure::eigBloch2Comb(const long & ik, const long & ib1,
 		const long & ib2) {
-	return cumulativeKbOffset(ik)*numFullBands + ib1 * numFullBands + ib2;
+	return cumulativeKbOffset(ik)*numFullBands + ib1 * numBands(ik) + ib2;
 }
 
 long ActiveBandStructure::bloch2Comb(const long & ik, const long & ib) {
@@ -529,7 +529,8 @@ void ActiveBandStructure::buildOnTheFly(Window & window,
 				for ( long ib2Old = filteredBands[ik][0];
 						ib2Old<filteredBands[ik][1]+1; ib2Old++ ) {
 					for ( long i=0; i<3; i++ ) {
-						thisVels(ib1New,ib2New,i) = thisVelocity(ib1Old,ib2Old,i);
+						thisVels(ib1New,ib2New,i) =
+								thisVelocity(ib1Old,ib2Old,i);
 					}
 					ib2New++;
 				}
@@ -538,8 +539,4 @@ void ActiveBandStructure::buildOnTheFly(Window & window,
 			setVelocities(point, thisVels);
 		}
 	}
-//	for ( int is=0; is<numStates; is++ ) {
-//		std::cout << energies[is] << " ";
-//	}
-//	std::cout << "!!!\n";
 }

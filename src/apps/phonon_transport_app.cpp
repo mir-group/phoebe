@@ -246,8 +246,8 @@ void PhononTransportApp::run(Context & context) {
 		VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
 		for ( long iCalc=0; iCalc<relaxonV.numCalcs; iCalc++ ) {
 
-		  double norm = 1./ crystal.getVolumeUnitCell(context.getDimensionality())
-			      / bandStructure.getNumPoints();
+		  double norm = 1./ crystal.getVolumeUnitCell(
+				  context.getDimensionality()) / bandStructure.getNumPoints();
 		  
 			auto [imu,it,idim] = relaxonV.loc2Glob(iCalc);
 			int idimIndex  = idim.get();

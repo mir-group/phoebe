@@ -36,10 +36,12 @@ ScatteringMatrix::ScatteringMatrix(Context & context_,
 
 	// we want to know the state index of acoustic modes at gamma,
 	// so that we can set their populations to zero
-	for ( long is=0; is<numStates; is++ ) {
-		double en = outerBandStructure.getEnergy(is);
-		if ( en < 0.1 / ryToCmm1 ) { // cutoff at 0.1 cm^-1
-			excludeIndeces.push_back(is);
+	if ( outerBandStructure.getParticle().isPhonon() ) {
+		for ( long is=0; is<numStates; is++ ) {
+			double en = outerBandStructure.getEnergy(is);
+			if ( en < 0.1 / ryToCmm1 ) { // cutoff at 0.1 cm^-1
+				excludeIndeces.push_back(is);
+			}
 		}
 	}
 }

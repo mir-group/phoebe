@@ -28,6 +28,11 @@ Window::Window(Context & context, Particle & particle_,
 
 	if ( method == population ) {
 		populationThreshold = context.getWindowPopulationLimit();
+
+		if ( std::isnan(populationThreshold) ) {
+			populationThreshold = 0.01;
+		}
+
 	} else if ( method == energy ) {
 		minEnergy = context.getWindowEnergyLimit().minCoeff();
 		maxEnergy = context.getWindowEnergyLimit().maxCoeff();
@@ -76,7 +81,7 @@ std::tuple<std::vector<double>,std::vector<long>> Window::internalPopWindow(
 		Eigen::VectorXd& dndeMin, Eigen::VectorXd& dndeMax) {
 
 	std::vector<double> filteredEnergies;
-	std::vector<long> bandsExtrema(2);
+	std::vector<long> bandsExtrema;
 	std::vector<long> bandsIndeces(energies.size());
 
 	double thisEnergy;
@@ -90,8 +95,10 @@ std::tuple<std::vector<double>,std::vector<long>> Window::internalPopWindow(
 			bandsIndeces.push_back(ib);
 		}
 	}
-	bandsExtrema.push_back(bandsIndeces[0]);
-	bandsExtrema.back();
+	if ( bandsIndeces.size() > 0 ) {
+		bandsExtrema.push_back(bandsIndeces[0]);
+		bandsExtrema.push_back(bandsIndeces[bandsIndeces.size()-1]);
+	}
 	return {filteredEnergies,bandsExtrema};
 }
 

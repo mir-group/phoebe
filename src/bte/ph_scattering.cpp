@@ -33,7 +33,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context & context_,
 		long i = 0;
 		for ( auto atomName : atomsNames ) {
 			double thisMass = periodicTable.getMass(atomName);
-			// since the phonon eigenvectors are renormalized with the sqrt(mass)
+			// since the phonon eigenvectors are renormalized with sqrt(mass)
 			// we add a correction factor in the coupling here
 			massVariance(i) = thisMass * thisMass
 					* periodicTable.getMassVariance(atomName);
@@ -206,8 +206,8 @@ void PhScatteringMatrix::builder(
 			loopPrint.update();
 
 			// note: for computing linewidths on a path, we must distinguish
-			// that q1 and q2 are on different meshes, and that q3+/- may not fall
-			// into known meshes and therefore needs to be computed
+			// that q1 and q2 are on different meshes, and that q3+/- may not
+			// fall into known meshes and therefore needs to be computed
 
 			auto states1 = outerBandStructure.getState(iq1);
 			auto q1 = states1.getPoint();
