@@ -582,7 +582,7 @@ void IrreduciblePoints::setIrreduciblePoints() {
         equiv(nk) = nk;
     }
 
-    std::vector < Eigen::Matrix3d > symms = crystal.getSymmetryMatrices();
+    auto symms = crystal.getSymmetryOperations();
 
     Eigen::Vector3d rotatedPoint;
     Eigen::Vector3d thisPoint;
@@ -598,7 +598,10 @@ void IrreduciblePoints::setIrreduciblePoints() {
             // check if there are equivalent k-point to this in the list
             // (excepted those previously found to be equivalent to another)
             // check both k and -k
-            for (auto s : symms) {
+            for (auto symm : symms) {
+                auto s = symm.rotation;
+                auto t = symm.translation;
+
                 thisPoint = reduciblePoints(ik);
                 rotatedPoint = s * thisPoint;
 
@@ -612,25 +615,12 @@ void IrreduciblePoints::setIrreduciblePoints() {
                         && abs(yy - round(yy)) <= eps
                         && abs(zz - round(zz)) <= eps);
                 if (inTheList) {
-                    ix = mod(
-                            long(
-                                    round(
-                                            rotatedPoint(0) * mesh(0)
-                                                    - offset(0) + 2 * mesh(0))),
-                            mesh(0));
-                    iy = mod(
-                            long(
-                                    round(
-                                            rotatedPoint(1) * mesh(1)
-                                                    - offset(1) + 2 * mesh(1))),
-                            mesh(1));
-                    iz = mod(
-                            long(
-                                    round(
-                                            rotatedPoint(2) * mesh(2)
-                                                    - offset(2) + 2 * mesh(2))),
-                            mesh(2));
-
+                    ix = mod(long(round(rotatedPoint(0) * mesh(0)
+                            - offset(0) + 2 * mesh(0))), mesh(0));
+                    iy = mod(long(round(rotatedPoint(1) * mesh(1)
+                            - offset(1) + 2 * mesh(1))), mesh(1));
+                    iz = mod(long(round(rotatedPoint(2) * mesh(2)
+                            - offset(2) + 2 * mesh(2))), mesh(2));
                     n = iz + iy * mesh(2) + ix * mesh(1) * mesh(2);
                     if (n > ik && equiv(n) == n) {
                         equiv(n) = ik;

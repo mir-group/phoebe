@@ -5,6 +5,12 @@
 #include <vector>
 #include "eigen.h"
 
+struct SymmetryOperation {
+    Eigen::Matrix3d rotation;
+    Eigen::Vector3d translation;
+};
+
+
 /** Object to store the information on the crystal unit cell,
  *such as atomic positions, crystal lattice vectors, etc...
  * Note that fractional occupancies are not supported.
@@ -47,7 +53,7 @@ private:
     Eigen::VectorXd speciesMasses; // size (numSpecies)
 
     // Untested for now
-    std::vector<Eigen::Matrix3d> symmetryRotations;
+    std::vector<SymmetryOperation> symmetryOperations;
     int numSymmetries;
 
 public:
@@ -104,11 +110,12 @@ public:
     double getVolumeUnitCell(long dimensionality = 3);
 
     /** get the symmetry operations of the crystal, in cartesian coordinates.
-     * For the time being, we only retain symmetry operations that don't use a
-     * translation, so that the object returned by this function is simply a
-     * vector of rotations matrices.
+     * Returns a vector of SymmetryOperation. A SymmetryOperation is a
+     * structure containing the rotation matrix and the translation vector
+     * for the given symmetry. The size of the vector is equal to
+     * getNumSymmetries().
      */
-    const std::vector<Eigen::Matrix3d>& getSymmetryMatrices();
+    const std::vector<SymmetryOperation>& getSymmetryOperations();
 
     /** get the number of symmetries operations that are used by phoebe.
      * For the time being, we only retain symmetry operations that don't use a

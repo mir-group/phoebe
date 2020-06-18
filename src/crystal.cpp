@@ -5,6 +5,12 @@
 #include "spglib.h"
 #include "constants.h"
 
+// temporary function -- will be moved someplace better. 
+template <typename T> T* allocate(T *&array, const unsigned int size){
+            array = new T [size];
+            return array; 
+}
+
 Eigen::Matrix3d Crystal::calcReciprocalCell(
         const Eigen::Matrix3d directUnitCell) {
     Eigen::Matrix3d reciprocalCell = twoPi
@@ -81,8 +87,8 @@ const Eigen::VectorXd& Crystal::getSpeciesMasses() {
     return speciesMasses;
 }
 
-const std::vector<Eigen::Matrix3d>& Crystal::getSymmetryMatrices() {
-    return symmetryRotations;
+const std::vector<SymmetryOperation>& Crystal::getSymmetryOperations() {
+    return symmetryOperations;
 }
 
 const int& Crystal::getNumSymmetries() {
@@ -104,20 +110,16 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
     setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
     volumeUnitCell = calcVolume(directUnitCell);
 
-    if (volumeUnitCell <= 0.) {
-        Error e("Unexpected non positive volume");
-    }
-
     dimensionality = dimensionality_;
 
     if (atomicSpecies_.size() != atomicPositions_.rows()) {
-        Error e("atomic species and positions are not aligned");
+        Error e("atomic species and positions are not aligned", 1);
     }
     if (atomicPositions_.cols() != 3) {
-        Error e("atomic positions need three coordinates");
+        Error e("atomic positions need three coordinates", 1);
     }
     if ((int) speciesMasses_.size() != (int) speciesNames_.size()) {
-        Error e("species masses and names are not aligned");
+        Error e("species masses and names are not aligned", 1);
     }
 
     atomicSpecies = atomicSpecies_;
@@ -141,13 +143,21 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
     // We now look for the symmetry operations of the crystal
     // in this implementation, we rely on spglib
 
-    double latticeSPG[3][3] = { { 0. } };
+    // Declare and allocate c-style arrays for spglib calls
+    double (*positionSPG)[3];
+    allocate(positionSPG, numAtoms);
+    //positionSPG = new double[3] [numAtom];
+    int *typesSPG;
+    typesSPG = new int[numAtoms];
+
+    double latticeSPG[3][3];	// = {{0.}}; // TODO:: remove
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
             latticeSPG[i][j] = directUnitCell(i, j);
         }
     }
-    double positionSPG[numAtoms][3] = { { 0. } };
+
+    //double positionSPG[numAtoms][3] = {{0.}}; // TODO: remove
     Eigen::Vector3d positionCrystal;
     Eigen::Vector3d positionCartesian;
     for (int i = 0; i < numAtoms; i++) {
@@ -161,16 +171,15 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
             positionSPG[i][j] = positionCrystal(j);
         }
     }
-    int typesSPG[numAtoms] = { 0 };
+    //int typesSPG[numAtoms]; // TODO: remove
     for (int i = 0; i < numAtoms; i++) {
         typesSPG[i] = atomicSpecies(i) + 1;
     }
     int maxSize = 50;
-    int size;
     int rotations[maxSize][3][3];
     double translations[maxSize][3];
     double symprec = 1e-6;
-    size = spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
+    int size = spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
             positionSPG, typesSPG, numAtoms, symprec);
 
     // here we round the translational symmetries to the digits of symprec
@@ -185,34 +194,31 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
         }
     }
 
-    // now, we discard the symm ops with translations, more difficult to use
-    // (easily usable for scalar quantities, less so for vectors)
+    // now we store the symmetries
 
-    numSymmetries = 0;
-    for (int isym = 0; isym < size; isym++) {
-        if (translations[isym][0] == 0. && translations[isym][1] == 0.
-                && translations[isym][2] == 0.) {
-            numSymmetries += 1;
-        }
-    }
-
-    // Finally, we store the remaining sym ops as a class property
-
-    std::vector < Eigen::Matrix3d > symmetryRotations_;
-    Eigen::Matrix3d thisMatrix;
-    thisMatrix.setZero();
+    numSymmetries = size;
     for (int isym = 0; isym < numSymmetries; isym++) {
-        if (translations[isym][0] == 0 && translations[isym][1] == 0
-                && translations[isym][2] == 0) {
-            for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
-                    thisMatrix(i, j) = rotations[isym][i][j];
-                }
+        Eigen::Vector3d thisTranslation;
+
+        thisTranslation(0) = translations[isym][0];
+        thisTranslation(1) = translations[isym][1];
+        thisTranslation(2) = translations[isym][2];
+
+        Eigen::Matrix3d thisMatrix;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                thisMatrix(i,j) = rotations[isym][i][j];
             }
-            symmetryRotations_.push_back(thisMatrix);
         }
+
+        SymmetryOperation s = { thisMatrix, thisTranslation };
+        symmetryOperations.push_back(s);
+
     }
-    symmetryRotations = symmetryRotations_;
+
+    // need to explicitly deallocate allocated arrays.
+    delete[] typesSPG;
+    delete[] positionSPG;
 }
 
 // copy constructor
@@ -229,7 +235,7 @@ Crystal::Crystal(const Crystal &obj) {
     atomicMasses = obj.atomicMasses;
     speciesNames = obj.speciesNames;
     speciesMasses = obj.speciesMasses;
-    symmetryRotations = obj.symmetryRotations;
+    symmetryOperations = obj.symmetryOperations;
     numSymmetries = obj.numSymmetries;
 }
 
@@ -248,7 +254,7 @@ Crystal& Crystal::operator=(const Crystal &obj) {
         atomicMasses = obj.atomicMasses;
         speciesNames = obj.speciesNames;
         speciesMasses = obj.speciesMasses;
-        symmetryRotations = obj.symmetryRotations;
+        symmetryOperations = obj.symmetryOperations;
         numSymmetries = obj.numSymmetries;
     }
     return *this;
