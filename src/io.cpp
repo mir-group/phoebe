@@ -1,9 +1,10 @@
 #include <algorithm>
 #include <exceptions.h>
-#include "io.h"
 #include <time.h>
 #include <iomanip>
 #include <math.h>
+#include "io.h"
+#include "mpiHelper.h"
 
 // Utility to get the command line option from it's name
 char* getCmdOption(char **begin, char **end, const std::string &option) {
@@ -49,6 +50,7 @@ std::string IO::getInputFileName() {
 }
 
 void IO::welcome() {
+    if ( ! mpi->mpiHead() ) return;
     std::string welcomeMsg = "\n"
             "  8888888b.  888                        888\n"
             "  888   Y88b 888                        888\n"
@@ -63,11 +65,14 @@ void IO::welcome() {
 }
 
 void IO::goodbye() {
+    if ( ! mpi->mpiHead() ) return;
     std::cout << "Exiting program" << std::endl;
 }
 
 LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
         const long &numSteps_) {
+    if ( ! mpi->mpiHead() ) return;
+
     task = task_;
     step = step_;
     numSteps = numSteps_;
@@ -91,6 +96,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
 
 void LoopPrint::update() {
     // Update prediction info for current task.
+    if ( ! mpi->mpiHead() ) return;
 
     currentStep += 1;
 
@@ -140,6 +146,7 @@ void LoopPrint::update() {
 }
 
 void LoopPrint::close() {
+    if ( ! mpi->mpiHead() ) return;
     // print timing results
     time_t currentTime;
     currentTime = time(NULL);

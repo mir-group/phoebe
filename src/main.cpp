@@ -12,9 +12,7 @@ int main(int argc, char **argv) {
 
     // setup input/output
     IO io(argc, argv);
-    if (mpi->mpiHead()) {
-        io.welcome();
-    }
+    io.welcome();
 
     // Print parallelization info
     if (mpi->mpiHead()) {
@@ -34,9 +32,7 @@ int main(int argc, char **argv) {
     // launch it
     app->run(context);
     // exiting program
-    if (mpi->mpiHead()) {
-        io.goodbye();
-    }
+    io.goodbye();
 
     // here close parallel environment
     // make sure all processes finish before printing end info
