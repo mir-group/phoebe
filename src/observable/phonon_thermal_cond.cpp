@@ -1,7 +1,8 @@
-#include "phonon_thermal_cond.h"
-#include "constants.h"
 #include <time.h>
 #include <iomanip>
+#include "phonon_thermal_cond.h"
+#include "constants.h"
+#include "mpiHelper.h"
 
 PhononThermalConductivity::PhononThermalConductivity(
         StatisticsSweep &statisticsSweep_, Crystal &crystal_,
@@ -183,6 +184,8 @@ void PhononThermalConductivity::print() {
 }
 
 void PhononThermalConductivity::print(const int &iter) {
+    if ( ! mpi->mpiHead()) return;
+
     // get the time
     time_t currentTime;
     currentTime = time(NULL);

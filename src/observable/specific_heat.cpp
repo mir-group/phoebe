@@ -1,5 +1,6 @@
 #include "specific_heat.h"
 #include "constants.h"
+#include "mpiHelper.h"
 
 SpecificHeat::SpecificHeat(StatisticsSweep &statisticsSweep_, Crystal &crystal_,
         BaseBandStructure &bandStructure_) :
@@ -40,6 +41,8 @@ void SpecificHeat::calc() {
 }
 
 void SpecificHeat::print() {
+    if ( ! mpi->mpiHead()) return;
+
     std::string units;
     if (dimensionality == 1) {
         units = "J / K / m";

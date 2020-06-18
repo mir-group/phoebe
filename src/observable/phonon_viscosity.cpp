@@ -1,6 +1,7 @@
 #include <iomanip>
 #include "phonon_viscosity.h"
 #include "constants.h"
+#include "mpiHelper.h"
 
 PhononViscosity::PhononViscosity(StatisticsSweep &statisticsSweep_,
         Crystal &crystal_, BaseBandStructure &bandStructure_) :
@@ -174,6 +175,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 }
 
 void PhononViscosity::print() {
+    if ( ! mpi->mpiHead()) return;
+
     std::string units;
     if (dimensionality == 1) {
         units = "Pa s / m^2";
