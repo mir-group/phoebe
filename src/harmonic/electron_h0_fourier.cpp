@@ -4,6 +4,7 @@
 #include "exceptions.h"
 #include "constants.h"
 #include "particle.h"
+#include "io.h"
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
         FullPoints coarsePoints_,
@@ -25,13 +26,14 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
     Eigen::VectorXd energies(numDataPoints);
     expansionCoefficients_.setZero();
     energies.setZero();
-    std::cout << "Building coefficients" << std::endl;
+
+    LoopPrint loopPrint("setting up Fourier interpolation", "bands", numBands);
     for (long iBand = 0; iBand < numBands; iBand++) {
-        std::cout << iBand + 1 << "/" << numBands << std::endl;
+        loopPrint.update();
         energies = coarseBandStructure.getBandEnergies(iBand);
         expansionCoefficients_.row(iBand) = getCoefficients(energies);
     }
-    std::cout << "Done building coefficients" << std::endl;
+    loopPrint.close();
     expansionCoefficients = expansionCoefficients_;
 }
 

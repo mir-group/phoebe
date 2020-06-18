@@ -22,7 +22,10 @@ public:
      * @param coarseBandStructure: values of the electronic bands over a full
      * grid of kpoints, provided by an external (DFT) code.
      * @param cutoff: a parameter used to define the number of coefficients
-     * in the plane-wave interpolation.
+     * in the plane-wave interpolation. It should be an integer >1.
+     * This parameter controls that the interpolation is generated using a grid
+     * of lattice vectors which is of size 2*Grid(i)*cutoff, where i is the
+     * direction index and grid(i) is the size of the wavevector coarse grid.
      */
     ElectronH0Fourier(Crystal &crystal_, FullPoints coarsePoints_,
             FullBandStructure coarseBandStructure_, double cutoff);
