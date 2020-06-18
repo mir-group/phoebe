@@ -187,7 +187,12 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 			numAtoms,
 			symprec);
 
+	if ( size == 0 ) {
+	    Error e("SPGlib failed at recognizing symmetries");
+	}
+
 	// store the symmetries inside the class
+	// note: spglib returns rotation and translation in fractional coordinates
 
     numSymmetries = size;
     for (int isym = 0; isym < numSymmetries; isym++) {
