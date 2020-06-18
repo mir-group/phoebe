@@ -13,9 +13,6 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
 
     numBands = coarseBandStructure.getNumBands();
     cutoff = cutoff_;
-//	if ( coarseBandStructure.hasIrreduciblePoints() ) {
-//		Error e("input electronic band structure must be specified on grid",1);
-//	}
     numDataPoints = coarseBandStructure.getNumPoints();
     refWavevector = coarseBandStructure.getPoint(0).getCoords(
             Points::cartesianCoords);
@@ -160,116 +157,142 @@ Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
 }
 
 void ElectronH0Fourier::setPositionVectors() {
-    // lattice parameters
+    // load the info on the supercell that we will use for the interpolation
     Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
-    Eigen::Vector3d a1 = directUnitCell.row(0);
-    Eigen::Vector3d a2 = directUnitCell.row(1);
-    Eigen::Vector3d a3 = directUnitCell.row(2);
+    auto [grid,offset] = coarsePoints.getMesh();
 
-    const long N0 = long(cutoff / a1.norm() * 6.);
-    const long N1 = long(cutoff / a2.norm() * 6.);
-    const long N2 = long(cutoff / a3.norm() * 6.);
-    long nMax = N0 * N1 * N2;
 
-    Eigen::MatrixXd tmpVectors(3, nMax);
-    std::vector<bool> isDegenerate(nMax, false);
-    Eigen::VectorXd tmpDegeneracies(nMax);
-    // the first vector is the vector zero
-    tmpVectors.setZero();
-    tmpDegeneracies.setZero();
-    tmpDegeneracies.array() += 1.;
+    // the cutoff specifies the grid on which lattice vectors are searched.
+    // Given a lattice vector in integer coordinates R = (n0,n1,n2) in
+    // integer coordinates (i.e. can be brought in cartesian coordinates as
+    // R=n0*a0+n1*a1+n2*a2 where a* are the lattice vectors of the primitive
+    // unit cell)
+    // then, the coordinates of the lattice vector R vary over a range between
+    // -Nk*cutoff and Nk*cutoff, where Nk is the coarse grid of wavevectors.
+    // so, with this definition, cutoff is a positive integer.
+    long searchSize0 = long(cutoff);
+    long searchSize1 = long(cutoff);
+    long searchSize2 = long(cutoff);
+    // cutoff is an integer
+    if ( cutoff < 1. ) {
+        Error e("Fourier cutoff is too small: set it >=1");
+    }
 
-    // we also need the smallest non zero vector norm
-    minDistance = a1.norm(); // this is a first guess
+    // distDim is the size of the
+    long distDim = 1;
+    distDim *= ((searchSize0 + 1)*2 + 1);
+    distDim *= ((searchSize1 + 1)*2 + 1);
+    distDim *= ((searchSize2 + 1)*2 + 1);
 
-    // build the list of positions within the cutoff sphere
-    long numVec_ = 1;
-    for (long i0 = -N0; i0 <= N0; i0++) {
-        for (long i1 = -N1; i1 <= N1; i1++) {
-            for (long i2 = -N2; i2 <= N2; i2++) {
-                Eigen::Vector3d thisVec = i0 * a1 + i1 * a2 + i2 * a3;
-                double thisNorm = thisVec.norm();
-                if ((thisNorm > epsilon8) && (thisNorm < cutoff)) {
-                    tmpVectors.col(numVec_) = thisVec;
-                    numVec_ += 1;
-                    if (thisNorm < minDistance) {
-                        minDistance = thisNorm;
+    std::vector<Eigen::Vector3d> tmpVectors;
+    std::vector<double> tmpDegeneracies;
+    long tmpNumPoints = 0;
+
+    // what are we doing:
+    // the "n" specifies a grid of lattice vectors, that are (2*(cutoff+1)+1)^3
+    // times bigger than the grid of wavevectors. a grid of lattice vectors
+    // equal to the grid of wavevectors would be the bare minimum for the
+    // interpolation to work, and wouldn't be enough for anything good.
+
+    // now, we loop over the vectors of supercell A.
+    for (long n0 = -searchSize0 * grid(0); n0 <= searchSize0 * grid(0); n0++) {
+        for (long n1 = -searchSize1 * grid(1); n1 <= searchSize1 * grid(1);
+                n1++) {
+            for (long n2 = -searchSize2 * grid(2); n2 <= searchSize2 * grid(2);
+                    n2++) {
+
+                // loop over a supercell B of size ((searchSize+1)*2+1)^3
+                // bigger than supercell A. We compute the distance between any
+                // vector in supercell B w.r.t. the vector "n"
+
+                std::vector<double> distances;
+                for (long i0 = -searchSize0 - 1; i0 <= searchSize0 + 1; i0++) {
+                    for (long i1 = -searchSize1 - 1; i1 <= searchSize1 + 1;
+                            i1++) {
+                        for (long i2 = -searchSize2 - 1; i2 <= searchSize2 + 1;
+                                i2++) {
+                            Eigen::Vector3d dist;
+                            dist(0) = n0 - i0 * grid(0);
+                            dist(1) = n1 - i1 * grid(1);
+                            dist(2) = n2 - i2 * grid(2);
+                            // distances in cartesian space
+                            dist = dist.transpose() * directUnitCell;
+                            double dist2 = dist.norm();
+                            distances.push_back(dist2);
+                        }
                     }
+                }
+
+                // find the minimum distance out of all distances
+                double distMin = distances[0];
+                for ( auto dist : distances ) {
+                    if ( dist < distMin ) {
+                        distMin = dist;
+                    }
+                }
+
+                // the point at distDim/2 is the reference "n" vector
+                // i.e. the one generated by i0=i1=i2=0
+                // if it's the minimum vector, than it's in the
+                // Wigner Seitz zone of supercell A.
+                // Therefore we save this vector.
+                if ( abs(distances[distDim/2] - distMin) < 1.0e-6 ) {
+                    tmpNumPoints += 1;
+
+                    // count its degeneracy
+                    double degeneracy = 0.;
+                    for ( long i=0; i<distDim; i++ ) {
+                        if ( abs(distances[i] - distMin) < 1.0e-6 ) {
+                            degeneracy += 1.;
+                        }
+                    }
+                    tmpDegeneracies.push_back(degeneracy);
+
+                    Eigen::Vector3d thisVec;
+                    thisVec << n0,n1,n2;
+                    tmpVectors.push_back(thisVec);
                 }
             }
         }
     }
 
-    if (numDataPoints >= numVec_) {
-        Error e("The number of interpolating coefficients is smaller than data"
-                " points: increase Fourier cutoff");
-    }
-
-    // this is wrong: only one symmetry recognized
-//	std::cout << "Symm mats\n";
-//	std::cout << crystal.getSymmetryMatrices().size() << "\n";
-//	std::cout << crystal.getSymmetryMatrices()[0] << "\n";
-//	std::cout << crystal.getSymmetryMatrices()[1] << "\n";
-//	std::cout << crystal.getSymmetryMatrices()[2] << "\n";
-//	std::cout << crystal.getSymmetryMatrices()[3] << "\n";
-//	std::cout << crystal.getSymmetryMatrices()[4] << "\n";
-
-//	 deactivate symmetries for debugging
-    Eigen::Matrix3d symmMatrix;
-    symmMatrix.setZero();
-    symmMatrix(0, 0) = 1.;
-    symmMatrix(1, 1) = 1.;
-    symmMatrix(2, 2) = 1.;
-
-//	auto crystSymmMatrices = crystal.getSymmetryMatrices();
-//	std::vector<Eigen::Matrix3d> symmMatrices;
-//	for ( auto s : crystSymmMatrices ) {
-//		Eigen::Matrix3d s2;
-//		s2 = directUnitCell * s;
-//		s2 = s2 * directUnitCell.inverse();
-//		symmMatrices.push_back(s2);
-//	}
-//	numpy.dot(numpy.dot(a,sCryst),aInv)
-
-    // now we build the list of irreducible vectors
-    for (long iR = 1; iR < numVec_; iR++) { // skip first vec!
-        Eigen::Vector3d vec = tmpVectors.col(iR);
-        if (!isDegenerate[iR]) { // then we look for reducible points
-            for (long iR2 = iR + 1; iR2 < numVec_; iR2++) {
-                if (!isDegenerate[iR2]) {
-//					for ( auto symmMatrix : crystal.getSymmetryMatrices() ) {
-                    Eigen::Vector3d rotVec = symmMatrix * tmpVectors.col(iR2);
-                    if ((rotVec - vec).norm() < 1.0e-6) {
-                        isDegenerate[iR2] = true;
-                        tmpDegeneracies(iR) += 1;
-                    }
-//					}
-                }
-            }
+    // now we store the list of these lattice vectors in the class members
+    numPositionVectors = tmpNumPoints;
+    positionDegeneracies = Eigen::VectorXd::Zero(numPositionVectors);
+    positionVectors = Eigen::MatrixXd::Zero(3, numPositionVectors);
+    long originIndex = 0; // to look for R=0 vector
+    for (long iR = 0; iR < numPositionVectors; iR++) {
+        auto thisVec = tmpVectors[iR];
+        // we convert from crystal to cartesian coordinates
+        positionVectors.col(iR) =
+                thisVec.transpose() * directUnitCell;
+        positionDegeneracies(iR) = tmpDegeneracies[iR];
+        //
+        if ( thisVec.norm() < 1.0e-6 ) {
+            originIndex = iR;
         }
     }
 
-    numPositionVectors = 0;
-    for (long iR = 0; iR < numVec_; iR++) {
-        if (!isDegenerate[iR]) {
-            numPositionVectors += 1;
+    // It's essential we keep the origin vectors at the index iR = 0
+    // so we swap it. The other vectors don't need to be in any order.
+    double tmp1 = positionDegeneracies(originIndex);
+    double tmp2 = positionDegeneracies(0);
+    positionDegeneracies(0) = tmp1;
+    positionDegeneracies(originIndex) = tmp2;
+    Eigen::Vector3d tmpv1 = positionVectors.col(originIndex);
+    Eigen::Vector3d tmpv2 = positionVectors.col(0);
+    positionVectors.col(0) = tmpv1;
+    positionVectors.col(originIndex) = tmpv2;
+
+    // the interpolation schemes also requires to know the minimum norm
+    // of the lattice vectors
+    minDistance = directUnitCell.row(0).norm(); // this is a first guess
+    for (long iR = 1; iR < numPositionVectors; iR++) { // exclude 0 vector!
+        double thisNorm = positionVectors.col(iR).norm();
+        if (thisNorm < minDistance) {
+            minDistance = thisNorm;
         }
     }
-
-    Eigen::VectorXd positionDegeneracies_(numPositionVectors);
-    Eigen::MatrixXd positionVectors_(3, numPositionVectors);
-
-    long counter = 0;
-    for (long iR = 0; iR < numVec_; iR++) {
-        if (!isDegenerate[iR]) { // then we look for reducible points
-            positionVectors_.col(counter) = tmpVectors.col(iR);
-            positionDegeneracies_(counter) = tmpDegeneracies(iR);
-            counter += 1;
-        }
-    }
-
-    positionVectors = positionVectors_;
-    positionDegeneracies = positionDegeneracies_;
 }
 
 Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
