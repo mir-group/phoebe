@@ -282,6 +282,10 @@ Point PathPoints::getPoint(const long &index) {
     return Point(*this, index);
 }
 
+Points ActivePoints::getParentPoints() {
+    return parentPoints;
+}
+
 // getPointCoords is the tool to find the coordinates of a point
 
 Eigen::Vector3d Points::getPointCoords(const long &index, const int &basis) {
@@ -600,7 +604,7 @@ void IrreduciblePoints::setIrreduciblePoints() {
             // check both k and -k
             for (auto symm : symms) {
                 auto s = symm.rotation;
-                auto t = symm.translation;
+//                auto t = symm.translation;
 
                 thisPoint = reduciblePoints(ik);
                 rotatedPoint = s * thisPoint;

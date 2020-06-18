@@ -67,11 +67,15 @@ Point ActiveBandStructure::getPoint(const long &pointIndex) {
     return activePoints.getPoint(pointIndex);
 }
 
-long ActiveBandStructure::getNumPoints() {
+long ActiveBandStructure::getNumPoints(const bool &useFullGrid) {
     if (!hasPoints()) {
         Error e("ActiveBandStructure hasn't been populated yet");
     }
-    return numPoints;
+    if ( useFullGrid ) {
+        return activePoints.getParentPoints().getNumPoints();
+    } else { // default
+        return numPoints;
+    }
 }
 
 long ActiveBandStructure::getNumBands() {

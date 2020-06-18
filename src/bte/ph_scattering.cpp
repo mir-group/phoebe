@@ -137,6 +137,9 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
 
     long outerNumPoints = outerBandStructure.getNumPoints();
     long innerNumPoints = innerBandStructure.getNumPoints();
+    //note: innerNumFullPoints is the number of points in the full grid
+    // may be larger than innerNumPoints, when we use ActiveBandStructure
+    long innerNumFullPoints = innerBandStructure.getNumPoints(true);
 
     // precompute Bose populations
     VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
@@ -338,7 +341,7 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
                             }
                             termIso += std::norm(zzIso) * massVariance(iat);
                         }
-                        termIso *= pi * 0.5 / innerNumPoints * en1 * en2
+                        termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2
                                 * deltaIso;
 
                         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
@@ -420,7 +423,7 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
                             ratePlus = pi * 0.25 * bose1 * bose2
                                     * (bose3Plus + 1.)
                                     * couplingPlus(ib1, ib2, ib3) * deltaPlus
-                                    / innerNumPoints / enProd;
+                                    / innerNumFullPoints / enProd;
 
                             switch (switchCase) {
                             case (0):
@@ -497,10 +500,10 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
                             //Calculatate transition probability W-
                             rateMins1 = pi * 0.25 * bose3Mins * bose1
                                     * (bose2 + 1.) * couplingMins(ib1, ib2, ib3)
-                                    * deltaMins1 / innerNumPoints / enProd;
+                                    * deltaMins1 / innerNumFullPoints / enProd;
                             rateMins2 = pi * 0.25 * bose2 * bose3Mins
                                     * (bose1 + 1.) * couplingMins(ib1, ib2, ib3)
-                                    * deltaMins2 / innerNumPoints / enProd;
+                                    * deltaMins2 / innerNumFullPoints / enProd;
 
                             switch (switchCase) {
                             case (0):

@@ -23,7 +23,7 @@ public:
     // in the ActivePoints object (from 0 to numActivePoints)
     Point getPoint(const long &pointIndex);
     // returns the number of active points
-    long getNumPoints();
+    long getNumPoints(const bool &useFullGrid=false);
     long getNumBands(); // this only works in FullBandStructure
     long hasWindow();
 

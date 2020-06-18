@@ -19,7 +19,8 @@ Point BaseBandStructure::getPoint(const long &pointIndex) {
     (void) pointIndex;
 }
 
-long BaseBandStructure::getNumPoints() {
+long BaseBandStructure::getNumPoints(const bool &useFullGrid) {
+    (void) useFullGrid;
     Error e("BaseBandStructure method not implemented");
     return 0;
 }
@@ -181,7 +182,8 @@ Point FullBandStructure::getPoint(const long &pointIndex) {
     return points.getPoint(pointIndex);
 }
 
-long FullBandStructure::getNumPoints() {
+long FullBandStructure::getNumPoints(const bool & useFullGrid) {
+    (void) useFullGrid;
     return points.getNumPoints();
 }
 

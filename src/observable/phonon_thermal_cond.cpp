@@ -44,7 +44,7 @@ void PhononThermalConductivity::calcFromCanonicalPopulation(VectorBTE &f) {
 }
 
 void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
-    double norm = 1. / bandStructure.getNumPoints()
+    double norm = 1. / bandStructure.getNumPoints(true)
             / crystal.getVolumeUnitCell(dimensionality);
 
     tensordxd.setZero();
@@ -82,7 +82,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
         VectorBTE &scalingCG) {
-    double norm = 1. / bandStructure.getNumPoints()
+    double norm = 1. / bandStructure.getNumPoints(true)
             / crystal.getVolumeUnitCell(dimensionality);
 
     auto fUnscaled = f;

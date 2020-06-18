@@ -30,9 +30,12 @@ public:
     virtual Point getPoint(const long &pointIndex);
 
     /** Returns the total number of k/q-points.
+     * @param useFullGrid: default = false. If true, returns the number of
+     * points of the full monkhorst-pack grid of wavevectors, otherwise,
+     * returns the number of wavevectors stored in the BandStructure.
      * @return numPoints: the total number of wavevectors of the bandStructure.
      */
-    virtual long getNumPoints();
+    virtual long getNumPoints(const bool &useFullGrid=false);
 
     /** Returns the number of bands.
      * @return numPoints: the total number of wavevectors of the bandStructure.
@@ -185,9 +188,11 @@ public:
     Point getPoint(const long &pointIndex);
 
     /** Returns the total number of k/q-points.
+     * @param useFullGrid: used for compatibility with the ActiveBandStructure,
+     * it doesn't affect the returned value.
      * @return numPoints: the total number of wavevectors of the bandStructure.
      */
-    long getNumPoints();
+    long getNumPoints(const bool &useFullGrid=false);
 
     /** Returns the number of bands.
      * @return numPoints: the total number of wavevectors of the bandStructure.

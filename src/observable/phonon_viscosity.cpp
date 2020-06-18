@@ -27,7 +27,7 @@ PhononViscosity& PhononViscosity::operator =(const PhononViscosity &that) {
 }
 
 void PhononViscosity::calcRTA(VectorBTE &tau) {
-    double norm = 1. / bandStructure.getNumPoints()
+    double norm = 1. / bandStructure.getNumPoints(true)
             / crystal.getVolumeUnitCell(dimensionality);
 
     auto particle = bandStructure.getParticle();
@@ -84,7 +84,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
     firstState += relTimes.excludeIndeces.size();
 
     double volume = crystal.getVolumeUnitCell(dimensionality);
-    double numPoints = double(bandStructure.getNumPoints());
+    double numPoints = double(bandStructure.getNumPoints(true));
     long numStates = bandStructure.getNumStates();
     auto particle = bandStructure.getParticle();
 
@@ -107,7 +107,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
             A(idim) += bosep1 * q(idim) * q(idim);
         }
     }
-    A /= temp * bandStructure.getNumPoints() * volume;
+    A /= temp * numPoints * volume;
 
     Eigen::MatrixXd driftEigenvector(3, numStates);
     driftEigenvector.setZero();
@@ -123,7 +123,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 
     Eigen::MatrixXd D(3, 3);
     D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
-    D /= volume * bandStructure.getNumPoints();
+    D /= volume * numPoints;
 
     Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
     tmpDriftEigvecs.setZero();

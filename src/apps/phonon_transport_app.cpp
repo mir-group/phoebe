@@ -251,7 +251,7 @@ void PhononTransportApp::run(Context &context) {
 
             double norm = 1.
                     / crystal.getVolumeUnitCell(context.getDimensionality())
-                    / bandStructure.getNumPoints();
+                    / bandStructure.getNumPoints(true);
 
             auto [imu,it,idim] = relaxonV.loc2Glob(iCalc);
             int idimIndex = idim.get();

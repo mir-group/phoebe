@@ -286,6 +286,10 @@ public:
      */
     Point getPoint(const long &index);
 
+    /** Returns the Points object from which the ActivePoints have been built.
+     */
+    Points getParentPoints();
+
     /** Get the coordinates of a wavevector from its index.
      * @param index: the index of the desired wavevector.
      * @param basis: specify the basis to be used for the output coordinates.

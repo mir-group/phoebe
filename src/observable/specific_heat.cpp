@@ -23,7 +23,7 @@ SpecificHeat& SpecificHeat::operator =(const SpecificHeat &that) {
 }
 
 void SpecificHeat::calc() {
-    double norm = 1. / bandStructure.getNumPoints()
+    double norm = 1. / bandStructure.getNumPoints(true)
             / crystal.getVolumeUnitCell(dimensionality);
     scalar.setZero();
     auto particle = bandStructure.getParticle();

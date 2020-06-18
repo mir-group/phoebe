@@ -330,7 +330,7 @@ std::tuple<VectorBTE, Eigen::MatrixXd> ScatteringMatrix::diagonalize() {
     double volume =
             outerBandStructure.getPoints().getCrystal().getVolumeUnitCell(
                     context.getDimensionality());
-    eigenvectors *= sqrt(numPoints * volume);
+    eigenvectors *= sqrt(innerBandStructure.getNumPoints(true) * volume);
 
     return {eigvals, eigenvectors};
 }
