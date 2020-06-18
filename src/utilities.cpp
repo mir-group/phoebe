@@ -43,3 +43,5 @@ std::tuple<long, long> decompress2Indeces(const long &iTot, const long &size1,
     long i2 = iTot - i1 * size2;
     return {i1,i2};
 }
+
+

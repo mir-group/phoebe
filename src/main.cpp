@@ -1,18 +1,27 @@
 #include "app.h"
 #include "context.h"
 #include "io.h"
+#include "mpi/mpiHelper.h"
 
 int main(int argc, char **argv) {
 
     // here launch parallel environment
+    // Call proxy function from MPI Helper, which makes mpi object
+    // globally available.
+    initMPI();
 
     // setup input/output
-
     IO io(argc, argv);
-    io.welcome();
+    if (mpi->mpiHead()) {
+        io.welcome();
+    }
+
+    // Print parallelization info
+    if (mpi->mpiHead()) {
+        parallelInfo();
+    }
 
     // Read user input file
-
     Context context; // instantiate class container of the user input
     context.setupFromInput(io.getInputFileName()); // read the user input
 
@@ -24,12 +33,15 @@ int main(int argc, char **argv) {
 
     // launch it
     app->run(context);
-
     // exiting program
-
-    io.goodbye();
+    if (mpi->mpiHead()) {
+        io.goodbye();
+    }
 
     // here close parallel environment
+    // make sure all processes finish before printing end info
+    mpi->barrier();
+    mpi->finalize();
 
     return (0);
 }
