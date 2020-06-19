@@ -1,10 +1,10 @@
 #ifndef PHSCATTERING_H
 #define PHSCATTERING_H
 
-#include "scattering.h"
-#include "vector_bte.h"
 #include "interaction_3ph.h"
 #include "phonon_h0.h"
+#include "scattering.h"
+#include "vector_bte.h"
 
 class PhScatteringMatrix: public ScatteringMatrix {
 public:

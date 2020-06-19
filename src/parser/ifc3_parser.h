@@ -1,6 +1,6 @@
+#include "interaction_3ph.h"
 #include "context.h"
 #include "crystal.h"
-#include "interaction_3ph.h"
 
 /** Class for the parsing of the 3rd derivative of the total energy with
  * respect to ionic displacements, and the creation of a dedicated object.
