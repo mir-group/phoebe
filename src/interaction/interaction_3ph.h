@@ -55,6 +55,10 @@ private:
   typedef std::chrono::steady_clock::duration time_delta;
 
   std::vector<time_delta> dts;
+  double tosec(time_delta dt) {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(dt).count() /
+           1e9;
+  };
 
 public:
   Interaction3Ph(
@@ -69,6 +73,21 @@ public:
   template <typename A, typename B, typename C>
   std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
   getCouplingSquared(A &state1, B &state2, C &state3Plus, C &state3Mins);
+
+  ~Interaction3Ph() {
+    std::cout << "calcCouplingSquared timing breakdown:"
+              << "\n";
+    std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
+    std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
+    std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
+    std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
+    std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
+    std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
+    std::cout << "vp loop: " << tosec(dts[6]) << "\n";
+    std::cout << "vm loop: " << tosec(dts[7]) << "\n";
+    std::cout << "cp loop: " << tosec(dts[8]) << "\n";
+    std::cout << "cm loop: " << tosec(dts[9]) << "\n";
+  }
 
   /**
    * Calculate single three-phonon matrix element (V^{+}/V^{-1}).
@@ -114,17 +133,18 @@ public:
   // tetra);
 };
 
+// template <typename A, typename B, typename C>
+// std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
+// Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
+//                                    C &state3Mins) {
+//   return calcCouplingSquared(state1, state2, state3Plus, state3Mins);
+// }
+//
+
 template <typename A, typename B, typename C>
 std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
 Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
                                    C &state3Mins) {
-  return calcCouplingSquared(state1, state2, state3Plus, state3Mins);
-}
-
-template <typename A, typename B, typename C>
-std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
-Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
-                                    C &state3Mins) {
 
   Eigen::Vector3d cell2Pos, cell3Pos;
 
@@ -164,10 +184,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   state3Mins.getEigenvectors(ev3Mins);
 
   time_point t0, t1;
-  auto tosec = [](auto dt) {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(dt).count() /
-           1e9;
-  };
 
   if (state2.getCoords(Points::cartesianCoords) != cachedCoords) {
     cachedCoords = state2.getCoords(Points::cartesianCoords);
@@ -190,7 +206,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
         });
     t1 = std::chrono::steady_clock::now();
     dts[0] += t1 - t0;
-    std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
     // std::cout << phasePlus(5, 8) << ", " << phaseMins(5, 8) << "\n";
 
     t0 = std::chrono::steady_clock::now();
@@ -213,7 +228,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
         });
     t1 = std::chrono::steady_clock::now();
     dts[1] += t1 - t0;
-    std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
   }
 
   //  std::cout << D3PlusCached_k(1, 1, 1, 1) << ", " << D3MinsCached_k(1, 1, 1,
@@ -235,7 +249,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[2] += t1 - t0;
-  std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
 
   // As a convention, the first primitive cell in the triplet is
   // restricted to the origin, so the phase for that cell is unity.
@@ -278,7 +291,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   }
   t1 = std::chrono::steady_clock::now();
   dts[3] += t1 - t0;
-  std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
 
   // now we want to multiply
   // vPlus(ib1,ib2,ib3) = tmpPlus(iac1,iac2,iac3) * ev1(iac1,ib1)
@@ -313,7 +325,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[4] += t1 - t0;
-  std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
   // Eigen::Tensor<std::complex<double>, 3> tmp2Plus(nb1, nb2, numBands);
   // Eigen::Tensor<std::complex<double>, 3> tmp2Mins(nb1, nb2, numBands);
   // tmp2Plus.setZero();
@@ -335,7 +346,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[5] += t1 - t0;
-  std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
 
   Kokkos::View<Kokkos::complex<double> ***> vPlus("vp", nb1, nb2, nb3Plus),
       vMins("vm", nb1, nb2, nb3Mins);
@@ -353,7 +363,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[6] += t1 - t0;
-  std::cout << "vp loop: " << tosec(dts[6]) << "\n";
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
@@ -367,7 +376,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[7] += t1 - t0;
-  std::cout << "vm loop: " << tosec(dts[7]) << "\n";
 
   Eigen::Tensor<double, 3> couplingPlus(nb1, nb2, nb3Plus);
   auto vPlus_h = Kokkos::create_mirror_view(vPlus);
@@ -384,7 +392,6 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   }
   t1 = std::chrono::steady_clock::now();
   dts[8] += t1 - t0;
-  std::cout << "cp loop: " << tosec(dts[8]) << "\n";
 
   // case -
   Eigen::Tensor<double, 3> couplingMins(nb1, nb2, nb3Mins);
@@ -399,10 +406,10 @@ Interaction3Ph::calcCouplingSquared(A &state1, B &state2, C &state3Plus,
   }
   t1 = std::chrono::steady_clock::now();
   dts[9] += t1 - t0;
-  std::cout << "cm loop: " << tosec(dts[9]) << "\n";
   return {couplingPlus, couplingMins};
 }
 
+/*
 template <typename A, typename B, typename C>
 std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
 Interaction3Ph::slowestCalcCouplingSquared(A &state1, B &state2, C &state3Plus,
@@ -521,5 +528,6 @@ Interaction3Ph::slowestCalcCouplingSquared(A &state1, B &state2, C &state3Plus,
   }
   return {couplingPlus, couplingMins};
 }
+*/
 
 #endif
