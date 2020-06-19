@@ -1,14 +1,18 @@
 appName = "phononTransport"
 
-phD2FileName = "espresso.ifc2",
+phD2FileName = "espresso.ifc2"
 sumRuleD2 = "simple"
 phD3FileName = "ShengBTEForceConstants3rd"
 
 qMesh = [4,4,4]
-temperatures = [300.]
+temperatures = [30.]
 
-smearingMethod = "adaptiveGaussian"
+smearingMethod = "gaussian"
 smearingWidth = 10. cmm1
 
 solverBTE = ["variational","relaxons"]
 scatteringMatrixInMemory = true
+
+boundaryLength = 0.01 mum
+
+windowType = "population"

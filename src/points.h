@@ -10,286 +10,350 @@ const int cartesianCoords_ = 1;
 
 //// Forward declarator of Points, because Point ants to store Points as member
 //// and Points has methods returning Point. Here we avoid recursive dependency.
-//class Points;
+class Points;
 
 /** Class used to pass a single wavevector
- *
  */
-template<typename T>
 class Point {
 public:
-	/** Constructor
-	 * @param crystalCoords: crystal coordinates of the point
-	 * @param crystalCoordsWS: crystal coordinates of the point folded in the
-	 * Wigner Seitz cell
-	 * @param reciprocalUnitCell: a 3x3 matrix with lattice vector in rec space
-	 */
-	Point(long index_, Eigen::Vector3d umklappVector, T & points_);
+    /** Constructor
+     * @param index: integer index of the wavevector in the Points object.
+     * @param umklappVector: the crystal coordinates of a possible Umklapp
+     * vector, used for example in sum or differences between wavevectors.
+     * @param points: the points object that this Point object belongs to.
+     */
+    Point(Points &points_, long index_,
+            Eigen::Vector3d umklappVector = Eigen::Vector3d::Zero());
 
-	// copy constructor
-	Point( const Point & that );
-	// copy assignment
-	Point & operator = ( const Point & that );
-	~Point();
+    /** copy constructor
+     */
+    Point(const Point &that);
 
-	/** Get the coordinates of the k-point
-	 * @param basis: either "cartesian" or "crystal"
-	 * @param inWignerSeitz: default false, if true, folds point in WS cell.
-	 * @return coords: a 3d vector of coordinates
-	 */
-	Eigen::Vector3d getCoords(const int & basis=crystalCoords_,
-			const bool & inWignerSeitz=false);
+    /** copy assignment operator
+     */
+    Point& operator =(const Point &that);
 
-	/** Get the weight of the k-point (used for integrations over the BZ.
-	 * @return weight: a double.
-	 */
-	double getWeight();
+    /** Get the coordinates of the k-point
+     * @param basis: either "cartesian" or "crystal"
+     * @param inWignerSeitz: default false, if true, folds point in WS cell.
+     * @return coords: a 3d vector of coordinates
+     */
+    Eigen::Vector3d getCoords(const int &basis = crystalCoords_,
+            const bool &inWignerSeitz = false);
 
-    Point operator + (Point & b);
-    Point operator - (Point & b);
+    /** Get the weight of the k-point (used for integrations over the BZ.
+     * @return weight: a double.
+     */
+    double getWeight();
 
+    /** Sum of two wavevectors (this + b)
+     * The vector is folded in the Wigner Seitz zone with an Umklapp vector.
+     */
+    Point operator +(Point &b);
+
+    /** Difference of two wavevectors (this-b).
+     * The vector is folded in the Wigner Seitz zone with an Umklapp vector.
+     */
+    Point operator -(Point &b);
+
+    /** checks whether the Point has been constructed with an Umklapp vector
+     */
     bool hasUmklapp();
 
+    /** Get the index of the wavevector in the referenced Points object.
+     */
     long getIndex();
 private:
-	Eigen::Vector3d umklappVector;
-	long index;
-	T & points;
+    Eigen::Vector3d umklappVector;
+    long index;
+    Points &points;
 };
 
+/** Base class for storing wavevectors in the Brillouin zone.
+ * The base class mostly refers to a uniform grid sampling the Brillouin zone.
+ * Different subclasses will specialize to different kinds of wavevector sets.
+ */
 class Points {
 public:
-	// constructors
-	Points(Crystal & crystal_, const Eigen::Vector3i & mesh_,
-			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
-	Points(const Points & obj); // copy constructor
-	Points & operator=(const Points & obj); // assignment operator
+    /** Default constructor.
+     * @param crystal: the crystal object that defines the Brillouin zone.
+     * @param mesh: grid size of the Monkhorst-pack.
+     * @param offset: the offset of the grid w.r.t. the Gamma point. Offset
+     * ranges in values from 0 to 1. 0.5 means half displacement of the grid.
+     */
+    Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
+            const Eigen::Vector3d &offset_ = Eigen::Vector3d::Zero());
 
-	// methods that mostly stay the same for all subclasses
-	std::tuple<Eigen::Vector3i, Eigen::Vector3d> getMesh();
-	long getNumPoints();
-	Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d & point);
-	Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d & point);
-	Eigen::Vector3d crystalToWS(const Eigen::Vector3d& pointCrystal,
-			const int & basis);
-	static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
-			const Eigen::Matrix<double,3,Eigen::Dynamic> & points);
-	Crystal & getCrystal();
+    /** Copy constructor
+     */
+    Points(const Points &obj);
 
-	// methods to be overwritten in subclasses
-	Point<Points> getPoint(const long & index);
-	Eigen::Vector3d getPointCoords(const long & index,
-			const int & basis=crystalCoords);
-	long getIndex(const Eigen::Vector3d & point);
-	double getWeight(const long & ik);
+    /** Copy assignment operator
+     */
+    Points& operator=(const Points &obj);
 
-	// note: constexpr tells the compiler that the class member is
-	// available at compilation time
-	static constexpr const int crystalCoords = 0;
-	static constexpr const int cartesianCoords = 1;
+    /** Returns the details of the Monkhorst-pack mesh of wavevectors.
+     * @return <grid, offset>: grid is the 3D integration mesh used for the
+     * Brillouin zone sampling, and the 3D offset of the grid w.r.t. the
+     * Gamma point (values of offset from 0 to 1).
+     */
+    std::tuple<Eigen::Vector3i, Eigen::Vector3d> getMesh();
+
+    /** Returns the number of wavevectors stored in the points class.
+     */
+    long getNumPoints();
+
+    /** Converts a wavevector from crystal to cartesian coordinates.
+     * @param point: the input wavevector in crystal coordinates.
+     * @return wavevector: the output wavevector in cartesian coordinates.
+     */
+    Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d &point);
+
+    /** Converts a wavevector from cartesian to crystal coordinates.
+     * @param point: the input wavevector in cartesian coordinates.
+     * @return wavevector: the output wavevector in crystal coordinates.
+     */
+    Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d &point);
+
+    /** Folds a wavevector in crystal coordinates to the Wigner Seitz zone.
+     * @param pointCrystal: the crystal coordinates of a wavevecto
+     * @param basis: basis (Points::cartesianCoordinates or
+     * Points::crystalCoordinates) in which to return the folded wavevector.
+     * @return wavevector: the wavevector coordinates folded in the WS zone.
+     */
+    Eigen::Vector3d crystalToWS(const Eigen::Vector3d &pointCrystal,
+            const int &basis);
+
+    /** Given a list of points, finds the monkhorst-pack mesh.
+     * @param points: a matrix (3,numPoints) of wavevectors in crystal
+     * coordinates.
+     * @return mesh,offset: the monkhorst-pack grid size and the offset w.r.t.
+     * the gamma point, that generates the input points list.
+     * Calls an error if the mesh doesn't correspond to a complete list.
+     */
+    static std::tuple<Eigen::Vector3i, Eigen::Vector3d> findMesh(
+            const Eigen::Matrix<double, 3, Eigen::Dynamic> &points);
+
+    /** Returns a reference to the crystal object on which the Points are
+     * defined.
+     */
+    Crystal& getCrystal();
+
+    /** Returns a Point object given its integer index.
+     * The Point object is used to move around the code the coordinates of the
+     * wavevector.
+     * @param index: the integer wavevector index ranging in [0,numPoints[
+     * @return point: a point object.
+     */
+    virtual Point getPoint(const long &index);
+
+    /** Get the coordinates of a wavevector from its index.
+     * @param index: the index of the desired wavevector.
+     * @param basis: specify the basis to be used for the output coordinates.
+     * Either Points::crystalCoords or Points::cartesianCoords.
+     * @return wavevector: the coordinates of the desired wavevector.
+     */
+    virtual Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+            crystalCoords);
+
+    /** Get the wavevector index given the crystal coordinates of a wavevector.
+     * @param point: the wavevector in crystal coordinates.
+     * @return index: the index of the wavevector in the range [0,numPoints[
+     */
+    virtual long getIndex(const Eigen::Vector3d &point);
+
+    /** Returns the value of the k-point weight, i.e. the weight that needs to
+     * be used in integrations of the Brillouin zone. Simply a constant if we
+     * are not using symmetries.
+     * @param ik: the index of the wavevector.
+     * @return weight: a weight, normalized to one over the full BZ integration
+     */
+    virtual double getWeight(const long &ik);
+
+    // note: constexpr tells the compiler that the class member is
+    // available at compilation time
+    static constexpr const int crystalCoords = 0;
+    static constexpr const int cartesianCoords = 1;
 protected:
-	void setMesh(const Eigen::Vector3i &mesh_,const Eigen::Vector3d & offset_);
-	Crystal & crystal;
-	Eigen::Vector3i mesh;
-	Eigen::Vector3d offset;
-	long numPoints = 0;
-	// for Wigner Seitz folding
-	Eigen::MatrixXd gVectors;
-	Eigen::MatrixXi igVectors;
+    void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);
+    Crystal &crystal;
+    Eigen::Vector3i mesh;
+    Eigen::Vector3d offset;
+    long numPoints = 0;
+    // for Wigner Seitz folding
+    Eigen::MatrixXd gVectors;
+    Eigen::MatrixXi igVectors;
 
-	// methods to be overwritten
-	Eigen::Vector3d reduciblePoints(const long & idx);
+    // methods to be overwritten
+    Eigen::Vector3d reduciblePoints(const long &idx);
 };
 
 class FullPoints: public Points {
 public:
-	FullPoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
-			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
-	FullPoints(const FullPoints & obj); // copy constructor
-	FullPoints & operator=(const FullPoints & obj); // assignment operator
+    /** Default constructor.
+     * @param crystal: the crystal object that defines the Brillouin zone.
+     * @param mesh: grid size of the Monkhorst-pack.
+     * @param offset: the offset of the grid w.r.t. the Gamma point. Offset
+     * ranges in values from 0 to 1. 0.5 means half displacement of the grid.
+     */
+    FullPoints(Crystal &crystal_, const Eigen::Vector3i &mesh_,
+            const Eigen::Vector3d &offset_ = Eigen::Vector3d::Zero());
 
-	Point<FullPoints> getPoint(const long & index);
-	long getIndexInverted(const long & ik);
+    /** Copy constructor
+     */
+    FullPoints(const FullPoints &obj); // copy constructor
+
+    /** Copy assignment operator
+     */
+    FullPoints& operator=(const FullPoints &obj); // assignment operator
+
+    /** Returns a Point object given its integer index.
+     * The Point object is used to move around the code the coordinates of the
+     * wavevector.
+     * @param index: the integer wavevector index ranging in [0,numPoints[
+     * @return point: a point object.
+     */
+    Point getPoint(const long &index);
 };
 
 class IrreduciblePoints: public Points {
 protected:
-	Eigen::VectorXi mapReducibleToIrreducible;
-	Eigen::VectorXi mapIrreducibleToReducible;
-	// points are internally stored in crystal coordinates
-	Eigen::MatrixXd irreduciblePoints;
-	Eigen::VectorXd irreducibleWeights;
-	Eigen::VectorXi indexIrreduciblePoints;
-	long numIrredPoints = 0;
+    Eigen::VectorXi mapReducibleToIrreducible;
+    Eigen::VectorXi mapIrreducibleToReducible;
+    // points are internally stored in crystal coordinates
+    Eigen::MatrixXd irreduciblePoints;
+    Eigen::VectorXd irreducibleWeights;
+    Eigen::VectorXi indexIrreduciblePoints;
+    long numIrredPoints = 0;
 
-	//	Eigen::Vector3d pointsCoords(const long & index);
-	void setIrreduciblePoints();
+    //	Eigen::Vector3d pointsCoords(const long & index);
+    void setIrreduciblePoints();
 public:
-	IrreduciblePoints(Crystal & crystal_, const Eigen::Vector3i & mesh_,
-			const Eigen::Vector3d & offset_=Eigen::Vector3d::Zero());
-	IrreduciblePoints(const IrreduciblePoints & obj); // copy constructor
-	IrreduciblePoints & operator=(const IrreduciblePoints & obj); // assignment
+    IrreduciblePoints(Crystal &crystal_, const Eigen::Vector3i &mesh_,
+            const Eigen::Vector3d &offset_ = Eigen::Vector3d::Zero());
+    IrreduciblePoints(const IrreduciblePoints &obj); // copy constructor
+    IrreduciblePoints& operator=(const IrreduciblePoints &obj); // assignment
 
-	long getIndex(const Eigen::Vector3d & point);
-	Eigen::VectorXi getIndexReducibleFromIrreducible(const long & indexIrr);
-	long getIndexIrreducibleFromReducible(const long & indexRed);
-	Point<IrreduciblePoints> getPoint(const long & index);
+    long getIndex(const Eigen::Vector3d &point);
+    Eigen::VectorXi getIndexReducibleFromIrreducible(const long &indexIrr);
+    long getIndexIrreducibleFromReducible(const long &indexRed);
+    Point getPoint(const long &index);
 
-	long getNumPoints();
-	double getWeight(const long & ik);
-	Eigen::Vector3d getPointCoords(const long & index,
-			const int & basis=crystalCoords);
+    long getNumPoints();
+    double getWeight(const long &ik);
+    Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+            crystalCoords);
 };
 
+/** Class for storing an "active" list of wavevectors, i.e. a selection of
+ * points taken from a monkhorst-pack grid of points.
+ */
 class ActivePoints: public Points {
 protected:
-	FullPoints & parentPoints;
-	Eigen::MatrixXd pointsList;
+    Points &parentPoints;
+    Eigen::MatrixXd pointsList;
 
-	VectorXl filteredToFullIndeces;
-	long fullToFilteredIndeces(const long & indexIn);
+    Eigen::VectorXi filteredToFullIndeces;
+    long fullToFilteredIndeces(const long &indexIn);
 public:
-	// constructors
-	ActivePoints(FullPoints & parentPoints_, VectorXl filter_);
-	ActivePoints(const ActivePoints & obj); // copy constructor
-	ActivePoints & operator=(const ActivePoints & obj); // assignment operator
+    /** Default constructor
+     * @param parentPoints: the "parent" Points object, from which we take a
+     * selection of points
+     * @param filter: a vector of integers of "filtered" points, i.e. the
+     * indices of the wavevectors in parentPoints that we want to keep.
+     */
+    ActivePoints(Points &parentPoints_, Eigen::VectorXi filter_);
 
-	long getIndex(const Eigen::Vector3d & coords);
-	Point<ActivePoints> getPoint(const long & index);
-	long getIndexInverted(const long & ik);
-	Eigen::Vector3d getPointCoords(const long & index,
-			const int & basis=crystalCoords);
+    /** Copy constructor
+     */
+    ActivePoints(const ActivePoints &obj);
+
+    /** Copy assignment operator
+     */
+    ActivePoints& operator=(const ActivePoints &obj);
+
+    /** Get the wavevector index given the crystal coordinates of a wavevector.
+     * @param point: the wavevector in crystal coordinates.
+     * @return index: the index of the wavevector in the range [0,numPoints[
+     */
+    long getIndex(const Eigen::Vector3d &coords);
+
+    /** Returns a Point object given its integer index.
+     * The Point object is used to move around the code the coordinates of the
+     * wavevector.
+     * @param index: the integer wavevector index ranging in [0,numPoints[
+     * @return point: a point object.
+     */
+    Point getPoint(const long &index);
+
+    /** Returns the Points object from which the ActivePoints have been built.
+     */
+    Points getParentPoints();
+
+    /** Get the coordinates of a wavevector from its index.
+     * @param index: the index of the desired wavevector.
+     * @param basis: specify the basis to be used for the output coordinates.
+     * Either Points::crystalCoords or Points::cartesianCoords.
+     * @return wavevector: the coordinates of the desired wavevector.
+     */
+    Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+            crystalCoords);
 };
 
+/** Class for storing wavevectors along a path of the Brillouin zone.
+ */
 class PathPoints: public FullPoints {
 public:
-	PathPoints(Crystal & crystal_,
-			const Eigen::Tensor<double,3> & pathExtrema,
-			const double & delta);
-	PathPoints(const PathPoints & obj); // copy constructor
-	PathPoints & operator=(const PathPoints & obj); // assignment operator
+    /** Default constructor.
+     * @param crystal: the crystal object that defines the Brillouin zone.
+     * @param pathExtrema: extrema of segments defining a path of points.
+     * PathExtrema has size (numSegments, 2, 3), where the first index spans
+     * the segments of the path, 2 is the beginning and the last element of the
+     * segment, and 3 is the cartesian coordinates of the extrema.
+     * Point coordinates must be in crystal coordinates.
+     * Example: if we want a path G->X->L, we have: 2 segments: G->X and X->L
+     * pathExtrema(0,0,:) = G.coords
+     * pathExtrema(0,1,:) = X.coords
+     * pathExtrema(1,0,:) = X.coords
+     * pathExtrema(1,1,:) = L.coords
+     * @param delta: segments are populated with points, with a distance
+     * "delta" between different points in crystal coordinates.
+     */
+    PathPoints(Crystal &crystal_, const Eigen::Tensor<double, 3> &pathExtrema,
+            const double &delta);
 
-	Point<PathPoints> getPoint(const long & index);
-	long getIndex(const Eigen::Vector3d & coords);
-	long getIndexInverted(const long & ik);
-	Eigen::Vector3d getPointCoords(const long & index,
-			const int & basis=crystalCoords);
+    /** Copy constructor
+     */
+    PathPoints(const PathPoints &obj);
+
+    /** Copy assignment operator
+     */
+    PathPoints& operator=(const PathPoints &obj);
+
+    /** Returns a Point object given its integer index.
+     * The Point object is used to move around the code the coordinates of the
+     * wavevector.
+     * @param index: the integer wavevector index ranging in [0,numPoints[
+     * @return point: a point object.
+     */
+    Point getPoint(const long &index);
+
+    /** Get the wavevector index given the crystal coordinates of a wavevector.
+     * @param point: the wavevector in crystal coordinates.
+     * @return index: the index of the wavevector in the range [0,numPoints[
+     */
+    long getIndex(const Eigen::Vector3d &coords);
+
+    /** Get the coordinates of a wavevector from its index.
+     * @param index: the index of the desired wavevector.
+     * @param basis: specify the basis to be used for the output coordinates.
+     * Either Points::crystalCoords or Points::cartesianCoords.
+     * @return wavevector: the coordinates of the desired wavevector.
+     */
+    Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+            crystalCoords);
 protected:
-	Eigen::Matrix<double,3,Eigen::Dynamic> pointsList;
+    Eigen::Matrix<double, 3, Eigen::Dynamic> pointsList;
 };
-
-template<typename T>
-Point<T>::Point(long index_, Eigen::Vector3d umklappVector_, T & points_)
-		: points(points_) {
-	umklappVector = umklappVector_;
-	index = index_;
-}
-
-// copy constructor
-template<typename T>
-Point<T>::Point( const Point<T> & that ) : umklappVector(that.umklappVector),
-		index(that.index), points(that.points) {
-}
-
-// copy assignment
-template<typename T>
-Point<T> & Point<T>::operator = ( const Point<T> & that ) {
-	if ( this != &that ) {
-		umklappVector = that.umklappVector;
-		index = that.index;
-		points = that.points;
-	}
-	return *this;
-}
-
-template<typename T>
-Point<T>::~Point() {
-}
-
-template<typename T>
-long Point<T>::getIndex() {
-	return index;
-}
-
-//std::enable_if< std::is_base_of<Eigen::Vector3d,T>::value > >
-//typename std::enable_if<std::is_same<T,Eigen::Vector3d>>>
-//template<class Eigen::Vector3d>
-//Eigen::Vector3d Point<Eigen::Vector3d>::getCoords(const std::string & basis,
-//		const bool & inWignerSeitz) {
-//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-//	}
-//	return points;
-//}
-
-//template<>
-//Eigen::Vector3d Point<Eigen::Matrix<double, 3, 1, 0, 3, 1>>::getCoords(const std::string & basis,
-//		const bool & inWignerSeitz) {
-//	if ( ( basis != "cartesian" ) || inWignerSeitz ) {
-//		Error e("Specialization Eigen::Vector3d doesn't have functionalities");
-//	}
-//	return points;
-//}
-
-template<typename T>
-Eigen::Vector3d Point<T>::getCoords(const int & basis,
-		const bool & inWignerSeitz) {
-	if ( ( basis != crystalCoords_ ) && ( basis != cartesianCoords_ ) ) {
-		Error e("Point getCoordinates: basis must be crystal or cartesian");
-	}
-	Eigen::Vector3d coords;
-	if ( not inWignerSeitz ) {
-		Eigen::Vector3d crysCoords = points.getPointCoords(index,
-				crystalCoords_);
-		coords = points.crystalToWS(crysCoords, basis);
-	} else {
-		coords = points.getPointCoords(index, basis);
-	}
-	return coords;
-}
-
-
-template<typename T>
-double Point<T>::getWeight() {
-	return points.getWeight(index);
-}
-
-//template<>
-//double Point<Eigen::Vector3d>::getWeight() {
-//	return 1.;
-//}
-
-template<typename T>
-bool Point<T>::hasUmklapp() {
-	if ( umklappVector.dot(umklappVector) < 1.0e-12 ) {
-		return false;
-	} else {
-		return true;
-	}
-}
-
-template<typename T>
-Point<T> Point<T>::operator + (Point & b) {
-	if ( &b.points != &points ) {
-		Error e("Points sum should refer to points of the same mesh");
-	}
-	Eigen::Vector3d coords = getCoords() + b.getCoords();
-	long ik = points.getIndex(coords);
-	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-	Point p(ik, umklappVector, points);
-    return p;
-}
-
-template<typename T>
-Point<T> Point<T>::operator - (Point & b) {
-	if ( &b.points != &points ) {
-		Error e("Points sum should refer to points of the same mesh");
-	}
-	Eigen::Vector3d coords = getCoords() - b.getCoords();
-	long ik = points.getIndex(coords);
-	Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-	Point p(ik, umklappVector, points);
-    return p;
-}
 
 #endif

@@ -16,7 +16,6 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   QEParser qeParser;
   auto [crystal, phononH0] = qeParser.parsePhHarmonic(context);
-  phononH0.setAcousticSumRule("simple");
 
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();
@@ -31,7 +30,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   bool withVelocities = true;
   bool withEigenvectors = true;
-  FullBandStructure<FullPoints> bandStructure =
+  FullBandStructure bandStructure =
       phononH0.populate(points, withVelocities, withEigenvectors);
 
   long ik = 7;
@@ -60,11 +59,10 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   ASSERT_EQ(c1, complexZero);
 
   std::complex<double> c2 = complexZero;
-  for (long ib = 0; ib < numBands; ib++) {
-    for (long ia = 0; ia < numAtoms; ia++) {
-      for (long ic = 0; ic < 3; ic++) {
-        c2 += pow(eigvecsT(ib, ia, ic) - eigvecs(ib, ia, ic), 2);
-      }
+  for ( long i = 0; i<numBands; i++ ) {
+  	auto [iat,ic] = decompress2Indeces(i,numAtoms,3);
+  	for ( long j = 0; j<numBands; j++ ) {
+        c2 += pow(eigvecsT(i,j) - eigvecs(ic, iat, j), 2);
     }
   }
   ASSERT_EQ(c2, complexZero);
@@ -112,7 +110,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   // now we use DetachedState, and verify that results are the same
 
-  DetachedState d(k, ens, numAtoms, numBands, eigvecsC, &vels);
+  DetachedState d(k, ens, numBands, numBands, eigvecsC, &vels);
 
   // check energy
   auto ensD = d.getEnergies();

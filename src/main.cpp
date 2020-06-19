@@ -1,41 +1,45 @@
 #include "app.h"
 #include "context.h"
 #include "io.h"
+#include "mpi/mpiHelper.h"
 #include <Kokkos_Core.hpp>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char **argv) {
 
   // here launch parallel environment
-
+  // Call proxy function from MPI Helper, which makes mpi object
+  // globally available.
   Kokkos::initialize(argc, argv);
+  initMPI();
 
   // setup input/output
-
   IO io(argc, argv);
   io.welcome();
 
-  // Read user input file
-
-  Context context;
-  context.setupFromInput(io.getInputFileName());
-
-  // decide which app to use
-
-  std::string appName = context.getAppName();
-  std::unique_ptr<App> app = App::loadApp(appName);
-  if (app != nullptr) {
-    // launch it
-
-    app->run(context);
-  } else {
-    std::cout << "No app to launch found." << std::endl;
+  // Print parallelization info
+  if (mpi->mpiHead()) {
+    parallelInfo();
   }
 
-  // exiting program
+  // Read user input file
+  Context context; // instantiate class container of the user input
+  context.setupFromInput(io.getInputFileName()); // read the user input
 
+  // decide which app to use
+  std::unique_ptr<App> app = App::loadApp(context.getAppName());
+
+  // check that the user passed all the necessary input
+  app->checkRequirements(context);
+
+  // launch it
+  app->run(context);
+  // exiting program
   io.goodbye();
 
   // here close parallel environment
+  // make sure all processes finish before printing end info
+  mpi->barrier();
+  mpi->finalize();
   Kokkos::finalize();
 
   return (0);

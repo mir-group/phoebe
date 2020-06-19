@@ -1,1 +1,1 @@
-../src/harmonic/window.h
+../src/bands/window.h

@@ -6,10 +6,10 @@ TEST (PhononH0, Velocity) {
 //int main() {
 	Context context;
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
+	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
 	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
-	phononH0.setAcousticSumRule("simple");
 
 	// now, let's create a fine mesh
 
