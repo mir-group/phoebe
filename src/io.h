@@ -1,8 +1,13 @@
-#include <string>
-#include <fstream>
+#ifndef IO_H
+#define IO_H
+
+#include <chrono>
 #include <cstdarg>
-#include <iostream>
 #include <cstdio>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <string>
 #include <time.h>
 
 /** class used to parse Phoebe command line arguments, and to redirect output
@@ -65,12 +70,16 @@ public:
      */
     void close();
 private:
-    long reportEvery;
-    long numSteps;
-    std::string task;
-    std::string step;
-    long currentStep = -1;
-    time_t initialTime;
-    long deltaTime;
-    long stepDigits;
+  typedef std::chrono::steady_clock::time_point time_point;
+  typedef std::chrono::steady_clock::duration time_delta;
+  long reportEvery;
+  long numSteps;
+  std::string task;
+  std::string step;
+  long currentStep = -1;
+  time_point initialTime;
+  time_delta deltaTime;
+  long stepDigits;
 };
+
+#endif

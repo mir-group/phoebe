@@ -1,6 +1,7 @@
 #ifndef CRYSTAL_H
 #define CRYSTAL_H
 
+#include <Eigen/Core>
 #include <string>
 #include <vector>
 #include "eigen.h"
@@ -164,4 +165,3 @@ public:
 };
 
 #endif
-

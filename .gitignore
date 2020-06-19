@@ -52,4 +52,5 @@ CMakeDoxy*
 Makefile
 
 runTests
-
+tags
+*.plist
