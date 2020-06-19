@@ -162,26 +162,36 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
   Kokkos::deep_copy(q1_k, q1_h);
   Kokkos::deep_copy(q2_k, q2_h);
 
-  // phonon branches:
-  // we allow the number of bands to be different in each direction
-  long nb1 = state1.getNumBands(); // <- numBands
-  long nb2 = state2.getNumBands();
-  long nb3Plus = state3Plus.getNumBands();
-  long nb3Mins = state3Mins.getNumBands();
+  Eigen::MatrixXcd ev1_e, ev2_e, ev3Plus_e, ev3Mins_e;
 
-  // this is a bit more convoluted than the implementation above,
-  // but it should be faster, as we break loops in two sections
+  state1.getEigenvectors(ev1_e);
+  state2.getEigenvectors(ev2_e);
+  state3Plus.getEigenvectors(ev3Plus_e);
+  state3Mins.getEigenvectors(ev3Mins_e);
 
-  // Eigen::MatrixXcd ev1, ev2, ev3Plus, ev3Mins;
+  long nb1 = ev1_e.rows();
+  long nb2 = ev2_e.rows();
+  long nb3Plus = ev3Plus_e.rows();
+  long nb3Mins = ev3Mins_e.rows();
 
   Kokkos::View<Kokkos::complex<double> **> ev1("ev1", nb1, nb1),
       ev2("ev2", nb2, nb2), ev3Plus("ev3p", nb3Plus, nb3Plus),
       ev3Mins("ev3m", nb3Mins, nb3Mins);
 
-  state1.getEigenvectors(ev1);
-  state2.getEigenvectors(ev2);
-  state3Plus.getEigenvectors(ev3Plus);
-  state3Mins.getEigenvectors(ev3Mins);
+  auto e2k = [](auto e, auto k) {
+    auto h = Kokkos::create_mirror_view(k);
+    for (int i = 0; i < e.rows(); i++) {
+      for (int j = 0; j < e.cols(); j++) {
+        h(j, i) = e(i, j);
+      }
+    }
+    Kokkos::deep_copy(k, h);
+  };
+
+  e2k(ev1_e, ev1);
+  e2k(ev2_e, ev2);
+  e2k(ev3Plus_e, ev3Plus);
+  e2k(ev3Mins_e, ev3Mins);
 
   time_point t0, t1;
 

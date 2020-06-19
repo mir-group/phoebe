@@ -20,44 +20,46 @@
  * possibility of loading the new application.
  */
 class App {
-    /** Factory method, used to load the desired subclass.
-     * Note: auto_ptr transfers the ownership to the returned pointer itself
-     * the returned app pointer is then destructed at the end of main().
-     * @param choice: a string witht the app name.
-     * @return app: a unique_pointer to the subclass app instance.
-     */
-    static std::unique_ptr<App> loadApp(const std::string &choice);
+public:
+  /** Factory method, used to load the desired subclass.
+   * Note: auto_ptr transfers the ownership to the returned pointer itself
+   * the returned app pointer is then destructed at the end of main().
+   * @param choice: a string witht the app name.
+   * @return app: a unique_pointer to the subclass app instance.
+   */
+  static std::unique_ptr<App> loadApp(const std::string &choice);
 
-    /** Launches the subprogram.
-     * @param context: object Context with the user input.
-     */
-    virtual void run(Context &context);
+  /** Launches the subprogram.
+   * @param context: object Context with the user input.
+   */
+  virtual void run(Context &context);
 
-    /** Checks that the user wrote a complete input file.
-     * Calls an error if the requirements are not satisfied.
-     * To be used before a call to run().
-     * The list of requirements is specified by each App subclass.
-     * @param context: object Context with the user input.
-     */
-    virtual void checkRequirements(Context &context);
+  /** Checks that the user wrote a complete input file.
+   * Calls an error if the requirements are not satisfied.
+   * To be used before a call to run().
+   * The list of requirements is specified by each App subclass.
+   * @param context: object Context with the user input.
+   */
+  virtual void checkRequirements(Context &context);
+
 protected:
-    static const inline std::vector<std::string> choices { "phononTransport",
-            "phononDos", "electronWannierDos", "electronFourierDos",
-            "phononBands", "electronWannierBands", "electronFourierBands",
-            "electronPolarization" };
+  static const inline std::vector<std::string> choices{
+      "phononTransport",      "phononDos",           "electronWannierDos",
+      "electronFourierDos",   "phononBands",         "electronWannierBands",
+      "electronFourierBands", "electronPolarization"};
 
-    void throwErrorIfUnset(const std::string &x, const std::string &name);
-    void throwErrorIfUnset(const std::vector<std::string> &x,
-            const std::string &name);
-    void throwErrorIfUnset(const double &x, const std::string &name);
-    void throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name);
-    void throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name);
-    void throwErrorIfUnset(const Eigen::VectorXd &x, const std::string &name);
-    void throwErrorIfUnset(const Eigen::MatrixXd &x, const std::string &name);
-    void throwErrorIfUnset(const Eigen::Tensor<double, 3> &x,
-            const std::string &name);
+  void throwErrorIfUnset(const std::string &x, const std::string &name);
+  void throwErrorIfUnset(const std::vector<std::string> &x,
+                         const std::string &name);
+  void throwErrorIfUnset(const double &x, const std::string &name);
+  void throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name);
+  void throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name);
+  void throwErrorIfUnset(const Eigen::VectorXd &x, const std::string &name);
+  void throwErrorIfUnset(const Eigen::MatrixXd &x, const std::string &name);
+  void throwErrorIfUnset(const Eigen::Tensor<double, 3> &x,
+                         const std::string &name);
 
-    void throwWarningIfUnset(const std::string &x, const std::string &name);
+  void throwWarningIfUnset(const std::string &x, const std::string &name);
 };
 
 #endif

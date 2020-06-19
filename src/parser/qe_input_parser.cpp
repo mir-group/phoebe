@@ -567,7 +567,7 @@ bool QEParser::isQuantumEspressoXml(const std::string &fileName) {
   std::string line;
   bool tagFound = false;
   while (std::getline(infile, line) && !tagFound) {
-    if (line.find(tag) != string::npos) {
+    if (line.find(tag) != std::string::npos) {
       tagFound = true;
       break;
     }
@@ -691,7 +691,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
                   speciesMasses, dimensionality);
   //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
   //			atomicPositions, atomicSpecies, speciesNames,
-  //speciesMasses, 			dimensionality));
+  // speciesMasses, 			dimensionality));
 
   // initialize reciprocal lattice cell
   // I need this to convert kpoints from cartesian to crystal coordinates
@@ -790,7 +790,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
                                fourierCutoff);
   //	std::unique_ptr<ElectronH0Fourier> electronH0(new ElectronH0Fourier(
   //			*crystal, coarsePoints, coarseBandStructure,
-  //fourierCutoff));
+  // fourierCutoff));
 
   //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
@@ -928,7 +928,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
                                vectorsDegeneracies, h0R, rMatrix);
   //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
   //			directUnitCell, crystalVectors, vectorsDegeneracies,
-  //h0R));
+  // h0R));
 
   long dimensionality = context.getDimensionality();
   Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
@@ -948,7 +948,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
                   speciesMasses, dimensionality);
   //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
   //			atomicPositions, atomicSpecies, speciesNames,
-  //speciesMasses, 			dimensionality));
+  // speciesMasses, 			dimensionality));
 
   //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
