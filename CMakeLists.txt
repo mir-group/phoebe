@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.17)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 
 project(Phoebe CXX)
 
@@ -36,20 +36,20 @@ gtest_discover_tests(
 )
 
 ############# PARALLEL ############
-option(MPI_AVAIL "Build with MPI wrappers" ON) 
-if (MPI_AVAIL) 
+option(MPI_AVAIL "Build with MPI wrappers" ON)
+if (MPI_AVAIL)
   find_package(MPI REQUIRED)
   target_link_libraries(phoebe MPI::MPI_CXX)
   target_link_libraries(runTests MPI::MPI_CXX)
-  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
+  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp
 endif()
 
 option(OMP_AVAIL "Build with OMP" OFF)
 if(OMP_AVAIL)
         find_package(OpenMP)
         target_link_libraries(phoebe OpenMP::OpenMP_CXX)
-        target_link_libraries(runTests OpenMP::OpenMP_CXX) 
-        add_definitions("-DOMP_AVAIL") 
+        target_link_libraries(runTests OpenMP::OpenMP_CXX)
+        add_definitions("-DOMP_AVAIL")
 endif()
 ############# DOCS ############
 
