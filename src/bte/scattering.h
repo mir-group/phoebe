@@ -95,6 +95,7 @@ public:
      * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
      */
     std::tuple<VectorBTE, Eigen::MatrixXd> diagonalize();
+
 protected:
     Context &context;
     StatisticsSweep &statisticsSweep;
@@ -144,6 +145,18 @@ protected:
      */
     virtual void builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
             VectorBTE *inPopulation, VectorBTE *outPopulation) = 0;
+
+    /** Returns a vector of pairs of wavevector indices to iterate over during
+     * the construction of the scattering matrix.
+     * @param switchCase: if 0, returns the pairs of wavevectors to loop for
+     * the case where the scattering matrix is built in memory.
+     * If != 0, returns the pairs of wavevectors to loop for the case where
+     * only the action of the scattering matrix is computed.
+     * @return vector<tuple<iq1,iq2>>: a tuple of wavevector indices to loop
+     * over in the construction of the scattering matrix.
+     */
+    std::vector<std::tuple<long,long>> getIteratorWavevectorPairs(
+            const int & switchCase);
 };
 
 #endif

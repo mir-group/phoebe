@@ -1,6 +1,7 @@
 #include "scattering.h"
 #include "constants.h"
 #include <algorithm>
+#include "mpiHelper.h"
 
 ScatteringMatrix::ScatteringMatrix(Context &context_,
         StatisticsSweep &statisticsSweep_,
@@ -333,4 +334,41 @@ std::tuple<VectorBTE, Eigen::MatrixXd> ScatteringMatrix::diagonalize() {
     eigenvectors *= sqrt(innerBandStructure.getNumPoints(true) * volume);
 
     return {eigvals, eigenvectors};
+}
+
+std::vector<std::tuple<long,long>> ScatteringMatrix::getIteratorWavevectorPairs(
+        const int & switchCase) {
+    std::vector<std::tuple<long,long>> pairIterator;
+    if ( switchCase != 0 ) {
+
+        mpi->divideWork(innerBandStructure.getNumPoints());
+        int start = mpi->workHead();
+        int stop = mpi->workTail();
+
+        // Note: phScatteringMatrix needs iq2 to be the outer loop
+        // in order to be efficient!
+        for ( long iq2=start; iq2<stop; iq2++ ) {
+            for ( long iq1=0; iq1<outerBandStructure.getNumPoints(); iq1++ ) {
+                auto t = std::make_tuple(iq1,iq2);
+                pairIterator.push_back(t);
+            }
+        }
+
+    } else {
+        Error e("highMemory iteratorWavevectorPairs not implemented");
+        // this is wrong! must be changed with the parallel matrix
+        mpi->divideWork(innerBandStructure.getNumPoints());
+        int start = mpi->workHead();
+        int stop = mpi->workTail();
+
+        // Note: phScatteringMatrix needs iq2 to be the outer loop
+        // in order to be efficient!
+        for ( long iq2=start; iq2<stop; iq2++ ) {
+            for ( long iq1=0; iq1<outerBandStructure.getNumPoints(); iq1++ ) {
+                auto t = std::make_tuple(iq1,iq2);
+                pairIterator.push_back(t);
+            }
+        }
+    }
+    return pairIterator;
 }

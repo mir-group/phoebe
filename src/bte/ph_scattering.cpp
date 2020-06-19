@@ -2,6 +2,7 @@
 #include "periodic_table.h"
 #include "constants.h"
 #include "io.h"
+#include "mpiHelper.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context &context_,
         StatisticsSweep &statisticsSweep_,
@@ -186,10 +187,19 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
     std::complex<double> zzIso;
     double termIso, rateIso, deltaIso;
 
-    LoopPrint loopPrint("computing scattering matrix", "q-points",
-            outerNumPoints * innerNumPoints);
 
-    for (long iq2 = 0; iq2 < innerNumPoints; iq2++) {
+    std::vector<std::tuple<long,long>> qPairIterator =
+            getIteratorWavevectorPairs(switchCase);
+//    for ( auto [iq1,iq2] : qPairIterator ) {
+//        std::cout << iq1 << " " << iq2 << "!\n";
+//    }
+
+
+    LoopPrint loopPrint("computing scattering matrix", "q-points",
+            qPairIterator.size());
+
+    for ( auto [iq1,iq2] : qPairIterator ) {
+        loopPrint.update();
         auto q2 = innerBandStructure.getPoint(iq2);
         auto states2 = innerBandStructure.getState(q2);
         auto state2Energies = states2.getEnergies();
@@ -198,20 +208,42 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
         Eigen::Tensor<std::complex<double>, 3> ev2;
         states2.getEigenvectors(ev2);
 
-        for (long iq1 = 0; iq1 < outerNumPoints; iq1++) {
-            loopPrint.update();
+        // note: for computing linewidths on a path, we must distinguish
+        // that q1 and q2 are on different meshes, and that q3+/- may not
+        // fall into known meshes and therefore needs to be computed
 
-            // note: for computing linewidths on a path, we must distinguish
-            // that q1 and q2 are on different meshes, and that q3+/- may not
-            // fall into known meshes and therefore needs to be computed
+        auto states1 = outerBandStructure.getState(iq1);
+        auto q1 = states1.getPoint();
+        auto state1Energies = states1.getEnergies();
+        auto nb1 = state1Energies.size();
 
-            auto states1 = outerBandStructure.getState(iq1);
-            auto q1 = states1.getPoint();
-            auto state1Energies = states1.getEnergies();
-            auto nb1 = state1Energies.size();
+        Eigen::Tensor<std::complex<double>, 3> ev1;
+        states1.getEigenvectors(ev1);
 
-            Eigen::Tensor<std::complex<double>, 3> ev1;
-            states1.getEigenvectors(ev1);
+
+//    for (long iq2 = 0; iq2 < innerNumPoints; iq2++) {
+//        auto q2 = innerBandStructure.getPoint(iq2);
+//        auto states2 = innerBandStructure.getState(q2);
+//        auto state2Energies = states2.getEnergies();
+//        auto nb2 = state2Energies.size();
+//
+//        Eigen::Tensor<std::complex<double>, 3> ev2;
+//        states2.getEigenvectors(ev2);
+//
+//        for (long iq1 = 0; iq1 < outerNumPoints; iq1++) {
+//            loopPrint.update();
+//
+//            // note: for computing linewidths on a path, we must distinguish
+//            // that q1 and q2 are on different meshes, and that q3+/- may not
+//            // fall into known meshes and therefore needs to be computed
+//
+//            auto states1 = outerBandStructure.getState(iq1);
+//            auto q1 = states1.getPoint();
+//            auto state1Energies = states1.getEnergies();
+//            auto nb1 = state1Energies.size();
+//
+//            Eigen::Tensor<std::complex<double>, 3> ev1;
+//            states1.getEigenvectors(ev1);
 
             // if the meshes are the same (and gamma centered)
             // q3 will fall into the same grid, and it's easy to get
@@ -536,7 +568,7 @@ void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
                     }
                 }
             }
-        }
+//        }
     }
     loopPrint.close();
 
