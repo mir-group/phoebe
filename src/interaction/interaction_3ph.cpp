@@ -300,35 +300,14 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
   t1 = std::chrono::steady_clock::now();
   dts[2] += t1 - t0;
 
-  // As a convention, the first primitive cell in the triplet is
-  // restricted to the origin, so the phase for that cell is unity.
-
-  // note: tmp* is a tensor over cartesian and atomic indices
-  // (whose size coincides with the band numbers)
-  // Eigen::Tensor<std::complex<double>, 3> tmpPlus(numBands, numBands,
-  // numBands); Eigen::Tensor<std::complex<double>, 3> tmpMins(numBands,
-  // numBands, numBands); tmpPlus.setZero(); tmpMins.setZero();
   Kokkos::View<Kokkos::complex<double> ***> tmpPlus("tmpp", numBands, numBands,
                                                     numBands),
       tmpMins("tmpm", numBands, numBands, numBands);
-  // Kokkos::parallel_for(
-  //      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
-  //                                             {numBands, numBands,
-  //                                             numBands}),
-  //      KOKKOS_LAMBDA(int iac1, int iac2, int iac3) {
-  //        Kokkos::complex<double> tmpp = 0, tmpm = 0;
-  //        for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
-  //          tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(ir3);
-  //          tmpm += D3MinsCached_k(iac1, iac2, iac3, ir3) * phaseMins(ir3);
-  //        }
-  //        tmpPlus(iac1, iac2, iac3) = tmpp;
-  //        tmpMins(iac1, iac2, iac3) = tmpm;
-  //      });
   t0 = std::chrono::steady_clock::now();
-#pragma omp parallel for collapse(3)
-  for (int iac1 = 0; iac1 < numBands; iac1++) {
-    for (int iac2 = 0; iac2 < numBands; iac2++) {
-      for (int iac3 = 0; iac3 < numBands; iac3++) {
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
+                                             {numBands, numBands, numBands}),
+      KOKKOS_LAMBDA(int iac1, int iac2, int iac3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
           tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(ir3);
@@ -336,9 +315,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
         }
         tmpPlus(iac1, iac2, iac3) = tmpp;
         tmpMins(iac1, iac2, iac3) = tmpm;
-      }
-    }
-  }
+      });
   t1 = std::chrono::steady_clock::now();
   dts[3] += t1 - t0;
 
@@ -352,10 +329,6 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
   // instead, we break it into 3 loops with 4 nested loops each
   // ( ~numBands^2 faster)
 
-  // Eigen::Tensor<std::complex<double>, 3> tmp1Plus(nb1, numBands, numBands);
-  // Eigen::Tensor<std::complex<double>, 3> tmp1Mins(nb1, numBands, numBands);
-  // tmp1Plus.setZero();
-  // tmp1Mins.setZero();
   Kokkos::View<Kokkos::complex<double> ***> tmp1Plus("t1p", nb1, numBands,
                                                      numBands),
       tmp1Mins("t1m", nb1, numBands, numBands);
@@ -375,10 +348,6 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
       });
   t1 = std::chrono::steady_clock::now();
   dts[4] += t1 - t0;
-  // Eigen::Tensor<std::complex<double>, 3> tmp2Plus(nb1, nb2, numBands);
-  // Eigen::Tensor<std::complex<double>, 3> tmp2Mins(nb1, nb2, numBands);
-  // tmp2Plus.setZero();
-  // tmp2Mins.setZero();
   Kokkos::View<Kokkos::complex<double> ***> tmp2Plus("t2p", nb1, nb2, numBands),
       tmp2Mins("t2m", nb1, nb2, numBands);
 
