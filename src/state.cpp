@@ -84,7 +84,9 @@ void DetachedState::getEigenvectors(
   long numAtoms = numBands1 / 3;
   eigs = Eigen::Tensor<std::complex<double>, 3>(3, numAtoms, numBands2);
   for (long i = 0; i < numBands1; i++) {
-    auto [iat, ic] = decompress2Indeces(i, numAtoms, 3);
+    auto tup = decompress2Indeces(i, numAtoms, 3);
+    auto iat = std::get<0>(tup);
+    auto ic = std::get<1>(tup);
     for (long j = 0; j < numBands2; j++) {
       eigs(ic, iat, j) = eigenvectors(i, j);
     }

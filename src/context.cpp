@@ -643,7 +643,12 @@ void Context::setupFromInput(std::string fileName) {
 
   try {
     // note: these should be given in input in cartesian coordinates
-    auto [atomicPositions, atomicSpecies, speciesNames] = parseCrystal(lines);
+    auto tup = parseCrystal(lines);
+    // auto [atomicPositions, atomicSpecies, speciesNames] =
+    // parseCrystal(lines);
+    auto atomicPositions = std::get<0>(tup);
+    auto atomicSpecies = std::get<1>(tup);
+    auto speciesNames = std::get<2>(tup);
     setInputAtomicPositions(atomicPositions);
     setInputAtomicSpecies(atomicSpecies);
     setInputSpeciesNames(speciesNames);

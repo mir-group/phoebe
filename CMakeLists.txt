@@ -1,3 +1,7 @@
+if(Kokkos_ENABLE_CUDA)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON)
+    set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
+endif()
 cmake_minimum_required(VERSION 3.17)
 set(CMAKE_CXX_STANDARD 14)
 
@@ -34,6 +38,7 @@ gtest_discover_tests(
     runTests
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
+
 
 ############# PARALLEL ############
 option(MPI_AVAIL "Build with MPI wrappers" ON)

@@ -761,7 +761,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
     Error e("spin is not yet supported");
   }
 
-  auto [mesh, offset] = Points::findMesh(irredPoints);
+  auto tup = Points::findMesh(irredPoints);
+  auto mesh = std::get<0>(tup);
+  auto offset = std::get<1>(tup);
   FullPoints coarsePoints(crystal, mesh, offset);
 
   bool withVelocities = false;
