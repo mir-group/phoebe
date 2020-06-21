@@ -46,7 +46,7 @@ private:
   Eigen::MatrixXd cellPositions2;
   Eigen::MatrixXd cellPositions3;
   Eigen::Tensor<double, 5> D3;
-  long nr2, nr3, numAtoms, numBands;
+  int nr2, nr3, numAtoms, numBands;
   Eigen::Vector3d cachedCoords;
   Eigen::Tensor<std::complex<double>, 4> D3PlusCached;
   Eigen::Tensor<std::complex<double>, 4> D3MinsCached;

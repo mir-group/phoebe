@@ -1,5 +1,5 @@
 if(Kokkos_ENABLE_CUDA)
-    set(Kokkos_ENABLE_CUDA_LAMBDA ON)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "don't touch")
     set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
 endif()
 cmake_minimum_required(VERSION 3.17)
@@ -8,11 +8,11 @@ set(CMAKE_CXX_STANDARD 14)
 project(Phoebe CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 endif(NOT CMAKE_BUILD_TYPE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
-    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -g -fno-omit-frame-pointer -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 

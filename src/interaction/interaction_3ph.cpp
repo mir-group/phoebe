@@ -118,6 +118,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
   }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
+
   ifc3Tensor.resize(0, 0, 0, 0);
   cellPositions.resize(0, 0, 0);
   displacedAtoms.resize(0, 0);
@@ -152,7 +153,9 @@ Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
       cellPositions3(that.cellPositions3), D3(that.D3), nr2(that.nr2),
       nr3(that.nr3), numAtoms(that.numAtoms), numBands(that.numBands),
       cachedCoords(that.cachedCoords), D3PlusCached(that.D3PlusCached),
-      D3MinsCached(that.D3MinsCached) {}
+      D3MinsCached(that.D3MinsCached) {
+  std::cout << "copy constructor called\n";
+}
 
 // assignment operator
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
@@ -179,6 +182,7 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     D3MinsCached = that.D3MinsCached;
   }
   return *this;
+  std::cout << "assignment operator called\n";
 }
 
 template <typename A, typename B, typename C>
@@ -235,6 +239,19 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
   time_point t0, t1;
 
+  Kokkos::complex<double> complexI(0.0, 1.0);
+
+  // printf("cache test\n");
+  int nr2 = this->nr2;
+  int nr3 = this->nr3;
+  int numBands = this->numBands;
+
+  auto cellPositions2_k = this->cellPositions2_k;
+  auto cellPositions3_k = this->cellPositions3_k;
+  auto D3_k = this->D3_k;
+  auto D3PlusCached_k = this->D3PlusCached_k;
+  auto D3MinsCached_k = this->D3MinsCached_k;
+
   if (state2.getCoords(Points::cartesianCoords) != cachedCoords) {
     cachedCoords = state2.getCoords(Points::cartesianCoords);
     Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
@@ -242,17 +259,19 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
     t0 = std::chrono::steady_clock::now();
     Kokkos::parallel_for(
+        "phase1loop",
         Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
         KOKKOS_LAMBDA(int ir3, int ir2) {
           double argP = 0, argM = 0;
-          for (int ic : {0, 1, 2}) {
+          Kokkos::complex<double> complexI(0.0, 1.0);
+          for (int ic = 0; ic < 3; ic++) {
             argP += +q2_k(ic) *
                     (cellPositions2_k(ir2, ic) - cellPositions3_k(ir3, ic));
             argM += -q2_k(ic) *
                     (cellPositions2_k(ir2, ic) - cellPositions3_k(ir3, ic));
           }
-          phasePlus(ir3, ir2) = exp(complexI * argP);
-          phaseMins(ir3, ir2) = exp(complexI * argM);
+          phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP);
+          phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM);
         });
     t1 = std::chrono::steady_clock::now();
     dts[0] += t1 - t0;
@@ -260,6 +279,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
     t0 = std::chrono::steady_clock::now();
     Kokkos::parallel_for(
+        "D3cacheloop",
         Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
             {0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
         KOKKOS_LAMBDA(int ind1, int ind2, int ind3, int ir3) {
@@ -269,6 +289,12 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
             // As a convention, the first primitive cell in the triplet is
             // restricted to the origin, so the phase for that cell is
             // unity.
+
+            // printf("ind1 = %d, ind2 = %d, ind3 = %d, ir2 = %d, ir3 =
+            // %d, "
+            //       "nb = "
+            //       "%d, nr2 = %d, nr3 = %d\n",
+            //       ind1, ind2, ind3, ir2, ir3, numBands, nr2, nr3);
 
             tmpp += D3_k(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
             tmpm += D3_k(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
@@ -280,15 +306,15 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
     dts[1] += t1 - t0;
   }
 
-  //  std::cout << D3PlusCached_k(1, 1, 1, 1) << ", " << D3MinsCached_k(1, 1, 1,
-  //  1)
+  //  std::cout << D3PlusCached_k(1, 1, 1, 1) << ", " << D3MinsCached_k(1,
+  //  1, 1, 1)
   //            << "\n";
   Kokkos::View<Kokkos::complex<double> *> phasePlus("pp", nr3),
       phaseMins("pm", nr3);
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
-      nr3, KOKKOS_LAMBDA(int ir3) {
+      "phase2loop", nr3, KOKKOS_LAMBDA(int ir3) {
         double argP = 0, argM = 0;
         for (int ic : {0, 1, 2}) {
           argP += -q1_k(ic) * cellPositions3_k(ir3, ic);
@@ -305,6 +331,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
       tmpMins("tmpm", numBands, numBands, numBands);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
                                              {numBands, numBands, numBands}),
       KOKKOS_LAMBDA(int iac1, int iac2, int iac3) {
@@ -335,6 +362,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmp1loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0},
                                              {nb1, numBands, numBands}),
       KOKKOS_LAMBDA(int ib1, int iac2, int iac3) {
@@ -353,6 +381,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmp2loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, numBands}),
       KOKKOS_LAMBDA(int ib1, int ib2, int iac3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
@@ -372,6 +401,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
   // the last loop is split in two because nb3 is not the same for + and -
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "vploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, nb3Plus}),
       KOKKOS_LAMBDA(int ib1, int ib2, int ib3) {
         Kokkos::complex<double> tmpp = 0;
@@ -385,6 +415,7 @@ Interaction3Ph::getCouplingSquared(A &state1, B &state2, C &state3Plus,
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "vminloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nb1, nb2, nb3Mins}),
       KOKKOS_LAMBDA(int ib1, int ib2, int ib3) {
         Kokkos::complex<double> tmpm = 0;
@@ -439,11 +470,12 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
     DetachedState &state1, DetachedState &state2, DetachedState &state3Plus,
     DetachedState &state3Mins);
 
-//// Function to calculate the full set of V_minus processes for a given IBZ
+//// Function to calculate the full set of V_minus processes for a given
+/// IBZ
 /// mode
-// void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode
-// &mode, 		const Eigen::MatrixXd &qFBZ, 		const
-// Eigen::Tensor<complex<double>,3>
+// void PhInteraction3Ph::calculateAllVminus(const int grid[3], const
+// PhononMode &mode, 		const Eigen::MatrixXd &qFBZ,
+// const Eigen::Tensor<complex<double>,3>
 //&ev,const int numTriplets, 		const Eigen::Tensor<double,4>
 //&ifc3Tensor, 		const
 // Eigen::Tensor<double,3> &cellPositions, 		const
@@ -453,7 +485,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //	int i1x,i1y,i1z,i2x,i2y,i2z,i3x,i3y,i3z;
 //
 //	Eigen::Tensor<complex <double>,3>
-// ev1(3,crysInfo.numAtoms,crysInfo.numBranches); 	Eigen::Tensor<complex
+// ev1(3,crysInfo.numAtoms,crysInfo.numBranches);
+// Eigen::Tensor<complex
 //<double>,3> ev2(3,crysInfo.numAtoms,crysInfo.numBranches);
 //	Eigen::Tensor<complex <double>,3>
 // ev3(3,crysInfo.numAtoms,crysInfo.numBranches);
@@ -469,7 +502,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //
 //	int numAtoms = crysInfo.numAtoms;
 //	int numBranches = crysInfo.numBranches;
-//	Eigen::Tensor<double,4> Vm2(gridSize,numBranches,gridSize,numBranches);
+//	Eigen::Tensor<double,4>
+// Vm2(gridSize,numBranches,gridSize,numBranches);
 //
 //	// Grab irred phonon mode info:
 //	iq1 = mode.iq; //index of wave vector in the full BZ
@@ -486,7 +520,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //	for(idim = 0; idim < 3; idim++){
 //		for(iat = 0; iat < numAtoms; iat++){
 //			for(ib = 0; ib < numBranches; ib++){
-//				ev1(idim,iat,ib) = ev(iq1,idim+3*iat,ib);
+//				ev1(idim,iat,ib) =
+// ev(iq1,idim+3*iat,ib);
 //			}
 //		}
 //	}
@@ -499,34 +534,39 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //		for(i2y = 0; i2y < ny; i2y++){
 //			for(i2x = 0; i2x < nx; i2x++){
 //				//Muxed index of 2nd phonon wave vector
-//				//!!WARNING: For testing purposes using ShengBTE
+//				//!!WARNING: For testing purposes using
+// ShengBTE
 // ordering!!! 				iq2 = (i2z*ny + i2y)*nx + i2x;
 //
 //				interactingPhonons.iq2 = iq2;
 //
 //				for(idim = 0; idim < 3; idim++){
-//					for(iat = 0; iat < numAtoms; iat++){
-//						for(ib = 0; ib < numBranches;
-// ib++){ 							ev2(idim,iat,ib)
-// = ev(iq2,idim+3*iat,ib);
+//					for(iat = 0; iat < numAtoms;
+// iat++){ 						for(ib = 0; ib <
+// numBranches;
+// ib++){
+// ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
 //						}
 //					}
 //				}
 //				interactingPhonons.ev2 = ev2;
 //
-//				// Third phonon wave vector (Umklapped, if
+//				// Third phonon wave vector (Umklapped,
+// if
 // needed) 				i3x = (i1x - i2x + nx)%nx;
 // i3y = (i1y - i2y + ny)%ny; 				i3z = (i1z - i2z
 //+ nz)%nz;
-//				//!!WARNING: For testing purposes using ShengBTE
+//				//!!WARNING: For testing purposes using
+// ShengBTE
 // ordering!!! 				iq3 = (i3z*ny + i3y)*nx + i3x;
 //
 //				interactingPhonons.iq3 = iq3;
 //				for(idim = 0; idim < 3; idim++){
-//					for(iat = 0; iat < numAtoms; iat++){
-//						for(ib = 0; ib < numBranches;
-// ib++){ 							ev3(idim,iat,ib)
-// = ev(iq3,idim+3*iat,ib);
+//					for(iat = 0; iat < numAtoms;
+// iat++){ 						for(ib = 0; ib <
+// numBranches;
+// ib++){
+// ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
 //						}
 //					}
 //				}
@@ -536,16 +576,19 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //				for(ib = 0; ib < numBranches; ib++){
 //					interactingPhonons.s2 = ib;
 //					// Sum over 3rd phonon branches
-//					for(jb = 0; jb < numBranches; jb++){
-//						interactingPhonons.s3 = jb;
+//					for(jb = 0; jb < numBranches;
+// jb++){ 						interactingPhonons.s3 =
+// jb;
 //
 //						// Call calculateSingleV
 //						Vm2(iq2,ib,iq3,jb) =
-// phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor,
+// phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets,
+// ifc3Tensor,
 //								cellPositions,
 // displacedAtoms, crysInfo, '-');
 //
-//						//cout << iq2+1 << " " << ib+1
+//						//cout << iq2+1 << " "
+//<< ib+1
 //<<
 //"
 //"
@@ -567,7 +610,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //		for(iq3 = 0; iq3 < gridSize; iq3++){
 //			for(ib = 0; ib < numBranches; ib++){
 //				for(jb = 0; jb < numBranches; jb++){
-//					outFile << Vm2(iq2,ib,iq3,jb) << "\n";
+//					outFile << Vm2(iq2,ib,iq3,jb) <<
+//"\n";
 //				}
 //			}
 //		}
@@ -576,10 +620,11 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //}
 //
 ////Transition probabilities for a given irreducible phonon mode
-// void PhInteraction3Ph::calculateAllW(const double T,const int grid[3], const
-// PhononMode &mode, 		const Eigen::MatrixXi &indexMesh,const
-// CrystalInfo
-//&crysInfo, 		const Eigen::MatrixXd omega,const TetraData tetra){
+// void PhInteraction3Ph::calculateAllW(const double T,const int grid[3],
+// const PhononMode &mode, 		const Eigen::MatrixXi
+// &indexMesh,const CrystalInfo
+//&crysInfo, 		const Eigen::MatrixXd omega,const TetraData
+// tetra){
 //
 //	int
 // iq1,iq2,iq3,iq3Plus,iq3Minus,s1,s2,s3,iDim,plusProcessCount,minusProcessCount;
@@ -616,10 +661,10 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //	inFile.close();
 //
 //	//Open W+, W-, and process counter files
-//	string WplusFileName = "Wp2.iq"+to_string(iq1)+".s"+to_string(s1);
-//	string WminusFileName = "Wm2.iq"+to_string(iq1)+".s"+to_string(s1);
-//	ofstream WplusFile, WminusFile;
-//	WplusFile.open(WplusFileName, ios::trunc);
+//	string WplusFileName =
+//"Wp2.iq"+to_string(iq1)+".s"+to_string(s1); 	string WminusFileName =
+//"Wm2.iq"+to_string(iq1)+".s"+to_string(s1); 	ofstream WplusFile,
+// WminusFile; 	WplusFile.open(WplusFileName, ios::trunc);
 //	WminusFile.open(WminusFileName, ios::trunc);
 //
 //	plusProcessCount = 0;
@@ -636,7 +681,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //			//modulo reciprocal lattice vector
 //			for(iDim = 0; iDim < 3; iDim++){
 //				//plus process
-//				q3Plus(iDim) = (q1(iDim)+q2(iDim))%grid[iDim];
+//				q3Plus(iDim) =
+//(q1(iDim)+q2(iDim))%grid[iDim];
 //				//minus process
 //				q3Minus(iDim) =
 //(q1(iDim)-q2(iDim)+grid[iDim])%grid[iDim];
@@ -649,50 +695,60 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //
 //			//Sum over second phonon branches
 //			for(s2 = 0; s2 < numBranches; s2++){
-//				omega2 = omega(iq2,s2); //second phonon ang.
+//				omega2 = omega(iq2,s2); //second phonon
+// ang.
 // freq.
 //
-//				if(omega2 > 0){ //skip zero energy phonon
+//				if(omega2 > 0){ //skip zero energy
+// phonon
 //
-//					//Bose distribution for second phonon
+//					//Bose distribution for second
+// phonon
 // mode 					n02 = bose(omega2,T);
 //
 //					//Sum over final phonon branches
-//					for(s3 = 0; s3 < numBranches; s3++){
-//						omega3Plus = omega(iq3Plus,s3);
+//					for(s3 = 0; s3 < numBranches;
+// s3++){ 						omega3Plus =
+// omega(iq3Plus,s3);
 ////third
-// phonon(+) ang. freq. omega3Minus = omega(iq3Minus,s3); //third phonon(-) ang.
-// freq.
+// phonon(+) ang. freq. omega3Minus = omega(iq3Minus,s3); //third
+// phonon(-) ang. freq.
 //
-//						//Bose distribution for final
+//						//Bose distribution for
+// final
 // phonon mode 						n03Plus =
-// bose(omega3Plus,T); 						n03Minus =
-// bose(omega3Minus,T);
+// bose(omega3Plus,T); 						n03Minus
+// = bose(omega3Minus,T);
 //
-//						//Calculate tetrahedron weight
+//						//Calculate tetrahedron
+// weight
 // for plus
-// and minus processes 						tetWeightPlus =
+// and minus processes tetWeightPlus =
 // fillTetsWeights(omega3Plus-omega1,s2,iq2,tetra);
 // tetWeightMinus = fillTetsWeights(omega1-omega3Minus,s2,iq2,tetra);
 //
 //						//Plus processes
 //						if(tetWeightPlus > 0 &&
 // omega3Plus > 0){
-//							//Increase processes
+//							//Increase
+// processes
 // counter plusProcessCount++;
 //
-//							//Time reverse second
+//							//Time reverse
+// second
 // phonon to get Vplus2 Vplus2
 // =
 // Vm2(timeReverse(iq2,grid),s2,iq3Plus,s3);
 //
-//							//Calculatate transition
-// probability W+ 							Wplus =
-// a*(n02-n03Plus)*Vplus2*tetWeightPlus
+//							//Calculatate
+// transition
+// probability W+ 							Wplus
+// = a*(n02-n03Plus)*Vplus2*tetWeightPlus
 //									/(omega1*omega2*omega3Plus);
 ////THz
 //
-//							//Write plus process
+//							//Write plus
+// process
 // info to
 // file 							WplusFile << iq2
 // <<
@@ -703,7 +759,8 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 // "
 // "
 // << iq3Plus << " " << s3 << " "
-//									<< Wplus
+//									<<
+// Wplus
 //<<
 //"\n";
 //						}
@@ -711,19 +768,22 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //						//Minus processes
 //						if(tetWeightMinus > 0 &&
 // omega3Minus > 0){
-//							//Increase processes
+//							//Increase
+// processes
 // counter minusProcessCount++;
 //
 //							Vminus2 =
 // Vm2(iq2,s2,iq3Minus,s3);
 //
-//							//Calculatate transition
-// probability W- 							Wminus =
-// a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus
+//							//Calculatate
+// transition
+// probability W- 							Wminus
+// = a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus
 //									/(omega1*omega2*omega3Minus);
 ////THz
 //
-//							//Write minus process
+//							//Write minus
+// process
 // info to
 // disk 							WminusFile <<
 // iq2
@@ -750,9 +810,9 @@ Interaction3Ph::getCouplingSquared<DetachedState, DetachedState, DetachedState>(
 //
 //	//Write total number of plus and minus processes to disk
 //	string counterFileName =
-//"WCounter.iq"+to_string(iq1)+".s"+to_string(s1); 	ofstream counterFile;
-//	counterFile.open(counterFileName, ios::trunc);
-//	counterFile << plusProcessCount << "\n";
-//	counterFile << minusProcessCount << "\n";
+//"WCounter.iq"+to_string(iq1)+".s"+to_string(s1); 	ofstream
+// counterFile; 	counterFile.open(counterFileName, ios::trunc);
+// counterFile
+//<< plusProcessCount << "\n"; 	counterFile << minusProcessCount << "\n";
 //	counterFile.close();
 //}
