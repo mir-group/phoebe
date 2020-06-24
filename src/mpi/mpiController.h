@@ -36,20 +36,20 @@ class MPIcontroller{
                 */ 
 		template<typename T> void bcast(T* dataIn) const;
                 /** Wrapper for MPI_Reduce in the case of a summation. 
-                * @param dataIn: pointer to sent data from each rank. 
-                * @param dataOut: pointer to buffer to receive summed data.               
+                * @param dataIn: pointer to sent data from each rank, 
+                *       also acts as a receive buffer, as reduce is implemented IP.  
                 */       
-		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
+		template<typename T> void reduceSum(T* dataIn) const;
                 /** Wrapper for MPI_Reduce which identifies the maximum of distributed data 
                 * @param dataIn: pointer to sent data from each rank. 
-                * @param dataOut: pointer to buffer to receive max item from data.               
+                *       also acts as a receive buffer, as reduce is implemented IP. 
                 */     
-		template<typename T> void reduceMax(T* dataIn, T* dataOut) const;
+		template<typename T> void reduceMax(T* dataIn) const;
                 /** Wrapper for MPI_Reduce which identifies the minimum of distributed data 
                 * @param dataIn: pointer to sent data from each rank. 
                 * @param dataOut: pointer to buffer to receive min item from data.               
                 */
-		template<typename T> void reduceMin(T* dataIn, T* dataOut) const;
+		template<typename T> void reduceMin(T* dataIn) const;
                 /** Wrapper for MPI_Gatherv which collects data from different ranks
                 * and combines it into one buffer.        
                 * @param dataIn: pointer to sent data from each rank, with length
@@ -93,14 +93,12 @@ class MPIcontroller{
 		void mpiAppend(); 
 			
                 // Labor division helper functions
-                void divideWork(size_t numTasks); // divide up a set of work 
-                int workHead(); // get the first task assigned to a rank
-                int workTail(); // get the last task assigned to a rank
+                /** Divides a number of tasks appropriately for the current MPI env. 
+                * @return divs: returns a vector of length 2, containing start and stop 
+                *       points for the divided number of tasks. 
+                */
+                std::vector<int> divideWork(size_t numTasks); // divide up a set of work 
 
-        private: 
-                // store labor division information
-                std::vector<int> workDivisionHeads; // start points for each rank's work
-                std::vector<int> workDivisionTails; // end points for each rank's work
 };
 
 // we need to use the concept of a "type traits" object to serialize the standard cpp types
@@ -151,33 +149,54 @@ template<typename T> void MPIcontroller::bcast(T* dataIn) const{
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
-template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
+template<typename T> void MPIcontroller::reduceSum(T* dataIn) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL
         if(size==1) return;
         int errCode;
 
-        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
+        if(rank==0){
+                errCode = MPI_Reduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                        containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
+        }
+        else {  
+                errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataIn),
+                        containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
+        } 
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
-template<typename T> void MPIcontroller::reduceMax(T* dataIn, T* dataOut) const{
+template<typename T> void MPIcontroller::reduceMax(T* dataIn) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL
         if(size==1) return;
         int errCode;
 
-        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
+        if(rank==0){
+                errCode = MPI_Reduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),
+                        containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
+        }
+        else {
+                errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataIn),
+                        containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MAX, 0, MPI_COMM_WORLD);
+        }
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
-template<typename T> void MPIcontroller::reduceMin(T* dataIn, T* dataOut) const{
+template<typename T> void MPIcontroller::reduceMin(T* dataIn) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL
         if(size==1) return;
         int errCode;
 
-        errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
+        if(rank==0){
+                errCode = MPI_Reduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                        containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
+        }
+        else {
+                errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataIn),
+                        containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_MIN, 0, MPI_COMM_WORLD);
+        }
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
@@ -186,13 +205,20 @@ template<typename T> void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
         using namespace mpiContainer; 
         #ifdef MPI_AVAIL
         int errCode; 
+        int numTasks = containerType<T>::getSize(dataOut); 
         std::vector<int> workDivs(size); 
-        for(int i = 0; i<size; i++) workDivs[i] = workDivisionTails[i] - workDivisionHeads[i]; 
-
-        errCode = MPI_Gatherv(containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(),containerType<T>::getAddress(dataOut), workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD); 
+        std::vector<int> workDivisionHeads(size); // start points for each rank's work
+        // Recreate work division instructions
+        for(int i = 0; i<size; i++) { 
+                workDivs[i] =  (numTasks * (rank+1))/size - (numTasks * rank)/size; 
+                workDivisionHeads[i] = (numTasks * i)/size;
+        } 
+        errCode = MPI_Gatherv(containerType<T>::getAddress(dataIn),containerType<T>::getSize(dataIn),
+                containerType<T>::getMPItype(),containerType<T>::getAddress(dataOut), workDivs.data(), 
+                workDivisionHeads.data(), containerType<T>::getMPItype(), 0, MPI_COMM_WORLD); 
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #else
-        dataOut = dataIn; // I think we can just switch the pointers. 
+        dataOut = dataIn; // just switch the pointers in serial case 
         #endif
 }
 
