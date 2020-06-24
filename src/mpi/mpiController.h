@@ -10,7 +10,7 @@
 #endif
 
 class MPIcontroller{
-	
+private:
 	//MPI_Comm com; // MPI communicator -- might not need this, can just call default comm "MPI_COMM_WORLD"
 	int size = 0; // number of MPI processses
 	int rank;
@@ -19,7 +19,13 @@ class MPIcontroller{
 	double startTime; // the time for the entire mpi operation
 	#else 
 	std::chrono::steady_clock::time_point startTime; 
-	#endif    
+	#endif
+  
+  int blasRank_;
+  int blacsContext_;
+  int numBlasRows_, numBlasCols_;
+  int myBlasRow_, myBlasCol_;
+  char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
 	public:
 		// MPIcontroller class constructors -----------------------------------
@@ -96,6 +102,12 @@ class MPIcontroller{
                 void divideWork(size_t numTasks); // divide up a set of work 
                 int workHead(); // get the first task assigned to a rank
                 int workTail(); // get the last task assigned to a rank
+
+  int getNumBlasRows();
+  int getNumBlasCols();
+  int getMyBlasRow();
+  int getMyBlasCol();
+  int getBlacsContext();
 
         private: 
                 // store labor division information

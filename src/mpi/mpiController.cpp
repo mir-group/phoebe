@@ -3,6 +3,8 @@
 #include <chrono>
 #include <iostream>
 #include "mpiController.h"
+#include "Blacs.h"
+#include "exceptions.h"
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
@@ -46,6 +48,36 @@ MPIcontroller::MPIcontroller(){
         rank = 0;  
 	startTime = std::chrono::steady_clock::now();
 	#endif
+	
+  // BLACS
+
+#ifdef MPI_AVAIL
+  blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
+  int zero = 0;
+  blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+  // Context -> Initialize the grid
+
+  numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
+  numBlasCols_ = numBlasRows_; // scalapack requires square grid
+
+  // we "pause" the processes that fall outside the blas grid
+  if ( size > numBlasRows_*numBlasCols_ ) {
+      Error e("Phoebe needs a square number of MPI processes");
+      // TODO: stop the extra MPI processes and continue with the rest.
+  }
+
+  blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
+  // Context -> Context grid info (# procs row/col, current procs row/col)
+  blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
+                  &myBlasCol_);
+#else
+  blasRank_ = 0;
+  blasContext_ = 0;
+  numBlasRows_ = 1;
+  numBlasCols_ = 1;
+  myBlasRow_ = 0;
+  myBlasCol_ = 0;
+#endif
 }
 
 // default destructor
@@ -59,6 +91,7 @@ MPIcontroller::~MPIcontroller(){
 void MPIcontroller::finalize() const {
 	#ifdef MPI_AVAIL
 	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
+	  blacs_gridexit_(&blacsContext_);
 	MPI_Finalize();
 	#else
         std::cout << "Total runtime: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()*1e-6 << " secs" << std::endl;
@@ -117,3 +150,12 @@ void MPIcontroller::divideWork(size_t numTasks) {
 int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
 int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
 
+int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
+
+int MPIcontroller::getNumBlasCols() { return numBlasCols_; }
+
+int MPIcontroller::getMyBlasRow() { return myBlasRow_; }
+
+int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
+
+int MPIcontroller::getBlacsContext() { return blacsContext_; }

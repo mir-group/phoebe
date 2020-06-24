@@ -17,6 +17,13 @@ ExternalProject_Add(spglib_dep
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
 )
+ExternalProject_Add(scalapack_dep
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_src
+    GIT_REPOSITORY https://github.com/Reference-ScaLAPACK/scalapack.git
+    INSTALL_COMMAND ""
+    UPDATE_COMMAND ""
+)
 ExternalProject_Add(pugixml_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src
@@ -35,6 +42,7 @@ ExternalProject_Add(eigen_dep
 link_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_build
+    ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build/lib
 )
 
 include_directories(
@@ -43,5 +51,4 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
 )
-
 
