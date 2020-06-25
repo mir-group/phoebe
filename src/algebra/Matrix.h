@@ -1,3 +1,10 @@
+#include "PMatrix.h"
+// note: this goes outside MPI_AVAIL
+// in the rest of the code we can just load this header, it will be subsitituted
+// by the Matrix class defined in PMatrix.h, which relies on scalapack
+
+#ifndef MPI_AVAIL
+
 #ifndef MATRIX_H
 #define MATRIX_H
 
@@ -56,9 +63,9 @@ class Matrix
 		Matrix(const Matrix<T>& m1); 
 		
 		/// Matrix class methods -----------------------------------
-		int numRows() const;
-		int numCols() const;
-		int getSize() const;
+		int rows() const;
+		int cols() const;
+		int size() const;
                 /// A reshape function. Note, this is not the same as pythons -- python wraps around the rows, 
                 /// this function instead wraps down columns. This is because the matrix is set up in col major order. 
 		void reshape(const int rows, const int cols);
@@ -91,7 +98,7 @@ class Matrix
 		// Generic matrix addition.  
 		template<typename U>
 		Matrix<T>& operator+=(const Matrix<U>& m1) {
-			assert( (m1.numRows() == nRows) && (m1.numCols() == nCols) );
+			assert( (m1.rows() == nRows) && (m1.cols() == nCols) );
 			static_assert( std::is_same<T, typename std::common_type<U,T>::type >::value, "You cannot += against a type which would return a type other than the lhs value." );
 			for(int s = 0; s<getSize(); s++) mat[s] += m1.mat[s];
 			return *this;
@@ -99,23 +106,23 @@ class Matrix
 		// Generic matrix subtraction. 
 		template<typename U>
 		Matrix<T>& operator-=(const Matrix<U>& m1) {
-			assert( (m1.numRows() == nRows) && (m1.numCols() == nCols) );
+			assert( (m1.rows() == nRows) && (m1.cols() == nCols) );
 			static_assert( std::is_same<T, typename std::common_type<U,T>::type >::value, "You cannot -= against a type which would return a type other than the lhs value." );
 			for(int s = 0; s<getSize(); s++) mat[s] -= m1.mat[s];
 			return *this;
 		} 
 		// Generic matrix multiplication. 
 		template<typename U> Matrix<T>& operator*=(const Matrix<U>& m1) {
-			assert(nRows == m1.numCols());
+			assert(nRows == m1.cols());
 			static_assert( std::is_same<T, typename std::common_type<U,T>::type >::value, "You cannot *= against a type which would return a type other than the lhs value." );
 
-			Matrix<T> ret(nRows,m1.numCols());
+			Matrix<T> ret(nRows,m1.cols());
 			// Loop over the rows of this matrix
 			for(int i =0; i<nRows; i++) {
 				// loop over the cols of this matrix and rows of m1
 				for(int j =0; j<nCols; j++) {
 						// loop over the cols of m1
-						for(int k =0; k<m1.numCols(); k++) ret(i,k) += (*this)(i,j) * m1(j,k); 
+						for(int k =0; k<m1.cols(); k++) ret(i,k) += (*this)(i,j) * m1(j,k);
 				}
 			} 
 			this->mat = ret.mat; 
@@ -184,33 +191,33 @@ template <> void Matrix<double>::diagonalize(Matrix<std::complex<double> >& eigv
 // Generic matrix addition
 template<typename U, typename V>
 auto operator+(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type>{
-	assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
+	assert( (m1.rows() == m2.rows()) || m1.cols() == m2.cols() );
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W; 
-	Matrix<W> c(m1.numRows(), m1.numCols());
+	Matrix<W> c(m1.rows(), m1.cols());
 	for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1.mat[s] + m2.mat[s];  
 	return c;
 }
 // Generic matrix subtraction. 
 template<typename U, typename V>
 auto operator-(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-	assert( (m1.numRows() == m2.numRows()) || m1.numCols() == m2.numCols() );
+	assert( (m1.rows() == m2.rows()) || m1.cols() == m2.cols() );
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W; 
-	Matrix<W> c(m1.numRows(), m1.numCols());
+	Matrix<W> c(m1.rows(), m1.cols());
 	for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1.mat[s] - m2.mat[s];
 	return c;
 }
 // Generic matrix multiplication.  
 template<typename U, typename V>
 auto operator*(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
-	assert(m1.numCols() == m2.numRows());
+	assert(m1.cols() == m2.rows());
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
-	Matrix<W> ret(m1.numRows(),m1.numCols()); 
+	Matrix<W> ret(m1.rows(),m1.cols());
 	// Loop over the rows of this matrix
-	for(int i =0; i<m1.numRows(); i++) {
+	for(int i =0; i<m1.rows(); i++) {
 		// loop over the cols of this matrix and rows of m1
-		for(int j =0; j<m1.numCols(); j++) {
+		for(int j =0; j<m1.cols(); j++) {
 				// loop over the cols of m1
-				for(int k =0; k<m2.numCols(); k++) ret(i,k) += m1(i,j) * m2(j,k);
+				for(int k =0; k<m2.cols(); k++) ret(i,k) += m1(i,j) * m2(j,k);
 		}
 	}
 	return ret;
@@ -218,32 +225,32 @@ auto operator*(const Matrix<U>& m1, const Matrix<V>& m2) -> Matrix<typename std:
 // Explict specialization of BLAS matrix-matrix mult for Matrix<complex<double>>
 template <>
 inline Matrix<std::complex<double>> operator*(const Matrix<std::complex<double>>& m1, const Matrix<std::complex<double>>& m2) {
-	assert(m1.numCols() == m2.numRows());
-	Matrix<std::complex<double>> ret(m1.numRows(),m2.numCols()); // newly sized matrix 
+	assert(m1.cols() == m2.rows());
+	Matrix<std::complex<double>> ret(m1.rows(),m2.cols()); // newly sized matrix
 	// throw away variables
 	char transa = 'n'; char transb = 'n';
 	std::complex<double> alpha(1.0,0.0);
 	std::complex<double> beta(0.0,0.0);
-	zgemm_(transa,transb,m1.numRows(),m2.numCols(),m1.numCols(),alpha,m1.mat,m1.numRows(), m2.mat,m2.numRows(),beta,ret.mat,m1.numRows());
+	zgemm_(transa,transb,m1.rows(),m2.cols(),m1.cols(),alpha,m1.mat,m1.rows(), m2.mat,m2.rows(),beta,ret.mat,m1.rows());
 	return ret;
 }
 // Explicit specializiation of BLAS matrix-matrix mult for Matrix<double>
 template <>
 inline Matrix<double> operator*(const Matrix<double>& m1, const Matrix<double>& m2) {
-	assert(m1.numCols() == m2.numRows());
-	Matrix<double> ret(m1.numRows(),m2.numCols()); // newly sized matrix 
+	assert(m1.cols() == m2.rows());
+	Matrix<double> ret(m1.rows(),m2.cols()); // newly sized matrix
 	// throw away variables
 	char transa = 'n'; char transb = 'n'; // compute only reigs
 	double alpha = 1.0;
 	double beta = 0.0;
-	dgemm_(transa,transb,m1.numRows(),m2.numCols(),m1.numCols(),alpha,m1.mat,m1.numRows(), m2.mat,m2.numRows(),beta,ret.mat,m1.numRows());
+	dgemm_(transa,transb,m1.rows(),m2.cols(),m1.cols(),alpha,m1.mat,m1.rows(), m2.mat,m2.rows(),beta,ret.mat,m1.rows());
 	return ret;
 }
 // Generic matrix * scalar product
 template<typename U, typename V>
 auto operator*( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
-	Matrix<W> c(m1.numRows(), m1.numCols());
+	Matrix<W> c(m1.rows(), m1.cols());
 	for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1.mat[s] * scalar;
 	return c;
 }
@@ -252,7 +259,7 @@ auto operator*( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::co
 template<typename U, typename V>
 auto operator*(const V scalar, const Matrix<U>& m1) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
-	Matrix<W> c(m1.numRows(), m1.numCols());
+	Matrix<W> c(m1.rows(), m1.cols());
 	for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1.mat[s] * scalar;
 	return c;
 }
@@ -260,20 +267,20 @@ auto operator*(const V scalar, const Matrix<U>& m1) -> Matrix<typename std::comm
 template<typename U, typename V>
 auto operator/( const Matrix<U>& m1,  const V scalar) -> Matrix<typename std::common_type<decltype(U{}),decltype(V{})>::type> {
 	typedef typename std::common_type<decltype(U{}),decltype(V{})>::type W;
-	Matrix<W> c(m1.numRows(), m1.numCols());
+	Matrix<W> c(m1.rows(), m1.cols());
 	for(int s = 0; s<m1.getSize(); s++) c.mat[s] = m1.mat[s] / scalar;
 	return c;
 } 
 /// Non-member functions specfic to complex matrices. TODO: is there a faster way to do this?
 /// Get the real part of a complex matrix
 template<typename U> Matrix<U> real(const Matrix<std::complex<U>>& m) {
-	Matrix<U> ret(m.numRows(),m.numCols());
+	Matrix<U> ret(m.rows(),m.cols());
 	for(int s = 0; s<m.getSize(); s++) ret.mat[s] = m.mat[s].real();
 	return ret;   
 }
 /// Get the imag part of a complex matrix
 template<typename U> Matrix<U> imag(const Matrix<std::complex<U>>& m) {
-	Matrix<U> ret(m.numRows(),m.numCols());
+	Matrix<U> ret(m.rows(),m.cols());
 	for(int s = 0; s<m.getSize(); s++) ret.mat[s] = m.mat[s].imag();
 	return ret;
 }
@@ -291,3 +298,5 @@ template<typename U> void setImag(Matrix<std::complex<U>>& m, Matrix<U>& imagMat
 #include "Matrix.cpp"
 
 #endif // MATRIX_H
+
+#endif // mpi_AVAIL

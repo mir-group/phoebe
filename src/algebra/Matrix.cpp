@@ -1,3 +1,5 @@
+#ifndef MPI_AVAIL
+
 #include "Matrix.h"
 
 /* ------------- Constructors -------------- */
@@ -22,14 +24,14 @@ template <typename T> Matrix<T>::Matrix() {
 // copy constructor 
 template <typename T> Matrix<T>::Matrix(const Matrix<T>& toCopy) { 
 	mat = new T[toCopy.getSize()];
-	nRows = toCopy.numRows(); 
-	nCols = toCopy.numCols(); 
+	nRows = toCopy.rows();
+	nCols = toCopy.cols();
 	copy(toCopy); 
 } 
 
 /* ------------- Very basic operations -------------- */
-template <typename T> int Matrix<T>::numRows() const { return nRows; }
-template <typename T> int Matrix<T>::numCols() const { return nCols; }
+template <typename T> int Matrix<T>::rows() const { return nRows; }
+template <typename T> int Matrix<T>::cols() const { return nCols; }
 template <typename T> int Matrix<T>::getSize() const { return nCols*nRows; }
 template <typename T> void Matrix<T>::reshape(const int rows, const int cols) {
         assert(rows*cols == getSize()); // new values need to fit the current dimensions
@@ -112,7 +114,7 @@ template <typename T> Matrix<T> Matrix<T>::getCol(const int col) const {
 // Set a block of the matrix
 template <typename T>
 void Matrix<T>::operator()(const int rowStart, const int rowStop, const int colStart, const int colStop, const Matrix<T>& value){
-	assert( (rowStop - rowStart == value.numRows()) && (colStop - colStart == value.numCols()) ); //"Matrix to set is larger or smaller than the block requested." );
+	assert( (rowStop - rowStart == value.rows()) && (colStop - colStart == value.cols()) ); //"Matrix to set is larger or smaller than the block requested." );
 	assert( (rowStop <= nRows) && (colStop <= nCols)); // "Block is out of bounds." );
 
 	for(int row = rowStart; row<=rowStop; row++) {
@@ -124,13 +126,13 @@ void Matrix<T>::operator()(const int rowStart, const int rowStop, const int colS
 // Set a row of the matrix
 template <typename T> void Matrix<T>::setRow(const int row, const Matrix<T>& value) {
 	assert( (row < nRows)); //, "Row is out of bounds." );
-	assert( (value.numRows() == 1) && (value.numCols() == nCols) );  // given matrix must match dims
+	assert( (value.rows() == 1) && (value.cols() == nCols) );  // given matrix must match dims
 	for(int i = 0; i<nCols; i++) (*this)(row,i) = value(0,i);
 }
 // Set a col of the matrix
 template <typename T> void Matrix<T>::setCol(const int col, const Matrix<T>& value) {
 	assert( (col < nCols)); //, "Col is out of bounds." );
-	assert( (value.numCols() == 1) && (value.numRows() == nRows) );  // given matrix must match dims
+	assert( (value.cols() == 1) && (value.rows() == nRows) );  // given matrix must match dims
 	for(int i = 0; i<nRows; i++) (*this)(i,col) = value(i,0);
 	mat.col(col) = value.mat;
 }
@@ -144,7 +146,7 @@ template <typename T> Matrix<T> Matrix<T>::operator-() const{
 }
 // Equivalence operators
 template <typename T> bool Matrix<T>::operator==(const Matrix<T>& m1) const {
-	if ( (nRows != m1.numRows() ) || ( nCols != m1.numCols() )) return false;
+	if ( (nRows != m1.rows() ) || ( nCols != m1.cols() )) return false;
 	for(int s =0; s< getSize(); s++) { if (mat[s] != m1.mat[s]) return false; }
 	return true; 
 }
@@ -348,3 +350,4 @@ void Matrix<T>::diagonalize(Matrix<std::complex<double> >& eigvecs, Matrix<std::
 	temp.diagonalize(eigvecs, eigvals); 
 }
 
+#endif // mpi_AVAIL
