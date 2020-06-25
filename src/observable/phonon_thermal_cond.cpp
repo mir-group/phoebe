@@ -148,7 +148,8 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 }
 
 void PhononThermalConductivity::print() {
-
+//    if ( ! mpi->mpiHead()) return; // debugging now
+mpi->barrier();
     std::string units;
     if (dimensionality == 1) {
         units = "W m / K";

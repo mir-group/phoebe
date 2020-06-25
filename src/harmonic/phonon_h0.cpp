@@ -8,6 +8,7 @@
 #include "phonon_h0.h"
 #include "utilities.h"
 #include "points.h"
+#include "mpiHelper.h"
 
 PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
         const Eigen::Tensor<double, 3> &bornCharges_,
@@ -812,7 +813,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         Error e("invalid Acoustic Sum Rule", 1);
     }
 
-    std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
+    if ( mpi->mpiHead() ) {
+      std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
+    }
 
     if (sr == "simple") {
 
@@ -1385,7 +1388,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         forceConstants = frc_new;
 
     }
-    std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
+    if ( mpi->mpiHead() ) {
+      std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
+    }
 }
 
 void PhononH0::sp_zeu(Eigen::Tensor<double, 3> &zeu_u,

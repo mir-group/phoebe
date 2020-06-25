@@ -194,6 +194,10 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   if (info != 0) {
     Error e("Something wrong calling descinit", info);
   }
+
+  std::cout << "<><>" << numRows << " " << numBlasRows_ << " "
+          <<  numLocalRows_ << " " << numLocalElements_ << "\n";
+
 }
 
 template <typename T>
@@ -326,7 +330,7 @@ std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
   int x_j = j % blockSizeCols_;  // where within that block
   // global col
   int J = (l_j * numBlasCols_ + myBlasCol_) * blockSizeCols_ + x_j;
-
+std::cout << I << " " << J << "--\n";
   return {I, J};
 }
 
@@ -425,7 +429,7 @@ T Matrix<T>::dot(const Matrix<T>& that) {
     for ( int i=0; i<numLocalElements_; i++ ) {
         scalar += ( *(mat+i) ) * ( *(that.mat+i) );
     }
-    mpi->reduceSum(&scalar, &scalarOut);
+    mpi->allReduceSum(&scalar, &scalarOut);
     return scalarOut;
 }
 

@@ -194,7 +194,8 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
 //        std::cout << iq1 << " " << iq2 << "!\n";
 //    }
 
-
+    std::cout << qPairIterator.size() << "??\n";
+std::cout << theMatrix.rows() << "?-?\n"; // corretto size 0 if not on memory
     LoopPrint loopPrint("computing scattering matrix", "q-points",
             qPairIterator.size());
 
@@ -571,6 +572,16 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
 //        }
     }
     loopPrint.close();
+
+    mpi->allReduceSum(&linewidth->data);
+
+    double puppa = 0.;
+    for ( int i=0; i<outerBandStructure.getNumStates(); i++ ) {
+        puppa += linewidth->data(0,i);
+    }
+    std::cout.precision(8);
+    std::cout << puppa << " " << mpi->getRank() << "puppa\n";
+
 
     // Add boundary scattering
 

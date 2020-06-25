@@ -164,16 +164,34 @@ int MPIcontroller::getBlacsContext() { return blacsContext_; }
 
 // template specialization
 template <>
-void MPIcontroller::reduceSum(Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
+void MPIcontroller::reduceSum(
+    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
   // NOTE: this requires 2 copies, while I could make it with one (in theory).
   std::vector<double> y(data->data(), data->data() + data->size());
   std::vector<double> y2(data->size());
-  reduceSum(&y,&y2);
-  for ( int i=0; i<data->size(); i++ ) {
-    *(data->data()+i) = y2[i];
+  reduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+// template specialization
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
   }
 #endif
 }

@@ -165,7 +165,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
                 x2[is2] +=  x(is1) * eigenvectors(is1,is2);
             }
             std::vector<double> x3(numStates,0.);
-            mpi->reduceSum(&x2,&x3);
+            mpi->allReduceSum(&x2,&x3);
 
             for (long is = 0; is < numStates; is++) {
                 w(i, j, is) = x3[is] / volume / numPoints;

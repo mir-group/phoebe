@@ -153,12 +153,12 @@ VectorBTE VectorBTE::operator *(Matrix<double> &matrix) {
   }
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data.setZero();
-
   for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
     for (auto [i, j] : matrix.getAllLocalStates()) {
       newPopulation.data(iCalc, i) = matrix(i, j) * data(iCalc, j);
     }
   }
+  mpi->allReduceSum(&newPopulation.data);
   return newPopulation;
 }
 

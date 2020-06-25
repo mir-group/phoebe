@@ -13,6 +13,7 @@
 #include "phonon_viscosity.h"
 #include "qe_input_parser.h"
 #include "specific_heat.h"
+#include <iomanip>
 
 void PhononTransportApp::run(Context &context) {
 
@@ -34,6 +35,14 @@ void PhononTransportApp::run(Context &context) {
   auto [bandStructure, statisticsSweep] =
       ActiveBandStructure::builder(context, phononH0, fullPoints);
 
+  double x = 0.;
+  for ( int is =0; is<bandStructure.getNumStates(); is++ ) {
+      auto n = bandStructure.getEnergy(is);
+      x += n;
+  }
+  std::cout << std::setprecision(16);
+  std::cout << x << "!!!!\n";
+
   // load the 3phonon coupling
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
@@ -46,10 +55,12 @@ void PhononTransportApp::run(Context &context) {
   // we always do this, as it's the cheapest solver and is required to know
   // the diagonal for the exact method.
 
-  std::cout << "\n";
-  std::cout << std::string(80, '-') << "\n";
-  std::cout << "\n";
-  std::cout << "Solving BTE within the relaxation time approximation.\n";
+  if ( mpi->mpiHead()) {
+    std::cout << "\n";
+    std::cout << std::string(80, '-') << "\n";
+    std::cout << "\n";
+    std::cout << "Solving BTE within the relaxation time approximation.\n";
+  }
 
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
@@ -74,9 +85,11 @@ void PhononTransportApp::run(Context &context) {
   specificHeat.calc();
   specificHeat.print();
 
-  std::cout << "\n";
-  std::cout << std::string(80, '-') << "\n";
-  std::cout << "\n";
+  if ( mpi->mpiHead()) {
+    std::cout << "\n";
+    std::cout << std::string(80, '-') << "\n";
+    std::cout << "\n";
+  }
 
   // if requested, we solve the BTE exactly
 
@@ -104,10 +117,14 @@ void PhononTransportApp::run(Context &context) {
             "temperature/chemical potential is allowed in a run");
   }
 
+  mpi->barrier();
+
   if (doIterative) {
 
-    std::cout << "Starting Omini Sparavigna BTE solver\n";
-    std::cout << "\n";
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting Omini Sparavigna BTE solver\n";
+      std::cout << "\n";
+    }
 
     // initialize the (old) thermal conductivity
     PhononThermalConductivity phTCondOld = phTCond;
@@ -145,15 +162,19 @@ void PhononTransportApp::run(Context &context) {
       }
     }
     phTCond.print();
-    std::cout << "Finished Omini Sparavigna BTE solver\n";
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
+    if ( mpi->mpiHead()) {
+      std::cout << "Finished Omini Sparavigna BTE solver\n";
+      std::cout << "\n";
+      std::cout << std::string(80, '-') << "\n";
+      std::cout << "\n";
+    }
   }
 
   if (doVariational) {
-    std::cout << "Starting variational BTE solver\n";
-    std::cout << "\n";
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting variational BTE solver\n";
+      std::cout << "\n";
+    }
 
     // note: each iteration should take approximately twice as long as
     // the iterative method above (in the way it's written here.
@@ -228,10 +249,12 @@ void PhononTransportApp::run(Context &context) {
     // nice formatting of the thermal conductivity at the last step
     phTCond.print();
 
-    std::cout << "Finished variational BTE solver\n";
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
+    if ( mpi->mpiHead()) {
+      std::cout << "Finished variational BTE solver\n";
+      std::cout << "\n";
+      std::cout << std::string(80, '-') << "\n";
+      std::cout << "\n";
+    }
   }
 
   if (doRelaxons) {
@@ -270,11 +293,14 @@ void PhononTransportApp::run(Context &context) {
                                  scatteringMatrix, eigenvectors);
     phViscosity.print();
 
-    std::cout << "Finished relaxons BTE solver\n";
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
+    if ( mpi->mpiHead()) {
+      std::cout << "Finished relaxons BTE solver\n";
+      std::cout << "\n";
+      std::cout << std::string(80, '-') << "\n";
+      std::cout << "\n";
+    }
   }
+  mpi->barrier();
 }
 
 void PhononTransportApp::checkRequirements(Context &context) {

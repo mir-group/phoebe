@@ -41,19 +41,32 @@ private:
                 *  @param dataIn: pointer to data structure to broadcast   
                 */ 
 		template<typename T> void bcast(T* dataIn) const;
-                /** Wrapper for MPI_Reduce in the case of a summation. 
-                * @param dataIn: pointer to sent data from each rank. 
-                * @param dataOut: pointer to buffer to receive summed data.               
-                */       
-		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
 
+		/** Wrapper for MPI_Reduce in the case of a summation.
+        * @param dataIn: pointer to sent data from each rank.
+        * @param dataOut: pointer to buffer to receive summed data.
+        */
+        template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
 
-      /** Wrapper for MPI_Reduce in the case of a summation in-place.
-       * @param data: pointer to sent data from each rank.
-       * Gets overwritten with the result of the MPI allreduce('SUM') operation.
-       */
-      template <typename T>
-      void reduceSum(T* data) const;
+        /** Wrapper for MPI_Reduce in the case of a summation.
+        * @param dataIn: pointer to sent data from each rank.
+        * @param dataOut: pointer to buffer to receive summed data.
+        */
+        template<typename T> void allReduceSum(T* dataIn, T* dataOut) const;
+
+        /** Wrapper for MPI_Reduce in the case of a summation in-place.
+         * @param data: pointer to sent data from each rank.
+         * Gets overwritten with the result of the MPI allreduce('SUM') operation.
+         */
+        template <typename T>
+        void reduceSum(T* data) const;
+
+        /** Wrapper for MPI_AllReduce in the case of a summation in-place.
+         * @param data: pointer to sent data from each rank.
+         * Gets overwritten with the result of the MPI allreduce('SUM') operation.
+         */
+        template <typename T>
+        void allReduceSum(T* data) const;
 
                 /** Wrapper for MPI_Reduce which identifies the maximum of distributed data 
                 * @param dataIn: pointer to sent data from each rank. 
@@ -172,6 +185,7 @@ template<typename T> void MPIcontroller::bcast(T* dataIn) const{
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
+
 template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL
@@ -181,6 +195,23 @@ template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
         errCode = MPI_Reduce(containerType<T>::getAddress(dataIn),containerType<T>::getAddress(dataOut),containerType<T>::getSize(dataIn),containerType<T>::getMPItype(), MPI_SUM, 0, MPI_COMM_WORLD);
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+
+  errCode = MPI_Allreduce(
+      containerType<T>::getAddress(dataIn),
+      containerType<T>::getAddress(dataOut), containerType<T>::getSize(dataIn),
+      containerType<T>::getMPItype(), MPI_SUM, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+#endif
 }
 
 //template <typename T>

@@ -173,7 +173,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
                 theMatrix(i1, j1) * inPopulation.data(idim, j1);
           }
         }
-        mpi->reduceSum(&outPopulation.data);
+        mpi->allReduceSum(&outPopulation.data);
 
         // normalization
 //		outPopulation.data /= numPoints;
