@@ -26,7 +26,7 @@ class Matrix {  // P stands for parallel
   const char transT = 'T';  // transpose
   const char transC = 'C';  // adjoint (for complex numbers)
 
-  std::tuple<long, long> local2Global(const int& k);
+  std::tuple<long, long> local2Global(const long& k);
 
   // dummy values to return when accessing elements not available locally
   T dummyZero = 0;

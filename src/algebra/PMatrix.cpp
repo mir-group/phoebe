@@ -54,7 +54,7 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   // fill the matrix with zeroes
   for (long i = 0; i < numLocalElements_; ++i) *(mat+i) = 0.; // mat[i] = 0.;
 
-  // Create descriptor
+  // Create descriptor for block cyclic distribution of matrix
   int descMat_[9]; // descriptor
   int info; // error code
   int lddA = numLocalRows_ > 1 ? numLocalRows_ : 1; // if mpA>1, ldda=mpA, else 1
@@ -178,7 +178,7 @@ const T& Matrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-std::tuple<long,long> Matrix<T>::local2Global(const int &k) {
+std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
   // first, we convert this combined local index k
   // into local row / col indeces
   // k = j * numLocalRows_ + i

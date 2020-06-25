@@ -5,6 +5,7 @@
 #include "mpiController.h"
 #include "Blacs.h"
 #include "exceptions.h"
+#include "eigen.h"
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
@@ -148,6 +149,7 @@ void MPIcontroller::divideWork(size_t numTasks) {
 }
 
 int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
+
 int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
 
 int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
@@ -159,3 +161,19 @@ int MPIcontroller::getMyBlasRow() { return myBlasRow_; }
 int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
 
 int MPIcontroller::getBlacsContext() { return blacsContext_; }
+
+// template specialization
+template <>
+void MPIcontroller::reduceSum(Eigen::MatrixXd* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  reduceSum(&y,&y2);
+  for ( int i=0; i<data->size(); i++ ) {
+    *(data->data()+i) = y2[i];
+  }
+#endif
+}

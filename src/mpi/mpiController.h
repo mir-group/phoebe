@@ -46,6 +46,15 @@ private:
                 * @param dataOut: pointer to buffer to receive summed data.               
                 */       
 		template<typename T> void reduceSum(T* dataIn, T* dataOut) const;
+
+
+      /** Wrapper for MPI_Reduce in the case of a summation in-place.
+       * @param data: pointer to sent data from each rank.
+       * Gets overwritten with the result of the MPI allreduce('SUM') operation.
+       */
+      template <typename T>
+      void reduceSum(T* data) const;
+
                 /** Wrapper for MPI_Reduce which identifies the maximum of distributed data 
                 * @param dataIn: pointer to sent data from each rank. 
                 * @param dataOut: pointer to buffer to receive max item from data.               
@@ -173,6 +182,23 @@ template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
         if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
         #endif
 }
+
+template <typename T>
+void MPIcontroller::reduceSum(T* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+
+  T* work = nullptr;
+  work = new T[containerType<T>::getSize(data)];
+  reduceSum(&data, &work);
+  for ( int i=0; i<containerType<T>::getSize(data); i++ ) {
+      *(data+i) = *(work+i);
+  }
+  delete[] work;
+#endif
+}
+
 template<typename T> void MPIcontroller::reduceMax(T* dataIn, T* dataOut) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL
