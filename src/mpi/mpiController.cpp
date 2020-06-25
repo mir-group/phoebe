@@ -46,7 +46,7 @@ MPIcontroller::~MPIcontroller(){
 // TODO: any other stats would like to output here? 
 void MPIcontroller::finalize() const {
 	#ifdef MPI_AVAIL
-	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
+	if(rank==0) fprintf(stdout, "Final time for MPI head: %3f\n ", MPI_Wtime() - startTime );
 	MPI_Finalize();
 	#else
         std::cout << "Total runtime: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()*1e-6 << " secs" << std::endl;
@@ -87,25 +87,18 @@ void MPIcontroller::barrier() const{
 
 // Labor division functions -----------------------------------------
 std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
-        // clear just in case there was a prior call
-        //workDivisionHeads.clear(); 
-        //workDivisionTails.clear(); 
+        // return a vector of the start and stop points for task division
         std::vector<int> divs(2); 
-        // each should be nranks long
-        //workDivisionHeads.resize(size);  
-        //workDivisionTails.resize(size); 
-        //size_t numDivisons = numTasks/size + (numTasks % size != 0); // ceiling of work/ranks
-        //for(int r = 0; r<size; r++) {
-                //workDivisionHeads[r] = (numTasks * r)/size;
-                //workDivisionTails[r] = (numTasks * (r+1))/size;
-                // if(rank==0) fprintf(stdout, "rank %3d : %3d %3d \n", rank,  workDivisionHeads[r], workDivisionTails[r]); // for debugging work division
-        
-        //}
         divs[0] = (numTasks * rank)/size;
         divs[1] = (numTasks * (rank+1))/size;
         return divs; 
 }
 
-//int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
-//int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
-
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+        // return a vector of the start and stop points for task division
+        std::vector<int> divs;
+        int start = (numTasks * rank)/size;
+        int stop = (numTasks * (rank+1))/size;
+        for( int i = start; i <= stop; i++ ) divs.push_back(i);
+        return divs;
+}

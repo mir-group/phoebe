@@ -98,7 +98,7 @@ class MPIcontroller{
                 *       points for the divided number of tasks. 
                 */
                 std::vector<int> divideWork(size_t numTasks); // divide up a set of work 
-
+                std::vector<int> divideWorkIter(size_t numTasks); 
 };
 
 // we need to use the concept of a "type traits" object to serialize the standard cpp types
