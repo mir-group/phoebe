@@ -1,201 +1,185 @@
 #include "interaction_3ph.h"
 
-long findIndexRow(Eigen::MatrixXd & cellPositions2,
-		Eigen::Vector3d & position2) {
-	long ir2 = -1;
-	for ( int i=0; i<cellPositions2.cols(); i++ ) {
-		if ( (position2 - cellPositions2.col(i)).norm()==0. ) {
-			ir2 = i;
-			return ir2;
-		}
-	}
-	if ( ir2 == -1 ) {
-		Error e("index not found");
-	}
-	return ir2;
+long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
+  long ir2 = -1;
+  for (int i = 0; i < cellPositions2.cols(); i++) {
+    if ((position2 - cellPositions2.col(i)).norm() == 0.) {
+      ir2 = i;
+      return ir2;
+    }
+  }
+  if (ir2 == -1) {
+    Error e("index not found");
+  }
+  return ir2;
 }
 
 // default constructor
-Interaction3Ph::Interaction3Ph(Crystal & crystal_,
-		long & numTriplets_,
-		Eigen::Tensor<double,4> & ifc3Tensor_,
-		Eigen::Tensor<double,3> & cellPositions_,
-		Eigen::Tensor<long,2> & displacedAtoms_) :
-		crystal(crystal_),
-		numTriplets(numTriplets_),
-		ifc3Tensor(ifc3Tensor_),
-		cellPositions(cellPositions_),
-		displacedAtoms(displacedAtoms_) {
+Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
+                               Eigen::Tensor<double, 4> &ifc3Tensor_,
+                               Eigen::Tensor<double, 3> &cellPositions_,
+                               Eigen::Tensor<long, 2> &displacedAtoms_)
+    : crystal(crystal_), numTriplets(numTriplets_), ifc3Tensor(ifc3Tensor_),
+      cellPositions(cellPositions_), displacedAtoms(displacedAtoms_) {
 
-	numAtoms = crystal.getNumAtoms();
-	numBands = numAtoms * 3;
+  numAtoms = crystal.getNumAtoms();
+  numBands = numAtoms * 3;
 
-	if ( ! useD3Caching ) {
+  if (!useD3Caching) {
 
-		// these are lookout tables used for speeding up the construction of
-		// the coupling (and avoiding recomputing the same indeces.
-		tableAtCIndex1 = Eigen::MatrixXi::Zero(3,numTriplets);
-		tableAtCIndex2 = Eigen::MatrixXi::Zero(3,numTriplets);
-		tableAtCIndex3 = Eigen::MatrixXi::Zero(3,numTriplets);
-		for ( int ic : {0,1,2} ) {
-			for ( long it=0; it<numTriplets; it++ ) {
-				tableAtCIndex1(ic,it) =
-						compress2Indeces(displacedAtoms(it,0), ic, numAtoms,3);
-				tableAtCIndex2(ic,it) =
-						compress2Indeces(displacedAtoms(it,1), ic, numAtoms,3);
-				tableAtCIndex3(ic,it) =
-						compress2Indeces(displacedAtoms(it,2), ic, numAtoms,3);
-			}
-		}
+    // these are lookout tables used for speeding up the construction of
+    // the coupling (and avoiding recomputing the same indeces.
+    tableAtCIndex1 = Eigen::MatrixXi::Zero(3, numTriplets);
+    tableAtCIndex2 = Eigen::MatrixXi::Zero(3, numTriplets);
+    tableAtCIndex3 = Eigen::MatrixXi::Zero(3, numTriplets);
+    for (int ic : {0, 1, 2}) {
+      for (long it = 0; it < numTriplets; it++) {
+        tableAtCIndex1(ic, it) =
+            compress2Indeces(displacedAtoms(it, 0), ic, numAtoms, 3);
+        tableAtCIndex2(ic, it) =
+            compress2Indeces(displacedAtoms(it, 1), ic, numAtoms, 3);
+        tableAtCIndex3(ic, it) =
+            compress2Indeces(displacedAtoms(it, 2), ic, numAtoms, 3);
+      }
+    }
 
-	} else {
+  } else {
 
-		nr2 = 0; nr3 = 0;
-		std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
+    nr2 = 0;
+    nr3 = 0;
+    std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
 
-		for ( long it=0; it<numTriplets; it++ ) {
-			// load the position of the 2 atom in the current triplet
-			Eigen::Vector3d position2, position3;
-			for ( int ic : {0,1,2} ) {
-				position2(ic) = cellPositions(it,0,ic);
-				position3(ic) = cellPositions(it,1,ic);
-			}
-			// now check if this element is in the list.
-			bool found2 = false;
-			if ( std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
-					position2) != tmpCellPositions2.end() ) {
-				found2 = true;
-			}
-			bool found3 = false;
-			if ( std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
-					position3) != tmpCellPositions3.end() ) {
-				found3 = true;
-			}
+    for (long it = 0; it < numTriplets; it++) {
+      // load the position of the 2 atom in the current triplet
+      Eigen::Vector3d position2, position3;
+      for (int ic : {0, 1, 2}) {
+        position2(ic) = cellPositions(it, 0, ic);
+        position3(ic) = cellPositions(it, 1, ic);
+      }
+      // now check if this element is in the list.
+      bool found2 = false;
+      if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
+                    position2) != tmpCellPositions2.end()) {
+        found2 = true;
+      }
+      bool found3 = false;
+      if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
+                    position3) != tmpCellPositions3.end()) {
+        found3 = true;
+      }
 
-			if ( ! found2 ) {
-				tmpCellPositions2.push_back(position2);
-				nr2++;
-			}
-			if ( ! found3 ) {
-				tmpCellPositions3.push_back(position3);
-				nr3++;
-			}
-		}
+      if (!found2) {
+        tmpCellPositions2.push_back(position2);
+        nr2++;
+      }
+      if (!found3) {
+        tmpCellPositions3.push_back(position3);
+        nr3++;
+      }
+    }
 
-		cellPositions2 = Eigen::MatrixXd::Zero(3,nr2);
-		cellPositions3 = Eigen::MatrixXd::Zero(3,nr3);
-		for ( int i=0; i<nr2; i++ ) {
-			cellPositions2.col(i) = tmpCellPositions2[i];
-		}
-		for ( int i=0; i<nr3; i++ ) {
-			cellPositions3.col(i) = tmpCellPositions3[i];
-		}
+    cellPositions2 = Eigen::MatrixXd::Zero(3, nr2);
+    cellPositions3 = Eigen::MatrixXd::Zero(3, nr3);
+    for (int i = 0; i < nr2; i++) {
+      cellPositions2.col(i) = tmpCellPositions2[i];
+    }
+    for (int i = 0; i < nr3; i++) {
+      cellPositions3.col(i) = tmpCellPositions3[i];
+    }
 
-		D3 = Eigen::Tensor<double,5>(numBands,numBands,numBands,nr2,nr3);
-		D3.setZero();
+    D3 = Eigen::Tensor<double, 5>(numBands, numBands, numBands, nr2, nr3);
+    D3.setZero();
 
+    for (long it = 0; it < numTriplets; it++) { // sum over all triplets
+      long ia1 = displacedAtoms(it, 0);
+      long ia2 = displacedAtoms(it, 1);
+      long ia3 = displacedAtoms(it, 2);
 
-		for ( long it=0; it<numTriplets; it++ ) { // sum over all triplets
-			long ia1 = displacedAtoms(it,0);
-			long ia2 = displacedAtoms(it,1);
-			long ia3 = displacedAtoms(it,2);
+      Eigen::Vector3d position2, position3;
+      for (int ic : {0, 1, 2}) {
+        position2(ic) = cellPositions(it, 0, ic);
+        position3(ic) = cellPositions(it, 1, ic);
+      }
 
-			Eigen::Vector3d position2, position3;
-			for ( int ic : {0,1,2} ) {
-				position2(ic) = cellPositions(it,0,ic);
-				position3(ic) = cellPositions(it,1,ic);
-			}
+      long ir2 = findIndexRow(cellPositions2, position2);
+      long ir3 = findIndexRow(cellPositions3, position3);
 
-			long ir2 = findIndexRow(cellPositions2, position2);
-			long ir3 = findIndexRow(cellPositions3, position3);
+      for (int ic1 : {0, 1, 2}) {
+        for (int ic2 : {0, 1, 2}) {
+          for (int ic3 : {0, 1, 2}) {
 
-			for ( int ic1 : {0,1,2} ) {
-				for ( int ic2 : {0,1,2} ) {
-					for ( int ic3 : {0,1,2} ) {
+            auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+            auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+            auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
 
-						auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-						auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-						auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+            D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
+          }
+        }
+      }
+    }
+    ifc3Tensor.resize(0, 0, 0, 0);
+    cellPositions.resize(0, 0, 0);
+    displacedAtoms.resize(0, 0);
 
-						D3(ind1,ind2,ind3,ir2,ir3) =
-								ifc3Tensor(ic3,ic2,ic1,it);
-					}
-				}
-			}
-		}
-		ifc3Tensor.resize(0,0,0,0);
-		cellPositions.resize(0,0,0);
-		displacedAtoms.resize(0,0);
-
-		cachedCoords << -111.,-111.,-111.;
-	}
-
+    cachedCoords << -111., -111., -111.;
+  }
 }
 
 // copy constructor
-Interaction3Ph::Interaction3Ph(const Interaction3Ph & that) :
-	crystal(that.crystal),
-	numTriplets(that.numTriplets),
-	ifc3Tensor(that.ifc3Tensor),
-	cellPositions(that.cellPositions),
-	displacedAtoms(that.displacedAtoms),
-	tableAtCIndex1(that.tableAtCIndex1),
-	tableAtCIndex2(that.tableAtCIndex2),
-	tableAtCIndex3(that.tableAtCIndex3),
-	useD3Caching(that.useD3Caching),
-	cellPositions2(that.cellPositions2),
-	cellPositions3(that.cellPositions3),
-	D3(that.D3),
-	nr2(that.nr2),
-	nr3(that.nr3),
-	numAtoms(that.numAtoms),
-	numBands(that.numBands),
-	cachedCoords(that.cachedCoords),
-	D3PlusCached(that.D3PlusCached),
-	D3MinsCached(that.D3MinsCached) {
-}
+Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
+    : crystal(that.crystal), numTriplets(that.numTriplets),
+      ifc3Tensor(that.ifc3Tensor), cellPositions(that.cellPositions),
+      displacedAtoms(that.displacedAtoms), tableAtCIndex1(that.tableAtCIndex1),
+      tableAtCIndex2(that.tableAtCIndex2), tableAtCIndex3(that.tableAtCIndex3),
+      useD3Caching(that.useD3Caching), cellPositions2(that.cellPositions2),
+      cellPositions3(that.cellPositions3), D3(that.D3), nr2(that.nr2),
+      nr3(that.nr3), numAtoms(that.numAtoms), numBands(that.numBands),
+      cachedCoords(that.cachedCoords), D3PlusCached(that.D3PlusCached),
+      D3MinsCached(that.D3MinsCached) {}
 
 // assignment operator
-Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
-	if ( this != &that ) {
-		crystal = that.crystal;
-		numTriplets = that.numTriplets;
-		ifc3Tensor = that.ifc3Tensor;
-		cellPositions = that.cellPositions;
-		displacedAtoms = that.displacedAtoms;
-		tableAtCIndex1 = that.tableAtCIndex1;
-		tableAtCIndex2 = that.tableAtCIndex2;
-		tableAtCIndex3 = that.tableAtCIndex3;
+Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
+  if (this != &that) {
+    crystal = that.crystal;
+    numTriplets = that.numTriplets;
+    ifc3Tensor = that.ifc3Tensor;
+    cellPositions = that.cellPositions;
+    displacedAtoms = that.displacedAtoms;
+    tableAtCIndex1 = that.tableAtCIndex1;
+    tableAtCIndex2 = that.tableAtCIndex2;
+    tableAtCIndex3 = that.tableAtCIndex3;
 
-		useD3Caching = that.useD3Caching;
-		cellPositions2 = that.cellPositions2;
-		cellPositions3 = that.cellPositions3;
-		D3 = that.D3;
-		nr2 = that.nr2;
-		nr3 = that.nr3;
-		numAtoms = that.numAtoms;
-		numBands = that.numBands;
-		cachedCoords = that.cachedCoords;
-		D3PlusCached = that.D3PlusCached;
-		D3MinsCached = that.D3MinsCached;
-	}
-	return *this;
+    useD3Caching = that.useD3Caching;
+    cellPositions2 = that.cellPositions2;
+    cellPositions3 = that.cellPositions3;
+    D3 = that.D3;
+    nr2 = that.nr2;
+    nr3 = that.nr3;
+    numAtoms = that.numAtoms;
+    numBands = that.numBands;
+    cachedCoords = that.cachedCoords;
+    D3PlusCached = that.D3PlusCached;
+    D3MinsCached = that.D3MinsCached;
+  }
+  return *this;
 }
 
-//// Function to calculate the full set of V_minus processes for a given IBZ mode
-//void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode &mode,
-//		const Eigen::MatrixXd &qFBZ,
-//		const Eigen::Tensor<complex<double>,3> &ev,const int numTriplets,
-//		const Eigen::Tensor<double,4> &ifc3Tensor,
-//		const Eigen::Tensor<double,3> &cellPositions,
-//		const Eigen::Tensor<int,2> &displacedAtoms, const CrystalInfo &crysInfo){
+//// Function to calculate the full set of V_minus processes for a given IBZ
+///mode
+// void PhInteraction3Ph::calculateAllVminus(const int grid[3], const PhononMode
+// &mode, 		const Eigen::MatrixXd &qFBZ, 		const Eigen::Tensor<complex<double>,3>
+//&ev,const int numTriplets, 		const Eigen::Tensor<double,4> &ifc3Tensor, 		const
+//Eigen::Tensor<double,3> &cellPositions, 		const Eigen::Tensor<int,2>
+//&displacedAtoms, const CrystalInfo &crysInfo){
 //
 //	int iq1,iq2,iq3,ib,jb,s1,s2,s3,idim,iat;
 //	int i1x,i1y,i1z,i2x,i2y,i2z,i3x,i3y,i3z;
 //
-//	Eigen::Tensor<complex <double>,3> ev1(3,crysInfo.numAtoms,crysInfo.numBranches);
-//	Eigen::Tensor<complex <double>,3> ev2(3,crysInfo.numAtoms,crysInfo.numBranches);
-//	Eigen::Tensor<complex <double>,3> ev3(3,crysInfo.numAtoms,crysInfo.numBranches);
+//	Eigen::Tensor<complex <double>,3>
+//ev1(3,crysInfo.numAtoms,crysInfo.numBranches); 	Eigen::Tensor<complex
+//<double>,3> ev2(3,crysInfo.numAtoms,crysInfo.numBranches);
+//	Eigen::Tensor<complex <double>,3>
+//ev3(3,crysInfo.numAtoms,crysInfo.numBranches);
 //
 //	// Edge lengths of BZ
 //	int nx = grid[0];
@@ -238,32 +222,31 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 //		for(i2y = 0; i2y < ny; i2y++){
 //			for(i2x = 0; i2x < nx; i2x++){
 //				//Muxed index of 2nd phonon wave vector
-//				//!!WARNING: For testing purposes using ShengBTE ordering!!!
-//				iq2 = (i2z*ny + i2y)*nx + i2x;
+//				//!!WARNING: For testing purposes using ShengBTE
+//ordering!!! 				iq2 = (i2z*ny + i2y)*nx + i2x;
 //
 //				interactingPhonons.iq2 = iq2;
 //
 //				for(idim = 0; idim < 3; idim++){
 //					for(iat = 0; iat < numAtoms; iat++){
-//						for(ib = 0; ib < numBranches; ib++){
-//							ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
+//						for(ib = 0; ib < numBranches;
+//ib++){ 							ev2(idim,iat,ib) = ev(iq2,idim+3*iat,ib);
 //						}
 //					}
 //				}
 //				interactingPhonons.ev2 = ev2;
 //
-//				// Third phonon wave vector (Umklapped, if needed)
-//				i3x = (i1x - i2x + nx)%nx;
-//				i3y = (i1y - i2y + ny)%ny;
-//				i3z = (i1z - i2z + nz)%nz;
-//				//!!WARNING: For testing purposes using ShengBTE ordering!!!
-//				iq3 = (i3z*ny + i3y)*nx + i3x;
+//				// Third phonon wave vector (Umklapped, if
+//needed) 				i3x = (i1x - i2x + nx)%nx; 				i3y = (i1y - i2y + ny)%ny; 				i3z = (i1z - i2z
+//+ nz)%nz;
+//				//!!WARNING: For testing purposes using ShengBTE
+//ordering!!! 				iq3 = (i3z*ny + i3y)*nx + i3x;
 //
 //				interactingPhonons.iq3 = iq3;
 //				for(idim = 0; idim < 3; idim++){
 //					for(iat = 0; iat < numAtoms; iat++){
-//						for(ib = 0; ib < numBranches; ib++){
-//							ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
+//						for(ib = 0; ib < numBranches;
+//ib++){ 							ev3(idim,iat,ib) = ev(iq3,idim+3*iat,ib);
 //						}
 //					}
 //				}
@@ -277,10 +260,13 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 //						interactingPhonons.s3 = jb;
 //
 //						// Call calculateSingleV
-//						Vm2(iq2,ib,iq3,jb) = phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor,
-//								cellPositions, displacedAtoms, crysInfo, '-');
+//						Vm2(iq2,ib,iq3,jb) =
+//phInt.calculateSingleV(interactingPhonons, qFBZ, numTriplets, ifc3Tensor,
+//								cellPositions, displacedAtoms,
+//crysInfo, '-');
 //
-//						//cout << iq2+1 << " " << ib+1 << " " << iq3+1 << " " << jb+1 << " " << Vm2(iq2,ib,iq3,jb) << "\n";
+//						//cout << iq2+1 << " " << ib+1 << " " <<
+//iq3+1 << " " << jb+1 << " " << Vm2(iq2,ib,iq3,jb) << "\n";
 //					}
 //				}
 //			}
@@ -307,15 +293,17 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 //}
 //
 ////Transition probabilities for a given irreducible phonon mode
-//void PhInteraction3Ph::calculateAllW(const double T,const int grid[3], const PhononMode &mode,
-//		const Eigen::MatrixXi &indexMesh,const CrystalInfo &crysInfo,
-//		const Eigen::MatrixXd omega,const TetraData tetra){
+// void PhInteraction3Ph::calculateAllW(const double T,const int grid[3], const
+// PhononMode &mode, 		const Eigen::MatrixXi &indexMesh,const CrystalInfo
+//&crysInfo, 		const Eigen::MatrixXd omega,const TetraData tetra){
 //
-//	int iq1,iq2,iq3,iq3Plus,iq3Minus,s1,s2,s3,iDim,plusProcessCount,minusProcessCount;
+//	int
+//iq1,iq2,iq3,iq3Plus,iq3Minus,s1,s2,s3,iDim,plusProcessCount,minusProcessCount;
 //	int numBranches = crysInfo.numBranches;
 //	int nq = grid[0]*grid[1]*grid[2];
 //
-//	double omega1,omega2,omega3Plus,omega3Minus,n01,n02,n03Plus,n03Minus,Vplus2,Vminus2,
+//	double
+//omega1,omega2,omega3Plus,omega3Minus,n01,n02,n03Plus,n03Minus,Vplus2,Vminus2,
 //	Wplus,Wminus,tetWeightPlus,tetWeightMinus;
 //	const double a = M_PI*hbar/4.0*5.60626442*1.0e30;
 //
@@ -366,65 +354,76 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 //				//plus process
 //				q3Plus(iDim) = (q1(iDim)+q2(iDim))%grid[iDim];
 //				//minus process
-//				q3Minus(iDim) = (q1(iDim)-q2(iDim)+grid[iDim])%grid[iDim];
+//				q3Minus(iDim) =
+//(q1(iDim)-q2(iDim)+grid[iDim])%grid[iDim];
 //			}
-//			//!!WARNING: For testing purposes using ShengBTE ordering!!!
-//			iq3Plus = (q3Plus(2)*grid[1] + q3Plus(1))*grid[0] + q3Plus(0);
-//			iq3Minus = (q3Minus(2)*grid[1] + q3Minus(1))*grid[0] + q3Minus(0);
+//			//!!WARNING: For testing purposes using ShengBTE
+//ordering!!! 			iq3Plus = (q3Plus(2)*grid[1] + q3Plus(1))*grid[0] + q3Plus(0);
+//			iq3Minus = (q3Minus(2)*grid[1] + q3Minus(1))*grid[0] +
+//q3Minus(0);
 //
 //			//Sum over second phonon branches
 //			for(s2 = 0; s2 < numBranches; s2++){
-//				omega2 = omega(iq2,s2); //second phonon ang. freq.
+//				omega2 = omega(iq2,s2); //second phonon ang.
+//freq.
 //
 //				if(omega2 > 0){ //skip zero energy phonon
 //
-//					//Bose distribution for second phonon mode
-//					n02 = bose(omega2,T);
+//					//Bose distribution for second phonon
+//mode 					n02 = bose(omega2,T);
 //
 //					//Sum over final phonon branches
 //					for(s3 = 0; s3 < numBranches; s3++){
-//						omega3Plus = omega(iq3Plus,s3); //third phonon(+) ang. freq.
-//						omega3Minus = omega(iq3Minus,s3); //third phonon(-) ang. freq.
+//						omega3Plus = omega(iq3Plus,s3); //third
+//phonon(+) ang. freq. 						omega3Minus = omega(iq3Minus,s3); //third phonon(-) ang.
+//freq.
 //
-//						//Bose distribution for final phonon mode
-//						n03Plus = bose(omega3Plus,T);
-//						n03Minus = bose(omega3Minus,T);
+//						//Bose distribution for final phonon
+//mode 						n03Plus = bose(omega3Plus,T); 						n03Minus = bose(omega3Minus,T);
 //
-//						//Calculate tetrahedron weight for plus and minus processes
-//						tetWeightPlus = fillTetsWeights(omega3Plus-omega1,s2,iq2,tetra);
-//						tetWeightMinus = fillTetsWeights(omega1-omega3Minus,s2,iq2,tetra);
+//						//Calculate tetrahedron weight for plus
+//and minus processes 						tetWeightPlus =
+//fillTetsWeights(omega3Plus-omega1,s2,iq2,tetra); 						tetWeightMinus =
+//fillTetsWeights(omega1-omega3Minus,s2,iq2,tetra);
 //
 //						//Plus processes
-//						if(tetWeightPlus > 0 && omega3Plus > 0){
-//							//Increase processes counter
-//							plusProcessCount++;
+//						if(tetWeightPlus > 0 && omega3Plus >
+//0){
+//							//Increase processes
+//counter 							plusProcessCount++;
 //
-//							//Time reverse second phonon to get Vplus2
-//							Vplus2 = Vm2(timeReverse(iq2,grid),s2,iq3Plus,s3);
+//							//Time reverse second phonon to get
+//Vplus2 							Vplus2 = Vm2(timeReverse(iq2,grid),s2,iq3Plus,s3);
 //
-//							//Calculatate transition probability W+
-//							Wplus = a*(n02-n03Plus)*Vplus2*tetWeightPlus
-//									/(omega1*omega2*omega3Plus); //THz
+//							//Calculatate transition probability
+//W+ 							Wplus = a*(n02-n03Plus)*Vplus2*tetWeightPlus
+//									/(omega1*omega2*omega3Plus);
+////THz
 //
-//							//Write plus process info to file
-//							WplusFile << iq2 << " " << s2 << " " << iq3Plus << " " << s3 << " "
-//									<< Wplus << "\n";
+//							//Write plus process info to
+//file 							WplusFile << iq2 << " " << s2 << " " << iq3Plus << " " << s3 << " "
+//									<< Wplus <<
+//"\n";
 //						}
 //
 //						//Minus processes
-//						if(tetWeightMinus > 0 && omega3Minus > 0){
-//							//Increase processes counter
-//							minusProcessCount++;
+//						if(tetWeightMinus > 0 && omega3Minus >
+//0){
+//							//Increase processes
+//counter 							minusProcessCount++;
 //
-//							Vminus2 = Vm2(iq2,s2,iq3Minus,s3);
+//							Vminus2 =
+//Vm2(iq2,s2,iq3Minus,s3);
 //
-//							//Calculatate transition probability W-
-//							Wminus = a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus
-//									/(omega1*omega2*omega3Minus); //THz
+//							//Calculatate transition probability
+//W- 							Wminus = a*(n02+n03Minus+1.0)*Vminus2*tetWeightMinus
+//									/(omega1*omega2*omega3Minus);
+////THz
 //
-//							//Write minus process info to disk
-//							WminusFile << iq2 << " " << s2 << " " << iq3Minus << " " << s3 << " "
-//									<< Wminus << "\n";
+//							//Write minus process info to
+//disk 							WminusFile << iq2 << " " << s2 << " " << iq3Minus << " " << s3 << " "
+//									<< Wminus <<
+//"\n";
 //						}
 //					}//s3
 //				}//zero of second phonon
@@ -435,8 +434,8 @@ Interaction3Ph & Interaction3Ph::operator=(const Interaction3Ph & that) {
 //	WminusFile.close();
 //
 //	//Write total number of plus and minus processes to disk
-//	string counterFileName = "WCounter.iq"+to_string(iq1)+".s"+to_string(s1);
-//	ofstream counterFile;
+//	string counterFileName =
+//"WCounter.iq"+to_string(iq1)+".s"+to_string(s1); 	ofstream counterFile;
 //	counterFile.open(counterFileName, ios::trunc);
 //	counterFile << plusProcessCount << "\n";
 //	counterFile << minusProcessCount << "\n";

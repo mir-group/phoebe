@@ -1,4 +1,4 @@
-# add_subdirectory(lib/kokkos)
+#add_subdirectory(lib/kokkos)
 
 include(ExternalProject)
 include(FetchContent)
@@ -28,7 +28,7 @@ ExternalProject_Add(eigen_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    INSTALL_COMMAND "make"
+    INSTALL_COMMAND ""
     UPDATE_COMMAND ""
 )
 

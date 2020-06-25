@@ -41,7 +41,6 @@ TEST (InteractionIsotope,Wphisoiq4) {
 	energies.setConstant(0.0);
 
 	// Test q-point
-	int iq = 4; // = (0.5, 0, 0) in crystal coordinates
 	Eigen::VectorXd WIsotopeiq(numBands);
 	WIsotopeiq.setConstant(0.0);
 
@@ -56,32 +55,34 @@ TEST (InteractionIsotope,Wphisoiq4) {
 	GaussianDeltaFunction smearing(context);
 
 	//Eigenvector and angular frequencies at iq
-	auto ip = points.getPoint(iq);
-	auto [omegasiq,ev1] = phononH0.diagonalize(ip);
-	//auto vsiq = phononH0.diagonalizeVelocity(ip);
+	int iq = 4; // = (0.5, 0, 0) in crystal coordinates
+	auto q1 = points.getPoint(iq);
+	auto [ens1,ev1] = phononH0.diagonalize(q1);
 
-	for ( int jq = 0; jq < nq; jq++ ) { //integrate over
-		auto jp = points.getPoint(jq);
+	Eigen::Tensor<std::complex<double>,3> evt1(3,numAtoms,numBands);
+	Eigen::Tensor<std::complex<double>,3> evt2(3,numAtoms,numBands);
+
+	for ( int iq2 = 0; iq2 < nq; iq2++ ) { //integrate over
+		auto q2 = points.getPoint(iq2);
 		//Eigenvector and angular frequencies at jq
-		auto [omegasjq,ev2] = phononH0.diagonalize(jp);
+		auto [ens2,ev2] = phononH0.diagonalize(q2);
 		//auto vsjq = phononH0.diagonalizeVelocity(jp);
 
-		Eigen::Tensor<std::complex<double>,3> eviq, evjq;
 		for ( int i=0; i<numBands; i++ ) {
 			for ( int j=0; j<numBands; j++ ) {
 				auto [iat,idim] = decompress2Indeces(i,numAtoms,3);
-				eviq(idim,iat,j) = ev1(i,j);
-				evjq(idim,iat,j) = ev2(i,j);
+				evt1(idim,iat,j) = ev1(i,j);
+				evt2(idim,iat,j) = ev2(i,j);
 			}
 		}
 
 		//phonon branches of the test q-point
-		for ( int ib = 0; ib < numBands; ib++ ) {
-			double fac = pow(omegasiq(ib),2)/nq;
-			for ( int jb = 0; jb < numBands; jb++ ) { //integrate over
+		for ( int ib1 = 0; ib1 < numBands; ib1++ ) {
+			double fac = pow(ens1(ib1),2) / nq;
+			for ( int ib2 = 0; ib2 < numBands; ib2++ ) { //integrate over
 				// using fixed gaussian for now
-				double deltaWeight = smearing.getSmearing(omegasiq(ib) -
-						omegasjq(jb));
+				double deltaWeight = smearing.getSmearing(ens1(ib1) -
+						ens2(ib2));
 
 				if ( deltaWeight == 0. ) continue;
 
@@ -90,10 +91,10 @@ TEST (InteractionIsotope,Wphisoiq4) {
 					//inner product over Cartesian space
 					for ( int kdim : {0,1,2} ) {
 						//Recall that the eigenvectors were mass-normalized
-						aux += pow(abs(std::conj(eviq(kdim,p,ib))
-								* evjq(kdim,p,jb)),2)*pow(atomicMasses(p),2);
+						aux += pow(abs(std::conj(evt1(kdim,p,ib1))
+								* evt2(kdim,p,ib2)),2)*pow(atomicMasses(p),2);
 					}
-					WIsotopeiq(ib) += aux*deltaWeight*massVariance(p)*fac; //Ry
+					WIsotopeiq(ib1) += aux*deltaWeight*massVariance(p)*fac;
 
 				} // p
 			} // jb

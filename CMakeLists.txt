@@ -8,11 +8,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
-    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -g -Wno-deprecated-copy -Wno-ignored-attributes")
+    SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 
-SET (SOURCE_FILES src/bandstructure.cpp src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/particle.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/harmonic/window.cpp src/bte/vector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp)
+SET (SOURCE_FILES src/bands/bandstructure.cpp src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/particle.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/bands/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/bands/window.cpp src/bte/vector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp)
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
 include_directories(include)
@@ -36,20 +36,20 @@ gtest_discover_tests(
 )
 
 ############# PARALLEL ############
-option(MPI_AVAIL "Build with MPI wrappers" ON) 
-if (MPI_AVAIL) 
+option(MPI_AVAIL "Build with MPI wrappers" ON)
+if (MPI_AVAIL)
   find_package(MPI REQUIRED)
   target_link_libraries(phoebe MPI::MPI_CXX)
   target_link_libraries(runTests MPI::MPI_CXX)
-  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp 
+  add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp
 endif()
 
 option(OMP_AVAIL "Build with OMP" OFF)
 if(OMP_AVAIL)
         find_package(OpenMP)
         target_link_libraries(phoebe OpenMP::OpenMP_CXX)
-        target_link_libraries(runTests OpenMP::OpenMP_CXX) 
-        add_definitions("-DOMP_AVAIL") 
+        target_link_libraries(runTests OpenMP::OpenMP_CXX)
+        add_definitions("-DOMP_AVAIL")
 endif()
 ############# DOCS ############
 

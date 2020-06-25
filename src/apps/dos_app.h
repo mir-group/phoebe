@@ -4,22 +4,22 @@
 #include <string>
 #include "app.h"
 
-class PhononDosApp : public App {
+class PhononDosApp: public App {
 public:
-	void run(Context & context);
-	void checkRequirements(Context & context);
+    void run(Context &context);
+    void checkRequirements(Context &context);
 };
 
-class ElectronWannierDosApp : public App {
+class ElectronWannierDosApp: public App {
 public:
-	void run(Context & context);
-	void checkRequirements(Context & context);
+    void run(Context &context);
+    void checkRequirements(Context &context);
 };
 
-class ElectronFourierDosApp : public App {
+class ElectronFourierDosApp: public App {
 public:
-	void run(Context & context);
-	void checkRequirements(Context & context);
+    void run(Context &context);
+    void checkRequirements(Context &context);
 };
 
 #endif

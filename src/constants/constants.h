@@ -12,9 +12,9 @@ const double twoPi = 2. * pi;
 const double fourPi = 2. * pi;
 const double one = 1.;
 const double zero = 0.;
-const std::complex<double> complexZero={0.,0.};
-const std::complex<double> complexOne={1.,0.};
-const std::complex<double> complexI={0.,1.};
+const std::complex<double> complexZero = { 0., 0. };
+const std::complex<double> complexOne = { 1., 0. };
+const std::complex<double> complexI = { 0., 1. };
 //
 // small numbers
 //
@@ -24,19 +24,19 @@ const double epsilon16 = 1.e-16;
 //
 // Physical constants
 //
-const double speedLightSi   = 299792458;
-const double electronSi     = 1.602176487e-19;
-const double hPlanckSi      = 6.62607015e-34;
-const double hBarSi         = hPlanckSi / twoPi;
+const double speedLightSi = 299792458;
+const double electronSi = 1.602176487e-19;
+const double hPlanckSi = 6.62607015e-34;
+const double hBarSi = hPlanckSi / twoPi;
 const double electronVoltSi = 1.6021766208e-19;
-const double hartreeSi      = 4.359744650e-18;
-const double bohrRadiusSi   = 0.52917721067e-10;
-const double rydbergSi      = hartreeSi / 2.;
-const double timeRy         = hBarSi / rydbergSi;
-const double kBoltzmannSi   = 1.38064852e-23;
-const double kBoltzmannRy   = kBoltzmannSi / rydbergSi;
+const double hartreeSi = 4.359744650e-18;
+const double bohrRadiusSi = 0.52917721067e-10;
+const double rydbergSi = hartreeSi / 2.;
+const double timeRy = hBarSi / rydbergSi;
+const double kBoltzmannSi = 1.38064852e-23;
+const double kBoltzmannRy = kBoltzmannSi / rydbergSi;
 const double electronMassSi = 9.10938215e-31; // in Kg
-const double amuSi          = 1.660538782e-27; // in Kg
+const double amuSi = 1.660538782e-27; // in Kg
 
 const double e2 = 2.;
 
@@ -44,7 +44,7 @@ const double e2 = 2.;
 // conversion
 //
 const double temperatureAuToSi = 1. / kBoltzmannRy;
-const double energyRyToEv   = rydbergSi / electronVoltSi;
+const double energyRyToEv = rydbergSi / electronVoltSi;
 const double distanceAngToSi = 1.0e-10;
 const double distanceRyToSi = bohrRadiusSi;
 const double distanceBohrToCm = bohrRadiusSi * 100.;
@@ -66,10 +66,12 @@ const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
 //
 // units for transport coefficients
 //
-const double thConductivityAuToSi = kBoltzmannSi*rydbergSi/bohrRadiusSi/hBarSi;
-const double viscosityAuToSi = rydbergSi /hPlanckSi*twoPi *pow(bohrRadiusSi,2);
-const double elConductivityAuToSi = pow(electronSi,2) / hBarSi / bohrRadiusSi;
-const double thermopowerAuToSi = - kBoltzmannRy / electronSi * rydbergSi;
-const double peltierAuToSi = - rydbergSi / electronSi;
+const double thConductivityAuToSi = kBoltzmannSi * rydbergSi / bohrRadiusSi
+        / hBarSi;
+const double viscosityAuToSi = rydbergSi / hPlanckSi * twoPi
+        * pow(bohrRadiusSi, 2);
+const double elConductivityAuToSi = pow(electronSi, 2) / hBarSi / bohrRadiusSi;
+const double thermopowerAuToSi = -kBoltzmannRy / electronSi * rydbergSi;
+const double peltierAuToSi = -rydbergSi / electronSi;
 
 #endif
