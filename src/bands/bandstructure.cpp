@@ -53,6 +53,14 @@ long BaseBandStructure::getIndex(const WavevectorIndex &ik,
     return 0;
 }
 
+std::tuple<WavevectorIndex,BandIndex> BaseBandStructure::getIndex(
+        const long &is) {
+    Error e("BaseBandStructure method not implemented");
+    auto ikk = WavevectorIndex(-1);
+    auto ibb = BandIndex(-1);
+    return {ikk, ibb};
+}
+
 long BaseBandStructure::getNumStates() {
     Error e("BaseBandStructure method not implemented");
     return 0;
@@ -229,6 +237,15 @@ State FullBandStructure::getState(const long &pointIndex) {
 long FullBandStructure::getIndex(const WavevectorIndex &ik,
         const BandIndex &ib) {
     return ik.get() * numBands + ib.get();
+}
+
+std::tuple<WavevectorIndex,BandIndex> FullBandStructure::getIndex(
+        const long &is) {
+    int ik = is / numBands;
+    int ib = is - ik * numBands;
+    auto ikk = WavevectorIndex(ik);
+    auto ibb = BandIndex(ib);
+    return {ikk, ibb};
 }
 
 long FullBandStructure::getNumStates() {

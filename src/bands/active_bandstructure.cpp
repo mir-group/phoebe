@@ -130,6 +130,17 @@ long ActiveBandStructure::getIndex(const WavevectorIndex &ik,
     return bloch2Comb(ik.get(), ib.get());
 }
 
+std::tuple<WavevectorIndex,BandIndex> ActiveBandStructure::getIndex(
+        const long &is) {
+    if (!hasPoints()) {
+        Error e("ActiveBandStructure hasn't been populated yet");
+    }
+    auto [ik,ib] = comb2Bloch(is);
+    auto ikk = WavevectorIndex(ik);
+    auto ibb = BandIndex(ib);
+    return {ikk,ibb};
+}
+
 long ActiveBandStructure::getNumStates() {
     if (!hasPoints()) {
         Error e("ActiveBandStructure hasn't been populated yet");

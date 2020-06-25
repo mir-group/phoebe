@@ -78,6 +78,14 @@ public:
      */
     virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
 
+    /** Given a Bloch state index, finds the corresponding wavevector and band
+     * index.
+     * @param stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+     * @return WavevectorIndex: strong-typed index on wavevector
+     * @return BandIndex: strong-typed index on bands
+     */
+    virtual std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
+
     /** Returns the total number of Bloch states.
      * @return numStates: the integer number of Bloch states.
      */
@@ -229,6 +237,14 @@ public:
      * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
      */
     long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+
+    /** Given a Bloch state index, finds the corresponding wavevector and band
+     * index.
+     * @param stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+     * @return WavevectorIndex: strong-typed index on wavevector
+     * @return BandIndex: strong-typed index on bands
+     */
+    std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
 
     /** Returns the total number of Bloch states, equal to numPoints*numBands.
      * @return numStates: the total number of Bloch states in the class.
