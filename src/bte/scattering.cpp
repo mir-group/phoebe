@@ -97,7 +97,7 @@ void ScatteringMatrix::setup() {
             Error e("High memory BTE methods can only work with one "
                     "temperature and/or chemical potential in a single run");
         }
-        theMatrix = Eigen::MatrixXd::Zero(numStates, numStates);
+        theMatrix = Matrix<double>(numStates, numStates);
         // calc matrix and linew.
         builder(theMatrix, &internalDiagonal, nullptr, nullptr);
     } else {
@@ -117,9 +117,9 @@ VectorBTE ScatteringMatrix::diagonal() {
     }
 }
 
-Eigen::MatrixXd ScatteringMatrix::dot(const Eigen::MatrixXd &otherMatrix) {
-    return theMatrix * otherMatrix;
-}
+//Matrix<double> ScatteringMatrix::dot(const Matrix<double> &otherMatrix) {
+//    return theMatrix * otherMatrix;
+//}
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     if (highMemory) {
@@ -159,14 +159,22 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
                 inPopulation.dimensionality);
         outPopulation.data.setZero();
         // note: we are assuming that ScatteringMatrix has numCalcs = 1
-        for (auto i1 = 0; i1 < numStates; i1++) {
-            for (auto j1 = 0; j1 < numStates; j1++) {
-                for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
-                    outPopulation.data(idim, i1) += theMatrix(i1, j1)
-                            * inPopulation.data(idim, j1);
-                }
-            }
+//        for (auto i1 = 0; i1 < numStates; i1++) {
+//            for (auto j1 = 0; j1 < numStates; j1++) {
+//                for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
+//                    outPopulation.data(idim, i1) += theMatrix(i1, j1)
+//                            * inPopulation.data(idim, j1);
+//                }
+//            }
+//        }
+        for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
+          for (auto [i1, j1] : theMatrix.getAllLocalStates()) {
+            outPopulation.data(idim, i1) +=
+                theMatrix(i1, j1) * inPopulation.data(idim, j1);
+          }
         }
+        mpi->reduceSum(&outPopulation.data);
+
         // normalization
 //		outPopulation.data /= numPoints;
         return outPopulation;
@@ -200,29 +208,27 @@ void ScatteringMatrix::a2Omega() {
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
 
-    for (long ind1 = 0; ind1 < numStates; ind1++) {
+    for (auto [ind1, ind2] : theMatrix.getAllLocalStates()) {
 
         if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1)
                 != excludeIndeces.end())
             continue;
+        if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
+                != excludeIndeces.end())
+            continue;
 
         double en1 = outerBandStructure.getEnergy(ind1);
+        double en2 = outerBandStructure.getEnergy(ind2);
+
         // n(n+1) for bosons, n(1-n) for fermions
         double term1 = particle.getPopPopPm1(en1, temp, chemPot);
-        internalDiagonal.data(iCalc, ind1) /= term1;
+        double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
-        for (long ind2 = 0; ind2 < numStates; ind2++) {
-
-            if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
-                    != excludeIndeces.end())
-                continue;
-
-            double en2 = outerBandStructure.getEnergy(ind2);
-            // n(n+1) for bosons, n(1-n) for fermions
-            double term2 = particle.getPopPopPm1(en2, temp, chemPot);
-
-            theMatrix(ind1, ind2) /= sqrt(term1 * term2);
+        if ( ind1 == ind2 ) {
+            internalDiagonal.data(iCalc, ind1) /= term1;
         }
+
+        theMatrix(ind1, ind2) /= sqrt(term1 * term2);
     }
     isMatrixOmega = true;
 }
@@ -249,31 +255,27 @@ void ScatteringMatrix::omega2A() {
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
 
-    for (long ind1 = 0; ind1 < numStates; ind1++) {
+    for (auto [ind1, ind2] : theMatrix.getAllLocalStates()) {
 
         if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1)
                 != excludeIndeces.end())
             continue;
+        if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
+                != excludeIndeces.end())
+            continue;
 
         double en1 = outerBandStructure.getEnergy(ind1);
+        double en2 = outerBandStructure.getEnergy(ind2);
 
         // n(n+1) for bosons, n(1-n) for fermions
         double term1 = particle.getPopPopPm1(en1, temp, chemPot);
+        double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
-        internalDiagonal.data(iCalc, ind1) *= term1;
-
-        for (long ind2 = 0; ind2 < numStates; ind2++) {
-
-            if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2)
-                    != excludeIndeces.end())
-                continue;
-
-            double en2 = outerBandStructure.getEnergy(ind2);
-            // n(n+1) for bosons, n(1-n) for fermions
-            double term2 = particle.getPopPopPm1(en2, temp, chemPot);
-
-            theMatrix(ind1, ind2) *= sqrt(term1 * term2);
+        if ( ind1 == ind2 ) {
+            internalDiagonal.data(iCalc, ind1) *= term1;
         }
+
+        theMatrix(ind1, ind2) *= sqrt(term1 * term2);
     }
     isMatrixOmega = false;
 }
@@ -318,13 +320,17 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     }
 }
 
-std::tuple<VectorBTE, Eigen::MatrixXd> ScatteringMatrix::diagonalize() {
-    Eigen::SelfAdjointEigenSolver < Eigen::MatrixXd > eigensolver(theMatrix);
-    Eigen::VectorXd eigenvalues = eigensolver.eigenvalues();
-    Eigen::MatrixXd eigenvectors = eigensolver.eigenvectors();
+std::tuple<VectorBTE, Matrix<double>> ScatteringMatrix::diagonalize() {
+
+//    std::vector<double> eigenvalues;
+//    Matrix<double> eigenvectors;
+    auto [eigenvalues,eigenvectors] = theMatrix.diagonalize();
+
     // place eigenvalues in an VectorBTE object
     VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
-    eigvals.data.row(0) = eigenvalues;
+    for ( long is=0; is<numStates; is++ ) {
+        eigvals.data(0,is) = eigenvalues[is];
+    }
     eigvals.excludeIndeces = excludeIndeces;
 
     // correct normalization of eigenvectors
@@ -355,20 +361,7 @@ std::vector<std::tuple<long,long>> ScatteringMatrix::getIteratorWavevectorPairs(
         }
 
     } else {
-        Error e("highMemory iteratorWavevectorPairs not implemented");
-        // this is wrong! must be changed with the parallel matrix
-        mpi->divideWork(innerBandStructure.getNumPoints());
-        int start = mpi->workHead();
-        int stop = mpi->workTail();
-
-        // Note: phScatteringMatrix needs iq2 to be the outer loop
-        // in order to be efficient!
-        for ( long iq2=start; iq2<stop; iq2++ ) {
-            for ( long iq1=0; iq1<outerBandStructure.getNumPoints(); iq1++ ) {
-                auto t = std::make_tuple(iq1,iq2);
-                pairIterator.push_back(t);
-            }
-        }
+        pairIterator = theMatrix.getAllLocalWavevectors(outerBandStructure);
     }
     return pairIterator;
 }

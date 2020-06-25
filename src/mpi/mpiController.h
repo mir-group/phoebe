@@ -183,21 +183,21 @@ template<typename T> void MPIcontroller::reduceSum(T* dataIn, T* dataOut) const{
         #endif
 }
 
-template <typename T>
-void MPIcontroller::reduceSum(T* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-
-  T* work = nullptr;
-  work = new T[containerType<T>::getSize(data)];
-  reduceSum(&data, &work);
-  for ( int i=0; i<containerType<T>::getSize(data); i++ ) {
-      *(data+i) = *(work+i);
-  }
-  delete[] work;
-#endif
-}
+//template <typename T>
+//void MPIcontroller::reduceSum(T* data) const {
+//  using namespace mpiContainer;
+//#ifdef MPI_AVAIL
+//  if (size == 1) return;
+//
+//  T* work = nullptr;
+//  work = new T[data->size()];
+//  reduceSum(&data, &work);
+//  for ( int i=0; i<data->size(); i++ ) {
+//      *(data+i) = *(work+i);
+//  }
+//  delete[] work;
+//#endif
+//}
 
 template<typename T> void MPIcontroller::reduceMax(T* dataIn, T* dataOut) const{
         using namespace mpiContainer;

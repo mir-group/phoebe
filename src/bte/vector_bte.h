@@ -4,6 +4,7 @@
 #include "eigen.h"
 #include "context.h"
 #include "active_bandstructure.h"
+#include "Matrix.h"
 
 /** Class used to store the "vector" of out-of-equilibrium populations.
  * The vector indices are over the Bloch state. Additionally, there is one of
@@ -66,6 +67,15 @@ public:
      * equal to numCalcs.
      */
     VectorBTE operator *(const Eigen::VectorXd &vector);
+
+    /** Computes the product of a VectorBTE with a parallel matrix. Only works
+     * if the number of temperatures/chemical potentials (numCalcs) is equal
+     * to one. At fixed calculation index iCalc, the result is an matrix-vector
+     * multiplication x(it,i)*pMatrix(i,j).
+     * @param pMatrix: a parallel distributed double matrix to be used in the
+     * product, of size equal to numStates x numStates.
+     */
+    VectorBTE operator *(Matrix<double> &matrix);
 
     /** element wise sum between two VectorBTE objects x and y.
      * If the dimensionality of the two objects is the same, we compute

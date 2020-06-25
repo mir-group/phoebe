@@ -71,7 +71,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 }
 
 void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-        PhScatteringMatrix &sMatrix, Eigen::MatrixXd &eigenvectors) {
+        PhScatteringMatrix &sMatrix, Matrix<double> &eigenvectors) {
 
     if (numCalcs > 1) {
         Error e("Viscosity for relaxons only for 1 temperature");
@@ -110,20 +110,28 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
     }
     A /= temp * numPoints * volume;
 
-    Eigen::MatrixXd driftEigenvector(3, numStates);
-    driftEigenvector.setZero();
+    VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
     for (long is = firstState; is < numStates; is++) {
         auto en = bandStructure.getEnergy(is);
         double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
         auto q = bandStructure.getWavevector(is);
         for (auto idim : { 0, 1, 2 }) {
-            driftEigenvector(idim, is) = q(idim)
+            driftEigenvector.data(idim, is) = q(idim)
                     * sqrt(bosep1 / temp / A(idim));
         }
     }
 
     Eigen::MatrixXd D(3, 3);
-    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
+    D.setZero();
+//    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
+    VectorBTE tmp = sMatrix.dot(driftEigenvector);
+    for (long is = firstState; is < numStates; is++) {
+      for (auto i : {0, 1, 2}) {
+        for (auto j : {0, 1, 2}) {
+          D(i, j) += driftEigenvector.data(i, is) * tmp.data(j, is);
+        }
+      }
+    }
     D /= volume * numPoints;
 
     Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
@@ -134,8 +142,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
         auto v = bandStructure.getGroupVelocity(is);
         for (auto i : { 0, 1, 2 }) {
             for (auto j : { 0, 1, 2 }) {
-                tmpDriftEigvecs(i, j, is) = driftEigenvector(j, is) * v(i);
-                W(i, j) += vector0.data(0, is) * v(i) * driftEigenvector(j, is);
+                tmpDriftEigvecs(i, j, is) = driftEigenvector.data(j, is) * v(i);
+                W(i, j) += vector0.data(0, is) * v(i) * driftEigenvector.data(j, is);
             }
         }
     }
@@ -149,9 +157,18 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
             for (long is = 0; is < numStates; is++) {
                 x(is) = tmpDriftEigvecs(i, j, is);
             }
-            auto x2 = x.transpose() * eigenvectors;
+
+            // auto x2 = x.transpose() * eigenvectors;
+
+            std::vector<double> x2(numStates,0.);
+            for ( auto [is1,is2] : eigenvectors.getAllLocalStates() ) {
+                x2[is2] +=  x(is1) * eigenvectors(is1,is2);
+            }
+            std::vector<double> x3(numStates,0.);
+            mpi->reduceSum(&x2,&x3);
+
             for (long is = 0; is < numStates; is++) {
-                w(i, j, is) = x2(is) / volume / numPoints;
+                w(i, j, is) = x3[is] / volume / numPoints;
             }
         }
     }

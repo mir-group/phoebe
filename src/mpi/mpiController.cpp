@@ -164,7 +164,7 @@ int MPIcontroller::getBlacsContext() { return blacsContext_; }
 
 // template specialization
 template <>
-void MPIcontroller::reduceSum(Eigen::MatrixXd* data) const {
+void MPIcontroller::reduceSum(Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;

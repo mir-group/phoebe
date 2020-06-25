@@ -90,7 +90,7 @@ PhScatteringMatrix& PhScatteringMatrix::operator=(
 // inPopulation+outPopulation is passed: we compute the action of the
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
-void PhScatteringMatrix::builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
+void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
         VectorBTE *inPopulation, VectorBTE *outPopulation) {
 
     // notes: + process is (1+2) -> 3

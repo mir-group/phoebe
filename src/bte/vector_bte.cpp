@@ -143,6 +143,26 @@ VectorBTE VectorBTE::operator *(const Eigen::VectorXd &vector) {
 }
 
 // product operator overload
+VectorBTE VectorBTE::operator *(Matrix<double> &matrix) {
+  if (numCalcs != dimensionality) {
+    // I mean, you'd need to keep in memory a lot of matrices.
+    Error e("We didn't implement VectorBTE * matrix for numCalcs > 1");
+  }
+  if ( matrix.rows() != numStates ) {
+      Error e("VectorBTE and Matrix not aligned");
+  }
+  VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
+  newPopulation.data.setZero();
+
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (auto [i, j] : matrix.getAllLocalStates()) {
+      newPopulation.data(iCalc, i) = matrix(i, j) * data(iCalc, j);
+    }
+  }
+  return newPopulation;
+}
+
+// sum operator overload
 VectorBTE VectorBTE::operator +(VectorBTE &that) {
     return baseOperator(that, operatorSums);
 }

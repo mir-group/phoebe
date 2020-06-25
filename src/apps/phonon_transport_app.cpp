@@ -259,8 +259,8 @@ void PhononTransportApp::run(Context &context) {
         relaxonV.data(iCalc, is) =
             boseEigenvector.data(jCalc, is) * norm * v(idimIndex);
       }
-      relaxonV.data.row(iCalc) = relaxonV.data.row(iCalc) * eigenvectors;
     }
+    relaxonV = relaxonV * eigenvectors;
 
     VectorBTE relaxationTimes = eigenvalues.reciprocal();
     phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);

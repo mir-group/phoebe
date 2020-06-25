@@ -4,6 +4,7 @@
 #include "context.h"
 #include "vector_bte.h"
 #include "delta_function.h"
+#include "Matrix.h"
 
 /** Base class of the scattering matrix.
  * Note: this is an abstract class, which can only work if builder() is defined
@@ -68,7 +69,7 @@ public:
      * B is an Eigen::MatrixXd. This can be used to compute products of the
      * scattering matrix with other vectors.
      */
-    Eigen::MatrixXd dot(const Eigen::MatrixXd &otherMatrix);
+    Matrix<double> dot(const Matrix<double> &otherMatrix);
 
     /** Call to obtain the single-particle relaxation times of the system.s
      * @return tau: a VectorBTE object storing the relaxation times
@@ -94,7 +95,7 @@ public:
      * @return eigenvectors: a Eigen::MatrixXd with the eigenvectors
      * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
      */
-    std::tuple<VectorBTE, Eigen::MatrixXd> diagonalize();
+    std::tuple<VectorBTE, Matrix<double>> diagonalize();
 
 protected:
     Context &context;
@@ -119,7 +120,7 @@ protected:
     // we save the diagonal matrix element in a dedicated vector
     VectorBTE internalDiagonal;
     // the scattering matrix, initialized if highMemory==true
-    Eigen::MatrixXd theMatrix;
+    Matrix<double> theMatrix;
 
     long numStates; // number of Bloch states (i.e. the size of theMatrix)
     long numPoints; // number of wavevectors
@@ -143,7 +144,7 @@ protected:
      * populations, we compute outPopulation = scattMatrix * inPopulation.
      * This doesn't require to store the matrix in memory.
      */
-    virtual void builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
+    virtual void builder(Matrix<double> &matrix, VectorBTE *linewidth,
             VectorBTE *inPopulation, VectorBTE *outPopulation) = 0;
 
     /** Returns a vector of pairs of wavevector indices to iterate over during

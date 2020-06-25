@@ -27,7 +27,7 @@ protected:
     double boundaryLength;
     bool doBoundary;
 
-    virtual void builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
+    virtual void builder(Matrix<double> &matrix, VectorBTE *linewidth,
             VectorBTE *inPopulation, VectorBTE *outPopulation);
 };
 

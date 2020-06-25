@@ -12,7 +12,6 @@ PhononThermalConductivity::PhononThermalConductivity(
             dimensionality);
     tensordxd.setZero();
 }
-;
 
 // copy constructor
 PhononThermalConductivity::PhononThermalConductivity(
