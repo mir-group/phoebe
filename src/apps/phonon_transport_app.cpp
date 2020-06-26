@@ -35,14 +35,6 @@ void PhononTransportApp::run(Context &context) {
   auto [bandStructure, statisticsSweep] =
       ActiveBandStructure::builder(context, phononH0, fullPoints);
 
-  double x = 0.;
-  for ( int is =0; is<bandStructure.getNumStates(); is++ ) {
-      auto n = bandStructure.getEnergy(is);
-      x += n;
-  }
-  std::cout << std::setprecision(16);
-  std::cout << x << "!!!!\n";
-
   // load the 3phonon coupling
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 

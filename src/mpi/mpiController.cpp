@@ -88,15 +88,22 @@ MPIcontroller::~MPIcontroller(){
 	#endif
 }
 
-// TODO: any other stats would like to output here? 
+// TODO: any other stats would like to output here?
 void MPIcontroller::finalize() const {
-	#ifdef MPI_AVAIL
-	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
-	  blacs_gridexit_(&blacsContext_);
-	MPI_Finalize();
-	#else
-        std::cout << "Total runtime: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()*1e-6 << " secs" << std::endl;
-	#endif
+#ifdef MPI_AVAIL
+  barrier();
+  if (mpiHead()) {
+    fprintf(stdout, "Final time: %3f\n ", MPI_Wtime() - startTime);
+  }
+  blacs_gridexit_(&blacsContext_);
+  MPI_Finalize();
+#else
+  std::cout << "Total runtime: "
+            << std::chrono::duration_cast<std::chrono::microseconds>(
+                   std::chrono::steady_clock::now() - startTime)
+                       .count() * 1e-6
+            << " secs" << std::endl;
+#endif
 }
 
 // Utility functions  -----------------------------------
