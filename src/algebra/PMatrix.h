@@ -14,14 +14,14 @@
 // double matrix (I skip the templates for now)
 template <typename T>
 class Matrix {  // P stands for parallel
- protected:
+ public:
   /// Class variables
   int numRows_, numCols_;
   int numLocalRows_, numLocalCols_;
   int numLocalElements_;
   int numBlocksRows_, numBlocksCols_;
   int blockSizeRows_, blockSizeCols_;
-  int descMat_[9];
+  int descMat_[9] = {0,0,0,0,0,0,0,0,0};
   int numBlasRows_, numBlasCols_;
   int myBlasRow_, myBlasCol_;
 
@@ -30,13 +30,15 @@ class Matrix {  // P stands for parallel
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
 
-  std::tuple<long, long> local2Global(const long& k);
 
   // dummy values to return when accessing elements not available locally
   T dummyZero = 0;
   T const dummyConstZero = 0;
 
  public:
+
+  std::tuple<long, long> local2Global(const long& k);
+
   T* mat = nullptr;
 
   // Construct using row, col numbers, and block distribution
@@ -170,12 +172,11 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 
   // determine the number of local rows and columns
   int iZero = 0; // helper variable
-  int numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero,
+  numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero,
           &numBlasRows_);
-  int numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero,
+  numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero,
           &numBlasCols_);
   numLocalElements_ = numLocalRows_ * numLocalCols_;
-
   mat = new T[numLocalElements_];
 
   // Memory could not be allocated, end program
@@ -185,7 +186,6 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   for (long i = 0; i < numLocalElements_; ++i) *(mat+i) = 0.; // mat[i] = 0.;
 
   // Create descriptor for block cyclic distribution of matrix
-  int descMat_[9]; // descriptor
   int info; // error code
   int lddA = numLocalRows_ > 1 ? numLocalRows_ : 1; // if mpA>1, ldda=mpA, else 1
   int blacsContext = mpi->getBlacsContext();
@@ -194,10 +194,6 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   if (info != 0) {
     Error e("Something wrong calling descinit", info);
   }
-
-  std::cout << "<><>" << numRows << " " << numBlasRows_ << " "
-          <<  numLocalRows_ << " " << numLocalElements_ << "\n";
-
 }
 
 template <typename T>
@@ -232,6 +228,18 @@ Matrix<T>::Matrix(const Matrix<T>& that) {
   numBlasCols_ = that.numBlasCols_;
   myBlasRow_ = that.myBlasRow_;
   myBlasCol_ = that.myBlasCol_;
+
+  for ( int i=0; i<9; i++ ) {
+    descMat_[i] = that.descMat_[i];
+  }
+
+  // matrix allocation
+  mat = new T[numLocalElements_];
+  // Memory could not be allocated, end program
+  assert(mat != nullptr);
+  for ( long i=0; i<numLocalElements_; i++ ) {
+    mat[i] = that.mat[i];
+  }
 }
 
 template <typename T>
@@ -250,6 +258,18 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
     numBlasCols_ = that.numBlasCols_;
     myBlasRow_ = that.myBlasRow_;
     myBlasCol_ = that.myBlasCol_;
+
+    for ( int i=0; i<9; i++ ) {
+      descMat_[i] = that.descMat_[i];
+    }
+
+    // matrix allocation
+    mat = new T[numLocalElements_];
+    // Memory could not be allocated, end program
+    assert(mat != nullptr);
+    for ( long i=0; i<numLocalElements_; i++ ) {
+      mat[i] = that.mat[i];
+    }
   }
   return *this;
 }
@@ -270,12 +290,16 @@ long Matrix<T>::size() const { return cols()*rows(); }
 
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
+  // note: row and col indices use the c++ convention of running from 0 to N-1
+  // fortran (infog2l_) wants indices from 1 to N.
+  int row_ = row+1;
+  int col_ = col+1;
 
   // first, we find the local index
   int localIndex;
   int iia, jja, iarow, iacol;
-  infog2l_(&row, &col, &descMat_[0], &numBlasRows_, &numBlasCols_, &myBlasRow_,
-           &myBlasCol_, &iia, &jja, &iarow, &iacol);
+  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
+           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
   if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
     localIndex = iia + (jja - 1) * descMat_[8] - 1;
   } else {
@@ -283,6 +307,7 @@ T& Matrix<T>::operator()(const int row, const int col) {
   }
 
   if (localIndex == -1) {
+      std::cout << "Not supposed to happen\n";
     dummyZero = 0.;
     return dummyZero;
   } else {
@@ -292,12 +317,16 @@ T& Matrix<T>::operator()(const int row, const int col) {
 
 template <typename T>
 const T& Matrix<T>::operator()(const int row, const int col) const {
+    // note: row and col indices use the c++ convention of running from 0 to N-1
+    // fortran (infog2l_) wants indices from 1 to N.
+    int row_ = row+1;
+    int col_ = col+1;
 
   // first, we find the local index
   int localIndex;
   int iia, jja, iarow, iacol;
-  infog2l_(&row, &col, &descMat_[0], &numBlasRows_, &numBlasCols_, &myBlasRow_,
-           &myBlasCol_, &iia, &jja, &iarow, &iacol);
+  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
+           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
   if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
     localIndex = iia + (jja - 1) * descMat_[8] - 1;
   } else {
@@ -330,7 +359,6 @@ std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
   int x_j = j % blockSizeCols_;  // where within that block
   // global col
   int J = (l_j * numBlasCols_ + myBlasCol_) * blockSizeCols_ + x_j;
-std::cout << I << " " << J << "--\n";
   return {I, J};
 }
 
