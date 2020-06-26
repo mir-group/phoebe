@@ -91,6 +91,12 @@ public:
      */
     virtual long getNumStates();
 
+
+    /** Returns an iterator to be used for loops over the Bloch state index.
+     * The values of the iterator are distributed in N blocks over N MPI ranks.
+     */
+    std::vector<int> parallelStateIterator();
+
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
      * @param stateIndex: an integer index in range [0,numStates[

@@ -61,14 +61,18 @@ VectorBTE& VectorBTE::operator =(const VectorBTE &that) {
 
 // product operator overload
 Eigen::VectorXd VectorBTE::dot(const VectorBTE &that) {
-    Eigen::VectorXd result(numCalcs);
-    result.setZero();
+  if (that.numCalcs != numCalcs || that.numStates != numStates) {
+    Error e("The 2 VectorBTE must be aligned for dot() to work.");
+  }
+  Eigen::VectorXd result(numCalcs);
+  result.setZero();
+  for (long is : bandStructure.parallelStateIterator()) {
     for (long i = 0; i < numCalcs; i++) {
-        for (long is = 0; is < numStates; is++) {
-            result(i) += this->data(i, is) * that.data(i, is);
-        }
+      result(i) += this->data(i, is) * that.data(i, is);
     }
-    return result;
+  }
+  mpi->allReduceSum(&result);
+  return result;
 }
 
 VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {

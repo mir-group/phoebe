@@ -204,6 +204,6 @@ std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   std::vector<int> divs;
   int start = (numTasks * rank) / size;
   int stop = (numTasks * (rank + 1)) / size;
-  for (int i = start; i <= stop; i++) divs.push_back(i);
+  for (int i = start; i < stop; i++) divs.push_back(i);
   return divs;
 }

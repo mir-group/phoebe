@@ -4,6 +4,7 @@
 #include "particle.h"
 #include "exceptions.h"
 #include "utilities.h"
+#include "mpiHelper.h"
 
 Particle BaseBandStructure::getParticle() {
     Error e("BaseBandStructure method not implemented");
@@ -64,6 +65,11 @@ std::tuple<WavevectorIndex,BandIndex> BaseBandStructure::getIndex(
 long BaseBandStructure::getNumStates() {
     Error e("BaseBandStructure method not implemented");
     return 0;
+}
+
+std::vector<int> BaseBandStructure::parallelStateIterator() {
+  int numStates = getNumStates();
+  return mpi->divideWorkIter(numStates);
 }
 
 const double& BaseBandStructure::getEnergy(const long &stateIndex) {
