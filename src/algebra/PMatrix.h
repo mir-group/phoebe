@@ -189,8 +189,8 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   int info; // error code
   int lddA = numLocalRows_ > 1 ? numLocalRows_ : 1; // if mpA>1, ldda=mpA, else 1
   int blacsContext = mpi->getBlacsContext();
-  descinit_( descMat_,  &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
-          &iZero, &iZero, &blacsContext, &lddA, &info);
+  descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
+            &iZero, &iZero, &blacsContext, &lddA, &info);
   if (info != 0) {
     Error e("Something wrong calling descinit", info);
   }
@@ -307,7 +307,6 @@ T& Matrix<T>::operator()(const int row, const int col) {
   }
 
   if (localIndex == -1) {
-      std::cout << "Not supposed to happen\n";
     dummyZero = 0.;
     return dummyZero;
   } else {
@@ -364,7 +363,7 @@ std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
 
 template <typename T>
 std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
-    std::vector<std::tuple<long, long>> x(numLocalElements_);
+    std::vector<std::tuple<long, long>> x;
     for (long k = 0; k < numLocalElements_; k++) {
       std::tuple<long, long> t = local2Global(k);  // bloch indices
       x.push_back(t);

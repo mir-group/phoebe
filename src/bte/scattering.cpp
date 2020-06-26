@@ -98,6 +98,7 @@ void ScatteringMatrix::setup() {
                     "temperature and/or chemical potential in a single run");
         }
         theMatrix = Matrix<double>(numStates, numStates);
+
         // calc matrix and linew.
         builder(theMatrix, &internalDiagonal, nullptr, nullptr);
     } else {
@@ -122,68 +123,39 @@ VectorBTE ScatteringMatrix::diagonal() {
 //}
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
-    if (highMemory) {
-        // it's just the full matrix product, minus the diagonal contribution
-        VectorBTE outPopulation = dot(inPopulation);
-
-        // outPopulation -= internalDiagonal * inPopulation;
-        for (long i = 0; i < outPopulation.numCalcs; i++) {
-            auto [imu,it,idim] = inPopulation.loc2Glob(i);
-            auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
-            for (long is = 0; is < numStates; is++) {
-                outPopulation.data(i, is) -= internalDiagonal.data(j, is)
-                        * inPopulation.data(i, is);
-            }
-        }
-        return outPopulation;
-    } else {
-        VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                inPopulation.dimensionality);
-        builder(theMatrix, nullptr, &inPopulation, &outPopulation);
-        // outPopulation = outPopulation - internalDiagonal * inPopulation;
-        for (long i = 0; i < outPopulation.numCalcs; i++) {
-            auto [imu,it,idim] = inPopulation.loc2Glob(i);
-            auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
-            for (long is = 0; is < numStates; is++) {
-                outPopulation.data(i, is) -= internalDiagonal.data(j, is)
-                        * inPopulation.data(i, is);
-            }
-        }
-        return outPopulation;
+  VectorBTE outPopulation = dot(inPopulation);
+  // outPopulation = outPopulation - internalDiagonal * inPopulation;
+  for (long i = 0; i < outPopulation.numCalcs; i++) {
+    auto [imu, it, idim] = inPopulation.loc2Glob(i);
+    auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
+    for (long is = 0; is < numStates; is++) {
+      outPopulation.data(i, is) -=
+          internalDiagonal.data(j, is) * inPopulation.data(i, is);
     }
+  }
+  return outPopulation;
 }
 
 VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
-    if (highMemory) {
-        VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                inPopulation.dimensionality);
-        outPopulation.data.setZero();
-        // note: we are assuming that ScatteringMatrix has numCalcs = 1
-//        for (auto i1 = 0; i1 < numStates; i1++) {
-//            for (auto j1 = 0; j1 < numStates; j1++) {
-//                for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
-//                    outPopulation.data(idim, i1) += theMatrix(i1, j1)
-//                            * inPopulation.data(idim, j1);
-//                }
-//            }
-//        }
-        for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
-          for (auto [i1, j1] : theMatrix.getAllLocalStates()) {
-            outPopulation.data(idim, i1) +=
-                theMatrix(i1, j1) * inPopulation.data(idim, j1);
-          }
-        }
-        mpi->allReduceSum(&outPopulation.data);
-
-        // normalization
-//		outPopulation.data /= numPoints;
-        return outPopulation;
-    } else {
-        VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                inPopulation.dimensionality);
-        builder(theMatrix, nullptr, &inPopulation, &outPopulation);
-        return outPopulation;
+  if (highMemory) {
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+                            inPopulation.dimensionality);
+    outPopulation.data.setZero();
+    // note: we are assuming that ScatteringMatrix has numCalcs = 1
+    for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
+      for (auto [i1, j1] : theMatrix.getAllLocalStates()) {
+        outPopulation.data(idim, i1) +=
+            theMatrix(i1, j1) * inPopulation.data(idim, j1);
+      }
     }
+    mpi->allReduceSum(&outPopulation.data);
+    return outPopulation;
+  } else {
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+                            inPopulation.dimensionality);
+    builder(theMatrix, nullptr, &inPopulation, &outPopulation);
+    return outPopulation;
+  }
 }
 
 // set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
