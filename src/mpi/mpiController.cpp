@@ -15,24 +15,12 @@
 MPIcontroller::MPIcontroller(){
 
 	#ifdef MPI_AVAIL
-        int errCode; 
 	// start the MPI environment
-        #ifdef OMP_AVAIL
-                // need to specify threading style -- 
-                // MPI_THREAD_MULTIPLE might be better, but FUNNELED is simpler. 
-                int provided;
-                errCode = MPI_Init_thread(0, 0, MPI_THREAD_SINGLE, &provided);
-                if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
-                //std::cout << "Provided level of threading: " << provided << std::endl;  
-        #else 
-                // simple mpi init with MPI_THREAD_SINGLE
-                errCode = MPI_Init(NULL, NULL);
-        #endif  
+        MPI_Init(NULL, NULL);
+
         // set this so that MPI returns errors and lets us handle them, rather
         // than using the default, MPI_ERRORS_ARE_FATAL
         MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
-        // If there was an init problem, kill the code
-        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
 
 	// get the number of processes
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -98,7 +86,7 @@ void MPIcontroller::finalize() const {
   blacs_gridexit_(&blacsContext_);
   MPI_Finalize();
 #else
-  std::cout << "Total runtime: "
+  std::cout << "Final time: "
             << std::chrono::duration_cast<std::chrono::microseconds>(
                    std::chrono::steady_clock::now() - startTime)
                        .count() * 1e-6
@@ -139,20 +127,12 @@ void MPIcontroller::barrier() const{
 }
 
 // Labor division functions -----------------------------------------
-void MPIcontroller::divideWork(size_t numTasks) {
-        // clear just in case there was a prior call
-        workDivisionHeads.clear(); 
-        workDivisionTails.clear(); 
-
-        // each should be nranks long
-        workDivisionHeads.resize(size);  
-        workDivisionTails.resize(size); 
-        //size_t numDivisons = numTasks/size + (numTasks % size != 0); // ceiling of work/ranks
-        for(int r = 0; r<size; r++) {
-                workDivisionHeads[r] = (numTasks * r)/size;
-                workDivisionTails[r] = (numTasks * (r+1))/size;
-                // if(rank==0) fprintf(stdout, "rank %3d : %3d %3d \n", rank,  workDivisionHeads[r], workDivisionTails[r]); // for debugging work division
-        }
+std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
+        // return a vector of the start and stop points for task division
+        std::vector<int> divs(2); 
+        divs[0] = (numTasks * rank)/size;
+        divs[1] = (numTasks * (rank+1))/size;
+        return divs; 
 }
 
 int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
@@ -178,10 +158,9 @@ void MPIcontroller::reduceSum(
   if (size == 1) return;
   // NOTE: this requires 2 copies, while I could make it with one (in theory).
   std::vector<double> y(data->data(), data->data() + data->size());
-  std::vector<double> y2(data->size());
-  reduceSum(&y, &y2);
+  reduceSum(&y);
   for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
+    *(data->data() + i) = y[i];
   }
 #endif
 }
@@ -201,4 +180,30 @@ void MPIcontroller::allReduceSum(
     *(data->data() + i) = y2[i];
   }
 #endif
+}
+
+// template specialization
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Matrix<double, -1, 1, 0, -1, 1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+  // return a vector of the start and stop points for task division
+  std::vector<int> divs;
+  int start = (numTasks * rank) / size;
+  int stop = (numTasks * (rank + 1)) / size;
+  for (int i = start; i <= stop; i++) divs.push_back(i);
+  return divs;
 }
