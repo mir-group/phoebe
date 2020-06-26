@@ -37,7 +37,17 @@ class Matrix {  // P stands for parallel
 
  public:
 
+  /** Converts a local one-dimensional storage index (MPI-dependent) into the
+   * row/column index of the global matrix.
+   */
   std::tuple<long, long> local2Global(const long& k);
+
+  /** Converts a global row/column index of the global matrix into a local
+   * one-dimensional storage index (MPI-dependent),
+   * with value ranging from  0 to numLocalElements_-1.
+   * Returns -1 if the matrix element is not stored on the current MPI process.
+   */
+  long global2Local(const long& row, const long& col);
 
   T* mat = nullptr;
 
@@ -85,6 +95,11 @@ class Matrix {  // P stands for parallel
   /** Const get and set operator
    */
   const T& operator()(const int row, const int col) const;
+
+  /** Returns true if the global indices (row,col) identify a matrix element
+   * stored by the MPI process.
+   */
+  bool indecesAreLocal(const int & row, const int & col);
 
   /** Matrix-matrix multiplication.
    */
@@ -135,7 +150,6 @@ class Matrix {  // P stands for parallel
    */
   Matrix<T> operator-() const;
 };
-
 
 template <typename T>
 Matrix<T>::Matrix(const int& numRows, const int& numCols,
@@ -290,22 +304,7 @@ long Matrix<T>::size() const { return cols()*rows(); }
 
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
-  // note: row and col indices use the c++ convention of running from 0 to N-1
-  // fortran (infog2l_) wants indices from 1 to N.
-  int row_ = row+1;
-  int col_ = col+1;
-
-  // first, we find the local index
-  int localIndex;
-  int iia, jja, iarow, iacol;
-  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
-           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
-  if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
-    localIndex = iia + (jja - 1) * descMat_[8] - 1;
-  } else {
-    localIndex = -1;
-  }
-
+  long localIndex = global2Local(row,col);
   if (localIndex == -1) {
     dummyZero = 0.;
     return dummyZero;
@@ -316,26 +315,21 @@ T& Matrix<T>::operator()(const int row, const int col) {
 
 template <typename T>
 const T& Matrix<T>::operator()(const int row, const int col) const {
-    // note: row and col indices use the c++ convention of running from 0 to N-1
-    // fortran (infog2l_) wants indices from 1 to N.
-    int row_ = row+1;
-    int col_ = col+1;
-
-  // first, we find the local index
-  int localIndex;
-  int iia, jja, iarow, iacol;
-  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
-           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
-  if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
-    localIndex = iia + (jja - 1) * descMat_[8] - 1;
-  } else {
-    localIndex = -1;
-  }
-
+  long localIndex = global2Local(row,col);
   if (localIndex == -1) {
     return dummyConstZero;
   } else {
     return mat[localIndex];
+  }
+}
+
+template <typename T>
+bool Matrix<T>::indecesAreLocal(const int & row, const int & col) {
+  long localIndex = global2Local(row,col);
+  if (localIndex == -1) {
+    return false;
+  } else {
+    return true;
   }
 }
 
@@ -359,6 +353,24 @@ std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
   // global col
   int J = (l_j * numBlasCols_ + myBlasCol_) * blockSizeCols_ + x_j;
   return {I, J};
+}
+
+template <typename T>
+long Matrix<T>::global2Local(const long& row, const long& col) {
+  // note: row and col indices use the c++ convention of running from 0 to N-1
+  // fortran (infog2l_) wants indices from 1 to N.
+  int row_ = row + 1;
+  int col_ = col + 1;
+
+  // first, we find the local index
+  int iia, jja, iarow, iacol;
+  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
+           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
+  if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
+    return iia + (jja - 1) * descMat_[8] - 1;
+  } else {
+    return -1;
+  }
 }
 
 template <typename T>

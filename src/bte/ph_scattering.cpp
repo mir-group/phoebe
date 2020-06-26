@@ -343,6 +343,16 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
                         continue;
                     }
 
+                    if ( switchCase == 0 ) {
+                      // note: above we are parallelizing over wavevectors.
+                      // (for convenience of computing coupling3ph)
+                      // Not the same way as Matrix() is parallelized.
+                      // here we check that we don't duplicate efforts
+                      if ( ! matrix.indecesAreLocal(ind1, ind2) ) {
+                        continue;
+                      }
+                    }
+
                     // Isotope scattering
                     if (doIsotopes) {
                         switch (smearing->getType()) {
