@@ -44,67 +44,59 @@ void PhononThermalConductivity::calcFromCanonicalPopulation(VectorBTE &f) {
 }
 
 void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
-    double norm = 1. / bandStructure.getNumPoints(true)
-            / crystal.getVolumeUnitCell(dimensionality);
+  double norm = 1. / bandStructure.getNumPoints(true) /
+                crystal.getVolumeUnitCell(dimensionality);
 
-    tensordxd.setZero();
+  tensordxd.setZero();
 
-    auto excludeIndeces = n.excludeIndeces;
+  auto excludeIndeces = n.excludeIndeces;
 
-    for (long ik = 0; ik < bandStructure.getNumPoints(); ik++) {
-        auto s = bandStructure.getState(ik);
-        auto en = s.getEnergies();
-        auto vel = s.getVelocities();
-        for (long ib = 0; ib < en.size(); ib++) {
-            long is = bandStructure.getIndex(WavevectorIndex(ik),
-                    BandIndex(ib));
+  for (long is = 0; is < bandStructure.getNumStates(); is++) {
+    double en = bandStructure.getEnergy(is);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
 
-            // skip the acoustic phonons
-            if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
-                    != excludeIndeces.end())
-                continue;
-//			if ( en < 0.1 / ryToCmm1 ) continue;
+    // skip the acoustic phonons
+    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+        excludeIndeces.end())
+      continue;
 
-            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-                auto [imu,it] = loc2Glob(iCalc);
-
-                for (long i = 0; i < dimensionality; i++) {
-                    long icPop = n.glob2Loc(imu, it, DimIndex(i));
-                    for (long j = 0; j < dimensionality; j++) {
-                        tensordxd(iCalc, i, j) += n.data(icPop, is)
-                                * vel(ib, ib, j).real() * en(ib) * norm;
-                    }
-                }
-            }
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto [imu, it] = loc2Glob(iCalc);
+      for (long i = 0; i < dimensionality; i++) {
+        long icPop = n.glob2Loc(imu, it, DimIndex(i));
+        for (long j = 0; j < dimensionality; j++) {
+          tensordxd(iCalc, i, j) += n.data(icPop, is) * vel(j) * en * norm;
         }
+      }
     }
+  }
 }
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
-        VectorBTE &scalingCG) {
-    double norm = 1. / bandStructure.getNumPoints(true)
-            / crystal.getVolumeUnitCell(dimensionality);
+                                                VectorBTE &scalingCG) {
+  double norm = 1. / bandStructure.getNumPoints(true) /
+                crystal.getVolumeUnitCell(dimensionality);
 
-    auto fUnscaled = f;
-    fUnscaled = fUnscaled / scalingCG;
+  auto fUnscaled = f;
+  fUnscaled = fUnscaled / scalingCG;
 
-    calcFromCanonicalPopulation(fUnscaled);
+  calcFromCanonicalPopulation(fUnscaled);
 
-    tensordxd *= tensordxd.constant(2.);
+  tensordxd *= tensordxd.constant(2.);
 
+  for (long is = 0; is < bandStructure.getNumStates(); is++) {
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu,it] = loc2Glob(iCalc);
-        for (long i = 0; i < dimensionality; i++) {
-            long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
-            for (long j = 0; j < dimensionality; j++) {
-                long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
-                for (long is = 0; is < bandStructure.getNumStates(); is++) {
-                    tensordxd(iCalc, i, j) -= f.data(icPop1, is)
-                            * af.data(icPop2, is) * norm;
-                }
-            }
+      auto [imu, it] = loc2Glob(iCalc);
+      for (long i = 0; i < dimensionality; i++) {
+        long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
+        for (long j = 0; j < dimensionality; j++) {
+          long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
+          tensordxd(iCalc, i, j) -=
+              f.data(icPop1, is) * af.data(icPop2, is) * norm;
         }
+      }
     }
+  }
 }
 
 void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
@@ -119,19 +111,15 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 
     tensordxd.setZero();
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu,it] = loc2Glob(iCalc);
-        double c = specificHeat.get(imu, it);
-        // is = 3 is a temporary patch, I should discard the first three
-        // rows/columns altogether + I skip the bose eigenvector
-        for (long is = firstState; is < relaxationTimes.numStates; is++) {
+    for (long is = firstState; is < relaxationTimes.numStates; is++) {
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+            auto [imu,it] = loc2Glob(iCalc);
+            double c = specificHeat.get(imu, it);
+            // is = 3 is a temporary patch, I should discard the first three
+            // rows/columns altogether + I skip the bose eigenvector
 
             if (relaxationTimes.data(iCalc, is) <= 0.)
                 continue;
-//			std::cout << iCalc << " " << is << " " << c << " "
-//					<< relaxonV.data.col(is).transpose() << " "
-//					<< relaxonV.data.col(is).transpose() << " "
-//					<< relaxationTimes.data(iCalc,is) << "\n";
 
             for (long i = 0; i < dimensionality; i++) {
                 for (long j = 0; j < dimensionality; j++) {

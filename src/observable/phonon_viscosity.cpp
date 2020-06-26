@@ -43,7 +43,6 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
         auto q = bandStructure.getWavevector(is);
 
         // skip the acoustic phonons
-//		if ( q.norm()==0. && en<0.1 / ryToCmm1 ) continue;
         if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
                 != excludeIndeces.end())
             continue;
