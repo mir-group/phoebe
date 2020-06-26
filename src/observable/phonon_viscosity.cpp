@@ -36,7 +36,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 
     auto excludeIndeces = tau.excludeIndeces;
 
-    for (long is = 0; is < bandStructure.getNumStates(); is++) {
+    for ( long is : bandStructure.parallelStateIterator() ) {
         auto en = bandStructure.getEnergy(is);
 
         auto vel = bandStructure.getGroupVelocity(is);
@@ -67,6 +67,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
             }
         }
     }
+    mpi->allReduceSum(&tensordxdxdxd);
 }
 
 void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,

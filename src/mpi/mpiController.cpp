@@ -165,7 +165,6 @@ void MPIcontroller::reduceSum(
 #endif
 }
 
-// template specialization
 template <>
 void MPIcontroller::allReduceSum(
     Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
@@ -182,10 +181,41 @@ void MPIcontroller::allReduceSum(
 #endif
 }
 
-// template specialization
 template <>
 void MPIcontroller::allReduceSum(
     Eigen::Matrix<double, -1, 1, 0, -1, 1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Tensor<double, 3>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Tensor<double, 5>* data) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
