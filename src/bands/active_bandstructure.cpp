@@ -2,6 +2,7 @@
 #include "bandstructure.h"
 #include "exceptions.h"
 #include "window.h"
+#include "mpiHelper.h"
 
 ActiveBandStructure::ActiveBandStructure(Particle &particle_,
         ActivePoints &activePoints) :
@@ -489,7 +490,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     /////////////////
 
     // now we can loop over the trimmed list of points
-    for (long ik = 0; ik < numPoints; ik++) {
+    for (long ik : mpi->divideWorkIter(numPoints)) {
+//    for (long ik = 0; ik < numPoints; ik++) {
         Point point = activePoints.getPoint(ik);
         auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
         // eigenvectors(3,numAtoms,numBands)
@@ -542,4 +544,16 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
             setVelocities(point, thisVels);
         }
     }
+    mpi->allReduceSum(&energies);
+    mpi->allReduceSum(&velocities);
+    mpi->allReduceSum(&eigenvectors);
+
+    for ( long i=0; i<velocities.size(); i++ ) {
+      std::cout << " " << velocities[i] ;
+    }
+    std::cout << "!!\n";
+//    for ( long i=0; i<energies.size(); i++ ) {
+//      std::cout << " " << energies[i] ;
+//    }
+//    std::cout << "!!\n";
 }
