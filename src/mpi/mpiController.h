@@ -217,6 +217,22 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
 #endif
 }
 
+//template <typename T>
+//void MPIcontroller::allReduceSum(T* data) const {
+//  using namespace mpiContainer;
+//#ifdef MPI_AVAIL
+//  if (size == 1) return;
+//  int errCode;
+//  errCode =
+//      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(data),
+//                    containerType<T>::getSize(data),
+//                    containerType<T>::getMPItype(), MPI_SUM, MPI_COMM_WORLD);
+//  if (errCode != MPI_SUCCESS) {
+//    errorReport(errCode);
+//  }
+//#endif
+//}
+
 template<typename T> void MPIcontroller::reduceMax(T* dataIn) const{
         using namespace mpiContainer;
         #ifdef MPI_AVAIL

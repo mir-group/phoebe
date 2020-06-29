@@ -229,6 +229,20 @@ void MPIcontroller::allReduceSum(
 #endif
 }
 
+template <>
+void MPIcontroller::allReduceSum(std::vector<double>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> tmp(data->size());
+  allReduceSum(data, &tmp);
+  for (long unsigned i = 0; i < data->size(); i++) {
+    *(data->data() + i) = tmp[i];
+  }
+#endif
+}
+
 std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   // return a vector of the start and stop points for task division
   std::vector<int> divs;
