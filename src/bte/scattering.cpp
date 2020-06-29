@@ -314,26 +314,24 @@ std::tuple<VectorBTE, Matrix<double>> ScatteringMatrix::diagonalize() {
     return {eigvals, eigenvectors};
 }
 
-std::vector<std::tuple<long,long>> ScatteringMatrix::getIteratorWavevectorPairs(
-        const int & switchCase) {
-    std::vector<std::tuple<long,long>> pairIterator;
-    if ( switchCase != 0 ) {
+std::vector<std::tuple<long, long>>
+ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
+  std::vector<std::tuple<long, long>> pairIterator;
+  if (switchCase != 0) {
+    size_t a = innerBandStructure.getNumPoints();
+    std::vector<int> wavevectorIterator = mpi->divideWorkIter(a);
+    // Note: phScatteringMatrix needs iq2 to be the outer loop
+    // in order to be efficient!
 
-        mpi->divideWork(innerBandStructure.getNumPoints());
-        int start = mpi->workHead();
-        int stop = mpi->workTail();
-
-        // Note: phScatteringMatrix needs iq2 to be the outer loop
-        // in order to be efficient!
-        for ( long iq2=start; iq2<stop; iq2++ ) {
-            for ( long iq1=0; iq1<outerBandStructure.getNumPoints(); iq1++ ) {
-                auto t = std::make_tuple(iq1,iq2);
-                pairIterator.push_back(t);
-            }
-        }
-
-    } else {
-        pairIterator = theMatrix.getAllLocalWavevectors(outerBandStructure);
+    for (long iq2 : wavevectorIterator) {
+      for (long iq1 = 0; iq1 < outerBandStructure.getNumPoints(); iq1++) {
+        auto t = std::make_tuple(iq1, iq2);
+        pairIterator.push_back(t);
+      }
     }
-    return pairIterator;
+
+  } else {
+    pairIterator = theMatrix.getAllLocalWavevectors(outerBandStructure);
+  }
+  return pairIterator;
 }
