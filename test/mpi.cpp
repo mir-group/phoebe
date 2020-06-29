@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "mpiHelper.h"
 #include "eigen.h"
+#include "constants.h"
 
 TEST(MPITest, AllReduceSum) {
 
@@ -34,5 +35,13 @@ TEST(MPITest, AllReduceSum) {
       }
   }
 
+  std::vector<std::complex<double>> x3(size, complexZero);
+  x3[rank] = complexI;
+  // the vector has only one element different from zero
+  mpi->allReduceSum(&x3);
+  // now the vector should contain 1 everywhere
+  for ( std::complex<double> y : x3 ) {
+    EXPECT_EQ(y, complexI);
+  }
 
 }

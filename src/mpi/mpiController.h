@@ -151,12 +151,13 @@ namespace mpiContainer {
 
         // Use definition to generate containers for scalar types
         MPIDataType(int, MPI_INT)
+        MPIDataType(long, MPI_LONG)
         MPIDataType(unsigned int, MPI_UNSIGNED)
         MPIDataType(float, MPI_FLOAT)
         MPIDataType(double, MPI_DOUBLE)
 
-        MPIDataType(std::complex<double>, MPI_DOUBLE)
-        MPIDataType(std::complex<float>, MPI_FLOAT)
+        MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
+        MPIDataType(std::complex<float>, MPI_COMPLEX)
         #undef MPIDataType 
 
         // A container for a std::vector
