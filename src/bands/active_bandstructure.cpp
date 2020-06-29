@@ -547,13 +547,4 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     mpi->allReduceSum(&energies);
     mpi->allReduceSum(&velocities);
     mpi->allReduceSum(&eigenvectors);
-
-    for ( long i=0; i<velocities.size(); i++ ) {
-      std::cout << " " << velocities[i] ;
-    }
-    std::cout << "!!\n";
-//    for ( long i=0; i<energies.size(); i++ ) {
-//      std::cout << " " << energies[i] ;
-//    }
-//    std::cout << "!!\n";
 }
