@@ -198,6 +198,36 @@ void MPIcontroller::allReduceSum(
 }
 
 template <>
+void MPIcontroller::allReduceSum(Eigen::MatrixXi* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> y(data->data(), data->data() + data->size());
+  std::vector<int> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(Eigen::VectorXi* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> y(data->data(), data->data() + data->size());
+  std::vector<int> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
 void MPIcontroller::allReduceSum(
     Eigen::Tensor<double, 3>* data) const {
   using namespace mpiContainer;
@@ -250,6 +280,20 @@ void MPIcontroller::allReduceSum(std::vector<std::complex<double>>* data) const 
   if (size == 1) return;
   // NOTE: this requires 2 copies, while I could make it with one (in theory).
   std::vector<std::complex<double>> tmp(data->size());
+  allReduceSum(data, &tmp);
+  for (long unsigned i = 0; i < data->size(); i++) {
+    *(data->data() + i) = tmp[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(std::vector<int>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> tmp(data->size());
   allReduceSum(data, &tmp);
   for (long unsigned i = 0; i < data->size(); i++) {
     *(data->data() + i) = tmp[i];
