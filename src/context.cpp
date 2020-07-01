@@ -601,10 +601,13 @@ void Context::setupFromInput(std::string fileName) {
 };
 
 std::string Context::getPhD2FileName() { return phD2FileName; }
+void Context::setPhD2FileName(const std::string x) { phD2FileName = x; }
 
 std::string Context::getPhD3FileName() { return phD3FileName; }
+void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
 
 std::string Context::getSumRuleD2() { return sumRuleD2; }
+void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
@@ -671,6 +674,7 @@ void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 int Context::getSmearingMethod() { return smearingMethod; }
 
 double Context::getSmearingWidth() { return smearingWidth; }
+void Context::setSmearingWidth(const double x) { smearingWidth = x; }
 
 double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 
