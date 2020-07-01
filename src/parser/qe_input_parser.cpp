@@ -681,7 +681,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // this may or may not be present! if so, I get mesh and offset
   pugi::xml_node mp = startingKPoints.child("monkhorst_pack");
   if (mp) {
-    Error e("Grid found in QE:XML, should have used full kpoints grid", 1);
+    Error e("Full k-grid is required: the list of k-points in the grid should "
+	    "be explicitly specified for nscf calculation");
   }
 
   // Initialize the crystal class
@@ -689,9 +690,6 @@ QEParser::parseElHarmonicFourier(Context &context) {
   long dimensionality = context.getDimensionality();
   Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
                   speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
 
   // initialize reciprocal lattice cell
   // I need this to convert kpoints from cartesian to crystal coordinates
@@ -784,15 +782,13 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (spinOrbit)
     numElectrons /= 2.;
   context.setNumOccupiedStates(numElectrons);
-  context.setFermiLevel(homo);
+
+  // if the user didn't set the Fermi level, we do it here.
+  if (std::isnan(context.getFermiLevel())) context.setFermiLevel(homo); 
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
-  //	std::unique_ptr<ElectronH0Fourier> electronH0(new ElectronH0Fourier(
-  //			*crystal, coarsePoints, coarseBandStructure,
-  // fourierCutoff));
 
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
 };
 

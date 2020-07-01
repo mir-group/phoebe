@@ -65,13 +65,23 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
+  // EPA:
+  std::string epaEFileName = "";
+  double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double minTemperature = std::numeric_limits<double>::quiet_NaN();
+  double maxTemperature = std::numeric_limits<double>::quiet_NaN();
+  double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
+  double energyRange = std::numeric_limits<double>::quiet_NaN();
+  double energyStep = std::numeric_limits<double>::quiet_NaN();
+  double eFermiRange = std::numeric_limits<double>::quiet_NaN();
+  
   // utilities for parsing
 
   std::vector<std::string> &split(const std::string &s, char delim,
                                   std::vector<std::string> &elems);
   std::vector<std::string> split(const std::string &s, char delim);
-//  bool lineHasParameter(const std::string &line);
-//  std::string parseParameterName(const std::string &line);
 
   //  Setter and getter for all the variables above
  public:
@@ -206,6 +216,18 @@ class Context {
 
   double getBoundaryLength();
 
+  // EPA:
+  std::string getEpaEFileName();
+  double getMinChemicalPotential();
+  double getMaxChemicalPotential();
+  double getDeltaChemicalPotential();
+  double getMinTemperature();
+  double getMaxTemperature();
+  double getDeltaTemperature();
+  double getEnergyRange();
+  double getEnergyStep();
+  double getEFermiRange();
+  
   /** Reads the user-provided input file and saves the input parameters
    * @param fileName: path to the input file
    */

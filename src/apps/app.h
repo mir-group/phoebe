@@ -44,9 +44,9 @@ public:
 
 protected:
   static const inline std::vector<std::string> choices{
-      "phononTransport",      "phononDos",           "electronWannierDos",
-      "electronFourierDos",   "phononBands",         "electronWannierBands",
-      "electronFourierBands", "electronPolarization"};
+      "phononTransport",      "phononDos",            "electronWannierDos",
+      "electronFourierDos",   "phononBands",          "electronWannierBands",
+      "electronFourierBands", "electronPolarization", "transportEPA"};
 
   void throwErrorIfUnset(const std::string &x, const std::string &name);
   void throwErrorIfUnset(const std::vector<std::string> &x,

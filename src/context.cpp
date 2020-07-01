@@ -576,6 +576,47 @@ void Context::setupFromInput(std::string fileName) {
         boundaryLength = parseDoubleWithUnits(val);
       }
 
+      // EPA
+      if (parameterName == "epaEFileName") {
+        epaEFileName = parseString(val);
+      }
+
+      if (parameterName == "minChemicalPotential") {
+        minChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "maxChemicalPotential") {
+        maxChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "deltaChemicalPotential") {
+        deltaChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "minTemperature") {
+        minTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "maxTemperature") {
+        maxTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "deltaTemperature") {
+        deltaTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "energyRange") {
+        energyRange = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "energyStep") {
+        energyStep = parseDoubleWithUnits(val);
+      }
+      
+      if (parameterName == "eFermiRange") {
+        eFermiRange = parseDoubleWithUnits(val);
+      }
+
       //////////////////////////////////////////
 
     } else {  // it might be a block, or its content
@@ -681,3 +722,25 @@ Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
 double Context::getBoundaryLength() { return boundaryLength; }
+
+// EPA:
+
+std::string Context::getEpaEFileName() {return epaEFileName;}
+
+double Context::getMinChemicalPotential() {return minChemicalPotential;}
+
+double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
+
+double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
+
+double Context::getMinTemperature() {return minTemperature;}
+
+double Context::getMaxTemperature() {return maxTemperature;}
+
+double Context::getDeltaTemperature() {return deltaTemperature;}
+
+double Context::getEnergyRange() {return energyRange;}
+
+double Context::getEnergyStep() {return energyStep;}
+
+double Context::getEFermiRange() {return eFermiRange;}

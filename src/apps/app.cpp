@@ -1,6 +1,7 @@
 #include "app.h"
 #include "active_bandstructure.h"
 #include "bands_app.h"
+#include "transport_epa_app.h"
 #include "bandstructure.h"
 #include "constants.h"
 #include "context.h"
@@ -40,6 +41,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronFourierBandsApp);
   } else if (choice == "electronPolarization") {
     return std::unique_ptr<App>(new ElectronPolarizationApp);
+  } else if ( choice == "transportEpa" ) {
+    return std::unique_ptr<App>(new TransportEpaApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }
