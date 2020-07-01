@@ -1,1019 +1,683 @@
+#include "context.h"
+
+#include <algorithm>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-#include "context.h"
-#include "exceptions.h"
+
 #include "constants.h"
-#include <iterator>
+#include "exceptions.h"
 
-//TODO: it would be nice to have a smoother handling of read errors, with
-//some informations provided to the user.
-// Also, we must provide default values if key is not found in input
+/** Returns true if a string contains a substring.
+ */
+bool patternInString(const std::string &s, const std::string &pattern) {
+  if (s.find(pattern) != std::string::npos) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
-struct ParameterNotFound : public std::exception {
-	const char * what () const throw ()
-    {
-    	return "Input parameter not found";
+/** Parse a string of format "key = value" to return a boolean value.
+ */
+bool parseBool(std::string line) {
+  std::string delimeter = "=";
+  size_t pos = line.find(delimeter);
+  std::string s = line.substr(pos + 1);
+
+  std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+  s.erase(
+      std::remove_if(s.begin(), s.end(), [](char c) { return !isalpha(c); }),
+      s.end());
+
+  if (s == "false") {
+    return false;
+  } else if (s == "true") {
+    return true;
+  } else if (s == "0") {
+    return false;
+  } else if (s == "1") {
+    return true;
+  } else {
+    Error e("Couldn't fix boolean value while parsing");
+    return false;
+  }
+};
+
+/** Parse a string of format "key = value" to return a double value.
+ */
+double parseDouble(std::string line) {
+  std::string delimeter = "=";
+  size_t pos = line.find(delimeter);
+  std::string value = line.substr(pos + 1);
+  return std::stod(value);  // convert to double
+};
+
+/** Parse a string of format "key = value units" to return a double value
+ * converted in rydberg atomic units.
+ */
+double parseDoubleWithUnits(std::string line) {
+  double x;
+
+  std::string delimeter = "=";
+  size_t pos = line.find(delimeter);
+  std::string value = line.substr(pos + 1);
+  x = std::stod(value);  // convert to double
+
+  // now check the units and convert
+  if (patternInString(line, "eV")) {
+    x /= energyRyToEv;
+  }
+  if (patternInString(line, "cmm1")) {
+    x /= ryToCmm1;
+  }
+  if (patternInString(line, "ps")) {
+    x /= timeRyToFs * 1.0e-3;
+  }
+  if (patternInString(line, "fs")) {
+    x /= timeRyToFs;
+  }
+  if (patternInString(line, "mum")) {
+    x /= distanceBohrToMum;
+  }
+
+  return x;
+};
+
+/** Parse a string of format "key = [value1,value2]" to return a vector double.
+ */
+std::vector<double> parseDoubleList(std::string line) {
+  std::string delimeter = "[";
+  size_t pos1 = line.find_first_of(delimeter);
+  delimeter = "]";
+  size_t pos2 = line.find_last_of(delimeter);
+
+  if (pos1 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+  if (pos2 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+
+  std::vector<double> x;
+  delimeter = ",";
+  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+    std::string token = s.substr(0, pos1);
+    x.push_back(std::stod(token));
+    s.erase(0, pos1 + delimeter.length());
+  }
+  // Must not forget the last element in the list
+  x.push_back(std::stod(s));
+
+  return x;
+};
+
+/** Parse a string of format "key = value units" to return an integer value.
+ */
+long parseLong(std::string line) {
+  std::string delimeter = "=";
+  size_t pos = line.find(delimeter);
+  std::string value = line.substr(pos + 1);
+  return std::stoi(value);  // convert to integer
+};
+
+/** Parse a string of format "key = [val1,val2]" to return a vector of ints.
+ */
+std::vector<long> parseLongList(std::string line) {
+  std::string delimeter = "[";
+  size_t pos1 = line.find_first_of(delimeter);
+  delimeter = "]";
+  size_t pos2 = line.find_last_of(delimeter);
+
+  if (pos1 == std::string::npos) {
+    Error e("Error in parseLongList");
+  }
+  if (pos2 == std::string::npos) {
+    Error e("Error in parseLongList");
+  }
+
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+  delimeter = ",";
+  std::vector<long> x;
+  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+    std::string token = s.substr(0, pos1);
+    x.push_back(std::stoi(token));  // convert to integer
+    s.erase(0, pos1 + delimeter.length());
+  }
+  // Must not forget the last element in the list
+  x.push_back(std::stoi(s));
+
+  return x;
+};
+
+/** Parse a string of format "key = value" to return a string value.
+ */
+std::string parseString(std::string line) {
+  std::string delimeter = "'";
+  size_t pos1 = line.find_first_of(delimeter);
+  size_t pos2 = line.find_last_of(delimeter);
+
+  if (pos1 == std::string::npos) {
+    delimeter = "\"";
+    pos1 = line.find_first_of(delimeter);
+    pos2 = line.find_last_of(delimeter);
+    if (pos1 == std::string::npos) {
+      Error e("Couldn't solve string parsing");
     }
+  }
+
+  if (pos1 == pos2) {
+    Error e("Error parsing string from user input");
+  }
+  std::string x = line.substr(pos1 + 1, pos2 - pos1 - 1);
+  return x;
 };
 
-bool lineHasPattern(std::string line, std::string pattern) {
-	bool bx = false;
+/** Parse a string of format "key = [val1,val2]" to return a vector of strings.
+ */
+std::vector<std::string> parseStringList(std::string line) {
+  // remove empty spaces
+  line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 
-	std::string sep;
-	std::string s;
-	std::string substr2;
-	size_t pos;
+  std::string delimeter;
+  delimeter = "[";
+  size_t pos1 = line.find_first_of(delimeter);
+  delimeter = "]";
+  size_t pos2 = line.find_last_of(delimeter);
 
-//	If line is empty, there's nothing for sure. Return false
-	if ( line.empty() ) {
-		return bx;
-	}
+  if (pos1 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+  if (pos2 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
 
-	sep = "=";
-	pos = line.find(sep);
-	if ( string::npos == pos ) {
-		throw ParameterNotFound();
-	}
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+  delimeter = ",";
+  std::vector<std::string> x;
+  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+    std::string token = s.substr(0, pos1);
+    // we also remove the " symbols
+    token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
+    x.push_back(token);
+    s.erase(0, pos1 + delimeter.length());
+  }
+  // Must not forget the last element in the list
+  s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
+  x.push_back(s);
 
-	s = line.substr(0,pos);
-	s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
+  return x;
+};
 
-	if ( s == pattern ) {
-		bx = true;
-	}
-	return bx;
+/** Parse the block of information on the crystal structure.
+ * Format:
+ * Atom1Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
+ * Atom2Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
+ * ...
+ * The coordinates must be provided in Angstroms.
+ */
+std::tuple<Eigen::MatrixXd, Eigen::VectorXi, std::vector<std::string>>
+parseCrystal(std::vector<std::string> &lines) {
+  long numAtoms = lines.size();
+  Eigen::MatrixXd atomicPositions(numAtoms, 3);
+  Eigen::VectorXi atomicSpecies(numAtoms);
+  std::vector<std::string> speciesNames;
+
+  int counter = 0;
+  for (std::string line : lines) {
+    // split line by spaces
+    std::stringstream ss(line);
+    std::istream_iterator<std::string> begin(ss);
+    std::istream_iterator<std::string> end;
+    std::vector<std::string> splitLine(begin, end);
+
+    std::string thisElement = splitLine[0];
+    // if new element, insert into list of species
+    if (std::find(speciesNames.begin(), speciesNames.end(), thisElement) ==
+        speciesNames.end()) {
+      // thisElement not in speciesNames, add it
+      speciesNames.push_back(thisElement);
+    }
+    // find the index of the current element
+    long index = 0;
+    for (auto speciesName : speciesNames) {
+      if (speciesName == thisElement) {
+        break;
+      }
+      index += 1;
+    }
+    // save species and positions
+    atomicSpecies(counter) = index;
+    atomicPositions(counter, 0) = std::stod(splitLine[1]);
+    atomicPositions(counter, 1) = std::stod(splitLine[2]);
+    atomicPositions(counter, 2) = std::stod(splitLine[3]);
+
+    counter++;
+  }
+  atomicPositions /= distanceBohrToAng;
+  return {atomicPositions, atomicSpecies, speciesNames};
 }
 
-bool lineHasUnits(std::string target, std::string pattern) {
-	bool hasIt = false;
-	if ( target.find(pattern) != std::string::npos ) {
-		hasIt = true;
-	}
-	return hasIt;
+/** Reads the block with the information on the path of points in the
+ * Brillouin zone.
+ *
+ * Format:
+ * """
+ * PointName1  coord1X  coord1Y  coord1Z  PointName2  coord2X  coord2Y  coord2Z
+ * PointName2  coord2X  coord2Y  coord2Z  PointName3  coord3X  coord3Y  coord3Z
+ * """
+ *
+ * Each line identifies a segment of the path in the Brillouin zone.
+ * PointName1 and PointName2 are the names of the two special points at the
+ * opposite ends of the segment.
+ * coord1/2 are the crystal coordinates of these special points.
+ * The code will pad the segments with equidistant points, as specified by the
+ * parameter deltaPath (the distance between points).
+ */
+Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
+  long numSegments = lines.size();
+  Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
+  pathExtrema.setZero();
+
+  long i = 0;
+  for (std::string line : lines) {
+    // split line by spaces
+    std::stringstream ss(line);
+    std::istream_iterator<std::string> begin(ss);
+    std::istream_iterator<std::string> end;
+    std::vector<std::string> splitLine(begin, end);
+
+    pathExtrema(i, 0, 0) = std::stod(splitLine[1]);
+    pathExtrema(i, 0, 1) = std::stod(splitLine[2]);
+    pathExtrema(i, 0, 2) = std::stod(splitLine[3]);
+
+    pathExtrema(i, 1, 0) = std::stod(splitLine[5]);
+    pathExtrema(i, 1, 1) = std::stod(splitLine[6]);
+    pathExtrema(i, 1, 2) = std::stod(splitLine[7]);
+
+    i++;
+  }
+
+  return pathExtrema;
 }
 
-bool parseBool(std::vector<std::string> lines, std::string pattern) {
-	bool x;
-	bool found = false;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-			found = true;
-			std::string delimeter = "=";
-			size_t pos = line.find(delimeter);
-			std::string s = line.substr(pos+1);
-
-		    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-			s.erase(std::remove_if(s.begin(), s.end(),
-					[](char c) { return !isalpha(c); } ), s.end());
-
-		    if ( s == "false" ) {
-		    	x = false;
-		    } else if ( s == "true" ) {
-		    	x = true;
-		    } else if ( s == "0" ) {
-		    	x = false;
-		    } else if ( s == "1" ) {
-		    	x = true;
-		    } else {
-		    	throw "Couldn't fix boolean value";
-		    }
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-double parseDouble(std::vector<std::string> lines, std::string pattern) {
-	double x = 0.;
-	bool found = false;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-			std::string delimeter = "=";
-			size_t pos = line.find(delimeter);
-			std::string value = line.substr(pos+1);
-			x = std::stod(value); // convert to double
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-double parseDoubleWithUnits(std::vector<std::string> lines, std::string pattern) {
-	double x = 0.;
-	bool found = false;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-			std::string delimeter = "=";
-			size_t pos = line.find(delimeter);
-			std::string value = line.substr(pos+1);
-			x = std::stod(value); // convert to double
-
-			// now check the units and convert
-			if ( lineHasUnits(line, "eV") ) {
-				x /= energyRyToEv;
-			}
-			if ( lineHasUnits(line, "cmm1") ) {
-				x /= ryToCmm1;
-			}
-			if ( lineHasUnits(line, "ps") ) {
-				x /= timeRyToFs * 1.0e-3;
-			}
-			if ( lineHasUnits(line, "fs") ) {
-				x /= timeRyToFs;
-			}
-			if ( lineHasUnits(line, "mum") ) {
-				x /= distanceBohrToMum;
-			}
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-std::vector<double> parseDoubleList(std::vector<std::string> lines,
-		std::string pattern) {
-	std::vector<double> x;
-	double xTemp;
-	bool found = false;
-	std::string token, s;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-
-			std::string delimeter;
-			size_t pos1;
-			size_t pos2;
-
-			delimeter = "[";
-			pos1 = line.find_first_of(delimeter);
-			delimeter = "]";
-			pos2 = line.find_last_of(delimeter);
-
-			if ( pos1 == std::string::npos ) {
-				throw "Error in parseDoubleList";
-			}
-			if ( pos2 == std::string::npos ) {
-				throw "Error in parseDoubleList";
-			}
-
-			s = line.substr(pos1+1,pos2-pos1-1);
-			delimeter = ",";
-
-			while ((pos1 = s.find(delimeter)) != std::string::npos) {
-			    token = s.substr(0, pos1);
-
-				xTemp = std::stod(token); // convert to integer
-				x.push_back(xTemp);
-
-			    s.erase(0, pos1 + delimeter.length());
-			}
-//			Must not forget the last element in the list
-			xTemp = std::stod(s);
-			x.push_back(xTemp);
-
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-long parseLong(std::vector<std::string> lines, std::string pattern) {
-	long x = 0;
-	bool found = false;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-			std::string delimeter = "=";
-			size_t pos = line.find(delimeter);
-			std::string value = line.substr(pos+1);
-			x = std::stoi(value); // convert to integer
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-std::vector<long> parseLongList(std::vector<std::string> lines,
-		std::string pattern) {
-	std::vector<long> x;
-	long xTemp;
-	bool found = false;
-	std::string token, s;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-
-			std::string delimeter;
-			size_t pos1;
-			size_t pos2;
-
-			delimeter = "[";
-			pos1 = line.find_first_of(delimeter);
-			delimeter = "]";
-			pos2 = line.find_last_of(delimeter);
-
-			if ( pos1 == std::string::npos ) {
-				throw "Error in parseLongList";
-			}
-			if ( pos2 == std::string::npos ) {
-				throw "Error in parseLongList";
-			}
-
-			s = line.substr(pos1+1,pos2-pos1-1);
-			delimeter = ",";
-
-			while ((pos1 = s.find(delimeter)) != std::string::npos) {
-			    token = s.substr(0, pos1);
-
-				xTemp = std::stoi(token); // convert to integer
-				x.push_back(xTemp);
-
-			    s.erase(0, pos1 + delimeter.length());
-			}
-//			Must not forget the last element in the list
-			xTemp = std::stoi(s);
-			x.push_back(xTemp);
-
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-
-std::string parseString(std::vector<std::string> lines, std::string pattern) {
-	std::string x = "";
-	bool found = false;
-
-	for ( std::string line : lines) {
-
-		if ( lineHasPattern(line, pattern) ) {
-			std::string delimeter;
-			size_t pos1;
-			size_t pos2;
-
-			delimeter = "'";
-			pos1 = line.find_first_of(delimeter);
-			pos2 = line.find_last_of(delimeter);
-
-			if ( pos1 == std::string::npos ) {
-
-				delimeter = "\"";
-				pos1 = line.find_first_of(delimeter);
-				pos2 = line.find_last_of(delimeter);
-				if ( pos1 == std::string::npos ) {
-					throw "Couldn't solve string parsing of "
-					"pattern: " + pattern;
-				}
-			}
-
-			if ( pos1 == pos2 ) {
-				throw "Error parsing string from user input. "
-				"Pattern " + pattern;
-			}
-			x = line.substr(pos1+1,pos2-pos1-1);
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-std::vector<std::string> parseStringList(std::vector<std::string> lines,
-		std::string pattern) {
-	std::vector<string> x;
-	std::string xTemp;
-	bool found = false;
-	std::string token, s;
-
-	for ( std::string line : lines) {
-		if ( lineHasPattern(line, pattern) ) {
-
-			// remove empty spaces
-		    line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
-
-
-			std::string delimeter;
-			size_t pos1;
-			size_t pos2;
-
-			delimeter = "[";
-			pos1 = line.find_first_of(delimeter);
-			delimeter = "]";
-			pos2 = line.find_last_of(delimeter);
-
-			if ( pos1 == std::string::npos ) {
-				throw "Error in parseDoubleList";
-			}
-			if ( pos2 == std::string::npos ) {
-				throw "Error in parseDoubleList";
-			}
-
-			s = line.substr(pos1+1,pos2-pos1-1);
-			delimeter = ",";
-
-			while ((pos1 = s.find(delimeter)) != std::string::npos) {
-			    token = s.substr(0, pos1);
-
-			    // we also remove the " symbols
-			    token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
-
-				xTemp = token;
-				x.push_back(xTemp);
-
-			    s.erase(0, pos1 + delimeter.length());
-			}
-			// Must not forget the last element in the list
-			xTemp = s;
-			xTemp.erase(std::remove(xTemp.begin(), xTemp.end(), '"'), xTemp.end());
-			x.push_back(xTemp);
-
-			found = true;
-			break;
-		}
-	}
-	if ( not found ) {
-		throw ParameterNotFound();
-	}
-	return x;
-};
-
-bool patternInString(const std::string & s, const std::string & pattern) {
-	if ( s.find(pattern) != std::string::npos ) {
-	    return true;
-	} else {
-		return false;
-	}
+/** Parse an input block (e.g. for crystal or points path).
+ * Returns empty strings/vectors if no block name is found at line "lineCounter"
+ * of the input file.
+ * Otherwise, returns the block name (i.e. what's named after "begin")
+ * and the lines inside the block.
+ */
+std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
+    const std::vector<std::string> &lines, const int &lineCounter) {
+  std::string line;
+  line = lines[lineCounter];
+  if (!patternInString(line, "begin")) {
+    std::string empty1 = "";
+    std::vector<std::string> empty2;
+    return {empty1, empty2};
+  } else {
+    std::string pattern = "begin";
+    std::size_t found = line.find(pattern);
+    std::string blockName = line.substr(found + pattern.size() + 1);
+    std::vector<std::string> val;
+    for (int unsigned i = lineCounter + 1; i < lines.size(); i++) {
+      if (patternInString(lines[i], "end")) {
+          break;
+      }
+      val.push_back(lines[i]);
+    }
+    return {blockName, val};
+  }
 }
 
-std::tuple<Eigen::MatrixXd , Eigen::VectorXi, std::vector<std::string>> parseCrystal(
-		std::vector<std::string> & lines) {
-
-	long iStart = -1;
-	long iEnd = -1;
-	long counter = 0;
-	for ( auto line : lines) {
-		if ( patternInString(line, "begin crystal") ) {
-			iStart = counter;
-		}
-		if ( patternInString(line, "end crystal") ) {
-			iEnd = counter;
-			break;
-		}
-		counter += 1;
-	}
-	if ( (iStart==-1) || (iEnd==-1) ) {
-		throw ParameterNotFound();
-	}
-
-	long numAtoms = iEnd - iStart - 1;
-	Eigen::MatrixXd atomicPositions(numAtoms,3);
-	Eigen::VectorXi atomicSpecies(numAtoms);
-	std::vector<std::string> speciesNames;
-
-	for ( counter=iStart+1; counter<iEnd; counter ++ ) {
-		std::string line = lines[counter];
-
-		// split line by spaces
-		std::stringstream ss(line);
-		std::istream_iterator<std::string> begin(ss);
-		std::istream_iterator<std::string> end;
-		std::vector<std::string> splitLine(begin, end);
-
-		std::string thisElement = splitLine[0];
-		// if new element, insert into list of species
-		if (std::find(speciesNames.begin(), speciesNames.end(), thisElement)
-				== speciesNames.end()) {
-			// thisElement not in speciesNames, add it
-			speciesNames.push_back(thisElement);
-		}
-		// find the index of the current element
-		long index = 0;
-		for ( auto speciesName : speciesNames ) {
-			if ( speciesName == thisElement ) {
-				break;
-			}
-			index += 1;
-		}
-		// save species and positions
-		atomicSpecies(counter-iStart-1) = index;
-		atomicPositions(counter-iStart-1,0) = std::stod(splitLine[1]);
-		atomicPositions(counter-iStart-1,1) = std::stod(splitLine[2]);
-		atomicPositions(counter-iStart-1,2) = std::stod(splitLine[3]);
-	}
-	atomicPositions /= distanceBohrToAng;
-	return {atomicPositions,atomicSpecies,speciesNames};
+std::vector<std::string> &Context::split(const std::string &s, char delim,
+                                         std::vector<std::string> &elems) {
+  std::stringstream ss(s);
+  std::string item;
+  while (std::getline(ss, item, delim)) {
+    if (item.length() > 0) {
+      elems.push_back(item);
+    }
+  }
+  return elems;
 }
 
-
-
-
-
-Eigen::Tensor<double,3> parsePathExtrema(std::vector<std::string> & lines) {
-	long iStart = -1;
-	long iEnd = -1;
-	long counter = 0;
-	for ( auto line : lines) {
-		if ( patternInString(line, "begin point path") ) {
-			iStart = counter;
-		}
-		if ( patternInString(line, "end point path") ) {
-			iEnd = counter;
-			break;
-		}
-		counter += 1;
-	}
-	if ( (iStart==-1) || (iEnd==-1) ) {
-		throw ParameterNotFound();
-	}
-
-	long numSegments = iEnd - iStart - 1;
-	Eigen::Tensor<double,3> pathExtrema(numSegments,2,3);
-	pathExtrema.setZero();
-
-	long i = 0;
-	for ( counter=iStart+1; counter<iEnd; counter ++ ) {
-		std::string line = lines[counter];
-
-		// split line by spaces
-		std::stringstream ss(line);
-		std::istream_iterator<std::string> begin(ss);
-		std::istream_iterator<std::string> end;
-		std::vector<std::string> splitLine(begin, end);
-
-		pathExtrema(i,0,0) = std::stod(splitLine[1]);
-		pathExtrema(i,0,1) = std::stod(splitLine[2]);
-		pathExtrema(i,0,2) = std::stod(splitLine[3]);
-
-		pathExtrema(i,1,0) = std::stod(splitLine[5]);
-		pathExtrema(i,1,1) = std::stod(splitLine[6]);
-		pathExtrema(i,1,2) = std::stod(splitLine[7]);
-
-		i++;
-	}
-
-	return pathExtrema;
+/** Split a string by a char delimeter.
+ */
+std::vector<std::string> Context::split(const std::string &s, char delim) {
+  std::vector<std::string> elems;
+  split(s, delim, elems);
+  return elems;
 }
 
+/** Checks if the line of the input file contains a key=value statement.
+ */
+bool lineHasParameter(const std::string &line) {
+  if (std::find(line.begin(), line.end(), '=') != line.end()) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
+/** Given a line of the form "key = value", returns the string "key" and the
+ * string containing "value". "value" could contain a string, a list or other
+ * things to be further parsed.
+ */
+std::tuple<std::string, std::string> parseParameterNameValue(
+    const std::string &line) {
+  // we assume that there is "=" in the string
+  std::string sep = "=";
+  size_t position = line.find(sep);  // unsigned integer
+  std::string s = line.substr(0, position);
+  s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 
+  std::string val = line.substr(position + 1, line.size());
 
+  return {s, val};
+}
 
 void Context::setupFromInput(std::string fileName) {
-	std::vector<std::string> lines;
-	std::string line;
+  std::vector<std::string> lines;
+  std::string line;
 
-// open input file and read content
-    ifstream infile(fileName);
-	while (std::getline(infile, line)) {
-		lines.push_back(line);
-	}
-    infile.close();
+  // open input file and read content
+  std::ifstream infile(fileName);
+  while (std::getline(infile, line)) {
+    std::vector<std::string> tokens = split(line, ';');
+    for (std::string t : tokens) {
+      lines.push_back(t);
+    }
+  }
+  infile.close();
 
-	try {
-		std::string tmp = parseString(lines, "phD2FileName");
-		setPhD2FileName(tmp);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+  // there are
 
-	try {
-		std::string tmp = parseString(lines, "phD3FileName");
-		setPhD3FileName(tmp);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+  int lineCounter = 0;
+  for (std::string line : lines) {
+    if (line.empty()) {  // nothing to do
+      continue;
 
-	try {
-		setSumRuleD2(parseString(lines, "sumRuleD2"));
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      // line with pair (key,value)
+    } else if (lineHasParameter(line)) {
+      auto [parameterName, val] = parseParameterNameValue(line);
 
-	try {
-		std::string tmp = parseString(lines, "electronH0Name");
-		setElectronH0Name(tmp);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "phD2FileName") {
+        phD2FileName = parseString(val);
+      }
 
-	try {
-		double dval = parseDouble(lines, "electronFourierCutoff");
-		setElectronFourierCutoff(dval);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "phD3FileName") {
+        phD3FileName = parseString(val);
+      }
 
-	try {
-		std::vector<long> vecMesh = parseLongList(lines, "qMesh");
-		Eigen::Vector3i qMesh_;
-		qMesh_(0) = vecMesh[0];
-		qMesh_(1) = vecMesh[1];
-		qMesh_(2) = vecMesh[2];
-		setQMesh(qMesh_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "sumRuleD2") {
+        sumRuleD2 = parseString(val);
+      }
 
-	try {
-		std::vector<long> vecMesh = parseLongList(lines, "kMesh");
-		Eigen::Vector3i kMesh_;
-		kMesh_(0) = vecMesh[0];
-		kMesh_(1) = vecMesh[1];
-		kMesh_(2) = vecMesh[2];
-		setKMesh(kMesh_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "electronH0Name") {
+        electronH0Name = parseString(val);
+      }
 
-	try {
-		std::string win = parseString(lines, "windowType");
-		setWindowType(win);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "electronFourierCutoff") {
+        double x = parseDouble(val);
+        electronFourierCutoff = x;
+      }
 
-	try {
-		std::vector<double> winLim = parseDoubleList(lines, "windowEnergyLimit");
-		Eigen::Vector2d winLim_;
-		// we just make sure to order it
-		winLim_[0] = std::min(winLim[0],winLim[1]);
-		winLim_[1] = std::max(winLim[0],winLim[1]);
-		setWindowEnergyLimit(winLim_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "qMesh") {
+        std::vector<long> vecMesh = parseLongList(val);
+        qMesh(0) = vecMesh[0];
+        qMesh(1) = vecMesh[1];
+        qMesh(2) = vecMesh[2];
+      }
 
-	try {
-		double x = parseDouble(lines, "populationLimit");
-		setWindowPopulationLimit(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "kMesh") {
+        std::vector<long> vecMesh = parseLongList(val);
+        kMesh(0) = vecMesh[0];
+        kMesh(1) = vecMesh[1];
+        kMesh(2) = vecMesh[2];
+      }
 
-	try {
-		std::vector<double> x = parseDoubleList(lines, "chemicalPotentials");
-		Eigen::VectorXd x_(x.size());
-		for ( long unsigned i=0; i<x.size(); i++ ) {
-			x_(i) = x[i] / energyRyToEv;
-		}
-		setChemicalPotentials(x_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "windowType") {
+        windowType = parseString(val);
+      }
 
-	try {
-		std::vector<double> x = parseDoubleList(lines, "dopings");
-		Eigen::VectorXd x_(x.size());
-		for ( long unsigned i=0; i<x.size(); i++ ) {
-			x_(i) = x[i];
-		}
-		setDopings(x_); // note: we store it as provided in input. in cm^-D
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "windowEnergyLimit") {
+        std::vector<double> winLim = parseDoubleList(val);
+        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]);
+        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]);
+      }
 
-	try {
-		std::vector<double> x = parseDoubleList(lines, "temperatures");
-		Eigen::VectorXd x_(x.size());
-		for ( long unsigned i=0; i<x.size(); i++ ) {
-			x_(i) = x[i] / temperatureAuToSi;
-		}
-		setTemperatures(x_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "windowPopulationLimit") {
+        windowPopulationLimit = parseDouble(val);
+      }
 
-	try {
-		std::string x = parseString(lines, "appName");
-		setAppName(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "chemicalPotentials") {
+        std::vector<double> x = parseDoubleList(val);
+        chemicalPotentials = Eigen::VectorXd::Zero(x.size());
+        for (long unsigned i = 0; i < x.size(); i++) {
+          chemicalPotentials(i) = x[i] / energyRyToEv;
+        }
+      }
 
-	try {
-		std::vector<std::string> x = parseStringList(lines, "solverBTE");
-		setSolverBTE(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "dopings") {
+        std::vector<double> x = parseDoubleList(val);
+        dopings = Eigen::VectorXd::Zero(x.size());
+        for (long unsigned i = 0; i < x.size(); i++) {
+          dopings(i) = x[i];
+        }
+      }
 
-	try {
-		double x = parseDouble(lines, "convergenceThresholdBTE");
-		setConvergenceThresholdBTE(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "temperatures") {
+        std::vector<double> x = parseDoubleList(val);
+        temperatures = Eigen::VectorXd::Zero(x.size());
+        for (long unsigned i = 0; i < x.size(); i++) {
+          temperatures(i) = x[i] / temperatureAuToSi;
+        }
+      }
 
-	try {
-		long x = parseLong(lines, "maxIterationsBTE");
-		setMaxIterationsBTE(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "appName") {
+        appName = parseString(val);
+      }
 
-	try {
-		long x = parseLong(lines, "dimensionality");
-		setDimensionality(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "solverBTE") {
+        solverBTE = parseStringList(val);
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "dosMinEnergy");
-		setDosMinEnergy(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "convergenceThresholdBTE") {
+        convergenceThresholdBTE = parseDouble(val);
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "dosMaxEnergy");
-		setDosMaxEnergy(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "maxIterationsBTE") {
+        maxIterationsBTE = parseLong(val);
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "dosDeltaEnergy");
-		setDosDeltaEnergy(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "dimensionality") {
+        dimensionality = parseLong(val);
+      }
 
-	try {
-		// note: these should be given in input in cartesian coordinates
-		auto [atomicPositions,atomicSpecies,speciesNames]= parseCrystal(lines);
-		setInputAtomicPositions(atomicPositions);
-		setInputAtomicSpecies(atomicSpecies);
-		setInputSpeciesNames(speciesNames);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "dosMinEnergy") {
+        dosMinEnergy = parseDoubleWithUnits(val);
+      }
 
-	try {
-		// note: these should be given in input in cartesian coordinates
-		auto pathExtrema_ = parsePathExtrema(lines);
-		setPathExtrema(pathExtrema_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "dosMaxEnergy") {
+        dosMaxEnergy = parseDoubleWithUnits(val);
+      }
 
-	try {
-		double x = parseDouble(lines, "deltaPath");
-		setDeltaPath(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "dosDeltaEnergy") {
+        dosDeltaEnergy = parseDoubleWithUnits(val);
+      }
 
-	try {
-		double x = parseDouble(lines, "fermiLevel"); // in eV
-		setFermiLevel( x / energyRyToEv );
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "deltaPath") {
+        deltaPath = parseDouble(val);
+      }
 
-	try {
-		double x = parseBool(lines, "hasSpinOrbit");
-		setHasSpinOrbit(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "fermiLevel") {
+        fermiLevel = parseDouble(val) / energyRyToEv;  // to Ry
+      }
 
-	try {
-		// note: numOccupiedStates refers to the number of states that are
-		// occupied
-		// for Wannier: the number of Wannier states that are full
-		// for Fourier: the number of occupied bands
-		// remember to NOT count the spin degeneracy
-		double x = parseDouble(lines, "numOccupiedStates");
-		if ( ! hasSpinOrbit ) x *= 2;
-		setNumOccupiedStates(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "hasSpinOrbit") {
+        hasSpinOrbit = parseBool(val);
+      }
 
-	try {
-		std::string x_ = parseString(lines, "smearingMethod");
-		int x;
-		if ( x_ == "gaussian" ) {
-			x = 0;
-		} else if ( x_ == "adaptiveGaussian" ) {
-			x = 1;
-		} else if ( x_ == "tetrahedron" ) {
-			x = 2;
-		} else {
-			x = -1;
-		}
-		setSmearingMethod(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "numOccupiedStates") {
+        // note: numOccupiedStates refers to the number of states that are
+        // occupied
+        // for Wannier: the number of Wannier states that are full
+        // for Fourier: the number of occupied bands
+        // remember to NOT count the spin degeneracy
+        double x = parseDouble(val);
+        if (!hasSpinOrbit) x *= 2;
+        numOccupiedStates = x;
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "smearingWidth");
-		setSmearingWidth(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "smearingMethod") {
+        std::string x_ = parseString(val);
+        //TODO: this is hardcoded, should be fixed how we validate input
+        if (x_ == "gaussian") {
+          smearingMethod = 0;
+        } else if (x_ == "adaptiveGaussian") {
+          smearingMethod = 1;
+        } else if (x_ == "tetrahedron") {
+          smearingMethod = 2;
+        } else {
+          smearingMethod = -1;
+        }
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "constantRelaxationTime");
-		setConstantRelaxationTime(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "smearingWidth") {
+        smearingWidth = parseDoubleWithUnits(val);
+      }
 
-	try {
-		bool x = parseBool(lines, "scatteringMatrixInMemory");
-		setScatteringMatrixInMemory(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "constantRelaxationTime") {
+        constantRelaxationTime = parseDoubleWithUnits(val);
+      }
 
-	try {
-		bool x = parseBool(lines, "withIsotopeScattering");
-		setWithIsotopeScattering(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "scatteringMatrixInMemory") {
+        scatteringMatrixInMemory = parseBool(val);
+      }
 
-	try {
-		std::vector<double> x = parseDoubleList(lines, "massVariance");
-		Eigen::VectorXd x_(x.size());
-		for ( long unsigned i=0; i<x.size(); i++ ) {
-			x_(i) = x[i];
-		}
-		setMassVariance(x_);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "withIsotopeScattering") {
+        withIsotopeScattering = parseBool(val);
+      }
 
-//	try {
-//		bool x = parseBool(lines, "withRTABoundaryScattering");
-//		setWithRTABoundaryScattering(x);
-//	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "massVariance") {
+        std::vector<double> x = parseDoubleList(val);
+        massVariance = Eigen::VectorXd::Zero(x.size());
+        for (long unsigned i = 0; i < x.size(); i++) {
+          massVariance(i) = x[i];
+        }
+      }
 
-	try {
-		double x = parseDoubleWithUnits(lines, "boundaryLength");
-		setBoundaryLength(x);
-	} catch (ParameterNotFound& e) {} // Do nothing!
+      if (parameterName == "boundaryLength") {
+        boundaryLength = parseDoubleWithUnits(val);
+      }
 
+      //////////////////////////////////////////
+
+    } else {  // it might be a block, or its content
+
+      auto [blockName, value] = parseBlockNameValue(lines, lineCounter);
+
+      if (blockName == "crystal") {
+        auto [inputAtomicPositions_, inputAtomicSpecies_, inputSpeciesNames_] =
+            parseCrystal(value);
+        inputAtomicPositions = inputAtomicPositions_;
+        inputAtomicSpecies = inputAtomicSpecies_;
+        inputSpeciesNames = inputSpeciesNames_;
+      }
+      if (blockName == "point path") {
+        pathExtrema = parsePathExtrema(value);
+      }
+    }
+
+    ///////////////////////////////////////////////
+
+    lineCounter += 1;
+  }
 };
 
-void Context::setPhD2FileName(std::string x) {
-	phD2FileName = x;
-}
+std::string Context::getPhD2FileName() { return phD2FileName; }
 
-std::string Context::getPhD2FileName() {
-	return phD2FileName;
-}
+std::string Context::getPhD3FileName() { return phD3FileName; }
 
-void Context::setPhD3FileName(std::string x) {
-	phD3FileName = x;
-}
+std::string Context::getSumRuleD2() { return sumRuleD2; }
 
-std::string Context::getPhD3FileName() {
-	return phD3FileName;
-}
+std::string Context::getElectronH0Name() { return electronH0Name; }
 
-void Context::setSumRuleD2(std::string x) {
-	sumRuleD2 = x;
-}
+double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
-std::string Context::getSumRuleD2() {
-	return sumRuleD2;
-}
+std::string Context::getAppName() { return appName; }
 
-void Context::setElectronH0Name(std::string x) {
-	electronH0Name = x;
-}
+Eigen::Vector3i Context::getQMesh() { return qMesh; }
 
-std::string Context::getElectronH0Name() {
-	if ( electronH0Name == "" ) {
-		Error e("Electronic H0 filename not set", 1);
-	}
-	return electronH0Name;
-}
+Eigen::Vector3i Context::getKMesh() { return kMesh; }
 
-void Context::setElectronFourierCutoff(const double & x) {
-	electronFourierCutoff = x;
-}
+std::string Context::getWindowType() { return windowType; }
 
-double& Context::getElectronFourierCutoff() {
-	if ( electronFourierCutoff == 0. ) {
-		Error e("Electronic Fourier Cutoff not set", 1);
-	}
-	return electronFourierCutoff;
-}
+Eigen::Vector2d Context::getWindowEnergyLimit() { return windowEnergyLimit; }
 
-void Context::setAppName(const std::string & x) {
-	appName = x;
-}
+double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
 
-std::string Context::getAppName() {
-	return appName;
-}
+Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
-void Context::setQMesh(const Eigen::Vector3i & x) {
-	qMesh = x;
-}
+Eigen::VectorXd Context::getDopings() { return dopings; }
 
-Eigen::Vector3i Context::getQMesh() {
-	return qMesh;
-}
+Eigen::VectorXd Context::getTemperatures() { return temperatures; }
 
-void Context::setKMesh(const Eigen::Vector3i & x) {
-	kMesh = x;
-}
+std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
-Eigen::Vector3i Context::getKMesh() {
-	return kMesh;
-}
+double Context::getConvergenceThresholdBTE() { return convergenceThresholdBTE; }
 
+long Context::getMaxIterationsBTE() { return maxIterationsBTE; }
 
-void Context::setWindowType(std::string x) {
-	windowType = x;
-}
+long Context::getDimensionality() { return dimensionality; }
 
-std::string Context::getWindowType() {
-	return windowType;
-}
+double Context::getDosMinEnergy() { return dosMinEnergy; }
 
-void Context::setWindowEnergyLimit(Eigen::Vector2d x) {
-	windowEnergyLimit = x;
-}
+double Context::getDosMaxEnergy() { return dosMaxEnergy; }
 
-Eigen::Vector2d Context::getWindowEnergyLimit() {
-	return windowEnergyLimit;
-}
-
-void Context::setWindowPopulationLimit(double x) {
-	windowPopulationLimit = x;
-}
-
-double Context::getWindowPopulationLimit() {
-	return windowPopulationLimit;
-}
-
-void Context::setChemicalPotentials(Eigen::VectorXd x) {
-	chemicalPotentials = x;
-}
-
-Eigen::VectorXd Context::getChemicalPotentials() {
-	return chemicalPotentials;
-}
-
-void Context::setDopings(Eigen::VectorXd x) {
-	dopings = x;
-}
-
-Eigen::VectorXd Context::getDopings() {
-	return dopings;
-}
-
-void Context::setTemperatures(Eigen::VectorXd x) {
-	temperatures = x;
-}
-
-Eigen::VectorXd Context::getTemperatures() {
-	return temperatures;
-}
-
-void Context::setSolverBTE(std::vector<std::string> x) {
-	solverBTE = x;
-}
-
-std::vector<std::string> Context::getSolverBTE() {
-	return solverBTE;
-}
-
-void Context::setConvergenceThresholdBTE(double x) {
-	convergenceThresholdBTE = x;
-}
-
-double Context::getConvergenceThresholdBTE() {
-	return convergenceThresholdBTE;
-}
-
-void Context::setMaxIterationsBTE(long x) {
-	maxIterationsBTE = x;
-}
-
-long Context::getMaxIterationsBTE() {
-	return maxIterationsBTE;
-}
-
-void Context::setDimensionality(long x) {
-	dimensionality = x;
-}
-
-long Context::getDimensionality() {
-	return dimensionality;
-}
-
-void Context::setDosMinEnergy(double x) {
-	dosMinEnergy = x;
-}
-
-double Context::getDosMinEnergy() {
-	return dosMinEnergy;
-}
-
-void Context::setDosMaxEnergy(double x) {
-	dosMaxEnergy = x;
-}
-
-double Context::getDosMaxEnergy() {
-	return dosMaxEnergy;
-}
-
-void Context::setDosDeltaEnergy(double x) {
-	dosDeltaEnergy = x;
-}
-
-double Context::getDosDeltaEnergy() {
-	return dosDeltaEnergy;
-}
+double Context::getDosDeltaEnergy() { return dosDeltaEnergy; }
 
 Eigen::MatrixXd Context::getInputAtomicPositions() {
-	return inputAtomicPositions;
+  return inputAtomicPositions;
 }
-Eigen::VectorXi Context::getInputAtomicSpecies() {
-	return inputAtomicSpecies;
-}
+
+Eigen::VectorXi Context::getInputAtomicSpecies() { return inputAtomicSpecies; }
+
 std::vector<std::string> Context::getInputSpeciesNames() {
-	return inputSpeciesNames;
-}
-void Context::setInputAtomicPositions(Eigen::MatrixXd & atomicPositions) {
-	inputAtomicPositions = atomicPositions;
-}
-void Context::setInputAtomicSpecies(Eigen::VectorXi & atomicSpecies) {
-	inputAtomicSpecies = atomicSpecies;
-}
-void Context::setInputSpeciesNames(std::vector<std::string> & speciesNames) {
-	inputSpeciesNames = speciesNames;
+  return inputSpeciesNames;
 }
 
-void Context::setPathExtrema(Eigen::Tensor<double,3> x) {
-	pathExtrema = x;
-}
-Eigen::Tensor<double,3> Context::getPathExtrema() {
-	return pathExtrema;
-}
+Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 
-void Context::setDeltaPath(double x) {
-	deltaPath = x;
-}
-double Context::getDeltaPath() {
-	return deltaPath;
-}
+double Context::getDeltaPath() { return deltaPath; }
 
-void Context::setFermiLevel(const double & x) {
-	fermiLevel = x;
-}
-double Context::getFermiLevel() {
-	return fermiLevel;
-}
-void Context::setNumOccupiedStates(double x) {
-	numOccupiedStates = x;
-}
-double Context::getNumOccupiedStates() {
-	return numOccupiedStates;
-}
-void Context::setHasSpinOrbit(bool x) {
-	hasSpinOrbit = x;
-}
-bool Context::getHasSpinOrbit() {
-	return hasSpinOrbit;
-}
+double Context::getFermiLevel() { return fermiLevel; }
 
-void Context::setSmearingMethod(const int & x) {
-	smearingMethod = x;
-}
+void Context::setFermiLevel(const double &x) { fermiLevel = x; }
 
-int Context::getSmearingMethod() {
-	return smearingMethod;
-}
+double Context::getNumOccupiedStates() { return numOccupiedStates; }
 
-void Context::setSmearingWidth(const double & x) {
-	smearingWidth = x;
-}
+void Context::setNumOccupiedStates(const double &x) { numOccupiedStates = x; }
 
-double Context::getSmearingWidth() {
-	return smearingWidth;
-}
+bool Context::getHasSpinOrbit() { return hasSpinOrbit; }
 
-void Context::setConstantRelaxationTime(const double & x) {
-	constantRelaxationTime = x;
-}
+void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 
-double Context::getConstantRelaxationTime() {
-	return constantRelaxationTime;
-}
+int Context::getSmearingMethod() { return smearingMethod; }
 
-void Context::setScatteringMatrixInMemory(const bool & x) {
-	scatteringMatrixInMemory = x;
-}
+double Context::getSmearingWidth() { return smearingWidth; }
 
-bool Context::getScatteringMatrixInMemory() {
-	return scatteringMatrixInMemory;
-}
+double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 
-void Context::setMassVariance(const Eigen::VectorXd & x) {
-	massVariance = x;
-}
+bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
 
-Eigen::VectorXd Context::getMassVariance() {
-	return massVariance;
-}
+Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 
-void Context::setWithIsotopeScattering(const bool & x) {
-	withIsotopeScattering = x;
-}
+bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
-bool Context::getWithIsotopeScattering() {
-	return withIsotopeScattering;
-}
-
-
-void Context::setBoundaryLength(const double & x) {
-	boundaryLength = x;
-}
-
-double Context::getBoundaryLength() {
-	return boundaryLength;
-}
-
-//void Context::setWithRTABoundaryScattering(const bool & x) {
-//	doIsotopes = x;
-//}
-//
-//bool Context::getWithRTABoundaryScattering() {
-//	return doIsotopes;
-//}
-
+double Context::getBoundaryLength() { return boundaryLength; }

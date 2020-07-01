@@ -4,4 +4,4 @@ appName = "electronFourierDos"
 dosMinEnergy = -6. eV
 dosMaxEnergy = 20. eV
 dosDeltaEnergy = 0.1 eV
-electronFourierCutoff = 60.
+electronFourierCutoff = 4.

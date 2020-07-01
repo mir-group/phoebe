@@ -4,8 +4,8 @@
 
 TEST (PointsTest, PointsHandling) {
 	Eigen::Matrix3d directUnitCell;
-	directUnitCell.row(0) << 0., 0., 5.1;
-	directUnitCell.row(1) << 0., 5.1, 5.1;
+	directUnitCell.row(0) << -5.1, 0.,  5.1;
+	directUnitCell.row(1) <<  0.,  5.1, 5.1;
 	directUnitCell.row(2) << -5.1, 5.1, 0.;
 	Eigen::MatrixXd atomicPositions(2,3);
 	atomicPositions.row(0) << 0., 0., 0.;
@@ -32,11 +32,12 @@ TEST (PointsTest, PointsHandling) {
 	auto p1 = points.getPoint(4);
 
 	// find the index of the inverted point
-	long i4 = points.getIndex(-p1.getCoords(Points::cartesianCoords));
+	long i4 = points.getIndex(-p1.getCoords(Points::crystalCoords));
 //	long i4 = points.getIndexInverted(4);
 
 	auto p2 = points.getPoint(i4);
 	auto p3 = p1 + p2;
+
 	EXPECT_EQ ( p3.getCoords(Points::cartesianCoords).norm(),0.);
 
 	//

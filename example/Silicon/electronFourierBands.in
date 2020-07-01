@@ -1,7 +1,7 @@
 appName = "electronFourierBands"
-electronH0Name = "test/out/silicon.xml",
+electronH0Name = "qespresso/out/silicon.xml",
 deltaPath = 0.01
-electronFourierCutoff = 60.
+electronFourierCutoff = 4.
 
 begin point path
 L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
