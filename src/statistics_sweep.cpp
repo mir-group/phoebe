@@ -1,37 +1,38 @@
-#include <algorithm>
-#include "utilities.h"
 #include "statistics_sweep.h"
-#include "bandstructure.h"
-#include "context.h"
-#include "constants.h"
+
+#include <algorithm>
 #include <cmath>
 
-StatisticsSweep::StatisticsSweep(Context &context,
-        FullBandStructure *fullBandStructure) :
-        particle(
-                fullBandStructure != nullptr ?
-                        fullBandStructure->getParticle() : Particle::phonon) {
+#include "bandstructure.h"
+#include "constants.h"
+#include "context.h"
+#include "utilities.h"
+#include "mpiHelper.h"
 
+StatisticsSweep::StatisticsSweep(Context &context,
+                                 FullBandStructure *fullBandStructure)
+    : particle(fullBandStructure != nullptr ? fullBandStructure->getParticle()
+                                            : Particle::phonon) {
   Eigen::VectorXd temperatures = context.getTemperatures();
   nTemp = temperatures.size();
-  if ( nTemp == 0) {
+  if (nTemp == 0) {
     double minTemperature = context.getMinTemperature();
     double maxTemperature = context.getMaxTemperature();
     double deltaTemperature = context.getDeltaTemperature();
 
-    if ( std::isnan(minTemperature) || std::isnan(maxTemperature) ||
-	 std::isnan(deltaTemperature) ) {
+    if (std::isnan(minTemperature) || std::isnan(maxTemperature) ||
+        std::isnan(deltaTemperature)) {
       Error e("Error in setting temperatures in user input");
     }
-    
+
     int i = 0;
-    while ( minTemperature <= maxTemperature ) {
-      temperatures.conservativeResize(i+1);
+    while (minTemperature <= maxTemperature) {
+      temperatures.conservativeResize(i + 1);
       temperatures(i) = minTemperature;
       minTemperature += deltaTemperature;
       ++i;
     }
-    
+
     nTemp = temperatures.size();
   }
 
@@ -45,16 +46,16 @@ StatisticsSweep::StatisticsSweep(Context &context,
       infoCalcs(it, 0) = temp;
       // note: the other two columns are set to zero above
     }
-    
-  } else { // isElectron()
+
+  } else {  // isElectron()
     // in this case, the class is more complicated, as it is tasked with
     // the calculation of the chemical potential or the doping
     // so, we first load parameters to compute these quantities
-    
+
     bool hasSpinOrbit = context.getHasSpinOrbit();
     if (hasSpinOrbit) {
       spinFactor = 1.;
-    } else { // count spin degeneracy
+    } else {  // count spin degeneracy
       spinFactor = 2.;
     }
 
@@ -70,8 +71,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
       auto state = fullBandStructure->getState(ik);
       auto ens = state.getEnergies();
       for (long ib = 0; ib < numBands; ib++) {
-	energies(i) = ens(ib);
-	i++;
+        energies(i) = ens(ib);
+        i++;
       }
     }
 
@@ -79,24 +80,25 @@ StatisticsSweep::StatisticsSweep(Context &context,
     // i.e. we define the number of filled bands and the fermi energy
 
     occupiedStates = context.getNumOccupiedStates();
-    
+
     if (std::isnan(occupiedStates)) {
       // in this case we try to compute it from the Fermi-level
       fermiLevel = context.getFermiLevel();
       if (std::isnan(fermiLevel)) {
-	Error e("Must provide either the Fermi level or the number of"
-		" occupied states");
+        Error e(
+            "Must provide either the Fermi level or the number of"
+            " occupied states");
       }
       occupiedStates = 0.;
       for (long i = 0; i < numStates; i++) {
-	if (energies(i) < fermiLevel) {
-	  occupiedStates += 1.;
-	}
+        if (energies(i) < fermiLevel) {
+          occupiedStates += 1.;
+        }
       }
       occupiedStates /= numPoints;
     } else {
       occupiedStates /= spinFactor;
-      fermiLevel = energies.mean(); // first guess of Fermi level
+      fermiLevel = energies.mean();  // first guess of Fermi level
       // refine this guess at zero temperature and zero doping
       fermiLevel = findChemicalPotentialFromDoping(0., 0.);
     }
@@ -110,25 +112,24 @@ StatisticsSweep::StatisticsSweep(Context &context,
     nDop = dopings.size();
 
     if ((nDop == 0) && (nChemPot == 0)) {
-
       double minChemicalPotential = context.getMinChemicalPotential();
       double maxChemicalPotential = context.getMaxChemicalPotential();
       double deltaChemicalPotential = context.getDeltaChemicalPotential();
 
-      if ( std::isnan(minChemicalPotential) ||
-	   std::isnan(minChemicalPotential) ||
-	   std::isnan(deltaChemicalPotential) ) {
-            Error e("Didn't find chemical potentials or doping in input");
+      if (std::isnan(minChemicalPotential) ||
+          std::isnan(minChemicalPotential) ||
+          std::isnan(deltaChemicalPotential)) {
+        Error e("Didn't find chemical potentials or doping in input");
       }
-      
+
       int i = 0;
-      while ( minChemicalPotential <= maxChemicalPotential ) {
-	chemicalPotentials.conservativeResize(i+1);
-	chemicalPotentials(i) = minChemicalPotential;
-	minChemicalPotential += deltaChemicalPotential;
-	++i;
+      while (minChemicalPotential <= maxChemicalPotential) {
+        chemicalPotentials.conservativeResize(i + 1);
+        chemicalPotentials(i) = minChemicalPotential;
+        minChemicalPotential += deltaChemicalPotential;
+        ++i;
       }
-                
+
       nChemPot = chemicalPotentials.size();
     }
 
@@ -142,49 +143,51 @@ StatisticsSweep::StatisticsSweep(Context &context,
     // in this case, I have dopings, and want to find chemical potentials
     if (nChemPot == 0) {
       nChemPot = nDop;
-      
+
       for (long it = 0; it < nTemp; it++) {
-	for (long id = 0; id < nDop; id++) {
-	  double temp = temperatures(it);
-	  double doping = dopings(id);
-	  double chemPot = findChemicalPotentialFromDoping(doping, temp);
-	  
-	  long iCalc = compress2Indeces(it, id, nTemp, nDop);
-	  calcTable(iCalc, 0) = temp;
-	  calcTable(iCalc, 1) = chemPot;
-	  calcTable(iCalc, 2) = doping;
-	}
+        for (long id = 0; id < nDop; id++) {
+          double temp = temperatures(it);
+          double doping = dopings(id);
+          double chemPot = findChemicalPotentialFromDoping(doping, temp);
+
+          long iCalc = compress2Indeces(it, id, nTemp, nDop);
+          calcTable(iCalc, 0) = temp;
+          calcTable(iCalc, 1) = chemPot;
+          calcTable(iCalc, 2) = doping;
+        }
       }
-      
+
       // in this case, I have chemical potentials
     } else if (nDop == 0) {
       nDop = nChemPot;
-      
+
       for (long it = 0; it < nTemp; it++) {
-	for (long imu = 0; imu < nChemPot; imu++) {
-	  double temp = temperatures(it);
-	  double chemPot = chemicalPotentials(imu);
-	  double doping = findDopingFromChemicalPotential(chemPot, temp);
-	  
-	  long iCalc = compress2Indeces(it, imu, nTemp, nChemPot);
-	  calcTable(iCalc, 0) = temp;
-	  calcTable(iCalc, 1) = chemPot;
-	  calcTable(iCalc, 2) = doping;
-	}
+        for (long imu = 0; imu < nChemPot; imu++) {
+          double temp = temperatures(it);
+          double chemPot = chemicalPotentials(imu);
+          double doping = findDopingFromChemicalPotential(chemPot, temp);
+
+          long iCalc = compress2Indeces(it, imu, nTemp, nChemPot);
+          calcTable(iCalc, 0) = temp;
+          calcTable(iCalc, 1) = chemPot;
+          calcTable(iCalc, 2) = doping;
+        }
       }
     }
-    
+
     // clean memory
     energies = Eigen::VectorXd::Zero(1);
     // save potentials and dopings
     infoCalcs = calcTable;
     numCalcs = calcTable.rows();
   }
+
+  printInfo();
 }
 
 // copy constructor
-StatisticsSweep::StatisticsSweep(const StatisticsSweep &that) :
-  particle(that.particle) {
+StatisticsSweep::StatisticsSweep(const StatisticsSweep &that)
+    : particle(that.particle) {
   numCalcs = that.numCalcs;
   infoCalcs = that.infoCalcs;
   nTemp = that.nTemp;
@@ -193,7 +196,7 @@ StatisticsSweep::StatisticsSweep(const StatisticsSweep &that) :
 }
 
 // copy assignment
-StatisticsSweep& StatisticsSweep::operator =(const StatisticsSweep &that) {
+StatisticsSweep &StatisticsSweep::operator=(const StatisticsSweep &that) {
   if (this != &that) {
     particle = that.particle;
     numCalcs = that.numCalcs;
@@ -218,67 +221,66 @@ double StatisticsSweep::fPop(const double &chemPot, const double &temp) {
   return fPop_;
 }
 
-double StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
-        const double &temperature) {
-    // given the carrier concentration, finds the fermi energy
-    // temperature is set inside glob
-    // To find fermi energy, I must find the root of \sum_s f(s) - N = 0
-    // the root is found with a bisection algorithm
-    // Might be numerically unstable for VERY small doping concentration
+double StatisticsSweep::findChemicalPotentialFromDoping(
+    const double &doping, const double &temperature) {
+  // given the carrier concentration, finds the fermi energy
+  // temperature is set inside glob
+  // To find fermi energy, I must find the root of \sum_s f(s) - N = 0
+  // the root is found with a bisection algorithm
+  // Might be numerically unstable for VERY small doping concentration
 
-    // numElectronsDoped is the total number of electrons in the unit cell
-    // numElectrons is the number of electrons in the unit cell before doping
-    // doping > 0 means p-doping (fermi level in the valence band)
+  // numElectronsDoped is the total number of electrons in the unit cell
+  // numElectrons is the number of electrons in the unit cell before doping
+  // doping > 0 means p-doping (fermi level in the valence band)
 
-    numElectronsDoped = occupiedStates
-            - doping * volume * pow(distanceBohrToCm, 3) / spinFactor;
+  numElectronsDoped =
+      occupiedStates - doping * volume * pow(distanceBohrToCm, 3) / spinFactor;
 
-    // bisection method: I need to find the root of N - \int fermi dirac = 0
+  // bisection method: I need to find the root of N - \int fermi dirac = 0
 
-    // initial guess
-    double chemicalPotential = fermiLevel;
+  // initial guess
+  double chemicalPotential = fermiLevel;
 
-    // I choose the following  (generous) boundaries
-    double aX = chemicalPotential - 0.25; // - 3.5eV
-    double bX = chemicalPotential + 0.25; // + 3.5eV
-    double aY = fPop(aX, temperature);
-    double bY = fPop(bX, temperature);
+  // I choose the following  (generous) boundaries
+  double aX = chemicalPotential - 0.25;  // - 3.5eV
+  double bX = chemicalPotential + 0.25;  // + 3.5eV
+  double aY = fPop(aX, temperature);
+  double bY = fPop(bX, temperature);
 
-    if (sgn(aY) == sgn(bY)) {
-        Error e("I should revisit the boundary limits for bisection method");
+  if (sgn(aY) == sgn(bY)) {
+    Error e("I should revisit the boundary limits for bisection method");
+  }
+
+  for (long iter = 0; iter < maxIter; iter++) {
+    if (iter == maxIter - 1) {
+      Error e("Max iteration reached in finding mu");
+    }
+    double cX = (aX + bX) / 2.;
+    double cY = fPop(cX, temperature);
+
+    // exit condition: the guess is exact or didn't change much
+    if ((cY == 0.) || (abs(bX - aX) < 1.0e-8)) {
+      chemicalPotential = cX;
+      break;  // go out of the loop
     }
 
-    for (long iter = 0; iter < maxIter; iter++) {
-        if (iter == maxIter - 1) {
-            Error e("Max iteration reached in finding mu");
-        }
-        double cX = (aX + bX) / 2.;
-        double cY = fPop(cX, temperature);
-
-        // exit condition: the guess is exact or didn't change much
-        if ((cY == 0.) || (abs(bX - aX) < 1.0e-8)) {
-            chemicalPotential = cX;
-            break; // go out of the loop
-        }
-
-        // check the sign
-        if (sgn(cY) == sgn(aY)) {
-            aX = cX;
-        } else {
-            bX = cX;
-        }
+    // check the sign
+    if (sgn(cY) == sgn(aY)) {
+      aX = cX;
+    } else {
+      bX = cX;
     }
-    return chemicalPotential;
+  }
+  return chemicalPotential;
 }
 
 double StatisticsSweep::findDopingFromChemicalPotential(
-        const double &chemicalPotential, const double &temperature) {
+    const double &chemicalPotential, const double &temperature) {
   double fPop = 0.;
   for (long i = 0; i < numStates; i++) {
-    fPop += particle.getPopulation(energies(i), temperature,
-				   chemicalPotential);
+    fPop += particle.getPopulation(energies(i), temperature, chemicalPotential);
   }
-  fPop *= spinFactor/numPoints;
+  fPop *= spinFactor / numPoints;
   double doping = (occupiedStates - fPop);
   doping *= 1. / volume / pow(distanceBohrToCm, 3);
   return doping;
@@ -292,20 +294,34 @@ struct CalcStatistics StatisticsSweep::getCalcStatistics(const long &index) {
   return sc;
 }
 
-struct CalcStatistics StatisticsSweep::getCalcStatistics(const TempIndex &iTemp,
-        const ChemPotIndex &iChemPot) {
+struct CalcStatistics StatisticsSweep::getCalcStatistics(
+    const TempIndex &iTemp, const ChemPotIndex &iChemPot) {
   long index = compress2Indeces(iTemp.get(), iChemPot.get(), nTemp, nChemPot);
   return getCalcStatistics(index);
 }
 
-long StatisticsSweep::getNumCalcs() {
-  return numCalcs;
-}
+long StatisticsSweep::getNumCalcs() { return numCalcs; }
 
-long StatisticsSweep::getNumChemicalPotentials() {
-  return nChemPot;
-}
+long StatisticsSweep::getNumChemicalPotentials() { return nChemPot; }
 
-long StatisticsSweep::getNumTemperatures() {
-  return nTemp;
+long StatisticsSweep::getNumTemperatures() { return nTemp; }
+
+void StatisticsSweep::printInfo() {
+    if ( !mpi->mpiHead()) return;
+  std::cout << "\n";
+  std::cout << "Statistical parameters for the calculation\n";
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    double temp = infoCalcs(iCalc, 0);
+    double chemPot = infoCalcs(iCalc, 1);
+    double doping = infoCalcs(iCalc, 2);
+
+    std::cout << "iCalc = " << iCalc
+              << ", T = " << temp * temperatureAuToSi << " (K)";
+    if ( particle.isPhonon() ) {
+      std::cout << "\n";
+    } else {
+      std::cout << ", mu = " << chemPot * energyRyToEv << " (eV)"
+      << ", n = " << doping << " (cm^-3)\n";
+    }
+  }
 }

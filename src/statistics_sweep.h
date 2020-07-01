@@ -75,6 +75,11 @@ public:
      */
     long getNumTemperatures();
 
+    /** Prints to screen the information on the temperature, doping and
+     * chemical potentials to be computed in the current run.
+     */
+    void printInfo();
+
 protected:
     Particle particle;
     long numCalcs;
