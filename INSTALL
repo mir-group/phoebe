@@ -21,3 +21,12 @@ Then type
 * make doc
 
 Tested with gcc v9. Note that old compilers may not support c++17.
+
+Notes for Mac Users: 
+There can be trouble linking to the libgfortran files required by scalapack. 
+If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH: 
+  export LIBRARY_PATH=/path/to/libgfortran/
+If using homebrew installed gcc, you might need to add the cellar copy rather than the 
+one located with gcc:
+  export LIBRARY_PATH=/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/) 
+
