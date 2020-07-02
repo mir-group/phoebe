@@ -195,10 +195,10 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
 
   for (auto [iq1, iq2] : qPairIterator) {
     loopPrint.update();
-    auto q2 = innerBandStructure.getPoint(iq2);
-    auto states2 = innerBandStructure.getState(q2);
-    auto state2Energies = states2.getEnergies();
-    auto nb2 = state2Energies.size();
+    Point q2 = innerBandStructure.getPoint(iq2);
+    State states2 = innerBandStructure.getState(q2);
+    Eigen::VectorXd state2Energies = states2.getEnergies();
+    int nb2 = state2Energies.size();
 
     Eigen::Tensor<std::complex<double>, 3> ev2;
     states2.getEigenvectors(ev2);
@@ -207,10 +207,10 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
     // that q1 and q2 are on different meshes, and that q3+/- may not
     // fall into known meshes and therefore needs to be computed
 
-    auto states1 = outerBandStructure.getState(iq1);
-    auto q1 = states1.getPoint();
-    auto state1Energies = states1.getEnergies();
-    auto nb1 = state1Energies.size();
+    State states1 = outerBandStructure.getState(iq1);
+    Point q1 = states1.getPoint();
+    Eigen::VectorXd state1Energies = states1.getEnergies();
+    int nb1 = state1Energies.size();
 
     Eigen::Tensor<std::complex<double>, 3> ev1;
     states1.getEigenvectors(ev1);
@@ -221,13 +221,13 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
     // if the meshes are the same (and gamma centered)
     // q3 will fall into the same grid, and it's easy to get
     if (dontComputeQ3) {
-      auto q3Plus = q1 + q2;
-      auto states3Plus = innerBandStructure.getState(q3Plus);
+      Point q3Plus = q1 + q2;
+      State states3Plus = innerBandStructure.getState(q3Plus);
       state3PlusEnergies = states3Plus.getEnergies();
       nb3Plus = state3PlusEnergies.size();
 
-      auto q3Mins = q1 - q2;
-      auto states3Mins = innerBandStructure.getState(q3Mins);
+      Point q3Mins = q1 - q2;
+      State states3Mins = innerBandStructure.getState(q3Mins);
       state3MinsEnergies = states3Mins.getEnergies();
       nb3Mins = state3MinsEnergies.size();
 
@@ -240,12 +240,12 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
       bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
 
       for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-        auto ind3 = outerBandStructure.getIndex(
+        long ind3 = outerBandStructure.getIndex(
             WavevectorIndex(q3Plus.getIndex()), BandIndex(ib3));
         bose3PlusData.col(ib3) = outerBose.data.col(ind3);
       }
       for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-        auto ind3 = outerBandStructure.getIndex(
+        long ind3 = outerBandStructure.getIndex(
             WavevectorIndex(q3Mins.getIndex()), BandIndex(ib3));
         bose3MinsData.col(ib3) = outerBose.data.col(ind3);
       }
