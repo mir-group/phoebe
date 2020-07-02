@@ -1,7 +1,12 @@
-#ifdef MPI_AVAIL
-
 #ifndef PMATRIX_H
 #define PMATRIX_H
+
+#ifndef MPI_AVAIL
+
+template <typename T>
+class ParallelMatrix : public Matrix<T> {}
+
+#else
 
 #include <tuple>
 #include <vector>
@@ -14,8 +19,8 @@
 
 // double matrix (I skip the templates for now)
 template <typename T>
-class ParallelMatrix {  // P stands for parallel
- public:
+class ParallelMatrix {
+ private:
   /// Class variables
   int numRows_, numCols_;
   int numLocalRows_, numLocalCols_;
@@ -26,16 +31,12 @@ class ParallelMatrix {  // P stands for parallel
   int numBlasRows_, numBlasCols_;
   int myBlasRow_, myBlasCol_;
 
-  //  char transposition = 'N'; // status of the transposition
-  static const char transN = 'N';  // no transpose nor adjoint
-  static const char transT = 'T';  // transpose
-  static const char transC = 'C';  // adjoint (for complex numbers)
-
   // dummy values to return when accessing elements not available locally
   T dummyZero = 0;
   T const dummyConstZero = 0;
 
- public:
+  T* mat = nullptr; // raw buffer
+
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
@@ -48,13 +49,23 @@ class ParallelMatrix {  // P stands for parallel
    */
   long global2Local(const long& row, const long& col);
 
-  T* mat = nullptr;
+ public:
+  static const char transN = 'N';  // no transpose nor adjoint
+  static const char transT = 'T';  // transpose
+  static const char transC = 'C';  // adjoint (for complex numbers)
 
-  // Construct using row, col numbers, and block distribution
+  /** Construct using row, col numbers, and block distribution
+   */
   ParallelMatrix(const int& numRows, const int& numCols,
                  const int& numBlocksRows = 0, const int& numBlocksCols = 0);
-  ParallelMatrix();   // default constructor
-  ~ParallelMatrix();  // deallocate pointers
+
+  /** Empty constructor
+   */
+  ParallelMatrix();
+
+  /** Destructor, to deallocate pointers
+   */
+  ~ParallelMatrix();
 
   /** Copy constructor
    */
@@ -76,7 +87,11 @@ class ParallelMatrix {  // P stands for parallel
    */
   std::vector<std::tuple<long, long>> getAllLocalStates();
 
-  // utilities for the global matrix size
+  /** Returns true if the global indices (row,col) identify a matrix element
+   * stored by the MPI process.
+   */
+  bool indecesAreLocal(const int& row, const int& col);
+
   /** Find global number of rows
    */
   long rows() const;
@@ -95,22 +110,11 @@ class ParallelMatrix {  // P stands for parallel
    */
   const T& operator()(const int row, const int col) const;
 
-  /** Returns true if the global indices (row,col) identify a matrix element
-   * stored by the MPI process.
-   */
-  bool indecesAreLocal(const int& row, const int& col);
-
   /** Matrix-matrix multiplication.
    */
   ParallelMatrix<T> prod(const ParallelMatrix<T>& that,
                          const char& trans1 = transN,
                          const char& trans2 = transN);
-  /** Matrix-scalar multiplication.
-   */
-  ParallelMatrix<T> operator*=(const T& that);
-  /** Matrix-scalar division.
-   */
-  ParallelMatrix<T> operator/=(const T& that);
 
   /** Matrix-matrix addition.
    */
@@ -119,6 +123,14 @@ class ParallelMatrix {  // P stands for parallel
   /** Matrix-matrix subtraction.
    */
   ParallelMatrix<T> operator-=(const ParallelMatrix<T>& that);
+
+  /** Matrix-scalar multiplication.
+   */
+  ParallelMatrix<T> operator*=(const T& that);
+
+  /** Matrix-scalar division.
+   */
+  ParallelMatrix<T> operator/=(const T& that);
 
   /** Sets this matrix as the identity.
    * Deletes any previous content.
@@ -247,7 +259,9 @@ ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   for (int i = 0; i < 9; i++) {
     descMat_[i] = that.descMat_[i];
   }
-
+  if ( mat != nullptr ) {
+    delete[] mat;
+  }
   // matrix allocation
   mat = new T[numLocalElements_];
   // Memory could not be allocated, end program
@@ -277,7 +291,9 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
     for (int i = 0; i < 9; i++) {
       descMat_[i] = that.descMat_[i];
     }
-
+    if ( mat != nullptr ) {
+      delete[] mat;
+    }
     // matrix allocation
     mat = new T[numLocalElements_];
     // Memory could not be allocated, end program
@@ -309,7 +325,7 @@ long ParallelMatrix<T>::size() const {
   return cols() * rows();
 }
 
-// Get element
+// Get/set element
 
 template <typename T>
 T& ParallelMatrix<T>::operator()(const int row, const int col) {
