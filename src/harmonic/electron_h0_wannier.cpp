@@ -118,6 +118,12 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFrom
 
 Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocity(
         Point &point) {
+  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+  return diagonalizeVelocityFromCoords(coords);
+}
+
+Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFromCoords(
+        Eigen::Vector3d &coords) {
     double delta = 1.0e-8;
     double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
 
@@ -125,7 +131,6 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocity(
     velocity.setZero();
 
     // if we are working at gamma, we set all velocities to zero.
-    Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
     if (coords.norm() < 1.0e-6) {
         return velocity;
     }

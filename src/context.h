@@ -11,7 +11,6 @@
  * This class is mostly a container for the input variables.
  *
  * To add a new variable, write a get/set method, and modify setupFromInput().
- * The new variable should be set to
  */
 class Context {
  private:
