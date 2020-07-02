@@ -1,14 +1,17 @@
 #ifdef MPI_AVAIL
 
 #include "PMatrix.h"
+
 #include "Blacs.h"
-#include "mpiHelper.h"
 #include "constants.h"
+#include "mpiHelper.h"
 
 template <>
-Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
-                                    const char& trans1, const char& trans2) {
-  Matrix<double> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+ParallelMatrix<double> ParallelMatrix<double>::prod(
+    const ParallelMatrix<double>& that, const char& trans1,
+    const char& trans2) {
+  ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
+                                numBlocksCols_);
 
   int m;
   if (trans1 == transN) {
@@ -44,10 +47,11 @@ Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
 }
 
 template <>
-Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
-    const Matrix<std::complex<double>>& that, const char& trans1,
+ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
+    const ParallelMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
-  Matrix<std::complex<double>> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+  ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
+                                              numBlocksRows_, numBlocksCols_);
 
   int m;
   if (trans1 == transN) {
@@ -83,15 +87,16 @@ Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
 }
 
 template <>
-std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
+std::tuple<std::vector<double>, ParallelMatrix<double>>
+ParallelMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  Matrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                              numBlocksCols_);
+  ParallelMatrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
+                                      numBlocksCols_);
 
   // find the value of lwork. These are internal "scratch" arrays
   int nn = std::max(std::max(numRows_, 2), numBlocksRows_);
@@ -110,16 +115,16 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
   int ja = 1;       // row index from which we diagonalize
   int info = 0;
   pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-         eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
-         &info);
+          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
+          &info);
 
   if (info != 0) {
     Error e("PDSYEV failed", info);
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for ( long i=0; i<numRows_; i++ ) {
-    eigenvalues_[i] = *(eigenvalues+i);
+  for (long i = 0; i < numRows_; i++) {
+    eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;
   delete[] work;
@@ -129,16 +134,16 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 }
 
 template <>
-std::tuple<std::vector<double>, Matrix<std::complex<double>>>
-        Matrix<std::complex<double>>::diagonalize() {
+std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
+ParallelMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  Matrix<std::complex<double>> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                                            numBlocksCols_);
+  ParallelMatrix<std::complex<double>> eigenvectors(
+      numRows_, numCols_, numBlocksRows_, numBlocksCols_);
 
   // find the value of lwork and lrwork. These are internal "scratch" arrays
   int NB = descMat_[5];
@@ -169,8 +174,8 @@ std::tuple<std::vector<double>, Matrix<std::complex<double>>>
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for ( long i=0; i<numRows_; i++ ) {
-    eigenvalues_[i] = *(eigenvalues+i);
+  for (long i = 0; i < numRows_; i++) {
+    eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;
   delete[] work;
@@ -180,4 +185,4 @@ std::tuple<std::vector<double>, Matrix<std::complex<double>>>
   return {eigenvalues_, eigenvectors};
 }
 
-#endif // MPI_AVAIL
+#endif  // MPI_AVAIL

@@ -96,8 +96,8 @@ PhScatteringMatrix &PhScatteringMatrix::operator=(
 // inPopulation+outPopulation is passed: we compute the action of the
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
-void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
-                                 VectorBTE *inPopulation,
+void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
+                                 VectorBTE *linewidth, VectorBTE *inPopulation,
                                  VectorBTE *outPopulation) {
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
@@ -300,9 +300,9 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
       }
 
       if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-        Eigen::Tensor<std::complex<double>,3> v3psTmp =
+        Eigen::Tensor<std::complex<double>, 3> v3psTmp =
             h0->diagonalizeVelocityFromCoords(q3PlusC);
-        Eigen::Tensor<std::complex<double>,3> v3msTmp =
+        Eigen::Tensor<std::complex<double>, 3> v3msTmp =
             h0->diagonalizeVelocityFromCoords(q3MinsC);
 
         // we only need the diagonal elements of the velocity operator
@@ -347,7 +347,6 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
 
         // Isotope scattering
         if (doIsotopes) {
-
           switch (smearing->getType()) {
             case (DeltaFunction::gaussian):
               deltaIso = smearing->getSmearing(en1 - en2);
@@ -490,7 +489,7 @@ void PhScatteringMatrix::builder(Matrix<double> &matrix, VectorBTE *linewidth,
               break;
           }
 
-          if (deltaMins1 < 0. && deltaMins2<0.) continue;
+          if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
           if (deltaMins1 < 0.) deltaMins1 = 0.;
           if (deltaMins2 < 0.) deltaMins2 = 0.;
 

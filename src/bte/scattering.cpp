@@ -97,7 +97,7 @@ void ScatteringMatrix::setup() {
             Error e("High memory BTE methods can only work with one "
                     "temperature and/or chemical potential in a single run");
         }
-        theMatrix = Matrix<double>(numStates, numStates);
+        theMatrix = ParallelMatrix<double>(numStates, numStates);
 
         // calc matrix and linew.
         builder(theMatrix, &internalDiagonal, nullptr, nullptr);
@@ -292,10 +292,10 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     }
 }
 
-std::tuple<VectorBTE, Matrix<double>> ScatteringMatrix::diagonalize() {
+std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
 
 //    std::vector<double> eigenvalues;
-//    Matrix<double> eigenvectors;
+//    ParallelMatrix<double> eigenvectors;
     auto [eigenvalues,eigenvectors] = theMatrix.diagonalize();
 
     // place eigenvalues in an VectorBTE object

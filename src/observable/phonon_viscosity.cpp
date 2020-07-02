@@ -71,7 +71,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 }
 
 void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-        PhScatteringMatrix &sMatrix, Matrix<double> &eigenvectors) {
+        PhScatteringMatrix &sMatrix, ParallelMatrix<double> &eigenvectors) {
 
     if (numCalcs > 1) {
         Error e("Viscosity for relaxons only for 1 temperature");

@@ -147,7 +147,7 @@ VectorBTE VectorBTE::operator *(const Eigen::VectorXd &vector) {
 }
 
 // product operator overload
-VectorBTE VectorBTE::operator *(Matrix<double> &matrix) {
+VectorBTE VectorBTE::operator *(ParallelMatrix<double> &matrix) {
   if (numCalcs != dimensionality) {
     // I mean, you'd need to keep in memory a lot of matrices.
     Error e("We didn't implement VectorBTE * matrix for numCalcs > 1");

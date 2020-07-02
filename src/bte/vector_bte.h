@@ -5,6 +5,7 @@
 #include "context.h"
 #include "active_bandstructure.h"
 #include "Matrix.h"
+#include "PMatrix.h"
 
 /** Class used to store the "vector" of out-of-equilibrium populations.
  * The vector indices are over the Bloch state. Additionally, there is one of
@@ -75,7 +76,7 @@ public:
      * @param pMatrix: a parallel distributed double matrix to be used in the
      * product, of size equal to numStates x numStates.
      */
-    VectorBTE operator *(Matrix<double> &matrix);
+    VectorBTE operator *(ParallelMatrix<double> &matrix);
 
     /** element wise sum between two VectorBTE objects x and y.
      * If the dimensionality of the two objects is the same, we compute

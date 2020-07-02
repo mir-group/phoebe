@@ -28,7 +28,7 @@ class PhScatteringMatrix : public ScatteringMatrix {
   double boundaryLength;
   bool doBoundary;
 
-  virtual void builder(Matrix<double> &matrix, VectorBTE *linewidth,
+  virtual void builder(ParallelMatrix<double> &matrix, VectorBTE *linewidth,
                        VectorBTE *inPopulation, VectorBTE *outPopulation);
 };
 
