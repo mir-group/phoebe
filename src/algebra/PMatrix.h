@@ -1,13 +1,6 @@
 #ifndef PMATRIX_H
 #define PMATRIX_H
 
-#ifndef MPI_AVAIL
-
-template <typename T>
-class ParallelMatrix : public Matrix<T> {}
-
-#else
-
 #include <tuple>
 #include <vector>
 
@@ -16,6 +9,14 @@ class ParallelMatrix : public Matrix<T> {}
 #include "bandstructure.h"
 #include "constants.h"
 #include "mpiHelper.h"
+
+#ifndef MPI_AVAIL
+
+// alias template
+template<typename T>
+using ParallelMatrix = Matrix<T>;
+
+#else
 
 // double matrix (I skip the templates for now)
 template <typename T>
