@@ -110,12 +110,9 @@ ParallelMatrix<double>::diagonalize() {
   int izero = 0;
   int n = numRows_ * numCols_;
   int nb = blockSizeRows_; // = MB_A = NB_A = MB_Z = NB_Z
-//  int iarow = indxg2p_(&ia, &nb, &myBlasRow_, &izero, &numBlasRows_);
-//  int np = numroc_(&n, &nb, &myBlasRow_, &iarow, &numBlasRows_);
   int kkk = myBlasCol_ + myBlasRow_ * numBlasCols_;
   int nrc = numroc_(&n, &nb, &kkk, &izero, &n);
   int lwqr2 = n * std::max(1, nrc);
-//  int lwtrd = std::max(3 * nb, nb * (np + 1));
   int qrmem = 2 * (n - 2);
   int izz = ia;
   int jzz = ia;

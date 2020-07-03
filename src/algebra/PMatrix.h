@@ -119,19 +119,19 @@ class ParallelMatrix {
 
   /** Matrix-matrix addition.
    */
-  ParallelMatrix<T> operator+=(const ParallelMatrix<T>& that);
+  ParallelMatrix<T>& operator+=(const ParallelMatrix<T>& that);
 
   /** Matrix-matrix subtraction.
    */
-  ParallelMatrix<T> operator-=(const ParallelMatrix<T>& that);
+  ParallelMatrix<T>& operator-=(const ParallelMatrix<T>& that);
 
   /** Matrix-scalar multiplication.
    */
-  ParallelMatrix<T> operator*=(const T& that);
+  ParallelMatrix<T>& operator*=(const T& that);
 
   /** Matrix-scalar division.
    */
-  ParallelMatrix<T> operator/=(const T& that);
+  ParallelMatrix<T>& operator/=(const T& that);
 
   /** Sets this matrix as the identity.
    * Deletes any previous content.
@@ -429,39 +429,35 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalWavevectors(
 }
 
 template <typename T>
-ParallelMatrix<T> ParallelMatrix<T>::operator*=(const T& that) {
-  ParallelMatrix<T> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+ParallelMatrix<T>& ParallelMatrix<T>::operator*=(const T& that) {
   for (long i = 0; i < numLocalElements_; i++) {
-    *(result.mat + i) = *(mat + i) * that;
+    *(mat + i) *= that;
   }
-  return result;
+  return *this;
 }
 
 template <typename T>
-ParallelMatrix<T> ParallelMatrix<T>::operator/=(const T& that) {
-  ParallelMatrix<T> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
   for (long i = 0; i < numLocalElements_; i++) {
-    *(result.mat + i) = *(mat + i) / that;
+    *(mat + i) /= that;
   }
-  return result;
+  return *this;
 }
 
 template <typename T>
-ParallelMatrix<T> ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
-  ParallelMatrix<T> result = *this;
+ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
   for (long i = 0; i < numLocalElements_; i++) {
-    *(result.mat + i) += *(that.mat + i);
+    *(mat + i) += *(that.mat + i);
   }
-  return result;
+  return *this;
 }
 
 template <typename T>
-ParallelMatrix<T> ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
-  ParallelMatrix<T> result = *this;
+ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
   for (long i = 0; i < numLocalElements_; i++) {
-    *(result.mat + i) -= *(that.mat + i);
+    *(mat + i) -= *(that.mat + i);
   }
-  return result;
+  return *this;
 }
 
 template <typename T>

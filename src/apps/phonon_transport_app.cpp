@@ -250,8 +250,9 @@ void PhononTransportApp::run(Context &context) {
   }
 
   if (doRelaxons) {
-    std::cout << "Starting relaxons BTE solver\n";
-
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting relaxons BTE solver\n";
+    }
     scatteringMatrix.a2Omega();
     auto [eigenvalues, eigenvectors] = scatteringMatrix.diagonalize();
     // EV such that Omega = V D V^-1
