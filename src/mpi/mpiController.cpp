@@ -61,7 +61,7 @@ MPIcontroller::MPIcontroller(){
                   &myBlasCol_);
 #else
   blasRank_ = 0;
-  blasContext_ = 0;
+  blacsContext_ = 0;
   numBlasRows_ = 1;
   numBlasCols_ = 1;
   myBlasRow_ = 0;
