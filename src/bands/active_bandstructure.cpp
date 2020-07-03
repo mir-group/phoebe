@@ -452,7 +452,10 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     int *receiveCounts = nullptr;
     receiveCounts = (int *)malloc(mpiSize * sizeof(int));
     mpi->gather(&mySize, receiveCounts);
+#ifdef MPI_AVAIL
     MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
+
     // receivecounts now tells how many wavevectors found per MPI process
 
     // now we count the total number of wavevectors
