@@ -63,13 +63,9 @@ Matrix<std::complex<double>>::diagonalize() {
 template <>
 std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
   assert(nRows == nCols);  // needs to be square
-
   std::vector<double> eigvals(nRows);
-  Matrix<double> eigvecs(nRows, nCols);
-
+  Matrix<double> eigvecs = *this;
   // throw away variables
-  Matrix<double> temp;
-  temp = *this;  // copy of input matrix which will be overwritten
 
   char jobz = 'V';
   char uplo = 'U';
@@ -77,8 +73,8 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
   std::vector<double> work(lwork);
   int info;
 
-  dsyev_(&jobz, &uplo, &nRows, temp.mat, &nRows, &eigvals[0], &work[0], &lwork,
-         &info);
+  dsyev_(&jobz, &uplo, &nRows, eigvecs.mat, &nRows, &eigvals[0], &work[0],
+         &lwork, &info);
 
   assert(info == 0);  // if it doesn't =0, there was an error.
   return {eigvals, eigvecs};

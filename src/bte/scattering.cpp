@@ -293,25 +293,23 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 }
 
 std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
+  //    std::vector<double> eigenvalues;
+  //    ParallelMatrix<double> eigenvectors;
+  auto [eigenvalues, eigenvectors] = theMatrix.diagonalize();
 
-//    std::vector<double> eigenvalues;
-//    ParallelMatrix<double> eigenvectors;
-    auto [eigenvalues,eigenvectors] = theMatrix.diagonalize();
+  // place eigenvalues in an VectorBTE object
+  VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
+  for (long is = 0; is < numStates; is++) {
+    eigvals.data(0, is) = eigenvalues[is];
+  }
+  eigvals.excludeIndeces = excludeIndeces;
 
-    // place eigenvalues in an VectorBTE object
-    VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
-    for ( long is=0; is<numStates; is++ ) {
-        eigvals.data(0,is) = eigenvalues[is];
-    }
-    eigvals.excludeIndeces = excludeIndeces;
+  // correct normalization of eigenvectors
+  double volume = outerBandStructure.getPoints().getCrystal().getVolumeUnitCell(
+      context.getDimensionality());
+  eigenvectors *= sqrt(innerBandStructure.getNumPoints(true) * volume);
 
-    // correct normalization of eigenvectors
-    double volume =
-            outerBandStructure.getPoints().getCrystal().getVolumeUnitCell(
-                    context.getDimensionality());
-    eigenvectors *= sqrt(innerBandStructure.getNumPoints(true) * volume);
-
-    return {eigvals, eigenvectors};
+  return {eigvals, eigenvectors};
 }
 
 std::vector<std::tuple<long, long>>

@@ -186,18 +186,18 @@ Matrix<T>::Matrix() {
 // copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
-  mat = new T[that.size()];
   nRows = that.rows();
   nCols = that.cols();
+  numElements_ = that.numElements_;
   if (mat != nullptr) {
     delete[] mat;
+    mat = nullptr;
   }
   mat = new T[numElements_];
   assert(mat != nullptr);
   for (long i = 0; i < numElements_; i++) {
     mat[i] = that.mat[i];
   }
-  numElements_ = that.numElements_;
 }
 
 template <typename T>
@@ -255,6 +255,8 @@ const T& Matrix<T>::operator()(const int row, const int col) const {
 
 template <typename T>
 bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
+  (void) row;
+  (void) col;
   return true;
 }
 

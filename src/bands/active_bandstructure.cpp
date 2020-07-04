@@ -428,8 +428,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     numFullBands = 0; // save the unfiltered number of bands
     std::vector<int> myFilteredPoints;
     std::vector<std::vector<long>> myFilteredBands;
+
+//    for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
+//      std::cout << " " << ik ;
+//    }
+//    std::cout << "!!!\n";
+
     for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
-      //    for (long ik = 0; ik < fullPoints.getNumPoints(); ik++) {
       Point point = fullPoints.getPoint(ik);
       // diagonalize harmonic hamiltonian
       auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
@@ -450,11 +455,19 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     int mySize = myFilteredPoints.size();
     int mpiSize = mpi->getSize();
     int *receiveCounts = nullptr;
-    receiveCounts = (int *)malloc(mpiSize * sizeof(int));
-    mpi->gather(&mySize, receiveCounts);
+    receiveCounts = new int[mpiSize];
+    for ( int i=0; i<mpiSize; i++) *(receiveCounts+i) = 0;
+    if (mpiSize > 1) {
+      mpi->gather(&mySize, receiveCounts);
 #ifdef MPI_AVAIL
-    MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
+      // note: bcast interface doesn't work for objects of unknown size
+      // (here, we'd need to pass the size to the interface)
+      // convert receiveCounts to std::vector?
+      MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
+    } else {
+      receiveCounts[0] = mySize;
+    }
 
     // receivecounts now tells how many wavevectors found per MPI process
 
@@ -491,7 +504,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     }
     mpi->allReduceSum(&filteredBands);
 
-    free(receiveCounts);
+//    free(receiveCounts);
+    delete[] receiveCounts;
 
     //////////////// Done MPI recollection
 
