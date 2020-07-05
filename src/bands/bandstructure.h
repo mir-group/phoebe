@@ -78,10 +78,24 @@ public:
      */
     virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
 
+    /** Given a Bloch state index, finds the corresponding wavevector and band
+     * index.
+     * @param stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+     * @return WavevectorIndex: strong-typed index on wavevector
+     * @return BandIndex: strong-typed index on bands
+     */
+    virtual std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
+
     /** Returns the total number of Bloch states.
      * @return numStates: the integer number of Bloch states.
      */
     virtual long getNumStates();
+
+
+    /** Returns an iterator to be used for loops over the Bloch state index.
+     * The values of the iterator are distributed in N blocks over N MPI ranks.
+     */
+    std::vector<int> parallelStateIterator();
 
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
@@ -229,6 +243,14 @@ public:
      * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
      */
     long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+
+    /** Given a Bloch state index, finds the corresponding wavevector and band
+     * index.
+     * @param stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+     * @return WavevectorIndex: strong-typed index on wavevector
+     * @return BandIndex: strong-typed index on bands
+     */
+    std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
 
     /** Returns the total number of Bloch states, equal to numPoints*numBands.
      * @return numStates: the total number of Bloch states in the class.

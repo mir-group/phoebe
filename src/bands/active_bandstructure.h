@@ -31,6 +31,7 @@ public:
     State getState(Point &point);  // returns all bands at fixed k/q-point
 
     long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+    std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
     long getNumStates();
 
     const double& getEnergy(const long &stateIndex);

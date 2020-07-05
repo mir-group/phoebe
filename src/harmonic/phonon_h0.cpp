@@ -1,11 +1,14 @@
+#include "phonon_h0.h"
+
+#include <math.h>
+
 #include <complex>
 #include <iostream>
-#include <math.h>
 
 #include "constants.h"
 #include "eigen.h"
 #include "exceptions.h"
-#include "phonon_h0.h"
+#include "mpiHelper.h"
 #include "points.h"
 #include "utilities.h"
 
@@ -14,7 +17,6 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
                    const Eigen::Tensor<double, 7> &forceConstants_)
     : particle(Particle::phonon), bornCharges(bornCharges_),
       forceConstants(forceConstants_) {
-
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
@@ -207,7 +209,6 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
                                      bool &withEigenvectors) {
-
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, points);
 
@@ -453,7 +454,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         }
 
         if (geg > 0. && geg / alph / 4. < gmax) {
-
           if (loto_2d) {
             facgd =
                 fac * exp(-geg / alph / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
@@ -462,7 +462,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
           }
 
           for (long na = 0; na < numAtoms; na++) {
-
             for (long i = 0; i < 3; i++) {
               zag(i) = g(0) * bornCharges(na, 0, i) +
                        g(1) * bornCharges(na, 1, i) +
@@ -502,7 +501,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         }
 
         if (geg > 0. && geg / alph / 4. < gmax) {
-
           if (loto_2d) {
             facgd =
                 fac * exp(-geg / alph / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
@@ -662,7 +660,6 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
             weight = wscache(n3ForCache, n2ForCache, n1ForCache, nb, na);
 
             if (weight > 0.) {
-
               // find vector corresponding to r in original cell
 
               m1 = mod((n1 + 1), qCoarseGrid(0));
@@ -796,10 +793,11 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     Error e("invalid Acoustic Sum Rule", 1);
   }
 
-  std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
+  if (mpi->mpiHead()) {
+    std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
+  }
 
   if (sr == "simple") {
-
     // Simple Acoustic Sum Rule on effective charges
 
     double sum;
@@ -823,7 +821,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         for (long na = 0; na < numAtoms; na++) {
           sum = 0.;
           for (long nb = 0; nb < numAtoms; nb++) {
-
             for (long n1 = 0; n1 < qCoarseGrid(0); n1++) {
               for (long n2 = 0; n2 < qCoarseGrid(1); n2++) {
                 for (long n3 = 0; n3 < qCoarseGrid(2); n3++) {
@@ -837,7 +834,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
     }
   } else {
-
     // Acoustic Sum Rule on effective charges
 
     // generating the vectors of the orthogonal of the subspace to project
@@ -1252,7 +1248,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     w.setZero();
     for (long l = 0; l < m; l++) {
-
       //			call
       // sp2(frc_new,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
       scal = 0.;
@@ -1282,7 +1277,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         }
       }
       if (r != 0) {
-
         scal = 0.;
         for (long n1 = 0; n1 < nr1; n1++) {
           for (long n2 = 0; n2 < nr2; n2++) {
@@ -1348,7 +1342,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     forceConstants = frc_new;
   }
-  std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
+  if (mpi->mpiHead()) {
+    std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
+  }
 }
 
 void PhononH0::sp_zeu(Eigen::Tensor<double, 3> &zeu_u,
@@ -1370,11 +1366,16 @@ Eigen::Vector3i PhononH0::getCoarseGrid() { return qCoarseGrid; }
 
 Eigen::Tensor<std::complex<double>, 3>
 PhononH0::diagonalizeVelocity(Point &point) {
+  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+  return diagonalizeVelocityFromCoords(coords);
+}
+
+Eigen::Tensor<std::complex<double>, 3>
+PhononH0::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
 
   // if we are working at gamma, we set all velocities to zero.
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
   if (coords.norm() < 1.0e-6) {
     return velocity;
   }
@@ -1382,9 +1383,9 @@ PhononH0::diagonalizeVelocity(Point &point) {
   bool withMassScaling = false;
 
   // get the eigenvectors and the energies of the q-point
-  auto tup = diagonalizeFromCoords(coords, withMassScaling);
-  auto energies = std::get<0>(tup);
-  auto eigenvectors = std::get<1>(tup);
+  auto tup8 =      diagonalizeFromCoords(coords, withMassScaling);
+ auto energies = std::get<0>(tup8);
+ auto eigenvectors = std::get<1>(tup8);
 
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.
@@ -1398,12 +1399,12 @@ PhononH0::diagonalizeVelocity(Point &point) {
     qMins(i) -= deltaQ;
 
     // diagonalize the dynamical matrix at q+ and q-
-    auto tup1 = diagonalizeFromCoords(qPlus, withMassScaling);
-    auto enPlus = std::get<0>(tup1);
-    auto eigPlus = std::get<1>(tup1);
-    auto tup2 = diagonalizeFromCoords(qMins, withMassScaling);
-    auto enMins = std::get<0>(tup2);
-    auto eigMins = std::get<1>(tup2);
+    auto tup = diagonalizeFromCoords(qPlus, withMassScaling);
+    auto enPlus = std::get<0>(tup);
+    auto eigPlus = std::get<1>(tup);
+    auto tup1 = diagonalizeFromCoords(qMins, withMassScaling);
+    auto enMins = std::get<0>(tup1);
+    auto eigMins = std::get<1>(tup1);
 
     // build diagonal matrices with frequencies
     Eigen::MatrixXd enPlusMat(numBands, numBands);
@@ -1441,7 +1442,6 @@ PhononH0::diagonalizeVelocity(Point &point) {
   // so, we diagonalize the velocity operator in the degenerate subspace,
 
   for (long ib = 0; ib < numBands; ib++) {
-
     // first, we check if the band is degenerate, and the size of the
     // degenerate subspace
     long sizeSubspace = 1;
@@ -1458,7 +1458,6 @@ PhononH0::diagonalizeVelocity(Point &point) {
       Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
       // we have to repeat for every direction
       for (long iCart = 0; iCart < 3; iCart++) {
-
         // take the velocity matrix of the degenerate subspace
         for (long i = 0; i < sizeSubspace; i++) {
           for (long j = 0; j < sizeSubspace; j++) {

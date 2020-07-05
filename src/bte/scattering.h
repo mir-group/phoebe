@@ -4,6 +4,7 @@
 #include "context.h"
 #include "vector_bte.h"
 #include "delta_function.h"
+#include "Matrix.h"
 
 /** Base class of the scattering matrix.
  * Note: this is an abstract class, which can only work if builder() is defined
@@ -68,7 +69,7 @@ public:
      * B is an Eigen::MatrixXd. This can be used to compute products of the
      * scattering matrix with other vectors.
      */
-    Eigen::MatrixXd dot(const Eigen::MatrixXd &otherMatrix);
+    ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
 
     /** Call to obtain the single-particle relaxation times of the system.s
      * @return tau: a VectorBTE object storing the relaxation times
@@ -94,7 +95,8 @@ public:
      * @return eigenvectors: a Eigen::MatrixXd with the eigenvectors
      * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
      */
-    std::tuple<VectorBTE, Eigen::MatrixXd> diagonalize();
+    std::tuple<VectorBTE, ParallelMatrix<double>> diagonalize();
+
 protected:
     Context &context;
     StatisticsSweep &statisticsSweep;
@@ -118,7 +120,7 @@ protected:
     // we save the diagonal matrix element in a dedicated vector
     VectorBTE internalDiagonal;
     // the scattering matrix, initialized if highMemory==true
-    Eigen::MatrixXd theMatrix;
+    ParallelMatrix<double> theMatrix;
 
     long numStates; // number of Bloch states (i.e. the size of theMatrix)
     long numPoints; // number of wavevectors
@@ -142,8 +144,20 @@ protected:
      * populations, we compute outPopulation = scattMatrix * inPopulation.
      * This doesn't require to store the matrix in memory.
      */
-    virtual void builder(Eigen::MatrixXd &matrix, VectorBTE *linewidth,
+    virtual void builder(ParallelMatrix<double> &matrix, VectorBTE *linewidth,
             VectorBTE *inPopulation, VectorBTE *outPopulation) = 0;
+
+    /** Returns a vector of pairs of wavevector indices to iterate over during
+     * the construction of the scattering matrix.
+     * @param switchCase: if 0, returns the pairs of wavevectors to loop for
+     * the case where the scattering matrix is built in memory.
+     * If != 0, returns the pairs of wavevectors to loop for the case where
+     * only the action of the scattering matrix is computed.
+     * @return vector<tuple<iq1,iq2>>: a tuple of wavevector indices to loop
+     * over in the construction of the scattering matrix.
+     */
+    std::vector<std::tuple<long,long>> getIteratorWavevectorPairs(
+            const int & switchCase);
 };
 
 #endif

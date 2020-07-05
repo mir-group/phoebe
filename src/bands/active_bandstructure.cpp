@@ -1,7 +1,9 @@
 #include "active_bandstructure.h"
 #include "bandstructure.h"
 #include "exceptions.h"
+#include "mpiHelper.h"
 #include "window.h"
+#include <cstdlib>
 
 ActiveBandStructure::ActiveBandStructure(Particle &particle_,
                                          ActivePoints &activePoints)
@@ -124,6 +126,19 @@ long ActiveBandStructure::getIndex(const WavevectorIndex &ik,
   return bloch2Comb(ik.get(), ib.get());
 }
 
+std::tuple<WavevectorIndex, BandIndex>
+ActiveBandStructure::getIndex(const long &is) {
+  if (!hasPoints()) {
+    Error e("ActiveBandStructure hasn't been populated yet");
+  }
+  auto tup = comb2Bloch(is);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+  auto ikk = WavevectorIndex(ik);
+  auto ibb = BandIndex(ib);
+  return {ikk, ibb};
+}
+
 long ActiveBandStructure::getNumStates() {
   if (!hasPoints()) {
     Error e("ActiveBandStructure hasn't been populated yet");
@@ -143,8 +158,8 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long &stateIndex) {
     Error e("ActiveBandStructure velocities haven't been populated");
   }
   auto tup = comb2Bloch(stateIndex);
- auto ik = std::get<0>(tup);
- auto ib = std::get<1>(tup);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   Eigen::Vector3d vel;
   vel(0) = velocities[velBloch2Comb(ik, ib, ib, 0)].real();
   vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
@@ -157,8 +172,8 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
     Error e("ActiveBandStructure hasn't been populated yet");
   }
   auto tup = comb2Bloch(stateIndex);
- auto ik = std::get<0>(tup);
- auto ib = std::get<1>(tup);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   Point p = activePoints.getPoint(ik);
   return p.getCoords(Points::cartesianCoords);
 }
@@ -239,9 +254,10 @@ void ActiveBandStructure::setVelocities(
 //	// numBands is a book-keeping of how many bands per kpoint there are
 //	// this isn't a constant number.
 //	// on top of that, we look for the size of the arrays containing
-//bandstruc. 	VectorXl numBands(numPoints); 	long numEnStates = 0; 	long
-//numVelStates = 0; 	long numEigStates = 0; 	for ( long ik=0; ik<numPoints; ik++ )
-//{ 		numBands(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
+// bandstruc. 	VectorXl numBands(numPoints); 	long numEnStates = 0; 	long
+// numVelStates = 0; 	long numEigStates = 0; 	for ( long ik=0; ik<numPoints;
+// ik++ ) { 		numBands(ik) = filteredBands[ik][1] -
+// filteredBands[ik][0] + 1;
 //		//
 //		numEnStates += numBands(ik);
 //		numVelStates += 3 * numBands(ik) * numBands(ik);
@@ -292,10 +308,11 @@ void ActiveBandStructure::setVelocities(
 //			// the first index has the size of the Hamiltonian
 //			// the second index has the size of the filtered bands
 //			Eigen::MatrixXcd
-//theseEigvecs(numFullBands,numBands(ik)); 			long ibAct = 0; 			for ( long
-//ibFull=filteredBands[ik][0]; 					ibFull<=filteredBands[ik][1]; ibFull++) {
-//				theseEigvecs.col(ibAct) =
-//theseEigenvectors.col(ibFull); 				ibAct++;
+// theseEigvecs(numFullBands,numBands(ik)); 			long ibAct = 0;
+// for ( long ibFull=filteredBands[ik][0];
+// ibFull<=filteredBands[ik][1]; ibFull++) {
+// theseEigvecs.col(ibAct) = theseEigenvectors.col(ibFull);
+// ibAct++;
 //			}
 //			setEigenvectors(point, theseEigvecs);
 //		}
@@ -311,9 +328,9 @@ void ActiveBandStructure::setVelocities(
 //				ib1Old<filteredBands[ik][1]+1; ib1Old++ ) {
 //			long ib2New = 0;
 //			for ( long ib2Old = filteredBands[ik][0];
-//					ib2Old<filteredBands[ik][1]+1; ib2Old++ )
-//{ 				for ( long i=0; i<3; i++ ) { 					thisVels(ib1New,ib2New,i) =
-//thisVelocity(ib1Old,ib2Old,i);
+//					ib2Old<filteredBands[ik][1]+1; ib2Old++
+//) { 				for ( long i=0; i<3; i++ ) {
+// thisVels(ib1New,ib2New,i) = thisVelocity(ib1Old,ib2Old,i);
 //				}
 //				ib2New++;
 //			}
@@ -404,14 +421,19 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
   // - loop over points. Diagonalize, and find if we want this k-point
   //   (while we are at it, we could save energies and the eigenvalues)
   // - find how many points each MPI rank has found
-  //   MPI_GATHER
-  // - use MPI_GATHERV to receive the indices of points to be considered
-  // - either recollect energies, or loop over these points and compute them
+  // - communicate the indeces
+  // - loop again over wavevectors to compute energies and velocities
 
   numFullBands = 0; // save the unfiltered number of bands
-  std::vector<long> filteredPoints;
-  std::vector<std::vector<long>> filteredBands;
-  for (long ik = 0; ik < fullPoints.getNumPoints(); ik++) {
+  std::vector<int> myFilteredPoints;
+  std::vector<std::vector<long>> myFilteredBands;
+
+  //    for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
+  //      std::cout << " " << ik ;
+  //    }
+  //    std::cout << "!!!\n";
+
+  for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
     Point point = fullPoints.getPoint(ik);
     // diagonalize harmonic hamiltonian
     auto tup = h0.diagonalize(point);
@@ -426,19 +448,70 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
     if (ens.empty()) { // nothing to do
       continue;
     } else { // save point index and "relevant" band indices
-      filteredPoints.push_back(ik);
-      filteredBands.push_back(bandsExtrema);
+      myFilteredPoints.push_back(ik);
+      myFilteredBands.push_back(bandsExtrema);
     }
     numFullBands = theseEnergies.size();
   }
 
-  // Here, we should use MPI_gather(v) to put filteredPoints in common
-  numPoints = filteredPoints.size();
-  // this vector mapps the indices of the new point to the old list
-  Eigen::VectorXi filter(numPoints);
-  for (long i = 0; i < numPoints; i++) {
-    filter(i) = filteredPoints[i];
+  // now, we let each MPI process now how many points each process has found
+  int mySize = myFilteredPoints.size();
+  int mpiSize = mpi->getSize();
+  int *receiveCounts = nullptr;
+  receiveCounts = new int[mpiSize];
+  for (int i = 0; i < mpiSize; i++)
+    *(receiveCounts + i) = 0;
+  if (mpiSize > 1) {
+    mpi->gather(&mySize, receiveCounts);
+#ifdef MPI_AVAIL
+    // note: bcast interface doesn't work for objects of unknown size
+    // (here, we'd need to pass the size to the interface)
+    // convert receiveCounts to std::vector?
+    MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
+#endif
+  } else {
+    receiveCounts[0] = mySize;
   }
+
+  // receivecounts now tells how many wavevectors found per MPI process
+
+  // now we count the total number of wavevectors
+  numPoints = 0;
+  for (int i = 0; i < mpi->getSize(); i++) {
+    numPoints += *(receiveCounts + i);
+  }
+
+  // now we collect the wavevector indeces
+  // first we find the offset to compute global indeces from local indices
+  std::vector<int> displacements(mpiSize, 0);
+  for (int i = 1; i < mpiSize; i++) {
+    displacements[i] = displacements[i - 1] + *(receiveCounts + i - 1);
+  }
+
+  // collect all the indeces in the filteredPoints vector
+  Eigen::VectorXi filter(numPoints);
+  filter.setZero();
+  for (int i = 0; i < mySize; i++) {
+    int index = i + displacements[mpi->getRank()];
+    filter(index) = myFilteredPoints[i];
+  }
+  mpi->allReduceSum(&filter);
+
+  // unfortunately, a vector<vector> isn't contiguous
+  // let's use Eigen matrices
+  Eigen::MatrixXi filteredBands(numPoints, 2);
+  filteredBands.setZero();
+  for (int i = 0; i < mySize; i++) {
+    int index = i + displacements[mpi->getRank()];
+    filteredBands(index, 0) = myFilteredBands[i][0];
+    filteredBands(index, 1) = myFilteredBands[i][1];
+  }
+  mpi->allReduceSum(&filteredBands);
+
+  //    free(receiveCounts);
+  delete[] receiveCounts;
+
+  //////////////// Done MPI recollection
 
   // numBands is a book-keeping of how many bands per kpoint there are
   // this isn't a constant number.
@@ -448,7 +521,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
   long numVelStates = 0;
   long numEigStates = 0;
   for (long ik = 0; ik < numPoints; ik++) {
-    numBands(ik) = filteredBands[ik][1] - filteredBands[ik][0] + 1;
+    numBands(ik) = filteredBands(ik, 1) - filteredBands(ik, 0) + 1;
     //
     numEnStates += numBands(ik);
     numVelStates += 3 * numBands(ik) * numBands(ik);
@@ -477,7 +550,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
   /////////////////
 
   // now we can loop over the trimmed list of points
-  for (long ik = 0; ik < numPoints; ik++) {
+  for (long ik : mpi->divideWorkIter(numPoints)) {
     Point point = activePoints.getPoint(ik);
     auto tup = h0.diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
@@ -489,7 +562,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
 
     Eigen::VectorXd eigEns(numBands(ik));
     long ibAct = 0;
-    for (long ibFull = filteredBands[ik][0]; ibFull <= filteredBands[ik][1];
+    for (long ibFull = filteredBands(ik, 0); ibFull <= filteredBands(ik, 1);
          ibFull++) {
       eigEns(ibAct) = theseEnergies(ibFull);
       ibAct++;
@@ -502,7 +575,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
       // the second index has the size of the filtered bands
       Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(ik));
       long ibAct = 0;
-      for (long ibFull = filteredBands[ik][0]; ibFull <= filteredBands[ik][1];
+      for (long ibFull = filteredBands(ik, 0); ibFull <= filteredBands(ik, 1);
            ibFull++) {
         theseEigvecs.col(ibAct) = theseEigenvectors.col(ibFull);
         ibAct++;
@@ -518,11 +591,11 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
       Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ik),
                                                       numBands(ik), 3);
       long ib1New = 0;
-      for (long ib1Old = filteredBands[ik][0];
-           ib1Old < filteredBands[ik][1] + 1; ib1Old++) {
+      for (long ib1Old = filteredBands(ik, 0);
+           ib1Old < filteredBands(ik, 1) + 1; ib1Old++) {
         long ib2New = 0;
-        for (long ib2Old = filteredBands[ik][0];
-             ib2Old < filteredBands[ik][1] + 1; ib2Old++) {
+        for (long ib2Old = filteredBands(ik, 0);
+             ib2Old < filteredBands(ik, 1) + 1; ib2Old++) {
           for (long i = 0; i < 3; i++) {
             thisVels(ib1New, ib2New, i) = thisVelocity(ib1Old, ib2Old, i);
           }
@@ -533,4 +606,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
       setVelocities(point, thisVels);
     }
   }
+  mpi->allReduceSum(&energies);
+  mpi->allReduceSum(&velocities);
+  mpi->allReduceSum(&eigenvectors);
 }

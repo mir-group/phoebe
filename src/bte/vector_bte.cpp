@@ -5,69 +5,46 @@
 VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &bandStructure_,
                      const long &dimensionality_)
-    : statisticsSweep(statisticsSweep_), bandStructure(bandStructure_) {
+    : BaseVectorBTE(statisticsSweep_, bandStructure_.getNumStates(),
+                    dimensionality_),
+      bandStructure(bandStructure_) {
 
-  if (dimensionality_ < 0) {
-    Error e("VectorBTE doesn't accept negative dimensions");
-    dimensionality = 0;
-  } else {
-    dimensionality = dimensionality_;
-  }
-
-  numCalcs = statisticsSweep.getNumCalcs();
-  numCalcs *= dimensionality;
-
-  numChemPots = statisticsSweep.getNumChemicalPotentials();
-  numTemps = statisticsSweep.getNumTemperatures();
-
-  numStates = bandStructure.getNumStates();
-  data = Eigen::MatrixXd::Zero(numCalcs, numStates);
-
-  for (long is = 0; is < numStates; is++) {
-    double en = bandStructure.getEnergy(is);
-    if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-      excludeIndeces.push_back(is);
+  if (bandStructure.getParticle().isPhonon()) {
+    for (long is = 0; is < numStates; is++) {
+      double en = bandStructure.getEnergy(is);
+      if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
+        excludeIndeces.push_back(is);
+      }
     }
   }
 }
 
 // copy constructor
 VectorBTE::VectorBTE(const VectorBTE &that)
-    : statisticsSweep(that.statisticsSweep), bandStructure(that.bandStructure) {
-  numCalcs = that.numCalcs;
-  numStates = that.numStates;
-  numChemPots = that.numChemPots;
-  numTemps = that.numTemps;
-  dimensionality = that.dimensionality;
-  data = that.data;
-  excludeIndeces = that.excludeIndeces;
-}
+    : BaseVectorBTE(that), bandStructure(that.bandStructure) {}
 
 // copy assignment
 VectorBTE &VectorBTE::operator=(const VectorBTE &that) {
+  BaseVectorBTE::operator=(that);
   if (this != &that) {
-    statisticsSweep = that.statisticsSweep;
     bandStructure = that.bandStructure;
-    numCalcs = that.numCalcs;
-    numStates = that.numStates;
-    numChemPots = that.numChemPots;
-    numTemps = that.numTemps;
-    dimensionality = that.dimensionality;
-    data = that.data;
-    excludeIndeces = that.excludeIndeces;
   }
   return *this;
 }
 
 // product operator overload
 Eigen::VectorXd VectorBTE::dot(const VectorBTE &that) {
+  if (that.numCalcs != numCalcs || that.numStates != numStates) {
+    Error e("The 2 VectorBTE must be aligned for dot() to work.");
+  }
   Eigen::VectorXd result(numCalcs);
   result.setZero();
-  for (long i = 0; i < numCalcs; i++) {
-    for (long is = 0; is < numStates; is++) {
+  for (long is : bandStructure.parallelStateIterator()) {
+    for (long i = 0; i < numCalcs; i++) {
       result(i) += this->data(i, is) * that.data(i, is);
     }
   }
+  mpi->allReduceSum(&result);
   return result;
 }
 
@@ -146,6 +123,28 @@ VectorBTE VectorBTE::operator*(const Eigen::VectorXd &vector) {
 }
 
 // product operator overload
+VectorBTE VectorBTE::operator*(ParallelMatrix<double> &matrix) {
+  if (numCalcs != dimensionality) {
+    // you'd need to keep in memory a lot of matrices.
+    Error e("We didn't implement VectorBTE * matrix for numCalcs > 1");
+  }
+  if (matrix.rows() != numStates) {
+    Error e("VectorBTE and Matrix not aligned");
+  }
+  VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
+  newPopulation.data.setZero();
+  for (auto ijtup : matrix.getAllLocalStates()) {
+    auto i = std::get<0>(ijtup);
+    auto j = std::get<1>(ijtup);
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      newPopulation.data(iCalc, i) += data(iCalc, j) * matrix(j, i); // -5e-12
+    }
+  }
+  mpi->allReduceSum(&newPopulation.data);
+  return newPopulation;
+}
+
+// sum operator overload
 VectorBTE VectorBTE::operator+(VectorBTE &that) {
   return baseOperator(that, operatorSums);
 }
@@ -177,24 +176,6 @@ VectorBTE VectorBTE::reciprocal() {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data << 1. / this->data.array();
   return newPopulation;
-}
-
-void VectorBTE::setConst(const double &constant) { data.setConstant(constant); }
-
-long VectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                         const DimIndex &idim) {
-  long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
-                            numTemps, dimensionality);
-  return i;
-}
-
-std::tuple<ChemPotIndex, TempIndex, DimIndex>
-VectorBTE::loc2Glob(const long &i) {
-  auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
-  auto imu = std::get<0>(tup);
-  auto it = std::get<1>(tup);
-  auto idim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
 }
 
 void VectorBTE::canonical2Population() {

@@ -3,6 +3,9 @@
 #include <chrono>
 #include <iostream>
 #include "mpiController.h"
+#include "Blacs.h"
+#include "exceptions.h"
+#include "eigen.h"
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
@@ -12,24 +15,12 @@
 MPIcontroller::MPIcontroller(){
 
 	#ifdef MPI_AVAIL
-        int errCode; 
 	// start the MPI environment
-        #ifdef OMP_AVAIL
-                // need to specify threading style -- 
-                // MPI_THREAD_MULTIPLE might be better, but FUNNELED is simpler. 
-                int provided;
-                errCode = MPI_Init_thread(0, 0, MPI_THREAD_SINGLE, &provided);
-                if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
-                //std::cout << "Provided level of threading: " << provided << std::endl;  
-        #else 
-                // simple mpi init with MPI_THREAD_SINGLE
-                errCode = MPI_Init(NULL, NULL);
-        #endif  
+        MPI_Init(NULL, NULL);
+
         // set this so that MPI returns errors and lets us handle them, rather
         // than using the default, MPI_ERRORS_ARE_FATAL
         MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
-        // If there was an init problem, kill the code
-        if(errCode != MPI_SUCCESS) {  errorReport(errCode); }
 
 	// get the number of processes
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -46,6 +37,36 @@ MPIcontroller::MPIcontroller(){
         rank = 0;  
 	startTime = std::chrono::steady_clock::now();
 	#endif
+	
+  // BLACS
+
+#ifdef MPI_AVAIL
+  blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
+  int zero = 0;
+  blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+  // Context -> Initialize the grid
+
+  numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
+  numBlasCols_ = numBlasRows_; // scalapack requires square grid
+
+  // we "pause" the processes that fall outside the blas grid
+  if ( size > numBlasRows_*numBlasCols_ ) {
+      Error e("Phoebe needs a square number of MPI processes");
+      // TODO: stop the extra MPI processes and continue with the rest.
+  }
+
+  blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
+  // Context -> Context grid info (# procs row/col, current procs row/col)
+  blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
+                  &myBlasCol_);
+#else
+  blasRank_ = 0;
+  blacsContext_ = 0;
+  numBlasRows_ = 1;
+  numBlasCols_ = 1;
+  myBlasRow_ = 0;
+  myBlasCol_ = 0;
+#endif
 }
 
 // default destructor
@@ -55,14 +76,22 @@ MPIcontroller::~MPIcontroller(){
 	#endif
 }
 
-// TODO: any other stats would like to output here? 
+// TODO: any other stats would like to output here?
 void MPIcontroller::finalize() const {
-	#ifdef MPI_AVAIL
-	fprintf(stdout, "Final time for rank %3d: %3f\n ", rank, MPI_Wtime() - startTime );
-	MPI_Finalize();
-	#else
-        std::cout << "Total runtime: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - startTime).count()*1e-6 << " secs" << std::endl;
-	#endif
+#ifdef MPI_AVAIL
+  barrier();
+  if (mpiHead()) {
+    fprintf(stdout, "Final time: %3f\n ", MPI_Wtime() - startTime);
+  }
+  blacs_gridexit_(&blacsContext_);
+  MPI_Finalize();
+#else
+  std::cout << "Final time: "
+            << std::chrono::duration_cast<std::chrono::microseconds>(
+                   std::chrono::steady_clock::now() - startTime)
+                       .count() * 1e-6
+            << " secs" << std::endl;
+#endif
 }
 
 // Utility functions  -----------------------------------
@@ -98,22 +127,185 @@ void MPIcontroller::barrier() const{
 }
 
 // Labor division functions -----------------------------------------
-void MPIcontroller::divideWork(size_t numTasks) {
-        // clear just in case there was a prior call
-        workDivisionHeads.clear(); 
-        workDivisionTails.clear(); 
-
-        // each should be nranks long
-        workDivisionHeads.resize(size);  
-        workDivisionTails.resize(size); 
-        //size_t numDivisons = numTasks/size + (numTasks % size != 0); // ceiling of work/ranks
-        for(int r = 0; r<size; r++) {
-                workDivisionHeads[r] = (numTasks * r)/size;
-                workDivisionTails[r] = (numTasks * (r+1))/size;
-                // if(rank==0) fprintf(stdout, "rank %3d : %3d %3d \n", rank,  workDivisionHeads[r], workDivisionTails[r]); // for debugging work division
-        }
+std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
+        // return a vector of the start and stop points for task division
+        std::vector<int> divs(2); 
+        divs[0] = (numTasks * rank)/size;
+        divs[1] = (numTasks * (rank+1))/size;
+        return divs; 
 }
 
 int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
+
 int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
 
+int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
+
+int MPIcontroller::getNumBlasCols() { return numBlasCols_; }
+
+int MPIcontroller::getMyBlasRow() { return myBlasRow_; }
+
+int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
+
+int MPIcontroller::getBlacsContext() { return blacsContext_; }
+
+// template specialization
+template <>
+void MPIcontroller::reduceSum(
+    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  reduceSum(&y);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Matrix<double, -1, 1, 0, -1, 1>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(Eigen::MatrixXi* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> y(data->data(), data->data() + data->size());
+  std::vector<int> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(Eigen::VectorXi* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> y(data->data(), data->data() + data->size());
+  std::vector<int> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Tensor<double, 3>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(
+    Eigen::Tensor<double, 5>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> y(data->data(), data->data() + data->size());
+  std::vector<double> y2(data->size());
+  allReduceSum(&y, &y2);
+  for (int i = 0; i < data->size(); i++) {
+    *(data->data() + i) = y2[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(std::vector<double>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<double> tmp(data->size());
+  allReduceSum(data, &tmp);
+  for (long unsigned i = 0; i < data->size(); i++) {
+    *(data->data() + i) = tmp[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(std::vector<std::complex<double>>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<std::complex<double>> tmp(data->size());
+  allReduceSum(data, &tmp);
+  for (long unsigned i = 0; i < data->size(); i++) {
+    *(data->data() + i) = tmp[i];
+  }
+#endif
+}
+
+template <>
+void MPIcontroller::allReduceSum(std::vector<int>* data) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  // NOTE: this requires 2 copies, while I could make it with one (in theory).
+  std::vector<int> tmp(data->size());
+  allReduceSum(data, &tmp);
+  for (long unsigned i = 0; i < data->size(); i++) {
+    *(data->data() + i) = tmp[i];
+  }
+#endif
+}
+
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+  // return a vector of the start and stop points for task division
+  std::vector<int> divs;
+  int start = (numTasks * rank) / size;
+  int stop = (numTasks * (rank + 1)) / size;
+  for (int i = start; i < stop; i++) divs.push_back(i);
+  return divs;
+}

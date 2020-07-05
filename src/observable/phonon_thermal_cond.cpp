@@ -1,4 +1,9 @@
 #include "phonon_thermal_cond.h"
+
+#include <time.h>
+
+#include <iomanip>
+
 #include "constants.h"
 #include "mpiHelper.h"
 #include <iomanip>
@@ -11,7 +16,7 @@ PhononThermalConductivity::PhononThermalConductivity(
   tensordxd =
       Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   tensordxd.setZero();
-};
+}
 
 // copy constructor
 PhononThermalConductivity::PhononThermalConductivity(
@@ -46,38 +51,31 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
   double norm = 1. / bandStructure.getNumPoints(true) /
                 crystal.getVolumeUnitCell(dimensionality);
 
-  tensordxd.setZero();
-
   auto excludeIndeces = n.excludeIndeces;
 
-  for (long ik = 0; ik < bandStructure.getNumPoints(); ik++) {
-    auto s = bandStructure.getState(ik);
-    auto en = s.getEnergies();
-    auto vel = s.getVelocities();
-    for (long ib = 0; ib < en.size(); ib++) {
-      long is = bandStructure.getIndex(WavevectorIndex(ik), BandIndex(ib));
+  tensordxd.setZero();
+  for (long is : bandStructure.parallelStateIterator()) {
+    double en = bandStructure.getEnergy(is);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
 
-      // skip the acoustic phonons
-      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
-          excludeIndeces.end())
-        continue;
-      //			if ( en < 0.1 / ryToCmm1 ) continue;
+    // skip the acoustic phonons
+    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+        excludeIndeces.end())
+      continue;
 
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto tup = loc2Glob(iCalc);
-        auto imu = std::get<0>(tup);
-        auto it = std::get<1>(tup);
-
-        for (long i = 0; i < dimensionality; i++) {
-          long icPop = n.glob2Loc(imu, it, DimIndex(i));
-          for (long j = 0; j < dimensionality; j++) {
-            tensordxd(iCalc, i, j) +=
-                n.data(icPop, is) * vel(ib, ib, j).real() * en(ib) * norm;
-          }
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      for (long i = 0; i < dimensionality; i++) {
+        long icPop = n.glob2Loc(imu, it, DimIndex(i));
+        for (long j = 0; j < dimensionality; j++) {
+          tensordxd(iCalc, i, j) += n.data(icPop, is) * vel(j) * en * norm;
         }
       }
     }
   }
+  mpi->allReduceSum(&tensordxd);
 }
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
@@ -92,27 +90,29 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
 
   tensordxd *= tensordxd.constant(2.);
 
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-    auto tup = loc2Glob(iCalc);
-    auto imu = std::get<0>(tup);
-    auto it = std::get<1>(tup);
-    for (long i = 0; i < dimensionality; i++) {
-      long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
-      for (long j = 0; j < dimensionality; j++) {
-        long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
-        for (long is = 0; is < bandStructure.getNumStates(); is++) {
-          tensordxd(iCalc, i, j) -=
+  Eigen::Tensor<double, 3> tmpTensor = tensordxd.constant(0.); // retains shape
+  for (long is : bandStructure.parallelStateIterator()) {
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      for (long i = 0; i < dimensionality; i++) {
+        long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
+        for (long j = 0; j < dimensionality; j++) {
+          long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
+          tmpTensor(iCalc, i, j) +=
               f.data(icPop1, is) * af.data(icPop2, is) * norm;
         }
       }
     }
   }
+  mpi->allReduceSum(&tmpTensor);
+  tensordxd -= tmpTensor;
 }
 
 void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
                                                  VectorBTE &relaxonV,
                                                  VectorBTE &relaxationTimes) {
-
   // we decide to skip relaxon states
   // 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
   // 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
@@ -122,25 +122,17 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 
   tensordxd.setZero();
 
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-    auto tup = loc2Glob(iCalc);
-    auto imu = std::get<0>(tup);
-    auto it = std::get<1>(tup);
-    double c = specificHeat.get(imu, it);
-    // is = 3 is a temporary patch, I should discard the first three
-    // rows/columns altogether + I skip the bose eigenvector
-    for (long is = firstState; is < relaxationTimes.numStates; is++) {
+  for (long is = firstState; is < relaxationTimes.numStates; is++) {
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      double c = specificHeat.get(imu, it);
+      // is = 3 is a temporary patch, I should discard the first three
+      // rows/columns altogether + I skip the bose eigenvector
 
       if (relaxationTimes.data(iCalc, is) <= 0.)
         continue;
-      //			std::cout << iCalc << " " << is << " " << c << "
-      //"
-      //					<<
-      //relaxonV.data.col(is).transpose() << " "
-      //					<<
-      //relaxonV.data.col(is).transpose() << " "
-      //					<<
-      //relaxationTimes.data(iCalc,is) << "\n";
 
       for (long i = 0; i < dimensionality; i++) {
         for (long j = 0; j < dimensionality; j++) {
@@ -157,6 +149,8 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 }
 
 void PhononThermalConductivity::print() {
+  if (!mpi->mpiHead())
+    return; // debugging now
 
   std::string units;
   if (dimensionality == 1) {
@@ -171,7 +165,6 @@ void PhononThermalConductivity::print() {
   std::cout << "Thermal Conductivity (" << units << ")\n";
 
   for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
 

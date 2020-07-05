@@ -46,7 +46,7 @@ public:
      * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
      */
     void calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-            PhScatteringMatrix &sMatrix, Eigen::MatrixXd &eigenvectors);
+            PhScatteringMatrix &sMatrix, ParallelMatrix<double> &eigenvectors);
 protected:
     virtual int whichType();
     BaseBandStructure &bandStructure;

@@ -1,7 +1,15 @@
 #include "example.h"
 #include "gtest/gtest.h"
+#include "mpiHelper.h"
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+
+  initMPI();
+
+  int errCode = RUN_ALL_TESTS();
+
+  mpi->finalize();
+  
+  return errCode;
 }

@@ -1,10 +1,12 @@
 #include "electron_h0_fourier.h"
+
+#include <cmath>
+#include <string>
+
 #include "constants.h"
 #include "exceptions.h"
 #include "io.h"
 #include "particle.h"
-#include <cmath>
-#include <string>
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
                                      FullPoints coarsePoints_,
@@ -12,7 +14,6 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
                                      double cutoff_)
     : crystal(crystal_), coarseBandStructure(coarseBandStructure_),
       coarsePoints(coarsePoints_), particle(Particle::electron) {
-
   numBands = coarseBandStructure.getNumBands();
   cutoff = cutoff_;
   numDataPoints = coarseBandStructure.getNumPoints();
@@ -97,9 +98,14 @@ ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d &wavevector) {
 
 Eigen::Tensor<std::complex<double>, 3>
 ElectronH0Fourier::diagonalizeVelocity(Point &point) {
+  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+  return diagonalizeVelocityFromCoords(coords);
+}
+
+Eigen::Tensor<std::complex<double>, 3>
+ElectronH0Fourier::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
   for (long ib = 0; ib < numBands; ib++) {
     Eigen::Vector3d v = getGroupVelocityFromCoords(coords, ib);
     for (long i = 0; i < 3; i++) {
@@ -112,7 +118,6 @@ ElectronH0Fourier::diagonalizeVelocity(Point &point) {
 FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
                                               bool &withVelocities,
                                               bool &withEigenvectors) {
-
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, fullPoints);
 
@@ -201,7 +206,6 @@ void ElectronH0Fourier::setPositionVectors() {
     for (long n1 = -searchSize1 * grid(1); n1 <= searchSize1 * grid(1); n1++) {
       for (long n2 = -searchSize2 * grid(2); n2 <= searchSize2 * grid(2);
            n2++) {
-
         // loop over a supercell B of size ((searchSize+1)*2+1)^3
         // bigger than supercell A. We compute the distance between any
         // vector in supercell B w.r.t. the vector "n"
