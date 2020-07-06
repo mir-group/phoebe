@@ -249,8 +249,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             WavevectorIndex(q3Mins.getIndex()), BandIndex(ib3));
         bose3MinsData.col(ib3) = outerBose.data.col(ind3);
       }
-
-      if (smearing->getType() == DeltaFunction::gaussian) {
+      if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
         v3ps = states3Plus.getGroupVelocities();
         v3ms = states3Mins.getGroupVelocities();
       }
