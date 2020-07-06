@@ -70,11 +70,11 @@ MPIcontroller::MPIcontroller(){
 }
 
 // default destructor
-MPIcontroller::~MPIcontroller(){
-	#ifdef MPI_AVAIL
-	if (!MPI::Is_finalized()) finalize();
-	#endif
-}
+//MPIcontroller::~MPIcontroller(){
+//	#ifdef MPI_AVAIL
+//	if (!MPI::Is_finalized()) finalize();
+//	#endif
+//}
 
 // TODO: any other stats would like to output here?
 void MPIcontroller::finalize() const {
