@@ -218,6 +218,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   for (int iiq2 = 0; iiq2 < nq2; iiq2++) {
     long iq2 = iq2s[iiq2];
+
     std::vector<long> iq1s = iq1ss[iiq2];
     int nq1 = iq1s.size();
 
