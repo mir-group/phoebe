@@ -50,6 +50,7 @@
 *cmake_install.cmake
 CMakeDoxy*
 Makefile
+CMakeLists.txt.orig
 
 runTests
 tags
