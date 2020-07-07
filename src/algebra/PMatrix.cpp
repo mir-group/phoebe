@@ -1,14 +1,18 @@
 #ifdef MPI_AVAIL
 
 #include "PMatrix.h"
+
 #include "Blacs.h"
-#include "mpiHelper.h"
 #include "constants.h"
+#include "mpiHelper.h"
+#include "utilities.h"
 
 template <>
-Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
-                                    const char& trans1, const char& trans2) {
-  Matrix<double> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+ParallelMatrix<double> ParallelMatrix<double>::prod(
+    const ParallelMatrix<double>& that, const char& trans1,
+    const char& trans2) {
+  ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
+                                numBlocksCols_);
 
   int m;
   if (trans1 == transN) {
@@ -44,10 +48,11 @@ Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
 }
 
 template <>
-Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
-    const Matrix<std::complex<double>>& that, const char& trans1,
+ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
+    const ParallelMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
-  Matrix<std::complex<double>> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+  ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
+                                              numBlocksRows_, numBlocksCols_);
 
   int m;
   if (trans1 == transN) {
@@ -83,43 +88,62 @@ Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
 }
 
 template <>
-std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
+std::tuple<std::vector<double>, ParallelMatrix<double>>
+ParallelMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  Matrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                              numBlocksCols_);
-
-  // find the value of lwork. These are internal "scratch" arrays
-  int nn = std::max(std::max(numRows_, 2), numBlocksRows_);
-  int izero = 0;
-  int np = numroc_(&nn, &numBlocksRows_, &izero, &izero, &numBlasRows_);
-  int sizesytrd = std::max(numBlocksRows_ * (np + 1), 3 * numBlocksRows_);
-  int lwork = 5 * numRows_ + sizesytrd + 1;
-
-  // double work[lwork];
-  double* work = nullptr;
-  work = new double[lwork];
+  ParallelMatrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
+                                      numBlocksCols_);
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
   int ia = 1;       // row index from which we diagonalize
   int ja = 1;       // row index from which we diagonalize
+
+  // find the value of lwork. These are internal "scratch" arrays
+  // Since it's fortran, this is the simple way to estimate the scratch size:
+
+  int izero = 0;
+  int n = numRows_ * numCols_;
+  int nb = blockSizeRows_; // = MB_A = NB_A = MB_Z = NB_Z
+  int kkk = myBlasCol_ + myBlasRow_ * numBlasCols_;
+  int nrc = numroc_(&n, &nb, &kkk, &izero, &n);
+  int lwqr2 = n * std::max(1, nrc);
+  int qrmem = 2 * (n - 2);
+  int izz = ia;
+  int jzz = ia;
+  int iroffz2 = mod(izz - 1, nb);
+  int icoffz2 = mod(jzz - 1, nb);
+  int izrow2 = indxg2p_(&izz, &nb, &myBlasRow_, &izero, &numBlasRows_);
+  int izcol2 = indxg2p_(&jzz, &nb, &myBlasCol_, &izero, &numBlasCols_);
+  int niroffz2 = n + iroffz2;
+  int nicoffz2 = n + icoffz2;
+  int mpz0 = numroc_(&niroffz2, &nb, &myBlasRow_, &izrow2, &numBlasRows_);
+  int nqz0 = numroc_(&nicoffz2, &nb, &myBlasCol_, &izcol2, &numBlasCols_);
+  int lwmtr = std::max((nb * (nb - 1)) / 2, (mpz0 + nqz0) * nb) + nb * nb;
+  int lwork = 3 * n + 2 * n + lwqr2 + std::max(qrmem, lwmtr) + 1;
+  lwork *= 2;  // just to be safe
+
+  // double work[lwork];
+  double* work = nullptr;
+  work = new double[lwork];
+
   int info = 0;
   pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-         eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
-         &info);
+          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
+          &info);
 
   if (info != 0) {
     Error e("PDSYEV failed", info);
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for ( long i=0; i<numRows_; i++ ) {
-    eigenvalues_[i] = *(eigenvalues+i);
+  for (long i = 0; i < numRows_; i++) {
+    eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;
   delete[] work;
@@ -129,16 +153,16 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 }
 
 template <>
-std::tuple<std::vector<double>, Matrix<std::complex<double>>>
-        Matrix<std::complex<double>>::diagonalize() {
+std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
+ParallelMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  Matrix<std::complex<double>> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                                            numBlocksCols_);
+  ParallelMatrix<std::complex<double>> eigenvectors(
+      numRows_, numCols_, numBlocksRows_, numBlocksCols_);
 
   // find the value of lwork and lrwork. These are internal "scratch" arrays
   int NB = descMat_[5];
@@ -165,12 +189,12 @@ std::tuple<std::vector<double>, Matrix<std::complex<double>>>
           rwork, &lrwork, &info);
 
   if (info != 0) {
-    Error e("PDSYEV failed", info);
+    Error e("PZHEEV failed", info);
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for ( long i=0; i<numRows_; i++ ) {
-    eigenvalues_[i] = *(eigenvalues+i);
+  for (long i = 0; i < numRows_; i++) {
+    eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;
   delete[] work;
@@ -180,4 +204,4 @@ std::tuple<std::vector<double>, Matrix<std::complex<double>>>
   return {eigenvalues_, eigenvectors};
 }
 
-#endif // MPI_AVAIL
+#endif  // MPI_AVAIL

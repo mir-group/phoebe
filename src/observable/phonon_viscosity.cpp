@@ -71,7 +71,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 }
 
 void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-        PhScatteringMatrix &sMatrix, Matrix<double> &eigenvectors) {
+        PhScatteringMatrix &sMatrix, ParallelMatrix<double> &eigenvectors) {
 
     if (numCalcs > 1) {
         Error e("Viscosity for relaxons only for 1 temperature");
@@ -162,13 +162,12 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 
             std::vector<double> x2(numStates,0.);
             for ( auto [is1,is2] : eigenvectors.getAllLocalStates() ) {
-                x2[is2] +=  x(is1) * eigenvectors(is1,is2);
+                x2[is2] += x(is1) * eigenvectors(is1,is2);
             }
-            std::vector<double> x3(numStates,0.);
-            mpi->allReduceSum(&x2,&x3);
+            mpi->allReduceSum(&x2);
 
             for (long is = 0; is < numStates; is++) {
-                w(i, j, is) = x3[is] / volume / numPoints;
+                w(i, j, is) = x2[is] / volume / numPoints;
             }
         }
     }

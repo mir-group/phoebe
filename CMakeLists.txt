@@ -14,7 +14,7 @@ endif()
 
 ############### SOURCE ###############
 
-SET (SOURCE_FILES src/bands/bandstructure.cpp src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/particle.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/bands/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/bands/window.cpp src/bte/vector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp src/algebra/PMatrix.cpp)
+SET (SOURCE_FILES src/bands/bandstructure.cpp src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/particle.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/bands/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/bands/window.cpp src/bte/vector_bte.cpp src/bte/basevector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp src/algebra/PMatrix.cpp src/algebra/Matrix.cpp)
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
 include_directories(include)
@@ -55,6 +55,15 @@ if (MPI_AVAIL)
   target_link_libraries(phoebe scalapack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
   target_link_libraries(runTests scalapack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
 
+else()
+
+  ## even for the serial version, we require lapack
+  find_package(BLAS REQUIRED)
+  find_package(LAPACK REQUIRED)
+  include_directories(${BLAS_INCLUDE_DIR})
+  include_directories(${LAPACK_INCLUDE_DIR})
+  target_link_libraries(phoebe ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(runTests ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
 
 endif()
 

@@ -11,7 +11,6 @@
  * This class is mostly a container for the input variables.
  *
  * To add a new variable, write a get/set method, and modify setupFromInput().
- * The new variable should be set to
  */
 class Context {
  private:
@@ -80,8 +79,10 @@ class Context {
    * @return x: the file path.
    */
   std::string getPhD2FileName();
+  void setPhD2FileName(const std::string x);
 
   std::string getPhD3FileName();
+  void setPhD3FileName(const std::string x);
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.
@@ -105,6 +106,7 @@ class Context {
    * @return x: the name of the sum rule, i.e. "simple" or "crystal".
    */
   std::string getSumRuleD2();
+  void setSumRuleD2(const std::string x);
 
   /** gets the mesh of points for harmonic phonon properties.
    * @return path: an array with 3 integers representing the q-point mesh.
@@ -195,6 +197,7 @@ class Context {
   int getSmearingMethod();
 
   double getSmearingWidth();
+  void setSmearingWidth(const double x);
 
   double getConstantRelaxationTime();
 
