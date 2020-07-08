@@ -124,7 +124,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
   auto tup = outerBandStructure.getPoints().getMesh();
-  auto mesh = std::get<0>(tup);
   auto offset = std::get<1>(tup);
   bool dontComputeQ3;
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
@@ -189,7 +188,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
-  // invert qPairIterator into something workable
+  // invert qPairIterator into something parallelizable
   int nq2 = 0;
   int previq2 = -1;
   std::vector<long> iq2s;
@@ -229,7 +228,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     std::vector<Eigen::Tensor<std::complex<double>, 3>> ev1s3d;
     std::vector<Eigen::MatrixXcd> ev1s, ev3ps, ev3ms;
     std::vector<Eigen::MatrixXd> v1ss, v3pss, v3mss;
-    std::vector<long> nb1s, nb3Pluss, nb3Minss;
+    std::vector<int> nb1s, nb3Pluss, nb3Minss;
     std::vector<Eigen::Tensor<double, 3>> couplingPluss, couplingMinss;
 
     Point q2 = innerBandStructure.getPoint(iq2);
@@ -237,14 +236,19 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     Eigen::VectorXd state2Energies = states2.getEnergies();
     int nb2 = state2Energies.size();
 
-    Eigen::Tensor<std::complex<double>, 3> ev2;
+    Eigen::Tensor<std::complex<double>, 3> ev23d;
+    Eigen::MatrixXcd ev2;
+    states2.getEigenvectors(ev23d);
     states2.getEigenvectors(ev2);
+
+    Eigen::Vector3d q2coord = states2.getCoords(Points::cartesianCoords);
 
     // note: for computing linewidths on a path, we must distinguish
     // that q1 and q2 are on different meshes, and that q3+/- may not
     // fall into known meshes and therefore needs to be computed
-
+    int idx = -1;
     for (int iq1 : iq1s) {
+      idx += 1;
       State states1 = outerBandStructure.getState(iq1);
       Point q1 = states1.getPoint();
       Eigen::VectorXd state1Energies = states1.getEnergies();
@@ -264,7 +268,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       v1ss.push_back(v1s);
       state1Energiess.push_back(state1Energies);
       nb1s.push_back(nb1);
-      q1coords.push_back(states1.getCoords(Points::cartesianCoords));
+      auto q1coord = states1.getCoords(Points::cartesianCoords);
+      q1coords.push_back(q1coord);
 
       // if the meshes are the same (and gamma centered)
       // q3 will fall into the same grid, and it's easy to get
@@ -295,15 +300,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         states3Mins.getEigenvectors(ev3m);
         ev3ps.push_back(ev3p);
         ev3ms.push_back(ev3m);
-
-        auto tup3 = coupling3Ph->getCouplingSquared(states1, states2,
-                                                    states3Plus, states3Mins);
-        auto cp = std::get<0>(tup3);
-        auto cm = std::get<1>(tup3);
-        couplingPlus = cp;
-        couplingMins = cm;
-        couplingPluss.push_back(couplingPlus);
-        couplingMinss.push_back(couplingMins);
 
         v3ps = states3Plus.getGroupVelocities();
         v3ms = states3Mins.getGroupVelocities();
@@ -355,20 +351,37 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         ev3ps.push_back(ev3p);
         ev3ms.push_back(ev3m);
 
-        auto tup2 = coupling3Ph->getCouplingSquared(states1, states2,
-                                                    states3Plus, states3Mins);
-        auto cp = std::get<0>(tup2);
-        auto cm = std::get<1>(tup2);
-        couplingPlus = cp;
-        couplingMins = cm;
-
-        couplingPluss.push_back(couplingPlus);
-        couplingMinss.push_back(couplingMins);
-
         v3pss.push_back(Eigen::MatrixXd(0, 0));
         v3mss.push_back(Eigen::MatrixXd(0, 0));
+
+        /*        auto tup2 = coupling3Ph->getCouplingSquared(
+                    q1coords[idx], q2coord, ev1s[idx], ev2, ev3ps[idx],
+           ev3ms[idx]); auto cp = std::get<0>(tup2); auto cm =
+           std::get<1>(tup2); couplingPlus = cp; couplingMins = cm;
+
+                couplingPluss.push_back(couplingPlus);
+                couplingMinss.push_back(couplingMins);*/
       }
     }
+    // to be replaced/deleted
+/*    for (int iiq1 = 0; iiq1 < nq1; iiq1++) {
+      printf("1 %g %g %g %g %g\n", q1coords[iiq1](0), q1coords[iiq1](1),
+             q1coords[iiq1](2), ev1s[iiq1](3, 2).real(),
+             ev1s[iiq1](3, 2).imag());
+      auto tup3 = coupling3Ph->getCouplingSquared(
+          q1coords[iiq1], q2coord, ev1s[iiq1], ev2, ev3ps[iiq1], ev3ms[iiq1]);
+      auto cp = std::get<0>(tup3);
+      auto cm = std::get<1>(tup3);
+      couplingPlus = cp;
+      couplingMins = cm;
+      couplingPluss.push_back(couplingPlus);
+      couplingMinss.push_back(couplingMins);
+    }*/
+    auto tup =
+        coupling3Ph->getCouplingsSquared(q1coords, q2coord, ev1s, ev2, ev3ps,
+                                         ev3ms, nb1s, nb2, nb3Pluss, nb3Minss);
+    couplingPluss = std::get<0>(tup);
+    couplingMinss = std::get<1>(tup);
 
     for (int iiq1 = 0; iiq1 < nq1; iiq1++) {
       int iq1 = iq1s[iiq1];
@@ -382,6 +395,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       auto couplingMins = couplingMinss[iiq1];
       int nb1 = nb1s[iiq1];
       auto ev1 = ev1s3d[iiq1];
+      auto ev2 = ev23d;
 
       if (dontComputeQ3) {
         auto q3Plus = q3Pluss[iiq1];

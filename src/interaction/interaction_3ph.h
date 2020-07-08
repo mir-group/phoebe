@@ -69,10 +69,20 @@ public:
   Interaction3Ph(const Interaction3Ph &that);            // copy constructor
   Interaction3Ph &operator=(const Interaction3Ph &that); // assignment op
 
+  std::tuple<std::vector<Eigen::Tensor<double, 3>>,
+  std::vector<Eigen::Tensor<double, 3>>>
+   getCouplingsSquared(
+      std::vector<Eigen::Vector3d> q1s_e, Eigen::Vector3d q2_e,
+      std::vector<Eigen::MatrixXcd> ev1s_e, Eigen::MatrixXcd ev2_e,
+      std::vector<Eigen::MatrixXcd> ev3Pluss_e,
+      std::vector<Eigen::MatrixXcd> ev3Minss_e, std::vector<int> nb1s_e,
+      int nb2, std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e);
+
   // this is an interface: we can compute it on the fly or read the cache.
-  template <typename A, typename B, typename C>
   std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
-  getCouplingSquared(A &state1, B &state2, C &state3Plus, C &state3Mins);
+  getCouplingSquared(Eigen::Vector3d &q1, Eigen::Vector3d &q2,
+                     Eigen::MatrixXcd &ev1_e, Eigen::MatrixXcd &ev2_e,
+                     Eigen::MatrixXcd &ev3Plus_e, Eigen::MatrixXcd &ev3Mins_e);
 
   ~Interaction3Ph() {
     std::cout << "calcCouplingSquared timing breakdown:"

@@ -59,7 +59,8 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	DetachedState s3(q3, energies, numBands, numBands, ev3, nullptr);
 
 	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
+            <#initializer #>, <#initializer #>, <#initializer #>,
+            <#initializer #>, <#initializer #>, <#initializer #>);
 
 	// we load reference data
 
@@ -164,7 +165,8 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	DetachedState s3(q3, energies, numBands, numBands, evm3, nullptr);
 
 	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
+            <#initializer #>, <#initializer #>, <#initializer #>,
+            <#initializer #>, <#initializer #>, <#initializer #>);
 	// we load reference data
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
@@ -233,7 +235,8 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords)-p3Mins.getCoords(Points::cartesianCoords)).norm(), 0.);
 
 	auto [couplingPlus2,couplingMins2] = coupling3Ph.getCouplingSquared(
-			states1, states2, states3Plus, states3Mins);
+            <#initializer #>, <#initializer #>, <#initializer #>,
+            <#initializer #>, <#initializer #>, <#initializer #>);
 
 	auto en1 = states1.getEnergies();
 	auto en2 = states2.getEnergies();
