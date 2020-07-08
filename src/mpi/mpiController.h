@@ -5,6 +5,7 @@
 #include <complex>
 #include <vector>
 #include "eigen.h" 
+#include "context.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -24,6 +25,7 @@ class MPIcontroller {
   std::chrono::steady_clock::time_point startTime;
 #endif
 
+  int hasBlacs; 
   int blasRank_;
   int blacsContext_;
   int numBlasRows_, numBlasCols_;
@@ -35,6 +37,13 @@ class MPIcontroller {
   /** a constructor which sets up the MPI environment, initializes the
    * communicator, and starts a timer **/
   MPIcontroller();
+  //~MPIcontroller(); 
+
+  /** A method to initialize blacs parameters, if needed. 
+  * @param context: pass input information, which is used to determine 
+  *     if this is a blacs necessary application case. 
+  */
+  void initBlacs(Context& context); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
