@@ -12,7 +12,7 @@
 
 class MPIcontroller {
  private:
-  // MPI_Comm com; // MPI communicator -- might not need this, can just call
+
   // default comm "MPI_COMM_WORLD"
   int size = 0;  // number of MPI processses
   int rank;
@@ -126,10 +126,6 @@ class MPIcontroller {
   void mpiRead();
   void mpiAppend();
 
-  // Labor division helper functions
-  //int workHead();  // get the first task assigned to a rank
-  //int workTail();  // get the last task assigned to a rank
-
   int getNumBlasRows();
   int getNumBlasCols();
   int getMyBlasRow();
@@ -143,10 +139,6 @@ class MPIcontroller {
   std::vector<int> divideWork(size_t numTasks);  // divide up a set of work
   std::vector<int> divideWorkIter(size_t numTasks);
 
- private:
-  // store labor division information
-  //std::vector<int> workDivisionHeads;  // start points for each rank's work
-  //std::vector<int> workDivisionTails;  // end points for each rank's work
 };
 
 // we need to use the concept of a "type traits" object to serialize the

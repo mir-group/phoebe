@@ -137,10 +137,6 @@ std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   return divs;
 }
 
-//int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
-
-//int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
-
 int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
 
 int MPIcontroller::getNumBlasCols() { return numBlasCols_; }
