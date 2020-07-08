@@ -69,13 +69,6 @@ MPIcontroller::MPIcontroller(){
 #endif
 }
 
-// default destructor
-MPIcontroller::~MPIcontroller(){
-	#ifdef MPI_AVAIL
-	if (!MPI::Is_finalized()) finalize();
-	#endif
-}
-
 // TODO: any other stats would like to output here?
 void MPIcontroller::finalize() const {
 #ifdef MPI_AVAIL
@@ -135,9 +128,18 @@ std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
         return divs; 
 }
 
-int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+  // return a vector of the start and stop points for task division
+  std::vector<int> divs;
+  int start = (numTasks * rank) / size;
+  int stop = (numTasks * (rank + 1)) / size;
+  for (int i = start; i < stop; i++) divs.push_back(i);
+  return divs;
+}
 
-int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
+//int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
+
+//int MPIcontroller::workTail() { return workDivisionTails[rank]; } 
 
 int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
 
@@ -149,163 +151,3 @@ int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
 
 int MPIcontroller::getBlacsContext() { return blacsContext_; }
 
-// template specialization
-template <>
-void MPIcontroller::reduceSum(
-    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> y(data->data(), data->data() + data->size());
-  reduceSum(&y);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(
-    Eigen::Matrix<double, -1, -1, 0, -1, -1>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> y(data->data(), data->data() + data->size());
-  std::vector<double> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(
-    Eigen::Matrix<double, -1, 1, 0, -1, 1>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> y(data->data(), data->data() + data->size());
-  std::vector<double> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(Eigen::MatrixXi* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<int> y(data->data(), data->data() + data->size());
-  std::vector<int> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(Eigen::VectorXi* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<int> y(data->data(), data->data() + data->size());
-  std::vector<int> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(
-    Eigen::Tensor<double, 3>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> y(data->data(), data->data() + data->size());
-  std::vector<double> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(
-    Eigen::Tensor<double, 5>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> y(data->data(), data->data() + data->size());
-  std::vector<double> y2(data->size());
-  allReduceSum(&y, &y2);
-  for (int i = 0; i < data->size(); i++) {
-    *(data->data() + i) = y2[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(std::vector<double>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<double> tmp(data->size());
-  allReduceSum(data, &tmp);
-  for (long unsigned i = 0; i < data->size(); i++) {
-    *(data->data() + i) = tmp[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(std::vector<std::complex<double>>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<std::complex<double>> tmp(data->size());
-  allReduceSum(data, &tmp);
-  for (long unsigned i = 0; i < data->size(); i++) {
-    *(data->data() + i) = tmp[i];
-  }
-#endif
-}
-
-template <>
-void MPIcontroller::allReduceSum(std::vector<int>* data) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  // NOTE: this requires 2 copies, while I could make it with one (in theory).
-  std::vector<int> tmp(data->size());
-  allReduceSum(data, &tmp);
-  for (long unsigned i = 0; i < data->size(); i++) {
-    *(data->data() + i) = tmp[i];
-  }
-#endif
-}
-
-std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
-  // return a vector of the start and stop points for task division
-  std::vector<int> divs;
-  int start = (numTasks * rank) / size;
-  int stop = (numTasks * (rank + 1)) / size;
-  for (int i = start; i < stop; i++) divs.push_back(i);
-  return divs;
-}
