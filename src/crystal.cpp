@@ -103,6 +103,7 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 		Eigen::VectorXi& atomicSpecies_,
 		std::vector<std::string>& speciesNames_,
 		Eigen::VectorXd& speciesMasses_, long & dimensionality_) {
+
 	setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
 	volumeUnitCell = calcVolume(directUnitCell);
 
@@ -143,41 +144,40 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
 	// We now look for the symmetry operations of the crystal
 	// in this implementation, we rely on spglib
 
-        // Declare and allocate c-style arrays for spglib calls
-        double (*positionSPG)[3];
-        allocate(positionSPG,numAtoms);
-        int* typesSPG;
-        allocate(typesSPG,numAtoms); 
-        //typesSPG = new int[numAtoms];
-
+  // Declare and allocate c-style arrays for spglib calls
 	double latticeSPG[3][3];
 	for ( int i=0; i<3; i++ ) {
 		for ( int j=0; j<3; j++ ) {
+		  // note: directUnitCell has lattice vectors along rows (a1 = cell.row(0))
 			latticeSPG[i][j] = directUnitCell(i,j);
 		}
 	}
 
+  // note: spglib wants fractional positions
+  double (*positionSPG)[3];
+  allocate(positionSPG,numAtoms);
 	Eigen::Vector3d positionCrystal;
 	Eigen::Vector3d positionCartesian;
 	for ( int i=0; i<numAtoms; i++ ) {
+    positionCartesian = atomicPositions.row(i);
+    positionCrystal = directUnitCell.inverse() * positionCartesian;
 		for ( int j=0; j<3; j++ ) {
-			// note: spglib wants fractional positions
-			positionCartesian = atomicPositions.row(i);
-			// note on conversion:
-			// directUnitCell^T * RCryst = RCart
-			positionCrystal = reciprocalUnitCell.transpose().inverse()
-					* positionCartesian;
 			positionSPG[i][j] = positionCrystal(j);
 		}
 	}
+
+	// also wants integer types >= 1
+  int* typesSPG;
+  allocate(typesSPG,numAtoms);
 	for ( int i=0; i<numAtoms; i++ ) {
 		typesSPG[i] = atomicSpecies(i) + 1;
 	}
+
 	int maxSize = 50;
 	int size;
 	int rotations[maxSize][3][3];
 	double translations[maxSize][3];
-	double symprec = 1e-6;
+	double symprec = 1e-5;
 	size = spg_get_symmetry(rotations,
 			translations,
 			maxSize,

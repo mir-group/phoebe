@@ -10,6 +10,7 @@
 #include "particle.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
+#include "wigner_phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
 #include "qe_input_parser.h"
 #include "specific_heat.h"
@@ -66,6 +67,12 @@ void PhononTransportApp::run(Context &context) {
   PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
+
+  // compute the Wigner thermal conductivity
+  WignerPhononThermalConductivity phTCondWigner(statisticsSweep, crystal,
+                                                bandStructure, phononRelTimes);
+  phTCondWigner.calcFromPopulation(popRTA);
+  phTCondWigner.print();
 
   // compute the thermal conductivity
   PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
@@ -250,8 +257,9 @@ void PhononTransportApp::run(Context &context) {
   }
 
   if (doRelaxons) {
-    std::cout << "Starting relaxons BTE solver\n";
-
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting relaxons BTE solver\n";
+    }
     scatteringMatrix.a2Omega();
     auto [eigenvalues, eigenvectors] = scatteringMatrix.diagonalize();
     // EV such that Omega = V D V^-1

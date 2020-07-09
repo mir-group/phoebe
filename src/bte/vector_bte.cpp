@@ -4,57 +4,28 @@
 // default constructor
 VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
         BaseBandStructure &bandStructure_, const long &dimensionality_) :
-        statisticsSweep(statisticsSweep_), bandStructure(bandStructure_) {
+        BaseVectorBTE(statisticsSweep_, bandStructure_.getNumStates(), dimensionality_), bandStructure(bandStructure_) {
 
-    if (dimensionality_ < 0) {
-        Error e("VectorBTE doesn't accept negative dimensions");
-        dimensionality = 0;
-    } else {
-        dimensionality = dimensionality_;
-    }
-
-    numCalcs = statisticsSweep.getNumCalcs();
-    numCalcs *= dimensionality;
-
-    numChemPots = statisticsSweep.getNumChemicalPotentials();
-    numTemps = statisticsSweep.getNumTemperatures();
-
-    numStates = bandStructure.getNumStates();
-    data = Eigen::MatrixXd::Zero(numCalcs, numStates);
-
+    if ( bandStructure.getParticle().isPhonon()) {
     for (long is = 0; is < numStates; is++) {
         double en = bandStructure.getEnergy(is);
         if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
             excludeIndeces.push_back(is);
         }
     }
+    }
 }
 
 // copy constructor
 VectorBTE::VectorBTE(const VectorBTE &that) :
-        statisticsSweep(that.statisticsSweep),
-        bandStructure(that.bandStructure) {
-    numCalcs = that.numCalcs;
-    numStates = that.numStates;
-    numChemPots = that.numChemPots;
-    numTemps = that.numTemps;
-    dimensionality = that.dimensionality;
-    data = that.data;
-    excludeIndeces = that.excludeIndeces;
+    BaseVectorBTE(that), bandStructure(that.bandStructure) {
 }
 
 // copy assignment
 VectorBTE& VectorBTE::operator =(const VectorBTE &that) {
-    if (this != &that) {
-        statisticsSweep = that.statisticsSweep;
+  BaseVectorBTE::operator=(that);
+      if (this != &that) {
         bandStructure = that.bandStructure;
-        numCalcs = that.numCalcs;
-        numStates = that.numStates;
-        numChemPots = that.numChemPots;
-        numTemps = that.numTemps;
-        dimensionality = that.dimensionality;
-        data = that.data;
-        excludeIndeces = that.excludeIndeces;
     }
     return *this;
 }
@@ -147,9 +118,9 @@ VectorBTE VectorBTE::operator *(const Eigen::VectorXd &vector) {
 }
 
 // product operator overload
-VectorBTE VectorBTE::operator *(Matrix<double> &matrix) {
+VectorBTE VectorBTE::operator *(ParallelMatrix<double> &matrix) {
   if (numCalcs != dimensionality) {
-    // I mean, you'd need to keep in memory a lot of matrices.
+    // you'd need to keep in memory a lot of matrices.
     Error e("We didn't implement VectorBTE * matrix for numCalcs > 1");
   }
   if ( matrix.rows() != numStates ) {
@@ -157,9 +128,9 @@ VectorBTE VectorBTE::operator *(Matrix<double> &matrix) {
   }
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data.setZero();
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-    for (auto [i, j] : matrix.getAllLocalStates()) {
-      newPopulation.data(iCalc, i) = matrix(i, j) * data(iCalc, j);
+  for (auto [i, j] : matrix.getAllLocalStates()) {
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      newPopulation.data(iCalc, i) += data(iCalc, j) * matrix(j, i); // -5e-12
     }
   }
   mpi->allReduceSum(&newPopulation.data);
@@ -198,24 +169,6 @@ VectorBTE VectorBTE::reciprocal() {
     VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
     newPopulation.data << 1. / this->data.array();
     return newPopulation;
-}
-
-void VectorBTE::setConst(const double &constant) {
-    data.setConstant(constant);
-}
-
-long VectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-        const DimIndex &idim) {
-    long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
-            numTemps, dimensionality);
-    return i;
-}
-
-std::tuple<ChemPotIndex, TempIndex, DimIndex> VectorBTE::loc2Glob(
-        const long &i) {
-    auto [imu, it, idim] = decompress3Indeces(i, numChemPots, numTemps,
-            dimensionality);
-    return {ChemPotIndex(imu),TempIndex(it),DimIndex(idim)};
 }
 
 void VectorBTE::canonical2Population() {

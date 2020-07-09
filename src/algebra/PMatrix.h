@@ -1,41 +1,42 @@
-#ifdef MPI_AVAIL
-
 #ifndef PMATRIX_H
 #define PMATRIX_H
 
 #include <tuple>
 #include <vector>
-#include "bandstructure.h"
-#include "Matrix.h"
-#include "mpiHelper.h"
+
 #include "Blacs.h"
+#include "Matrix.h"
+#include "bandstructure.h"
 #include "constants.h"
+#include "mpiHelper.h"
+
+#ifndef MPI_AVAIL
+
+// alias template
+template<typename T>
+using ParallelMatrix = Matrix<T>;
+
+#else
 
 // double matrix (I skip the templates for now)
 template <typename T>
-class Matrix {  // P stands for parallel
- public:
+class ParallelMatrix {
+ private:
   /// Class variables
   int numRows_, numCols_;
   int numLocalRows_, numLocalCols_;
   int numLocalElements_;
   int numBlocksRows_, numBlocksCols_;
   int blockSizeRows_, blockSizeCols_;
-  int descMat_[9] = {0,0,0,0,0,0,0,0,0};
+  int descMat_[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
   int numBlasRows_, numBlasCols_;
   int myBlasRow_, myBlasCol_;
-
-  //  char transposition = 'N'; // status of the transposition
-  static const char transN = 'N';  // no transpose nor adjoint
-  static const char transT = 'T';  // transpose
-  static const char transC = 'C';  // adjoint (for complex numbers)
-
 
   // dummy values to return when accessing elements not available locally
   T dummyZero = 0;
   T const dummyConstZero = 0;
 
- public:
+  T* mat = nullptr; // raw buffer
 
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
@@ -49,21 +50,31 @@ class Matrix {  // P stands for parallel
    */
   long global2Local(const long& row, const long& col);
 
-  T* mat = nullptr;
+ public:
+  static const char transN = 'N';  // no transpose nor adjoint
+  static const char transT = 'T';  // transpose
+  static const char transC = 'C';  // adjoint (for complex numbers)
 
-  // Construct using row, col numbers, and block distribution
-  Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
-         const int& numBlocksCols = 0);
-  Matrix(); // default constructor
-  ~Matrix(); // deallocate pointers
+  /** Construct using row, col numbers, and block distribution
+   */
+  ParallelMatrix(const int& numRows, const int& numCols,
+                 const int& numBlocksRows = 0, const int& numBlocksCols = 0);
+
+  /** Empty constructor
+   */
+  ParallelMatrix();
+
+  /** Destructor, to deallocate pointers
+   */
+  ~ParallelMatrix();
 
   /** Copy constructor
    */
-  Matrix(const Matrix<T>& that);
+  ParallelMatrix(const ParallelMatrix<T>& that);
 
   /** Copy assignment
    */
-  Matrix& operator=(const Matrix<T>& that);
+  ParallelMatrix& operator=(const ParallelMatrix<T>& that);
 
   /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
    * local MPI process. This method is specifically made for the scattering
@@ -77,7 +88,11 @@ class Matrix {  // P stands for parallel
    */
   std::vector<std::tuple<long, long>> getAllLocalStates();
 
-  // utilities for the global matrix size
+  /** Returns true if the global indices (row,col) identify a matrix element
+   * stored by the MPI process.
+   */
+  bool indecesAreLocal(const int& row, const int& col);
+
   /** Find global number of rows
    */
   long rows() const;
@@ -96,29 +111,27 @@ class Matrix {  // P stands for parallel
    */
   const T& operator()(const int row, const int col) const;
 
-  /** Returns true if the global indices (row,col) identify a matrix element
-   * stored by the MPI process.
-   */
-  bool indecesAreLocal(const int & row, const int & col);
-
   /** Matrix-matrix multiplication.
    */
-  Matrix<T> prod(const Matrix<T>& that, const char& trans1 = transN,
-          const char& trans2 = transN);
-  /** Matrix-scalar multiplication.
-   */
-  Matrix<T> operator*=(const T& that);
-  /** Matrix-scalar division.
-   */
-  Matrix<T> operator/=(const T& that);
+  ParallelMatrix<T> prod(const ParallelMatrix<T>& that,
+                         const char& trans1 = transN,
+                         const char& trans2 = transN);
 
   /** Matrix-matrix addition.
    */
-  Matrix<T> operator+=(const Matrix<T>& that);
+  ParallelMatrix<T>& operator+=(const ParallelMatrix<T>& that);
 
   /** Matrix-matrix subtraction.
    */
-  Matrix<T> operator-=(const Matrix<T>& that);
+  ParallelMatrix<T>& operator-=(const ParallelMatrix<T>& that);
+
+  /** Matrix-scalar multiplication.
+   */
+  ParallelMatrix<T>& operator*=(const T& that);
+
+  /** Matrix-scalar division.
+   */
+  ParallelMatrix<T>& operator/=(const T& that);
 
   /** Sets this matrix as the identity.
    * Deletes any previous content.
@@ -128,7 +141,7 @@ class Matrix {  // P stands for parallel
   /** Diagonalize a complex-hermitian / real-symmetric matrix.
    * Nota bene: we don't check if it's hermitian/symmetric.
    */
-  std::tuple<std::vector<double>, Matrix<T>> diagonalize();
+  std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
@@ -144,17 +157,17 @@ class Matrix {  // P stands for parallel
    * defined as \sum_ij A_ij * B_ij. For vectors, this reduces to the standard
    * scalar product.
    */
-  T dot(const Matrix<T>& that);
+  T dot(const ParallelMatrix<T>& that);
 
   /** Unary negation
    */
-  Matrix<T> operator-() const;
+  ParallelMatrix<T> operator-() const;
 };
 
 template <typename T>
-Matrix<T>::Matrix(const int& numRows, const int& numCols,
-                 const int& numBlocksRows, const int& numBlocksCols) {
-
+ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
+                                  const int& numBlocksRows,
+                                  const int& numBlocksCols) {
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
@@ -180,16 +193,16 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 
   // compute the block size (over which matrix is distributed)
   blockSizeRows_ = numRows_ / numBlocksRows_;
-  if ( numRows_ % numBlocksRows_ != 0 ) blockSizeRows_ += 1;
+  if (numRows_ % numBlocksRows_ != 0) blockSizeRows_ += 1;
   blockSizeCols_ = numCols_ / numBlocksCols_;
-  if ( numCols_ % numBlocksCols_ != 0 ) blockSizeCols_ += 1;
+  if (numCols_ % numBlocksCols_ != 0) blockSizeCols_ += 1;
 
   // determine the number of local rows and columns
-  int iZero = 0; // helper variable
-  numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero,
-          &numBlasRows_);
-  numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero,
-          &numBlasCols_);
+  int iZero = 0;  // helper variable
+  numLocalRows_ =
+      numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
+  numLocalCols_ =
+      numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
   numLocalElements_ = numLocalRows_ * numLocalCols_;
   mat = new T[numLocalElements_];
 
@@ -197,11 +210,12 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   assert(mat != nullptr);
 
   // fill the matrix with zeroes
-  for (long i = 0; i < numLocalElements_; ++i) *(mat+i) = 0.; // mat[i] = 0.;
+  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;  // mat[i] = 0.;
 
   // Create descriptor for block cyclic distribution of matrix
-  int info; // error code
-  int lddA = numLocalRows_ > 1 ? numLocalRows_ : 1; // if mpA>1, ldda=mpA, else 1
+  int info;  // error code
+  int lddA =
+      numLocalRows_ > 1 ? numLocalRows_ : 1;  // if mpA>1, ldda=mpA, else 1
   int blacsContext = mpi->getBlacsContext();
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext, &lddA, &info);
@@ -211,7 +225,7 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 }
 
 template <typename T>
-Matrix<T>::Matrix() {
+ParallelMatrix<T>::ParallelMatrix() {
   numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
@@ -228,7 +242,7 @@ Matrix<T>::Matrix() {
 }
 
 template <typename T>
-Matrix<T>::Matrix(const Matrix<T>& that) {
+ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   numRows_ = that.numRows_;
   numCols_ = that.numCols_;
   numLocalRows_ = that.numLocalRows_;
@@ -243,22 +257,24 @@ Matrix<T>::Matrix(const Matrix<T>& that) {
   myBlasRow_ = that.myBlasRow_;
   myBlasCol_ = that.myBlasCol_;
 
-  for ( int i=0; i<9; i++ ) {
+  for (int i = 0; i < 9; i++) {
     descMat_[i] = that.descMat_[i];
   }
-
+  if ( mat != nullptr ) {
+    delete[] mat;
+  }
   // matrix allocation
   mat = new T[numLocalElements_];
   // Memory could not be allocated, end program
   assert(mat != nullptr);
-  for ( long i=0; i<numLocalElements_; i++ ) {
+  for (long i = 0; i < numLocalElements_; i++) {
     mat[i] = that.mat[i];
   }
 }
 
 template <typename T>
-Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
-  if ( this != &that) {
+ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
+  if (this != &that) {
     numRows_ = that.numRows_;
     numCols_ = that.numCols_;
     numLocalRows_ = that.numLocalRows_;
@@ -273,15 +289,17 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
     myBlasRow_ = that.myBlasRow_;
     myBlasCol_ = that.myBlasCol_;
 
-    for ( int i=0; i<9; i++ ) {
+    for (int i = 0; i < 9; i++) {
       descMat_[i] = that.descMat_[i];
     }
-
+    if ( mat != nullptr ) {
+      delete[] mat;
+    }
     // matrix allocation
     mat = new T[numLocalElements_];
     // Memory could not be allocated, end program
     assert(mat != nullptr);
-    for ( long i=0; i<numLocalElements_; i++ ) {
+    for (long i = 0; i < numLocalElements_; i++) {
       mat[i] = that.mat[i];
     }
   }
@@ -289,22 +307,30 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 }
 
 template <typename T>
-Matrix<T>::~Matrix() { delete[] mat; }
+ParallelMatrix<T>::~ParallelMatrix() {
+  delete[] mat;
+}
 
 template <typename T>
-long Matrix<T>::rows() const { return numRows_; }
+long ParallelMatrix<T>::rows() const {
+  return numRows_;
+}
 
 template <typename T>
-long Matrix<T>::cols() const { return numCols_; }
+long ParallelMatrix<T>::cols() const {
+  return numCols_;
+}
 
 template <typename T>
-long Matrix<T>::size() const { return cols()*rows(); }
+long ParallelMatrix<T>::size() const {
+  return cols() * rows();
+}
 
-// Get element
+// Get/set element
 
 template <typename T>
-T& Matrix<T>::operator()(const int row, const int col) {
-  long localIndex = global2Local(row,col);
+T& ParallelMatrix<T>::operator()(const int row, const int col) {
+  long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     dummyZero = 0.;
     return dummyZero;
@@ -314,8 +340,8 @@ T& Matrix<T>::operator()(const int row, const int col) {
 }
 
 template <typename T>
-const T& Matrix<T>::operator()(const int row, const int col) const {
-  long localIndex = global2Local(row,col);
+const T& ParallelMatrix<T>::operator()(const int row, const int col) const {
+  long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return dummyConstZero;
   } else {
@@ -324,8 +350,8 @@ const T& Matrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool Matrix<T>::indecesAreLocal(const int & row, const int & col) {
-  long localIndex = global2Local(row,col);
+bool ParallelMatrix<T>::indecesAreLocal(const int& row, const int& col) {
+  long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return false;
   } else {
@@ -334,7 +360,7 @@ bool Matrix<T>::indecesAreLocal(const int & row, const int & col) {
 }
 
 template <typename T>
-std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
+std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) {
   // first, we convert this combined local index k
   // into local row / col indeces
   // k = j * numLocalRows_ + i
@@ -356,7 +382,7 @@ std::tuple<long,long> Matrix<T>::local2Global(const long &k) {
 }
 
 template <typename T>
-long Matrix<T>::global2Local(const long& row, const long& col) {
+long ParallelMatrix<T>::global2Local(const long& row, const long& col) {
   // note: row and col indices use the c++ convention of running from 0 to N-1
   // fortran (infog2l_) wants indices from 1 to N.
   int row_ = row + 1;
@@ -374,18 +400,18 @@ long Matrix<T>::global2Local(const long& row, const long& col) {
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
-    std::vector<std::tuple<long, long>> x;
-    for (long k = 0; k < numLocalElements_; k++) {
-      std::tuple<long, long> t = local2Global(k);  // bloch indices
-      x.push_back(t);
-    }
-    return x;
+std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
+  std::vector<std::tuple<long, long>> x;
+  for (long k = 0; k < numLocalElements_; k++) {
+    std::tuple<long, long> t = local2Global(k);  // bloch indices
+    x.push_back(t);
+  }
+  return x;
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
-        BaseBandStructure &bandStructure) {
+std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalWavevectors(
+    BaseBandStructure& bandStructure) {
   std::vector<std::tuple<long, long>> wavevectorPairs;
   for (long k = 0; k < numLocalElements_; k++) {
     auto [is1, is2] = local2Global(k);  // bloch indices
@@ -403,84 +429,80 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::operator*=(const T& that) {
-    Matrix<T> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
-    for ( long i=0; i<numLocalElements_; i++ ) {
-        *(result.mat+i) = *(mat+i) * that;
-    }
-    return result;
+ParallelMatrix<T>& ParallelMatrix<T>::operator*=(const T& that) {
+  for (long i = 0; i < numLocalElements_; i++) {
+    *(mat + i) *= that;
+  }
+  return *this;
 }
 
 template <typename T>
-Matrix<T> Matrix<T>::operator/=(const T& that) {
-    Matrix<T> result(numRows_, numCols_, numBlocksRows_, numBlocksCols_);
-    for ( long i=0; i<numLocalElements_; i++ ) {
-        *(result.mat+i) = *(mat+i) / that;
-    }
-    return result;
-}
-
-template<typename T>
-Matrix<T> Matrix<T>::operator+=(const Matrix<T>& that) {
-    Matrix result = *this;
-    for ( long i=0; i<numLocalElements_; i++ ) {
-        *(result.mat+i) += *(that.mat+i);
-    }
-    return result;
-}
-
-template<typename T>
-Matrix<T> Matrix<T>::operator-=(const Matrix<T>& that) {
-    Matrix<T> result = *this;
-    for ( long i=0; i<numLocalElements_; i++ ) {
-        *(result.mat+i) -= *(that.mat+i);
-    }
-    return result;
-}
-
-template<typename T>
-void Matrix<T>::eye() {
-    if ( numRows_ != numCols_ ) {
-        Error e("Cannot build an identity matrix with non-square matrix");
-    }
-    for ( int  i=0; i<numLocalElements_; i++ ) {
-        *(mat+i) = 0.;
-    }
-    for ( int  i=0; i<numRows_; i++ ) {
-        operator()(i,i) = 1.;
-    }
+ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
+  for (long i = 0; i < numLocalElements_; i++) {
+    *(mat + i) /= that;
+  }
+  return *this;
 }
 
 template <typename T>
-T Matrix<T>::squaredNorm() {
-    return dot(*this);
+ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
+  for (long i = 0; i < numLocalElements_; i++) {
+    *(mat + i) += *(that.mat + i);
+  }
+  return *this;
 }
 
 template <typename T>
-T Matrix<T>::norm() {
-    return sqrt(squaredNorm());
+ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
+  for (long i = 0; i < numLocalElements_; i++) {
+    *(mat + i) -= *(that.mat + i);
+  }
+  return *this;
 }
 
-template<typename T>
-T Matrix<T>::dot(const Matrix<T>& that) {
-    T scalar = dummyConstZero;
-    T scalarOut = dummyConstZero;
-    for ( int i=0; i<numLocalElements_; i++ ) {
-        scalar += ( *(mat+i) ) * ( *(that.mat+i) );
-    }
-    mpi->allReduceSum(&scalar, &scalarOut);
-    return scalarOut;
+template <typename T>
+void ParallelMatrix<T>::eye() {
+  if (numRows_ != numCols_) {
+    Error e("Cannot build an identity matrix with non-square matrix");
+  }
+  for (int i = 0; i < numLocalElements_; i++) {
+    *(mat + i) = 0.;
+  }
+  for (int i = 0; i < numRows_; i++) {
+    operator()(i, i) = 1.;
+  }
 }
 
-template<typename T>
-Matrix<T> Matrix<T>::operator-() const {
-    Matrix<T> result = *this;
-    for ( long i=0; i<numLocalElements_; i++ ) {
-        *(result.mat+i) = - *(result.mat+i);
-    }
-    return result;
+template <typename T>
+T ParallelMatrix<T>::squaredNorm() {
+  return dot(*this);
 }
 
-#endif // include safeguard
+template <typename T>
+T ParallelMatrix<T>::norm() {
+  return sqrt(squaredNorm());
+}
 
-#endif // mpi_avail
+template <typename T>
+T ParallelMatrix<T>::dot(const ParallelMatrix<T>& that) {
+  T scalar = dummyConstZero;
+  T scalarOut = dummyConstZero;
+  for (int i = 0; i < numLocalElements_; i++) {
+    scalar += (*(mat + i)) * (*(that.mat + i));
+  }
+  mpi->allReduceSum(&scalar, &scalarOut);
+  return scalarOut;
+}
+
+template <typename T>
+ParallelMatrix<T> ParallelMatrix<T>::operator-() const {
+  ParallelMatrix<T> result = *this;
+  for (long i = 0; i < numLocalElements_; i++) {
+    *(result.mat + i) = -*(result.mat + i);
+  }
+  return result;
+}
+
+#endif  // include safeguard
+
+#endif  // mpi_avail
