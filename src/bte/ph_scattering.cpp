@@ -200,9 +200,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     Eigen::VectorXd state2Energies = states2.getEnergies();
     int nb2 = state2Energies.size();
 
-    Eigen::Tensor<std::complex<double>, 3> ev2;
-    states2.getEigenvectors(ev2);
-
     // note: for computing linewidths on a path, we must distinguish
     // that q1 and q2 are on different meshes, and that q3+/- may not
     // fall into known meshes and therefore needs to be computed
@@ -211,9 +208,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     Point q1 = states1.getPoint();
     Eigen::VectorXd state1Energies = states1.getEnergies();
     int nb1 = state1Energies.size();
-
-    Eigen::Tensor<std::complex<double>, 3> ev1;
-    states1.getEigenvectors(ev1);
 
     v1s = states1.getGroupVelocities();
     v2s = states2.getGroupVelocities();
@@ -230,11 +224,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       State states3Mins = innerBandStructure.getState(q3Mins);
       state3MinsEnergies = states3Mins.getEnergies();
       nb3Mins = state3MinsEnergies.size();
-
-      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
-                                                      states3Plus, states3Mins);
-      couplingPlus = cp;
-      couplingMins = cm;
 
       bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
       bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
@@ -253,6 +242,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         v3ps = states3Plus.getGroupVelocities();
         v3ms = states3Mins.getGroupVelocities();
       }
+      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
+                                                      states3Plus, states3Mins);
+      couplingPlus = cp;
+      couplingMins = cm;
 
     } else {
       // otherwise, q3 doesn't fall into the same grid
@@ -273,11 +266,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                                 eigvecs3Plus);
       DetachedState states3Mins(q3MinsC, eigvals3Mins, numAtoms, nb3Mins,
                                 eigvecs3Mins);
-
-      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
-                                                      states3Plus, states3Mins);
-      couplingPlus = cp;
-      couplingMins = cm;
 
       state3PlusEnergies = states3Plus.getEnergies();
       state3MinsEnergies = states3Mins.getEnergies();
@@ -317,6 +305,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           }
         }
       }
+      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
+                                                      states3Plus, states3Mins);
+      couplingPlus = cp;
+      couplingMins = cm;
     }
 
     for (long ib1 = 0; ib1 < nb1; ib1++) {
@@ -341,66 +333,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           // here we check that we don't duplicate efforts
           if (!matrix.indecesAreLocal(ind1, ind2)) {
             continue;
-          }
-        }
-
-        // Isotope scattering
-        if (doIsotopes) {
-          switch (smearing->getType()) {
-            case (DeltaFunction::gaussian):
-              deltaIso = smearing->getSmearing(en1 - en2);
-              break;
-            case (DeltaFunction::adaptiveGaussian):
-              deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
-              deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
-              deltaIso *= 0.5;
-              break;
-            default:
-              deltaIso = smearing->getSmearing(en2, iq2, ib2);
-              deltaIso += smearing->getSmearing(en1, iq1, ib1);
-              deltaIso *= 0.5;
-              break;
-          }
-
-          termIso = 0.;
-          for (int iat = 0; iat < numAtoms; iat++) {
-            zzIso = complexZero;
-            for (int kdim : {0, 1, 2}) {  // cartesian indices
-              zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
-            }
-            termIso += std::norm(zzIso) * massVariance(iat);
-          }
-          termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
-
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            bose1 = outerBose.data(iCalc, ind1);
-            bose2 = innerBose.data(iCalc, ind2);
-
-            rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
-
-            switch (switchCase) {
-              case (0):
-                // case of matrix construction
-                // we build the scattering matrix S
-                matrix(ind1, ind2) += rateIso;
-                linewidth->data(iCalc, ind1) += rateIso;
-                break;
-              case (1):
-                // case of matrix-vector multiplication
-                // we build the scattering matrix A = S*n(n+1)
-                for (long i : {0, 1, 2}) {
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      rateIso * inPopulation->data(3 * iCalc + i, ind2);
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      rateIso * inPopulation->data(3 * iCalc + i, ind1);
-                }
-                break;
-              case (2):
-                // case of linewidth construction
-                // there's still a missing norm done later
-                linewidth->data(iCalc, ind1) += rateIso;
-                break;
-            }
           }
         }
 
@@ -533,6 +465,117 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     //        }
   }
   loopPrint.close();
+
+  // Isotope scattering
+  if (doIsotopes) {
+    for (auto [iq1, iq2] : qPairIterator) {
+      State states2 = innerBandStructure.getState(iq2);
+      Eigen::VectorXd state2Energies = states2.getEnergies();
+      int nb2 = state2Energies.size();
+
+      Eigen::Tensor<std::complex<double>, 3> ev2;
+      states2.getEigenvectors(ev2);
+
+      // note: for computing linewidths on a path, we must distinguish
+      // that q1 and q2 are on different meshes, and that q3+/- may not
+      // fall into known meshes and therefore needs to be computed
+
+      State states1 = outerBandStructure.getState(iq1);
+      Eigen::VectorXd state1Energies = states1.getEnergies();
+      int nb1 = state1Energies.size();
+
+      Eigen::Tensor<std::complex<double>, 3> ev1;
+      states1.getEigenvectors(ev1);
+
+      v1s = states1.getGroupVelocities();
+      v2s = states2.getGroupVelocities();
+
+      for (long ib1 = 0; ib1 < nb1; ib1++) {
+        en1 = state1Energies(ib1);
+        ind1 =
+            outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
+        if (en1 < energyCutoff) {
+          continue;
+        }
+
+        for (long ib2 = 0; ib2 < nb2; ib2++) {
+          en2 = state2Energies(ib2);
+          ind2 =
+              innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
+          if (en2 < energyCutoff) {
+            continue;
+          }
+
+          if (switchCase == 0) {
+            // note: above we are parallelizing over wavevectors.
+            // (for convenience of computing coupling3ph)
+            // Not the same way as Matrix() is parallelized.
+            // here we check that we don't duplicate efforts
+            if (!matrix.indecesAreLocal(ind1, ind2)) {
+              continue;
+            }
+          }
+
+          switch (smearing->getType()) {
+            case (DeltaFunction::gaussian):
+              deltaIso = smearing->getSmearing(en1 - en2);
+              break;
+            case (DeltaFunction::adaptiveGaussian):
+              deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
+              deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
+              deltaIso *= 0.5;
+              break;
+            default:
+              deltaIso = smearing->getSmearing(en2, iq2, ib2);
+              deltaIso += smearing->getSmearing(en1, iq1, ib1);
+              deltaIso *= 0.5;
+              break;
+          }
+
+          termIso = 0.;
+          for (int iat = 0; iat < numAtoms; iat++) {
+            zzIso = complexZero;
+            for (int kdim : {0, 1, 2}) {  // cartesian indices
+              zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
+            }
+            termIso += std::norm(zzIso) * massVariance(iat);
+          }
+          termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
+
+          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+            bose1 = outerBose.data(iCalc, ind1);
+            bose2 = innerBose.data(iCalc, ind2);
+
+            rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+
+            switch (switchCase) {
+              case (0):
+                // case of matrix construction
+                // we build the scattering matrix S
+                matrix(ind1, ind2) += rateIso;
+                linewidth->data(iCalc, ind1) += rateIso;
+                break;
+              case (1):
+                // case of matrix-vector multiplication
+                // we build the scattering matrix A = S*n(n+1)
+                for (long i : {0, 1, 2}) {
+                  outPopulation->data(3 * iCalc + i, ind1) +=
+                      rateIso * inPopulation->data(3 * iCalc + i, ind2);
+                  outPopulation->data(3 * iCalc + i, ind1) +=
+                      rateIso * inPopulation->data(3 * iCalc + i, ind1);
+                }
+                break;
+              case (2):
+                // case of linewidth construction
+                // there's still a missing norm done later
+                linewidth->data(iCalc, ind1) += rateIso;
+                break;
+            }
+          }
+        }
+      }
+    }
+  }
 
   if (switchCase == 1) {
     mpi->allReduceSum(&outPopulation->data);
