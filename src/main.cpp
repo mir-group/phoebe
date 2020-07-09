@@ -15,13 +15,14 @@ int main(int argc, char **argv) {
   io.welcome();
 
   // Print parallelization info
-  if (mpi->mpiHead()) {
-    parallelInfo();
-  }
+  if (mpi->mpiHead()) parallelInfo();
 
   // Read user input file
   Context context; // instantiate class container of the user input
   context.setupFromInput(io.getInputFileName()); // read the user input
+
+  // Initialize blacs (for cases where it is needed) 
+  mpi->initBlacs(context); 
 
   // decide which app to use
   std::unique_ptr<App> app = App::loadApp(context.getAppName());
