@@ -9,9 +9,7 @@
 #include "epa_parser.h"
 #include "exceptions.h"
 #include "interaction_epa.h"
-//#include "interaction_epa.h"
 
-//InteractionEpa EpaParser::parseAvCouplings (Context & context) {
 InteractionEpa EpaParser::parseAvCouplings (Context & context) {
     //get the name of epa.e file
     auto fileName = context.getEpaEFileName();
@@ -107,7 +105,7 @@ InteractionEpa EpaParser::parseAvCouplings (Context & context) {
                 int l = 0;
                 
                 while (iss3 >> temp) {
-                    elPhMatAverage(l,k,j,i) = temp/energyRyToEv/energyRyToEv; // in Ry^2
+                    elPhMatAverage(l,k,j,i) = temp/pow(energyRyToEv,2); // in Ry^2
                     ++l;
                 }
                 
@@ -117,7 +115,7 @@ InteractionEpa EpaParser::parseAvCouplings (Context & context) {
         
     infile.close();
     
-    InteractionEpa interactionEpa(bandExtrema,binSize,numBins,phFreqAverage,elPhMatAverage);
+    InteractionEpa interactionEpa(numBandGroups,bandExtrema,binSize,numBins,phFreqAverage,elPhMatAverage);
     return interactionEpa;
     
     std::cout << "... done" << std::endl;
