@@ -13,19 +13,24 @@
 #include "particle.h"
 #include "bandstructure.h"
 #include "statistics_sweep.h"
-
+#include "epa_scattering.h"
+#include "vector_bte.h"
+#include "crystal.h"
+#include <cmath>
+#include <string>
 
 void TransportEpaApp::run(Context & context) {
     
     std::cout << "Setup EPA transport calculation" << std::endl;
 
-    if ( context.getAppName() == "transportEpa" ) {
-      double fermiLevel = context.getFermiLevel();
-      if ( std::isnan(fermiLevel) ) {
+    double fermiLevel = context.getFermiLevel();
+    if ( std::isnan(fermiLevel) ) {
 	Error e("Fermi energy must be provided for EPA calculation");
-      }
-    } 
+}
+    std::cout << "Fermi level: " << fermiLevel <<std::endl;
     
+    
+    std::cout << "Point 1 reached" << std::endl;
     // Read necessary input: xml file of QE.
     //name of xml file should be provided in the input
     //electronFourierCutoff should be provided in the input (should it be the same as encut in DFT?)
@@ -33,7 +38,10 @@ void TransportEpaApp::run(Context & context) {
     //speciesNames, speciesMasses, dimensionality);
     //ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
     //fourierCutoff);
+    
     auto [crystal, electronH0] = QEParser::parseElHarmonicFourier(context);
+    
+    std::cout << "Point 2 reached" << std::endl;
     
     //Read and setup k-point mesh for interpolating bandstructure
     FullPoints fullPoints(crystal, context.getKMesh());
@@ -41,18 +49,21 @@ void TransportEpaApp::run(Context & context) {
     bool withEigenvectors = true;
     FullBandStructure bandStructure = electronH0.populate(fullPoints, withVelocities, withEigenvectors);
     
+    std::cout << "Point 3 reached" << std::endl;
+    
     auto a = bandStructure.getNumBands(); // number of bands
     auto b = bandStructure.getNumStates(); // numBands*numPoints
     auto c = bandStructure.getNumPoints(); //number of k-points in fine mesh
     std::cout << "number of bands: " << a << std::endl;
     std::cout << "number of states: " << b << std::endl;
     std::cout << "number of points: " << c << std::endl;
+    
+   
         
     // set the chemical potentials to zero, load temperatures
     StatisticsSweep statisticsSweep(context, & bandStructure);
     
-    // load the epa data
-    auto couplingEpa = EpaParser::parseAvCouplings(context);
+    BaseVectorBTE scatteringRates = EpaScattering::setup(context, statisticsSweep, bandStructure);
     
     // build/initialize the scattering matrix and the smearing
 //    PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
