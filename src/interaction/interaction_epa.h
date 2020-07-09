@@ -6,6 +6,7 @@
 class InteractionEpa {
 
 private:
+    int numBandGroups;
     Eigen::VectorXd bandExtrema;
     Eigen::VectorXd binSize;
     Eigen::VectorXi numBins;
@@ -14,7 +15,7 @@ private:
     
 public:
     //default constructor
-    InteractionEpa(Eigen::VectorXd & bandExtrema_, Eigen::VectorXd & binSize_, Eigen::VectorXi & numBins_, Eigen::VectorXd & phFreqAverage_, Eigen::Tensor<double,4> & elPhMatAverage_);
+    InteractionEpa(int & numBandGroups_, Eigen::VectorXd & bandExtrema_, Eigen::VectorXd & binSize_, Eigen::VectorXi & numBins_, Eigen::VectorXd & phFreqAverage_, Eigen::Tensor<double,4> & elPhMatAverage_);
     
     //copy constructor
     InteractionEpa(const InteractionEpa & that);
@@ -22,6 +23,7 @@ public:
     //assignment operator overload
     InteractionEpa & operator=(const InteractionEpa & that);
     
+    int getNumBandGroups();
     Eigen::VectorXd getBandExtrema();
     Eigen::VectorXd getBinSize();
     Eigen::VectorXi getNumBins();

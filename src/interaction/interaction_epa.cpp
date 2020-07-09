@@ -1,7 +1,8 @@
 #include "interaction_epa.h"
 
 //default constructor
-InteractionEpa::InteractionEpa(Eigen::VectorXd & bandExtrema_,
+InteractionEpa::InteractionEpa(int & numBandGroups,
+                               Eigen::VectorXd & bandExtrema_,
                                Eigen::VectorXd & binSize_,
                                Eigen::VectorXi & numBins_,
                                Eigen::VectorXd & phFreqAverage_,
@@ -10,7 +11,7 @@ InteractionEpa::InteractionEpa(Eigen::VectorXd & bandExtrema_,
 }
 
 //copy constructor
-InteractionEpa::InteractionEpa(const InteractionEpa & that) : bandExtrema(that.bandExtrema), binSize(that.binSize), numBins(that.numBins), phFreqAverage(that.phFreqAverage), elPhMatAverage(that.elPhMatAverage) {
+InteractionEpa::InteractionEpa(const InteractionEpa & that) : numBandGroups(that.numBandGroups), bandExtrema(that.bandExtrema), binSize(that.binSize), numBins(that.numBins), phFreqAverage(that.phFreqAverage), elPhMatAverage(that.elPhMatAverage) {
     
 }
 
@@ -19,6 +20,7 @@ InteractionEpa & InteractionEpa::operator=(const InteractionEpa & that) {
     
     //avoid self-assignment:
     if ( this != &that ) {
+        numBandGroups = that.numBandGroups;
         bandExtrema = that.bandExtrema;
         binSize = that.binSize;
         numBins = that.numBins;
@@ -27,6 +29,10 @@ InteractionEpa & InteractionEpa::operator=(const InteractionEpa & that) {
     }
     
     return *this;
+}
+
+int InteractionEpa::getNumBandGroups() {
+    return numBandGroups;
 }
 
 Eigen::VectorXd InteractionEpa::getBandExtrema() {
