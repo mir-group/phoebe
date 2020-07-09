@@ -617,6 +617,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   pugi::xml_node atomicStructure = output.child("atomic_structure");
   int numAtoms = atomicStructure.attribute("nat").as_int();
+  // double alat = atomicStructure.attribute("alat").as_double();
 
   //  we read the atomic positions
 
@@ -727,15 +728,17 @@ QEParser::parseElHarmonicFourier(Context &context) {
     lineSplit = split(kpoint.child_value("k_point"), ' ');
 
     // note:
-    // k_cart = bVectors * k_cryst
+    // k_cart = bvectors.transpose() *  k_cryst
 
     p(0) = std::stod(lineSplit[0]);
     p(1) = std::stod(lineSplit[1]);
     p(2) = std::stod(lineSplit[2]);
 
+    // the XML contains kpoints in cartesian coordinates, in units of 2Pi/alat
     // convert from cartesian to crystal coordinates
-    p = bVectors.inverse() * p;
-    irredPoints.col(i) = p;
+    // but also bvectors are given in 2Pi/alat units, so we don't set them
+    p = (bVectors.transpose().inverse() * p).transpose();
+    irredPoints.col(i) = p; // * twoPi / alat;
 
     lineSplit = split(kpoint.child_value("eigenvalues"), ' ');
     for (int j = 0; j < numBands; j++) {
@@ -815,7 +818,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
   //  First line contains the title and date
   std::getline(infile, line);
 
-  // Then, we have the directUnitCell of the ctystal in angstroms
+  // Then, we have the directUnitCell of the crystal in angstroms
   Eigen::Matrix3d directUnitCell(3, 3);
   directUnitCell.setZero();
   for (int i = 0; i < 3; i++) {
@@ -917,14 +920,11 @@ QEParser::parseElHarmonicWannier(Context &context) {
 
   // I need to convert crystalVectors in cartesian coordinates
   // must check if I am aligning the unit cell correctly
-  bravaisVectors = directUnitCell * bravaisVectors;
+  bravaisVectors = directUnitCell.transpose() * bravaisVectors;
   // note: for Wannier90, lattice vectors are the rows of the matrix
 
   ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
                                vectorsDegeneracies, h0R, rMatrix);
-  //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
-  //			directUnitCell, crystalVectors, vectorsDegeneracies,
-  // h0R));
 
   long dimensionality = context.getDimensionality();
   Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
@@ -942,10 +942,6 @@ QEParser::parseElHarmonicWannier(Context &context) {
 
   Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
                   speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
 
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
 };

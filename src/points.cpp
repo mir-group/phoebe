@@ -22,7 +22,6 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
     gVectors.setZero();
     Eigen::MatrixXi igVectors_(3, nGvec);
     igVectors = igVectors_;
-    Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
     igVectors.setZero();
     Eigen::Vector3d vec;
     nGvec = 1; // we skip the first point which is G=(0,0,0)
@@ -33,7 +32,7 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
                     vec(0) = (double) i1;
                     vec(1) = (double) i2;
                     vec(2) = (double) i3;
-                    gVectors.col(nGvec) = reciprocalUnitCell * vec;
+                    gVectors.col(nGvec) = crystalToCartesian(vec);
                     igVectors(0, nGvec) = i1;
                     igVectors(1, nGvec) = i2;
                     igVectors(2, nGvec) = i3;
@@ -85,8 +84,10 @@ PathPoints::PathPoints(Crystal &crystal_,
         FullPoints(crystal_, Eigen::Vector3i::Constant(1),
                 Eigen::Vector3d::Zero()) {
 
+  // input is in crystal coordinates and we store the list in crystal coords.
+
     // build the list of points
-    std::vector < Eigen::Vector3d > points;
+    std::vector<Eigen::Vector3d> points;
     Eigen::Vector3d p0, p1;	//, thisDelta;
 
     // initialize the path
@@ -405,12 +406,15 @@ long PathPoints::getIndex(const Eigen::Vector3d &coords) {
 // change of basis methods
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d &point) {
-    return crystal.getReciprocalUnitCell() * point;
+  // note: reciprocalUnitCell is stored such that
+  // b1 = b.row(0), b2 = b.row(1), b3 = b.row(2)
+  // the transpose is the matrix to use on the left of point
+  return crystal.getReciprocalUnitCell().transpose() * point;
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d &point) {
-    Eigen::Vector3d p = crystal.getReciprocalUnitCell().inverse() * point;
-    return p;
+  Eigen::Matrix3d bm1 = crystal.getReciprocalUnitCell().transpose();
+  return ( bm1.inverse() * point );
 }
 
 Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d &pointCrystal,
@@ -418,12 +422,11 @@ Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d &pointCrystal,
 
     Eigen::Vector3d pointCart = crystalToCartesian(pointCrystal);
 
-    double norm2 = pointCart.transpose() * pointCart;
+    double norm2 = pointCart.squaredNorm();
     double thisNorm2;
     long iws = 0;
     for (long iG = 1; iG < gVectors.cols(); iG++) {
-        thisNorm2 = (pointCart + gVectors.col(iG)).transpose()
-                * (pointCart + gVectors.col(iG));
+        thisNorm2 = (pointCart + gVectors.col(iG)).squaredNorm();
         if (thisNorm2 < norm2 - 1.0e-12) {
             norm2 = thisNorm2;
             iws = iG;
