@@ -1,5 +1,6 @@
 #include "ph_scattering.h"
 
+#include "helper_3rd_state.h"
 #include "constants.h"
 #include "io.h"
 #include "mpiHelper.h"
@@ -123,20 +124,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     Error e("The linewidths shouldn't have dimensionality");
   }
 
-  // three conditions must be met to avoid recomputing q3
-  // 1 - q1 and q2 mesh must be the same
-  // 2 - the mesh is gamma-centered
-  // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
-  //     at the border)
-  auto [mesh, offset] = outerBandStructure.getPoints().getMesh();
-  bool dontComputeQ3;
-  if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
-      innerBandStructure.hasWindow() == 0) {
-    dontComputeQ3 = true;
-  } else {
-    dontComputeQ3 = false;
-  }
-
   auto particle = outerBandStructure.getParticle();
 
   long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
@@ -171,324 +158,61 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   // note: these variables are only needed in the loop
   // but since it's an expensive loop, we define them here once and for all
-  long nb3Plus, nb3Mins, ind1, ind2;
+  long ind1, ind2;
   double ratePlus, rateMins1, rateMins2, deltaPlus, deltaMins1, deltaMins2;
   double en1, en2, en3Plus, en3Mins, bose1, bose2, bose3Plus, bose3Mins;
-  Eigen::Tensor<double, 3> couplingPlus, couplingMins;
+  //  Eigen::Tensor<double, 3> couplingPlus, couplingMins;
   Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
   Eigen::Vector3d v1, v2, v3, v;
-  Eigen::MatrixXd v1s, v2s, v3ps, v3ms;
-
-  Eigen::MatrixXd bose3PlusData, bose3MinsData;
-  Eigen::VectorXd eigvals3Plus, eigvals3Mins;
-  Eigen::MatrixXcd eigvecs3Plus, eigvecs3Mins;
+  Eigen::MatrixXd v1s, v2s;
 
   // isotopic scattering:
   std::complex<double> zzIso;
   double termIso, rateIso, deltaIso;
 
-  std::vector<std::tuple<long, long>> qPairIterator =
+  std::vector<std::tuple<std::vector<long>, long>> qPairIterator =
       getIteratorWavevectorPairs(switchCase);
+
+  Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
+                             smearing->getType(), h0);
 
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
-  for (auto [iq1, iq2] : qPairIterator) {
+  for (auto [iq1Indexes, iq2] : qPairIterator) {
     loopPrint.update();
-    Point q2 = innerBandStructure.getPoint(iq2);
-    State states2 = innerBandStructure.getState(q2);
-    Eigen::VectorXd state2Energies = states2.getEnergies();
-    int nb2 = state2Energies.size();
+    pointHelper.prepare(iq1Indexes, iq2);
+    for (auto iq1 : iq1Indexes) {
 
-    // note: for computing linewidths on a path, we must distinguish
-    // that q1 and q2 are on different meshes, and that q3+/- may not
-    // fall into known meshes and therefore needs to be computed
-
-    State states1 = outerBandStructure.getState(iq1);
-    Point q1 = states1.getPoint();
-    Eigen::VectorXd state1Energies = states1.getEnergies();
-    int nb1 = state1Energies.size();
-
-    v1s = states1.getGroupVelocities();
-    v2s = states2.getGroupVelocities();
-
-    // if the meshes are the same (and gamma centered)
-    // q3 will fall into the same grid, and it's easy to get
-    if (dontComputeQ3) {
-      Point q3Plus = q1 + q2;
-      State states3Plus = innerBandStructure.getState(q3Plus);
-      state3PlusEnergies = states3Plus.getEnergies();
-      nb3Plus = state3PlusEnergies.size();
-
-      Point q3Mins = q1 - q2;
-      State states3Mins = innerBandStructure.getState(q3Mins);
-      state3MinsEnergies = states3Mins.getEnergies();
-      nb3Mins = state3MinsEnergies.size();
-
-      bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
-      bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
-
-      for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-        long ind3 = outerBandStructure.getIndex(
-            WavevectorIndex(q3Plus.getIndex()), BandIndex(ib3));
-        bose3PlusData.col(ib3) = outerBose.data.col(ind3);
-      }
-      for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-        long ind3 = outerBandStructure.getIndex(
-            WavevectorIndex(q3Mins.getIndex()), BandIndex(ib3));
-        bose3MinsData.col(ib3) = outerBose.data.col(ind3);
-      }
-      if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-        v3ps = states3Plus.getGroupVelocities();
-        v3ms = states3Mins.getGroupVelocities();
-      }
-      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
-                                                      states3Plus, states3Mins);
-      couplingPlus = cp;
-      couplingMins = cm;
-
-    } else {
-      // otherwise, q3 doesn't fall into the same grid
-      // and we must therefore compute it from the hamiltonian
-
-      Eigen::Vector3d q3PlusC = q1.getCoords(Points::cartesianCoords) +
-                                q2.getCoords(Points::cartesianCoords);
-      Eigen::Vector3d q3MinsC = q1.getCoords(Points::cartesianCoords) -
-                                q2.getCoords(Points::cartesianCoords);
-
-      auto [eigvals3Plus, eigvecs3Plus] = h0->diagonalizeFromCoords(q3PlusC);
-      auto [eigvals3Mins, eigvecs3Mins] = h0->diagonalizeFromCoords(q3MinsC);
-
-      nb3Plus = eigvals3Plus.size();
-      nb3Mins = eigvals3Mins.size();
-
-      DetachedState states3Plus(q3PlusC, eigvals3Plus, numAtoms, nb3Plus,
-                                eigvecs3Plus);
-      DetachedState states3Mins(q3MinsC, eigvals3Mins, numAtoms, nb3Mins,
-                                eigvecs3Mins);
-
-      state3PlusEnergies = states3Plus.getEnergies();
-      state3MinsEnergies = states3Mins.getEnergies();
-
-      bose3PlusData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
-      bose3MinsData = Eigen::MatrixXd::Zero(numCalcs, nb3Plus);
-
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-          bose3PlusData(iCalc, ib3) =
-              particle.getPopulation(state3PlusEnergies(ib3), temperature);
-        }
-        for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-          bose3MinsData(iCalc, ib3) =
-              particle.getPopulation(state3MinsEnergies(ib3), temperature);
-        }
-      }
-
-      if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-        Eigen::Tensor<std::complex<double>, 3> v3psTmp =
-            h0->diagonalizeVelocityFromCoords(q3PlusC);
-        Eigen::Tensor<std::complex<double>, 3> v3msTmp =
-            h0->diagonalizeVelocityFromCoords(q3MinsC);
-
-        // we only need the diagonal elements of the velocity operator
-        // i.e. the group velocity
-        v3ps = Eigen::MatrixXd::Zero(nb3Plus, 3);
-        v3ms = Eigen::MatrixXd::Zero(nb3Mins, 3);
-        for (int i : {0, 1, 2}) {
-          for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
-            v3ps(ib3, i) = v3psTmp(ib3, ib3, i).real();
-          }
-          for (int ib3 = 0; ib3 < nb3Mins; ib3++) {
-            v3ms(ib3, i) = v3msTmp(ib3, ib3, i).real();
-          }
-        }
-      }
-      auto [cp, cm] = coupling3Ph->getCouplingSquared(states1, states2,
-                                                      states3Plus, states3Mins);
-      couplingPlus = cp;
-      couplingMins = cm;
-    }
-
-    for (long ib1 = 0; ib1 < nb1; ib1++) {
-      en1 = state1Energies(ib1);
-      ind1 = outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
-      if (en1 < energyCutoff) {
-        continue;
-      }
-
-      for (long ib2 = 0; ib2 < nb2; ib2++) {
-        en2 = state2Energies(ib2);
-        ind2 =
-            innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
-        if (en2 < energyCutoff) {
-          continue;
-        }
-
-        if (switchCase == 0) {
-          // note: above we are parallelizing over wavevectors.
-          // (for convenience of computing coupling3ph)
-          // Not the same way as Matrix() is parallelized.
-          // here we check that we don't duplicate efforts
-          if (!matrix.indecesAreLocal(ind1, ind2)) {
-            continue;
-          }
-        }
-
-        // split into two cases since there may be different bands
-        for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-          en3Plus = state3PlusEnergies(ib3);
-          if (en3Plus < energyCutoff) {
-            continue;
-          }
-
-          double enProd = en1 * en2 * en3Plus;
-
-          switch (smearing->getType()) {
-            case (DeltaFunction::gaussian):
-              deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
-              break;
-            case (DeltaFunction::adaptiveGaussian):
-              v = v2s.row(ib2) - v3ps.row(ib3);
-              deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
-              break;
-            default:
-              deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
-              break;
-          }
-
-          if (deltaPlus < 0) continue;
-
-          // loop on temperature
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            bose1 = outerBose.data(iCalc, ind1);
-            bose2 = innerBose.data(iCalc, ind2);
-            bose3Plus = bose3PlusData(iCalc, ib3);
-
-            // Calculate transition probability W+
-            ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                       couplingPlus(ib1, ib2, ib3) * deltaPlus /
-                       innerNumFullPoints / enProd;
-
-            switch (switchCase) {
-              case (0):
-                // case of matrix construction
-                // we build the scattering matrix S
-                matrix(ind1, ind2) += ratePlus;
-                linewidth->data(iCalc, ind1) += ratePlus;
-                break;
-              case (1):
-                // case of matrix-vector multiplication
-                // we build the scattering matrix A = S*n(n+1)
-                for (long i : {0, 1, 2}) {
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      ratePlus * inPopulation->data(3 * iCalc + i, ind2);
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      ratePlus * inPopulation->data(3 * iCalc + i, ind1);
-                }
-                break;
-              case (2):
-                // case of linewidth construction
-                linewidth->data(iCalc, ind1) += ratePlus;
-                break;
-            }
-          }
-        }
-
-        for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-          en3Mins = state3MinsEnergies(ib3);
-          if (en3Mins < energyCutoff) {
-            continue;
-          }
-
-          double enProd = en1 * en2 * en3Mins;
-
-          switch (smearing->getType()) {
-            case (DeltaFunction::gaussian):
-              deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2);
-              deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
-              break;
-            case (DeltaFunction::adaptiveGaussian):
-              v = v2s.row(ib2) - v3ms.row(ib3);
-              deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
-              deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
-              break;
-            default:
-              deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
-              deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
-              break;
-          }
-
-          if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
-          if (deltaMins1 < 0.) deltaMins1 = 0.;
-          if (deltaMins2 < 0.) deltaMins2 = 0.;
-
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            bose1 = outerBose.data(iCalc, ind1);
-            bose2 = innerBose.data(iCalc, ind2);
-            bose3Mins = bose3MinsData(iCalc, ib3);
-
-            // Calculatate transition probability W-
-            rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
-                        couplingMins(ib1, ib2, ib3) * deltaMins1 /
-                        innerNumFullPoints / enProd;
-            rateMins2 = pi * 0.25 * bose2 * bose3Mins * (bose1 + 1.) *
-                        couplingMins(ib1, ib2, ib3) * deltaMins2 /
-                        innerNumFullPoints / enProd;
-
-            switch (switchCase) {
-              case (0):
-                // case of matrix construction
-                matrix(ind1, ind2) -= rateMins1 + rateMins2;
-                linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-                break;
-              case (1):
-                // case of matrix-vector multiplication
-                for (long i : {0, 1, 2}) {
-                  outPopulation->data(3 * iCalc + i, ind1) -=
-                      (rateMins1 + rateMins2) *
-                      inPopulation->data(3 * iCalc + i, ind2);
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      0.5 * rateMins2 * inPopulation->data(3 * iCalc + i, ind1);
-                }
-                break;
-              case (2):
-                // case of linewidth construction
-                linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-                break;
-            }
-          }
-        }
-      }
-    }
-    //        }
-  }
-  loopPrint.close();
-
-  // Isotope scattering
-  if (doIsotopes) {
-    for (auto [iq1, iq2] : qPairIterator) {
-      State states2 = innerBandStructure.getState(iq2);
+      Point q2 = innerBandStructure.getPoint(iq2);
+      State states2 = innerBandStructure.getState(q2);
       Eigen::VectorXd state2Energies = states2.getEnergies();
       int nb2 = state2Energies.size();
-
-      Eigen::Tensor<std::complex<double>, 3> ev2;
-      states2.getEigenvectors(ev2);
 
       // note: for computing linewidths on a path, we must distinguish
       // that q1 and q2 are on different meshes, and that q3+/- may not
       // fall into known meshes and therefore needs to be computed
 
       State states1 = outerBandStructure.getState(iq1);
+      Point q1 = states1.getPoint();
       Eigen::VectorXd state1Energies = states1.getEnergies();
       int nb1 = state1Energies.size();
 
-      Eigen::Tensor<std::complex<double>, 3> ev1;
-      states1.getEigenvectors(ev1);
-
       v1s = states1.getGroupVelocities();
       v2s = states2.getGroupVelocities();
+
+      auto [q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
+            bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+      auto [q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
+            bose3MinsData] = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+
+      DetachedState states3Plus(q3PlusC, state3PlusEnergies, numAtoms, nb3Plus,
+                                eigvecs3Plus);
+      DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms, nb3Mins,
+                                eigvecs3Mins);
+
+      auto [couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
+          states1, states2, states3Plus, states3Mins);
 
       for (long ib1 = 0; ib1 < nb1; ib1++) {
         en1 = state1Energies(ib1);
@@ -516,60 +240,244 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             }
           }
 
-          switch (smearing->getType()) {
-            case (DeltaFunction::gaussian):
-              deltaIso = smearing->getSmearing(en1 - en2);
-              break;
-            case (DeltaFunction::adaptiveGaussian):
-              deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
-              deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
-              deltaIso *= 0.5;
-              break;
-            default:
-              deltaIso = smearing->getSmearing(en2, iq2, ib2);
-              deltaIso += smearing->getSmearing(en1, iq1, ib1);
-              deltaIso *= 0.5;
-              break;
-          }
-
-          termIso = 0.;
-          for (int iat = 0; iat < numAtoms; iat++) {
-            zzIso = complexZero;
-            for (int kdim : {0, 1, 2}) {  // cartesian indices
-              zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
+          // split into two cases since there may be different bands
+          for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
+            en3Plus = state3PlusEnergies(ib3);
+            if (en3Plus < energyCutoff) {
+              continue;
             }
-            termIso += std::norm(zzIso) * massVariance(iat);
+
+            double enProd = en1 * en2 * en3Plus;
+
+            switch (smearing->getType()) {
+              case (DeltaFunction::gaussian):
+                deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
+                break;
+              case (DeltaFunction::adaptiveGaussian):
+                v = v2s.row(ib2) - v3ps.row(ib3);
+                deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
+                break;
+              default:
+                deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
+                break;
+            }
+
+            if (deltaPlus < 0) continue;
+
+            // loop on temperature
+            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+              bose1 = outerBose.data(iCalc, ind1);
+              bose2 = innerBose.data(iCalc, ind2);
+              bose3Plus = bose3PlusData(iCalc, ib3);
+
+              // Calculate transition probability W+
+              ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
+                         couplingPlus(ib1, ib2, ib3) * deltaPlus /
+                         innerNumFullPoints / enProd;
+
+              switch (switchCase) {
+                case (0):
+                  // case of matrix construction
+                  // we build the scattering matrix S
+                  matrix(ind1, ind2) += ratePlus;
+                  linewidth->data(iCalc, ind1) += ratePlus;
+                  break;
+                case (1):
+                  // case of matrix-vector multiplication
+                  // we build the scattering matrix A = S*n(n+1)
+                  for (long i : {0, 1, 2}) {
+                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        ratePlus * inPopulation->data(3 * iCalc + i, ind2);
+                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        ratePlus * inPopulation->data(3 * iCalc + i, ind1);
+                  }
+                  break;
+                case (2):
+                  // case of linewidth construction
+                  linewidth->data(iCalc, ind1) += ratePlus;
+                  break;
+              }
+            }
           }
-          termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
 
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            bose1 = outerBose.data(iCalc, ind1);
-            bose2 = innerBose.data(iCalc, ind2);
+          for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
+            en3Mins = state3MinsEnergies(ib3);
+            if (en3Mins < energyCutoff) {
+              continue;
+            }
 
-            rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+            double enProd = en1 * en2 * en3Mins;
 
-            switch (switchCase) {
-              case (0):
-                // case of matrix construction
-                // we build the scattering matrix S
-                matrix(ind1, ind2) += rateIso;
-                linewidth->data(iCalc, ind1) += rateIso;
+            switch (smearing->getType()) {
+              case (DeltaFunction::gaussian):
+                deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2);
+                deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
                 break;
-              case (1):
-                // case of matrix-vector multiplication
-                // we build the scattering matrix A = S*n(n+1)
-                for (long i : {0, 1, 2}) {
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      rateIso * inPopulation->data(3 * iCalc + i, ind2);
-                  outPopulation->data(3 * iCalc + i, ind1) +=
-                      rateIso * inPopulation->data(3 * iCalc + i, ind1);
-                }
+              case (DeltaFunction::adaptiveGaussian):
+                v = v2s.row(ib2) - v3ms.row(ib3);
+                deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
+                deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
                 break;
-              case (2):
-                // case of linewidth construction
-                // there's still a missing norm done later
-                linewidth->data(iCalc, ind1) += rateIso;
+              default:
+                deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
+                deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
                 break;
+            }
+
+            if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
+            if (deltaMins1 < 0.) deltaMins1 = 0.;
+            if (deltaMins2 < 0.) deltaMins2 = 0.;
+
+            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+              bose1 = outerBose.data(iCalc, ind1);
+              bose2 = innerBose.data(iCalc, ind2);
+              bose3Mins = bose3MinsData(iCalc, ib3);
+
+              // Calculatate transition probability W-
+              rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
+                          couplingMins(ib1, ib2, ib3) * deltaMins1 /
+                          innerNumFullPoints / enProd;
+              rateMins2 = pi * 0.25 * bose2 * bose3Mins * (bose1 + 1.) *
+                          couplingMins(ib1, ib2, ib3) * deltaMins2 /
+                          innerNumFullPoints / enProd;
+
+              switch (switchCase) {
+                case (0):
+                  // case of matrix construction
+                  matrix(ind1, ind2) -= rateMins1 + rateMins2;
+                  linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+                  break;
+                case (1):
+                  // case of matrix-vector multiplication
+                  for (long i : {0, 1, 2}) {
+                    outPopulation->data(3 * iCalc + i, ind1) -=
+                        (rateMins1 + rateMins2) *
+                        inPopulation->data(3 * iCalc + i, ind2);
+                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        0.5 * rateMins2 *
+                        inPopulation->data(3 * iCalc + i, ind1);
+                  }
+                  break;
+                case (2):
+                  // case of linewidth construction
+                  linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+                  break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  loopPrint.close();
+
+  // Isotope scattering
+  if (doIsotopes) {
+    // for (auto [iq1, iq2] : qPairIterator) {
+    for (auto [iq1Indexes, iq2] : qPairIterator) {
+      for (auto iq1 : iq1Indexes) {
+        State states2 = innerBandStructure.getState(iq2);
+        Eigen::VectorXd state2Energies = states2.getEnergies();
+        int nb2 = state2Energies.size();
+
+        Eigen::Tensor<std::complex<double>, 3> ev2;
+        states2.getEigenvectors(ev2);
+
+        // note: for computing linewidths on a path, we must distinguish
+        // that q1 and q2 are on different meshes, and that q3+/- may not
+        // fall into known meshes and therefore needs to be computed
+
+        State states1 = outerBandStructure.getState(iq1);
+        Eigen::VectorXd state1Energies = states1.getEnergies();
+        int nb1 = state1Energies.size();
+
+        Eigen::Tensor<std::complex<double>, 3> ev1;
+        states1.getEigenvectors(ev1);
+
+        v1s = states1.getGroupVelocities();
+        v2s = states2.getGroupVelocities();
+
+        for (long ib1 = 0; ib1 < nb1; ib1++) {
+          en1 = state1Energies(ib1);
+          ind1 =
+              outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
+          if (en1 < energyCutoff) {
+            continue;
+          }
+
+          for (long ib2 = 0; ib2 < nb2; ib2++) {
+            en2 = state2Energies(ib2);
+            ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
+                                               BandIndex(ib2));
+            if (en2 < energyCutoff) {
+              continue;
+            }
+
+            if (switchCase == 0) {
+              // note: above we are parallelizing over wavevectors.
+              // (for convenience of computing coupling3ph)
+              // Not the same way as Matrix() is parallelized.
+              // here we check that we don't duplicate efforts
+              if (!matrix.indecesAreLocal(ind1, ind2)) {
+                continue;
+              }
+            }
+
+            switch (smearing->getType()) {
+              case (DeltaFunction::gaussian):
+                deltaIso = smearing->getSmearing(en1 - en2);
+                break;
+              case (DeltaFunction::adaptiveGaussian):
+                deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
+                deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
+                deltaIso *= 0.5;
+                break;
+              default:
+                deltaIso = smearing->getSmearing(en2, iq2, ib2);
+                deltaIso += smearing->getSmearing(en1, iq1, ib1);
+                deltaIso *= 0.5;
+                break;
+            }
+
+            termIso = 0.;
+            for (int iat = 0; iat < numAtoms; iat++) {
+              zzIso = complexZero;
+              for (int kdim : {0, 1, 2}) {  // cartesian indices
+                zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
+              }
+              termIso += std::norm(zzIso) * massVariance(iat);
+            }
+            termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
+
+            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+              bose1 = outerBose.data(iCalc, ind1);
+              bose2 = innerBose.data(iCalc, ind2);
+
+              rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+
+              switch (switchCase) {
+                case (0):
+                  // case of matrix construction
+                  // we build the scattering matrix S
+                  matrix(ind1, ind2) += rateIso;
+                  linewidth->data(iCalc, ind1) += rateIso;
+                  break;
+                case (1):
+                  // case of matrix-vector multiplication
+                  // we build the scattering matrix A = S*n(n+1)
+                  for (long i : {0, 1, 2}) {
+                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        rateIso * inPopulation->data(3 * iCalc + i, ind2);
+                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        rateIso * inPopulation->data(3 * iCalc + i, ind1);
+                  }
+                  break;
+                case (2):
+                  // case of linewidth construction
+                  // there's still a missing norm done later
+                  linewidth->data(iCalc, ind1) += rateIso;
+                  break;
+              }
             }
           }
         }
