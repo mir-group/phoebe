@@ -219,6 +219,15 @@ Crystal::Crystal(Eigen::Matrix3d& directUnitCell_,
     delete [] positionSPG;
 }
 
+// empty constructor
+Crystal::Crystal() {
+  volumeUnitCell = 0.;
+  numAtoms = 0;
+  numSpecies = 0;
+  dimensionality = 0.;
+  numSymmetries = 0;
+}
+
 // copy constructor
 Crystal::Crystal(const Crystal &obj) {
     directUnitCell = obj.directUnitCell;

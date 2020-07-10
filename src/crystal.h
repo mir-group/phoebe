@@ -77,6 +77,10 @@ public:
             std::vector<std::string> &speciesNames_,
             Eigen::VectorXd &speciesMasses_, long &dimensionality_);
 
+    /** Empty constructor.
+     */
+    Crystal();
+
     /** Copy constructor
      */
     Crystal(const Crystal &obj);
