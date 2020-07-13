@@ -516,7 +516,7 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "fermiLevel") {
-        fermiLevel = parseDouble(val) / energyRyToEv;  // to Ry
+          fermiLevel = parseDoubleWithUnits(val);
       }
 
       if (parameterName == "hasSpinOrbit") {
