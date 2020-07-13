@@ -364,10 +364,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       }
     }
     // to be replaced/deleted
-/*    for (int iiq1 = 0; iiq1 < nq1; iiq1++) {
-      printf("1 %g %g %g %g %g\n", q1coords[iiq1](0), q1coords[iiq1](1),
-             q1coords[iiq1](2), ev1s[iiq1](3, 2).real(),
-             ev1s[iiq1](3, 2).imag());
+    /*
+    for (int iiq1 = 0; iiq1 < nq1; iiq1++) {
       auto tup3 = coupling3Ph->getCouplingSquared(
           q1coords[iiq1], q2coord, ev1s[iiq1], ev2, ev3ps[iiq1], ev3ms[iiq1]);
       auto cp = std::get<0>(tup3);

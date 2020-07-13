@@ -1,0 +1,12 @@
+appName = "phononTransport"
+phD2FileName = "sic.fc",
+sumRuleD2 = "simple"
+phD3FileName = "FORCE_CONSTANTS_3RD"
+qMesh = [4,4,4]
+temperatures = [300.]
+smearingMethod = "gaussian"
+smearingWidth = 10. cmm1
+solverBTE = ["variational"]
+scatteringMatrixInMemory = true
+boundaryLength = 0.01 mum
+windowType = "population"

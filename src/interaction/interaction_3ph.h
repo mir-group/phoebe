@@ -55,6 +55,7 @@ private:
   typedef std::chrono::steady_clock::duration time_delta;
 
   std::vector<time_delta> dts;
+  std::vector<time_delta> newdts;
   double tosec(time_delta dt) {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(dt).count() /
            1e9;
@@ -70,13 +71,14 @@ public:
   Interaction3Ph &operator=(const Interaction3Ph &that); // assignment op
 
   std::tuple<std::vector<Eigen::Tensor<double, 3>>,
-  std::vector<Eigen::Tensor<double, 3>>>
-   getCouplingsSquared(
-      std::vector<Eigen::Vector3d> q1s_e, Eigen::Vector3d q2_e,
-      std::vector<Eigen::MatrixXcd> ev1s_e, Eigen::MatrixXcd ev2_e,
-      std::vector<Eigen::MatrixXcd> ev3Pluss_e,
-      std::vector<Eigen::MatrixXcd> ev3Minss_e, std::vector<int> nb1s_e,
-      int nb2, std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e);
+             std::vector<Eigen::Tensor<double, 3>>>
+  getCouplingsSquared(std::vector<Eigen::Vector3d> q1s_e, Eigen::Vector3d q2_e,
+                      std::vector<Eigen::MatrixXcd> ev1s_e,
+                      Eigen::MatrixXcd ev2_e,
+                      std::vector<Eigen::MatrixXcd> ev3Pluss_e,
+                      std::vector<Eigen::MatrixXcd> ev3Minss_e,
+                      std::vector<int> nb1s_e, int nb2,
+                      std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e);
 
   // this is an interface: we can compute it on the fly or read the cache.
   std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
@@ -85,18 +87,25 @@ public:
                      Eigen::MatrixXcd &ev3Plus_e, Eigen::MatrixXcd &ev3Mins_e);
 
   ~Interaction3Ph() {
-    std::cout << "calcCouplingSquared timing breakdown:"
-              << "\n";
-    std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
-    std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
-    std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
-    std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
-    std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
-    std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
-    std::cout << "vp loop: " << tosec(dts[6]) << "\n";
-    std::cout << "vm loop: " << tosec(dts[7]) << "\n";
-    std::cout << "cp loop: " << tosec(dts[8]) << "\n";
-    std::cout << "cm loop: " << tosec(dts[9]) << "\n";
+    /*    std::cout << "calcCouplingSquared timing breakdown:"
+                  << "\n";
+        std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
+        std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
+        std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
+        std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
+        std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
+        std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
+        std::cout << "vp loop: " << tosec(dts[6]) << "\n";
+        std::cout << "vm loop: " << tosec(dts[7]) << "\n";
+        std::cout << "cp loop: " << tosec(dts[8]) << "\n";
+        std::cout << "cm loop: " << tosec(dts[9]) << "\n";*/
+    std::cout << "old kernel: "
+              << tosec(dts[0]) + tosec(dts[1]) + tosec(dts[2]) + tosec(dts[3]) +
+                     tosec(dts[4]) + tosec(dts[5]) + tosec(dts[6]) +
+                     tosec(dts[7]) + tosec(dts[8])+ tosec(dts[9])
+              << std::endl;
+    std::cout << "new kernel: "
+    << tosec(newdts[0] + newdts[1] + newdts[2]) << std::endl;
   }
 
   /**
