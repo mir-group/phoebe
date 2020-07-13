@@ -44,9 +44,9 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
     }
     
     auto hasSpinOrbit = context.getHasSpinOrbit();
-    int spinOrbit = 2;
+    int spinFactor = 2;
     if (hasSpinOrbit)
-        spinOrbit = 1;
+        spinFactor = 1;
     
     auto particle = fullBandStructure.getParticle();
     
@@ -56,42 +56,34 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
     long numPoints = fullBandStructure.getNumPoints();
     long numCalcs = statisticsSweep.getNumCalcs();
     
-    std::cout << "Start calculating electronic density of states... " << std::endl;
+    std::cout << std::endl;
+    std::cout << "Calculate electronic density of states. " << std::endl;
     TetrahedronDeltaFunction tetrahedra(fullBandStructure);
     
     double fermiLevel = context.getFermiLevel();
-    std::cout << "Fermi level: " << fermiLevel << std::endl;
     double energyRange = context.getEnergyRange();
-    std::cout << "Energy range: " << energyRange << std::endl;
     double minEnergy = fermiLevel - energyRange;
-    std::cout << "Min energy: " << minEnergy << std::endl;
     double maxEnergy = fermiLevel + energyRange;
-    std::cout << "Max energy: " << maxEnergy << std::endl;
     double energyStep = context.getEnergyStep();
-    std::cout << "Energy step: " << energyStep << std::endl;
+
     //in principle, we should add 1 to account for ends of energy interval
     //i will not do that, because will work with the centers of energy steps
     long numEnergies = (long) (maxEnergy-minEnergy)/energyStep;
-    std::cout << "numEnergies: " << numEnergies << std::endl;
     
     //energies at the centers of energy steps
     Eigen::VectorXd energies(numEnergies);
     
-    std::cout << "Energies: " << std::endl;
     for ( long i=0; i != numEnergies; ++i ) {
         //add 0.5 to be in the middle of the energy step
         energies(i) = (i + 0.5) * energyStep + minEnergy;
-        std::cout << energies(i) << std::endl;
     }
     
     Eigen::VectorXd dos(numEnergies); // DOS initialized to zero
     dos.setZero();
     
-    std::cout << "DOS: " << std::endl;
     //calculate the density of states at the energies in energies vector
     for ( long i=0; i != numEnergies; ++i ) {
         dos(i) += tetrahedra.getDOS(energies(i));
-        std::cout << dos(i) << std::endl;
     }
     
     // Write DOS to the file
@@ -104,19 +96,13 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
         << dos[i]/energyRyToEv << "\n";
     }
     outfile.close();
-    std::cout << "Electronic DoS is computed" << std::endl;
+    std::cout << "DOS is calculated and written to electron_dos.dat" << std::endl;
     
     //get vector containing averaged phonon frequencies per mode
-    
-    std::cout << "Start reading EPA data..." << std::endl;
-    
     InteractionEpa couplingEpa = EpaParser::parseAvCouplings(context);
     
     Eigen::VectorXd phFreqAverage = couplingEpa.getPhFreqAverage();
     int numPhFreq = phFreqAverage.size();
-    std::cout << "numPhFreq: " << numPhFreq << std::endl;
-    
-    std::cout << phFreqAverage.size() << std::endl;
     
     //phJump - contains the values of phFreqAverage/energyStep
     //defines in which step of electron energy grid the electron energy will go
@@ -125,10 +111,7 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
     
     for ( auto i = 0; i != phFreqAverage.size(); ++i) {
         phJump(i) = phFreqAverage(i)/energyStep;
-        std::cout << phJump(i) << " ";
     }
-    
-    std::cout << std::endl;
     
     int numBandGroups = couplingEpa.getNumBandGroups();
     Eigen::VectorXd extrema = couplingEpa.getBandExtrema();
@@ -137,23 +120,17 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
     Eigen::Tensor<double,4> elPhMatElements = couplingEpa.getElPhMatAverage();
     Eigen::VectorXd binSize = couplingEpa.getBinSize();
     
-    std::cout << "... done." << std::endl;
-    
-    std::cout << "Compute EPA scattering rates... " << std::endl;
-    
     BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
+    LoopPrint loopPrint("to calculate EPA scattering rates", "pairs of temperatures and chemical potentials" , numCalcs);
     
     //loop over temperatures and chemical potentials
     for ( long iCalc = 0; iCalc != numCalcs; ++iCalc ) {
+        loopPrint.update();
         double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
         double chemPotential = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-        std::cout << "Temperature from iCalc: " << temperature << std::endl;
-        std::cout << "Chemical potential from iCalc: " << chemPotential << std::endl;
         
         //loop over energies
         for ( long iEnergy = 0; iEnergy != numEnergies; ++iEnergy ) {
-            
-            std::cout << "iEnergy: " << iEnergy << std::endl;
             
             double scatRateTemp = 0.0;
             
@@ -174,10 +151,8 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
                     double nFermiEmission = particle.getPopulation(energies[iEnergy] - phFreqAverage(iPhFreq),temperature,chemPotential);
                     
                     int iJump = (int) phJump(iPhFreq);
-                    std::cout << "iJump: " << iJump << std::endl;
                     
                     double iInterp = phJump(iPhFreq) - (double) iJump;
-                    std::cout << "iInterp: " << std::endl;
                     
                     double dosAbsorption = 0;
                     double dosEmission = 0;
@@ -194,18 +169,11 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
                         iBandGroup = 1;
                     }
                     
-                    std::cout << "iBandGroup: " << iBandGroup << std::endl;
-                    
                     double iBinPos = (energies(iEnergy) - extrema(iBandGroup))/binSize(iBandGroup);
-                    
-                    std::cout << "iBinPos: " << iBinPos;
-                    
                     
                     iBinPos = std::max(iBinPos,1.0e-12);
                     iBinPos = std::min(iBinPos,numBins(iBandGroup) - 1.0e-12);
                     int intBinPos = (int) iBinPos;
-                    
-                    std::cout << "iBinPos after treatment: " << iBinPos << std::endl;
                     
                     double elPhAbsorption = 0;
                     double elPhEmission = 0;
@@ -227,14 +195,14 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
                     iAbs = std::max(iAbs,1.0e-12);
                     iAbs = std::min(iAbs,numBins(iBandGroup) - 1.0e-12);
                     int iAbsInt = (int) iAbs;
-                    
+                        
                     gAbsorption = elPhAvTemp(iAbsInt);
                     
                     double iEmis = (energies[iEnergy] - phFreqAverage(iPhFreq) - extrema(iBandGroup)) / binSize(iBandGroup);
                     iEmis = std::max(iAbs,1.0e-12);
                     iEmis = std::min(iAbs,numBins(iBandGroup) - 1.0e-12);
                     int iEmisInt = (int) iEmisInt;
-                    
+                        
                     gEmission = elPhAvTemp(iEmisInt);
                         
                     }
@@ -242,11 +210,11 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
                     scatRateTemp += gAbsorption * (nBose + nFermiAbsorption) * dosAbsorption + gEmission * (nBose + 1 -nFermiEmission) * dosEmission;
                     
                 }
-                epaRate.data(iCalc,iEnergy) = scatRateTemp*rydbergSi*twoPi/spinOrbit/hBarSi; //in 1/second
+                epaRate.data(iCalc,iEnergy) = scatRateTemp*rydbergSi*twoPi/spinFactor/hBarSi; //in 1/second
             }
         }
     }
-    
+    loopPrint.close();
     return epaRate;
 }
 
