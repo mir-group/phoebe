@@ -22,8 +22,6 @@ InteractionEpa EpaParser::parseAvCouplings (Context & context) {
         Error e("epa.e file is not found", 1);
     }
     
-    std::cout << "Reading " << fileName << " file" << std::endl;
-    
     //Start reading infile
     std::string line;
     std::getline(infile, line);
@@ -117,8 +115,6 @@ InteractionEpa EpaParser::parseAvCouplings (Context & context) {
     
     InteractionEpa interactionEpa(numBandGroups,bandExtrema,binSize,numBins,phFreqAverage,elPhMatAverage);
     return interactionEpa;
-    
-    std::cout << "... done" << std::endl;
     
 }
 
