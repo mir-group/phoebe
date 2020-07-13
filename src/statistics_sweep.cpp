@@ -32,7 +32,6 @@ StatisticsSweep::StatisticsSweep(Context &context,
       minTemperature += deltaTemperature;
       ++i;
     }
-
     nTemp = temperatures.size();
   }
 
@@ -280,9 +279,9 @@ double StatisticsSweep::findDopingFromChemicalPotential(
   for (long i = 0; i < numStates; i++) {
     fPop += particle.getPopulation(energies(i), temperature, chemicalPotential);
   }
-  fPop *= spinFactor / numPoints;
+  fPop /= numPoints;
   double doping = (occupiedStates - fPop);
-  doping *= 1. / volume / pow(distanceBohrToCm, 3);
+  doping *= spinFactor / volume / pow(distanceBohrToCm, 3);
   return doping;
 }
 
