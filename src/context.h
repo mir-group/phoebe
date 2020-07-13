@@ -33,7 +33,8 @@ class Context {
   double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::VectorXd dopings;
-  Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
+//  Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
+  Eigen::VectorXd chemicalPotentials;
   double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::Vector3i qMesh;
