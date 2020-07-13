@@ -1,12 +1,12 @@
 #include "interaction_epa.h"
 
 //default constructor
-InteractionEpa::InteractionEpa(int & numBandGroups,
+InteractionEpa::InteractionEpa(int & numBandGroups_,
                                Eigen::VectorXd & bandExtrema_,
                                Eigen::VectorXd & binSize_,
                                Eigen::VectorXi & numBins_,
                                Eigen::VectorXd & phFreqAverage_,
-                               Eigen::Tensor<double,4> & elPhMatAverage_) : bandExtrema(bandExtrema_), binSize(binSize_), numBins(numBins_), phFreqAverage(phFreqAverage_), elPhMatAverage(elPhMatAverage_) {
+                               Eigen::Tensor<double,4> & elPhMatAverage_) : numBandGroups(numBandGroups_), bandExtrema(bandExtrema_), binSize(binSize_), numBins(numBins_), phFreqAverage(phFreqAverage_), elPhMatAverage(elPhMatAverage_) {
     
 }
 
