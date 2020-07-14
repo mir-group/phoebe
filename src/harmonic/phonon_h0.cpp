@@ -797,7 +797,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
   }
 
   if (mpi->mpiHead()) {
-    std::cout << "Start imposing " << sumRule << " acoustic sum rule.\n";
+    std::cout << "Start imposing " << sumRule << " acoustic sum rule." 
+	      << std::endl;
   }
 
   if (sr == "simple") {
@@ -1345,7 +1346,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     forceConstants = frc_new;
   }
   if (mpi->mpiHead()) {
-    std::cout << "Finished imposing " << sumRule << " acoustic sum rule.\n";
+    std::cout << "Finished imposing " << sumRule << " acoustic sum rule." 
+	      << std::endl;
   }
 }
 
