@@ -33,8 +33,14 @@ void PhononTransportApp::run(Context &context) {
   //	// set the chemical potentials to zero, load temperatures
   //	StatisticsSweep statisticsSweep(context);
 
+  if ( mpi->mpiHead()) {
+    std::cout << "\n" << "Constructing the band structure" << std::endl;
+  }
   auto [bandStructure, statisticsSweep] =
       ActiveBandStructure::builder(context, phononH0, fullPoints);
+  if ( mpi->mpiHead()) {
+    std::cout << "Done!\n" << std::endl;
+  }
 
   // load the 3phonon coupling
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
