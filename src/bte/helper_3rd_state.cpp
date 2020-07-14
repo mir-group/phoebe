@@ -39,10 +39,10 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
         innerBandStructure.getPoints().getCrystal(), mesh, offset);
 
     // now, we loop over the pairs of wavevectors
-    std::set<long> listOfIndexes;
-    long numPoints = innerPoints.getNumPoints();
-    for (long iq2 = 0; iq2 < numPoints; iq2++) {
-      for (long iq1 = 0; iq1 < numPoints; iq1++) {
+    std::set<int> listOfIndexes;
+    int numPoints = innerPoints.getNumPoints();
+    for (int iq2 : mpi->divideWorkIter(numPoints)) {
+      for (int iq1 = 0; iq1 < numPoints; iq1++) {
         Eigen::Vector3d q1Coords =
             innerPoints.getPointCoords(iq1, Points::crystalCoords);
         Eigen::Vector3d q2Coords =
@@ -51,18 +51,47 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
         Eigen::Vector3d q3PlusCoords = q1Coords + q2Coords;
         Eigen::Vector3d q3MinsCoords = q1Coords - q2Coords;
 
-        long iq3Plus = fullPoints3->getIndex(q3PlusCoords);
-        long iq3Mins = fullPoints3->getIndex(q3MinsCoords);
+        int iq3Plus = fullPoints3->getIndex(q3PlusCoords);
+        int iq3Mins = fullPoints3->getIndex(q3MinsCoords);
 
         listOfIndexes.insert(iq3Plus);
         listOfIndexes.insert(iq3Mins);
       }
     }
 
+    std::vector<int> localCounts(mpi->getSize(), 0);
+    localCounts[mpi->getRank()] = listOfIndexes.size();
+    mpi->allReduceSum(&localCounts);
+    int totalCounts = 0;
+    for ( int iRank=0; iRank<mpi->getSize(); iRank++ ) {
+      totalCounts += localCounts[iRank];
+    }
+
+    // these are the offset to be used for MPI gather
+    std::vector<int> displacements(mpi->getSize(),0);
+    for (int i = 1; i < mpi->getSize(); i++) {
+      displacements[i] = displacements[i - 1] + localCounts[i-1];
+    }
+
+    std::vector<int> globalListOfIndexes(totalCounts,0);
+    int i=0;
+    for (auto it : listOfIndexes) {
+      int index = i + displacements[mpi->getRank()];
+      i++; // after computing index!
+      globalListOfIndexes[index] = it;
+    }
+    mpi->allReduceSum(&globalListOfIndexes);
+
+    // now we must avoid duplicates between different MPI processes
+    std::set<int> setOfIndexes;
+    for ( auto x : globalListOfIndexes ) {
+      setOfIndexes.insert(x);
+    }
+
     // create the filtered list of points
-    Eigen::VectorXi filter(listOfIndexes.size());
-    int i = 0;
-    for (long iq : listOfIndexes) {
+    Eigen::VectorXi filter(setOfIndexes.size());
+    i = 0;
+    for (long iq : setOfIndexes) {
       filter(i) = iq;
       i++;
     }
