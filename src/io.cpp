@@ -31,10 +31,22 @@ IO::IO(int argc, char *argv[]) {
   // redirect std::cout to outputFilename, if passed on command line
   if (outputFileName_ != nullptr) {
     outputFileName = outputFileName_;
-    outputFile.open(outputFileName);
-    std::streambuf *coutbuf = std::cout.rdbuf(); // save old buf
-    (void)coutbuf;                       // suppress unused variable error
-    std::cout.rdbuf(outputFile.rdbuf()); // redirect std::cout to outputFile
+    outputFile.open(outputFileName, std::ios::out);
+
+    // Backup streambuffers of  cout
+    std::streambuf* stream_buffer_cout = std::cout.rdbuf();
+
+    // Get the streambuffer of the file
+    std::streambuf* stream_buffer_file = outputFile.rdbuf();
+
+    // Redirect cout to file
+    std::cout.rdbuf(stream_buffer_file);
+
+    // Redirect cout back to screen
+    std::cout.rdbuf(stream_buffer_cout);
+
+    // causes buffer to flush at every call of <<
+    std::cout.setf( std::ios_base::unitbuf );
   }
 };
 
@@ -58,9 +70,8 @@ void IO::welcome() {
       "  8888888P'  888 '88b d88''88b d8P  Y8b 888 '88b d8P  Y8b \n"
       "  888        888  888 888  888 88888888 888  888 88888888 \n"
       "  888        888  888 Y88..88P Y8b.     888 d88P Y8b.     \n"
-      "  888        888  888  'Y88P'   'Y8888  88888P'   'Y8888' \n"
-      "\n";
-  std::cout << welcomeMsg;
+      "  888        888  888  'Y88P'   'Y8888  88888P'   'Y8888' \n";
+  std::cout << welcomeMsg << std::endl;
 }
 
 void IO::goodbye() {
