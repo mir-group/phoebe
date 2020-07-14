@@ -52,7 +52,8 @@ void PhononTransportApp::run(Context &context) {
     std::cout << "\n";
     std::cout << std::string(80, '-') << "\n";
     std::cout << "\n";
-    std::cout << "Solving BTE within the relaxation time approximation.\n";
+    std::cout << "Solving BTE within the relaxation time approximation."
+              << std::endl;
   }
 
   // compute the phonon populations in the relaxation time approximation.
@@ -122,7 +123,7 @@ void PhononTransportApp::run(Context &context) {
 
     if ( mpi->mpiHead()) {
       std::cout << "Starting Omini Sparavigna BTE solver\n";
-      std::cout << "\n";
+      std::cout << std::endl;
     }
 
     // initialize the (old) thermal conductivity
@@ -165,14 +166,14 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Finished Omini Sparavigna BTE solver\n";
       std::cout << "\n";
       std::cout << std::string(80, '-') << "\n";
-      std::cout << "\n";
+      std::cout << std::endl;
     }
   }
 
   if (doVariational) {
     if ( mpi->mpiHead()) {
       std::cout << "Starting variational BTE solver\n";
-      std::cout << "\n";
+      std::cout << std::endl;
     }
 
     // note: each iteration should take approximately twice as long as
@@ -252,13 +253,13 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Finished variational BTE solver\n";
       std::cout << "\n";
       std::cout << std::string(80, '-') << "\n";
-      std::cout << "\n";
+      std::cout << std::endl;
     }
   }
 
   if (doRelaxons) {
     if ( mpi->mpiHead()) {
-      std::cout << "Starting relaxons BTE solver\n";
+      std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     scatteringMatrix.a2Omega();
     auto [eigenvalues, eigenvectors] = scatteringMatrix.diagonalize();
@@ -297,7 +298,7 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Finished relaxons BTE solver\n";
       std::cout << "\n";
       std::cout << std::string(80, '-') << "\n";
-      std::cout << "\n";
+      std::cout << std::endl;
     }
   }
   mpi->barrier();

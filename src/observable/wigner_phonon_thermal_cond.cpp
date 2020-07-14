@@ -154,6 +154,6 @@ void WignerPhononThermalConductivity::print() {
       }
       std::cout << "\n";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
   }
 }

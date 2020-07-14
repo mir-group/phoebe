@@ -165,8 +165,7 @@ void LoopPrint::close() {
   currentTime = std::chrono::steady_clock::now();
   std::cout << "Elapsed time: " << std::setprecision(3)
             << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                   currentTime - initialTime)
-                       .count() /
-                   1e9
-            << " s.\n";
+                currentTime - initialTime)
+                .count() / 1e9
+            << " s." << std::endl;
 }
