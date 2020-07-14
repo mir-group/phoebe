@@ -135,25 +135,27 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   // precompute Bose populations
   VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
-  for (long is = 0; is < outerBandStructure.getNumStates(); is++) {
+  for (long is : mpi->divideWorkIter(outerBandStructure.getNumStates())) {
     double energy = outerBandStructure.getEnergy(is);
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
       outerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
     }
   }
+  mpi->allReduceSum(&outerBose.data);
   VectorBTE innerBose(statisticsSweep, outerBandStructure, 1);
   if (&innerBandStructure == &outerBandStructure) {
     innerBose = outerBose;
   } else {
-    for (long is = 0; is < innerBandStructure.getNumStates(); is++) {
+    for (long is : mpi->divideWorkIter(innerBandStructure.getNumStates())) {
       double energy = innerBandStructure.getEnergy(is);
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
-        outerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
+        innerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
       }
     }
+    mpi->allReduceSum(&innerBose.data);
   }
 
   // note: these variables are only needed in the loop
@@ -169,7 +171,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // isotopic scattering:
   std::complex<double> zzIso;
   double termIso, rateIso, deltaIso;
-
   std::vector<std::tuple<std::vector<long>, long>> qPairIterator =
       getIteratorWavevectorPairs(switchCase);
 
