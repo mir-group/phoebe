@@ -1,5 +1,3 @@
-#include <iostream>
-#include <fstream>
 #include "transport_epa_app.h"
 #include "qe_input_parser.h"
 #include "context.h"
@@ -12,25 +10,20 @@
 #include "interaction_epa.h"
 #include "particle.h"
 #include "bandstructure.h"
+#include "delta_function.h"
 #include "statistics_sweep.h"
 #include "epa_scattering.h"
 #include "vector_bte.h"
 #include "crystal.h"
-#include <cmath>
-#include <string>
+#include "utilities.h"
+#include "onsager.h"
 
 void TransportEpaApp::run(Context & context) {
-    
-    std::cout << "Setup EPA transport calculation" << std::endl;
 
     double fermiLevel = context.getFermiLevel();
     if ( std::isnan(fermiLevel) ) {
 	Error e("Fermi energy must be provided for EPA calculation");
 }
-    std::cout << "Fermi level: " << fermiLevel <<std::endl;
-    
-    
-    std::cout << "Point 1 reached" << std::endl;
     // Read necessary input: xml file of QE.
     //name of xml file should be provided in the input
     //electronFourierCutoff should be provided in the input (should it be the same as encut in DFT?)
@@ -41,102 +34,82 @@ void TransportEpaApp::run(Context & context) {
     
     auto [crystal, electronH0] = QEParser::parseElHarmonicFourier(context);
     
-    std::cout << "Point 2 reached" << std::endl;
-    
     //Read and setup k-point mesh for interpolating bandstructure
     FullPoints fullPoints(crystal, context.getKMesh());
     bool withVelocities = true;
     bool withEigenvectors = true;
+    
+    //Fourier interpolation of the electronic band structure
     FullBandStructure bandStructure = electronH0.populate(fullPoints, withVelocities, withEigenvectors);
     
-    std::cout << "Point 3 reached" << std::endl;
+    long numBands = bandStructure.getNumBands(); // number of bands
+    long numStates = bandStructure.getNumStates(); // numBands*numPoints
+    long numPoints = bandStructure.getNumPoints(true); //number of k-points in fine mesh
+    Particle particle = bandStructure.getParticle();
     
-    auto a = bandStructure.getNumBands(); // number of bands
-    auto b = bandStructure.getNumStates(); // numBands*numPoints
-    auto c = bandStructure.getNumPoints(); //number of k-points in fine mesh
-    std::cout << "number of bands: " << a << std::endl;
-    std::cout << "number of states: " << b << std::endl;
-    std::cout << "number of points: " << c << std::endl;
+    //calculate electronic band structure and energy projected velocity tensor
     
-   
-        
-    // set the chemical potentials to zero, load temperatures
+    
+    // set temperatures, chemical potentials and carrier concentrations
     StatisticsSweep statisticsSweep(context, & bandStructure);
     
-    BaseVectorBTE scatteringRates = EpaScattering::setup(context, statisticsSweep, bandStructure);
+    int dimensionality = crystal.getDimensionality();
     
-    // build/initialize the scattering matrix and the smearing
-//    PhScatteringMatrix scatteringMatrix(context, statisticsSweep,
-                                  //      bandStructure, bandStructure, &coupling3Ph);
-//    scatteringMatrix.setup();
+    double energyRange = context.getEnergyRange();
+    double minEnergy = fermiLevel - energyRange;
+    double maxEnergy = fermiLevel + energyRange;
+    double energyStep = context.getEnergyStep();
     
-    // solve the BTE at the relaxation time approximation level
-    // we always do this, as it's the cheapest solver and is required to know
-    // the diagonal for the exact method.
+    //in principle, we should add 1 to account for ends of energy interval
+    //i will not do that, because will work with the centers of energy steps
+    long numEnergies = (long) (maxEnergy-minEnergy)/energyStep;
+    std::cout << "Num energies: " << numEnergies << std::endl;
     
-//    std::cout << "\n";
-//    std::cout << std::string(80, '-') << "\n";
-//    std::cout << "\n";
-//    std::cout << "Solving BTE within the relaxation time approximation.\n";
+    //energies at the centers of energy steps
+    Eigen::VectorXd energies(numEnergies);
     
-    // compute the phonon populations in the relaxation time approximation.
-    // Note: this is the total phonon population n (n != f(1+f) Delta n)
+    for ( long i=0; i != numEnergies; ++i ) {
+        //add 0.5 to be in the middle of the energy step
+        energies(i) = (i + 0.5) * energyStep + minEnergy;
+    }
     
- //   auto dimensionality = context.getDimensionality();
- //   BulkTDrift drift(statisticsSweep, bandStructure, dimensionality);
- //   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
- //   VectorBTE popRTA = drift * phononRelTimes;
+    //Calculate EPA scattering rates
+    BaseVectorBTE scatteringRates = EpaScattering::setup(context, statisticsSweep, bandStructure, energies);
     
-    // compute the thermal conductivity
-   // PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
- //   phTCond.calcFromPopulation(popRTA);
-//    phTCond.print();
+    Eigen::Tensor<double, 3>  energyProjVelocity(dimensionality, dimensionality, numEnergies);
+    energyProjVelocity.setZero();
     
+    TetrahedronDeltaFunction tetrahedra(bandStructure);
     
-    
-    
-  //  InteractionEpa interactionEpa = EpaParser::parseAvCouplings(context);
-    
-  //  Eigen::VectorXd phFreqAverage = interactionEpa.getPhFreqAverage();
-    
-//    for (auto x : phFreqAverage) {
- //       std::cout << x << " ";
- //   }
-    
-//    std::cout << std::endl;
-    
-    //If spin-orbit coupling is included, each band has the weight of 1, but we have 2 times more
-    //bands. If there is no spin-orbit coupling, the weight of each band is 2. No spin-orbit
-    //coupling  by default
-    
-//    auto hasSpinOrbit = context.getHasSpinOrbit();
-//    int spinOrbit = 2;
-//    if (hasSpinOrbit)
- //       spinOrbit = 1;
+    std::cout << "Start calculating energy projected velocity tensor" << std::endl;
+    for ( long iEnergy = 0; iEnergy != numEnergies; ++iEnergy ) {
+        for ( long iState = 0; iState != numStates; ++iState ) {
+                    
+            auto [ikC, ibC] = bandStructure.getIndex(iState);
+            int ik = ikC.get();
+            int ib = ibC.get();
+            
+            Eigen::Vector3d velocity = bandStructure.getGroupVelocity(iState);
+            double deltaFunction = tetrahedra.getSmearing(energies(iEnergy), ik, ib);
+                    
+            for ( int iBeta = 0; iBeta != dimensionality; ++iBeta ) {
+                for ( int iAlpha = 0; iAlpha != dimensionality; ++iAlpha) {
 
- //   std::cout << "spinOrbit=" << spinOrbit << std::endl;
-
-    //add CRT option?
-    //scissor shift?
+                    energyProjVelocity(iAlpha,iBeta,iEnergy) += velocity(iAlpha)*velocity(iBeta)*deltaFunction/numPoints;
+                }
+            }
+        }
+    }
     
-  //  auto [crystal, electronH0] = parser.parseElHarmonicFourier(context);
+    std::cout << "\n";
+    std::cout << std::string(80, '-') << "\n";
+    std::cout << "\n";
     
-    std::cout << "Starting EPA transport calculation" << std::endl;
-
-
-    //If spin-orbit coupling is included, each band has the weight of 1, but we have 2 times more
-    //bands. If there is no spin-orbit coupling, the weight of each band is 2
-    //if (hasSpinOrbit)
-    //    spinOrbit = 1;
-    //else
-      //  spinOrbit = 2;
+    OnsagerCoefficients EpaData(statisticsSweep, crystal, bandStructure, context);
     
-    //Read EPA input
+    EpaData.calcFromEPA(scatteringRates, energyProjVelocity, energies, energyStep, particle);
     
-//    int numBandGroups, numPhFreq;
- //   Eigen::VectorXd bandExtrema(numBandGroups), binSize(numBandGroups);
-    
- //   EpaParser::parseAvCouplings(context);
+    EpaData.calcTransportCoefficients();
     
     
     std::cout << "EPA transport calculation is finished" << std::endl;
