@@ -4,6 +4,8 @@
 
 #include "constants.h"
 #include "mpiHelper.h"
+#include "io.h"
+#include "particle.h"
 
 OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
                                          Crystal &crystal_,
@@ -69,7 +71,57 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
-void OnsagerCoefficients::calcFromEPA() {}
+void OnsagerCoefficients::calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle) {
+    
+    double factor = spinFactor/pow(twoPi,3)/(crystal.getVolumeUnitCell(dimensionality));
+    
+    double LEEtoSi = pow(electronSi,2)*pow(velocityRyToSi,2)*hBarSi/temperatureAuToSi/kBoltzmannSi/pow(bohrRadiusSi,3)/rydbergSi;
+    
+    double LETtoSi = electronSi*pow(velocityRyToSi,2)*hBarSi/pow(temperatureAuToSi,2)/kBoltzmannSi/pow(bohrRadiusSi,3);
+    
+    double LTEtoSi = electronSi*pow(velocityRyToSi,2)*hBarSi/temperatureAuToSi/kBoltzmannSi/pow(bohrRadiusSi,3);
+    
+    double LTTtoSi = pow(velocityRyToSi,2)*hBarSi*rydbergSi/pow(temperatureAuToSi,2)/kBoltzmannSi/pow(bohrRadiusSi,3);
+    
+    LEE.setZero();
+    LET.setZero();
+    LTE.setZero();
+    LTT.setZero();
+    
+    LoopPrint loopPrint("to calculate electronic transport properties", "pairs of temperatures and chemical potentials" , numCalcs);
+    
+    for (long iCalc = 0; iCalc != numCalcs; ++iCalc) {
+        
+        int numChemPots = statisticsSweep.getNumChemicalPotentials();
+        int numTemps = statisticsSweep.getNumTemperatures();
+        auto [imu, it] = decompress2Indeces(iCalc, numChemPots, numTemps);
+            
+        double chemicalPotential =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+        double temperature =
+        statisticsSweep.getCalcStatistics(iCalc).temperature;
+        
+        for ( long iEnergy = 0; iEnergy != energies.size(); ++iEnergy ) {
+        double en = energies(iEnergy) - chemicalPotential;
+            
+            for (long iBeta = 0; iBeta != dimensionality; ++iBeta) {
+                for (long iAlpha = 0; iAlpha != dimensionality; ++iAlpha) {
+                    
+                    double transportDistFunc = energyProjVelocity(iAlpha,iBeta,iEnergy)*(1/scatteringRates.data(iCalc,iEnergy));
+                    
+                    LEE(iCalc, iAlpha, iBeta) += -LEEtoSi*factor*transportDistFunc*particle.getDnde(energies(iEnergy),it,imu)*energyStep; //in Siemens/meter (Coulomb^2*sec/kg/meter^3)
+                    
+                    LET(iCalc, iAlpha, iBeta) += -LETtoSi*factor*transportDistFunc*particle.getDndt(energies(iEnergy),it,imu)*energyStep; //in Coulomb/sec/meter/Kelvin
+                    
+                    LTE(iCalc,iAlpha,iBeta) += -LTEtoSi*factor*transportDistFunc*particle.getDnde(energies(iEnergy),it,imu)*en*energyStep; //in Coulomb/meter/sec
+                    
+                    LTT(iCalc, iAlpha, iBeta) +=  LTTtoSi*factor*transportDistFunc*particle.getDndt(energies(iEnergy),it,imu)*en*energyStep; //in Joule/sec/Kelvin/meter
+                }
+            }
+        }
+    }
+    loopPrint.close();
+}
 
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   double norm = spinFactor / bandStructure.getNumPoints(true) /

@@ -46,7 +46,7 @@ class OnsagerCoefficients {
 
   void calcTransportCoefficients();
 
-  void calcFromEPA();
+  void calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle);
 
  protected:
   StatisticsSweep &statisticsSweep;
