@@ -10,14 +10,15 @@
 #include "epa_parser.h"
 #include "bandstructure.h"
 
+
 EpaScattering::EpaScattering(Context & context_, StatisticsSweep & statisticsSweep_,
-                             FullBandStructure & fullBandStructure_): context(context_), statisticsSweep(statisticsSweep_), fullBandStructure(fullBandStructure_) {
+                             FullBandStructure & fullBandStructure_, Eigen::VectorXd & energies_): context(context_), statisticsSweep(statisticsSweep_), fullBandStructure(fullBandStructure_), energies(energies_) {
 }
 
 EpaScattering::~EpaScattering(){
 }
 
-EpaScattering::EpaScattering(const EpaScattering &that) : context(that.context), statisticsSweep(that.statisticsSweep), fullBandStructure(that.fullBandStructure) {
+EpaScattering::EpaScattering(const EpaScattering &that) : context(that.context), statisticsSweep(that.statisticsSweep), fullBandStructure(that.fullBandStructure), energies(that.energies) {
     
 }
 
@@ -26,11 +27,12 @@ EpaScattering& EpaScattering::operator=(const EpaScattering &that) {
         context = that.context;
         statisticsSweep = that.statisticsSweep;
         fullBandStructure = that.fullBandStructure;
+        energies = that.energies;
     }
     return *this;
 }
 
-BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisticsSweep, FullBandStructure & fullBandStructure) {
+BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisticsSweep, FullBandStructure & fullBandStructure, Eigen::VectorXd & energies) {
     
     long numStates = fullBandStructure.getNumStates();
     
@@ -61,22 +63,24 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
     TetrahedronDeltaFunction tetrahedra(fullBandStructure);
     
     double fermiLevel = context.getFermiLevel();
-    double energyRange = context.getEnergyRange();
-    double minEnergy = fermiLevel - energyRange;
-    double maxEnergy = fermiLevel + energyRange;
+    long numEnergies = energies.size();
+    std::cout << "Energies size: " << numEnergies << std::endl;
+//    double energyRange = context.getEnergyRange();
+//    double minEnergy = fermiLevel - energyRange;
+//    double maxEnergy = fermiLevel + energyRange;
     double energyStep = context.getEnergyStep();
 
     //in principle, we should add 1 to account for ends of energy interval
     //i will not do that, because will work with the centers of energy steps
-    long numEnergies = (long) (maxEnergy-minEnergy)/energyStep;
+//    long numEnergies = (long) (maxEnergy-minEnergy)/energyStep;
     
     //energies at the centers of energy steps
-    Eigen::VectorXd energies(numEnergies);
+//    Eigen::VectorXd energies(numEnergies);
     
-    for ( long i=0; i != numEnergies; ++i ) {
+//    for ( long i=0; i != numEnergies; ++i ) {
         //add 0.5 to be in the middle of the energy step
-        energies(i) = (i + 0.5) * energyStep + minEnergy;
-    }
+//        energies(i) = (i + 0.5) * energyStep + minEnergy;
+//    }
     
     Eigen::VectorXd dos(numEnergies); // DOS initialized to zero
     dos.setZero();
@@ -210,7 +214,8 @@ BaseVectorBTE EpaScattering::setup(Context & context, StatisticsSweep & statisti
                     scatRateTemp += gAbsorption * (nBose + nFermiAbsorption) * dosAbsorption + gEmission * (nBose + 1 -nFermiEmission) * dosEmission;
                     
                 }
-                epaRate.data(iCalc,iEnergy) = scatRateTemp*rydbergSi*twoPi/spinFactor/hBarSi; //in 1/second
+                //epaRate.data(iCalc,iEnergy) = scatRateTemp*rydbergSi*twoPi/spinFactor/hBarSi; //in 1/second
+                epaRate.data(iCalc,iEnergy) = twoPi*scatRateTemp/spinFactor; //scattering rate is in Rydberg
             }
         }
     }

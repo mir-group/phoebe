@@ -4,6 +4,7 @@
 #include "statistics_sweep.h"
 #include "bandstructure.h"
 #include "vector_bte.h"
+#include "eigen.h"
 
 class EpaScattering {
 public:
@@ -17,7 +18,7 @@ public:
         //             FullBandStructure &bandStructure_);
     
     
-    EpaScattering(Context & context_, StatisticsSweep & statisticsSweep_, FullBandStructure & fullBandStructure_);
+    EpaScattering(Context & context_, StatisticsSweep & statisticsSweep_, FullBandStructure & fullBandStructure_, Eigen::VectorXd & energies_);
     
     EpaScattering(const EpaScattering &that);
     
@@ -25,7 +26,7 @@ public:
     
     ~EpaScattering();
     
-    static BaseVectorBTE setup(Context & context, StatisticsSweep & statisticsSweep, FullBandStructure & fullBandStructure);
+    static BaseVectorBTE setup(Context & context, StatisticsSweep & statisticsSweep, FullBandStructure & fullBandStructure, Eigen::VectorXd & energies);
     
     /** Copy constructor
      */
@@ -58,6 +59,7 @@ private:
     Context &context;
     StatisticsSweep &statisticsSweep;
     FullBandStructure &fullBandStructure;
+    Eigen::VectorXd energies;
 };
 
 #endif
