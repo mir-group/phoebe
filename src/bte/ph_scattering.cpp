@@ -370,7 +370,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       }
     }
   }
-  loopPrint.close();
 
   // Isotope scattering
   if (doIsotopes) {
@@ -491,6 +490,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   } else {
     mpi->allReduceSum(&linewidth->data);
   }
+  // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
+  loopPrint.close();
 
   // Add boundary scattering
 
