@@ -275,7 +275,7 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
 
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
     auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
-    return points.getPoint(ik).getCoords(Points::cartesianCoords);
+    return points.getPoint(ik).getCoords(Points::cartesianCoords,true);
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,

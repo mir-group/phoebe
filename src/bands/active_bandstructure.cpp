@@ -216,7 +216,7 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
     }
     auto[ik,ib] = comb2Bloch(stateIndex);
     Point p = activePoints.getPoint(ik);
-    return p.getCoords(Points::cartesianCoords);
+    return p.getCoords(Points::cartesianCoords, true);
 }
 
 void ActiveBandStructure::setEnergies(Point &point,
