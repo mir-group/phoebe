@@ -160,17 +160,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   // note: these variables are only needed in the loop
   // but since it's an expensive loop, we define them here once and for all
-  long ind1, ind2;
-  double ratePlus, rateMins1, rateMins2, deltaPlus, deltaMins1, deltaMins2;
-  double en1, en2, en3Plus, en3Mins, bose1, bose2, bose3Plus, bose3Mins;
-  //  Eigen::Tensor<double, 3> couplingPlus, couplingMins;
-  Eigen::VectorXd state3PlusEnergies, state3MinsEnergies;
-  Eigen::Vector3d v1, v2, v3, v;
-  Eigen::MatrixXd v1s, v2s;
+  double ratePlus, rateMins1, rateMins2;
 
-  // isotopic scattering:
-  std::complex<double> zzIso;
-  double termIso, rateIso, deltaIso;
   std::vector<std::tuple<std::vector<long>, long>> qPairIterator =
       getIteratorWavevectorPairs(switchCase);
 
@@ -181,14 +172,17 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                       qPairIterator.size());
 
   for (auto [iq1Indexes, iq2] : qPairIterator) {
+
+    Point q2 = innerBandStructure.getPoint(iq2);
+    State states2 = innerBandStructure.getState(q2);
+    Eigen::VectorXd state2Energies = states2.getEnergies();
+    int nb2 = state2Energies.size();
+    Eigen::MatrixXd v2s = states2.getGroupVelocities();
+
     loopPrint.update();
     pointHelper.prepare(iq1Indexes, iq2);
-    for (auto iq1 : iq1Indexes) {
 
-      Point q2 = innerBandStructure.getPoint(iq2);
-      State states2 = innerBandStructure.getState(q2);
-      Eigen::VectorXd state2Energies = states2.getEnergies();
-      int nb2 = state2Energies.size();
+    for (auto iq1 : iq1Indexes) {
 
       // note: for computing linewidths on a path, we must distinguish
       // that q1 and q2 are on different meshes, and that q3+/- may not
@@ -198,9 +192,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       Point q1 = states1.getPoint();
       Eigen::VectorXd state1Energies = states1.getEnergies();
       int nb1 = state1Energies.size();
-
-      v1s = states1.getGroupVelocities();
-      v2s = states2.getGroupVelocities();
+      Eigen::MatrixXd v1s = states1.getGroupVelocities();
 
       auto [q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
             bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
@@ -216,16 +208,16 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           states1, states2, states3Plus, states3Mins);
 
       for (long ib1 = 0; ib1 < nb1; ib1++) {
-        en1 = state1Energies(ib1);
-        ind1 =
+        double en1 = state1Energies(ib1);
+        int ind1 =
             outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
         if (en1 < energyCutoff) {
           continue;
         }
 
         for (long ib2 = 0; ib2 < nb2; ib2++) {
-          en2 = state2Energies(ib2);
-          ind2 =
+          double en2 = state2Energies(ib2);
+          int ind2 =
               innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
           if (en2 < energyCutoff) {
             continue;
@@ -243,20 +235,22 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
           // split into two cases since there may be different bands
           for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-            en3Plus = state3PlusEnergies(ib3);
+            double en3Plus = state3PlusEnergies(ib3);
             if (en3Plus < energyCutoff) {
               continue;
             }
 
             double enProd = en1 * en2 * en3Plus;
 
+            double deltaPlus;
             switch (smearing->getType()) {
               case (DeltaFunction::gaussian):
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
                 break;
-              case (DeltaFunction::adaptiveGaussian):
-                v = v2s.row(ib2) - v3ps.row(ib3);
-                deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
+              case (DeltaFunction::adaptiveGaussian): {
+                  Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
+                  deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
+                }
                 break;
               default:
                 deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
@@ -267,9 +261,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
             // loop on temperature
             for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              bose1 = outerBose.data(iCalc, ind1);
-              bose2 = innerBose.data(iCalc, ind2);
-              bose3Plus = bose3PlusData(iCalc, ib3);
+              double bose1 = outerBose.data(iCalc, ind1);
+              double bose2 = innerBose.data(iCalc, ind2);
+              double bose3Plus = bose3PlusData(iCalc, ib3);
 
               // Calculate transition probability W+
               ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
@@ -302,22 +296,24 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           }
 
           for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-            en3Mins = state3MinsEnergies(ib3);
+            double en3Mins = state3MinsEnergies(ib3);
             if (en3Mins < energyCutoff) {
               continue;
             }
 
             double enProd = en1 * en2 * en3Mins;
 
+            double deltaMins1, deltaMins2;
             switch (smearing->getType()) {
               case (DeltaFunction::gaussian):
                 deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2);
                 deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
                 break;
-              case (DeltaFunction::adaptiveGaussian):
-                v = v2s.row(ib2) - v3ms.row(ib3);
-                deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
-                deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
+              case (DeltaFunction::adaptiveGaussian): {
+                  Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
+                 deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
+                  deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
+                }
                 break;
               default:
                 deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
@@ -330,9 +326,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             if (deltaMins2 < 0.) deltaMins2 = 0.;
 
             for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              bose1 = outerBose.data(iCalc, ind1);
-              bose2 = innerBose.data(iCalc, ind2);
-              bose3Mins = bose3MinsData(iCalc, ib3);
+              double bose1 = outerBose.data(iCalc, ind1);
+              double bose2 = innerBose.data(iCalc, ind2);
+              double bose3Mins = bose3MinsData(iCalc, ib3);
 
               // Calculatate transition probability W-
               rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
@@ -394,20 +390,20 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         Eigen::Tensor<std::complex<double>, 3> ev1;
         states1.getEigenvectors(ev1);
 
-        v1s = states1.getGroupVelocities();
-        v2s = states2.getGroupVelocities();
+        Eigen::MatrixXd v1s = states1.getGroupVelocities();
+        Eigen::MatrixXd v2s = states2.getGroupVelocities();
 
-        for (long ib1 = 0; ib1 < nb1; ib1++) {
-          en1 = state1Energies(ib1);
-          ind1 =
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
+          double en1 = state1Energies(ib1);
+          int ind1 =
               outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
           if (en1 < energyCutoff) {
             continue;
           }
 
-          for (long ib2 = 0; ib2 < nb2; ib2++) {
-            en2 = state2Energies(ib2);
-            ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
+          for (int ib2 = 0; ib2 < nb2; ib2++) {
+            double en2 = state2Energies(ib2);
+            int ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
                                                BandIndex(ib2));
             if (en2 < energyCutoff) {
               continue;
@@ -423,6 +419,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               }
             }
 
+            double deltaIso;
             switch (smearing->getType()) {
               case (DeltaFunction::gaussian):
                 deltaIso = smearing->getSmearing(en1 - en2);
@@ -439,9 +436,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                 break;
             }
 
-            termIso = 0.;
+            double termIso = 0.;
             for (int iat = 0; iat < numAtoms; iat++) {
-              zzIso = complexZero;
+              std::complex<double> zzIso = complexZero;
               for (int kdim : {0, 1, 2}) {  // cartesian indices
                 zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
               }
@@ -450,10 +447,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
 
             for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              bose1 = outerBose.data(iCalc, ind1);
-              bose2 = innerBose.data(iCalc, ind2);
+              double bose1 = outerBose.data(iCalc, ind1);
+              double bose2 = innerBose.data(iCalc, ind2);
 
-              rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+              double rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
 
               switch (switchCase) {
                 case (0):
