@@ -183,6 +183,9 @@ protected:
     // for Wigner Seitz folding
     Eigen::MatrixXd gVectors;
     Eigen::MatrixXi igVectors;
+
+  // methods to be overwritten
+  Eigen::Vector3d reduciblePoints(const long &idx);
 };
 
 class FullPoints: public Points {

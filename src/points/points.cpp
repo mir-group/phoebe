@@ -50,16 +50,18 @@ FullPoints::FullPoints(Crystal &crystal_, const Eigen::Vector3i &mesh_,
 }
 
 IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
-    Points(parentPoints_.crystal, parentPoints_.mesh, parentPoints.offset),
-    parentPoints(parentPoints_) {
+    parentPoints(parentPoints_),  Points(parentPoints_.getCrystal(), std::get<0>(parentPoints_.getMesh()),
+        std::get<1>(parentPoints_.getMesh())) {
 
   // generate a list of points compatible with the symmetries of the system
 
   const double epsilon = 1.0e-5;
 
-  Eigen::VectorXd tmpWeight(parentPoints.numPoints);
-  Eigen::VectorXi equiv(parentPoints.numPoints);
-  for (long i = 0; i < parentPoints.numPoints; i++) {
+  int numParentPoints = parentPoints.getNumPoints();
+
+  Eigen::VectorXd tmpWeight(numParentPoints);
+  Eigen::VectorXi equiv(numParentPoints);
+  for (long i = 0; i < numParentPoints; i++) {
     equiv(i) = i;
   }
   // equiv(nk) =nk : k-point nk is not equivalent to any previous k-point
@@ -69,12 +71,12 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
 
   for ( auto symm : symms ) {
     Eigen::Matrix3d rotation = symm.rotation;
-    Eigen::Matrix3d bg =
+    Eigen::Matrix3d bg = crystal.getReciprocalUnitCell();
     rotation = bg * rotation * bg.inverse();
     rotationMatrices.push_back(rotation);
   }
 
-  mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(parentPoints.numPoints);
+  mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(numParentPoints);
   mapEquivalenceRotationIndex.setConstant(1);
 
   // the identity is assumed to be the first symmetry. Let's check it
@@ -86,7 +88,7 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
     }
   }
 
-  for (long ik = 0; ik < parentPoints.numPoints; ik++) {
+  for (long ik = 0; ik < numParentPoints; ik++) {
     // check if this k-point has already been found equivalent to another
     if (equiv(ik) == ik) {
       tmpWeight(ik) = 1.;
@@ -135,7 +137,7 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   // count irreducible points and order them
 
   long numPoints = 0;
-  for ( long ik = 0; ik < parentPoints.numPoints; ik++) {
+  for ( long ik = 0; ik < numParentPoints; ik++) {
     if (equiv(ik) == ik) {
       numPoints += 1;
     }
@@ -145,10 +147,10 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   weights = Eigen::VectorXd::Zero(numPoints);
 
   mapIrreducibleToReducible = Eigen::VectorXi(numPoints);
-  mapReducibleToIrreducible = Eigen::VectorXi(parentPoints.numPoints);
+  mapReducibleToIrreducible = Eigen::VectorXi(numParentPoints);
 
   long i = 0;
-  for (long j = 0; j < parentPoints.numPoints; j++) {
+  for (long j = 0; j < numParentPoints; j++) {
     if (equiv(j) == j) {
       weights(i) = tmpWeight(j);
       pointsList.col(i) = parentPoints.getPointCoords(j,Points::crystalCoords);
@@ -166,7 +168,7 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   for ( int ikIrr=0; ikIrr<numPoints; ikIrr++ ) {
     std::vector<int> thisStar;
     int ikIrrFull = mapIrreducibleToReducible(ikIrr);
-    for ( int ik=0; ik<parentPoints.numPoints; ik++ ) {
+    for ( int ik=0; ik<numParentPoints; ik++ ) {
       if ( equiv(ik) == ikIrrFull) {
         thisStar.push_back(ik);
       }
@@ -285,12 +287,9 @@ FullPoints::FullPoints(const FullPoints &that) :
 
 // copy constructor
 IrreduciblePoints::IrreduciblePoints(const IrreduciblePoints &that) :
-        Points(that), mapReducibleToIrreducible(that.mapReducibleToIrreducible),
-        mapIrreducibleToReducible(that.mapIrreducibleToReducible),
-        irreduciblePoints(that.irreduciblePoints),
-        irreducibleWeights(that.irreducibleWeights),
-        indexIrreduciblePoints(that.indexIrreduciblePoints),
-        numIrredPoints(that.numIrredPoints) {
+        Points(that), parentPoints(that.parentPoints),
+        mapReducibleToIrreducible(that.mapReducibleToIrreducible),
+        mapIrreducibleToReducible(that.mapIrreducibleToReducible) {
 }
 
 // copy constructor
@@ -343,10 +342,6 @@ IrreduciblePoints& IrreduciblePoints::operator=(const IrreduciblePoints &that) {
         igVectors = that.igVectors;
         mapReducibleToIrreducible = that.mapReducibleToIrreducible;
         mapIrreducibleToReducible = that.mapIrreducibleToReducible;
-        irreduciblePoints = that.irreduciblePoints;
-        irreducibleWeights = that.irreducibleWeights;
-        indexIrreduciblePoints = that.indexIrreduciblePoints;
-        numIrredPoints = that.numIrredPoints;
     }
     return *this;
 }
@@ -430,7 +425,7 @@ Eigen::Vector3d IrreduciblePoints::getPointCoords(const long &index,
     if (basis != crystalCoords && basis != cartesianCoords) {
         Error e("Wrong basis for getPoint");
     }
-    Eigen::Vector3d pointCrystal = irreduciblePoints.col(index);
+    Eigen::Vector3d pointCrystal = pointsList.col(index);
     if (basis == crystalCoords) {
         return pointCrystal;
     } else {
@@ -579,7 +574,7 @@ long Points::getNumPoints() {
 }
 
 long IrreduciblePoints::getNumPoints() {
-    return numIrredPoints;
+    return numPoints;
 }
 
 double Points::getWeight(const long &ik) {
@@ -588,7 +583,7 @@ double Points::getWeight(const long &ik) {
 }
 
 double IrreduciblePoints::getWeight(const long &ik) {
-    return irreducibleWeights(ik);
+    return weights(ik);
 }
 
 void Points::setMesh(const Eigen::Vector3i &mesh_,
