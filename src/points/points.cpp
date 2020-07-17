@@ -49,10 +49,131 @@ FullPoints::FullPoints(Crystal &crystal_, const Eigen::Vector3i &mesh_,
         Points(crystal_, mesh_, offset_) {
 }
 
-IrreduciblePoints::IrreduciblePoints(Crystal &crystal_,
-        const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_) :
-        Points(crystal_, mesh_, offset_) {
-    setIrreduciblePoints();
+IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
+    Points(parentPoints_.crystal, parentPoints_.mesh, parentPoints.offset),
+    parentPoints(parentPoints_) {
+
+  // generate a list of points compatible with the symmetries of the system
+
+  const double epsilon = 1.0e-5;
+
+  Eigen::VectorXd tmpWeight(parentPoints.numPoints);
+  Eigen::VectorXi equiv(parentPoints.numPoints);
+  for (long i = 0; i < parentPoints.numPoints; i++) {
+    equiv(i) = i;
+  }
+  // equiv(nk) =nk : k-point nk is not equivalent to any previous k-point
+  // equiv(nk)!=nk : k-point nk is equivalent to k-point equiv(nk)
+
+  std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
+
+  for ( auto symm : symms ) {
+    Eigen::Matrix3d rotation = symm.rotation;
+    Eigen::Matrix3d bg =
+    rotation = bg * rotation * bg.inverse();
+    rotationMatrices.push_back(rotation);
+  }
+
+  mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(parentPoints.numPoints);
+  mapEquivalenceRotationIndex.setConstant(1);
+
+  // the identity is assumed to be the first symmetry. Let's check it
+  {
+    Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+    double x = (rotationMatrices[0] - I).norm();
+    if ( x > epsilon ) {
+      Error e("Development bug: rotation matrix should be the first symmetry");
+    }
+  }
+
+  for (long ik = 0; ik < parentPoints.numPoints; ik++) {
+    // check if this k-point has already been found equivalent to another
+    if (equiv(ik) == ik) {
+      tmpWeight(ik) = 1.;
+      // check if there are equivalent k-point to this in the list
+      // (excepted those previously found to be equivalent to another)
+      // check both k and -k
+      int is=-1;
+      for (auto symm : symms) {
+        is += 1;
+
+        Eigen::Matrix3d s = symm.rotation;
+
+        Eigen::Vector3d rotatedPoint = s * parentPoints.getPointCoords(ik, Points::crystalCoords);
+
+        for (long i = 0; i < 3; i++) {
+          rotatedPoint(i) -= round(rotatedPoint(i));
+        }
+        double xx = rotatedPoint(0) * mesh(0) - offset(0);
+        double yy = rotatedPoint(1) * mesh(1) - offset(1);
+        double zz = rotatedPoint(2) * mesh(2) - offset(2);
+        bool inTheList = (abs(xx - round(xx)) <= epsilon
+                       && abs(yy - round(yy)) <= epsilon
+                       && abs(zz - round(zz)) <= epsilon);
+        if (inTheList) {
+          int ix = mod(long(round(rotatedPoint(0) * mesh(0)
+                                  - offset(0) + 2 * mesh(0))), mesh(0));
+          int iy = mod(long(round(rotatedPoint(1) * mesh(1)
+                                  - offset(1) + 2 * mesh(1))), mesh(1));
+          int iz = mod(long(round(rotatedPoint(2) * mesh(2)
+                                  - offset(2) + 2 * mesh(2))), mesh(2));
+          int n = iz + iy * mesh(2) + ix * mesh(1) * mesh(2);
+          if (n > ik && equiv(n) == n) {
+            equiv(n) = ik;
+            tmpWeight(ik) += 1.;
+            mapEquivalenceRotationIndex(n) = is;
+          } else {
+            if (equiv(n) != ik || n < ik) {
+              Error e("Error in finding irred kpoints");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // count irreducible points and order them
+
+  long numPoints = 0;
+  for ( long ik = 0; ik < parentPoints.numPoints; ik++) {
+    if (equiv(ik) == ik) {
+      numPoints += 1;
+    }
+  }
+
+  pointsList = Eigen::MatrixXd::Zero(3, numPoints);
+  weights = Eigen::VectorXd::Zero(numPoints);
+
+  mapIrreducibleToReducible = Eigen::VectorXi(numPoints);
+  mapReducibleToIrreducible = Eigen::VectorXi(parentPoints.numPoints);
+
+  long i = 0;
+  for (long j = 0; j < parentPoints.numPoints; j++) {
+    if (equiv(j) == j) {
+      weights(i) = tmpWeight(j);
+      pointsList.col(i) = parentPoints.getPointCoords(j,Points::crystalCoords);
+
+      mapIrreducibleToReducible(i) = j;
+      mapReducibleToIrreducible(j) = i;
+
+      i += 1;
+    }
+  }
+
+  // normalize weights to one
+  weights /= weights.sum();
+
+  for ( int ikIrr=0; ikIrr<numPoints; ikIrr++ ) {
+    std::vector<int> thisStar;
+    int ikIrrFull = mapIrreducibleToReducible(ikIrr);
+    for ( int ik=0; ik<parentPoints.numPoints; ik++ ) {
+      if ( equiv(ik) == ikIrrFull) {
+        thisStar.push_back(ik);
+      }
+    }
+    irreducibleStars.push_back(thisStar);
+  }
+
 }
 
 ActivePoints::ActivePoints(Points &parentPoints_, Eigen::VectorXi filter) :
@@ -569,118 +690,6 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
         Error e("Mesh of points seems incomplete");
     }
     return {mesh_, offset_};
-}
-
-void IrreduciblePoints::setIrreduciblePoints() {
-    // generate a list of points compatible with the symmetries of the system
-
-    const double eps = 1.0e-5;
-
-    Eigen::VectorXd tmpWeight(numPoints);
-    Eigen::VectorXi equiv(numPoints);
-
-    // equiv(nk) =nk : k-point nk is not equivalent to any previous k-point
-    // equiv(nk)!=nk : k-point nk is equivalent to k-point equiv(nk)
-
-    for (long nk = 0; nk < numPoints; nk++) {
-        equiv(nk) = nk;
-    }
-
-    auto symms = crystal.getSymmetryOperations();
-
-    Eigen::Vector3d rotatedPoint;
-    Eigen::Vector3d thisPoint;
-    bool inTheList;
-    long ix, iy, iz, n;
-    double xx, yy, zz;
-    Eigen::Matrix3d s;
-
-    for (long ik = 0; ik < numPoints; ik++) {
-        // check if this k-point has already been found equivalent to another
-        if (equiv(ik) == ik) {
-            tmpWeight(ik) = 1.;
-            // check if there are equivalent k-point to this in the list
-            // (excepted those previously found to be equivalent to another)
-            // check both k and -k
-            for (auto symm : symms) {
-                auto s = symm.rotation;
-//                auto t = symm.translation;
-
-                thisPoint = reduciblePoints(ik);
-                rotatedPoint = s * thisPoint;
-
-                for (long i = 0; i < 3; i++) {
-                    rotatedPoint(i) -= round(rotatedPoint(i));
-                }
-                xx = rotatedPoint(0) * mesh(0) - offset(0);
-                yy = rotatedPoint(1) * mesh(1) - offset(1);
-                zz = rotatedPoint(2) * mesh(2) - offset(2);
-                inTheList = (abs(xx - round(xx)) <= eps
-                        && abs(yy - round(yy)) <= eps
-                        && abs(zz - round(zz)) <= eps);
-                if (inTheList) {
-                    ix = mod(long(round(rotatedPoint(0) * mesh(0)
-                            - offset(0) + 2 * mesh(0))), mesh(0));
-                    iy = mod(long(round(rotatedPoint(1) * mesh(1)
-                            - offset(1) + 2 * mesh(1))), mesh(1));
-                    iz = mod(long(round(rotatedPoint(2) * mesh(2)
-                            - offset(2) + 2 * mesh(2))), mesh(2));
-                    n = iz + iy * mesh(2) + ix * mesh(1) * mesh(2);
-                    if (n > ik && equiv(n) == n) {
-                        equiv(n) = ik;
-                        tmpWeight(ik) += 1.;
-                    } else {
-                        if (equiv(n) != ik || n < ik) {
-                            Error e("Error in finding irred kpoints");
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // count irreducible points and order them
-
-    long numIrredPoints = 0;
-    for (long ik = 0; ik < numPoints; ik++) {
-        if (equiv(ik) == ik) {
-            numIrredPoints += 1;
-        }
-    }
-
-    Eigen::MatrixXd xk(3, numIrredPoints);
-    Eigen::VectorXd wk(numIrredPoints);
-    Eigen::VectorXi indexIrreduciblePoints_(numIrredPoints);
-
-    long i = 0;
-    for (long j = 0; j < numPoints; j++) {
-        if (equiv(j) == j) {
-            wk(i) = tmpWeight(j);
-            xk.col(i) = reduciblePoints(j);
-            indexIrreduciblePoints_(i) = j;
-            i += 1;
-        }
-    }
-
-    // normalize weights to one
-    wk /= wk.sum();
-
-    Eigen::VectorXi invEquiv;
-    invEquiv.setZero();
-    i = 0;
-    for (long ik = 0; ik < numPoints; ik++) {
-        if (equiv(ik) == ik) {
-            invEquiv(i) = ik;
-            i += 1;
-        }
-    }
-
-    // save as class properties
-    irreduciblePoints = xk;
-    irreducibleWeights = wk;
-    mapReducibleToIrreducible = equiv;
-    indexIrreduciblePoints = indexIrreduciblePoints_;
-    mapIrreducibleToReducible = invEquiv;
 }
 
 // maps between two internal lists of points

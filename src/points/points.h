@@ -183,9 +183,6 @@ protected:
     // for Wigner Seitz folding
     Eigen::MatrixXd gVectors;
     Eigen::MatrixXi igVectors;
-
-    // methods to be overwritten
-    Eigen::Vector3d reduciblePoints(const long &idx);
 };
 
 class FullPoints: public Points {
@@ -218,31 +215,42 @@ public:
 
 class IrreduciblePoints: public Points {
 protected:
-    Eigen::VectorXi mapReducibleToIrreducible;
-    Eigen::VectorXi mapIrreducibleToReducible;
-    // points are internally stored in crystal coordinates
-    Eigen::MatrixXd irreduciblePoints;
-    Eigen::VectorXd irreducibleWeights;
-    Eigen::VectorXi indexIrreduciblePoints;
-    long numIrredPoints = 0;
+  // these two maps allow to jump from an index on the full list to the
+  // corresponding irreducible point in the irreducible list.
+  Eigen::VectorXi mapReducibleToIrreducible;
+  Eigen::VectorXi mapIrreducibleToReducible;
 
-    //	Eigen::Vector3d pointsCoords(const long & index);
-    void setIrreduciblePoints();
+  // note: irreducibleStars[ikIrr], where ikIrr is an index in
+  // [0,numIrredPoints], returns a vector with the integers indexes of ik,
+  // indicating which vectors in the full grid belong to this set of equivalent
+  // points
+  std::vector<std::vector<int>> irreducibleStars;
+  Eigen::VectorXi mapEquivalenceRotationIndex;
+
+  std::vector<Eigen::Matrix3d> rotationMatrices; //in cartesian reciprocal space
+
+  Eigen::MatrixXd pointsList;
+  Points &parentPoints;
+  Eigen::VectorXd weights;
 public:
-    IrreduciblePoints(Crystal &crystal_, const Eigen::Vector3i &mesh_,
-            const Eigen::Vector3d &offset_ = Eigen::Vector3d::Zero());
-    IrreduciblePoints(const IrreduciblePoints &obj); // copy constructor
-    IrreduciblePoints& operator=(const IrreduciblePoints &obj); // assignment
 
-    long getIndex(const Eigen::Vector3d &point);
-    Eigen::VectorXi getIndexReducibleFromIrreducible(const long &indexIrr);
-    long getIndexIrreducibleFromReducible(const long &indexRed);
-    Point getPoint(const long &index);
+  IrreduciblePoints(Points &parentPoints_);
+  IrreduciblePoints(const IrreduciblePoints &obj); // copy constructor
+  IrreduciblePoints& operator=(const IrreduciblePoints &obj); // assignment
 
-    long getNumPoints();
-    double getWeight(const long &ik);
-    Eigen::Vector3d getPointCoords(const long &index, const int &basis =
-            crystalCoords);
+  long getIndex(const Eigen::Vector3d &point);
+
+  Eigen::VectorXi getIndexReducibleFromIrreducible(const long &indexIrr);
+  long getIndexIrreducibleFromReducible(const long &indexRed);
+
+  Point getPoint(const long &index);
+
+  long getNumPoints();
+  double getWeight(const long &ik);
+  Eigen::Vector3d getPointCoords(const long &index,
+      const int &basis=crystalCoords);
+
+  Points getParentPoints();
 };
 
 /** Class for storing an "active" list of wavevectors, i.e. a selection of
