@@ -6,6 +6,8 @@
 #include "harmonic.h"
 #include "particle.h"
 #include "points.h"
+#include "active_points.h"
+#include "full_points.h"
 #include "state.h"
 #include "statistics_sweep.h"
 #include "window.h"

@@ -9,6 +9,7 @@
 #include "utilities.h"
 #include "qe_input_parser.h"
 #include "../mpi/mpiHelper.h" 
+#include "full_points.h"
 
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context &context) {

@@ -15,6 +15,7 @@
 #include "pugixml.hpp"
 #include "qe_input_parser.h"
 #include "utilities.h"
+#include "full_points.h"
 
 void latgen(const int ibrav, Eigen::VectorXd &celldm,
             Eigen::Matrix3d &unitCell) {

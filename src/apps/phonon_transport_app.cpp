@@ -15,6 +15,9 @@
 #include "qe_input_parser.h"
 #include "specific_heat.h"
 #include <iomanip>
+#include "full_points.h"
+#include "active_points.h"
+#include "irreducible_points.h"
 
 void PhononTransportApp::run(Context &context) {
 
@@ -25,6 +28,8 @@ void PhononTransportApp::run(Context &context) {
   // first we make compute the band structure on the fine grid
 
   FullPoints fullPoints(crystal, context.getQMesh());
+
+  // IrreduciblePoints irredPoints(fullPoints);
 
   //	bool withVelocities = true;
   //	bool withEigenvectors = true;
