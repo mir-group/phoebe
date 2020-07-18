@@ -364,7 +364,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       }
     }
     // to be replaced/deleted
-    /*
     for (int iiq1 = 0; iiq1 < nq1; iiq1++) {
       auto tup3 = coupling3Ph->getCouplingSquared(
           q1coords[iiq1], q2coord, ev1s[iiq1], ev2, ev3ps[iiq1], ev3ms[iiq1]);
@@ -374,7 +373,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       couplingMins = cm;
       couplingPluss.push_back(couplingPlus);
       couplingMinss.push_back(couplingMins);
-    }*/
+    }
     auto tup =
         coupling3Ph->getCouplingsSquared(q1coords, q2coord, ev1s, ev2, ev3ps,
                                          ev3ms, nb1s, nb2, nb3Pluss, nb3Minss);

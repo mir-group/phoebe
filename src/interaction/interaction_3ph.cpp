@@ -222,8 +222,10 @@ Interaction3Ph::getCouplingsSquared(
   }
   Kokkos::View<double **> q1s("q1s", nq1, 3);
   Kokkos::View<double *> q2("q2", 3);
-  Kokkos::View<Kokkos::complex<double> **,Kokkos::LayoutRight> ev2("ev2", nb2, numBands);
-  Kokkos::View<Kokkos::complex<double> ***,Kokkos::LayoutRight> ev1s("ev1s", nq1, maxnb1, numBands),
+  Kokkos::View<Kokkos::complex<double> **> ev2("ev2", nb2,
+                                                                    numBands);
+  Kokkos::View<Kokkos::complex<double> ***> ev1s(
+      "ev1s", nq1, maxnb1, numBands),
       ev3Pluss("ev3p", nq1, maxnb3Plus, numBands),
       ev3Minss("ev3m", nq1, maxnb3Mins, numBands);
   Kokkos::View<int *> nb1s("nb1s", nq1), nb3Pluss("nb3ps", nq1),
@@ -343,10 +345,11 @@ Interaction3Ph::getCouplingsSquared(
     newdts[0] += t1 - t0;
   }
 
-  Kokkos::View<Kokkos::complex<double> **,Kokkos::LayoutRight> phasePlus("pp", nq1, nr3),
+  Kokkos::View<Kokkos::complex<double> **> phasePlus(
+      "pp", nq1, nr3),
       phaseMins("pm", nq1, nr3);
-  Kokkos::View<Kokkos::complex<double> ****,Kokkos::LayoutRight> tmpPlus("tmpp", nq1, numBands,
-                                                     numBands, numBands),
+  Kokkos::View<Kokkos::complex<double> ****> tmpPlus(
+      "tmpp", nq1, numBands, numBands, numBands),
       tmpMins("tmpm", nq1, numBands, numBands, numBands),
       tmp1Plus("t1p", nq1, maxnb1, numBands, numBands),
       tmp1Mins("t1m", nq1, maxnb1, numBands, numBands),
@@ -354,14 +357,15 @@ Interaction3Ph::getCouplingsSquared(
       tmp2Mins("t2m", nq1, maxnb1, nb2, numBands),
       vPlus("vp", nq1, maxnb1, nb2, maxnb3Plus),
       vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
-  Kokkos::View<double ****,Kokkos::LayoutRight> couplingPlus("cp", nq1, maxnb1, nb2, maxnb3Plus),
+  Kokkos::View<double ****> couplingPlus("cp", nq1, maxnb1,
+                                                              nb2, maxnb3Plus),
       couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
 
   /*  for (int iq1 = 0; iq1 < nq1; iq1++) {
       printf("2 %g %g %g %g %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2),
              ev1s(iq1, 1, 2).real(), ev1s(iq1, 1, 2).imag());
     }*/
-  time_point t2 = std::chrono::steady_clock::now();
+  /*time_point t2 = std::chrono::steady_clock::now();
   typedef Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type
       member_type;
   Kokkos::parallel_for(
@@ -379,10 +383,10 @@ Interaction3Ph::getCouplingsSquared(
               phaseMins(iq1, ir3) = exp(complexI * argM);
             });
         team_member.team_barrier();
-        /*        printf("2 q1 = %g %g %g, q2 = %g %g %g, pp(3) = %g %g, pm(3) =
+        *//*        printf("2 q1 = %g %g %g, q2 = %g %g %g, pp(3) = %g %g, pm(3) =
            %g %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2), q2(0), q2(1), q2(2),
                        phasePlus(iq1, 7).real(), phasePlus(iq1, 7).imag(),
-                       phaseMins(iq1, 7).real(), phaseMins(iq1, 7).imag());*/
+                       phaseMins(iq1, 7).real(), phaseMins(iq1, 7).imag());*//*
 
         Kokkos::parallel_for(
             Kokkos::TeamThreadRange(team_member,
@@ -404,11 +408,11 @@ Interaction3Ph::getCouplingsSquared(
               tmpMins(iq1, iac1, iac2, iac3) = tmpm;
             });
         team_member.team_barrier();
-        /*        printf("2 q1 = %g %g %g, q2 = %g %g %g, tp = %g %g, tm = %g
+        *//*        printf("2 q1 = %g %g %g, q2 = %g %g %g, tp = %g %g, tm = %g
            %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2), q2(0), q2(1), q2(2),
                        tmpPlus(iq1, 1, 2, 3).real(), tmpPlus(iq1, 1, 2,
            3).imag(), tmpMins(iq1, 1, 2, 3).real(), tmpMins(iq1, 1, 2,
-           3).imag());*/
+           3).imag());*//*
         Kokkos::parallel_for(
             Kokkos::TeamThreadRange(team_member,
                                     nb1s(iq1) * numBands * numBands),
@@ -425,14 +429,14 @@ Interaction3Ph::getCouplingsSquared(
                 tmpp += tmpPlus(iq1, iac1, iac2, iac3) * ev1s(iq1, ib1, iac1);
                 tmpm += tmpMins(iq1, iac1, iac2, iac3) * ev1s(iq1, ib1, iac1);
                 if (ib1 == 0 && iac2 == 1 && iac3 == 2) {
-                  /*                  printf(" %g %g, %g %g, %g %g, %g %g, %g
+                  *//*                  printf(" %g %g, %g %g, %g %g, %g %g, %g
                      %g,\n  ", tmpPlus(iq1, iac1, iac2, iac3).real(),
                                            tmpPlus(iq1, iac1, iac2,
                      iac3).imag(), tmpMins(iq1, iac1, iac2, iac3).real(),
                                            tmpMins(iq1, iac1, iac2,
                      iac3).imag(), ev1s(iq1, ib1, iac1).real(), ev1s(iq1, ib1,
                      iac1).imag(), tmpp.real(), tmpp.imag(), tmpm.real(),
-                     tmpm.imag());*/
+                     tmpm.imag());*//*
                 }
               }
               tmp1Plus(iq1, ib1, iac3, iac2) = tmpp;
@@ -440,20 +444,20 @@ Interaction3Ph::getCouplingsSquared(
               if (ib1 == 0 && iac2 == 1 && iac3 == 2) {
                 //                printf("\n");
                 //                printf("%d %d\n", numBands, i);
-                /*   printf("2 %g %g %g %g %g %g\n", tmpPlus(iq1, 0, iac2,
+                *//*   printf("2 %g %g %g %g %g %g\n", tmpPlus(iq1, 0, iac2,
                    iac3).real(), tmpPlus(iq1, 0, iac2, iac3).imag(),
                           tmpMins(iq1, 0, iac2, iac3).real(),
                           tmpMins(iq1, 0, iac2, iac3).imag(), ev1s(iq1, ib1,
-                   0).real(), ev1s(iq1, ib1, 0).imag());*/
-                /*               printf(
+                   0).real(), ev1s(iq1, ib1, 0).imag());*//*
+                *//*               printf(
                                    "2 q1 = %g %g %g, q2 = %g %g %g, tp = %g %g,
                    tm = %g %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2), q2(0),
                    q2(1), q2(2), tmpp.real(), tmpp.imag(), tmpm.real(),
-                   tmpm.imag());*/
-                /*                    tmp1Plus(iq1, ib1, iac3, iac2).real(),
+                   tmpm.imag());*//*
+                *//*                    tmp1Plus(iq1, ib1, iac3, iac2).real(),
                                     tmp1Plus(iq1, ib1, iac3, iac2).imag(),
                                     tmp1Mins(iq1, ib1, iac3, iac2).real(),
-                                    tmp1Mins(iq1, ib1, iac3, iac2).imag());*/
+                                    tmp1Mins(iq1, ib1, iac3, iac2).imag());*//*
               }
             });
         team_member.team_barrier();
@@ -532,6 +536,122 @@ Interaction3Ph::getCouplingsSquared(
                                    tmp.imag() * tmp.imag();
                              });
         team_member.team_barrier();
+      });
+  time_point t3 = std::chrono::steady_clock::now();
+  newdts[1] += t3 - t2;*/
+  time_point t2 = std::chrono::steady_clock::now();
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nq1, nr3}),
+      KOKKOS_LAMBDA(int iq1, int ir3) {
+        double argP = 0, argM = 0;
+        for (int ic : {0, 1, 2}) {
+          argP += -q1s(iq1, ic) * cellPositions3_k(ir3, ic);
+          argM += -q1s(iq1, ic) * cellPositions3_k(ir3, ic);
+        }
+        phasePlus(iq1, ir3) = exp(complexI * argP);
+        phaseMins(iq1, ir3) = exp(complexI * argM);
+      });
+  /*        printf("2 q1 = %g %g %g, q2 = %g %g %g, pp(3) = %g %g, pm(3) =
+     %g %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2), q2(0), q2(1), q2(2),
+                 phasePlus(iq1, 7).real(), phasePlus(iq1, 7).imag(),
+                 phaseMins(iq1, 7).real(), phaseMins(iq1, 7).imag());*/
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
+          {0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
+      KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
+        Kokkos::complex<double> tmpp = 0, tmpm = 0;
+        for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
+          tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3);
+          tmpm += D3MinsCached_k(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3);
+        }
+        tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
+        tmpMins(iq1, iac1, iac2, iac3) = tmpm;
+      });
+  /*        printf("2 q1 = %g %g %g, q2 = %g %g %g, tp = %g %g, tm = %g
+     %g\n", q1s(iq1, 0), q1s(iq1, 1), q1s(iq1, 2), q2(0), q2(1), q2(2),
+                 tmpPlus(iq1, 1, 2, 3).real(), tmpPlus(iq1, 1, 2,
+     3).imag(), tmpMins(iq1, 1, 2, 3).real(), tmpMins(iq1, 1, 2,
+     3).imag());*/
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, numBands, numBands}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int iac2, int iac3) {
+        int mask = ib1 < nb1s(iq1);
+        Kokkos::complex<double> tmpp = 0, tmpm = 0;
+
+        for (int iac1 = 0; iac1 < numBands; iac1++) {
+          tmpp += tmpPlus(iq1, iac1, iac2, iac3) * ev1s(iq1, ib1, iac1);
+          tmpm += tmpMins(iq1, iac1, iac2, iac3) * ev1s(iq1, ib1, iac1);
+        }
+        tmp1Plus(iq1, ib1, iac3, iac2) = tmpp * mask;
+        tmp1Mins(iq1, ib1, iac3, iac2) = tmpm * mask;
+      });
+
+  //        2 0.0928787 0.273354 0.0930664 -0.275981 -0.00254906 0
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, nb2, numBands}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int iac3) {
+        int mask = ib1 < nb1s(iq1);
+
+        Kokkos::complex<double> tmpp = 0, tmpm = 0;
+        for (int iac2 = 0; iac2 < numBands; iac2++) {
+          tmpp += tmp1Plus(iq1, ib1, iac3, iac2) * ev2(ib2, iac2);
+          tmpm += tmp1Mins(iq1, ib1, iac3, iac2) * Kokkos::conj(ev2(ib2, iac2));
+        }
+        tmp2Plus(iq1, ib1, ib2, iac3) = tmpp * mask;
+        tmp2Mins(iq1, ib1, ib2, iac3) = tmpm * mask;
+      });
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, nb2, maxnb3Plus}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
+        int mask = ib1 < nb1s(iq1) && ib3 < nb3Pluss(iq1);
+        Kokkos::complex<double> tmpp = 0;
+        for (int iac3 = 0; iac3 < numBands; iac3++) {
+          tmpp += tmp2Plus(iq1, ib1, ib2, iac3) *
+                  Kokkos::conj(ev3Pluss(iq1, ib3, iac3));
+        }
+        vPlus(iq1, ib1, ib2, ib3) = tmpp * mask;
+      });
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, nb2, maxnb3Mins}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
+        int mask = ib1 < nb1s(iq1) && ib3 < nb3Minss(iq1);
+
+        Kokkos::complex<double> tmpp = 0;
+        for (int iac3 = 0; iac3 < numBands; iac3++) {
+          tmpp += tmp2Mins(iq1, ib1, ib2, iac3) *
+                  Kokkos::conj(ev3Minss(iq1, ib3, iac3));
+        }
+        vMins(iq1, ib1, ib2, ib3) = tmpp * mask;
+      });
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, nb2, maxnb3Plus}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
+        int mask = ib1 < nb1s(iq1) && ib3 < nb3Pluss(iq1);
+
+        auto tmp = vPlus(iq1, ib1, ib2, ib3);
+        couplingPlus(iq1, ib1, ib2, ib3) =
+            tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
+      });
+
+  Kokkos::parallel_for(
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
+                                             {nq1, maxnb1, nb2, maxnb3Mins}),
+      KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
+        int mask = ib1 < nb1s(iq1) && ib3 < nb3Minss(iq1);
+
+        auto tmp = vMins(iq1, ib1, ib2, ib3);
+        couplingMins(iq1, ib1, ib2, ib3) =
+            tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
       });
   time_point t3 = std::chrono::steady_clock::now();
   newdts[1] += t3 - t2;
@@ -679,8 +799,8 @@ Interaction3Ph::getCouplingSquared(Eigen::Vector3d &q1, Eigen::Vector3d &q2,
           D3PlusCached_k(ind1, ind2, ind3, ir3) = tmpp;
           D3MinsCached_k(ind1, ind2, ind3, ir3) = tmpm;
           /*         if(ind1 == 1 && ind2 == 2 && ind3 == 3 && ir3 == 4){
-                     printf("1 %g %g, %g %g\n", D3PlusCached_k(1,2,3,4).real(),
-                            D3PlusCached_k(1,2,3,4).imag(),
+                     printf("1 %g %g, %g %g\n",
+             D3PlusCached_k(1,2,3,4).real(), D3PlusCached_k(1,2,3,4).imag(),
                             D3MinsCached_k(1,2,3,4).real(),
                             D3MinsCached_k(1,2,3,4).imag());
                    }*/
@@ -707,8 +827,8 @@ Interaction3Ph::getCouplingSquared(Eigen::Vector3d &q1, Eigen::Vector3d &q2,
         phaseMins(ir3) = exp(complexI * argM);
         /*        if (ir3 == 7) {
                   printf(
-                      "1 q1 = %g %g %g, q2 = %g %g %g, pp(3) = %g %g, pm(3) = %g
-           %g\n", q1_k(0), q1_k(1), q1_k(2), q2_k(0), q2_k(1), q2_k(2),
+                      "1 q1 = %g %g %g, q2 = %g %g %g, pp(3) = %g %g, pm(3) =
+           %g %g\n", q1_k(0), q1_k(1), q1_k(2), q2_k(0), q2_k(1), q2_k(2),
                       phasePlus(7).real(), phasePlus(7).imag(),
            phaseMins(7).real(), phaseMins(7).imag());
                 }*/
@@ -776,8 +896,8 @@ Interaction3Ph::getCouplingSquared(Eigen::Vector3d &q1, Eigen::Vector3d &q2,
                                tmpMins(iac1, iac2, iac3).real(),
                                tmpMins(iac1, iac2, iac3).imag(),
                                ev1(ib1, iac1).real(),
-                               ev1(ib1, iac1).imag(), tmpp.real(), tmpp.imag(),
-                               tmpm.real(), tmpm.imag());*/
+                               ev1(ib1, iac1).imag(), tmpp.real(),
+               tmpp.imag(), tmpm.real(), tmpm.imag());*/
           }
         }
         tmp1Plus(ib1, iac3, iac2) = tmpp;
