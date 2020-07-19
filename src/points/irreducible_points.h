@@ -17,7 +17,9 @@ protected:
   std::vector<std::vector<int>> irreducibleStars;
   Eigen::VectorXi mapEquivalenceRotationIndex;
 
-  std::vector<Eigen::Matrix3d> rotationMatrices; //in cartesian reciprocal space
+  // these allow the rotation of points, also in cartesian coordinates
+  std::vector<Eigen::Matrix3d> rotationMatricesCrystal;
+  std::vector<Eigen::Matrix3d> rotationMatricesCartesian;
 
   Eigen::MatrixXd pointsList;
   Points &parentPoints;
@@ -30,12 +32,11 @@ public:
 
   long getIndex(const Eigen::Vector3d &point);
 
-  Eigen::VectorXi getIndexReducibleFromIrreducible(const long &indexIrr);
-  long getIndexIrreducibleFromReducible(const long &indexRed);
+//  Eigen::VectorXi getIndexReducibleFromIrreducible(const long &indexIrr);
+//  long getIndexIrreducibleFromReducible(const long &indexRed);
 
   Point getPoint(const long &index);
 
-  long getNumPoints();
   double getWeight(const long &ik);
   Eigen::Vector3d getPointCoords(const long &index,
       const int &basis=crystalCoords);

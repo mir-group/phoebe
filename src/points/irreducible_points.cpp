@@ -3,8 +3,9 @@
 #include "utilities.h"
 
 IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
-    parentPoints(parentPoints_),  Points(parentPoints_.getCrystal(), std::get<0>(parentPoints_.getMesh()),
-        std::get<1>(parentPoints_.getMesh())) {
+    parentPoints(parentPoints_),
+    Points(parentPoints_.getCrystal(), std::get<0>(parentPoints_.getMesh()),
+           std::get<1>(parentPoints_.getMesh())) {
 
   // generate a list of points compatible with the symmetries of the system
 
@@ -21,22 +22,23 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   // equiv(nk)!=nk : k-point nk is equivalent to k-point equiv(nk)
 
   std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
-
-  for ( auto symm : symms ) {
-    Eigen::Matrix3d rotation = symm.rotation;
-    Eigen::Matrix3d bg = crystal.getReciprocalUnitCell();
-    rotation = bg * rotation * bg.inverse();
-    rotationMatrices.push_back(rotation);
+  {
+    Eigen::Matrix3d bg = crystal.getReciprocalUnitCell().transpose();
+    for (auto symm : symms) {
+      Eigen::Matrix3d rotation = symm.rotation;
+      rotationMatricesCrystal.push_back(rotation);
+      rotation = bg * rotation * bg.inverse();
+      rotationMatricesCartesian.push_back(rotation);
+    }
   }
-
   mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(numParentPoints);
   mapEquivalenceRotationIndex.setConstant(1);
 
   // the identity is assumed to be the first symmetry. Let's check it
   {
     Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
-    double x = (rotationMatrices[0] - I).norm();
-    if ( x > epsilon ) {
+    double x = (rotationMatricesCrystal[0] - I).norm();
+    if (x > epsilon) {
       Error e("Development bug: rotation matrix should be the first symmetry");
     }
   }
@@ -48,13 +50,14 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
       // check if there are equivalent k-point to this in the list
       // (excepted those previously found to be equivalent to another)
       // check both k and -k
-      int is=-1;
+      int is = -1;
       for (auto symm : symms) {
         is += 1;
 
         Eigen::Matrix3d s = symm.rotation;
 
-        Eigen::Vector3d rotatedPoint = s * parentPoints.getPointCoords(ik, Points::crystalCoords);
+        Eigen::Vector3d rotatedPoint =
+            s * parentPoints.getPointCoords(ik, Points::crystalCoords);
 
         for (long i = 0; i < 3; i++) {
           rotatedPoint(i) -= round(rotatedPoint(i));
@@ -63,15 +66,15 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
         double yy = rotatedPoint(1) * mesh(1) - offset(1);
         double zz = rotatedPoint(2) * mesh(2) - offset(2);
         bool inTheList = (abs(xx - round(xx)) <= epsilon
-                       && abs(yy - round(yy)) <= epsilon
-                       && abs(zz - round(zz)) <= epsilon);
+            && abs(yy - round(yy)) <= epsilon
+            && abs(zz - round(zz)) <= epsilon);
         if (inTheList) {
           int ix = mod(long(round(rotatedPoint(0) * mesh(0)
-                                  - offset(0) + 2 * mesh(0))), mesh(0));
+                                      - offset(0) + 2 * mesh(0))), mesh(0));
           int iy = mod(long(round(rotatedPoint(1) * mesh(1)
-                                  - offset(1) + 2 * mesh(1))), mesh(1));
+                                      - offset(1) + 2 * mesh(1))), mesh(1));
           int iz = mod(long(round(rotatedPoint(2) * mesh(2)
-                                  - offset(2) + 2 * mesh(2))), mesh(2));
+                                      - offset(2) + 2 * mesh(2))), mesh(2));
           int n = iz + iy * mesh(2) + ix * mesh(1) * mesh(2);
           if (n > ik && equiv(n) == n) {
             equiv(n) = ik;
@@ -89,8 +92,8 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
 
   // count irreducible points and order them
 
-  long numPoints = 0;
-  for ( long ik = 0; ik < numParentPoints; ik++) {
+  numPoints = 0;
+  for (long ik = 0; ik < numParentPoints; ik++) {
     if (equiv(ik) == ik) {
       numPoints += 1;
     }
@@ -106,11 +109,9 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   for (long j = 0; j < numParentPoints; j++) {
     if (equiv(j) == j) {
       weights(i) = tmpWeight(j);
-      pointsList.col(i) = parentPoints.getPointCoords(j,Points::crystalCoords);
-
+      pointsList.col(i) = parentPoints.getPointCoords(j, Points::crystalCoords);
       mapIrreducibleToReducible(i) = j;
       mapReducibleToIrreducible(j) = i;
-
       i += 1;
     }
   }
@@ -118,11 +119,11 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
   // normalize weights to one
   weights /= weights.sum();
 
-  for ( int ikIrr=0; ikIrr<numPoints; ikIrr++ ) {
+  for (int ikIrr = 0; ikIrr < numPoints; ikIrr++) {
     std::vector<int> thisStar;
     int ikIrrFull = mapIrreducibleToReducible(ikIrr);
-    for ( int ik=0; ik<numParentPoints; ik++ ) {
-      if ( equiv(ik) == ikIrrFull) {
+    for (int ik = 0; ik < numParentPoints; ik++) {
+      if (equiv(ik) == ikIrrFull) {
         thisStar.push_back(ik);
       }
     }
@@ -133,73 +134,96 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
 
 // copy constructor
 IrreduciblePoints::IrreduciblePoints(const IrreduciblePoints &that) :
-        Points(that), parentPoints(that.parentPoints),
-        mapReducibleToIrreducible(that.mapReducibleToIrreducible),
-        mapIrreducibleToReducible(that.mapIrreducibleToReducible) {
+    Points(that),
+    mapReducibleToIrreducible(that.mapReducibleToIrreducible),
+    mapIrreducibleToReducible(that.mapIrreducibleToReducible),
+    irreducibleStars(that.irreducibleStars),
+    mapEquivalenceRotationIndex(that.mapEquivalenceRotationIndex),
+    rotationMatricesCrystal(that.rotationMatricesCrystal),
+    rotationMatricesCartesian(that.rotationMatricesCartesian),
+    pointsList(that.pointsList),
+    parentPoints(that.parentPoints),
+    weights(that.weights) {
 }
 
 // assignment operator
-IrreduciblePoints& IrreduciblePoints::operator=(const IrreduciblePoints &that) {
-    if (this != &that) {
-        crystal = that.crystal;
-        mesh = that.mesh;
-        offset = that.offset;
-        numPoints = that.numPoints;
-        gVectors = that.gVectors;
-        igVectors = that.igVectors;
-        mapReducibleToIrreducible = that.mapReducibleToIrreducible;
-        mapIrreducibleToReducible = that.mapIrreducibleToReducible;
-    }
-    return *this;
+IrreduciblePoints &IrreduciblePoints::operator=(const IrreduciblePoints &that) {
+  Points::operator=(that);
+  if (this != &that) {
+    mapReducibleToIrreducible = that.mapReducibleToIrreducible;
+    mapIrreducibleToReducible = that.mapIrreducibleToReducible;
+    irreducibleStars = that.irreducibleStars;
+    mapEquivalenceRotationIndex = that.mapEquivalenceRotationIndex;
+    rotationMatricesCartesian = that.rotationMatricesCartesian;
+    rotationMatricesCrystal = that.rotationMatricesCrystal;
+    pointsList = that.pointsList;
+    parentPoints = that.parentPoints;
+    weights = that.weights;
+  }
+  return *this;
 }
 
 Point IrreduciblePoints::getPoint(const long &index) {
-    return Point(*this, index);
+  return Point(*this, index);
 }
 
 Eigen::Vector3d IrreduciblePoints::getPointCoords(const long &index,
-        const int &basis) {
-    if (basis != crystalCoords && basis != cartesianCoords) {
-        Error e("Wrong basis for getPoint");
-    }
-    Eigen::Vector3d pointCrystal = pointsList.col(index);
-    if (basis == crystalCoords) {
-        return pointCrystal;
-    } else {
-        Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
-        return pointCartesian;
-    }
+                                                  const int &basis) {
+  if (basis != Points::crystalCoords && basis != Points::cartesianCoords) {
+    Error e("Wrong basis for getPoint");
+  }
+  Eigen::Vector3d pointCrystal = pointsList.col(index);
+  if (basis == Points::crystalCoords) {
+    return pointCrystal;
+  } else {
+    Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
+    return pointCartesian;
+  }
 }
 
-long IrreduciblePoints::getIndex(const Eigen::Vector3d &point) {
-    // untested
-    long ik = getIndex(point);
-    long ikIrr = mapReducibleToIrreducible(ik);
-    return ikIrr;
+// I don't assume to be working with a uniform mesh
+long IrreduciblePoints::getIndex(const Eigen::Vector3d &coords) {
+  // in this case there is no order, so we just search through a loop
+  bool found = false;
+  long counter;
+  for (counter = 0; counter < numPoints; counter++) {
+    if ((pointsList.col(counter) - coords).norm() < 1.0e-8) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    Error e("Point not found in Irreducible Points");
+  }
+  return counter;
 }
 
 double IrreduciblePoints::getWeight(const long &ik) {
-    return weights(ik);
+  return weights(ik);
 }
 
-Eigen::VectorXi IrreduciblePoints::getIndexReducibleFromIrreducible(
-        const long &indexIrr) {
-    std::vector<int> indexVec;
-    long sizeStar = 0;
-    for (long ik = 0; ik < numPoints; ik++) {
-        if (mapReducibleToIrreducible(ik) == indexIrr) {
-            indexVec.push_back(ik);
-            sizeStar += 1;
-        }
-    }
-    Eigen::VectorXi star(sizeStar);
-    for (long ik = 0; ik < sizeStar; ik++) {
-        star(ik) = indexVec[ik];
-    }
-    return star;
-}
+//Eigen::VectorXi IrreduciblePoints::getIndexReducibleFromIrreducible(
+//    const long &indexIrr) {
+//  std::vector<int> indexVec;
+//  long sizeStar = 0;
+//  for (long ik = 0; ik < numPoints; ik++) {
+//    if (mapReducibleToIrreducible(ik) == indexIrr) {
+//      indexVec.push_back(ik);
+//      sizeStar += 1;
+//    }
+//  }
+//  Eigen::VectorXi star(sizeStar);
+//  for (long ik = 0; ik < sizeStar; ik++) {
+//    star(ik) = indexVec[ik];
+//  }
+//  return star;
+//}
+//
+//long IrreduciblePoints::getIndexIrreducibleFromReducible(const long &indexRed) {
+//  long ik = mapReducibleToIrreducible(indexRed);
+//  return ik;
+//}
 
-long IrreduciblePoints::getIndexIrreducibleFromReducible(const long &indexRed) {
-    long ik = mapReducibleToIrreducible(indexRed);
-    return ik;
+Points IrreduciblePoints::getParentPoints() {
+  return parentPoints;
 }
