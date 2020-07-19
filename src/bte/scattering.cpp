@@ -23,6 +23,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     return;
   }
 
+  dimensionality_ = context.getDimensionality();
+
   highMemory = context.getScatteringMatrixInMemory();
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
@@ -34,7 +36,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   if (highMemory) {
     numCalcs = statisticsSweep.getNumCalcs();
   } else {
-    numCalcs = statisticsSweep.getNumCalcs() * context.getDimensionality();
+    numCalcs = statisticsSweep.getNumCalcs() * dimensionality_;
   }
 
   // we want to know the state index of acoustic modes at gamma,
@@ -65,6 +67,7 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
       numStates(that.numStates),
       numPoints(that.numPoints),
       numCalcs(that.numCalcs),
+      dimensionality_(that.dimensionality_),
       excludeIndeces(that.excludeIndeces) {}
 
 // assignment operator
@@ -83,6 +86,7 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     numPoints = that.numPoints;
     numCalcs = that.numCalcs;
     excludeIndeces = that.excludeIndeces;
+    dimensionality_ = that.dimensionality_;
   }
   return *this;
 }

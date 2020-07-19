@@ -126,6 +126,7 @@ protected:
     long numPoints; // number of wavevectors
     long numCalcs; // number of "Calculations", i.e. number of temperatures and
     // chemical potentials on which we compute scattering.
+    int dimensionality_;
 
     // this is to exclude problematic Bloch states, e.g. acoustic phonon modes
     // at gamma, which have zero frequencies and thus have several non-analytic

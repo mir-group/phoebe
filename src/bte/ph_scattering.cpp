@@ -280,11 +280,11 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                 case (1):
                   // case of matrix-vector multiplication
                   // we build the scattering matrix A = S*n(n+1)
-                  for (long i : {0, 1, 2}) {
-                    outPopulation->data(3 * iCalc + i, ind1) +=
-                        ratePlus * inPopulation->data(3 * iCalc + i, ind2);
-                    outPopulation->data(3 * iCalc + i, ind1) +=
-                        ratePlus * inPopulation->data(3 * iCalc + i, ind1);
+                  for (int i=0; i<dimensionality_; i++) {
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                        ratePlus * inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                        ratePlus * inPopulation->data(dimensionality_ * iCalc + i, ind1);
                   }
                   break;
                 case (2):
@@ -346,13 +346,13 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                   break;
                 case (1):
                   // case of matrix-vector multiplication
-                  for (long i : {0, 1, 2}) {
-                    outPopulation->data(3 * iCalc + i, ind1) -=
+                  for (int i=0; i<dimensionality_; i++) {
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
                         (rateMins1 + rateMins2) *
-                        inPopulation->data(3 * iCalc + i, ind2);
-                    outPopulation->data(3 * iCalc + i, ind1) +=
+                        inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
                         0.5 * rateMins2 *
-                        inPopulation->data(3 * iCalc + i, ind1);
+                        inPopulation->data(dimensionality_ * iCalc + i, ind1);
                   }
                   break;
                 case (2):
@@ -462,11 +462,11 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                 case (1):
                   // case of matrix-vector multiplication
                   // we build the scattering matrix A = S*n(n+1)
-                  for (long i : {0, 1, 2}) {
-                    outPopulation->data(3 * iCalc + i, ind1) +=
-                        rateIso * inPopulation->data(3 * iCalc + i, ind2);
-                    outPopulation->data(3 * iCalc + i, ind1) +=
-                        rateIso * inPopulation->data(3 * iCalc + i, ind1);
+                  for (int i=0; i<dimensionality_; i++) {
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                        rateIso * inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                        rateIso * inPopulation->data(dimensionality_ * iCalc + i, ind1);
                   }
                   break;
                 case (2):
@@ -511,9 +511,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             break;
           case (1):
             // case of matrix-vector multiplication
-            for (long i : {0, 1, 2}) {
-              outPopulation->data(3 * iCalc + i, is1) +=
-                  rate * inPopulation->data(3 * iCalc + i, is1);
+            for ( int i=0; i<dimensionality_; i++) {
+              outPopulation->data(dimensionality_ * iCalc + i, is1) +=
+                  rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
             }
             break;
           case (2):
