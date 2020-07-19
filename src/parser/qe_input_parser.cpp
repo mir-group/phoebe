@@ -421,7 +421,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   celldm(4) = std::stod(lineSplit[7]);
   celldm(5) = std::stod(lineSplit[8]);
 
-  Eigen::Matrix3d directUnitCell(3, 3);
+  Eigen::Matrix3d directUnitCell;
   if (ibrav == 0) {
     // In this case, unitCell is written in the file (in angstroms?)
     for (int i = 0; i < 3; i++) {
@@ -447,15 +447,19 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   };
 
   //  we read the atomic positions
+  // in the file, they appear in crystal coordinates
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
   for (int i = 0; i < numAtoms; i++) {
     std::getline(infile, line);
     lineSplit = split(line, ' ');
     atomicSpecies(i) = std::stoi(lineSplit[1]) - 1;
-    atomicPositions(i, 0) = std::stod(lineSplit[2]);
-    atomicPositions(i, 1) = std::stod(lineSplit[3]);
-    atomicPositions(i, 2) = std::stod(lineSplit[4]);
+    Eigen::Vector3d tmpVec;
+    tmpVec(0) = std::stod(lineSplit[2]);
+    tmpVec(1) = std::stod(lineSplit[3]);
+    tmpVec(2) = std::stod(lineSplit[4]);
+    // we convert from crystal to cartesian coordinates
+    atomicPositions.row(i) = directUnitCell.transpose() * tmpVec;
   }
 
   //  Read if hasDielectric
