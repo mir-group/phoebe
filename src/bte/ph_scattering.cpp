@@ -111,10 +111,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       outPopulation == nullptr) {
     switchCase = 0;
   } else if (matrix.rows() == 0 && linewidth == nullptr &&
-             inPopulation != nullptr && outPopulation != nullptr) {
+      inPopulation != nullptr && outPopulation != nullptr) {
     switchCase = 1;
   } else if (matrix.rows() == 0 && linewidth != nullptr &&
-             inPopulation == nullptr && outPopulation == nullptr) {
+      inPopulation == nullptr && outPopulation == nullptr) {
     switchCase = 2;
   } else {
     Error e("builder3Ph found a non-supported case");
@@ -158,10 +158,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     mpi->allReduceSum(&innerBose.data);
   }
 
-  // note: these variables are only needed in the loop
-  // but since it's an expensive loop, we define them here once and for all
-  double ratePlus, rateMins1, rateMins2;
-
   std::vector<std::tuple<std::vector<long>, long>> qPairIterator =
       getIteratorWavevectorPairs(switchCase);
 
@@ -171,7 +167,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
-  for (auto [iq1Indexes, iq2] : qPairIterator) {
+  for (auto[iq1Indexes, iq2] : qPairIterator) {
 
     Point q2 = innerBandStructure.getPoint(iq2);
     State states2 = innerBandStructure.getState(q2);
@@ -194,173 +190,184 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       int nb1 = state1Energies.size();
       Eigen::MatrixXd v1s = states1.getGroupVelocities();
 
-      auto [q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
-            bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
-      auto [q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
-            bose3MinsData] = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+      auto[q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
+      bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+      auto[q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
+      bose3MinsData] = pointHelper.get(q1, q2, Helper3rdState::caseMins);
 
       DetachedState states3Plus(q3PlusC, state3PlusEnergies, numAtoms, nb3Plus,
                                 eigvecs3Plus);
       DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms, nb3Mins,
                                 eigvecs3Mins);
 
-      auto [couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
+      auto[couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
           states1, states2, states3Plus, states3Mins);
 
-      for (long ib1 = 0; ib1 < nb1; ib1++) {
+#pragma omp parallel for
+      for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Plus; ibbb++) {
+        auto[ib1, ib2, ib3] = decompress3Indeces(ibbb, nb1, nb2, nb3Plus);
+
         double en1 = state1Energies(ib1);
-        int ind1 =
-            outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
-        if (en1 < energyCutoff) {
+        double en2 = state2Energies(ib2);
+        double en3Plus = state3PlusEnergies(ib3);
+        if (en1 < energyCutoff || en2 < energyCutoff
+            || en3Plus < energyCutoff) {
           continue;
         }
+        double enProd = en1 * en2 * en3Plus;
 
-        for (long ib2 = 0; ib2 < nb2; ib2++) {
-          double en2 = state2Energies(ib2);
-          int ind2 =
-              innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
-          if (en2 < energyCutoff) {
+        int ind1 =
+            outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
+        int ind2 =
+            innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
+
+        if (switchCase == 0) {
+          // note: above we are parallelizing over wavevectors.
+          // (for convenience of computing coupling3ph)
+          // Not the same way as Matrix() is parallelized.
+          // here we check that we don't duplicate efforts
+          if (!matrix.indecesAreLocal(ind1, ind2)) {
             continue;
           }
+        }
 
-          if (switchCase == 0) {
-            // note: above we are parallelizing over wavevectors.
-            // (for convenience of computing coupling3ph)
-            // Not the same way as Matrix() is parallelized.
-            // here we check that we don't duplicate efforts
-            if (!matrix.indecesAreLocal(ind1, ind2)) {
-              continue;
-            }
+        double deltaPlus;
+        switch (smearing->getType()) {
+          case (DeltaFunction::gaussian): deltaPlus = smearing->getSmearing(
+                en1 + en2 - en3Plus);
+            break;
+          case (DeltaFunction::adaptiveGaussian): {
+            Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
+            deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
           }
+            break;
+          default: deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
+            break;
+        }
 
-          // split into two cases since there may be different bands
-          for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
-            double en3Plus = state3PlusEnergies(ib3);
-            if (en3Plus < energyCutoff) {
-              continue;
-            }
+        if (deltaPlus < 0) continue;
 
-            double enProd = en1 * en2 * en3Plus;
+        // loop on temperature
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          double bose1 = outerBose.data(iCalc, ind1);
+          double bose2 = innerBose.data(iCalc, ind2);
+          double bose3Plus = bose3PlusData(iCalc, ib3);
 
-            double deltaPlus;
-            switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):
-                deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
-                break;
-              case (DeltaFunction::adaptiveGaussian): {
-                  Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
-                  deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
-                }
-                break;
-              default:
-                deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
-                break;
-            }
+          // Calculate transition probability W+
+          double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
+              couplingPlus(ib1, ib2, ib3) * deltaPlus /
+              innerNumFullPoints / enProd;
 
-            if (deltaPlus < 0) continue;
-
-            // loop on temperature
-            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              double bose1 = outerBose.data(iCalc, ind1);
-              double bose2 = innerBose.data(iCalc, ind2);
-              double bose3Plus = bose3PlusData(iCalc, ib3);
-
-              // Calculate transition probability W+
-              ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                         couplingPlus(ib1, ib2, ib3) * deltaPlus /
-                         innerNumFullPoints / enProd;
-
-              switch (switchCase) {
-                case (0):
-                  // case of matrix construction
-                  // we build the scattering matrix S
-                  matrix(ind1, ind2) += ratePlus;
-                  linewidth->data(iCalc, ind1) += ratePlus;
-                  break;
-                case (1):
-                  // case of matrix-vector multiplication
-                  // we build the scattering matrix A = S*n(n+1)
-                  for (int i=0; i<dimensionality_; i++) {
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        ratePlus * inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        ratePlus * inPopulation->data(dimensionality_ * iCalc + i, ind1);
-                  }
-                  break;
-                case (2):
-                  // case of linewidth construction
-                  linewidth->data(iCalc, ind1) += ratePlus;
-                  break;
+          switch (switchCase) {
+            case (0):
+              // case of matrix construction
+              // we build the scattering matrix S
+              matrix(ind1, ind2) += ratePlus;
+              linewidth->data(iCalc, ind1) += ratePlus;
+              break;
+            case (1):
+              // case of matrix-vector multiplication
+              // we build the scattering matrix A = S*n(n+1)
+              for (int i = 0; i < dimensionality_; i++) {
+                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                    ratePlus
+                        * inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                    ratePlus
+                        * inPopulation->data(dimensionality_ * iCalc + i, ind1);
               }
-            }
+              break;
+            case (2):
+              // case of linewidth construction
+              linewidth->data(iCalc, ind1) += ratePlus;
+              break;
           }
+        }
+      }
 
-          for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
-            double en3Mins = state3MinsEnergies(ib3);
-            if (en3Mins < energyCutoff) {
-              continue;
-            }
+#pragma omp parallel for
+      for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Mins; ibbb++) {
+        auto[ib1, ib2, ib3] = decompress3Indeces(ibbb, nb1, nb2, nb3Mins);
 
-            double enProd = en1 * en2 * en3Mins;
+        double en1 = state1Energies(ib1);
+        double en2 = state2Energies(ib2);
+        double en3Mins = state3MinsEnergies(ib3);
+        if (en1 < energyCutoff || en2 < energyCutoff
+            || en3Mins < energyCutoff) {
+          continue;
+        }
+        double enProd = en1 * en2 * en3Mins;
 
-            double deltaMins1, deltaMins2;
-            switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):
-                deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2);
-                deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
-                break;
-              case (DeltaFunction::adaptiveGaussian): {
-                  Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
-                 deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
-                  deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
-                }
-                break;
-              default:
-                deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
-                deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
-                break;
-            }
+        int ind1 =
+            outerBandStructure.getIndex(WavevectorIndex(iq1), BandIndex(ib1));
+        int ind2 =
+            innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
 
-            if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
-            if (deltaMins1 < 0.) deltaMins1 = 0.;
-            if (deltaMins2 < 0.) deltaMins2 = 0.;
+        if (switchCase == 0) {
+          // note: above we are parallelizing over wavevectors.
+          // (for convenience of computing coupling3ph)
+          // Not the same way as Matrix() is parallelized.
+          // here we check that we don't duplicate efforts
+          if (!matrix.indecesAreLocal(ind1, ind2)) {
+            continue;
+          }
+        }
 
-            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              double bose1 = outerBose.data(iCalc, ind1);
-              double bose2 = innerBose.data(iCalc, ind2);
-              double bose3Mins = bose3MinsData(iCalc, ib3);
+        double deltaMins1, deltaMins2;
+        switch (smearing->getType()) {
+          case (DeltaFunction::gaussian):deltaMins1 = smearing->getSmearing(
+                en1 + en3Mins - en2);
+            deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
+            break;
+          case (DeltaFunction::adaptiveGaussian): {
+            Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
+            deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
+            deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
+          }
+            break;
+          default:deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
+            deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
+            break;
+        }
 
-              // Calculatate transition probability W-
-              rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
-                          couplingMins(ib1, ib2, ib3) * deltaMins1 /
-                          innerNumFullPoints / enProd;
-              rateMins2 = pi * 0.25 * bose2 * bose3Mins * (bose1 + 1.) *
-                          couplingMins(ib1, ib2, ib3) * deltaMins2 /
-                          innerNumFullPoints / enProd;
+        if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
+        if (deltaMins1 < 0.) deltaMins1 = 0.;
+        if (deltaMins2 < 0.) deltaMins2 = 0.;
 
-              switch (switchCase) {
-                case (0):
-                  // case of matrix construction
-                  matrix(ind1, ind2) -= rateMins1 + rateMins2;
-                  linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-                  break;
-                case (1):
-                  // case of matrix-vector multiplication
-                  for (int i=0; i<dimensionality_; i++) {
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
-                        (rateMins1 + rateMins2) *
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          double bose1 = outerBose.data(iCalc, ind1);
+          double bose2 = innerBose.data(iCalc, ind2);
+          double bose3Mins = bose3MinsData(iCalc, ib3);
+
+          // Calculatate transition probability W-
+          double rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
+              couplingMins(ib1, ib2, ib3) * deltaMins1 /
+              innerNumFullPoints / enProd;
+          double rateMins2 = pi * 0.25 * bose2 * bose3Mins * (bose1 + 1.) *
+              couplingMins(ib1, ib2, ib3) * deltaMins2 /
+              innerNumFullPoints / enProd;
+
+          switch (switchCase) {
+            case (0):
+              // case of matrix construction
+              matrix(ind1, ind2) -= rateMins1 + rateMins2;
+              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              break;
+            case (1):
+              // case of matrix-vector multiplication
+              for (int i = 0; i < dimensionality_; i++) {
+                outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
+                    (rateMins1 + rateMins2) *
                         inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        0.5 * rateMins2 *
+                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                    0.5 * rateMins2 *
                         inPopulation->data(dimensionality_ * iCalc + i, ind1);
-                  }
-                  break;
-                case (2):
-                  // case of linewidth construction
-                  linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-                  break;
               }
-            }
+              break;
+            case (2):
+              // case of linewidth construction
+              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              break;
           }
         }
       }
@@ -370,7 +377,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // Isotope scattering
   if (doIsotopes) {
     // for (auto [iq1, iq2] : qPairIterator) {
-    for (auto [iq1Indexes, iq2] : qPairIterator) {
+    for (auto[iq1Indexes, iq2] : qPairIterator) {
+#pragma omp parallel for
       for (auto iq1 : iq1Indexes) {
         State states2 = innerBandStructure.getState(iq2);
         Eigen::VectorXd state2Energies = states2.getEnergies();
@@ -404,7 +412,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = state2Energies(ib2);
             int ind2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
-                                               BandIndex(ib2));
+                                                   BandIndex(ib2));
             if (en2 < energyCutoff) {
               continue;
             }
@@ -421,16 +429,17 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
             double deltaIso;
             switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):
-                deltaIso = smearing->getSmearing(en1 - en2);
+              case (DeltaFunction::gaussian):deltaIso = smearing->getSmearing(
+                    en1 - en2);
                 break;
-              case (DeltaFunction::adaptiveGaussian):
-                deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
+              case (DeltaFunction::adaptiveGaussian):deltaIso =
+                                                         smearing->getSmearing(
+                                                             en1 - en2,
+                                                             v2s.row(ib2));
                 deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
                 deltaIso *= 0.5;
                 break;
-              default:
-                deltaIso = smearing->getSmearing(en2, iq2, ib2);
+              default:deltaIso = smearing->getSmearing(en2, iq2, ib2);
                 deltaIso += smearing->getSmearing(en1, iq1, ib1);
                 deltaIso *= 0.5;
                 break;
@@ -450,7 +459,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               double bose1 = outerBose.data(iCalc, ind1);
               double bose2 = innerBose.data(iCalc, ind2);
 
-              double rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+              double
+                  rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
 
               switch (switchCase) {
                 case (0):
@@ -462,11 +472,15 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                 case (1):
                   // case of matrix-vector multiplication
                   // we build the scattering matrix A = S*n(n+1)
-                  for (int i=0; i<dimensionality_; i++) {
+                  for (int i = 0; i < dimensionality_; i++) {
                     outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        rateIso * inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                        rateIso
+                            * inPopulation->data(dimensionality_ * iCalc + i,
+                                                 ind2);
                     outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        rateIso * inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                        rateIso
+                            * inPopulation->data(dimensionality_ * iCalc + i,
+                                                 ind1);
                   }
                   break;
                 case (2):
@@ -493,6 +507,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // Add boundary scattering
 
   if (doBoundary) {
+#pragma omp parallel for
     for (long is1 = 0; is1 < numStates; is1++) {
       double energy = outerBandStructure.getEnergy(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1);
@@ -511,7 +526,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             break;
           case (1):
             // case of matrix-vector multiplication
-            for ( int i=0; i<dimensionality_; i++) {
+            for (int i = 0; i < dimensionality_; i++) {
               outPopulation->data(dimensionality_ * iCalc + i, is1) +=
                   rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
             }
