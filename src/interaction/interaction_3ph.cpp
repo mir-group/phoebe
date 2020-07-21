@@ -222,10 +222,8 @@ Interaction3Ph::getCouplingsSquared(
   }
   Kokkos::View<double **> q1s("q1s", nq1, 3);
   Kokkos::View<double *> q2("q2", 3);
-  Kokkos::View<Kokkos::complex<double> **> ev2("ev2", nb2,
-                                                                    numBands);
-  Kokkos::View<Kokkos::complex<double> ***> ev1s(
-      "ev1s", nq1, maxnb1, numBands),
+  Kokkos::View<Kokkos::complex<double> **> ev2("ev2", nb2, numBands);
+  Kokkos::View<Kokkos::complex<double> ***> ev1s("ev1s", nq1, maxnb1, numBands),
       ev3Pluss("ev3p", nq1, maxnb3Plus, numBands),
       ev3Minss("ev3m", nq1, maxnb3Mins, numBands);
   Kokkos::View<int *> nb1s("nb1s", nq1), nb3Pluss("nb3ps", nq1),
@@ -345,11 +343,10 @@ Interaction3Ph::getCouplingsSquared(
     newdts[0] += t1 - t0;
   }
 
-  Kokkos::View<Kokkos::complex<double> **> phasePlus(
-      "pp", nq1, nr3),
+  Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nq1, nr3),
       phaseMins("pm", nq1, nr3);
-  Kokkos::View<Kokkos::complex<double> ****> tmpPlus(
-      "tmpp", nq1, numBands, numBands, numBands),
+  Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
+                                                     numBands, numBands),
       tmpMins("tmpm", nq1, numBands, numBands, numBands),
       tmp1Plus("t1p", nq1, maxnb1, numBands, numBands),
       tmp1Mins("t1m", nq1, maxnb1, numBands, numBands),
@@ -357,8 +354,7 @@ Interaction3Ph::getCouplingsSquared(
       tmp2Mins("t2m", nq1, maxnb1, nb2, numBands),
       vPlus("vp", nq1, maxnb1, nb2, maxnb3Plus),
       vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
-  Kokkos::View<double ****> couplingPlus("cp", nq1, maxnb1,
-                                                              nb2, maxnb3Plus),
+  Kokkos::View<double ****> couplingPlus("cp", nq1, maxnb1, nb2, maxnb3Plus),
       couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
 
   /*  for (int iq1 = 0; iq1 < nq1; iq1++) {
