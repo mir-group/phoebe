@@ -17,6 +17,9 @@ template <typename T> using ParallelMatrix = Matrix<T>;
 
 #else
 
+#include <set>
+#include <utility>
+
 // double matrix (I skip the templates for now)
 template <typename T> class ParallelMatrix {
 private:
@@ -78,7 +81,7 @@ public:
    * local MPI process. This method is specifically made for the scattering
    * matrix, which has rows spanned by Bloch states (iq,ib)
    */
-  std::vector<std::tuple<long, long>>
+  std::vector<std::pair<int, int>>
   getAllLocalWavevectors(BaseBandStructure &bandStructure);
 
   /** Find the global indices of the matrix elements that are stored locally
@@ -400,9 +403,10 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>>
+std::vector<std::pair<int, int>>
 ParallelMatrix<T>::getAllLocalWavevectors(BaseBandStructure &bandStructure) {
-  std::vector<std::tuple<long, long>> wavevectorPairs;
+
+  std::set<std::pair<int, int>> x;
   for (long k = 0; k < numLocalElements_; k++) {
     auto tup = local2Global(k);
     auto is1 = std::get<0>(tup);
@@ -413,13 +417,12 @@ ParallelMatrix<T>::getAllLocalWavevectors(BaseBandStructure &bandStructure) {
     auto tup2 = bandStructure.getIndex(is2);
     auto ik2 = std::get<0>(tup2);
     auto ib2 = std::get<1>(tup2);
-    // make a pair of these wavevectors
-    auto t = std::make_tuple(ik1.get(), ik2.get());
-    // add to list if unique
-    if (std::find(wavevectorPairs.begin(), wavevectorPairs.end(), t) ==
-        wavevectorPairs.end()) {
-      wavevectorPairs.push_back(t);
-    }
+    std::pair<int, int> xx = std::make_pair(ik1.get(), ik2.get());
+    x.insert(xx);
+  }
+  std::vector<std::pair<int, int>> wavevectorPairs(x.size());
+  for (auto t : x) {
+    wavevectorPairs.push_back(t);
   }
   return wavevectorPairs;
 }

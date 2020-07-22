@@ -233,9 +233,10 @@ void PhononViscosity::print() {
           }
           std::cout << "\n";
         }
+        std::cout << std::endl;
       }
+      std::cout << "\n";
     }
-    std::cout << "\n";
   }
 }
 

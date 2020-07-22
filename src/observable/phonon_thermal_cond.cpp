@@ -180,7 +180,7 @@ void PhononThermalConductivity::print() {
       }
       std::cout << "\n";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
   }
 }
 
@@ -210,7 +210,7 @@ void PhononThermalConductivity::print(const int &iter) {
     }
     std::cout << "\n";
   }
-  std::cout << "\n";
+  std::cout << std::endl;
 }
 
 int PhononThermalConductivity::whichType() { return is2Tensor; }

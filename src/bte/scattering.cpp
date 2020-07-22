@@ -2,6 +2,8 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
+#include <numeric> // std::iota
+#include <set>
 
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
@@ -11,7 +13,6 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
-
   numStates = outerBandStructure.getNumStates();
   numPoints = outerBandStructure.getNumPoints();
 
@@ -20,6 +21,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     constantRTA = true;
     return;
   }
+
+  dimensionality_ = context.getDimensionality();
 
   highMemory = context.getScatteringMatrixInMemory();
 
@@ -32,7 +35,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   if (highMemory) {
     numCalcs = statisticsSweep.getNumCalcs();
   } else {
-    numCalcs = statisticsSweep.getNumCalcs() * context.getDimensionality();
+    numCalcs = statisticsSweep.getNumCalcs() * dimensionality_;
   }
 
   // we want to know the state index of acoustic modes at gamma,
@@ -57,7 +60,8 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
       constantRTA(that.constantRTA), highMemory(that.highMemory),
       internalDiagonal(that.internalDiagonal), theMatrix(that.theMatrix),
       numStates(that.numStates), numPoints(that.numPoints),
-      numCalcs(that.numCalcs), excludeIndeces(that.excludeIndeces) {}
+      numCalcs(that.numCalcs), dimensionality_(that.dimensionality_),
+      excludeIndeces(that.excludeIndeces) {}
 
 // assignment operator
 ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
@@ -75,6 +79,7 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     numPoints = that.numPoints;
     numCalcs = that.numCalcs;
     excludeIndeces = that.excludeIndeces;
+    dimensionality_ = that.dimensionality_;
   }
   return *this;
 }
@@ -163,7 +168,6 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
 
 // set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
 void ScatteringMatrix::a2Omega() {
-
   if (!highMemory) {
     Error e("a2Omega only works if the matrix is stored in memory");
   }
@@ -186,7 +190,6 @@ void ScatteringMatrix::a2Omega() {
   for (auto tup : theMatrix.getAllLocalStates()) {
     auto ind1 = std::get<0>(tup);
     auto ind2 = std::get<1>(tup);
-
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
         excludeIndeces.end())
       continue;
@@ -212,7 +215,6 @@ void ScatteringMatrix::a2Omega() {
 
 // add a flag to remember if we have A or Omega
 void ScatteringMatrix::omega2A() {
-
   if (!highMemory) {
     Error e("a2Omega only works if the matrix is stored in memory");
   }
@@ -235,7 +237,6 @@ void ScatteringMatrix::omega2A() {
   for (auto tup : theMatrix.getAllLocalStates()) {
     auto ind1 = std::get<0>(tup);
     auto ind2 = std::get<1>(tup);
-
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
         excludeIndeces.end())
       continue;
@@ -321,24 +322,56 @@ std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
   return {eigvals, eigenvectors};
 }
 
-std::vector<std::tuple<long, long>>
+std::vector<std::tuple<std::vector<long>, long>>
 ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
-  std::vector<std::tuple<long, long>> pairIterator;
   if (switchCase != 0) {
+    std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+
     size_t a = innerBandStructure.getNumPoints();
     std::vector<int> wavevectorIterator = mpi->divideWorkIter(a);
     // Note: phScatteringMatrix needs iq2 to be the outer loop
     // in order to be efficient!
 
+    std::vector<long> outerIterator(outerBandStructure.getNumPoints());
+    // populate vector with integers from 0 to numPoints-1
+    std::iota(std::begin(outerIterator), std::end(outerIterator), 0);
+
     for (long iq2 : wavevectorIterator) {
-      for (long iq1 = 0; iq1 < outerBandStructure.getNumPoints(); iq1++) {
-        auto t = std::make_tuple(iq1, iq2);
-        pairIterator.push_back(t);
-      }
+      auto t = std::make_tuple(outerIterator, iq2);
+      pairIterator.push_back(t);
     }
+    return pairIterator;
 
   } else {
-    pairIterator = theMatrix.getAllLocalWavevectors(outerBandStructure);
+
+    // list in form [[0,0],[1,0],[2,0],...]
+    std::vector<std::pair<int, int>> x =
+        theMatrix.getAllLocalWavevectors(outerBandStructure);
+    // find set of q2
+    std::set<long> q2Indexes;
+    for (auto tup : x) {
+      auto iq1 = std::get<0>(tup);
+      auto iq2 = std::get<1>(tup);
+      q2Indexes.insert(iq2);
+    }
+
+    std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+    // find all q1 for fixes q2
+    for (long iq2 : q2Indexes) {
+      std::vector<long> q1Indexes;
+
+      // note: I'm assuming that the pairs in x are unique
+      for (auto tup : x) {
+        auto iq1 = std::get<0>(tup);
+        auto iq2_ = std::get<1>(tup);
+        if (iq2 == iq2_) {
+          q1Indexes.push_back(iq1);
+        }
+      }
+
+      auto t = std::make_tuple(q1Indexes, iq2);
+      pairIterator.push_back(t);
+    }
+    return pairIterator;
   }
-  return pairIterator;
 }

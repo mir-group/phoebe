@@ -69,7 +69,7 @@ void SpecificHeat::print() {
         std::cout << std::scientific;
         std::cout.precision(5);
         std::cout << scalar(iCalc) * conversion;
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 }
 

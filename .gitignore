@@ -54,3 +54,6 @@ Makefile
 runTests
 tags
 *.plist
+
+# Clion IDE
+.idea

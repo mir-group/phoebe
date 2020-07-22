@@ -271,7 +271,7 @@ Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
   auto tup = decompress2Indeces(stateIndex, getNumPoints(), numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
-  return points.getPoint(ik).getCoords(Points::cartesianCoords);
+  return points.getPoint(ik).getCoords(Points::cartesianCoords, true);
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,

@@ -41,6 +41,51 @@ ActiveBandStructure &ActiveBandStructure::operator=(
   return *this;
 }
 
+ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
+                                         HarmonicHamiltonian *h0,
+                                         const bool &withEigenvectors,
+                                         const bool &withVelocities)
+    : particle(Particle(h0->getParticle().getParticleKind())),
+      activePoints(activePoints_) {
+  numPoints = activePoints.getNumPoints();
+  numFullBands = h0->getNumBands();
+  numBands = Eigen::VectorXi::Zero(numPoints);
+  for (int ik = 0; ik < numPoints; ik++) {
+    numBands(ik) = numFullBands;
+  }
+  numStates = numFullBands * numPoints;
+  hasEigenvectors = withEigenvectors;
+
+  energies.resize(numPoints * numFullBands, 0.);
+  velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
+  eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
+
+  windowMethod = Window::nothing;
+
+  buildIndeces();
+
+  // now we can loop over the trimmed list of points
+  for (long ik : mpi->divideWorkIter(numPoints)) {
+    Point point = activePoints.getPoint(ik);
+    auto tup = h0->diagonalize(point);
+    auto theseEnergies = std::get<0>(tup);
+    auto theseEigenvectors = std::get<1>(tup);
+    setEnergies(point, theseEnergies);
+
+    if (withEigenvectors) {
+      setEigenvectors(point, theseEigenvectors);
+    }
+
+    if (withVelocities) {
+      auto thisVelocity = h0->diagonalizeVelocity(point);
+      setVelocities(point, thisVelocity);
+    }
+  }
+  mpi->allReduceSum(&energies);
+  mpi->allReduceSum(&velocities);
+  mpi->allReduceSum(&eigenvectors);
+}
+
 Particle ActiveBandStructure::getParticle() { return particle; }
 
 bool ActiveBandStructure::hasPoints() {
@@ -175,7 +220,7 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
   Point p = activePoints.getPoint(ik);
-  return p.getCoords(Points::cartesianCoords);
+  return p.getCoords(Points::cartesianCoords, true);
 }
 
 void ActiveBandStructure::setEnergies(Point &point,

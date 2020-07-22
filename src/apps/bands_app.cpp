@@ -1,9 +1,9 @@
 #include "bands_app.h"
 #include "constants.h"
 #include "eigen.h"
+#include "path_points.h"
 #include "qe_input_parser.h"
 #include <fstream>
-#include <iostream>
 
 void PhononBandsApp::run(Context &context) {
   std::cout << "Starting phonon bands calculation" << std::endl;

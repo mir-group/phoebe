@@ -4,11 +4,9 @@
 #include "delta_function.h"
 #include "electron_h0_fourier.h"
 #include "exceptions.h"
+#include "full_points.h"
 #include "qe_input_parser.h"
-#include "utilities.h"
 #include <fstream>
-#include <iostream>
-#include <string>
 
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context &context) {

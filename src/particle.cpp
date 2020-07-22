@@ -113,3 +113,7 @@ double Particle::getPopPopPm1(const double &energy, const double &temperature,
     x = 0.25 / x / x;
     return x;
 }
+
+int Particle::getParticleKind() {
+  return kind;
+}
