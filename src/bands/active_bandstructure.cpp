@@ -593,6 +593,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     /////////////////
 
     // now we can loop over the trimmed list of points
+    #pragma omp parallel for
     for (long ik : mpi->divideWorkIter(numPoints)) {
         Point point = activePoints.getPoint(ik);
         auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);

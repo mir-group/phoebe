@@ -28,46 +28,64 @@ PhononViscosity& PhononViscosity::operator =(const PhononViscosity &that) {
 }
 
 void PhononViscosity::calcRTA(VectorBTE &tau) {
-    double norm = 1. / bandStructure.getNumPoints(true)
-            / crystal.getVolumeUnitCell(dimensionality);
+  double norm = 1. / bandStructure.getNumPoints(true)
+          / crystal.getVolumeUnitCell(dimensionality);
 
-    auto particle = bandStructure.getParticle();
-    tensordxdxdxd.setZero();
+  auto particle = bandStructure.getParticle();
+  tensordxdxdxd.setZero();
 
-    auto excludeIndeces = tau.excludeIndeces;
+  auto excludeIndeces = tau.excludeIndeces;
 
+  #pragma omp parallel
+  {
+    Eigen::Tensor<double,5> tmpTensor = tensordxdxdxd.constant(0.);
+
+    #pragma omp for nowait
     for ( long is : bandStructure.parallelStateIterator() ) {
-        auto en = bandStructure.getEnergy(is);
+      auto en = bandStructure.getEnergy(is);
 
-        auto vel = bandStructure.getGroupVelocity(is);
-        auto q = bandStructure.getWavevector(is);
+      auto vel = bandStructure.getGroupVelocity(is);
+      auto q = bandStructure.getWavevector(is);
 
-        // skip the acoustic phonons
-        if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
-                != excludeIndeces.end())
-            continue;
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
+              != excludeIndeces.end())
+          continue;
 
-        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
 
-            auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-            double temperature = calcStat.temperature;
-            double chemPot = calcStat.chemicalPotential;
-            double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double temperature = calcStat.temperature;
+        double chemPot = calcStat.chemicalPotential;
+        double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
 
-            for (long i = 0; i < dimensionality; i++) {
-                for (long j = 0; j < dimensionality; j++) {
-                    for (long k = 0; k < dimensionality; k++) {
-                        for (long l = 0; l < dimensionality; l++) {
-                            tensordxdxdxd(iCalc, i, j, k, l) += q(i) * vel(j)
-                                    * q(k) * vel(l) * bosep1
-                                    * tau.data(iCalc, is) / temperature * norm;
-                        }
-                    }
-                }
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            for (long k = 0; k < dimensionality; k++) {
+              for (long l = 0; l < dimensionality; l++) {
+                tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j)
+                          * q(k) * vel(l) * bosep1
+                          * tau.data(iCalc, is) / temperature * norm;
+              }
             }
+          }
         }
+      }
     }
-    mpi->allReduceSum(&tensordxdxdxd);
+    #pragma omp critical
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (long i = 0; i < dimensionality; i++) {
+        for (long j = 0; j < dimensionality; j++) {
+          for (long k = 0; k < dimensionality; k++) {
+            for (long l = 0; l < dimensionality; l++) {
+              tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
+            }
+          }
+        }
+      }
+    }
+  }
+  mpi->allReduceSum(&tensordxdxdxd);
 }
 
 void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
@@ -174,19 +192,34 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 
     // Eq. 9, Simoncelli PRX (2019)
     tensordxdxdxd.setZero();
-    for (long is = firstState; is < numStates; is++) {
+    #pragma omp parallel
+    {
+      Eigen::Tensor<double,5> tmpTensor = tensordxdxdxd.constant(0.);
+      #pragma omp for nowait
+      for (long is = firstState; is < numStates; is++) {
         for (long i = 0; i < dimensionality; i++) {
-            for (long j = 0; j < dimensionality; j++) {
-                for (long k = 0; k < dimensionality; k++) {
-                    for (long l = 0; l < dimensionality; l++) {
-                        tensordxdxdxd(iCalc, i, j, k, l) += 0.5
-                                * (w(i, j, is) * w(k, l, is)
-                                        + w(i, l, is) * w(k, j, is)) * A(i)
-                                * A(k) * relTimes.data(0, is);
-                    }
-                }
+          for (long j = 0; j < dimensionality; j++) {
+            for (long k = 0; k < dimensionality; k++) {
+              for (long l = 0; l < dimensionality; l++) {
+                tmpTensor(iCalc, i, j, k, l) += 0.5
+                        * (w(i, j, is) * w(k, l, is)
+                                + w(i, l, is) * w(k, j, is)) * A(i)
+                        * A(k) * relTimes.data(0, is);
+              }
             }
+          }
         }
+      }
+      #pragma omp critical
+      for (long i = 0; i < dimensionality; i++) {
+        for (long j = 0; j < dimensionality; j++) {
+          for (long k = 0; k < dimensionality; k++) {
+            for (long l = 0; l < dimensionality; l++) {
+              tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
+            }
+          }
+        }
+      }
     }
 }
 
