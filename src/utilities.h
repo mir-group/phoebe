@@ -61,11 +61,11 @@ private:
     T value_;
 };
 
-using DimIndex = NamedType<double, struct DimTag>;
-using CalcIndex = NamedType<double, struct CalcTag>;
-using TempIndex = NamedType<double, struct TempTag>;
-using ChemPotIndex = NamedType<double, struct ChemPotTag>;
-using WavevectorIndex = NamedType<double, struct WavevectorTag>;
-using BandIndex = NamedType<double, struct BandTag>;
+using DimIndex = NamedType<long, struct DimTag>;
+using CalcIndex = NamedType<long, struct CalcTag>;
+using TempIndex = NamedType<long, struct TempTag>;
+using ChemPotIndex = NamedType<long, struct ChemPotTag>;
+using WavevectorIndex = NamedType<long, struct WavevectorTag>;
+using BandIndex = NamedType<long, struct BandTag>;
 
 #endif
