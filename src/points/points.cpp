@@ -1,5 +1,6 @@
 #include <cmath>
 #include <set>
+#include <math.h>
 #include "points.h"
 #include "eigen.h"
 #include "utilities.h" // for mod()
@@ -12,30 +13,21 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
 
   setMesh(mesh_, offset_);
 
-  // This block allows the crystalToWS functionality
+  // This block allows the folding to the wigner seitz zone
   long nGx = 2;
   long nGvec = (2 * nGx + 1) * (2 * nGx + 1) * (2 * nGx + 1);
-  Eigen::MatrixXd gVectors_(3, nGvec);
-  gVectors = gVectors_;
-  gVectors.setZero();
-  Eigen::MatrixXi igVectors_(3, nGvec);
-  igVectors = igVectors_;
+  gVectors = Eigen::MatrixXd::Zero(3, nGvec);
   Eigen::Matrix3d
       reciprocalUnitCell = crystal.getReciprocalUnitCell().transpose();
-  igVectors.setZero();
   Eigen::Vector3d vec;
   nGvec = 1; // we skip the first point which is G=(0,0,0)
   for (long i1 = -nGx; i1 <= nGx; i1++) {
     for (long i2 = -nGx; i2 <= nGx; i2++) {
       for (long i3 = -nGx; i3 <= nGx; i3++) {
         if ((i1 <= 0) || (i2 <= 0) || (i3 <= 0)) {
-          vec(0) = (double) i1;
-          vec(1) = (double) i2;
-          vec(2) = (double) i3;
+          Eigen::Vector3d vec;
+          vec << i1, i2, i3;
           gVectors.col(nGvec) = reciprocalUnitCell * vec;
-          igVectors(0, nGvec) = i1;
-          igVectors(1, nGvec) = i2;
-          igVectors(2, nGvec) = i3;
           nGvec += 1;
         }
       }
@@ -46,8 +38,7 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
 // copy constructor
 Points::Points(const Points &that) :
     crystal(that.crystal), mesh(that.mesh), offset(that.offset),
-    numPoints(that.numPoints), gVectors(that.gVectors),
-    igVectors(that.igVectors) {
+    numPoints(that.numPoints), gVectors(that.gVectors) {
 }
 
 // copy assignment operator
@@ -58,7 +49,6 @@ Points &Points::operator=(const Points &that) { // assignment operator
     offset = that.offset;
     numPoints = that.numPoints;
     gVectors = that.gVectors;
-    igVectors = that.igVectors;
   }
   return *this;
 }
@@ -124,40 +114,60 @@ Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d &point) {
   return p;
 }
 
-Eigen::Vector3d Points::crystalToWS(const Eigen::Vector3d &pointCrystal,
-                                    const int &basis) {
+Eigen::Vector3d Points::bzToWs(const Eigen::Vector3d &point,
+        const int &basis) {
+
+  Eigen::Vector3d pointCrystal = point;
+  if (basis == cartesianCoords) {
+    pointCrystal = cartesianToCrystal(pointCrystal);
+  }
+
+  // fold to BZ first
+  pointCrystal = foldToBz(pointCrystal, crystalCoords);
 
   Eigen::Vector3d pointCart = crystalToCartesian(pointCrystal);
 
-  double norm2 = pointCart.transpose() * pointCart;
-  double thisNorm2;
+  double norm2 = pointCart.squaredNorm();
   long iws = 0;
   for (long iG = 1; iG < gVectors.cols(); iG++) {
-    thisNorm2 = (pointCart + gVectors.col(iG)).transpose()
-        * (pointCart + gVectors.col(iG));
+    double thisNorm2 = (pointCart + gVectors.col(iG)).squaredNorm();
     if (thisNorm2 < norm2 - 1.0e-12) {
       norm2 = thisNorm2;
       iws = iG;
     }
   }
 
+  Eigen::Vector3d point2 = pointCart + gVectors.col(iws);
+  if (basis == crystalCoords) {
+    point2 = cartesianToCrystal(point2);
+  }
+  return point2;
+}
+
+Eigen::Vector3d Points::foldToBz(const Eigen::Vector3d &point,
+        const int &basis) {
   if (basis != crystalCoords && basis != cartesianCoords) {
     Error e("Wrong input to Wigner Seitz folding");
   }
 
-  if (basis == crystalCoords) {
-    Eigen::Vector3i igVec = igVectors.col(iws);
-    Eigen::Vector3d pointCrystalWS = pointCrystal;
-    for (long i = 0; i < 3; i++) {
-      pointCrystalWS(i) += igVec(i);
-    }
-    return pointCrystalWS;
-  } else {
-    Eigen::Vector3d pointCartesianWS = pointCart + gVectors.col(iws);
-    return pointCartesianWS;
+  Eigen::Vector3d pointCrystal = point;
+  if ( basis == cartesianCoords) {
+    pointCrystal = cartesianToCrystal(pointCrystal);
   }
 
-  return pointCart;
+  for (int i : {0,1,2}) {
+    // note: the small double added takes into account for rounding errors
+    // which may arise e.g. when the points come from rotations, or machine
+    // precision errors in the conversion cartesian to crystal
+    // is only a problem in the (unlikely) case of huge k-point meshes (10^8)
+    pointCrystal(i) -= std::floor(pointCrystal(i) + 1.0e-8);
+  }
+
+  Eigen::Vector3d point2 = pointCrystal;
+  if ( basis == cartesianCoords) {
+    point2 = crystalToCartesian(point2);
+  }
+  return point2;
 }
 
 Crystal &Points::getCrystal() {
@@ -274,6 +284,28 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::findMesh(
   return {mesh_, offset_};
 }
 
+std::tuple<int,Eigen::Matrix3d> Points::getRotationToIrreducible(
+    const Eigen::Vector3d &x, const int & basis) {
+  int ik = getIndex(x);
+  Eigen::Matrix3d identity;
+  identity.setIdentity();
+  (void) basis;
+  return {ik, identity};
+}
+
+std::vector<Eigen::Matrix3d> Points::getRotationsStar(const int & ik) {
+  (void) ik;
+  std::vector<Eigen::Matrix3d> rotations;
+  Eigen::Matrix3d identity;
+  identity.setIdentity();
+  rotations.push_back(identity);
+  return rotations;
+}
+
+int Points::irreducibleToReducible(const int &ikIrr) {
+  return ikIrr;
+}
+
 ////////////////////////////////////////////////////////////////
 
 Point::Point(Points &points_, long index_, Eigen::Vector3d umklappVector_) :
@@ -306,15 +338,22 @@ Eigen::Vector3d Point::getCoords(const int &basis, const bool &inWignerSeitz) {
   if ((basis != crystalCoords_) && (basis != cartesianCoords_)) {
     Error e("Point getCoordinates: basis must be crystal or cartesian");
   }
-  Eigen::Vector3d coords;
-  if (not inWignerSeitz) {
-    Eigen::Vector3d crysCoords = points.getPointCoords(index,
-                                                       crystalCoords_);
-    coords = points.crystalToWS(crysCoords, basis);
-  } else {
-    coords = points.getPointCoords(index, basis);
+
+  Eigen::Vector3d coords = points.getPointCoords(index, basis);
+  if (inWignerSeitz) {
+    coords = points.bzToWs(coords, basis);
   }
   return coords;
+
+//  Eigen::Vector3d coords;
+//  if (not inWignerSeitz) {
+//    Eigen::Vector3d crysCoords = points.getPointCoords(index,
+//                                                       crystalCoords_);
+//    coords = points.crystalToWS(crysCoords, basis);
+//  } else {
+//    coords = points.getPointCoords(index, basis);
+//  }
+//  return coords;
 }
 
 double Point::getWeight() {
