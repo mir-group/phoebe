@@ -199,25 +199,31 @@ const double& ActiveBandStructure::getEnergy(const long &stateIndex) {
 }
 
 Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long &stateIndex) {
-    if (velocities.size() == 0) {
-        Error e("ActiveBandStructure velocities haven't been populated");
-    }
-    auto[ik,ib] = comb2Bloch(stateIndex);
-    Eigen::Vector3d vel;
-    vel(0) = velocities[velBloch2Comb(ik, ib, ib, 0)].real();
-    vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
-    vel(2) = velocities[velBloch2Comb(ik, ib, ib, 2)].real();
-    return vel;
+  if (velocities.size() == 0) {
+    Error e("ActiveBandStructure velocities haven't been populated");
+  }
+  auto[ik,ib] = comb2Bloch(stateIndex);
+  Eigen::Vector3d vel;
+  vel(0) = velocities[velBloch2Comb(ik, ib, ib, 0)].real();
+  vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
+  vel(2) = velocities[velBloch2Comb(ik, ib, ib, 2)].real();
+  return vel;
 }
 
 Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
-    if (!hasPoints()) {
-        Error e("ActiveBandStructure hasn't been populated yet");
-    }
-    auto[ik,ib] = comb2Bloch(stateIndex);
-    Point p = activePoints.getPoint(ik);
-    return p.getCoords(Points::cartesianCoords, true);
+  if (!hasPoints()) {
+    Error e("ActiveBandStructure hasn't been populated yet");
+  }
+  auto[ik,ib] = comb2Bloch(stateIndex);
+  Point p = activePoints.getPoint(ik);
+  return p.getCoords(Points::cartesianCoords, true);
 }
+
+double ActiveBandStructure::getWeight(const long &stateIndex) {
+  auto[ik,ib] = comb2Bloch(stateIndex);
+  return activePoints.getWeight(ik);
+}
+
 
 void ActiveBandStructure::setEnergies(Point &point,
         Eigen::VectorXd &energies_) {
@@ -425,14 +431,14 @@ void ActiveBandStructure::buildIndeces() {
 }
 
 std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
-        Context &context, HarmonicHamiltonian &h0, FullPoints &fullPoints,
+        Context &context, HarmonicHamiltonian &h0, Points &points,
         const bool &withEigenvectors, const bool &withVelocities) {
 
     Particle particle = h0.getParticle();
 
     Eigen::VectorXd temperatures = context.getTemperatures();
 
-    ActivePoints bogusPoints(fullPoints, Eigen::VectorXi::Zero(1));
+    ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
     ActiveBandStructure activeBandStructure(particle, bogusPoints);
 
     if (particle.isPhonon()) {
@@ -441,7 +447,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
 
         Window window(context, particle, temperatureMin, temperatureMax);
 
-        activeBandStructure.buildOnTheFly(window, fullPoints, h0,
+        activeBandStructure.buildOnTheFly(window, points, h0,
                 withEigenvectors, withVelocities);
         StatisticsSweep statisticsSweep(context);
         return {activeBandStructure, statisticsSweep};
@@ -450,7 +456,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
     }
 }
 
-void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
+void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
         HarmonicHamiltonian &h0, const bool &withEigenvectors,
         const bool &withVelocities) {
     // this function proceeds in three logical blocks:
@@ -475,8 +481,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
 //    }
 //    std::cout << "!!!\n";
 
-    for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
-      Point point = fullPoints.getPoint(ik);
+    for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
+      Point point = points.getPoint(ik);
       // diagonalize harmonic hamiltonian
       auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
       // ens is empty if no "relevant" energy is found.
@@ -568,7 +574,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
 
     // initialize the raw data buffers of the activeBandStructure
 
-    ActivePoints activePoints_(fullPoints, filter);
+    ActivePoints activePoints_(points, filter);
     activePoints = activePoints_;
     // construct the mapping from combined indices to Bloch indices
     buildIndeces();

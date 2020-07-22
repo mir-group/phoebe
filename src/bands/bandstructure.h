@@ -125,6 +125,8 @@ public:
      */
     virtual Eigen::Vector3d getWavevector(const long &stateIndex);
 
+    virtual double getWeight(const long &stateIndex);
+
     /** Method to save quasiparticle eigenvectors inside FullBandStructure().
      * @param point: a vector of 3 crystal coordinates. The method will look
      * for the wavevector index.
@@ -284,6 +286,8 @@ public:
      * coordinates in units of Bohr^-1.
      */
     Eigen::Vector3d getWavevector(const long &stateIndex);
+
+    double getWeight(const long &stateIndex);
 
     /** This method overrides setEnergies, but uses a Point object to find the
      * k-point.

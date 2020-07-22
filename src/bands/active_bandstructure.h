@@ -48,6 +48,7 @@ class ActiveBandStructure : public BaseBandStructure {
   const double &getEnergy(const long &stateIndex);
   Eigen::Vector3d getGroupVelocity(const long &stateIndex);
   Eigen::Vector3d getWavevector(const long &stateIndex);
+  double getWeight(const long &stateIndex);
 
   void setEnergies(Point &point, Eigen::VectorXd &energies_);
   void setEnergies(Point &point, std::vector<double> &energies_);
@@ -56,10 +57,8 @@ class ActiveBandStructure : public BaseBandStructure {
                      Eigen::Tensor<std::complex<double>, 3> &velocities_);
 
   static std::tuple<ActiveBandStructure, StatisticsSweep> builder(
-      Context &context, HarmonicHamiltonian &h0, FullPoints &fullPoints,
+      Context &context, HarmonicHamiltonian &h0, Points &points,
       const bool &withEigenvectors = true, const bool &withVelocities = true);
-
-
 
   ActivePoints activePoints;
  protected:
@@ -97,7 +96,7 @@ class ActiveBandStructure : public BaseBandStructure {
   long bloch2Comb(const long &k, const long &b);
   std::tuple<long, long> comb2Bloch(const long &is);
 
-  void buildOnTheFly(Window &window, FullPoints &fullPoints,
+  void buildOnTheFly(Window &window, Points &points,
                      HarmonicHamiltonian &h0,
                      const bool &withEigenvectors = true,
                      const bool &withVelocities = true);
