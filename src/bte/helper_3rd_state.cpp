@@ -102,8 +102,10 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // build band structure
     bool withEigenvectors = true;
     bool withVelocities = true;
+    /*
     std::unique_ptr<ActiveBandStructure> bs(new ActiveBandStructure(
         activePoints3, h0, withEigenvectors, withVelocities));
+        */
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         activePoints3, h0, withEigenvectors, withVelocities);
   }
