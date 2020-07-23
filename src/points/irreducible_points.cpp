@@ -23,7 +23,7 @@ IrreduciblePoints::IrreduciblePoints(Points &parentPoints_) :
 
   std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
   {
-    Eigen::Matrix3d bg = crystal.getReciprocalUnitCell().transpose();
+    Eigen::Matrix3d bg = crystal.getReciprocalUnitCell();
     for (auto symm : symms) {
       Eigen::Matrix3d rotation = symm.rotation;
       rotationMatricesCrystal.push_back(rotation);

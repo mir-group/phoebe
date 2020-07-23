@@ -17,8 +17,7 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
   long nGx = 2;
   long nGvec = (2 * nGx + 1) * (2 * nGx + 1) * (2 * nGx + 1);
   gVectors = Eigen::MatrixXd::Zero(3, nGvec);
-  Eigen::Matrix3d
-      reciprocalUnitCell = crystal.getReciprocalUnitCell().transpose();
+  Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
   Eigen::Vector3d vec;
   nGvec = 1; // we skip the first point which is G=(0,0,0)
   for (long i1 = -nGx; i1 <= nGx; i1++) {
@@ -105,12 +104,12 @@ long Points::getIndex(const Eigen::Vector3d &point) {
 // change of basis methods
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d &point) {
-  return crystal.getReciprocalUnitCell().transpose() * point;
+  return crystal.getReciprocalUnitCell() * point;
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d &point) {
   Eigen::Vector3d
-      p = crystal.getReciprocalUnitCell().transpose().inverse() * point;
+      p = crystal.getReciprocalUnitCell().inverse() * point;
   return p;
 }
 

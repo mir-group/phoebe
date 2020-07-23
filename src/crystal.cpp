@@ -6,28 +6,6 @@
 #include "constants.h"
 #include "utilities.h"
 
-Eigen::Matrix3d Crystal::calcReciprocalCell(
-    const Eigen::Matrix3d directUnitCell) {
-  Eigen::Matrix3d reciprocalCell = twoPi
-      * directUnitCell.inverse().transpose();
-  return reciprocalCell;
-}
-
-void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
-  directUnitCell = directUnitCell_;
-  reciprocalUnitCell = calcReciprocalCell(directUnitCell);
-}
-
-const Eigen::Matrix3d &Crystal::getDirectUnitCell() {
-  return directUnitCell;
-}
-
-const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
-  // note: reciprocalUnitCell is  in units of twoPi
-  // i.e. must be multiplied by twoPi
-  return reciprocalUnitCell;
-}
-
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
   Eigen::Vector3d a2 = directUnitCell.row(1);
@@ -38,64 +16,6 @@ double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   volume += abs(a3.dot((a1.cross(a2))));
   volume /= 3.;
   return volume;
-}
-
-const int &Crystal::getNumAtoms() {
-  return numAtoms;
-}
-
-double Crystal::getVolumeUnitCell(long dimensionality) {
-  double volume;
-  if (dimensionality == 3) {
-    volume = volumeUnitCell;
-  } else if (dimensionality == 2) {
-    volume = abs(
-        directUnitCell(0, 0) * directUnitCell(1, 1)
-            - directUnitCell(0, 1) * directUnitCell(1, 0));
-  } else {
-    volume = directUnitCell(2, 2);
-  }
-  return volume;
-}
-
-const Eigen::MatrixXd &Crystal::getAtomicPositions() {
-  return atomicPositions;
-}
-
-const Eigen::VectorXi &Crystal::getAtomicSpecies() {
-  return atomicSpecies;
-}
-
-const std::vector<std::string> &Crystal::getAtomicNames() {
-  return atomicNames;
-}
-
-const Eigen::VectorXd &Crystal::getAtomicMasses() {
-  return atomicMasses;
-}
-
-const std::vector<std::string> &Crystal::getSpeciesNames() {
-  return speciesNames;
-}
-
-const Eigen::VectorXd &Crystal::getSpeciesMasses() {
-  return speciesMasses;
-}
-
-const std::vector<SymmetryOperation> &Crystal::getSymmetryOperations() {
-  return symmetryOperations;
-}
-
-const int &Crystal::getNumSymmetries() {
-  return numSymmetries;
-}
-
-long Crystal::getDimensionality() {
-  return dimensionality;
-}
-
-long Crystal::getNumSpecies() {
-  return numSpecies;
 }
 
 Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
@@ -282,3 +202,82 @@ Crystal &Crystal::operator=(const Crystal &obj) {
   return *this;
 }
 
+Eigen::Matrix3d Crystal::calcReciprocalCell(
+    const Eigen::Matrix3d directUnitCell) {
+  Eigen::Matrix3d reciprocalCell = twoPi
+      * directUnitCell.inverse().transpose();
+  return reciprocalCell;
+}
+
+void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
+  directUnitCell = directUnitCell_;
+  reciprocalUnitCell = calcReciprocalCell(directUnitCell);
+}
+
+const Eigen::Matrix3d &Crystal::getDirectUnitCell() {
+  return directUnitCell;
+}
+
+const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
+  // note: reciprocalUnitCell is  in units of twoPi
+  // i.e. must be multiplied by twoPi
+  return reciprocalUnitCell;
+}
+
+const int &Crystal::getNumAtoms() {
+  return numAtoms;
+}
+
+double Crystal::getVolumeUnitCell(long dimensionality) {
+  double volume;
+  if (dimensionality == 3) {
+    volume = volumeUnitCell;
+  } else if (dimensionality == 2) {
+    volume = abs(
+        directUnitCell(0, 0) * directUnitCell(1, 1)
+            - directUnitCell(0, 1) * directUnitCell(1, 0));
+  } else {
+    volume = directUnitCell(2, 2);
+  }
+  return volume;
+}
+
+const Eigen::MatrixXd &Crystal::getAtomicPositions() {
+  return atomicPositions;
+}
+
+const Eigen::VectorXi &Crystal::getAtomicSpecies() {
+  return atomicSpecies;
+}
+
+const std::vector<std::string> &Crystal::getAtomicNames() {
+  return atomicNames;
+}
+
+const Eigen::VectorXd &Crystal::getAtomicMasses() {
+  return atomicMasses;
+}
+
+const std::vector<std::string> &Crystal::getSpeciesNames() {
+  return speciesNames;
+}
+
+const Eigen::VectorXd &Crystal::getSpeciesMasses() {
+  return speciesMasses;
+}
+
+const std::vector<SymmetryOperation> &Crystal::getSymmetryOperations() {
+  return symmetryOperations;
+}
+
+const int &Crystal::getNumSymmetries() {
+  return numSymmetries;
+}
+
+long Crystal::getDimensionality() {
+  return dimensionality;
+}
+
+long Crystal::getNumSpecies() {
+  return numSpecies;
+}
