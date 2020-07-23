@@ -122,8 +122,13 @@ public:
    * Points::crystalCoordinates) in which to return the folded wavevector.
    * @return wavevector: the wavevector coordinates folded in the WS zone.
    */
-  Eigen::Vector3d crystalToWS(const Eigen::Vector3d &pointCrystal,
-                              const int &basis);
+  //    Eigen::Vector3d crystalToWS(const Eigen::Vector3d &pointCrystal,
+  //            const int &basis);
+
+  Eigen::Vector3d bzToWs(const Eigen::Vector3d &point, const int &basis);
+
+  Eigen::Vector3d foldToBz(const Eigen::Vector3d &pointCrystal,
+                           const int &basis);
 
   /** Given a list of points, finds the monkhorst-pack mesh.
    * @param points: a matrix (3,numPoints) of wavevectors in crystal
@@ -176,6 +181,16 @@ public:
   static const int crystalCoords;
   static const int cartesianCoords;
 
+  // given a wavevector of the reducible list in crystal coordinates,
+  // finds the integer index ikIrr of the irreducible point in the irreducible
+  // list. Provides also the rotation matrix, in cartesian coordinates, such
+  // that rotation * kIrr = kRed
+  virtual std::tuple<int, Eigen::Matrix3d>
+  getRotationToIrreducible(const Eigen::Vector3d &x,
+                           const int &basis = crystalCoords);
+  virtual std::vector<Eigen::Matrix3d> getRotationsStar(const int &ik);
+  virtual int irreducibleToReducible(const int &ikIrr);
+
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);
   Crystal &crystal;
@@ -184,7 +199,6 @@ protected:
   long numPoints = 0;
   // for Wigner Seitz folding
   Eigen::MatrixXd gVectors;
-  Eigen::MatrixXi igVectors;
 
   // methods to be overwritten
   Eigen::Vector3d reduciblePoints(const long &idx);

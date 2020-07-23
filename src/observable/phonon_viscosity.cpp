@@ -35,31 +35,49 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 
   auto excludeIndeces = tau.excludeIndeces;
 
-  for (long is : bandStructure.parallelStateIterator()) {
-    auto en = bandStructure.getEnergy(is);
+#pragma omp parallel
+  {
+    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
-    auto vel = bandStructure.getGroupVelocity(is);
-    auto q = bandStructure.getWavevector(is);
+#pragma omp for nowait
+    for (long is : bandStructure.parallelStateIterator()) {
+      auto en = bandStructure.getEnergy(is);
 
-    // skip the acoustic phonons
-    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
-        excludeIndeces.end())
-      continue;
+      auto vel = bandStructure.getGroupVelocity(is);
+      auto q = bandStructure.getWavevector(is);
 
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+          excludeIndeces.end())
+        continue;
+
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double temperature = calcStat.temperature;
+        double chemPot = calcStat.chemicalPotential;
+        double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            for (long k = 0; k < dimensionality; k++) {
+              for (long l = 0; l < dimensionality; l++) {
+                tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j) * q(k) * vel(l) *
+                                                bosep1 * tau.data(iCalc, is) /
+                                                temperature * norm;
+              }
+            }
+          }
+        }
+      }
+    }
+#pragma omp critical
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double temperature = calcStat.temperature;
-      double chemPot = calcStat.chemicalPotential;
-      double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
-
       for (long i = 0; i < dimensionality; i++) {
         for (long j = 0; j < dimensionality; j++) {
           for (long k = 0; k < dimensionality; k++) {
             for (long l = 0; l < dimensionality; l++) {
-              tensordxdxdxd(iCalc, i, j, k, l) +=
-                  q(i) * vel(j) * q(k) * vel(l) * bosep1 * tau.data(iCalc, is) /
-                  temperature * norm;
+              tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
             }
           }
         }
@@ -175,14 +193,30 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 
   // Eq. 9, Simoncelli PRX (2019)
   tensordxdxdxd.setZero();
-  for (long is = firstState; is < numStates; is++) {
+#pragma omp parallel
+  {
+    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
+#pragma omp for nowait
+    for (long is = firstState; is < numStates; is++) {
+      for (long i = 0; i < dimensionality; i++) {
+        for (long j = 0; j < dimensionality; j++) {
+          for (long k = 0; k < dimensionality; k++) {
+            for (long l = 0; l < dimensionality; l++) {
+              tmpTensor(iCalc, i, j, k, l) +=
+                  0.5 *
+                  (w(i, j, is) * w(k, l, is) + w(i, l, is) * w(k, j, is)) *
+                  A(i) * A(k) * relTimes.data(0, is);
+            }
+          }
+        }
+      }
+    }
+#pragma omp critical
     for (long i = 0; i < dimensionality; i++) {
       for (long j = 0; j < dimensionality; j++) {
         for (long k = 0; k < dimensionality; k++) {
           for (long l = 0; l < dimensionality; l++) {
-            tensordxdxdxd(iCalc, i, j, k, l) +=
-                0.5 * (w(i, j, is) * w(k, l, is) + w(i, l, is) * w(k, j, is)) *
-                A(i) * A(k) * relTimes.data(0, is);
+            tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
           }
         }
       }
@@ -233,10 +267,9 @@ void PhononViscosity::print() {
           }
           std::cout << "\n";
         }
-        std::cout << std::endl;
       }
-      std::cout << "\n";
     }
+    std::cout << std::endl;
   }
 }
 

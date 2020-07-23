@@ -83,7 +83,6 @@ PathPoints& PathPoints::operator=(const PathPoints &that) {
         offset = that.offset;
         numPoints = that.numPoints;
         gVectors = that.gVectors;
-        igVectors = that.igVectors;
         pointsList = that.pointsList;
     }
     return *this;

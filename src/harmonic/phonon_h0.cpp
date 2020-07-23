@@ -47,9 +47,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
   // for the diagonalization, which are precomputed once and for all.
 
   Eigen::MatrixXd directUnitCellSup(3, 3);
-  directUnitCellSup.row(0) = directUnitCell.row(0) * qCoarseGrid(0);
-  directUnitCellSup.row(1) = directUnitCell.row(1) * qCoarseGrid(1);
-  directUnitCellSup.row(2) = directUnitCell.row(2) * qCoarseGrid(2);
+  directUnitCellSup.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
+  directUnitCellSup.col(1) = directUnitCell.col(1) * qCoarseGrid(1);
+  directUnitCellSup.col(2) = directUnitCell.col(2) * qCoarseGrid(2);
 
   nr1Big = 2 * qCoarseGrid(0);
   nr2Big = 2 * qCoarseGrid(1);
@@ -142,17 +142,14 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
   Eigen::Tensor<std::complex<double>, 4> f_of_q(3, 3, numAtoms, numAtoms);
   f_of_q.setZero();
 
-  Eigen::VectorXd qhat(3);
-  double qq;
-
   // for now, this part is not executed
   if (na_ifc) {
-    qq = sqrt(q.transpose() * q); // q is the qpoint coordinate
+    double qq = q.norm(); // q is the qpoint coordinate
     if (abs(qq) < 1.0e-8) {
       qq = 1.;
     }
 
-    qhat = q / qq;
+    Eigen::VectorXd qhat = q / qq;
 
     nonAnalIFC(qhat, f_of_q);
   }
@@ -168,13 +165,13 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
 
   // finally, the nonanalytic term from Born charges
   if (!loto_2d && na_ifc) {
-    qhat = q.transpose() * directUnitCell;
+    Eigen::VectorXd qhat = q;
     if (abs(qhat(0) - round(qhat(0))) <= 1.0e-6 &&
         abs(qhat(1) - round(qhat(1))) <= 1.0e-6 &&
         abs(qhat(2) - round(qhat(2))) <= 1.0e-6) {
       // q = 0 : we need the direction q => 0 for the non-analytic part
 
-      qq = sqrt((qhat.transpose() * qhat).value());
+      double qq = qhat.norm();
       if (qq != 0.) {
         qhat /= qq;
       }
@@ -246,7 +243,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd &unitCell) {
               unitCell(i, 0) * ir + unitCell(i, 1) * jr + unitCell(i, 2) * kr;
         }
 
-        if (tmpResult.col(index).transpose() * tmpResult.col(index) > 1.0e-6) {
+        if (tmpResult.col(index).squaredNorm() > 1.0e-6) {
           index += 1;
         }
         if (index > nrwsx) {
@@ -307,7 +304,9 @@ void PhononH0::wsinit(const Eigen::MatrixXd &unitCell) {
 
       if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) >
           1.0e-8) {
-        Error e("wrong total_weight", 1);
+        std::cout << total_weight << " "
+                  << qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2) << "\n";
+        Error e("wrong total_weight");
       }
     }
   }
@@ -333,11 +332,10 @@ double PhononH0::wsweight(const Eigen::VectorXd &r,
   // rws.cols(): number of nearest neighbors
 
   long nreq = 1;
-  double rrt, ck;
 
   for (long ir = 0; ir < rws.cols(); ir++) {
-    rrt = r.transpose() * rws.col(ir);
-    ck = rrt - (rws.col(ir).transpose() * rws.col(ir)).value() / 2.;
+    double rrt = r.dot(rws.col(ir));
+    double ck = rrt - rws.col(ir).squaredNorm() / 2.;
     if (ck > 1.0e-6) {
       return 0.;
     }
@@ -388,23 +386,17 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   if (qCoarseGrid(0) == 1) {
     nr1x = 0;
   } else {
-    nr1x = (long)(sqrt(geg) / sqrt(reciprocalUnitCell.col(0).transpose() *
-                                   reciprocalUnitCell.col(0))) +
-           1;
+    nr1x = (long)(sqrt(geg) / reciprocalUnitCell.col(0).norm()) + 1;
   }
   if (qCoarseGrid(1) == 1) {
     nr2x = 0;
   } else {
-    nr2x = (long)(sqrt(geg) / sqrt(reciprocalUnitCell.col(1).transpose() *
-                                   reciprocalUnitCell.col(1))) +
-           1;
+    nr2x = (long)(sqrt(geg) / reciprocalUnitCell.col(1).norm()) + 1;
   }
   if (qCoarseGrid(2) == 1) {
     nr3x = 0;
   } else {
-    nr3x = (long)(sqrt(geg) / sqrt(reciprocalUnitCell.col(2).transpose() *
-                                   reciprocalUnitCell.col(2))) +
-           1;
+    nr3x = (long)(sqrt(geg) / reciprocalUnitCell.col(2).norm()) + 1;
   }
 
   if (abs(sign) != 1.) {
@@ -441,7 +433,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                m3 * reciprocalUnitCell(2, 2);
 
         if (loto_2d) {
-          geg = (g.transpose() * g).value();
+          geg = g.squaredNorm();
           r = 0.;
           gp2 = g(0) * g(0) + g(1) * g(1);
           if (gp2 > 1.0e-8) {
@@ -468,8 +460,8 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                        g(2) * bornCharges(na, 2, i);
               fnat(i) = 0.;
               for (long nb = 0; nb < numAtoms; nb++) {
-                arg = ((atomicPositions.row(na) - atomicPositions.row(nb)) * g)
-                          .value();
+                arg =
+                    (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
                 zcg(i) = g(0) * bornCharges(nb, 0, i) +
                          g(1) * bornCharges(nb, 1, i) +
                          g(2) * bornCharges(nb, 2, i);
@@ -488,7 +480,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         g += q;
 
         if (loto_2d) {
-          geg = (g.transpose() * g).value();
+          geg = g.squaredNorm();
           r = 0.;
           gp2 = g(0) * g(0) + g(1) * g(1);
           if (gp2 > 1.0e-8) {
@@ -520,8 +512,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                          g(1) * bornCharges(na, 1, i) +
                          g(2) * bornCharges(na, 2, i);
               }
-              arg = ((atomicPositions.row(na) - atomicPositions.row(nb)) * g)
-                        .value();
+              arg = (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
               phase = {cos(arg), sin(arg)};
               facg = facgd * phase;
               for (long i = 0; i < 3; i++) {
@@ -592,7 +583,7 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
 
   Eigen::VectorXd zag(3), zbg(3); // eff. charges  times g-vector
 
-  if (q.transpose() * q == 0.) {
+  if (q.squaredNorm() == 0.) {
     return;
   }
 
@@ -682,7 +673,7 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
               // note: maybe send m1 in m1-1 and m2,m3
 
-              arg = (q.transpose() * r).value();
+              arg = q.dot(r);
               phase = {cos(arg), -sin(arg)};
 
               for (long ipol = 0; ipol < 3; ipol++) {
@@ -794,8 +785,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
   }
 
   if (mpi->mpiHead()) {
-    std::cout << "Start imposing " << sumRule << " acoustic sum rule." 
-	      << std::endl;
+    std::cout << "Start imposing " << sumRule << " acoustic sum rule."
+              << std::endl;
   }
 
   if (sr == "simple") {
@@ -1344,8 +1335,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     forceConstants = frc_new;
   }
   if (mpi->mpiHead()) {
-    std::cout << "Finished imposing " << sumRule << " acoustic sum rule." 
-	      << std::endl;
+    std::cout << "Finished imposing " << sumRule << " acoustic sum rule."
+              << std::endl;
   }
 }
 
@@ -1385,9 +1376,9 @@ PhononH0::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
   bool withMassScaling = false;
 
   // get the eigenvectors and the energies of the q-point
-  auto tup8 =      diagonalizeFromCoords(coords, withMassScaling);
- auto energies = std::get<0>(tup8);
- auto eigenvectors = std::get<1>(tup8);
+  auto tup8 = diagonalizeFromCoords(coords, withMassScaling);
+  auto energies = std::get<0>(tup8);
+  auto eigenvectors = std::get<1>(tup8);
 
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.

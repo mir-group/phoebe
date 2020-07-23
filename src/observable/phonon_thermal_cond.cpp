@@ -6,8 +6,6 @@
 
 #include "constants.h"
 #include "mpiHelper.h"
-#include <iomanip>
-#include <time.h>
 
 PhononThermalConductivity::PhononThermalConductivity(
     StatisticsSweep &statisticsSweep_, Crystal &crystal_,
@@ -54,27 +52,54 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
   auto excludeIndeces = n.excludeIndeces;
 
   tensordxd.setZero();
-  for (long is : bandStructure.parallelStateIterator()) {
-    double en = bandStructure.getEnergy(is);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
 
-    // skip the acoustic phonons
-    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
-        excludeIndeces.end())
-      continue;
+#pragma omp parallel
+  {
+    // we do manually the reduction, to avoid custom type declaration
+    // which is not always allowed by the compiler e.g. by clang
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      auto tup = loc2Glob(iCalc);
-      auto imu = std::get<0>(tup);
-      auto it = std::get<1>(tup);
-      for (long i = 0; i < dimensionality; i++) {
-        long icPop = n.glob2Loc(imu, it, DimIndex(i));
-        for (long j = 0; j < dimensionality; j++) {
-          tensordxd(iCalc, i, j) += n.data(icPop, is) * vel(j) * en * norm;
+    // first omp parallel for on a private variable
+    Eigen::Tensor<double, 3> tensorPrivate(numCalcs, dimensionality,
+                                           dimensionality);
+    tensorPrivate.setZero();
+
+#pragma omp for nowait //
+    for (long is : bandStructure.parallelStateIterator()) {
+      double en = bandStructure.getEnergy(is);
+      Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
+
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+          excludeIndeces.end())
+        continue;
+
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+        auto tup = loc2Glob(iCalc);
+        auto imu = std::get<0>(tup);
+        auto it = std::get<1>(tup);
+        for (long i = 0; i < dimensionality; i++) {
+          long icPop = n.glob2Loc(imu, it, DimIndex(i));
+          for (long j = 0; j < dimensionality; j++) {
+            tensorPrivate(iCalc, i, j) +=
+                n.data(icPop, is) * vel(j) * en * norm;
+          }
+        }
+      }
+    }
+
+// now we do the reduction thread by thread
+#pragma omp critical
+    {
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            tensordxd(iCalc, i, j) += tensorPrivate(iCalc, i, j);
+          }
         }
       }
     }
   }
+  // lastly, the states were distributed with MPI
   mpi->allReduceSum(&tensordxd);
 }
 
@@ -91,17 +116,31 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
   tensordxd *= tensordxd.constant(2.);
 
   Eigen::Tensor<double, 3> tmpTensor = tensordxd.constant(0.); // retains shape
-  for (long is : bandStructure.parallelStateIterator()) {
+#pragma omp parallel
+  {
+    Eigen::Tensor<double, 3> tmpTensorPrivate =
+        tensordxd.constant(0.); // retains shape
+#pragma omp for nowait
+    for (long is : bandStructure.parallelStateIterator()) {
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+        auto tup = loc2Glob(iCalc);
+        auto imu = std::get<0>(tup);
+        auto it = std::get<1>(tup);
+        for (long i = 0; i < dimensionality; i++) {
+          long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
+          for (long j = 0; j < dimensionality; j++) {
+            long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
+            tmpTensorPrivate(iCalc, i, j) +=
+                f.data(icPop1, is) * af.data(icPop2, is) * norm;
+          }
+        }
+      }
+    }
+#pragma omp critical
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      auto tup = loc2Glob(iCalc);
-      auto imu = std::get<0>(tup);
-      auto it = std::get<1>(tup);
       for (long i = 0; i < dimensionality; i++) {
-        long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
         for (long j = 0; j < dimensionality; j++) {
-          long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
-          tmpTensor(iCalc, i, j) +=
-              f.data(icPop1, is) * af.data(icPop2, is) * norm;
+          tmpTensor(iCalc, i, j) += tmpTensorPrivate(iCalc, i, j);
         }
       }
     }
@@ -122,26 +161,38 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 
   tensordxd.setZero();
 
-  for (long is = firstState; is < relaxationTimes.numStates; is++) {
+#pragma omp parallel
+  {
+    Eigen::Tensor<double, 3> tmpTensor = tensordxd.constant(0.);
+
+#pragma omp for nowait
+    for (long is = firstState; is < relaxationTimes.numStates; is++) {
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+        auto tup = loc2Glob(iCalc);
+        auto imu = std::get<0>(tup);
+        auto it = std::get<1>(tup);
+        double c = specificHeat.get(imu, it);
+
+        if (relaxationTimes.data(iCalc, is) <= 0.)
+          continue;
+
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            auto i1 = relaxonV.glob2Loc(imu, it, DimIndex(i));
+            auto j1 = relaxonV.glob2Loc(imu, it, DimIndex(j));
+
+            tmpTensor(iCalc, i, j) += c * relaxonV.data(i1, is) *
+                                      relaxonV.data(j1, is) *
+                                      relaxationTimes.data(iCalc, is);
+          }
+        }
+      }
+    }
+#pragma omp critical
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      auto tup = loc2Glob(iCalc);
-      auto imu = std::get<0>(tup);
-      auto it = std::get<1>(tup);
-      double c = specificHeat.get(imu, it);
-      // is = 3 is a temporary patch, I should discard the first three
-      // rows/columns altogether + I skip the bose eigenvector
-
-      if (relaxationTimes.data(iCalc, is) <= 0.)
-        continue;
-
       for (long i = 0; i < dimensionality; i++) {
         for (long j = 0; j < dimensionality; j++) {
-          auto i1 = relaxonV.glob2Loc(imu, it, DimIndex(i));
-          auto j1 = relaxonV.glob2Loc(imu, it, DimIndex(j));
-
-          tensordxd(iCalc, i, j) += c * relaxonV.data(i1, is) *
-                                    relaxonV.data(j1, is) *
-                                    relaxationTimes.data(iCalc, is);
+          tensordxd(iCalc, i, j) += tmpTensor(iCalc, i, j);
         }
       }
     }

@@ -223,6 +223,13 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
   return p.getCoords(Points::cartesianCoords, true);
 }
 
+double ActiveBandStructure::getWeight(const long &stateIndex) {
+  auto tup = comb2Bloch(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+  return activePoints.getWeight(ik);
+}
+
 void ActiveBandStructure::setEnergies(Point &point,
                                       Eigen::VectorXd &energies_) {
   long ik = point.getIndex();
@@ -426,15 +433,16 @@ void ActiveBandStructure::buildIndeces() {
   }
 }
 
-std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
-    Context &context, HarmonicHamiltonian &h0, FullPoints &fullPoints,
-    const bool &withEigenvectors, const bool &withVelocities) {
+std::tuple<ActiveBandStructure, StatisticsSweep>
+ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
+                             Points &points, const bool &withEigenvectors,
+                             const bool &withVelocities) {
 
   Particle particle = h0.getParticle();
 
   Eigen::VectorXd temperatures = context.getTemperatures();
 
-  ActivePoints bogusPoints(fullPoints, Eigen::VectorXi::Zero(1));
+  ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
   ActiveBandStructure activeBandStructure(particle, bogusPoints);
 
   if (particle.isPhonon()) {
@@ -443,7 +451,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
 
     Window window(context, particle, temperatureMin, temperatureMax);
 
-    activeBandStructure.buildOnTheFly(window, fullPoints, h0, withEigenvectors,
+    activeBandStructure.buildOnTheFly(window, points, h0, withEigenvectors,
                                       withVelocities);
     StatisticsSweep statisticsSweep(context);
     return {activeBandStructure, statisticsSweep};
@@ -452,7 +460,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
   }
 }
 
-void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
+void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
                                         HarmonicHamiltonian &h0,
                                         const bool &withEigenvectors,
                                         const bool &withVelocities) {
@@ -478,8 +486,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
   //    }
   //    std::cout << "!!!\n";
 
-  for (long ik : mpi->divideWorkIter(fullPoints.getNumPoints())) {
-    Point point = fullPoints.getPoint(ik);
+  for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
+    Point point = points.getPoint(ik);
     // diagonalize harmonic hamiltonian
     auto tup = h0.diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
@@ -576,7 +584,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
 
   // initialize the raw data buffers of the activeBandStructure
 
-  ActivePoints activePoints_(fullPoints, filter);
+  ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
   // construct the mapping from combined indices to Bloch indices
   buildIndeces();
@@ -592,9 +600,10 @@ void ActiveBandStructure::buildOnTheFly(Window &window, FullPoints &fullPoints,
 
   windowMethod = window.getMethodUsed();
 
-  /////////////////
+/////////////////
 
-  // now we can loop over the trimmed list of points
+// now we can loop over the trimmed list of points
+#pragma omp parallel for
   for (long ik : mpi->divideWorkIter(numPoints)) {
     Point point = activePoints.getPoint(ik);
     auto tup = h0.diagonalize(point);

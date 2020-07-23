@@ -20,7 +20,6 @@ FullPoints& FullPoints::operator=(const FullPoints &that) {
         offset = that.offset;
         numPoints = that.numPoints;
         gVectors = that.gVectors;
-        igVectors = that.igVectors;
     }
     return *this;
 }

@@ -428,7 +428,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
       std::getline(infile, line);
       lineSplit = split(line, ' ');
       for (int j = 0; j < 3; j++) {
-        directUnitCell(i, j) = std::stod(lineSplit[j]);
+        directUnitCell(j, i) = std::stod(lineSplit[j]);
       }
     };
   };
@@ -459,7 +459,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
     tmpVec(1) = std::stod(lineSplit[3]);
     tmpVec(2) = std::stod(lineSplit[4]);
     // we convert from crystal to cartesian coordinates
-    atomicPositions.row(i) = directUnitCell.transpose() * tmpVec;
+    atomicPositions.row(i) = celldm(0) * tmpVec;
   }
 
   //  Read if hasDielectric
@@ -659,15 +659,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
   pugi::xml_node cell = atomicStructure.child("cell");
   lineSplit = split(cell.child_value("a1"), ' ');
   directUnitCell(0, 0) = std::stod(lineSplit[0]);
-  directUnitCell(0, 1) = std::stod(lineSplit[1]);
-  directUnitCell(0, 2) = std::stod(lineSplit[2]);
+  directUnitCell(1, 0) = std::stod(lineSplit[1]);
+  directUnitCell(2, 0) = std::stod(lineSplit[2]);
   lineSplit = split(cell.child_value("a2"), ' ');
-  directUnitCell(1, 0) = std::stod(lineSplit[0]);
+  directUnitCell(0, 1) = std::stod(lineSplit[0]);
   directUnitCell(1, 1) = std::stod(lineSplit[1]);
-  directUnitCell(1, 2) = std::stod(lineSplit[2]);
+  directUnitCell(2, 1) = std::stod(lineSplit[2]);
   lineSplit = split(cell.child_value("a3"), ' ');
-  directUnitCell(2, 0) = std::stod(lineSplit[0]);
-  directUnitCell(2, 1) = std::stod(lineSplit[1]);
+  directUnitCell(0, 2) = std::stod(lineSplit[0]);
+  directUnitCell(1, 2) = std::stod(lineSplit[1]);
   directUnitCell(2, 2) = std::stod(lineSplit[2]);
 
   // Now we parse the electronic structure
@@ -706,15 +706,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
   Eigen::Matrix3d bVectors;
   lineSplit = split(recCell.child_value("b1"), ' ');
   bVectors(0, 0) = std::stod(lineSplit[0]);
-  bVectors(0, 1) = std::stod(lineSplit[1]);
-  bVectors(0, 2) = std::stod(lineSplit[2]);
+  bVectors(1, 0) = std::stod(lineSplit[1]);
+  bVectors(2, 0) = std::stod(lineSplit[2]);
   lineSplit = split(recCell.child_value("b2"), ' ');
-  bVectors(1, 0) = std::stod(lineSplit[0]);
+  bVectors(0, 1) = std::stod(lineSplit[0]);
   bVectors(1, 1) = std::stod(lineSplit[1]);
-  bVectors(1, 2) = std::stod(lineSplit[2]);
+  bVectors(2, 1) = std::stod(lineSplit[2]);
   lineSplit = split(recCell.child_value("b3"), ' ');
-  bVectors(2, 0) = std::stod(lineSplit[0]);
-  bVectors(2, 1) = std::stod(lineSplit[1]);
+  bVectors(0, 2) = std::stod(lineSplit[0]);
+  bVectors(1, 2) = std::stod(lineSplit[1]);
   bVectors(2, 2) = std::stod(lineSplit[2]);
 
   // parse k-points and energies
@@ -834,7 +834,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
     lineSplit = split(line, ' ');
     for (int j = 0; j < 3; j++) {
       // unit cell is written in angstrom
-      directUnitCell(i, j) = std::stod(lineSplit[j]) / distanceBohrToAng;
+      directUnitCell(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
     }
   };
 
