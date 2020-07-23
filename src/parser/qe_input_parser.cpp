@@ -509,7 +509,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   qCoarseGrid(2) = std::stoi(lineSplit[2]);
 
   Eigen::Tensor<double, 7> forceConstants(
-      qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], 3, 3, numAtoms, numAtoms);
+      3, 3, qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], numAtoms, numAtoms);
 
   int m1Test;
   int m2Test;
@@ -529,7 +529,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
                 std::getline(infile, line);
                 std::istringstream iss(line);
                 iss >> m1Test >> m2Test >> m3Test >> x;
-                forceConstants(r1, r2, r3, ic, jc, iat, jat) = x;
+                forceConstants(ic, jc, r1, r2, r3, iat, jat) = x;
               }
             }
           }
