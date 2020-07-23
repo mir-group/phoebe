@@ -164,8 +164,6 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
         auto [imu, it] = loc2Glob(iCalc);
         double c = specificHeat.get(imu, it);
-        // is = 3 is a temporary patch, I should discard the first three
-        // rows/columns altogether + I skip the bose eigenvector
 
         if (relaxationTimes.data(iCalc, is) <= 0.) continue;
 

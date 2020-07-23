@@ -119,6 +119,7 @@ VectorBTE VectorBTE::operator *(const Eigen::VectorXd &vector) {
 
 // product operator overload
 VectorBTE VectorBTE::operator *(ParallelMatrix<double> &matrix) {
+
   if (numCalcs != dimensionality) {
     // you'd need to keep in memory a lot of matrices.
     Error e("We didn't implement VectorBTE * matrix for numCalcs > 1");
@@ -130,7 +131,7 @@ VectorBTE VectorBTE::operator *(ParallelMatrix<double> &matrix) {
   newPopulation.data.setZero();
   for (auto [i, j] : matrix.getAllLocalStates()) {
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      newPopulation.data(iCalc, i) += data(iCalc, j) * matrix(j, i); // -5e-12
+      newPopulation.data(iCalc, j) += data(iCalc, i) * matrix(i, j); // -5e-12
     }
   }
   mpi->allReduceSum(&newPopulation.data);
