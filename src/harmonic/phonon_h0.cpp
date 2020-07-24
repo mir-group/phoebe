@@ -14,7 +14,8 @@
 
 PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
-                   const Eigen::Tensor<double, 7> &forceConstants_)
+                   const Eigen::Tensor<double, 7> &forceConstants_,
+                   const std::string &sumRule)
     : particle(Particle::phonon),
       bornCharges(bornCharges_),
       forceConstants(forceConstants_) {
@@ -57,6 +58,10 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
   nr3Big = 2 * qCoarseGrid(2);
 
   PhononH0::wsinit(directUnitCellSup);
+
+  setAcousticSumRule(sumRule);
+
+  reorderDynamicalMatrix();
 }
 
 // copy constructor
@@ -79,7 +84,11 @@ PhononH0::PhononH0(const PhononH0 &that)
       wscache(that.wscache),
       nr1Big(that.nr1Big),
       nr2Big(that.nr2Big),
-      nr3Big(that.nr3Big) {}
+      nr3Big(that.nr3Big),
+      numBravaisVectors(that.numBravaisVectors),
+      bravaisVectors(that.bravaisVectors),
+      weights(that.weights),
+      mat2R(that.mat2R) {}
 
 // copy assignment
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
@@ -103,6 +112,10 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     nr1Big = that.nr1Big;
     nr2Big = that.nr2Big;
     nr3Big = that.nr3Big;
+    numBravaisVectors = that.numBravaisVectors;
+    bravaisVectors = that.bravaisVectors;
+    weights = that.weights;
+    mat2R = that.mat2R;
   }
   return *this;
 }
@@ -605,32 +618,55 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
   }
 }
 
-void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                              const Eigen::VectorXd &q,
-                              Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
-  // calculates the dynamical matrix at q from the (short-range part of the)
-  // force constants21
+void PhononH0::reorderDynamicalMatrix() {
+  // this part can actually be expensive to execute, so we compute it once
+  // at the beginning
+  // first, we compute the total number of bravais lattice vectors
 
-  for (int nb = 0; nb < numAtoms; nb++) {
-    for (int na = 0; na < numAtoms; na++) {
-      for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
-        int n3ForCache = n3 + nr3Big;
-        for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
-          int n2ForCache = n2 + nr2Big;
-          for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
-            int n1ForCache = n1 + nr1Big;
-
-            Eigen::Vector3d r, r_ws;
-            // sum over r vectors in the supercell, very safe range
-            for (int i : {0,1,2}) {
-              r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
-                     n3 * directUnitCell(i, 2);
+  numBravaisVectors = 0;
+  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+    int n3ForCache = n3 + nr3Big;
+    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+      int n2ForCache = n2 + nr2Big;
+      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+        int n1ForCache = n1 + nr1Big;
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            if (wscache(n3ForCache, n2ForCache, n1ForCache, nb, na) > 0.) {
+              numBravaisVectors += 1;
             }
+          }
+        }
+      }
+    }
+  }
 
+  // next, we reorder the dynamical matrix along the bravais lattice vectors
+
+  bravaisVectors = Eigen::MatrixXd::Zero(3,numBravaisVectors);
+  weights = Eigen::VectorXd::Zero(numBravaisVectors);
+  mat2R.resize(3, 3, numAtoms, numAtoms, numBravaisVectors);
+  mat2R.setZero();
+
+  int iR = 0;
+  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+    int n3ForCache = n3 + nr3Big;
+    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+      int n2ForCache = n2 + nr2Big;
+      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+        int n1ForCache = n1 + nr1Big;
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
             double weight = wscache(n3ForCache, n2ForCache, n1ForCache, nb, na);
-
             if (weight > 0.) {
-              // find vector corresponding to r in original cell
+              weights(iR) = weight;
+
+              Eigen::Vector3d r;
+              for (int i : {0, 1, 2}) {
+                r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
+                       n3 * directUnitCell(i, 2);
+              }
+              bravaisVectors.col(iR) = r;
 
               int m1 = mod((n1 + 1), qCoarseGrid(0));
               if (m1 <= 0) {
@@ -648,22 +684,44 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
               m2 += -1;
               m3 += -1;
 
-              // FOURIER TRANSFORM
-
-              // note: maybe send m1 in m1-1 and m2,m3
-
-              double arg = q.dot(r);
-              std::complex<double> phase = {cos(arg), -sin(arg)};
-
-              for (int jpol : {0,1,2}) {
-                for (int ipol : {0,1,2}) {
-                  dyn(ipol, jpol, na, nb) +=
-                      (forceConstants(ipol, jpol, m1, m2, m3, na, nb) +
-                       f_of_q(ipol, jpol, na, nb)) *
-                      phase * weight;
+              for (int i : {0, 1, 2}) {
+                for (int j : {0, 1, 2}) {
+                  mat2R(i, j, na, nb, iR) +=
+                      forceConstants(i, j, m1, m2, m3, na, nb);
                 }
               }
+
+              iR += 1;
             }
+          }
+        }
+      }
+    }
+  }
+
+  wscache.resize(0,0,0,0,0);
+  forceConstants.resize(0,0,0,0,0,0,0);
+
+}
+
+void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
+                              const Eigen::VectorXd &q,
+                              Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
+  // calculates the dynamical matrix at q from the (short-range part of the)
+  // force constants21, by doing the Fourier transform of the force constants
+
+  for ( int iR = 0; iR<numBravaisVectors; iR++) {
+    double weight = weights(iR);
+    Eigen::Vector3d r = bravaisVectors.col(iR);
+    double arg = q.dot(r);
+    std::complex<double> phase = {cos(arg), -sin(arg)};
+    for (int nb = 0; nb < numAtoms; nb++) {
+      for (int na = 0; na < numAtoms; na++) {
+        for (int jpol : {0,1,2}) {
+          for (int ipol : {0,1,2}) {
+            dyn(ipol, jpol, na, nb) +=
+                (mat2R(ipol, jpol, na, nb, iR) + f_of_q(ipol, jpol, na, nb)) *
+                phase * weight;
           }
         }
       }

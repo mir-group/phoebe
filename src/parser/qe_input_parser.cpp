@@ -553,8 +553,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   //	Now, let's try to diagonalize some points, and start debugging at q=0
 
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
-                           forceConstants);
-  dynamicalMatrix.setAcousticSumRule(context.getSumRuleD2());
+                           forceConstants, context.getSumRuleD2());
 
   return {crystal, dynamicalMatrix};
 };
