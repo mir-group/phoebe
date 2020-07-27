@@ -345,7 +345,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
   } else {
 
     // list in form [[0,0],[1,0],[2,0],...]
-    std::vector<std::pair<int, int>> x =
+    std::vector<std::tuple<long, long>> x =
         theMatrix.getAllLocalWavevectors(outerBandStructure);
     // find set of q2
     std::set<long> q2Indexes;
