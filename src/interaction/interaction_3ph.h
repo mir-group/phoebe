@@ -46,7 +46,6 @@ private:
   Eigen::MatrixXd cellPositions2;
   Eigen::MatrixXd cellPositions3;
   Eigen::Tensor<double, 5> D3;
-  int nr2, nr3, numAtoms, numBands;
   Eigen::Vector3d cachedCoords;
   Eigen::Tensor<std::complex<double>, 4> D3PlusCached;
   Eigen::Tensor<std::complex<double>, 4> D3MinsCached;
@@ -62,6 +61,7 @@ private:
   };
 
 public:
+  int nr2, nr3, numAtoms, numBands;
   Interaction3Ph(
       Crystal &crystal_, long &numTriplets_,
       Eigen::Tensor<double, 4> &ifc3Tensor_,
@@ -79,6 +79,7 @@ public:
                       std::vector<Eigen::MatrixXcd> ev3Minss_e,
                       std::vector<int> nb1s_e, int nb2,
                       std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e);
+  void cacheD3(Eigen::Vector3d q2_e);
 
   // this is an interface: we can compute it on the fly or read the cache.
   std::tuple<Eigen::Tensor<double, 3>, Eigen::Tensor<double, 3>>
@@ -102,10 +103,10 @@ public:
     std::cout << "old kernel: "
               << tosec(dts[0]) + tosec(dts[1]) + tosec(dts[2]) + tosec(dts[3]) +
                      tosec(dts[4]) + tosec(dts[5]) + tosec(dts[6]) +
-                     tosec(dts[7]) + tosec(dts[8])+ tosec(dts[9])
+                     tosec(dts[7]) + tosec(dts[8]) + tosec(dts[9])
               << std::endl;
-    std::cout << "new kernel: "
-    << tosec(newdts[0] + newdts[1] + newdts[2]) << std::endl;
+    std::cout << "new kernel: " << tosec(newdts[0] + newdts[1] + newdts[2])
+              << std::endl;
   }
 
   /**

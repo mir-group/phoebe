@@ -420,7 +420,7 @@ ParallelMatrix<T>::getAllLocalWavevectors(BaseBandStructure &bandStructure) {
     std::pair<int, int> xx = std::make_pair(ik1.get(), ik2.get());
     x.insert(xx);
   }
-  std::vector<std::pair<int, int>> wavevectorPairs(x.size());
+  std::vector<std::pair<int, int>> wavevectorPairs;
   for (auto t : x) {
     wavevectorPairs.push_back(t);
   }
