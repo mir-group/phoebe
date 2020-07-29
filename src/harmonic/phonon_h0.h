@@ -29,7 +29,8 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
            const Eigen::Tensor<double, 3> &bornCharges_,
-           const Eigen::Tensor<double, 7> &forceConstants_);
+           const Eigen::Tensor<double, 7> &forceConstants_,
+           const std::string &sumRule);
 
   /** Copy constructor
    */
@@ -91,6 +92,7 @@ class PhononH0 : public HarmonicHamiltonian {
   FullBandStructure populate(Points &points, bool &withVelocities,
                              bool &withEigenvectors);
 
+ protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
    * Currently supported values are akin to those from Quantum ESPRESSO
@@ -99,7 +101,8 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   void setAcousticSumRule(const std::string &sumRule);
 
- protected:
+  void reorderDynamicalMatrix();
+
   Particle particle;
 
   Eigen::Vector3i getCoarseGrid();
@@ -127,7 +130,12 @@ class PhononH0 : public HarmonicHamiltonian {
   Eigen::Vector3i qCoarseGrid;
   Eigen::Tensor<double, 7> forceConstants;
   Eigen::Tensor<double, 5> wscache;
-  long nr1Big, nr2Big, nr3Big;
+  int nr1Big, nr2Big, nr3Big;
+
+  int numBravaisVectors;
+  Eigen::MatrixXd bravaisVectors;
+  Eigen::VectorXd weights;
+  Eigen::Tensor<double,5> mat2R;
 
   // private methods, used to diagonalize the Dyn matrix
   void wsinit(const Eigen::MatrixXd &unitCell);

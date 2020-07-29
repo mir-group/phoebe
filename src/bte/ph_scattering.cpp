@@ -166,19 +166,23 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
+  // get available memory from environment variable,
+  // defaults to 16 GB
   double maxmem = 16.0e9;
   {
     char *memstr = std::getenv("MAXMEM");
     if (memstr != NULL) {
       maxmem = std::atof(memstr) * 1.0e9;
     }
+    if (mpi->mpiHead()) {
+      printf("The maximal memory used for the coupling calculation will be %g "
+             "GB,\nset the MAXMEM environment variable to the preferred memory "
+             "usage in GB.\n",
+             maxmem / 1.0e9);
+    }
   }
-  printf("The maximal memory used for the coupling calculation will be %g "
-         "GB,\nset the MAXMEM environment variable to the preferred memory "
-         "usage in GB.\n",
-         maxmem / 1.0e9);
-  printf("switch = %d\n", switchCase);
 
+  // outer loop over q2
   for (auto tup : qPairIterator) {
     auto iq1Indexes = std::get<0>(tup);
     auto iq2 = std::get<1>(tup);
@@ -208,7 +212,11 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     states2.getEigenvectors(ev2_e);
     q2_e = states2.getCoords(Points::cartesianCoords);
 
+    // precalculate D3cached for current value of q2
+    coupling3Ph->cacheD3(q2_e);
+
     int i = -1;
+    // do prep work for all values of q1, store stuff needed for couplings later
     for (auto iq1 : iq1Indexes) {
       i++;
 
@@ -251,17 +259,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       states1.getEigenvectors(ev1s_e[i]);
       states3Plus.getEigenvectors(ev3Pluss_e[i]);
       states3Mins.getEigenvectors(ev3Minss_e[i]);
-
-      /*
-      auto tup = coupling3Ph->getCouplingSquared(
-          q1s_e[i], q2_e, ev1s_e[i], ev2_e, ev3Pluss_e[i], ev3Minss_e[i]);
-      auto couplingPlus = std::get<0>(tup);
-      auto couplingMins = std::get<1>(tup);
-      couplingPluss.push_back(couplingPlus);
-      couplingMinss.push_back(couplingMins);
-      */
     }
-    coupling3Ph->cacheD3(q2_e);
 
     int numBatches;
     // prepare batches based on memory usage
@@ -273,12 +271,17 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           maxnb3Plus = *std::max_element(nb3Pluss_e.begin(), nb3Pluss_e.end()),
           maxnb3Mins = *std::max_element(nb3Minss_e.begin(), nb3Minss_e.end());
 
-     /* std::cout << nq1 << ", " << nr2 << ", " << nr3 << ", " << numBands << ", "
-                << maxnb1 << ", " << nb2 << ", " << maxnb3Plus << ", "
-                << maxnb3Mins << "\n";*/
+      /* std::cout << nq1 << ", " << nr2 << ", " << nr3 << ", " << numBands <<
+         ", "
+                 << maxnb1 << ", " << nb2 << ", " << maxnb3Plus << ", "
+                 << maxnb3Mins << "\n";*/
+
+      // available memory is MAXMEM minus size of D3, D3cache and ev2
       double availmem =
           maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
           8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
+
+      // memory used by different tensors
       double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
       double phase = 16 * nr3;
       double tmp = 2 * 16 * numBands * numBands * numBands;
@@ -288,42 +291,61 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
       double maxusage = nq1 * (evs + std::max({phase + tmp, tmp + tmp1,
                                                tmp1 + tmp2, tmp2 + v, v + c}));
+
+      // the number of batches needed
       numBatches = std::ceil(maxusage / availmem);
-      if (availmem < maxusage/nq1){
+
+      if (availmem < maxusage / nq1) {
+        // not enough memory to do even a single q1
         std::cerr << "maxmem = " << maxmem / 1e9
                   << ", availmem = " << availmem / 1e9
                   << ", maxusage = " << maxusage / 1e9
                   << ", numBatches = " << numBatches << "\n";
         throw std::runtime_error("Insufficient memory!");
       }
-
     }
-    for(int ib = 0; ib < numBatches; ib++){
-      int start = nq1*ib/numBatches;
-      int end = nq1*(ib+1)/numBatches;
-      decltype(q1s_e) q1tmp(q1s_e.begin()+start,q1s_e.begin()+end);
-      decltype(ev1s_e) ev1tmp(ev1s_e.begin()+start,ev1s_e.begin()+end);
-      decltype(ev3Pluss_e) ev3Plustmp(ev3Pluss_e.begin()+start,ev3Pluss_e.begin()+end);
-      decltype(ev3Minss_e) ev3Minstmp(ev3Minss_e.begin()+start,ev3Minss_e.begin()+end);
-      decltype(nb1s_e) nb1tmp(nb1s_e.begin()+start,nb1s_e.begin()+end);
-      decltype(nb3Pluss_e) nb3Plustmp(nb3Pluss_e.begin()+start,nb3Pluss_e.begin()+end);
-      decltype(nb3Minss_e) nb3Minstmp(nb3Minss_e.begin()+start,nb3Minss_e.begin()+end);
-      auto tup = coupling3Ph->getCouplingsSquared(q1tmp, q2_e, ev1tmp, ev2_e,
-                                                  ev3Plustmp, ev3Minstmp, nb1tmp,
-                                                  nb2, nb3Plustmp, nb3Minstmp);
+
+    // calculate couplings in batches
+    for (int ib = 0; ib < numBatches; ib++) {
+      // start and end point for current batch
+      int start = nq1 * ib / numBatches;
+      int end = nq1 * (ib + 1) / numBatches;
+
+      // extract current batch of input arguments
+      decltype(q1s_e) q1tmp(q1s_e.begin() + start, q1s_e.begin() + end);
+      decltype(ev1s_e) ev1tmp(ev1s_e.begin() + start, ev1s_e.begin() + end);
+      decltype(ev3Pluss_e) ev3Plustmp(ev3Pluss_e.begin() + start,
+                                      ev3Pluss_e.begin() + end);
+      decltype(ev3Minss_e) ev3Minstmp(ev3Minss_e.begin() + start,
+                                      ev3Minss_e.begin() + end);
+      decltype(nb1s_e) nb1tmp(nb1s_e.begin() + start, nb1s_e.begin() + end);
+      decltype(nb3Pluss_e) nb3Plustmp(nb3Pluss_e.begin() + start,
+                                      nb3Pluss_e.begin() + end);
+      decltype(nb3Minss_e) nb3Minstmp(nb3Minss_e.begin() + start,
+                                      nb3Minss_e.begin() + end);
+
+      // calculate batch of couplings
+      auto tup = coupling3Ph->getCouplingsSquared(
+          q1tmp, q2_e, ev1tmp, ev2_e, ev3Plustmp, ev3Minstmp, nb1tmp, nb2,
+          nb3Plustmp, nb3Minstmp);
       auto cptmp = std::get<0>(tup);
       auto cmtmp = std::get<1>(tup);
-      for(int jb = 0; jb < end-start; jb++){
+
+      // append batch of couplings
+      for (int jb = 0; jb < end - start; jb++) {
         couplingPluss.push_back(cptmp[jb]);
         couplingMinss.push_back(cmtmp[jb]);
       }
     }
+    // unbatched version
     /*auto tup1 = coupling3Ph->getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
                                                  ev3Pluss_e, ev3Minss_e, nb1s_e,
                                                  nb2, nb3Pluss_e, nb3Minss_e);
     couplingPluss = std::get<0>(tup1);
     couplingMinss = std::get<1>(tup1);*/
+
     i = -1;
+    // do same loop as before, but get coupling from vector
     for (auto iq1 : iq1Indexes) {
       i++;
       auto couplingPlus = couplingPluss[i];

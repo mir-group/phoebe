@@ -73,10 +73,10 @@ Eigen::Vector3d Points::getPointCoords(const long &index, const int &basis) {
 
 Eigen::Vector3d Points::reduciblePoints(const long &idx) {
   // find 3 indexes from the single index
-  long ikz = idx / (mesh(0) * mesh(1));
-  long idx_ = idx - (ikz * mesh(0) * mesh(1));
-  long iky = idx_ / mesh(0);
-  long ikx = mod(idx_, mesh(0));
+  int ikz = idx / (mesh(0) * mesh(1));
+  int idx_ = idx - (ikz * mesh(0) * mesh(1));
+  int iky = idx_ / mesh(0);
+  int ikx = mod(idx_, mesh(0));
   Eigen::Vector3d p;
   p(0) = ikx / (double)mesh(0) + offset(0);
   p(1) = iky / (double)mesh(1) + offset(1);
@@ -93,9 +93,9 @@ long Points::getIndex(const Eigen::Vector3d &point) {
   p(1) = (point(1) - offset(1)) * mesh(1);
   p(2) = (point(2) - offset(2)) * mesh(2);
   // fold in BZ
-  long i = mod(long(round(p(0))), mesh(0));
-  long j = mod(long(round(p(1))), mesh(1));
-  long k = mod(long(round(p(2))), mesh(2));
+  int i = mod(int(round(p(0))), mesh(0));
+  int j = mod(int(round(p(1))), mesh(1));
+  int k = mod(int(round(p(2))), mesh(2));
   long ik = k * mesh(0) * mesh(1) + j * mesh(0) + i;
   return ik;
 }

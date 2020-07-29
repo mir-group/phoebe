@@ -14,7 +14,8 @@
 
 PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
-                   const Eigen::Tensor<double, 7> &forceConstants_)
+                   const Eigen::Tensor<double, 7> &forceConstants_,
+                   const std::string &sumRule)
     : particle(Particle::phonon), bornCharges(bornCharges_),
       forceConstants(forceConstants_) {
   // in this section, we save as class properties a few variables
@@ -35,9 +36,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
   dielectricMatrix = dielectricMatrix_;
 
   Eigen::VectorXi qCoarseGrid_(3);
-  qCoarseGrid_(0) = forceConstants.dimension(0);
-  qCoarseGrid_(1) = forceConstants.dimension(1);
-  qCoarseGrid_(2) = forceConstants.dimension(2);
+  qCoarseGrid_(0) = forceConstants.dimension(2);
+  qCoarseGrid_(1) = forceConstants.dimension(3);
+  qCoarseGrid_(2) = forceConstants.dimension(4);
   qCoarseGrid = qCoarseGrid_;
 
   numAtoms = crystal.getNumAtoms();
@@ -56,6 +57,10 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
   nr3Big = 2 * qCoarseGrid(2);
 
   PhononH0::wsinit(directUnitCellSup);
+
+  setAcousticSumRule(sumRule);
+
+  reorderDynamicalMatrix();
 }
 
 // copy constructor
@@ -70,7 +75,9 @@ PhononH0::PhononH0(const PhononH0 &that)
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
       qCoarseGrid(that.qCoarseGrid), forceConstants(that.forceConstants),
       wscache(that.wscache), nr1Big(that.nr1Big), nr2Big(that.nr2Big),
-      nr3Big(that.nr3Big) {}
+      nr3Big(that.nr3Big), numBravaisVectors(that.numBravaisVectors),
+      bravaisVectors(that.bravaisVectors), weights(that.weights),
+      mat2R(that.mat2R) {}
 
 // copy assignment
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
@@ -94,6 +101,10 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     nr1Big = that.nr1Big;
     nr2Big = that.nr2Big;
     nr3Big = that.nr3Big;
+    numBravaisVectors = that.numBravaisVectors;
+    bravaisVectors = that.bravaisVectors;
+    weights = that.weights;
+    mat2R = that.mat2R;
   }
   return *this;
 }
@@ -109,19 +120,6 @@ PhononH0::diagonalize(Point &point) {
   auto tup = diagonalizeFromCoords(q, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
-
-  //  displacements are eigenvectors divided by sqrt(speciesMasses)
-
-  //	Eigen::Tensor<std::complex<double>,3> eigenvectors(3,numAtoms,numBands);
-  //	for ( long iband=0; iband<numBands; iband++ ) {
-  //		for ( long iat=0; iat<numAtoms; iat++ ) {
-  //			for ( long ipol=0; ipol<3; ipol++ ) {
-  //				auto ind =
-  // compress2Indeces(iat,ipol,numAtoms,3);
-  // eigenvectors(ipol,iat,iband) = eigvecTemp(ind, iband);
-  //			}
-  //		}
-  //	}
   return {energies, eigenvectors};
 }
 
@@ -193,7 +191,7 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
     for (long iband = 0; iband < numBands; iband++) {
       for (long iat = 0; iat < numAtoms; iat++) {
         long iType = atomicSpecies(iat);
-        for (long ipol = 0; ipol < 3; ipol++) {
+        for (int ipol : {0, 1, 2}) {
           auto ind = compress2Indeces(iat, ipol, numAtoms, 3);
           eigenvectors(ind, iband) /= sqrt(speciesMasses(iType));
         }
@@ -235,10 +233,10 @@ void PhononH0::wsinit(const Eigen::MatrixXd &unitCell) {
 
   Eigen::MatrixXd tmpResult(3, nrwsx);
 
-  for (long ir = -nx; ir <= nx; ir++) {
-    for (long jr = -nx; jr <= nx; jr++) {
-      for (long kr = -nx; kr <= nx; kr++) {
-        for (long i = 0; i < 3; i++) {
+  for (int ir = -nx; ir <= nx; ir++) {
+    for (int jr = -nx; jr <= nx; jr++) {
+      for (int kr = -nx; kr <= nx; kr++) {
+        for (int i : {0, 1, 2}) {
           tmpResult(i, index) =
               unitCell(i, 0) * ir + unitCell(i, 1) * jr + unitCell(i, 2) * kr;
         }
@@ -255,33 +253,31 @@ void PhononH0::wsinit(const Eigen::MatrixXd &unitCell) {
   long nrws = index;
 
   Eigen::MatrixXd rws(3, nrws);
-  for (long i = 0; i < nrws; i++) {
+  for (int i = 0; i < nrws; i++) {
     rws.col(i) = tmpResult.col(i);
   }
 
   // now, I also prepare the wscache, which is used to accelerate
   // the shortRange() calculation
 
-  Eigen::VectorXd r_ws(3);
   Eigen::Tensor<double, 5> wscache_(2 * nr3Big + 1, 2 * nr2Big + 1,
                                     2 * nr1Big + 1, numAtoms, numAtoms);
   wscache_.setZero();
 
-  double x, total_weight;
-  long n1ForCache, n2ForCache, n3ForCache;
   for (long na = 0; na < numAtoms; na++) {
     for (long nb = 0; nb < numAtoms; nb++) {
-      total_weight = 0.;
+      double total_weight = 0.;
 
       // sum over r vectors in the supercell - very safe range!
 
       for (long n1 = -nr1Big; n1 <= nr1Big; n1++) {
-        n1ForCache = n1 + nr1Big;
+        int n1ForCache = n1 + nr1Big;
         for (long n2 = -nr2Big; n2 <= nr2Big; n2++) {
-          n2ForCache = n2 + nr2Big;
+          int n2ForCache = n2 + nr2Big;
           for (long n3 = -nr3Big; n3 <= nr3Big; n3++) {
-            n3ForCache = n3 + nr3Big;
+            int n3ForCache = n3 + nr3Big;
 
+            Eigen::Vector3d r_ws;
             for (long i = 0; i < 3; i++) {
               // note that this cell is different from above
               r_ws(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
@@ -295,7 +291,7 @@ void PhononH0::wsinit(const Eigen::MatrixXd &unitCell) {
               }
             }
 
-            x = wsweight(r_ws, rws);
+            double x = wsweight(r_ws, rws);
             wscache_(n3ForCache, n2ForCache, n1ForCache, nb, na) = x;
             total_weight += x;
           }
@@ -598,11 +594,11 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
   double factor = fourPi * e2 / qeq / volumeUnitCell /
                   (qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2));
 
-  for (long na = 0; na < numAtoms; na++) {
+  for (int na = 0; na < numAtoms; na++) {
     na_blk = atomicSpecies(na);
-    for (long nb = 0; nb < numAtoms; nb++) {
+    for (int nb = 0; nb < numAtoms; nb++) {
       nb_blk = atomicSpecies(nb);
-      for (long i = 0; i < 3; i++) {
+      for (int i : {0, 1, 2}) {
         zag(i) = q(0) * bornCharges(na_blk, 0, i) +
                  q(1) * bornCharges(na_blk, 1, i) +
                  q(2) * bornCharges(na_blk, 2, i);
@@ -610,8 +606,8 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
                  q(1) * bornCharges(nb_blk, 1, i) +
                  q(2) * bornCharges(nb_blk, 2, i);
       }
-      for (long i = 0; i < 3; i++) {
-        for (long j = 0; j < 3; j++) {
+      for (int i : {0, 1, 2}) {
+        for (int j : {0, 1, 2}) {
           f_of_q(i, j, na, nb) = factor * zag(i) * zbg(j);
         }
       }
@@ -619,49 +615,65 @@ void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
   }
 }
 
-void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                              const Eigen::VectorXd &q,
-                              Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
-  // calculates the dynamical matrix at q from the (short-range part of the)
-  // force constants21
+void PhononH0::reorderDynamicalMatrix() {
+  // this part can actually be expensive to execute, so we compute it once
+  // at the beginning
+  // first, we compute the total number of bravais lattice vectors
 
-  Eigen::VectorXd r(3), r_ws(3);
-  double arg, weight;
-
-  long n1ForCache, n2ForCache, n3ForCache;
-
-  long m1, m2, m3;
-  std::complex<double> phase;
-
-  for (long na = 0; na < numAtoms; na++) {
-    for (long nb = 0; nb < numAtoms; nb++) {
-      for (long n1 = -nr1Big; n1 < nr1Big; n1++) {
-        n1ForCache = n1 + nr1Big;
-        for (long n2 = -nr2Big; n2 < nr2Big; n2++) {
-          n2ForCache = n2 + nr2Big;
-          for (long n3 = -nr3Big; n3 < nr3Big; n3++) {
-            n3ForCache = n3 + nr3Big;
-
-            // sum over r vectors in the supercell, very safe range
-            for (long i = 0; i < 3; i++) {
-              r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
-                     n3 * directUnitCell(i, 2);
+  numBravaisVectors = 0;
+  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+    int n3ForCache = n3 + nr3Big;
+    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+      int n2ForCache = n2 + nr2Big;
+      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+        int n1ForCache = n1 + nr1Big;
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            if (wscache(n3ForCache, n2ForCache, n1ForCache, nb, na) > 0.) {
+              numBravaisVectors += 1;
             }
+          }
+        }
+      }
+    }
+  }
 
-            weight = wscache(n3ForCache, n2ForCache, n1ForCache, nb, na);
+  // next, we reorder the dynamical matrix along the bravais lattice vectors
 
+  bravaisVectors = Eigen::MatrixXd::Zero(3, numBravaisVectors);
+  weights = Eigen::VectorXd::Zero(numBravaisVectors);
+  mat2R.resize(3, 3, numAtoms, numAtoms, numBravaisVectors);
+  mat2R.setZero();
+
+  int iR = 0;
+  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+    int n3ForCache = n3 + nr3Big;
+    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+      int n2ForCache = n2 + nr2Big;
+      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+        int n1ForCache = n1 + nr1Big;
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            double weight = wscache(n3ForCache, n2ForCache, n1ForCache, nb, na);
             if (weight > 0.) {
-              // find vector corresponding to r in original cell
+              weights(iR) = weight;
 
-              m1 = mod((n1 + 1), qCoarseGrid(0));
+              Eigen::Vector3d r;
+              for (int i : {0, 1, 2}) {
+                r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
+                       n3 * directUnitCell(i, 2);
+              }
+              bravaisVectors.col(iR) = r;
+
+              int m1 = mod((n1 + 1), qCoarseGrid(0));
               if (m1 <= 0) {
                 m1 += qCoarseGrid(0);
               };
-              m2 = mod((n2 + 1), qCoarseGrid(1));
+              int m2 = mod((n2 + 1), qCoarseGrid(1));
               if (m2 <= 0) {
                 m2 += qCoarseGrid(1);
               };
-              m3 = mod((n3 + 1), qCoarseGrid(2));
+              int m3 = mod((n3 + 1), qCoarseGrid(2));
               if (m3 <= 0) {
                 m3 += qCoarseGrid(2);
               };
@@ -669,22 +681,43 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
               m2 += -1;
               m3 += -1;
 
-              // FOURIER TRANSFORM
-
-              // note: maybe send m1 in m1-1 and m2,m3
-
-              arg = q.dot(r);
-              phase = {cos(arg), -sin(arg)};
-
-              for (long ipol = 0; ipol < 3; ipol++) {
-                for (long jpol = 0; jpol < 3; jpol++) {
-                  dyn(ipol, jpol, na, nb) +=
-                      (forceConstants(m1, m2, m3, ipol, jpol, na, nb) +
-                       f_of_q(ipol, jpol, na, nb)) *
-                      phase * weight;
+              for (int i : {0, 1, 2}) {
+                for (int j : {0, 1, 2}) {
+                  mat2R(i, j, na, nb, iR) +=
+                      forceConstants(i, j, m1, m2, m3, na, nb);
                 }
               }
+
+              iR += 1;
             }
+          }
+        }
+      }
+    }
+  }
+
+  wscache.resize(0, 0, 0, 0, 0);
+  forceConstants.resize(0, 0, 0, 0, 0, 0, 0);
+}
+
+void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
+                              const Eigen::VectorXd &q,
+                              Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
+  // calculates the dynamical matrix at q from the (short-range part of the)
+  // force constants21, by doing the Fourier transform of the force constants
+
+  for (int iR = 0; iR < numBravaisVectors; iR++) {
+    double weight = weights(iR);
+    Eigen::Vector3d r = bravaisVectors.col(iR);
+    double arg = q.dot(r);
+    std::complex<double> phase = {cos(arg), -sin(arg)};
+    for (int nb = 0; nb < numAtoms; nb++) {
+      for (int na = 0; na < numAtoms; na++) {
+        for (int jpol : {0, 1, 2}) {
+          for (int ipol : {0, 1, 2}) {
+            dyn(ipol, jpol, na, nb) +=
+                (mat2R(ipol, jpol, na, nb, iR) + f_of_q(ipol, jpol, na, nb)) *
+                phase * weight;
           }
         }
       }
@@ -700,15 +733,11 @@ PhononH0::dyndiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
 
   // fill the two-indices dynamical matrix
 
-  long iType, jType;
-  std::complex<double> cx;
   Eigen::MatrixXcd dyn2Tmp(numBands, numBands);
-  Eigen::MatrixXcd dyn2(numBands, numBands);
-
-  for (long iat = 0; iat < numAtoms; iat++) {
-    for (long jat = 0; jat < numAtoms; jat++) {
-      for (long ipol = 0; ipol < 3; ipol++) {
-        for (long jpol = 0; jpol < 3; jpol++) {
+  for (int iat = 0; iat < numAtoms; iat++) {
+    for (int jat = 0; jat < numAtoms; jat++) {
+      for (int ipol : {0, 1, 2}) {
+        for (int jpol : {0, 1, 2}) {
           dyn2Tmp(iat * 3 + ipol, jat * 3 + jpol) = dyn(ipol, jpol, iat, jat);
         }
       }
@@ -717,17 +746,18 @@ PhononH0::dyndiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
 
   // impose hermiticity
 
+  Eigen::MatrixXcd dyn2(numBands, numBands);
   dyn2 = dyn2Tmp + dyn2Tmp.adjoint();
   dyn2 *= 0.5;
 
   //  divide by the square root of masses
 
-  for (long iat = 0; iat < numAtoms; iat++) {
-    iType = atomicSpecies(iat);
-    for (long jat = 0; jat < numAtoms; jat++) {
-      jType = atomicSpecies(jat);
-      for (long ipol = 0; ipol < 3; ipol++) {
-        for (long jpol = 0; jpol < 3; jpol++) {
+  for (int iat = 0; iat < numAtoms; iat++) {
+    int iType = atomicSpecies(iat);
+    for (int jat = 0; jat < numAtoms; jat++) {
+      int jType = atomicSpecies(jat);
+      for (int ipol : {0, 1, 2}) {
+        for (int jpol : {0, 1, 2}) {
           dyn2(iat * 3 + ipol, jat * 3 + jpol) /=
               sqrt(speciesMasses(iType) * speciesMasses(jType));
         }
@@ -741,7 +771,7 @@ PhononH0::dyndiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
 
   Eigen::VectorXd energies(numBands);
 
-  for (long i = 0; i < numBands; i++) {
+  for (int i = 0; i < numBands; i++) {
     if (w2(i) < 0) {
       energies(i) = -sqrt(-w2(i));
     } else {
@@ -816,12 +846,12 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
             for (long n1 = 0; n1 < qCoarseGrid(0); n1++) {
               for (long n2 = 0; n2 < qCoarseGrid(1); n2++) {
                 for (long n3 = 0; n3 < qCoarseGrid(2); n3++) {
-                  sum += forceConstants(n1, n2, n3, i, j, na, nb);
+                  sum += forceConstants(i, j, n1, n2, n3, na, nb);
                 }
               }
             }
           }
-          forceConstants(1, 1, 1, i, j, na, na) -= sum;
+          forceConstants(i, j, 0, 0, 0, na, na) -= sum;
         }
       }
     }
@@ -967,32 +997,49 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+
     // Acoustic Sum Rule on force constants
 
     // generating the vectors of the orthogonal of the subspace to project
     // the force-constants matrix on
 
-    long nr1 = qCoarseGrid(0);
-    long nr2 = qCoarseGrid(1);
-    long nr3 = qCoarseGrid(2);
+    int nr1 = qCoarseGrid(0);
+    int nr2 = qCoarseGrid(1);
+    int nr3 = qCoarseGrid(2);
 
     Eigen::Tensor<double, 8> uvec(18 * numAtoms, nr1, nr2, nr3, 3, 3, numAtoms,
                                   numAtoms);
     uvec.setZero();
 
     Eigen::Tensor<double, 7> frc_new(nr1, nr2, nr3, 3, 3, numAtoms, numAtoms);
-    frc_new = forceConstants;
+    for (long nb = 0; nb < numAtoms; nb++) {
+      for (long na = 0; na < numAtoms; na++) {
+        for (long j = 0; j < 3; j++) {
+          for (long i = 0; i < 3; i++) {
+            for (long n3 = 0; n3 < nr3; n3++) {
+              for (long n2 = 0; n2 < nr2; n2++) {
+                for (long n1 = 0; n1 < nr1; n1++) {
+                  frc_new(n1, n2, n3, i, j, na, nb) =
+                      forceConstants(i, j, n1, n2, n3, na, nb);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
     p = 0;
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
-        for (long na = 0; na < numAtoms; na++) {
-          // These are the 3*3*numAtoms vectors associated with the
+    for (int na = 0; na < numAtoms; na++) {
+      for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 3; i++) {
+          // These are the 3*3*nat vectors associated with the
           // translational acoustic sum rules
-          for (long n1 = 0; n1 < nr1; n1++) {
-            for (long n2 = 0; n2 < nr2; n2++) {
-              for (long n3 = 0; n3 < nr3; n3++) {
-                for (long nb = 0; nb < numAtoms; nb++) {
+          for (int nb = 0; nb < numAtoms; nb++) {
+            for (int n3 = 0; n3 < nr3; n3++) {
+              for (int n2 = 0; n2 < nr2; n2++) {
+                for (int n1 = 0; n1 < nr1; n1++) {
                   uvec(p, n1, n2, n3, i, j, na, nb) = 1.;
                 }
               }
@@ -1003,65 +1050,71 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
     }
 
-    Eigen::Tensor<long, 3> ind_v(9 * numAtoms * numAtoms * nr1 * nr2 * nr3, 2,
-                                 7);
+    Eigen::Tensor<int, 3> ind_v(9 * numAtoms * numAtoms * nr1 * nr2 * nr3, 2,
+                                7);
     Eigen::Tensor<double, 2> v(9 * numAtoms * numAtoms * nr1 * nr2 * nr3, 2);
     v.setZero();
     ind_v.setZero();
 
-    long m = 0;
-    long q, l;
+    int m = 0;
+    int q, l;
 
-    for (long n1 = 0; n1 < nr1; n1++) {
-      for (long n2 = 0; n2 < nr2; n2++) {
-        for (long n3 = 0; n3 < nr3; n3++) {
-          for (long i = 0; i < 3; i++) {
-            for (long j = 0; j < 3; j++) {
-              for (long na = 0; na < numAtoms; na++) {
-                for (long nb = 0; nb < numAtoms; nb++) {
-                  // These are the vectors associated with
-                  // the symmetry constraints
+    for (int nb = 1; nb <= numAtoms; nb++) {
+      for (int na = 1; na <= numAtoms; na++) {
+        for (int j = 1; j <= 3; j++) {
+          for (int i = 1; i <= 3; i++) {
+            for (int n3 = 1; n3 <= nr3; n3++) {
+              for (int n2 = 1; n2 <= nr2; n2++) {
+                for (int n1 = 1; n1 <= nr1; n1++) {
+                  // These are the vectors associated with the symmetry
+                  // constraints
                   q = 1;
-                  l = 0;
-                  while ((l < m) && (q != 0)) {
-                    if ((ind_v(l, 0, 0) == n1) && (ind_v(l, 0, 1) == n2) &&
-                        (ind_v(l, 0, 2) == n3) && (ind_v(l, 0, 3) == i) &&
-                        (ind_v(l, 0, 4) == j) && (ind_v(l, 0, 5) == na) &&
-                        (ind_v(l, 0, 6) == nb)) {
+                  l = 1;
+                  while ((l <= m) && (q != 0)) {
+                    if ((ind_v(l - 1, 1 - 1, 1 - 1) == n1) &&
+                        (ind_v(l - 1, 1 - 1, 2 - 1) == n2) &&
+                        (ind_v(l - 1, 1 - 1, 3 - 1) == n3) &&
+                        (ind_v(l - 1, 1 - 1, 4 - 1) == i) &&
+                        (ind_v(l - 1, 1 - 1, 5 - 1) == j) &&
+                        (ind_v(l - 1, 1 - 1, 6 - 1) == na) &&
+                        (ind_v(l - 1, 1 - 1, 7 - 1) == nb)) {
                       q = 0;
                     }
-                    if ((ind_v(l, 1, 0) == n1) && (ind_v(l, 1, 1) == n2) &&
-                        (ind_v(l, 1, 2) == n3) && (ind_v(l, 1, 3) == i) &&
-                        (ind_v(l, 1, 4) == j) && (ind_v(l, 1, 5) == na) &&
-                        (ind_v(l, 1, 6) == nb)) {
+                    if ((ind_v(l - 1, 2 - 1, 1 - 1) == n1) &&
+                        (ind_v(l - 1, 2 - 1, 2 - 1) == n2) &&
+                        (ind_v(l - 1, 2 - 1, 3 - 1) == n3) &&
+                        (ind_v(l - 1, 2 - 1, 4 - 1) == i) &&
+                        (ind_v(l - 1, 2 - 1, 5 - 1) == j) &&
+                        (ind_v(l - 1, 2 - 1, 6 - 1) == na) &&
+                        (ind_v(l - 1, 2 - 1, 7 - 1) == nb)) {
                       q = 0;
                     }
                     l += 1;
                   }
-                  if ((n1 == mod((nr1 + 1 - n1), nr1)) &&
-                      (n2 == mod((nr2 + 1 - n2), nr2)) &&
-                      (n3 == mod((nr3 + 1 - n3), nr3)) && (i == j) &&
+                  if ((n1 == ((nr1 + 1 - n1) % nr1) + 1) &&
+                      (n2 == ((nr2 + 1 - n2) % nr2) + 1) &&
+                      (n3 == ((nr3 + 1 - n3) % nr3) + 1) && (i == j) &&
                       (na == nb)) {
                     q = 0;
                   }
                   if (q != 0) {
-                    ind_v(m, 0, 0) = n1;
-                    ind_v(m, 0, 1) = n2;
-                    ind_v(m, 0, 2) = n3;
-                    ind_v(m, 0, 3) = i;
-                    ind_v(m, 0, 4) = j;
-                    ind_v(m, 0, 5) = na;
-                    ind_v(m, 0, 6) = nb;
-                    v(m, 0) = 1. / sqrt(2.);
-                    ind_v(m, 1, 0) = mod((nr1 + 1 - n1), nr1);
-                    ind_v(m, 1, 1) = mod((nr2 + 1 - n2), nr2);
-                    ind_v(m, 1, 2) = mod((nr3 + 1 - n3), nr3);
-                    ind_v(m, 1, 3) = j;
-                    ind_v(m, 1, 4) = i;
-                    ind_v(m, 1, 5) = nb;
-                    ind_v(m, 1, 6) = na;
-                    v(m, 1) = -1. / sqrt(2.);
                     m += 1;
+                    ind_v(m - 1, 1 - 1, 1 - 1) = n1;
+                    ind_v(m - 1, 1 - 1, 2 - 1) = n2;
+                    ind_v(m - 1, 1 - 1, 3 - 1) = n3;
+                    ind_v(m - 1, 1 - 1, 4 - 1) = i;
+                    ind_v(m - 1, 1 - 1, 5 - 1) = j;
+                    ind_v(m - 1, 1 - 1, 6 - 1) = na;
+                    ind_v(m - 1, 1 - 1, 7 - 1) = nb;
+                    v(m - 1, 1 - 1) = 1. / sqrt(2.);
+                    ind_v(m - 1, 2 - 1, 1 - 1) = ((nr1 + 1 - n1) % nr1) + 1;
+                    ind_v(m - 1, 2 - 1, 2 - 1) = ((nr2 + 1 - n2) % nr2) + 1;
+                    ind_v(m - 1, 2 - 1, 3 - 1) = ((nr3 + 1 - n3) % nr3) + 1;
+                    ind_v(m - 1, 2 - 1, 4 - 1) = j;
+                    ind_v(m - 1, 2 - 1, 5 - 1) = i;
+                    ind_v(m - 1, 2 - 1, 6 - 1) = nb;
+                    ind_v(m - 1, 2 - 1, 7 - 1) = na;
+                    v(m - 1, 2 - 1) = -1. / sqrt(2.);
                   }
                 }
               }
@@ -1072,10 +1125,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     }
 
     // Gram-Schmidt orthonormalization of the set of vectors created.
-    // Note that the vectors corresponding to symmetry constraints are
-    // already orthonormalized by construction.
+    // Note that the vectors corresponding to symmetry constraints are already
+    // orthonormalized by construction.
 
-    long n_less = 0;
+    int n_less = 0;
     Eigen::Tensor<double, 7> w(nr1, nr2, nr3, 3, 3, numAtoms, numAtoms);
     Eigen::Tensor<double, 7> x(nr1, nr2, nr3, 3, 3, numAtoms, numAtoms);
     w.setZero();
@@ -1084,22 +1137,22 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     Eigen::VectorXi u_less(6 * 3 * numAtoms);
     u_less.setZero();
 
-    long n1, n2, n3, i, j, na, nb, na1, i1, j1;
+    int n1, n2, n3, i, j, na, nb, na1, i1, j1;
 
-    for (long k = 0; k < p; k++) {
-      // w(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
-      // x(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
-      for (long n1 = 0; n1 < nr1; n1++) {
-        for (long n2 = 0; n2 < nr2; n2++) {
-          for (long n3 = 0; n3 < nr3; n3++) {
-            for (long i = 0; i < 3; i++) {
-              for (long j = 0; j < 3; j++) {
-                for (long na = 0; na < numAtoms; na++) {
-                  for (long nb = 0; nb < numAtoms; nb++) {
+    for (int k = 1; k <= p; k++) {
+      //        w(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
+      //          x(:,:,:,:,:,:,:) = uvec(k-1,:,:,:,:,:,:,:);
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int na = 0; na < numAtoms; na++) {
+          for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 3; i++) {
+              for (int n3 = 0; n3 < nr3; n3++) {
+                for (int n2 = 0; n2 < nr2; n2++) {
+                  for (int n1 = 0; n1 < nr1; n1++) {
                     w(n1, n2, n3, i, j, na, nb) =
-                        uvec(k, n1, n2, n3, i, j, na, nb);
+                        uvec(k - 1, n1, n2, n3, i, j, na, nb);
                     x(n1, n2, n3, i, j, na, nb) =
-                        uvec(k, n1, n2, n3, i, j, na, nb);
+                        uvec(k - 1, n1, n2, n3, i, j, na, nb);
                   }
                 }
               }
@@ -1108,80 +1161,89 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         }
       }
 
-      for (long l = 0; l < m; l++) {
-        //				call
-        // sp2(x,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal);
+      for (int l = 1; l <= m; l++) {
+        //        call sp2(x,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal);
         scal = 0.;
-        for (long r = 0; r < 2; r++) {
-          n1 = ind_v(l, r, 0);
-          n2 = ind_v(l, r, 1);
-          n3 = ind_v(l, r, 2);
-          i = ind_v(l, r, 3);
-          j = ind_v(l, r, 4);
-          na = ind_v(l, r, 5);
-          nb = ind_v(l, r, 6);
-          scal += w(n1, n2, n3, i, j, na, nb) * v(l, r);
+        for (int r = 1; r <= 2; r++) {
+          n1 = ind_v(l - 1, r - 1, 1 - 1);
+          n2 = ind_v(l - 1, r - 1, 2 - 1);
+          n3 = ind_v(l - 1, r - 1, 3 - 1);
+          i = ind_v(l - 1, r - 1, 4 - 1);
+          j = ind_v(l - 1, r - 1, 5 - 1);
+          na = ind_v(l - 1, r - 1, 6 - 1);
+          nb = ind_v(l - 1, r - 1, 7 - 1);
+          scal += w(n1 - 1, n2 - 1, n3 - 1, i - 1, j - 1, na - 1, nb - 1) *
+                  v(l - 1, r - 1);
         }
 
-        for (long r = 0; r < 2; r++) {
-          n1 = ind_v(l, r, 0);
-          n2 = ind_v(l, r, 1);
-          n3 = ind_v(l, r, 2);
-          i = ind_v(l, r, 3);
-          j = ind_v(l, r, 4);
-          na = ind_v(l, r, 5);
-          nb = ind_v(l, r, 6);
-          w(n1, n2, n3, i, j, na, nb) -= scal * v(l, r);
+        for (int r = 1; r <= 2; r++) {
+          n1 = ind_v(l - 1, r - 1, 1 - 1);
+          n2 = ind_v(l - 1, r - 1, 2 - 1);
+          n3 = ind_v(l - 1, r - 1, 3 - 1);
+          i = ind_v(l - 1, r - 1, 4 - 1);
+          j = ind_v(l - 1, r - 1, 5 - 1);
+          na = ind_v(l - 1, r - 1, 6 - 1);
+          nb = ind_v(l - 1, r - 1, 7 - 1);
+          w(n1 - 1, n2 - 1, n3 - 1, i - 1, j - 1, na - 1, nb - 1) -=
+              scal * v(l - 1, r - 1);
         }
       }
 
-      if (k + 1 <= (9 * numAtoms)) {
-        na1 = mod(k + 1, numAtoms);
+      if (k <= (9 * numAtoms)) {
+        na1 = k % numAtoms;
         if (na1 == 0) {
           na1 = numAtoms;
         };
-        j1 = mod(((k + 1 - na1) / numAtoms), 3);
-        i1 = mod(((((k + 1 - na1) / numAtoms) - j1) / 3), 3);
+        j1 = (((k - na1) / numAtoms) % 3) + 1;
+        i1 = (((((k - na1) / numAtoms) - j1 + 1) / 3) % 3) + 1;
       } else {
-        q = k + 1 - 9 * numAtoms;
-        na1 = mod(q, numAtoms);
+        q = k - 9 * numAtoms;
+        //            if ( n == 4 ) {
+        //               na1 = q % nat;
+        //               if ( na1 == 0 ) { na1 = nat; }
+        //               i1 = MOD((q-na1)/nat,3)+1
+        //            } else {
+        na1 = q % numAtoms;
         if (na1 == 0)
           na1 = numAtoms;
-        j1 = mod(((q - na1) / numAtoms), 3);
-        i1 = mod(((((q - na1) / numAtoms) - j1) / 3), 3);
+        j1 = (((q - na1) / numAtoms) % 3) + 1;
+        i1 = (((((q - na1) / numAtoms) - j1 + 1) / 3) % 3) + 1;
+        //            }
       }
-      for (long q = 0; q < k; q++) {
+      for (int q = 1; q <= k - 1; q++) {
         r = 1;
-        for (long i_less = 0; i_less < n_less; i_less++) {
-          if (u_less(i_less) == q) {
+        for (int i_less = 1; i_less <= n_less; i_less++) {
+          if (u_less(i_less - 1) == q) {
             r = 0;
           }
         }
         if (r != 0) {
+          //          call
+          //          sp3(x,uvec(q-1,:,:,:,:,:,:,:),i1,na1,nr1,nr2,nr3,nat,scal)
           scal = 0.;
-          for (long n1 = 0; n1 < nr1; n1++) {
-            for (long n2 = 0; n2 < nr2; n2++) {
-              for (long n3 = 0; n3 < nr3; n3++) {
-                for (long j = 0; j < 3; j++) {
-                  for (long nb = 0; nb < numAtoms; nb++) {
-                    scal += x(n1, n2, n3, i1, j, na1 - 1, nb) *
-                            uvec(q, n1, n2, n3, i1, j, na1 - 1, nb);
+          for (int nb = 0; nb < numAtoms; nb++) {
+            for (int j = 0; j < 3; j++) {
+              for (int n3 = 0; n3 < nr3; n3++) {
+                for (int n2 = 0; n2 < nr2; n2++) {
+                  for (int n1 = 0; n1 < nr1; n1++) {
+                    scal += x(n1, n2, n3, i1 - 1, j, na1 - 1, nb) *
+                            uvec(q - 1, n1, n2, n3, i1 - 1, j, na1 - 1, nb);
                   }
                 }
               }
             }
           }
 
-          // w(:,:,:,:,:,:,:) -= scal * uvec(q-1,:,:,:,:,:,:,:)
-          for (long n1 = 0; n1 < nr1; n1++) {
-            for (long n2 = 0; n2 < nr2; n2++) {
-              for (long n3 = 0; n3 < nr3; n3++) {
-                for (long i = 0; i < 3; i++) {
-                  for (long j = 0; j < 3; j++) {
-                    for (long na = 0; na < numAtoms; na++) {
-                      for (long nb = 0; nb < numAtoms; nb++) {
+          //               w(:,:,:,:,:,:,:) -= scal * uvec(q-1,:,:,:,:,:,:,:)
+          for (int nb = 0; nb < numAtoms; nb++) {
+            for (int na = 0; na < numAtoms; na++) {
+              for (int j = 0; j < 3; j++) {
+                for (int i = 0; i < 3; i++) {
+                  for (int n3 = 0; n3 < nr3; n3++) {
+                    for (int n2 = 0; n2 < nr2; n2++) {
+                      for (int n1 = 0; n1 < nr1; n1++) {
                         w(n1, n2, n3, i, j, na, nb) -=
-                            scal * uvec(q, n1, n2, n3, i, j, na, nb);
+                            scal * uvec(q - 1, n1, n2, n3, i, j, na, nb);
                       }
                     }
                   }
@@ -1192,15 +1254,15 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         }
       }
 
-      //			call sp1(w,w,nr1,nr2,nr3,nat,norm2)
+      //      call sp1(w,w,nr1,nr2,nr3,nat,norm2)
       norm2 = 0.;
-      for (long n1 = 0; n1 < nr1; n1++) {
-        for (long n2 = 0; n2 < nr2; n2++) {
-          for (long n3 = 0; n3 < nr3; n3++) {
-            for (long i = 0; i < 3; i++) {
-              for (long j = 0; j < 3; j++) {
-                for (long na = 0; na < numAtoms; na++) {
-                  for (long nb = 0; nb < numAtoms; nb++) {
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int na = 0; na < numAtoms; na++) {
+          for (int j = 0; j < 3; j++) {
+            for (int i = 0; i < 3; i++) {
+              for (int n3 = 0; n3 < nr3; n3++) {
+                for (int n2 = 0; n2 < nr2; n2++) {
+                  for (int n1 = 0; n1 < nr1; n1++) {
                     norm2 += w(n1, n2, n3, i, j, na, nb) *
                              w(n1, n2, n3, i, j, na, nb);
                   }
@@ -1213,14 +1275,14 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
       if (norm2 > 1.0e-16) {
         // uvec(k-1,:,:,:,:,:,:,:) = w(:,:,:,:,:,:,:) / sqrt(norm2);
-        for (long n1 = 0; n1 < nr1; n1++) {
-          for (long n2 = 0; n2 < nr2; n2++) {
-            for (long n3 = 0; n3 < nr3; n3++) {
-              for (long i = 0; i < 3; i++) {
-                for (long j = 0; j < 3; j++) {
-                  for (long na = 0; na < numAtoms; na++) {
-                    for (long nb = 0; nb < numAtoms; nb++) {
-                      uvec(k, n1, n2, n3, i, j, na, nb) =
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
+                for (int n3 = 0; n3 < nr3; n3++) {
+                  for (int n2 = 0; n2 < nr2; n2++) {
+                    for (int n1 = 0; n1 < nr1; n1++) {
+                      uvec(k - 1, n1, n2, n3, i, j, na, nb) =
                           w(n1, n2, n3, i, j, na, nb) / sqrt(norm2);
                     }
                   }
@@ -1230,54 +1292,57 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           }
         }
       } else {
-        u_less(n_less) = k;
         n_less += 1;
+        u_less(n_less - 1) = k;
       }
     }
 
     // Projection of the force-constants "vector" on the orthogonal of the
-    // subspace of the vectors verifying sum rules and symmetry contraints
+    // subspace of the vectors verifying the sum rules and symmetry contraints
 
     w.setZero();
-    for (long l = 0; l < m; l++) {
-      //			call
-      // sp2(frc_new,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
+    for (int l = 1; l <= m; l++) {
+
+      //      call sp2(frc_new,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scal)
       scal = 0.;
-      for (long i = 0; i < 2; i++) {
-        scal += frc_new(ind_v(l, i, 0), ind_v(l, i, 1), ind_v(l, i, 2),
-                        ind_v(l, i, 3), ind_v(l, i, 4), ind_v(l, i, 5),
-                        ind_v(l, i, 6)) *
-                v(l, i);
+      for (int i = 1; i <= 2; i++) {
+        scal += frc_new(ind_v(l - 1, i - 1, 1 - 1), ind_v(l - 1, i - 1, 2 - 1),
+                        ind_v(l - 1, i - 1, 3 - 1), ind_v(l - 1, i - 1, 4 - 1),
+                        ind_v(l - 1, i - 1, 5 - 1), ind_v(l - 1, i - 1, 6 - 1),
+                        ind_v(l - 1, i - 1, 7 - 1)) *
+                v(l - 1, i - 1);
       }
 
-      for (long r = 0; r < 2; r++) {
-        n1 = ind_v(l, r, 0);
-        n2 = ind_v(l, r, 1);
-        n3 = ind_v(l, r, 2);
-        i = ind_v(l, r, 3);
-        j = ind_v(l, r, 4);
-        na = ind_v(l, r, 5);
-        nb = ind_v(l, r, 6);
-        w(n1, n2, n3, i, j, na, nb) += scal * v(l, r);
+      for (int r = 1; r <= 2; r++) {
+        n1 = ind_v(l - 1, r - 1, 1 - 1);
+        n2 = ind_v(l - 1, r - 1, 2 - 1);
+        n3 = ind_v(l - 1, r - 1, 3 - 1);
+        i = ind_v(l - 1, r - 1, 4 - 1);
+        j = ind_v(l - 1, r - 1, 5 - 1);
+        na = ind_v(l - 1, r - 1, 6 - 1);
+        nb = ind_v(l - 1, r - 1, 7 - 1);
+        w(n1 - 1, n2 - 1, n3 - 1, i - 1, j - 1, na - 1, nb - 1) +=
+            scal * v(l - 1, r - 1);
       }
     }
-    for (long k = 0; k < p; k++) {
+    for (int k = 1; k <= p; k++) {
       r = 1;
-      for (long i_less = 0; i_less < n_less; i_less++) {
-        if (u_less(i_less) == k) {
+      for (int i_less = 1; i_less <= n_less; i_less++) {
+        if (u_less(i_less - 1) == k) {
           r = 0;
         }
       }
       if (r != 0) {
+
         scal = 0.;
-        for (long n1 = 0; n1 < nr1; n1++) {
-          for (long n2 = 0; n2 < nr2; n2++) {
-            for (long n3 = 0; n3 < nr3; n3++) {
-              for (long i = 0; i < 3; i++) {
-                for (long j = 0; j < 3; j++) {
-                  for (long na = 0; na < numAtoms; na++) {
-                    for (long nb = 0; nb < numAtoms; nb++) {
-                      scal += uvec(k, n1, n2, n3, i, j, na, nb) *
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
+                for (int n3 = 0; n3 < nr3; n3++) {
+                  for (int n2 = 0; n2 < nr2; n2++) {
+                    for (int n1 = 0; n1 < nr1; n1++) {
+                      scal += uvec(k - 1, n1, n2, n3, i, j, na, nb) *
                               frc_new(n1, n2, n3, i, j, na, nb);
                     }
                   }
@@ -1287,15 +1352,15 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           }
         }
 
-        for (long n1 = 0; n1 < nr1; n1++) {
-          for (long n2 = 0; n2 < nr2; n2++) {
-            for (long n3 = 0; n3 < nr3; n3++) {
-              for (long i = 0; i < 3; i++) {
-                for (long j = 0; j < 3; j++) {
-                  for (long na = 0; na < numAtoms; na++) {
-                    for (long nb = 0; nb < numAtoms; nb++) {
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
+                for (int n3 = 0; n3 < nr3; n3++) {
+                  for (int n2 = 0; n2 < nr2; n2++) {
+                    for (int n1 = 0; n1 < nr1; n1++) {
                       w(n1, n2, n3, i, j, na, nb) +=
-                          scal * uvec(k, n1, n2, n3, i, j, na, nb);
+                          scal * uvec(k - 1, n1, n2, n3, i, j, na, nb);
                     }
                   }
                 }
@@ -1311,13 +1376,13 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     frc_new -= w;
     scal = 0.;
-    for (long n1 = 0; n1 < nr1; n1++) {
-      for (long n2 = 0; n2 < nr2; n2++) {
-        for (long n3 = 0; n3 < nr3; n3++) {
-          for (long i = 0; i < 3; i++) {
-            for (long j = 0; j < 3; j++) {
-              for (long na = 0; na < numAtoms; na++) {
-                for (long nb = 0; nb < numAtoms; nb++) {
+    for (int nb = 0; nb < numAtoms; nb++) {
+      for (int na = 0; na < numAtoms; na++) {
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
+            for (int n3 = 0; n3 < nr3; n3++) {
+              for (int n2 = 0; n2 < nr2; n2++) {
+                for (int n1 = 0; n1 < nr1; n1++) {
                   scal +=
                       w(n1, n2, n3, i, j, na, nb) * w(n1, n2, n3, i, j, na, nb);
                 }
@@ -1329,10 +1394,26 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     }
 
     std::cout << "Norm of the difference between old and new "
-                 "force constants: "
+                 "force-constants: "
               << sqrt(scal) << "\n";
 
-    forceConstants = frc_new;
+    //    forceConstants = frc_new;
+    for (long nb = 0; nb < numAtoms; nb++) {
+      for (long na = 0; na < numAtoms; na++) {
+        for (long i = 0; i < 3; i++) {
+          for (long j = 0; j < 3; j++) {
+            for (long n3 = 0; n3 < nr3; n3++) {
+              for (long n2 = 0; n2 < nr2; n2++) {
+                for (long n1 = 0; n1 < nr1; n1++) {
+                  forceConstants(i, j, n1, n2, n3, na, nb) =
+                      frc_new(n1, n2, n3, i, j, na, nb);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
   if (mpi->mpiHead()) {
     std::cout << "Finished imposing " << sumRule << " acoustic sum rule."

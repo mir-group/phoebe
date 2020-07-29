@@ -10,6 +10,7 @@
 // But the behavior is not the same for negative integers
 // the function below can be used instead
 long mod(const long &a, const long &b);
+int mod(const int &a, const int &b);
 
 // checks if string ends with a suffix
 bool hasSuffix(const std::string &str, const std::string &suffix);
