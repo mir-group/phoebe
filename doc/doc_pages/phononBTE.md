@@ -39,7 +39,7 @@ While \f$P^{q' j',q'' j''}_{q j}\f$ is the scattering rate at the equilibrium of
 
 The two scattering rates have the forms:
 \begin{eqnarray}
-P^{qpp j''}_{q j,qp j'}&{=}& \frac{2 \pi}{N_0 \hbar^2} \sum_{\mathbf{G}}
+P^{q'' j''}_{q j,q' j'}&{=}& \frac{2 \pi}{N_0 \hbar^2} \sum_{\mathbf{G}}
 	  |V^{(3)}(q j,q' j',{-}q'' j'')|^2  \nonumber \\
 	&&    \bar{n}_{q j}\bar{n}_{q' j'}(\bar{n}_{q'' j''}+1) \delta_{q{+}q' {-}q'', \mathbf{G}}\nonumber \\
 	&&  \delta(\hbar \omega_{q j} +\hbar \omega_{q' j'}-\hbar \omega_{q'' j''}) \label{coal}  
