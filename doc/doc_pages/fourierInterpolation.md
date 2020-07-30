@@ -12,11 +12,11 @@ We define the interpolating function as:
 \begin{equation}
 \tilde{\epsilon}(\boldsymbol{k}) = \sum_{m=0}^{M-1} c_m S_m(\boldsymbol{k}) \;,
 \end{equation}
-where $c_m$ are expansion coefficients (to be found) and
+where \f$c_m\f$ are expansion coefficients (to be found) and
 \begin{equation}
 S_m(\boldsymbol{k}) = \frac{1}{n} \sum_{\Lambda} e^{i\boldsymbol{k} \Lambda \boldsymbol{R}_m} \;,
 \end{equation}
-is a star function, where $\Lambda$ is a point-group symmetry operation of the crystal, \f$n\f$ is the number of symmetry operations, and \f$\boldsymbol{R}_m\f$ is a lattice vector.
+is a star function, where \f$\Lambda\f$ is a point-group symmetry operation of the crystal, \f$n\f$ is the number of symmetry operations, and \f$\boldsymbol{R}_m\f$ is a lattice vector.
 
 The choice of \f$\boldsymbol{R}_m\f$ is a free parameter of the interpolation algorithm, and the user can fix it by providing a cutoff, identifying all \f$\boldsymbol{R}_m\f$ such that \f$|\boldsymbol{R}_m | < R_{\text{cut}}\f$.
 We label vectors such as \f$m=0,\dots,M-1\f$, and \f$m=0\f$ identifies the null vector.
@@ -27,7 +27,7 @@ In particular, we want to minimize:
 \begin{equation}
 \mathcal{L} = \frac{1}{2} \sum_m c_m \rho_m + \sum_i \lambda_i (\epsilon(\boldsymbol{k}_i)-\tilde{\epsilon}(\boldsymbol{k}_i)) \;,
 \end{equation}
-where $\lambda_i$ is a set of Lagrange multipliers, and the roughness function $\rho_m$ is defined as:
+where \f$\lambda_i\f$ is a set of Lagrange multipliers, and the roughness function \f$\rho_m\f$ is defined as:
 \begin{equation}
 \rho_m = \bigg(1-A\frac{R_m}{R_{min}}\bigg)^2 + B\bigg(\frac{R_m}{R_{min}}\bigg)^6  \;,
 \end{equation}
