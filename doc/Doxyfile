@@ -840,6 +840,7 @@ INPUT = ./doc_pages/GettingStarted.md \
 	./doc_pages/phononBTE.md \
 	./doc_pages/elphInterpolation.md \
 	./doc_pages/  \
+	./doc_pages/developerOverview.md \
 	../src/ 
 
 # This tag can be used to specify the character encoding of the source files
