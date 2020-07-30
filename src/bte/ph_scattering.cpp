@@ -378,10 +378,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       auto v3ms = std::get<4>(tup2);
       auto bose3MinsData = std::get<5>(tup2);
 
-      DetachedState states3Plus(q3PlusC, state3PlusEnergies, numAtoms, nb3Plus,
-                                eigvecs3Plus);
-      DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms, nb3Mins,
-                                eigvecs3Mins);
 #pragma omp parallel for
       for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Plus; ibbb++) {
         auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Plus);
