@@ -1,6 +1,8 @@
 @page Theory Theory
 @section WANHAR Wannier interpolation of electronic band structure
 
+A good review of the Wannier function formalism can be found [at this link] (https://arxiv.org/abs/1112.5411).
+
 We assume that a third-party code has provided us with the single-particle hamiltonian in the wannier representation:
 
 \begin{equation}

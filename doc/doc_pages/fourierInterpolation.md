@@ -2,7 +2,7 @@
 @section FINTERP Fourier interpolation of the electronic band structure
 
 We implemented the Fourier interpolation of the band structure (also used in Boltztrap v1).  
-The method is well described in Ref. [Pickett, Krakauer and Allen; PRB 38, 2721 (1988)].
+The method is well described [in this reference] (https://link.aps.org/doi/10.1103/PhysRevB.38.2721).
 Note that the algorithm works for a single band (so it must be repeated for every distinct band we want to interpolate).
 
 Let's suppose to have \f$N\f$ data points, i.e. an energy \f$\epsilon(\boldsymbol{k}_i)\f$, specified over a (coarse) mesh of kpoints \f$\boldsymbol{k}_i\f$, with \f$i=0,\dots,N-1\f$.

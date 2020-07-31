@@ -1,7 +1,7 @@
 @page Theory Theory
 @section PHBTE Phonon Boltzmann transport equation
 
-We follow the theory of Ref: www.dx.doi.org/10.1103/PhysRevB.88.045430
+We follow the theory of the reference available [at this link] (https://arxiv.org/abs/1212.0470).
 Here we report the most relevant points of the manuscript. 
 
 When a gradient of temperature \f$\nabla T\f$ is established in a system, a subsequent heat flux will start propagating in the medium.
@@ -243,7 +243,7 @@ where \f$\sigma\f$ is a constant decided by user input.
 It is important to note that when the delta function is substituted with a Gaussian the detailed balance condition is only valid under approximation.
 The definition used above guarantees that the scattering matrix is symmetric and non-negative. 
 
-Another method is the adaptive-gaussian smearing scheme [https://link.aps.org/doi/10.1103/PhysRevB.75.195121].
+Another method is the [adaptive-gaussian smearing scheme](https://link.aps.org/doi/10.1103/PhysRevB.75.195121).
 Specifically, we want to approximate a dirac-delta function of the form:
 \begin{equation}
  \delta(\hbar (\omega_1+\omega_2-\omega_3)=\frac{1} {\sqrt{\pi}  \sigma} \exp{(-(\hbar (\omega_1+\omega_2-\omega_3)/ \sigma )^2)}.

@@ -1,7 +1,7 @@
 @page Theory Theory
 @section ELPHC Electron-phonon coupling
 
-This is a summary of the strategy for interpolation adopted by Phoebe, as detailed also in Ref. [Giustino PRB  76, 165108 (2007)].
+This is a summary of the strategy for interpolation adopted by Phoebe, as detailed also at this [reference] (https://journals.aps.org/prb/abstract/10.1103/PhysRevB.76.165108).
 
 The coupling to be used for the calculation of scattering rates is:
 
