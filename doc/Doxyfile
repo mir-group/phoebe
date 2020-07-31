@@ -838,6 +838,7 @@ INPUT = ./doc_pages/GettingStarted.md \
 	./doc_pages/specificHeat.md \
 	./doc_pages/statistics.md \
 	./doc_pages/phononBTE.md \
+	./doc_pages/wignerThermal.md \ 
 	./doc_pages/elphInterpolation.md \
 	./doc_pages/  \
 	./doc_pages/developerOverview.md \
