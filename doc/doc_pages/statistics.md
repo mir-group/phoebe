@@ -1,6 +1,7 @@
 @page Theory Theory
-@section STAT Statistics
+@section Statistics Statistics
 
+Equations available in class Particle.
 The Fermi--Dirac distribution (for electrons) for a Bloch state (k,b) (k,b are Bloch indeces) is
 
 \begin{equation}
