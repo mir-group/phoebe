@@ -15,6 +15,15 @@
 // default constructor
 MPIcontroller::MPIcontroller(){
 
+        // set default values for cases without MPI or blacs
+        hasBlacs = false;
+        blasRank_ = 0;
+        blacsContext_ = 0;
+        numBlasRows_ = 1;
+        numBlasCols_ = 1;
+        myBlasRow_ = 0;
+        myBlasCol_ = 0;
+
 	#ifdef MPI_AVAIL
 	// start the MPI environment
         MPI_Init(NULL, NULL);
@@ -42,39 +51,31 @@ MPIcontroller::MPIcontroller(){
 }
 
 // Initialized blacs for the cases where the scattering matrix is used
-void MPIcontroller::initBlacs(Context& cont) {
+void MPIcontroller::initBlacs() {
 
-        // set default values for cases without MPI or blacs
-        hasBlacs = false; 
-        blasRank_ = 0;
-        blacsContext_ = 0;
-        numBlasRows_ = 1;
-        numBlasCols_ = 1;
-        myBlasRow_ = 0;
-        myBlasCol_ = 0;
-
-        // if mpi is available and this case is one which uses 
-        // blacs, set meaningful parameters
         #ifdef MPI_AVAIL
-        if (cont.getAppName() == "phononTransport") { 
-                blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
-                int zero = 0;
-                blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
-                // Context -> Initialize the grid
+        if(!hasBlacs) { 
+          // initBlacs should only be called once. 
+          // by setting this to true, we prevent future calls
+          hasBlacs = true;
 
-                numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
-                numBlasCols_ = numBlasRows_; // scalapack requires square grid
+          blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
+          int zero = 0;
+          blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
 
-                // we "pause" the processes that fall outside the blas grid
-                if ( size > numBlasRows_*numBlasCols_ ) {
-                        Error e("Phoebe needs a square number of MPI processes");
-                        // TODO: stop the extra MPI processes and continue with the rest.
-                }
+          numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
+          numBlasCols_ = numBlasRows_; // scalapack requires square grid
 
-                blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
-                // Context -> Context grid info (# procs row/col, current procs row/col)
-                blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
-                                  &myBlasCol_);
+          // we "pause" the processes that fall outside the blas grid
+          if ( size > numBlasRows_*numBlasCols_ ) {
+            Error e("Phoebe needs a square number of MPI processes");
+            // TODO: stop the extra MPI processes and continue with the rest.
+          }
+
+          blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
+          // Context -> Context grid info (# procs row/col, current procs row/col)
+          blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
+                          &myBlasCol_);
         }
         #endif
 }
