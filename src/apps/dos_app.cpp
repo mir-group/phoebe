@@ -8,7 +8,7 @@
 #include "electron_h0_fourier.h"
 #include "utilities.h"
 #include "qe_input_parser.h"
-#include "../mpi/mpiHelper.h" 
+#include "../mpi/mpiHelper.h"
 #include "full_points.h"
 
 // Compute the DOS with the tetrahedron method
@@ -17,7 +17,9 @@ void PhononDosApp::run(Context &context) {
         std::cout << "Starting phonon DoS calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
+    auto tup = QEParser::parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     FullPoints fullPoints(crystal, context.getQMesh());
@@ -37,7 +39,7 @@ void PhononDosApp::run(Context &context) {
     // create instructions about how to divide up the work
     std::vector<int> divs;
     divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
+    // the amount of values this process has to take care of
     int start = divs[0];
     int stop = divs[1];
     int workFraction = stop - start;
@@ -82,7 +84,9 @@ void ElectronWannierDosApp::run(Context &context) {
         std::cout << "Starting electronic DoS calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
+    auto tup = QEParser::parseElHarmonicWannier(context);
+ auto crystal = std::get<0>(tup);
+ auto h0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     FullPoints fullPoints(crystal, context.getKMesh());
@@ -102,7 +106,7 @@ void ElectronWannierDosApp::run(Context &context) {
     // create instructions about how to divide up the work
     std::vector<int> divs;
     divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
+    // the amount of values this process has to take care of
     int start = divs[0];
     int stop = divs[1];
     int workFraction = stop - start;
@@ -150,7 +154,9 @@ void ElectronFourierDosApp::run(Context &context) {
         std::cout << "Starting electronic DoS calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, h0] = QEParser::parseElHarmonicFourier(context);
+    auto tup = QEParser::parseElHarmonicFourier(context);
+ auto crystal = std::get<0>(tup);
+ auto h0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     FullPoints fullPoints(crystal, context.getKMesh());
@@ -170,7 +176,7 @@ void ElectronFourierDosApp::run(Context &context) {
     // create instructions about how to divide up the work
     std::vector<int> divs;
     divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
+    // the amount of values this process has to take care of
     int start = divs[0];
     int stop = divs[1];
     int workFraction = stop - start;

@@ -84,7 +84,9 @@ long ElectronH0Fourier::getNumBands() { return numBands; }
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Fourier::diagonalize(
     Point &point) {
   Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-  auto [energies, eigvecs] = diagonalizeFromCoords(coords);
+  auto tup = diagonalizeFromCoords(coords);
+  auto energies = std::get<0>(tup);
+  auto eigvecs = std::get<1>(tup);
   return {energies, eigvecs};
 }
 
@@ -126,7 +128,9 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
 
   for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
     Point point = fullBandStructure.getPoint(ik);
-    auto [ens, eigvecs] = diagonalize(point);
+    auto tup = diagonalize(point);
+    auto ens = std::get<0>(tup);
+    auto eigvecs = std::get<1>(tup);
     fullBandStructure.setEnergies(point, ens);
     if (withVelocities) {
       auto vels = diagonalizeVelocity(point);
@@ -165,7 +169,9 @@ Eigen::Vector3cd ElectronH0Fourier::getDerivativeStarFunction(
 void ElectronH0Fourier::setPositionVectors() {
   // load the info on the supercell that we will use for the interpolation
   Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
-  auto [grid, offset] = coarsePoints.getMesh();
+  auto tup = coarsePoints.getMesh();
+  auto grid = std::get<0>(tup);
+  auto offset = std::get<1>(tup);
 
   // the cutoff specifies the grid on which lattice vectors are searched.
   // Given a lattice vector in integer coordinates R = (n0,n1,n2) in

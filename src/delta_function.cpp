@@ -62,7 +62,9 @@ double GaussianDeltaFunction::getSmearing(const double &energy, const long &iq,
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
         BaseBandStructure &bandStructure) {
-    auto [mesh,offset] = bandStructure.getPoints().getMesh();
+    auto tup = bandStructure.getPoints().getMesh();
+ auto mesh = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
     qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
     qTensor.row(0) /= mesh(0);
     qTensor.row(1) /= mesh(1);
@@ -108,7 +110,9 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
         fullBandStructure(fullBandStructure_) {
 
     auto fullPoints = fullBandStructure.getPoints();
-    auto [grid, offset] = fullPoints.getMesh();
+    auto tup = fullPoints.getMesh();
+ auto grid = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
     if (offset.norm() > 0.) {
         Error e("We didnt' implement tetrahedra with offsets", 1);
     }

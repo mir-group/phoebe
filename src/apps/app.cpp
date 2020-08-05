@@ -19,6 +19,11 @@
 
 // app factory
 std::unique_ptr<App> App::loadApp(const std::string &choice) {
+  const std::vector<std::string> choices = {
+      "phononTransport",      "phononDos",           "electronWannierDos",
+      "electronFourierDos",   "phononBands",         "electronWannierBands",
+      "electronFourierBands", "electronPolarization"};
+
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
     Error e("The app name is not valid, didn't find an app to launch.");

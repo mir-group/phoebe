@@ -66,7 +66,10 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
     } else if (that.dimensionality == 1) {
 
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            auto [imu,it,idim] = loc2Glob(iCalc);
+          auto tup = loc2Glob(iCalc);
+          auto imu = std::get<0>(tup);
+          auto it = std::get<1>(tup);
+          auto idim = std::get<2>(tup);
             auto i2 = that.glob2Loc(imu, it, DimIndex(0));
 
             if (operatorType == operatorSums) {
@@ -129,7 +132,9 @@ VectorBTE VectorBTE::operator *(ParallelMatrix<double> &matrix) {
   }
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data.setZero();
-  for (auto [i, j] : matrix.getAllLocalStates()) {
+  for (auto tup : matrix.getAllLocalStates()) {
+    auto i = std::get<0>(tup);
+    auto j = std::get<1>(tup);
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
       newPopulation.data(iCalc, j) += data(iCalc, i) * matrix(i, j); // -5e-12
     }
@@ -175,7 +180,10 @@ VectorBTE VectorBTE::reciprocal() {
 void VectorBTE::canonical2Population() {
     auto particle = bandStructure.getParticle();
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu, it, idim] = loc2Glob(iCalc);
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      auto idim = std::get<2>(tup);
         auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
         auto temp = calcStatistics.temperature;
         auto chemPot = calcStatistics.chemicalPotential;
@@ -190,7 +198,10 @@ void VectorBTE::canonical2Population() {
 void VectorBTE::population2Canonical() {
     auto particle = bandStructure.getParticle();
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu, it, idim] = loc2Glob(iCalc);
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      auto idim = std::get<2>(tup);
         auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
         auto temp = calcStatistics.temperature;
         auto chemPot = calcStatistics.chemicalPotential;

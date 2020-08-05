@@ -54,11 +54,14 @@ std::tuple<std::vector<double>, std::vector<long>> Window::apply(
             dndeMax(ib) = particle.getDnde(energies(ib), temperatureMax,
                     chemicalPotentialMin);
         }
-        auto [filteredEnergies, bandExtrema] = internalPopWindow(energies,
-                dndtMin, dndtMax, dndeMin, dndeMax);
+        auto tup = internalPopWindow(energies,                dndtMin, dndtMax, dndeMin, dndeMax);
+        auto filteredEnergies = std::get<0>(tup);
+        auto bandExtrema = std::get<1>(tup);
         return {filteredEnergies, bandExtrema};
     } else if (method == energy) {
-        auto [filteredEnergies, bandExtrema] = internalEnWindow(energies);
+      auto tup = internalEnWindow(energies);
+      auto filteredEnergies = std::get<0>(tup);
+      auto bandExtrema = std::get<1>(tup);
         return {filteredEnergies, bandExtrema};
     } else { // no filter
         numBands = energies.size();

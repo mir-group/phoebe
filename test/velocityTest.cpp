@@ -9,7 +9,9 @@ TEST (PhononH0, Velocity) {
 	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+  auto tup = qeParser.parsePhHarmonic(context);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
 
 	// now, let's create a fine mesh
 
@@ -20,7 +22,9 @@ TEST (PhononH0, Velocity) {
 	// pick a point close to gamma and get energies/velocities
 	long ik = 1;
 	auto p = points.getPoint(ik);
-	auto [omega,z] = phononH0.diagonalize(p);
+  auto tup1 = phononH0.diagonalize(p);
+  auto omega = std::get<0>(tup1);
+  auto z = std::get<1>(tup1);
 	auto v = phononH0.diagonalizeVelocity(p);
 
 	// take out the group velocity
