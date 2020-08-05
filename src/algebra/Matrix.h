@@ -290,9 +290,15 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
     BaseBandStructure& bandStructure) {
   std::vector<std::tuple<long, long>> wavevectorPairs;
   for (long k = 0; k < numElements_; k++) {
-    auto [is1, is2] = local2Global(k);  // bloch indices
-    auto [ik1, ib1] = bandStructure.getIndex(is1);
-    auto [ik2, ib2] = bandStructure.getIndex(is2);
+    auto tup = local2Global(k);
+    auto is1 = std::get<0>(tup);
+    auto is2 = std::get<1>(tup);  // bloch indices
+    auto tup1 = bandStructure.getIndex(is1);
+    auto ik1 = std::get<0>(tup1);
+    auto ib1 = std::get<1>(tup1);
+    auto tup2 = bandStructure.getIndex(is2);
+    auto ik2 = std::get<0>(tup2);
+    auto ib2 = std::get<1>(tup2);
     // make a pair of these wavevectors
     auto t = std::make_tuple(ik1.get(), ik2.get());
     // add to list if unique

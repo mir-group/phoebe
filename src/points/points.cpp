@@ -5,6 +5,9 @@
 #include "eigen.h"
 #include "utilities.h" // for mod()
 
+const int Points::crystalCoords = 0;
+const int Points::cartesianCoords = 1;
+
 // default constructors
 
 Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,

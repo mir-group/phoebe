@@ -15,7 +15,9 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 
   QEParser qeParser;
-  auto [crystal, phononH0] = qeParser.parsePhHarmonic(context);
+  auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();
@@ -35,7 +37,9 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   long ik = 7;
   Point point = bandStructure.getPoint(ik);
-  auto [ensT, eigvecsT] = phononH0.diagonalize(point);
+  auto tup1 = phononH0.diagonalize(point);
+ auto ensT = std::get<0>(tup1);
+ auto eigvecsT = std::get<1>(tup1);
   auto velsT = phononH0.diagonalizeVelocity(point);
 
   auto s = bandStructure.getState(ik);
@@ -60,7 +64,9 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   std::complex<double> c2 = complexZero;
   for ( long i = 0; i<numBands; i++ ) {
-  	auto [iat,ic] = decompress2Indeces(i,numAtoms,3);
+  	auto tup = decompress2Indeces(i,numAtoms,3);
+ auto iat = std::get<0>(tup);
+ auto ic = std::get<1>(tup);
   	for ( long j = 0; j<numBands; j++ ) {
         c2 += pow(eigvecsT(i,j) - eigvecs(ic, iat, j), 2);
     }
@@ -70,7 +76,9 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   // now we check that we get the same eigenvectors in the two different
   // shapes
   auto k = point.getCoords(Points::cartesianCoords);
-  auto [ensC, eigvecsC] = phononH0.diagonalizeFromCoords(k);
+  auto tup2 = phononH0.diagonalizeFromCoords(k);
+ auto ensC = std::get<0>(tup2);
+ auto eigvecsC = std::get<1>(tup2);
   x1 = (ens - ensC).norm();
   ASSERT_EQ(x1, 0.);
 

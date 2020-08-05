@@ -23,7 +23,9 @@ void PhononTransportApp::run(Context &context) {
 
   // Read the necessary input files
 
-  auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
 
@@ -41,8 +43,9 @@ void PhononTransportApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "\n" << "Constructing the band structure" << std::endl;
   }
-  auto [bandStructure, statisticsSweep] =
-      ActiveBandStructure::builder(context, phononH0, fullPoints);
+  auto tup1 =      ActiveBandStructure::builder(context, phononH0, fullPoints);
+  auto bandStructure = std::get<0>(tup1);
+  auto statisticsSweep = std::get<1>(tup1);
   if ( mpi->mpiHead()) {
     std::cout << "Done!\n" << std::endl;
   }
@@ -273,7 +276,9 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     scatteringMatrix.a2Omega();
-    auto [eigenvalues, eigenvectors] = scatteringMatrix.diagonalize();
+    auto tup = scatteringMatrix.diagonalize();
+    auto eigenvalues = std::get<0>(tup);
+    auto eigenvectors = std::get<1>(tup);
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
@@ -286,7 +291,10 @@ void PhononTransportApp::run(Context &context) {
                     crystal.getVolumeUnitCell(context.getDimensionality()) /
                     bandStructure.getNumPoints(true);
 
-      auto [imu, it, idim] = relaxonV.loc2Glob(iCalc);
+      auto tup1 = relaxonV.loc2Glob(iCalc);
+      auto imu = std::get<0>(tup1);
+      auto it = std::get<1>(tup1);
+      auto idim = std::get<2>(tup1);
       int idimIndex = idim.get();
       auto jCalc = boseEigenvector.glob2Loc(imu, it, DimIndex(0));
       for (long is = 0; is < bandStructure.getNumStates(); is++) {

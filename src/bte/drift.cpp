@@ -11,7 +11,10 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
         Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
 
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            auto [imu,it,idim] = loc2Glob(iCalc);
+            auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
+ auto idim = std::get<2>(tup);
             int idimIndex = idim.get();
             double vel = velocity(idimIndex);
             auto calcStat = statisticsSweep.getCalcStatistics(it, imu);
@@ -35,7 +38,10 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
         Eigen::Vector3d velocity = bandStructure.getGroupVelocity(is);
 
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            auto [imu,it,idim] = loc2Glob(iCalc);
+            auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
+ auto idim = std::get<2>(tup);
             int idimIndex = idim.get();
             double vel = velocity(idimIndex);
             auto calcStat = statisticsSweep.getCalcStatistics(it, imu);
@@ -58,7 +64,10 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
     Particle particle = bandStructure.getParticle();
 
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu,it,idim] = loc2Glob(iCalc);
+        auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
+ auto idim = std::get<2>(tup);
         auto calcStat = statisticsSweep.getCalcStatistics(it, imu);
         double temp = calcStat.temperature;
         double chemPot = calcStat.chemicalPotential;

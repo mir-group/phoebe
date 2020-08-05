@@ -74,7 +74,9 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
         continue;
 
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu, it] = loc2Glob(iCalc);
+        auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
         for (long i = 0; i < dimensionality; i++) {
           long icPop = n.glob2Loc(imu, it, DimIndex(i));
           for (long j = 0; j < dimensionality; j++) {
@@ -119,7 +121,9 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     #pragma omp for nowait
     for ( long is : bandStructure.parallelStateIterator() ) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu, it] = loc2Glob(iCalc);
+        auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
         for (long i = 0; i < dimensionality; i++) {
           long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
           for (long j = 0; j < dimensionality; j++) {
@@ -162,7 +166,9 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
     #pragma omp for nowait
     for (long is = firstState; is < relaxationTimes.numStates; is++) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto [imu, it] = loc2Glob(iCalc);
+        auto tup = loc2Glob(iCalc);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
         double c = specificHeat.get(imu, it);
 
         if (relaxationTimes.data(iCalc, is) <= 0.) continue;

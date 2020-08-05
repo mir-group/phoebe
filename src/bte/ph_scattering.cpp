@@ -167,7 +167,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
-  for (auto[iq1Indexes, iq2] : qPairIterator) {
+  for (auto tup : qPairIterator) {
+    auto iq1Indexes = std::get<0>(tup);
+    auto iq2 = std::get<1>(tup);
 
     Point q2 = innerBandStructure.getPoint(iq2);
     State states2 = innerBandStructure.getState(q2);
@@ -190,22 +192,44 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       int nb1 = state1Energies.size();
       Eigen::MatrixXd v1s = states1.getGroupVelocities();
 
+      /*
       auto[q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
       bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
       auto[q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
       bose3MinsData] = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+      */
+      auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+      auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+
+      auto q3PlusC = std::get<0>(tup1);
+      auto state3PlusEnergies = std::get<1>(tup1);
+      auto nb3Plus = std::get<2>(tup1);
+      auto eigvecs3Plus = std::get<3>(tup1);
+      auto v3ps = std::get<4>(tup1);
+      auto bose3PlusData = std::get<5>(tup1);
+
+      auto q3MinsC = std::get<0>(tup2);
+      auto state3MinsEnergies = std::get<1>(tup2);
+      auto nb3Mins = std::get<2>(tup2);
+      auto eigvecs3Mins = std::get<3>(tup2);
+      auto v3ms = std::get<4>(tup2);
+      auto bose3MinsData = std::get<5>(tup2);
 
       DetachedState states3Plus(q3PlusC, state3PlusEnergies, numAtoms, nb3Plus,
                                 eigvecs3Plus);
       DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms, nb3Mins,
                                 eigvecs3Mins);
 
-      auto[couplingPlus, couplingMins] = coupling3Ph->getCouplingSquared(
-          states1, states2, states3Plus, states3Mins);
+      auto tup = coupling3Ph->getCouplingSquared(          states1, states2, states3Plus, states3Mins);
+      auto couplingPlus = std::get<0>(tup);
+      auto couplingMins = std::get<1>(tup);
 
 #pragma omp parallel for
       for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Plus; ibbb++) {
-        auto[ib1, ib2, ib3] = decompress3Indeces(ibbb, nb1, nb2, nb3Plus);
+        auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Plus);
+        auto ib1 = std::get<0>(tup);
+        auto ib2 = std::get<1>(tup);
+        auto ib3 = std::get<2>(tup);
 
         double en1 = state1Energies(ib1);
         double en2 = state2Energies(ib2);
@@ -287,7 +311,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
 #pragma omp parallel for
       for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Mins; ibbb++) {
-        auto[ib1, ib2, ib3] = decompress3Indeces(ibbb, nb1, nb2, nb3Mins);
+        auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Mins);
+ auto ib1 = std::get<0>(tup);
+ auto ib2 = std::get<1>(tup);
+ auto ib3 = std::get<2>(tup);
 
         double en1 = state1Energies(ib1);
         double en2 = state2Energies(ib2);
@@ -377,7 +404,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // Isotope scattering
   if (doIsotopes) {
     // for (auto [iq1, iq2] : qPairIterator) {
-    for (auto[iq1Indexes, iq2] : qPairIterator) {
+    for (auto tup : qPairIterator) {
+      auto iq1Indexes = std::get<0>(tup);
+      auto iq2 = std::get<1>(tup);
 #pragma omp parallel for
       for (auto iq1 : iq1Indexes) {
         State states2 = innerBandStructure.getState(iq2);

@@ -12,7 +12,9 @@ void ElectronPolarizationApp::run(Context &context) {
     std::cout << "Starting electron polarization calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
+    auto tup = QEParser::parseElHarmonicWannier(context);
+    auto crystal = std::get<0>(tup);
+    auto h0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     FullPoints points(crystal, context.getKMesh());
@@ -33,7 +35,7 @@ void ElectronPolarizationApp::run(Context &context) {
                 h0.getBerryConnection(point);
         for (long ib = 0; ib < h0.getNumBands(); ib++) {
             for (long i = 0; i < 3; i++) {
-                std::complex x = thisBerryConnection[i](ib, ib);
+                auto x = thisBerryConnection[i](ib, ib);
                 berryConnection(ik, ib, i) = x.real();
             }
         }
