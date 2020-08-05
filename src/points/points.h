@@ -178,8 +178,8 @@ public:
 
     // note: constexpr tells the compiler that the class member is
     // available at compilation time
-    static constexpr const int crystalCoords = 0;
-    static constexpr const int cartesianCoords = 1;
+    static const int crystalCoords;
+    static const int cartesianCoords;
 
     // given a wavevector of the reducible list in crystal coordinates,
     // finds the integer index ikIrr of the irreducible point in the irreducible

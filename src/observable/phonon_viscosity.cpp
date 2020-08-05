@@ -179,7 +179,9 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
             // auto x2 = x.transpose() * eigenvectors;
 
             std::vector<double> x2(numStates,0.);
-            for ( auto [is1,is2] : eigenvectors.getAllLocalStates() ) {
+            for ( auto tup : eigenvectors.getAllLocalStates() ) {
+auto is1 = std::get<0>(tup);
+auto is2 = std::get<1>(tup);
                 x2[is2] += x(is1) * eigenvectors(is1,is2);
             }
             mpi->allReduceSum(&x2);

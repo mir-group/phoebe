@@ -69,7 +69,9 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
   // now we can loop over the trimmed list of points
   for (long ik : mpi->divideWorkIter(numPoints)) {
     Point point = activePoints.getPoint(ik);
-    auto [theseEnergies, theseEigenvectors] = h0->diagonalize(point);
+    auto tup = h0->diagonalize(point);
+    auto theseEnergies = std::get<0>(tup);
+    auto theseEigenvectors = std::get<1>(tup);
     setEnergies(point, theseEnergies);
 
     if (withEigenvectors) {
@@ -178,7 +180,9 @@ std::tuple<WavevectorIndex,BandIndex> ActiveBandStructure::getIndex(
     if (!hasPoints()) {
         Error e("ActiveBandStructure hasn't been populated yet");
     }
-    auto [ik,ib] = comb2Bloch(is);
+    auto tup = comb2Bloch(is);
+    auto ik = std::get<0>(tup);
+    auto ib = std::get<1>(tup);
     auto ikk = WavevectorIndex(ik);
     auto ibb = BandIndex(ib);
     return {ikk,ibb};
@@ -202,7 +206,9 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long &stateIndex) {
   if (velocities.size() == 0) {
     Error e("ActiveBandStructure velocities haven't been populated");
   }
-  auto[ik,ib] = comb2Bloch(stateIndex);
+  auto tup = comb2Bloch(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   Eigen::Vector3d vel;
   vel(0) = velocities[velBloch2Comb(ik, ib, ib, 0)].real();
   vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
@@ -214,13 +220,17 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(const long &stateIndex) {
   if (!hasPoints()) {
     Error e("ActiveBandStructure hasn't been populated yet");
   }
-  auto[ik,ib] = comb2Bloch(stateIndex);
+  auto tup = comb2Bloch(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   Point p = activePoints.getPoint(ik);
   return p.getCoords(Points::cartesianCoords, true);
 }
 
 double ActiveBandStructure::getWeight(const long &stateIndex) {
-  auto[ik,ib] = comb2Bloch(stateIndex);
+  auto tup = comb2Bloch(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   return activePoints.getWeight(ik);
 }
 
@@ -484,11 +494,15 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
       Point point = points.getPoint(ik);
       // diagonalize harmonic hamiltonian
-      auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
+      auto tup = h0.diagonalize(point);
+      auto theseEnergies = std::get<0>(tup);
+      auto theseEigenvectors = std::get<1>(tup);
       // ens is empty if no "relevant" energy is found.
       // bandsExtrema contains the lower and upper band index of "relevant"
       // bands at this point
-      auto [ens, bandsExtrema] = window.apply(theseEnergies);
+      auto tup1 = window.apply(theseEnergies);
+      auto ens = std::get<0>(tup1);
+      auto bandsExtrema = std::get<1>(tup1);
       if (ens.empty()) {  // nothing to do
         continue;
       } else {  // save point index and "relevant" band indices
@@ -596,9 +610,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     #pragma omp parallel for
     for (long ik : mpi->divideWorkIter(numPoints)) {
         Point point = activePoints.getPoint(ik);
-        auto [theseEnergies, theseEigenvectors] = h0.diagonalize(point);
+        auto tup = h0.diagonalize(point);
+        auto theseEnergies = std::get<0>(tup);
+        auto theseEigenvectors = std::get<1>(tup);
         // eigenvectors(3,numAtoms,numBands)
-        auto [ens, bandsExtrema] = window.apply(theseEnergies);
+        auto tup1 = window.apply(theseEnergies);
+        auto ens = std::get<0>(tup1);
+        auto bandsExtrema = std::get<1>(tup1);
 
         Eigen::VectorXd eigEns(numBands(ik));
         long ibAct = 0;

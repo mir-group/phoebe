@@ -87,7 +87,9 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 
       int numChemPots = statisticsSweep.getNumChemicalPotentials();
       int numTemps = statisticsSweep.getNumTemperatures();
-      auto [imu, it] = decompress2Indeces(iCalc, numChemPots, numTemps);
+      auto tup = decompress2Indeces(iCalc, numChemPots, numTemps);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
 
       double chemicalPotential =
           statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;

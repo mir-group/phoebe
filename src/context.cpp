@@ -404,7 +404,9 @@ void Context::setupFromInput(std::string fileName) {
 
       // line with pair (key,value)
     } else if (lineHasParameter(line)) {
-      auto [parameterName, val] = parseParameterNameValue(line);
+      auto tup = parseParameterNameValue(line);
+      auto parameterName = std::get<0>(tup);
+      auto val = std::get<1>(tup);
 
       if (parameterName == "phD2FileName") {
         phD2FileName = parseString(val);
@@ -580,11 +582,15 @@ void Context::setupFromInput(std::string fileName) {
 
     } else {  // it might be a block, or its content
 
-      auto [blockName, value] = parseBlockNameValue(lines, lineCounter);
+      auto tup = parseBlockNameValue(lines, lineCounter);
+      auto blockName = std::get<0>(tup);
+      auto value = std::get<1>(tup);
 
       if (blockName == "crystal") {
-        auto [inputAtomicPositions_, inputAtomicSpecies_, inputSpeciesNames_] =
-            parseCrystal(value);
+        auto tup1 =            parseCrystal(value);
+        auto inputAtomicPositions_ = std::get<0>(tup1);
+        auto inputAtomicSpecies_ = std::get<1>(tup1);
+        auto inputSpeciesNames_ = std::get<2>(tup1);
         inputAtomicPositions = inputAtomicPositions_;
         inputAtomicSpecies = inputAtomicSpecies_;
         inputSpeciesNames = inputSpeciesNames_;

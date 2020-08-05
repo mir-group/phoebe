@@ -10,7 +10,9 @@ void PhononBandsApp::run(Context &context) {
     std::cout << "Starting phonon bands calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
+    auto tup = QEParser::parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     PathPoints pathPoints(crystal, context.getPathExtrema(),
@@ -46,7 +48,9 @@ void ElectronWannierBandsApp::run(Context &context) {
     std::cout << "Starting electron (Wannier) bands calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, electronH0] = QEParser::parseElHarmonicWannier(context);
+    auto tup = QEParser::parseElHarmonicWannier(context);
+ auto crystal = std::get<0>(tup);
+ auto electronH0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     PathPoints pathPoints(crystal, context.getPathExtrema(),
@@ -81,7 +85,9 @@ void ElectronFourierBandsApp::run(Context &context) {
     std::cout << "Starting electron (Fourier) bands calculation" << std::endl;
 
     // Read the necessary input files
-    auto [crystal, electronH0] = QEParser::parseElHarmonicFourier(context);
+    auto tup = QEParser::parseElHarmonicFourier(context);
+ auto crystal = std::get<0>(tup);
+ auto electronH0 = std::get<1>(tup);
 
     // first we make compute the band structure on the fine grid
     PathPoints pathPoints(crystal, context.getPathExtrema(),

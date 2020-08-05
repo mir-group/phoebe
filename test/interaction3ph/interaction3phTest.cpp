@@ -29,7 +29,9 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+	auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -50,16 +52,23 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	q2.setZero();
 	q3.setZero();
 
-	auto [energies1,ev1] = phononH0.diagonalizeFromCoords(q1);
-	auto [energies2,ev2] = phononH0.diagonalizeFromCoords(q2);
-	auto [energies3,ev3] = phononH0.diagonalizeFromCoords(q3);
+	auto tup1 = phononH0.diagonalizeFromCoords(q1);
+ auto energies1 = std::get<0>(tup1);
+ auto ev1 = std::get<1>(tup1);
+	auto tup2 = phononH0.diagonalizeFromCoords(q2);
+ auto energies2 = std::get<0>(tup2);
+ auto ev2 = std::get<1>(tup2);
+	auto tup3 = phononH0.diagonalizeFromCoords(q3);
+ auto energies3 = std::get<0>(tup3);
+ auto ev3 = std::get<1>(tup3);
 
 	DetachedState s1(q1, energies, numBands, numBands, ev1, nullptr);
 	DetachedState s2(q2, energies, numBands, numBands, ev2, nullptr);
 	DetachedState s3(q3, energies, numBands, numBands, ev3, nullptr);
 
-	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
+	auto tup8 = coupling3Ph.getCouplingSquared(														s1, s2, s3, s3);
+ auto couplingPlus = std::get<0>(tup8);
+ auto couplingMins = std::get<1>(tup8);
 
 	// we load reference data
 
@@ -124,7 +133,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+	auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -147,9 +158,15 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	auto p1 = points.getPoint(iq1);
 	auto p2 = points.getPoint(iq2);
 	auto p3 = points.getPoint(iq3);
-	auto [energies1,evm1] = phononH0.diagonalize(p1);
-	auto [energies2,evm2] = phononH0.diagonalize(p2);
-	auto [energies3,evm3] = phononH0.diagonalize(p3);
+	auto tup1 = phononH0.diagonalize(p1);
+ auto energies1 = std::get<0>(tup1);
+ auto evm1 = std::get<1>(tup1);
+	auto tup2 = phononH0.diagonalize(p2);
+ auto energies2 = std::get<0>(tup2);
+ auto evm2 = std::get<1>(tup2);
+	auto tup3 = phononH0.diagonalize(p3);
+ auto energies3 = std::get<0>(tup3);
+ auto evm3 = std::get<1>(tup3);
 	auto q1 = p1.getCoords(Points::cartesianCoords);
 	auto q2 = p2.getCoords(Points::cartesianCoords);
 	auto q3 = p3.getCoords(Points::cartesianCoords);
@@ -163,8 +180,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	DetachedState s2(q2, energies, numBands, numBands, evm2, nullptr);
 	DetachedState s3(q3, energies, numBands, numBands, evm3, nullptr);
 
-	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
+	auto tup7 = coupling3Ph.getCouplingSquared(														s1, s2, s3, s3);
+ auto couplingPlus = std::get<0>(tup7);
+ auto couplingMins = std::get<1>(tup7);
 	// we load reference data
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
@@ -232,8 +250,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	ASSERT_EQ((p3PlusTest.getCoords(Points::cartesianCoords)-p3Plus.getCoords(Points::cartesianCoords)).norm(), 0.);
 	ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords)-p3Mins.getCoords(Points::cartesianCoords)).norm(), 0.);
 
-	auto [couplingPlus2,couplingMins2] = coupling3Ph.getCouplingSquared(
-			states1, states2, states3Plus, states3Mins);
+	auto tup6 = coupling3Ph.getCouplingSquared(			states1, states2, states3Plus, states3Mins);
+ auto couplingPlus2 = std::get<0>(tup6);
+ auto couplingMins2 = std::get<1>(tup6);
 
 	auto en1 = states1.getEnergies();
 	auto en2 = states2.getEnergies();

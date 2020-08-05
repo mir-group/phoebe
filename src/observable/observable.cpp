@@ -44,7 +44,9 @@ long Observable::glob2Loc(const ChemPotIndex &imu, const TempIndex &it) {
 }
 
 std::tuple<ChemPotIndex, TempIndex> Observable::loc2Glob(const long &i) {
-    auto [imu, it] = decompress2Indeces(i, numChemPots, numTemps);
+    auto tup = decompress2Indeces(i, numChemPots, numTemps);
+ auto imu = std::get<0>(tup);
+ auto it = std::get<1>(tup);
     return {ChemPotIndex(imu), TempIndex(it)};
 }
 

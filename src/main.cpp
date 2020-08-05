@@ -21,9 +21,6 @@ int main(int argc, char **argv) {
   Context context; // instantiate class container of the user input
   context.setupFromInput(io.getInputFileName()); // read the user input
 
-  // Initialize blacs (for cases where it is needed) 
-  mpi->initBlacs(context); 
-
   // decide which app to use
   std::unique_ptr<App> app = App::loadApp(context.getAppName());
 

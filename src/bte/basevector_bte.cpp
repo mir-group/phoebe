@@ -88,7 +88,10 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
 
   } else if (that.dimensionality == 1) {
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      auto [imu, it, idim] = loc2Glob(iCalc);
+      auto tup = loc2Glob(iCalc);
+      auto imu = std::get<0>(tup);
+      auto it = std::get<1>(tup);
+      auto idim = std::get<2>(tup);
       auto i2 = that.glob2Loc(imu, it, DimIndex(0));
 
       if (operatorType == operatorSums) {
@@ -151,7 +154,9 @@ BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
   BaseVectorBTE newPopulation = *this;
   newPopulation.data.setZero();
   for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-    for (auto [i, j] : matrix.getAllLocalStates()) {
+    for (auto tup : matrix.getAllLocalStates()) {
+      auto i = std::get<0>(tup);
+      auto j = std::get<1>(tup);
       newPopulation.data(iCalc, i) = matrix(i, j) * data(iCalc, j);
     }
   }
@@ -206,7 +211,9 @@ long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
 
 std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
     const long &i) {
-  auto [imu, it, idim] =
-      decompress3Indeces(i, numChemPots, numTemps, dimensionality);
+  auto tup =      decompress3Indeces(i, numChemPots, numTemps, dimensionality);
+  auto imu = std::get<0>(tup);
+  auto it = std::get<1>(tup);
+  auto idim = std::get<2>(tup);
   return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
 }

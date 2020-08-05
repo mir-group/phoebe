@@ -19,11 +19,11 @@ class MPIcontroller {
   int rank;
   const int mpiHeadId = 0;
 
-#ifdef MPI_AVAIL
-  double startTime;  // the time for the entire mpi operation
-#else
-  std::chrono::steady_clock::time_point startTime;
-#endif
+  #ifdef MPI_AVAIL
+    double startTime;  // the time for the entire mpi operation
+  #else
+    std::chrono::steady_clock::time_point startTime;
+  #endif
 
   int hasBlacs; 
   int blasRank_;
@@ -43,7 +43,7 @@ class MPIcontroller {
   * @param context: pass input information, which is used to determine 
   *     if this is a blacs necessary application case. 
   */
-  void initBlacs(Context& context); 
+  void initBlacs(); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
