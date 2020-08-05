@@ -8,9 +8,6 @@ int main(int argc, char **argv) {
 
   initMPI();
 
-  Context context;
-  mpi->initBlacs(context);
-
   int errCode = RUN_ALL_TESTS();
 
   mpi->finalize();
