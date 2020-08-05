@@ -1,10 +1,14 @@
 #include "ph_scattering.h"
 
-#include "helper_3rd_state.h"
 #include "constants.h"
+#include "helper_3rd_state.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <stdexcept>
 
 PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                                        StatisticsSweep &statisticsSweep_,
@@ -14,8 +18,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                                        PhononH0 *h0_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
                        outerBandStructure_),
-      coupling3Ph(coupling3Ph_),
-      h0(h0_) {
+      coupling3Ph(coupling3Ph_), h0(h0_) {
   //	couplingIsotope = couplingIsotope_;
   //	couplingBoundary = couplingBoundary_;
   if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
@@ -69,16 +72,12 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
 }
 
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix &that)
-    : ScatteringMatrix(that),
-      coupling3Ph(that.coupling3Ph),
-      h0(that.h0),
-      massVariance(that.massVariance),
-      doIsotopes(that.doIsotopes),
-      boundaryLength(that.boundaryLength),
-      doBoundary(that.doBoundary) {}
+    : ScatteringMatrix(that), coupling3Ph(that.coupling3Ph), h0(that.h0),
+      massVariance(that.massVariance), doIsotopes(that.doIsotopes),
+      boundaryLength(that.boundaryLength), doBoundary(that.doBoundary) {}
 
-PhScatteringMatrix &PhScatteringMatrix::operator=(
-    const PhScatteringMatrix &that) {
+PhScatteringMatrix &
+PhScatteringMatrix::operator=(const PhScatteringMatrix &that) {
   ScatteringMatrix::operator=(that);
   if (this != &that) {
     coupling3Ph = that.coupling3Ph;
@@ -103,7 +102,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
 
-  const double energyCutoff = 0.001 / ryToCmm1;  // discard states with small
+  const double energyCutoff = 0.001 / ryToCmm1; // discard states with small
   // energies (smaller than 0.001 cm^-1
 
   int switchCase = 0;
@@ -111,10 +110,10 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       outPopulation == nullptr) {
     switchCase = 0;
   } else if (matrix.rows() == 0 && linewidth == nullptr &&
-      inPopulation != nullptr && outPopulation != nullptr) {
+             inPopulation != nullptr && outPopulation != nullptr) {
     switchCase = 1;
   } else if (matrix.rows() == 0 && linewidth != nullptr &&
-      inPopulation == nullptr && outPopulation == nullptr) {
+             inPopulation == nullptr && outPopulation == nullptr) {
     switchCase = 2;
   } else {
     Error e("builder3Ph found a non-supported case");
@@ -167,6 +166,23 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
+  // get available memory from environment variable,
+  // defaults to 16 GB
+  double maxmem = 16.0e9;
+  {
+    char *memstr = std::getenv("MAXMEM");
+    if (memstr != NULL) {
+      maxmem = std::atof(memstr) * 1.0e9;
+    }
+    if (mpi->mpiHead()) {
+      printf("The maximal memory used for the coupling calculation will be %g "
+             "GB,\nset the MAXMEM environment variable to the preferred memory "
+             "usage in GB.\n",
+             maxmem / 1.0e9);
+    }
+  }
+
+  // outer loop over q2
   for (auto tup : qPairIterator) {
     auto iq1Indexes = std::get<0>(tup);
     auto iq2 = std::get<1>(tup);
@@ -180,7 +196,29 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     loopPrint.update();
     pointHelper.prepare(iq1Indexes, iq2);
 
+    int nq1 = iq1Indexes.size();
+
+    std::vector<Eigen::Vector3d> q1s_e(nq1);
+    Eigen::Vector3d q2_e;
+    std::vector<Eigen::MatrixXcd> ev1s_e(nq1);
+    Eigen::MatrixXcd ev2_e;
+    std::vector<Eigen::MatrixXcd> ev3Pluss_e(nq1);
+    std::vector<Eigen::MatrixXcd> ev3Minss_e(nq1);
+    std::vector<int> nb1s_e(nq1);
+    std::vector<int> nb3Pluss_e(nq1);
+    std::vector<int> nb3Minss_e(nq1);
+    std::vector<Eigen::Tensor<double, 3>> couplingPluss, couplingMinss;
+
+    states2.getEigenvectors(ev2_e);
+    q2_e = states2.getCoords(Points::cartesianCoords);
+
+    // precalculate D3cached for current value of q2
+    coupling3Ph->cacheD3(q2_e);
+
+    int i = -1;
+    // do prep work for all values of q1, store stuff needed for couplings later
     for (auto iq1 : iq1Indexes) {
+      i++;
 
       // note: for computing linewidths on a path, we must distinguish
       // that q1 and q2 are on different meshes, and that q3+/- may not
@@ -192,12 +230,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       int nb1 = state1Energies.size();
       Eigen::MatrixXd v1s = states1.getGroupVelocities();
 
-      /*
-      auto[q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
-      bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
-      auto[q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
-      bose3MinsData] = pointHelper.get(q1, q2, Helper3rdState::caseMins);
-      */
       auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
       auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
 
@@ -220,9 +252,131 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms, nb3Mins,
                                 eigvecs3Mins);
 
-      auto tup = coupling3Ph->getCouplingSquared(          states1, states2, states3Plus, states3Mins);
-      auto couplingPlus = std::get<0>(tup);
-      auto couplingMins = std::get<1>(tup);
+      q1s_e[i] = states1.getCoords(Points::cartesianCoords);
+      nb1s_e[i] = nb1;
+      nb3Pluss_e[i] = state3PlusEnergies.size();
+      nb3Minss_e[i] = state3MinsEnergies.size();
+      states1.getEigenvectors(ev1s_e[i]);
+      states3Plus.getEigenvectors(ev3Pluss_e[i]);
+      states3Mins.getEigenvectors(ev3Minss_e[i]);
+    }
+
+    int numBatches;
+    // prepare batches based on memory usage
+    {
+      int nr2 = coupling3Ph->nr2;
+      int nr3 = coupling3Ph->nr3;
+      int numBands = coupling3Ph->numBands;
+      int maxnb1 = *std::max_element(nb1s_e.begin(), nb1s_e.end()),
+          maxnb3Plus = *std::max_element(nb3Pluss_e.begin(), nb3Pluss_e.end()),
+          maxnb3Mins = *std::max_element(nb3Minss_e.begin(), nb3Minss_e.end());
+
+      /* std::cout << nq1 << ", " << nr2 << ", " << nr3 << ", " << numBands <<
+         ", "
+                 << maxnb1 << ", " << nb2 << ", " << maxnb3Plus << ", "
+                 << maxnb3Mins << "\n";*/
+
+      // available memory is MAXMEM minus size of D3, D3cache and ev2
+      double availmem =
+          maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
+          8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
+
+      // memory used by different tensors
+      double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
+      double phase = 16 * nr3;
+      double tmp = 2 * 16 * numBands * numBands * numBands;
+      double tmp1 = 2 * 16 * maxnb1 * numBands * numBands;
+      double tmp2 = 2 * 16 * maxnb1 * nb2 * numBands;
+      double v = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
+      double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
+      double maxusage = nq1 * (evs + std::max({phase + tmp, tmp + tmp1,
+                                               tmp1 + tmp2, tmp2 + v, v + c}));
+
+      // the number of batches needed
+      numBatches = std::ceil(maxusage / availmem);
+
+      if (availmem < maxusage / nq1) {
+        // not enough memory to do even a single q1
+        std::cerr << "maxmem = " << maxmem / 1e9
+                  << ", availmem = " << availmem / 1e9
+                  << ", maxusage = " << maxusage / 1e9
+                  << ", numBatches = " << numBatches << "\n";
+        throw std::runtime_error("Insufficient memory!");
+      }
+    }
+
+    // calculate couplings in batches
+    for (int ib = 0; ib < numBatches; ib++) {
+      // start and end point for current batch
+      int start = nq1 * ib / numBatches;
+      int end = nq1 * (ib + 1) / numBatches;
+
+      // extract current batch of input arguments
+      decltype(q1s_e) q1tmp(q1s_e.begin() + start, q1s_e.begin() + end);
+      decltype(ev1s_e) ev1tmp(ev1s_e.begin() + start, ev1s_e.begin() + end);
+      decltype(ev3Pluss_e) ev3Plustmp(ev3Pluss_e.begin() + start,
+                                      ev3Pluss_e.begin() + end);
+      decltype(ev3Minss_e) ev3Minstmp(ev3Minss_e.begin() + start,
+                                      ev3Minss_e.begin() + end);
+      decltype(nb1s_e) nb1tmp(nb1s_e.begin() + start, nb1s_e.begin() + end);
+      decltype(nb3Pluss_e) nb3Plustmp(nb3Pluss_e.begin() + start,
+                                      nb3Pluss_e.begin() + end);
+      decltype(nb3Minss_e) nb3Minstmp(nb3Minss_e.begin() + start,
+                                      nb3Minss_e.begin() + end);
+
+      // calculate batch of couplings
+      auto tup = coupling3Ph->getCouplingsSquared(
+          q1tmp, q2_e, ev1tmp, ev2_e, ev3Plustmp, ev3Minstmp, nb1tmp, nb2,
+          nb3Plustmp, nb3Minstmp);
+      auto cptmp = std::get<0>(tup);
+      auto cmtmp = std::get<1>(tup);
+
+      // append batch of couplings
+      for (int jb = 0; jb < end - start; jb++) {
+        couplingPluss.push_back(cptmp[jb]);
+        couplingMinss.push_back(cmtmp[jb]);
+      }
+    }
+    // unbatched version
+    /*auto tup1 = coupling3Ph->getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+                                                 ev3Pluss_e, ev3Minss_e, nb1s_e,
+                                                 nb2, nb3Pluss_e, nb3Minss_e);
+    couplingPluss = std::get<0>(tup1);
+    couplingMinss = std::get<1>(tup1);*/
+
+    i = -1;
+    // do same loop as before, but get coupling from vector
+    for (auto iq1 : iq1Indexes) {
+      i++;
+      auto couplingPlus = couplingPluss[i];
+      auto couplingMins = couplingMinss[i];
+      State states1 = outerBandStructure.getState(iq1);
+      Point q1 = states1.getPoint();
+      Eigen::VectorXd state1Energies = states1.getEnergies();
+      int nb1 = state1Energies.size();
+      Eigen::MatrixXd v1s = states1.getGroupVelocities();
+
+      /*auto [q3PlusC, state3PlusEnergies, nb3Plus, eigvecs3Plus, v3ps,
+            bose3PlusData] = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+      auto [q3MinsC, state3MinsEnergies, nb3Mins, eigvecs3Mins, v3ms,
+            bose3MinsData] = pointHelper.get(q1, q2,
+      Helper3rdState::caseMins);*/
+      auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+      auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+
+      auto q3PlusC = std::get<0>(tup1);
+      auto state3PlusEnergies = std::get<1>(tup1);
+      auto nb3Plus = std::get<2>(tup1);
+      auto eigvecs3Plus = std::get<3>(tup1);
+      auto v3ps = std::get<4>(tup1);
+      auto bose3PlusData = std::get<5>(tup1);
+
+      auto q3MinsC = std::get<0>(tup2);
+      auto state3MinsEnergies = std::get<1>(tup2);
+      auto nb3Mins = std::get<2>(tup2);
+      auto eigvecs3Mins = std::get<3>(tup2);
+      auto v3ms = std::get<4>(tup2);
+      auto bose3MinsData = std::get<5>(tup2);
 
 #pragma omp parallel for
       for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Plus; ibbb++) {
@@ -234,8 +388,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         double en1 = state1Energies(ib1);
         double en2 = state2Energies(ib2);
         double en3Plus = state3PlusEnergies(ib3);
-        if (en1 < energyCutoff || en2 < energyCutoff
-            || en3Plus < energyCutoff) {
+        if (en1 < energyCutoff || en2 < energyCutoff ||
+            en3Plus < energyCutoff) {
           continue;
         }
         double enProd = en1 * en2 * en3Plus;
@@ -257,19 +411,20 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
         double deltaPlus;
         switch (smearing->getType()) {
-          case (DeltaFunction::gaussian): deltaPlus = smearing->getSmearing(
-                en1 + en2 - en3Plus);
-            break;
-          case (DeltaFunction::adaptiveGaussian): {
-            Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
-            deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
-          }
-            break;
-          default: deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
-            break;
+        case (DeltaFunction::gaussian):
+          deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
+          break;
+        case (DeltaFunction::adaptiveGaussian): {
+          Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
+          deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
+        } break;
+        default:
+          deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
+          break;
         }
 
-        if (deltaPlus < 0) continue;
+        if (deltaPlus < 0)
+          continue;
 
         // loop on temperature
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
@@ -279,48 +434,47 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
           // Calculate transition probability W+
           double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-              couplingPlus(ib1, ib2, ib3) * deltaPlus /
-              innerNumFullPoints / enProd;
+                            couplingPlus(ib1, ib2, ib3) * deltaPlus /
+                            innerNumFullPoints / enProd;
 
           switch (switchCase) {
-            case (0):
-              // case of matrix construction
-              // we build the scattering matrix S
-              matrix(ind1, ind2) += ratePlus;
-              linewidth->data(iCalc, ind1) += ratePlus;
-              break;
-            case (1):
-              // case of matrix-vector multiplication
-              // we build the scattering matrix A = S*n(n+1)
-              for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    ratePlus
-                        * inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    ratePlus
-                        * inPopulation->data(dimensionality_ * iCalc + i, ind1);
-              }
-              break;
-            case (2):
-              // case of linewidth construction
-              linewidth->data(iCalc, ind1) += ratePlus;
-              break;
+          case (0):
+            // case of matrix construction
+            // we build the scattering matrix S
+            matrix(ind1, ind2) += ratePlus;
+            linewidth->data(iCalc, ind1) += ratePlus;
+            break;
+          case (1):
+            // case of matrix-vector multiplication
+            // we build the scattering matrix A = S*n(n+1)
+            for (int i = 0; i < dimensionality_; i++) {
+              outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                  ratePlus *
+                  inPopulation->data(dimensionality_ * iCalc + i, ind2);
+              outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                  ratePlus *
+                  inPopulation->data(dimensionality_ * iCalc + i, ind1);
+            }
+            break;
+          case (2):
+            // case of linewidth construction
+            linewidth->data(iCalc, ind1) += ratePlus;
+            break;
           }
         }
       }
-
 #pragma omp parallel for
       for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Mins; ibbb++) {
         auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Mins);
- auto ib1 = std::get<0>(tup);
- auto ib2 = std::get<1>(tup);
- auto ib3 = std::get<2>(tup);
+        auto ib1 = std::get<0>(tup);
+        auto ib2 = std::get<1>(tup);
+        auto ib3 = std::get<2>(tup);
 
         double en1 = state1Energies(ib1);
         double en2 = state2Energies(ib2);
         double en3Mins = state3MinsEnergies(ib3);
-        if (en1 < energyCutoff || en2 < energyCutoff
-            || en3Mins < energyCutoff) {
+        if (en1 < energyCutoff || en2 < energyCutoff ||
+            en3Mins < energyCutoff) {
           continue;
         }
         double enProd = en1 * en2 * en3Mins;
@@ -342,24 +496,27 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
         double deltaMins1, deltaMins2;
         switch (smearing->getType()) {
-          case (DeltaFunction::gaussian):deltaMins1 = smearing->getSmearing(
-                en1 + en3Mins - en2);
-            deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
-            break;
-          case (DeltaFunction::adaptiveGaussian): {
-            Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
-            deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
-            deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
-          }
-            break;
-          default:deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
-            deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
-            break;
+        case (DeltaFunction::gaussian):
+          deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2);
+          deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1);
+          break;
+        case (DeltaFunction::adaptiveGaussian): {
+          Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
+          deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
+          deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
+        } break;
+        default:
+          deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
+          deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
+          break;
         }
 
-        if (deltaMins1 < 0. && deltaMins2 < 0.) continue;
-        if (deltaMins1 < 0.) deltaMins1 = 0.;
-        if (deltaMins2 < 0.) deltaMins2 = 0.;
+        if (deltaMins1 < 0. && deltaMins2 < 0.)
+          continue;
+        if (deltaMins1 < 0.)
+          deltaMins1 = 0.;
+        if (deltaMins2 < 0.)
+          deltaMins2 = 0.;
 
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
           double bose1 = outerBose.data(iCalc, ind1);
@@ -368,33 +525,33 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
           // Calculatate transition probability W-
           double rateMins1 = pi * 0.25 * bose3Mins * bose1 * (bose2 + 1.) *
-              couplingMins(ib1, ib2, ib3) * deltaMins1 /
-              innerNumFullPoints / enProd;
+                             couplingMins(ib1, ib2, ib3) * deltaMins1 /
+                             innerNumFullPoints / enProd;
           double rateMins2 = pi * 0.25 * bose2 * bose3Mins * (bose1 + 1.) *
-              couplingMins(ib1, ib2, ib3) * deltaMins2 /
-              innerNumFullPoints / enProd;
+                             couplingMins(ib1, ib2, ib3) * deltaMins2 /
+                             innerNumFullPoints / enProd;
 
           switch (switchCase) {
-            case (0):
-              // case of matrix construction
-              matrix(ind1, ind2) -= rateMins1 + rateMins2;
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-              break;
-            case (1):
-              // case of matrix-vector multiplication
-              for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
-                    (rateMins1 + rateMins2) *
-                        inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    0.5 * rateMins2 *
-                        inPopulation->data(dimensionality_ * iCalc + i, ind1);
-              }
-              break;
-            case (2):
-              // case of linewidth construction
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
-              break;
+          case (0):
+            // case of matrix construction
+            matrix(ind1, ind2) -= rateMins1 + rateMins2;
+            linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+            break;
+          case (1):
+            // case of matrix-vector multiplication
+            for (int i = 0; i < dimensionality_; i++) {
+              outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
+                  (rateMins1 + rateMins2) *
+                  inPopulation->data(dimensionality_ * iCalc + i, ind2);
+              outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                  0.5 * rateMins2 *
+                  inPopulation->data(dimensionality_ * iCalc + i, ind1);
+            }
+            break;
+          case (2):
+            // case of linewidth construction
+            linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+            break;
           }
         }
       }
@@ -458,26 +615,25 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
             double deltaIso;
             switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):deltaIso = smearing->getSmearing(
-                    en1 - en2);
-                break;
-              case (DeltaFunction::adaptiveGaussian):deltaIso =
-                                                         smearing->getSmearing(
-                                                             en1 - en2,
-                                                             v2s.row(ib2));
-                deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
-                deltaIso *= 0.5;
-                break;
-              default:deltaIso = smearing->getSmearing(en2, iq2, ib2);
-                deltaIso += smearing->getSmearing(en1, iq1, ib1);
-                deltaIso *= 0.5;
-                break;
+            case (DeltaFunction::gaussian):
+              deltaIso = smearing->getSmearing(en1 - en2);
+              break;
+            case (DeltaFunction::adaptiveGaussian):
+              deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
+              deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
+              deltaIso *= 0.5;
+              break;
+            default:
+              deltaIso = smearing->getSmearing(en2, iq2, ib2);
+              deltaIso += smearing->getSmearing(en1, iq1, ib1);
+              deltaIso *= 0.5;
+              break;
             }
 
             double termIso = 0.;
             for (int iat = 0; iat < numAtoms; iat++) {
               std::complex<double> zzIso = complexZero;
-              for (int kdim : {0, 1, 2}) {  // cartesian indices
+              for (int kdim : {0, 1, 2}) { // cartesian indices
                 zzIso += std::conj(ev1(kdim, iat, ib1)) * ev2(kdim, iat, ib2);
               }
               termIso += std::norm(zzIso) * massVariance(iat);
@@ -488,35 +644,33 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               double bose1 = outerBose.data(iCalc, ind1);
               double bose2 = innerBose.data(iCalc, ind2);
 
-              double
-                  rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+              double rateIso =
+                  termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
 
               switch (switchCase) {
-                case (0):
-                  // case of matrix construction
-                  // we build the scattering matrix S
-                  matrix(ind1, ind2) += rateIso;
-                  linewidth->data(iCalc, ind1) += rateIso;
-                  break;
-                case (1):
-                  // case of matrix-vector multiplication
-                  // we build the scattering matrix A = S*n(n+1)
-                  for (int i = 0; i < dimensionality_; i++) {
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        rateIso
-                            * inPopulation->data(dimensionality_ * iCalc + i,
-                                                 ind2);
-                    outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                        rateIso
-                            * inPopulation->data(dimensionality_ * iCalc + i,
-                                                 ind1);
-                  }
-                  break;
-                case (2):
-                  // case of linewidth construction
-                  // there's still a missing norm done later
-                  linewidth->data(iCalc, ind1) += rateIso;
-                  break;
+              case (0):
+                // case of matrix construction
+                // we build the scattering matrix S
+                matrix(ind1, ind2) += rateIso;
+                linewidth->data(iCalc, ind1) += rateIso;
+                break;
+              case (1):
+                // case of matrix-vector multiplication
+                // we build the scattering matrix A = S*n(n+1)
+                for (int i = 0; i < dimensionality_; i++) {
+                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                      rateIso *
+                      inPopulation->data(dimensionality_ * iCalc + i, ind2);
+                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                      rateIso *
+                      inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                }
+                break;
+              case (2):
+                // case of linewidth construction
+                // there's still a missing norm done later
+                linewidth->data(iCalc, ind1) += rateIso;
+                break;
               }
             }
           }
@@ -548,22 +702,22 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         double rate = vel.squaredNorm() / boundaryLength * termPop;
 
         switch (switchCase) {
-          case (0):
-            // case of matrix construction
-            matrix(is1, is1) += rate;  // this is redundant, see below
-            linewidth->data(iCalc, is1) += rate;
-            break;
-          case (1):
-            // case of matrix-vector multiplication
-            for (int i = 0; i < dimensionality_; i++) {
-              outPopulation->data(dimensionality_ * iCalc + i, is1) +=
-                  rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
-            }
-            break;
-          case (2):
-            // case of linewidth construction
-            linewidth->data(iCalc, is1) += rate;
-            break;
+        case (0):
+          // case of matrix construction
+          matrix(is1, is1) += rate; // this is redundant, see below
+          linewidth->data(iCalc, is1) += rate;
+          break;
+        case (1):
+          // case of matrix-vector multiplication
+          for (int i = 0; i < dimensionality_; i++) {
+            outPopulation->data(dimensionality_ * iCalc + i, is1) +=
+                rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
+          }
+          break;
+        case (2):
+          // case of linewidth construction
+          linewidth->data(iCalc, is1) += rate;
+          break;
         }
       }
     }
@@ -596,7 +750,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
   // we place the linewidths back in the diagonal of the scattering matrix
   // this because we may need an MPI_allreduce on the linewidths
-  if (switchCase == 0) {  // case of matrix construction
+  if (switchCase == 0) { // case of matrix construction
     long iCalc = 0;
     for (long i = 0; i < outerBandStructure.getNumStates(); i++) {
       matrix(i, i) = linewidth->data(iCalc, i);
