@@ -3,10 +3,9 @@
 
 #include <tuple>
 #include <vector>
-
 #include "Blacs.h"
 #include "Matrix.h"
-#include "bandstructure.h"
+#include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -44,7 +43,7 @@ class ParallelMatrix {
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
-  std::tuple<long, long> local2Global(const long& k);
+  // TODO: temporarily public -- std::tuple<long, long> local2Global(const long& k);
 
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
@@ -57,6 +56,8 @@ class ParallelMatrix {
   static const char transN = 'N';  // no transpose nor adjoint
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
+
+  std::tuple<long, long> local2Global(const long& k);
 
   /** Construct using row, col numbers, and block distribution
    */
@@ -79,13 +80,6 @@ class ParallelMatrix {
    */
   ParallelMatrix& operator=(const ParallelMatrix<T>& that);
 
-  /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
-   * local MPI process. This method is specifically made for the scattering
-   * matrix, which has rows spanned by Bloch states (iq,ib)
-   */
-  std::vector<std::pair<int, int>> getAllLocalWavevectors(
-      BaseBandStructure& bandStructure);
-
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -105,7 +99,9 @@ class ParallelMatrix {
   /** Find global number of matrix elements
    */
   long size() const;
-
+  /** Return the local number of elements 
+  */
+  long localSize() const; 
   /** Get and set operator
    */
   T& operator()(const int row, const int col);
@@ -246,7 +242,7 @@ ParallelMatrix<T>::ParallelMatrix() {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
-  mpi->initBlacs(); 
+  mpi->initBlacs();
 }
 
 template <typename T>
@@ -334,6 +330,11 @@ long ParallelMatrix<T>::size() const {
   return cols() * rows();
 }
 
+template <typename T>
+long ParallelMatrix<T>::localSize() const {
+  return numLocalElements_; 
+}
+
 // Get/set element
 
 template <typename T>
@@ -415,25 +416,6 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
     x.push_back(t);
   }
   return x;
-}
-
-template <typename T>
-std::vector<std::pair<int, int>> ParallelMatrix<T>::getAllLocalWavevectors(
-    BaseBandStructure& bandStructure) {
-
-  std::set<std::pair<int,int>> x;
-  for (long k = 0; k < numLocalElements_; k++) {
-    auto [is1, is2] = local2Global(k);  // bloch indices
-    auto [ik1, ib1] = bandStructure.getIndex(is1);
-    auto [ik2, ib2] = bandStructure.getIndex(is2);
-    std::pair<int,int> xx = std::make_pair(ik1.get(), ik2.get());
-    x.insert(xx);
-  }
-  std::vector<std::pair<int, int>> wavevectorPairs(x.size());
-  for ( auto t : x ) {
-    wavevectorPairs.push_back(t);
-  }
-  return wavevectorPairs;
 }
 
 template <typename T>

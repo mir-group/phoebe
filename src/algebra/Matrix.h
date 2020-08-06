@@ -3,15 +3,14 @@
 
 // include statements
 #include <assert.h>
-
+#include <tuple>
+#include <vector> 
 #include <cmath>
 #include <complex>
 #include <iostream>
 #include <type_traits>
-#include <vector>
 
 #include "Blas.h"
-#include "bandstructure.h"
 
 /** Matrix parent class, which can be used to define matrix classes of different
  *  types
@@ -29,12 +28,15 @@ class Matrix {
 
   /// Index from a 1D array to a position in a 2D array (matrix)
   long global2Local(const long& row, const long& col);
-  std::tuple<long, long> local2Global(const long& k);
+  // TODO: std::tuple<long, long> local2Global(const long& k);
 
  public:
   static const char transN = 'N';  // no transpose nor adjoint
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
+
+  // TODO: temporarily made this public 
+  std::tuple<long, long> local2Global(const long& k);
 
   /** Matrix class constructor.
    * numBlocks* (ignored) are put for compatibility with ParallelMatrix.
@@ -57,13 +59,6 @@ class Matrix {
   /** Copy constructor
    */
   Matrix<T>& operator=(const Matrix<T>& that);
-
-  /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
-   * local MPI process. This method is specifically made for the scattering
-   * matrix, which has rows spanned by Bloch states (iq,ib)
-   */
-  std::vector<std::tuple<long, long>> getAllLocalWavevectors(
-      BaseBandStructure& bandStructure);
 
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
@@ -283,25 +278,6 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
     x.push_back(t);
   }
   return x;
-}
-
-template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
-    BaseBandStructure& bandStructure) {
-  std::vector<std::tuple<long, long>> wavevectorPairs;
-  for (long k = 0; k < numElements_; k++) {
-    auto [is1, is2] = local2Global(k);  // bloch indices
-    auto [ik1, ib1] = bandStructure.getIndex(is1);
-    auto [ik2, ib2] = bandStructure.getIndex(is2);
-    // make a pair of these wavevectors
-    auto t = std::make_tuple(ik1.get(), ik2.get());
-    // add to list if unique
-    if (std::find(wavevectorPairs.begin(), wavevectorPairs.end(), t) ==
-        wavevectorPairs.end()) {
-      wavevectorPairs.push_back(t);
-    }
-  }
-  return wavevectorPairs;
 }
 
 // General unary negation
