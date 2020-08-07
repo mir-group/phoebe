@@ -211,6 +211,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
 
       // memory used by different tensors
+      // Note: 16 (2*16) is the size of double (complex<double>) in bytes
       double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
       double phase = 16 * nr3;
       double tmp = 2 * 16 * numBands * numBands * numBands;
@@ -244,6 +245,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     coupling3Ph->cacheD3(q2_e);
 
     // loop over batches of q1s
+    // later we will loop over the q1s inside each batch
+    // this is done to optimize the usage and data transfer of a GPU
     for (int ib = 0; ib < numBatches; ib++) {
       // start and end point for current batch
       int start = nq1 * ib / numBatches;
