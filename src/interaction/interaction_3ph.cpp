@@ -167,7 +167,7 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
   std::cout << "assignment operator called\n";
 }
 
-void Interaction3Ph::cacheD3(Eigen::Vector3d q2_e) {
+void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   // copy q2 to kokkos
   Kokkos::View<double *> q2("q2", 3);
   auto q2_h = Kokkos::create_mirror_view(q2);
@@ -233,13 +233,13 @@ void Interaction3Ph::cacheD3(Eigen::Vector3d q2_e) {
 std::tuple<std::vector<Eigen::Tensor<double, 3>>,
            std::vector<Eigen::Tensor<double, 3>>>
 Interaction3Ph::getCouplingsSquared(
-    std::vector<Eigen::Vector3d> q1s_e, Eigen::Vector3d q2_e,
-    std::vector<Eigen::MatrixXcd> ev1s_e, Eigen::MatrixXcd ev2_e,
-    std::vector<Eigen::MatrixXcd> ev3Pluss_e,
-    std::vector<Eigen::MatrixXcd> ev3Minss_e, std::vector<int> nb1s_e, int nb2,
-    std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e) {
+    const std::vector<Eigen::Vector3d> &q1s_e, const Eigen::Vector3d &q2_e,
+    const std::vector<Eigen::MatrixXcd> &ev1s_e, const Eigen::MatrixXcd &ev2_e,
+    const std::vector<Eigen::MatrixXcd> &ev3Pluss_e,
+    const std::vector<Eigen::MatrixXcd> &ev3Minss_e,
+    const std::vector<int> &nb1s_e, const int nb2,
+    const std::vector<int> &nb3Pluss_e, std::vector<int> &nb3Minss_e) {
 
-  (void) q2_e;
   int nr3 = this->nr3;
   int numBands = this->numBands;
   Kokkos::complex<double> complexI(0.0, 1.0);
@@ -495,7 +495,7 @@ Interaction3Ph::getCouplingsSquared(
 }
 
 Interaction3Ph::~Interaction3Ph() {
-  if (mpi->mpiHead()) {
+  if (mpi->mpiHead() && std::getenv("PROFILE") != NULL) {
     std::cout << "3-phonon coupling kernel timing breakdown:"
               << "\n";
     std::cout << "D3 cache phase loop (R2): " << tosec(dts[0]) << "\n";
@@ -522,12 +522,12 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   int maxnb3Mins = numBands;
 
   // available memory is MAXMEM minus size of D3, D3cache and ev2
-  double availmem =
-      maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
-      8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
+  double availmem = maxmem -
+                    16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
+                    8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
 
   // memory used by different tensors
-  // Note: 16 (2*16) is the size of double (complex<double>) in bytes
+  // Note: 16 (2*8) is the size of double (complex<double>) in bytes
   double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
   double phase = 16 * nr3;
   double tmp = 2 * 16 * numBands * numBands * numBands;
@@ -535,8 +535,9 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   double tmp2 = 2 * 16 * maxnb1 * nb2 * numBands;
   double v = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
   double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
-  double maxusage = nq1 * (evs + std::max({phase + tmp, tmp + tmp1,
-                                           tmp1 + tmp2, tmp2 + v, v + c}));
+  double maxusage =
+      nq1 *
+      (evs + std::max({phase + tmp, tmp + tmp1, tmp1 + tmp2, tmp2 + v, v + c}));
 
   // the number of batches needed
   int numBatches = std::ceil(maxusage / availmem);
@@ -551,4 +552,3 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   }
   return numBatches;
 }
-

@@ -53,6 +53,9 @@ class Interaction3Ph {
 
   double maxmem = 16.0e9;  // default 16 Gb memory space for computation
 
+  // dimensions
+  int nr2, nr3, numAtoms, numBands;
+
   // variables for timing
   typedef std::chrono::steady_clock::time_point time_point;
   typedef std::chrono::steady_clock::duration time_delta;
@@ -64,7 +67,6 @@ class Interaction3Ph {
   };
 
  public:
-  int nr2, nr3, numAtoms, numBands;
 
   /** Default constructor.
    * This method mostly reshapes the input into something more manageable and
@@ -119,19 +121,19 @@ class Interaction3Ph {
    */
   std::tuple<std::vector<Eigen::Tensor<double, 3>>,
              std::vector<Eigen::Tensor<double, 3>>>
-  getCouplingsSquared(std::vector<Eigen::Vector3d> q1s_e, Eigen::Vector3d q2_e,
-                      std::vector<Eigen::MatrixXcd> ev1s_e,
-                      Eigen::MatrixXcd ev2_e,
-                      std::vector<Eigen::MatrixXcd> ev3Pluss_e,
-                      std::vector<Eigen::MatrixXcd> ev3Minss_e,
-                      std::vector<int> nb1s_e, int nb2,
-                      std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e);
+  getCouplingsSquared(const std::vector<Eigen::Vector3d> &q1s_e, const Eigen::Vector3d &q2_e,
+                      const std::vector<Eigen::MatrixXcd> &ev1s_e,
+                      const Eigen::MatrixXcd &ev2_e,
+                      const std::vector<Eigen::MatrixXcd> &ev3Pluss_e,
+                      const std::vector<Eigen::MatrixXcd> &ev3Minss_e,
+                      const std::vector<int> &nb1s_e, const int nb2,
+                      const std::vector<int> &nb3Pluss_e, std::vector<int> &nb3Minss_e);
 
   /** Computes a partial Fourier transform over the q2/R2 variables.
    * @param q2_e: values of the q2 cartesian coordinates over which the Fourier
    * transform is computed.
    */
-  void cacheD3(Eigen::Vector3d q2_e);
+  void cacheD3(const Eigen::Vector3d &q2_e);
 
   /** Destructor method, which prints a summary of execution times.
    */
