@@ -176,10 +176,12 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   }
   Kokkos::deep_copy(q2, q2_h);
 
+  Kokkos::complex<double> complexI(0.0, 1.0);
+
+  // Need all variables to be local to be captured by lambda
   int nr2 = this->nr2;
   int nr3 = this->nr3;
   int numBands = this->numBands;
-  Kokkos::complex<double> complexI(0.0, 1.0);
 
   auto D3PlusCached = this->D3PlusCached_k;
   auto D3MinsCached = this->D3MinsCached_k;
@@ -214,10 +216,6 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
       KOKKOS_LAMBDA(int ind1, int ind2, int ind3, int ir3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir2 = 0; ir2 < nr2; ir2++) { // sum over all triplets
-          //          std::cout << ind1 << ", " << ind2 << ", " << ind3 << ",
-          //          "
-          //          << ir3 << ", " << ir2 << "\n";
-
           tmpp += D3(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
           tmpm += D3(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
         }
@@ -238,10 +236,11 @@ Interaction3Ph::getCouplingsSquared(
     const std::vector<int> &nb1s_e, const int nb2,
     const std::vector<int> &nb3Pluss_e, std::vector<int> &nb3Minss_e) {
 
-  int nr3 = this->nr3;
-  int numBands = this->numBands;
   Kokkos::complex<double> complexI(0.0, 1.0);
 
+  // Need all variables to be local to be captured by lambda
+  int nr3 = this->nr3;
+  int numBands = this->numBands;
   auto cellPositions2 = this->cellPositions2_k;
   auto cellPositions3 = this->cellPositions3_k;
   auto D3 = this->D3_k;
@@ -250,6 +249,7 @@ Interaction3Ph::getCouplingsSquared(
 
   int nq1 = q1s_e.size();
 
+  // MDRangePolicy loops are rectangular, need maximal dimensions
   int maxnb1 = *std::max_element(nb1s_e.begin(), nb1s_e.end()),
       maxnb3Plus = *std::max_element(nb3Pluss_e.begin(), nb3Pluss_e.end()),
       maxnb3Mins = *std::max_element(nb3Minss_e.begin(), nb3Minss_e.end());
@@ -439,8 +439,6 @@ Interaction3Ph::getCouplingsSquared(
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Plus}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
-        int mask = ib1 < nb1s(iq1) && ib3 < nb3Pluss(iq1);
-
         auto tmp = vPlus(iq1, ib1, ib2, ib3);
         couplingPlus(iq1, ib1, ib2, ib3) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
@@ -453,8 +451,6 @@ Interaction3Ph::getCouplingsSquared(
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Mins}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
-        int mask = ib1 < nb1s(iq1) && ib3 < nb3Minss(iq1);
-
         auto tmp = vMins(iq1, ib1, ib2, ib3);
         couplingMins(iq1, ib1, ib2, ib3) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
@@ -464,6 +460,7 @@ Interaction3Ph::getCouplingsSquared(
   Kokkos::realloc(vPlus, 0, 0, 0, 0);
   Kokkos::realloc(vMins, 0, 0, 0, 0);
 
+  // Copy result to vector of Eigen tensors
   std::vector<Eigen::Tensor<double, 3>> couplingPlus_e(nq1),
       couplingMins_e(nq1);
   auto couplingPlus_h = Kokkos::create_mirror_view(couplingPlus),
