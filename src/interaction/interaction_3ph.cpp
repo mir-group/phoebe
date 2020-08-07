@@ -181,11 +181,11 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   int numBands = this->numBands;
   Kokkos::complex<double> complexI(0.0, 1.0);
 
-  auto D3PlusCached_k = this->D3PlusCached_k;
-  auto D3MinsCached_k = this->D3MinsCached_k;
-  auto cellPositions2_k = this->cellPositions2_k;
-  auto cellPositions3_k = this->cellPositions3_k;
-  auto D3_k = this->D3_k;
+  auto D3PlusCached = this->D3PlusCached_k;
+  auto D3MinsCached = this->D3MinsCached_k;
+  auto cellPositions2 = this->cellPositions2_k;
+  auto cellPositions3 = this->cellPositions3_k;
+  auto D3 = this->D3_k;
 
   // precompute phases
   Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
@@ -197,10 +197,8 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
       KOKKOS_LAMBDA(int ir3, int ir2) {
         double argP = 0, argM = 0;
         for (int ic = 0; ic < 3; ic++) {
-          argP +=
-              +q2(ic) * (cellPositions2_k(ir2, ic) - cellPositions3_k(ir3, ic));
-          argM +=
-              -q2(ic) * (cellPositions2_k(ir2, ic) - cellPositions3_k(ir3, ic));
+          argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+          argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
         }
         phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP);
         phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM);
@@ -220,11 +218,11 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
           //          "
           //          << ir3 << ", " << ir2 << "\n";
 
-          tmpp += D3_k(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
-          tmpm += D3_k(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
+          tmpp += D3(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
+          tmpm += D3(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
         }
-        D3PlusCached_k(ind1, ind2, ind3, ir3) = tmpp;
-        D3MinsCached_k(ind1, ind2, ind3, ir3) = tmpm;
+        D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
+        D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
       });
   time_point t2 = std::chrono::steady_clock::now();
   dts[1] += t2 - t1;
@@ -244,11 +242,11 @@ Interaction3Ph::getCouplingsSquared(
   int numBands = this->numBands;
   Kokkos::complex<double> complexI(0.0, 1.0);
 
-  auto cellPositions2_k = this->cellPositions2_k;
-  auto cellPositions3_k = this->cellPositions3_k;
-  auto D3_k = this->D3_k;
-  auto D3PlusCached_k = this->D3PlusCached_k;
-  auto D3MinsCached_k = this->D3MinsCached_k;
+  auto cellPositions2 = this->cellPositions2_k;
+  auto cellPositions3 = this->cellPositions3_k;
+  auto D3 = this->D3_k;
+  auto D3PlusCached = this->D3PlusCached_k;
+  auto D3MinsCached = this->D3MinsCached_k;
 
   int nq1 = q1s_e.size();
 
@@ -320,8 +318,8 @@ Interaction3Ph::getCouplingsSquared(
       KOKKOS_LAMBDA(int iq1, int ir3) {
         double argP = 0, argM = 0;
         for (int ic : {0, 1, 2}) {
-          argP += -q1s(iq1, ic) * cellPositions3_k(ir3, ic);
-          argM += -q1s(iq1, ic) * cellPositions3_k(ir3, ic);
+          argP += -q1s(iq1, ic) * cellPositions3(ir3, ic);
+          argM += -q1s(iq1, ic) * cellPositions3(ir3, ic);
         }
         phasePlus(iq1, ir3) = exp(complexI * argP);
         phaseMins(iq1, ir3) = exp(complexI * argM);
@@ -339,8 +337,8 @@ Interaction3Ph::getCouplingsSquared(
       KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
-          tmpp += D3PlusCached_k(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3);
-          tmpm += D3MinsCached_k(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3);
+          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3);
+          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3);
         }
         tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
         tmpMins(iq1, iac1, iac2, iac3) = tmpm;
