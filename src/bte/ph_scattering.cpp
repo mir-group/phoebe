@@ -263,7 +263,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       auto couplingPluss = std::get<0>(tup);
       auto couplingMinss = std::get<1>(tup);
 
-      // do same loop as before, but get coupling from vector
+      // do postprocessing loop with batch of couplings
       for (int i = 0; i < batch_size; i++) {
         auto iq1 = iq1Indexes[start + i];
         auto couplingPlus = couplingPluss[i];
