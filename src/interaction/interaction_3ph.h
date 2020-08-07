@@ -41,6 +41,11 @@
  * input to phoebe are in the form D(R1,R2,R3) -> D(0,R2,R3), i.e. we take
  * advantage of the crystal periodicity to set the phases of R1 to zero, so that
  * a 6-dimensional Fourier transform is enough (and avoid a 9D FT).
+ *
+ * Use the environmental variable MAXMEM to set the amount of VRAM in gigabyes
+ * available on the GPU/node (depending on the Kokkos installation).
+ * Set to any value the environmental variable PROFILE to enable a more
+ * detailed profiling of loops inside this class.
  */
 class Interaction3Ph {
  private:
