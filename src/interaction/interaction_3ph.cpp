@@ -16,13 +16,11 @@ long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
 }
 
 // default constructor
-Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
-                               Eigen::Tensor<double, 4> &ifc3Tensor_,
-                               Eigen::Tensor<double, 3> &cellPositions_,
-                               Eigen::Tensor<long, 2> &displacedAtoms_)
-    : crystal(crystal_), numTriplets(numTriplets_), ifc3Tensor(ifc3Tensor_),
-      cellPositions(cellPositions_), displacedAtoms(displacedAtoms_), dts(10),
-      newdts(3) {
+Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets,
+                               Eigen::Tensor<double, 4> &ifc3Tensor,
+                               Eigen::Tensor<double, 3> &cellPositions,
+                               Eigen::Tensor<long, 2> &displacedAtoms)
+    : crystal(crystal_), dts(10), newdts(3) {
 
   numAtoms = crystal.getNumAtoms();
   numBands = numAtoms * 3;
@@ -60,8 +58,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
     }
   }
 
-  cellPositions2 = Eigen::MatrixXd::Zero(3, nr2);
-  cellPositions3 = Eigen::MatrixXd::Zero(3, nr3);
+  Eigen::MatrixXd cellPositions2(3, nr2);
+  Eigen::MatrixXd cellPositions3(3, nr3);
   for (int i = 0; i < nr2; i++) {
     cellPositions2.col(i) = tmpCellPositions2[i];
   }
@@ -69,7 +67,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
     cellPositions3.col(i) = tmpCellPositions3[i];
   }
 
-  D3 = Eigen::Tensor<double, 5>(numBands, numBands, numBands, nr2, nr3);
+  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
   D3.setZero();
 
   for (long it = 0; it < numTriplets; it++) { // sum over all triplets
@@ -99,9 +97,6 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
       }
     }
   }
-  ifc3Tensor.resize(0, 0, 0, 0);
-  cellPositions.resize(0, 0, 0);
-  displacedAtoms.resize(0, 0);
 
   // Copy everything to kokkos views
 
@@ -120,12 +115,6 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
   }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
-
-  ifc3Tensor.resize(0, 0, 0, 0);
-  cellPositions.resize(0, 0, 0);
-  displacedAtoms.resize(0, 0);
-
-  cachedCoords << -111., -111., -111.;
 
   Kokkos::realloc(D3_k, numBands, numBands, numBands, nr3, nr2);
   Kokkos::realloc(D3PlusCached_k, numBands, numBands, numBands, nr3);
@@ -147,15 +136,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets_,
 
 // copy constructor
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
-    : crystal(that.crystal), numTriplets(that.numTriplets),
-      ifc3Tensor(that.ifc3Tensor), cellPositions(that.cellPositions),
-      displacedAtoms(that.displacedAtoms), tableAtCIndex1(that.tableAtCIndex1),
-      tableAtCIndex2(that.tableAtCIndex2), tableAtCIndex3(that.tableAtCIndex3),
-      useD3Caching(that.useD3Caching), cellPositions2(that.cellPositions2),
-      cellPositions3(that.cellPositions3), D3(that.D3), nr2(that.nr2),
-      nr3(that.nr3), numAtoms(that.numAtoms), numBands(that.numBands),
-      cachedCoords(that.cachedCoords), D3PlusCached(that.D3PlusCached),
-      D3MinsCached(that.D3MinsCached) {
+    : crystal(that.crystal), nr2(that.nr2), nr3(that.nr3),
+      numAtoms(that.numAtoms), numBands(that.numBands) {
   std::cout << "copy constructor called\n";
 }
 
@@ -163,25 +145,10 @@ Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
   if (this != &that) {
     crystal = that.crystal;
-    numTriplets = that.numTriplets;
-    ifc3Tensor = that.ifc3Tensor;
-    cellPositions = that.cellPositions;
-    displacedAtoms = that.displacedAtoms;
-    tableAtCIndex1 = that.tableAtCIndex1;
-    tableAtCIndex2 = that.tableAtCIndex2;
-    tableAtCIndex3 = that.tableAtCIndex3;
-
-    useD3Caching = that.useD3Caching;
-    cellPositions2 = that.cellPositions2;
-    cellPositions3 = that.cellPositions3;
-    D3 = that.D3;
     nr2 = that.nr2;
     nr3 = that.nr3;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
-    cachedCoords = that.cachedCoords;
-    D3PlusCached = that.D3PlusCached;
-    D3MinsCached = that.D3MinsCached;
   }
   return *this;
   std::cout << "assignment operator called\n";
@@ -516,18 +483,18 @@ Interaction3Ph::getCouplingsSquared(
 
 Interaction3Ph::~Interaction3Ph() {
   if (mpi->mpiHead()) {
-    std::cout << "Coupling kernel timing breakdown:"
+    std::cout << "3-phonon coupling kernel timing breakdown:"
               << "\n";
-    std::cout << "nr2, nr3 phase loop: " << tosec(dts[0]) << "\n";
-    std::cout << "D3Cached loop: " << tosec(dts[1]) << "\n";
-    std::cout << "nr3 phase loop: " << tosec(dts[2]) << "\n";
-    std::cout << "tmp loop: " << tosec(dts[3]) << "\n";
-    std::cout << "tmp1 loop: " << tosec(dts[4]) << "\n";
-    std::cout << "tmp2 loop: " << tosec(dts[5]) << "\n";
-    std::cout << "vp loop: " << tosec(dts[6]) << "\n";
-    std::cout << "vm loop: " << tosec(dts[7]) << "\n";
-    std::cout << "cp loop: " << tosec(dts[8]) << "\n";
-    std::cout << "cm loop: " << tosec(dts[9]) << "\n";
+    std::cout << "D3 cache phase loop (R2): " << tosec(dts[0]) << "\n";
+    std::cout << "D3 cache Fourier transform (R2): " << tosec(dts[1]) << "\n";
+    std::cout << "D3 phase loop (R3): " << tosec(dts[2]) << "\n";
+    std::cout << "D3 Fourier transform (R3): " << tosec(dts[3]) << "\n";
+    std::cout << "D3 eigenvector 1 loop: " << tosec(dts[4]) << "\n";
+    std::cout << "D3 eigenvector 2 loop: " << tosec(dts[5]) << "\n";
+    std::cout << "D3 (+) eigenvector 3 loop: " << tosec(dts[6]) << "\n";
+    std::cout << "D3 (-) eigenvector 3 loop: " << tosec(dts[7]) << "\n";
+    std::cout << "D3 (+) squaring: " << tosec(dts[8]) << "\n";
+    std::cout << "D3 (-) squaring: " << tosec(dts[9]) << "\n";
     std::cout << "total kernel time: "
               << tosec(dts[0]) + tosec(dts[1]) + tosec(dts[2]) + tosec(dts[3]) +
                      tosec(dts[4]) + tosec(dts[5]) + tosec(dts[6]) +
