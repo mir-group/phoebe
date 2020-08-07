@@ -52,23 +52,47 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	q2.setZero();
 	q3.setZero();
 
-	auto tup1 = phononH0.diagonalizeFromCoords(q1);
- auto energies1 = std::get<0>(tup1);
- auto ev1 = std::get<1>(tup1);
-	auto tup2 = phononH0.diagonalizeFromCoords(q2);
- auto energies2 = std::get<0>(tup2);
- auto ev2 = std::get<1>(tup2);
-	auto tup3 = phononH0.diagonalizeFromCoords(q3);
- auto energies3 = std::get<0>(tup3);
- auto ev3 = std::get<1>(tup3);
+  auto tup1 = phononH0.diagonalizeFromCoords(q1);
+  auto energies1 = std::get<0>(tup1);
+  auto ev1 = std::get<1>(tup1);
+  auto tup2 = phononH0.diagonalizeFromCoords(q2);
+  auto energies2 = std::get<0>(tup2);
+  auto ev2 = std::get<1>(tup2);
+  auto tup3 = phononH0.diagonalizeFromCoords(q3);
+  auto energies3 = std::get<0>(tup3);
+  auto ev3 = std::get<1>(tup3);
 
 	DetachedState s1(q1, energies, numBands, numBands, ev1, nullptr);
 	DetachedState s2(q2, energies, numBands, numBands, ev2, nullptr);
 	DetachedState s3(q3, energies, numBands, numBands, ev3, nullptr);
 
-	auto tup8 = coupling3Ph.getCouplingSquared(														s1, s2, s3, s3);
- auto couplingPlus = std::get<0>(tup8);
- auto couplingMins = std::get<1>(tup8);
+  int nb1 = energies.size();
+  int nb2 = energies.size();
+
+  std::vector<Eigen::Vector3d> q1s_e(1);
+  Eigen::Vector3d q2_e;
+  std::vector<Eigen::MatrixXcd> ev1s_e(1);
+  Eigen::MatrixXcd ev2_e;
+  std::vector<Eigen::MatrixXcd> ev3Pluss_e(1);
+  std::vector<Eigen::MatrixXcd> ev3Minss_e(1);
+  std::vector<int> nb1s_e(1);
+  std::vector<int> nb3Pluss_e(1);
+  std::vector<int> nb3Minss_e(1);
+
+  q1s_e[0] = s1.getCoords(Points::cartesianCoords);
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = energies.size();
+  nb3Minss_e[0] = energies.size();
+  s1.getEigenvectors(ev1s_e[0]);
+  s3.getEigenvectors(ev3Pluss_e[0]);
+  s3.getEigenvectors(ev3Minss_e[0]);
+  s2.getEigenvectors(ev2_e);
+  q2_e = q2;
+
+  auto tup8 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+           ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus = std::get<0>(tup8)[0];
+  auto couplingMins = std::get<1>(tup8)[0];
 
 	// we load reference data
 
@@ -180,10 +204,33 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	DetachedState s2(q2, energies, numBands, numBands, evm2, nullptr);
 	DetachedState s3(q3, energies, numBands, numBands, evm3, nullptr);
 
-	auto tup7 = coupling3Ph.getCouplingSquared(														s1, s2, s3, s3);
- auto couplingPlus = std::get<0>(tup7);
- auto couplingMins = std::get<1>(tup7);
-	// we load reference data
+  int nb1 = energies.size();
+  int nb2 = energies.size();
+
+  std::vector<Eigen::Vector3d> q1s_e(1);
+  Eigen::Vector3d q2_e;
+  std::vector<Eigen::MatrixXcd> ev1s_e(1);
+  Eigen::MatrixXcd ev2_e;
+  std::vector<Eigen::MatrixXcd> ev3Pluss_e(1);
+  std::vector<Eigen::MatrixXcd> ev3Minss_e(1);
+  std::vector<int> nb1s_e(1);
+  std::vector<int> nb3Pluss_e(1);
+  std::vector<int> nb3Minss_e(1);
+
+  q1s_e[0] = s1.getCoords(Points::cartesianCoords);
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = energies.size();
+  nb3Minss_e[0] = energies.size();
+  s1.getEigenvectors(ev1s_e[0]);
+  s3.getEigenvectors(ev3Pluss_e[0]);
+  s3.getEigenvectors(ev3Minss_e[0]);
+  s2.getEigenvectors(ev2_e);
+  q2_e = q2;
+
+  auto tup7 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+      ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus = std::get<0>(tup7)[0];
+  auto couplingMins = std::get<1>(tup7)[0];
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
 	referenceCoupling.setZero();
@@ -250,14 +297,29 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	ASSERT_EQ((p3PlusTest.getCoords(Points::cartesianCoords)-p3Plus.getCoords(Points::cartesianCoords)).norm(), 0.);
 	ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords)-p3Mins.getCoords(Points::cartesianCoords)).norm(), 0.);
 
-	auto tup6 = coupling3Ph.getCouplingSquared(			states1, states2, states3Plus, states3Mins);
- auto couplingPlus2 = std::get<0>(tup6);
- auto couplingMins2 = std::get<1>(tup6);
-
 	auto en1 = states1.getEnergies();
 	auto en2 = states2.getEnergies();
 	auto en3Plus = states3Plus.getEnergies();
 	auto en3Mins = states3Mins.getEnergies();
+
+  nb1 = en1.size();
+  nb2 = en2.size();
+  q2 = states2.getCoords(Points::cartesianCoords);
+
+  q1s_e[0] = s1.getCoords(Points::cartesianCoords);
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = en3Plus.size();
+  nb3Minss_e[0] = en3Mins.size();
+  states1.getEigenvectors(ev1s_e[0]);
+  states3Plus.getEigenvectors(ev3Pluss_e[0]);
+  states3Mins.getEigenvectors(ev3Minss_e[0]);
+  states2.getEigenvectors(ev2_e);
+  q2_e = q2;
+  auto tup6 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+      ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus2 = std::get<0>(tup6)[0];
+  auto couplingMins2 = std::get<1>(tup6)[0];
+
 
 	x1 = 0.;
 	x2 = 0.;
