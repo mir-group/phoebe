@@ -16,13 +16,13 @@ long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
 }
 
 // default constructor
-Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets,
+Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
                                Eigen::Tensor<double, 4> &ifc3Tensor,
                                Eigen::Tensor<double, 3> &cellPositions,
                                Eigen::Tensor<long, 2> &displacedAtoms)
-    : crystal(crystal_), dts(10), newdts(3) {
+    : crystal_(crystal), dts(10), newdts(3) {
 
-  numAtoms = crystal.getNumAtoms();
+  numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
 
   nr2 = 0;
@@ -136,7 +136,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal_, long &numTriplets,
 
 // copy constructor
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
-    : crystal(that.crystal), nr2(that.nr2), nr3(that.nr3),
+    : crystal_(that.crystal_), nr2(that.nr2), nr3(that.nr3),
       numAtoms(that.numAtoms), numBands(that.numBands) {
   std::cout << "copy constructor called\n";
 }
@@ -144,7 +144,7 @@ Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
 // assignment operator
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
   if (this != &that) {
-    crystal = that.crystal;
+    crystal_ = that.crystal_;
     nr2 = that.nr2;
     nr3 = that.nr3;
     numAtoms = that.numAtoms;
