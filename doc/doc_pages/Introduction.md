@@ -1,4 +1,4 @@
-@mainpage Overview
+@mainpage Introduction
 
 Phoebe is a software for the characterization of transport properties from ab-initio, such as electron-phonon limited conductivity and phonon thermal conductivity. This C++ code supports GPU acceleration for modern HPC infrastructures.
 

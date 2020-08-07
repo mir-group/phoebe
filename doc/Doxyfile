@@ -829,17 +829,18 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT = ./doc_pages/GettingStarted.md \
-        ./doc_pages/Overview.md \
-	./doc_pages/Theory.md \
-	./doc_pages/dynamicalMatrix.md \
-	./doc_pages/fourierInterpolation.md \
-	./doc_pages/wannierHarmonic.md \
-	./doc_pages/specificHeat.md \
-	./doc_pages/statistics.md \
-	./doc_pages/phononBTE.md \
-	./doc_pages/wignerThermal.md \ 
-	./doc_pages/elphInterpolation.md \
+INPUT = ./doc_pages/Doxygen.md \
+        ./doc_pages/Introduction.md \
+	./doc_pages/Installation.md \
+	./doc_pages/Theory/Theory.md \
+	./doc_pages/Theory/dynamicalMatrix.md \
+	./doc_pages/Theory/fourierInterpolation.md \
+	./doc_pages/Theory/wannierHarmonic.md \
+	./doc_pages/Theory/specificHeat.md \
+	./doc_pages/Theory/statistics.md \
+	./doc_pages/Theory/phononBTE.md \
+	./doc_pages/Theory/wignerThermal.md \ 
+	./doc_pages/Theory/elphInterpolation.md \
 	./doc_pages/  \
 	./doc_pages/developerOverview.md \
 	../src/ 
