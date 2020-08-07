@@ -32,7 +32,7 @@ DOXYFILE_ENCODING      = UTF-8
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "phoebe"
+PROJECT_NAME           = "Phoebe"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -832,6 +832,10 @@ WARN_LOGFILE           =
 INPUT = ./doc_pages/Doxygen.md \
         ./doc_pages/Introduction.md \
 	./doc_pages/Installation.md \
+	./doc_pages/Running.md \	
+	./doc_pages/Units.md \
+	./doc_pages/InputFiles.md \
+	./doc_pages/Postprocessing.md \
 	./doc_pages/Theory/Theory.md \
 	./doc_pages/Theory/dynamicalMatrix.md \
 	./doc_pages/Theory/fourierInterpolation.md \
@@ -841,8 +845,10 @@ INPUT = ./doc_pages/Doxygen.md \
 	./doc_pages/Theory/phononBTE.md \
 	./doc_pages/Theory/wignerThermal.md \ 
 	./doc_pages/Theory/elphInterpolation.md \
-	./doc_pages/  \
+	./doc_pages/Tutorial.md \
+	./doc_pages/UnitTesting.md \
 	./doc_pages/developerOverview.md \
+	./doc_pages/  \
 	../src/ 
 
 # This tag can be used to specify the character encoding of the source files

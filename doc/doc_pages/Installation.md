@@ -1,2 +1,5 @@
 @page Installation Installation
-@section sec1 sec1
+@section Download Download
+@section Prerequisites Prerequisites
+@section Cmake Cmake build
+@section Install Installation instructions for common workstations and supercomputers
