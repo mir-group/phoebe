@@ -201,9 +201,9 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols) {
 
-  // if blacs is not initalized, we need to start it. 
-  mpi->initBlacs(); 
-  
+  // if blacs is not initalized, we need to start it.
+  mpi->initBlacs();
+
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
@@ -275,7 +275,7 @@ ParallelMatrix<T>::ParallelMatrix() {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
-  mpi->initBlacs(); 
+  mpi->initBlacs();
 }
 
 template <typename T>
@@ -464,7 +464,7 @@ std::vector<std::pair<int, int>> ParallelMatrix<T>::getAllLocalWavevectors(
     std::pair<int,int> xx = std::make_pair(ik1.get(), ik2.get());
     x.insert(xx);
   }
-  std::vector<std::pair<int, int>> wavevectorPairs(x.size());
+  std::vector<std::pair<int, int>> wavevectorPairs;
   for ( auto t : x ) {
     wavevectorPairs.push_back(t);
   }
