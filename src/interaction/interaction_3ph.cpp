@@ -132,6 +132,19 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
     }
   }
   Kokkos::deep_copy(D3_k, D3_h);
+
+  // get available memory from environment variable,
+  // defaults to 16 GB set in the header file
+  char *memstr = std::getenv("MAXMEM");
+  if (memstr != NULL) {
+    maxmem = std::atof(memstr) * 1.0e9;
+  }
+  if (mpi->mpiHead()) {
+    printf("The maximal memory used for the coupling calculation will be %g "
+           "GB,\nset the MAXMEM environment variable to the preferred memory "
+           "usage in GB.\n",
+           maxmem / 1.0e9);
+  }
 }
 
 // copy constructor
@@ -226,7 +239,7 @@ Interaction3Ph::getCouplingsSquared(
     std::vector<Eigen::MatrixXcd> ev3Minss_e, std::vector<int> nb1s_e, int nb2,
     std::vector<int> nb3Pluss_e, std::vector<int> nb3Minss_e) {
 
-  int nr2 = this->nr2;
+  (void) q2_e;
   int nr3 = this->nr3;
   int numBands = this->numBands;
   Kokkos::complex<double> complexI(0.0, 1.0);
@@ -502,3 +515,40 @@ Interaction3Ph::~Interaction3Ph() {
               << std::endl;
   }
 }
+
+int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
+  int maxnb1 = numBands;
+  int maxnb3Plus = numBands;
+  int maxnb3Mins = numBands;
+
+  // available memory is MAXMEM minus size of D3, D3cache and ev2
+  double availmem =
+      maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
+      8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
+
+  // memory used by different tensors
+  // Note: 16 (2*16) is the size of double (complex<double>) in bytes
+  double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
+  double phase = 16 * nr3;
+  double tmp = 2 * 16 * numBands * numBands * numBands;
+  double tmp1 = 2 * 16 * maxnb1 * numBands * numBands;
+  double tmp2 = 2 * 16 * maxnb1 * nb2 * numBands;
+  double v = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
+  double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
+  double maxusage = nq1 * (evs + std::max({phase + tmp, tmp + tmp1,
+                                           tmp1 + tmp2, tmp2 + v, v + c}));
+
+  // the number of batches needed
+  int numBatches = std::ceil(maxusage / availmem);
+
+  if (availmem < maxusage / nq1) {
+    // not enough memory to do even a single q1
+    std::cerr << "maxmem = " << maxmem / 1e9
+              << ", availmem = " << availmem / 1e9
+              << ", maxusage = " << maxusage / 1e9
+              << ", numBatches = " << numBatches << "\n";
+    Error e("Insufficient memory!");
+  }
+  return numBatches;
+}
+

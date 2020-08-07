@@ -1,29 +1,34 @@
 #ifndef PHINTERACTION_H
 #define PHINTERACTION_H
 
-#include "constants.h"
-#include "crystal.h"
-#include "eigen.h"
-#include "points.h"
-#include "state.h"
-#include "utilities.h"
 #include <Kokkos_Core.hpp>
 #include <chrono>
 #include <cmath>
 #include <complex>
 #include <iomanip>
 
+#include "constants.h"
+#include "crystal.h"
+#include "eigen.h"
+#include "points.h"
+#include "state.h"
+#include "utilities.h"
+
 /** Class to calculate the probability rate for one 3-phonon scattering event.
  * In physical notation, this corresponds to the calculation of the term |V3|^2.
  * This class must be schematically used as follow:
  * for (iq2) {
  *   cacheD3()
- *   for (iq1) {
+ *   int numBatches = coupling3Ph->estimateNumBatches(nq1, nb2);
+ *   for (batch : batches) {
  *     getCouplingsSquared()
+ *     for ( iq1 : batch ) {
+ *       ...
  *
  * The cacheD3() does a partial Fourier transform over the R2 Bravais lattice
- * vector, while getCouplingSquared() does the Fourier transform over the R1
- * Bravais lattice vectors for a bunch of q1 and (q3 = q1 +- q2) wavevectors.
+ * vector. The list of all q1 wavevectors is split in batches, and the
+ * getCouplingSquared() does the Fourier transform over the R1  Bravais lattice
+ * vectors for all the wavevectors q1 and (q3 = q1 +- q2) in the batch.
  *
  * This calculation is GPU optimized. We found that the R1 fourier-transform
  * should be done for a bunch of q1/q3 wavevectors in order to optimize the
@@ -38,13 +43,15 @@
  * a 6-dimensional Fourier transform is enough (and avoid a 9D FT).
  */
 class Interaction3Ph {
-private:
+ private:
   Crystal &crystal_;
 
   // variables to be saved on the GPU
   Kokkos::View<double *****> D3_k;
   Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
   Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
+
+  double maxmem = 16.0e9;  // default 16 Gb memory space for computation
 
   // variables for timing
   typedef std::chrono::steady_clock::time_point time_point;
@@ -56,7 +63,7 @@ private:
            1e9;
   };
 
-public:
+ public:
   int nr2, nr3, numAtoms, numBands;
 
   /** Default constructor.
@@ -79,11 +86,10 @@ public:
    * @param displacedAtoms: indices of the atoms that are displaced for each
    * element (triplet) of the Ifc3Tensor.
    */
-  Interaction3Ph(
-      Crystal &crystal_, long &numTriplets,
-      Eigen::Tensor<double, 4> &ifc3Tensor,
-      Eigen::Tensor<double, 3> &cellPositions,
-      Eigen::Tensor<long, 2> &displacedAtoms);
+  Interaction3Ph(Crystal &crystal_, long &numTriplets,
+                 Eigen::Tensor<double, 4> &ifc3Tensor,
+                 Eigen::Tensor<double, 3> &cellPositions,
+                 Eigen::Tensor<long, 2> &displacedAtoms);
 
   /** Copy constructor
    */
@@ -130,6 +136,14 @@ public:
   /** Destructor method, which prints a summary of execution times.
    */
   ~Interaction3Ph();
+
+  /** Estimate the number of batches that the list of q1 wavevectors must be
+   * split into, in order to fit in memory.
+   *
+   * @param nq1: total number of q1 wavevectors to be split in batches
+   * @param nb2: number of bands at the q2 wavevector.
+   */
+  int estimateNumBatches(const int &nq1, const int &nb2);
 };
 
 #endif

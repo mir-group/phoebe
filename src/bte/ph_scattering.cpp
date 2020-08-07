@@ -166,22 +166,6 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
-  // get available memory from environment variable,
-  // defaults to 16 GB
-  double maxmem = 16.0e9;
-  {
-    char *memstr = std::getenv("MAXMEM");
-    if (memstr != NULL) {
-      maxmem = std::atof(memstr) * 1.0e9;
-    }
-    if (mpi->mpiHead()) {
-      printf("The maximal memory used for the coupling calculation will be %g "
-             "GB,\nset the MAXMEM environment variable to the preferred memory "
-             "usage in GB.\n",
-             maxmem / 1.0e9);
-    }
-  }
-
   // outer loop over q2
   for (auto tup : qPairIterator) {
     auto iq1Indexes = std::get<0>(tup);
@@ -197,43 +181,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     loopPrint.update();
     pointHelper.prepare(iq1Indexes, iq2);
 
-    int numBatches;
     // prepare batches based on memory usage
-    {
-      int nr2 = coupling3Ph->nr2;
-      int nr3 = coupling3Ph->nr3;
-      int numBands = coupling3Ph->numBands;
-      int maxnb1 = numBands, maxnb3Plus = numBands, maxnb3Mins = numBands;
-
-      // available memory is MAXMEM minus size of D3, D3cache and ev2
-      double availmem =
-          maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
-          8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
-
-      // memory used by different tensors
-      // Note: 16 (2*16) is the size of double (complex<double>) in bytes
-      double evs = 16 * numBands * (maxnb1 + maxnb3Plus + maxnb3Mins);
-      double phase = 16 * nr3;
-      double tmp = 2 * 16 * numBands * numBands * numBands;
-      double tmp1 = 2 * 16 * maxnb1 * numBands * numBands;
-      double tmp2 = 2 * 16 * maxnb1 * nb2 * numBands;
-      double v = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
-      double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
-      double maxusage = nq1 * (evs + std::max({phase + tmp, tmp + tmp1,
-                                               tmp1 + tmp2, tmp2 + v, v + c}));
-
-      // the number of batches needed
-      numBatches = std::ceil(maxusage / availmem);
-
-      if (availmem < maxusage / nq1) {
-        // not enough memory to do even a single q1
-        std::cerr << "maxmem = " << maxmem / 1e9
-                  << ", availmem = " << availmem / 1e9
-                  << ", maxusage = " << maxusage / 1e9
-                  << ", numBatches = " << numBatches << "\n";
-        throw std::runtime_error("Insufficient memory!");
-      }
-    }
+    int numBatches = coupling3Ph->estimateNumBatches(nq1, nb2);
 
     Eigen::Vector3d q2_e;
     Eigen::MatrixXcd ev2_e;
