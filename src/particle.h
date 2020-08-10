@@ -82,6 +82,8 @@ public:
     /** Method to check if the particle is a phonon.
      */
     bool isPhonon();
+
+    int getParticleKind();
 private:
     static const int fermi = 0;
     static const int bose = 1;

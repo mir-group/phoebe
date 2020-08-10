@@ -57,6 +57,7 @@ long BaseBandStructure::getIndex(const WavevectorIndex &ik,
 std::tuple<WavevectorIndex,BandIndex> BaseBandStructure::getIndex(
         const long &is) {
     Error e("BaseBandStructure method not implemented");
+    (void) is;
     auto ikk = WavevectorIndex(-1);
     auto ibb = BandIndex(-1);
     return {ikk, ibb};
@@ -88,6 +89,11 @@ Eigen::Vector3d BaseBandStructure::getWavevector(const long &stateIndex) {
     Error e("BaseBandStructure method not implemented");
     (void) stateIndex;
     return Eigen::Vector3d::Zero();
+}
+
+double BaseBandStructure::getWeight(const long &stateIndex) {
+  (void) stateIndex;
+  return 0.;
 }
 
 void BaseBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
@@ -259,12 +265,16 @@ long FullBandStructure::getNumStates() {
 }
 
 const double& FullBandStructure::getEnergy(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
     return energies(ib, ik);
 }
 
 Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
     Eigen::Vector3d vel;
     for (long i = 0; i < 3; i++) {
         long ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
@@ -274,8 +284,17 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
-    return points.getPoint(ik).getCoords(Points::cartesianCoords);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+    return points.getPoint(ik).getCoords(Points::cartesianCoords,true);
+}
+
+double FullBandStructure::getWeight(const long &stateIndex) {
+  auto tup = getIndex(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+  return points.getWeight(ik.get());
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,

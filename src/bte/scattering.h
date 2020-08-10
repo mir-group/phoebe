@@ -126,6 +126,7 @@ protected:
     long numPoints; // number of wavevectors
     long numCalcs; // number of "Calculations", i.e. number of temperatures and
     // chemical potentials on which we compute scattering.
+    int dimensionality_;
 
     // this is to exclude problematic Bloch states, e.g. acoustic phonon modes
     // at gamma, which have zero frequencies and thus have several non-analytic
@@ -156,7 +157,7 @@ protected:
      * @return vector<tuple<iq1,iq2>>: a tuple of wavevector indices to loop
      * over in the construction of the scattering matrix.
      */
-    std::vector<std::tuple<long,long>> getIteratorWavevectorPairs(
+    std::vector<std::tuple<std::vector<long>,long>> getIteratorWavevectorPairs(
             const int & switchCase);
 };
 

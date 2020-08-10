@@ -24,20 +24,24 @@ SpecificHeat& SpecificHeat::operator =(const SpecificHeat &that) {
 }
 
 void SpecificHeat::calc() {
-    double norm = 1. / bandStructure.getNumPoints(true)
-            / crystal.getVolumeUnitCell(dimensionality);
-    scalar.setZero();
-    auto particle = bandStructure.getParticle();
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        for (long is = 0; is < bandStructure.getNumStates(); is++) {
-            auto en = bandStructure.getEnergy(is);
-            auto dndt = particle.getDndt(en, temp, chemPot);
-            scalar(iCalc) += dndt * en * norm;
-        }
+  double norm = 1. / bandStructure.getNumPoints(true)
+          / crystal.getVolumeUnitCell(dimensionality);
+  scalar.setZero();
+  auto particle = bandStructure.getParticle();
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    double chemPot = calcStat.chemicalPotential;
+
+    double sum = 0.;
+    #pragma omp parallel for reduction(+ : sum)
+    for (long is = 0; is < bandStructure.getNumStates(); is++) {
+      auto en = bandStructure.getEnergy(is);
+      auto dndt = particle.getDndt(en, temp, chemPot);
+      sum += dndt * en * norm;
     }
+    scalar(iCalc) = sum;
+  }
 }
 
 void SpecificHeat::print() {
@@ -69,7 +73,7 @@ void SpecificHeat::print() {
         std::cout << std::scientific;
         std::cout.precision(5);
         std::cout << scalar(iCalc) * conversion;
-        std::cout << "\n";
+        std::cout << std::endl;
     }
 }
 

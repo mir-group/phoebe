@@ -4,6 +4,8 @@
 #include <chrono>
 #include <complex>
 #include <vector>
+#include "eigen.h" 
+#include "context.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -11,30 +13,41 @@
 
 class MPIcontroller {
  private:
-  // MPI_Comm com; // MPI communicator -- might not need this, can just call
+
   // default comm "MPI_COMM_WORLD"
   int size = 0;  // number of MPI processses
   int rank;
   const int mpiHeadId = 0;
 
-#ifdef MPI_AVAIL
-  double startTime;  // the time for the entire mpi operation
-#else
-  std::chrono::steady_clock::time_point startTime;
-#endif
+  #ifdef MPI_AVAIL
+    double startTime;  // the time for the entire mpi operation
+  #else
+    std::chrono::steady_clock::time_point startTime;
+  #endif
 
+  int hasBlacs; 
   int blasRank_;
   int blacsContext_;
   int numBlasRows_, numBlasCols_;
   int myBlasRow_, myBlasCol_;
   char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
+  // store labor division information
+  std::vector<int> workDivisionHeads;  // start points for each rank's work
+  std::vector<int> workDivisionTails;  // end points for each rank's work
+
  public:
   // MPIcontroller class constructors -----------------------------------
   /** a constructor which sets up the MPI environment, initializes the
    * communicator, and starts a timer **/
   MPIcontroller();
-  ~MPIcontroller();
+  //~MPIcontroller(); 
+
+  /** A method to initialize blacs parameters, if needed. 
+  * @param context: pass input information, which is used to determine 
+  *     if this is a blacs necessary application case. 
+  */
+  void initBlacs(); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
@@ -58,7 +71,7 @@ class MPIcontroller {
    * Gets overwritten with the result of the MPI allreduce('SUM') operation.
    */
   template <typename T>
-  void allReduceSum(T* data) const;
+  void allReduceSum(T* dataIn) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank,
@@ -126,10 +139,6 @@ class MPIcontroller {
   void mpiRead();
   void mpiAppend();
 
-  // Labor division helper functions
-  int workHead();  // get the first task assigned to a rank
-  int workTail();  // get the last task assigned to a rank
-
   int getNumBlasRows();
   int getNumBlasCols();
   int getMyBlasRow();
@@ -140,56 +149,88 @@ class MPIcontroller {
    * @return divs: returns a vector of length 2, containing start and stop
    *       points for the divided number of tasks.
    */
-  std::vector<int> divideWork(size_t numTasks);  // divide up a set of work
+  void divideWork(size_t numTasks);  // divide up a set of work
+  int workHead(); // get the first task assigned to a rank
+  int workTail(); // get the last task assigned to a rank
   std::vector<int> divideWorkIter(size_t numTasks);
 
- private:
-  // store labor division information
-  std::vector<int> workDivisionHeads;  // start points for each rank's work
-  std::vector<int> workDivisionTails;  // end points for each rank's work
 };
 
 // we need to use the concept of a "type traits" object to serialize the
 // standard cpp types and then we can define specific implementations of this
 // for types which are not standard
 namespace mpiContainer {
-#ifdef MPI_AVAIL
-// Forward declaration for a basic container type
-template <typename...>
-struct containerType;
+        #ifdef MPI_AVAIL
+        // Forward declaration for a basic container type
+        template <typename...>
+        struct containerType;
 
-// Define a macro to shorthand define this container for scalar types
-// Size for basic scalar types will always be 1
-#define MPIDataType(cppType, mpiType)                                 \
-  template <>                                                         \
-  struct containerType<cppType> {                                     \
-    static inline cppType* getAddress(cppType* data) { return data; } \
-    static inline size_t getSize(cppType* data) {                     \
-      if (!data) return 0;                                            \
-      return 1;                                                       \
-    }                                                                 \
-    static inline MPI_Datatype getMPItype() { return mpiType; }       \
-  };
+        // Define a macro to shorthand define this container for scalar types
+        // Size for basic scalar types will always be 1
+        #define MPIDataType(cppType, mpiType)                                 \
+          template <>                                                         \
+          struct containerType<cppType> {                                     \
+            static inline cppType* getAddress(cppType* data) { return data; } \
+            static inline size_t getSize(cppType* data) {                     \
+              if (!data) return 0;                                            \
+              return 1;                                                       \
+            }                                                                 \
+            static inline MPI_Datatype getMPItype() { return mpiType; }       \
+          };
 
-// Use definition to generate containers for scalar types
-MPIDataType(int, MPI_INT) MPIDataType(long, MPI_LONG)
-    MPIDataType(unsigned int, MPI_UNSIGNED) MPIDataType(float, MPI_FLOAT)
+        // Use definition to generate containers for scalar types
+        MPIDataType(int, MPI_INT) 
+        MPIDataType(long, MPI_LONG)
+        MPIDataType(unsigned int, MPI_UNSIGNED) 
+        MPIDataType(float, MPI_FLOAT)
         MPIDataType(double, MPI_DOUBLE)
+        MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
+        MPIDataType(std::complex<float>, MPI_COMPLEX)
 
-            MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
-                MPIDataType(std::complex<float>, MPI_COMPLEX)
-#undef MPIDataType
+        #undef MPIDataType
 
-    // A container for a std::vector
-    template <typename T>
-    struct containerType<std::vector<T>> {
-  static inline T* getAddress(std::vector<T>* data) { return data->data(); }
-  static inline size_t getSize(std::vector<T>* data) { return data->size(); }
-  static inline MPI_Datatype getMPItype() {
-    return containerType<T>::getMPItype();
-  }
-};
-// TODO: Define any other useful containers (a matrix? a standard array?)
+        // A container for a std::vector
+        template <typename T> struct containerType<std::vector<T>> {
+                static inline T* getAddress(std::vector<T>* data) { return data->data(); }
+                static inline size_t getSize(std::vector<T>* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
+        // Container for <Eigen::Matrix<T, -1, 1, 0, -1, 1>
+        template <typename T> struct containerType<Eigen::Matrix<T, -1, 1, 0, -1, 1>> {
+                static inline T* getAddress(Eigen::Matrix<T, -1, 1, 0, -1, 1>* data) { return data->data(); }
+                static inline size_t getSize(Eigen::Matrix<T, -1, 1, 0, -1, 1>* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
+        // Container for <Eigen::Matrix<T, -1, -1>
+        template <typename T> struct containerType<Eigen::Matrix<T, -1, -1>> {
+                static inline T* getAddress(Eigen::Matrix<T, -1, -1>* data) { return data->data(); }
+                static inline size_t getSize(Eigen::Matrix<T, -1, -1>* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
+        // Container for Eigen::Tensor<T, 5>
+        template <typename T> struct containerType<Eigen::Tensor<T, 5>> {
+                static inline T* getAddress(Eigen::Tensor<T, 5>* data) { return data->data(); }
+                static inline size_t getSize(Eigen::Tensor<T, 5>* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
+        // Container for Eigen::Tensor<T, 3>
+        template <typename T> struct containerType<Eigen::Tensor<T, 3>> {
+                static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }
+                static inline size_t getSize(Eigen::Tensor<T, 3>* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        }; 
+        // Container for Eigen::MatrixXi
+        template <> struct containerType<Eigen::MatrixXi> {
+                static inline int* getAddress(Eigen::MatrixXi* data) { return data->data(); }
+                static inline size_t getSize(Eigen::MatrixXi* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
+        // Container for Eigen::VectorXi
+        template <> struct containerType<Eigen::VectorXi> {
+                static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
+                static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
+                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
 
 #endif
 }  // namespace mpiContainer
@@ -250,23 +291,23 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
     errorReport(errCode);
   }
 #endif
-}
+} 
 
-// template <typename T>
-// void MPIcontroller::allReduceSum(T* data) const {
-//  using namespace mpiContainer;
-//#ifdef MPI_AVAIL
-//  if (size == 1) return;
-//  int errCode;
-//  errCode =
-//      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(data),
-//                    containerType<T>::getSize(data),
-//                    containerType<T>::getMPItype(), MPI_SUM, MPI_COMM_WORLD);
-//  if (errCode != MPI_SUCCESS) {
-//    errorReport(errCode);
-//  }
-//#endif
-//}
+template <typename T>
+void MPIcontroller::allReduceSum(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_SUM, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
+}
 
 template <typename T>
 void MPIcontroller::reduceMax(T* dataIn) const {
@@ -321,31 +362,26 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   int errCode;
-  int numTasks = containerType<T>::getSize(dataOut);
   std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = (numTasks * (rank + 1)) / size - (numTasks * rank) / size;
-    workDivisionHeads[i] = (numTasks * i) / size;
-  }
+  for (int i = 0; i < size; i++)
+    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
+
   errCode = MPI_Gatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
       containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
       workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
-      mpiHeadId, MPI_COMM_WORLD);
+      0, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
 #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  dataOut = dataIn;  // in serial, we just switch pointers.
 #endif
 }
 
-template <typename T>
-void MPIcontroller::gather(T* dataIn, T* dataOut) const {
-  using namespace mpiContainer;
+  template <typename T>
+  void MPIcontroller::gather(T * dataIn, T * dataOut) const {
+    using namespace mpiContainer;
 #ifdef MPI_AVAIL
   int errCode;
   int numTasks = containerType<T>::getSize(dataOut);

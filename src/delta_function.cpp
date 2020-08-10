@@ -62,7 +62,9 @@ double GaussianDeltaFunction::getSmearing(const double &energy, const long &iq,
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
         BaseBandStructure &bandStructure) {
-    auto [mesh,offset] = bandStructure.getPoints().getMesh();
+    auto tup = bandStructure.getPoints().getMesh();
+ auto mesh = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
     qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
     qTensor.row(0) /= mesh(0);
     qTensor.row(1) /= mesh(1);
@@ -108,7 +110,9 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
         fullBandStructure(fullBandStructure_) {
 
     auto fullPoints = fullBandStructure.getPoints();
-    auto [grid, offset] = fullPoints.getMesh();
+    auto tup = fullPoints.getMesh();
+ auto grid = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
     if (offset.norm() > 0.) {
         Error e("We didnt' implement tetrahedra with offsets", 1);
     }
@@ -153,12 +157,12 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
         point(1) *= grid(1);
         point(2) *= grid(2);
 
-        long i = long(point(0));
-        long j = long(point(1));
-        long k = long(point(2));
-        long ip1 = mod((i + 1), grid(0));
-        long jp1 = mod((j + 1), grid(1));
-        long kp1 = mod((k + 1), grid(2));
+        int i = int(point(0));
+        int j = int(point(1));
+        int k = int(point(2));
+        int ip1 = mod((i + 1), grid(0));
+        int jp1 = mod((j + 1), grid(1));
+        int kp1 = mod((k + 1), grid(2));
 
         subcellCorners << i, j, k,
                 ip1, j, k,
@@ -169,8 +173,8 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
                 i, jp1, kp1,
                 ip1, jp1, kp1;
 
-        for (long it = 0; it < 6; it++) { //over 6 tetrahedra
-            for (long iv = 0; iv < 4; iv++) { //over 4 vertices
+        for (int it = 0; it < 6; it++) { //over 6 tetrahedra
+            for (int iv = 0; iv < 4; iv++) { //over 4 vertices
                 // Grab a label
                 long aux = verticesLabels(it, iv);
                 // Grab a corner of subcell
@@ -204,8 +208,8 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 
     for (long it = 0; it < numTetra; it++) { //over tetrahedra
         //over bands
-        for (long ib = 0; ib < numBands; ib++) {
-            for (long iv = 0; iv < 4; iv++) { //over vertices
+        for (int ib = 0; ib < numBands; ib++) {
+            for (int iv = 0; iv < 4; iv++) { //over vertices
                 // Index of wave vector
                 long ik = tetrahedra(it, iv);
 
@@ -220,7 +224,7 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
             //sort energies in the vertex
             std::sort(temp.begin(), temp.end());
             //refill tetrahedron vertex
-            for (long iv = 0; iv < 4; iv++) {
+            for (int iv = 0; iv < 4; iv++) {
                 tetraEigVals(it, ib, iv) = temp[iv];
             }
         }
@@ -231,8 +235,8 @@ double TetrahedronDeltaFunction::getDOS(const double &energy) {
     // initialize tetrahedron weight
     double weight = 0.;
 
-    for (long iq = 0; iq < fullBandStructure.getNumPoints(); iq++) {
-        for (long ib = 0; ib < fullBandStructure.getNumBands(); ib++) {
+    for (int iq = 0; iq < fullBandStructure.getNumPoints(); iq++) {
+        for (int ib = 0; ib < fullBandStructure.getNumBands(); ib++) {
             weight += getWeight(energy, iq, ib);
         }
     }

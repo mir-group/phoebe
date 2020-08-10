@@ -15,6 +15,7 @@
 #include "pugixml.hpp"
 #include "qe_input_parser.h"
 #include "utilities.h"
+#include "full_points.h"
 
 void latgen(const int ibrav, Eigen::VectorXd &celldm,
             Eigen::Matrix3d &unitCell) {
@@ -420,14 +421,14 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   celldm(4) = std::stod(lineSplit[7]);
   celldm(5) = std::stod(lineSplit[8]);
 
-  Eigen::Matrix3d directUnitCell(3, 3);
+  Eigen::Matrix3d directUnitCell;
   if (ibrav == 0) {
     // In this case, unitCell is written in the file (in angstroms?)
     for (int i = 0; i < 3; i++) {
       std::getline(infile, line);
       lineSplit = split(line, ' ');
       for (int j = 0; j < 3; j++) {
-        directUnitCell(i, j) = std::stod(lineSplit[j]);
+        directUnitCell(j, i) = std::stod(lineSplit[j]);
       }
     };
   };
@@ -446,15 +447,19 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   };
 
   //  we read the atomic positions
+  // in the file, they appear in crystal coordinates
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
   for (int i = 0; i < numAtoms; i++) {
     std::getline(infile, line);
     lineSplit = split(line, ' ');
     atomicSpecies(i) = std::stoi(lineSplit[1]) - 1;
-    atomicPositions(i, 0) = std::stod(lineSplit[2]);
-    atomicPositions(i, 1) = std::stod(lineSplit[3]);
-    atomicPositions(i, 2) = std::stod(lineSplit[4]);
+    Eigen::Vector3d tmpVec;
+    tmpVec(0) = std::stod(lineSplit[2]);
+    tmpVec(1) = std::stod(lineSplit[3]);
+    tmpVec(2) = std::stod(lineSplit[4]);
+    // we convert from crystal to cartesian coordinates
+    atomicPositions.row(i) = celldm(0) * tmpVec;
   }
 
   //  Read if hasDielectric
@@ -504,7 +509,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   qCoarseGrid(2) = std::stoi(lineSplit[2]);
 
   Eigen::Tensor<double, 7> forceConstants(
-      qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], 3, 3, numAtoms, numAtoms);
+      3, 3, qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], numAtoms, numAtoms);
 
   int m1Test;
   int m2Test;
@@ -524,7 +529,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
                 std::getline(infile, line);
                 std::istringstream iss(line);
                 iss >> m1Test >> m2Test >> m3Test >> x;
-                forceConstants(r1, r2, r3, ic, jc, iat, jat) = x;
+                forceConstants(ic, jc, r1, r2, r3, iat, jat) = x;
               }
             }
           }
@@ -548,8 +553,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   //	Now, let's try to diagonalize some points, and start debugging at q=0
 
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
-                           forceConstants);
-  dynamicalMatrix.setAcousticSumRule(context.getSumRuleD2());
+                           forceConstants, context.getSumRuleD2());
 
   return {crystal, dynamicalMatrix};
 };
@@ -654,15 +658,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
   pugi::xml_node cell = atomicStructure.child("cell");
   lineSplit = split(cell.child_value("a1"), ' ');
   directUnitCell(0, 0) = std::stod(lineSplit[0]);
-  directUnitCell(0, 1) = std::stod(lineSplit[1]);
-  directUnitCell(0, 2) = std::stod(lineSplit[2]);
+  directUnitCell(1, 0) = std::stod(lineSplit[1]);
+  directUnitCell(2, 0) = std::stod(lineSplit[2]);
   lineSplit = split(cell.child_value("a2"), ' ');
-  directUnitCell(1, 0) = std::stod(lineSplit[0]);
+  directUnitCell(0, 1) = std::stod(lineSplit[0]);
   directUnitCell(1, 1) = std::stod(lineSplit[1]);
-  directUnitCell(1, 2) = std::stod(lineSplit[2]);
+  directUnitCell(2, 1) = std::stod(lineSplit[2]);
   lineSplit = split(cell.child_value("a3"), ' ');
-  directUnitCell(2, 0) = std::stod(lineSplit[0]);
-  directUnitCell(2, 1) = std::stod(lineSplit[1]);
+  directUnitCell(0, 2) = std::stod(lineSplit[0]);
+  directUnitCell(1, 2) = std::stod(lineSplit[1]);
   directUnitCell(2, 2) = std::stod(lineSplit[2]);
 
   // Now we parse the electronic structure
@@ -701,15 +705,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
   Eigen::Matrix3d bVectors;
   lineSplit = split(recCell.child_value("b1"), ' ');
   bVectors(0, 0) = std::stod(lineSplit[0]);
-  bVectors(0, 1) = std::stod(lineSplit[1]);
-  bVectors(0, 2) = std::stod(lineSplit[2]);
+  bVectors(1, 0) = std::stod(lineSplit[1]);
+  bVectors(2, 0) = std::stod(lineSplit[2]);
   lineSplit = split(recCell.child_value("b2"), ' ');
-  bVectors(1, 0) = std::stod(lineSplit[0]);
+  bVectors(0, 1) = std::stod(lineSplit[0]);
   bVectors(1, 1) = std::stod(lineSplit[1]);
-  bVectors(1, 2) = std::stod(lineSplit[2]);
+  bVectors(2, 1) = std::stod(lineSplit[2]);
   lineSplit = split(recCell.child_value("b3"), ' ');
-  bVectors(2, 0) = std::stod(lineSplit[0]);
-  bVectors(2, 1) = std::stod(lineSplit[1]);
+  bVectors(0, 2) = std::stod(lineSplit[0]);
+  bVectors(1, 2) = std::stod(lineSplit[1]);
   bVectors(2, 2) = std::stod(lineSplit[2]);
 
   // parse k-points and energies
@@ -761,7 +765,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
     Error e("spin is not yet supported");
   }
 
-  auto [mesh, offset] = Points::findMesh(irredPoints);
+  auto tup = Points::findMesh(irredPoints);
+ auto mesh = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
   FullPoints coarsePoints(crystal, mesh, offset);
 
   bool withVelocities = false;
@@ -827,7 +833,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
     lineSplit = split(line, ' ');
     for (int j = 0; j < 3; j++) {
       // unit cell is written in angstrom
-      directUnitCell(i, j) = std::stod(lineSplit[j]) / distanceBohrToAng;
+      directUnitCell(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
     }
   };
 

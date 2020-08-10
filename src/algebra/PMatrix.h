@@ -18,6 +18,9 @@ using ParallelMatrix = Matrix<T>;
 
 #else
 
+#include <utility>
+#include <set>
+
 // double matrix (I skip the templates for now)
 template <typename T>
 class ParallelMatrix {
@@ -80,7 +83,7 @@ class ParallelMatrix {
    * local MPI process. This method is specifically made for the scattering
    * matrix, which has rows spanned by Bloch states (iq,ib)
    */
-  std::vector<std::tuple<long, long>> getAllLocalWavevectors(
+  std::vector<std::pair<int, int>> getAllLocalWavevectors(
       BaseBandStructure& bandStructure);
 
   /** Find the global indices of the matrix elements that are stored locally
@@ -168,6 +171,10 @@ template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols) {
+
+  // if blacs is not initalized, we need to start it.
+  mpi->initBlacs();
+
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
@@ -239,6 +246,7 @@ ParallelMatrix<T>::ParallelMatrix() {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
+  mpi->initBlacs();
 }
 
 template <typename T>
@@ -410,20 +418,26 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalWavevectors(
+std::vector<std::pair<int, int>> ParallelMatrix<T>::getAllLocalWavevectors(
     BaseBandStructure& bandStructure) {
-  std::vector<std::tuple<long, long>> wavevectorPairs;
+
+  std::set<std::pair<int,int>> x;
   for (long k = 0; k < numLocalElements_; k++) {
-    auto [is1, is2] = local2Global(k);  // bloch indices
-    auto [ik1, ib1] = bandStructure.getIndex(is1);
-    auto [ik2, ib2] = bandStructure.getIndex(is2);
-    // make a pair of these wavevectors
-    auto t = std::make_tuple(ik1.get(), ik2.get());
-    // add to list if unique
-    if (std::find(wavevectorPairs.begin(), wavevectorPairs.end(), t) ==
-        wavevectorPairs.end()) {
-      wavevectorPairs.push_back(t);
-    }
+    auto tup = local2Global(k);
+    auto is1 = std::get<0>(tup);
+    auto is2 = std::get<1>(tup);  // bloch indices
+    auto tup1 = bandStructure.getIndex(is1);
+    auto ik1 = std::get<0>(tup1);
+    auto ib1 = std::get<1>(tup1);
+    auto tup2 = bandStructure.getIndex(is2);
+    auto ik2 = std::get<0>(tup2);
+    auto ib2 = std::get<1>(tup2);
+    std::pair<int,int> xx = std::make_pair(ik1.get(), ik2.get());
+    x.insert(xx);
+  }
+  std::vector<std::pair<int, int>> wavevectorPairs;
+  for ( auto t : x ) {
+    wavevectorPairs.push_back(t);
   }
   return wavevectorPairs;
 }

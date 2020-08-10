@@ -105,10 +105,10 @@ ParallelMatrix<double>::diagonalize() {
   int ja = 1;       // row index from which we diagonalize
 
   // find the value of lwork. These are internal "scratch" arrays
-  // Since it's fortran, this is the simple way to estimate the scratch size:
+  // clearly user-friendly, this is the simple way to estimate the scratch size
 
   int izero = 0;
-  int n = numRows_ * numCols_;
+  int n = numRows_;
   int nb = blockSizeRows_; // = MB_A = NB_A = MB_Z = NB_Z
   int kkk = myBlasCol_ + myBlasRow_ * numBlasCols_;
   int nrc = numroc_(&n, &nb, &kkk, &izero, &n);

@@ -2,6 +2,8 @@
 #include "context.h"
 #include "io.h"
 #include "mpi/mpiHelper.h"
+#include <Kokkos_Core.hpp>
+
 
 int main(int argc, char **argv) {
 
@@ -9,15 +11,14 @@ int main(int argc, char **argv) {
   // Call proxy function from MPI Helper, which makes mpi object
   // globally available.
   initMPI();
+  Kokkos::initialize(argc, argv);
 
   // setup input/output
   IO io(argc, argv);
   io.welcome();
 
   // Print parallelization info
-  if (mpi->mpiHead()) {
-    parallelInfo();
-  }
+  if (mpi->mpiHead()) parallelInfo();
 
   // Read user input file
   Context context; // instantiate class container of the user input
@@ -36,6 +37,7 @@ int main(int argc, char **argv) {
 
   // here close parallel environment
   // make sure all processes finish before printing end info
+  Kokkos::finalize();
   mpi->finalize();
 
   return (0);
