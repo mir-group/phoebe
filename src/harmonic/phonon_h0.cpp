@@ -995,9 +995,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     zeu_new -= zeu_w;
     sp_zeu(zeu_w, zeu_w, norm2);
-    std::cout << "Norm of the difference between old and new effective "
-                 "charges: "
-              << sqrt(norm2) << "\n";
+    if ( mpi->mpiHead() ) {
+      std::cout << "Norm of the difference between old and new effective "
+                   "charges: " << sqrt(norm2) << std::endl;
+    }
 
     for (long i = 0; i < 3; i++) {
       for (long j = 0; j < 3; j++) {
@@ -1371,8 +1372,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
     }
 
-    std::cout << "Norm of the difference between old and new "
-    "force-constants: " << sqrt(scal) << "\n";
+    if (mpi->mpiHead()) {
+      std::cout << "Norm of the difference between old and new "
+                   "force-constants: " << sqrt(scal) << std::endl;
+    }
 
 //    forceConstants = frc_new;
     for (long nb = 0; nb < numAtoms; nb++) {
