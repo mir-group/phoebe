@@ -168,9 +168,9 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols) {
 
-  // if blacs is not initalized, we need to start it. 
-  mpi->initBlacs(); 
-  
+  // if blacs is not initalized, we need to start it.
+  mpi->initBlacs();
+
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;

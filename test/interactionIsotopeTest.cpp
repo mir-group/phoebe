@@ -16,7 +16,9 @@ TEST (InteractionIsotope,Wphisoiq4) {
 	context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
 	context.setSumRuleD2("simple");
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+	auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
 	//Total number of wave vectors
 	int nq = 8*8*8;
@@ -57,7 +59,9 @@ TEST (InteractionIsotope,Wphisoiq4) {
 	//Eigenvector and angular frequencies at iq
 	int iq = 4; // = (0.5, 0, 0) in crystal coordinates
 	auto q1 = points.getPoint(iq);
-	auto [ens1,ev1] = phononH0.diagonalize(q1);
+	auto tup1 = phononH0.diagonalize(q1);
+ auto ens1 = std::get<0>(tup1);
+ auto ev1 = std::get<1>(tup1);
 
 	Eigen::Tensor<std::complex<double>,3> evt1(3,numAtoms,numBands);
 	Eigen::Tensor<std::complex<double>,3> evt2(3,numAtoms,numBands);
@@ -65,12 +69,16 @@ TEST (InteractionIsotope,Wphisoiq4) {
 	for ( int iq2 = 0; iq2 < nq; iq2++ ) { //integrate over
 		auto q2 = points.getPoint(iq2);
 		//Eigenvector and angular frequencies at jq
-		auto [ens2,ev2] = phononH0.diagonalize(q2);
+		auto tup = phononH0.diagonalize(q2);
+ auto ens2 = std::get<0>(tup);
+ auto ev2 = std::get<1>(tup);
 		//auto vsjq = phononH0.diagonalizeVelocity(jp);
 
 		for ( int i=0; i<numBands; i++ ) {
 			for ( int j=0; j<numBands; j++ ) {
-				auto [iat,idim] = decompress2Indeces(i,numAtoms,3);
+				auto tup = decompress2Indeces(i,numAtoms,3);
+ auto iat = std::get<0>(tup);
+ auto idim = std::get<1>(tup);
 				evt1(idim,iat,j) = ev1(i,j);
 				evt2(idim,iat,j) = ev2(i,j);
 			}

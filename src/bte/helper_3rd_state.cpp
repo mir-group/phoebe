@@ -18,7 +18,9 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
   // 2 - the mesh is gamma-centered
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
-  auto [mesh, offset] = outerBandStructure.getPoints().getMesh();
+  auto tup = outerBandStructure.getPoints().getMesh();
+ auto mesh = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
     storedAllQ3 = true;
@@ -34,7 +36,9 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
 
     // first, we build the full grid that the 3rd point would fall into
     auto innerPoints = innerBandStructure.getPoints();
-    auto [mesh, offset] = innerPoints.getMesh();
+    auto tup = innerPoints.getMesh();
+ auto mesh = std::get<0>(tup);
+ auto offset = std::get<1>(tup);
     fullPoints3 = std::make_unique<FullPoints>(
         innerBandStructure.getPoints().getCrystal(), mesh, offset);
 
@@ -233,8 +237,12 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
       Eigen::Vector3d q3Plus = q1 + q2;
       Eigen::Vector3d q3Mins = q1 - q2;
 
-      auto [energies3Plus, eigvecs3Plus] = h0->diagonalizeFromCoords(q3Plus);
-      auto [energies3Mins, eigvecs3Mins] = h0->diagonalizeFromCoords(q3Mins);
+      auto tup = h0->diagonalizeFromCoords(q3Plus);
+ auto energies3Plus = std::get<0>(tup);
+ auto eigvecs3Plus = std::get<1>(tup);
+      auto tup1 = h0->diagonalizeFromCoords(q3Mins);
+ auto energies3Mins = std::get<0>(tup1);
+ auto eigvecs3Mins = std::get<1>(tup1);
 
       int nb3Plus = energies3Plus.size();
       int nb3Mins = energies3Mins.size();

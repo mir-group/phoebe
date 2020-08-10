@@ -43,10 +43,6 @@ public:
   virtual void checkRequirements(Context &context);
 
 protected:
-  static const inline std::vector<std::string> choices{
-      "phononTransport",      "phononDos",           "electronWannierDos",
-      "electronFourierDos",   "phononBands",         "electronWannierBands",
-      "electronFourierBands", "electronPolarization"};
 
   void throwErrorIfUnset(const std::string &x, const std::string &name);
   void throwErrorIfUnset(const std::vector<std::string> &x,

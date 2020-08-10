@@ -265,12 +265,16 @@ long FullBandStructure::getNumStates() {
 }
 
 const double& FullBandStructure::getEnergy(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
     return energies(ib, ik);
 }
 
 Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
     Eigen::Vector3d vel;
     for (long i = 0; i < 3; i++) {
         long ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
@@ -280,12 +284,16 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
-    auto [ik,ib] = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
     return points.getPoint(ik).getCoords(Points::cartesianCoords,true);
 }
 
 double FullBandStructure::getWeight(const long &stateIndex) {
-  auto [ik,ib] = getIndex(stateIndex);
+  auto tup = getIndex(stateIndex);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
   return points.getWeight(ik.get());
 }
 

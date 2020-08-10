@@ -128,7 +128,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalize(
     Point &point) {
   Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
   bool withMassScaling = true;
-  auto [energies, eigenvectors] = diagonalizeFromCoords(q, withMassScaling);
+  auto tup = diagonalizeFromCoords(q, withMassScaling);
+  auto energies = std::get<0>(tup);
+  auto eigenvectors = std::get<1>(tup);
   return {energies, eigenvectors};
 }
 
@@ -187,7 +189,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 
   // once everything is ready, here we scale by masses and diagonalize
 
-  auto [energies, eigenvectors] = dyndiag(dyn);
+  auto tup = dyndiag(dyn);
+  auto energies = std::get<0>(tup);
+  auto eigenvectors = std::get<1>(tup);
 
   if (withMassScaling) {
     // we normalize with the mass.
@@ -216,7 +220,9 @@ FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
   for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
     Point point = fullBandStructure.getPoint(ik);
 
-    auto [ens, eigvecs] = diagonalize(point);
+    auto tup = diagonalize(point);
+    auto ens = std::get<0>(tup);
+    auto eigvecs = std::get<1>(tup);
     fullBandStructure.setEnergies(point, ens);
 
     if (withVelocities) {
@@ -819,7 +825,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
   }
 
   if (mpi->mpiHead()) {
-    std::cout << "Start imposing " << sumRule << " acoustic sum rule." 
+    std::cout << "Start imposing " << sumRule << " acoustic sum rule."
 	      << std::endl;
   }
 
@@ -989,9 +995,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     zeu_new -= zeu_w;
     sp_zeu(zeu_w, zeu_w, norm2);
-    std::cout << "Norm of the difference between old and new effective "
-                 "charges: "
-              << sqrt(norm2) << "\n";
+    if ( mpi->mpiHead() ) {
+      std::cout << "Norm of the difference between old and new effective "
+                   "charges: " << sqrt(norm2) << std::endl;
+    }
 
     for (long i = 0; i < 3; i++) {
       for (long j = 0; j < 3; j++) {
@@ -1365,8 +1372,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
     }
 
-    std::cout << "Norm of the difference between old and new "
-    "force-constants: " << sqrt(scal) << "\n";
+    if (mpi->mpiHead()) {
+      std::cout << "Norm of the difference between old and new "
+                   "force-constants: " << sqrt(scal) << std::endl;
+    }
 
 //    forceConstants = frc_new;
     for (long nb = 0; nb < numAtoms; nb++) {
@@ -1387,7 +1396,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
   }
   if (mpi->mpiHead()) {
-    std::cout << "Finished imposing " << sumRule << " acoustic sum rule." 
+    std::cout << "Finished imposing " << sumRule << " acoustic sum rule."
 	      << std::endl;
   }
 }
@@ -1428,8 +1437,9 @@ Eigen::Tensor<std::complex<double>, 3> PhononH0::diagonalizeVelocityFromCoords(
   bool withMassScaling = false;
 
   // get the eigenvectors and the energies of the q-point
-  auto [energies, eigenvectors] =
-      diagonalizeFromCoords(coords, withMassScaling);
+  auto tup =      diagonalizeFromCoords(coords, withMassScaling);
+  auto energies = std::get<0>(tup);
+  auto eigenvectors = std::get<1>(tup);
 
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.
@@ -1443,8 +1453,12 @@ Eigen::Tensor<std::complex<double>, 3> PhononH0::diagonalizeVelocityFromCoords(
     qMins(i) -= deltaQ;
 
     // diagonalize the dynamical matrix at q+ and q-
-    auto [enPlus, eigPlus] = diagonalizeFromCoords(qPlus, withMassScaling);
-    auto [enMins, eigMins] = diagonalizeFromCoords(qMins, withMassScaling);
+    auto tup = diagonalizeFromCoords(qPlus, withMassScaling);
+    auto enPlus = std::get<0>(tup);
+    auto eigPlus = std::get<1>(tup);
+    auto tup1 = diagonalizeFromCoords(qMins, withMassScaling);
+    auto enMins = std::get<0>(tup1);
+    auto eigMins = std::get<1>(tup1);
 
     // build diagonal matrices with frequencies
     Eigen::MatrixXd enPlusMat(numBands, numBands);
