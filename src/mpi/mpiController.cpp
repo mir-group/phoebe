@@ -13,71 +13,72 @@
 #endif
 
 // default constructor
-MPIcontroller::MPIcontroller(){
+MPIcontroller::MPIcontroller() {
+  // set default values for cases without MPI or blacs
+  hasBlacs = false;
+  blasRank_ = 0;
+  blacsContext_ = 0;
+  numBlasRows_ = 1;
+  numBlasCols_ = 1;
+  myBlasRow_ = 0;
+  myBlasCol_ = 0;
 
-        // set default values for cases without MPI or blacs
-        hasBlacs = false;
-        blasRank_ = 0;
-        blacsContext_ = 0;
-        numBlasRows_ = 1;
-        numBlasCols_ = 1;
-        myBlasRow_ = 0;
-        myBlasCol_ = 0;
+#ifdef MPI_AVAIL
+  // start the MPI environment
+  int errCode = MPI_Init(NULL, NULL);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
 
-	#ifdef MPI_AVAIL
-	// start the MPI environment
-        MPI_Init(NULL, NULL);
+  // set this so that MPI returns errors and lets us handle them, rather
+  // than using the default, MPI_ERRORS_ARE_FATAL
+  MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 
-        // set this so that MPI returns errors and lets us handle them, rather
-        // than using the default, MPI_ERRORS_ARE_FATAL
-        MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
+  // get the number of processes
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	// get the number of processes
-	MPI_Comm_size(MPI_COMM_WORLD, &size);
-	
-	// get rank of current process
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
-	// start a timer
-	startTime = MPI_Wtime();
+  // get rank of current process
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-	#else
-        // To maintain consistency when running in serial
-        size = 1;
-        rank = 0;  
-	startTime = std::chrono::steady_clock::now();
-	#endif
-	
+  // start a timer
+  startTime = MPI_Wtime();
+
+#else
+  // To maintain consistency when running in serial
+  size = 1;
+  rank = 0;
+  startTime = std::chrono::steady_clock::now();
+#endif
 }
 
 // Initialized blacs for the cases where the scattering matrix is used
 void MPIcontroller::initBlacs() {
+#ifdef MPI_AVAIL
+  if (!hasBlacs) {
+    // initBlacs should only be called once.
+    // by setting this to true, we prevent future calls
+    hasBlacs = true;
 
-        #ifdef MPI_AVAIL
-        if(!hasBlacs) { 
-          // initBlacs should only be called once. 
-          // by setting this to true, we prevent future calls
-          hasBlacs = true;
+    blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
+    int zero = 0;
+    blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
 
-          blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
-          int zero = 0;
-          blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+    numBlasRows_ = (int)(sqrt(size));  // int does rounding down (intentional!)
+    numBlasCols_ = numBlasRows_;       // scalapack requires square grid
 
-          numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
-          numBlasCols_ = numBlasRows_; // scalapack requires square grid
+    // we "pause" the processes that fall outside the blas grid
+    if (size > numBlasRows_ * numBlasCols_) {
+      Error e("Phoebe needs a square number of MPI processes");
+      // TODO: stop the extra MPI processes and continue with the rest.
+    }
 
-          // we "pause" the processes that fall outside the blas grid
-          if ( size > numBlasRows_*numBlasCols_ ) {
-            Error e("Phoebe needs a square number of MPI processes");
-            // TODO: stop the extra MPI processes and continue with the rest.
-          }
-
-          blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
-          // Context -> Context grid info (# procs row/col, current procs row/col)
-          blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
-                          &myBlasCol_);
-        }
-        #endif
+    blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_,
+                    &numBlasCols_);
+    // Context -> Context grid info (# procs row/col, current procs row/col)
+    blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
+                    &myBlasCol_);
+  }
+#endif
 }
 
 // TODO: any other stats would like to output here?
