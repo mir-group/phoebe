@@ -45,14 +45,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
         numBands = fullBandStructure->getNumBands();
         numStates = numBands * numPoints;
         energies = Eigen::VectorXd::Zero(numBands * numPoints);
-        long i = 0;
-        for (long ik = 0; ik < numPoints; ik++) {
-            auto state = fullBandStructure->getState(ik);
-            auto ens = state.getEnergies();
-            for (long ib = 0; ib < numBands; ib++) {
-                energies(i) = ens(ib);
-                i++;
-            }
+        for ( long is=0; is<fullBandStructure->getNumStates(); is++ ) {
+          energies(is) = fullBandStructure->getEnergy(is);
         }
 
         // determine ground state properties

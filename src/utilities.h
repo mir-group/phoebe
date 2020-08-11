@@ -68,5 +68,6 @@ using TempIndex = NamedType<long, struct TempTag>;
 using ChemPotIndex = NamedType<long, struct ChemPotTag>;
 using WavevectorIndex = NamedType<long, struct WavevectorTag>;
 using BandIndex = NamedType<long, struct BandTag>;
+using StateIndex = NamedType<long, struct StateTag>;
 
 #endif

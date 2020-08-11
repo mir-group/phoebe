@@ -8,7 +8,6 @@
 #include "points.h"
 #include "active_points.h"
 #include "full_points.h"
-#include "state.h"
 #include "statistics_sweep.h"
 #include "window.h"
 
@@ -38,17 +37,31 @@ class ActiveBandStructure : public BaseBandStructure {
   long getNumBands();  // this only works in FullBandStructure
   long hasWindow();
 
-  State getState(const long &pointIndex);
-  State getState(Point &point);  // returns all bands at fixed k/q-point
-
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
   std::tuple<WavevectorIndex, BandIndex> getIndex(const long &is);
+  std::tuple<WavevectorIndex, BandIndex> getIndex(StateIndex &is);
+
   long getNumStates();
 
   const double &getEnergy(const long &stateIndex);
+  const double &getEnergy(StateIndex &is);
+  Eigen::VectorXd getEnergies(WavevectorIndex &ik);
+
   Eigen::Vector3d getGroupVelocity(const long &stateIndex);
+  Eigen::Vector3d getGroupVelocity(StateIndex &is);
+  Eigen::MatrixXd getGroupVelocities(WavevectorIndex &ik);
+  Eigen::Tensor<std::complex<double>,3> getVelocities(WavevectorIndex &ik);
+
+  Eigen::MatrixXcd getEigenvectors(WavevectorIndex &ik);
+  Eigen::Tensor<std::complex<double>, 3> getPhEigenvectors(WavevectorIndex &ik);
+
   Eigen::Vector3d getWavevector(const long &stateIndex);
+  Eigen::Vector3d getWavevector(StateIndex &is);
+  Eigen::Vector3d getWavevector(WavevectorIndex &ik);
+
   double getWeight(const long &stateIndex);
+  double getWeight(StateIndex &is);
+  double getWeight(WavevectorIndex &ik);
 
   void setEnergies(Point &point, Eigen::VectorXd &energies_);
   void setEnergies(Point &point, std::vector<double> &energies_);
@@ -60,10 +73,11 @@ class ActiveBandStructure : public BaseBandStructure {
       Context &context, HarmonicHamiltonian &h0, Points &points,
       const bool &withEigenvectors = true, const bool &withVelocities = true);
 
-  ActivePoints activePoints;
  protected:
   // stores the quasiparticle kind
   Particle particle;
+
+  ActivePoints activePoints;
 
   // note: we don't store a matrix: we are storing an object (Nk,Nb),
   // with a variable number of bands Nb per point

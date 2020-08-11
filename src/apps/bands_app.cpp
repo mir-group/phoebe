@@ -33,9 +33,8 @@ void PhononBandsApp::run(Context &context) {
     outfile << "# Phonon bands: path index, Bands[cmm1]" << std::endl;
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
       outfile << ik;
-      auto p = fullBandStructure.getPoint(ik);
-      auto s = fullBandStructure.getState(p);
-      Eigen::VectorXd energies = s.getEnergies();
+      auto ikIndex = WavevectorIndex(ik);
+      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
       for (int ib = 0; ib < numBands; ib++) {
         outfile << "\t" << energies(ib) * ryToCmm1;
       }
@@ -71,9 +70,8 @@ void ElectronWannierBandsApp::run(Context &context) {
     outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
       outfile << ik;
-      auto p = fullBandStructure.getPoint(ik);
-      auto s = fullBandStructure.getState(p);
-      Eigen::VectorXd energies = s.getEnergies();
+      auto ikIndex = WavevectorIndex(ik);
+      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
       for (int ib = 0; ib < numBands; ib++) {
         outfile << "\t" << energies(ib) * energyRyToEv;
       }
@@ -109,9 +107,8 @@ void ElectronFourierBandsApp::run(Context &context) {
     outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
       outfile << ik;
-      auto p = fullBandStructure.getPoint(ik);
-      auto s = fullBandStructure.getState(p);
-      Eigen::VectorXd energies = s.getEnergies();
+      auto ikIndex = WavevectorIndex(ik);
+      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
       for (int ib = 0; ib < numBands; ib++) {
         outfile << "\t" << energies(ib) * energyRyToEv;
       }

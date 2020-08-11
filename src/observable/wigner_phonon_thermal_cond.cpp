@@ -30,9 +30,9 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
 
   int numPoints = bandStructure.getNumPoints();
   for (int iq : mpi->divideWorkIter(numPoints)) {
-    State state = bandStructure.getState(iq);
-    auto velocities = state.getVelocities();
-    auto energies = state.getEnergies();
+    auto iqIndex = WavevectorIndex(iq);
+    auto velocities = bandStructure.getVelocities(iqIndex);
+    auto energies = bandStructure.getEnergies(iqIndex);
 
     int numBands = energies.size();
 

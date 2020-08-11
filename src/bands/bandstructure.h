@@ -2,7 +2,6 @@
 #define BANDSTRUCTURE_H
 
 #include "points.h"
-#include "state.h"
 #include "particle.h"
 #include "exceptions.h"
 #include "utilities.h"
@@ -22,12 +21,12 @@ public:
     /** Returns the wavevectors on which the bandstructure is computed.
      * @return Points: the object representing the Brillouin zone wavevectors.
      */
-    virtual Points getPoints();
+    virtual Points getPoints() = 0;
 
     /** Returns a wavevector, given a wavevector index.
      * The wavevector index runs from 0 to numPoints-1
      */
-    virtual Point getPoint(const long &pointIndex);
+    virtual Point getPoint(const long &pointIndex) = 0;
 
     /** Returns the total number of k/q-points.
      * @param useFullGrid: default = false. If true, returns the number of
@@ -50,24 +49,6 @@ public:
      */
     virtual long hasWindow();
 
-    /** Returns a State object.
-     * The state object, defined elsewhere, is a container that holds all bands
-     * eigenvalues, eigenvectors and velocities (if available), at a fixed
-     * wavevector. This is used in particular for the construction of the
-     * scattering operator.
-     * @param point: a Point object containing the desired wavevector
-     * @return State: a State object evaluated at Point.
-     */
-    virtual State getState(Point &point);
-
-    /** Returns a State object
-     * Same as getState(Point & point), but the wavevector is identified
-     * with its integer index
-     * @param pointIndex: index of the wavevector, range [0,numPoints[
-     * @return State: a State object evaluated at Point.
-     */
-    virtual State getState(const long &pointIndex);
-
     // needed in the BTE
     /** Builds a Bloch state index, which combines both wavevector index and
      * band index.
@@ -76,7 +57,7 @@ public:
      * @param wavevectorIndex: strong-typed index on wavevector
      * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
      */
-    virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+    virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib) = 0;
 
     /** Given a Bloch state index, finds the corresponding wavevector and band
      * index.
@@ -84,13 +65,13 @@ public:
      * @return WavevectorIndex: strong-typed index on wavevector
      * @return BandIndex: strong-typed index on bands
      */
-    virtual std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
+    virtual std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is) = 0;
+    virtual std::tuple<WavevectorIndex, BandIndex> getIndex(StateIndex &is) = 0;
 
     /** Returns the total number of Bloch states.
      * @return numStates: the integer number of Bloch states.
      */
     virtual long getNumStates();
-
 
     /** Returns an iterator to be used for loops over the Bloch state index.
      * The values of the iterator are distributed in N blocks over N MPI ranks.
@@ -108,6 +89,8 @@ public:
      * rydbergs units.
      */
     virtual const double& getEnergy(const long &stateIndex);
+    virtual const double &getEnergy(StateIndex &is) = 0;
+    virtual Eigen::VectorXd getEnergies(WavevectorIndex &ik) = 0;
 
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
@@ -116,6 +99,13 @@ public:
      * the cartesian basis and in atomic rydberg units.
      */
     virtual Eigen::Vector3d getGroupVelocity(const long &stateIndex);
+    virtual Eigen::Vector3d getGroupVelocity(StateIndex &is) = 0;
+    virtual Eigen::MatrixXd getGroupVelocities(WavevectorIndex &ik) = 0;
+    virtual Eigen::Tensor<std::complex<double>,3> getVelocities(WavevectorIndex &ik) = 0;
+
+    virtual Eigen::MatrixXcd getEigenvectors(WavevectorIndex &ik) = 0;
+    virtual Eigen::Tensor<std::complex<double>, 3> getPhEigenvectors(
+        WavevectorIndex &ik) = 0;
 
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
@@ -124,8 +114,12 @@ public:
      * coordinates in units of Bohr^-1.
      */
     virtual Eigen::Vector3d getWavevector(const long &stateIndex);
+    virtual Eigen::Vector3d getWavevector(StateIndex &is) = 0;
+    virtual Eigen::Vector3d getWavevector(WavevectorIndex &ik) = 0;
 
     virtual double getWeight(const long &stateIndex);
+    virtual double getWeight(StateIndex &is) = 0;
+    virtual double getWeight(WavevectorIndex &ik) = 0;
 
     /** Method to save quasiparticle eigenvectors inside FullBandStructure().
      * @param point: a vector of 3 crystal coordinates. The method will look
@@ -154,6 +148,8 @@ public:
      */
     virtual void setVelocities(Point &point,
             Eigen::Tensor<std::complex<double>, 3> &velocities_);
+protected:
+ double bogusZero = 0.;
 };
 
 class ActiveBandStructure;
@@ -217,26 +213,6 @@ public:
 
     long hasWindow();
 
-    /** Returns a State object.
-     * The state object, defined elsewhere, is a container that holds all bands
-     * eigenvalues, eigenvectors and velocities (if available), at a fixed
-     * wavevector. This is used in particular for the construction of the
-     * scattering operator.
-     * @param point: a Point object containing the desired wavevector
-     * @return State: a State object evaluated at Point.
-     */
-    State getState(Point &point);
-
-    /** Returns a State object.
-     * The state object, defined elsewhere, is a container that holds all bands
-     * eigenvalues, eigenvectors and velocities (if available), at a fixed
-     * wavevector. This is used in particular for the construction of the
-     * scattering operator.
-     * @param pointIndex: an integer index of the desired wavevector.
-     * @return State: a State object evaluated at Point.
-     */
-    State getState(const long &pointIndex);
-
     /** Builds a Bloch state index, which runs on both wavevector index and
      * band index. ik runs from 0 to numPoints-1, ib from 0 to numBands-1.
      * It's used to view the various matrices such as energy as a 1D vector,
@@ -253,6 +229,7 @@ public:
      * @return BandIndex: strong-typed index on bands
      */
     std::tuple<WavevectorIndex,BandIndex> getIndex(const long &is);
+    std::tuple<WavevectorIndex, BandIndex> getIndex(StateIndex &is);
 
     /** Returns the total number of Bloch states, equal to numPoints*numBands.
      * @return numStates: the total number of Bloch states in the class.
@@ -270,6 +247,8 @@ public:
      * rydbergs units.
      */
     const double& getEnergy(const long &stateIndex);
+    const double &getEnergy(StateIndex &is);
+    Eigen::VectorXd getEnergies(WavevectorIndex &ik);
 
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
@@ -278,6 +257,13 @@ public:
      * the cartesian basis and in atomic rydberg units.
      */
     Eigen::Vector3d getGroupVelocity(const long &stateIndex);
+    Eigen::Vector3d getGroupVelocity(StateIndex &is);
+    Eigen::MatrixXd getGroupVelocities(WavevectorIndex &ik);
+    Eigen::Tensor<std::complex<double>,3> getVelocities(WavevectorIndex &ik);
+
+    Eigen::MatrixXcd getEigenvectors(WavevectorIndex &ik);
+    Eigen::Tensor<std::complex<double>, 3> getPhEigenvectors(
+        WavevectorIndex &ik);
 
     /** Returns the energy of a quasiparticle from its Bloch index
      * Used for accessing the bandstructure in the BTE.
@@ -286,8 +272,12 @@ public:
      * coordinates in units of Bohr^-1.
      */
     Eigen::Vector3d getWavevector(const long &stateIndex);
+    Eigen::Vector3d getWavevector(StateIndex &is);
+    Eigen::Vector3d getWavevector(WavevectorIndex &ik);
 
     double getWeight(const long &stateIndex);
+    double getWeight(StateIndex &is);
+    double getWeight(WavevectorIndex &ik);
 
     /** This method overrides setEnergies, but uses a Point object to find the
      * k-point.
@@ -354,8 +344,8 @@ protected:
     long eigenvectorsCols;
 
     // auxiliary variables
-    long numBands = 0;
-    long numAtoms = 0;
+    int numBands = 0;
+    int numAtoms = 0;
 
     bool hasEigenvectors = false;
     bool hasVelocities = false;
