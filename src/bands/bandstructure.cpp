@@ -35,20 +35,6 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   }
 
   energies = Eigen::MatrixXd::Zero(numBands, getNumPoints());
-
-  // now, I want to manipulate the Eigen matrices at lower level
-  // I create this pointer to data, so I can move it around
-  rawEnergies = energies.data();
-  if (hasVelocities) {
-    rawVelocities = velocities.data();
-  }
-  if (hasEigenvectors) {
-    rawEigenvectors = eigenvectors.data();
-  }
-
-  energiesCols = numBands;
-  velocitiesCols = numBands * numBands * 3;
-  eigenvectorsCols = numBands * numAtoms * 3;
 }
 
 // copy constructor
@@ -58,12 +44,6 @@ FullBandStructure::FullBandStructure(const FullBandStructure &that)
       energies(that.energies),
       velocities(that.velocities),
       eigenvectors(that.eigenvectors),
-      rawEnergies(that.rawEnergies),
-      rawVelocities(that.rawVelocities),
-      rawEigenvectors(that.rawEigenvectors),
-      energiesCols(that.energiesCols),
-      velocitiesCols(that.velocitiesCols),
-      eigenvectorsCols(that.eigenvectorsCols),
       numBands(that.numBands),
       numAtoms(that.numAtoms),
       hasEigenvectors(that.hasEigenvectors),
@@ -77,12 +57,6 @@ FullBandStructure &FullBandStructure::operator=(  // copy assignment
     energies = that.energies;
     velocities = that.velocities;
     eigenvectors = that.eigenvectors;
-    rawEnergies = that.rawEnergies;
-    rawVelocities = that.rawVelocities;
-    rawEigenvectors = that.rawEigenvectors;
-    energiesCols = that.energiesCols;
-    velocitiesCols = that.velocitiesCols;
-    eigenvectorsCols = that.eigenvectorsCols;
     numBands = that.numBands;
     numAtoms = that.numAtoms;
     hasEigenvectors = that.hasEigenvectors;

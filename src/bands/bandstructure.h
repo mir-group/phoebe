@@ -333,15 +333,6 @@ protected:
     Eigen::MatrixXcd velocities; // size(3*bands^2,points)
     Eigen::MatrixXcd eigenvectors; // size(bands^2,points)
 
-    // pointers to the raw data, used to move
-    double *rawEnergies = nullptr;
-    std::complex<double> *rawVelocities = nullptr;
-    std::complex<double> *rawEigenvectors = nullptr;
-    // these are integers used to move the pointers in the raw data
-    long energiesCols;
-    long velocitiesCols;
-    long eigenvectorsCols;
-
     // auxiliary variables
     int numBands = 0;
     int numAtoms = 0;
