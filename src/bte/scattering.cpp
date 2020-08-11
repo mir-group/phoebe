@@ -109,10 +109,10 @@ void ScatteringMatrix::setup() {
     theMatrix = ParallelMatrix<double>(numStates, numStates);
 
     // calc matrix and linew.
-    builder(theMatrix, &internalDiagonal, nullptr, nullptr);
+    builder(&internalDiagonal, nullptr, nullptr);
   } else {
     // calc linewidths only
-    builder(theMatrix, &internalDiagonal, nullptr, nullptr);
+    builder(&internalDiagonal, nullptr, nullptr);
   }
 }
 
@@ -164,7 +164,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
   } else {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure,
                             inPopulation.dimensionality);
-    builder(theMatrix, nullptr, &inPopulation, &outPopulation);
+    builder(nullptr, &inPopulation, &outPopulation);
     return outPopulation;
   }
 }
@@ -353,8 +353,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
     // find set of q2
     std::set<long> q2Indexes;
     for ( auto tup : x ) {
-auto iq1 = std::get<0>(tup);
-auto iq2 = std::get<1>(tup);
+      auto iq2 = std::get<1>(tup);
       q2Indexes.insert(iq2);
     }
 
@@ -365,8 +364,8 @@ auto iq2 = std::get<1>(tup);
 
       // note: I'm assuming that the pairs in x are unique
       for ( auto tup : x ) {
-auto iq1 = std::get<0>(tup);
-auto iq2_ = std::get<1>(tup);
+        auto iq1 = std::get<0>(tup);
+        auto iq2_ = std::get<1>(tup);
         if ( iq2 == iq2_ ) {
           q1Indexes.push_back(iq1);
         }
