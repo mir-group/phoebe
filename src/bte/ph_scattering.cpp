@@ -347,23 +347,23 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               // case of matrix construction
               // we build the scattering matrix S
               matrix(ind1, ind2) += ratePlus;
-              linewidth->data(iCalc, ind1) += ratePlus;
+              linewidth->operator()(iCalc, 0, ind1) += ratePlus;
               break;
             case (1):
               // case of matrix-vector multiplication
               // we build the scattering matrix A = S*n(n+1)
               for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                outPopulation->operator()(iCalc, i, ind1) +=
                     ratePlus *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                    inPopulation->operator()(iCalc, i, ind2);
+                outPopulation->operator()(iCalc, i, ind1) +=
                     ratePlus *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                    inPopulation->operator()(iCalc, i, ind1);
               }
               break;
             case (2):
               // case of linewidth construction
-              linewidth->data(iCalc, ind1) += ratePlus;
+              linewidth->operator()(iCalc, 0, ind1) += ratePlus;
               break;
             }
           }
@@ -440,22 +440,22 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             case (0):
               // case of matrix construction
               matrix(ind1, ind2) -= rateMins1 + rateMins2;
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
               break;
             case (1):
               // case of matrix-vector multiplication
               for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
+                outPopulation->operator()(iCalc, i, ind1) -=
                     (rateMins1 + rateMins2) *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                    inPopulation->operator()(iCalc, i, ind2);
+                outPopulation->operator()(iCalc, i, ind1) +=
                     0.5 * rateMins2 *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                    inPopulation->operator()(iCalc, i, ind1);
               }
               break;
             case (2):
               // case of linewidth construction
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
               break;
             }
           }
@@ -559,24 +559,24 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
                 // case of matrix construction
                 // we build the scattering matrix S
                 matrix(ind1, ind2) += rateIso;
-                linewidth->data(iCalc, ind1) += rateIso;
+                linewidth->operator()(iCalc, 0, ind1) += rateIso;
                 break;
               case (1):
                 // case of matrix-vector multiplication
                 // we build the scattering matrix A = S*n(n+1)
                 for (int i = 0; i < dimensionality_; i++) {
-                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                  outPopulation->operator()(iCalc, i, ind1) +=
                       rateIso *
-                      inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
+                      inPopulation->operator()(iCalc, i, ind2);
+                  outPopulation->operator()(iCalc, i, ind1) +=
                       rateIso *
-                      inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                      inPopulation->operator()(iCalc, i, ind1);
                 }
                 break;
               case (2):
                 // case of linewidth construction
                 // there's still a missing norm done later
-                linewidth->data(iCalc, ind1) += rateIso;
+                linewidth->operator()(iCalc, 0, ind1) += rateIso;
                 break;
               }
             }
@@ -612,18 +612,18 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         case (0):
           // case of matrix construction
           matrix(is1, is1) += rate; // this is redundant, see below
-          linewidth->data(iCalc, is1) += rate;
+          linewidth->operator()(iCalc, 0, is1) += rate;
           break;
         case (1):
           // case of matrix-vector multiplication
           for (int i = 0; i < dimensionality_; i++) {
-            outPopulation->data(dimensionality_ * iCalc + i, is1) +=
-                rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
+            outPopulation->operator()(iCalc, i, is1) +=
+                rate * inPopulation->operator()(iCalc, i, is1);
           }
           break;
         case (2):
           // case of linewidth construction
-          linewidth->data(iCalc, is1) += rate;
+          linewidth->operator()(iCalc, 0, is1) += rate;
           break;
         }
       }
@@ -660,7 +660,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   if (switchCase == 0) { // case of matrix construction
     long iCalc = 0;
     for (long i = 0; i < outerBandStructure.getNumStates(); i++) {
-      matrix(i, i) = linewidth->data(iCalc, i);
+      matrix(i, i) = linewidth->operator()(iCalc, 0, i);
     }
   }
 }
