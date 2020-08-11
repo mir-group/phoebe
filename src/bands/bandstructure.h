@@ -16,7 +16,7 @@ public:
      * @return particle: a Particle object, describing e.g. whether this
      * is a phonon or electron bandStructure
      */
-    virtual Particle getParticle();
+    virtual Particle getParticle() = 0;
 
     /** Returns the wavevectors on which the bandstructure is computed.
      * @return Points: the object representing the Brillouin zone wavevectors.
@@ -34,20 +34,20 @@ public:
      * returns the number of wavevectors stored in the BandStructure.
      * @return numPoints: the total number of wavevectors of the bandStructure.
      */
-    virtual long getNumPoints(const bool &useFullGrid=false);
+    virtual long getNumPoints(const bool &useFullGrid=false) = 0;
 
     /** Returns the number of bands.
      * @return numPoints: the total number of wavevectors of the bandStructure.
      * If the number of bands is not constant, calls an error.
      */
-    virtual long getNumBands();
+    virtual long getNumBands() = 0;
 
     /** Checks whether the bandStructure has been built discarding some Bloch
      * states from those available.
      * @return windowMethod: one of the values of Window::filterMethod. 0 for
      * no filter.
      */
-    virtual long hasWindow();
+    virtual long hasWindow() = 0;
 
     // needed in the BTE
     /** Builds a Bloch state index, which combines both wavevector index and
@@ -71,7 +71,7 @@ public:
     /** Returns the total number of Bloch states.
      * @return numStates: the integer number of Bloch states.
      */
-    virtual long getNumStates();
+    virtual long getNumStates() = 0;
 
     /** Returns an iterator to be used for loops over the Bloch state index.
      * The values of the iterator are distributed in N blocks over N MPI ranks.
@@ -88,7 +88,7 @@ public:
      * chemical potential computed by StatisticsSweep. By policy, it's in
      * rydbergs units.
      */
-    virtual const double& getEnergy(const long &stateIndex);
+    virtual const double& getEnergy(const long &stateIndex) = 0;
     virtual const double &getEnergy(StateIndex &is) = 0;
     virtual Eigen::VectorXd getEnergies(WavevectorIndex &ik) = 0;
 
@@ -98,7 +98,7 @@ public:
      * @return velocity: a 3d vector with velocity. By policy, we save it in
      * the cartesian basis and in atomic rydberg units.
      */
-    virtual Eigen::Vector3d getGroupVelocity(const long &stateIndex);
+    virtual Eigen::Vector3d getGroupVelocity(const long &stateIndex) = 0;
     virtual Eigen::Vector3d getGroupVelocity(StateIndex &is) = 0;
     virtual Eigen::MatrixXd getGroupVelocities(WavevectorIndex &ik) = 0;
     virtual Eigen::Tensor<std::complex<double>,3> getVelocities(WavevectorIndex &ik) = 0;
@@ -113,11 +113,11 @@ public:
      * @return wavevector: a 3d vector with the wavevector in cartesian
      * coordinates in units of Bohr^-1.
      */
-    virtual Eigen::Vector3d getWavevector(const long &stateIndex);
+    virtual Eigen::Vector3d getWavevector(const long &stateIndex) = 0;
     virtual Eigen::Vector3d getWavevector(StateIndex &is) = 0;
     virtual Eigen::Vector3d getWavevector(WavevectorIndex &ik) = 0;
 
-    virtual double getWeight(const long &stateIndex);
+    virtual double getWeight(const long &stateIndex) = 0;
     virtual double getWeight(StateIndex &is) = 0;
     virtual double getWeight(WavevectorIndex &ik) = 0;
 
@@ -127,7 +127,7 @@ public:
      * @param energies: a vector of size (numBands) with the quasiparticle
      * energies
      */
-    virtual void setEnergies(Point &point, Eigen::VectorXd &energies_);
+    virtual void setEnergies(Point &point, Eigen::VectorXd &energies_) = 0;
 
     /** Method to save quasiparticle eigenvectors inside FullBandStructure().
      * Note that in this case, eigenvectors are passed as a matrix, which is
@@ -137,7 +137,8 @@ public:
      * which should come from the same Point class stored in FullBandStructure
      * @param eigenvectors: a complex matrix of size (numBands,numBands)
      */
-    virtual void setEigenvectors(Point &point, Eigen::MatrixXcd &eigenvectors_);
+    virtual void setEigenvectors(Point &point,
+                                 Eigen::MatrixXcd &eigenvectors_) = 0;
 
     /** Saves in the class the velocities computed at a particular point.
      * @param point: a Point object representing the wavevector where these
@@ -147,7 +148,7 @@ public:
      * elements are the quasiparticle group velocities.
      */
     virtual void setVelocities(Point &point,
-            Eigen::Tensor<std::complex<double>, 3> &velocities_);
+            Eigen::Tensor<std::complex<double>, 3> &velocities_) = 0;
 protected:
  double bogusZero = 0.;
 };

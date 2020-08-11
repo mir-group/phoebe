@@ -6,95 +6,9 @@
 #include "points.h"
 #include "utilities.h"
 
-Particle BaseBandStructure::getParticle() {
-  Error e("BaseBandStructure method not implemented");
-  return Particle(Particle::phonon);
-}
-
-long BaseBandStructure::getNumPoints(const bool &useFullGrid) {
-  (void)useFullGrid;
-  Error e("BaseBandStructure method not implemented");
-  return 0;
-}
-
-long BaseBandStructure::getNumBands() {
-  Error e("BaseBandStructure method not implemented");
-  return 0;
-}
-
-long BaseBandStructure::hasWindow() {
-  Error e("BaseBandStructure method not implemented");
-  return 0;
-}
-
-// long BaseBandStructure::getIndex(const WavevectorIndex &ik,
-//        const BandIndex &ib) {
-//    Error e("BaseBandStructure method not implemented");
-//    (void) ik;
-//    (void) ib;
-//    return 0;
-//}
-//
-// std::tuple<WavevectorIndex,BandIndex> BaseBandStructure::getIndex(
-//        const long &is) {
-//    Error e("BaseBandStructure method not implemented");
-//    (void) is;
-//    auto ikk = WavevectorIndex(-1);
-//    auto ibb = BandIndex(-1);
-//    return {ikk, ibb};
-//}
-
-long BaseBandStructure::getNumStates() {
-  Error e("BaseBandStructure method not implemented");
-  return 0;
-}
-
 std::vector<int> BaseBandStructure::parallelStateIterator() {
   int numStates = getNumStates();
   return mpi->divideWorkIter(numStates);
-}
-
-const double &BaseBandStructure::getEnergy(const long &stateIndex) {
-  Error e("BaseBandStructure method not implemented");
-  (void)stateIndex;
-  return 0.;
-}
-
-Eigen::Vector3d BaseBandStructure::getGroupVelocity(const long &stateIndex) {
-  Error e("BaseBandStructure method not implemented");
-  (void)stateIndex;
-  return Eigen::Vector3d::Zero();
-}
-
-Eigen::Vector3d BaseBandStructure::getWavevector(const long &stateIndex) {
-  Error e("BaseBandStructure method not implemented");
-  (void)stateIndex;
-  return Eigen::Vector3d::Zero();
-}
-
-double BaseBandStructure::getWeight(const long &stateIndex) {
-  (void)stateIndex;
-  return 0.;
-}
-
-void BaseBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
-  Error e("BaseBandStructure method not implemented");
-  (void)point;
-  (void)energies_;
-}
-
-void BaseBandStructure::setVelocities(
-    Point &point, Eigen::Tensor<std::complex<double>, 3> &velocities_) {
-  Error e("BaseBandStructure method not implemented");
-  (void)point;
-  (void)velocities_;
-}
-
-void BaseBandStructure::setEigenvectors(Point &point,
-                                        Eigen::MatrixXcd &eigenvectors_) {
-  Error e("BaseBandStructure method not implemented");
-  (void)point;
-  (void)eigenvectors_;
 }
 
 //-----------------------------------------------------------------------------
@@ -305,12 +219,11 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
   auto tup = decompress2Indeces(stateIndex, getNumPoints(), numBands);
   auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
   return points.getPoint(ik).getCoords(Points::cartesianCoords, true);
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(StateIndex &is) {
-  getWavevector(is.get());
+  return getWavevector(is.get());
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(WavevectorIndex &ik) {
