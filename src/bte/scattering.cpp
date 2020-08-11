@@ -132,17 +132,14 @@ VectorBTE ScatteringMatrix::diagonal() {
 //}
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
-  VectorBTE outPopulation = dot(inPopulation);
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
-  for (long i = 0; i < outPopulation.numCalcs; i++) {
-    auto tup = inPopulation.loc2Glob(i);
-    auto imu = std::get<0>(tup);
-    auto it = std::get<1>(tup);
-    auto idim = std::get<2>(tup);
-    auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
-    for (long is = 0; is < numStates; is++) {
-      outPopulation.data(i, is) -=
-          internalDiagonal.data(j, is) * inPopulation.data(i, is);
+  VectorBTE outPopulation = dot(inPopulation);
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iDim = 0; iDim < dimensionality_; iDim++) {
+      for (long is = 0; is < numStates; is++) {
+        outPopulation(iCalc, iDim, is) -=
+            internalDiagonal(iCalc, 0, is) * inPopulation(iCalc, iDim, is);
+      }
     }
   }
   return outPopulation;

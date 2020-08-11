@@ -63,11 +63,11 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                       .real();
               double den =
                   4. * pow(energies(ib1) - energies(ib2), 2) +
-                  pow(1./smaRelTimes.data(iCalc, is1) + 1./smaRelTimes.data(iCalc, is2),
+                  pow(1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2),
                       2);
               wignerCorrection(iCalc, ic1, ic2) +=
                   (energies(ib1) + energies(ib2)) * vel * num / den *
-                  (1./smaRelTimes.data(iCalc, is1) + 1./smaRelTimes.data(iCalc, is2)) *
+                  (1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2)) *
                   norm(iCalc);
             }
           }
