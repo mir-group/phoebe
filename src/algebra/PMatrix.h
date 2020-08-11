@@ -22,7 +22,7 @@ using ParallelMatrix = Matrix<T>;
 
 // double matrix (I skip the templates for now)
 template <typename T>
-class ParallelMatrix {
+class ParallelMatrix : public Matrix<T> {
  private:
   /// Class variables
   int numRows_, numCols_;
@@ -90,12 +90,21 @@ class ParallelMatrix {
    */
   bool indecesAreLocal(const int& row, const int& col);
 
+  /** Returns a pointer to the interal data structure. */      
+  T* data() const;
+
   /** Find global number of rows
    */
   long rows() const;
+  /** Return local number of rows 
+  */
+  long localRows() const; 
   /** Find global number of columns
    */
   long cols() const;
+  /** Return local number of cols 
+  */
+  long localCols() const; 
   /** Find global number of matrix elements
    */
   long size() const;
@@ -166,7 +175,7 @@ class ParallelMatrix {
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
-                                  const int& numBlocksCols) {
+                                  const int& numBlocksCols) : Matrix<T>(numRows, numCols){
 
   // if blacs is not initalized, we need to start it.
   mpi->initBlacs();
@@ -213,7 +222,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   assert(mat != nullptr);
 
   // fill the matrix with zeroes
-  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;  // mat[i] = 0.;
+  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 
   // Create descriptor for block cyclic distribution of matrix
   int info;  // error code
@@ -228,7 +237,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix() {
+ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
   numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
@@ -246,7 +255,7 @@ ParallelMatrix<T>::ParallelMatrix() {
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
+ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) : Matrix<T>(that) {
   numRows_ = that.numRows_;
   numCols_ = that.numCols_;
   numLocalRows_ = that.numLocalRows_;
@@ -316,13 +325,28 @@ ParallelMatrix<T>::~ParallelMatrix() {
 }
 
 template <typename T>
+T* ParallelMatrix<T>::data() const {
+  return mat;
+}
+
+template <typename T>
 long ParallelMatrix<T>::rows() const {
   return numRows_;
 }
 
 template <typename T>
+long ParallelMatrix<T>::localRows() const {
+  return numLocalRows_;
+}
+
+template <typename T>
 long ParallelMatrix<T>::cols() const {
   return numCols_;
+}
+
+template <typename T>
+long ParallelMatrix<T>::localCols() const {
+  return numLocalCols_;
 }
 
 template <typename T>

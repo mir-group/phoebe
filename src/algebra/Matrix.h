@@ -60,6 +60,7 @@ class Matrix {
    */
   Matrix<T>& operator=(const Matrix<T>& that);
 
+  // TODO: feels like this shouldn't be in here
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -73,14 +74,19 @@ class Matrix {
   /** Find global number of rows
    */
   long rows() const;
-
+  /** Return local number of rows */
+  long localRows() const;
   /** Find global number of columns
    */
   long cols() const;
-
+  /** Return local number of rows */
+  long localCols() const;
   /** Find global number of matrix elements
    */
   long size() const;
+
+  /** Returns a pointer to the raw matrix data buffer */ 
+  T* data() const;
 
   /** Get and set operator
    */
@@ -225,19 +231,30 @@ template <typename T>
 long Matrix<T>::rows() const {
   return nRows;
 }
-
+// TODO: should probably replace these with something else and make this private
+template <typename T>
+long Matrix<T>::localRows() const {
+  return nRows;
+}
 template <typename T>
 long Matrix<T>::cols() const {
   return nCols;
 }
-
+template <typename T>
+long Matrix<T>::localCols() const {
+  return nCols;
+}
 template <typename T>
 long Matrix<T>::size() const {
   return numElements_;
 }
+// TODO: likely this can be made obsolete
+template <typename T>
+T* Matrix<T>::data() const{ 
+  return mat; 
+}
 
 // Get/set element
-
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
   return mat[global2Local(row, col)];
