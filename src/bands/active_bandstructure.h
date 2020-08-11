@@ -365,8 +365,10 @@ class ActiveBandStructure : public BaseBandStructure {
                      const bool &withEigenvectors = true,
                      const bool &withVelocities = true);
 
-  //	ActivePoints buildAsPostprocessing(Window & window,
-  //			FullBandStructure & fullBandStructure);
+  StatisticsSweep buildAsPostprocessing(Context &context,
+                                        HarmonicHamiltonian &h0, Points &points,
+                                        const bool &withEigenvector=true,
+                                        const bool &withVelocities=true);
 };
 
 #endif
