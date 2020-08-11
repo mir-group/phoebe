@@ -53,6 +53,18 @@ if (MPI_AVAIL)
 
   find_library(SCALAPACK_LIB NAMES scalapack mkl_scalapack_lp64 PATHS ENV LD_LIBRARY_PATH)
   if(${SCALAPACK_LIB} MATCHES NOTFOUND)
+      ExternalProject_Add(scalapack_dep
+          BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build
+          SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_src
+          GIT_REPOSITORY https://github.com/Reference-ScaLAPACK/scalapack.git
+          INSTALL_COMMAND ""
+          UPDATE_COMMAND ""
+          CMAKE_ARGS
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+          -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+          )
       set(SCALAPACK_LIB scalapack)
       message(WARNING "No SCALAPACK library found in CMAKE_LIBRARY_PATH, building our own.")
       add_dependencies(phoebe scalapack_dep)
