@@ -136,9 +136,9 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   for (long i = 0; i < outPopulation.numCalcs; i++) {
     auto tup = inPopulation.loc2Glob(i);
- auto imu = std::get<0>(tup);
- auto it = std::get<1>(tup);
- auto idim = std::get<2>(tup);
+    auto imu = std::get<0>(tup);
+    auto it = std::get<1>(tup);
+    auto idim = std::get<2>(tup);
     auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
     for (long is = 0; is < numStates; is++) {
       outPopulation.data(i, is) -=
@@ -156,10 +156,10 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     // note: we are assuming that ScatteringMatrix has numCalcs = 1
     for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
       for (auto tup : theMatrix.getAllLocalStates()) {
-auto i1 = std::get<0>(tup);
-auto j1 = std::get<1>(tup);
-        outPopulation.data(idim, i1) +=
-            theMatrix(i1, j1) * inPopulation.data(idim, j1);
+        auto i1 = std::get<0>(tup);
+        auto j1 = std::get<1>(tup);
+        outPopulation(0, idim, i1) +=
+            theMatrix(i1, j1) * inPopulation(0, idim, j1);
       }
     }
     mpi->allReduceSum(&outPopulation.data);
@@ -194,8 +194,8 @@ void ScatteringMatrix::a2Omega() {
   double chemPot = calcStatistics.chemicalPotential;
 
   for (auto tup : theMatrix.getAllLocalStates()) {
-auto ind1 = std::get<0>(tup);
-auto ind2 = std::get<1>(tup);
+    auto ind1 = std::get<0>(tup);
+    auto ind2 = std::get<1>(tup);
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
         excludeIndeces.end())
       continue;
@@ -211,7 +211,7 @@ auto ind2 = std::get<1>(tup);
     double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
     if (ind1 == ind2) {
-      internalDiagonal.data(iCalc, ind1) /= term1;
+      internalDiagonal(0, 0, ind1) /= term1;
     }
 
     theMatrix(ind1, ind2) /= sqrt(term1 * term2);
@@ -258,7 +258,7 @@ auto ind2 = std::get<1>(tup);
     double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
     if (ind1 == ind2) {
-      internalDiagonal.data(iCalc, ind1) *= term1;
+      internalDiagonal(iCalc, 0, ind1) *= term1;
     }
 
     theMatrix(ind1, ind2) *= sqrt(term1 * term2);
@@ -279,7 +279,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     if (isMatrixOmega) {
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         for (long is = 0; is < internalDiagonal.numStates; is++) {
-          times.data(iCalc, is) = 1. / times.data(iCalc, is);
+          times(iCalc, 0, is) = 1. / times(iCalc, 0, is);
         }
       }
       times.excludeIndeces = excludeIndeces;
@@ -297,7 +297,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
 
-          times.data(iCalc, is) = popTerm / times.data(iCalc, is);
+          times(iCalc, 0, is) = popTerm / times(iCalc, 0, is);
         }
       }
       times.excludeIndeces = excludeIndeces;
@@ -316,7 +316,7 @@ std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
   // place eigenvalues in an VectorBTE object
   VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
   for (long is = 0; is < numStates; is++) {
-    eigvals.data(0, is) = eigenvalues[is];
+    eigvals(0, 0, is) = eigenvalues[is];
   }
   eigvals.excludeIndeces = excludeIndeces;
 

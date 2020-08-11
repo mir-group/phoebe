@@ -138,7 +138,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     double energy = outerBandStructure.getEnergy(is);
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
-      outerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
+      outerBose(iCalc, 0, is) = particle.getPopulation(energy, temperature);
     }
   }
   mpi->allReduceSum(&outerBose.data);
@@ -151,7 +151,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
-        innerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
+        innerBose(iCalc, 0, is) = particle.getPopulation(energy, temperature);
       }
     }
     mpi->allReduceSum(&innerBose.data);
@@ -333,8 +333,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
 
           // loop on temperature
           for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            double bose1 = outerBose.data(iCalc, ind1);
-            double bose2 = innerBose.data(iCalc, ind2);
+            double bose1 = outerBose(iCalc, 0, ind1);
+            double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Plus = bose3PlusData(iCalc, ib3);
 
             // Calculate transition probability W+
@@ -424,8 +424,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             deltaMins2 = 0.;
 
           for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            double bose1 = outerBose.data(iCalc, ind1);
-            double bose2 = innerBose.data(iCalc, ind2);
+            double bose1 = outerBose(iCalc, 0, ind1);
+            double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Mins = bose3MinsData(iCalc, ib3);
 
             // Calculatate transition probability W-
@@ -548,8 +548,8 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
 
             for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              double bose1 = outerBose.data(iCalc, ind1);
-              double bose2 = innerBose.data(iCalc, ind2);
+              double bose1 = outerBose(iCalc, 0, ind1);
+              double bose2 = innerBose(iCalc, 0, ind2);
 
               double rateIso =
                   termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
