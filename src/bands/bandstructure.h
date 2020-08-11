@@ -149,8 +149,6 @@ public:
      */
     virtual void setVelocities(Point &point,
             Eigen::Tensor<std::complex<double>, 3> &velocities_) = 0;
-protected:
- double bogusZero = 0.;
 };
 
 class ActiveBandStructure;
