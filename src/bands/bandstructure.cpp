@@ -5,6 +5,7 @@
 #include "exceptions.h"
 #include "utilities.h"
 #include "mpiHelper.h"
+#include "PMatrix.h"
 
 Particle BaseBandStructure::getParticle() {
     Error e("BaseBandStructure method not implemented");
@@ -68,9 +69,15 @@ long BaseBandStructure::getNumStates() {
     return 0;
 }
 
+std::vector<long> BaseBandStructure::getWavevectorIndices() {
+    Error e("BaseBandStructure method not implemented");
+    std::vector<long> wavevectorIndices; 
+    return wavevectorIndices;
+} 
+
 std::vector<int> BaseBandStructure::parallelStateIterator() {
-  int numStates = getNumStates();
-  return mpi->divideWorkIter(numStates);
+    int numStates = getNumStates();
+    return mpi->divideWorkIter(numStates);
 }
 
 const double& BaseBandStructure::getEnergy(const long &stateIndex) {
@@ -119,28 +126,40 @@ void BaseBandStructure::setEigenvectors(Point &point,
 //-----------------------------------------------------------------------------
 
 FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
-        bool withVelocities, bool withEigenvectors, Points &points_) :
-        particle(particle_), points(points_) {
+        bool hasVelocities_, bool hasEigenvectors_, Points &points_, bool isDistributed_) :
+        particle(particle_), hasVelocities(hasVelocities_), hasEigenvectors(hasEigenvectors_), points(points_), isDistributed(isDistributed_)  {
 
-//	I need to crash if I'm using active points
+    // I need to crash if I'm using active points
 
     numBands = numBands_;
     numAtoms = numBands_ / 3;
 
-    if (withVelocities) {
-        hasVelocities = true;
-        velocities = Eigen::MatrixXcd::Zero(numBands * numBands * 3,
-                getNumPoints());
-    }
+    // Initialize data structures depending on memory distribution
+    if(isDistributed) { 
+        int numBlockCols = std::min((long)mpi->getSize(), points.getNumPoints() );
+        energies =  ParallelMatrix<double>(numBands,points.getNumPoints(),1,numBlockCols); 
 
-    if (withEigenvectors) {
-        hasEigenvectors = true;
-        eigenvectors = Eigen::MatrixXcd::Zero(3 * numAtoms * numBands,
-                getNumPoints());
-    }
+        if(hasVelocities) { 
+          velocities = ParallelMatrix<std::complex<double>>(                                                         |          //if(isDistributed) velocities = ParallelMatrix<std::complex<double>>(numBands * numBands * 3, points.getNumPoints());
+                numBands * numBands * 3, points.getNumPoints(),1,numBlockCols); 
+        }
+        if(hasEigenvectors) { 
+          eigenvectors = ParallelMatrix<std::complex<double>>(
+                3 * numAtoms * numBands, points.getNumPoints(),1,numBlockCols); 
+        }
+    } 
+    else { 
+        energies = Matrix<double>(numBands,points.getNumPoints());
 
-    energies = Eigen::MatrixXd::Zero(numBands, getNumPoints());
-
+        if(hasVelocities) { 
+          velocities = Matrix<std::complex<double>>(                                                                                  |          velocities = Matrix<std::complex<double>>(numBands * numBands * 3, points.getNumPoints()); //}                               
+              numBands * numBands * 3, points.getNumPoints());
+        } 
+        if(hasEigenvectors) { 
+          eigenvectors = Matrix<std::complex<double>>(
+                3 * numAtoms * numBands, points.getNumPoints());
+        } 
+    } 
     // now, I want to manipulate the Eigen matrices at lower level
     // I create this pointer to data, so I can move it around
     rawEnergies = energies.data();
@@ -165,7 +184,7 @@ FullBandStructure::FullBandStructure(const FullBandStructure &that) :
         velocitiesCols(that.velocitiesCols),
         eigenvectorsCols(that.eigenvectorsCols), numBands(that.numBands),
         numAtoms(that.numAtoms), hasEigenvectors(that.hasEigenvectors),
-        hasVelocities(that.hasVelocities) {
+        hasVelocities(that.hasVelocities), isDistributed(that.isDistributed) {
 }
 
 FullBandStructure& FullBandStructure::operator =( // copy assignment
@@ -186,6 +205,7 @@ FullBandStructure& FullBandStructure::operator =( // copy assignment
         numAtoms = that.numAtoms;
         hasEigenvectors = that.hasEigenvectors;
         hasVelocities = that.hasVelocities;
+        isDistributed = that.isDistributed; 
     }
     return *this;
 }
