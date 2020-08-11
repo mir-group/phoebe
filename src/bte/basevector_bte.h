@@ -124,6 +124,15 @@ class BaseVectorBTE {
    */
   void setConst(const double &constant);
 
+  /** Get and set operator
+   */
+  double &operator()(const int iCalc, const int iDim, const int iState);
+
+  /** Const get and set operator
+   */
+  const double &operator()(const int iCalc, const int iDim,
+                           const int iState) const;
+
   /** raw buffer containing the values of the vector
    *  The matrix has size (numCalcs, numStates), where numCalcs is the number
    *  of pairs of temperature and chemical potentials, and numStates is the

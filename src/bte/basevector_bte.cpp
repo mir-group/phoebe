@@ -217,3 +217,15 @@ std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
   auto idim = std::get<2>(tup);
   return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
 }
+
+// get/set operator
+double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+                                  const int iState) {
+  return data(iCalc * dimensionality + iDim, iState);
+}
+
+// const get/set operator
+const double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+                                        const int iState) const {
+  return data(iCalc * dimensionality + iDim, iState);
+}
