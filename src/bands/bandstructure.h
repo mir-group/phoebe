@@ -334,7 +334,7 @@ class FullBandStructure : public BaseBandStructure {
    * are more naturally represented in this shape!
    * @param wavevectorIndex: a WavevectorIndex(ik) object where ik is the
    * integer wavevector index running over [0,numPoints-1].
-   * @return eigenvectors: a complex tensor (3,numAtoms,numBandsBands) where
+   * @return eigenvectors: a complex tensor (3,numAtoms,numBands) where
    * numBands is the number of Bloch states present at the specified
    * wavevector, numAtoms is the number of atoms in the crystal unit cell and
    * 3 is a cartesian directions.
@@ -391,8 +391,10 @@ class FullBandStructure : public BaseBandStructure {
    */
   double getWeight(WavevectorIndex &ik);
 
-  /** This method overrides setEnergies, but uses a Point object to find the
-   * k-point.
+  /** Method to save quasiparticle energies inside FullBandStructure().
+   * @param point: a point object, which also provides the wavevector index.
+   * @param energies: a vector of size (numBands) with the quasiparticle
+   * energies
    */
   void setEnergies(Point &point, Eigen::VectorXd &energies_);
 
