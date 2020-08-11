@@ -136,9 +136,9 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   for (long i = 0; i < outPopulation.numCalcs; i++) {
     auto tup = inPopulation.loc2Glob(i);
- auto imu = std::get<0>(tup);
- auto it = std::get<1>(tup);
- auto idim = std::get<2>(tup);
+    auto imu = std::get<0>(tup);
+    auto it = std::get<1>(tup);
+    auto idim = std::get<2>(tup);
     auto j = internalDiagonal.glob2Loc(imu, it, DimIndex(0));
     for (long is = 0; is < numStates; is++) {
       outPopulation.data(i, is) -=
@@ -156,8 +156,8 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     // note: we are assuming that ScatteringMatrix has numCalcs = 1
     for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
       for (auto tup : theMatrix.getAllLocalStates()) {
-auto i1 = std::get<0>(tup);
-auto j1 = std::get<1>(tup);
+        auto i1 = std::get<0>(tup);
+        auto j1 = std::get<1>(tup);
         outPopulation.data(idim, i1) +=
             theMatrix(i1, j1) * inPopulation.data(idim, j1);
       }
@@ -194,8 +194,8 @@ void ScatteringMatrix::a2Omega() {
   double chemPot = calcStatistics.chemicalPotential;
 
   for (auto tup : theMatrix.getAllLocalStates()) {
-auto ind1 = std::get<0>(tup);
-auto ind2 = std::get<1>(tup);
+    auto ind1 = std::get<0>(tup);
+    auto ind2 = std::get<1>(tup);
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
         excludeIndeces.end())
       continue;
@@ -241,8 +241,8 @@ void ScatteringMatrix::omega2A() {
   double chemPot = calcStatistics.chemicalPotential;
 
   for (auto tup : theMatrix.getAllLocalStates()) {
-auto ind1 = std::get<0>(tup);
-auto ind2 = std::get<1>(tup);
+    auto ind1 = std::get<0>(tup);
+    auto ind2 = std::get<1>(tup);
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
         excludeIndeces.end())
       continue;
@@ -310,8 +310,8 @@ std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
   //    std::vector<double> eigenvalues;
   //    ParallelMatrix<double> eigenvectors;
   auto tup = theMatrix.diagonalize();
- auto eigenvalues = std::get<0>(tup);
- auto eigenvectors = std::get<1>(tup);
+  auto eigenvalues = std::get<0>(tup);
+  auto eigenvectors = std::get<1>(tup);
 
   // place eigenvalues in an VectorBTE object
   VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
@@ -367,8 +367,8 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
     // find set of q2
     std::set<long> q2Indexes;
     for ( auto tup : x ) {
-auto iq1 = std::get<0>(tup);
-auto iq2 = std::get<1>(tup);
+      auto iq1 = std::get<0>(tup);
+      auto iq2 = std::get<1>(tup);
       q2Indexes.insert(iq2);
     }
 
@@ -379,8 +379,8 @@ auto iq2 = std::get<1>(tup);
 
       // note: I'm assuming that the pairs in x are unique
       for ( auto tup : x ) {
-auto iq1 = std::get<0>(tup);
-auto iq2_ = std::get<1>(tup);
+        auto iq1 = std::get<0>(tup);
+        auto iq2_ = std::get<1>(tup);
         if ( iq2 == iq2_ ) {
           q1Indexes.push_back(iq1);
         }
