@@ -140,26 +140,26 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
         energies =  ParallelMatrix<double>(numBands,points.getNumPoints(),1,numBlockCols); 
 
         if(hasVelocities) { 
-          velocities = ParallelMatrix<std::complex<double>>(                                                         |          //if(isDistributed) velocities = ParallelMatrix<std::complex<double>>(numBands * numBands * 3, points.getNumPoints());
-                numBands * numBands * 3, points.getNumPoints(),1,numBlockCols); 
+          velocities = ParallelMatrix<std::complex<double>>(
+                numBands * numBands * 3, points.getNumPoints(),1,numBlockCols);
         }
-        if(hasEigenvectors) { 
+        if(hasEigenvectors) {
           eigenvectors = ParallelMatrix<std::complex<double>>(
-                3 * numAtoms * numBands, points.getNumPoints(),1,numBlockCols); 
+                3 * numAtoms * numBands, points.getNumPoints(),1,numBlockCols);
         }
-    } 
-    else { 
+    }
+    else {
         energies = Matrix<double>(numBands,points.getNumPoints());
 
-        if(hasVelocities) { 
-          velocities = Matrix<std::complex<double>>(                                                                                  |          velocities = Matrix<std::complex<double>>(numBands * numBands * 3, points.getNumPoints()); //}                               
+        if(hasVelocities) {
+          velocities = Matrix<std::complex<double>>(
               numBands * numBands * 3, points.getNumPoints());
-        } 
-        if(hasEigenvectors) { 
+        }
+        if(hasEigenvectors) {
           eigenvectors = Matrix<std::complex<double>>(
                 3 * numAtoms * numBands, points.getNumPoints());
-        } 
-    } 
+        }
+    }
     // now, I want to manipulate the Eigen matrices at lower level
     // I create this pointer to data, so I can move it around
     rawEnergies = energies.data();
@@ -247,8 +247,9 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
     // loop over local states
     for (long k = 0; k < energies.localSize(); k++) {
         // returns global indices for local index
-        auto [ib,ik] = energies.local2Global(k); 
-        kptsList.push_back(ik); 
+        auto tup = energies.local2Global(k);
+        auto ik = std::get<0>(tup);
+        kptsList.push_back(ik);
     }
     return kptsList;
 }
@@ -257,8 +258,9 @@ std::vector<long> FullBandStructure::getBandIndices() {
     std::vector<long> bandsList;
     // loop over local states
     for (long k = 0; k < energies.localSize(); k++) {
-        auto [ib,ik] = energies.local2Global(k);   // returns global indices for local index
-        bandsList.push_back(ib);   // now we want to append this to a list to return
+        auto tup = energies.local2Global(k); // returns global indices of local index
+        auto ib = std::get<1>(tup);
+        bandsList.push_back(ib);
     }
     return bandsList;
 }
@@ -366,7 +368,7 @@ void FullBandStructure::setEnergies(Eigen::Vector3d &coords, Eigen::VectorXd &en
 
 void FullBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
     long ik = point.getIndex();
-    energies.col(ik) = energies_;
+    for(int ib=0;ib<energies.localRows();ib++) energies(ib,ik) = energies_(ib);
 }
 
 void FullBandStructure::setVelocities(Point &point,

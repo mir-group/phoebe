@@ -355,9 +355,13 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase) {
     // with something else. 
     std::set<std::pair<int,int>> x;
     for (long k = 0; k < theMatrix.localSize(); k++) {
-       auto [is1, is2] = theMatrix.local2Global(k);  // bloch indices
-       auto [ik1, ib1] = outerBandStructure.getIndex(is1);
-       auto [ik2, ib2] = outerBandStructure.getIndex(is2);
+       auto tup0 = theMatrix.local2Global(k);  // bloch indices
+       auto is1 = std::get<0>(tup0);
+       auto is2 = std::get<1>(tup0);
+       auto tup1 = outerBandStructure.getIndex(is1);
+       auto ik1 = std::get<0>(tup1); 
+       auto tup2 = outerBandStructure.getIndex(is2);
+       auto ik2 = std::get<0>(tup2); 
        std::pair<int,int> xx = std::make_pair(ik1.get(), ik2.get());
        x.insert(xx);
     }
