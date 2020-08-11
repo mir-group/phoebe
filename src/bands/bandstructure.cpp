@@ -214,21 +214,59 @@ Particle FullBandStructure::getParticle() {
     return particle;
 }
 
-Points FullBandStructure::getPoints() {
-    return points;
-}
-
 Point FullBandStructure::getPoint(const long &pointIndex) {
+    // NOTE: points object is not distributed, so we *can* return this info, 
+    // but it might be better to give an error if we access one which is 
+    // not stored in this class in the distributed case
     return points.getPoint(pointIndex);
 }
 
-long FullBandStructure::getNumPoints(const bool & useFullGrid) {
+// NOTE: behavior has changed -- it now gives the
+// local number of points in the distributed case. 
+long FullBandStructure::getNumPoints(const bool &useFullGrid) {
     (void) useFullGrid;
+    // return the number of local wavevectors, which should be numLocalCols
+    if(isDistributed) { return energies.localCols(); } 
     return points.getNumPoints();
 }
 
 long FullBandStructure::getNumBands() {
+    // If matrix is distributed over k cols, numBands is unaffected
     return numBands;
+}
+
+long FullBandStructure::getNumStates() {
+    // because getNumPoints returns local numPoints, this applies in either case
+    return numBands * getNumPoints();
+}
+
+// Returns a list of global wavevector indices corresponding 
+// to the local wavevectors available to this process. 
+std::vector<long> FullBandStructure::getWavevectorIndices() {
+    std::vector<long> kptsList;
+    // loop over local states
+    for (long k = 0; k < energies.localSize(); k++) {
+        // returns global indices for local index
+        auto [ib,ik] = energies.local2Global(k); 
+        kptsList.push_back(ik); 
+    }
+    return kptsList;
+}
+
+std::vector<long> FullBandStructure::getBandIndices() {
+    std::vector<long> bandsList;
+    // loop over local states
+    for (long k = 0; k < energies.localSize(); k++) {
+        auto [ib,ik] = energies.local2Global(k);   // returns global indices for local index
+        bandsList.push_back(ib);   // now we want to append this to a list to return
+    }
+    return bandsList;
+}
+
+Points FullBandStructure::getPoints() {
+   // NOTE: I don't know how to make any points class which is only a handful of points..
+   // Can we change this behavior to return a vector of points?
+   return points;
 }
 
 long FullBandStructure::hasWindow() {
@@ -280,21 +318,19 @@ std::tuple<WavevectorIndex,BandIndex> FullBandStructure::getIndex(
     return {ikk, ibb};
 }
 
-long FullBandStructure::getNumStates() {
-    return numBands * getNumPoints();
-}
-
 const double& FullBandStructure::getEnergy(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
+    // TODO: should this be using points.getNumPoints()? 
+    auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+    auto ik = std::get<0>(tup);
+    auto ib = std::get<1>(tup);
     return energies(ib, ik);
 }
 
 Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
+    // TODO: should this be using points.getNumPoints()? 
+    auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+    auto ik = std::get<0>(tup);
+    auto ib = std::get<1>(tup);
     Eigen::Vector3d vel;
     for (long i = 0; i < 3; i++) {
         long ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
@@ -304,23 +340,28 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
+    auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
+    auto ik = std::get<0>(tup);
+    auto ib = std::get<1>(tup);
     return points.getPoint(ik).getCoords(Points::cartesianCoords,true);
 }
 
 double FullBandStructure::getWeight(const long &stateIndex) {
-  auto tup = getIndex(stateIndex);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
-  return points.getWeight(ik.get());
+    auto tup = getIndex(stateIndex);
+    auto ik = std::get<0>(tup);
+    auto ib = std::get<1>(tup);
+    return points.getWeight(ik.get());
 }
 
-void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
-        Eigen::VectorXd &energies_) {
-    long ik = points.getIndex(coords);
-    energies.col(ik) = energies_;
+Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) { 
+    Eigen::VectorXd bandEnergies(energies.cols()); 
+    for(int ik=0;ik<energies.localCols();ik++) bandEnergies(ik) =  energies(bandIndex,ik);
+    return bandEnergies;
+}
+
+void FullBandStructure::setEnergies(Eigen::Vector3d &coords, Eigen::VectorXd &energies_) {
+    long ik = points.getIndex(coords); // global kidx
+    for(int ib=0;ib<energies.localRows();ib++) energies(ib,ik) = energies_(ib);
 }
 
 void FullBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
@@ -345,7 +386,7 @@ void FullBandStructure::setVelocities(Point &point,
         }
     }
     long ik = point.getIndex();
-    velocities.col(ik) = tmpVelocities_;
+    for(int ib=0;ib<velocities.localRows();ib++) velocities(ib,ik) = tmpVelocities_(ib);
 }
 
 void FullBandStructure::setEigenvectors(Point &point,
@@ -363,10 +404,6 @@ void FullBandStructure::setEigenvectors(Point &point,
         }
     }
     long ik = point.getIndex();
-    eigenvectors.col(ik) = tmp;
-}
-
-Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
-    Eigen::VectorXd bandEnergies = energies.row(bandIndex);
-    return bandEnergies;
+    for(int ib=0;ib<eigenvectors.localRows();ib++) eigenvectors(ib,ik) = tmp(ib);
+    //eigenvectors.col(ik) = tmp;
 }

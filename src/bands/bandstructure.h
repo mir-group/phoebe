@@ -176,12 +176,12 @@ public:
      * @param numBands: an integer with the number of bands in the system
      * @param particle: a Particle object that contains the type of
      * quasiparticle
-     * @param withVelocities: a boolean to decide whether to store velocities
-     * @param withEigenvectors: a boolean to decide whether to store eigenvecs
+     * @param hasVelocities: a boolean to decide whether to store velocities
+     * @param hasEigenvectors: a boolean to decide whether to store eigenvecs
      * @param points: the underlying mesh of wavevectors.
      */
-    FullBandStructure(long numBands_, Particle &particle_, bool withVelocities,
-            bool withEigenvectors, Points &points_, bool isDistributed=false);
+    FullBandStructure(long numBands_, Particle &particle_, bool hasVelocities,
+            bool hasEigenvectors, Points &points_, bool isDistributed=false);
 
     FullBandStructure();
 
