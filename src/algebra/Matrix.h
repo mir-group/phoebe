@@ -177,18 +177,20 @@ Matrix<T>::Matrix() {
   mat = nullptr;
   nRows = 0;
   nCols = 0;
+  numElements_ = 0;
 }
 
 // copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
-  nRows = that.rows();
-  nCols = that.cols();
+  nRows = that.nRows;
+  nCols = that.nCols;
   numElements_ = that.numElements_;
   if (mat != nullptr) {
     delete[] mat;
     mat = nullptr;
   }
+  std::cout << numElements_ << "!!!!!----<<<<<\n";
   mat = new T[numElements_];
   assert(mat != nullptr);
   for (long i = 0; i < numElements_; i++) {
