@@ -173,8 +173,8 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   nRows = numRows;
   nCols = numCols;
   numElements_ = nRows * nCols;
-  mat = new T[nRows * nCols];
-  for (int i = 0; i < numElements_; i++) mat[i] = 0;  // fill with zeroes
+  mat = new T[numElements_]; 
+  for (int i = 0; i < numElements_; i++) *(mat + i) = 0.;  // fill with zeroes
   assert(mat != nullptr);  // Memory could not be allocated, end program
 }
 
