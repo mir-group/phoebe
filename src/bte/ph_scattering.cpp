@@ -126,7 +126,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   auto particle = outerBandStructure.getParticle();
 
   long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  long numCalcs = statisticsSweep.getNumCalcs();
+  int numCalcs = statisticsSweep.getNumCalcs();
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
@@ -332,7 +332,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             continue;
 
           // loop on temperature
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
             double bose1 = outerBose(iCalc, 0, ind1);
             double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Plus = bose3PlusData(iCalc, ib3);
@@ -425,7 +425,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           if (deltaMins2 < 0.)
             deltaMins2 = 0.;
 
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
             double bose1 = outerBose(iCalc, 0, ind1);
             double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Mins = bose3MinsData(iCalc, ib3);
@@ -551,7 +551,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             }
             termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
 
-            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+            for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
               double bose1 = outerBose(iCalc, 0, ind1);
               double bose2 = innerBose(iCalc, 0, ind2);
 
@@ -593,8 +593,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   if (switchCase == 1) {
-    for ( auto outPopulation : outPopulations ) {
-      mpi->allReduceSum(&outPopulation.data);
+    for (unsigned int i=0; i<outPopulations.size(); i++) {
+      mpi->allReduceSum(&outPopulations[i].data);
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
@@ -655,8 +655,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
     for (auto is1 : excludeIndeces) {
-      for ( auto outPopulation : outPopulations ) {
-        outPopulation.data.col(is1).setZero();
+      for (unsigned int i=0; i<outPopulations.size(); i++) {
+        outPopulations[i].data.col(is1).setZero();
       }
     }
 
