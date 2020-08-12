@@ -90,7 +90,7 @@ void ScatteringMatrix::setup() {
 
   if (constantRTA) return;  // nothing to construct
 
-  std::vector<VectorBTE*> emptyVector;
+  std::vector<VectorBTE> emptyVector;
 
   if (highMemory) {
     if (numCalcs > 1) {
@@ -121,10 +121,6 @@ VectorBTE ScatteringMatrix::diagonal() {
   }
 }
 
-// Matrix<double> ScatteringMatrix::dot(const Matrix<double> &otherMatrix) {
-//    return theMatrix * otherMatrix;
-//}
-
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   VectorBTE outPopulation = dot(inPopulation);
@@ -137,6 +133,24 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     }
   }
   return outPopulation;
+}
+
+std::vector<VectorBTE> ScatteringMatrix::offDiagonalDot(
+    std::vector<VectorBTE> &inPopulations) {
+  // outPopulation = outPopulation - internalDiagonal * inPopulation;
+  std::vector<VectorBTE> outPopulations = dot(inPopulations);
+  for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
+    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (int iDim = 0; iDim < dimensionality_; iDim++) {
+        for (long is = 0; is < numStates; is++) {
+          outPopulations[iVec](iCalc, iDim, is) -=
+              internalDiagonal(iCalc, 0, is) *
+              inPopulations[iVec](iCalc, iDim, is);
+        }
+      }
+    }
+  }
+  return outPopulations;
 }
 
 VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
@@ -159,12 +173,45 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure,
                             inPopulation.dimensionality);
     outPopulation.data.setZero();
-    std::vector<VectorBTE*> outPopulations;
-    std::vector<VectorBTE*> inPopulations;
-    inPopulations.push_back(&inPopulation);
-    outPopulations.push_back(&outPopulation);
+    std::vector<VectorBTE> outPopulations;
+    std::vector<VectorBTE> inPopulations;
+    inPopulations.push_back(inPopulation);
+    outPopulations.push_back(outPopulation);
     builder(nullptr, inPopulations, outPopulations);
-    return outPopulation;
+    return outPopulations[0];
+  }
+}
+
+std::vector<VectorBTE> ScatteringMatrix::dot(
+    std::vector<VectorBTE> &inPopulations) {
+  if (highMemory) {
+    std::vector<VectorBTE> outPopulations;
+    for (auto inPopulation : inPopulations) {
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+                              inPopulation.dimensionality);
+      outPopulation.data.setZero();
+      // note: we are assuming that ScatteringMatrix has numCalcs = 1
+      for (int idim = 0; idim < inPopulation.dimensionality; idim++) {
+        for (auto tup : theMatrix.getAllLocalStates()) {
+          auto i1 = std::get<0>(tup);
+          auto j1 = std::get<1>(tup);
+          outPopulation(0, idim, i1) +=
+              theMatrix(i1, j1) * inPopulation(0, idim, j1);
+        }
+      }
+      mpi->allReduceSum(&outPopulation.data);
+      outPopulations.push_back(outPopulation);
+    }
+    return outPopulations;
+  } else {
+    std::vector<VectorBTE> outPopulations;
+    for (auto inPopulation : inPopulations) {
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+                              inPopulation.dimensionality);
+      outPopulations.push_back(outPopulation);
+    }
+    builder(nullptr, inPopulations, outPopulations);
+    return outPopulations;
   }
 }
 

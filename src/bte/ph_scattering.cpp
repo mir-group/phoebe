@@ -97,8 +97,8 @@ PhScatteringMatrix::operator=(const PhScatteringMatrix &that) {
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
 void PhScatteringMatrix::builder(VectorBTE *linewidth,
-                                 std::vector<VectorBTE*> inPopulations,
-                                 std::vector<VectorBTE*> outPopulations) {
+                                 std::vector<VectorBTE> &inPopulations,
+                                 std::vector<VectorBTE> &outPopulations) {
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
 
@@ -354,12 +354,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               // we build the scattering matrix A = S*n(n+1)
               for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
                 for (int i = 0; i < dimensionality_; i++) {
-                  outPopulations[iInput]->operator()(iCalc, i, ind1) +=
+                  outPopulations[iInput](iCalc, i, ind1) +=
                       ratePlus *
-                      inPopulations[iInput]->operator()(iCalc, i, ind2);
-                  outPopulations[iInput]->operator()(iCalc, i, ind1) +=
+                      inPopulations[iInput](iCalc, i, ind2);
+                  outPopulations[iInput](iCalc, i, ind1) +=
                       ratePlus *
-                      inPopulations[iInput]->operator()(iCalc, i, ind1);
+                      inPopulations[iInput](iCalc, i, ind1);
                 }
               }
               break;
@@ -448,12 +448,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               // case of matrix-vector multiplication
               for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
                 for (int i = 0; i < dimensionality_; i++) {
-                  outPopulations[iInput]->operator()(iCalc, i, ind1) -=
+                  outPopulations[iInput](iCalc, i, ind1) -=
                       (rateMins1 + rateMins2) *
-                      inPopulations[iInput]->operator()(iCalc, i, ind2);
-                  outPopulations[iInput]->operator()(iCalc, i, ind1) +=
+                      inPopulations[iInput](iCalc, i, ind2);
+                  outPopulations[iInput](iCalc, i, ind1) +=
                       0.5 * rateMins2 *
-                      inPopulations[iInput]->operator()(iCalc, i, ind1);
+                      inPopulations[iInput](iCalc, i, ind1);
                 }
               }
               break;
@@ -570,12 +570,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 // we build the scattering matrix A = S*n(n+1)
                 for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
                   for (int i = 0; i < dimensionality_; i++) {
-                    outPopulations[iInput]->operator()(iCalc, i, ind1) +=
+                    outPopulations[iInput](iCalc, i, ind1) +=
                         rateIso *
-                        inPopulations[iInput]->operator()(iCalc, i, ind2);
-                    outPopulations[iInput]->operator()(iCalc, i, ind1) +=
+                        inPopulations[iInput](iCalc, i, ind2);
+                    outPopulations[iInput](iCalc, i, ind1) +=
                         rateIso *
-                        inPopulations[iInput]->operator()(iCalc, i, ind1);
+                        inPopulations[iInput](iCalc, i, ind1);
                   }
                 }
                 break;
@@ -594,7 +594,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   if (switchCase == 1) {
     for ( auto outPopulation : outPopulations ) {
-      mpi->allReduceSum(&outPopulation->data);
+      mpi->allReduceSum(&outPopulation.data);
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
@@ -626,8 +626,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           // case of matrix-vector multiplication
           for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
             for (int i = 0; i < dimensionality_; i++) {
-              outPopulations[iInput]->operator()(iCalc, i, is1) +=
-                  rate * inPopulations[iInput]->operator()(iCalc, i, is1);
+              outPopulations[iInput](iCalc, i, is1) +=
+                  rate * inPopulations[iInput](iCalc, i, is1);
             }
           }
           break;
@@ -656,7 +656,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     // case of matrix-vector multiplication
     for (auto is1 : excludeIndeces) {
       for ( auto outPopulation : outPopulations ) {
-        outPopulation->data.col(is1).setZero();
+        outPopulation.data.col(is1).setZero();
       }
     }
 
