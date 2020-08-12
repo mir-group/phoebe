@@ -190,7 +190,6 @@ Matrix<T>::Matrix(const Matrix<T>& that) {
     delete[] mat;
     mat = nullptr;
   }
-  std::cout << numElements_ << "!!!!!----<<<<<\n";
   mat = new T[numElements_];
   assert(mat != nullptr);
   for (long i = 0; i < numElements_; i++) {
