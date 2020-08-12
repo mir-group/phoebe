@@ -187,7 +187,8 @@ FullBandStructure::FullBandStructure(const FullBandStructure &that) :
         velocitiesCols(that.velocitiesCols),
         eigenvectorsCols(that.eigenvectorsCols), numBands(that.numBands),
         numAtoms(that.numAtoms), hasEigenvectors(that.hasEigenvectors),
-        hasVelocities(that.hasVelocities), isDistributed(that.isDistributed) {
+        hasVelocities(that.hasVelocities), isDistributed(that.isDistributed),
+        numLocalPoints(that.numLocalPoints) {
 }
 
 FullBandStructure& FullBandStructure::operator =( // copy assignment
