@@ -32,16 +32,11 @@ class MPIcontroller {
   int myBlasRow_, myBlasCol_;
   char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
-  // store labor division information
-  std::vector<int> workDivisionHeads;  // start points for each rank's work
-  std::vector<int> workDivisionTails;  // end points for each rank's work
-
  public:
   // MPIcontroller class constructors -----------------------------------
   /** a constructor which sets up the MPI environment, initializes the
    * communicator, and starts a timer **/
   MPIcontroller();
-  //~MPIcontroller(); 
 
   /** A method to initialize blacs parameters, if needed. 
   * @param context: pass input information, which is used to determine 
@@ -149,9 +144,10 @@ class MPIcontroller {
    * @return divs: returns a vector of length 2, containing start and stop
    *       points for the divided number of tasks.
    */
-  void divideWork(size_t numTasks);  // divide up a set of work
-  int workHead(); // get the first task assigned to a rank
-  int workTail(); // get the last task assigned to a rank
+  std::vector<int> divideWork(size_t numTasks);  // divide up a set of work
+  /** Divides a number of tasks appropriately for the current MPI env.
+   * @return divs: returns an iterator of points for the divided number of tasks.
+   */
   std::vector<int> divideWorkIter(size_t numTasks);
 
 };
@@ -360,29 +356,34 @@ void MPIcontroller::reduceMin(T* dataIn) const {
 template <typename T>
 void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   int errCode;
+  int numTasks = containerType<T>::getSize(dataOut);
   std::vector<int> workDivs(size);
-  for (int i = 0; i < size; i++)
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-
+  // start points for each rank's work
+  std::vector<int> workDivisionHeads(size);
+  // Recreate work division instructions
+  for (int i = 0; i < size; i++) {
+    workDivs[i] = (numTasks * (rank + 1)) / size - (numTasks * rank) / size;
+    workDivisionHeads[i] = (numTasks * i) / size;
+  }
   errCode = MPI_Gatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
       containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
       workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
-      0, MPI_COMM_WORLD);
+      mpiHeadId, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#else
+  #else
   dataOut = dataIn;  // in serial, we just switch pointers.
-#endif
+  #endif
 }
 
-  template <typename T>
-  void MPIcontroller::gather(T * dataIn, T * dataOut) const {
+template <typename T>
+void MPIcontroller::gather(T * dataIn, T * dataOut) const {
     using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   int errCode;
   int numTasks = containerType<T>::getSize(dataOut);
   std::vector<int> workDivs(size);
@@ -401,9 +402,9 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#else
+  #else
   dataOut = dataIn;  // just switch the pointers in serial case
-#endif
+  #endif
 }
 
 #endif

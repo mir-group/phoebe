@@ -6,7 +6,6 @@
 #include "Blacs.h"
 #include "exceptions.h"
 #include "context.h"
-#include "eigen.h"
 
 #ifdef MPI_AVAIL 
 #include <mpi.h>
@@ -132,36 +131,22 @@ void MPIcontroller::barrier() const{
 }
 
 // Labor division functions -----------------------------------------
-void MPIcontroller::divideWork(size_t numTasks) {
-  // clear heads/tails vectors in case there was a prior call
-  workDivisionHeads.clear();
-  workDivisionTails.clear();
-
-  // each should be nranks long
-  workDivisionHeads.resize(size);
-  workDivisionTails.resize(size);
-
-  for (int r = 0; r < size; r++) {
-    workDivisionHeads[r] = (numTasks * r) / size;
-    workDivisionTails[r] = (numTasks * (r + 1)) / size;
-  }
+std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
+  // return a vector of the start and stop points for task division
+  std::vector<int> divs(2); 
+  divs[0] = (numTasks * rank)/size;
+  divs[1] = (numTasks * (rank+1))/size;
+  return divs; 
 }
 
 std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  divideWork(numTasks);
-  int start = workHead();
-  int stop = workTail();
   std::vector<int> divs;
-  for (int i = start; i < stop; i++) {
-    divs.push_back(i);
-  }
+  int start = (numTasks * rank) / size;
+  int stop = (numTasks * (rank + 1)) / size;
+  for (int i = start; i < stop; i++) divs.push_back(i);
   return divs;
 }
-
-int MPIcontroller::workHead() { return workDivisionHeads[rank]; }
-
-int MPIcontroller::workTail() { return workDivisionTails[rank]; }
 
 int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
 
