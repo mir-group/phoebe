@@ -41,15 +41,15 @@ StatisticsSweep::StatisticsSweep(Context &context,
                 fullBandStructure->getPoints().getCrystal().getVolumeUnitCell();
 
         // flatten the energies (easier to work with)
-        numPoints = fullBandStructure->getNumPoints();
-        numBands = fullBandStructure->getNumBands();
-        numStates = numBands * numPoints;
+        numPoints = fullBandStructure->getNumPoints(); // local # of points 
+        numBands = fullBandStructure->getNumBands(); 
+        //numStates = numBands * numPoints;
         energies = Eigen::VectorXd::Zero(numBands * numPoints);
         long i = 0;
-        for (long ik = 0; ik < numPoints; ik++) {
+        for ( auto ik : fullBandStructure->getWavevectorIndices() ) { 
             auto state = fullBandStructure->getState(ik);
             auto ens = state.getEnergies();
-            for (long ib = 0; ib < numBands; ib++) {
+            for ( auto ib : fullBandStructure->getBandIndices() ) { 
                 energies(i) = ens(ib);
                 i++;
             }
