@@ -245,10 +245,9 @@ long FullBandStructure::getNumStates() {
 std::vector<long> FullBandStructure::getWavevectorIndices() {
     std::vector<long> kptsList;
     // loop over local states
-    for (long k = 0; k < energies.localSize(); k++) {
+    for ( auto tup : energies.getAllLocalStates()) { 
         // returns global indices for local index
-        auto tup = energies.local2Global(k);
-        auto ik = std::get<0>(tup);
+        auto ik = std::get<1>(tup);
         kptsList.push_back(ik);
     }
     return kptsList;
@@ -257,9 +256,8 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
 std::vector<long> FullBandStructure::getBandIndices() {
     std::vector<long> bandsList;
     // loop over local states
-    for (long k = 0; k < energies.localSize(); k++) {
-        auto tup = energies.local2Global(k); // returns global indices of local index
-        auto ib = std::get<1>(tup);
+    for ( auto tup : energies.getAllLocalStates()) {
+        auto ib = std::get<0>(tup);
         bandsList.push_back(ib);
     }
     return bandsList;
@@ -344,14 +342,12 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
 Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
     auto tup = decompress2Indeces(stateIndex,getNumPoints(),numBands);
     auto ik = std::get<0>(tup);
-    auto ib = std::get<1>(tup);
     return points.getPoint(ik).getCoords(Points::cartesianCoords,true);
 }
 
 double FullBandStructure::getWeight(const long &stateIndex) {
     auto tup = getIndex(stateIndex);
     auto ik = std::get<0>(tup);
-    auto ib = std::get<1>(tup);
     return points.getWeight(ik.get());
 }
 

@@ -43,7 +43,7 @@ class ParallelMatrix : public Matrix<T> {
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
-  // TODO: temporarily public -- std::tuple<long, long> local2Global(const long& k);
+  std::tuple<long, long> local2Global(const long& k);
 
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
@@ -56,8 +56,6 @@ class ParallelMatrix : public Matrix<T> {
   static const char transN = 'N';  // no transpose nor adjoint
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
-
-  std::tuple<long, long> local2Global(const long& k);
 
   /** Construct using row, col numbers, and block distribution
    */
@@ -108,9 +106,6 @@ class ParallelMatrix : public Matrix<T> {
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Return the local number of elements 
-  */
-  long localSize() const; 
   /** Get and set operator
    */
   T& operator()(const int row, const int col);
@@ -352,11 +347,6 @@ long ParallelMatrix<T>::localCols() const {
 template <typename T>
 long ParallelMatrix<T>::size() const {
   return cols() * rows();
-}
-
-template <typename T>
-long ParallelMatrix<T>::localSize() const {
-  return numLocalElements_; 
 }
 
 // Get/set element

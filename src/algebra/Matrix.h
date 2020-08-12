@@ -4,7 +4,7 @@
 // include statements
 #include <assert.h>
 #include <tuple>
-#include <vector> 
+#include <vector>
 #include <cmath>
 #include <complex>
 #include <iostream>
@@ -28,15 +28,12 @@ class Matrix {
 
   /// Index from a 1D array to a position in a 2D array (matrix)
   long global2Local(const long& row, const long& col);
-  // TODO: std::tuple<long, long> local2Global(const long& k);
+  std::tuple<long, long> local2Global(const long& k);
 
  public:
   static const char transN = 'N';  // no transpose nor adjoint
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
-
-  // TODO: temporarily made this public 
-  std::tuple<long, long> local2Global(const long& k);
 
   /** Matrix class constructor.
    * numBlocks* (ignored) are put for compatibility with ParallelMatrix.
@@ -84,9 +81,6 @@ class Matrix {
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Return the local number of elements 
-  */
-  long localSize() const; // TODO: should probably be private 
   /** Returns a pointer to the raw matrix data buffer */ 
   T* data() const;
 
@@ -173,8 +167,8 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
   nRows = numRows;
   nCols = numCols;
   numElements_ = nRows * nCols;
-  mat = new T[numElements_]; 
-  for (int i = 0; i < numElements_; i++) *(mat + i) = 0.;  // fill with zeroes
+  mat = new T[nRows * nCols];
+  for (int i = 0; i < numElements_; i++) mat[i] = 0;  // fill with zeroes
   assert(mat != nullptr);  // Memory could not be allocated, end program
 }
 
@@ -248,10 +242,6 @@ long Matrix<T>::localCols() const {
 }
 template <typename T>
 long Matrix<T>::size() const {
-  return numElements_;
-}
-template <typename T>
-long Matrix<T>::localSize() const {
   return numElements_;
 }
 // TODO: likely this can be made obsolete
