@@ -57,7 +57,6 @@ class Matrix {
    */
   Matrix<T>& operator=(const Matrix<T>& that);
 
-  // TODO: local states seems like it's too specific to be in general Matrix
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -227,7 +226,6 @@ template <typename T>
 long Matrix<T>::rows() const {
   return nRows;
 }
-// TODO: should probably replace these with something else and make this private
 template <typename T>
 long Matrix<T>::localRows() const {
   return nRows;
@@ -244,7 +242,6 @@ template <typename T>
 long Matrix<T>::size() const {
   return numElements_;
 }
-// TODO: likely this can be made obsolete
 template <typename T>
 T* Matrix<T>::data() const{ 
   return mat; 
