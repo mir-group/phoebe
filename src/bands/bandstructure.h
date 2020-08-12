@@ -377,6 +377,8 @@ protected:
     // auxiliary variables
     long numBands = 0;
     long numAtoms = 0;
+    long numPoints = 0; 
+    long numLocalPoints = 0; 
 
     bool hasEigenvectors = false;
     bool hasVelocities = false;
