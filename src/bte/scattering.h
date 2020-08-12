@@ -145,8 +145,8 @@ protected:
      * populations, we compute outPopulation = scattMatrix * inPopulation.
      * This doesn't require to store the matrix in memory.
      */
-    virtual void builder(VectorBTE *linewidth, VectorBTE *inPopulation,
-                         VectorBTE *outPopulation) = 0;
+    virtual void builder(VectorBTE *linewidth, std::vector<VectorBTE*> inPopulations,
+                         std::vector<VectorBTE*> outPopulations) = 0;
 
     /** Returns a vector of pairs of wavevector indices to iterate over during
      * the construction of the scattering matrix.

@@ -29,15 +29,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
 
-  // the difference arises from the fact that vectors in the BTE have
-  // numCalcs set to nTemp * 3, whereas the matrix only depends on nTemp.
-  // so, when we compute the action of the scattering matrix, we must take
-  // into account for this misalignment
-  if (highMemory) {
-    numCalcs = statisticsSweep.getNumCalcs();
-  } else {
-    numCalcs = statisticsSweep.getNumCalcs() * dimensionality_;
-  }
+  numCalcs = statisticsSweep.getNumCalcs();
 
   // we want to know the state index of acoustic modes at gamma,
   // so that we can set their populations to zero
@@ -98,6 +90,8 @@ void ScatteringMatrix::setup() {
 
   if (constantRTA) return;  // nothing to construct
 
+  std::vector<VectorBTE*> emptyVector;
+
   if (highMemory) {
     if (numCalcs > 1) {
       // note: one could write code around this
@@ -109,10 +103,10 @@ void ScatteringMatrix::setup() {
     theMatrix = ParallelMatrix<double>(numStates, numStates);
 
     // calc matrix and linew.
-    builder(&internalDiagonal, nullptr, nullptr);
+    builder(&internalDiagonal, emptyVector, emptyVector);
   } else {
     // calc linewidths only
-    builder(&internalDiagonal, nullptr, nullptr);
+    builder(&internalDiagonal, emptyVector, emptyVector);
   }
 }
 
@@ -164,7 +158,12 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
   } else {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure,
                             inPopulation.dimensionality);
-    builder(nullptr, &inPopulation, &outPopulation);
+    outPopulation.data.setZero();
+    std::vector<VectorBTE*> outPopulations;
+    std::vector<VectorBTE*> inPopulations;
+    inPopulations.push_back(&inPopulation);
+    outPopulations.push_back(&outPopulation);
+    builder(nullptr, inPopulations, outPopulations);
     return outPopulation;
   }
 }
