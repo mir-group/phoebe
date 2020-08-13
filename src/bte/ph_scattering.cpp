@@ -178,25 +178,22 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   for (auto tup : qPairIterator) {
     auto iq1Indexes = std::get<0>(tup);
     auto iq2 = std::get<1>(tup);
-    int nq1 = iq1Indexes.size();
+    auto iq2Index = WavevectorIndex(iq2);
 
     Point q2 = innerBandStructure.getPoint(iq2);
-    State states2 = innerBandStructure.getState(q2);
-    Eigen::VectorXd state2Energies = states2.getEnergies();
+    Eigen::VectorXd state2Energies = innerBandStructure.getEnergies(iq2Index);
     int nb2 = state2Energies.size();
-    Eigen::MatrixXd v2s = states2.getGroupVelocities();
+    Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
+    Eigen::Vector3d q2_e = innerBandStructure.getWavevector(iq2Index);
+    Eigen::MatrixXcd ev2_e = innerBandStructure.getEigenvectors(iq2Index);
+
+    int nq1 = iq1Indexes.size();
 
     loopPrint.update();
     pointHelper.prepare(iq1Indexes, iq2);
 
     // prepare batches based on memory usage
     int numBatches = coupling3Ph->estimateNumBatches(nq1, nb2);
-
-    Eigen::Vector3d q2_e;
-    Eigen::MatrixXcd ev2_e;
-
-    states2.getEigenvectors(ev2_e);
-    q2_e = states2.getCoords(Points::cartesianCoords);
 
     // precalculate D3cached for current value of q2
     coupling3Ph->cacheD3(q2_e);
@@ -222,16 +219,16 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       // store stuff needed for couplings later
       for (int i = 0; i < batch_size; i++) {
         auto iq1 = iq1Indexes[start + i];
+        auto iq1Index = WavevectorIndex(iq1);
 
         // note: for computing linewidths on a path, we must distinguish
         // that q1 and q2 are on different meshes, and that q3+/- may not
         // fall into known meshes and therefore needs to be computed
 
-        State states1 = outerBandStructure.getState(iq1);
-        Point q1 = states1.getPoint();
-        Eigen::VectorXd state1Energies = states1.getEnergies();
+        Point q1 = outerBandStructure.getPoint(iq1);
+        Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(iq1Index);
         int nb1 = state1Energies.size();
-        Eigen::MatrixXd v1s = states1.getGroupVelocities();
+        Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
         auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
@@ -250,18 +247,13 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         auto v3ms = std::get<4>(tup2);
         auto bose3MinsData = std::get<5>(tup2);
 
-        DetachedState states3Plus(q3PlusC, state3PlusEnergies, numAtoms,
-                                  nb3Plus, eigvecs3Plus);
-        DetachedState states3Mins(q3MinsC, state3MinsEnergies, numAtoms,
-                                  nb3Mins, eigvecs3Mins);
-
-        q1s_e[i] = states1.getCoords(Points::cartesianCoords);
+        q1s_e[i] = outerBandStructure.getWavevector(iq1Index);
         nb1s_e[i] = nb1;
         nb3Pluss_e[i] = state3PlusEnergies.size();
         nb3Minss_e[i] = state3MinsEnergies.size();
-        states1.getEigenvectors(ev1s_e[i]);
-        states3Plus.getEigenvectors(ev3Pluss_e[i]);
-        states3Mins.getEigenvectors(ev3Minss_e[i]);
+        ev1s_e[i] = outerBandStructure.getEigenvectors(iq1Index);
+        ev3Pluss_e[i] = eigvecs3Plus;
+        ev3Minss_e[i] = eigvecs3Mins;
       }
 
       // calculate batch of couplings
@@ -274,13 +266,13 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       // do postprocessing loop with batch of couplings
       for (int i = 0; i < batch_size; i++) {
         auto iq1 = iq1Indexes[start + i];
+        auto iq1Index = WavevectorIndex(iq1);
         auto couplingPlus = couplingPluss[i];
         auto couplingMins = couplingMinss[i];
-        State states1 = outerBandStructure.getState(iq1);
-        Point q1 = states1.getPoint();
-        Eigen::VectorXd state1Energies = states1.getEnergies();
+        Point q1 = outerBandStructure.getPoint(iq1);
+        Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(iq1Index);
         int nb1 = state1Energies.size();
-        Eigen::MatrixXd v1s = states1.getGroupVelocities();
+        Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
         auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
@@ -488,26 +480,27 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       auto iq2 = std::get<1>(tup);
 #pragma omp parallel for
       for (auto iq1 : iq1Indexes) {
-        State states2 = innerBandStructure.getState(iq2);
-        Eigen::VectorXd state2Energies = states2.getEnergies();
+        auto iq1Index = WavevectorIndex(iq1);
+        auto iq2Index = WavevectorIndex(iq2);
+        Eigen::VectorXd state2Energies =
+            innerBandStructure.getEnergies(iq2Index);
         int nb2 = state2Energies.size();
 
-        Eigen::Tensor<std::complex<double>, 3> ev2;
-        states2.getEigenvectors(ev2);
+        Eigen::Tensor<std::complex<double>, 3> ev2 =
+            innerBandStructure.getPhEigenvectors(iq2Index);
 
         // note: for computing linewidths on a path, we must distinguish
         // that q1 and q2 are on different meshes, and that q3+/- may not
         // fall into known meshes and therefore needs to be computed
 
-        State states1 = outerBandStructure.getState(iq1);
-        Eigen::VectorXd state1Energies = states1.getEnergies();
+        Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(iq1Index);
         int nb1 = state1Energies.size();
 
-        Eigen::Tensor<std::complex<double>, 3> ev1;
-        states1.getEigenvectors(ev1);
+        Eigen::Tensor<std::complex<double>, 3> ev1 =
+            outerBandStructure.getPhEigenvectors(iq1Index);
 
-        Eigen::MatrixXd v1s = states1.getGroupVelocities();
-        Eigen::MatrixXd v2s = states2.getGroupVelocities();
+        Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
+        Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
 
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           double en1 = state1Energies(ib1);

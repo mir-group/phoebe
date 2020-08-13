@@ -11,7 +11,6 @@
 #include "crystal.h"
 #include "eigen.h"
 #include "points.h"
-#include "state.h"
 #include "utilities.h"
 
 /** Class to calculate the probability rate for one 3-phonon scattering event.

@@ -19,8 +19,8 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
   auto tup = outerBandStructure.getPoints().getMesh();
- auto mesh = std::get<0>(tup);
- auto offset = std::get<1>(tup);
+  auto mesh = std::get<0>(tup);
+  auto offset = std::get<1>(tup);
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
     storedAllQ3 = true;
@@ -37,8 +37,8 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // first, we build the full grid that the 3rd point would fall into
     auto innerPoints = innerBandStructure.getPoints();
     auto tup = innerPoints.getMesh();
- auto mesh = std::get<0>(tup);
- auto offset = std::get<1>(tup);
+    auto mesh = std::get<0>(tup);
+    auto offset = std::get<1>(tup);
     fullPoints3 = std::make_unique<FullPoints>(
         innerBandStructure.getPoints().getCrystal(), mesh, offset);
 
@@ -146,11 +146,12 @@ Helper3rdState ::get(Point &point1, Point &point2, const int &thisCase) {
       auto points = innerBandStructure.getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       iq3 = points.getIndex(crystalPoints);
-      State states3 = innerBandStructure.getState(iq3);
-      energies3 = states3.getEnergies();
-      states3.getEigenvectors(eigvecs3);
+      auto iq3Index = WavevectorIndex(iq3);
+      energies3 = innerBandStructure.getEnergies(iq3Index);
+      eigvecs3 = innerBandStructure.getEigenvectors(iq3Index);
+
       if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = states3.getGroupVelocities();
+        v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
@@ -163,11 +164,11 @@ Helper3rdState ::get(Point &point1, Point &point2, const int &thisCase) {
       auto points = bandStructure3->getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       iq3 = points.getIndex(crystalPoints);
-      State states3 = bandStructure3->getState(iq3);
-      energies3 = states3.getEnergies();
-      states3.getEigenvectors(eigvecs3);
+      auto iq3Index = WavevectorIndex(iq3);
+      energies3 = bandStructure3->getEnergies(iq3Index);
+      eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
       if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = states3.getGroupVelocities();
+        v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
@@ -238,11 +239,11 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
       Eigen::Vector3d q3Mins = q1 - q2;
 
       auto tup = h0->diagonalizeFromCoords(q3Plus);
- auto energies3Plus = std::get<0>(tup);
- auto eigvecs3Plus = std::get<1>(tup);
+      auto energies3Plus = std::get<0>(tup);
+      auto eigvecs3Plus = std::get<1>(tup);
       auto tup1 = h0->diagonalizeFromCoords(q3Mins);
- auto energies3Mins = std::get<0>(tup1);
- auto eigvecs3Mins = std::get<1>(tup1);
+      auto energies3Mins = std::get<0>(tup1);
+      auto eigvecs3Mins = std::get<1>(tup1);
 
       int nb3Plus = energies3Plus.size();
       int nb3Mins = energies3Mins.size();

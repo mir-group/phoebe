@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "points.h"
-#include "state.h"
 #include "ifc3_parser.h"
 #include "qe_input_parser.h"
 #include "ph_scattering.h"
