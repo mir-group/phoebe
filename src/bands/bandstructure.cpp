@@ -332,6 +332,9 @@ const double& FullBandStructure::getEnergy(const long &stateIndex) {
     auto tup = decompress2Indeces(stateIndex,numPoints,numBands);
     auto ik = std::get<0>(tup);
     auto ib = std::get<1>(tup);
+    if (!energies.indecesAreLocal(ib,ik)) {
+        Error e("Cannot access a non-local energy.",1);
+    }
     return energies(ib, ik);
 }
 
@@ -339,6 +342,9 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
     auto tup = decompress2Indeces(stateIndex,numPoints,numBands);
     auto ik = std::get<0>(tup);
     auto ib = std::get<1>(tup);
+    if (!velocities.indecesAreLocal(ib,ik)) {
+        Error e("Cannot access a non-local velocity.",1);
+    }
     Eigen::Vector3d vel;
     for (long i = 0; i < 3; i++) {
         long ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
@@ -360,18 +366,26 @@ double FullBandStructure::getWeight(const long &stateIndex) {
 }
 
 Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) { 
-    Eigen::VectorXd bandEnergies(energies.cols()); 
-    for(int ik=0;ik<energies.localCols();ik++) bandEnergies(ik) =  energies(bandIndex,ik);
+    Eigen::VectorXd bandEnergies(energies.localCols());
+    for(auto ik : getWavevectorIndices()) bandEnergies(ik) =  energies(bandIndex,ik);
     return bandEnergies;
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords, Eigen::VectorXd &energies_) {
     long ik = points.getIndex(coords); // global kidx
+    if (!energies.indecesAreLocal(0,ik)) {
+        // col distributed, only need to check ik
+        Error e("Cannot access a non-local energy.",1);
+    }
     for(int ib=0;ib<energies.localRows();ib++) energies(ib,ik) = energies_(ib);
 }
 
 void FullBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
     long ik = point.getIndex();
+    if (!energies.indecesAreLocal(0,ik)) {
+        // col distributed, only need to check ik
+        Error e("Cannot access a non-local energy.",1);
+    }
     for(int ib=0;ib<energies.localRows();ib++) energies(ib,ik) = energies_(ib);
 }
 
@@ -392,6 +406,10 @@ void FullBandStructure::setVelocities(Point &point,
         }
     }
     long ik = point.getIndex();
+    if (!velocities.indecesAreLocal(0,ik)) {
+        // col distributed, only need to check ik
+        Error e("Cannot access a non-local velocity.",1);
+    }
     for(int ib=0;ib<velocities.localRows();ib++) velocities(ib,ik) = tmpVelocities_(ib);
 }
 
@@ -410,5 +428,9 @@ void FullBandStructure::setEigenvectors(Point &point,
         }
     }
     long ik = point.getIndex();
+    if (!eigenvectors.indecesAreLocal(0,ik)) {
+        // col distributed, only need to check ik
+        Error e("Cannot access a non-local eigenvector.",1);
+    }
     for(int ib=0;ib<eigenvectors.localRows();ib++) eigenvectors(ib,ik) = tmp(ib);
 }
