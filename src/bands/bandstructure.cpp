@@ -126,11 +126,9 @@ void BaseBandStructure::setEigenvectors(Point &point,
 //-----------------------------------------------------------------------------
 
 FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
-                                     bool hasVelocities_, bool hasEigenvectors_,
+                                     bool withVelocities_, bool withEigenvectors_,
                                      Points &points_, bool isDistributed_)
     : particle(particle_),
-      hasVelocities(hasVelocities_),
-      hasEigenvectors(hasEigenvectors_),
       points(points_),
       isDistributed(isDistributed_) {
   // I need to crash if I'm using active points
@@ -138,13 +136,15 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   numBands = numBands_;
   numAtoms = numBands_ / 3;
   numPoints = points.getNumPoints();
+  hasVelocities = withVelocities_;
+  hasEigenvectors = withEigenvectors_;
+
 
   // Initialize data structures depending on memory distribution
   if (isDistributed) {
     int numBlockCols = std::min((long)mpi->getSize(), numPoints);
     energies = ParallelMatrix<double>(numBands, numPoints, 1, numBlockCols);
     numLocalPoints = energies.localRows();
-
     if (hasVelocities) {
       velocities = ParallelMatrix<std::complex<double>>(
           numBands * numBands * 3, numPoints, 1, numBlockCols);
@@ -257,14 +257,15 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
         auto ik = std::get<1>(tup);
         kptsList.push_back(ik);
     }
+    sort( kptsList.begin(), kptsList.end() );
+    kptsList.erase( unique( kptsList.begin(), kptsList.end() ), kptsList.end() );
     return kptsList;
 }
 
 std::vector<long> FullBandStructure::getBandIndices() {
     std::vector<long> bandsList;
     // loop over local states
-    for ( auto tup : energies.getAllLocalStates()) {
-        auto ib = std::get<0>(tup);
+    for(int ib = 0; ib < numBands; ib++) { 
         bandsList.push_back(ib);
     }
     return bandsList;
