@@ -217,13 +217,13 @@ void PhononTransportApp::run(Context &context) {
     gOld = gOld - fOld;
     auto hOld = -gOld;
 
+    auto tOld = scatteringMatrix.dot(hOld);
+    tOld = tOld / sMatrixDiagonal; // CG scaling
+
     double threshold = context.getConvergenceThresholdBTE();
 
     for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
-
-      auto tOld = scatteringMatrix.dot(hOld);
-      tOld = tOld / sMatrixDiagonal; // CG scaling
 
       Eigen::VectorXd alpha =
           (gOld.dot(hOld)).array() / (hOld.dot(tOld)).array();
@@ -239,9 +239,14 @@ void PhononTransportApp::run(Context &context) {
       auto hNew = hOld * beta;
       hNew = -gNew + hNew;
 
-      // calculate the thermal conductivity
-      auto tmpF = scatteringMatrix.dot(fNew);
-      phTCond.calcVariational(tmpF, fNew, sMatrixDiagonalSqrt);
+      std::vector<VectorBTE> inVecs;
+      inVecs.push_back(fNew);
+      inVecs.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
+      auto outVecs = scatteringMatrix.dot(inVecs);
+      tOld = outVecs[1];
+      tOld = tOld / sMatrixDiagonal; // CG scaling
+
+      phTCond.calcVariational(outVecs[0], fNew, sMatrixDiagonalSqrt);
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
