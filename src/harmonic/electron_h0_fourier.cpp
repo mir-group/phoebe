@@ -122,11 +122,12 @@ ElectronH0Fourier::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
 
 FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
                                               bool &withVelocities,
-                                              bool &withEigenvectors) {
+                                              bool &withEigenvectors,
+                                              bool isDistributed) {
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
-                                      withEigenvectors, fullPoints);
+                                      withEigenvectors, fullPoints, isDistributed);
 
-  for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
+  for (auto ik : fullBandStructure.getWavevectorIndices()) {
     Point point = fullBandStructure.getPoint(ik);
     auto tup = diagonalize(point);
     auto ens = std::get<0>(tup);

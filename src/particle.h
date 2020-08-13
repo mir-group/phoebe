@@ -3,10 +3,16 @@
 
 #include "eigen.h"
 
-/** This object decides whether we are dealing with phonons or electrons.
+/////
+
+/** Determines whether we are dealing with phonons or electrons.
+ *
+ * This class decides whether we are dealing with phonons or electrons.
  * Additionally, it contains the functionality to compute equilibrium
  * occupation numbers, i.e. Fermi-Dirac or Bose-Einstein distributions, their
  * derivatives w.r.t. temperature or energy, and factors N(N+1) or F(1-F).
+ *
+ * @ref Statistics
  */
 class Particle {
 public:

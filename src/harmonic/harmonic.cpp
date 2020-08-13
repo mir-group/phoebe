@@ -38,7 +38,8 @@ HarmonicHamiltonian::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
 
 FullBandStructure HarmonicHamiltonian::populate(Points &fullPoints,
                                                 bool &withVelocities,
-                                                bool &withEigenvectors) {
+                                                bool &withEigenvectors,
+                                                bool isDistributed) {
   Error e("base populate not implemented");
   (void)fullPoints;
   (void)withVelocities;

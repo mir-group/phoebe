@@ -1,4 +1,4 @@
-@page Start Getting started
+@page Doxygen Doxygen instructions
 
 @tableofcontents
 
