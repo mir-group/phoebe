@@ -181,7 +181,7 @@ public:
      * @param points: the underlying mesh of wavevectors.
      */
     FullBandStructure(long numBands_, Particle &particle_, bool hasVelocities,
-            bool hasEigenvectors, Points &points_, bool isDistributed=false);
+            bool hasEigenvectors, Points &points_, bool isDistributed_=false);
 
     FullBandStructure();
 

@@ -126,56 +126,59 @@ void BaseBandStructure::setEigenvectors(Point &point,
 //-----------------------------------------------------------------------------
 
 FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
-        bool hasVelocities_, bool hasEigenvectors_, Points &points_, bool isDistributed_) :
-        particle(particle_), hasVelocities(hasVelocities_), hasEigenvectors(hasEigenvectors_), points(points_), isDistributed(isDistributed_)  {
+                                     bool hasVelocities_, bool hasEigenvectors_,
+                                     Points &points_, bool isDistributed_)
+    : particle(particle_),
+      hasVelocities(hasVelocities_),
+      hasEigenvectors(hasEigenvectors_),
+      points(points_),
+      isDistributed(isDistributed_) {
+  // I need to crash if I'm using active points
 
-    // I need to crash if I'm using active points
+  numBands = numBands_;
+  numAtoms = numBands_ / 3;
+  numPoints = points.getNumPoints();
 
-    numBands = numBands_;
-    numAtoms = numBands_ / 3;
-    numPoints = points.getNumPoints(); 
+  // Initialize data structures depending on memory distribution
+  if (isDistributed) {
+    int numBlockCols = std::min((long)mpi->getSize(), numPoints);
+    energies = ParallelMatrix<double>(numBands, numPoints, 1, numBlockCols);
+    numLocalPoints = energies.localRows();
 
-    // Initialize data structures depending on memory distribution
-    if(isDistributed) { 
-        int numBlockCols = std::min((long)mpi->getSize(), numPoints );
-        energies =  ParallelMatrix<double>(numBands,numPoints,1,numBlockCols); 
-        numLocalPoints = energies.localRows(); 
-
-        if(hasVelocities) { 
-          velocities = ParallelMatrix<std::complex<double>>(
-                numBands * numBands * 3, numPoints,1,numBlockCols);
-        }
-        if(hasEigenvectors) {
-          eigenvectors = ParallelMatrix<std::complex<double>>(
-                3 * numAtoms * numBands, numPoints,1,numBlockCols);
-        }
-    }
-    else {
-        energies = Matrix<double>(numBands,numPoints);
-        numLocalPoints = numPoints; 
-
-        if(hasVelocities) {
-          velocities = Matrix<std::complex<double>>(
-              numBands * numBands * 3, numPoints);
-        }
-        if(hasEigenvectors) {
-          eigenvectors = Matrix<std::complex<double>>(
-                3 * numAtoms * numBands, numPoints);
-        }
-    }
-    // now, I want to manipulate the Eigen matrices at lower level
-    // I create this pointer to data, so I can move it around
-    rawEnergies = energies.data();
     if (hasVelocities) {
-        rawVelocities = velocities.data();
+      velocities = ParallelMatrix<std::complex<double>>(
+          numBands * numBands * 3, numPoints, 1, numBlockCols);
     }
     if (hasEigenvectors) {
-        rawEigenvectors = eigenvectors.data();
+      eigenvectors = ParallelMatrix<std::complex<double>>(
+          3 * numAtoms * numBands, numPoints, 1, numBlockCols);
     }
+  } else {
+    energies = Matrix<double>(numBands, numPoints);
+    numLocalPoints = numPoints;
 
-    energiesCols = numBands;
-    velocitiesCols = numBands * numBands * 3;
-    eigenvectorsCols = numBands * numAtoms * 3;
+    if (hasVelocities) {
+      velocities =
+          Matrix<std::complex<double>>(numBands * numBands * 3, numPoints);
+    }
+    if (hasEigenvectors) {
+      eigenvectors =
+          Matrix<std::complex<double>>(3 * numAtoms * numBands, numPoints);
+    }
+  }
+  // now, I want to manipulate the Eigen matrices at lower level
+  // I create this pointer to data, so I can move it around
+  rawEnergies = energies.data();
+  if (hasVelocities) {
+    rawVelocities = velocities.data();
+  }
+  if (hasEigenvectors) {
+    rawEigenvectors = eigenvectors.data();
+  }
+
+  energiesCols = numBands;
+  velocitiesCols = numBands * numBands * 3;
+  eigenvectorsCols = numBands * numAtoms * 3;
 }
 
 // copy constructor
