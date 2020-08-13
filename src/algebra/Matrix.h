@@ -3,20 +3,23 @@
 
 // include statements
 #include <assert.h>
-
+#include <tuple>
+#include <vector>
 #include <cmath>
 #include <complex>
 #include <iostream>
 #include <type_traits>
-#include <vector>
 
 #include "Blas.h"
-#include "bandstructure.h"
 
-/** Matrix parent class, which can be used to define matrix classes of different
- *  types
- * brief General templated matrix class, with explicit specialization for
- * double and complex<double> types.
+/** Class for managing a matrix stored in memory.
+ *
+ * It mirrors the functionality of ParallelMatrix, only that in this case it
+ * doesn't use the scalapack library and instead relies on Eigen.
+ * Data is NOT distributed across different MPI processes.
+ * At the moment is used for making the code compile without MPI.
+ *
+ * Templated matrix class with specialization for double and complex<double>.
  */
 template <typename T>
 class Matrix {
@@ -32,12 +35,23 @@ class Matrix {
   std::tuple<long, long> local2Global(const long& k);
 
  public:
-  static const char transN = 'N';  // no transpose nor adjoint
-  static const char transT = 'T';  // transpose
-  static const char transC = 'C';  // adjoint (for complex numbers)
+  /** Indicates that the matrix A is not modified: transN(A) = A
+   */
+  static const char transN = 'N';
+  /** Indicates that the matrix A is taken as its transpose: transT(A) = A^T
+   */
+  static const char transT = 'T';
+  /** Indicates that the matrix A is taken as its adjoint: transC(A) = A^+
+   */
+  static const char transC = 'C';
 
-  /** Matrix class constructor.
-   * numBlocks* (ignored) are put for compatibility with ParallelMatrix.
+  /** Default Matrix constructor.
+   * Matrix elements are set to zero upon initialization.
+   *
+   * @param numRows: number of rows of the matrix
+   * @param numCols: number of columns of the matrix.
+   * @param numBlocsRows, numBlocsCols: these parameters are ignored and are
+   * put here for mirroring the interface of ParallelMatrix.
    */
   Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
          const int& numBlocksCols = 0);
@@ -58,13 +72,6 @@ class Matrix {
    */
   Matrix<T>& operator=(const Matrix<T>& that);
 
-  /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
-   * local MPI process. This method is specifically made for the scattering
-   * matrix, which has rows spanned by Bloch states (iq,ib)
-   */
-  std::vector<std::tuple<long, long>> getAllLocalWavevectors(
-      BaseBandStructure& bandStructure);
-
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -78,14 +85,18 @@ class Matrix {
   /** Find global number of rows
    */
   long rows() const;
-
+  /** Return local number of rows */
+  long localRows() const;
   /** Find global number of columns
    */
   long cols() const;
-
+  /** Return local number of rows */
+  long localCols() const;
   /** Find global number of matrix elements
    */
   long size() const;
+  /** Returns a pointer to the raw matrix data buffer */ 
+  T* data() const;
 
   /** Get and set operator
    */
@@ -96,6 +107,15 @@ class Matrix {
   const T& operator()(const int row, const int col) const;
 
   /** Matrix-matrix multiplication.
+   * Computes result = trans1(*this) * trans2(that)
+   * where trans(1/2( can be "N" (matrix as is), "T" (transpose) or "C" adjoint
+   * (these flags are used so that the transposition/adjoint operation is never
+   * directly operated on the stored values)
+   *
+   * @param that: the matrix to multiply "this" with
+   * @param trans2: controls transposition of "this" matrix
+   * @param trans1: controls transposition of "that" matrix
+   * @return result: a ParallelMatrix object.
    */
   Matrix<T> prod(const Matrix<T>& that, const char& trans1 = transN,
                  const char& trans2 = transN);
@@ -146,7 +166,7 @@ class Matrix {
   double squaredNorm();
 
   /** Computes the Frobenius norm of the matrix
-   * (or Euclidean norm, or L2 norm of the matrix)
+   * (or Euclidean norm, or L2 norm of the matrix).
    */
   double norm();
 
@@ -181,13 +201,14 @@ Matrix<T>::Matrix() {
   mat = nullptr;
   nRows = 0;
   nCols = 0;
+  numElements_ = 0;
 }
 
 // copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
-  nRows = that.rows();
-  nCols = that.cols();
+  nRows = that.nRows;
+  nCols = that.nCols;
   numElements_ = that.numElements_;
   if (mat != nullptr) {
     delete[] mat;
@@ -230,19 +251,28 @@ template <typename T>
 long Matrix<T>::rows() const {
   return nRows;
 }
-
+template <typename T>
+long Matrix<T>::localRows() const {
+  return nRows;
+}
 template <typename T>
 long Matrix<T>::cols() const {
   return nCols;
 }
-
+template <typename T>
+long Matrix<T>::localCols() const {
+  return nCols;
+}
 template <typename T>
 long Matrix<T>::size() const {
   return numElements_;
 }
+template <typename T>
+T* Matrix<T>::data() const{ 
+  return mat; 
+}
 
 // Get/set element
-
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
   return mat[global2Local(row, col)];
@@ -285,31 +315,6 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
   return x;
 }
 
-template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
-    BaseBandStructure& bandStructure) {
-  std::vector<std::tuple<long, long>> wavevectorPairs;
-  for (long k = 0; k < numElements_; k++) {
-    auto tup = local2Global(k);
-    auto is1 = std::get<0>(tup);
-    auto is2 = std::get<1>(tup);  // bloch indices
-    auto tup1 = bandStructure.getIndex(is1);
-    auto ik1 = std::get<0>(tup1);
-    auto ib1 = std::get<1>(tup1);
-    auto tup2 = bandStructure.getIndex(is2);
-    auto ik2 = std::get<0>(tup2);
-    auto ib2 = std::get<1>(tup2);
-    // make a pair of these wavevectors
-    auto t = std::make_tuple(ik1.get(), ik2.get());
-    // add to list if unique
-    if (std::find(wavevectorPairs.begin(), wavevectorPairs.end(), t) ==
-        wavevectorPairs.end()) {
-      wavevectorPairs.push_back(t);
-    }
-  }
-  return wavevectorPairs;
-}
-
 // General unary negation
 template <typename T>
 Matrix<T> Matrix<T>::operator-() const {
@@ -327,7 +332,6 @@ void Matrix<T>::eye() {
   for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
 }
 
-// General function for the norm
 template <typename T>
 double Matrix<T>::norm() {
   T sumSq = 0;

@@ -5,6 +5,7 @@
 #include "particle.h"
 #include "points.h"
 #include "utilities.h"
+#include "PMatrix.h"
 
 /** Base class for describing objects containing the band structure, i.e.
  * the harmonic properties of a quasiparticle, as a function of wavevectors
@@ -72,6 +73,12 @@ class BaseBandStructure {
    * @return numStates: the integer number of Bloch states.
    */
   virtual long getNumStates() = 0;
+
+  /** Returns the indices of wavevectors in the bandstructure object.
+  * In the distributed case, this returns global indices of the local wavevectors.
+  * @return wavevectorIndices: a vector of the global indices of local points
+  */
+  virtual std::vector<long> getWavevectorIndices();
 
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
@@ -169,9 +176,13 @@ class FullBandStructure : public BaseBandStructure {
    * @param withVelocities: a boolean to decide whether to store velocities
    * @param withEigenvectors: a boolean to decide whether to store eigenvecs
    * @param points: the underlying mesh of wavevectors.
+   * @param isDistributed: if true, we distribute in memory the
+   * storage of quantities, parallelizing over wavevectors (points). By default
+   * we don't distribute data in parallel.
    */
   FullBandStructure(long numBands_, Particle &particle_, bool withVelocities,
-                    bool withEigenvectors, Points &points_);
+                    bool withEigenvectors, Points &points_,
+                    bool isDistributed_ = false);
 
   FullBandStructure();
 
@@ -243,6 +254,19 @@ class FullBandStructure : public BaseBandStructure {
    * @return numStates: the total number of Bloch states in the class.
    */
   long getNumStates();
+
+  /** Returns the indices of all wavevector indices on this process, or in
+  * an undistributed case, returns all wavevector indices.
+  * @return wavevectorIndices: a vector of wavevector indices for use as
+  * an iterator.
+  */
+  std::vector<long> getWavevectorIndices();
+
+  /** Returns the indices of all bands on this process, or in an
+  * undistributed case, returns all band indices.
+  * @return bandIndices: a vector of band indices for use as an iterator.
+  */
+  std::vector<long> getBandIndices();
 
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.
@@ -441,14 +465,19 @@ class FullBandStructure : public BaseBandStructure {
   // link to the underlying mesh of points
   Points &points;  // these may be FullPoints or PathPoints
 
+  // if the bands are distributed or not
+  bool isDistributed = false;
+
   // matrices storing the raw data
-  Eigen::MatrixXd energies;       // size(bands,points)
-  Eigen::MatrixXcd velocities;    // size(3*bands^2,points)
-  Eigen::MatrixXcd eigenvectors;  // size(bands^2,points)
+  Matrix<double> energies;       // size(bands,points)
+  Matrix<std::complex<double>> velocities;    // size(3*bands^2,points)
+  Matrix<std::complex<double>> eigenvectors;  // size(bands^2,points)
 
   // auxiliary variables
   int numBands = 0;
   int numAtoms = 0;
+  long numPoints = 0;
+  long numLocalPoints = 0;
 
   bool hasEigenvectors = false;
   bool hasVelocities = false;

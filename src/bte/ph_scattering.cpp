@@ -166,6 +166,14 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   LoopPrint loopPrint("computing scattering matrix", "q-points",
                       qPairIterator.size());
 
+  /** Very important: the code must be executed with a loop over q2 outside
+   * and a loop over q1 inside. This is because the 3-ph coupling must compute
+   * the Fourier transform on q1 and q2. The 3-ph class splits the Fourier
+   * transform in two parts, recycling the FT over q2 for more values of q1.
+   * Thus, we have some speed when executing in this order.
+   * PointHelper too assumes that order of loop execution.
+   */
+
   // outer loop over q2
   for (auto tup : qPairIterator) {
     auto iq1Indexes = std::get<0>(tup);

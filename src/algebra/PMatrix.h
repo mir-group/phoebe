@@ -3,10 +3,9 @@
 
 #include <tuple>
 #include <vector>
-
 #include "Blacs.h"
 #include "Matrix.h"
-#include "bandstructure.h"
+#include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -21,9 +20,19 @@ using ParallelMatrix = Matrix<T>;
 #include <utility>
 #include <set>
 
-// double matrix (I skip the templates for now)
+/** Class for managing a matrix MPI-distributed in memory.
+ *
+ * This class uses the Scalapack library for matrix-matrix multiplication and
+ * matrix diagonalization. For the time being we don't use other scalapack
+ * functionalities.
+ *
+ * If the code is compiled without MPI, ParallelMatrix reduces to its serial
+ * version Matrix.
+ *
+ * Template specialization only valid for double or complex<double>.
+ */
 template <typename T>
-class ParallelMatrix {
+class ParallelMatrix : public Matrix<T> {
  private:
   /// Class variables
   int numRows_, numCols_;
@@ -58,7 +67,12 @@ class ParallelMatrix {
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
 
-  /** Construct using row, col numbers, and block distribution
+  /** Default constructor of the matrix class.
+   * Matrix elements are set to zero in the initialization.
+   * @param numRows: global number of matrix rows
+   * @param numCols: global number of matrix columns
+   * @param numBLocksRows: row size of the block for Blacs distribution
+   * @param numBLocksCols: column size of the block for Blacs distribution
    */
   ParallelMatrix(const int& numRows, const int& numCols,
                  const int& numBlocksRows = 0, const int& numBlocksCols = 0);
@@ -79,13 +93,6 @@ class ParallelMatrix {
    */
   ParallelMatrix& operator=(const ParallelMatrix<T>& that);
 
-  /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
-   * local MPI process. This method is specifically made for the scattering
-   * matrix, which has rows spanned by Bloch states (iq,ib)
-   */
-  std::vector<std::pair<int, int>> getAllLocalWavevectors(
-      BaseBandStructure& bandStructure);
-
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -96,25 +103,47 @@ class ParallelMatrix {
    */
   bool indecesAreLocal(const int& row, const int& col);
 
+  /** Returns a pointer to the interal data structure. */      
+  T* data() const;
+
   /** Find global number of rows
    */
   long rows() const;
+  /** Return local number of rows 
+  */
+  long localRows() const; 
   /** Find global number of columns
    */
   long cols() const;
+  /** Return local number of cols 
+  */
+  long localCols() const; 
   /** Find global number of matrix elements
    */
   long size() const;
 
-  /** Get and set operator
+  /** Get and set operator.
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
    */
   T& operator()(const int row, const int col);
 
   /** Const get and set operator
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
    */
   const T& operator()(const int row, const int col) const;
 
   /** Matrix-matrix multiplication.
+   * Computes result = trans1(*this) * trans2(that)
+   * where trans(1/2( can be "N" (matrix as is), "T" (transpose) or "C" adjoint
+   * (these flags are used so that the transposition/adjoint operation is never
+   * directly operated on the stored values)
+   *
+   * @param that: the matrix to multiply "this" with
+   * @param trans2: controls transposition of "this" matrix
+   * @param trans1: controls transposition of "that" matrix
+   * @return result: a ParallelMatrix object.
    */
   ParallelMatrix<T> prod(const ParallelMatrix<T>& that,
                          const char& trans1 = transN,
@@ -141,8 +170,9 @@ class ParallelMatrix {
    */
   void eye();
 
-  /** Diagonalize a complex-hermitian / real-symmetric matrix.
-   * Nota bene: we don't check if it's hermitian/symmetric.
+  /** Diagonalize a complex-hermitian or real-symmetric matrix.
+   * Nota bene: we don't check if the matrix is hermitian/symmetric or not.
+   * By default, it operates on the upper-triangular part of the matrix.
    */
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
 
@@ -170,7 +200,7 @@ class ParallelMatrix {
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
-                                  const int& numBlocksCols) {
+                                  const int& numBlocksCols) : Matrix<T>(numRows, numCols){
 
   // if blacs is not initalized, we need to start it.
   mpi->initBlacs();
@@ -217,7 +247,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   assert(mat != nullptr);
 
   // fill the matrix with zeroes
-  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;  // mat[i] = 0.;
+  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 
   // Create descriptor for block cyclic distribution of matrix
   int info;  // error code
@@ -232,7 +262,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix() {
+ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
   numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
@@ -250,7 +280,7 @@ ParallelMatrix<T>::ParallelMatrix() {
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
+ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) : Matrix<T>(that) {
   numRows_ = that.numRows_;
   numCols_ = that.numCols_;
   numLocalRows_ = that.numLocalRows_;
@@ -320,13 +350,28 @@ ParallelMatrix<T>::~ParallelMatrix() {
 }
 
 template <typename T>
+T* ParallelMatrix<T>::data() const {
+  return mat;
+}
+
+template <typename T>
 long ParallelMatrix<T>::rows() const {
   return numRows_;
 }
 
 template <typename T>
+long ParallelMatrix<T>::localRows() const {
+  return numLocalRows_;
+}
+
+template <typename T>
 long ParallelMatrix<T>::cols() const {
   return numCols_;
+}
+
+template <typename T>
+long ParallelMatrix<T>::localCols() const {
+  return numLocalCols_;
 }
 
 template <typename T>
@@ -415,31 +460,6 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
     x.push_back(t);
   }
   return x;
-}
-
-template <typename T>
-std::vector<std::pair<int, int>> ParallelMatrix<T>::getAllLocalWavevectors(
-    BaseBandStructure& bandStructure) {
-
-  std::set<std::pair<int,int>> x;
-  for (long k = 0; k < numLocalElements_; k++) {
-    auto tup = local2Global(k);
-    auto is1 = std::get<0>(tup);
-    auto is2 = std::get<1>(tup);  // bloch indices
-    auto tup1 = bandStructure.getIndex(is1);
-    auto ik1 = std::get<0>(tup1);
-    auto ib1 = std::get<1>(tup1);
-    auto tup2 = bandStructure.getIndex(is2);
-    auto ik2 = std::get<0>(tup2);
-    auto ib2 = std::get<1>(tup2);
-    std::pair<int,int> xx = std::make_pair(ik1.get(), ik2.get());
-    x.insert(xx);
-  }
-  std::vector<std::pair<int, int>> wavevectorPairs;
-  for ( auto t : x ) {
-    wavevectorPairs.push_back(t);
-  }
-  return wavevectorPairs;
 }
 
 template <typename T>

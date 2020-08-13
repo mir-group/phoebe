@@ -40,10 +40,10 @@ void PhononDosApp::run(Context &context) {
   long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
 
   // create instructions about how to divide up the work
-  mpi->divideWork(numEnergies);
+  auto divs = mpi->divideWork(numEnergies);
   // the amount of values this process has to take care of
-  int start = mpi->workHead();
-  int stop = mpi->workTail();
+  int start = divs[0];
+  int stop = divs[1];
   int workFraction = stop - start;
 
   std::vector<double> energies(workFraction);
@@ -107,10 +107,10 @@ void ElectronWannierDosApp::run(Context &context) {
   long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
 
   // create instructions about how to divide up the work
-  mpi->divideWork(numEnergies);
+  auto divs = mpi->divideWork(numEnergies);
   // the amount of values this process has to take care of
-  int start = mpi->workHead();
-  int stop = mpi->workTail();
+  int start = divs[0]; 
+  int stop = divs[1];
   int workFraction = stop - start;
 
   std::vector<double> energies(workFraction);
@@ -176,10 +176,10 @@ void ElectronFourierDosApp::run(Context &context) {
   long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
 
   // create instructions about how to divide up the work
-  mpi->divideWork(numEnergies);
+  auto divs = mpi->divideWork(numEnergies);
   // the amount of values this process has to take care of
-  int start = mpi->workHead();
-  int stop = mpi->workTail();
+  int start = divs[0]; 
+  int stop = divs[1];
   int workFraction = stop - start;
 
   std::vector<double> energies(workFraction);

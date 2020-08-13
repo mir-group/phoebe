@@ -213,11 +213,11 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> PhononH0::diagonalizeFromCoords(
 };
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
-                                     bool &withEigenvectors) {
+                                     bool &withEigenvectors, bool isDistributed) {
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
-                                      withEigenvectors, points);
+                                      withEigenvectors, points, isDistributed);
 
-  for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
+  for (auto ik : fullBandStructure.getWavevectorIndices()) {
     Point point = fullBandStructure.getPoint(ik);
 
     auto tup = diagonalize(point);
