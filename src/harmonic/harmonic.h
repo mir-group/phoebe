@@ -81,7 +81,8 @@ class HarmonicHamiltonian {
    * eigenvectors.
    */
   virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                                     bool &withEigenvectors);
+                                     bool &withEigenvectors,
+                                     bool isDistributed = false);
 
  protected:
   Particle particle;

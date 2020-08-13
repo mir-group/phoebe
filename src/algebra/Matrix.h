@@ -3,15 +3,14 @@
 
 // include statements
 #include <assert.h>
-
+#include <tuple>
+#include <vector>
 #include <cmath>
 #include <complex>
 #include <iostream>
 #include <type_traits>
-#include <vector>
 
 #include "Blas.h"
-#include "bandstructure.h"
 
 /** Matrix parent class, which can be used to define matrix classes of different
  *  types
@@ -58,13 +57,6 @@ class Matrix {
    */
   Matrix<T>& operator=(const Matrix<T>& that);
 
-  /** Find all the wavevector pairs (iq1,iq2) that should be computed by the
-   * local MPI process. This method is specifically made for the scattering
-   * matrix, which has rows spanned by Bloch states (iq,ib)
-   */
-  std::vector<std::tuple<long, long>> getAllLocalWavevectors(
-      BaseBandStructure& bandStructure);
-
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
@@ -78,14 +70,18 @@ class Matrix {
   /** Find global number of rows
    */
   long rows() const;
-
+  /** Return local number of rows */
+  long localRows() const;
   /** Find global number of columns
    */
   long cols() const;
-
+  /** Return local number of rows */
+  long localCols() const;
   /** Find global number of matrix elements
    */
   long size() const;
+  /** Returns a pointer to the raw matrix data buffer */ 
+  T* data() const;
 
   /** Get and set operator
    */
@@ -181,13 +177,14 @@ Matrix<T>::Matrix() {
   mat = nullptr;
   nRows = 0;
   nCols = 0;
+  numElements_ = 0;
 }
 
 // copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
-  nRows = that.rows();
-  nCols = that.cols();
+  nRows = that.nRows;
+  nCols = that.nCols;
   numElements_ = that.numElements_;
   if (mat != nullptr) {
     delete[] mat;
@@ -230,19 +227,28 @@ template <typename T>
 long Matrix<T>::rows() const {
   return nRows;
 }
-
+template <typename T>
+long Matrix<T>::localRows() const {
+  return nRows;
+}
 template <typename T>
 long Matrix<T>::cols() const {
   return nCols;
 }
-
+template <typename T>
+long Matrix<T>::localCols() const {
+  return nCols;
+}
 template <typename T>
 long Matrix<T>::size() const {
   return numElements_;
 }
+template <typename T>
+T* Matrix<T>::data() const{ 
+  return mat; 
+}
 
 // Get/set element
-
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
   return mat[global2Local(row, col)];
@@ -283,31 +289,6 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
     x.push_back(t);
   }
   return x;
-}
-
-template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalWavevectors(
-    BaseBandStructure& bandStructure) {
-  std::vector<std::tuple<long, long>> wavevectorPairs;
-  for (long k = 0; k < numElements_; k++) {
-    auto tup = local2Global(k);
-    auto is1 = std::get<0>(tup);
-    auto is2 = std::get<1>(tup);  // bloch indices
-    auto tup1 = bandStructure.getIndex(is1);
-    auto ik1 = std::get<0>(tup1);
-    auto ib1 = std::get<1>(tup1);
-    auto tup2 = bandStructure.getIndex(is2);
-    auto ik2 = std::get<0>(tup2);
-    auto ib2 = std::get<1>(tup2);
-    // make a pair of these wavevectors
-    auto t = std::make_tuple(ik1.get(), ik2.get());
-    // add to list if unique
-    if (std::find(wavevectorPairs.begin(), wavevectorPairs.end(), t) ==
-        wavevectorPairs.end()) {
-      wavevectorPairs.push_back(t);
-    }
-  }
-  return wavevectorPairs;
 }
 
 // General unary negation

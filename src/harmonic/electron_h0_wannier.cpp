@@ -252,12 +252,12 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
 }
 
 FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
-        bool &withVelocities, bool &withEigenvectors) {
+        bool &withVelocities, bool &withEigenvectors, bool isDistributed) {
 
     FullBandStructure fullBandStructure(numBands, particle, withVelocities,
-            withEigenvectors, fullPoints);
+            withEigenvectors, fullPoints, isDistributed);
 
-    for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
+    for (auto ik : fullBandStructure.getWavevectorIndices()) {  
         Point point = fullBandStructure.getPoint(ik);
         auto tup = diagonalize(point);
         auto ens = std::get<0>(tup);
