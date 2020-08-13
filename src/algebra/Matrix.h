@@ -12,10 +12,14 @@
 
 #include "Blas.h"
 
-/** Matrix parent class, which can be used to define matrix classes of different
- *  types
- * brief General templated matrix class, with explicit specialization for
- * double and complex<double> types.
+/** Class for managing a matrix stored in memory.
+ *
+ * It mirrors the functionality of ParallelMatrix, only that in this case it
+ * doesn't use the scalapack library and instead relies on Eigen.
+ * Data is NOT distributed across different MPI processes.
+ * At the moment is used for making the code compile without MPI.
+ *
+ * Templated matrix class with specialization for double and complex<double>.
  */
 template <typename T>
 class Matrix {
@@ -31,12 +35,23 @@ class Matrix {
   std::tuple<long, long> local2Global(const long& k);
 
  public:
-  static const char transN = 'N';  // no transpose nor adjoint
-  static const char transT = 'T';  // transpose
-  static const char transC = 'C';  // adjoint (for complex numbers)
+  /** Indicates that the matrix A is not modified: transN(A) = A
+   */
+  static const char transN = 'N';
+  /** Indicates that the matrix A is taken as its transpose: transT(A) = A^T
+   */
+  static const char transT = 'T';
+  /** Indicates that the matrix A is taken as its adjoint: transC(A) = A^+
+   */
+  static const char transC = 'C';
 
-  /** Matrix class constructor.
-   * numBlocks* (ignored) are put for compatibility with ParallelMatrix.
+  /** Default Matrix constructor.
+   * Matrix elements are set to zero upon initialization.
+   *
+   * @param numRows: number of rows of the matrix
+   * @param numCols: number of columns of the matrix.
+   * @param numBlocsRows, numBlocsCols: these parameters are ignored and are
+   * put here for mirroring the interface of ParallelMatrix.
    */
   Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
          const int& numBlocksCols = 0);
@@ -92,6 +107,15 @@ class Matrix {
   const T& operator()(const int row, const int col) const;
 
   /** Matrix-matrix multiplication.
+   * Computes result = trans1(*this) * trans2(that)
+   * where trans(1/2( can be "N" (matrix as is), "T" (transpose) or "C" adjoint
+   * (these flags are used so that the transposition/adjoint operation is never
+   * directly operated on the stored values)
+   *
+   * @param that: the matrix to multiply "this" with
+   * @param trans2: controls transposition of "this" matrix
+   * @param trans1: controls transposition of "that" matrix
+   * @return result: a ParallelMatrix object.
    */
   Matrix<T> prod(const Matrix<T>& that, const char& trans1 = transN,
                  const char& trans2 = transN);
@@ -142,7 +166,7 @@ class Matrix {
   double squaredNorm();
 
   /** Computes the Frobenius norm of the matrix
-   * (or Euclidean norm, or L2 norm of the matrix)
+   * (or Euclidean norm, or L2 norm of the matrix).
    */
   double norm();
 
@@ -308,7 +332,6 @@ void Matrix<T>::eye() {
   for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
 }
 
-// General function for the norm
 template <typename T>
 double Matrix<T>::norm() {
   T sumSq = 0;

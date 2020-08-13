@@ -11,6 +11,8 @@
 #include <mpi.h>
 #endif
 
+/** Class for handling the MPI library usage inside of phoebe.
+ */
 class MPIcontroller {
  private:
 

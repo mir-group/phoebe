@@ -3,6 +3,9 @@
 
 #include "points.h"
 
+/** Specialization of the Points class that represents a complete list of points
+ * in the Brillouin zone falling on a Monkhorst-Pack mesh. Symmetry is not used.
+ */
 class FullPoints: public Points {
 public:
     /** Default constructor.

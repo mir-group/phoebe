@@ -20,7 +20,17 @@ using ParallelMatrix = Matrix<T>;
 #include <utility>
 #include <set>
 
-// double matrix (I skip the templates for now)
+/** Class for managing a matrix MPI-distributed in memory.
+ *
+ * This class uses the Scalapack library for matrix-matrix multiplication and
+ * matrix diagonalization. For the time being we don't use other scalapack
+ * functionalities.
+ *
+ * If the code is compiled without MPI, ParallelMatrix reduces to its serial
+ * version Matrix.
+ *
+ * Template specialization only valid for double or complex<double>.
+ */
 template <typename T>
 class ParallelMatrix : public Matrix<T> {
  private:
@@ -57,7 +67,12 @@ class ParallelMatrix : public Matrix<T> {
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)
 
-  /** Construct using row, col numbers, and block distribution
+  /** Default constructor of the matrix class.
+   * Matrix elements are set to zero in the initialization.
+   * @param numRows: global number of matrix rows
+   * @param numCols: global number of matrix columns
+   * @param numBLocksRows: row size of the block for Blacs distribution
+   * @param numBLocksCols: column size of the block for Blacs distribution
    */
   ParallelMatrix(const int& numRows, const int& numCols,
                  const int& numBlocksRows = 0, const int& numBlocksCols = 0);
@@ -106,15 +121,29 @@ class ParallelMatrix : public Matrix<T> {
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Get and set operator
+
+  /** Get and set operator.
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
    */
   T& operator()(const int row, const int col);
 
   /** Const get and set operator
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
    */
   const T& operator()(const int row, const int col) const;
 
   /** Matrix-matrix multiplication.
+   * Computes result = trans1(*this) * trans2(that)
+   * where trans(1/2( can be "N" (matrix as is), "T" (transpose) or "C" adjoint
+   * (these flags are used so that the transposition/adjoint operation is never
+   * directly operated on the stored values)
+   *
+   * @param that: the matrix to multiply "this" with
+   * @param trans2: controls transposition of "this" matrix
+   * @param trans1: controls transposition of "that" matrix
+   * @return result: a ParallelMatrix object.
    */
   ParallelMatrix<T> prod(const ParallelMatrix<T>& that,
                          const char& trans1 = transN,
@@ -141,8 +170,9 @@ class ParallelMatrix : public Matrix<T> {
    */
   void eye();
 
-  /** Diagonalize a complex-hermitian / real-symmetric matrix.
-   * Nota bene: we don't check if it's hermitian/symmetric.
+  /** Diagonalize a complex-hermitian or real-symmetric matrix.
+   * Nota bene: we don't check if the matrix is hermitian/symmetric or not.
+   * By default, it operates on the upper-triangular part of the matrix.
    */
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
 
