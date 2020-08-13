@@ -71,7 +71,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * complete electronic band structure.
    */
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors);
+                             bool &withEigenvectors, bool isDistributed=false);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.

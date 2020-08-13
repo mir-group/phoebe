@@ -83,7 +83,7 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    * complete electronic band structure.
    */
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors);
+                             bool &withEigenvectors, bool isDistributed=false);
 
  protected:
   Crystal &crystal;

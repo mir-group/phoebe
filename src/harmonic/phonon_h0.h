@@ -90,7 +90,7 @@ class PhononH0 : public HarmonicHamiltonian {
    * complete phonon band structure.
    */
   FullBandStructure populate(Points &points, bool &withVelocities,
-                             bool &withEigenvectors);
+                             bool &withEigenvectors, bool isDistributed = false);
 
  protected:
   /** Impose the acoustic sum rule on force constants and Born charges
