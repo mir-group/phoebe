@@ -22,18 +22,6 @@ ExternalProject_Add(spglib_dep
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
         -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
 )
-ExternalProject_Add(scalapack_dep
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build
-    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_src
-    GIT_REPOSITORY https://github.com/Reference-ScaLAPACK/scalapack.git
-    INSTALL_COMMAND ""
-    UPDATE_COMMAND ""
-    CMAKE_ARGS
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
-)
 ExternalProject_Add(pugixml_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src
