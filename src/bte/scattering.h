@@ -58,12 +58,14 @@ public:
      * populations, and diag(A) is the diagonal of the matrix.
      */
     VectorBTE offDiagonalDot(VectorBTE &inPopulation);
+    std::vector<VectorBTE> offDiagonalDot(std::vector<VectorBTE> &inPopulations);
 
     /** Computes the product A*f
      * where A is the scattering matrix and f is the vector of quasiparticle
      * populations.
      */
     VectorBTE dot(VectorBTE &inPopulation);
+    std::vector<VectorBTE> dot(std::vector<VectorBTE> &inPopulations);
 
     /** Computes the product A*B, where A is the scattering matrix, and
      * B is an Eigen::MatrixXd. This can be used to compute products of the
@@ -145,8 +147,9 @@ protected:
      * populations, we compute outPopulation = scattMatrix * inPopulation.
      * This doesn't require to store the matrix in memory.
      */
-    virtual void builder(ParallelMatrix<double> &matrix, VectorBTE *linewidth,
-            VectorBTE *inPopulation, VectorBTE *outPopulation) = 0;
+    virtual void builder(VectorBTE *linewidth,
+                         std::vector<VectorBTE> &inPopulations,
+                         std::vector<VectorBTE> &outPopulations) = 0;
 
     /** Returns a vector of pairs of wavevector indices to iterate over during
      * the construction of the scattering matrix.

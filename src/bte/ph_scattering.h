@@ -59,8 +59,9 @@ class PhScatteringMatrix : public ScatteringMatrix {
   bool doBoundary;
 
   // implementation of the scattering matrix
-  virtual void builder(ParallelMatrix<double> &matrix, VectorBTE *linewidth,
-                       VectorBTE *inPopulation, VectorBTE *outPopulation);
+  virtual void builder(VectorBTE *linewidth,
+                       std::vector<VectorBTE> &inPopulations,
+                       std::vector<VectorBTE> &outPopulations);
 };
 
 #endif

@@ -96,9 +96,9 @@ PhScatteringMatrix::operator=(const PhScatteringMatrix &that) {
 // inPopulation+outPopulation is passed: we compute the action of the
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
-void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
-                                 VectorBTE *linewidth, VectorBTE *inPopulation,
-                                 VectorBTE *outPopulation) {
+void PhScatteringMatrix::builder(VectorBTE *linewidth,
+                                 std::vector<VectorBTE> &inPopulations,
+                                 std::vector<VectorBTE> &outPopulations) {
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
 
@@ -106,14 +106,14 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   // energies (smaller than 0.001 cm^-1
 
   int switchCase = 0;
-  if (matrix.rows() != 0 && linewidth != nullptr && inPopulation == nullptr &&
-      outPopulation == nullptr) {
+  if (theMatrix.rows() != 0 && linewidth != nullptr &&
+      inPopulations.size() == 0 && outPopulations.size() == 0) {
     switchCase = 0;
-  } else if (matrix.rows() == 0 && linewidth == nullptr &&
-             inPopulation != nullptr && outPopulation != nullptr) {
+  } else if (theMatrix.rows() == 0 && linewidth == nullptr &&
+             inPopulations.size() != 0 && outPopulations.size() != 0) {
     switchCase = 1;
-  } else if (matrix.rows() == 0 && linewidth != nullptr &&
-             inPopulation == nullptr && outPopulation == nullptr) {
+  } else if (theMatrix.rows() == 0 && linewidth != nullptr &&
+             inPopulations.size() == 0 && outPopulations.size() == 0) {
     switchCase = 2;
   } else {
     Error e("builder3Ph found a non-supported case");
@@ -126,7 +126,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   auto particle = outerBandStructure.getParticle();
 
   long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  long numCalcs = statisticsSweep.getNumCalcs();
+  int numCalcs = statisticsSweep.getNumCalcs();
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
@@ -138,7 +138,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     double energy = outerBandStructure.getEnergy(is);
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
-      outerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
+      outerBose(iCalc, 0, is) = particle.getPopulation(energy, temperature);
     }
   }
   mpi->allReduceSum(&outerBose.data);
@@ -151,7 +151,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
-        innerBose.data(iCalc, is) = particle.getPopulation(energy, temperature);
+        innerBose(iCalc, 0, is) = particle.getPopulation(energy, temperature);
       }
     }
     mpi->allReduceSum(&innerBose.data);
@@ -317,7 +317,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             // (for convenience of computing coupling3ph)
             // Not the same way as Matrix() is parallelized.
             // here we check that we don't duplicate efforts
-            if (!matrix.indecesAreLocal(ind1, ind2)) {
+            if (!theMatrix.indecesAreLocal(ind1, ind2)) {
               continue;
             }
           }
@@ -340,9 +340,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             continue;
 
           // loop on temperature
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            double bose1 = outerBose.data(iCalc, ind1);
-            double bose2 = innerBose.data(iCalc, ind2);
+          for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+            double bose1 = outerBose(iCalc, 0, ind1);
+            double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Plus = bose3PlusData(iCalc, ib3);
 
             // Calculate transition probability W+
@@ -354,24 +354,26 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             case (0):
               // case of matrix construction
               // we build the scattering matrix S
-              matrix(ind1, ind2) += ratePlus;
-              linewidth->data(iCalc, ind1) += ratePlus;
+              theMatrix(ind1, ind2) += ratePlus;
+              linewidth->operator()(iCalc, 0, ind1) += ratePlus;
               break;
             case (1):
               // case of matrix-vector multiplication
               // we build the scattering matrix A = S*n(n+1)
-              for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    ratePlus *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    ratePlus *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind1);
+              for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+                for (int i = 0; i < dimensionality_; i++) {
+                  outPopulations[iInput](iCalc, i, ind1) +=
+                      ratePlus *
+                      inPopulations[iInput](iCalc, i, ind2);
+                  outPopulations[iInput](iCalc, i, ind1) +=
+                      ratePlus *
+                      inPopulations[iInput](iCalc, i, ind1);
+                }
               }
               break;
             case (2):
               // case of linewidth construction
-              linewidth->data(iCalc, ind1) += ratePlus;
+              linewidth->operator()(iCalc, 0, ind1) += ratePlus;
               break;
             }
           }
@@ -402,7 +404,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             // (for convenience of computing coupling3ph)
             // Not the same way as Matrix() is parallelized.
             // here we check that we don't duplicate efforts
-            if (!matrix.indecesAreLocal(ind1, ind2)) {
+            if (!theMatrix.indecesAreLocal(ind1, ind2)) {
               continue;
             }
           }
@@ -431,9 +433,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
           if (deltaMins2 < 0.)
             deltaMins2 = 0.;
 
-          for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-            double bose1 = outerBose.data(iCalc, ind1);
-            double bose2 = innerBose.data(iCalc, ind2);
+          for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+            double bose1 = outerBose(iCalc, 0, ind1);
+            double bose2 = innerBose(iCalc, 0, ind2);
             double bose3Mins = bose3MinsData(iCalc, ib3);
 
             // Calculatate transition probability W-
@@ -447,23 +449,25 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             switch (switchCase) {
             case (0):
               // case of matrix construction
-              matrix(ind1, ind2) -= rateMins1 + rateMins2;
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              theMatrix(ind1, ind2) -= rateMins1 + rateMins2;
+              linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
               break;
             case (1):
               // case of matrix-vector multiplication
-              for (int i = 0; i < dimensionality_; i++) {
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) -=
-                    (rateMins1 + rateMins2) *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                    0.5 * rateMins2 *
-                    inPopulation->data(dimensionality_ * iCalc + i, ind1);
+              for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+                for (int i = 0; i < dimensionality_; i++) {
+                  outPopulations[iInput](iCalc, i, ind1) -=
+                      (rateMins1 + rateMins2) *
+                      inPopulations[iInput](iCalc, i, ind2);
+                  outPopulations[iInput](iCalc, i, ind1) +=
+                      0.5 * rateMins2 *
+                      inPopulations[iInput](iCalc, i, ind1);
+                }
               }
               break;
             case (2):
               // case of linewidth construction
-              linewidth->data(iCalc, ind1) += 0.5 * rateMins2;
+              linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
               break;
             }
           }
@@ -523,7 +527,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               // (for convenience of computing coupling3ph)
               // Not the same way as Matrix() is parallelized.
               // here we check that we don't duplicate efforts
-              if (!matrix.indecesAreLocal(ind1, ind2)) {
+              if (!theMatrix.indecesAreLocal(ind1, ind2)) {
                 continue;
               }
             }
@@ -555,9 +559,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
             }
             termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
 
-            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-              double bose1 = outerBose.data(iCalc, ind1);
-              double bose2 = innerBose.data(iCalc, ind2);
+            for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+              double bose1 = outerBose(iCalc, 0, ind1);
+              double bose2 = innerBose(iCalc, 0, ind2);
 
               double rateIso =
                   termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
@@ -566,25 +570,27 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
               case (0):
                 // case of matrix construction
                 // we build the scattering matrix S
-                matrix(ind1, ind2) += rateIso;
-                linewidth->data(iCalc, ind1) += rateIso;
+                theMatrix(ind1, ind2) += rateIso;
+                linewidth->operator()(iCalc, 0, ind1) += rateIso;
                 break;
               case (1):
                 // case of matrix-vector multiplication
                 // we build the scattering matrix A = S*n(n+1)
-                for (int i = 0; i < dimensionality_; i++) {
-                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                      rateIso *
-                      inPopulation->data(dimensionality_ * iCalc + i, ind2);
-                  outPopulation->data(dimensionality_ * iCalc + i, ind1) +=
-                      rateIso *
-                      inPopulation->data(dimensionality_ * iCalc + i, ind1);
+                for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+                  for (int i = 0; i < dimensionality_; i++) {
+                    outPopulations[iInput](iCalc, i, ind1) +=
+                        rateIso *
+                        inPopulations[iInput](iCalc, i, ind2);
+                    outPopulations[iInput](iCalc, i, ind1) +=
+                        rateIso *
+                        inPopulations[iInput](iCalc, i, ind1);
+                  }
                 }
                 break;
               case (2):
                 // case of linewidth construction
                 // there's still a missing norm done later
-                linewidth->data(iCalc, ind1) += rateIso;
+                linewidth->operator()(iCalc, 0, ind1) += rateIso;
                 break;
               }
             }
@@ -595,7 +601,9 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   }
 
   if (switchCase == 1) {
-    mpi->allReduceSum(&outPopulation->data);
+    for (unsigned int i=0; i<outPopulations.size(); i++) {
+      mpi->allReduceSum(&outPopulations[i].data);
+    }
   } else {
     mpi->allReduceSum(&linewidth->data);
   }
@@ -619,19 +627,21 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
         switch (switchCase) {
         case (0):
           // case of matrix construction
-          matrix(is1, is1) += rate; // this is redundant, see below
-          linewidth->data(iCalc, is1) += rate;
+          theMatrix(is1, is1) += rate; // this is redundant, see below
+          linewidth->operator()(iCalc, 0, is1) += rate;
           break;
         case (1):
           // case of matrix-vector multiplication
-          for (int i = 0; i < dimensionality_; i++) {
-            outPopulation->data(dimensionality_ * iCalc + i, is1) +=
-                rate * inPopulation->data(dimensionality_ * iCalc + i, is1);
+          for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+            for (int i = 0; i < dimensionality_; i++) {
+              outPopulations[iInput](iCalc, i, is1) +=
+                  rate * inPopulations[iInput](iCalc, i, is1);
+            }
           }
           break;
         case (2):
           // case of linewidth construction
-          linewidth->data(iCalc, is1) += rate;
+          linewidth->operator()(iCalc, 0, is1) += rate;
           break;
         }
       }
@@ -646,14 +656,16 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
     for (auto is1 : excludeIndeces) {
       linewidth->data.col(is1).setZero();
       for (auto is2 : excludeIndeces) {
-        matrix(is1, is2) = 0.;
+        theMatrix(is1, is2) = 0.;
       }
     }
 
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
     for (auto is1 : excludeIndeces) {
-      outPopulation->data.col(is1).setZero();
+      for (unsigned int i=0; i<outPopulations.size(); i++) {
+        outPopulations[i].data.col(is1).setZero();
+      }
     }
 
   } else if (switchCase == 2) {
@@ -668,7 +680,7 @@ void PhScatteringMatrix::builder(ParallelMatrix<double> &matrix,
   if (switchCase == 0) { // case of matrix construction
     long iCalc = 0;
     for (long i = 0; i < outerBandStructure.getNumStates(); i++) {
-      matrix(i, i) = linewidth->data(iCalc, i);
+      theMatrix(i, i) = linewidth->operator()(iCalc, 0, i);
     }
   }
 }

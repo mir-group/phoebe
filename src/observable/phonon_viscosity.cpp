@@ -65,7 +65,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
               for (long l = 0; l < dimensionality; l++) {
                 tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j)
                           * q(k) * vel(l) * bosep1
-                          * tau.data(iCalc, is) / temperature * norm;
+                          * tau(iCalc, 0, is) / temperature * norm;
               }
             }
           }
@@ -134,7 +134,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
         double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
         auto q = bandStructure.getWavevector(is);
         for (auto idim : { 0, 1, 2 }) {
-            driftEigenvector.data(idim, is) = q(idim)
+            driftEigenvector(0, idim, is) = q(idim)
                     * sqrt(bosep1 / temp / A(idim));
         }
     }
@@ -146,7 +146,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
     for (long is = firstState; is < numStates; is++) {
       for (auto i : {0, 1, 2}) {
         for (auto j : {0, 1, 2}) {
-          D(i, j) += driftEigenvector.data(i, is) * tmp.data(j, is);
+          D(i, j) += driftEigenvector(0, i, is) * tmp(0, j, is);
         }
       }
     }
@@ -160,8 +160,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
         auto v = bandStructure.getGroupVelocity(is);
         for (auto i : { 0, 1, 2 }) {
             for (auto j : { 0, 1, 2 }) {
-                tmpDriftEigvecs(i, j, is) = driftEigenvector.data(j, is) * v(i);
-                W(i, j) += vector0.data(0, is) * v(i) * driftEigenvector.data(j, is);
+                tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);
+                W(i, j) += vector0(0, 0, is) * v(i) * driftEigenvector(0, j, is);
             }
         }
     }
@@ -206,7 +206,7 @@ auto is2 = std::get<1>(tup);
                 tmpTensor(iCalc, i, j, k, l) += 0.5
                         * (w(i, j, is) * w(k, l, is)
                                 + w(i, l, is) * w(k, j, is)) * A(i)
-                        * A(k) * relTimes.data(0, is);
+                        * A(k) * relTimes(0, 0, is);
               }
             }
           }

@@ -217,13 +217,13 @@ void PhononTransportApp::run(Context &context) {
     gOld = gOld - fOld;
     auto hOld = -gOld;
 
+    auto tOld = scatteringMatrix.dot(hOld);
+    tOld = tOld / sMatrixDiagonal; // CG scaling
+
     double threshold = context.getConvergenceThresholdBTE();
 
     for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
-
-      auto tOld = scatteringMatrix.dot(hOld);
-      tOld = tOld / sMatrixDiagonal; // CG scaling
 
       Eigen::VectorXd alpha =
           (gOld.dot(hOld)).array() / (hOld.dot(tOld)).array();
@@ -239,9 +239,14 @@ void PhononTransportApp::run(Context &context) {
       auto hNew = hOld * beta;
       hNew = -gNew + hNew;
 
-      // calculate the thermal conductivity
-      auto tmpF = scatteringMatrix.dot(fNew);
-      phTCond.calcVariational(tmpF, fNew, sMatrixDiagonalSqrt);
+      std::vector<VectorBTE> inVecs;
+      inVecs.push_back(fNew);
+      inVecs.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
+      auto outVecs = scatteringMatrix.dot(inVecs);
+      tOld = outVecs[1];
+      tOld = tOld / sMatrixDiagonal; // CG scaling
+
+      phTCond.calcVariational(outVecs[0], fNew, sMatrixDiagonalSqrt);
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
@@ -285,22 +290,13 @@ void PhononTransportApp::run(Context &context) {
     Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
 
     VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
-    for (long iCalc = 0; iCalc < relaxonV.numCalcs; iCalc++) {
-
+    for (long iDim = 0; iDim < relaxonV.dimensionality; iDim++) {
       double norm = 1. /
                     crystal.getVolumeUnitCell(context.getDimensionality()) /
                     bandStructure.getNumPoints(true);
-
-      auto tup1 = relaxonV.loc2Glob(iCalc);
-      auto imu = std::get<0>(tup1);
-      auto it = std::get<1>(tup1);
-      auto idim = std::get<2>(tup1);
-      int idimIndex = idim.get();
-      auto jCalc = boseEigenvector.glob2Loc(imu, it, DimIndex(0));
       for (long is = 0; is < bandStructure.getNumStates(); is++) {
         Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
-        relaxonV.data(iCalc, is) =
-            boseEigenvector.data(jCalc, is) * norm * v(idimIndex);
+        relaxonV(0, iDim, is) = boseEigenvector(0, 0, is) * norm * v(iDim);
       }
     }
     relaxonV = relaxonV * eigenvectors;

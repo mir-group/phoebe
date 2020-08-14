@@ -84,23 +84,15 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-
-      int numChemPots = statisticsSweep.getNumChemicalPotentials();
-      int numTemps = statisticsSweep.getNumTemperatures();
-      auto tup = decompress2Indeces(iCalc, numChemPots, numTemps);
-      auto imu = std::get<0>(tup);
-      auto it = std::get<1>(tup);
-
       double chemicalPotential =
           statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double en = energy - chemicalPotential;
       for (long i = 0; i < dimensionality; i++) {
-        long icPop = nE.glob2Loc(ChemPotIndex(imu), TempIndex(it), DimIndex(i));
         for (long j = 0; j < dimensionality; j++) {
-          LEE(iCalc, i, j) += nE.data(icPop, is) * vel(j) * norm;
-          LET(iCalc, i, j) += nT.data(icPop, is) * vel(j) * norm;
-          LTE(iCalc, i, j) += nE.data(icPop, is) * vel(j) * en * norm;
-          LTT(iCalc, i, j) += nT.data(icPop, is) * vel(j) * en * norm;
+          LEE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * norm;
+          LET(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * norm;
+          LTE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * en * norm;
+          LTT(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * en * norm;
         }
       }
     }

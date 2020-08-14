@@ -211,9 +211,21 @@ long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
 
 std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
     const long &i) {
-  auto tup =      decompress3Indeces(i, numChemPots, numTemps, dimensionality);
+  auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto idim = std::get<2>(tup);
   return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
+}
+
+// get/set operator
+double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+                                  const int iState) {
+  return data(iCalc * dimensionality + iDim, iState);
+}
+
+// const get/set operator
+const double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+                                        const int iState) const {
+  return data(iCalc * dimensionality + iDim, iState);
 }

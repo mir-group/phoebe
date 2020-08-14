@@ -63,7 +63,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
     Eigen::Tensor<double,3> tensorPrivate(numCalcs,dimensionality,dimensionality);
     tensorPrivate.setZero();
 
-    #pragma omp for nowait //
+    #pragma omp for nowait
     for ( long is : bandStructure.parallelStateIterator() ) {
       double en = bandStructure.getEnergy(is);
       Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
@@ -74,13 +74,9 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
         continue;
 
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto tup = loc2Glob(iCalc);
- auto imu = std::get<0>(tup);
- auto it = std::get<1>(tup);
         for (long i = 0; i < dimensionality; i++) {
-          long icPop = n.glob2Loc(imu, it, DimIndex(i));
           for (long j = 0; j < dimensionality; j++) {
-            tensorPrivate(iCalc, i, j) += n.data(icPop, is) * vel(j) * en * norm;
+            tensorPrivate(iCalc, i, j) += n(iCalc, i, is) * vel(j) * en * norm;
           }
         }
       }
@@ -121,15 +117,10 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     #pragma omp for nowait
     for ( long is : bandStructure.parallelStateIterator() ) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-        auto tup = loc2Glob(iCalc);
- auto imu = std::get<0>(tup);
- auto it = std::get<1>(tup);
         for (long i = 0; i < dimensionality; i++) {
-          long icPop1 = f.glob2Loc(imu, it, DimIndex(i));
           for (long j = 0; j < dimensionality; j++) {
-            long icPop2 = f.glob2Loc(imu, it, DimIndex(j));
             tmpTensorPrivate(iCalc, i, j) +=
-                f.data(icPop1, is) * af.data(icPop2, is) * norm;
+                f(iCalc, i, is) * af(iCalc, j, is) * norm;
           }
         }
       }
@@ -167,20 +158,17 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
     for (long is = firstState; is < relaxationTimes.numStates; is++) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
         auto tup = loc2Glob(iCalc);
- auto imu = std::get<0>(tup);
- auto it = std::get<1>(tup);
+        auto imu = std::get<0>(tup);
+        auto it = std::get<1>(tup);
         double c = specificHeat.get(imu, it);
 
-        if (relaxationTimes.data(iCalc, is) <= 0.) continue;
+        if (relaxationTimes(iCalc, 0, is) <= 0.) continue;
 
         for (long i = 0; i < dimensionality; i++) {
           for (long j = 0; j < dimensionality; j++) {
-            auto i1 = relaxonV.glob2Loc(imu, it, DimIndex(i));
-            auto j1 = relaxonV.glob2Loc(imu, it, DimIndex(j));
-
-            tmpTensor(iCalc, i, j) += c * relaxonV.data(i1, is) *
-                                      relaxonV.data(j1, is) *
-                                      relaxationTimes.data(iCalc, is);
+            tmpTensor(iCalc, i, j) += c * relaxonV(iCalc, i, is) *
+                                      relaxonV(iCalc, j, is) *
+                                      relaxationTimes(iCalc, 0, is);
           }
         }
       }
