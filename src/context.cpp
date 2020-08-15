@@ -424,6 +424,10 @@ void Context::setupFromInput(std::string fileName) {
         electronH0Name = parseString(val);
       }
 
+      if (parameterName == "epwFileName") {
+        setEpwFileName(parseString(val));
+      }
+
       if (parameterName == "electronFourierCutoff") {
         double x = parseDouble(val);
         electronFourierCutoff = x;
@@ -614,6 +618,9 @@ void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
 
 std::string Context::getSumRuleD2() { return sumRuleD2; }
 void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
+
+std::string Context::getEpwFileName() { return epwFileName; }
+void Context::setEpwFileName(const std::string x) { epwFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 

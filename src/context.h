@@ -64,6 +64,8 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
+  std::string epwFileName = "";
+
   // utilities for parsing
 
   std::vector<std::string> &split(const std::string &s, char delim,
@@ -83,6 +85,9 @@ class Context {
 
   std::string getPhD3FileName();
   void setPhD3FileName(const std::string x);
+
+  std::string getEpwFileName();
+  void setEpwFileName(const std::string x);
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.

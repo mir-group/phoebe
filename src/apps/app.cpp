@@ -1,28 +1,34 @@
 #include "app.h"
-#include "active_bandstructure.h"
+//#include "active_bandstructure.h"
 #include "bands_app.h"
-#include "bandstructure.h"
-#include "constants.h"
+//#include "bandstructure.h"
+//#include "constants.h"
 #include "context.h"
 #include "dos_app.h"
 #include "exceptions.h"
 #include "io.h"
-#include "particle.h"
+//#include "particle.h"
 #include "phonon_transport_app.h"
-#include "points.h"
+#include "electron_wannier_transport_app.h"
+//#include "points.h"
 #include "polarization_app.h"
-#include "qe_input_parser.h"
+//#include "qe_input_parser.h"
 #include "utilities.h"
-#include "window.h"
+//#include "window.h"
 #include <cmath>
 #include <string>
 
 // app factory
 std::unique_ptr<App> App::loadApp(const std::string &choice) {
-  const std::vector<std::string> choices = {
-      "phononTransport",      "phononDos",           "electronWannierDos",
-      "electronFourierDos",   "phononBands",         "electronWannierBands",
-      "electronFourierBands", "electronPolarization"};
+  const std::vector<std::string> choices = {"phononTransport",
+                                            "phononDos",
+                                            "electronWannierDos",
+                                            "electronFourierDos",
+                                            "phononBands",
+                                            "electronWannierBands",
+                                            "electronFourierBands",
+                                            "electronPolarization",
+                                            "electronWannierTransport"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -31,6 +37,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
 
   if (choice == "phononTransport") {
     return std::unique_ptr<App>(new PhononTransportApp);
+  } else if (choice == "electronWannierTransport") {
+    return std::unique_ptr<App>(new ElectronWannierTransportApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {
