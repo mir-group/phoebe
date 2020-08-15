@@ -55,8 +55,8 @@ ElScatteringMatrix &ElScatteringMatrix::operator=(
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
 void ElScatteringMatrix::builder(VectorBTE *linewidth,
-                                 std::vector<VectorBTE> inPopulations,
-                                 std::vector<VectorBTE> outPopulations) {
+                                 std::vector<VectorBTE> &inPopulations,
+                                 std::vector<VectorBTE> &outPopulations) {
   const double energyCutoff = 0.001 / ryToCmm1;  // discard states with small
   // phonon energies (smaller than 0.001 cm^-1
 
@@ -302,7 +302,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   if (switchCase == 1) {
     for (unsigned int iVec=0; iVec<inPopulations.size(); iVec++) {
-      mpi->allReduceSum(&outPopulations[iVec]->data);
+      mpi->allReduceSum(&outPopulations[iVec].data);
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
@@ -418,32 +418,32 @@ void ElScatteringMatrix::addMatrixElement(const double &x, const int &m,
   int j = compress2Indeces(n, beta, numStates, dimensionality_);
   theMatrix(i, j) += x;
 }
-
-VectorBTE ElScatteringMatrix::dot(VectorBTE &inPopulation) {
-  if (highMemory) {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
-    outPopulation.data.setZero();
-    // note: we are assuming that ScatteringMatrix has numCalcs = 1
-    for (auto t0 : theMatrix.getAllLocalStates()) {
-      auto i = std::get<0>(t0);
-      auto j = std::get<1>(t0);
-
-      auto t1 = decompress2Indeces(i, numStates, dimensionality_);
-      auto m = std::get<0>(t1);
-      auto alfa = std::get<1>(t1);
-      auto t2 = decompress2Indeces(j, numStates, dimensionality_);
-      auto n = std::get<0>(t2);
-      auto beta = std::get<1>(t2);
-      outPopulation(0, alfa, m) +=
-          getMatrixElement(m, n, alfa, beta) * inPopulation(0, beta, n);
-    }
-    mpi->allReduceSum(&outPopulation.data);
-    return outPopulation;
-  } else {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
-    builder(nullptr, &inPopulation, &outPopulation);
-    return outPopulation;
-  }
-}
+//
+//VectorBTE ElScatteringMatrix::dot(VectorBTE &inPopulation) {
+//  if (highMemory) {
+//    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+//                            inPopulation.dimensionality);
+//    outPopulation.data.setZero();
+//    // note: we are assuming that ScatteringMatrix has numCalcs = 1
+//    for (auto t0 : theMatrix.getAllLocalStates()) {
+//      auto i = std::get<0>(t0);
+//      auto j = std::get<1>(t0);
+//
+//      auto t1 = decompress2Indeces(i, numStates, dimensionality_);
+//      auto m = std::get<0>(t1);
+//      auto alfa = std::get<1>(t1);
+//      auto t2 = decompress2Indeces(j, numStates, dimensionality_);
+//      auto n = std::get<0>(t2);
+//      auto beta = std::get<1>(t2);
+//      outPopulation(0, alfa, m) +=
+//          getMatrixElement(m, n, alfa, beta) * inPopulation(0, beta, n);
+//    }
+//    mpi->allReduceSum(&outPopulation.data);
+//    return outPopulation;
+//  } else {
+//    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
+//                            inPopulation.dimensionality);
+//    builder(nullptr, &inPopulation, &outPopulation);
+//    return outPopulation;
+//  }
+//}

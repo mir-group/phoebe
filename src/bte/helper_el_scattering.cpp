@@ -19,7 +19,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
   auto t1 = outerBandStructure.getPoints().getMesh();
-  auto mesh = std::get<0>(t1);
+//  auto mesh = std::get<0>(t1);
   auto offset = std::get<1>(t1);
 
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
@@ -143,11 +143,11 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       auto points = innerBandStructure.getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       long iq3 = points.getIndex(crystalPoints);
-      State states3 = innerBandStructure.getState(iq3);
-      energies3 = states3.getEnergies();
-      states3.getEigenvectors(eigvecs3);
+      auto iq3Index = WavevectorIndex(iq3);
+      energies3 = innerBandStructure.getEnergies(iq3Index);
+      eigvecs3 = innerBandStructure.getEigenvectors(iq3Index);
       if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = states3.getGroupVelocities();
+        v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
@@ -165,11 +165,11 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       auto points = bandStructure3->getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       long iq3 = points.getIndex(crystalPoints);
-      State states3 = bandStructure3->getState(iq3);
-      energies3 = states3.getEnergies();
-      states3.getEigenvectors(eigvecs3);
+      auto iq3Index = WavevectorIndex(iq3);
+      energies3 = bandStructure3->getEnergies(iq3Index);
+      eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
       if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = states3.getGroupVelocities();
+        v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
