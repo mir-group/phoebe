@@ -114,6 +114,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     mpi->allReduceSum(&innerFermi.data);
   }
 
+  if (smearing->getType() == DeltaFunction::tetrahedron) {
+    Error e("Tetrahedron method not supported by electron scattering");
+    // that's because it doesn't work with the window the way it's implemented,
+    // and we will almost always have a window for electrons
+  }
+
   std::vector<std::tuple<std::vector<long>, long>> kPairIterator =
       getIteratorWavevectorPairs(switchCase);
 
@@ -167,14 +173,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         allV1s[ik1] = outerBandStructure.getGroupVelocities(ik1Index);
         allEigvecs1[ik1] = outerBandStructure.getEigenvectors(ik1Index);
 
-        //        auto [q3C, state3Energies, nb3, eigvecs3, v3s, bose3Data] =
-        //            pointHelper.get(ik1, k2C);
-        //        allQ3C[ik1] = q3C;
-        //        allStates3Energies[ik1] = state3Energies;
-        //        allNb3[ik1] = nb3;
-        //        allEigvecs3[ik1] = eigvecs3;
-        //        allV3s[ik1] = v3s;
-        //        allBose3Data[ik1] = bose3Data;
         auto t2 = pointHelper.get(ik1, k2C);
         allQ3C[ik1] = std::get<0>(t2);
         allStates3Energies[ik1] = std::get<1>(t2);
@@ -216,31 +214,27 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                                      BandIndex(ib1));
               int ind2 = innerBandStructure.getIndex(WavevectorIndex(ik2Irr),
                                                      BandIndex(ib2));
-              //
-              //              if (switchCase == 0) {
-              //                // note: above we are parallelizing over
-              //                wavevectors.
-              //                // (for convenience of computing coupling3ph)
-              //                // Not the same way as Matrix() is parallelized.
-              //                // here we check that we don't duplicate efforts
-              //                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
-              //                  continue;
-              //                }
-              //              }
+//
+//              if (switchCase == 0) {
+//                // note: above we are parallelizing over
+//                wavevectors.
+//                // (for convenience of computing coupling3ph)
+//                // Not the same way as Matrix() is parallelized.
+//                // here we check that we don't duplicate efforts
+//                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
+//                  continue;
+//                }
+//              }
 
               double delta1, delta2;
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
-              } else if (smearing->getType() ==
-                         DeltaFunction::adaptiveGaussian) {
+              } else {
                 Eigen::Vector3d va = v2s.row(ib2) - v3s.row(ib3);
                 Eigen::Vector3d vb = v2s.row(ib2) + v3s.row(ib3);
                 delta1 = smearing->getSmearing(en1 - en2 + en3, va);
                 delta2 = smearing->getSmearing(en1 - en2 - en3, vb);
-              } else {
-                delta1 = smearing->getSmearing(en3 + en1, ik2Irr, ib2);
-                delta2 = smearing->getSmearing(en3 - en1, ik2Irr, ib2);
               }
 
               if (delta1 < 0. && delta2 < 0.) continue;
@@ -276,7 +270,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   // case of matrix-vector multiplication
                   // we build the scattering matrix A = S*n(n+1)
 
-                  for (unsigned int iVec=0; iVec<inPopulations.size(); iVec++) {
+                  for (unsigned int iVec = 0; iVec < inPopulations.size();
+                       iVec++) {
                     for (int i = 0; i < dimensionality_; i++) {
                       for (int j = 0; j < dimensionality_; j++) {
                         outPopulations[iVec](iCalc, i, ind1) +=
@@ -301,7 +296,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   if (switchCase == 1) {
-    for (unsigned int iVec=0; iVec<inPopulations.size(); iVec++) {
+    for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
       mpi->allReduceSum(&outPopulations[iVec].data);
     }
   } else {
@@ -332,7 +327,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             break;
           case (1):
             // case of matrix-vector multiplication
-            for (unsigned int iVec=0; iVec<inPopulations.size(); iVec++) {
+            for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
               for (int i = 0; i < dimensionality_; i++) {
                 outPopulations[iVec](iCalc, i, is1) +=
                     rate * inPopulations[iVec](iCalc, i, is1);
@@ -366,7 +361,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
-    for (unsigned int iVec=0; iVec<inPopulations.size(); iVec++) {
+    for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
       for (auto is1 : excludeIndeces) {
         outPopulations[iVec].data.col(is1).setZero();
       }
@@ -419,7 +414,7 @@ void ElScatteringMatrix::addMatrixElement(const double &x, const int &m,
   theMatrix(i, j) += x;
 }
 //
-//VectorBTE ElScatteringMatrix::dot(VectorBTE &inPopulation) {
+// VectorBTE ElScatteringMatrix::dot(VectorBTE &inPopulation) {
 //  if (highMemory) {
 //    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
 //                            inPopulation.dimensionality);

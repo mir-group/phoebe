@@ -83,16 +83,35 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   for (long is : bandStructure.parallelStateIterator()) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
+
+    auto t = bandStructure.getIndex(is);
+    auto ik = std::get<0>(t).get();
+
+    auto rotations = bandStructure.getPoints().getRotationsStar(ik);
+
+
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
       double chemicalPotential =
           statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double en = energy - chemicalPotential;
-      for (long i = 0; i < dimensionality; i++) {
-        for (long j = 0; j < dimensionality; j++) {
-          LEE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * norm;
-          LET(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * norm;
-          LTE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * en * norm;
-          LTT(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * en * norm;
+
+      for (Eigen::Matrix3d rotation : rotations) {
+        Eigen::Vector3d thisNE, thisNT, thisVel;
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            thisNE(i) = rotation(i, j) * nE(iCalc, j, is);
+            thisNT(i) = rotation(i, j) * nT(iCalc, j, is);
+            thisVel(i) = rotation(i, j) * vel(j);
+          }
+        }
+
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            LEE(iCalc, i, j) += thisNE(i) * thisVel(j) * norm;
+            LET(iCalc, i, j) += thisNT(i) * thisVel(j) * norm;
+            LTE(iCalc, i, j) += thisNE(i) * thisVel(j) * en * norm;
+            LTT(iCalc, i, j) += thisNT(i) * thisVel(j) * en * norm;
+          }
         }
       }
     }

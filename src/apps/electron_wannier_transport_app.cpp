@@ -25,24 +25,23 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   FullPoints fullPoints(crystal, context.getQMesh());
 
-  //	bool withVelocities = true;
-  //	bool withEigenvectors = true;
-  //	FullBandStructure bandStructure = phononH0.populate(
-  //			fullPoints, withVelocities, withEigenvectors);
-  //	// set the chemical potentials to zero, load temperatures
-  //	StatisticsSweep statisticsSweep(context);
+  bool withVelocities = true;
+  bool withEigenvectors = true;
+  FullBandStructure bandStructure = phononH0.populate(
+      fullPoints, withVelocities, withEigenvectors);
+  // set the chemical potentials to zero, load temperatures
+  StatisticsSweep statisticsSweep(context);
 
-  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
-  auto bandStructure = std::get<0>(t3);
-  auto statisticsSweep = std::get<1>(t3);
+//  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
+//  auto bandStructure = std::get<0>(t3);
+//  auto statisticsSweep = std::get<1>(t3);
 
   // load the 3phonon coupling
   auto couplingElPh = InteractionElPhWan::parse(context.getEpwFileName());
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
-                                      bandStructure, &couplingElPh,
-                                      &phononH0);
+                                      bandStructure, &couplingElPh, &phononH0);
   scatteringMatrix.setup();
 
   // solve the BTE at the relaxation time approximation level
