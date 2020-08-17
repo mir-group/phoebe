@@ -179,134 +179,65 @@ void InteractionElPhWan::calcCouplingSquared(
   }
 }
 
-InteractionElPhWan InteractionElPhWan::parse(const std::string &epwPath) {
-  std::string filenameEpwdata =
-      epwPath + "/epwdata.fmt";  // file with hamiltonian
-  std::string filenameEpwgwann =
-      epwPath + "/epmatwp1";  // file with el-ph coupling
-  std::string filenameElwscells =
-      epwPath + "/rcells_k";  // files with bravais vectors
-  std::string filenamePhwscells =
-      epwPath + "/rcells_q";  // files with bravais vectors
-  std::string filenameGwscells =
-      epwPath + "/rcells_g";  // files with bravais vectors
-  std::string filenameElwsdeg =
-      epwPath + "/wsdeg_k";  // files with bravais degeneracies
-  std::string filenamePhwsdeg =
-      epwPath + "/wsdeg_q";  // files with bravais degeneracies
-  std::string filenameGwsdeg =
-      epwPath + "/wsdeg_g";  // files with bravais degeneracies
+InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
+    Crystal &crystal) {
 
   // Open ElPh file
 
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
+  std::string line;
 
-  {
-    std::string line;
-    int nwsq;  // numPhbravaisVectors for the dynamical matrix
-    std::ifstream infile(filenameEpwdata);
-    if (not infile.is_open()) {
-      Error e("ElPh file not found");
-    }
-    std::getline(infile, line);
-    infile >> numElBands >> numElBravaisVectors >> numPhBands >> nwsq >>
-        numPhBravaisVectors;
-    std::getline(infile, line);
-    infile.close();
+  std::ifstream infile(fileName);
+  if (not infile.is_open()) {
+    Error e("ElPh file not found");
   }
 
-  // Read real space hamiltonian. But we won't use it!
-  //    call print_message("Reading Wannier Hamiltonian...")
-  //    allocate(Hwann(nwsk, nwannbands, nwannbands))
-  //    do ib = 1, nwannbands
-  //       do jb = 1, nwannbands
-  //          do iuc = 1, nwsk !# WS electron cells
-  //             read (1, *) Hwann(iuc, ib, jb)
-  //          end do
-  //       end do
-  //    end do
-  //
-  //    // Read real space dynamical matrix
-  //    call print_message("Reading Wannier dynamical matrix...")
-  //    allocate(Dphwann(nwsq, nbranches, nbranches))
-  //    do ib = 1, nbranches
-  //       do jb = 1, nbranches
-  //          do iuc = 1, nwsq !# WS phonon cells
-  //             read (1, *) Dphwann(iuc, ib, jb)
-  //          end do
-  //       end do
-  //    end do
-  //    close(1)
+  // Read the bravais lattice vectors info for q mesh.
+  int tmpI;
+  infile >> tmpI >> numPhBravaisVectors;
+
+  Eigen::MatrixXd phBravaisVectors(3, numPhBravaisVectors);
+  Eigen::VectorXd phBravaisVectorsWeights(numPhBravaisVectors);
+  for (int i = 0; i < numPhBravaisVectors; i++) {
+    infile >> phBravaisVectors(0, i) >> phBravaisVectors(1, i) >>
+        phBravaisVectors(2, i) >> phBravaisVectorsWeights(i);
+  }
+
+  // Read the bravais lattice vectors info for k mesh.
+  infile >> tmpI >> numElBravaisVectors;
+  Eigen::MatrixXd elBravaisVectors(3, numElBravaisVectors);
+  Eigen::VectorXd elBravaisVectorsWeights(numElBravaisVectors);
+  for (int i = 0; i < numElBravaisVectors; i++) {
+    infile >> elBravaisVectors(0, i) >> elBravaisVectors(1, i) >>
+        elBravaisVectors(2, i) >> elBravaisVectorsWeights(i);
+  }
 
   // Read real space matrix elements for el-ph coupling
-
+  infile >> numElBands >> tmpI >> tmpI >> numPhBands >> tmpI;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier(
       numElBands, numElBands, numPhBands, numElBravaisVectors,
       numPhBravaisVectors);
   couplingWannier.setZero();
-  {
-    std::ifstream infile(filenameEpwgwann);
-    if (not infile.is_open()) {
-      Error e("ElPh file not found");
-    }
-
-    // NOTE: the order of these loops is important!
-    // that's the storage order of EPW matrix in fortran (column-major)
-    //  Eigen::Tensor<std::complex<double>,5> couplingWannier(
-    //      numElBands,numElBands,numElBravaisVectors,numPhBands,numPhBravaisVectors);
-    for (int i5 = 0; i5 < numPhBravaisVectors; i5++) {
-      for (int i4 = 0; i4 < numPhBands; i4++) {
-        for (int i3 = 0; i3 < numElBravaisVectors; i3++) {
-          for (int i2 = 0; i2 < numElBands; i2++) {
-            for (int i1 = 0; i1 < numElBands; i1++) {
-              infile >> couplingWannier(i1, i2, i4, i5, i3);
-            }
+  for (int i5 = 0; i5 < numPhBravaisVectors; i5++) {
+    for (int i4 = 0; i4 < numPhBands; i4++) {
+      for (int i3 = 0; i3 < numElBravaisVectors; i3++) {
+        for (int i2 = 0; i2 < numElBands; i2++) {
+          for (int i1 = 0; i1 < numElBands; i1++) {
+            infile >> couplingWannier(i1, i2, i4, i5, i3);
           }
         }
       }
     }
-    infile.close();
   }
+  infile.close();
 
-  // Read the bravais lattice vectors info for q and k meshes.
-  Eigen::MatrixXd elBravaisVectors(3, numElBravaisVectors);
-  Eigen::VectorXd elBravaisVectorsWeights(numElBravaisVectors);
-  {
-    std::ifstream infile1(filenameElwscells);
-    std::ifstream infile2(filenameElwsdeg);
-    for (int i = 0; i < numElBravaisVectors; i++) {
-      infile1 >> elBravaisVectors(0, i) >> elBravaisVectors(1, i) >>
-          elBravaisVectors(2, i);
-      infile2 >> elBravaisVectorsWeights(i);
-    }
-    infile1.close();
-    infile2.close();
+
+  Eigen::Matrix3d primitiveCell = crystal.getDirectUnitCell();
+  for (int i=0; i<numElBravaisVectors; i++) {
+    elBravaisVectors.col(i) = primitiveCell * elBravaisVectors.col(i);
   }
-
-  // epw uses this to Fourier transform the dynamical matrix
-  //    allocate(rcells_q(nwsq, 3))
-  //    allocate(phwsdeg(nwsq))
-  //    open(1, file = filename_phwscells, status = "old")
-  //    open(2, file = filename_phwsdeg, status = "old")
-  //    do iuc = 1, nwsq
-  //       read(1, *) rcells_q(iuc, :)
-  //       read(2, *) phwsdeg(iuc)
-  //    end do
-  //    close(1)
-  //    close(2)
-
-  Eigen::MatrixXd phBravaisVectors(3, numPhBravaisVectors);
-  Eigen::VectorXd phBravaisVectorsWeights(numPhBravaisVectors);
-  {
-    std::ifstream infile1(filenameGwscells);
-    std::ifstream infile2(filenameGwsdeg);
-    for (int i = 0; i < numPhBravaisVectors; i++) {
-      infile1 >> phBravaisVectors(0, i) >> phBravaisVectors(1, i) >>
-          phBravaisVectors(2, i);
-      infile2 >> phBravaisVectorsWeights(i);
-    }
-    infile1.close();
-    infile2.close();
+  for (int i=0; i<numPhBravaisVectors; i++) {
+    phBravaisVectors.col(i) = primitiveCell * phBravaisVectors.col(i);
   }
 
   InteractionElPhWan output(couplingWannier, elBravaisVectors,

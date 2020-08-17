@@ -37,7 +37,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 //  auto statisticsSweep = std::get<1>(t3);
 
   // load the 3phonon coupling
-  auto couplingElPh = InteractionElPhWan::parse(context.getEpwFileName());
+  auto couplingElPh =
+      InteractionElPhWan::parse(context.getEpwFileName(), crystal);
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,

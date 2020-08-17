@@ -46,7 +46,8 @@ class InteractionElPhWan {
 
   Eigen::Tensor<double, 3> getCouplingSquared(const int &ik1);
 
-  static InteractionElPhWan parse(const std::string& epwPath);
+  static InteractionElPhWan parse(const std::string &fileName,
+                                  Crystal &crystal);
 };
 
 #endif
