@@ -14,12 +14,13 @@
 
 void ElectronWannierTransportApp::run(Context &context) {
 
-  auto t1 = QEParser::parseElHarmonicWannier(context);
-  auto crystal = std::get<0>(t1);
-  auto electronH0 = std::get<1>(t1);
   auto t2 = QEParser::parsePhHarmonic(context);
-  auto crystalPh = std::get<0>(t2);
+  auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
+
+  auto t1 = QEParser::parseElHarmonicWannier(context, &crystal);
+  auto crystalEl = std::get<0>(t1);
+  auto electronH0 = std::get<1>(t1);
 
   // first we make compute the band structure on the fine grid
 

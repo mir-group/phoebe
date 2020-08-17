@@ -1,0 +1,12 @@
+appName = "electronWannierTransport"
+
+electronH0Name = "qe/gan_tb.dat",
+phD2FileName = "qe/gan.fc",
+sumRuleD2 = "simple"
+
+kMesh = [12,12,12]
+temperatures = [300.]
+
+windowType = "nothing"
+smearingMethod = "gaussian"
+smearingWidth = 10. cmm1

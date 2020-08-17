@@ -803,7 +803,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 };
 
 std::tuple<Crystal, ElectronH0Wannier>
-QEParser::parseElHarmonicWannier(Context &context) {
+QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   //  Here we read the XML file of quantum espresso.
 
   std::string fileName = context.getElectronH0Name();
@@ -825,7 +825,7 @@ QEParser::parseElHarmonicWannier(Context &context) {
   //  First line contains the title and date
   std::getline(infile, line);
 
-  // Then, we have the directUnitCell of the ctystal in angstroms
+  // Then, we have the directUnitCell of the crystal in angstroms
   Eigen::Matrix3d directUnitCell(3, 3);
   directUnitCell.setZero();
   for (int i = 0; i < 3; i++) {
@@ -932,30 +932,26 @@ QEParser::parseElHarmonicWannier(Context &context) {
 
   ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
                                vectorsDegeneracies, h0R, rMatrix);
-  //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
-  //			directUnitCell, crystalVectors, vectorsDegeneracies,
-  // h0R));
 
-  long dimensionality = context.getDimensionality();
-  Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
-  Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
-  std::vector<std::string> speciesNames = context.getInputSpeciesNames();
+  if ( inCrystal != nullptr ) {
+    return {*inCrystal, electronH0};
+  } else {
+    long dimensionality = context.getDimensionality();
+    Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
+    Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
+    std::vector<std::string> speciesNames = context.getInputSpeciesNames();
+    // we default the masses to the conventional ones here.
+    Eigen::VectorXd speciesMasses(speciesNames.size());
+    PeriodicTable periodicTable;
+    long i = 0;
+    for (auto speciesName : speciesNames) {
+      speciesMasses[i] = periodicTable.getMass(speciesName);
+      i += 1;
+    }
 
-  // we default the masses to the conventional ones here.
-  Eigen::VectorXd speciesMasses(speciesNames.size());
-  PeriodicTable periodicTable;
-  long i = 0;
-  for (auto speciesName : speciesNames) {
-    speciesMasses[i] = periodicTable.getMass(speciesName);
-    i += 1;
+    Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
+                    speciesMasses, dimensionality);
+
+    return {crystal, electronH0};
   }
-
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
-
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
-  return {crystal, electronH0};
 };
