@@ -3,10 +3,15 @@ appName = "electronWannierTransport"
 electronH0Name = "qe/gan_tb.dat",
 phD2FileName = "qe/gan.fc",
 sumRuleD2 = "simple"
+epwFileName = "qespresso/phoebe.dat"
 
-kMesh = [12,12,12]
+kMesh = [5,5,5]
 temperatures = [300.]
+dopings = [-1.0e13]
+numOccupiedStates = 6
 
 windowType = "nothing"
 smearingMethod = "gaussian"
 smearingWidth = 10. cmm1
+
+scatteringMatrixInMemory = false

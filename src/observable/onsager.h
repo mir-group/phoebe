@@ -44,6 +44,11 @@ class OnsagerCoefficients {
    */
   void print();
 
+  /** Short format for printing the electrical conductivity. To be used
+   * for quickly evaluate the convergence of an iterative BTE solver.
+   */
+  void print(const int &iter);
+
   void calcTransportCoefficients();
 
   void calcFromEPA();

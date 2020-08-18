@@ -158,34 +158,98 @@ void OnsagerCoefficients::calcTransportCoefficients() {
 void OnsagerCoefficients::print() {
   if (!mpi->mpiHead()) return;  // debugging now
 
-//  std::string units;
-//  if (dimensionality == 1) {
-//    units = "W m / K";
-//  } else if (dimensionality == 2) {
-//    units = "W / K";
-//  } else {
-//    units = "W / m / K";
-//  }
-//
-//  std::cout << "\n";
-//  std::cout << "Thermal Conductivity (" << units << ")\n";
-//
-//  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-//    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-//    double temp = calcStat.temperature;
-//
-//    std::cout << std::fixed;
-//    std::cout.precision(2);
-//    std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-//    std::cout.precision(5);
-//    for (long i = 0; i < dimensionality; i++) {
-//      std::cout << "  " << std::scientific;
-//      for (long j = 0; j < dimensionality; j++) {
-//        std::cout << " " << std::setw(13) << std::right;
-//        std::cout << tensordxd(iCalc, i, j) * thConductivityAuToSi;
-//      }
-//      std::cout << "\n";
-//    }
-//    std::cout << "\n";
-//  }
+  std::string unitsSigma, unitsKappa;
+  double convSigma, convKappa;
+  if (dimensionality == 1) {
+    unitsSigma = "S m";
+    unitsKappa = "W m / K";
+    convSigma = elConductivityAuToSi * rydbergSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi * rydbergSi;
+  } else if (dimensionality == 2) {
+    unitsSigma = "S";
+    unitsKappa = "W / K";
+    convSigma = elConductivityAuToSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi;
+  } else {
+    unitsSigma = "S / m";
+    unitsKappa = "W / m / K";
+    convSigma = elConductivityAuToSi;
+    convKappa = thConductivityAuToSi;
+  }
+  std::string unitsSeebeck = "V / K";
+
+  std::cout << "\n";
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
+
+    std::cout << "Electrical Conductivity (" << unitsSigma << ")\n";
+    std::cout.precision(5);
+    for (long i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (long j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << sigma(iCalc, i, j) * convSigma;
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+
+    std::cout << "Thermal Conductivity (" << unitsKappa << ")\n";
+    std::cout.precision(5);
+    for (long i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (long j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << kappa(iCalc, i, j) * convKappa;
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+
+    std::cout << "Seebeck Coefficient (" << unitsSeebeck << ")\n";
+    std::cout.precision(5);
+    for (long i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (long j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << seebeck(iCalc, i, j) * thermopowerAuToSi;
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+  }
 }
+
+void OnsagerCoefficients::print(const int &iter) {
+  if (!mpi->mpiHead()) return;
+
+  // get the time
+  time_t currentTime;
+  currentTime = time(NULL);
+  // and format the time nicely
+  char s[200];
+  struct tm *p = localtime(&currentTime);
+  strftime(s, 200, "%F, %T", p);
+
+  std::cout << "Iteration: " << iter << " | " << s << "\n";
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout.precision(5);
+    for (long i = 0; i < dimensionality; i++) {
+      std::cout << std::scientific;
+      std::cout << sigma(iCalc, i, i) * elConductivityAuToSi << " ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << std::endl;
+}
+

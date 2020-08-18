@@ -33,7 +33,7 @@ class Context {
   double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::VectorXd dopings;
-  Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
+  Eigen::VectorXd chemicalPotentials;
   double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::Vector3i qMesh;
@@ -65,6 +65,15 @@ class Context {
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
   std::string epwFileName = "";
+  double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double minTemperature = std::numeric_limits<double>::quiet_NaN();
+  double maxTemperature = std::numeric_limits<double>::quiet_NaN();
+  double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
+  double energyRange = std::numeric_limits<double>::quiet_NaN();
+  double energyStep = std::numeric_limits<double>::quiet_NaN();
+  double eFermiRange = std::numeric_limits<double>::quiet_NaN();
 
   // utilities for parsing
 
@@ -213,6 +222,16 @@ class Context {
   Eigen::VectorXd getMassVariance();
 
   double getBoundaryLength();
+
+  double getMinChemicalPotential();
+  double getMaxChemicalPotential();
+  double getDeltaChemicalPotential();
+  double getMinTemperature();
+  double getMaxTemperature();
+  double getDeltaTemperature();
+  double getEnergyRange();
+  double getEnergyStep();
+  double getEFermiRange();
 
   /** Reads the user-provided input file and saves the input parameters
    * @param fileName: path to the input file

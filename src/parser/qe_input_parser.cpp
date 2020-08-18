@@ -790,7 +790,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (spinOrbit)
     numElectrons /= 2.;
   context.setNumOccupiedStates(numElectrons);
-  context.setFermiLevel(homo);
+
+  // if the user didn't set the Fermi level, we do it here.
+  if (std::isnan(context.getFermiLevel())) context.setFermiLevel(homo);
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);

@@ -24,14 +24,14 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
 
-  FullPoints fullPoints(crystal, context.getQMesh());
+  FullPoints fullPoints(crystal, context.getKMesh());
 
   bool withVelocities = true;
   bool withEigenvectors = true;
-  FullBandStructure bandStructure = phononH0.populate(
+  FullBandStructure bandStructure = electronH0.populate(
       fullPoints, withVelocities, withEigenvectors);
   // set the chemical potentials to zero, load temperatures
-  StatisticsSweep statisticsSweep(context);
+  StatisticsSweep statisticsSweep(context, &bandStructure);
 
 //  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
 //  auto bandStructure = std::get<0>(t3);
@@ -85,8 +85,14 @@ void ElectronWannierTransportApp::run(Context &context) {
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
-  throwErrorIfUnset(context.getEpwFileName(), "EPWFileName");
+  throwErrorIfUnset(context.getEpwFileName(), "EpwFileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+
+  if ( context.getDopings().size() == 0 &&
+       context.getChemicalPotentials().size() == 0) {
+    Error e("Either chemical potentials or dopings must be set");
+  }
+
 }
