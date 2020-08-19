@@ -93,7 +93,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     double energy = outerBandStructure.getEnergy(is);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
-      outerFermi.data(iCalc, is) = particle.getPopulation(energy, temperature);
+      double chemicalPotential = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+      outerFermi.data(iCalc, is) = particle.getPopulation(energy, temperature, chemicalPotential);
     }
   }
   mpi->allReduceSum(&outerFermi.data);
@@ -107,8 +108,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double chemicalPotential =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         innerFermi.data(iCalc, is) =
-            particle.getPopulation(energy, temperature);
+            particle.getPopulation(energy, temperature, chemicalPotential);
       }
     }
     mpi->allReduceSum(&innerFermi.data);
