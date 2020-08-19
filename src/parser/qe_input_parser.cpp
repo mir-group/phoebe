@@ -693,9 +693,6 @@ QEParser::parseElHarmonicFourier(Context &context) {
   long dimensionality = context.getDimensionality();
   Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
                   speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
 
   // initialize reciprocal lattice cell
   // I need this to convert kpoints from cartesian to crystal coordinates
@@ -796,11 +793,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
-  //	std::unique_ptr<ElectronH0Fourier> electronH0(new ElectronH0Fourier(
-  //			*crystal, coarsePoints, coarseBandStructure,
-  // fourierCutoff));
 
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
 };
 

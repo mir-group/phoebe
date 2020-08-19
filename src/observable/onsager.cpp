@@ -97,11 +97,14 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 
       for (Eigen::Matrix3d rotation : rotations) {
         Eigen::Vector3d thisNE, thisNT, thisVel;
+        thisNE.setZero();
+        thisNT.setZero();
+        thisVel.setZero();
         for (long i = 0; i < dimensionality; i++) {
           for (long j = 0; j < dimensionality; j++) {
-            thisNE(i) = rotation(i, j) * nE(iCalc, j, is);
-            thisNT(i) = rotation(i, j) * nT(iCalc, j, is);
-            thisVel(i) = rotation(i, j) * vel(j);
+            thisNE(i) += rotation(i, j) * nE(iCalc, j, is);
+            thisNT(i) += rotation(i, j) * nT(iCalc, j, is);
+            thisVel(i) += rotation(i, j) * vel(j);
           }
         }
 
@@ -120,6 +123,7 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   mpi->allReduceSum(&LTE);
   mpi->allReduceSum(&LET);
   mpi->allReduceSum(&LTT);
+  calcTransportCoefficients();
 }
 
 void OnsagerCoefficients::calcTransportCoefficients() {
