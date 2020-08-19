@@ -29,6 +29,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   } else if ((&innerBandStructure == &outerBandStructure) &&
              (offset.norm() == 0.) && innerBandStructure.hasWindow() != 0) {
+
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case2;
 
@@ -48,22 +49,25 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     std::set<int> listOfIndexes;
     int numPoints = innerPoints.getNumPoints();
     for (int ik2 : mpi->divideWorkIter(numPoints)) {
-      Eigen::Vector3d k2Coords_ = innerBandStructure.getWavevector(ik2);
+      auto ik2Index = WavevectorIndex(ik2);
+      Eigen::Vector3d k2Coords_ = innerBandStructure.getWavevector(ik2Index);
 
-      auto rotations = innerPoints.getRotationsStar(ik2);
-      for ( Eigen::Matrix3d rotation : rotations ) {
-        Eigen::Vector3d k2Coords = rotation * k2Coords_;
+//      auto rotations = innerPoints.getRotationsStar(ik2);
+//      for ( Eigen::Matrix3d rotation : rotations ) {
+//        Eigen::Vector3d k2Coords = rotation * k2Coords_;
+      Eigen::Vector3d k2Coords = k2Coords_;
 
         for (int ik1 = 0; ik1 < numPoints; ik1++) {
-          Eigen::Vector3d k1Coords = outerBandStructure.getWavevector(ik1);
+          auto ik1Index = WavevectorIndex(ik1);
+          Eigen::Vector3d k1Coords = outerBandStructure.getWavevector(ik1Index);
 
-          Eigen::Vector3d q3Coords = k1Coords - k2Coords;
+          Eigen::Vector3d q3Coords;
+          q3Coords = k1Coords - k2Coords;
 
           int iq3 = fullPoints3->getIndex(q3Coords);
-
           listOfIndexes.insert(iq3);
         }
-      }
+//      }
     }
 
     std::vector<int> localCounts(mpi->getSize(), 0);
@@ -102,13 +106,12 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       filter(i) = iq;
       i++;
     }
+
     ActivePoints activePoints3(*fullPoints3, filter);
 
     // build band structure
     bool withEigenvectors = true;
     bool withVelocities = true;
-    std::unique_ptr<ActiveBandStructure> bs(new ActiveBandStructure(
-        activePoints3, h0, withEigenvectors, withVelocities));
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         activePoints3, h0, withEigenvectors, withVelocities);
   }
@@ -176,9 +179,10 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double chemicalPotential = 0.;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) = h0->getParticle().getPopulation(
-              energies3(ib3), temperature);
+              energies3(ib3), temperature, chemicalPotential);
         }
       }
     }
