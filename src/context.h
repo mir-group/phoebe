@@ -103,6 +103,7 @@ class Context {
    * @return path: the file path.
    */
   std::string getElectronH0Name();
+  void setElectronH0Name(const std::string x);
 
   /** gets the value of the cutoff to be used for the Fourier interpolation
    * of the band structure.
@@ -194,6 +195,10 @@ class Context {
   Eigen::VectorXi getInputAtomicSpecies();
 
   std::vector<std::string> getInputSpeciesNames();
+
+  void setInputAtomicPositions(const Eigen::MatrixXd x);
+  void setInputAtomicSpecies(const Eigen::VectorXi x);
+  void setInputSpeciesNames(const std::vector<std::string> x);
 
   Eigen::Tensor<double, 3> getPathExtrema();
 

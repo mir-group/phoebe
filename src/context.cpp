@@ -627,7 +627,7 @@ void Context::setupFromInput(std::string fileName) {
       auto value = std::get<1>(tup);
 
       if (blockName == "crystal") {
-        auto tup1 =            parseCrystal(value);
+        auto tup1 = parseCrystal(value);
         auto inputAtomicPositions_ = std::get<0>(tup1);
         auto inputAtomicSpecies_ = std::get<1>(tup1);
         auto inputSpeciesNames_ = std::get<2>(tup1);
@@ -659,6 +659,8 @@ std::string Context::getEpwFileName() { return epwFileName; }
 void Context::setEpwFileName(const std::string x) { epwFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
+
+void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -702,6 +704,16 @@ Eigen::VectorXi Context::getInputAtomicSpecies() { return inputAtomicSpecies; }
 
 std::vector<std::string> Context::getInputSpeciesNames() {
   return inputSpeciesNames;
+}
+
+void Context::setInputAtomicPositions(const Eigen::MatrixXd x) {
+  inputAtomicPositions = x;
+}
+void Context::setInputAtomicSpecies(const Eigen::VectorXi x) {
+  inputAtomicSpecies = x;
+}
+void Context::setInputSpeciesNames(const std::vector<std::string> x) {
+  inputSpeciesNames = x;
 }
 
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
