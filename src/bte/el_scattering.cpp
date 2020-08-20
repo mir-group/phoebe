@@ -231,10 +231,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
               } else {
-                Eigen::Vector3d va = v2s.row(ib2) - v3s.row(ib3);
-                Eigen::Vector3d vb = v2s.row(ib2) + v3s.row(ib3);
-                delta1 = smearing->getSmearing(en1 - en2 + en3, va);
-                delta2 = smearing->getSmearing(en1 - en2 - en3, vb);
+                // Eigen::Vector3d va = v2s.row(ib2) - v3s.row(ib3);
+                // Eigen::Vector3d vb = v2s.row(ib2) + v3s.row(ib3);
+                Eigen::Vector3d smear = v3s.row(ib3);
+                delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
+                delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
               }
 
               if (delta1 < 0. && delta2 < 0.) continue;
