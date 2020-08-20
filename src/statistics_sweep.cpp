@@ -304,6 +304,8 @@ void StatisticsSweep::printInfo() {
   std::cout << "Fermi level: " << fermiLevel * energyRyToEv << " (eV)"
             << std::endl;
 
+  std::cout << "Index, temperature, chemical potential, doping concentration\n";
+
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     double temp = infoCalcs(iCalc, 0);
     double chemPot = infoCalcs(iCalc, 1);

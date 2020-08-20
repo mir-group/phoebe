@@ -1,17 +1,16 @@
 #ifndef ONSAGER_H
 #define ONSAGER_H
 
-#include "vector_bte.h"
-#include "statistics_sweep.h"
-#include "crystal.h"
 #include "bandstructure.h"
 #include "context.h"
+#include "crystal.h"
+#include "statistics_sweep.h"
+#include "vector_bte.h"
 
 /** Class to compute the electronic transport coefficients.
  */
 class OnsagerCoefficients {
- public:
-
+public:
   /** Constructor method
    */
   OnsagerCoefficients(StatisticsSweep &statisticsSweep_, Crystal &crystal_,
@@ -53,7 +52,7 @@ class OnsagerCoefficients {
 
   void calcFromEPA();
 
- protected:
+protected:
   StatisticsSweep &statisticsSweep;
   Crystal &crystal;
   BaseBandStructure &bandStructure;
@@ -63,7 +62,7 @@ class OnsagerCoefficients {
   double spinFactor;
   int numCalcs;
 
-  Eigen::Tensor<double, 3> sigma, seebeck, kappa;
+  Eigen::Tensor<double, 3> sigma, seebeck, kappa, mobility;
   Eigen::Tensor<double, 3> LEE, LET, LTE, LTT;
 };
 

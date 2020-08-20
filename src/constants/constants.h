@@ -12,9 +12,9 @@ const double twoPi = 2. * pi;
 const double fourPi = 2. * pi;
 const double one = 1.;
 const double zero = 0.;
-const std::complex<double> complexZero = { 0., 0. };
-const std::complex<double> complexOne = { 1., 0. };
-const std::complex<double> complexI = { 0., 1. };
+const std::complex<double> complexZero = {0., 0.};
+const std::complex<double> complexOne = {1., 0.};
+const std::complex<double> complexI = {0., 1.};
 //
 // small numbers
 //
@@ -36,7 +36,7 @@ const double timeRy = hBarSi / rydbergSi;
 const double kBoltzmannSi = 1.38064852e-23;
 const double kBoltzmannRy = kBoltzmannSi / rydbergSi;
 const double electronMassSi = 9.10938215e-31; // in Kg
-const double amuSi = 1.660538782e-27; // in Kg
+const double amuSi = 1.660538782e-27;         // in Kg
 
 const double e2 = 2.;
 
@@ -66,11 +66,12 @@ const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
 //
 // units for transport coefficients
 //
-const double thConductivityAuToSi = kBoltzmannSi * rydbergSi / bohrRadiusSi
-        / hBarSi;
-const double viscosityAuToSi = rydbergSi / hPlanckSi * twoPi
-        * pow(bohrRadiusSi, 2);
+const double thConductivityAuToSi =
+    kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
+const double viscosityAuToSi =
+    rydbergSi / hPlanckSi * twoPi * pow(bohrRadiusSi, 2);
 const double elConductivityAuToSi = pow(electronSi, 2) / hBarSi / bohrRadiusSi;
+const double mobilityAuToSi = electronSi / hBarSi * pow(bohrRadiusSi,2);
 const double thermopowerAuToSi = -kBoltzmannRy / electronSi * rydbergSi;
 const double peltierAuToSi = -rydbergSi / electronSi;
 
