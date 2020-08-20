@@ -10,15 +10,13 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        StatisticsSweep &statisticsSweep_,
                                        BaseBandStructure &innerBandStructure_,
                                        BaseBandStructure &outerBandStructure_,
-                                       InteractionElPhWan *couplingElPhWan_,
-                                       PhononH0 *h0_)
+                                       PhononH0 &h0_,
+                                       InteractionElPhWan *couplingElPhWan_
+                                       )
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
                        outerBandStructure_),
       couplingElPhWan(couplingElPhWan_),
       h0(h0_) {
-  if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
-    Error e("PhScatteringMatrix needs h0 for incommensurate grids");
-  }
 
   doBoundary = false;
   boundaryLength = context.getBoundaryLength();
@@ -153,7 +151,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         Eigen::Vector3d thisV2 = rotation * thisV2Irr;
         v2s.row(ib2) = thisV2;
       }
-
       loopPrint.update();
       pointHelper.prepare(ik1Indexes, k2C);
 

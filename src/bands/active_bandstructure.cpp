@@ -748,7 +748,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // now we can loop over the trimmed list of points
   for (int i=0; i<filter.size(); i++ ) {
-    int ik = filter(i);
+    long ik = filter(i);
     auto ikIndex = WavevectorIndex(ik);
     Point point = activePoints.getPoint(i);
 

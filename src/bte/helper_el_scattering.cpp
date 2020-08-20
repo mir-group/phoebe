@@ -7,7 +7,7 @@
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
                                StatisticsSweep &statisticsSweep_,
-                               const int &smearingType_, PhononH0 *h0_)
+                               const int &smearingType_, PhononH0 &h0_)
     : innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       statisticsSweep(statisticsSweep_),
@@ -26,6 +26,19 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       innerBandStructure.hasWindow() == 0) {
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case1;
+
+    auto t2 = innerBandStructure.getPoints().getMesh();
+    auto mesh = std::get<0>(t2);
+    auto offset = std::get<1>(t2);
+
+    fullPoints3 = std::make_unique<FullPoints>(
+        innerBandStructure.getPoints().getCrystal(), mesh, offset);
+
+    bool withVelocities = true;
+    bool withEigenvectors = true;
+    FullBandStructure bs = h0.populate(*fullPoints3, withVelocities,
+                                               withEigenvectors);
+    bandStructure3 = std::make_unique<FullBandStructure>(bs);
 
   } else if ((&innerBandStructure == &outerBandStructure) &&
              (offset.norm() == 0.) && innerBandStructure.hasWindow() != 0) {
@@ -47,27 +60,27 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
     // now, we loop over the pairs of wavevectors
     std::set<int> listOfIndexes;
-    int numPoints = innerPoints.getNumPoints();
+    int numPoints = innerBandStructure.getNumPoints();
     for (int ik2 : mpi->divideWorkIter(numPoints)) {
       auto ik2Index = WavevectorIndex(ik2);
       Eigen::Vector3d k2Coords_ = innerBandStructure.getWavevector(ik2Index);
 
-//      auto rotations = innerPoints.getRotationsStar(ik2);
-//      for ( Eigen::Matrix3d rotation : rotations ) {
-//        Eigen::Vector3d k2Coords = rotation * k2Coords_;
-      Eigen::Vector3d k2Coords = k2Coords_;
+      auto rotations = innerPoints.getRotationsStar(ik2);
+      for ( Eigen::Matrix3d rotation : rotations ) {
+        Eigen::Vector3d k2Coords = rotation * k2Coords_;
+        // Eigen::Vector3d k2Coords = k2Coords_;
 
-        for (int ik1 = 0; ik1 < numPoints; ik1++) {
+        for (int ik1 = 0; ik1 < outerBandStructure.getNumPoints(); ik1++) {
           auto ik1Index = WavevectorIndex(ik1);
           Eigen::Vector3d k1Coords = outerBandStructure.getWavevector(ik1Index);
 
-          Eigen::Vector3d q3Coords;
-          q3Coords = k1Coords - k2Coords;
+          Eigen::Vector3d q3Coords = k1Coords - k2Coords;
+          Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coords);
 
-          int iq3 = fullPoints3->getIndex(q3Coords);
+          int iq3 = fullPoints3->getIndex(q3Cart);
           listOfIndexes.insert(iq3);
         }
-//      }
+      }
     }
 
     std::vector<int> localCounts(mpi->getSize(), 0);
@@ -107,13 +120,15 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       i++;
     }
 
-    ActivePoints activePoints3(*fullPoints3, filter);
+    ActivePoints ap3 = ActivePoints(*fullPoints3, filter);
+    activePoints3 = std::make_unique<ActivePoints>(ap3);
 
     // build band structure
     bool withEigenvectors = true;
     bool withVelocities = true;
+    // note: bandStructure3 stores a copy of ap3: can't pass unique_ptr
     bandStructure3 = std::make_unique<ActiveBandStructure>(
-        activePoints3, h0, withEigenvectors, withVelocities);
+        ap3, &h0, withEigenvectors, withVelocities);
   }
 }
 
@@ -136,54 +151,31 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     // note: 3rdBandStructure might still be different from inner/outer bs.
     // so, we must use the points from 3rdBandStructure to get the values
 
-    int nb3;
-    Eigen::VectorXd energies3;
-    Eigen::MatrixXcd eigvecs3;
-    Eigen::MatrixXd v3s;
-    Eigen::MatrixXd bose3Data;
-
+    long iq3;
     if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStruc
-      auto points = innerBandStructure.getPoints();
-      Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
-      long iq3 = points.getIndex(crystalPoints);
-      auto iq3Index = WavevectorIndex(iq3);
-      energies3 = innerBandStructure.getEnergies(iq3Index);
-      eigvecs3 = innerBandStructure.getEigenvectors(iq3Index);
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = innerBandStructure.getGroupVelocities(iq3Index);
-      }
-      nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (int ib3 = 0; ib3 < nb3; ib3++) {
-          bose3Data(iCalc, ib3) = h0->getParticle().getPopulation(
-              energies3(ib3), temperature);
-        }
-      }
-
-
+      Eigen::Vector3d crystalPoints = fullPoints3->cartesianToCrystal(q3);
+      iq3 = fullPoints3->getIndex(crystalPoints);
     } else {
-      auto points = bandStructure3->getPoints();
-      Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
-      long iq3 = points.getIndex(crystalPoints);
-      auto iq3Index = WavevectorIndex(iq3);
-      energies3 = bandStructure3->getEnergies(iq3Index);
-      eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
-        v3s = bandStructure3->getGroupVelocities(iq3Index);
-      }
-      nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
-        double chemicalPotential = 0.;
-        for (int ib3 = 0; ib3 < nb3; ib3++) {
-          bose3Data(iCalc, ib3) = h0->getParticle().getPopulation(
-              energies3(ib3), temperature, chemicalPotential);
-        }
+      Eigen::Vector3d crystalPoints = activePoints3->cartesianToCrystal(q3);
+      iq3 = activePoints3->getIndex(crystalPoints);
+    }
+    auto iq3Index = WavevectorIndex(iq3);
+
+    Eigen::VectorXd energies3 = bandStructure3->getEnergies(iq3Index);
+    Eigen::MatrixXcd eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
+    Eigen::MatrixXd v3s;
+    if (smearingType == DeltaFunction::adaptiveGaussian) {
+      v3s = bandStructure3->getGroupVelocities(iq3Index);
+    }
+    int nb3 = energies3.size();
+    Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      double temperature =
+          statisticsSweep.getCalcStatistics(iCalc).temperature;
+      double chemPot = 0.; // chemicalPotential always = 0 for phonons
+      for (int ib3 = 0; ib3 < nb3; ib3++) {
+        bose3Data(iCalc, ib3) = h0.getParticle().getPopulation(
+            energies3(ib3), temperature, chemPot);
       }
     }
 
@@ -218,14 +210,14 @@ void HelperElScattering::prepare(const std::vector<long> k1Indexes,
     cacheBose.resize(numPoints);
     cacheVelocity.resize(numPoints);
 
-    Particle particle = h0->getParticle();
+    Particle particle = h0.getParticle();
 
     for (long ik1 : k1Indexes) {
       Eigen::Vector3d k1 = outerBandStructure.getWavevector(ik1);
 
       Eigen::Vector3d q3 = k1 - k2;
 
-      auto t1 = h0->diagonalizeFromCoords(q3);
+      auto t1 = h0.diagonalizeFromCoords(q3);
       auto energies3 = std::get<0>(t1);
       auto eigvecs3 = std::get<1>(t1);
 
@@ -247,7 +239,7 @@ void HelperElScattering::prepare(const std::vector<long> k1Indexes,
       v3s.setZero();
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmp =
-            h0->diagonalizeVelocityFromCoords(q3);
+            h0.diagonalizeVelocityFromCoords(q3);
 
         // we only need the diagonal elements of the velocity operator
         // i.e. the group velocity

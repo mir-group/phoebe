@@ -13,7 +13,7 @@ class HelperElScattering {
                  BaseBandStructure &outerBandStructure_,
                  StatisticsSweep &statisticsSweep_,
                  const int &smearingType_,
-                 PhononH0 *h0_ = nullptr);
+                 PhononH0 &h0_);
 
   /** to be called in the loop over q2, before the loop on q1.
    * If we have 3rd bandstructure, we don't do anything.
@@ -32,10 +32,11 @@ class HelperElScattering {
   BaseBandStructure &outerBandStructure;
   StatisticsSweep &statisticsSweep;
   int smearingType;
-  PhononH0 *h0 = nullptr;
+  PhononH0 &h0;
 
   std::unique_ptr<BaseBandStructure> bandStructure3;
   std::unique_ptr<FullPoints> fullPoints3;
+  std::unique_ptr<ActivePoints> activePoints3;
 
   bool storedAllQ3; // if true, q3 falls on a grid and we store the full bands
   const int storedAllQ3Case1=1;

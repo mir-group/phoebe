@@ -12,8 +12,9 @@ class ElScatteringMatrix : public ScatteringMatrix {
   ElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &innerBandStructure_,
                      BaseBandStructure &outerBandStructure_,
-                     InteractionElPhWan *couplingElPhWan_ = nullptr,
-                     PhononH0 *h0 = nullptr);
+                     PhononH0 &h0,
+                     InteractionElPhWan *couplingElPhWan_ = nullptr
+                     );
 
   ElScatteringMatrix(const ElScatteringMatrix &that);
 
@@ -21,7 +22,7 @@ class ElScatteringMatrix : public ScatteringMatrix {
 
  protected:
   InteractionElPhWan *couplingElPhWan;
-  PhononH0 *h0;
+  PhononH0 &h0;
 
   double boundaryLength;
   bool doBoundary;
