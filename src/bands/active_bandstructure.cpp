@@ -416,7 +416,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
 
   numFullBands = 0;  // save the unfiltered number of bands
   std::vector<int> myFilteredPoints;
-  std::vector<std::vector<long>> myFilteredBands;
+  std::vector<std::vector<int>> myFilteredBands;
 
   for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
     Point point = points.getPoint(ik);
@@ -632,7 +632,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   numFullBands = h0.getNumBands();
   std::vector<int> myFilteredPoints;
-  std::vector<std::vector<long>> myFilteredBands;
+  std::vector<std::vector<int>> myFilteredBands;
 
   for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
     auto ikIndex = WavevectorIndex(ik);
