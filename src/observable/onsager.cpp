@@ -215,6 +215,7 @@ void OnsagerCoefficients::print() {
     std::cout << std::fixed;
     std::cout.precision(2);
     std::cout << "iCalc = " << iCalc << ", T = " << temp * temperatureAuToSi;
+    std::cout << "\n";
 
     std::cout.precision(4);
     std::cout << " (K)"
@@ -273,7 +274,7 @@ void OnsagerCoefficients::print() {
       }
       std::cout << "\n";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
   }
 }
 
