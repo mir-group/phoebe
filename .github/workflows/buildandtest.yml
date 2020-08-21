@@ -22,7 +22,7 @@ jobs:
           cmake ..
       - name: Build
         run: make -j4
+        working-directory: build
       - name: Run example
-        run: |
-          cd ../example/Silicon
-          ../../build/phoebe -in input.in
+        working-directory: example/Silicon
+        run: ../../build/phoebe -in input.in
