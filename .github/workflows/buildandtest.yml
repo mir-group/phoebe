@@ -7,12 +7,12 @@ jobs:
     # This job runs on Linux
     runs-on: ubuntu-20.04
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
       - name: Debug
-        run: |
-          ls -a > file.txt
-          cat file.txt
-      - name: Checkout submodules
-        uses: textbook/git-checkout-submodule-action@2.1.1
+        run: ls -a
       - name: Install dependencies
         run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
       - name: Configure
