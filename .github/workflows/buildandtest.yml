@@ -9,7 +9,8 @@ jobs:
     steps:
       - name: Debug
         run: |
-        echo $(ls -a)
+          ls -a > file.txt
+          cat file.txt
       - name: Checkout submodules
         uses: textbook/git-checkout-submodule-action@2.1.1
       - name: Install dependencies
