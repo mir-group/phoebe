@@ -33,7 +33,7 @@ jobs:
         run: ../../${BUILD_DIR}/phoebe -in input.in
       - name: Run example with MPI
         working-directory: example/Silicon
-        if: ${{ matrix.mpi }} == "ON"
+        if: matrix.mpi == "ON"
         run: |
           echo "localhost" > myhostfile
           mpirun -np 4 --hostfile myhostfile --oversubscribe ../../${BUILD_DIR}/phoebe -in input.in
