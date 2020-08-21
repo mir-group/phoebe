@@ -3,9 +3,15 @@ on: [push, pull_request]
 
 jobs:
   build:
+    strategy:
+      matrix:
+        omp: [OFF, ON]
+        mpi: [OFF, ON]
     name: Build and Test
     # This job runs on Linux
     runs-on: ubuntu-20.04
+    env:
+      BUILD_DIR: build_${{ matrix.omp }}_${{ matrix.mpi }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -17,12 +23,12 @@ jobs:
         run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
       - name: Configure
         run: |
-          mkdir build
-          cd build
-          cmake ..
+          mkdir 
+          cd ${BUILD_DIR}
+          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.omp }}
       - name: Build
         run: make -j4
-        working-directory: build
+        working-directory: ${BUILD_DIR}
       - name: Run example
         working-directory: example/Silicon
-        run: ../../build/phoebe -in input.in
+        run: ../../${BUILD_DIR}/phoebe -in input.in
