@@ -23,7 +23,7 @@ jobs:
         run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
       - name: Configure
         run: |
-          mkdir 
+          mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
           cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }}
       - name: Build
