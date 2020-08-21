@@ -51,7 +51,7 @@ if (MPI_AVAIL)
   target_link_libraries(runTests MPI::MPI_CXX)
   add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp
 
-  find_library(SCALAPACK_LIB NAMES scalapack mkl_scalapack_lp64 PATHS ENV LD_LIBRARY_PATH)
+  find_library(SCALAPACK_LIB NAMES scalapack scalapack-openmpi mkl_scalapack_lp64 PATHS ENV LD_LIBRARY_PATH)
   if(${SCALAPACK_LIB} MATCHES NOTFOUND)
       ExternalProject_Add(scalapack_dep
           BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build

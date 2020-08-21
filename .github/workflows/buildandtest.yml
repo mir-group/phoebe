@@ -1,0 +1,24 @@
+name: Build and Test
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build and Test
+    # This job runs on Linux
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Update submodules
+        run: git submodule update --init
+      - name: Install dependencies
+        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
+      - name: Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+      - name: Build
+        run: make -j4
+      - name: Run example
+        run: |
+          cd ../example/Silicon
+          ../../build/phoebe -in input.in
