@@ -7,6 +7,10 @@ jobs:
     # This job runs on Linux
     runs-on: ubuntu-20.04
     steps:
+      - name: Debug info
+        run: |
+          pwd
+          ls
       - name: Update submodules
         run: git submodule update --init
       - name: Install dependencies
