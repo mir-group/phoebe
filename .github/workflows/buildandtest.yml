@@ -27,8 +27,9 @@ jobs:
           cd ${BUILD_DIR}
           cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }}
       - name: Build
-        run: make -j4
-        working-directory: ${BUILD_DIR}
+        run: |
+          cd ${BUILD_DIR}
+          make -j4
       - name: Run example
         working-directory: example/Silicon
         run: ../../${BUILD_DIR}/phoebe -in input.in
