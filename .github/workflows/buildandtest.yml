@@ -2,12 +2,6 @@ name: Build and Test
 on: [push, pull_request]
 
 jobs:
-  dependencies:
-    runs-on: ubuntu-20.04
-    name: "Install dependencies"
-    steps:
-      - name: Install dependencies
-        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
   build:
     strategy:
       matrix:
@@ -16,16 +10,15 @@ jobs:
     name: "(OpenMP, MPI) ="
     # This job runs on Linux
     runs-on: ubuntu-20.04
-    needs: [dependencies]
     env:
       BUILD_DIR: build_${{ matrix.omp }}_${{ matrix.mpi }}
     steps:
+      - name: Install dependencies
+        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Debug
-        run: ls -a
       - name: Configure
         run: |
           mkdir ${BUILD_DIR}
