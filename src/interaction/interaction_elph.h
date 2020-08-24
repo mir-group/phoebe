@@ -25,7 +25,7 @@ class InteractionElPhWan {
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
 
   Eigen::Tensor<std::complex<double>, 4> elPhCached;
-  Eigen::Vector3d cachedK2;
+  Eigen::Vector3d cachedK1;
 
  public:
   InteractionElPhWan(
@@ -37,14 +37,14 @@ class InteractionElPhWan {
   InteractionElPhWan(const InteractionElPhWan &that);          // copy constructor
   InteractionElPhWan &operator=(const InteractionElPhWan &that);  // assignment op
 
-  void calcCouplingSquared(Eigen::MatrixXcd &el2Eigvec,
-                           std::vector<Eigen::MatrixXcd> &el1Eigenvecs,
+  void calcCouplingSquared(Eigen::MatrixXcd &el1Eigenvec,
+                           std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
                            std::vector<Eigen::MatrixXcd> &phEigvecs,
-                           Eigen::Vector3d &k2,
-                           std::vector<Eigen::Vector3d> &k1s,
+                           Eigen::Vector3d &k1,
+                           std::vector<Eigen::Vector3d> &k2s,
                            std::vector<Eigen::Vector3d> &q3s);
 
-  Eigen::Tensor<double, 3> getCouplingSquared(const int &ik1);
+  Eigen::Tensor<double, 3> getCouplingSquared(const int &ik2);
 
   static InteractionElPhWan parse(const std::string &fileName,
                                   Crystal &crystal);

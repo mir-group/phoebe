@@ -821,14 +821,14 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   std::getline(infile, line);
 
   // Then, we have the directUnitCell of the crystal in angstroms
-  Eigen::Matrix3d directUnitCell(3, 3);
-  directUnitCell.setZero();
+  Eigen::Matrix3d directUnitCell_(3, 3);
+  directUnitCell_.setZero();
   for (int i = 0; i < 3; i++) {
     std::getline(infile, line);
     lineSplit = split(line, ' ');
     for (int j = 0; j < 3; j++) {
       // unit cell is written in angstrom
-      directUnitCell(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
+      directUnitCell_(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
     }
   };
 
@@ -918,6 +918,13 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
         rMatrix(2, iR, i, j) = {re, im}; // the matrix was in eV
       }
     }
+  }
+
+  Eigen::Matrix3d directUnitCell(3, 3);
+  if (inCrystal != nullptr) {
+    directUnitCell = inCrystal->getDirectUnitCell();
+  } else {
+    directUnitCell = directUnitCell_;
   }
 
   // I need to convert crystalVectors in cartesian coordinates
