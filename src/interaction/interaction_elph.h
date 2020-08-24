@@ -37,12 +37,12 @@ class InteractionElPhWan {
   InteractionElPhWan(const InteractionElPhWan &that);          // copy constructor
   InteractionElPhWan &operator=(const InteractionElPhWan &that);  // assignment op
 
-  void calcCouplingSquared(Eigen::MatrixXcd &el1Eigenvec,
-                           std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
-                           std::vector<Eigen::MatrixXcd> &phEigvecs,
-                           Eigen::Vector3d &k1,
-                           std::vector<Eigen::Vector3d> &k2s,
-                           std::vector<Eigen::Vector3d> &q3s);
+  void calcCouplingSquared(const Eigen::MatrixXcd &el1Eigenvec,
+                           const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
+                           const std::vector<Eigen::MatrixXcd> &phEigvecs,
+                           const Eigen::Vector3d &k1,
+                           const std::vector<Eigen::Vector3d> &k2s,
+                           const std::vector<Eigen::Vector3d> &q3s);
 
   Eigen::Tensor<double, 3> getCouplingSquared(const int &ik2);
 

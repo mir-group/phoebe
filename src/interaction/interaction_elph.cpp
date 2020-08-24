@@ -59,60 +59,86 @@ InteractionElPhWan::getCouplingSquared(const int &ik2) {
 }
 
 void InteractionElPhWan::calcCouplingSquared(
-    Eigen::MatrixXcd &el1Eigenvec, std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
-    std::vector<Eigen::MatrixXcd> &phEigvecs, Eigen::Vector3d &k1,
-    std::vector<Eigen::Vector3d> &k2s, std::vector<Eigen::Vector3d> &q3s) {
+    const Eigen::MatrixXcd &el1Eigenvec, const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
+    const std::vector<Eigen::MatrixXcd> &phEigvecs, const Eigen::Vector3d &k1,
+    const std::vector<Eigen::Vector3d> &k2s, const std::vector<Eigen::Vector3d> &q3s) {
   (void)k2s;
   int numLoops = el2Eigenvecs.size();
   cacheCoupling.resize(0);
   cacheCoupling.resize(numLoops);
 
+  // we allow the number of bands to be different in each direction
+  Eigen::MatrixXcd ev1 = el1Eigenvec;
+  int nb1 = ev1.cols();
+
   // first, fourier transform on k2
 
   if (k1 != cachedK1 || elPhCached.size() == 0) {
     cachedK1 = k1;
-    elPhCached.resize(numElBands, numElBands, numPhBands, numPhBravaisVectors);
-    elPhCached.setZero();
-    // NOTE: this is a loop that must be done only once per every value of k2
-    // if k1 is split in batches, the value of ElPhCached must be saved as
+
+    Eigen::Tensor<std::complex<double>, 4> tmp;
+    tmp.resize(numElBands, numElBands, numPhBands, numPhBravaisVectors);
+    tmp.setZero();
+    // NOTE: this is a loop that must be done only once per every value of k1
+    // if k2 is split in batches, the value of ElPhCached must be saved as
     // member
+
+    std::vector<std::complex<double>> phases;
     for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
       double arg = k1.dot(elBravaisVectors.col(irEl));
-      std::complex<double> phase = exp(complexI * arg);
+      std::complex<double> phase = exp(complexI * arg) /
+          elBravaisVectorsWeights(irEl);
+      phases.push_back(phase);
+    }
+
+    for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
       for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
         // As a convention, the first primitive cell in the triplet is
         // restricted to the origin, so the phase for that cell is unity.
         for (int ind3 = 0; ind3 < numPhBands; ind3++) {
           for (int ind2 = 0; ind2 < numElBands; ind2++) {
             for (int ind1 = 0; ind1 < numElBands; ind1++) {
-              elPhCached(ind1, ind2, ind3, irPh) +=
-                  couplingWannier(ind1, ind2, ind3, irPh, irEl) * phase /
-                  elBravaisVectorsWeights(irEl);
+              tmp(ind1, ind2, ind3, irPh) +=
+                  couplingWannier(ind1, ind2, ind3, irPh, irEl) * phases[irEl];
             }
           }
         }
       }
     }
+
+    elPhCached.resize(nb1, numElBands, numPhBands, numPhBravaisVectors);
+    elPhCached.setZero();
+
+    // note: nb1 can be much smaller than numElBands
+    // doing this loop here in the caching makes the subsequent loops faster
+    for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
+      for (int ind3 = 0; ind3 < numPhBands; ind3++) {
+        for (int ind2 = 0; ind2 < numElBands; ind2++) {
+          for (int ib1 = 0; ib1 < nb1; ib1++) {
+            for (int ind1 = 0; ind1 < numElBands; ind1++) {
+              elPhCached(ib1, ind2, ind3, irPh) +=
+                  tmp(ind1, ind2, ind3, irPh) * ev1(ind1, ib1);
+            }
+          }
+        }
+      }
+    }
+
   }
 
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Vector3d q3 = q3s[ik];
 
-    Eigen::MatrixXcd ev1 = el1Eigenvec;
     Eigen::MatrixXcd ev2 = el2Eigenvecs[ik];
-    Eigen::MatrixXcd ev3 = phEigvecs[ik];
-
-    // we allow the number of bands to be different in each direction
-    int nb1 = ev1.cols();
     int nb2 = ev2.cols();
+    Eigen::MatrixXcd ev3 = phEigvecs[ik];
 
     Eigen::Tensor<std::complex<double>, 3> v(nb1, nb2, numPhBands);
     v.setZero();
 
     // note: tmp* is a tensor over cartesian and atomic indices
     // (whose size coincides with the band numbers)
-    Eigen::Tensor<std::complex<double>, 3> tmp(numElBands, numElBands,
-                                               numPhBands);
+    Eigen::Tensor<std::complex<double>, 3> tmp(nb1, numElBands, numPhBands);
     tmp.setZero();
     for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
       // As a convention, the first primitive cell in the triplet is
@@ -121,73 +147,14 @@ void InteractionElPhWan::calcCouplingSquared(
       std::complex<double> phase = exp(complexI * arg);
       for (int iac3 = 0; iac3 < numPhBands; iac3++) {
         for (int iac2 = 0; iac2 < numElBands; iac2++) {
-          for (int iac1 = 0; iac1 < numElBands; iac1++) {
-            tmp(iac1, iac2, iac3) += elPhCached(iac1, iac2, iac3, irPh) *
+          for (int ib1 = 0; ib1 < nb1; ib1++) {
+            tmp(ib1, iac2, iac3) += elPhCached(ib1, iac2, iac3, irPh) *
                                      phase / phBravaisVectorsWeights(irPh);
           }
         }
       }
     }
 
-    // EPW uses a different gauge: the last row is real
-    // Eigen is different: the first row is set to be real
-    //    for (int ib2 = 0; ib2 < numPhBands; ib2++) {
-    //      int ib1 = 5;
-    //      std::complex<double> x = ev3(ib1,ib2);
-    //      double angle = std::arg(x);
-    //      std::complex<double> gauge = exp(-complexI*angle);
-    //      for (int ib1 = 0; ib1 < numPhBands; ib1++) {
-    //        ev3(ib1,ib2) *= gauge;
-    //      }
-    //    }
-    //    for (int ib1 = 0; ib1 < numPhBands; ib1++) {
-    //      for (int ib2 = 0; ib2 < numPhBands; ib2++) {
-    // //       std::cout << ib1 << " " << ib2 << " " << ev3(ib1,ib2) <<"\n";
-    //      }
-    //    }
-    //
-    // EPW uses a different gauge: the last row is real
-    // Eigen is different: the first row is set to be real
-    //    for (int ib1 = 0; ib1 < numPhBands; ib1++) {
-    //      {
-    //        int ib2 = 7;
-    //        std::complex<double> x = ev1(ib1, ib2);
-    //        double angle = std::arg(x);
-    //        std::complex<double> gauge = exp(-complexI * angle);
-    //        for (int ib2 = 0; ib2 < numPhBands; ib2++) {
-    //          ev1(ib1, ib2) *= gauge;
-    //        }
-    //      }
-    //
-    //      {
-    //        int ib2 = 7;
-    //        std::complex<double> x = ev2(ib1, ib2);
-    //        double angle = std::arg(x);
-    //        std::complex<double> gauge = exp(-complexI * angle);
-    //        for (int ib2 = 0; ib2 < numPhBands; ib2++) {
-    //          ev2(ib1, ib2) *= gauge;
-    //        }
-    //      }
-    //    }
-    //    for (int ib1 = 0; ib1 < numElBands; ib1++) {
-    //      for (int ib2 = 0; ib2 < numElBands; ib2++) {
-    //   //     std::cout << ib1+1 << " " << ib2+1 << " " <<
-    //   ev1.adjoint()(ib1,ib2)
-    //  //          << " " << ev2.adjoint()(ib1,ib2) <<"\n";
-    //      }
-    //    }
-
-    Eigen::Tensor<std::complex<double>, 3> tmp1(nb1, numElBands, numPhBands);
-    tmp1.setZero();
-    for (int iac3 = 0; iac3 < numPhBands; iac3++) {
-      for (int iac2 = 0; iac2 < numElBands; iac2++) {
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          for (int iac1 = 0; iac1 < numElBands; iac1++) {
-            tmp1(ib1, iac2, iac3) += tmp(iac1, iac2, iac3) * ev1(iac1, ib1);
-          }
-        }
-      }
-    }
     Eigen::Tensor<std::complex<double>, 3> tmp2(nb1, nb2, numPhBands);
     tmp2.setZero();
     for (int ib1 = 0; ib1 < nb1; ib1++) {
@@ -195,7 +162,7 @@ void InteractionElPhWan::calcCouplingSquared(
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int iac2 = 0; iac2 < numElBands; iac2++) {
             tmp2(ib1, ib2, iac3) +=
-                tmp1(ib1, iac2, iac3) * std::conj(ev2(iac2, ib2));
+                tmp(ib1, iac2, iac3) * std::conj(ev2(iac2, ib2));
           }
         }
       }
@@ -227,7 +194,6 @@ InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
                                              Crystal &crystal) {
 
   // Open ElPh file
-
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
   std::string line;
 
