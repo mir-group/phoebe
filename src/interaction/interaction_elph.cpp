@@ -24,8 +24,10 @@ InteractionElPhWan::InteractionElPhWan(
 
   if (phononH0 != nullptr) {
     Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
-    if (epsilon.squaredNorm() > 1.0e-10) {
-      usePolarCorrection = true;
+    if (epsilon.squaredNorm() > 1.0e-10) { // i.e. if epsilon wasn't computed
+      if ( crystal.getNumSpecies() > 1 ) { // otherwise polar correction = 0
+        usePolarCorrection = true;
+      }
     }
   }
 }
@@ -195,7 +197,7 @@ void InteractionElPhWan::calcCouplingSquared(
 
     if (usePolarCorrection && q3.norm() > 1.0e-8) {
       v += getPolarCorrection(q3, ev1, ev2, ev3);
-    } // end polar correction
+    }
 
     Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
     for (int ib3 = 0; ib3 < numPhBands; ib3++) {
@@ -271,7 +273,8 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
     }
   }
 
-  Eigen::Tensor<std::complex<double>, 3> v;
+  Eigen::Tensor<std::complex<double>, 3> v(overlap.rows(),overlap.cols(),numPhBands);
+  v.setZero();
   for (int ib3 = 0; ib3 < numPhBands; ib3++) {
     for (int i = 0; i < overlap.rows(); i++) {
       for (int j = 0; j < overlap.cols(); j++) {

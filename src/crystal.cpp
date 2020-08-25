@@ -49,7 +49,7 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
   speciesNames = speciesNames_;
 
   numAtoms = atomicPositions.rows();
-  numSpecies = atomicSpecies.size();
+  numSpecies = speciesNames.size();
 
   Eigen::VectorXd atomicMasses_(numAtoms);
   std::vector<std::string> atomicNames_(numAtoms);
@@ -133,24 +133,24 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
     symmetryOperations.push_back(s);
   }
 
-  // this is to remember to modify things if I break this symmetry
-  // got to modify here and below
-  Warning w("Using time reversal symmetry");
-  numSymmetries *= 2;
-  for (int isym = numSymmetries/2; isym < numSymmetries; isym++) {
-    Eigen::Vector3d thisTranslation;
-    thisTranslation(0) = -translations[isym-numSymmetries/2][0];
-    thisTranslation(1) = -translations[isym-numSymmetries/2][1];
-    thisTranslation(2) = -translations[isym-numSymmetries/2][2];
-    Eigen::Matrix3d thisMatrix;
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        thisMatrix(i, j) = -rotations[isym-numSymmetries/2][i][j];
-      }
-    }
-    SymmetryOperation s = {thisMatrix, thisTranslation};
-    symmetryOperations.push_back(s);
-  }
+//  // this is to remember to modify things if I break this symmetry
+//  // got to modify here and below
+//  Warning w("Using time reversal symmetry");
+//  numSymmetries *= 2;
+//  for (int isym = numSymmetries/2; isym < numSymmetries; isym++) {
+//    Eigen::Vector3d thisTranslation;
+//    thisTranslation(0) = -translations[isym-numSymmetries/2][0];
+//    thisTranslation(1) = -translations[isym-numSymmetries/2][1];
+//    thisTranslation(2) = -translations[isym-numSymmetries/2][2];
+//    Eigen::Matrix3d thisMatrix;
+//    for (int i = 0; i < 3; i++) {
+//      for (int j = 0; j < 3; j++) {
+//        thisMatrix(i, j) = -rotations[isym-numSymmetries/2][i][j];
+//      }
+//    }
+//    SymmetryOperation s = {thisMatrix, thisTranslation};
+//    symmetryOperations.push_back(s);
+//  }
 
 }
 
