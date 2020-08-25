@@ -230,6 +230,8 @@ void InteractionElPhWan::calcCouplingSquared(
         }
       }
 
+      Eigen::VectorXcd x(numPhBands);
+      x.setZero();
       for (Eigen::Vector3d gVector : gVectors) {
         double qEq = gVector.transpose() * epsilon * gVector;
         if (qEq > 0. && qEq / 4. < gMax) {
@@ -244,17 +246,22 @@ void InteractionElPhWan::calcCouplingSquared(
                               gVector(2) * bornCharges(iAt, 2, iPol);
               for (int ib3 = 0; ib3 < numPhBands; ib3++) {
                 int k = phononH0->getIndexEigvec(iAt, iPol);
-                std::complex<double> x = factor3 * gqDotZ * ev3(k, ib3);
-                for (int i = 0; i < nb1; i++) {
-                  for (int j = 0; j < nb2; j++) {
-                    v(i, j, ib3) += x * overlap(i, j);
-                  }
-                }
+                x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
               }
             }
           }
         }
       }
+
+      for (int ib3 = 0; ib3 < numPhBands; ib3++) {
+        for (int i = 0; i < nb1; i++) {
+          for (int j = 0; j < nb2; j++) {
+            v(i, j, ib3) += x(ib3) * overlap(i, j);
+          }
+        }
+      }
+
+
     } // end polar correction
 
     Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
