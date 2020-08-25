@@ -474,26 +474,26 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
 
   //	if there are the dielectric info, we can read dielectric matrix
   //	and the Born charges
-  Eigen::MatrixXd dielectricMatrix(3, 3);
+  Eigen::Matrix3d dielectricMatrix;
   dielectricMatrix.setZero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 
   if (hasDielectric) {
-    for (int i = 0; i < 3; i++) {
+    for (int i : {0,1,2}) {
       std::getline(infile, line);
       lineSplit = split(line, ' ');
-      for (int j = 0; j < 3; j++) {
+      for (int j : {0,1,2}) {
         dielectricMatrix(i, j) = std::stod(lineSplit[j]);
       }
     }
 
     for (int iAtom = 0; iAtom < numAtoms; iAtom++) {
       std::getline(infile, line);
-      for (int i = 0; i < 3; i++) {
+      for (int i : {0,1,2}) {
         std::getline(infile, line);
         lineSplit = split(line, ' ');
-        for (int j = 0; j < 3; j++) {
+        for (int j : {0,1,2}) {
           bornCharges(iAtom, i, j) = std::stod(lineSplit[j]);
         }
       }
@@ -516,8 +516,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   int m3Test;
   double x;
 
-  for (int ic = 0; ic < 3; ic++) {
-    for (int jc = 0; jc < 3; jc++) {
+  for (int ic : {0,1,2}) {
+    for (int jc : {0,1,2}) {
       for (int iat = 0; iat < numAtoms; iat++) {
         for (int jat = 0; jat < numAtoms; jat++) {
           // a line containing ic, jc, iat, jat
