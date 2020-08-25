@@ -39,7 +39,7 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // load the 3phonon coupling
   auto couplingElPh =
-      InteractionElPhWan::parse(context.getEpwFileName(), crystal);
+      InteractionElPhWan::parse(context.getEpwFileName(), crystal, &phononH0);
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,

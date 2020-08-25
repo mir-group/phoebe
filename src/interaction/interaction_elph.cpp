@@ -4,25 +4,36 @@
 
 // default constructor
 InteractionElPhWan::InteractionElPhWan(
+    Crystal &crystal_,
     const Eigen::Tensor<std::complex<double>, 5> &couplingWannier_,
     const Eigen::MatrixXd &elBravaisVectors_,
     const Eigen::VectorXd &elBravaisVectorsWeights_,
     const Eigen::MatrixXd &phBravaisVectors_,
-    const Eigen::VectorXd &phBravaisVectorsWeights_)
-    : couplingWannier(couplingWannier_), elBravaisVectors(elBravaisVectors_),
+    const Eigen::VectorXd &phBravaisVectorsWeights_, PhononH0 *phononH0_)
+    : crystal(crystal_), phononH0(phononH0_), couplingWannier(couplingWannier_),
+      elBravaisVectors(elBravaisVectors_),
       elBravaisVectorsWeights(elBravaisVectorsWeights_),
       phBravaisVectors(phBravaisVectors_),
       phBravaisVectorsWeights(phBravaisVectorsWeights_) {
+
   numPhBands = couplingWannier.dimension(2);
   numElBands = couplingWannier.dimension(0);
   numPhBravaisVectors = couplingWannier.dimension(3);
   numElBravaisVectors = couplingWannier.dimension(4);
   cachedK1.setZero();
+
+  if (phononH0 != nullptr) {
+    Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
+    if (epsilon.squaredNorm() > 1.0e-10) {
+      usePolarCorrection = true;
+    }
+  }
 }
 
 // copy constructor
 InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
-    : couplingWannier(that.couplingWannier),
+    : crystal(that.crystal), phononH0(that.phononH0),
+      couplingWannier(that.couplingWannier),
       elBravaisVectors(that.elBravaisVectors),
       elBravaisVectorsWeights(that.elBravaisVectorsWeights),
       phBravaisVectors(that.phBravaisVectors),
@@ -31,12 +42,14 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       numElBravaisVectors(that.numElBravaisVectors),
       numPhBravaisVectors(that.numPhBravaisVectors),
       cacheCoupling(that.cacheCoupling), elPhCached(that.elPhCached),
-      cachedK1(that.cachedK1) {}
+      cachedK1(that.cachedK1), usePolarCorrection(that.usePolarCorrection) {}
 
 // assignment operator
 InteractionElPhWan &
 InteractionElPhWan::operator=(const InteractionElPhWan &that) {
   if (this != &that) {
+    crystal = that.crystal;
+    phononH0 = that.phononH0;
     couplingWannier = that.couplingWannier;
     elBravaisVectors = that.elBravaisVectors;
     elBravaisVectorsWeights = that.elBravaisVectorsWeights;
@@ -49,6 +62,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     cacheCoupling = that.cacheCoupling;
     elPhCached = that.elPhCached;
     cachedK1 = that.cachedK1;
+    usePolarCorrection = that.usePolarCorrection;
   }
   return *this;
 }
@@ -59,9 +73,11 @@ InteractionElPhWan::getCouplingSquared(const int &ik2) {
 }
 
 void InteractionElPhWan::calcCouplingSquared(
-    const Eigen::MatrixXcd &el1Eigenvec, const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
+    const Eigen::MatrixXcd &el1Eigenvec,
+    const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
     const std::vector<Eigen::MatrixXcd> &phEigvecs, const Eigen::Vector3d &k1,
-    const std::vector<Eigen::Vector3d> &k2s, const std::vector<Eigen::Vector3d> &q3s) {
+    const std::vector<Eigen::Vector3d> &k2s,
+    const std::vector<Eigen::Vector3d> &q3s) {
   (void)k2s;
   int numLoops = el2Eigenvecs.size();
   cacheCoupling.resize(0);
@@ -86,8 +102,8 @@ void InteractionElPhWan::calcCouplingSquared(
     std::vector<std::complex<double>> phases;
     for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
       double arg = k1.dot(elBravaisVectors.col(irEl));
-      std::complex<double> phase = exp(complexI * arg) /
-          elBravaisVectorsWeights(irEl);
+      std::complex<double> phase =
+          exp(complexI * arg) / elBravaisVectorsWeights(irEl);
       phases.push_back(phase);
     }
 
@@ -123,7 +139,6 @@ void InteractionElPhWan::calcCouplingSquared(
         }
       }
     }
-
   }
 
   for (int ik = 0; ik < numLoops; ik++) {
@@ -148,8 +163,8 @@ void InteractionElPhWan::calcCouplingSquared(
       for (int iac3 = 0; iac3 < numPhBands; iac3++) {
         for (int iac2 = 0; iac2 < numElBands; iac2++) {
           for (int ib1 = 0; ib1 < nb1; ib1++) {
-            tmp(ib1, iac2, iac3) += elPhCached(ib1, iac2, iac3, irPh) *
-                                     phase / phBravaisVectorsWeights(irPh);
+            tmp(ib1, iac2, iac3) += elPhCached(ib1, iac2, iac3, irPh) * phase /
+                                    phBravaisVectorsWeights(irPh);
           }
         }
       }
@@ -178,6 +193,70 @@ void InteractionElPhWan::calcCouplingSquared(
       }
     }
 
+    if (usePolarCorrection && q3.norm() > 1.0e-8) {
+      // doi:10.1103/physrevlett.115.176401, Eq. 4, is implemented here
+
+      // gather variables
+      double volume = crystal.getVolumeUnitCell();
+      Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
+      Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
+      int numAtoms = crystal.getNumAtoms();
+      Eigen::Tensor<double, 3> bornCharges = phononH0->getBornCharges();
+      // must be in Bohr
+      Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
+      Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
+
+      // overlap = <U^+_{b2 k+q}|U_{b1 k}>
+      //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
+      Eigen::MatrixXcd overlap = ev2.adjoint() * ev1;
+      overlap = overlap.transpose(); // matrix size (nb1,nb2)
+
+      // auxiliary terms
+      double gMax = 14.;
+      double e2 = 2.; // = e^2/4/Pi/eps_0 in atomic units
+      std::complex<double> factor = e2 * fourPi / volume * complexI;
+
+      // build a list of (q+G) vectors
+      std::vector<Eigen::Vector3d> gVectors; // here we insert all (q+G)
+      for (int m1 = -qCoarseMesh(0); m1 <= qCoarseMesh(0); m1++) {
+        for (int m2 = -qCoarseMesh(1); m2 <= qCoarseMesh(1); m2++) {
+          for (int m3 = -qCoarseMesh(2); m3 <= qCoarseMesh(2); m3++) {
+            Eigen::Vector3d gVector;
+            gVector << m1, m2, m3;
+            gVector = reciprocalUnitCell * gVector;
+            gVector += q3;
+            gVectors.push_back(gVector);
+          }
+        }
+      }
+
+      for (Eigen::Vector3d gVector : gVectors) {
+        double qEq = gVector.transpose() * epsilon * gVector;
+        if (qEq > 0. && qEq / 4. < gMax) {
+          std::complex<double> factor2 = factor * exp(-qEq / 4.) / qEq;
+          for (int iAt = 0; iAt < numAtoms; iAt++) {
+            double arg = -gVector.dot(atomicPositions.row(iAt));
+            std::complex<double> phase = {cos(arg), sin(arg)};
+            std::complex<double> factor3 = factor2 * phase;
+            for (int iPol : {0, 1, 2}) {
+              double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
+                              gVector(1) * bornCharges(iAt, 1, iPol) +
+                              gVector(2) * bornCharges(iAt, 2, iPol);
+              for (int ib3 = 0; ib3 < numPhBands; ib3++) {
+                int k = phononH0->getIndexEigvec(iAt, iPol);
+                std::complex<double> x = factor3 * gqDotZ * ev3(k, ib3);
+                for (int i = 0; i < nb1; i++) {
+                  for (int j = 0; j < nb2; j++) {
+                    v(i, j, ib3) += x * overlap(i, j);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } // end polar correction
+
     Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
     for (int ib3 = 0; ib3 < numPhBands; ib3++) {
       for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -191,7 +270,8 @@ void InteractionElPhWan::calcCouplingSquared(
 }
 
 InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
-                                             Crystal &crystal) {
+                                             Crystal &crystal,
+                                             PhononH0 *phononH0_) {
 
   // Open ElPh file
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
@@ -251,9 +331,9 @@ InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
     phBravaisVectors.col(i) = primitiveCell * phBravaisVectors.col(i);
   }
 
-  InteractionElPhWan output(couplingWannier, elBravaisVectors,
+  InteractionElPhWan output(crystal, couplingWannier, elBravaisVectors,
                             elBravaisVectorsWeights, phBravaisVectors,
-                            phBravaisVectorsWeights);
+                            phBravaisVectorsWeights, phononH0_);
 
   return output;
 }
