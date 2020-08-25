@@ -74,7 +74,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
           auto ik1Index = WavevectorIndex(ik1);
           Eigen::Vector3d k1Coords = outerBandStructure.getWavevector(ik1Index);
 
-          Eigen::Vector3d q3Coords = k1Coords - k2Coords;
+          // k' = k + q : phonon absorption
+          Eigen::Vector3d q3Coords = k2Coords - k1Coords;
           Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coords);
 
           int iq3 = fullPoints3->getIndex(q3Cart);
@@ -139,10 +140,10 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
  */
 std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
-    HelperElScattering::get(const long &ik1, Eigen::Vector3d &k2) {
+    HelperElScattering::get(Eigen::Vector3d &k1, const long &ik2) {
 
-  Eigen::Vector3d k1 = outerBandStructure.getWavevector(ik1);
-  Eigen::Vector3d q3 = k1 - k2;
+  Eigen::Vector3d k2 = outerBandStructure.getWavevector(ik2);
+  Eigen::Vector3d q3 = k2 - k1;
 
   if (storedAllQ3) {
     // if the meshes are the same (and gamma centered)
@@ -190,20 +191,20 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
-    energies3 = cacheEnergies[ik1];
-    eigvecs3 = cacheEigvecs[ik1];
-    v3s = cacheVelocity[ik1];
-    bose3Data = cacheBose[ik1];
+    energies3 = cacheEnergies[ik2];
+    eigvecs3 = cacheEigvecs[ik2];
+    v3s = cacheVelocity[ik2];
+    bose3Data = cacheBose[ik2];
 
     int nb3 = energies3.size();
     return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
   }
 }
 
-void HelperElScattering::prepare(const std::vector<long> k1Indexes,
-                             const Eigen::Vector3d &k2) {
+void HelperElScattering::prepare(const Eigen::Vector3d &k1,
+                                 const std::vector<long> k2Indexes) {
   if (!storedAllQ3) {
-    int numPoints = k1Indexes.size();
+    int numPoints = k2Indexes.size();
 
     cacheEnergies.resize(numPoints);
     cacheEigvecs.resize(numPoints);
@@ -212,10 +213,10 @@ void HelperElScattering::prepare(const std::vector<long> k1Indexes,
 
     Particle particle = h0.getParticle();
 
-    for (long ik1 : k1Indexes) {
-      Eigen::Vector3d k1 = outerBandStructure.getWavevector(ik1);
+    for (long ik2 : k2Indexes) {
+      Eigen::Vector3d k2 = outerBandStructure.getWavevector(ik2);
 
-      Eigen::Vector3d q3 = k1 - k2;
+      Eigen::Vector3d q3 = k2 - k1;
 
       auto t1 = h0.diagonalizeFromCoords(q3);
       auto energies3 = std::get<0>(t1);
@@ -250,10 +251,10 @@ void HelperElScattering::prepare(const std::vector<long> k1Indexes,
         }
       }
 
-      cacheEnergies[ik1] = energies3;
-      cacheEigvecs[ik1] = eigvecs3;
-      cacheBose[ik1] = bose3Data;
-      cacheVelocity[ik1] = v3s;
+      cacheEnergies[ik2] = energies3;
+      cacheEigvecs[ik2] = eigvecs3;
+      cacheBose[ik2] = bose3Data;
+      cacheVelocity[ik2] = v3s;
 
     }
   }

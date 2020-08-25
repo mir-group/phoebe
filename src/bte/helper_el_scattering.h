@@ -19,13 +19,13 @@ class HelperElScattering {
    * If we have 3rd bandstructure, we don't do anything.
    * Otherwise, we compute all q3 for this list of q1
    */
-  void prepare(const std::vector<long> k1Indexes, const Eigen::Vector3d &k2);
+  void prepare(const Eigen::Vector3d &k1, const std::vector<long> k2Indexes);
 
   /** to be called to get the info on q3.
    */
   std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
-             Eigen::MatrixXd, Eigen::MatrixXd> get(const long &ik1,
-                                                   Eigen::Vector3d &k2);
+             Eigen::MatrixXd, Eigen::MatrixXd> get(Eigen::Vector3d &k1,
+                                                   const long &ik2);
 
  private:
   BaseBandStructure &innerBandStructure;

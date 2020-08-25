@@ -121,8 +121,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // and we will almost always have a window for electrons
   }
 
+  bool rowMajor = true;
   std::vector<std::tuple<std::vector<long>, long>> kPairIterator =
-      getIteratorWavevectorPairs(switchCase);
+      getIteratorWavevectorPairs(switchCase, rowMajor);
 
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
                                  statisticsSweep, smearing->getType(), h0);
@@ -131,71 +132,71 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                       kPairIterator.size());
 
   for (auto t1 : kPairIterator) {
-    auto ik1Indexes = std::get<0>(t1);
-    auto ik2Irr = std::get<1>(t1);
+    auto ik2Indexes = std::get<0>(t1);
+    auto ik1Irr = std::get<1>(t1);
 
-    WavevectorIndex ik2IrrIndex(ik2Irr);
-    Eigen::Vector3d k2IrrC = innerBandStructure.getWavevector(ik2IrrIndex);
-    Eigen::VectorXd state2Energies =
-        innerBandStructure.getEnergies(ik2IrrIndex);
-    int nb2 = state2Energies.size();
-    Eigen::MatrixXd v2sIrr = innerBandStructure.getGroupVelocities(ik2IrrIndex);
-    Eigen::MatrixXcd eigvec2 = innerBandStructure.getEigenvectors(ik2IrrIndex);
+    WavevectorIndex ik1IrrIndex(ik1Irr);
+    Eigen::Vector3d k1IrrC = innerBandStructure.getWavevector(ik1IrrIndex);
+    Eigen::VectorXd state1Energies =
+        innerBandStructure.getEnergies(ik1IrrIndex);
+    int nb1 = state1Energies.size();
+    Eigen::MatrixXd v1sIrr = innerBandStructure.getGroupVelocities(ik1IrrIndex);
+    Eigen::MatrixXcd eigvec1 = innerBandStructure.getEigenvectors(ik1IrrIndex);
 
-    auto rotations = innerBandStructure.getPoints().getRotationsStar(ik2Irr);
+    auto rotations = innerBandStructure.getPoints().getRotationsStar(ik1Irr);
     for (Eigen::Matrix3d rotation : rotations) {
-      Eigen::Vector3d k2C = rotation * k2IrrC;
-      Eigen::MatrixXd v2s = v2sIrr;
-      for (int ib2 = 0; ib2 < nb2; ib2++) {
-        Eigen::Vector3d thisV2Irr = v2sIrr.row(ib2);
-        Eigen::Vector3d thisV2 = rotation * thisV2Irr;
-        v2s.row(ib2) = thisV2;
+      Eigen::Vector3d k1C = rotation * k1IrrC;
+      Eigen::MatrixXd v1s = v1sIrr;
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        Eigen::Vector3d thisV1Irr = v1sIrr.row(ib1);
+        Eigen::Vector3d thisV1 = rotation * thisV1Irr;
+        v1s.row(ib1) = thisV1;
       }
       loopPrint.update();
-      pointHelper.prepare(ik1Indexes, k2C);
+      pointHelper.prepare(k1C, ik2Indexes);
 
-      std::vector<Eigen::Vector3d> allQ3C(ik1Indexes.size());
-      std::vector<Eigen::VectorXd> allStates3Energies(ik1Indexes.size());
-      std::vector<int> allNb3(ik1Indexes.size());
-      std::vector<Eigen::MatrixXcd> allEigvecs3(ik1Indexes.size());
-      std::vector<Eigen::MatrixXd> allV3s(ik1Indexes.size());
-      std::vector<Eigen::MatrixXd> allBose3Data(ik1Indexes.size());
+      std::vector<Eigen::Vector3d> allQ3C(ik2Indexes.size());
+      std::vector<Eigen::VectorXd> allStates3Energies(ik2Indexes.size());
+      std::vector<int> allNb3(ik2Indexes.size());
+      std::vector<Eigen::MatrixXcd> allEigvecs3(ik2Indexes.size());
+      std::vector<Eigen::MatrixXd> allV3s(ik2Indexes.size());
+      std::vector<Eigen::MatrixXd> allBose3Data(ik2Indexes.size());
 
-      std::vector<Eigen::Vector3d> allK1C(ik1Indexes.size());
-      std::vector<Eigen::MatrixXcd> allEigvecs1(ik1Indexes.size());
-      std::vector<Eigen::VectorXd> allState1Energies(ik1Indexes.size());
-      std::vector<Eigen::MatrixXd> allV1s(ik1Indexes.size());
+      std::vector<Eigen::Vector3d> allK2C(ik2Indexes.size());
+      std::vector<Eigen::MatrixXcd> allEigvecs2(ik2Indexes.size());
+      std::vector<Eigen::VectorXd> allState2Energies(ik2Indexes.size());
+      std::vector<Eigen::MatrixXd> allV2s(ik2Indexes.size());
 
-      for (long ik1 : ik1Indexes) {
-        WavevectorIndex ik1Index(ik1);
-        allK1C[ik1] = outerBandStructure.getWavevector(ik1Index);
-        allState1Energies[ik1] = outerBandStructure.getEnergies(ik1Index);
-        allV1s[ik1] = outerBandStructure.getGroupVelocities(ik1Index);
-        allEigvecs1[ik1] = outerBandStructure.getEigenvectors(ik1Index);
+      for (long ik2 : ik2Indexes) {
+        WavevectorIndex ik2Index(ik2);
+        allK2C[ik2] = outerBandStructure.getWavevector(ik2Index);
+        allState2Energies[ik2] = outerBandStructure.getEnergies(ik2Index);
+        allV2s[ik2] = outerBandStructure.getGroupVelocities(ik2Index);
+        allEigvecs2[ik2] = outerBandStructure.getEigenvectors(ik2Index);
 
-        auto t2 = pointHelper.get(ik1, k2C);
-        allQ3C[ik1] = std::get<0>(t2);
-        allStates3Energies[ik1] = std::get<1>(t2);
-        allNb3[ik1] = std::get<2>(t2);
-        allEigvecs3[ik1] = std::get<3>(t2);
-        allV3s[ik1] = std::get<4>(t2);
-        allBose3Data[ik1] = std::get<5>(t2);
+        auto t2 = pointHelper.get(k1C, ik2);
+        allQ3C[ik2] = std::get<0>(t2);
+        allStates3Energies[ik2] = std::get<1>(t2);
+        allNb3[ik2] = std::get<2>(t2);
+        allEigvecs3[ik2] = std::get<3>(t2);
+        allV3s[ik2] = std::get<4>(t2);
+        allBose3Data[ik2] = std::get<5>(t2);
       }
 
-      couplingElPhWan->calcCouplingSquared(eigvec2, allEigvecs1, allEigvecs3,
-                                           k2C, allK1C, allQ3C);
+      couplingElPhWan->calcCouplingSquared(eigvec1, allEigvecs2, allEigvecs3,
+                                           k1C, allK2C, allQ3C);
 
-      for (auto ik1Irr : ik1Indexes) {
-        auto coupling = couplingElPhWan->getCouplingSquared(ik1Irr);
+      for (auto ik2Irr : ik2Indexes) {
+        auto coupling = couplingElPhWan->getCouplingSquared(ik2Irr);
 
-        Eigen::VectorXd state1Energies = allState1Energies[ik1Irr];
-        int nb1 = state1Energies.size();
-        Eigen::MatrixXd v1s = allV1s[ik1Irr];
+        Eigen::VectorXd state2Energies = allState2Energies[ik2Irr];
+        int nb2 = state2Energies.size();
+        Eigen::MatrixXd v2s = allV2s[ik2Irr];
 
-        int nb3 = allNb3[ik1Irr];
-        Eigen::VectorXd state3Energies = allStates3Energies[ik1Irr];
-        Eigen::VectorXd bose3Data = allBose3Data[ik1Irr];
-        Eigen::MatrixXd v3s = allV3s[ik1Irr];
+        int nb3 = allNb3[ik2Irr];
+        Eigen::VectorXd state3Energies = allStates3Energies[ik2Irr];
+        Eigen::VectorXd bose3Data = allBose3Data[ik2Irr];
+        Eigen::MatrixXd v3s = allV3s[ik2Irr];
 
         int ib2, ib3;
 #pragma omp parallel for private(ib2, ib3) collapse(3)
@@ -341,37 +342,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             break;
         }
       }
-    }
-  }
-
-  // some phonons like acoustic modes at the gamma, with omega = 0,
-  // might have zero frequencies, and infinite populations. We set those
-  // matrix elements to zero.
-  if (switchCase == 0) {
-    // case of matrix construction
-    for (auto is1 : excludeIndeces) {
-      linewidth->data.col(is1).setZero();
-      for (auto is2 : excludeIndeces) {
-        for (int alfa = 0; alfa < dimensionality_; alfa++) {
-          for (int beta = 0; beta < dimensionality_; beta++) {
-            setMatrixElement(0., is1, is2, alfa, beta);
-          }
-        }
-      }
-    }
-
-  } else if (switchCase == 1) {
-    // case of matrix-vector multiplication
-    for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-      for (auto is1 : excludeIndeces) {
-        outPopulations[iVec].data.col(is1).setZero();
-      }
-    }
-
-  } else if (switchCase == 2) {
-    // case of linewidth construction
-    for (auto is1 : excludeIndeces) {
-      linewidth->data.col(is1).setZero();
     }
   }
 
