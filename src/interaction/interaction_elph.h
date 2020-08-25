@@ -6,17 +6,16 @@
 #include "constants.h"
 #include "crystal.h"
 #include "eigen.h"
+#include "phonon_h0.h"
 #include "points.h"
 #include "utilities.h"
-#include "phonon_h0.h"
-#include "crystal.h"
 
 /** Class to handle the coupling between electron and phonons.
  * Currently implements the calculation of the diagram for the interaction
  * k+q -> k'.
  * Use the static method to initialize an instance of this class.
- * Then, use calc + get to compute and retrieve the values of the electron-phonon
- * interaction strength in Bloch space |g|^2.
+ * Then, use calc + get to compute and retrieve the values of the
+ * electron-phonon interaction strength in Bloch space |g|^2.
  *
  * This class starts from the interaction matrix elements in real space Wannier
  * representation and mostly does:
@@ -24,7 +23,7 @@
  * 2) multiply by phonon/electron eigenvectors/rotation matrices;
  * 3) for polar materials, adds the long-range Frohlich interaction.
  */
- //TODO: add flag to let user decide whether to use or not polar corrections
+// TODO: add flag to let user decide whether to use or not polar corrections
 class InteractionElPhWan {
 private:
   Crystal &crystal;
@@ -46,16 +45,28 @@ private:
   Eigen::Vector3d cachedK1;
   bool usePolarCorrection = false;
 
- public:
+  /** Add polar correction to the electron-phonon coupling.
+   * @param q3: phonon wavevector, in cartesian coordinates
+   * @param ev1: eigenvector (rotation matrix U) at k
+   * @param ev2: eigenvector (rotation matrix U) at k'
+   * @param ev3: phonon eigenvector at q = k'-k
+   * @return g^L: the long-range (Frohlich) component of the el-ph interaction,
+   * as a tensor of shape (nb1,nb2,numPhBands)
+   */
+  Eigen::Tensor<std::complex<double>, 3>
+  getPolarCorrection(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+                     const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
+
+public:
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
-   * @param couplingWannier_: matrix elements of the electron phonon interaction.
-   * A tensor of shape (iw1,iw2,imode,rPh,rEl), where iw1 iw2 are indices on
-   * Wannier functions, imode is a phonon mode index in real space, rPh is an
-   * index on phonon Bravais lattice vectors, and rEl is an index on electronic
-   * Bravais Lattice vectors.
-   * Built such that the iw2 Wannier functions are set in the origin (k2 doesn't
-   * contribute to the Fourier transform).
+   * @param couplingWannier_: matrix elements of the electron phonon
+   * interaction. A tensor of shape (iw1,iw2,imode,rPh,rEl), where iw1 iw2 are
+   * indices on Wannier functions, imode is a phonon mode index in real space,
+   * rPh is an index on phonon Bravais lattice vectors, and rEl is an index on
+   * electronic Bravais Lattice vectors. Built such that the iw2 Wannier
+   * functions are set in the origin (k2 doesn't contribute to the Fourier
+   * transform).
    * @param elBravaisVectors_: list of Bravais lattice vectors used in the
    * electronic Fourier transform of the coupling.
    * @param elBravaisVectorsWeights_: weights (degeneracies) of the
@@ -67,13 +78,14 @@ private:
    * @param phononH0_: pointer to the phonon dynamical matrix object. Used for
    * adding the polar interaction.
    */
-  InteractionElPhWan(Crystal &crystal_,
+  InteractionElPhWan(
+      Crystal &crystal_,
       const Eigen::Tensor<std::complex<double>, 5> &couplingWannier_,
       const Eigen::MatrixXd &elBravaisVectors_,
       const Eigen::VectorXd &elBravaisVectorsWeights_,
       const Eigen::MatrixXd &phBravaisVectors_,
       const Eigen::VectorXd &phBravaisVectorsWeights_,
-      PhononH0 *phononH0_=nullptr);
+      PhononH0 *phononH0_ = nullptr);
 
   /** Copy constructor
    */
@@ -126,9 +138,8 @@ private:
    * @param crystal: object describing the crystal unit cell.
    * @return intElPh: an instance of InteractionElPh.
    */
-  static InteractionElPhWan parse(const std::string &fileName,
-                                  Crystal &crystal,
-                                  PhononH0 *phononH0_=nullptr);
+  static InteractionElPhWan parse(const std::string &fileName, Crystal &crystal,
+                                  PhononH0 *phononH0_ = nullptr);
 };
 
 #endif

@@ -194,74 +194,7 @@ void InteractionElPhWan::calcCouplingSquared(
     }
 
     if (usePolarCorrection && q3.norm() > 1.0e-8) {
-      // doi:10.1103/physrevlett.115.176401, Eq. 4, is implemented here
-
-      // gather variables
-      double volume = crystal.getVolumeUnitCell();
-      Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
-      Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
-      int numAtoms = crystal.getNumAtoms();
-      Eigen::Tensor<double, 3> bornCharges = phononH0->getBornCharges();
-      // must be in Bohr
-      Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
-      Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
-
-      // overlap = <U^+_{b2 k+q}|U_{b1 k}>
-      //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
-      Eigen::MatrixXcd overlap = ev2.adjoint() * ev1;
-      overlap = overlap.transpose(); // matrix size (nb1,nb2)
-
-      // auxiliary terms
-      double gMax = 14.;
-      double e2 = 2.; // = e^2/4/Pi/eps_0 in atomic units
-      std::complex<double> factor = e2 * fourPi / volume * complexI;
-
-      // build a list of (q+G) vectors
-      std::vector<Eigen::Vector3d> gVectors; // here we insert all (q+G)
-      for (int m1 = -qCoarseMesh(0); m1 <= qCoarseMesh(0); m1++) {
-        for (int m2 = -qCoarseMesh(1); m2 <= qCoarseMesh(1); m2++) {
-          for (int m3 = -qCoarseMesh(2); m3 <= qCoarseMesh(2); m3++) {
-            Eigen::Vector3d gVector;
-            gVector << m1, m2, m3;
-            gVector = reciprocalUnitCell * gVector;
-            gVector += q3;
-            gVectors.push_back(gVector);
-          }
-        }
-      }
-
-      Eigen::VectorXcd x(numPhBands);
-      x.setZero();
-      for (Eigen::Vector3d gVector : gVectors) {
-        double qEq = gVector.transpose() * epsilon * gVector;
-        if (qEq > 0. && qEq / 4. < gMax) {
-          std::complex<double> factor2 = factor * exp(-qEq / 4.) / qEq;
-          for (int iAt = 0; iAt < numAtoms; iAt++) {
-            double arg = -gVector.dot(atomicPositions.row(iAt));
-            std::complex<double> phase = {cos(arg), sin(arg)};
-            std::complex<double> factor3 = factor2 * phase;
-            for (int iPol : {0, 1, 2}) {
-              double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
-                              gVector(1) * bornCharges(iAt, 1, iPol) +
-                              gVector(2) * bornCharges(iAt, 2, iPol);
-              for (int ib3 = 0; ib3 < numPhBands; ib3++) {
-                int k = phononH0->getIndexEigvec(iAt, iPol);
-                x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
-              }
-            }
-          }
-        }
-      }
-
-      for (int ib3 = 0; ib3 < numPhBands; ib3++) {
-        for (int i = 0; i < nb1; i++) {
-          for (int j = 0; j < nb2; j++) {
-            v(i, j, ib3) += x(ib3) * overlap(i, j);
-          }
-        }
-      }
-
-
+      v += getPolarCorrection(q3, ev1, ev2, ev3);
     } // end polar correction
 
     Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
@@ -274,6 +207,79 @@ void InteractionElPhWan::calcCouplingSquared(
     }
     cacheCoupling[ik] = coupling;
   }
+}
+
+Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
+    const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+    const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3) {
+  // doi:10.1103/physrevlett.115.176401, Eq. 4, is implemented here
+
+  // gather variables
+  double volume = crystal.getVolumeUnitCell();
+  Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
+  Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
+  int numAtoms = crystal.getNumAtoms();
+  Eigen::Tensor<double, 3> bornCharges = phononH0->getBornCharges();
+  // must be in Bohr
+  Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
+  Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
+
+  // overlap = <U^+_{b2 k+q}|U_{b1 k}>
+  //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
+  Eigen::MatrixXcd overlap = ev2.adjoint() * ev1;
+  overlap = overlap.transpose(); // matrix size (nb1,nb2)
+
+  // auxiliary terms
+  double gMax = 14.;
+  double e2 = 2.; // = e^2/4/Pi/eps_0 in atomic units
+  std::complex<double> factor = e2 * fourPi / volume * complexI;
+
+  // build a list of (q+G) vectors
+  std::vector<Eigen::Vector3d> gVectors; // here we insert all (q+G)
+  for (int m1 = -qCoarseMesh(0); m1 <= qCoarseMesh(0); m1++) {
+    for (int m2 = -qCoarseMesh(1); m2 <= qCoarseMesh(1); m2++) {
+      for (int m3 = -qCoarseMesh(2); m3 <= qCoarseMesh(2); m3++) {
+        Eigen::Vector3d gVector;
+        gVector << m1, m2, m3;
+        gVector = reciprocalUnitCell * gVector;
+        gVector += q3;
+        gVectors.push_back(gVector);
+      }
+    }
+  }
+
+  Eigen::VectorXcd x(numPhBands);
+  x.setZero();
+  for (Eigen::Vector3d gVector : gVectors) {
+    double qEq = gVector.transpose() * epsilon * gVector;
+    if (qEq > 0. && qEq / 4. < gMax) {
+      std::complex<double> factor2 = factor * exp(-qEq / 4.) / qEq;
+      for (int iAt = 0; iAt < numAtoms; iAt++) {
+        double arg = -gVector.dot(atomicPositions.row(iAt));
+        std::complex<double> phase = {cos(arg), sin(arg)};
+        std::complex<double> factor3 = factor2 * phase;
+        for (int iPol : {0, 1, 2}) {
+          double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
+                          gVector(1) * bornCharges(iAt, 1, iPol) +
+                          gVector(2) * bornCharges(iAt, 2, iPol);
+          for (int ib3 = 0; ib3 < numPhBands; ib3++) {
+            int k = phononH0->getIndexEigvec(iAt, iPol);
+            x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
+          }
+        }
+      }
+    }
+  }
+
+  Eigen::Tensor<std::complex<double>, 3> v;
+  for (int ib3 = 0; ib3 < numPhBands; ib3++) {
+    for (int i = 0; i < overlap.rows(); i++) {
+      for (int j = 0; j < overlap.cols(); j++) {
+        v(i, j, ib3) += x(ib3) * overlap(i, j);
+      }
+    }
+  }
+  return v;
 }
 
 InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
