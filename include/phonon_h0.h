@@ -1,1 +1,0 @@
-../src/harmonic/phonon_h0.h
