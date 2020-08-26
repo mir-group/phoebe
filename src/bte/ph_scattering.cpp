@@ -233,16 +233,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
         auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
 
-        auto q3PlusC = std::get<0>(tup1);
         auto state3PlusEnergies = std::get<1>(tup1);
-        auto nb3Plus = std::get<2>(tup1);
         auto eigvecs3Plus = std::get<3>(tup1);
         auto v3ps = std::get<4>(tup1);
         auto bose3PlusData = std::get<5>(tup1);
 
-        auto q3MinsC = std::get<0>(tup2);
         auto state3MinsEnergies = std::get<1>(tup2);
-        auto nb3Mins = std::get<2>(tup2);
         auto eigvecs3Mins = std::get<3>(tup2);
         auto v3ms = std::get<4>(tup2);
         auto bose3MinsData = std::get<5>(tup2);
@@ -277,14 +273,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
         auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
 
-        auto q3PlusC = std::get<0>(tup1);
         auto state3PlusEnergies = std::get<1>(tup1);
         auto nb3Plus = std::get<2>(tup1);
         auto eigvecs3Plus = std::get<3>(tup1);
         auto v3ps = std::get<4>(tup1);
         auto bose3PlusData = std::get<5>(tup1);
 
-        auto q3MinsC = std::get<0>(tup2);
         auto state3MinsEnergies = std::get<1>(tup2);
         auto nb3Mins = std::get<2>(tup2);
         auto eigvecs3Mins = std::get<3>(tup2);
@@ -360,7 +354,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             case (1):
               // case of matrix-vector multiplication
               // we build the scattering matrix A = S*n(n+1)
-              for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+              for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
                 for (int i = 0; i < dimensionality_; i++) {
                   outPopulations[iInput](iCalc, i, ind1) +=
                       ratePlus *
@@ -454,7 +448,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               break;
             case (1):
               // case of matrix-vector multiplication
-              for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+              for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
                 for (int i = 0; i < dimensionality_; i++) {
                   outPopulations[iInput](iCalc, i, ind1) -=
                       (rateMins1 + rateMins2) *
@@ -576,7 +570,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               case (1):
                 // case of matrix-vector multiplication
                 // we build the scattering matrix A = S*n(n+1)
-                for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+                for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
                   for (int i = 0; i < dimensionality_; i++) {
                     outPopulations[iInput](iCalc, i, ind1) +=
                         rateIso *
@@ -632,7 +626,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           break;
         case (1):
           // case of matrix-vector multiplication
-          for (int iInput = 0; iInput < inPopulations.size(); iInput++) {
+          for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
             for (int i = 0; i < dimensionality_; i++) {
               outPopulations[iInput](iCalc, i, is1) +=
                   rate * inPopulations[iInput](iCalc, i, is1);

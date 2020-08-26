@@ -91,7 +91,6 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto idim = std::get<2>(tup);
       auto i2 = that.glob2Loc(imu, it, DimIndex(0));
 
       if (operatorType == operatorSums) {

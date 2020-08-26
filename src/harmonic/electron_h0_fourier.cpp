@@ -172,7 +172,6 @@ void ElectronH0Fourier::setPositionVectors() {
   Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
   auto tup = coarsePoints.getMesh();
   auto grid = std::get<0>(tup);
-  auto offset = std::get<1>(tup);
 
   // the cutoff specifies the grid on which lattice vectors are searched.
   // Given a lattice vector in integer coordinates R = (n0,n1,n2) in

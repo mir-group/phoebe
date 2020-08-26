@@ -474,26 +474,26 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
 
   //	if there are the dielectric info, we can read dielectric matrix
   //	and the Born charges
-  Eigen::MatrixXd dielectricMatrix(3, 3);
+  Eigen::Matrix3d dielectricMatrix;
   dielectricMatrix.setZero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 
   if (hasDielectric) {
-    for (int i = 0; i < 3; i++) {
+    for (int i : {0,1,2}) {
       std::getline(infile, line);
       lineSplit = split(line, ' ');
-      for (int j = 0; j < 3; j++) {
+      for (int j : {0,1,2}) {
         dielectricMatrix(i, j) = std::stod(lineSplit[j]);
       }
     }
 
     for (int iAtom = 0; iAtom < numAtoms; iAtom++) {
       std::getline(infile, line);
-      for (int i = 0; i < 3; i++) {
+      for (int i : {0,1,2}) {
         std::getline(infile, line);
         lineSplit = split(line, ' ');
-        for (int j = 0; j < 3; j++) {
+        for (int j : {0,1,2}) {
           bornCharges(iAtom, i, j) = std::stod(lineSplit[j]);
         }
       }
@@ -516,8 +516,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   int m3Test;
   double x;
 
-  for (int ic = 0; ic < 3; ic++) {
-    for (int jc = 0; jc < 3; jc++) {
+  for (int ic : {0,1,2}) {
+    for (int jc : {0,1,2}) {
       for (int iat = 0; iat < numAtoms; iat++) {
         for (int jat = 0; jat < numAtoms; jat++) {
           // a line containing ic, jc, iat, jat
@@ -693,9 +693,6 @@ QEParser::parseElHarmonicFourier(Context &context) {
   long dimensionality = context.getDimensionality();
   Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
                   speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
 
   // initialize reciprocal lattice cell
   // I need this to convert kpoints from cartesian to crystal coordinates
@@ -790,20 +787,18 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (spinOrbit)
     numElectrons /= 2.;
   context.setNumOccupiedStates(numElectrons);
-  context.setFermiLevel(homo);
+
+  // if the user didn't set the Fermi level, we do it here.
+  if (std::isnan(context.getFermiLevel())) context.setFermiLevel(homo);
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
-  //	std::unique_ptr<ElectronH0Fourier> electronH0(new ElectronH0Fourier(
-  //			*crystal, coarsePoints, coarseBandStructure,
-  // fourierCutoff));
 
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
   return {crystal, electronH0};
 };
 
 std::tuple<Crystal, ElectronH0Wannier>
-QEParser::parseElHarmonicWannier(Context &context) {
+QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   //  Here we read the XML file of quantum espresso.
 
   std::string fileName = context.getElectronH0Name();
@@ -825,15 +820,15 @@ QEParser::parseElHarmonicWannier(Context &context) {
   //  First line contains the title and date
   std::getline(infile, line);
 
-  // Then, we have the directUnitCell of the ctystal in angstroms
-  Eigen::Matrix3d directUnitCell(3, 3);
-  directUnitCell.setZero();
+  // Then, we have the directUnitCell of the crystal in angstroms
+  Eigen::Matrix3d directUnitCell_(3, 3);
+  directUnitCell_.setZero();
   for (int i = 0; i < 3; i++) {
     std::getline(infile, line);
     lineSplit = split(line, ' ');
     for (int j = 0; j < 3; j++) {
       // unit cell is written in angstrom
-      directUnitCell(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
+      directUnitCell_(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
     }
   };
 
@@ -925,6 +920,13 @@ QEParser::parseElHarmonicWannier(Context &context) {
     }
   }
 
+  Eigen::Matrix3d directUnitCell(3, 3);
+  if (inCrystal != nullptr) {
+    directUnitCell = inCrystal->getDirectUnitCell();
+  } else {
+    directUnitCell = directUnitCell_;
+  }
+
   // I need to convert crystalVectors in cartesian coordinates
   // must check if I am aligning the unit cell correctly
   bravaisVectors = directUnitCell * bravaisVectors;
@@ -932,30 +934,26 @@ QEParser::parseElHarmonicWannier(Context &context) {
 
   ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
                                vectorsDegeneracies, h0R, rMatrix);
-  //	std::unique_ptr<ElectronH0Wannier> electronH0(new ElectronH0Wannier(
-  //			directUnitCell, crystalVectors, vectorsDegeneracies,
-  // h0R));
 
-  long dimensionality = context.getDimensionality();
-  Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
-  Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
-  std::vector<std::string> speciesNames = context.getInputSpeciesNames();
+  if ( inCrystal != nullptr ) {
+    return {*inCrystal, electronH0};
+  } else {
+    long dimensionality = context.getDimensionality();
+    Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
+    Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
+    std::vector<std::string> speciesNames = context.getInputSpeciesNames();
+    // we default the masses to the conventional ones here.
+    Eigen::VectorXd speciesMasses(speciesNames.size());
+    PeriodicTable periodicTable;
+    long i = 0;
+    for (auto speciesName : speciesNames) {
+      speciesMasses[i] = periodicTable.getMass(speciesName);
+      i += 1;
+    }
 
-  // we default the masses to the conventional ones here.
-  Eigen::VectorXd speciesMasses(speciesNames.size());
-  PeriodicTable periodicTable;
-  long i = 0;
-  for (auto speciesName : speciesNames) {
-    speciesMasses[i] = periodicTable.getMass(speciesName);
-    i += 1;
+    Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
+                    speciesMasses, dimensionality);
+
+    return {crystal, electronH0};
   }
-
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
-  //	std::unique_ptr<Crystal> crystal(new Crystal(directUnitCell,
-  //			atomicPositions, atomicSpecies, speciesNames,
-  // speciesMasses, 			dimensionality));
-
-  //	return std::make_tuple(std::move(crystal),std::move(electronH0));
-  return {crystal, electronH0};
 };

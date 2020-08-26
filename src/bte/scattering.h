@@ -157,11 +157,13 @@ protected:
      * the case where the scattering matrix is built in memory.
      * If != 0, returns the pairs of wavevectors to loop for the case where
      * only the action of the scattering matrix is computed.
+     * @param rowMajor: set to true if the loop is in the form
+     * for iq1 { for iq2 {...}}. False for the opposite (default).
      * @return vector<tuple<iq1,iq2>>: a tuple of wavevector indices to loop
      * over in the construction of the scattering matrix.
      */
     std::vector<std::tuple<std::vector<long>,long>> getIteratorWavevectorPairs(
-            const int & switchCase);
+            const int & switchCase, const bool &rowMajor=false);
 };
 
 #endif

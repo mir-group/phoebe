@@ -236,6 +236,7 @@ Interaction3Ph::getCouplingsSquared(
     const std::vector<int> &nb1s_e, const int nb2,
     const std::vector<int> &nb3Pluss_e, std::vector<int> &nb3Minss_e) {
 
+  (void) q2_e;
   Kokkos::complex<double> complexI(0.0, 1.0);
 
   // Need all variables to be local to be captured by lambda

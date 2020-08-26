@@ -41,8 +41,13 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
           numBands * numBands * 3, numPoints, 1, numBlockCols);
     }
     if (hasEigenvectors) {
-      eigenvectors = ParallelMatrix<std::complex<double>>(
-          3 * numAtoms * numBands, numPoints, 1, numBlockCols);
+      if ( particle.isPhonon() ) {
+        eigenvectors = ParallelMatrix<std::complex<double>>(
+            3 * numAtoms * numBands, numPoints, 1, numBlockCols);
+      } else {
+        eigenvectors = ParallelMatrix<std::complex<double>>(
+            numBands * numBands, numPoints, 1, numBlockCols);
+      }
     }
   } else {
     energies = Matrix<double>(numBands, numPoints);
@@ -53,8 +58,13 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
           Matrix<std::complex<double>>(numBands * numBands * 3, numPoints);
     }
     if (hasEigenvectors) {
-      eigenvectors =
-          Matrix<std::complex<double>>(3 * numAtoms * numBands, numPoints);
+      if ( particle.isPhonon() ) {
+        eigenvectors =
+            Matrix<std::complex<double>>(3 * numAtoms * numBands, numPoints);
+      } else {
+        eigenvectors =
+            Matrix<std::complex<double>>(numBands * numBands, numPoints);
+      }
     }
   }
 }
@@ -240,11 +250,12 @@ Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
   if (!eigenvectors.indecesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
+
   Eigen::MatrixXcd eigs(numBands, numBands);
   eigs.setZero();
-  for (int ib1 = 0; ib1 < numBands; ib1++) {
-    for (int ib2 = 0; ib2 < numBands; ib2++) {
-      int ind = compress2Indeces(ib1, ib2, numBands, numBands);
+  for (long ib1 = 0; ib1 < numBands; ib1++) {
+    for (long ib2 = 0; ib2 < numBands; ib2++) {
+      long ind = compress2Indeces(ib1, ib2, numBands, numBands);
       eigs(ib1, ib2) = eigenvectors(ind, ikk);
     }
   }

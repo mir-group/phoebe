@@ -9,10 +9,8 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
                                          Crystal &crystal_,
                                          BaseBandStructure &bandStructure_,
                                          Context &context_)
-    : statisticsSweep(statisticsSweep_),
-      crystal(crystal_),
-      bandStructure(bandStructure_),
-      context(context_) {
+    : statisticsSweep(statisticsSweep_), crystal(crystal_),
+      bandStructure(bandStructure_), context(context_) {
   dimensionality = crystal.getDimensionality();
 
   if (context.getHasSpinOrbit()) {
@@ -28,13 +26,15 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
   sigma = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   seebeck = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   kappa = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  mobility = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  sigma.setZero();
+  seebeck.setZero();
+  kappa.setZero();
+  mobility.setZero();
   LEE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   LTE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   LET = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   LTT = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  sigma.setZero();
-  seebeck.setZero();
-  kappa.setZero();
   LEE.setZero();
   LTE.setZero();
   LET.setZero();
@@ -43,19 +43,32 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
 
 // copy constructor
 OnsagerCoefficients::OnsagerCoefficients(const OnsagerCoefficients &that)
-    : statisticsSweep(that.statisticsSweep),
-      crystal(that.crystal),
-      bandStructure(that.bandStructure),
-      context(that.context) {}
+    : statisticsSweep(that.statisticsSweep), crystal(that.crystal),
+      bandStructure(that.bandStructure), context(that.context),
+      dimensionality(that.dimensionality), spinFactor(that.spinFactor),
+      numCalcs(that.numCalcs), sigma(that.sigma), seebeck(that.seebeck),
+      kappa(that.kappa), mobility(that.mobility), LEE(that.LEE), LET(that.LET),
+      LTE(that.LTE), LTT(that.LTT) {}
 
 // copy assigmnent
-OnsagerCoefficients &OnsagerCoefficients::operator=(
-    const OnsagerCoefficients &that) {
+OnsagerCoefficients &
+OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
   if (this != &that) {
     statisticsSweep = that.statisticsSweep;
     crystal = that.crystal;
     bandStructure = that.bandStructure;
     context = that.context;
+    dimensionality = that.dimensionality;
+    spinFactor = that.spinFactor;
+    numCalcs = that.numCalcs;
+    sigma = that.sigma;
+    seebeck = that.seebeck;
+    kappa = that.kappa;
+    mobility = that.mobility;
+    LEE = that.LEE;
+    LET = that.LET;
+    LTE = that.LTE;
+    LTT = that.LTT;
   }
   return *this;
 }
@@ -64,8 +77,8 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
                                                       VectorBTE &fT) {
   VectorBTE nE = fE;
   VectorBTE nT = fT;
-  nE.canonical2Population();  // n = bose (bose+1) f
-  nT.canonical2Population();  // n = bose (bose+1) f
+  nE.canonical2Population(); // n = bose (bose+1) f
+  nT.canonical2Population(); // n = bose (bose+1) f
   calcFromPopulation(nE, nT);
 }
 
@@ -83,16 +96,37 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   for (long is : bandStructure.parallelStateIterator()) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+    auto t = bandStructure.getIndex(is);
+    auto ik = std::get<0>(t).get();
+
+    auto rotations = bandStructure.getPoints().getRotationsStar(ik);
+
+    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       double chemicalPotential =
           statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double en = energy - chemicalPotential;
-      for (long i = 0; i < dimensionality; i++) {
-        for (long j = 0; j < dimensionality; j++) {
-          LEE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * norm;
-          LET(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * norm;
-          LTE(iCalc, i, j) += nE(iCalc, i, is) * vel(j) * en * norm;
-          LTT(iCalc, i, j) += nT(iCalc, i, is) * vel(j) * en * norm;
+
+      for (Eigen::Matrix3d rotation : rotations) {
+        Eigen::Vector3d thisNE, thisNT, thisVel;
+        thisNE.setZero();
+        thisNT.setZero();
+        thisVel.setZero();
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            thisNE(i) += rotation(i, j) * nE(iCalc, j, is);
+            thisNT(i) += rotation(i, j) * nT(iCalc, j, is);
+            thisVel(i) += rotation(i, j) * vel(j);
+          }
+        }
+
+        for (int i = 0; i < dimensionality; i++) {
+          for (int j = 0; j < dimensionality; j++) {
+            LEE(iCalc, i, j) += thisNE(i) * thisVel(j) * norm;
+            LET(iCalc, i, j) += thisNT(i) * thisVel(j) * norm;
+            LTE(iCalc, i, j) += thisNE(i) * thisVel(j) * en * norm;
+            LTT(iCalc, i, j) += thisNT(i) * thisVel(j) * en * norm;
+          }
         }
       }
     }
@@ -101,10 +135,13 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   mpi->allReduceSum(&LTE);
   mpi->allReduceSum(&LET);
   mpi->allReduceSum(&LTT);
+  calcTransportCoefficients();
 }
 
 void OnsagerCoefficients::calcTransportCoefficients() {
   sigma = LEE;
+  mobility = sigma;
+
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     Eigen::MatrixXd thisLEE(dimensionality, dimensionality);
     Eigen::MatrixXd thisLET(dimensionality, dimensionality);
@@ -120,53 +157,152 @@ void OnsagerCoefficients::calcTransportCoefficients() {
     }
 
     // seebeck = - matmul(L_EE_inv, L_ET)
-    Eigen::MatrixXd thisSeebeck = - (thisLEE.inverse()) * thisLET;
+    Eigen::MatrixXd thisSeebeck = -(thisLEE.inverse()) * thisLET;
     // k = L_tt - L_TE L_EE^-1 L_ET
-//    Eigen::MatrixXd thisKappa =
-//        thisLTT - thisLTE.dot(thisLEE.inverse().dot(thisLET));
     Eigen::MatrixXd thisKappa = thisLTE * (thisLEE.inverse());
     thisKappa = thisLTT - thisKappa * thisLET;
 
+    double doping = abs(statisticsSweep.getCalcStatistics(iCalc).doping);
+    doping *= pow(distanceBohrToCm, dimensionality); // from cm^-3 to bohr^-3
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         seebeck(iCalc, i, j) = thisSeebeck(i, j);
         kappa(iCalc, i, j) = thisKappa(i, j);
+        if ( doping > 0. ) {
+          mobility(iCalc, i, j) /= doping;
+        }
       }
     }
   }
 }
 
 void OnsagerCoefficients::print() {
-  if (!mpi->mpiHead()) return;  // debugging now
+  if (!mpi->mpiHead())
+    return; // debugging now
 
-//  std::string units;
-//  if (dimensionality == 1) {
-//    units = "W m / K";
-//  } else if (dimensionality == 2) {
-//    units = "W / K";
-//  } else {
-//    units = "W / m / K";
-//  }
-//
-//  std::cout << "\n";
-//  std::cout << "Thermal Conductivity (" << units << ")\n";
-//
-//  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-//    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-//    double temp = calcStat.temperature;
-//
-//    std::cout << std::fixed;
-//    std::cout.precision(2);
-//    std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-//    std::cout.precision(5);
-//    for (long i = 0; i < dimensionality; i++) {
-//      std::cout << "  " << std::scientific;
-//      for (long j = 0; j < dimensionality; j++) {
-//        std::cout << " " << std::setw(13) << std::right;
-//        std::cout << tensordxd(iCalc, i, j) * thConductivityAuToSi;
-//      }
-//      std::cout << "\n";
-//    }
-//    std::cout << "\n";
-//  }
+  std::string unitsSigma, unitsKappa;
+  double convSigma, convKappa;
+  if (dimensionality == 1) {
+    unitsSigma = "S m";
+    unitsKappa = "W m / K";
+    convSigma = elConductivityAuToSi * rydbergSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi * rydbergSi;
+  } else if (dimensionality == 2) {
+    unitsSigma = "S";
+    unitsKappa = "W / K";
+    convSigma = elConductivityAuToSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi;
+  } else {
+    unitsSigma = "S / m";
+    unitsKappa = "W / m / K";
+    convSigma = elConductivityAuToSi;
+    convKappa = thConductivityAuToSi;
+  }
+
+  double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
+  std::string unitsMobility = "cm^2 / V s";
+
+  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  std::string unitsSeebeck = "muV / K";
+
+  std::cout << "\n";
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    double doping = calcStat.doping;
+    double chemPot = calcStat.chemicalPotential;
+
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "iCalc = " << iCalc << ", T = " << temp * temperatureAuToSi;
+    std::cout << "\n";
+
+    std::cout.precision(4);
+    std::cout << " (K)"
+              << ", mu = " << chemPot * energyRyToEv << " (eV)";
+
+    std::cout << std::scientific;
+    std::cout << ", n = " << doping << " (cm^-3)" << std::endl;
+
+    std::cout << "Electrical Conductivity (" << unitsSigma << ")\n";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (int j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << sigma(iCalc, i, j) * convSigma;
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+
+    // Note: in metals, one has conductivity without doping
+    // and the mobility = sigma / doping-density is ill-defined
+    if ( abs(doping) > 0. ) {
+      std::cout << "Carrier mobility (" << unitsMobility << ")\n";
+      std::cout.precision(5);
+      for (int i = 0; i < dimensionality; i++) {
+        std::cout << "  " << std::scientific;
+        for (int j = 0; j < dimensionality; j++) {
+          std::cout << " " << std::setw(13) << std::right;
+          std::cout << mobility(iCalc, i, j) * convMobility;
+        }
+        std::cout << "\n";
+      }
+      std::cout << "\n";
+    }
+
+    std::cout << "Thermal Conductivity (" << unitsKappa << ")\n";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (int j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << kappa(iCalc, i, j) * convKappa;
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+
+    std::cout << "Seebeck Coefficient (" << unitsSeebeck << ")\n";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << "  " << std::scientific;
+      for (int j = 0; j < dimensionality; j++) {
+        std::cout << " " << std::setw(13) << std::right;
+        std::cout << seebeck(iCalc, i, j) * convSeebeck;
+      }
+      std::cout << "\n";
+    }
+    std::cout << std::endl;
+  }
+}
+
+void OnsagerCoefficients::print(const int &iter) {
+  if (!mpi->mpiHead())
+    return;
+
+  // get the time
+  time_t currentTime;
+  currentTime = time(NULL);
+  // and format the time nicely
+  char s[200];
+  struct tm *p = localtime(&currentTime);
+  strftime(s, 200, "%F, %T", p);
+
+  std::cout << "Iteration: " << iter << " | " << s << "\n";
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << std::scientific;
+      std::cout << sigma(iCalc, i, i) * elConductivityAuToSi << " ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << std::endl;
 }

@@ -33,7 +33,7 @@ class Context {
   double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::VectorXd dopings;
-  Eigen::VectorXd chemicalPotentials = Eigen::VectorXd::Zero(1);
+  Eigen::VectorXd chemicalPotentials;
   double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::Vector3i qMesh;
@@ -64,6 +64,17 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
+  std::string epwFileName = "";
+  double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
+  double minTemperature = std::numeric_limits<double>::quiet_NaN();
+  double maxTemperature = std::numeric_limits<double>::quiet_NaN();
+  double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
+  double energyRange = std::numeric_limits<double>::quiet_NaN();
+  double energyStep = std::numeric_limits<double>::quiet_NaN();
+  double eFermiRange = std::numeric_limits<double>::quiet_NaN();
+
   // utilities for parsing
 
   std::vector<std::string> &split(const std::string &s, char delim,
@@ -84,11 +95,15 @@ class Context {
   std::string getPhD3FileName();
   void setPhD3FileName(const std::string x);
 
+  std::string getEpwFileName();
+  void setEpwFileName(const std::string x);
+
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.
    * @return path: the file path.
    */
   std::string getElectronH0Name();
+  void setElectronH0Name(const std::string x);
 
   /** gets the value of the cutoff to be used for the Fourier interpolation
    * of the band structure.
@@ -181,6 +196,10 @@ class Context {
 
   std::vector<std::string> getInputSpeciesNames();
 
+  void setInputAtomicPositions(const Eigen::MatrixXd x);
+  void setInputAtomicSpecies(const Eigen::VectorXi x);
+  void setInputSpeciesNames(const std::vector<std::string> x);
+
   Eigen::Tensor<double, 3> getPathExtrema();
 
   double getDeltaPath();
@@ -208,6 +227,16 @@ class Context {
   Eigen::VectorXd getMassVariance();
 
   double getBoundaryLength();
+
+  double getMinChemicalPotential();
+  double getMaxChemicalPotential();
+  double getDeltaChemicalPotential();
+  double getMinTemperature();
+  double getMaxTemperature();
+  double getDeltaTemperature();
+  double getEnergyRange();
+  double getEnergyStep();
+  double getEFermiRange();
 
   /** Reads the user-provided input file and saves the input parameters
    * @param fileName: path to the input file

@@ -44,6 +44,7 @@ FullBandStructure HarmonicHamiltonian::populate(Points &fullPoints,
   (void)fullPoints;
   (void)withVelocities;
   (void)withEigenvectors;
+  (void)isDistributed;
   FullBandStructure t(numBands, particle, withVelocities, withEigenvectors,
                       fullPoints);
   return t;

@@ -424,6 +424,10 @@ void Context::setupFromInput(std::string fileName) {
         electronH0Name = parseString(val);
       }
 
+      if (parameterName == "epwFileName") {
+        setEpwFileName(parseString(val));
+      }
+
       if (parameterName == "electronFourierCutoff") {
         double x = parseDouble(val);
         electronFourierCutoff = x;
@@ -578,6 +582,42 @@ void Context::setupFromInput(std::string fileName) {
         boundaryLength = parseDoubleWithUnits(val);
       }
 
+      if (parameterName == "minChemicalPotential") {
+        minChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "maxChemicalPotential") {
+        maxChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "deltaChemicalPotential") {
+        deltaChemicalPotential = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "minTemperature") {
+        minTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "maxTemperature") {
+        maxTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "deltaTemperature") {
+        deltaTemperature = parseDouble(val) / temperatureAuToSi;
+      }
+
+      if (parameterName == "energyRange") {
+        energyRange = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "energyStep") {
+        energyStep = parseDoubleWithUnits(val);
+      }
+
+      if (parameterName == "eFermiRange") {
+        eFermiRange = parseDoubleWithUnits(val);
+      }
+
       //////////////////////////////////////////
 
     } else {  // it might be a block, or its content
@@ -587,7 +627,7 @@ void Context::setupFromInput(std::string fileName) {
       auto value = std::get<1>(tup);
 
       if (blockName == "crystal") {
-        auto tup1 =            parseCrystal(value);
+        auto tup1 = parseCrystal(value);
         auto inputAtomicPositions_ = std::get<0>(tup1);
         auto inputAtomicSpecies_ = std::get<1>(tup1);
         auto inputSpeciesNames_ = std::get<2>(tup1);
@@ -615,7 +655,12 @@ void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
 std::string Context::getSumRuleD2() { return sumRuleD2; }
 void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
 
+std::string Context::getEpwFileName() { return epwFileName; }
+void Context::setEpwFileName(const std::string x) { epwFileName = x; }
+
 std::string Context::getElectronH0Name() { return electronH0Name; }
+
+void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -661,6 +706,16 @@ std::vector<std::string> Context::getInputSpeciesNames() {
   return inputSpeciesNames;
 }
 
+void Context::setInputAtomicPositions(const Eigen::MatrixXd x) {
+  inputAtomicPositions = x;
+}
+void Context::setInputAtomicSpecies(const Eigen::VectorXi x) {
+  inputAtomicSpecies = x;
+}
+void Context::setInputSpeciesNames(const std::vector<std::string> x) {
+  inputSpeciesNames = x;
+}
+
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 
 double Context::getDeltaPath() { return deltaPath; }
@@ -691,3 +746,21 @@ Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
 double Context::getBoundaryLength() { return boundaryLength; }
+
+double Context::getMinChemicalPotential() {return minChemicalPotential;}
+
+double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
+
+double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
+
+double Context::getMinTemperature() {return minTemperature;}
+
+double Context::getMaxTemperature() {return maxTemperature;}
+
+double Context::getDeltaTemperature() {return deltaTemperature;}
+
+double Context::getEnergyRange() {return energyRange;}
+
+double Context::getEnergyStep() {return energyStep;}
+
+double Context::getEFermiRange() {return eFermiRange;}
