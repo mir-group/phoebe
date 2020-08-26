@@ -56,7 +56,6 @@ AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
     BaseBandStructure &bandStructure) {
   auto tup = bandStructure.getPoints().getMesh();
   auto mesh = std::get<0>(tup);
-  auto offset = std::get<1>(tup);
   qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
   qTensor.row(0) /= mesh(0);
   qTensor.row(1) /= mesh(1);

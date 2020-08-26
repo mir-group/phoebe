@@ -19,7 +19,6 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
   auto tup = outerBandStructure.getPoints().getMesh();
-  auto mesh = std::get<0>(tup);
   auto offset = std::get<1>(tup);
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {

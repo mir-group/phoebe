@@ -69,7 +69,6 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
           auto tup = loc2Glob(iCalc);
           auto imu = std::get<0>(tup);
           auto it = std::get<1>(tup);
-          auto idim = std::get<2>(tup);
             auto i2 = that.glob2Loc(imu, it, DimIndex(0));
 
             if (operatorType == operatorSums) {
@@ -183,7 +182,6 @@ void VectorBTE::canonical2Population() {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto idim = std::get<2>(tup);
         auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
         auto temp = calcStatistics.temperature;
         auto chemPot = calcStatistics.chemicalPotential;
@@ -201,7 +199,6 @@ void VectorBTE::population2Canonical() {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto idim = std::get<2>(tup);
         auto calcStatistics = statisticsSweep.getCalcStatistics(it, imu);
         auto temp = calcStatistics.temperature;
         auto chemPot = calcStatistics.chemicalPotential;
