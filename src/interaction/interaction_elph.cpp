@@ -264,8 +264,8 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
           double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
                           gVector(1) * bornCharges(iAt, 1, iPol) +
                           gVector(2) * bornCharges(iAt, 2, iPol);
+          int k = phononH0->getIndexEigvec(iAt, iPol);
           for (int ib3 = 0; ib3 < numPhBands; ib3++) {
-            int k = phononH0->getIndexEigvec(iAt, iPol);
             x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
           }
         }
