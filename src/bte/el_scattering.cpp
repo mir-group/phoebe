@@ -232,8 +232,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
               } else {
-                // Eigen::Vector3d va = v2s.row(ib2) - v3s.row(ib3);
-                // Eigen::Vector3d vb = v2s.row(ib2) + v3s.row(ib3);
+                // Eigen::Vector3d smear = v1s.row(ib1s) - v2s.row(ib2);
                 Eigen::Vector3d smear = v3s.row(ib3);
                 delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
                 delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
@@ -251,12 +250,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 double rate = coupling(ib1, ib2, ib3) *
                               ((fermi2 + bose3) * delta1 +
                                (1. - fermi2 + bose3) * delta2) /
-                              innerNumFullPoints * pi * 0.5 / en3;
+                              innerNumFullPoints * pi / en3;
 
                 double rateOffDiag = coupling(ib1, ib2, ib3) *
                                      (fermi1 * (1. - fermi2) * bose3 * delta1 +
                                       fermi2 * (1. - fermi1) * bose3 * delta2) /
-                                     innerNumFullPoints * pi * 0.5 / en3;
+                                     innerNumFullPoints * pi / en3;
 
                 if (switchCase == 0) {
                   // case of matrix construction

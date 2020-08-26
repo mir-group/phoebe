@@ -288,6 +288,10 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
 InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
                                              Crystal &crystal,
                                              PhononH0 *phononH0_) {
+  if ( mpi->mpiHead()) {
+    std::cout << "\n";
+    std::cout << "Started parsing of el-ph interaction." << std::endl;
+  }
 
   // Open ElPh file
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
@@ -338,6 +342,10 @@ InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
     }
   }
   infile.close();
+
+  if (mpi->mpiHead()) {
+    std::cout << "Finished parsing of el-ph interaction." << std::endl;
+  }
 
   Eigen::Matrix3d primitiveCell = crystal.getDirectUnitCell();
   for (int i = 0; i < numElBravaisVectors; i++) {
