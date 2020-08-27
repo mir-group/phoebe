@@ -29,7 +29,9 @@ include(lib/CMakeLists.txt)
 include(GoogleTest)
 
 add_executable(phoebe src/main.cpp ${SOURCE_FILES})
+
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
+set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
 add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
