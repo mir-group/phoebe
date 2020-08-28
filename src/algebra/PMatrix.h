@@ -4,17 +4,14 @@
 #include <tuple>
 #include <vector>
 #include "Blacs.h"
-#include "Matrix.h"
 #include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
 
 #ifndef MPI_AVAIL
-
 // alias template
 template<typename T>
 using ParallelMatrix = Matrix<T>;
-
 #else
 
 #include <utility>
@@ -32,7 +29,7 @@ using ParallelMatrix = Matrix<T>;
  * Template specialization only valid for double or complex<double>.
  */
 template <typename T>
-class ParallelMatrix : public Matrix<T> {
+class ParallelMatrix {
  private:
   /// Class variables
   int numRows_, numCols_;
@@ -200,7 +197,7 @@ class ParallelMatrix : public Matrix<T> {
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
-                                  const int& numBlocksCols) : Matrix<T>(numRows, numCols){
+                                  const int& numBlocksCols) {
 
   // if blacs is not initalized, we need to start it.
   mpi->initBlacs();
@@ -262,7 +259,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
+ParallelMatrix<T>::ParallelMatrix()  {
   numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
@@ -280,7 +277,7 @@ ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) : Matrix<T>(that) {
+ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   numRows_ = that.numRows_;
   numCols_ = that.numCols_;
   numLocalRows_ = that.numLocalRows_;

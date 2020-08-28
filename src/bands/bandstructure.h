@@ -5,7 +5,7 @@
 #include "particle.h"
 #include "points.h"
 #include "utilities.h"
-#include "PMatrix.h"
+#include "Matrix.h"
 
 /** Base class for describing objects containing the band structure, i.e.
  * the harmonic properties of a quasiparticle, as a function of wavevectors

@@ -10,6 +10,7 @@
 #include <iostream>
 #include <type_traits>
 
+#include "mpiHelper.h" // TODO this is temporary, eventually will be available through PMatrix in Matrix container
 #include "Blas.h"
 
 /** Class for managing a matrix stored in memory.
