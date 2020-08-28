@@ -5,7 +5,7 @@
 #include "particle.h"
 #include "points.h"
 #include "utilities.h"
-#include "PMatrix.h"
+#include "Matrix.h"
 
 std::vector<long> BaseBandStructure::getWavevectorIndices() {
     Error e("BaseBandStructure method not implemented");
@@ -34,18 +34,18 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   // Initialize data structures depending on memory distribution
   if (isDistributed) {
     int numBlockCols = std::min((long)mpi->getSize(), numPoints);
-    energies = ParallelMatrix<double>(numBands, numPoints, 1, numBlockCols);
+    energies = Matrix<double>(numBands, numPoints, 1, numBlockCols);
     numLocalPoints = energies.localRows();
     if (hasVelocities) {
-      velocities = ParallelMatrix<std::complex<double>>(
+      velocities = Matrix<std::complex<double>>(
           numBands * numBands * 3, numPoints, 1, numBlockCols);
     }
     if (hasEigenvectors) {
       if ( particle.isPhonon() ) {
-        eigenvectors = ParallelMatrix<std::complex<double>>(
+        eigenvectors = Matrix<std::complex<double>>(
             3 * numAtoms * numBands, numPoints, 1, numBlockCols);
       } else {
-        eigenvectors = ParallelMatrix<std::complex<double>>(
+        eigenvectors = Matrix<std::complex<double>>(
             numBands * numBands, numPoints, 1, numBlockCols);
       }
     }
