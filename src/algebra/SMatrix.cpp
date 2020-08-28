@@ -1,12 +1,12 @@
-#include "Matrix.h"
+#include "SMatrix.h"
 
-// Explict specialization of BLAS matrix-matrix mult for Matrix<complex<double>>
+// Explict specialization of BLAS matrix-matrix mult for SerialMatrix<complex<double>>
 template <>
-Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
-    const Matrix<std::complex<double>>& that, const char& trans1,
+SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
+    const SerialMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
   assert(cols() == that.rows());
-  Matrix<std::complex<double>> ret(rows(), that.cols());  // newly sized matrix
+  SerialMatrix<std::complex<double>> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   std::complex<double> alpha(1.0, 0.0);
   std::complex<double> beta(0.0, 0.0);
@@ -15,12 +15,12 @@ Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
   return ret;
 }
 
-// Explicit specializiation of BLAS matrix-matrix mult for Matrix<double>
+// Explicit specializiation of BLAS matrix-matrix mult for SerialMatrix<double>
 template <>
-Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
+SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that,
                                     const char& trans1, const char& trans2) {
   assert(cols() == that.rows());
-  Matrix<double> ret(rows(), that.cols());  // newly sized matrix
+  SerialMatrix<double> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   double alpha = 1.0;
   double beta = 0.0;
@@ -31,15 +31,15 @@ Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
 
 // Diagonalize a complex double hermitian matrix
 template <>
-std::tuple<std::vector<double>, Matrix<std::complex<double>>>
-Matrix<std::complex<double>>::diagonalize() {
+std::tuple<std::vector<double>, SerialMatrix<std::complex<double>>>
+SerialMatrix<std::complex<double>>::diagonalize() {
   assert(nRows == nCols);  // needs to be square
 
   std::vector<double> eigvals(nRows);
-  Matrix<std::complex<double>> eigvecs(nRows, nCols);
+  SerialMatrix<std::complex<double>> eigvecs(nRows, nCols);
 
   // throw away variables
-  Matrix<std::complex<double>> temp;
+  SerialMatrix<std::complex<double>> temp;
   temp = *this;  // copy
 
   char jobz = 'V';
@@ -61,10 +61,10 @@ Matrix<std::complex<double>>::diagonalize() {
 
 // Diagonalize for real double symmetric matrix
 template <>
-std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
+std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diagonalize() {
   assert(nRows == nCols);  // needs to be square
   std::vector<double> eigvals(nRows);
-  Matrix<double> eigvecs = *this;
+  SerialMatrix<double> eigvecs = *this;
   // throw away variables
 
   char jobz = 'V';
@@ -82,7 +82,7 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 
 // Explicit specialization of norm for doubles
 template <>
-double Matrix<double>::norm() {
+double SerialMatrix<double>::norm() {
   char norm = 'F';  // tells lapack to give us Frobenius norm
   int nr = nRows;
   int nc = nCols;
@@ -93,7 +93,7 @@ double Matrix<double>::norm() {
 
 // Explicit specialization of norm for complex doubles
 template <>
-double Matrix<std::complex<double>>::norm() {
+double SerialMatrix<std::complex<double>>::norm() {
   char norm = 'F';  // tells lapack to give us Frobenius norm
   int nr = nRows;
   int nc = nCols;

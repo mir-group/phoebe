@@ -10,20 +10,19 @@
 #include <iostream>
 #include <type_traits>
 
-#include "mpiHelper.h" // TODO this is temporary, eventually will be available through PMatrix in Matrix container
 #include "Blas.h"
 
-/** Class for managing a matrix stored in memory.
+/** Class for managing a (serial) matrix stored in memory.
  *
  * It mirrors the functionality of ParallelMatrix, only that in this case it
- * doesn't use the scalapack library and instead relies on Eigen.
+ * doesn't use the scalapack library and instead relies on BLAS.
  * Data is NOT distributed across different MPI processes.
  * At the moment is used for making the code compile without MPI.
  *
  * Templated matrix class with specialization for double and complex<double>.
  */
 template <typename T>
-class Matrix {
+class SerialMatrix {
   /// Class variables
   int nRows;
   int nCols;
@@ -46,32 +45,32 @@ class Matrix {
    */
   static const char transC = 'C';
 
-  /** Default Matrix constructor.
-   * Matrix elements are set to zero upon initialization.
+  /** Default SMatrix constructor.
+   * SerialMatrix elements are set to zero upon initialization.
    *
    * @param numRows: number of rows of the matrix
    * @param numCols: number of columns of the matrix.
-   * @param numBlocsRows, numBlocsCols: these parameters are ignored and are
+   * @param numBlocksRows, numBlocksCols: these parameters are ignored and are
    * put here for mirroring the interface of ParallelMatrix.
    */
-  Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
+  SerialMatrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
          const int& numBlocksCols = 0);
 
   /** Default constructor
    */
-  Matrix();
+  SerialMatrix();
 
   /** Destructor, to delete raw buffer
    */
-  ~Matrix();
+  ~SerialMatrix();
 
   /** Copy constructor
    */
-  Matrix(const Matrix<T>& that);
+  SerialMatrix(const SerialMatrix<T>& that);
 
   /** Copy constructor
    */
-  Matrix<T>& operator=(const Matrix<T>& that);
+  SerialMatrix<T>& operator=(const SerialMatrix<T>& that);
 
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
@@ -118,12 +117,12 @@ class Matrix {
    * @param trans1: controls transposition of "that" matrix
    * @return result: a ParallelMatrix object.
    */
-  Matrix<T> prod(const Matrix<T>& that, const char& trans1 = transN,
+  SerialMatrix<T> prod(const SerialMatrix<T>& that, const char& trans1 = transN,
                  const char& trans2 = transN);
 
   /** Matrix-matrix addition.
    */
-  Matrix<T> operator+=(const Matrix<T>& m1) {
+  SerialMatrix<T> operator+=(const SerialMatrix<T>& m1) {
     assert((m1.rows() == nRows) && (m1.cols() == nCols));
     for (int s = 0; s < size(); s++) mat[s] += m1.mat[s];
     return *this;
@@ -131,7 +130,7 @@ class Matrix {
 
   /** Matrix-matrix subtraction.
    */
-  Matrix<T> operator-=(const Matrix<T>& m1) {
+  SerialMatrix<T> operator-=(const SerialMatrix<T>& m1) {
     assert((m1.rows() == nRows) && (m1.cols() == nCols));
     for (int s = 0; s < size(); s++) mat[s] -= m1.mat[s];
     return *this;
@@ -139,14 +138,14 @@ class Matrix {
 
   /** Matrix-scalar multiplication.
    */
-  Matrix<T> operator*=(const T& that) {
+  SerialMatrix<T> operator*=(const T& that) {
     for (int s = 0; s < size(); s++) mat[s] *= that;
     return *this;
   }
 
   /** Matrix-scalar division.
    */
-  Matrix<T> operator/=(const T& that) {
+  SerialMatrix<T> operator/=(const T& that) {
     for (int s = 0; s < size(); s++) mat[s] /= that;
     return *this;
   }
@@ -159,7 +158,7 @@ class Matrix {
   /** Diagonalize a complex-hermitian / real-symmetric matrix.
    * Nota bene: we don't check if it's hermitian/symmetric.
    */
-  std::tuple<std::vector<double>, Matrix<T>> diagonalize();
+  std::tuple<std::vector<double>, SerialMatrix<T>> diagonalize();
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
@@ -175,16 +174,16 @@ class Matrix {
    * defined as \sum_ij A_ij * B_ij. For vectors, this reduces to the standard
    * scalar product.
    */
-  T dot(const Matrix<T>& that);
+  T dot(const SerialMatrix<T>& that);
 
   /** Unary negation
    */
-  Matrix<T> operator-() const;
+  SerialMatrix<T> operator-() const;
 };
 
 // A default constructor to build a dense matrix of zeros to be filled
 template <typename T>
-Matrix<T>::Matrix(const int& numRows, const int& numCols,
+SerialMatrix<T>::SerialMatrix(const int& numRows, const int& numCols,
                   const int& numBlocksRows, const int& numBlocksCols) {
   (void) numBlocksRows;
   (void) numBlocksCols;
@@ -198,7 +197,7 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 
 // default constructor
 template <typename T>
-Matrix<T>::Matrix() {
+SerialMatrix<T>::SerialMatrix() {
   mat = nullptr;
   nRows = 0;
   nCols = 0;
@@ -207,7 +206,7 @@ Matrix<T>::Matrix() {
 
 // copy constructor
 template <typename T>
-Matrix<T>::Matrix(const Matrix<T>& that) {
+SerialMatrix<T>::SerialMatrix(const SerialMatrix<T>& that) {
   nRows = that.nRows;
   nCols = that.nCols;
   numElements_ = that.numElements_;
@@ -223,7 +222,7 @@ Matrix<T>::Matrix(const Matrix<T>& that) {
 }
 
 template <typename T>
-Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
+SerialMatrix<T>& SerialMatrix<T>::operator=(const SerialMatrix<T>& that) {
   if (this != &that) {
     nRows = that.nRows;
     nCols = that.nCols;
@@ -243,56 +242,56 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 
 // destructor
 template <typename T>
-Matrix<T>::~Matrix() {
+SerialMatrix<T>::~SerialMatrix() {
   delete[] mat;
 }
 
 /* ------------- Very basic operations -------------- */
 template <typename T>
-long Matrix<T>::rows() const {
+long SerialMatrix<T>::rows() const {
   return nRows;
 }
 template <typename T>
-long Matrix<T>::localRows() const {
+long SerialMatrix<T>::localRows() const {
   return nRows;
 }
 template <typename T>
-long Matrix<T>::cols() const {
+long SerialMatrix<T>::cols() const {
   return nCols;
 }
 template <typename T>
-long Matrix<T>::localCols() const {
+long SerialMatrix<T>::localCols() const {
   return nCols;
 }
 template <typename T>
-long Matrix<T>::size() const {
+long SerialMatrix<T>::size() const {
   return numElements_;
 }
 template <typename T>
-T* Matrix<T>::data() const{ 
+T* SerialMatrix<T>::data() const{ 
   return mat; 
 }
 
 // Get/set element
 template <typename T>
-T& Matrix<T>::operator()(const int row, const int col) {
+T& SerialMatrix<T>::operator()(const int row, const int col) {
   return mat[global2Local(row, col)];
 }
 
 template <typename T>
-const T& Matrix<T>::operator()(const int row, const int col) const {
+const T& SerialMatrix<T>::operator()(const int row, const int col) const {
   return mat[global2Local(row, col)];
 }
 
 template <typename T>
-bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
+bool SerialMatrix<T>::indecesAreLocal(const int& row, const int& col) {
   (void) row;
   (void) col;
   return true;
 }
 
 template <typename T>
-std::tuple<long, long> Matrix<T>::local2Global(const long& k) {
+std::tuple<long, long> SerialMatrix<T>::local2Global(const long& k) {
   // we convert this combined local index k into row / col indeces
   // k = j * nRows + i
   int j = k / nRows;
@@ -302,12 +301,12 @@ std::tuple<long, long> Matrix<T>::local2Global(const long& k) {
 
 // Indexing to set up the matrix in col major format
 template <typename T>
-long Matrix<T>::global2Local(const long& row, const long& col) {
+long SerialMatrix<T>::global2Local(const long& row, const long& col) {
   return nRows * col + row;
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
+std::vector<std::tuple<long, long>> SerialMatrix<T>::getAllLocalStates() {
   std::vector<std::tuple<long, long>> x;
   for (long k = 0; k < numElements_; k++) {
     std::tuple<long, long> t = local2Global(k);  // bloch indices
@@ -318,8 +317,8 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
 
 // General unary negation
 template <typename T>
-Matrix<T> Matrix<T>::operator-() const {
-  Matrix<T> c(nRows, nCols);
+SerialMatrix<T> SerialMatrix<T>::operator-() const {
+  SerialMatrix<T> c(nRows, nCols);
   for (int row = 0; row < nRows; row++) {
     for (int col = 0; col < nCols; col++) c(row, col) = -(*this)(row, col);
   }
@@ -328,13 +327,13 @@ Matrix<T> Matrix<T>::operator-() const {
 
 // Sets the matrix to the idenity matrix
 template <typename T>
-void Matrix<T>::eye() {
+void SerialMatrix<T>::eye() {
   assert(nRows == nCols);
   for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
 }
 
 template <typename T>
-double Matrix<T>::norm() {
+double SerialMatrix<T>::norm() {
   T sumSq = 0;
   for (int row = 0; row < nRows; row++) {
     for (int col = 0; col < nCols; col++) {
@@ -345,13 +344,13 @@ double Matrix<T>::norm() {
 }
 
 template <typename T>
-double Matrix<T>::squaredNorm() {
+double SerialMatrix<T>::squaredNorm() {
   double x = norm();
   return x * x;
 }
 
 template <typename T>
-T Matrix<T>::dot(const Matrix<T>& that) {
+T SerialMatrix<T>::dot(const SerialMatrix<T>& that) {
   T scalar = (T)0.;
   for (int i = 0; i < numElements_; i++) {
     scalar += (*(mat + i)) * (*(that.mat + i));
