@@ -1,20 +1,14 @@
 #include "app.h"
-//#include "active_bandstructure.h"
 #include "bands_app.h"
-//#include "bandstructure.h"
-//#include "constants.h"
 #include "context.h"
 #include "dos_app.h"
 #include "exceptions.h"
 #include "io.h"
-//#include "particle.h"
 #include "phonon_transport_app.h"
 #include "electron_wannier_transport_app.h"
-//#include "points.h"
+#include "elph_bloch_to_wannier_app.h"
 #include "polarization_app.h"
-//#include "qe_input_parser.h"
 #include "utilities.h"
-//#include "window.h"
 #include <cmath>
 #include <string>
 
@@ -28,7 +22,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronWannierBands",
                                             "electronFourierBands",
                                             "electronPolarization",
-                                            "electronWannierTransport"};
+                                            "electronWannierTransport",
+                                            "elPhBlochToWannier"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -39,6 +34,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new PhononTransportApp);
   } else if (choice == "electronWannierTransport") {
     return std::unique_ptr<App>(new ElectronWannierTransportApp);
+  } else if (choice == "elPhBlochToWannier") {
+    return std::unique_ptr<App>(new ElPhBlochToWannierApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {
