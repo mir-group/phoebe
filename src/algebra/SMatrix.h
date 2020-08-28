@@ -10,38 +10,48 @@
 #include <iostream>
 #include <type_traits>
 
-#include "PMatrix.h" 
-#include "SMatrix.h" 
+#include "mpiHelper.h" // TODO this is temporary, eventually will be available through PMatrix in Matrix container
+#include "Blas.h"
 
-/** Container class which wraps an underlying serial or parallel matrix
+/** Class for managing a matrix stored in memory.
+ *
+ * It mirrors the functionality of ParallelMatrix, only that in this case it
+ * doesn't use the scalapack library and instead relies on Eigen.
+ * Data is NOT distributed across different MPI processes.
+ * At the moment is used for making the code compile without MPI.
+ *
+ * Templated matrix class with specialization for double and complex<double>.
  */
 template <typename T>
 class Matrix {
+  /// Class variables
+  int nRows;
+  int nCols;
+  int numElements_;
+
+  T* mat = nullptr;  // pointer to the internal array structure.
 
   /// Index from a 1D array to a position in a 2D array (matrix)
   long global2Local(const long& row, const long& col);
   std::tuple<long, long> local2Global(const long& k);
 
- /** Boolean variable which tells us if the underlying matrix is parallel
- * will be defaulted to false if no value is provided in constructor 
- */
- bool isDistributed; 
-
- /** Underlying ParallelMatrix instantiated only if isDistributed = true 
- */
- ParallelMatrix<T> pmat;
-
- /** Underlying SerialMatrix instantiated only if isDistributed = false
- */ 
- SerialMatrix<T> mat; 
-
  public:
+  /** Indicates that the matrix A is not modified: transN(A) = A
+   */
+  static const char transN = 'N';
+  /** Indicates that the matrix A is taken as its transpose: transT(A) = A^T
+   */
+  static const char transT = 'T';
+  /** Indicates that the matrix A is taken as its adjoint: transC(A) = A^+
+   */
+  static const char transC = 'C';
+
   /** Default Matrix constructor.
    * Matrix elements are set to zero upon initialization.
    *
    * @param numRows: number of rows of the matrix
    * @param numCols: number of columns of the matrix.
-   * @param numBlocksRows, numBlocksCols: these parameters are ignored and are
+   * @param numBlocsRows, numBlocsCols: these parameters are ignored and are
    * put here for mirroring the interface of ParallelMatrix.
    */
   Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
@@ -142,6 +152,7 @@ class Matrix {
   }
 
   /** Sets this matrix as the identity.
+   * Deletes any previous content.
    */
   void eye();
 
@@ -171,56 +182,61 @@ class Matrix {
   Matrix<T> operator-() const;
 };
 
-// -------------------- function implementations ---------------- //
-
 // A default constructor to build a dense matrix of zeros to be filled
 template <typename T>
 Matrix<T>::Matrix(const int& numRows, const int& numCols,
-                  const int& numBlocksRows, const int& numBlocksCols, bool isDistributed_ = false) {
-
-  isDistributed = isDistributed_; // default to false if no value supplied 
-  if(isDistributed){ 
-    pmat = new ParallelMatrix<T>(numRows,numCols,numBlocksRows,numBlocksCols); 
-    mat = nullptr; 
-  } 
-  else { 
-    mat = new SerialMatrix<T>(numRows,numCols); 
-    pmat = nullptr; 
-  } 
+                  const int& numBlocksRows, const int& numBlocksCols) {
+  (void) numBlocksRows;
+  (void) numBlocksCols;
+  nRows = numRows;
+  nCols = numCols;
+  numElements_ = nRows * nCols;
+  mat = new T[nRows * nCols];
+  for (int i = 0; i < numElements_; i++) mat[i] = 0;  // fill with zeroes
+  assert(mat != nullptr);  // Memory could not be allocated, end program
 }
 
 // default constructor
 template <typename T>
 Matrix<T>::Matrix() {
-  pmat = nullptr;
-  mat = nullptr; 
-  isDistributed = false; 
+  mat = nullptr;
+  nRows = 0;
+  nCols = 0;
+  numElements_ = 0;
 }
 
-// copy constructor  // TODO is this the right way to do this? 
+// copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
-  isDistributed = that.isDistributed;
-  // call SMatrix or PMatrix copy constructor 
-  if(isDistributed) { 
-    pmat = that.pmat;
-  } 
-  else { 
-    mat = that.mat; 
-  }  
+  nRows = that.nRows;
+  nCols = that.nCols;
+  numElements_ = that.numElements_;
+  if (mat != nullptr) {
+    delete[] mat;
+    mat = nullptr;
+  }
+  mat = new T[numElements_];
+  assert(mat != nullptr);
+  for (long i = 0; i < numElements_; i++) {
+    mat[i] = that.mat[i];
+  }
 }
 
 template <typename T>
 Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
   if (this != &that) {
-    isDistributed = that.isDistributed;
-    // call SMatrix or PMatrix copy constructors  
-    if(isDistributed) {
-      pmat = that.pmat; 
-    } 
-    else { 
-      mat = that.mat; 
-    } 
+    nRows = that.nRows;
+    nCols = that.nCols;
+    numElements_ = that.numElements_;
+    // matrix allocation
+    if (mat != nullptr) {
+      delete[] mat;
+    }
+    mat = new T[numElements_];
+    assert(mat != nullptr);
+    for (long i = 0; i < numElements_; i++) {
+      mat[i] = that.mat[i];
+    }
   }
   return *this;
 }
@@ -229,114 +245,118 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 template <typename T>
 Matrix<T>::~Matrix() {
   delete[] mat;
-  delete[] pmat; 
 }
 
 /* ------------- Very basic operations -------------- */
 template <typename T>
 long Matrix<T>::rows() const {
-  if(isDistributed) return pmat.rows();
-  else{ return mat.rows(); } 
+  return nRows;
 }
 template <typename T>
 long Matrix<T>::localRows() const {
-  if(isDistributed) return pmat.localRows();
-  else{ return mat.rows(); }
+  return nRows;
 }
 template <typename T>
 long Matrix<T>::cols() const {
-  if(isDistributed) return pmat.cols();
-  else{ return mat.cols(); }
+  return nCols;
 }
 template <typename T>
 long Matrix<T>::localCols() const {
-  if(isDistributed) return pmat.localCols();
-  else{ return mat.cols(); }
+  return nCols;
 }
 template <typename T>
 long Matrix<T>::size() const {
-  if(isDistributed) return pmat.size();
-  else{ return mat.size(); }
+  return numElements_;
 }
 template <typename T>
 T* Matrix<T>::data() const{ 
-  if(isDistributed) return pmat.data();
-  else{ return mat.data(); }
+  return mat; 
 }
 
 // Get/set element
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
-  if(isDistributed) return pmat(row,col);
-  else { return mat(row,col) }; 
+  return mat[global2Local(row, col)];
 }
 
 template <typename T>
 const T& Matrix<T>::operator()(const int row, const int col) const {
-  if(isDistributed) return pmat(row,col);
-  else{ return mat(row,col); }
+  return mat[global2Local(row, col)];
 }
 
 template <typename T>
 bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
-  if(isDistributed) return pmat.indecesAreLocal(row,col);
-  else{ return true; } 
+  (void) row;
+  (void) col;
+  return true;
 }
 
 template <typename T>
 std::tuple<long, long> Matrix<T>::local2Global(const long& k) {
-  if(isDistributed) return pmat.local2Global(k);
-  else{ return mat.local2Global(k); }
+  // we convert this combined local index k into row / col indeces
+  // k = j * nRows + i
+  int j = k / nRows;
+  int i = k - j * nRows;
+  return {i, j};
 }
 
 // Indexing to set up the matrix in col major format
 template <typename T>
 long Matrix<T>::global2Local(const long& row, const long& col) {
-  if(isDistributed) return pmat.global2Local(row,col);
-  else{ return mat.global2Local(row,col); }
+  return nRows * col + row;
 }
 
 template <typename T>
 std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
-  if(isDistributed) return pmat.getAllLocalStates();
-  else{ return mat.getAllLocalStates(); }
+  std::vector<std::tuple<long, long>> x;
+  for (long k = 0; k < numElements_; k++) {
+    std::tuple<long, long> t = local2Global(k);  // bloch indices
+    x.push_back(t);
+  }
+  return x;
 }
 
 // General unary negation
 template <typename T>
 Matrix<T> Matrix<T>::operator-() const {
-  Matrix<T> c(*this); // copy this matrix
-  if(isDistributed) c.pmat = -c.pmat;
-  else{ c.mat = -c.mat; }
+  Matrix<T> c(nRows, nCols);
+  for (int row = 0; row < nRows; row++) {
+    for (int col = 0; col < nCols; col++) c(row, col) = -(*this)(row, col);
+  }
   return c;
 }
 
 // Sets the matrix to the idenity matrix
 template <typename T>
 void Matrix<T>::eye() {
-  if(isDistributed) pmat.eye();
-  else{ mat.eye(); }
+  assert(nRows == nCols);
+  for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
 }
 
 template <typename T>
 double Matrix<T>::norm() {
-  if(isDistributed) return pmat.norm();
-  else{ return mat.norm(); }
+  T sumSq = 0;
+  for (int row = 0; row < nRows; row++) {
+    for (int col = 0; col < nCols; col++) {
+      sumSq += ((*this)(row, col) * (*this)(row, col));
+    }
+  }
+  return sqrt(sumSq);
 }
 
 template <typename T>
 double Matrix<T>::squaredNorm() {
-  if(isDistributed) return pmat.squaredNorm();
-  else{ return mat.squaredNorm(); }
+  double x = norm();
+  return x * x;
 }
 
 template <typename T>
 T Matrix<T>::dot(const Matrix<T>& that) {
-  if(isDistributed) return pmat.dot(that.pmat);
-  else{ return mat.dot(that.mat); }
+  T scalar = (T)0.;
+  for (int i = 0; i < numElements_; i++) {
+    scalar += (*(mat + i)) * (*(that.mat + i));
+  }
+  return scalar;
 }
-
-//TODO add interface for diagonalize
-//TODO add interface for prod
 
 #endif  // MATRIX_H
