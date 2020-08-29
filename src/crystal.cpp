@@ -1,10 +1,10 @@
-#include <Eigen/Dense>
-#include <Eigen/Core>
-#include "exceptions.h"
 #include "crystal.h"
-#include "spglib.h"
 #include "constants.h"
+#include "exceptions.h"
+#include "spglib.h"
 #include "utilities.h"
+#include <Eigen/Core>
+#include <Eigen/Dense>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -39,7 +39,7 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
   if (atomicPositions_.cols() != 3) {
     Error e("atomic positions need three coordinates");
   }
-  if ((int) speciesMasses_.size() != (int) speciesNames_.size()) {
+  if ((int)speciesMasses_.size() != (int)speciesNames_.size()) {
     Error e("species masses and names are not aligned");
   }
 
@@ -74,7 +74,7 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
   }
 
   // note: spglib wants fractional positions
-  double (*positionSPG)[3];
+  double(*positionSPG)[3];
   allocate(positionSPG, numAtoms);
   Eigen::Vector3d positionCrystal;
   Eigen::Vector3d positionCartesian;
@@ -97,14 +97,8 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
   double symprec = 1e-5;
-  numSymmetries = spg_get_symmetry(rotations,
-                                   translations,
-                                   maxSize,
-                                   latticeSPG,
-                                   positionSPG,
-                                   typesSPG,
-                                   numAtoms,
-                                   symprec);
+  numSymmetries = spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
+                                   positionSPG, typesSPG, numAtoms, symprec);
 
   // need to explicitly deallocate allocated arrays.
   delete[] typesSPG;
@@ -133,25 +127,24 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
     symmetryOperations.push_back(s);
   }
 
-//  // this is to remember to modify things if I break this symmetry
-//  // got to modify here and below
-//  Warning w("Using time reversal symmetry");
-//  numSymmetries *= 2;
-//  for (int isym = numSymmetries/2; isym < numSymmetries; isym++) {
-//    Eigen::Vector3d thisTranslation;
-//    thisTranslation(0) = -translations[isym-numSymmetries/2][0];
-//    thisTranslation(1) = -translations[isym-numSymmetries/2][1];
-//    thisTranslation(2) = -translations[isym-numSymmetries/2][2];
-//    Eigen::Matrix3d thisMatrix;
-//    for (int i = 0; i < 3; i++) {
-//      for (int j = 0; j < 3; j++) {
-//        thisMatrix(i, j) = -rotations[isym-numSymmetries/2][i][j];
-//      }
-//    }
-//    SymmetryOperation s = {thisMatrix, thisTranslation};
-//    symmetryOperations.push_back(s);
-//  }
-
+  //  // this is to remember to modify things if I break this symmetry
+  //  // got to modify here and below
+  //  Warning w("Using time reversal symmetry");
+  //  numSymmetries *= 2;
+  //  for (int isym = numSymmetries/2; isym < numSymmetries; isym++) {
+  //    Eigen::Vector3d thisTranslation;
+  //    thisTranslation(0) = -translations[isym-numSymmetries/2][0];
+  //    thisTranslation(1) = -translations[isym-numSymmetries/2][1];
+  //    thisTranslation(2) = -translations[isym-numSymmetries/2][2];
+  //    Eigen::Matrix3d thisMatrix;
+  //    for (int i = 0; i < 3; i++) {
+  //      for (int j = 0; j < 3; j++) {
+  //        thisMatrix(i, j) = -rotations[isym-numSymmetries/2][i][j];
+  //      }
+  //    }
+  //    SymmetryOperation s = {thisMatrix, thisTranslation};
+  //    symmetryOperations.push_back(s);
+  //  }
 }
 
 // empty constructor
@@ -202,10 +195,9 @@ Crystal &Crystal::operator=(const Crystal &obj) {
   return *this;
 }
 
-Eigen::Matrix3d Crystal::calcReciprocalCell(
-    const Eigen::Matrix3d directUnitCell) {
-  Eigen::Matrix3d reciprocalCell = twoPi
-      * directUnitCell.inverse().transpose();
+Eigen::Matrix3d
+Crystal::calcReciprocalCell(const Eigen::Matrix3d directUnitCell) {
+  Eigen::Matrix3d reciprocalCell = twoPi * directUnitCell.inverse().transpose();
   return reciprocalCell;
 }
 
@@ -214,9 +206,7 @@ void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
   reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 }
 
-const Eigen::Matrix3d &Crystal::getDirectUnitCell() {
-  return directUnitCell;
-}
+const Eigen::Matrix3d &Crystal::getDirectUnitCell() { return directUnitCell; }
 
 const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
   // note: reciprocalUnitCell is  in units of twoPi
@@ -224,60 +214,337 @@ const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
   return reciprocalUnitCell;
 }
 
-const int &Crystal::getNumAtoms() {
-  return numAtoms;
-}
+const int &Crystal::getNumAtoms() { return numAtoms; }
 
 double Crystal::getVolumeUnitCell(long dimensionality) {
   double volume;
   if (dimensionality == 3) {
     volume = volumeUnitCell;
   } else if (dimensionality == 2) {
-    volume = abs(
-        directUnitCell(0, 0) * directUnitCell(1, 1)
-            - directUnitCell(0, 1) * directUnitCell(1, 0));
+    volume = abs(directUnitCell(0, 0) * directUnitCell(1, 1) -
+                 directUnitCell(0, 1) * directUnitCell(1, 0));
   } else {
     volume = directUnitCell(2, 2);
   }
   return volume;
 }
 
-const Eigen::MatrixXd &Crystal::getAtomicPositions() {
-  return atomicPositions;
-}
+const Eigen::MatrixXd &Crystal::getAtomicPositions() { return atomicPositions; }
 
-const Eigen::VectorXi &Crystal::getAtomicSpecies() {
-  return atomicSpecies;
-}
+const Eigen::VectorXi &Crystal::getAtomicSpecies() { return atomicSpecies; }
 
 const std::vector<std::string> &Crystal::getAtomicNames() {
   return atomicNames;
 }
 
-const Eigen::VectorXd &Crystal::getAtomicMasses() {
-  return atomicMasses;
-}
+const Eigen::VectorXd &Crystal::getAtomicMasses() { return atomicMasses; }
 
 const std::vector<std::string> &Crystal::getSpeciesNames() {
   return speciesNames;
 }
 
-const Eigen::VectorXd &Crystal::getSpeciesMasses() {
-  return speciesMasses;
-}
+const Eigen::VectorXd &Crystal::getSpeciesMasses() { return speciesMasses; }
 
 const std::vector<SymmetryOperation> &Crystal::getSymmetryOperations() {
   return symmetryOperations;
 }
 
-const int &Crystal::getNumSymmetries() {
-  return numSymmetries;
+const int &Crystal::getNumSymmetries() { return numSymmetries; }
+
+long Crystal::getDimensionality() { return dimensionality; }
+
+long Crystal::getNumSpecies() { return numSpecies; }
+
+std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
+Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
+                                 const int &supercellFactor) {
+
+  int nx = supercellFactor;
+
+  std::vector<Eigen::Vector3d> tmpVectors;
+  std::vector<double> tmpDegeneracies;
+
+  Eigen::Matrix3d directUnitCell = getDirectUnitCell();
+
+  // what are we doing:
+  // the "n" specifies a grid of lattice vectors, that are (2*(cutoff+1)+1)^3
+  // times bigger than the grid of wavevectors. a grid of lattice vectors
+  // equal to the grid of wavevectors would be the bare minimum for the
+  // interpolation to work, and wouldn't be enough for anything good.
+
+  // now, we loop over the vectors of supercell A, build a vector r.
+  for (int i0 = -nx * grid(0); i0 <= nx * grid(0); i0++) {
+    for (int i1 = -nx * grid(1); i1 <= nx * grid(1); i1++) {
+      for (int i2 = -nx * grid(2); i2 <= nx * grid(2); i2++) {
+        // loop over a supercell B of size ((searchSize+1)*2+1)^3
+        // bigger than supercell A. We compute the distance between any
+        // vector in supercell B w.r.t. the vector "n"
+
+        // We calculate |r-R|^2
+        std::vector<double> distances;
+        for (int j0 = -nx - 1; j0 <= nx + 1; j0++) {
+          for (int j1 = -nx - 1; j1 <= nx + 1; j1++) {
+            for (int j2 = -nx - 1; j2 <= nx + 1; j2++) {
+              Eigen::Vector3d dist;
+              dist(0) = i0 - j0 * grid(0);
+              dist(1) = i1 - j1 * grid(1);
+              dist(2) = i2 - j2 * grid(2);
+              // distances in cartesian space
+              dist = directUnitCell * dist;
+              double dist2 = dist.norm();
+              distances.push_back(dist2);
+            }
+          }
+        }
+
+        // find the minimum distance out of all distances
+        double distMin = distances[0]; // [0] is just the first guess
+        for (double dist : distances) {
+          if (dist < distMin) {
+            distMin = dist;
+          }
+        }
+
+        // the point at midIndex is the reference "n" vector
+        // i.e. the one generated by i0=i1=i2=0
+        // if it's the minimum vector, than it's in the
+        // Wigner Seitz zone of supercell A.
+        // Therefore we save this vector.
+        int midIndex = distances.size() / 2;
+        if (abs(distances[midIndex] - distMin) < 1.0e-6) {
+          // count its degeneracy
+          double degeneracy = 0.;
+          for (double dist : distances) {
+            if (abs(dist - distMin) < 1.0e-6) {
+              degeneracy += 1.;
+            }
+          }
+          tmpDegeneracies.push_back(degeneracy);
+
+          // store vector
+          Eigen::Vector3d thisVec;
+          thisVec << i0, i1, i2;
+          tmpVectors.push_back(thisVec);
+        }
+      }
+    }
+  }
+
+  // now we store the list of these lattice vectors in the class members
+  int numPositionVectors = tmpVectors.size();
+  Eigen::VectorXd positionDegeneracies(numPositionVectors);
+  Eigen::MatrixXd positionVectors(3, numPositionVectors);
+  int originIndex = -1; // to look for R=0 vector
+  for (int iR = 0; iR < numPositionVectors; iR++) {
+    auto thisVec = tmpVectors[iR];
+    // we convert from crystal to cartesian coordinates
+    positionVectors.col(iR) = directUnitCell * thisVec;
+    positionDegeneracies(iR) = tmpDegeneracies[iR];
+    //
+    if (thisVec.norm() < 1.0e-6) {
+      originIndex = iR;
+    }
+  }
+
+  // As a convention, we keep the origin vectors at the index iR = 0
+  // so we swap it. The other vectors aren't in any particular order.
+  double tmp1 = positionDegeneracies(originIndex);
+  double tmp2 = positionDegeneracies(0);
+  positionDegeneracies(0) = tmp1;
+  positionDegeneracies(originIndex) = tmp2;
+  Eigen::Vector3d tmpv1 = positionVectors.col(originIndex);
+  Eigen::Vector3d tmpv2 = positionVectors.col(0);
+  positionVectors.col(0) = tmpv1;
+  positionVectors.col(originIndex) = tmpv2;
+
+  // check that we found all vectors
+  {
+    double tot = positionDegeneracies.sum();
+    assert(abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6);
+    (void)tot;
+  }
+
+  return {positionVectors, positionDegeneracies};
 }
 
-long Crystal::getDimensionality() {
-  return dimensionality;
-}
+std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>>
+Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
+                                          const Eigen::MatrixXd &shift,
+                                          const int &supercellFactor) {
 
-long Crystal::getNumSpecies() {
-  return numSpecies;
+  // Note: we expect shift to be in cartesian coordinates!
+
+  if (shift.rows() != 3) {
+    Error e("shift should have at least 3 cartesian coordinates");
+  }
+  int shiftDims = shift.cols();
+
+  int nx = supercellFactor;
+
+  int maxVecs = 2 * nx * grid(0) + 1;
+  maxVecs *= 2 * nx * grid(1) + 1;
+  maxVecs *= 2 * nx * grid(2) + 1;
+  Eigen::MatrixXd tmpNumPoints(shiftDims, shiftDims);
+  Eigen::Tensor<double, 3> tmpDegeneraciesAll(shiftDims, shiftDims, maxVecs);
+  Eigen::Tensor<double, 4> tmpVectorsAll(shiftDims, shiftDims, maxVecs, 3);
+
+  Eigen::Matrix3d directUnitCell = getDirectUnitCell();
+
+  // what are we doing:
+  // the "n" specifies a grid of lattice vectors, that are (2*(cutoff+1)+1)^3
+  // times bigger than the grid of wavevectors. a grid of lattice vectors
+  // equal to the grid of wavevectors would be the bare minimum for the
+  // interpolation to work, and wouldn't be enough for anything good.
+
+  for (int idim = 0; idim < shiftDims; idim++) {
+    for (int jdim = 0; jdim < shiftDims; jdim++) {
+      // algorithm as before, except the shift
+
+      std::vector<Eigen::Vector3d> tmpVectors;
+      std::vector<double> tmpDegeneracies;
+
+      // now, we loop over the vectors of supercell A, build a vector r.
+      for (int i0 = -nx * grid(0); i0 <= nx * grid(0); i0++) {
+        for (int i1 = -nx * grid(1); i1 <= nx * grid(1); i1++) {
+          for (int i2 = -nx * grid(2); i2 <= nx * grid(2); i2++) {
+            // loop over a supercell B of size ((searchSize+1)*2+1)^3
+            // bigger than supercell A. We compute the distance between any
+            // vector in supercell B w.r.t. the vector "n"
+
+            // We calculate |r-R|^2
+            std::vector<double> distances;
+            for (int j0 = -nx - 1; j0 <= nx + 1; j0++) {
+              for (int j1 = -nx - 1; j1 <= nx + 1; j1++) {
+                for (int j2 = -nx - 1; j2 <= nx + 1; j2++) {
+                  Eigen::Vector3d dist;
+                  dist(0) = i0 - j0 * grid(0);
+                  dist(1) = i1 - j1 * grid(1);
+                  dist(2) = i2 - j2 * grid(2);
+                  // distances in cartesian space
+                  dist = directUnitCell * dist;
+
+                  dist += shift.col(jdim) - shift.col(idim);
+
+                  double dist2 = dist.norm();
+                  distances.push_back(dist2);
+                }
+              }
+            }
+
+            // find the minimum distance out of all distances
+            double distMin = distances[0]; // [0] is just the first guess
+            for (double dist : distances) {
+              if (dist < distMin) {
+                distMin = dist;
+              }
+            }
+
+            // the point at midIndex is the reference "n" vector
+            // i.e. the one generated by i0=i1=i2=0
+            // if it's the minimum vector, than it's in the
+            // Wigner Seitz zone of supercell A.
+            // Therefore we save this vector.
+            int midIndex = distances.size() / 2;
+            if (abs(distances[midIndex] - distMin) < 1.0e-6) {
+              // count its degeneracy
+              double degeneracy = 0.;
+              for (double dist : distances) {
+                if (abs(dist - distMin) < 1.0e-6) {
+                  degeneracy += 1.;
+                }
+              }
+
+              tmpDegeneracies.push_back(degeneracy);
+
+              // store vector
+              Eigen::Vector3d thisVec;
+              thisVec << i0, i1, i2;
+              tmpVectors.push_back(thisVec);
+            }
+          }
+        }
+      }
+
+      tmpNumPoints(idim, jdim) = tmpVectors.size();
+      for (unsigned int iR = 0; iR < tmpVectors.size(); iR++) {
+        tmpDegeneraciesAll(idim, jdim, iR) = tmpDegeneracies[iR];
+        for (int i : {0, 1, 2}) {
+          tmpVectorsAll(idim, jdim, iR, i) = tmpVectors[iR](i);
+        }
+      }
+    }
+  }
+
+  // find the unique set of vectors, so it's a smaller list
+  std::vector<Eigen::Vector3d> tmpVectors;
+  for (int idim = 0; idim < shiftDims; idim++) {
+    for (int jdim = 0; jdim < shiftDims; jdim++) {
+      for (int iR = 0; iR < tmpNumPoints(idim, jdim); iR++) {
+        Eigen::Vector3d x;
+        for (int i : {0, 1, 2}) {
+          x(i) = tmpVectorsAll(idim, jdim, iR, i);
+        }
+        bool found = false;
+        if (tmpVectors.size() == 0)
+          found = true; // if empty, add vector
+        for (Eigen::Vector3d y : tmpVectors) {
+          if ((x - y).squaredNorm() < 1.0e-6) {
+            found = true;
+            break;
+          }
+        }
+        if (found) {
+          tmpVectors.push_back(x);
+        }
+      }
+    }
+  }
+  int numVectors = tmpVectors.size();
+
+  // save the degeneracies in a smaller tensor
+  Eigen::Tensor<double, 3> degeneracies(shiftDims, shiftDims, numVectors);
+  degeneracies.setZero(); // important!
+  for (int idim = 0; idim < shiftDims; idim++) {
+    for (int jdim = 0; jdim < shiftDims; jdim++) {
+      for (int iR = 0; iR < tmpNumPoints(idim, jdim); iR++) {
+        Eigen::Vector3d x;
+        for (int i : {0, 1, 2}) {
+          x(i) = tmpVectorsAll(idim, jdim, iR, i);
+        }
+        double deg = tmpDegeneraciesAll(idim, jdim, iR);
+        int iRNew = 0;
+        for (Eigen::Vector3d y : tmpVectors) {
+          if ((x - y).squaredNorm() < 1.0e-6) {
+            degeneracies(idim, jdim, iRNew) = deg;
+            break;
+          }
+          iRNew += 1;
+        }
+      }
+    }
+  }
+
+  // convert to cartesian coordinates
+  Eigen::MatrixXd bravaisVectors(3, numVectors);
+  for (int iR = 0; iR < numVectors; iR++) {
+    auto thisVec = tmpVectors[iR];
+    // we convert from crystal to cartesian coordinates
+    bravaisVectors.col(iR) = directUnitCell * thisVec;
+  }
+
+  // check that we found all vectors
+  for (int idim = 0; idim < shiftDims; idim++) {
+    for (int jdim = 0; jdim < shiftDims; jdim++) {
+      double tot = 0.;
+
+      for (int iR = 0; iR < numVectors; iR++) {
+        if (degeneracies(idim, jdim, iR) > 0) {
+          tot += degeneracies(idim, jdim, iR);
+        }
+      }
+      assert(abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6);
+    }
+  }
+
+  return {bravaisVectors, degeneracies};
 }
