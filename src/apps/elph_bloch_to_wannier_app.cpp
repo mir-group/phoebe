@@ -1,20 +1,22 @@
-#include "bandstructure.h"
-#include "electron_h0_wannier.h"
 #include "elph_bloch_to_wannier_app.h"
-#include "phonon_h0.h"
+#include "bandstructure.h"
 #include "eigen.h"
+#include "electron_h0_wannier.h"
+#include "phonon_h0.h"
 #include "qe_input_parser.h"
+#include <fstream>
+#include <string>
 
 void ElPhBlochToWannierApp::run(Context &context) {
-  (void) context;
+  (void)context;
 
-  auto t2 = QEParser::parsePhHarmonic(context);
-  auto crystal = std::get<0>(t2);
-  auto phononH0 = std::get<1>(t2);
+  auto t1 = QEParser::parsePhHarmonic(context);
+  auto crystal = std::get<0>(t1);
+  auto phononH0 = std::get<1>(t1);
 
-  auto t1 = QEParser::parseElHarmonicWannier(context, &crystal);
-  auto crystalEl = std::get<0>(t1);
-  auto electronH0 = std::get<1>(t1);
+  auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
+  auto crystalEl = std::get<0>(t2);
+  auto electronH0 = std::get<1>(t2);
 
   bool withVelocities = false;
   bool withEigenvectors = true;
@@ -42,13 +44,19 @@ void ElPhBlochToWannierApp::run(Context &context) {
   // g_full should come from the unsymmetrization
 
   // Note: I should check the disentanglement of Wannier bands,
-  // probably U matrices are rectangles
+  // probably U matrices are rectangles, and not squares, and can't be computed
+  // from the hamiltonian of the disentangled subspace
 
   //----------------------------------------------------
   // Find the lattice vectors for the Fourier transforms
 
-  Eigen::MatrixXd elBravaisVectors = getBravaisVectors(crystal, kMesh);
-  Eigen::MatrixXd phBravaisVectors = getBravaisVectors(crystal, qMesh);
+  auto t3 = crystal.buildWignerSeitzVectors(kMesh);
+  Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
+  Eigen::VectorXd elDegeneracies = std::get<1>(t3);
+
+  auto t4 = crystal.buildWignerSeitzVectors(qMesh);
+  Eigen::MatrixXd phBravaisVectors = std::get<0>(t4);
+  Eigen::VectorXd phDegeneracies = std::get<1>(t4);
 
   //--------------------------------------------------------
   // Start the Bloch to Wannier transformation
@@ -63,7 +71,7 @@ void ElPhBlochToWannierApp::run(Context &context) {
 }
 
 void ElPhBlochToWannierApp::checkRequirements(Context &context) {
-  (void) context;
+  (void)context;
   //  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   //  throwErrorIfUnset(context.getKMesh(), "kMesh");
   //  throwErrorIfUnset(context.getEpwFileName(), "EpwFileName");
@@ -98,8 +106,9 @@ Eigen::Tensor<std::complex<double>, 5> ElPhBlochToWannierApp::blochToWannier(
   int numModes = phBandStructure.getNumBands();
 
   std::array<Eigen::Index, 5> zeros;
-//  zeros.data() << 0,0,0,0,0;
-  for (auto& s: zeros) s = 0;
+  //  zeros.data() << 0,0,0,0,0;
+  for (auto &s : zeros)
+    s = 0;
 
   Eigen::Tensor<std::complex<double>, 5> g_full_tmp(
       numBands, numBands, numModes, numKPoints, numQPoints);
@@ -148,8 +157,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhBlochToWannierApp::blochToWannier(
   g_full.reshape(zeros);
 
   // Fourier transform on the electronic coordinates
-  Eigen::Tensor<std::complex<double>,5> g_mixed(numBands, numBands, numModes,
-                                                numElBravaisVectors, numQPoints);
+  Eigen::Tensor<std::complex<double>, 5> g_mixed(
+      numBands, numBands, numModes, numElBravaisVectors, numQPoints);
   g_mixed.setZero();
   for (int iR = 0; iR < numElBravaisVectors; iR++) {
     for (int ik = 0; ik < numKPoints; ik++) {
@@ -170,7 +179,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhBlochToWannierApp::blochToWannier(
   } // iq
   g_full_tmp.reshape(zeros);
 
-  Eigen::Tensor<std::complex<double>,5> g_wannier_tmp(
+  Eigen::Tensor<std::complex<double>, 5> g_wannier_tmp(
       numBands, numBands, numModes, numElBravaisVectors, numQPoints);
   g_wannier_tmp.setZero();
   for (int iq = 0; iq < numQPoints; iq++) {
@@ -192,7 +201,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhBlochToWannierApp::blochToWannier(
   }
   g_mixed.reshape(zeros);
 
-  Eigen::Tensor<std::complex<double>,5> g_wannier(
+  Eigen::Tensor<std::complex<double>, 5> g_wannier(
       numBands, numBands, numModes, numElBravaisVectors, numPhBravaisVectors);
   g_wannier.setZero();
   for (int iq = 0; iq < numQPoints; iq++) {
@@ -217,11 +226,134 @@ Eigen::Tensor<std::complex<double>, 5> ElPhBlochToWannierApp::blochToWannier(
   return g_wannier;
 }
 
-Eigen::MatrixXd ElPhBlochToWannierApp::getBravaisVectors(Crystal &crystal,
-                                   const Eigen::Vector3i &kMesh) {
-  Eigen::MatrixXd bravaisVectors(3,0);
-  bravaisVectors.setZero();
-  return bravaisVectors;
+Eigen::Tensor<std::complex<double>, 3>
+ElPhBlochToWannierApp::setupRotationMatrices(const std::string &wannierPrefix,
+                                             FullPoints &fullPoints) {
+  std::string line;
+
+  if (wannierPrefix.empty()) {
+    Error e("Must provide an input H0 file name");
+  }
+
+  std::string fileName = wannierPrefix + "_u.dat";
+
+  // open input file
+  std::ifstream infile(fileName);
+  if (not infile.is_open()) {
+    Error e("U-matrix file not found");
+  }
+
+  // Title line
+  std::getline(infile, line);
+
+  int numPoints, numWannier, tmpI;
+  infile >> numPoints >> numWannier >> tmpI;
+
+  assert(numPoints == fullPoints.getNumPoints());
+
+  Eigen::Tensor<std::complex<double>, 3> uMatrix(numWannier, numWannier,
+                                                 numPoints);
+  uMatrix.setZero();
+
+  for (int ik = 0; ik < numPoints; ik++) {
+    // empty line
+    std::getline(infile, line);
+
+    double x, y, z;
+    infile >> x >> y >> z;
+    Eigen::Vector3d thisK;
+    thisK << x, y, z; // vector in crystal coords
+
+    int ikk = fullPoints.getIndex(thisK);
+
+    double re, im;
+    for (int j = 0; j < numWannier; j++) {
+      for (int i = 0; i < numWannier; i++) {
+        infile >> re >> im;
+        uMatrix(i, j, ikk) = {re, im};
+      }
+    }
+  }
+  infile.close();
+
+  // ---------------------------------------------------------------------
+
+  // Now we get the disentanglement matrix
+
+  std::string fileNameDis = wannierPrefix + "_u_dis.dat";
+
+  // open input file
+  std::ifstream infileDis(fileNameDis);
+  if (not infileDis.is_open()) {
+    // if the disentanglement file is not found
+    // we assume there's no disentanglement and quit the function
+    return uMatrix;
+  } // else, we parse the file
+
+  // Title line
+  std::getline(infileDis, line);
+
+  int numPoints2, numWannier2, numBands;
+  infileDis >> numPoints >> numWannier2 >> numBands;
+
+  assert(numPoints2 == numPoints);
+  (void)numPoints2;
+  assert(numWannier2 == numWannier);
+  assert(numBands >= numWannier);
+
+  Eigen::Tensor<std::complex<double>, 3> uMatrixDis(numBands, numWannier,
+                                                    numPoints);
+  uMatrixDis.setZero();
+
+  for (int ik = 0; ik < numPoints; ik++) {
+    // empty line
+    std::getline(infileDis, line);
+
+    double x, y, z;
+    infileDis >> x >> y >> z;
+    Eigen::Vector3d thisK;
+    thisK << x, y, z; // vector in crystal coords
+
+    int ikk = fullPoints.getIndex(thisK);
+
+    double re, im;
+    for (int j = 0; j < numWannier; j++) {
+      for (int i = 0; i < numBands; i++) {
+        infileDis >> re >> im;
+        uMatrixDis(i, j, ikk) = {re, im};
+      }
+    }
+  }
+  infileDis.close();
+
+  // Now I multiply the two rotation matrices
+
+  Eigen::Tensor<std::complex<double>, 3> u(numBands, numWannier, numPoints);
+  u.setZero();
+  for (int ivec = 0; ivec < numPoints; ivec++) {
+
+    Eigen::MatrixXcd a(numBands, numWannier);
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numWannier; j++) {
+        a(i, j) = uMatrixDis(i, j, ivec);
+      }
+    }
+
+    Eigen::MatrixXcd b(numWannier, numWannier);
+    for (int i = 0; i < numWannier; i++) {
+      for (int j = 0; j < numWannier; j++) {
+        b(i, j) = uMatrix(i, j, ivec);
+      }
+    }
+
+    Eigen::MatrixXcd c = a * b; // matrix of shape (numBands, numWannier)
+
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numWannier; j++) {
+        u(i, j, ivec) = c(i, j);
+      }
+    }
+  }
+
+  return u;
 }
-
-
