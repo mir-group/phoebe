@@ -37,11 +37,11 @@ SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that
 template <>
 std::tuple<std::vector<double>, SerialMatrix<std::complex<double>>>
 SerialMatrix<std::complex<double>>::diagonalize() {
-  if (nRows != nCols) {
+  if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
-  std::vector<double> eigvals(nRows);
-  SerialMatrix<std::complex<double>> eigvecs(nRows, nCols);
+  std::vector<double> eigvals(numRows_);
+  SerialMatrix<std::complex<double>> eigvecs(numRows_, numCols_);
 
   // throw away variables
   SerialMatrix<std::complex<double>> temp;
@@ -49,13 +49,13 @@ SerialMatrix<std::complex<double>>::diagonalize() {
 
   char jobz = 'V';
   char uplo = 'U';
-  int lwork = std::max(1, 2 * nRows - 1) * 2;
+  int lwork = std::max(1, 2 * numRows_ - 1) * 2;
   std::vector<std::complex<double>> work(lwork);
-  int rworkSize = std::max(1, 3 * nRows - 2);
+  int rworkSize = std::max(1, 3 * numRows_ - 2);
   std::vector<double> rwork(rworkSize);
   int info;
 
-  zheev_(&jobz, &uplo, &nRows, temp.mat, &nRows, &eigvals[0], &work[0], &lwork,
+  zheev_(&jobz, &uplo, &numRows_, temp.mat, &numRows_, &eigvals[0], &work[0], &lwork,
          &rwork[0], &info);
 
   if (info != 0) {
@@ -67,20 +67,20 @@ SerialMatrix<std::complex<double>>::diagonalize() {
 // Diagonalize for real double symmetric matrix
 template <>
 std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diagonalize() {
-  if (nRows != nCols) {
+  if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
   }
-  std::vector<double> eigvals(nRows);
+  std::vector<double> eigvals(numRows_);
   SerialMatrix<double> eigvecs = *this;
   // throw away variables
 
   char jobz = 'V';
   char uplo = 'U';
-  int lwork = std::max(1, 3 * nRows - 1) * 2;
+  int lwork = std::max(1, 3 * numRows_ - 1) * 2;
   std::vector<double> work(lwork);
   int info;
 
-  dsyev_(&jobz, &uplo, &nRows, eigvecs.mat, &nRows, &eigvals[0], &work[0],
+  dsyev_(&jobz, &uplo, &numRows_, eigvecs.mat, &numRows_, &eigvals[0], &work[0],
          &lwork, &info);
 
   if (info != 0) {
@@ -93,10 +93,10 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
 template <>
 double SerialMatrix<double>::norm() {
   char norm = 'F';  // tells lapack to give us Frobenius norm
-  int nr = nRows;
-  int nc = nCols;
+  int nr = numRows_;
+  int nc = numCols_;
   // TODO: should we allocate *work?
-  std::vector<double> work(nRows);
+  std::vector<double> work(numRows_);
   return dlange_(&norm, &nr, &nc, this->mat, &nr, &work[0]);
 }
 
@@ -104,8 +104,8 @@ double SerialMatrix<double>::norm() {
 template <>
 double SerialMatrix<std::complex<double>>::norm() {
   char norm = 'F';  // tells lapack to give us Frobenius norm
-  int nr = nRows;
-  int nc = nCols;
-  std::vector<double> work(nRows);
+  int nr = numRows_;
+  int nc = numCols_;
+  std::vector<double> work(numRows_);
   return zlange_(&norm, &nr, &nc, this->mat, &nr, &work[0]);
 }

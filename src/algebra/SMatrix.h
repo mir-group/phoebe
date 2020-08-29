@@ -25,8 +25,8 @@
 template <typename T>
 class SerialMatrix {
   /// Class variables
-  int nRows;
-  int nCols;
+  int numRows_;
+  int numCols_;
   int numElements_;
 
   T* mat = nullptr;  // pointer to the internal array structure.
@@ -39,7 +39,7 @@ class SerialMatrix {
   /** Indicates that the matrix A is not modified: transN(A) = A
    */
   static const char transN = 'N';
-  /** Indicates that the matrix A is taken as its transpose: transT(A) = A^T
+  /** Indicat_es that the matrix A is taken as its transpose: transT(A) = A^T
    */
   static const char transT = 'T';
   /** Indicates that the matrix A is taken as its adjoint: transC(A) = A^+
@@ -124,7 +124,7 @@ class SerialMatrix {
   /** Matrix-matrix addition.
    */
   SerialMatrix<T> operator+=(const SerialMatrix<T>& m1) {
-    if(nRows != m1.rows() || nCols != m1.cols()) {
+    if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
       Error e("Cannot add matrices of different sizes.");
     } 
     for (int s = 0; s < size(); s++) mat[s] += m1.mat[s];
@@ -134,7 +134,7 @@ class SerialMatrix {
   /** Matrix-matrix subtraction.
    */
   SerialMatrix<T> operator-=(const SerialMatrix<T>& m1) {
-    if(nRows != m1.rows() || nCols != m1.cols()) {
+    if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
       Error e("Cannot subtract matrices of different sizes.");
     } 
     for (int s = 0; s < size(); s++) mat[s] -= m1.mat[s];
@@ -192,10 +192,10 @@ SerialMatrix<T>::SerialMatrix(const int& numRows, const int& numCols,
                   const int& numBlocksRows, const int& numBlocksCols) {
   (void) numBlocksRows;
   (void) numBlocksCols;
-  nRows = numRows;
-  nCols = numCols;
-  numElements_ = nRows * nCols;
-  mat = new T[nRows * nCols];
+  numRows_ = numRows;
+  numCols_ = numCols;
+  numElements_ = numRows_ * numCols_;
+  mat = new T[numRows_ * numCols_];
   for (int i = 0; i < numElements_; i++) mat[i] = 0;  // fill with zeroes
   assert(mat != nullptr);  // Memory could not be allocated, end program
 }
@@ -204,16 +204,16 @@ SerialMatrix<T>::SerialMatrix(const int& numRows, const int& numCols,
 template <typename T>
 SerialMatrix<T>::SerialMatrix() {
   mat = nullptr;
-  nRows = 0;
-  nCols = 0;
+  numRows_ = 0;
+  numCols_ = 0;
   numElements_ = 0;
 }
 
 // copy constructor
 template <typename T>
 SerialMatrix<T>::SerialMatrix(const SerialMatrix<T>& that) {
-  nRows = that.nRows;
-  nCols = that.nCols;
+  numRows_ = that.numRows_;
+  numCols_ = that.numCols_;
   numElements_ = that.numElements_;
   if (mat != nullptr) {
     delete[] mat;
@@ -229,8 +229,8 @@ SerialMatrix<T>::SerialMatrix(const SerialMatrix<T>& that) {
 template <typename T>
 SerialMatrix<T>& SerialMatrix<T>::operator=(const SerialMatrix<T>& that) {
   if (this != &that) {
-    nRows = that.nRows;
-    nCols = that.nCols;
+    numRows_ = that.numRows_;
+    numCols_ = that.numCols_;
     numElements_ = that.numElements_;
     // matrix allocation
     if (mat != nullptr) {
@@ -254,19 +254,19 @@ SerialMatrix<T>::~SerialMatrix() {
 /* ------------- Very basic operations -------------- */
 template <typename T>
 long SerialMatrix<T>::rows() const {
-  return nRows;
+  return numRows_;
 }
 template <typename T>
 long SerialMatrix<T>::localRows() const {
-  return nRows;
+  return numRows_;
 }
 template <typename T>
 long SerialMatrix<T>::cols() const {
-  return nCols;
+  return numCols_;
 }
 template <typename T>
 long SerialMatrix<T>::localCols() const {
-  return nCols;
+  return numCols_;
 }
 template <typename T>
 long SerialMatrix<T>::size() const {
@@ -280,7 +280,7 @@ T* SerialMatrix<T>::data() const{
 // Get/set element
 template <typename T>
 T& SerialMatrix<T>::operator()(const int row, const int col) {
-  if(row >= nRows || col >= nCols || row < 0 || col < 0) {
+  if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
     Error e("Attempted to reference a matrix element out of bounds.");
   } 
   return mat[global2Local(row, col)];
@@ -288,7 +288,7 @@ T& SerialMatrix<T>::operator()(const int row, const int col) {
 
 template <typename T>
 const T& SerialMatrix<T>::operator()(const int row, const int col) const {
-  if(row >= nRows || col >= nCols || row < 0 || col < 0) {
+  if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
     Error e("Attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
@@ -305,15 +305,15 @@ template <typename T>
 std::tuple<long, long> SerialMatrix<T>::local2Global(const long& k) {
   // we convert this combined local index k into row / col indeces
   // k = j * nRows + i
-  int j = k / nRows;
-  int i = k - j * nRows;
+  int j = k / numRows_;
+  int i = k - j * numRows_;
   return {i, j};
 }
 
 // Indexing to set up the matrix in col major format
 template <typename T>
 long SerialMatrix<T>::global2Local(const long& row, const long& col) {
-  return nRows * col + row;
+  return numRows_ * col + row;
 }
 
 template <typename T>
@@ -329,9 +329,9 @@ std::vector<std::tuple<long, long>> SerialMatrix<T>::getAllLocalStates() {
 // General unary negation
 template <typename T>
 SerialMatrix<T> SerialMatrix<T>::operator-() const {
-  SerialMatrix<T> c(nRows, nCols);
-  for (int row = 0; row < nRows; row++) {
-    for (int col = 0; col < nCols; col++) c(row, col) = -(*this)(row, col);
+  SerialMatrix<T> c(numRows_, numCols_);
+  for (int row = 0; row < numRows_; row++) {
+    for (int col = 0; col < numCols_; col++) c(row, col) = -(*this)(row, col);
   }
   return c;
 }
@@ -339,17 +339,17 @@ SerialMatrix<T> SerialMatrix<T>::operator-() const {
 // Sets the matrix to the idenity matrix
 template <typename T>
 void SerialMatrix<T>::eye() {
-  if(nRows != nCols) { 
+  if(numRows_ != numCols_) { 
     Error e("Cannot build an identity matrix with non-square matrix");
   } 
-  for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
+  for (int row = 0; row < numRows_; row++) (*this)(row, row) = (T)1.0;
 }
 
 template <typename T>
 double SerialMatrix<T>::norm() {
   T sumSq = 0;
-  for (int row = 0; row < nRows; row++) {
-    for (int col = 0; col < nCols; col++) {
+  for (int row = 0; row < numRows_; row++) {
+    for (int col = 0; col < numCols_; col++) {
       sumSq += ((*this)(row, col) * (*this)(row, col));
     }
   }

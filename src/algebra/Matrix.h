@@ -130,16 +130,16 @@ class Matrix {
   /** Matrix-scalar multiplication.
    */
   Matrix<T> operator*=(const T& that) {
-    if(isDistributed) (*pmat) *= T;
-    else (*mat) *= T;
+    if(isDistributed) (*pmat) *= that;
+    else (*mat) *= that;
     return *this;
   }
 
   /** Matrix-scalar division.
    */
   Matrix<T> operator/=(const T& that) {
-    if(isDistributed) (*pmat) /= T;
-    else (*mat) /= T;
+    if(isDistributed) (*pmat) /= that;
+    else (*mat) /= that;
     return *this;
   }
 
