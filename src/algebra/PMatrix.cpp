@@ -13,6 +13,9 @@ ParallelMatrix<double> ParallelMatrix<double>::prod(
     const char& trans2) {
   ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
                                 numBlocksCols_);
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.")
+  } 
 
   int m;
   if (trans1 == transN) {
@@ -53,7 +56,9 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
     const char& trans2) {
   ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
                                               numBlocksRows_, numBlocksCols_);
-
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.")
+  }
   int m;
   if (trans1 == transN) {
     m = numRows_;

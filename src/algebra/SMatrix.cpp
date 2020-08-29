@@ -5,7 +5,9 @@ template <>
 SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
     const SerialMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
-  assert(cols() == that.rows());
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.")
+  } 
   SerialMatrix<std::complex<double>> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   std::complex<double> alpha(1.0, 0.0);
@@ -19,7 +21,9 @@ SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
 template <>
 SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that,
                                     const char& trans1, const char& trans2) {
-  assert(cols() == that.rows());
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.") 
+  } 
   SerialMatrix<double> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   double alpha = 1.0;
@@ -33,8 +37,9 @@ SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that
 template <>
 std::tuple<std::vector<double>, SerialMatrix<std::complex<double>>>
 SerialMatrix<std::complex<double>>::diagonalize() {
-  assert(nRows == nCols);  // needs to be square
-
+  if (nRows != nCols) {
+    Error e("Can not diagonalize non-square matrix");
+  }
   std::vector<double> eigvals(nRows);
   SerialMatrix<std::complex<double>> eigvecs(nRows, nCols);
 
@@ -53,16 +58,18 @@ SerialMatrix<std::complex<double>>::diagonalize() {
   zheev_(&jobz, &uplo, &nRows, temp.mat, &nRows, &eigvals[0], &work[0], &lwork,
          &rwork[0], &info);
 
-  assert(info == 0);  // if it doesn't =0, there was an error. Different errors
-                      // for info< or > 0.
-
+  if (info != 0) {
+    Error e("ZHEEV failed in SMatrix.", info);
+  }
   return {eigvals, eigvecs};
 }
 
 // Diagonalize for real double symmetric matrix
 template <>
 std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diagonalize() {
-  assert(nRows == nCols);  // needs to be square
+  if (nRows != nCols) {
+    Error e("Can not diagonalize non-square matrix");
+  }
   std::vector<double> eigvals(nRows);
   SerialMatrix<double> eigvecs = *this;
   // throw away variables
@@ -76,7 +83,9 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   dsyev_(&jobz, &uplo, &nRows, eigvecs.mat, &nRows, &eigvals[0], &work[0],
          &lwork, &info);
 
-  assert(info == 0);  // if it doesn't =0, there was an error.
+  if (info != 0) {
+    Error e("DSYEV failed in SMatrix.", info);
+  }
   return {eigvals, eigvecs};
 }
 

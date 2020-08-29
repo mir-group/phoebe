@@ -123,7 +123,9 @@ class SerialMatrix {
   /** Matrix-matrix addition.
    */
   SerialMatrix<T> operator+=(const SerialMatrix<T>& m1) {
-    assert((m1.rows() == nRows) && (m1.cols() == nCols));
+    if(nRows != m1.rows() || nCols != m1.cols()) {
+      Error e("Cannot add matrices of different sizes.");
+    } 
     for (int s = 0; s < size(); s++) mat[s] += m1.mat[s];
     return *this;
   }
@@ -131,7 +133,9 @@ class SerialMatrix {
   /** Matrix-matrix subtraction.
    */
   SerialMatrix<T> operator-=(const SerialMatrix<T>& m1) {
-    assert((m1.rows() == nRows) && (m1.cols() == nCols));
+    if(nRows != m1.rows() || nCols != m1.cols()) {
+      Error e("Cannot subtract matrices of different sizes.");
+    } 
     for (int s = 0; s < size(); s++) mat[s] -= m1.mat[s];
     return *this;
   }
@@ -275,11 +279,17 @@ T* SerialMatrix<T>::data() const{
 // Get/set element
 template <typename T>
 T& SerialMatrix<T>::operator()(const int row, const int col) {
+  if(row >= nRows || col >= nCols || row < 0 || col < 0) {
+    Error e("Attempted to reference a matrix element out of bounds.");
+  } 
   return mat[global2Local(row, col)];
 }
 
 template <typename T>
 const T& SerialMatrix<T>::operator()(const int row, const int col) const {
+  if(row >= nRows || col >= nCols || row < 0 || col < 0) {
+    Error e("Attempted to reference a matrix element out of bounds.");
+  }
   return mat[global2Local(row, col)];
 }
 
@@ -328,7 +338,9 @@ SerialMatrix<T> SerialMatrix<T>::operator-() const {
 // Sets the matrix to the idenity matrix
 template <typename T>
 void SerialMatrix<T>::eye() {
-  assert(nRows == nCols);
+  if(nRows != nCols) { 
+    Error e("Cannot build an identity matrix with non-square matrix");
+  } 
   for (int row = 0; row < nRows; row++) (*this)(row, row) = (T)1.0;
 }
 
