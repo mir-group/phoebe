@@ -100,9 +100,6 @@ class ParallelMatrix {
    */
   bool indecesAreLocal(const int& row, const int& col);
 
-  /** Returns a pointer to the interal data structure. */      
-  T* data() const;
-
   /** Find global number of rows
    */
   long rows() const;
@@ -344,11 +341,6 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
-}
-
-template <typename T>
-T* ParallelMatrix<T>::data() const {
-  return mat;
 }
 
 template <typename T>

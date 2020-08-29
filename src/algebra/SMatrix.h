@@ -98,9 +98,6 @@ class SerialMatrix {
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Returns a pointer to the raw matrix data buffer 
-  */ 
-  T* data() const;
   /** Get and set operator
    */
   T& operator()(const int row, const int col);
@@ -272,10 +269,6 @@ long SerialMatrix<T>::localCols() const {
 template <typename T>
 long SerialMatrix<T>::size() const {
   return numElements_;
-}
-template <typename T>
-T* SerialMatrix<T>::data() const{ 
-  return mat; 
 }
 
 // Get/set element

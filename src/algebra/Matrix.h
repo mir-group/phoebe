@@ -86,8 +86,6 @@ class Matrix {
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Returns a pointer to the raw matrix data buffer */ 
-  T* data() const;
 
   /** Get and set operator
    */
@@ -254,11 +252,6 @@ template <typename T>
 long Matrix<T>::size() const {
   if(isDistributed) return pmat->size();
   else{ return mat->size(); }
-}
-template <typename T>
-T* Matrix<T>::data() const{ 
-  if(isDistributed) return pmat->data();
-  else{ return mat->data(); }
 }
 
 // Get/set element
