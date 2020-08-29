@@ -114,30 +114,32 @@ class Matrix {
   /** Matrix-matrix addition.
    */
   Matrix<T> operator+=(const Matrix<T>& m1) {
-    assert((m1.rows() == nRows) && (m1.cols() == nCols));
-    for (int s = 0; s < size(); s++) mat[s] += m1.mat[s];
+    if(isDistributed) (*pmat) += (*m1.pmat); 
+    else (*mat) += (*m1.mat);   
     return *this;
   }
 
   /** Matrix-matrix subtraction.
    */
   Matrix<T> operator-=(const Matrix<T>& m1) {
-    assert((m1.rows() == nRows) && (m1.cols() == nCols));
-    for (int s = 0; s < size(); s++) mat[s] -= m1.mat[s];
+    if(isDistributed) (*pmat) -= (*m1.pmat);
+    else (*mat) -= (*m1.mat);
     return *this;
   }
 
   /** Matrix-scalar multiplication.
    */
   Matrix<T> operator*=(const T& that) {
-    for (int s = 0; s < size(); s++) mat[s] *= that;
+    if(isDistributed) (*pmat) *= T;
+    else (*mat) *= T;
     return *this;
   }
 
   /** Matrix-scalar division.
    */
   Matrix<T> operator/=(const T& that) {
-    for (int s = 0; s < size(); s++) mat[s] /= that;
+    if(isDistributed) (*pmat) /= T;
+    else (*mat) /= T;
     return *this;
   }
 
