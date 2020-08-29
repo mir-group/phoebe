@@ -11,6 +11,7 @@
 #include <type_traits>
 
 #include "Blas.h"
+#include "exceptions.h"
 
 /** Class for managing a (serial) matrix stored in memory.
  *

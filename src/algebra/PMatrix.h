@@ -477,7 +477,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
-  if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
+  if(numRows_ != that.rows() || numCols_ != that.cols()) {
     Error e("Cannot adds matrices of different sizes.");
   }
   for (long i = 0; i < numLocalElements_; i++) {
@@ -488,7 +488,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) 
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
-  if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
+  if(numRows_ != that.rows() || numCols_ != that.cols()) {
     Error e("Cannot subtract matrices of different sizes.");
   }
   for (long i = 0; i < numLocalElements_; i++) {

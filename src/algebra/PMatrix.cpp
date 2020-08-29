@@ -11,12 +11,12 @@ template <>
 ParallelMatrix<double> ParallelMatrix<double>::prod(
     const ParallelMatrix<double>& that, const char& trans1,
     const char& trans2) {
+
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+  } 
   ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
                                 numBlocksCols_);
-  if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.")
-  } 
-
   int m;
   if (trans1 == transN) {
     m = numRows_;
@@ -57,7 +57,7 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
   ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
                                               numBlocksRows_, numBlocksCols_);
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.")
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows."); 
   }
   int m;
   if (trans1 == transN) {
