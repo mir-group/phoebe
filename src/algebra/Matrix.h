@@ -29,11 +29,11 @@ class Matrix {
 
  /** Underlying ParallelMatrix instantiated only if isDistributed = true 
  */
- ParallelMatrix<T> pmat;
+ ParallelMatrix<T>* pmat;
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
  */ 
- SerialMatrix<T> mat; 
+ SerialMatrix<T>* mat; 
 
  public:
   /** Default Matrix constructor.
@@ -45,7 +45,7 @@ class Matrix {
    * put here for mirroring the interface of ParallelMatrix.
    */
   Matrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
-         const int& numBlocksCols = 0);
+         const int& numBlocksCols = 0, bool isDistributed_ = false);
 
   /** Default constructor
    */
@@ -108,8 +108,8 @@ class Matrix {
    * @param trans1: controls transposition of "that" matrix
    * @return result: a ParallelMatrix object.
    */
-  Matrix<T> prod(const Matrix<T>& that, const char& trans1 = transN,
-                 const char& trans2 = transN);
+  Matrix<T> prod(const Matrix<T>& that, const char& trans1,
+                 const char& trans2);
 
   /** Matrix-matrix addition.
    */
@@ -176,24 +176,20 @@ class Matrix {
 // A default constructor to build a dense matrix of zeros to be filled
 template <typename T>
 Matrix<T>::Matrix(const int& numRows, const int& numCols,
-                  const int& numBlocksRows, const int& numBlocksCols, bool isDistributed_ = false) {
+                  const int& numBlocksRows, const int& numBlocksCols, bool isDistributed_) {
 
   isDistributed = isDistributed_; // default to false if no value supplied 
   if(isDistributed){ 
     pmat = new ParallelMatrix<T>(numRows,numCols,numBlocksRows,numBlocksCols); 
-    mat = nullptr; 
   } 
   else { 
     mat = new SerialMatrix<T>(numRows,numCols); 
-    pmat = nullptr; 
   } 
 }
 
 // default constructor
 template <typename T>
 Matrix<T>::Matrix() {
-  pmat = nullptr;
-  mat = nullptr; 
   isDistributed = false; 
 }
 
@@ -228,78 +224,77 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 // destructor
 template <typename T>
 Matrix<T>::~Matrix() {
-  delete[] mat;
-  delete[] pmat; 
+  if(isDistributed) delete pmat;
+  else delete mat; 
 }
 
 /* ------------- Very basic operations -------------- */
 template <typename T>
 long Matrix<T>::rows() const {
-  if(isDistributed) return pmat.rows();
-  else{ return mat.rows(); } 
+  if(isDistributed) return pmat->rows();
+  else{ return mat->rows(); } 
 }
 template <typename T>
 long Matrix<T>::localRows() const {
-  if(isDistributed) return pmat.localRows();
-  else{ return mat.rows(); }
+  if(isDistributed) return pmat->localRows();
+  else{ return mat->rows(); }
 }
-template <typename T>
-long Matrix<T>::cols() const {
-  if(isDistributed) return pmat.cols();
-  else{ return mat.cols(); }
+template <typename T> long Matrix<T>::cols() const {
+  if(isDistributed) return pmat->cols();
+  else{ return mat->cols(); }
 }
 template <typename T>
 long Matrix<T>::localCols() const {
-  if(isDistributed) return pmat.localCols();
-  else{ return mat.cols(); }
+  if(isDistributed) return pmat->localCols();
+  else{ return mat->cols(); }
 }
 template <typename T>
 long Matrix<T>::size() const {
-  if(isDistributed) return pmat.size();
-  else{ return mat.size(); }
+  if(isDistributed) return pmat->size();
+  else{ return mat->size(); }
 }
 template <typename T>
 T* Matrix<T>::data() const{ 
-  if(isDistributed) return pmat.data();
-  else{ return mat.data(); }
+  if(isDistributed) return pmat->data();
+  else{ return mat->data(); }
 }
 
 // Get/set element
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
-  if(isDistributed) return pmat(row,col);
-  else { return mat(row,col) }; 
+  if(isDistributed) return (*pmat)(row,col);
+  else { return (*mat)(row,col); }
 }
 
 template <typename T>
 const T& Matrix<T>::operator()(const int row, const int col) const {
-  if(isDistributed) return pmat(row,col);
-  else{ return mat(row,col); }
+  if(isDistributed) return (*pmat)(row,col);
+  else{ return (*mat)(row,col); }
 }
 
 template <typename T>
 bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
-  if(isDistributed) return pmat.indecesAreLocal(row,col);
+  if(isDistributed) return pmat->indecesAreLocal(row,col);
   else{ return true; } 
 }
 
 template <typename T>
 std::tuple<long, long> Matrix<T>::local2Global(const long& k) {
-  if(isDistributed) return pmat.local2Global(k);
-  else{ return mat.local2Global(k); }
+  if(isDistributed) return pmat->local2Global(k);
+  else{ return mat->local2Global(k); }
 }
 
 // Indexing to set up the matrix in col major format
 template <typename T>
 long Matrix<T>::global2Local(const long& row, const long& col) {
-  if(isDistributed) return pmat.global2Local(row,col);
-  else{ return mat.global2Local(row,col); }
+  if(isDistributed) return pmat->global2Local(row,col);
+  else{ return mat->global2Local(row,col); }
 }
 
 template <typename T>
 std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
-  if(isDistributed) return pmat.getAllLocalStates();
-  else{ return mat.getAllLocalStates(); }
+  if(isDistributed) return pmat->getAllLocalStates();
+  else{ return mat->getAllLocalStates(); }
 }
 
 // General unary negation
@@ -314,26 +309,26 @@ Matrix<T> Matrix<T>::operator-() const {
 // Sets the matrix to the idenity matrix
 template <typename T>
 void Matrix<T>::eye() {
-  if(isDistributed) pmat.eye();
-  else{ mat.eye(); }
+  if(isDistributed) pmat->eye();
+  else{ mat->eye(); }
 }
 
 template <typename T>
 double Matrix<T>::norm() {
-  if(isDistributed) return pmat.norm();
-  else{ return mat.norm(); }
+  if(isDistributed) return pmat->norm();
+  else{ return mat->norm(); }
 }
 
 template <typename T>
 double Matrix<T>::squaredNorm() {
-  if(isDistributed) return pmat.squaredNorm();
-  else{ return mat.squaredNorm(); }
+  if(isDistributed) return pmat->squaredNorm();
+  else{ return mat->squaredNorm(); }
 }
 
 template <typename T>
 T Matrix<T>::dot(const Matrix<T>& that) {
-  if(isDistributed) return pmat.dot(that.pmat);
-  else{ return mat.dot(that.mat); }
+  if(isDistributed) return pmat->dot(that.pmat);
+  else{ return mat->dot(that.mat); }
 }
 
 //TODO add interface for diagonalize

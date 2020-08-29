@@ -1,5 +1,5 @@
-#ifndef MATRIX_H
-#define MATRIX_H
+#ifndef SMATRIX_H
+#define SMATRIX_H
 
 // include statements
 #include <assert.h>
