@@ -86,23 +86,24 @@ class SerialMatrix {
   /** Find global number of rows
    */
   long rows() const;
-  /** Return local number of rows */
+  /** Return local number of rows 
+  */
   long localRows() const;
   /** Find global number of columns
    */
   long cols() const;
-  /** Return local number of rows */
+  /** Return local number of rows 
+  */
   long localCols() const;
   /** Find global number of matrix elements
    */
   long size() const;
-  /** Returns a pointer to the raw matrix data buffer */ 
+  /** Returns a pointer to the raw matrix data buffer 
+  */ 
   T* data() const;
-
   /** Get and set operator
    */
   T& operator()(const int row, const int col);
-
   /** Const get and set operator
    */
   const T& operator()(const int row, const int col) const;
@@ -329,11 +330,11 @@ std::vector<std::tuple<long, long>> SerialMatrix<T>::getAllLocalStates() {
 // General unary negation
 template <typename T>
 SerialMatrix<T> SerialMatrix<T>::operator-() const {
-  SerialMatrix<T> c(numRows_, numCols_);
+  SerialMatrix<T> ret(numRows_, numCols_);
   for (int row = 0; row < numRows_; row++) {
-    for (int col = 0; col < numCols_; col++) c(row, col) = -(*this)(row, col);
+    for (int col = 0; col < numCols_; col++) ret(row, col) = -(*this)(row, col);
   }
-  return c;
+  return ret;
 }
 
 // Sets the matrix to the idenity matrix
