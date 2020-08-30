@@ -299,6 +299,7 @@ template <typename T>
 std::tuple<long, long> SerialMatrix<T>::local2Global(const long& k) {
   // we convert this combined local index k into row / col indeces
   // k = j * nRows + i
+  if(numRows_ == 0) Error e("attempted to div by zero in l2g"); 
   int j = k / numRows_;
   int i = k - j * numRows_;
   return {i, j};

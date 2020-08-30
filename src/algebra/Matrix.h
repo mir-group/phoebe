@@ -29,11 +29,11 @@ class Matrix {
 
  /** Underlying ParallelMatrix instantiated only if isDistributed = true 
  */
- ParallelMatrix<T>* pmat;
+ ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
  */ 
- SerialMatrix<T>* mat; 
+ SerialMatrix<T>* mat = new SerialMatrix<T>(); 
 
  public:
   /** Default Matrix constructor.
@@ -191,31 +191,34 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 template <typename T>
 Matrix<T>::Matrix() {
   isDistributed = false; 
+  pmat = new ParallelMatrix<T>();
+  mat = new SerialMatrix<T>(); 
 }
 
-// copy constructor  // TODO is this the right way to do this? 
+// copy constructor  // TODO COPY is this the right way to do this? 
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
   isDistributed = that.isDistributed;
+
   // call SMatrix or PMatrix copy constructor 
   if(isDistributed) { 
-    pmat = that.pmat;
+    (*pmat) = (*that.pmat);
   } 
-  else { 
-    mat = that.mat; 
-  }  
+  else {
+    (*mat) = (*that.mat);
+  } 
 }
-
+// TODO COPY is this the right way to do this? 
 template <typename T>
 Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
   if (this != &that) {
     isDistributed = that.isDistributed;
     // call SMatrix or PMatrix copy constructors  
     if(isDistributed) {
-      pmat = that.pmat; 
+      (*pmat) = (*that.pmat); 
     } 
-    else { 
-      mat = that.mat; 
+    else {
+      (*mat) = (*that.mat); 
     } 
   }
   return *this;
@@ -325,8 +328,5 @@ T Matrix<T>::dot(const Matrix<T>& that) {
   if(isDistributed) return pmat->dot(that.pmat);
   else{ return mat->dot(that.mat); }
 }
-
-//TODO add interface for diagonalize
-//TODO add interface for prod
 
 #endif  // MATRIX_H
