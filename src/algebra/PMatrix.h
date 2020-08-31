@@ -7,11 +7,13 @@
 #include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
+#include "SMatrix.h" 
 
+// fall back to SerialMatrix if no MPI
 #ifndef MPI_AVAIL
-// alias template
+//alias template
 template<typename T>
-using ParallelMatrix = Matrix<T>;
+using ParallelMatrix = SerialMatrix<T>;
 #else
 
 #include <utility>
@@ -248,6 +250,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   int lddA =
       numLocalRows_ > 1 ? numLocalRows_ : 1;  // if mpA>1, ldda=mpA, else 1
   int blacsContext = mpi->getBlacsContext();
+  std::cout << "nlr nlc bsr bsc " << numLocalRows_ << " " << numLocalCols_ << " " << blockSizeRows_ << " " << blockSizeCols_ << " " << std::endl;
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext, &lddA, &info);
   if (info != 0) {
