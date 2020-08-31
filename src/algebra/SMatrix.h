@@ -2,13 +2,13 @@
 #define SMATRIX_H
 
 // include statements
-#include <assert.h>
+//#include <assert.h>
 #include <tuple>
 #include <vector>
-#include <cmath>
-#include <complex>
-#include <iostream>
-#include <type_traits>
+//#include <cmath>
+//#include <complex>
+//#include <iostream>
+//#include <type_traits>
 
 #include "Blas.h"
 #include "exceptions.h"
