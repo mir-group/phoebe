@@ -1,0 +1,719 @@
+diff --git PHonon/PH/elphon.f90 PHonon/PH/elphon.f90
+index 02b465d8e..e316c0bc7 100644
+--- PHonon/PH/elphon.f90
++++ PHonon/PH/elphon.f90
+@@ -1529,6 +1529,9 @@ SUBROUTINE elphfil_epa(iq)
+      CLOSE (unit = iuelph, status = 'keep')
+   ENDIF
+   CALL cryst_to_cart(nkstot, xk_collect, bg, 1)
++
++  call elphfil_phoebe()
++  
+   DEALLOCATE(xk_collect)
+   DEALLOCATE(wk_collect)
+   DEALLOCATE(et_collect)
+@@ -1540,6 +1543,362 @@ SUBROUTINE elphfil_epa(iq)
+ 
+   RETURN
+ 
++contains
++  
++  subroutine elphfil_phoebe()
++    implicit none
++    logical, save :: first = .true.
++    integer :: nk, nq, iqq, iq_phonon, ik_phonon, iq_rotated, ik_rotated, &
++         isym, iq_star, iq_full, iksq, i, j, n_star, unit_phoebe
++    integer, allocatable :: k_equiv(:), q_equiv(:), wk(:), wq(:)
++    real(dp), allocatable :: kgrid_full(:,:), qgrid_full(:,:), q_star(:,:), energies_unfolded(:,:)
++    complex(dp), allocatable :: gq_coupling(:,:,:,:,:)
++    real(dp) :: k_rotated(3), q_rotated(3), q_phonon(3), k_phonon(3), qdiff(3)
++    character(len=4) :: iq_char
++    character(len=40) :: file_phoebe
++    logical :: q_in_the_list, k_in_the_list
++
++    if ( .not. ionode ) return
++    
++    if ( first ) then
++      nk = nk1 * nk2 * nk3
++      nq = nq1 * nq2 * nq3
++      allocate(kgrid_full(3,nk))
++      allocate(qgrid_full(3,nq))
++      allocate(k_equiv(nk))
++      allocate(q_equiv(nq))
++      allocate(wk(nk))
++      allocate(wq(nq))
++      call find_irreducible_grid(nk1, nk2, nk3, k1, k2, k3, kgrid_full, k_equiv, wk)
++      call find_irreducible_grid(nq1, nq2, nq3, 0, 0, 0, qgrid_full, q_equiv, wq)
++
++      ! check commensurability of grids
++      print*, nk1, nk2, nk3, nq1, nq2, nq3
++      if ( nk1 >= nq1 ) then
++        if ( mod(nk1,nq1) /= 0 ) call errore("phoebe", "k and q grids are incommensurate", 1)
++      else
++        call errore("phoebe", "q grid larger than k grid", 1)
++      end if
++      if ( nk2 >= nq2 ) then
++        if ( mod(nk2,nq2) /= 0 ) call errore("phoebe", "k and q grids are incommensurate", 1)
++      else
++        call errore("phoebe", "q grid larger than k grid", 1)
++      end if
++      if ( nk3 >= nq3 ) then
++        if ( mod(nk3,nq3) /= 0 ) call errore("phoebe", "k and q grids are incommensurate", 1)
++      else
++        call errore("phoebe", "q grid larger than k grid", 1)
++      end if
++
++      if ( k1 /= 0 .or. k2 /= 0 .or. k3 /= 0 ) then
++        call errore("phoebe", "k grid must not use Gamma offset", 1)
++      end if
++      
++    end if
++    
++
++    if ( iq == 1 ) then
++
++      ! Note: this unfolding doesn't work with spin
++      allocate(energies_unfolded(nbnd,nk))
++      energies_unfolded = 0.
++      do i = 1,nkstot
++        k_phonon = xk_collect(:,i) ! wavevector used in the phonon code
++        CALL cryst_to_cart(1, k_phonon, at, -1) ! fold to crystal coords
++        iq_full = get_point_index(k_phonon, nk1, nk2, nk3, k1, k2, k3, .false.)
++        ! iq_full is the index of the vector in xk_collect inside my list
++        do j = 1,nk
++          if ( k_equiv(j) == iq_full ) then
++            energies_unfolded(:,j) = et_collect(:,i)
++          end if
++        end do
++      end do
++        
++      unit_phoebe = find_free_unit()
++      file_phoebe = trim(prefix) // ".phoebe.0000.dat"
++      open(unit = unit_phoebe, file = TRIM(file_phoebe), form = 'formatted', &
++           access = 'sequential', status = 'replace', iostat = ios)
++      write(unit_phoebe,*) "Phoebe-QE", sdate, stime
++      write(unit_phoebe,*) nbnd, nelec, nspin
++      write(unit_phoebe,*) nq1, nq2, nq3, nk1, nk2, nk3
++      ! Crystal
++      write(unit_phoebe,*)  alat, nat
++      write(unit_phoebe,*) ((at(ii, jj), ii = 1, 3), jj = 1, 3)
++      write(unit_phoebe,*) ((bg(ii, jj), ii = 1, 3), jj = 1, 3)
++      write(unit_phoebe,*) (ityp(ii), ii = 1, nat)
++      do jj = 1,nat
++        write(unit_phoebe,*) (tau(ii, jj), ii = 1, 3)
++      end do
++      ! all q-points
++      write(unit_phoebe,*) nq
++      do jj = 1,nq
++        write(unit_phoebe,*) (qgrid_full(ii, jj), ii = 1, 3)
++      end do
++      ! all k-points
++      write(unit_phoebe,*) nk
++      do jj = 1,nk
++        write(unit_phoebe,*) (kgrid_full(ii, jj), ii = 1, 3)
++      end do
++      ! write energies at all k points
++      do jj = 1,nk
++        write(unit_phoebe,*) (energies_unfolded(ii, jj), ii = 1, nbnd)
++      end do
++      close(unit_phoebe)
++    end if
++    !
++    !------------------------------------------------------------------------------
++    !
++    q_phonon = x_q(:,iq)    
++    CALL cryst_to_cart(1, q_phonon, at, -1)
++    
++    ! iq_full is the index of q (from ph.x) in my grid of q points
++    iq_full = get_point_index(q_phonon, nq1, nq2, nq3, 0, 0, 0, .false.)
++    
++    ! check q point in grid
++    if ( q_equiv(iq_full) /= iq_full ) then
++      call errore("phoebe", "qpoint not ordered as expected 1", 1)
++    end if
++
++    qdiff(:) = q_phonon(:) -  qgrid_full(:,iq_full)
++    qdiff = qdiff - nint(qdiff)
++
++    if ( sum(qdiff**2) > 1.0d-5 ) then
++      call errore("phoebe", "qpoint grid not ordered as expected 2", 1)
++    end if
++    
++    ! number of equivalent q points in this star
++    n_star = 0
++    do iqq = 1,nq
++      if ( q_equiv(iqq) == iq_full ) then
++        n_star = n_star + 1
++      end if
++    end do
++    allocate(q_star(3,n_star))
++    j = 0
++    do iqq = 1,nq
++      if ( q_equiv(iqq) == iq_full ) then
++        j = j + 1
++        q_star(:,j) = qgrid_full(:,iqq)
++      end if
++    end do
++    
++    allocate(gq_coupling(nbnd, nbnd, nk, nmodes, n_star))
++    gq_coupling = cmplx(0., 0., kind=dp)
++    
++    do iksq = 1,nksqtot ! loop over the k's computed by phonon.x
++      ! (xk_collect(3, nkstot) k point coordinates
++      ! ikks_collect(nksqtot) ! indeces of k vectors in the loop nksqtot
++      ik_phonon = ikks_collect(iksq) ! index of k in the xk_collect list, used by phonon
++      k_phonon = xk_collect(:,ik_phonon) ! k wavevector in cartesian coordinates
++      CALL cryst_to_cart(1, k_phonon, at, -1) ! in crystal coords
++      !
++      do isym = 1,nsym
++        do i = 1,3
++          k_rotated(i) = s(i,1,isym) * k_phonon(1) &
++               + s(i,2,isym) * k_phonon(2) &
++               + s(i,3,isym) * k_phonon(3)
++          k_rotated(i) = k_rotated(i) - nint( k_rotated(i) )
++          q_rotated(i) = s(i,1,isym) * q_phonon(1) &
++               + s(i,2,isym) * q_phonon(2) &
++               + s(i,3,isym) * q_phonon(3)
++          q_rotated(i) = q_rotated(i) - nint( q_rotated(i) )
++        end do
++        if ( t_rev(isym) == 1 ) then
++          k_rotated = - k_rotated
++          q_rotated = - q_rotated
++        end if
++        k_in_the_list = is_k_in_list(k_rotated, nk1, nk2, nk3, k1, k2, k3, .false.)
++        q_in_the_list = is_k_in_list(q_rotated, nq1, nq2, nq3, 0, 0, 0, .false.)
++        !
++        IF ( k_in_the_list .and. q_in_the_list ) THEN
++          ! index of point in the full grid
++          ik_rotated = get_point_index(k_rotated, nk1, nk2, nk3, k1, k2, k3, .false.)
++          iq_rotated = get_point_index(q_rotated, nq1, nq2, nq3, 0, 0, 0, .false.)
++          
++          iq_star = 0
++          do iqq = 1,n_star
++            if ( sum((qgrid_full(:,iq_rotated) - q_star(:,iqq))**2) < 1.0d-5 ) then
++              iq_star = iqq
++              exit
++            end if
++          end do
++          if ( iq_star == 0 ) call errore("phoebe", "q not found in star",1)
++          
++          gq_coupling(:, :, ik_rotated, :, iq_star) = el_ph_mat_collect(:, :, iksq, :)
++        end if
++        !
++        if ( time_reversal ) then
++          k_in_the_list = is_k_in_list(k_rotated, nk1, nk2, nk3, k1, k2, k3, .true.)
++          q_in_the_list = is_k_in_list(q_rotated, nq1, nq2, nq3, 0, 0, 0, .true.)
++          IF ( k_in_the_list .and. q_in_the_list ) THEN
++            ik_rotated = get_point_index(k_rotated, nk1, nk2, nk3, k1, k2, k3, .true.)
++            iq_rotated = get_point_index(q_rotated, nq1, nq2, nq3, 0, 0, 0, .true.)
++            
++            iq_star = 0
++            do iqq = 1,n_star
++              if ( sum((qgrid_full(:,iq_rotated) - q_star(:,iqq))**2) < 1.0d-5 ) then
++                iq_star = iqq
++                exit
++              end if
++            end do
++            if ( iq_star == 0 ) call errore("phoebe", "q not found in star",1)
++            
++            gq_coupling(:, :, ik_rotated, :, iq_star) = el_ph_mat_collect(:, :, iksq, :)
++          end if
++        end if
++        !
++      end do ! end nsym
++    end do
++    
++    unit_phoebe = find_free_unit()
++    write(iq_char,"(I4.4)") iq
++    file_phoebe = trim(prefix) // ".phoebe." // trim(iq_char) // ".dat"
++    open(unit = unit_phoebe, file = TRIM(file_phoebe), form = 'formatted', &
++         access = 'sequential', status = 'replace', iostat = ios)
++    write(unit_phoebe,*) n_star
++    do iqq = 1,n_star
++      write(unit_phoebe,*) (q_star(ii,iqq), ii = 1,3)
++    end do
++    do iqq = 1,n_star
++      write(unit_phoebe,*) ((((gq_coupling(ii, jj, kk, ll, iqq), ii = 1, nbnd), &
++           jj = 1, nbnd), kk = 1, nk), ll = 1, nmodes)
++    end do
++    close(unit_phoebe)
++    
++    deallocate(gq_coupling)
++    
++    return
++  end subroutine elphfil_phoebe
++  !
++  !-----------------------------------------------------------
++  !
++  function get_point_index(k_rotated,nk1,nk2,nk3,k1,k2,k3, time_reversal)
++    implicit none
++    integer :: get_point_index, i, j, k, nk1, nk2, nk3, k1, k2, k3
++    logical :: time_reversal
++    real(dp) :: k_rotated(3), fac
++    if ( time_reversal ) then
++      fac = - 1.
++    else
++      fac = 1.
++    end if
++    i = mod ( nint ( fac * k_rotated(1)*nk1 - 0.5d0*k1 + 2*nk1), nk1 ) + 1
++    j = mod ( nint ( fac * k_rotated(2)*nk2 - 0.5d0*k2 + 2*nk2), nk2 ) + 1
++    k = mod ( nint ( fac * k_rotated(3)*nk3 - 0.5d0*k3 + 2*nk3), nk3 ) + 1
++    get_point_index = (k-1) + (j-1)*nk3 + (i-1)*nk2*nk3 + 1
++  end function get_point_index
++  !
++  !----------------------------------------------------
++  !
++  function is_k_in_list(k_rotated,nk1,nk2,nk3,k1,k2,k3, time_reversal)
++    logical :: is_k_in_list, time_reversal
++    integer :: nk1,nk2,nk3,k1,k2,k3
++    real(dp) :: k_rotated(3), xx, yy, zz, fac
++    real(dp), parameter :: eps = 1.0d-5
++
++    if ( time_reversal ) then
++      fac = - 1.
++    else
++      fac = 1.
++    end if
++    xx = fac * k_rotated(1)*nk1 - 0.5d0*k1
++    yy = fac * k_rotated(2)*nk2 - 0.5d0*k2
++    zz = fac * k_rotated(3)*nk3 - 0.5d0*k3
++    is_k_in_list = abs(xx-nint(xx))<=eps .and. &
++         abs(yy-nint(yy))<=eps .and. &
++         abs(zz-nint(zz))<=eps
++  end function is_k_in_list
++  !
++  !----------------------------------------------------------------------
++  !
++  subroutine find_irreducible_grid(nk1, nk2, nk3, k1, k2, k3, xkg, equiv, wkk)
++    implicit none
++    integer, intent(in) :: nk1, nk2, nk3, k1, k2, k3
++    integer, intent(out) :: equiv(nk1*nk2*nk3), wkk(nk1*nk2*nk3)
++    real(dp), intent(out) :: xkg(3,nk1*nk2*nk3)
++    !
++    integer :: i, j, k, n, nk, nkr, ns
++    real(dp) :: xkr(3)
++    logical :: in_the_list
++
++    nkr = nk1*nk2*nk3
++    do i=1,nk1
++      do j=1,nk2
++        do k=1,nk3
++          !  this is nothing but consecutive ordering
++          n = (k-1) + (j-1)*nk3 + (i-1)*nk2*nk3 + 1
++          !  xkg are the components of the complete grid in crystal axis
++          xkg(1,n) = dble(i-1)/nk1 + dble(k1)/2/nk1
++          xkg(2,n) = dble(j-1)/nk2 + dble(k2)/2/nk2
++          xkg(3,n) = dble(k-1)/nk3 + dble(k3)/2/nk3
++        end do
++      end do
++    end do
++    
++    !  equiv(nk) =nk : k-point nk is not equivalent to any previous k-point
++    !  equiv(nk)!=nk : k-point nk is equivalent to k-point equiv(nk)
++    
++    do nk=1,nkr
++      equiv(nk)=nk
++      wk(nk) = 1
++      xkg(:,nk) = xkg(:,nk) - nint(xkg(:,nk))
++    end do
++    
++    do nk=1,nkr
++      !  check if this k-point has already been found equivalent to another
++      if (equiv(nk) == nk) THEN
++        wkk(nk) = 1
++        !  check if there are equivalent k-point to this in the list
++        !  (excepted those previously found to be equivalent to another)
++        !  check both k and -k
++        do ns=1,nrot
++          do i=1,3
++            xkr(i) = s(i,1,ns) * xkg(1,nk) &
++                 + s(i,2,ns) * xkg(2,nk) &
++                 + s(i,3,ns) * xkg(3,nk)
++            xkr(i) = xkr(i) - nint( xkr(i) )
++          end do
++          if ( t_rev(ns) == 1 ) xkr = - xkr
++          
++          in_the_list = is_k_in_list(xkr, nk1, nk2, nk3, k1, k2, k3, .false.)
++          
++          if (in_the_list) THEN
++
++            n = get_point_index(xkr, nk1, nk2, nk3, k1, k2, k3, .false.)
++            
++            if ( n>nk .and. equiv(n)==n ) then
++              equiv(n) = nk
++              wkk(nk) = wkk(nk) + 1
++            else
++              IF (equiv(n)/=nk .or. n<nk ) CALL errore('phoeve_kpoint_grid', &
++                   'something wrong in the checking algorithm',1)
++            end if
++          end if
++          if ( time_reversal ) then
++
++            in_the_list = is_k_in_list(xkr, nk1, nk2, nk3, k1, k2, k3, .true.)
++
++            if (in_the_list) then
++
++              n = get_point_index(xkr, nk1, nk2, nk3, k1, k2, k3, .true.)
++
++              if (n>nk .and. equiv(n)==n) then
++                equiv(n) = nk
++                wkk(nk) = wkk(nk) + 1
++              else
++                if (equiv(n)/=nk.or.n<nk) CALL errore('kpoint_grid', &
++                    'something wrong in the checking algorithm',2)
++              end if
++            end if
++          end if
++        end do
++      end if
++    end do
++    
++    return 
++  end subroutine find_irreducible_grid
++
++  !
+ END SUBROUTINE elphfil_epa
+    
+ !----------------------------------------------------------------------------
+diff --git PHonon/PH/phq_readin.f90 PHonon/PH/phq_readin.f90
+index 59d22f45a..d7ccdd4ae 100644
+--- PHonon/PH/phq_readin.f90
++++ PHonon/PH/phq_readin.f90
+@@ -907,7 +907,7 @@ SUBROUTINE phq_readin()
+   !
+   !YAMBO >
+   IF (elph .AND. .NOT.(lgauss .OR. ltetra) &
+-      .AND. .NOT. (elph_yambo .OR. elph_ahc)) &
++      .AND. .NOT. (elph_yambo .OR. elph_ahc) .and. (.not. elph_epa) ) &
+           CALL errore ('phq_readin', 'Electron-phonon only for metals', 1)
+   !YAMBO <
+   IF (elph .AND. fildvscf.EQ.' ' .AND. .NOT. ldvscf_interpolate) &
+diff --git PHonon/PH/run_nscf.f90 PHonon/PH/run_nscf.f90
+index 62aa4a383..a39aed6e3 100644
+--- PHonon/PH/run_nscf.f90
++++ PHonon/PH/run_nscf.f90
+@@ -44,7 +44,7 @@ SUBROUTINE run_nscf(do_band, iq)
+   USE noncollin_module,ONLY : noncolin
+   USE spin_orb,        ONLY : domag
+   USE klist,           ONLY : qnorm, nelec
+-  USE el_phon,         ONLY : elph_mat
++  USE el_phon,         ONLY : elph_mat, elph_epa
+   USE ahc,             ONLY : elph_ahc
+   !
+   IMPLICIT NONE
+@@ -102,7 +102,7 @@ SUBROUTINE run_nscf(do_band, iq)
+   CALL fft_type_allocate ( dfftp, at, bg, gcutm,  intra_bgrp_comm, nyfft=nyfft )
+   CALL fft_type_allocate ( dffts, at, bg, gcutms, intra_bgrp_comm, nyfft=nyfft)
+   !
+-  CALL setup_nscf ( newgrid, xq, elph_mat .OR. elph_ahc )
++  CALL setup_nscf ( newgrid, xq, elph_mat .OR. elph_ahc .or. elph_epa)
+   !
+   CALL init_run()
+   !
+@@ -115,7 +115,6 @@ SUBROUTINE run_nscf(do_band, iq)
+ !
+   IF (do_band) CALL non_scf_ph ( )
+ 
+-
+   IF ( check_stop_now() ) THEN
+ !
+ !  In this case the code stops inside the band calculation. Save the
+diff --git PW/src/c_bands.f90 PW/src/c_bands.f90
+index 77d728ddb..df66fb728 100644
+--- PW/src/c_bands.f90
++++ PW/src/c_bands.f90
+@@ -1,3 +1,273 @@
++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++!!!!!!!!!!!!!!!!! PHOEBE !!!!!!!!!!!!!!!!!!!
++!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++         
++subroutine set_wavefunction_gauge(ik)
++  ! this subroutine fixes a gauge to the wavefunction
++  ! The gauge is defined by setting the largest plane
++  ! wave coefficient to be real and positive.
++  ! In case of degeneracy, we lift it by perturbing
++  ! the Hamiltonian matrix
++
++  ! Note that results should not change, besides numerical error
++  ! As the gauge of a wavefunction is not an observable quantity
++  ! and thus we can choose as we please
++  
++  use wavefunctions, only: evc ! plane wave coefficients, evc(npwx*npol,nbnd)
++  use wvfct, only: et, & ! eigenvalues of the Hamiltonian et(nbnd,nkstot)
++       nbnd, & ! number of bands
++       npwx, & ! maximum number of PW for wavefunctions
++       nbndx, & ! max number of bands used in iterative diag
++       npw ! number of plane waves
++  ! use noncollin, only: npol ! number of spin polarizations
++  ! g2kin, nbndx, npwx, btype
++  use constants, only: pi, ryToEv ! greek-pi
++  use kinds, only: dp
++  use parallel_include
++  use input_parameters, only: calculation
++  use mp_pools, only: root_pool, intra_pool_comm, nproc_pool, me_pool
++  use mp, only: mp_bcast, mp_sum, mp_max
++  implicit none
++  integer, intent(in) :: ik
++
++  integer :: i, iG, ib, nRows, nBands, ierr, shap(2)
++  real(dp) :: x, phase, local_max_norm, global_max_norm, theta
++  complex(dp) :: local_max_pw, max_pw_coeff, correction
++  complex(dp), allocatable :: local_max_list(:), global_max_list(:)
++
++  ! degeneracy
++  integer :: sizeSubspace, lwork, j, ib2
++  real(dp), allocatable :: rwork(:), eigval(:)
++  complex(dp) :: xc
++  complex(dp), allocatable :: work(:), tmpPsi(:,:), eigvec(:,:), DH(:,:)
++  
++  ! In this case, I don't want to waste time
++  if ( calculation == 'nscf' .or. calculation == 'bands' ) return
++  
++  shap = shape(evc)
++  nRows = shap(1)
++  nBands = shap(2)
++
++  if ( nBands /= nbnd ) then
++    call errore("set_wavefunction_gauge", "Unexpected",1)
++  end if
++
++  allocate(local_max_list(nproc_pool))
++  allocate(global_max_list(nproc_pool))
++  
++  ! for every band, find max
++  do ib = 1,nbnd
++
++    ! Find MPI-local maximum
++    local_max_norm = 0.
++    local_max_pw = cmplx(0.,0.,kind=dp)
++    do iG=1,nRows
++      x = evc(iG,ib) * conjg(evc(iG,ib))
++      if ( x > local_max_norm) then
++        local_max_norm = x
++        local_max_pw = evc(iG,ib)
++      end if
++    end do
++
++    ! find the maximum value of the norm over the whole pool
++    global_max_norm = local_max_norm
++    call mp_max(global_max_norm, intra_pool_comm)
++    
++    ! broadcast all local maxima
++    local_max_list(:) = cmplx(0.,0.,kind=dp)
++    global_max_list(:) = cmplx(0.,0.,kind=dp)
++    local_max_list(me_pool+1) = local_max_pw ! note me_pool runs from 0 to nproc_pool-1
++    global_max_list = local_max_list
++    call mp_sum(global_max_list, intra_pool_comm)
++    
++    ! find global max coefficient
++    max_pw_coeff = cmplx(0.,0.,kind=dp)
++    do i = 1,nproc_pool
++      x = global_max_list(i) * conjg(global_max_list(i))
++      if ( x == global_max_norm ) then
++        max_pw_coeff = global_max_list(i)
++        exit
++      end if
++    end do
++    if ( max_pw_coeff*conjg(max_pw_coeff) == 0. ) then
++      call errore("set_wavefunction_gauge", "max not found", 1)
++    end if
++
++    ! Now, I compute and impose the gauge
++    ! z = |z| e^(i theta)
++    theta = atan( dimag(max_pw_coeff) / real(max_pw_coeff) )
++    if ( real(max_pw_coeff) < 0. ) then ! make the pw coeff real
++      theta = theta + pi
++    end if
++    correction = cmplx(cos(-theta), sin(-theta), kind=dp)
++    ! Impose gauge
++    evc(:,ib) = evc(:,ib) * correction
++ 
++  end do
++  
++  deallocate(local_max_list)
++  deallocate(global_max_list)
++
++
++  ! Now I have to diagonalize the degenerate subspace
++
++  ib = 0
++  ! loop on bands
++  do while ( ib <= nbnd )
++    ib = ib + 1
++
++    ! check if the band is degenerate, and get the degenerate subspace size
++    sizeSubspace = 1
++    do ib2 = ib+1,nbnd
++      if (abs(et(ib,ik) - et(ib2,ik)) > 0.0001 / ryToeV) then  ! 0.1 meV
++        exit
++      end if
++      sizeSubspace = sizeSubspace + 1;
++    end do
++
++    ! If the subspace is degenerate, we do something
++    if (sizeSubspace > 1) then
++      
++      allocate(eigvec(sizeSubspace, sizeSubspace))
++      eigvec = cmplx(0.,0.,kind=dp)
++      
++      if ( me_pool == root_pool ) then
++        if ( nRows < sizeSubspace ) then
++          call errore("set_wavefunction_gauge", "too few plane waves on root", 1)
++        end if
++
++        allocate(DH(sizeSubspace,sizeSubspace))
++        allocate(tmpPsi(sizeSubspace,sizeSubspace))
++        
++        ! create a perturbation matrix
++        call create_delta_H(DH, sizeSubspace, ib, ik)
++
++        ! 1) C = H |psi>
++        tmpPsi = cmplx(0.,0.,kind=dp)
++        do i = 1,sizeSubspace
++          do j = 1,sizeSubspace
++            do iG = 1,sizeSubspace
++              tmpPsi(i,j) = tmpPsi(i,j) &
++                   + DH(i, iG) * evc(iG,ib+j-1)
++            end do
++          end do
++        end do
++        
++        ! 2) <psi| (x) |tmpPsi>
++        
++        do i = 1,sizeSubspace
++          do j = 1,sizeSubspace
++            do iG = 1,sizeSubspace
++              eigvec(i,j) = eigvec(i,j) &
++                   + evc(iG,ib+i-1) * tmpPsi(iG,j)
++            end do
++          end do
++        end do
++        
++        ! use values around unity
++        xc = sum(eigvec * conjg(eigvec))
++        eigvec = eigvec / xc
++
++        ! Now that we have a perturbation matrix,
++        ! we diagonalize it to lift degeneracy
++        allocate(eigval(sizeSubspace))
++        lwork = sizeSubspace**2
++        allocate(work(lwork))
++        allocate(rwork(3*sizesubspace-2))
++        CALL ZHEEV('V', 'L', sizeSubspace, eigvec, sizeSubspace, &
++             eigval, work, lwork, rwork, ierr)
++        if ( ierr == 0 ) then
++          call errore("set_wavefunction_gauge", "Error in diagonalization", ierr)
++        end if
++
++        ! make sure we break the degeneracy
++        do ib2 = 1,sizeSubspace-1
++          if ( abs(eigval(ib2) - eigval(ib2+1)) < 1.0e-5 ) then
++            call errore("set_wavefunction_gauge", "failed lifting degeneracy", ik)
++          end if
++        end do
++        
++        deallocate(rwork, work, eigval)
++        deallocate(tmpPsi, DH)
++        ! Note: after ZHEEVD, eigvec actually contains the eigenvectors
++        ! i.e. the rotation that lifts the degeneracy
++
++        ! normalize eigenvectors
++        do i = 1,sizeSubspace
++          x = 0.
++          do ib2 = 1,sizeSubspace
++            x = x + eigvec(ib2,i) * conjg(eigvec(ib2,i))
++          end do
++          eigvec(:,i) = eigvec(:,i) / x 
++        end do
++      
++        ! find the inverse of the eigenvector matrix
++        ! it's a unitary matrix, so that's easy
++        eigvec = transpose(conjg(eigvec))
++
++      end if
++
++      ! root broadcasts rotation to everyone
++      call mp_bcast(eigvec, root_pool, intra_pool_comm)
++
++
++      ! save plane wave coefficients in temporary array
++      allocate(tmpPsi(nRows,sizeSubspace))
++      do i=1,sizeSubspace
++        tmpPsi(:,i) = evc(:,ib+i-1)
++        evc(:,ib+i-1) = cmplx(0., 0., kind=dp)
++      end do
++
++      ! remove degeneracy, rotating the coefficients
++      do i = 1,sizeSubspace
++        do j = 1,sizeSubspace
++          do iG = 1,nRows
++            evc(iG,ib+i-1) = evc(iG,ib+i-1) + eigvec(i,j) * tmpPsi(iG,j)
++          end do
++        end do
++      end do
++      
++      deallocate(eigvec, tmpPsi)
++    end if
++    
++    ib = ib + sizeSubspace - 1;
++  end do
++  
++  return
++
++contains
++
++  subroutine create_delta_H(DH, size, ib, ik)
++    ! this creates a perturbation matrix of size (sizeSubspace x sizeSubspace)
++    implicit none
++    !
++    integer, intent(in) :: size, ib, ik
++    complex(dp), intent(out) :: DH(size,size)
++    !
++    complex(dp) :: xCoeff, yCoeff, x
++    integer :: i, j
++    !
++    DH(:,:) = cmplx(0.,0.,kind=dp)
++
++    xCoeff = cmplx(0.8864132,0.453706)
++    yCoeff = cmplx(0.1422645,0.764335)
++    
++    do i = 1,size
++      do j = 1,size
++        if ( i == j ) then
++          DH(i,i) = et(ib,ik)
++        else
++          DH(i,j) = DH(i,j) + i * xCoeff + j * yCoeff
++        end if
++      end do
++    end do
++    ! make it hermitian
++    DH = 0.5d0 * (DH + transpose(conjg(DH)))
++
++    return 
++  end subroutine create_delta_H
++
++end subroutine set_wavefunction_gauge
+ !
+ ! Copyright (C) 2001-2020 Quantum ESPRESSO group
+ ! This file is distributed under the terms of the
+@@ -255,6 +525,20 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
+      CALL diag_bands_k()
+      !
+   ENDIF
++ 
++  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++  !!!!!!!!!!!!!!!!! PHOEBE !!!!!!!!!!!!!!!!!!!
++  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++ ! diag_bands_gamma/k diagonalized the Hamiltonian
++  ! and have computed the eigenvectors
++  ! so, now we set the wavefunction gauge.
++  ! Note that this modification doesn't have a big penalty
++  ! on ph.x or nscf runs, since c_bands is called only
++  ! few times.
++  ! For a scf run instead, the gauge is set as many times
++  ! as the scf iterations
++  call set_wavefunction_gauge(ik)
++  
+   !
+   ! ... deallocate work space
+   !
