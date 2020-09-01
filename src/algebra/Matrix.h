@@ -173,6 +173,7 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
                   const int& numBlocksRows, const int& numBlocksCols, bool isDistributed_) {
 
   isDistributed = isDistributed_; // default to false if no value supplied 
+
   if(isDistributed){ 
     pmat = new ParallelMatrix<T>(numRows,numCols,numBlocksRows,numBlocksCols); 
   } 

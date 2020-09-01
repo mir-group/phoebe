@@ -52,14 +52,15 @@ class ParallelMatrix {
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
-  std::tuple<long, long> local2Global(const long& k);
+  std::tuple<long, long> local2Global(const long& k) const;
+  std::tuple<long, long> local2Global(const long& i, const long& j) const;
 
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
    * with value ranging from  0 to numLocalElements_-1.
    * Returns -1 if the matrix element is not stored on the current MPI process.
    */
-  long global2Local(const long& row, const long& col);
+  long global2Local(const long& row, const long& col) const;
 
  public:
   static const char transN = 'N';  // no transpose nor adjoint
@@ -96,6 +97,16 @@ class ParallelMatrix {
    * by the current MPI process.
    */
   std::vector<std::tuple<long, long>> getAllLocalStates();
+
+  /** Find the global indices of the rows that are stored locally
+   * by the current MPI process.
+   */
+  std::vector<long> getAllLocalRows();
+
+  /** Find the global indices of the cols that are stored locally
+   * by the current MPI process.
+   */
+  std::vector<long> getAllLocalCols();
 
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
@@ -198,13 +209,28 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols) {
 
-  // if blacs is not initalized, we need to start it.
-  mpi->initBlacs();
-
+  // if blacs is not initalized, we need to start it
+  // if numBlocksRows/Cols not set, we initialize blacs with a 
+  // square process grid (and number of processors must be a square number)
+  // If numBlocksRows/Cols are set, we will initialize a rectangular process grid. 
+  // We will also stop any level 3 scalapack functions from being called, as 
+  // these require a square process grid. 
+  // TODO can we avoid doing this by just having the default on initBlacs be 
+  // numBlocksRows/Cols default to zero? 
+  if(numBlocksCols == 0 && numBlocksRows == 0) {
+    // initialize blacs with a square process grid 
+    mpi->initBlacs(); 
+  } else { 
+    // initialize the non-square blacs process grid
+    mpi->initBlacs(numBlocksRows,numBlocksCols);
+  } 
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
 
+  // Information regarding the blas process grid. 
+  // numBlasRows/Cols - the number of rows/cols in the process grid
+  // myBlasRow/Col - this process's row/col in the grid 
   numBlasRows_ = mpi->getNumBlasRows();
   numBlasCols_ = mpi->getNumBlasCols();
   myBlasRow_ = mpi->getMyBlasRow();
@@ -213,6 +239,8 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // determine the number of blocks (for parallel distribution) along rows/cols
   // by default, we set the number of blocks equal to the number of
   // rows in the blacs grid of processes
+  // the variables numBlocksRows_/Cols_ represent the number of divisions
+  // the rows/cols for the matrix will be split into.
   if (numBlocksRows != 0) {
     numBlocksRows_ = numBlocksRows;
   } else {
@@ -232,10 +260,21 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
   // determine the number of local rows and columns
   int iZero = 0;  // helper variable
-  numLocalRows_ =
-      numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
-  numLocalCols_ =
-      numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
+
+  // the case where we have specified distribution over cols or rows, 
+  // we don't want to let numroc make this determination for us. 
+  // Instead, we try giving each proc one block worth
+  if(numBlocksRows != 0 && numBlocksCols != 0) {
+    numLocalRows_ = blockSizeRows_;
+    numLocalCols_ = blockSizeCols_;
+  // TODO: may want to add a cases for when only rows or cols is specified.  
+  // in the case where we do not specify the distribution of rows/cols, 
+  // let blas determine which rows/cols should be local to the process
+  } else { //(numBlocksRows == 0 && numBlocksCols == 0) {
+    numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
+    numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
+  }
+
   numLocalElements_ = numLocalRows_ * numLocalCols_;
   mat = new T[numLocalElements_];
 
@@ -404,8 +443,17 @@ bool ParallelMatrix<T>::indecesAreLocal(const int& row, const int& col) {
   }
 }
 
+template <typename T> 
+std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long& j) const { 
+  int il = (int)i; 
+  int jl = (int)j; 
+  long ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+  long jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+  return {ig,jg};
+}
+
 template <typename T>
-std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) {
+std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   // first, we convert this combined local index k
   // into local row / col indeces
   // k = j * numLocalRows_ + i
@@ -427,7 +475,7 @@ std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) {
 }
 
 template <typename T>
-long ParallelMatrix<T>::global2Local(const long& row, const long& col) {
+long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
   // note: row and col indices use the c++ convention of running from 0 to N-1
   // fortran (infog2l_) wants indices from 1 to N.
   int row_ = row + 1;
@@ -450,6 +498,31 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
   for (long k = 0; k < numLocalElements_; k++) {
     std::tuple<long, long> t = local2Global(k);  // bloch indices
     x.push_back(t);
+  }
+  return x;
+}
+
+template <typename T>
+std::vector<long> ParallelMatrix<T>::getAllLocalRows() {
+  int iZero = 0;
+  std::vector<long> x;
+  for (int k = 0; k < numLocalRows_; k++) {
+    long gr = indxl2g_( &k, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ ); 
+    x.push_back(gr);
+  }
+  return x;
+}
+
+template <typename T>
+std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
+  std::vector<long> x;
+  std::cout << "numlocalcols from getAllLocalCols: " << numLocalCols_ << std::endl;
+  std::cout << "bSC, mBC, nBC: " << " " << blockSizeCols_ << " " << myBlasCol_ << " " << numBlasCols_ << " " << std::endl; 
+  int iZero = 0; 
+  for (int k = 0; k < numLocalCols_; k++) {
+    //std::tuple<long, long> t = local2Global(k);  // bloch indices
+    long gc = indxl2g_( &k, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
+    x.push_back(gc);
   }
   return x;
 }

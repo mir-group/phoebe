@@ -51,7 +51,7 @@ MPIcontroller::MPIcontroller() {
 }
 
 // Initialized blacs for the cases where the scattering matrix is used
-void MPIcontroller::initBlacs() {
+void MPIcontroller::initBlacs(int numBlasRows, int numBlasCols) {
 #ifdef MPI_AVAIL
   if (!hasBlacs) {
     // initBlacs should only be called once.
@@ -61,15 +61,37 @@ void MPIcontroller::initBlacs() {
     blacs_pinfo_(&blasRank_, &size);  // BLACS rank and world size
     int zero = 0;
     blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+ 
+    // kill the code if we asked for more blas rows/cols than there are procs
+    if (getSize() < numBlasRows_ * numBlasCols_) {
+       Error e("initBlacs requested too many MPI processes.");
+    } 
 
-    numBlasRows_ = (int)(sqrt(size));  // int does rounding down (intentional!)
-    numBlasCols_ = numBlasRows_;       // scalapack requires square grid
+    // specific cases depending on if we asked for a number of blas rows/cols
+    // TESTING: TODO -- let's see if we can make this happen with nonsquare procs
+    if(numBlasRows != 0 && numBlasCols == 0) { // spec'd rows, not cols
+        numBlasRows_ = numBlasRows; 
+        numBlasCols_ = getSize()/numBlasRows; 
+    } 
+    else if(numBlasRows == 0 && numBlasCols != 0) { // spec'd cols, not rows
+        numBlasRows_ = getSize()/numBlasCols;
+        numBlasCols_ = numBlasCols;  
+    }  
+    else if(numBlasRows !=0 && numBlasCols !=0 ) { // rows and cols spec'd
+        numBlasRows_ = numBlasRows; 
+        numBlasCols_ = numBlasCols; 
+    } 
+    else { // set up a square procs grid
+      numBlasRows_ = (int)(sqrt(size));  // int does rounding down (intentional!)
+      numBlasCols_ = numBlasRows_;       // scalapack requires square grid
+    } 
 
+//TODO: temporarily block this
     // we "pause" the processes that fall outside the blas grid
-    if (size > numBlasRows_ * numBlasCols_) {
-      Error e("Phoebe needs a square number of MPI processes");
-      // TODO: stop the extra MPI processes and continue with the rest.
-    }
+//    if (size > numBlasRows_ * numBlasCols_) {
+//      Error e("Phoebe needs a square number of MPI processes");
+//      // TODO: stop the extra MPI processes and continue with the rest.
+//    }
 
     blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_,
                     &numBlasCols_);

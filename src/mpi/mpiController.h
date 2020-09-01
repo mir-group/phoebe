@@ -44,7 +44,7 @@ class MPIcontroller {
   * @param context: pass input information, which is used to determine 
   *     if this is a blacs necessary application case. 
   */
-  void initBlacs(); 
+  void initBlacs(int numBlasRows = 0, int numBlasCols = 0); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
