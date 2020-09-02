@@ -1,8 +1,7 @@
-diff --git PHonon/PH/elphon.f90 PHonon/PH/elphon.f90
-index 02b465d8e..e316c0bc7 100644
---- PHonon/PH/elphon.f90
-+++ PHonon/PH/elphon.f90
-@@ -1529,6 +1529,9 @@ SUBROUTINE elphfil_epa(iq)
+diff -Naur q-e-unmodified/PHonon/PH/elphon.f90 q-e-modified/PHonon/PH/elphon.f90
+--- q-e-unmodified/PHonon/PH/elphon.f90	2020-09-02 09:16:05.200047234 -0400
++++ q-e-modified/PHonon/PH/elphon.f90	2020-09-02 09:19:12.361272882 -0400
+@@ -1529,6 +1529,9 @@
       CLOSE (unit = iuelph, status = 'keep')
    ENDIF
    CALL cryst_to_cart(nkstot, xk_collect, bg, 1)
@@ -12,7 +11,7 @@ index 02b465d8e..e316c0bc7 100644
    DEALLOCATE(xk_collect)
    DEALLOCATE(wk_collect)
    DEALLOCATE(et_collect)
-@@ -1540,6 +1543,362 @@ SUBROUTINE elphfil_epa(iq)
+@@ -1540,6 +1543,367 @@
  
    RETURN
  
@@ -35,6 +34,11 @@ index 02b465d8e..e316c0bc7 100644
 +    
 +    if ( first ) then
 +      nk = nk1 * nk2 * nk3
++
++      if ( nk == 0 ) then
++        call errore("phoebe", "We must run a nscf calculation before ph.x with automatic grid", 1)
++      end if
++      
 +      nq = nq1 * nq2 * nq3
 +      allocate(kgrid_full(3,nk))
 +      allocate(qgrid_full(3,nq))
@@ -375,11 +379,10 @@ index 02b465d8e..e316c0bc7 100644
  END SUBROUTINE elphfil_epa
     
  !----------------------------------------------------------------------------
-diff --git PHonon/PH/phq_readin.f90 PHonon/PH/phq_readin.f90
-index 59d22f45a..d7ccdd4ae 100644
---- PHonon/PH/phq_readin.f90
-+++ PHonon/PH/phq_readin.f90
-@@ -907,7 +907,7 @@ SUBROUTINE phq_readin()
+diff -Naur q-e-unmodified/PHonon/PH/phq_readin.f90 q-e-modified/PHonon/PH/phq_readin.f90
+--- q-e-unmodified/PHonon/PH/phq_readin.f90	2020-09-02 09:16:05.200047234 -0400
++++ q-e-modified/PHonon/PH/phq_readin.f90	2020-09-02 09:19:12.365272909 -0400
+@@ -907,7 +907,7 @@
    !
    !YAMBO >
    IF (elph .AND. .NOT.(lgauss .OR. ltetra) &
@@ -388,11 +391,10 @@ index 59d22f45a..d7ccdd4ae 100644
            CALL errore ('phq_readin', 'Electron-phonon only for metals', 1)
    !YAMBO <
    IF (elph .AND. fildvscf.EQ.' ' .AND. .NOT. ldvscf_interpolate) &
-diff --git PHonon/PH/run_nscf.f90 PHonon/PH/run_nscf.f90
-index 62aa4a383..a39aed6e3 100644
---- PHonon/PH/run_nscf.f90
-+++ PHonon/PH/run_nscf.f90
-@@ -44,7 +44,7 @@ SUBROUTINE run_nscf(do_band, iq)
+diff -Naur q-e-unmodified/PHonon/PH/run_nscf.f90 q-e-modified/PHonon/PH/run_nscf.f90
+--- q-e-unmodified/PHonon/PH/run_nscf.f90	2020-09-02 09:16:05.204047259 -0400
++++ q-e-modified/PHonon/PH/run_nscf.f90	2020-09-02 09:19:12.365272909 -0400
+@@ -44,7 +44,7 @@
    USE noncollin_module,ONLY : noncolin
    USE spin_orb,        ONLY : domag
    USE klist,           ONLY : qnorm, nelec
@@ -401,7 +403,7 @@ index 62aa4a383..a39aed6e3 100644
    USE ahc,             ONLY : elph_ahc
    !
    IMPLICIT NONE
-@@ -102,7 +102,7 @@ SUBROUTINE run_nscf(do_band, iq)
+@@ -102,7 +102,7 @@
    CALL fft_type_allocate ( dfftp, at, bg, gcutm,  intra_bgrp_comm, nyfft=nyfft )
    CALL fft_type_allocate ( dffts, at, bg, gcutms, intra_bgrp_comm, nyfft=nyfft)
    !
@@ -410,7 +412,7 @@ index 62aa4a383..a39aed6e3 100644
    !
    CALL init_run()
    !
-@@ -115,7 +115,6 @@ SUBROUTINE run_nscf(do_band, iq)
+@@ -115,7 +115,6 @@
  !
    IF (do_band) CALL non_scf_ph ( )
  
@@ -418,10 +420,9 @@ index 62aa4a383..a39aed6e3 100644
    IF ( check_stop_now() ) THEN
  !
  !  In this case the code stops inside the band calculation. Save the
-diff --git PW/src/c_bands.f90 PW/src/c_bands.f90
-index 77d728ddb..df66fb728 100644
---- PW/src/c_bands.f90
-+++ PW/src/c_bands.f90
+diff -Naur q-e-unmodified/PW/src/c_bands.f90 q-e-modified/PW/src/c_bands.f90
+--- q-e-unmodified/PW/src/c_bands.f90	2020-09-02 09:16:05.204047259 -0400
++++ q-e-modified/PW/src/c_bands.f90	2020-09-02 09:19:12.709275291 -0400
 @@ -1,3 +1,273 @@
 +!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 +!!!!!!!!!!!!!!!!! PHOEBE !!!!!!!!!!!!!!!!!!!
@@ -696,7 +697,7 @@ index 77d728ddb..df66fb728 100644
  !
  ! Copyright (C) 2001-2020 Quantum ESPRESSO group
  ! This file is distributed under the terms of the
-@@ -255,6 +525,20 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
+@@ -255,6 +525,20 @@
       CALL diag_bands_k()
       !
    ENDIF
