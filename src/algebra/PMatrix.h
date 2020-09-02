@@ -217,6 +217,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // these require a square process grid. 
   // TODO can we avoid doing this by just having the default on initBlacs be 
   // numBlocksRows/Cols default to zero? 
+
   if(numBlocksCols == 0 && numBlocksRows == 0) {
     // initialize blacs with a square process grid 
     mpi->initBlacs(); 
@@ -289,7 +290,6 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   int lddA =
       numLocalRows_ > 1 ? numLocalRows_ : 1;  // if mpA>1, ldda=mpA, else 1
   int blacsContext = mpi->getBlacsContext();
-  std::cout << "nlr nlc bsr bsc " << numLocalRows_ << " " << numLocalCols_ << " " << blockSizeRows_ << " " << blockSizeCols_ << " " << std::endl;
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext, &lddA, &info);
   if (info != 0) {
@@ -312,7 +312,6 @@ ParallelMatrix<T>::ParallelMatrix()  {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
-  mpi->initBlacs();
 }
 
 template <typename T>
@@ -516,8 +515,6 @@ std::vector<long> ParallelMatrix<T>::getAllLocalRows() {
 template <typename T>
 std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
   std::vector<long> x;
-  std::cout << "numlocalcols from getAllLocalCols: " << numLocalCols_ << std::endl;
-  std::cout << "bSC, mBC, nBC: " << " " << blockSizeCols_ << " " << myBlasCol_ << " " << numBlasCols_ << " " << std::endl; 
   int iZero = 0; 
   for (int k = 0; k < numLocalCols_; k++) {
     //std::tuple<long, long> t = local2Global(k);  // bloch indices
