@@ -59,6 +59,7 @@ class BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
    */
   virtual long getIndex(const WavevectorIndex &ik, const BandIndex &ib) = 0;
+  virtual long getIndex(const long &ik, const long &ib);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -74,11 +75,12 @@ class BaseBandStructure {
    */
   virtual long getNumStates() = 0;
 
-  /** Returns the indices of wavevectors in the bandstructure object.
-  * In the distributed case, this returns global indices of the local wavevectors.
-  * @return wavevectorIndices: a vector of the global indices of local points
+  /** Returns the state indices of all states in the bandstructure object.
+  * In the distributed case, this returns global indices of the local states.
+  * @return stateIndices: a vector of the global indices of local states
   */
-  virtual std::vector<long> getWavevectorIndices();
+  virtual std::vector<long> getWavevectorIndices(); // TODO put a zero behind this
+  virtual std::vector<long> getStateIndices(); 
 
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
@@ -232,6 +234,7 @@ class FullBandStructure : public BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
    */
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+  long getIndex(const long &ik, const long &ib); 
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -261,6 +264,7 @@ class FullBandStructure : public BaseBandStructure {
   * an iterator.
   */
   std::vector<long> getWavevectorIndices();
+  std::vector<long> getStateIndices(); 
 
   /** Returns the indices of all bands on this process, or in an
   * undistributed case, returns all band indices.

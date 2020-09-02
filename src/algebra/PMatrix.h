@@ -265,6 +265,8 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // the case where we have specified distribution over cols or rows, 
   // we don't want to let numroc make this determination for us. 
   // Instead, we try giving each proc one block worth
+  // TODO need to fix tihs so that if there's an uneven division of rows/columns, we 
+  // give some procs more than other. 
   if(numBlocksRows != 0 && numBlocksCols != 0) {
     numLocalRows_ = blockSizeRows_;
     numLocalCols_ = blockSizeCols_;

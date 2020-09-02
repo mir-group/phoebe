@@ -60,12 +60,24 @@ StatisticsSweep::StatisticsSweep(Context &context,
     volume = fullBandStructure->getPoints().getCrystal().getVolumeUnitCell();
 
     // flatten the energies (easier to work with)
+    // TOMORROW -- check tomorrow if it's right ot return this local number of points  
     numPoints = fullBandStructure->getNumPoints();  // local # of points
     numBands = fullBandStructure->getNumBands();
     energies = Eigen::VectorXd::Zero(numBands * numPoints);
+    std::cout << mpi->getRank() << " local num pts " << numPoints << " " << energies.size() << "global num pts" << fullBandStructure->getNumPoints(true) << std::endl;
+
+    // TODO -- right here, this is a problem. this is a problem because 
+    // get energy is designed to take in a global index, but this hands it a local one. 
+    std::vector<long> stateList = fullBandStructure->getStateIndices(); 
     for (long is = 0; is < fullBandStructure->getNumStates(); is++) {
-      energies(is) = fullBandStructure->getEnergy(is);
-    }
+      // hoping this works so that when getEnergy asks for (is) it sends the right global index to 
+      // energies(ib,ik)
+      long isg = stateList[is];
+      energies(is) = fullBandStructure->getEnergy(isg);
+    } 
+
+    for(auto p : energies) std::cout << mpi->getRank() << " " << p << " " << std::endl; 
+
     numPoints = fullBandStructure->getNumPoints(true);  // full # of points in grid
 
     // determine ground state properties
@@ -236,7 +248,8 @@ double StatisticsSweep::findChemicalPotentialFromDoping(
   double bX = energies.maxCoeff();
   double aY = fPop(aX, temperature);
   double bY = fPop(bX, temperature);
-
+  
+  std::cout << "aX bX aY bY " << aX << " " << bX << " " << aY << " " << bY << std::endl;
   if (sgn(aY) == sgn(bY)) {
     Error e("I should revisit the boundary limits for bisection method");
   }
