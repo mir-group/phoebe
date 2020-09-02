@@ -102,10 +102,9 @@ As a result, we patch the Quantum ESPRESSO code so that everytime the Hamiltonia
 NOTA BENE: this implies that we need a nscf calculation before running ph.x!
 We choose the gauge in this way.
 Note that the wavefunction is expanded in a set of plane wave coefficients \f$ \psi_k = \sum_G c(G) e^{ikG+ikr} \f$.
-We fix the gauge such that the largest plane wave coefficient is real: \f$ max( |c(G)| ) = (C,0) \f$, with \f$C\f$ being a positive number.
+We fix the gauge such that the first plane wave coefficient is real: \f$ c(G) = (C,0) \f$, with \f$C\f$ being a positive number.
 While this gauge doesn't seem to have much physical value, is very simple to apply.
-
-TODO: there is an ambiguity in how this max is found, in case there are degenerate maxs. This ambiguity might come into play if we change the parallelization between different runs. A similar problem happens below which may appear with different parallelization schemes in different runs.
+Note: this gauge fixes the value of the wavefunction, but doesn't ensure the wavefunction to be continuous in k.
 
 There still is a catch in case of degenerate eigenvalues.
 Let's make the example of a double-degenerate eigenvalue.
@@ -117,6 +116,8 @@ In each degenerate subspace of size \f$D\f$, we compute the DxD matrix \f$ F = \
 We diagonalize the \f$F\f$ matrix and check that the eigenvalues of this new matrix are non-degenerate.
 Finally, we rotate the original degenerate wavefunctions \f$\psi_i\f$ using the matrix of eigenvectors of \f$F\f$.
 This procedure should be equivalent to lifting the degeneracy of the Hamiltonian by applying a small perturbation, but more computationally efficient.
+
+TODO: there might be an ambiguity if we change the parallelization between different runs. If we change the number of MPI processes, do the first #D G-vectors on root stay the same or do they change?
 
 As a result, we fix both the gauge of the wavefunctions in degenerate subspaces and the gauge of the wavefunction across multiple k or q points.
 Now, the \f$g\f$ coupling, computed at fixed gauge, is a smooth function of k and q, which can be interpolated.

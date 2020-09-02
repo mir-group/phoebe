@@ -34,7 +34,18 @@ Classes and files should be documented using a Doxygen-compatible style, in orde
 @section Patch Quantum ESPRESSO Patch
 Quantum espresso patch creation
 We download Quantum ESPRESSO v6.6 (QE) and developed the modification in the Fortran code.
-To create the patch, suppose we have a folder with an unmodified reference copy of QE `"./q-e-unmodified"`, and a modified copy of QE in `"./q-e-modified"`.
+
+To create the patch, do the modifications of QE in a QE git repository.
+Make sure you checkout the branch with the QE point release that we want to patch.
+Once the code has been modified, compiles and works, create the patch by typing (from the root folder of the QE repository)
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+git diff > patchfile.txt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+and the patch file `"patchfile.txt"` will be created, containing the patch.
+
+Alternatively, suppose we have a folder with an unmodified reference copy of QE `"./q-e-unmodified"`, and a modified copy of QE in `"./q-e-modified"`.
 In the base folder that contains the two copies of QE, execute the command:
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
@@ -42,7 +53,7 @@ diff -Naur q-e-unmodified q-e-modified > patchfile.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This command will create a file `"patchfile.txt"` containing the patch.
-Note: it is recommended to do a make clean before applying the patch, or the patch will also describe a difference between binary files, and will require some cleaning.
+Note however that diff will also create a difference between binary files: it is therefore recommended to do a make clean before applying the patch.
 
 To apply the patch, go to a folder with a copy of quantum espresso to be patched. In that folder, copy `"patchfile.txt"` and execute the command
 
