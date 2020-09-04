@@ -103,25 +103,38 @@ NOTA BENE: this implies that we need a nscf calculation before running ph.x!
 We choose the gauge in this way.
 Note that the wavefunction is expanded in a set of plane wave coefficients \f$ \psi_k = \sum_G c(G) e^{ikG+ikr} \f$.
 We fix the gauge such that the first plane wave coefficient is real: \f$ c(G) = (C,0) \f$, with \f$C\f$ being a positive number.
-While this gauge doesn't seem to have much physical value, is very simple to apply.
-Note: this gauge fixes the value of the wavefunction, but doesn't ensure the wavefunction to be continuous in k.
+While this gauge doesn't seem to have much physical value, is very simple to apply numerically.
 
 There still is a catch in case of degenerate eigenvalues.
 Let's make the example of a double-degenerate eigenvalue.
 Let be \f$\psi_1\f$ and \f$\psi_2\f$ be two degenerate eigenvectors, then any \f$ \alpha \psi_1 + \beta \psi_2 \f$ is an eigenvector.
 For the same arguments as above, the diagonalization procedure essentially assigns a random phase to the every degenerate subspace.
 Therefore, we need to fix this degree of freedom.
-To this aim, after the gauge on c(G) is imposed, we look for degenerate subspaces.
-In each degenerate subspace of size \f$D\f$, we compute the DxD matrix \f$ F = \sum_{i=1,D; j=1,D} c(G,i) K(i,j) c(G',j) \f$ where we only use the first \f$D\f$ plane wave coefficients found on the root node, i and j are band indeces in the degenerate subspace, and \f$ K \f$ is a Hermitian DxD matrix with pseudo-random values (pseudo-random so that we can systematically recreate it).
-We diagonalize the \f$F\f$ matrix and check that the eigenvalues of this new matrix are non-degenerate.
-Finally, we rotate the original degenerate wavefunctions \f$\psi_i\f$ using the matrix of eigenvectors of \f$F\f$.
-This procedure should be equivalent to lifting the degeneracy of the Hamiltonian by applying a small perturbation, but more computationally efficient.
+To this aim, we must define a perturbation matrix, compute the expectation values against the wavefunction, diagonalize it, and use its eigenvectors to rotate the degenerate wavefunctions.
+To be more computationally efficient, the wavefunction is restricted to the \f$G=0\f$ plane wave coefficient.
+The perturbation matrix must be built in a pseudo-random fashion (so that it's always the same for a fixed degenerate dimension).
+The perturbation matrix must also reflect the crystal symmetry, so that the degeneracy of symmetry-equivalent k points is lifted in the same way.
+For this, we take inspiration from the Fourier interpolation and multiply the constant perturbation matrix with a function \f$ S(k) = \frac{1}{n_R} \sum_{R} e^{i k \cdot {R}}  \f$ is a function with the same symmetries of the crystal, with \f$R\f$ being a set of irreducible Bravais lattice vectors (of an arbitrarily chosen supercell) and \f$n_R\f$ is the degeneracy of the Bravais lattice vectors.
 
-TODO: there might be an ambiguity if we change the parallelization between different runs. If we change the number of MPI processes, do the first #D G-vectors on root stay the same or do they change?
+Summarising, the algorithm goes as follow (we first lift degeneracies and then fix gauge):
+* Find, in Quantum ESPRESSO, the place right after the Hamiltonian \f$H_k\f$ has been diagonalized at each wavevector, and we have both the set of eigenvalues and eigenvectors \f$ c_{k,b}(G) \f$ and \f$ \epsilon_{k,b} \f$.
+* Look for degenerate subspaces
+* For each degenerate subspace (of space size \f$d\f$), pick the set of coefficients \f$ c = c_{k,i}(G=0) \f$, for i in the degenerate subspace.
+* Build a perturbation matrix \f$ \Delta H_k = F S(k) \f$, where \f$ F \f$ is a pseudo-random \f$ d\times d\f$ hermitian matrix with non-degenerate eigenvalues, and \f$ S(k) = \frac{1}{n_R} \sum_{R} e^{i k \cdot {R}}  \f$ is a function with the same symmetries of the crystal, with \f$R\f$ being a set of irreducible Bravais lattice vectors (of an arbitrarily chosen supercell) and \f$n_R\f$ is the degeneracy of the Bravais lattice vectors.
+* Build the \f$ d \times d \f$ matrix \f$ D = ( c^* \otimes c ) \cdot \Delta H \f$, where \f$ \otimes \f$ is the tensor product.
+* Diagonalize the matrix D, \f$ D\theta=\lambda\theta \f$, check that the eigenvalues have lost their degeneracy, and use the eigenvectors to rotate the plane wave coefficients at \f$ G=0 \f$, i.e. \f$ c^{rot} = \theta^{\dagger} c \f$.
+* After all degeneracies have been lifted, consider again the list of \f$G=0\f$ coefficients \f$ c = c_{k,b}(G=0)\f$.
+For each band, find the phase that makes the list of \f$c\f$ coefficients real and positive.
+* (Broadcast these phases, and) rotate the full list of plane wave coefficients.
+
+Note that only root node needs to work, and only broadcasts the rotations twice (once for the degeneracy lifting, and once for the rotation. Considering that the degenerate spaces are typically small (i.e. typically dimensions smaller than 10), and that we can limit the Bravais lattice vectors to be less than 100, the whole procedure is negligibly expensive compared to the diagonalization of the \f$ H_k(G,G')\f$ Hamiltonian.
+
+Note that Wannier90 must be run starting from the gauge-fixed wavefunctions.
+
+Note that the wavefunction, or g, doesn't need to be smooth with respect to k: we would need to make sure that the derivative of the wavefunction with respect to k is continuous.
 
 As a result, we fix both the gauge of the wavefunctions in degenerate subspaces and the gauge of the wavefunction across multiple k or q points.
-Now, the \f$g\f$ coupling, computed at fixed gauge, is a smooth function of k and q, which can be interpolated.
-Note that also Wannier90 must be used starting from the gauge-fixed wavefunctions.
+To verify that the gauge has been fixed successfully, compare the electron-phonon coupling with and without symmetries, and they should be the same, see below.
 
 
 

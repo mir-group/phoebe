@@ -1,8 +1,8 @@
 diff --git a/PHonon/PH/elphon.f90 b/PHonon/PH/elphon.f90
-index 02b465d8e..b1fa654d0 100644
+index 02b465d8e..241dbf873 100644
 --- a/PHonon/PH/elphon.f90
 +++ b/PHonon/PH/elphon.f90
-@@ -1346,8 +1346,441 @@ SUBROUTINE elphsum_simple
+@@ -1346,8 +1346,446 @@ SUBROUTINE elphsum_simple
       
  
  END SUBROUTINE elphsum_simple
@@ -163,6 +163,7 @@ index 02b465d8e..b1fa654d0 100644
 +    USE qpoint, ONLY : nksqtot
 +    USE symm_base, ONLY : s, nsym, t_rev, irt, time_reversal
 +    USE modes, ONLY : nmodes
++    USE dynmat, ONLY : dyn, w2
 +    implicit none
 +    real(dp), intent(in) :: et_collect(nbnd,nkstot), xk_collect(3,nkstot)
 +    integer, intent(in) :: ikks_collect(nksqtot)
@@ -431,6 +432,10 @@ index 02b465d8e..b1fa654d0 100644
 +    do iqq = 1,n_star
 +      write(unit_phoebe,*) (q_star(ii,iqq), ii = 1,3)
 +    end do
++    write(unit_phoebe,*) (w2(ii), ii = 1,nmodes) ! ph energies
++    do jj = 1,nmodes
++      write(unit_phoebe,*) (dyn(ii,jj), ii = 1,nmodes) ! ph eigenvectors
++    end do
 +    write(unit_phoebe,"(2ES24.16)") (((((gq_coupling(ii, jj, kk, ll, iqq), ii = 1, nbnd), &
 +         jj = 1, nbnd), kk = 1, nk), ll = 1, nmodes), iqq = 1,n_star)
 +    close(unit_phoebe)
@@ -445,7 +450,7 @@ index 02b465d8e..b1fa654d0 100644
  SUBROUTINE elphfil_epa(iq)
    !-----------------------------------------------------------------------
    !
-@@ -1529,6 +1962,9 @@ SUBROUTINE elphfil_epa(iq)
+@@ -1529,6 +1967,9 @@ SUBROUTINE elphfil_epa(iq)
       CLOSE (unit = iuelph, status = 'keep')
    ENDIF
    CALL cryst_to_cart(nkstot, xk_collect, bg, 1)
@@ -455,7 +460,7 @@ index 02b465d8e..b1fa654d0 100644
    DEALLOCATE(xk_collect)
    DEALLOCATE(wk_collect)
    DEALLOCATE(et_collect)
-@@ -1540,8 +1976,9 @@ SUBROUTINE elphfil_epa(iq)
+@@ -1540,8 +1981,9 @@ SUBROUTINE elphfil_epa(iq)
  
    RETURN
  
@@ -510,14 +515,169 @@ index 62aa4a383..a39aed6e3 100644
  !
  !  In this case the code stops inside the band calculation. Save the
 diff --git a/PW/src/c_bands.f90 b/PW/src/c_bands.f90
-index 77d728ddb..6fd4ad96f 100644
+index 77d728ddb..0c3a95bdf 100644
 --- a/PW/src/c_bands.f90
 +++ b/PW/src/c_bands.f90
-@@ -1,3 +1,244 @@
+@@ -1,3 +1,391 @@
 +!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 +!!!!!!!!!!!!!!!!! PHOEBE !!!!!!!!!!!!!!!!!!!
 +!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-+         
++
++subroutine compute_periodic_factor(periodic_factor, ik)
++  use kinds, only: dp
++  use constants, only: tpi
++  use start_k, only: nk1, nk2, nk3
++  use klist, only: nks, nkstot, xk
++  use cell_base, only: at, bg, alat, ibrav
++  implicit none
++  integer, intent(in) :: ik
++  complex(dp), intent(out) :: periodic_factor
++  logical, save :: first = .true.
++  !
++  integer :: num_lattice_vecs, i, j, i1, i2, i3, n1, n2, n3, icnt, ik_global, &
++       supercell_size, nkx, nky, nkz, ierr, max_lattice_vecs, dist_dim
++  real(dp), allocatable :: lattice_vecs(:,:), irvec(:,:), &
++       ndegen(:), degen(:), dist(:), xk_cryst(:,:)
++  real(dp) :: dist_min, tot, phase, kr, ndiff(3), x, y, z
++  real(dp), parameter :: eps5 = 1.0D-5
++  integer, external :: global_kpoint_index
++  
++  ik_global = global_kpoint_index(nkstot, ik)
++  
++  if ( first ) then
++    first = .false.
++    supercell_size = 2
++
++    
++    allocate(xk_cryst(3,nkstot))   
++    do i = 1,nkstot
++      xk_cryst(:,i) = xk(:,i)
++    end do
++    ! from cartesian to crystal coordinates
++    CALL cryst_to_cart(nkstot,xk_cryst,at,-1)
++    ! fold in 1st Brillouin zone
++    xk_cryst = xk_cryst - nint(xk_cryst)
++    xk_cryst = abs(xk_cryst)
++    
++    if ( nk1 /= 0 .and. nk2 /= 0 .and. nk3 /= 0 ) then
++      nkx = nk1
++      nky = nk2
++      nkz = nk3
++    else ! case in which we have a list of points
++      x = maxval(abs(xk_cryst(1,:)))
++      y = maxval(abs(xk_cryst(2,:)))
++      z = maxval(abs(xk_cryst(3,:)))
++      do i=1,nkstot
++        if ( xk_cryst(1,i) < x .and. xk_cryst(1,i) > eps5 ) then
++          x = xk_cryst(1,i)
++        end if
++        if ( xk_cryst(2,i) < x .and. xk_cryst(2,i) > eps5 ) then
++          y = xk_cryst(2,i)
++        end if
++        if ( xk_cryst(3,i) < x .and. xk_cryst(3,i) > eps5 ) then
++          z = xk_cryst(3,i)
++        end if
++      end do
++
++      nkx = maxval( (/ nint( 1./x ), nint( 1./y ), nint( 1./z ) /) )
++      nky = nkx
++      nkz = nkx      
++    end if
++
++    max_lattice_vecs = nkx*nky*nkz*supercell_size**3
++
++    allocate(irvec(3,max_lattice_vecs))
++    allocate(ndegen(max_lattice_vecs))
++
++    dist_dim = 1
++    do i = 1, 3
++      dist_dim = dist_dim * ((supercell_size + 1)*2 + 1)
++    end do
++    allocate(dist(dist_dim))
++    
++    num_lattice_vecs = 0
++    ! Loop over the lattice vectors of the primitive cell
++    ! that live in a supercell which is (2*ws_search_size+1)**2
++    ! larger than the Born-von Karman supercell.
++    ! We need to find which among these live in the Wigner-Seitz cell
++    do n1 = -supercell_size*nkx, supercell_size*nkx
++      do n2 = -supercell_size*nky, supercell_size*nky
++        do n3 = -supercell_size*nkz, supercell_size*nkz
++          ! Loop over the lattice vectors R of the Born-von Karman supercell
++          ! that contains all the points of the previous loop.
++          ! There are (2*(ws_search_size+1)+1)**3 points R. R=0 corresponds to
++          ! i1=i2=i3=0, or icnt=((2*(ws_search_size+1)+1)**3 + 1)/2
++          icnt = 0
++          do i1 = -supercell_size - 1, supercell_size + 1
++            do i2 = -supercell_size - 1, supercell_size + 1
++              do i3 = -supercell_size - 1, supercell_size + 1
++                icnt = icnt + 1
++                ! Calculate distance squared |r-R|^2
++                ndiff(1) = n1 - i1*nkx
++                ndiff(2) = n2 - i2*nky
++                ndiff(3) = n3 - i3*nkz
++                ndiff = matmul(at,ndiff)
++                dist(icnt) = sum(ndiff**2)
++              end do
++            end do
++          end do
++          !
++          dist_min = minval(dist)
++          if ( abs(dist((dist_dim + 1)/2) - dist_min) < eps5**2) then
++            num_lattice_vecs = num_lattice_vecs + 1
++            ndegen(num_lattice_vecs) = 0
++            do i = 1,dist_dim
++              if ( abs(dist(i) - dist_min) < eps5**2 ) then
++                ndegen(num_lattice_vecs) = ndegen(num_lattice_vecs) + 1
++              end if
++            end do
++            irvec(1, num_lattice_vecs) = n1
++            irvec(2, num_lattice_vecs) = n2
++            irvec(3, num_lattice_vecs) = n3
++          end if
++
++        enddo ! n3
++      enddo ! n2
++    enddo ! n1
++    
++    ! Check the "sum rule"
++    tot = 0.0d0
++    do i = 1,num_lattice_vecs
++      tot = tot + 1./ndegen(i)
++    enddo
++    if ( abs(tot-nkx*nky*nkz) > eps5 ) then
++      call errore("set_wavefunction_gauge", "Wigner seitz count failed", 1)
++    end if
++    
++    ! rotate to cartesian coordinates
++    allocate(lattice_vecs(num_lattice_vecs,3))
++    allocate(degen(num_lattice_vecs))
++    do i = 1,num_lattice_vecs
++      do j = 1,3
++        lattice_vecs(i,j) = irvec(1,i) * at(j,1) + irvec(2,i) * at(j,2) + irvec(3,i) * at(j,3)
++      end do
++      degen(i) = ndegen(i)
++    end do
++
++    deallocate(ndegen, irvec, dist)
++  end if
++
++  ! compute a function that has the same periodicity of the crystal
++  periodic_factor = cmplx(0.,0.,kind=dp)
++  do i = 1,num_lattice_vecs
++    kR = 0
++    do j = 1,3
++      kR = kR + tpi * lattice_vecs(j,i) * xk(j,ik_global)
++      ! note: xk in cart coordinates in units of 2pi/alat
++      ! lattice_vecs in cart coordinates in units of alat
++    end do    
++    phase = cmplx(0, kR ,kind=dp)
++    periodic_factor = periodic_factor + exp(phase) / degen(i)
++  end do
++  
++  return
++end subroutine compute_periodic_factor
++
 +subroutine set_wavefunction_gauge(ik)
 +  ! this subroutine fixes a gauge to the wavefunction
 +  ! The gauge is defined by setting the largest plane
@@ -528,6 +688,8 @@ index 77d728ddb..6fd4ad96f 100644
 +  ! Note that results should not change, besides numerical error
 +  ! As the gauge of a wavefunction is not an observable quantity
 +  ! and thus we can choose as we please
++
++  ! parameter int ik: index of pool-kpoint currently in evaluation
 +  
 +  use wavefunctions, only: evc ! plane wave coefficients, evc(npwx*npol,nbnd)
 +  use wvfct, only: et, & ! eigenvalues of the Hamiltonian et(nbnd,nkstot)
@@ -543,20 +705,21 @@ index 77d728ddb..6fd4ad96f 100644
 +  use input_parameters, only: calculation
 +  use mp_pools, only: root_pool, intra_pool_comm, nproc_pool, me_pool
 +  use mp, only: mp_bcast, mp_sum, mp_max
++
 +  implicit none
 +  integer, intent(in) :: ik
 +
 +  integer :: i, iG, ib, nRows, nBands, ierr, shap(2)
 +  real(dp) :: x, phase, theta
 +  complex(dp) :: max_pw_coeff, correction
-+  complex(dp), allocatable :: gauge_coefficients(:)
++  complex(dp), allocatable :: gauge_coefficients(:), degeneracy_gauge(:,:)
 +
 +  ! degeneracy
 +  integer :: sizeSubspace, lwork, j, ib2
 +  real(dp), allocatable :: rwork(:), eigval(:)
-+  complex(dp) :: xc
++  complex(dp) :: xc, periodic_factor
 +  complex(dp), allocatable :: work(:), tmpPsi(:,:), eigvec(:,:), DH(:,:)
-+
++  
 +  ! In this case, I don't want to waste time
 +  if ( trim(calculation) == 'nscf' .or. trim(calculation) == 'bands' ) then
 +    continue
@@ -572,82 +735,47 @@ index 77d728ddb..6fd4ad96f 100644
 +    call errore("set_wavefunction_gauge", "Unexpected",1)
 +  end if
 +
-+  allocate(gauge_coefficients(nbnd))
-+  gauge_coefficients = cmplx(0.,0.,kind=dp)
-+  if ( root_pool == me_pool ) then
-+    gauge_coefficients(:) = evc(1,:) 
-+  end if  
-+  call mp_bcast(gauge_coefficients, root_pool, intra_pool_comm)
-+
-+  ! for every band, find max
-+  do ib = 1,nbnd
-+
-+    max_pw_coeff = gauge_coefficients(ib)
-+    
-+    ! Now, I compute and impose the gauge
-+    ! z = |z| e^(i theta)
-+    theta = atan( dimag(max_pw_coeff) / real(max_pw_coeff) )
-+    if ( real(max_pw_coeff) < 0. ) then ! make the pw coeff real
-+      theta = theta + pi
-+    end if
-+    correction = cmplx(cos(-theta), sin(-theta), kind=dp)
-+    ! Impose gauge
-+    evc(:,ib) = evc(:,ib) * correction
-+ 
-+  end do
-+
++  call compute_periodic_factor(periodic_factor, ik)
++  
 +  ! Now I have to diagonalize the degenerate subspace
 +
-+  ib = 0
-+  ! loop on bands
-+  do while ( ib <= nbnd )
-+    ib = ib + 1
-+
-+    ! check if the band is degenerate, and get the degenerate subspace size
-+    sizeSubspace = 1
-+    do ib2 = ib+1,nbnd
-+      if (abs(et(ib,ik) - et(ib2,ik)) > 0.0001 / ryToeV) then  ! 0.1 meV
-+        exit
-+      end if
-+      sizeSubspace = sizeSubspace + 1;
-+    end do
-+
-+    ! If the subspace is degenerate, we do something
-+    if (sizeSubspace > 1) then
++  allocate(degeneracy_gauge(nbnd,nbnd))
++  degeneracy_gauge = cmplx(0.,0.,kind=dp)
++  do ib = 1,nbnd
++    degeneracy_gauge(ib,ib) = cmplx(1.,0.,kind=dp)
++  end do
 +      
-+      allocate(eigvec(sizeSubspace, sizeSubspace))
-+      eigvec = cmplx(0.,0.,kind=dp)
++  if ( me_pool == root_pool ) then
++    ib = 0
++    ! loop on bands
++    do while ( ib <= nbnd )
++      ib = ib + 1
 +      
-+      if ( me_pool == root_pool ) then
-+        if ( nRows < sizeSubspace ) then
-+          call errore("set_wavefunction_gauge", "too few plane waves on root", 1)
++      ! check if the band is degenerate, and get the degenerate subspace size
++      sizeSubspace = 1
++      do ib2 = ib+1,nbnd
++        if (abs(et(ib,ik) - et(ib2,ik)) > 0.0001 / ryToeV) then  ! 0.1 meV
++          exit
 +        end if
-+
-+        allocate(DH(sizeSubspace,sizeSubspace))
-+        allocate(tmpPsi(sizeSubspace,sizeSubspace))
++        sizeSubspace = sizeSubspace + 1;
++      end do
++      
++      ! If the subspace is degenerate, we do something
++      if (sizeSubspace > 1) then
 +        
-+        ! create a perturbation matrix
++        allocate(eigvec(sizeSubspace, sizeSubspace))
++        eigvec = cmplx(0.,0.,kind=dp)
++        
++        allocate(DH(sizeSubspace,sizeSubspace))
++        ! create a pseudo-random hermitian perturbation matrix
 +        call create_delta_H(DH, sizeSubspace, ib, ik)
 +
++        DH = DH * periodic_factor
++        
 +        ! 1) C = H |psi>
-+        tmpPsi = cmplx(0.,0.,kind=dp)
 +        do i = 1,sizeSubspace
 +          do j = 1,sizeSubspace
-+            do iG = 1,sizeSubspace
-+              tmpPsi(i,j) = tmpPsi(i,j) &
-+                   + DH(i, iG) * evc(iG,ib+j-1)
-+            end do
-+          end do
-+        end do
-+        
-+        ! 2) <psi| (x) |tmpPsi>
-+        
-+        do i = 1,sizeSubspace
-+          do j = 1,sizeSubspace
-+            do iG = 1,sizeSubspace
-+              eigvec(i,j) = eigvec(i,j) &
-+                   + evc(iG,ib+i-1) * tmpPsi(iG,j)
-+            end do
++            eigvec(i,j) = DH(i,j) * conjg(evc(1,ib+i-1)) * evc(1,ib+j-1)
 +          end do
 +        end do
 +        
@@ -673,13 +801,12 @@ index 77d728ddb..6fd4ad96f 100644
 +            call errore("set_wavefunction_gauge", "failed lifting degeneracy", ik)
 +          end if
 +        end do
-+        
 +        deallocate(rwork, work, eigval)
-+        deallocate(tmpPsi, DH)
++        deallocate(DH)
 +        ! Note: after ZHEEVD, eigvec actually contains the eigenvectors
 +        ! i.e. the rotation that lifts the degeneracy
 +
-+        ! normalize eigenvectors
++        ! normalize eigenvectors to 1 in L2 norm
 +        do i = 1,sizeSubspace
 +          x = 0.
 +          do ib2 = 1,sizeSubspace
@@ -690,34 +817,59 @@ index 77d728ddb..6fd4ad96f 100644
 +      
 +        ! find the inverse of the eigenvector matrix
 +        ! it's a unitary matrix, so that's easy
-+        eigvec = transpose(conjg(eigvec))
++        eigvec = transpose(conjg(eigvec)) ! eigvec first was (band index, eigval index)
 +
-+      end if
-+
-+      ! root broadcasts rotation to everyone
-+      call mp_bcast(eigvec, root_pool, intra_pool_comm)
-+
-+
-+      ! save plane wave coefficients in temporary array
-+      allocate(tmpPsi(nRows,sizeSubspace))
-+      do i=1,sizeSubspace
-+        tmpPsi(:,i) = evc(:,ib+i-1)
-+        evc(:,ib+i-1) = cmplx(0., 0., kind=dp)
-+      end do
-+
-+      ! remove degeneracy, rotating the coefficients
-+      do i = 1,sizeSubspace
-+        do j = 1,sizeSubspace
-+          do iG = 1,nRows
-+            evc(iG,ib+i-1) = evc(iG,ib+i-1) + eigvec(i,j) * tmpPsi(iG,j)
++        ! save the rotation for these bands
++        do i = 1,sizeSubspace
++          do j = 1,sizeSubspace
++            degeneracy_gauge(ib+i-1, ib+j-1) = degeneracy_gauge(ib+i-1, ib+j-1) + eigvec(i,j)
 +          end do
 +        end do
++
++        deallocate(eigvec)
++      end if ! end subspace
++      ib = ib + sizeSubspace - 1;
++    end do ! band loop
++  end if ! end on root
++
++  call mp_bcast(degeneracy_gauge, root_pool, intra_pool_comm)
++  !
++  ! now we lift the degeneracy in the wavefunction
++  ! applying the rotation found at G=0 on every plane wave coefficient
++  allocate(tmpPsi(1,nbnd))
++  do iG = 1,nRows
++    tmpPsi(1,:) = evc(iG,:) ! slower than rotating all G at once, but less memory intensive
++    evc(iG,:) = cmplx(0.,0.,kind=dp)
++    do ib = 1,nbnd
++      do ib2 = 1,nbnd
++        evc(iG,ib) = evc(iG,ib) + degeneracy_gauge(ib,ib2) * tmpPsi(1,ib2)
 +      end do
-+      
-+      deallocate(eigvec, tmpPsi)
++    end do
++  end do
++  deallocate(tmpPsi)
++
++  ! Now that the degeneracy is lifted, we fix the gauge
++  ! setting c(iG=1) plane wave coefficient to be real and positive
++  
++  allocate(gauge_coefficients(nbnd))
++  gauge_coefficients = cmplx(0.,0.,kind=dp)
++  if ( root_pool == me_pool ) then
++    gauge_coefficients(:) = evc(1,:) 
++  end if  
++  call mp_bcast(gauge_coefficients, root_pool, intra_pool_comm)
++
++  ! for every band, find max
++  do ib = 1,nbnd
++    max_pw_coeff = gauge_coefficients(ib)
++    ! Now, I compute and impose the gauge
++    ! z = |z| e^(i theta)
++    theta = atan( dimag(max_pw_coeff) / real(max_pw_coeff) )
++    if ( real(max_pw_coeff) < 0. ) then ! rotation to make c(G) positive
++      theta = theta + pi
 +    end if
-+    
-+    ib = ib + sizeSubspace - 1;
++    correction = cmplx(cos(-theta), sin(-theta), kind=dp)
++    ! Impose gauge
++    evc(:,ib) = evc(:,ib) * correction
 +  end do
 +  
 +  return
@@ -758,7 +910,7 @@ index 77d728ddb..6fd4ad96f 100644
  !
  ! Copyright (C) 2001-2020 Quantum ESPRESSO group
  ! This file is distributed under the terms of the
-@@ -255,6 +496,20 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
+@@ -255,6 +643,20 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
       CALL diag_bands_k()
       !
    ENDIF
