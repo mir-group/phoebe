@@ -16,8 +16,10 @@ protected:
   Eigen::Tensor<std::complex<double>, 5> blochToWannier(
       const Eigen::MatrixXd &elBravaisVectors,
       const Eigen::MatrixXd &phBravaisVectors,
-      const Eigen::Tensor<std::complex<double>, 5> &g_full,
-      FullBandStructure &elBandStructure, FullBandStructure &phBandStructure);
+      Eigen::Tensor<std::complex<double>, 5> &g_full,
+      const Eigen::Tensor<std::complex<double>,3> &uMatrices,
+      const Eigen::Tensor<std::complex<double>,3> &phEigenvectors,
+      FullPoints &kPoints, FullPoints &qPoints);
 
   /** Returns the rotation that moves the wavefunction from the (entangled)
    * Bloch representation to the disentangled Wannier representation
