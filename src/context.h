@@ -17,6 +17,10 @@ class Context {
   std::string phD2FileName = "";
   std::string phD3FileName = "";
   std::string electronH0Name = "";
+  std::string wannier90Prefix = "";
+  std::string quantumEspressoPrefix = "";
+  std::string elPhInterpolation = "";
+
   std::string appName = "";
   std::string sumRuleD2 = "";
   int smearingMethod = -1;
@@ -97,6 +101,12 @@ class Context {
 
   std::string getEpwFileName();
   void setEpwFileName(const std::string x);
+
+  std::string getWannier90Prefix();
+  void setWannier90Prefix(const std::string x);
+  std::string getQuantumEspressoPrefix();
+  void setQuantumEspressoPrefix(const std::string x);
+  std::string getElPhInterpolation();
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.

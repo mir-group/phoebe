@@ -424,6 +424,18 @@ void Context::setupFromInput(std::string fileName) {
         electronH0Name = parseString(val);
       }
 
+      if (parameterName == "wannier90Prefix") {
+        wannier90Prefix = parseString(val);
+      }
+
+      if (parameterName == "quantumEspressoPrefix") {
+        quantumEspressoPrefix = parseString(val);
+      }
+
+      if (parameterName == "elPhInterpolation") {
+        elPhInterpolation = parseString(val);
+      }
+
       if (parameterName == "epwFileName") {
         setEpwFileName(parseString(val));
       }
@@ -661,6 +673,23 @@ void Context::setEpwFileName(const std::string x) { epwFileName = x; }
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
 void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
+
+std::string Context::getWannier90Prefix() {
+  return wannier90Prefix;
+}
+void Context::setWannier90Prefix(const std::string x) {
+  wannier90Prefix = x;
+}
+std::string Context::getQuantumEspressoPrefix() {
+  return quantumEspressoPrefix;
+}
+void Context::setQuantumEspressoPrefix(const std::string x) {
+  quantumEspressoPrefix = x;
+}
+
+std::string Context::getElPhInterpolation() {
+  return elPhInterpolation;
+}
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 

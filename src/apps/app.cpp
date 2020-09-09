@@ -23,7 +23,7 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronFourierBands",
                                             "electronPolarization",
                                             "electronWannierTransport",
-                                            "elPhBlochToWannier"};
+                                            "elPhQeToPhoebe"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -34,8 +34,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new PhononTransportApp);
   } else if (choice == "electronWannierTransport") {
     return std::unique_ptr<App>(new ElectronWannierTransportApp);
-  } else if (choice == "elPhBlochToWannier") {
-    return std::unique_ptr<App>(new ElPhBlochToWannierApp);
+  } else if (choice == "elPhQeToPhoebe") {
+    return std::unique_ptr<App>(new ElPhQeToPhoebeApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {

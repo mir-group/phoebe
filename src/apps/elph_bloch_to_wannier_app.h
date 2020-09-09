@@ -5,21 +5,22 @@
 
 /** Main driver for the transport calculation
  */
-class ElPhBlochToWannierApp : public App {
+class ElPhQeToPhoebeApp : public App {
 public:
   void run(Context &context);
   void checkRequirements(Context &context);
+
 protected:
   /** Computes the transform of electron-phonon coupling from Bloch
    * to Wannier representation.
    */
-  Eigen::Tensor<std::complex<double>, 5> blochToWannier(
-      const Eigen::MatrixXd &elBravaisVectors,
-      const Eigen::MatrixXd &phBravaisVectors,
-      Eigen::Tensor<std::complex<double>, 5> &g_full,
-      const Eigen::Tensor<std::complex<double>,3> &uMatrices,
-      const Eigen::Tensor<std::complex<double>,3> &phEigenvectors,
-      FullPoints &kPoints, FullPoints &qPoints);
+  Eigen::Tensor<std::complex<double>, 5>
+  blochToWannier(const Eigen::MatrixXd &elBravaisVectors,
+                 const Eigen::MatrixXd &phBravaisVectors,
+                 Eigen::Tensor<std::complex<double>, 5> &g_full,
+                 const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+                 const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
+                 FullPoints &kPoints, FullPoints &qPoints);
 
   /** Returns the rotation that moves the wavefunction from the (entangled)
    * Bloch representation to the disentangled Wannier representation
@@ -33,9 +34,31 @@ protected:
    * was used in Wannier90, numWannier = numBands, otherwise,
    * numBands > numWannier due to the disentanglement. See Wannier90 docs.
    */
-  Eigen::Tensor<std::complex<double>,3> setupRotationMatrices(
-      const std::string &wannierPrefix, FullPoints &fullPoints);
+  Eigen::Tensor<std::complex<double>, 3>
+  setupRotationMatrices(const std::string &wannierPrefix,
+                        FullPoints &fullPoints);
 
+  std::tuple<Eigen::Tensor<std::complex<double>, 5>,
+             Eigen::Tensor<std::complex<double>, 3>,
+             Eigen::MatrixXd>
+  readGFromQEFile(Context &context, const int &numModes, const int &numBands,
+                  const int &numWannier, FullPoints &kPoints,
+                  FullPoints &qPoints, const Eigen::MatrixXd &kgridFull,
+                  const int &numIrrQPoints, const int &numQEBands,
+                  const Eigen::MatrixXd &energies);
+
+  std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
+             Eigen::MatrixXd, int, int, int, int>
+  readQEPhoebeHeader(Crystal &crystal, const std::string &phoebePrefixQE);
+
+  /** This method compares the energies computed by qe2wannier90
+     * and the energies of quantum espresso pw.x, to compute the offset between
+     * the two sets (wannier90 may skip some core states).
+     */
+  int computeOffset(const Eigen::MatrixXd &energies,
+                    const std::string &wannierPrefix);
+
+  std::vector<std::string> choices;
 };
 
 #endif
