@@ -49,6 +49,10 @@ class BaseBandStructure {
    * no filter.
    */
   virtual long hasWindow() = 0;
+  /** Returns the boolean determining if this bandstructure is distributed 
+   * or not. 
+   */
+  virtual bool getIsDistributed() = 0;
 
   // needed in the BTE
   /** Builds a Bloch state index, which combines both wavevector index and
@@ -225,6 +229,8 @@ class FullBandStructure : public BaseBandStructure {
   long getNumBands();
 
   long hasWindow();
+
+  bool getIsDistributed(); 
 
   /** Builds a Bloch state index, which runs on both wavevector index and
    * band index. ik runs from 0 to numPoints-1, ib from 0 to numBands-1.

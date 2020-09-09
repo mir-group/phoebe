@@ -132,6 +132,8 @@ long FullBandStructure::getNumBands() { return numBands; }
 
 long FullBandStructure::hasWindow() { return 0; }
 
+bool FullBandStructure::getIsDistributed() { return isDistributed; } 
+
 long FullBandStructure::getIndex(const WavevectorIndex &ik,
                                  const BandIndex &ib) {
   return ik.get() * numBands + ib.get();

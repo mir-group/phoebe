@@ -140,6 +140,8 @@ long ActiveBandStructure::getNumBands() {
 
 long ActiveBandStructure::hasWindow() { return windowMethod; }
 
+bool ActiveBandStructure::getIsDistributed() { return false; }
+
 long ActiveBandStructure::getIndex(const WavevectorIndex &ik,
                                    const BandIndex &ib) {
   return bloch2Comb(ik.get(), ib.get());
