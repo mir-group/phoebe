@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include "io.h"
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
@@ -54,7 +55,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
     uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
     numBands = uMatrices.dimension(0);            // number of entangled bands
     assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
-  } else { // epa
+  } else {                                        // epa
     numBands = numWannier;
   }
 
@@ -120,14 +121,14 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       std::cout << "Done writing g to file\n" << std::endl;
     }
   } else {
-    Error e("epa not implemented");
-  }
+    epaPostProcessing(context, g_full, energies, kPoints, qPoints, numElectrons,
+                      numSpin);
+    }
 }
 
 void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
-  throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
   throwErrorIfUnset(context.getQuantumEspressoPrefix(),
                     "QuantumEspressoPrefix");
 
@@ -136,6 +137,13 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(x, "elPhInterpolation");
   if (std::find(choices.begin(), choices.end(), x) == choices.end()) {
     Error e("The elPhInterpolation value has not been recognized.");
+  }
+
+  if (x == "wannier") {
+    throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
+  } else {
+    throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
+    throwErrorIfUnset(context.getEpaSmearingEnergy(), "epaSmearingEnergy");
   }
 }
 
@@ -291,7 +299,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
 Eigen::Tensor<std::complex<double>, 3>
 ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
-                                             FullPoints &fullPoints) {
+                                         FullPoints &fullPoints) {
   std::string line;
 
   if (wannierPrefix.empty()) {
@@ -420,7 +428,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
 }
 
 int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
-                                         const std::string &wannierPrefix) {
+                                     const std::string &wannierPrefix) {
   Eigen::VectorXd energiesQEAtZero = energies.col(0); // k = 0
 
   { // check the first point in Wannier90 is gamma
@@ -487,13 +495,14 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
 
 // read g, which is written to file on all k, q points
 std::tuple<Eigen::Tensor<std::complex<double>, 5>,
-           Eigen::Tensor<std::complex<double>, 3>,
-           Eigen::MatrixXd>
-ElPhQeToPhoebeApp::readGFromQEFile(
-    Context &context, const int &numModes, const int &numBands,
-    const int &numWannier, FullPoints &kPoints, FullPoints &qPoints,
-    const Eigen::MatrixXd &kgridFull, const int &numIrrQPoints,
-    const int &numQEBands, const Eigen::MatrixXd &energies) {
+           Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd>
+ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
+                                   const int &numBands, const int &numWannier,
+                                   FullPoints &kPoints, FullPoints &qPoints,
+                                   const Eigen::MatrixXd &kgridFull,
+                                   const int &numIrrQPoints,
+                                   const int &numQEBands,
+                                   const Eigen::MatrixXd &energies) {
 
   std::cout << "Start reading from file" << std::endl;
 
@@ -608,7 +617,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(
 std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
            Eigen::MatrixXd, int, int, int, int>
 ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
-                                          const std::string &phoebePrefixQE) {
+                                      const std::string &phoebePrefixQE) {
   std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
   std::ifstream infile(fileName);
   std::string line;
@@ -670,4 +679,96 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
 
   return {qMesh,         kMesh,      kgridFull,    qgridFull, energies,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
+}
+
+void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
+    Eigen::Tensor<std::complex<double>, 5> gFull, Eigen::MatrixXd elEnergies,
+    FullPoints &kPoints, FullPoints &qPoints, const int &numElectrons,
+                                          const int &numSpin) {
+  // input
+  double smearing = context.getEpaDeltaEnergy();
+  double smearing2 = 2. * smearing * smearing;
+  double deltaEnergy = context.getEpaDeltaEnergy();
+
+  // prepare energy bins
+  double minEnergy = elEnergies.minCoeff();
+  double maxEnergy = elEnergies.maxCoeff();
+  long numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  Eigen::VectorXd epaEnergies(numEpaEnergies);
+  for (int i=0; i<numEpaEnergies; i++) {
+    epaEnergies[i] = i * deltaEnergy + minEnergy;
+  }
+
+  std::cout << "Building EPA with " << numEpaEnergies << " energy bins.";
+
+  int numModes = gFull.dimension(2);
+  int numBands = gFull.dimension(0);
+
+  Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
+  g2Epa.setZero();
+
+  int numKPoints = gFull.dimension(3);
+  int numQPoints = gFull.dimension(4);
+
+  Eigen::Tensor<double, 3> gaussians(numEpaEnergies, numBands, numKPoints);
+  for (int ib1 = 0; ib1 < numBands; ib1++) {
+    for (int ik = 0; ik < numKPoints; ik++) {
+      for (int i = 0; i < numEpaEnergies; i++) {
+        double arg = pow(elEnergies(ib1,ik) - epaEnergies(i), 2) / smearing2;
+        gaussians(i, ib1, ik) = exp(-arg);
+      }
+    }
+  }
+
+  LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
+  for (int iq = 0; iq < numQPoints; iq++) {
+    loopPrint.update();
+    Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    for (int ik = 0; ik < numKPoints; ik++) {
+      Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+
+      // Coordinates and index of k+q point
+      Eigen::Vector3d kq = k + q;
+      Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
+      int ikq = kPoints.getIndex(kqCrystal);
+
+      for (int ib1 = 0; ib1 < numBands; ib1++) {
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+
+          for (int j = 0; j < numEpaEnergies; j++) {
+            for (int i = 0; i < numEpaEnergies; i++) {
+
+              double gaussian = gaussians(i,ib1,ik) * gaussians(j,ib2,ikq);
+
+              for (int nu = 0; nu < numModes; nu++) {
+                g2Epa(nu, i, j) +=
+                    std::norm(gFull(ib1, ib2, nu, ik, iq)) * gaussian;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  loopPrint.close();
+
+  {
+    std::cout << "\nStart writing g to file" << std::endl;
+    std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+    std::string outFileName = phoebePrefixQE + ".phoebe.epa.dat";
+    std::ofstream outfile(outFileName);
+    if (not outfile.is_open()) {
+      Error e("Output file couldn't be opened");
+    }
+    outfile << numElectrons << " " << numSpin << "\n";
+    outfile << numEpaEnergies << "\n";
+    outfile << epaEnergies.transpose() << "\n";
+    outfile << "\n";
+    for (auto x : g2Epa.dimensions()) {
+      outfile << x << " ";
+    }
+    outfile << g2Epa << "\n";
+    std::cout << "Done writing g to file\n" << std::endl;
+  }
+
 }

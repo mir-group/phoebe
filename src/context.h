@@ -79,6 +79,9 @@ class Context {
   double energyStep = std::numeric_limits<double>::quiet_NaN();
   double eFermiRange = std::numeric_limits<double>::quiet_NaN();
 
+  double epaSmearingEnergy = std::numeric_limits<double>::quiet_NaN();
+  double epaDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
+
   // utilities for parsing
 
   std::vector<std::string> &split(const std::string &s, char delim,
@@ -107,6 +110,9 @@ class Context {
   std::string getQuantumEspressoPrefix();
   void setQuantumEspressoPrefix(const std::string x);
   std::string getElPhInterpolation();
+
+  double getEpaSmearingEnergy();
+  double getEpaDeltaEnergy();
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.

@@ -630,6 +630,13 @@ void Context::setupFromInput(std::string fileName) {
         eFermiRange = parseDoubleWithUnits(val);
       }
 
+      if (parameterName == "epaSmearingEnergy") {
+        epaSmearingEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaDeltaEnergy") {
+        epaDeltaEnergy = parseDoubleWithUnits(val);
+      }
+
       //////////////////////////////////////////
 
     } else {  // it might be a block, or its content
@@ -690,6 +697,10 @@ void Context::setQuantumEspressoPrefix(const std::string x) {
 std::string Context::getElPhInterpolation() {
   return elPhInterpolation;
 }
+
+double Context::getEpaSmearingEnergy() {return epaSmearingEnergy;}
+
+double Context::getEpaDeltaEnergy() {return epaDeltaEnergy;}
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 

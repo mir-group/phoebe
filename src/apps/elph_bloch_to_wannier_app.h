@@ -39,8 +39,7 @@ protected:
                         FullPoints &fullPoints);
 
   std::tuple<Eigen::Tensor<std::complex<double>, 5>,
-             Eigen::Tensor<std::complex<double>, 3>,
-             Eigen::MatrixXd>
+             Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd>
   readGFromQEFile(Context &context, const int &numModes, const int &numBands,
                   const int &numWannier, FullPoints &kPoints,
                   FullPoints &qPoints, const Eigen::MatrixXd &kgridFull,
@@ -52,13 +51,19 @@ protected:
   readQEPhoebeHeader(Crystal &crystal, const std::string &phoebePrefixQE);
 
   /** This method compares the energies computed by qe2wannier90
-     * and the energies of quantum espresso pw.x, to compute the offset between
-     * the two sets (wannier90 may skip some core states).
-     */
+   * and the energies of quantum espresso pw.x, to compute the offset between
+   * the two sets (wannier90 may skip some core states).
+   */
   int computeOffset(const Eigen::MatrixXd &energies,
                     const std::string &wannierPrefix);
 
   std::vector<std::string> choices;
+
+  void epaPostProcessing(Context &context,
+                         Eigen::Tensor<std::complex<double>, 5> gFull,
+                         Eigen::MatrixXd elEnergies, FullPoints &kPoints,
+                         FullPoints &qPoints, const int &numElectrons,
+                         const int &numSpin);
 };
 
 #endif
