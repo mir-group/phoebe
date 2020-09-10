@@ -22,6 +22,11 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
+  // load the 3phonon coupling
+  // Note: this file contains the number of electrons
+  // which is needed to understand where to place the fermi level
+  auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+
   // first we make compute the band structure on the fine grid
 
   FullPoints fullPoints(crystal, context.getKMesh());
@@ -36,10 +41,6 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
   auto statisticsSweep = std::get<1>(t3);
-
-  // load the 3phonon coupling
-  auto couplingElPh =
-      InteractionElPhWan::parse(context.getEpwFileName(), crystal, &phononH0);
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,

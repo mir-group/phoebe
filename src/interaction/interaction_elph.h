@@ -138,7 +138,7 @@ public:
    * @param crystal: object describing the crystal unit cell.
    * @return intElPh: an instance of InteractionElPh.
    */
-  static InteractionElPhWan parse(const std::string &fileName, Crystal &crystal,
+  static InteractionElPhWan parse(Context &context, Crystal &crystal,
                                   PhononH0 *phononH0_ = nullptr);
 
   static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
