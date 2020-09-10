@@ -933,4 +933,8 @@ int PhononH0::getIndexEigvec(const int &iAt, const int &iPol) {
   return compress2Indeces(iAt, iPol, numAtoms, 3);
 }
 
+int PhononH0::getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms) {
+  return compress2Indeces(iAt, iPol, nAtoms, 3);
+}
+
 

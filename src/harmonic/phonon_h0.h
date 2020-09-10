@@ -106,6 +106,11 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   int getIndexEigvec(const int &iAt, const int &iPol);
 
+  /** same as getIndexEigvec, but as a static member
+   * @param nAtoms: the number of atoms in the unit cell
+   */
+  static int getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms);
+
   /** Get the static dielectric constant matrix.
    * @return dielectricMatrix: a 3x3 eigen matrix.
    */

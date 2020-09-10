@@ -140,6 +140,15 @@ public:
    */
   static InteractionElPhWan parse(const std::string &fileName, Crystal &crystal,
                                   PhononH0 *phononH0_ = nullptr);
+
+  static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
+      const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+      const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+      const Eigen::Matrix3d &epsilon,
+      const Eigen::Tensor<double, 3> &bornCharges,
+      const Eigen::MatrixXd &atomicPositions,
+      const Eigen::Vector3i &qCoarseMesh);
 };
 
 #endif

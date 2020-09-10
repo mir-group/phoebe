@@ -25,7 +25,7 @@ InteractionElPhWan::InteractionElPhWan(
   if (phononH0 != nullptr) {
     Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
     if (epsilon.squaredNorm() > 1.0e-10) { // i.e. if epsilon wasn't computed
-      if ( crystal.getNumSpecies() > 1 ) { // otherwise polar correction = 0
+          if (crystal.getNumSpecies() > 1) { // otherwise polar correction = 0
         usePolarCorrection = true;
       }
     }
@@ -220,11 +220,26 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
   double volume = crystal.getVolumeUnitCell();
   Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
   Eigen::Matrix3d epsilon = phononH0->getDielectricMatrix();
-  int numAtoms = crystal.getNumAtoms();
   Eigen::Tensor<double, 3> bornCharges = phononH0->getBornCharges();
   // must be in Bohr
   Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
   Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
+
+  return getPolarCorrectionStatic(q3, ev1, ev2, ev3, volume, reciprocalUnitCell,
+                                  epsilon, bornCharges, atomicPositions,
+                                  qCoarseMesh);
+}
+Eigen::Tensor<std::complex<double>, 3>
+InteractionElPhWan::getPolarCorrectionStatic(
+    const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+    const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+    const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+    const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
+    const Eigen::MatrixXd &atomicPositions,
+    const Eigen::Vector3i &qCoarseMesh) {
+  // doi:10.1103/physrevlett.115.176401, Eq. 4, is implemented here
+
+  int numAtoms = atomicPositions.rows();
 
   // overlap = <U^+_{b2 k+q}|U_{b1 k}>
   //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
@@ -250,6 +265,7 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
     }
   }
 
+  int numPhBands = ev3.rows();
   Eigen::VectorXcd x(numPhBands);
   x.setZero();
   for (Eigen::Vector3d gVector : gVectors) {
@@ -264,7 +280,7 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
           double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
                           gVector(1) * bornCharges(iAt, 1, iPol) +
                           gVector(2) * bornCharges(iAt, 2, iPol);
-          int k = phononH0->getIndexEigvec(iAt, iPol);
+          int k = PhononH0::getIndexEigvec(iAt, iPol, numAtoms);
           for (int ib3 = 0; ib3 < numPhBands; ib3++) {
             x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
           }
@@ -273,7 +289,8 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
     }
   }
 
-  Eigen::Tensor<std::complex<double>, 3> v(overlap.rows(),overlap.cols(),numPhBands);
+  Eigen::Tensor<std::complex<double>, 3> v(overlap.rows(), overlap.cols(),
+                                           numPhBands);
   v.setZero();
   for (int ib3 = 0; ib3 < numPhBands; ib3++) {
     for (int i = 0; i < overlap.rows(); i++) {
@@ -288,7 +305,7 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
 InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
                                              Crystal &crystal,
                                              PhononH0 *phononH0_) {
-  if ( mpi->mpiHead()) {
+  if (mpi->mpiHead()) {
     std::cout << "\n";
     std::cout << "Started parsing of el-ph interaction." << std::endl;
   }

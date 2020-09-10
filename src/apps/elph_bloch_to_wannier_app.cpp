@@ -1,17 +1,20 @@
 #include "elph_bloch_to_wannier_app.h"
 #include "bandstructure.h"
 #include "eigen.h"
+#include "interaction_elph.h"
+#include "io.h"
 #include "qe_input_parser.h"
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include "io.h"
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
 
-  std::cout << "\nLaunching app ElPhBlochToWannier\n" << std::endl;
+  if ( mpi->mpiHead()) {
+    std::cout << "\nLaunching app ElPhBlochToWannier\n" << std::endl;
+  }
 
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   std::string wannierPrefix = context.getWannier90Prefix();
@@ -25,9 +28,16 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   auto crystal = std::get<0>(t1);
   auto phononH0 = std::get<1>(t1);
 
-  auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
-  auto crystalEl = std::get<0>(t2);
-  auto electronH0 = std::get<1>(t2);
+  int numWannier; // number of bands used for g, at the end of the program
+  if (interpolation == "wannier") {
+    auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
+    auto electronH0 = std::get<1>(t2);
+    numWannier = electronH0.getNumBands();
+  } else {
+    auto t2 = QEParser::parseElHarmonicFourier(context);
+    auto electronH0 = std::get<1>(t2);
+    numWannier = electronH0.getNumBands();
+  }
 
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
@@ -47,26 +57,24 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   FullPoints qPoints(crystal, qMesh);
 
   int numModes = 3 * crystal.getNumAtoms();
-  int numWannier = electronH0.getNumBands();
-  int numBands;
 
+  int numBands; // number of bands in the QE calculation
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
   if (interpolation == "wannier") {
     uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
     numBands = uMatrices.dimension(0);            // number of entangled bands
     assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
-  } else {                                        // epa
+  } else { // epa: here we preserve the number of bands
     numBands = numWannier;
   }
 
   //----------------------------------------------------------------------------
 
   // read coupling from file
-
   auto t5 =
       readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
                       kgridFull, numIrrQPoints, numQEBands, energies);
-  auto g_full = std::get<0>(t5);         // (nBands, nBands, nModes, numK, numQ)
+  auto gFull = std::get<0>(t5);         // (nBands, nBands, nModes, numK, numQ)
   auto phEigenvectors = std::get<1>(t5); // (numModes, numModes, numQPoints)
   auto phEnergies = std::get<2>(t5);     // (numModes, numQPoints)
 
@@ -87,18 +95,22 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   // Bloch to Wannier transformation of el-ph coupling
   if (interpolation == "wannier") {
 
-    std::cout << "Start Wannier-transform of g" << std::endl;
+    if ( mpi->mpiHead()) {
+      std::cout << "Start Wannier-transform of g" << std::endl;
+    }
     Eigen::Tensor<std::complex<double>, 5> g_wannier =
-        blochToWannier(elBravaisVectors, phBravaisVectors, g_full, uMatrices,
-                       phEigenvectors, kPoints, qPoints);
-    std::cout << "Done Wannier-transform of g\n" << std::endl;
+        blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
+                       phEigenvectors, kPoints, qPoints, crystal, phononH0);
+    if ( mpi->mpiHead()) {
+      std::cout << "Done Wannier-transform of g\n" << std::endl;
+    }
 
     //----------------------------------------------------------------------------
 
     // Dump el-ph in Wannier representation to file
 
-    {
-      std::cout << "Start writing g to file" << std::endl;
+    if ( mpi->mpiHead()) {
+        std::cout << "Start writing g to file" << std::endl;
       std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
       std::ofstream outfile(outFileName);
       if (not outfile.is_open()) {
@@ -121,9 +133,9 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       std::cout << "Done writing g to file\n" << std::endl;
     }
   } else {
-    epaPostProcessing(context, g_full, energies, kPoints, qPoints, numElectrons,
-                      numSpin);
-    }
+    epaPostProcessing(context, gFull, energies, phEnergies, kPoints, qPoints,
+                      numElectrons, numSpin);
+  }
 }
 
 void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
@@ -150,15 +162,16 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
 Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     const Eigen::MatrixXd &elBravaisVectors,
     const Eigen::MatrixXd &phBravaisVectors,
-    Eigen::Tensor<std::complex<double>, 5> &g_full,
+    Eigen::Tensor<std::complex<double>, 5> &gFull,
     const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
     const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
-    FullPoints &kPoints, FullPoints &qPoints) {
+    FullPoints &kPoints, FullPoints &qPoints, Crystal &crystal,
+    PhononH0 &phononH0) {
 
-  int numBands = g_full.dimension(0); // # of entangled bands
-  int numModes = g_full.dimension(2);
-  int numKPoints = g_full.dimension(3);
-  int numQPoints = g_full.dimension(4);
+  int numBands = gFull.dimension(0); // # of entangled bands
+  int numModes = gFull.dimension(2);
+  int numKPoints = gFull.dimension(3);
+  int numQPoints = gFull.dimension(4);
   int numElBravaisVectors = elBravaisVectors.cols();
   int numPhBravaisVectors = phBravaisVectors.cols();
   int numWannier = uMatrices.dimension(1);
@@ -168,10 +181,75 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     s = 0;
   }
 
-  std::cout << "Wannier rotation" << std::endl;
-  Eigen::Tensor<std::complex<double>, 5> g_full_tmp(
+  bool usePolarCorrection;
+  Eigen::Matrix3d epsilon = phononH0.getDielectricMatrix();
+  if (epsilon.squaredNorm() > 1.0e-10) { // i.e. if epsilon wasn't computed
+    if (crystal.getNumSpecies() > 1) {   // otherwise polar correction = 0
+      usePolarCorrection = true;
+    }
+  }
+  if (usePolarCorrection) {
+    // we need to subtract the polar correction
+    // this contribution will be reinstated during the interpolation
+    auto volume = crystal.getVolumeUnitCell();
+    auto reciprocalUnitCell = crystal.getReciprocalUnitCell();
+    auto epsilon = phononH0.getDielectricMatrix();
+    auto bornCharges = phononH0.getBornCharges();
+    auto atomicPositions = crystal.getAtomicPositions();
+    auto qCoarseMesh = phononH0.getCoarseGrid();
+
+    for (long iq = 0; iq < numQPoints; iq++) {
+      Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+      if (q.norm() > 1.0e-8) {
+
+        Eigen::MatrixXcd ev3(numModes,numModes);
+        for (int j = 0; j < numModes; j++) {
+          for (int i = 0; i < numModes; i++) {
+            ev3(i,j) = phEigenvectors(i,j,iq);
+          }
+        }
+
+        for (long ik = 0; ik < numKPoints; ik++) {
+          Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+
+          // Coordinates and index of k+q point
+          Eigen::Vector3d kq = k + q;
+          Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
+          long ikq = kPoints.getIndex(kqCrystal);
+
+          // gather eigenvectors
+          Eigen::MatrixXcd ev1(numBands,numBands);
+          Eigen::MatrixXcd ev2(numBands,numBands);
+          for (int j = 0; j < numBands; j++) {
+            for (int i = 0; i < numBands; i++) {
+              ev1(i,j) = uMatrices(i,j,ik);
+              ev2(i,j) = uMatrices(i,j,ikq);
+            }
+          }
+          ev1 = ev1.adjoint();
+          ev2 = ev2.adjoint();
+
+          auto v = InteractionElPhWan::getPolarCorrectionStatic(
+              q, ev1, ev2, ev3, volume, reciprocalUnitCell, epsilon,
+              bornCharges, atomicPositions, qCoarseMesh);
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int j = 0; j < numBands; j++) {
+              for (int i = 0; i < numBands; i++) {
+                gFull(i, j, nu, ik, iq) -= v(i, j, nu);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if ( mpi->mpiHead()) {
+    std::cout << "Wannier rotation" << std::endl;
+  }
+  Eigen::Tensor<std::complex<double>, 5> gFullTmp(
       numWannier, numWannier, numModes, numKPoints, numQPoints);
-  g_full_tmp.setZero();
+  gFullTmp.setZero();
   for (long iq = 0; iq < numQPoints; iq++) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (long ik = 0; ik < numKPoints; ik++) {
@@ -201,7 +279,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numBands; j++) {
             for (int l = 0; l < numBands; l++) {
-              tmp(i, j, nu) += uKq(i, l) * g_full(l, j, nu, ik, iq);
+              tmp(i, j, nu) += uKq(i, l) * gFull(l, j, nu, ik, iq);
             }
           }
         }
@@ -210,20 +288,22 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
             for (int l = 0; l < numBands; l++) {
-              g_full_tmp(i, j, nu, ik, iq) += tmp(i, l, nu) * uK(l, j);
+              gFullTmp(i, j, nu, ik, iq) += tmp(i, l, nu) * uK(l, j);
             }
           }
         }
       }
     } // ik
   }   // iq
-  g_full.reshape(zeros);
+  gFull.reshape(zeros);
 
-  std::cout << "Electronic Fourier Transform" << std::endl;
+  if ( mpi->mpiHead()) {
+    std::cout << "Electronic Fourier Transform" << std::endl;
+  }
   // Fourier transform on the electronic coordinates
-  Eigen::Tensor<std::complex<double>, 5> g_mixed(
+  Eigen::Tensor<std::complex<double>, 5> gMixed(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
-  g_mixed.setZero();
+  gMixed.setZero();
   for (int iR = 0; iR < numElBravaisVectors; iR++) {
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
@@ -233,19 +313,21 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
             for (int nu = 0; nu < numModes; nu++) {
-              g_mixed(i, j, nu, iR, iq) += g_full_tmp(i, j, nu, ik, iq) * phase;
+              gMixed(i, j, nu, iR, iq) += gFullTmp(i, j, nu, ik, iq) * phase;
             }
           }
         }
       }
     }
   } // iq
-  g_full_tmp.reshape(zeros);
+  gFullTmp.reshape(zeros);
 
-  std::cout << "Phonon rotation" << std::endl;
-  Eigen::Tensor<std::complex<double>, 5> g_wannier_tmp(
+  if ( mpi->mpiHead()) {
+    std::cout << "Phonon rotation" << std::endl;
+  }
+  Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
-  g_wannier_tmp.setZero();
+  gWannierTmp.setZero();
   for (long iq = 0; iq < numQPoints; iq++) {
 
     Eigen::MatrixXcd uQ(numModes, numModes);
@@ -261,21 +343,23 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int irE = 0; irE < numElBravaisVectors; irE++) {
           for (int i = 0; i < numWannier; i++) {
             for (int j = 0; j < numWannier; j++) {
-              g_wannier_tmp(i, j, nu, irE, iq) +=
-                  g_mixed(i, j, nu2, irE, iq) * uQ(nu2, nu);
+              gWannierTmp(i, j, nu, irE, iq) +=
+                  gMixed(i, j, nu2, irE, iq) * uQ(nu2, nu);
             }
           }
         }
       }
     }
   }
-  g_mixed.reshape(zeros);
+  gMixed.reshape(zeros);
 
-  std::cout << "Phonon Fourier Transform" << std::endl;
-  Eigen::Tensor<std::complex<double>, 5> g_wannier(
+  if ( mpi->mpiHead()) {
+    std::cout << "Phonon Fourier Transform" << std::endl;
+  }
+  Eigen::Tensor<std::complex<double>, 5> gWannier(
       numWannier, numWannier, numModes, numElBravaisVectors,
       numPhBravaisVectors);
-  g_wannier.setZero();
+  gWannier.setZero();
   for (int iq = 0; iq < numQPoints; iq++) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -285,16 +369,16 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
             for (int nu = 0; nu < numModes; nu++) {
-              g_wannier(i, j, nu, irE, irP) +=
-                  phase * g_wannier_tmp(i, j, nu, irE, iq);
+              gWannier(i, j, nu, irE, irP) +=
+                  phase * gWannierTmp(i, j, nu, irE, iq);
             }
           }
         }
       }
     }
   }
-  g_wannier_tmp.reshape(zeros);
-  return g_wannier;
+  gWannierTmp.reshape(zeros);
+  return gWannier;
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -504,7 +588,9 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
                                    const int &numQEBands,
                                    const Eigen::MatrixXd &energies) {
 
-  std::cout << "Start reading from file" << std::endl;
+  if ( mpi->mpiHead()) {
+    std::cout << "Start reading from file" << std::endl;
+  }
 
   int bandsOffset;
   if (true) { // postProcessingCase == "wannier") {
@@ -610,7 +696,9 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
       }
     }
   }
-  std::cout << "Done reading g from file" << std::endl << std::endl;
+  if ( mpi->mpiHead()) {
+    std::cout << "Done reading g from file" << std::endl << std::endl;
+  }
   return {g_full, phEigenvectors, phEnergies};
 }
 
@@ -681,10 +769,11 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
 }
 
-void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
-    Eigen::Tensor<std::complex<double>, 5> gFull, Eigen::MatrixXd elEnergies,
+void ElPhQeToPhoebeApp::epaPostProcessing(
+    Context &context, Eigen::Tensor<std::complex<double>, 5> gFull,
+    Eigen::MatrixXd &elEnergies, Eigen::MatrixXd &phEnergies,
     FullPoints &kPoints, FullPoints &qPoints, const int &numElectrons,
-                                          const int &numSpin) {
+    const int &numSpin) {
   // input
   double smearing = context.getEpaDeltaEnergy();
   double smearing2 = 2. * smearing * smearing;
@@ -695,11 +784,13 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
   double maxEnergy = elEnergies.maxCoeff();
   long numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
   Eigen::VectorXd epaEnergies(numEpaEnergies);
-  for (int i=0; i<numEpaEnergies; i++) {
+  for (int i = 0; i < numEpaEnergies; i++) {
     epaEnergies[i] = i * deltaEnergy + minEnergy;
   }
 
-  std::cout << "Building EPA with " << numEpaEnergies << " energy bins.";
+  if ( mpi->mpiHead()) {
+    std::cout << "Building EPA with " << numEpaEnergies << " energy bins.";
+  }
 
   int numModes = gFull.dimension(2);
   int numBands = gFull.dimension(0);
@@ -714,7 +805,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
-        double arg = pow(elEnergies(ib1,ik) - epaEnergies(i), 2) / smearing2;
+        double arg = pow(elEnergies(ib1, ik) - epaEnergies(i), 2) / smearing2;
         gaussians(i, ib1, ik) = exp(-arg);
       }
     }
@@ -738,11 +829,15 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
           for (int j = 0; j < numEpaEnergies; j++) {
             for (int i = 0; i < numEpaEnergies; i++) {
 
-              double gaussian = gaussians(i,ib1,ik) * gaussians(j,ib2,ikq);
+              double gaussian = gaussians(i, ib1, ik) * gaussians(j, ib2, ikq);
 
               for (int nu = 0; nu < numModes; nu++) {
                 g2Epa(nu, i, j) +=
-                    std::norm(gFull(ib1, ib2, nu, ik, iq)) * gaussian;
+                    std::norm(gFull(ib1, ib2, nu, ik, iq)) * gaussian
+                    / 2. / phEnergies(nu,iq);
+                // /2omega, because there is a difference between the
+                // coupling <k+q| dV_q |k> from quantum espresso
+                // and the coupling g to be used for transport calcs
               }
             }
           }
@@ -752,7 +847,12 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
   }
   loopPrint.close();
 
-  {
+  Eigen::VectorXd phAvgEnergies(numModes); // phEnergies(numModes, numQPoints);
+  for (int nu = 0; nu < numModes; nu++) {
+    phAvgEnergies(nu) = phEnergies.row(nu).sum() / phEnergies.cols();
+  }
+
+  if ( mpi->mpiHead()) {
     std::cout << "\nStart writing g to file" << std::endl;
     std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
     std::string outFileName = phoebePrefixQE + ".phoebe.epa.dat";
@@ -763,6 +863,8 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
     outfile << numElectrons << " " << numSpin << "\n";
     outfile << numEpaEnergies << "\n";
     outfile << epaEnergies.transpose() << "\n";
+    outfile << phAvgEnergies.size() << "\n";
+    outfile << phAvgEnergies.transpose() << "\n";
     outfile << "\n";
     for (auto x : g2Epa.dimensions()) {
       outfile << x << " ";
@@ -770,5 +872,4 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context,
     outfile << g2Epa << "\n";
     std::cout << "Done writing g to file\n" << std::endl;
   }
-
 }

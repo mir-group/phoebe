@@ -2,6 +2,7 @@
 #define ELPHBLOCHTOWANAPP_H
 
 #include "app.h"
+#include "phonon_h0.h"
 
 /** Main driver for the transport calculation
  */
@@ -20,7 +21,8 @@ protected:
                  Eigen::Tensor<std::complex<double>, 5> &g_full,
                  const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
                  const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
-                 FullPoints &kPoints, FullPoints &qPoints);
+                 FullPoints &kPoints, FullPoints &qPoints,
+                 Crystal &crystal, PhononH0 &phononH0);
 
   /** Returns the rotation that moves the wavefunction from the (entangled)
    * Bloch representation to the disentangled Wannier representation
@@ -61,7 +63,8 @@ protected:
 
   void epaPostProcessing(Context &context,
                          Eigen::Tensor<std::complex<double>, 5> gFull,
-                         Eigen::MatrixXd elEnergies, FullPoints &kPoints,
+                         Eigen::MatrixXd &elEnergies,
+                         Eigen::MatrixXd &phEnergies, FullPoints &kPoints,
                          FullPoints &qPoints, const int &numElectrons,
                          const int &numSpin);
 };
