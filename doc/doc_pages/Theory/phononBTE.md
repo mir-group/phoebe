@@ -8,49 +8,49 @@ When a gradient of temperature \f$\nabla T\f$ is established in a system, a subs
 Without loss of generality we assume the gradient of temperature to be along the direction \f$x\f$.
  The flux of heat, collinear to the temperature gradient, can be written in terms of phonon energies \f$\hbar\omega_{\mathbf{q}j}\f$, phonon group velocities \f$v_{q j}\f$ in the \f$x\f$ direction, and the perturbed phonon population \f$n_{q j}\f$:
  \begin{equation}
-\frac{1}{N_0 \Omega} \sum_{q j} \hbar \omega_{q j} v_{q j} n_{q j} = - k \frac{\partial T}{ \partial x}
+\frac{1}{N_0 \Omega} \sum_{q j} \hbar \omega_{q j} \boldsymbol{v}_{\boldsymbol{q} j} n_{\boldsymbol{q} j} = - k \frac{\partial T}{ \partial \boldsymbol{x}}
 \end{equation}
-On the l.h.s \f$\omega_{\mathbf{q}j }\f$ is the angular frequency of the phonon mode with vector \f$\mathbf{q}\f$ and branch index \f$j\f$, \f$\Omega\f$ is the volume of 
-the unit cell and the sum runs over a uniform mesh of \f$N_0\f$ \f$\mathbf{q}\f$ points. 
+On the l.h.s \f$\omega_{\boldsymbol{q}j }\f$ is the angular frequency of the phonon mode with vector \f$\mathbf{q}\f$ and branch index \f$j\f$, \f$\Omega\f$ is the volume of 
+the unit cell and the sum runs over a uniform mesh of \f$N_0\f$ \f$\boldsymbol{q}\f$ points. 
 On the r.h.s. \f$k\f$ is the diagonal component of the thermal conductivity in the temperature-gradient direction. % with \f$\alpha\f$ and $\beta$ the Cartesian indeces.
  Knowledge of the perturbed phonon population allows heat flux and subsequently thermal conductivity to be evaluated.
 Unlike phonon scattering by defects, impurities and boundaries, anharmonic scattering represents an intrinsic resistive 
 process and in high quality samples, at room temperature, it dominates the behaviour of lattice thermal conductivity balancing the perturbation due to the gradient of temperature.
 The balance equation, namely the Boltzmann Transport Equation (BTE), formulated in 1929 by Peierls is:
 \begin{equation}
--v_{q j}\frac {\partial T} {\partial x} \frac{\partial n_{q j}}{\partial T} + \frac{\partial n_{q j}}{\partial t}\bigg|_{scatt} = 0
+-\boldsymbol{v}_{q j}\cdot \frac {\partial T} {\partial \boldsymbol{x}} \frac{\partial n_{\boldsymbol{q} j}}{\partial T} + \frac{\partial n_{\boldsymbol{q} j}}{\partial t}\bigg|_{scatt} = 0
 \end{equation}
 with the first term indicating the phonon diffusion due to the temperature gradient and the second term the scattering rate due to all the scattering processes.
 This equation has to be solved self consistently.
-In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population \f$\partial n_{q j} / \partial T = \partial \bar{n}_{q j} / \partial T \f$ where \f$\bar{n}_{q j} = (e^{\hbar \omega_{q j} /k_BT} - 1)^{-1}\f$; while for the scattering term it can be expanded about its equilibrium value in terms of a first order perturbation \f$f^{\mathrm{EX}}\f$:
+In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population \f$\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T \f$ where \f$\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}\f$; while for the scattering term it can be expanded about its equilibrium value in terms of a first order perturbation \f$f^{\mathrm{EX}}\f$:
  \begin{equation}
- n_{q j} \simeq \bar{n}_{q j}+\bar{n}_{q j}(\bar{n}_{q j}+1) \frac{\partial T}{\partial x}f^{\mathrm{EX}}_{q j}
+ n_{\boldsymbol{q} j} \simeq \bar{n}_{\boldsymbol{q} j}+\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) \frac{\partial T}{\partial \boldsymbol{x}}\cdot f^{\mathrm{EX}}_{\boldsymbol{q} j}
  \end{equation}
 The linearized BTE can then be written in the following form:
 \begin{equation}
--v_{q j}\left(\frac{\partial \bar{n}_{q j}}{\partial T}\right) =  
-  \sum_{q' j',q'' j''}\Big[ P_{q j,q' j'}^{q'' j''}(f^{\mathrm{EX}}_{q j}+f^{\mathrm{EX}}_{q' j'}-f^{\mathrm{EX}}_{q'' j''}) + \frac{1}{2} P^{q' j',q'' j''}_{q j} (f^{\mathrm{EX}}_{q j}-f^{\mathrm{EX}}_{q' j'}-f^{\mathrm{EX}}_{q'' j''} )\Big] + \sum_{q' j'}  P^{\mathrm{isot}}_{q j,q' j'}  (f^{\mathrm{EX}}_{q j} - f^{\mathrm{EX}}_{q' j'}) + P^{\mathrm{be}}_{q j} f^{\mathrm{EX}}_{q j}
+-v_{\boldsymbol{q} j}\left(\frac{\partial \bar{n}_{\boldsymbol{q} j}}{\partial T}\right) =  
+  \sum_{\boldsymbol{q}' j',\boldsymbol{q}'' j''}\Big[ P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\boldsymbol{q}'' j''}(f^{\mathrm{EX}}_{\boldsymbol{q} j}+f^{\mathrm{EX}}_{\boldsymbol{q}' j'}-f^{\mathrm{EX}}_{\boldsymbol{q}'' j''}) + \frac{1}{2} P^{\boldsymbol{q}' j',\boldsymbol{q}'' j''}_{\boldsymbol{q} j} (f^{\mathrm{EX}}_{\boldsymbol{q} j}-f^{\mathrm{EX}}_{\boldsymbol{q}' j'}-f^{\mathrm{EX}}_{\boldsymbol{q}'' j''} )\Big] + \sum_{\boldsymbol{q}' j'}  P^{\mathrm{isot}}_{\boldsymbol{q} j,\boldsymbol{q}' j'}  (f^{\mathrm{EX}}_{\boldsymbol{q} j} - f^{\mathrm{EX}}_{\boldsymbol{q}' j'}) + P^{\mathrm{be}}_{\boldsymbol{q} j} f^{\mathrm{EX}}_{\boldsymbol{q} j}
 \end{equation}
-where the sum on \f$q'\f$ and \f$q''\f$ is performed in the Brillouin Zone (BZ).
+where the sum on \f$\boldsymbol{q}'\f$ and \f$\boldsymbol{q}''\f$ is performed in the Brillouin Zone (BZ).
 The \f$\mathrm{EX}\f$ superscript of the first order perturbation \f$f^{\mathrm{EX}}\f$ denotes the exact solution of the BTE, to be distinguished from the approximated solutions that we will discuss later.
 In this last equation the anharmonic scattering processes as well as the scattering with the isotopic impurities and the border effect are considered. 
-More specifically \f$P_{q j,q' j'}^{q'' j''}\f$ is the scattering rate at the equilibrium  of a process where a phonon mode $q j$ scatters by absorbing another mode \f$qp j'\f$ to generate a third phonon mode \f$q'' j''\f$.
-While \f$P^{q' j',q'' j''}_{q j}\f$ is the scattering rate at the equilibrium of a process where a phonon mode \f$\mathbf{q}j\f$ decays in two modes \f$\mathbf{q}'j'\f$ and \f$\mathbf{q}''j'' \f$. 
+More specifically \f$P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\boldsymbol{q}'' j''}\f$ is the scattering rate at the equilibrium  of a process where a phonon mode $\boldsymbol{q} j$ scatters by absorbing another mode \f$\boldsymbol{q}' j'\f$ to generate a third phonon mode \f$\boldsymbol{q}'' j''\f$.
+While \f$P^{\boldsymbol{q}' j',\boldsymbol{q}'' j''}_{\boldsymbol{q} j}\f$ is the scattering rate at the equilibrium of a process where a phonon mode \f$\boldsymbol{q}j\f$ decays in two modes \f$\boldsymbol{q}'j'\f$ and \f$\boldsymbol{q}''j'' \f$. 
 
 The two scattering rates have the forms:
 \begin{eqnarray}
-P^{q'' j''}_{q j,q' j'}&{=}& \frac{2 \pi}{N_0 \hbar^2} \sum_{\mathbf{G}}
-	  |V^{(3)}(q j,q' j',{-}q'' j'')|^2  \nonumber \\
-	&&    \bar{n}_{q j}\bar{n}_{q' j'}(\bar{n}_{q'' j''}+1) \delta_{q{+}q' {-}q'', \mathbf{G}}\nonumber \\
-	&&  \delta(\hbar \omega_{q j} +\hbar \omega_{q' j'}-\hbar \omega_{q'' j''}) \label{coal}  
+P^{\boldsymbol{q}'' j''}_{\boldsymbol{q} j,\boldsymbol{q}' j'}&{=}& \frac{2 \pi}{N_0 \hbar^2} \sum_{\boldsymbol{G}}
+	  |V^{(3)}(\boldsymbol{q} j,\boldsymbol{q}' j',-\boldsymbol{q}'' j'')|^2  \nonumber \\
+	&&    \bar{n}_{\boldsymbol{q} j}\bar{n}_{\boldsymbol{q}' j'}(\bar{n}_{\boldsymbol{q}'' j''}+1) \delta_{\boldsymbol{q}+\boldsymbol{q}' -\boldsymbol{q}'', \boldsymbol{G}}\nonumber \\
+	&&  \delta(\hbar \omega_{\boldsymbol{q} j} +\hbar \omega_{\boldsymbol{q}' j'}-\hbar \omega_{\boldsymbol{q}'' j''}) \label{coal}  
 \end{eqnarray}
 \begin{eqnarray}
-P^{q' j',q'' j''}_{q j}&{=}& \frac{2 \pi}{N_0 \hbar^2 } \sum_{\mathbf{G}}
-	    |V^{(3)}(q j,{-}q' j',{-}q'' j'')|^2 \nonumber \\
-        &&       \bar{n}_{q j}(\bar{n}_{q' j'}{+}1)(\bar{n}_{q'' j''}{+}1)\delta_{q{-}q' {-}q'', \mathbf{G}} \nonumber \\ 
-        &&   \delta(\hbar \omega_{q j}-\hbar \omega_{q' j'}-\hbar \omega_{q'' j''} )\label{dec} 
+P^{\boldsymbol{q}' j',\boldsymbol{q}'' j''}_{\boldsymbol{q} j}&{=}& \frac{2 \pi}{N_0 \hbar^2 } \sum_{\boldsymbol{G}}
+	    |V^{(3)}(\boldsymbol{q} j,-\boldsymbol{q}' j',-\boldsymbol{q}'' j'')|^2 \nonumber \\
+        &&       \bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q}' j'}+1)(\bar{n}_{\boldsymbol{q}'' j''}+1)\delta_{\boldsymbol{q}-\boldsymbol{q}' -\boldsymbol{q}'', \boldsymbol{G}} \nonumber \\ 
+        &&   \delta(\hbar \omega_{\boldsymbol{q} j}-\hbar \omega_{\boldsymbol{q}' j'}-\hbar \omega_{\boldsymbol{q}'' j''} )\label{dec} 
 \end{eqnarray}
- with \f$ {\mathbf G}\f$ the reciprocal lattice vectors.
+ with \f$\boldsymbol{G}\f$ the reciprocal lattice vectors.
 In order to evaluate them it is necessary to compute the third derivative \f$V^{(3)}\f$ of  the total energy of the crystal \f$\mathcal{E}^{tot}(\{u_{s \alpha} (\mathbf{R}_l) \})\f$, with respect to the atomic displacement \f$u_{s \alpha} (\mathbf{R}_l)\f$, from the equilibrium position, of the s-th atom, 
 along the \f$\alpha\f$ Cartesian coordinate in the crystal cell identified by the lattice vector \f$\mathbf{R}_l\f$ :
 \begin{equation}
@@ -60,19 +60,19 @@ V^{(3)}(\mathbf{q} j,\mathbf{q}' j',\mathbf{q}'' j'')= \frac{\partial^3 \mathcal
  where \f$\mathcal{E}^{cell}\f$ is the energy per unit cell.
  The non-dimensional quantity \f$X_{\mathbf{q} j}\f$ is defined by 
 \begin{equation}
-X_{\mathbf{q} j}= \frac{1}{N_0}\sum_{l,s,\alpha} \sqrt{\frac{2 M_s \omega_{q j}} {\hbar}} z^{s \alpha^*}_{q j}  u_{s \alpha }(\mathbf{R}_l) e^{-i\mathbf{q}\cdot \mathbf{R}_l}
+X_{\mathbf{q} j}= \frac{1}{N_0}\sum_{l,s,\alpha} \sqrt{\frac{2 M_s \omega_{\boldsymbol{q} j}} {\hbar}} z^{s \alpha^*}_{\boldsymbol{q} j}  u_{s \alpha }(\mathbf{R}_l) e^{-i\mathbf{q}\cdot \mathbf{R}_l}
 \end{equation}
 with \f$z^{s \alpha}_{\mathbf{q}j} \f$ being the orthogonal phonon eigenmodes normalized on the unit cell and $M_s$ the atomic masses.
-This expression of X can be used to transform the output of a density-functional code, i.e. the matrix of energy derivatives in real space \f$\mathcal{E}(R_l s\alpha,R'_{l'} s' \alpha',R''_{l''}s''\alpha'')\f$ to the Fourier space.
+This expression of X can be used to transform the output of a density-functional code, i.e. the matrix of energy derivatives in real space \f$\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')\f$ to the Fourier space.
 The matrix is actually a periodic function, so it can be possible to neglect one of the Bravais lattice vector indices of such a tensor.
-Note that, Quantum Espresso provides the matrix \f$\mathcal{E}(0 s\alpha,R'_{l'} s' \alpha',R''_{l''}s''\alpha'')\f$ while frozen phonon codes such as phonopy and related use \f$\mathcal{E}(R_l s\alpha,R'_{l'} s' \alpha',0 s''\alpha'')\f$, i.e. set a different bravais lattice vector to zero.
+Note that, Quantum Espresso provides the matrix \f$\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')\f$ while frozen phonon codes such as phonopy and related use \f$\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{0} s''\alpha'')\f$, i.e. set a different bravais lattice vector to zero.
 Phoebe uses the latter convention at the time being.
 
 The rate of the elastic scattering with isotopic impurities has the form:
 \begin{eqnarray}
-  P_{q j,q' j'}^{\mathrm{isot}} & = & \frac{\pi}{2 N_0} \omega_{q j}\omega_{q' j'}  
-                   \left[ \bar{n}_{q j} \bar{n}_{q' j'} + \frac{\bar{n}_{q j} + \bar{n}_{q' j'}} {2} \right ] \nonumber \\
-                 & &\sum_{s} g^{s}_{2}   |  \sum_{\alpha} z^{s \alpha^*}_{\mathbf{q}j} \cdot z^{s \alpha}_{q' j'} |^2 \delta (\omega_{q j}- \omega_{q' j'})
+  P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} & = & \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}  
+                   \left[ \bar{n}_{\boldsymbol{q} j} \bar{n}_{\boldsymbol{q}' j'} + \frac{\bar{n}_{\boldsymbol{q} j} + \bar{n}_{\boldsymbol{q}' j'}} {2} \right ] \nonumber \\
+                 & &\sum_{s} g^{s}_{2}   |  \sum_{\alpha} z^{s \alpha^*}_{\mathbf{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} |^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
 \end{eqnarray}
 where \f$g^s_2 = \frac{(M_s - \langle  M_s\rangle)^2}{ \langle M_s \rangle^2 }\f$ is the average over the mass distribution of the atom of type \f$s\f$.
 In presence of two isotopes \f$M_s\f$ and \f$M_{s'}\f$ it can be written in terms of the concentration \f$\epsilon\f$ and mass change \f$\Delta M_s= M_{s'} - M_s\f$ :
@@ -82,10 +82,10 @@ In presence of two isotopes \f$M_s\f$ and \f$M_{s'}\f$ it can be written in term
 with \f$\langle M_s \rangle = M_s + \epsilon \Delta M_s\f$.\\
 Eventually, in a system of finite size, \f$P_{q j}^{\mathrm{be}} \f$ describes the reflection of a phonon from the border:
 \begin{equation}
-P_{q j}^{\mathrm{be}} = \frac{v_{q j}}{L}\bar{n}_{q j}(\bar{n}_{q j}+1) 
+P_{\boldsymbol{q} j}^{\mathrm{be}} = \frac{v_{\boldsymbol{q} j}}{L}\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) 
 \end{equation}
 where \f$L\f$ is the Casimir length of the sample.
-The border scattering is treated in the relaxation time approximation and it results in a process in which a phonon from a specific state(\f$\mathbf{q} j\f$) is reemitted from the surface contributing only to the equilibrium distribution.
+The border scattering is treated in the relaxation time approximation and it results in a process in which a phonon from a specific state(\f$\boldsymbol{q} j\f$) is reemitted from the surface contributing only to the equilibrium distribution.
 
 For the sake of clarity we will contract from here on the vector \f$\mathbf{q}\f$ and branch index \f$j\f$ in a single mode index \f$\nu\f$.
 The BTE of Eq. \ref{BTE2} can be written as  a linear system in matrix form:
@@ -228,9 +228,9 @@ To be written
 @section VELOCITY Phonon velocity operator
 The velocity operator matrix elements (e.g. along the x direction) can be computed using the Hellmann-Feynman theorem from the Dynamical matrix \f$\mathbf{\mathcal{D}}\f$:
 \begin{equation}
-V_{j j'}(q) = \sum_{\alpha \alpha' s s'} \frac{1}{2 \sqrt{M_s M_{s'}} \omega_{q j} }  z^{s \alpha^*}_{q j}  \frac{\partial \mathcal{D}^{\alpha \alpha'}_{s s'}(q)}{ \partial q_x}   z^{s' \alpha'}_{q j'}
+V^x_{j j'}(\boldsymbol{q}) = \sum_{\alpha \alpha' s s'} \frac{1}{2 \sqrt{M_s M_{s'}} \omega_{\boldsymbol{q} j} }  z^{s \alpha^*}_{\boldsymbol{q} j}  \frac{\partial \mathcal{D}^{\alpha \alpha'}_{s s'}(\boldsymbol{q})}{ \partial q_x}   z^{s' \alpha'}_{\boldsymbol{q} j'}
 \end{equation}
-In the non-degenerate case, the group velocity is \f$v_{q j}=V_{j j}(q)\f$ while in the degenerate one we use the phonon polarization vectors that diagonalize the matrix in the degenerate subspace.
+In the non-degenerate case, the group velocity is \f$\boldsymbol{v}_{\boldsymbol{q} j}=\boldsymbol{V}_{j j}(\boldsymbol{q})\f$ while in the degenerate one we use the phonon polarization vectors that diagonalize the matrix in the degenerate subspace.
 
 
 
