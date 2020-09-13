@@ -84,7 +84,7 @@ class BaseBandStructure {
   * @return stateIndices: a vector of the global indices of local states
   */
   virtual std::vector<long> getWavevectorIndices(); // TODO put a zero behind this
-  virtual std::vector<long> getStateIndices(); 
+  virtual std::vector<std::tuple<long,long>> getStateIndices(); 
 
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
@@ -270,7 +270,7 @@ class FullBandStructure : public BaseBandStructure {
   * an iterator.
   */
   std::vector<long> getWavevectorIndices();
-  std::vector<long> getStateIndices(); 
+  std::vector<std::tuple<long,long>> getStateIndices(); 
 
   /** Returns the indices of all bands on this process, or in an
   * undistributed case, returns all band indices.
@@ -302,6 +302,9 @@ class FullBandStructure : public BaseBandStructure {
    * rydbergs units.
    */
   const double &getEnergy(StateIndex &is);
+
+  // TODO temporary for testing
+  const double &getEnergy(const long &ik, const long &ib);  
 
   /** Returns the energies of all quasiparticle computed at a specified
    * wavevector.
