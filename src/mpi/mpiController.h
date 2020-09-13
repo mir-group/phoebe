@@ -82,12 +82,27 @@ class MPIcontroller {
    */
   template <typename T>
   void reduceMax(T* dataIn) const;
+
+  /** Wrapper for MPI_AllReduce which identifies the maximum of distributed data
+   * @param dataIn: pointer to sent data from each rank.
+   *       also acts as a receive buffer, as reduce is implemented IP.
+   */
+  template <typename T>
+  void allReduceMax(T* dataIn) const;
+
   /** Wrapper for MPI_Reduce which identifies the minimum of distributed data
    * @param dataIn: pointer to sent data from each rank.
-   * @param dataOut: pointer to buffer to receive min item from data.
+   *       also acts as a receive buffer, as reduce is implemented IP.
    */
   template <typename T>
   void reduceMin(T* dataIn) const;
+
+  /** Wrapper for MPI_AllReduce which identifies the minimum of distributed data
+   * @param dataIn: pointer to sent data from each rank.
+   *       also acts as a receive buffer, as reduce is implemented IP.
+   */
+  template <typename T>
+  void allReduceMin(T* dataIn) const;
 
   /** Wrapper for MPI_Gatherv which collects data from different ranks
    * and combines it into one buffer.
@@ -332,6 +347,22 @@ void MPIcontroller::reduceMax(T* dataIn) const {
 }
 
 template <typename T>
+void MPIcontroller::allReduceMax(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_MAX, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
+}
+
+template <typename T>
 void MPIcontroller::reduceMin(T* dataIn) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
@@ -353,6 +384,22 @@ void MPIcontroller::reduceMin(T* dataIn) const {
     errorReport(errCode);
   }
 #endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceMin(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_MIN, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
 }
 
 template <typename T>
