@@ -16,8 +16,8 @@ std::vector<long> BaseBandStructure::getWavevectorIndices() {
   std::vector<long> dummy; 
   return dummy; 
 } 
-std::vector<long> BaseBandStructure::getStateIndices() {
-  std::vector<long> dummy;
+std::vector<std::tuple<long,long>> BaseBandStructure::getStateIndices() {
+  std::vector<std::tuple<long,long>> dummy;
   return dummy;
 }
 long BaseBandStructure::getIndex(const long &ib, const long &ik) { 
@@ -172,17 +172,17 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
     return kptsList;
 }
 
-std::vector<long> FullBandStructure::getStateIndices() { 
-  std::vector<long> stateList; 
+std::vector<std::tuple<long,long>> FullBandStructure::getStateIndices() { 
+  //std::vector<std::tuple<long,long>> stateList; 
   // loop over local states, adding their global indices to the list
-  for (auto tup : energies.getAllLocalStates()) {
-    long ib = std::get<0>(tup);
-    long ik = std::get<1>(tup);
-    long is = getIndex(ib,ik);  
-    stateList.push_back(is);
-  } 
-  return stateList; 
-  
+  //for (auto tup : energies.getAllLocalStates()) {
+    //long ib = std::get<0>(tup);
+    //long ik = std::get<1>(tup);
+    //long is = getIndex(ib,ik);  
+    //stateList.push_back(is);
+  //} 
+  //return stateList; 
+  return energies.getAllLocalStates(); 
 } 
 
 std::vector<long> FullBandStructure::getBandIndices() {
@@ -198,6 +198,14 @@ const double &FullBandStructure::getEnergy(const long &stateIndex) {
   auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
+  if (!energies.indecesAreLocal(ib,ik)) {
+    Error e("Cannot access a non-local energy.");
+  }
+  return energies(ib, ik);
+}
+
+// TODO this is for testing, might be able to remove it
+const double &FullBandStructure::getEnergy(const long &ib, const long &ik) {
   if (!energies.indecesAreLocal(ib,ik)) {
     Error e("Cannot access a non-local energy.");
   }
