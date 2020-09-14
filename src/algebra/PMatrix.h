@@ -216,7 +216,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // We will also stop any level 3 scalapack functions from being called, as 
   // these require a square process grid. 
   // TODO can we avoid doing this by just having the default on initBlacs be 
-  // numBlocksRows/Cols default to zero? 
+  // numBlocksRows/Cols default to zero -- do this when we move it in here 
 
   if(numBlocksCols == 0 && numBlocksRows == 0) {
     // initialize blacs with a square process grid 
@@ -239,22 +239,10 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
   // determine the number of blocks (for parallel distribution) along rows/cols
   // numBlocksRows_/Cols_ -- the number of blocks we divide r/c of the matrix into 
-  // by default, we set the number of blocks equal to the number of
-  // rows in the blacs grid of processes. 
-  if (numBlocksRows != 0) {
-    numBlocksRows_ = numBlocksRows;
-  } else {
-    numBlocksRows_ = numBlasRows_;
-  }
-  if (numBlocksCols != 0) {
-    numBlocksCols_ = numBlocksCols;
-  } else {
-    numBlocksCols_ = numBlasCols_;
-  }
+  numBlocksRows_ = numBlasRows_;
+  numBlocksCols_ = numBlasCols_;
 
   // compute the block size (chunks of rows/cols over which matrix is distributed)
-  // TODO I think this is dangerous -- by addign this one extra value, there can be an extra
-  // zero hanging around on the end of some process's matrices.  
   blockSizeRows_ = numRows_ / numBlocksRows_;
   if (numRows_ % numBlocksRows_ != 0) blockSizeRows_ += 1;
   blockSizeCols_ = numCols_ / numBlocksCols_;
@@ -263,24 +251,13 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // determine the number of local rows and columns
   int iZero = 0;  // helper variable
 
-  // the case where we have specified distribution over cols or rows, 
-  // we don't want to let numroc make this determination for us. 
-  // Instead, we try giving each proc one block worth
-  // TODO woudl numroc actually work in both cases? 
- // if(numBlocksRows != 0 && numBlocksCols != 0) {
- //   numLocalRows_ = blockSizeRows_;
- //   numLocalCols_ = blockSizeCols_;
- //   std::cout << "numroc rows " << numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_) << std::endl;
- //   std::cout << "numroc cols " << numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_) << std::endl; 
-  // TODO: may want to add a cases for when only rows or cols is specified.  
-  // in the case where we do not specify the distribution of rows/cols, 
-  // let blas determine which rows/cols should be local to the process
-  //} else { //(numBlocksRows == 0 && numBlocksCols == 0) {
-    numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
-    numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
-  //}
-
+  // numroc function takes information about the process grid and returns the number of 
+  // rows and cols which are local to this process 
+  numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
+  numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
   numLocalElements_ = numLocalRows_ * numLocalCols_;
+
+  // allocate the matrix 
   mat = new T[numLocalElements_];
 
   // Memory could not be allocated, end program
@@ -493,24 +470,20 @@ long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
   int row_ = row + 1;
   int col_ = col + 1;
 
-  long il = indxg2l_( &row_, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
-  long jl = indxg2l_( &col_, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
-  //if(mpi->getRank() == 1) std::cout << " gr gc lr lc " << row << " " << col << " " << il << " " << jl << std::endl;
-  return il + (jl - 1) * descMat_[8] - 1;
+  // use infog2l_ to check that the current process owns this matrix element
+  int iia, jja, iarow, iacol;
+  infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
+           &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
 
-  // TODO put in some behavior in case this doesnt work
-
-  // Old version, leaving this temporarily 
-  //
-  // first, we find the local index
-  //int iia, jja, iarow, iacol;
-  //infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
-  //         &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
-  //if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
-  //  return iia + (jja - 1) * descMat_[8] - 1;
-  //} else {
-  //  return -1;
-  //}
+  // return -1 to signify the element is not local to this process
+  if (myBlasRow_ != iarow || myBlasCol_ != iacol) {
+    return -1; 
+  } else {
+    // get the local indices, (il,jl) of the globally indexed element
+    long il = indxg2l_( &row_, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+    long jl = indxg2l_( &col_, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+    return il + (jl - 1) * descMat_[8] - 1;
+  } 
 }
 
 template <typename T>
@@ -539,7 +512,6 @@ std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
   std::vector<long> x;
   int iZero = 0; 
   for (int k = 0; k < numLocalCols_; k++) {
-    //std::tuple<long, long> t = local2Global(k);  // bloch indices
     long gc = indxl2g_( &k, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
     x.push_back(gc);
   }
