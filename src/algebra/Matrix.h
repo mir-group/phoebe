@@ -1,9 +1,6 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-//#include <tuple>
-//#include <vector>
-
 #include "PMatrix.h" 
 #include "SMatrix.h" 
 
@@ -165,7 +162,7 @@ class Matrix {
   Matrix<T> operator-() const;
 };
 
-// -------------------- function implementations ---------------- //
+/* ------------------ constructor implementations -------------- */
 
 // A default constructor to build a dense matrix of zeros to be filled
 template <typename T>
@@ -190,7 +187,7 @@ Matrix<T>::Matrix() {
   mat = new SerialMatrix<T>(); 
 }
 
-// copy constructor  // TODO COPY is this the right way to do this? 
+// copy constructor  
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
   isDistributed = that.isDistributed;
@@ -203,7 +200,7 @@ Matrix<T>::Matrix(const Matrix<T>& that) {
     (*mat) = (*that.mat);
   } 
 }
-// TODO COPY is this the right way to do this? 
+
 template <typename T>
 Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
   if (this != &that) {
@@ -252,7 +249,7 @@ long Matrix<T>::size() const {
   else{ return mat->size(); }
 }
 
-// Get/set element
+/* ------------- get-set operations -------------- */
 template <typename T>
 T& Matrix<T>::operator()(const int row, const int col) {
   if(isDistributed) return (*pmat)(row,col);
@@ -290,6 +287,7 @@ std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
   else{ return mat->getAllLocalStates(); }
 }
 
+/* ------------- basic linear algebra ops -------------- */
 // General unary negation
 template <typename T>
 Matrix<T> Matrix<T>::operator-() const {

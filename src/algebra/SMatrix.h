@@ -1,14 +1,8 @@
 #ifndef SMATRIX_H
 #define SMATRIX_H
 
-// include statements
-//#include <assert.h>
 #include <tuple>
 #include <vector>
-//#include <cmath>
-//#include <complex>
-//#include <iostream>
-//#include <type_traits>
 
 #include "Blas.h"
 #include "exceptions.h"
@@ -339,6 +333,11 @@ void SerialMatrix<T>::eye() {
   } 
   for (int row = 0; row < numRows_; row++) (*this)(row, row) = (T)1.0;
 }
+
+// forward declaration of explicit specialization
+// is needed because the generic implementation does not 
+// work for complex types
+template<> double SerialMatrix<std::complex<double>>::norm();
 
 template <typename T>
 double SerialMatrix<T>::norm() {

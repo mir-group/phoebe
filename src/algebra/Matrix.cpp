@@ -64,18 +64,18 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 }
 
 // Explicit specialization of norm for doubles
-//template <>
-//double Matrix<double>::norm() {
-//  if(isDistributed) { return pmat->norm(); }
-//  else{ return mat->norm(); }
-//}
+template <>
+double Matrix<double>::norm() {
+  if(isDistributed) { return pmat->norm(); }
+  else{ return mat->norm(); }
+}
 
 // Explicit specialization of norm for complex doubles
-//template <>
-//double Matrix<std::complex<double>>::norm() {
-//  char norm = 'F';  // tells lapack to give us Frobenius norm
-//  int nr = nRows;
-//  int nc = nCols;
-//  std::vector<double> work(nRows);
-//  return zlange_(&norm, &nr, &nc, this->mat, &nr, &work[0]);
-//}
+template <>
+double Matrix<std::complex<double>>::norm() {
+  if(isDistributed) {
+    Error e(" No implemented specialization of PMatrix::complex<double>.norm()");
+    return 0; 
+  }
+  else{ return mat->norm(); }
+}

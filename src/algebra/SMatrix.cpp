@@ -95,7 +95,6 @@ double SerialMatrix<double>::norm() {
   char norm = 'F';  // tells lapack to give us Frobenius norm
   int nr = numRows_;
   int nc = numCols_;
-  // TODO: should we allocate *work?
   std::vector<double> work(numRows_);
   return dlange_(&norm, &nr, &nc, this->mat, &nr, &work[0]);
 }
