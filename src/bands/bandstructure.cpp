@@ -162,7 +162,6 @@ const double &FullBandStructure::getEnergy(const long &stateIndex) {
   return energies(ib, ik);
 }
 
-// TODO this is for testing, might be able to remove it
 const double &FullBandStructure::getEnergy(const long &ib, const long &ik) {
   if (!energies.indecesAreLocal(ib,ik)) {
     Error e("Cannot access a non-local energy.");

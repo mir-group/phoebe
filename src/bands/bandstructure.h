@@ -79,13 +79,6 @@ class BaseBandStructure {
    */
   virtual long getNumStates() = 0;
 
-  /** Returns the state indices of all states in the bandstructure object.
-  * In the distributed case, this returns global indices of the local states.
-  * @return stateIndices: a vector of the global indices of local states
-  */
-  virtual std::vector<long> getWavevectorIndices() = 0;
-  virtual std::vector<std::tuple<long,long>> getStateIndices() = 0; 
-
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
    */
@@ -271,7 +264,11 @@ class FullBandStructure : public BaseBandStructure {
   */
   std::vector<long> getWavevectorIndices();
 
-  // TODO add a comment here
+  /** Returns the indices of all state indices on this process, or in
+  * an undistributed case, returns all state indices.
+  * @return stateIndices: a vector of tuples of (ib,ik) indices for use as
+  * an iterator.
+  */
   std::vector<std::tuple<long,long>> getStateIndices(); 
 
   /** Returns the indices of all bands on this process, or in an
@@ -280,6 +277,8 @@ class FullBandStructure : public BaseBandStructure {
   */
   std::vector<long> getBandIndices();
 
+  // TODO in the distributed case, this might not be true! 
+  // then, is will not run from [0,numStates].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
@@ -292,6 +291,8 @@ class FullBandStructure : public BaseBandStructure {
    */
   const double &getEnergy(const long &stateIndex);
 
+  // TODO in the distributed case, this might not be true! 
+  // then, is will not run from [0,numStates-1].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Same as getEnergy(const long &stateIndex), but using a StateIndex input
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer
@@ -305,8 +306,19 @@ class FullBandStructure : public BaseBandStructure {
    */
   const double &getEnergy(StateIndex &is);
 
-  // TODO temporary for testing
-  const double &getEnergy(const long &ik, const long &ib);  
+  /** Returns the energy of a quasiparticle from its band and wavevector index.
+   * Same as getEnergy(const long &stateIndex), but using ib,ik instead. 
+   * ik should always be the global wavevector index, or this will be wrong!
+   * @param ib: the band index of the particle state
+   * @param ik: the wavevector index of the particle state
+   * @return energy: the value of the QP energy for that given Bloch index.
+   * Phonon energies are referred to zero, with negative energies being
+   * actually complex phonon frequencies. Electronic energies are not saved
+   * with any particular reference, and should be used together with the
+   * chemical potential computed by StatisticsSweep. By policy, it's in
+   * rydbergs units.
+   */
+  const double &getEnergy(const long &ib, const long &ik);  
 
   /** Returns the energies of all quasiparticle computed at a specified
    * wavevector.
