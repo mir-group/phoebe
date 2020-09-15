@@ -11,9 +11,12 @@
 StatisticsSweep::StatisticsSweep(Context &context,
                                  FullBandStructure *fullBandStructure)
     : particle(fullBandStructure != nullptr ? fullBandStructure->getParticle()
-                                            : Particle::phonon) {
+                                            : Particle::phonon), 
+    isDistributed(fullBandStructure != nullptr ? fullBandStructure->getIsDistributed()
+                                            : false) 
+{
 
-  isDistributed = fullBandStructure->getIsDistributed(); 
+  //isDistributed = fullBandStructure->getIsDistributed(); 
   Eigen::VectorXd temperatures = context.getTemperatures();
   nTemp = temperatures.size();
   if (nTemp == 0) {
