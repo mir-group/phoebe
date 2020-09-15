@@ -96,7 +96,10 @@ template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
 ParallelMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Can not diagonalize non-square matrix");
+    Error e("Cannot diagonalize non-square matrix");
+  }
+  if ( numBlasRows_ != numBlasCols_ ) {
+    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
@@ -162,6 +165,9 @@ std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
 ParallelMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
+  }
+  if ( numBlasRows_ != numBlasCols_ ) {
+    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
