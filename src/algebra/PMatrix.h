@@ -33,6 +33,7 @@ using ParallelMatrix = SerialMatrix<T>;
 template <typename T>
 class ParallelMatrix {
  private:
+
   /// Class variables
   int numRows_, numCols_;
   int numLocalRows_, numLocalCols_;
@@ -48,13 +49,8 @@ class ParallelMatrix {
   // myBlasRow/Col - this process's row/col in the process grid 
   int myBlasRow_, myBlasCol_;
   int descMat_[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-
-  // TODO cleanup commented out values
-  //int hasBlacs;
   int blasRank_;
   int blacsContext_;
-  //int numBlasRows_, numBlasCols_;
-  //int myBlasRow_, myBlasCol_;
   char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
   // dummy values to return when accessing elements not available locally
@@ -108,17 +104,12 @@ class ParallelMatrix {
   ParallelMatrix& operator=(const ParallelMatrix<T>& that);
 
   /** A method to initialize blacs parameters, if needed. 
-  * @param context: pass input information, which is used to determine 
-  *     if this is a blacs necessary application case. 
+  * @param numBlasRows -- number of rows requested for blacs grid
+  * @param numBlasCols -- number of cosl requested for blacs grid
+  * If both are zero, this function falls back to create a square 
+  * blacs process grid. 
   */
   void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0);
-// TODO make sure these are actually used
-/*  int getNumBlasRows();
-  int getNumBlasCols();
-  int getMyBlasRow();
-  int getMyBlasCol();
-  int getBlacsContext();
-*/
 
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
@@ -236,23 +227,13 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols) {
 
-  // TODO clean up this comment
-  // if blacs is not initalized, we need to start it
-  // if numBlocksRows/Cols not set, we initialize blacs with a 
-  // square process grid (and number of processors must be a square number)
-  // If numBlocksRows/Cols are set, we will initialize a rectangular process grid. 
-  // We will also stop any level 3 scalapack functions from being called, as 
-  // these require a square process grid. 
-
   // call initBlacs to set all blacs related variables and contruct 
   // the blacs context and process grid setup. 
-  if(numBlocksCols == 0 && numBlocksRows == 0) {
-    // initialize blacs with a square process grid 
-    initBlacs(); 
-  } else { 
-    // initialize the non-square blacs process grid
-    initBlacs(numBlocksRows,numBlocksCols);
-  } 
+  // If numBlocksRows or numBlocksCols is not zero, this will 
+  // initialize blacs with a square process grid 
+  // (and number of processors must be a square number)
+  initBlacs(numBlocksRows,numBlocksCols);
+
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
@@ -290,7 +271,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   int info;  // error code
   int lddA =
       numLocalRows_ > 1 ? numLocalRows_ : 1;  // if mpA>1, ldda=mpA, else 1
-  //int blacsContext = mpi->getBlacsContext(); // TODO remove this line, set by blacs init
+
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext_, &lddA, &info);
   if (info != 0) {
@@ -313,6 +294,8 @@ ParallelMatrix<T>::ParallelMatrix()  {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
+  blasRank_ = 0;
+  blacsContext_ = 0;
 }
 
 template <typename T>
@@ -330,6 +313,8 @@ ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   numBlasCols_ = that.numBlasCols_;
   myBlasRow_ = that.myBlasRow_;
   myBlasCol_ = that.myBlasCol_;
+  blasRank_ = that.blasRank_;
+  blacsContext_ = that.blasContext_;
 
   for (int i = 0; i < 9; i++) {
     descMat_[i] = that.descMat_[i];
@@ -362,6 +347,8 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
     numBlasCols_ = that.numBlasCols_;
     myBlasRow_ = that.myBlasRow_;
     myBlasCol_ = that.myBlasCol_;
+    blasRank_ = that.blasRank_;
+    blacsContext_ = that.blasContext_;
 
     for (int i = 0; i < 9; i++) {
       descMat_[i] = that.descMat_[i];
@@ -383,16 +370,17 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
-  if(blacsContext_ != 0 && mpi->mpiHead()) blacs_gridexit_(&blacsContext_);
+  if(blacsContext_ != 0 && mpi->mpiHead()) {
+    blacs_gridexit_(&blacsContext_);
+  } 
 }
 
-// Initialized blacs for the cases where the scattering matrix is used
 template <typename T>
 void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols) {
 
-  int size = mpi->getSize();  
+  int size = mpi->getSize(); // temp variable for mpi world size, used in setup 
 
-  blacs_pinfo_(&blasRank_, &size); // TODO ok replacement for size  // BLACS rank and world size
+  blacs_pinfo_(&blasRank_, &size);
   int zero = 0;
   blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
 
@@ -416,7 +404,7 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
       numBlasCols_ = numBlasCols;
   }
   else { // set up a square procs grid, as the default
-    numBlasRows_ = (int)(sqrt(size)); // TODO is this ok replacement for &size  // int does rounding down (intentional!)
+    numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
     numBlasCols_ = numBlasRows_;
 
     // Throw an error if we tried to set up a square proc grid with
@@ -433,18 +421,6 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
                     &myBlasCol_);
 }
 
-// TODO do we still need these at all? 
-/*template <typename T>
-int ParallelMatrix<T>::getNumBlasRows() { return numBlasRows_; }
-template <typename T>
-int ParallelMatrix<T>::getNumBlasCols() { return numBlasCols_; }
-template <typename T>
-int ParallelMatrix<T>::getMyBlasRow() { return myBlasRow_; }
-template <typename T>
-int ParallelMatrix<T>::getMyBlasCol() { return myBlasCol_; }
-template <typename T>
-int ParallelMatrix<T>::getBlacsContext() { return blacsContext_; }
-*/
 template <typename T>
 long ParallelMatrix<T>::rows() const {
   return numRows_;
