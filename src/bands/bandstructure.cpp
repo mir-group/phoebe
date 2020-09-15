@@ -11,19 +11,6 @@ std::vector<int> BaseBandStructure::parallelStateIterator() {
     int numStates = getNumStates();
     return mpi->divideWorkIter(numStates);
 }
-// TODO this is temporary
-std::vector<long> BaseBandStructure::getWavevectorIndices() { 
-  std::vector<long> dummy; 
-  return dummy; 
-} 
-std::vector<std::tuple<long,long>> BaseBandStructure::getStateIndices() {
-  std::vector<std::tuple<long,long>> dummy;
-  return dummy;
-}
-long BaseBandStructure::getIndex(const long &ib, const long &ik) { 
-  return 0; 
-}
-
 //-----------------------------------------------------------------------------
 
 FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
@@ -37,43 +24,23 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   hasVelocities = withVelocities;
   hasEigenvectors = withEigenvectors;
 
-  //TODO -- can we actually remove this block now and just replace it with the 
-  // first half of the if statement? serial matrix would just throw away the block
-  // and col information. 
-  // Initialize data structures depending on memory distribution
-  if (isDistributed) {
-    int numBlockCols = std::min((long)mpi->getSize(), numPoints);
-    energies = Matrix<double>(numBands, numPoints, 1, numBlockCols,isDistributed);
-    numLocalPoints = energies.localCols();
-    if (hasVelocities) {
-      velocities = Matrix<std::complex<double>>(
-          numBands * numBands * 3, numPoints, 1, numBlockCols,isDistributed);
-    }
-    if (hasEigenvectors) {
-      if ( particle.isPhonon() ) {
-        eigenvectors = Matrix<std::complex<double>>(
-            3 * numAtoms * numBands, numPoints, 1, numBlockCols,isDistributed);
-      } else {
-        eigenvectors = Matrix<std::complex<double>>(
-            numBands * numBands, numPoints, 1, numBlockCols,isDistributed);
-      }
-    }
-  } else {
-    energies = Matrix<double>(numBands, numPoints);
-    numLocalPoints = numPoints;
-
-    if (hasVelocities) {
-      velocities =
-          Matrix<std::complex<double>>(numBands * numBands * 3, numPoints);
-    }
-    if (hasEigenvectors) {
-      if ( particle.isPhonon() ) {
-        eigenvectors =
-            Matrix<std::complex<double>>(3 * numAtoms * numBands, numPoints);
-      } else {
-        eigenvectors =
-            Matrix<std::complex<double>>(numBands * numBands, numPoints);
-      }
+  // Initialize data structures depending on memory distribution. 
+  // If is distributed is true, numBlockCols is used to column/wavevector 
+  // distribute the internal matrices
+  int numBlockCols = std::min((long)mpi->getSize(), numPoints);
+  energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
+  numLocalPoints = energies.localCols();
+  if (hasVelocities) {
+    velocities = Matrix<std::complex<double>>(
+        numBands * numBands * 3, numPoints, 1, numBlockCols, isDistributed);
+  }
+  if (hasEigenvectors) {
+    if ( particle.isPhonon() ) {
+      eigenvectors = Matrix<std::complex<double>>(
+          3 * numAtoms * numBands, numPoints, 1, numBlockCols, isDistributed);
+    } else {
+      eigenvectors = Matrix<std::complex<double>>(
+          numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
     }
   }
 }
@@ -159,6 +126,7 @@ std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
 
 long FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
 
+// TODO this might be something I can simplify
 std::vector<long> FullBandStructure::getWavevectorIndices() {
     std::vector<long> kptsList;
     // loop over local states
@@ -173,21 +141,11 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
 }
 
 std::vector<std::tuple<long,long>> FullBandStructure::getStateIndices() { 
-  //std::vector<std::tuple<long,long>> stateList; 
-  // loop over local states, adding their global indices to the list
-  //for (auto tup : energies.getAllLocalStates()) {
-    //long ib = std::get<0>(tup);
-    //long ik = std::get<1>(tup);
-    //long is = getIndex(ib,ik);  
-    //stateList.push_back(is);
-  //} 
-  //return stateList; 
   return energies.getAllLocalStates(); 
 } 
 
 std::vector<long> FullBandStructure::getBandIndices() {
   std::vector<long> bandsList;
-  // loop over local states
   for(int ib = 0; ib < numBands; ib++) {
       bandsList.push_back(ib);
   }
@@ -416,11 +374,14 @@ void FullBandStructure::setEigenvectors(Point &point,
 }
 
 Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
-  // TODO -- this will be a problem because getWavevectorIndices will return a list of 
-  // global wavevector indices, some off which may be outside the size of energies.localCols
+  // note: here we use the getWavevectorIndices function because if the
+  // energies are distributed, we need to use global k indices 
+  // when calling energies(ib,ik) 
   Eigen::VectorXd bandEnergies(energies.localCols());
-  for (auto ik : getWavevectorIndices()) {
-    bandEnergies(ik) = energies(bandIndex, ik);
+  std::vector<long> wavevectorIndices = getWavevectorIndices(); 
+  for (int i = 0; i < energies.localCols(); i++) {
+    long ik = wavevectorIndices[i];  // global wavevector index
+    bandEnergies(i) = energies(bandIndex, ik);
   }
   return bandEnergies;
 }
