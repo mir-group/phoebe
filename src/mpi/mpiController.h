@@ -4,6 +4,7 @@
 #include <chrono>
 #include <complex>
 #include <vector>
+#include "eigen.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>

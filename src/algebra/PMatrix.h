@@ -7,6 +7,7 @@
 #include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
+
 #include "SMatrix.h" 
 
 // fall back to SerialMatrix if no MPI
@@ -314,7 +315,7 @@ ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   myBlasRow_ = that.myBlasRow_;
   myBlasCol_ = that.myBlasCol_;
   blasRank_ = that.blasRank_;
-  blacsContext_ = that.blasContext_;
+  blacsContext_ = that.blacsContext_;
 
   for (int i = 0; i < 9; i++) {
     descMat_[i] = that.descMat_[i];
@@ -348,7 +349,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
     myBlasRow_ = that.myBlasRow_;
     myBlasCol_ = that.myBlasCol_;
     blasRank_ = that.blasRank_;
-    blacsContext_ = that.blasContext_;
+    blacsContext_ = that.blacsContext_;
 
     for (int i = 0; i < 9; i++) {
       descMat_[i] = that.descMat_[i];
