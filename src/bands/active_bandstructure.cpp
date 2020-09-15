@@ -181,10 +181,11 @@ std::vector<long> ActiveBandStructure::getWavevectorIndices() {
 }
 
 std::vector<std::tuple<long,long>> ActiveBandStructure::getStateIndices() {
-  vector<std::tuple<long, long>> stateList;
+  std::vector<std::tuple<long, long>> stateList;
   for ( long ik = 0; ik < numPoints; ik++) {
-    for ( int ib = 0; ib < numBands(ik); ib++) { // TODO is this right use of numBands?
+    for ( long ib = 0; ib < numBands(ik); ib++) { // TODO is this right use of numBands?
       stateList.push_back({ib,ik});
+    }
   }
   return stateList;
 }
