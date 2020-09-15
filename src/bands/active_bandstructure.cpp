@@ -163,8 +163,30 @@ std::tuple<WavevectorIndex, BandIndex> ActiveBandStructure::getIndex(
   return getIndex(iss);
 }
 
+// TODO might be removed/redundant
+long ActiveBandStructure::getIndex(const long &ib, const long &ik) { 
+  return bloch2Comb(ik, ib);  
+}
+
 long ActiveBandStructure::getNumStates() {
   return numStates;
+}
+
+std::vector<long> ActiveBandStructure::getWavevectorIndices() {
+  std::vector<long> kptsList;
+  for ( long ik = 0; ik < numPoints; ik++) {
+    kptsList.push_back(ik);
+  }
+  return kptsList;
+}
+
+std::vector<std::tuple<long,long>> ActiveBandStructure::getStateIndices() {
+  vector<std::tuple<long, long>> stateList;
+  for ( long ik = 0; ik < numPoints; ik++) {
+    for ( int ib = 0; ib < numBands(ik); ib++) { // TODO is this right use of numBands?
+      stateList.push_back({ib,ik});
+  }
+  return stateList;
 }
 
 const double &ActiveBandStructure::getEnergy(const long &stateIndex) {

@@ -105,6 +105,7 @@ class ActiveBandStructure : public BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1
    */
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+  long getIndex(const long &ik, const long &ib); // TODO does this need it's own comment? is it redundant?
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -127,6 +128,17 @@ class ActiveBandStructure : public BaseBandStructure {
    * @return numStates: the total number of Bloch states in the class.
    */
   long getNumStates();
+
+  /** Returns the indices of all wavevector indices in the bandstructure
+  * for compatibility with baseBandstructure interface in cases when 
+  * FullBandStructure is distributed. 
+  * @return wavevectorIndices: a vector of wavevector indices for use as
+  * an iterator.
+  */
+  std::vector<long> getWavevectorIndices();
+  
+  // TODO add a comment here
+  std::vector<std::tuple<long,long>> getStateIndices();
 
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.
