@@ -27,12 +27,13 @@ class MPIcontroller {
     std::chrono::steady_clock::time_point startTime;
   #endif
 
-  int hasBlacs; 
-  int blasRank_;
-  int blacsContext_;
-  int numBlasRows_, numBlasCols_;
-  int myBlasRow_, myBlasCol_;
-  char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
+// TODO remove these
+  //int hasBlacs; 
+  //int blasRank_;
+  //int blacsContext_;
+  //int numBlasRows_, numBlasCols_;
+  //int myBlasRow_, myBlasCol_;
+  //char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
  public:
   // MPIcontroller class constructors -----------------------------------
@@ -40,11 +41,12 @@ class MPIcontroller {
    * communicator, and starts a timer **/
   MPIcontroller();
 
-  /** A method to initialize blacs parameters, if needed. 
-  * @param context: pass input information, which is used to determine 
-  *     if this is a blacs necessary application case. 
-  */
-  void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0); 
+// TODO remove this
+//  /** A method to initialize blacs parameters, if needed. 
+//  * @param context: pass input information, which is used to determine 
+//  *     if this is a blacs necessary application case. 
+//  */
+//  void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
@@ -151,11 +153,12 @@ class MPIcontroller {
   void mpiRead();
   void mpiAppend();
 
-  int getNumBlasRows();
-  int getNumBlasCols();
-  int getMyBlasRow();
-  int getMyBlasCol();
-  int getBlacsContext();
+// TODO remove these
+//  int getNumBlasRows();
+///  int getNumBlasCols();
+//  int getMyBlasRow();
+//  int getMyBlasCol();
+//  int getBlacsContext();
 
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns a vector of length 2, containing start and stop

@@ -3,7 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include "mpiController.h"
-#include "Blacs.h"
+//#include "Blacs.h" // TODO remove thi // TODO remove thiss
 #include "exceptions.h"
 #include "context.h"
 
@@ -14,13 +14,13 @@
 // default constructor
 MPIcontroller::MPIcontroller() {
   // set default values for cases without MPI or blacs
-  hasBlacs = false;
-  blasRank_ = 0;
-  blacsContext_ = 0;
-  numBlasRows_ = 1;
-  numBlasCols_ = 1;
-  myBlasRow_ = 0;
-  myBlasCol_ = 0;
+  //hasBlacs = false;
+  //blasRank_ = 0;
+  //blacsContext_ = 0;
+  //numBlasRows_ = 1;
+  //numBlasCols_ = 1;
+  //myBlasRow_ = 0;
+  //myBlasCol_ = 0;
 
 #ifdef MPI_AVAIL
   // start the MPI environment
@@ -49,7 +49,7 @@ MPIcontroller::MPIcontroller() {
   startTime = std::chrono::steady_clock::now();
 #endif
 }
-
+/*
 // Initialized blacs for the cases where the scattering matrix is used
 void MPIcontroller::initBlacs(const int& numBlasRows, const int& numBlasCols) {
 
@@ -99,7 +99,7 @@ void MPIcontroller::initBlacs(const int& numBlasRows, const int& numBlasCols) {
                     &myBlasCol_);
   }
 #endif
-}
+} */
 
 // TODO: any other stats would like to output here?
 void MPIcontroller::finalize() const {
@@ -108,7 +108,6 @@ void MPIcontroller::finalize() const {
   if (mpiHead()) {
     fprintf(stdout, "Final time: %3f\n ", MPI_Wtime() - startTime);
   }
-  if(hasBlacs) blacs_gridexit_(&blacsContext_);
   MPI_Finalize();
 #else
   std::cout << "Final time: "
@@ -130,8 +129,6 @@ void MPIcontroller::errorReport(int errCode) const{
 	MPI_Error_string(errCode, errString, &lengthOfString);
 	fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
 	MPI_Abort(MPI_COMM_WORLD, errCode);
-	#else 
-	// TODO: how are we throwing non-mpi errors? 
 	#endif
 }
 
@@ -169,13 +166,14 @@ std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   return divs;
 }
 
-int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
+// TODO remove these
+//int MPIcontroller::getNumBlasRows() { return numBlasRows_; }
 
-int MPIcontroller::getNumBlasCols() { return numBlasCols_; }
+//int MPIcontroller::getNumBlasCols() { return numBlasCols_; }
 
-int MPIcontroller::getMyBlasRow() { return myBlasRow_; }
+//int MPIcontroller::getMyBlasRow() { return myBlasRow_; }
 
-int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
+//int MPIcontroller::getMyBlasCol() { return myBlasCol_; }
 
-int MPIcontroller::getBlacsContext() { return blacsContext_; }
+//int MPIcontroller::getBlacsContext() { return blacsContext_; }
 
