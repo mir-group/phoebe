@@ -98,7 +98,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       }
       occupiedStates /= numPoints;
       if(isDistributed) {
-        mpi->allReduceSum(&occupiedStates)
+        mpi->allReduceSum(&occupiedStates);
       }
     } else {
       occupiedStates /= spinFactor;

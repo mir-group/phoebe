@@ -113,7 +113,7 @@ ParallelMatrix<double>::diagonalize() {
   // TODO is there a nice way to do this that doesn't involve the copying
   // of all the matrix elements over, as we throw them away regardless?
   ParallelMatrix<double> eigenvectors(*this);
-  eigenvectors.zeros()
+  eigenvectors.zeros();
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
