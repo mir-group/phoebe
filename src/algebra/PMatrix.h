@@ -371,9 +371,8 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
-  if(blacsContext_ != 0 && mpi->mpiHead()) {
-    blacs_gridexit_(&blacsContext_);
-  } 
+  //std::cout << "blacsContext " << blacsContext_ << std::endl;
+  //blacs_gridexit_(&blacsContext_); // TODO why does this cause a problem?
 }
 
 template <typename T>
