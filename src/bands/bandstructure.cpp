@@ -24,8 +24,8 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   hasVelocities = withVelocities;
   hasEigenvectors = withEigenvectors;
 
-  // Initialize data structures depending on memory distribution. 
-  // If is distributed is true, numBlockCols is used to column/wavevector 
+  // Initialize data structures depending on memory distribution.
+  // If is distributed is true, numBlockCols is used to column/wavevector
   // distribute the internal matrices
   int numBlockCols = std::min((long)mpi->getSize(), numPoints);
   energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
@@ -99,7 +99,7 @@ long FullBandStructure::getNumBands() { return numBands; }
 
 long FullBandStructure::hasWindow() { return 0; }
 
-bool FullBandStructure::getIsDistributed() { return isDistributed; } 
+bool FullBandStructure::getIsDistributed() { return isDistributed; }
 
 long FullBandStructure::getIndex(const WavevectorIndex &ik,
                                  const BandIndex &ib) {
@@ -140,9 +140,9 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
     return kptsList;
 }
 
-std::vector<std::tuple<long,long>> FullBandStructure::getStateIndices() { 
-  return energies.getAllLocalStates(); 
-} 
+std::vector<std::tuple<long,long>> FullBandStructure::getStateIndices() {
+  return energies.getAllLocalStates();
+}
 
 std::vector<long> FullBandStructure::getBandIndices() {
   std::vector<long> bandsList;
@@ -374,10 +374,10 @@ void FullBandStructure::setEigenvectors(Point &point,
 
 Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
   // note: here we use the getWavevectorIndices function because if the
-  // energies are distributed, we need to use global k indices 
-  // when calling energies(ib,ik) 
+  // energies are distributed, we need to use global k indices
+  // when calling energies(ib,ik)
   Eigen::VectorXd bandEnergies(energies.localCols());
-  std::vector<long> wavevectorIndices = getWavevectorIndices(); 
+  std::vector<long> wavevectorIndices = getWavevectorIndices();
   for (int i = 0; i < energies.localCols(); i++) {
     long ik = wavevectorIndices[i];  // global wavevector index
     bandEnergies(i) = energies(bandIndex, ik);

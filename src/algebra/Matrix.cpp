@@ -34,12 +34,12 @@ Matrix<std::complex<double>>::diagonalize() {
     auto tup = pmat->diagonalize();
     eigvals = std::get<0>(tup);
     eigvecs.pmat = &(std::get<1>(tup));
-  } 
-  else{ 
+  }
+  else{
     auto tup = mat->diagonalize();
     eigvals = std::get<0>(tup);
     eigvecs.mat = &(std::get<1>(tup));
-  } 
+  }
   return {eigvals,eigvecs};
 }
 
@@ -55,10 +55,10 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
     eigvals = std::get<0>(tup);
     eigvecs.pmat = &(std::get<1>(tup)); // returns a pmat, need the pointer to it
   }
-  else{ 
+  else{
     auto tup = mat->diagonalize();
     eigvals = std::get<0>(tup);
-    eigvecs.mat = &(std::get<1>(tup)); 
+    eigvecs.mat = &(std::get<1>(tup));
   }
   return {eigvals,eigvecs};
 }
@@ -75,7 +75,7 @@ template <>
 double Matrix<std::complex<double>>::norm() {
   if(isDistributed) {
     Error e(" No implemented specialization of PMatrix::complex<double>.norm()");
-    return 0; 
+    return 0;
   }
   else{ return mat->norm(); }
 }

@@ -6,8 +6,8 @@ SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
     const SerialMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows."); 
-  } 
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+  }
   SerialMatrix<std::complex<double>> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   std::complex<double> alpha(1.0, 0.0);
@@ -23,7 +23,7 @@ SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that
                                     const char& trans1, const char& trans2) {
   if(cols() != that.rows()) {
     Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
-  } 
+  }
   SerialMatrix<double> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
   double alpha = 1.0;

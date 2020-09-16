@@ -92,10 +92,10 @@ class ActiveBandStructure : public BaseBandStructure {
    */
   long hasWindow();
 
-  /** Returns if this bandstructure is distributed. In the case of 
-   * activeBandstructure, currently always returns false. 
+  /** Returns if this bandstructure is distributed. In the case of
+   * activeBandstructure, currently always returns false.
    */
-   bool getIsDistributed();  
+   bool getIsDistributed();
 
   /** Builds a Bloch state index, which runs on both wavevector index and
    * band index.
@@ -105,7 +105,7 @@ class ActiveBandStructure : public BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1
    */
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
-  long getIndex(const long &ik, const long &ib); 
+  long getIndex(const long &ik, const long &ib);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.

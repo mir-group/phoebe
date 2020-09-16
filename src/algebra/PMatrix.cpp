@@ -14,7 +14,7 @@ ParallelMatrix<double> ParallelMatrix<double>::prod(
 
   if(cols() != that.rows()) {
     Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
-  } 
+  }
   ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
                                 numBlocksCols_);
   int m;
@@ -57,7 +57,7 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
   ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
                                               numBlocksRows_, numBlocksCols_);
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows."); 
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
   int m;
   if (trans1 == transN) {
@@ -104,16 +104,16 @@ ParallelMatrix<double>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  // create a matrix which has the same blacsContext and shape as 
-  // the original, but filled with zeros so that we can 
-  // do this calculation. We have to use the same context, or 
-  // pdsyev will fail on the second argument of descMat (an integer which 
-  // represents the context, and fails if the in and out matrix 
+  // create a matrix which has the same blacsContext and shape as
+  // the original, but filled with zeros so that we can
+  // do this calculation. We have to use the same context, or
+  // pdsyev will fail on the second argument of descMat (an integer which
+  // represents the context, and fails if the in and out matrix
   // contexts are not the same)
-  // TODO is there a nice way to do this that doesn't involve the copying 
-  // of all the matrix elements over, as we throw them away regardless? 
+  // TODO is there a nice way to do this that doesn't involve the copying
+  // of all the matrix elements over, as we throw them away regardless?
   ParallelMatrix<double> eigenvectors(*this);
-  eigenvectors.zeros();  
+  eigenvectors.zeros()
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar

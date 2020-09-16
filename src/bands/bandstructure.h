@@ -49,8 +49,8 @@ class BaseBandStructure {
    * no filter.
    */
   virtual long hasWindow() = 0;
-  /** Returns the boolean determining if this bandstructure is distributed 
-   * or not. 
+  /** Returns the boolean determining if this bandstructure is distributed
+   * or not.
    */
   virtual bool getIsDistributed() = 0;
 
@@ -223,7 +223,7 @@ class FullBandStructure : public BaseBandStructure {
 
   long hasWindow();
 
-  bool getIsDistributed(); 
+  bool getIsDistributed();
 
   /** Builds a Bloch state index, which runs on both wavevector index and
    * band index. ik runs from 0 to numPoints-1, ib from 0 to numBands-1.
@@ -233,7 +233,7 @@ class FullBandStructure : public BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
    */
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
-  long getIndex(const long &ik, const long &ib); 
+  long getIndex(const long &ik, const long &ib);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -269,7 +269,7 @@ class FullBandStructure : public BaseBandStructure {
   * @return stateIndices: a vector of tuples of (ib,ik) indices for use as
   * an iterator.
   */
-  std::vector<std::tuple<long,long>> getStateIndices(); 
+  std::vector<std::tuple<long,long>> getStateIndices();
 
   /** Returns the indices of all bands on this process, or in an
   * undistributed case, returns all band indices.
@@ -277,7 +277,7 @@ class FullBandStructure : public BaseBandStructure {
   */
   std::vector<long> getBandIndices();
 
-  // TODO in the distributed case, this might not be true! 
+  // TODO in the distributed case, this might not be true!
   // then, is will not run from [0,numStates].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.
@@ -291,7 +291,7 @@ class FullBandStructure : public BaseBandStructure {
    */
   const double &getEnergy(const long &stateIndex);
 
-  // TODO in the distributed case, this might not be true! 
+  // TODO in the distributed case, this might not be true!
   // then, is will not run from [0,numStates-1].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Same as getEnergy(const long &stateIndex), but using a StateIndex input
@@ -307,7 +307,7 @@ class FullBandStructure : public BaseBandStructure {
   const double &getEnergy(StateIndex &is);
 
   /** Returns the energy of a quasiparticle from its band and wavevector index.
-   * Same as getEnergy(const long &stateIndex), but using ib,ik instead. 
+   * Same as getEnergy(const long &stateIndex), but using ib,ik instead.
    * ik should always be the global wavevector index, or this will be wrong!
    * @param ib: the band index of the particle state
    * @param ik: the wavevector index of the particle state
@@ -318,7 +318,7 @@ class FullBandStructure : public BaseBandStructure {
    * chemical potential computed by StatisticsSweep. By policy, it's in
    * rydbergs units.
    */
-  const double &getEnergy(const long &ib, const long &ik);  
+  const double &getEnergy(const long &ib, const long &ik);
 
   /** Returns the energies of all quasiparticle computed at a specified
    * wavevector.

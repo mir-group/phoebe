@@ -166,9 +166,9 @@ namespace mpiContainer {
           };
 
         // Use definition to generate containers for scalar types
-        MPIDataType(int, MPI_INT) 
+        MPIDataType(int, MPI_INT)
         MPIDataType(long, MPI_LONG)
-        MPIDataType(unsigned int, MPI_UNSIGNED) 
+        MPIDataType(unsigned int, MPI_UNSIGNED)
         MPIDataType(float, MPI_FLOAT)
         MPIDataType(double, MPI_DOUBLE)
         MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
@@ -205,7 +205,7 @@ namespace mpiContainer {
                 static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }
                 static inline size_t getSize(Eigen::Tensor<T, 3>* data) { return data->size(); }
                 static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        }; 
+        };
         // Container for Eigen::MatrixXi
         template <> struct containerType<Eigen::MatrixXi> {
                 static inline int* getAddress(Eigen::MatrixXi* data) { return data->data(); }
@@ -278,7 +278,7 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
     errorReport(errCode);
   }
 #endif
-} 
+}
 
 template <typename T>
 void MPIcontroller::allReduceSum(T* dataIn) const {

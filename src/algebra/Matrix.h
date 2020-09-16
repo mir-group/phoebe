@@ -1,8 +1,8 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-#include "PMatrix.h" 
-#include "SMatrix.h" 
+#include "PMatrix.h"
+#include "SMatrix.h"
 
 /** Container class which wraps an underlying serial or parallel matrix
  */
@@ -14,17 +14,17 @@ class Matrix {
   std::tuple<long, long> local2Global(const long& k);
 
  /** Boolean variable which tells us if the underlying matrix is parallel
- * will be defaulted to false if no value is provided in constructor 
+ * will be defaulted to false if no value is provided in constructor
  */
- bool isDistributed; 
+ bool isDistributed;
 
- /** Underlying ParallelMatrix instantiated only if isDistributed = true 
+ /** Underlying ParallelMatrix instantiated only if isDistributed = true
  */
  ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
- */ 
- SerialMatrix<T>* mat = new SerialMatrix<T>(); 
+ */
+ SerialMatrix<T>* mat = new SerialMatrix<T>();
 
  public:
   /** Default Matrix constructor.
@@ -103,8 +103,8 @@ class Matrix {
   /** Matrix-matrix addition.
    */
   Matrix<T> operator+=(const Matrix<T>& m1) {
-    if(isDistributed) (*pmat) += (*m1.pmat); 
-    else (*mat) += (*m1.mat);   
+    if(isDistributed) (*pmat) += (*m1.pmat);
+    else (*mat) += (*m1.mat);
     return *this;
   }
 
@@ -169,49 +169,49 @@ template <typename T>
 Matrix<T>::Matrix(const int& numRows, const int& numCols,
                   const int& numBlocksRows, const int& numBlocksCols, bool isDistributed_) {
 
-  isDistributed = isDistributed_; // default to false if no value supplied 
+  isDistributed = isDistributed_; // default to false if no value supplied
 
-  if(isDistributed){ 
-    pmat = new ParallelMatrix<T>(numRows,numCols,numBlocksRows,numBlocksCols); 
-  } 
-  else { 
-    mat = new SerialMatrix<T>(numRows,numCols); 
-  } 
+  if(isDistributed){
+    pmat = new ParallelMatrix<T>(numRows,numCols,numBlocksRows,numBlocksCols);
+  }
+  else {
+    mat = new SerialMatrix<T>(numRows,numCols);
+  }
 }
 
 // default constructor
 template <typename T>
 Matrix<T>::Matrix() {
-  isDistributed = false; 
+  isDistributed = false;
   pmat = new ParallelMatrix<T>();
-  mat = new SerialMatrix<T>(); 
+  mat = new SerialMatrix<T>();
 }
 
-// copy constructor  
+// copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T>& that) {
   isDistributed = that.isDistributed;
 
-  // call SMatrix or PMatrix copy constructor 
-  if(isDistributed) { 
+  // call SMatrix or PMatrix copy constructor
+  if(isDistributed) {
     (*pmat) = (*that.pmat);
-  } 
+  }
   else {
     (*mat) = (*that.mat);
-  } 
+  }
 }
 
 template <typename T>
 Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
   if (this != &that) {
     isDistributed = that.isDistributed;
-    // call SMatrix or PMatrix copy constructors  
+    // call SMatrix or PMatrix copy constructor
     if(isDistributed) {
-      (*pmat) = (*that.pmat); 
-    } 
+      (*pmat) = (*that.pmat);
+    }
     else {
-      (*mat) = (*that.mat); 
-    } 
+      (*mat) = (*that.mat);
+    }
   }
   return *this;
 }
@@ -220,14 +220,14 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 template <typename T>
 Matrix<T>::~Matrix() {
   if(isDistributed) delete pmat;
-  else delete mat; 
+  else delete mat;
 }
 
 /* ------------- Very basic operations -------------- */
 template <typename T>
 long Matrix<T>::rows() const {
   if(isDistributed) return pmat->rows();
-  else{ return mat->rows(); } 
+  else{ return mat->rows(); }
 }
 template <typename T>
 long Matrix<T>::localRows() const {
@@ -265,7 +265,7 @@ const T& Matrix<T>::operator()(const int row, const int col) const {
 template <typename T>
 bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
   if(isDistributed) return pmat->indecesAreLocal(row,col);
-  else{ return true; } 
+  else{ return true; }
 }
 
 template <typename T>

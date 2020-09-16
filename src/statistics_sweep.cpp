@@ -11,7 +11,7 @@
 StatisticsSweep::StatisticsSweep(Context &context,
                                  FullBandStructure *fullBandStructure)
     : particle(fullBandStructure != nullptr ? fullBandStructure->getParticle()
-                                            : Particle::phonon), 
+                                            : Particle::phonon),
     isDistributed(fullBandStructure != nullptr ? fullBandStructure->getIsDistributed()
                                             : false) {
 
@@ -66,16 +66,16 @@ StatisticsSweep::StatisticsSweep(Context &context,
     numBands = fullBandStructure->getNumBands();
     energies = Eigen::VectorXd::Zero(numBands * numPoints);
 
-    // this is written to handle a distributed bandstructure. It is important to use the 
-    // getStateIndices method, because getEnergy(stateIndex) expects a global energies idx, 
-    // and looping over getNumStates will only cover [0,numLocalStates]. 
-    // getStateIndices provides a list of global state indices which belong to this process.  
-    std::vector<std::tuple<long,long>> stateList = fullBandStructure->getStateIndices(); 
+    // this is written to handle a distributed bandstructure. It is important to use the
+    // getStateIndices method, because getEnergy(stateIndex) expects a global energies idx,
+    // and looping over getNumStates will only cover [0,numLocalStates].
+    // getStateIndices provides a list of global state indices which belong to this process.
+    std::vector<std::tuple<long,long>> stateList = fullBandStructure->getStateIndices();
     for (long is = 0; is < fullBandStructure->getNumStates(); is++) {
       long isb = std::get<0>(stateList[is]);
-      long isk = std::get<1>(stateList[is]); 
-      energies(is) = fullBandStructure->getEnergy(isb,isk); 
-    } 
+      long isk = std::get<1>(stateList[is]);
+      energies(is) = fullBandStructure->getEnergy(isb,isk);
+    }
 
     numPoints = fullBandStructure->getNumPoints(true);  // full # of points in grid
 
@@ -97,22 +97,22 @@ StatisticsSweep::StatisticsSweep(Context &context,
         }
       }
       occupiedStates /= numPoints;
-      if(isDistributed) { 
-        mpi->allReduceSum(&occupiedStates); // collect in 
-      } 
+      if(isDistributed) {
+        mpi->allReduceSum(&occupiedStates)
+      }
     } else {
       occupiedStates /= spinFactor;
 
       // initial guess for chemical potential will be Ef
       // if distributed, all processes need this guess
-      if(isDistributed) { 
+      if(isDistributed) {
         double Esum = energies.sum();
-        mpi->allReduceSum(&Esum); 
+        mpi->allReduceSum(&Esum);
         // calculate mean of distributed energies
-        fermiLevel = Esum/(numBands * numPoints); 
+        fermiLevel = Esum/(numBands * numPoints);
       } else {
-        fermiLevel = energies.mean(); 
-      } 
+        fermiLevel = energies.mean();
+      }
       // refine this guess at zero temperature and zero doping
       fermiLevel = findChemicalPotentialFromDoping(0., 0.);
     }
@@ -124,8 +124,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
     nChemPot = chemicalPotentials.size();
     nDop = dopings.size();
 
-    // if chemical potentials and dopings are not supplied, 
-    // check for a min/max mu and dmu energy spacing in the input file 
+    // if chemical potentials and dopings are not supplied,
+    // check for a min/max mu and dmu energy spacing in the input file
     if ((nDop == 0) && (nChemPot == 0)) {
       double minChemicalPotential = context.getMinChemicalPotential();
       double maxChemicalPotential = context.getMaxChemicalPotential();
@@ -136,7 +136,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
           std::isnan(deltaChemicalPotential)) {
         Error e("Didn't find chemical potentials or doping in input");
       }
-      // set up energy grid of chemical potentials between min and max, 
+      // set up energy grid of chemical potentials between min and max,
       // spaced by dmu
       int i = 0;
       while (minChemicalPotential <= maxChemicalPotential) {
@@ -190,7 +190,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
     }
 
     // clean memory
-    energies = Eigen::VectorXd::Zero(1); 
+    energies = Eigen::VectorXd::Zero(1);
     // save potentials and dopings
     infoCalcs = calcTable;
     numCalcs = calcTable.rows();
@@ -231,8 +231,8 @@ double StatisticsSweep::fPop(const double &chemPot, const double &temp) {
   for (long i = 0; i < energies.size(); i++) {
     fPop_ += particle.getPopulation(energies(i), temp, chemPot);
   }
-  // in the distributed case, this needs to be summed over all processes, 
-  // and also needs to be available to all processes for calculation of next 
+  // in the distributed case, this needs to be summed over all processes,
+  // and also needs to be available to all processes for calculation of next
   // iteration's chem potential
   if(isDistributed) mpi->allReduceSum(&fPop_);
   fPop_ /= numPoints;
@@ -265,17 +265,17 @@ double StatisticsSweep::findChemicalPotentialFromDoping(
 
   // if energies are distributed, each process needs to have the global
   // minimum and maximum of the energies
-  if(isDistributed) { 
+  if(isDistributed) {
         mpi->allReduceMin(&aX);
-        mpi->allReduceMax(&bX); 
-  } 
+        mpi->allReduceMax(&bX);
+  }
   double aY = fPop(aX, temperature);
   double bY = fPop(bX, temperature);
  
   // check if starting values are bad
   if(sgn(aY) == sgn(bY)) {
     Error e("I should revisit the boundary limits for bisection method");
-  }        
+  }
  
   for (long iter = 0; iter < maxIter; iter++) {
     if (mpi->mpiHead() && iter == maxIter - 1) {
@@ -308,8 +308,8 @@ double StatisticsSweep::findDopingFromChemicalPotential(
     fPop += particle.getPopulation(energies(i), temperature, chemicalPotential);
   }
   if(isDistributed) mpi->allReduceSum(&fPop);
-  fPop /= numPoints; 
-  double doping = (occupiedStates - fPop); // if both are all reduced, this should be consistent. 
+  fPop /= numPoints;
+  double doping = (occupiedStates - fPop); // if both are all reduced, this should be consistent.
   doping *= spinFactor / volume / pow(distanceBohrToCm, 3);
   return doping;
 }

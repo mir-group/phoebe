@@ -88,7 +88,7 @@ class StatisticsSweep {
   long nTemp;
   long nChemPot;
   long nDop;
-  bool isDistributed; 
+  bool isDistributed;
 
   // note: these three private methods are only meant to be used
   // during the construction of this class, as they depend on energies

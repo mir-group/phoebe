@@ -5,7 +5,7 @@
 #include "mpiController.h"
 #include "exceptions.h"
 
-#ifdef MPI_AVAIL 
+#ifdef MPI_AVAIL
 #include <mpi.h>
 #endif
 
@@ -78,7 +78,7 @@ void MPIcontroller::time() const{
 	#endif
 }
 // Asynchronous support functions -----------------------------------------
-void MPIcontroller::barrier() const{ 
+void MPIcontroller::barrier() const{
 #ifdef MPI_AVAIL
   int errCode;
   errCode = MPI_Barrier(MPI_COMM_WORLD);
@@ -89,10 +89,10 @@ void MPIcontroller::barrier() const{
 // Labor division functions -----------------------------------------
 std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  std::vector<int> divs(2); 
+  std::vector<int> divs(2);
   divs[0] = (numTasks * rank)/size;
   divs[1] = (numTasks * (rank+1))/size;
-  return divs; 
+  return divs;
 }
 
 std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
