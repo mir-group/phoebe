@@ -196,6 +196,10 @@ class ParallelMatrix {
    */
   void eye();
 
+  /** Sets this matrix to all zeros 
+   */
+  void zeros(); 
+
   /** Diagonalize a complex-hermitian or real-symmetric matrix.
    * Nota bene: we don't check if the matrix is hermitian/symmetric or not.
    * By default, it operates on the upper-triangular part of the matrix.
@@ -371,8 +375,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
-  //std::cout << "blacsContext " << blacsContext_ << std::endl;
-  //blacs_gridexit_(&blacsContext_); // TODO why does this cause a problem?
+  //blacs_gridexit_(&blacsContext_); // TODO where should I put this?  
 }
 
 template <typename T>
@@ -496,7 +499,7 @@ std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   int j = k / numLocalRows_;
   int i = k - j * numLocalRows_;
 
-  // TODO this needs to be converted into a indxl2g version!
+  // TODO this might need to be converted into a indxl2g version!
   // should just be able to uncomment the below two lines and comment the rest over
   // however, we should be careful to think that the above two conversions to i,j
   // are safe for a rectangular matrix. 
@@ -623,6 +626,11 @@ void ParallelMatrix<T>::eye() {
   for (int i = 0; i < numRows_; i++) {
     operator()(i, i) = 1.;
   }
+}
+
+template <typename T> 
+void ParallelMatrix<T>::zeros() { 
+  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 }
 
 template <typename T>

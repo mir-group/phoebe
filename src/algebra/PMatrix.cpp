@@ -104,8 +104,16 @@ ParallelMatrix<double>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  ParallelMatrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                                      numBlocksCols_);
+  // create a matrix which has the same blacsContext and shape as 
+  // the original, but filled with zeros so that we can 
+  // do this calculation. We have to use the same context, or 
+  // pdsyev will fail on the second argument of descMat (an integer which 
+  // represents the context, and fails if the in and out matrix 
+  // contexts are not the same)
+  // TODO is there a nice way to do this that doesn't involve the copying 
+  // of all the matrix elements over, as we throw them away regardless? 
+  ParallelMatrix<double> eigenvectors(*this);
+  eigenvectors.zeros();  
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
@@ -114,7 +122,6 @@ ParallelMatrix<double>::diagonalize() {
 
   // find the value of lwork. These are internal "scratch" arrays
   // clearly user-friendly, this is the simple way to estimate the scratch size
-
   int izero = 0;
   int n = numRows_;
   int nb = blockSizeRows_; // = MB_A = NB_A = MB_Z = NB_Z
