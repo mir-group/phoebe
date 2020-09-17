@@ -307,8 +307,8 @@ class FullBandStructure : public BaseBandStructure {
   /** Returns the energy of a quasiparticle from its band and wavevector index.
    * Same as getEnergy(const long &stateIndex), but using ib,ik instead.
    * ik should always be the global wavevector index, or this will be wrong!
-   * @param ib: the band index of the particle state
    * @param ik: the wavevector index of the particle state
+   * @param ib: the band index of the particle state
    * @return energy: the value of the QP energy for that given Bloch index.
    * Phonon energies are referred to zero, with negative energies being
    * actually complex phonon frequencies. Electronic energies are not saved
@@ -316,7 +316,7 @@ class FullBandStructure : public BaseBandStructure {
    * chemical potential computed by StatisticsSweep. By policy, it's in
    * rydbergs units.
    */
-  const double &getEnergy(const long &ib, const long &ik);
+  const double &getEnergy(WavevectorIndex &ik, BandIndex &ib);
 
   /** Returns the energies of all quasiparticle computed at a specified
    * wavevector.

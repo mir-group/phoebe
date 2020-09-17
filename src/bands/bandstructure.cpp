@@ -158,11 +158,13 @@ const double &FullBandStructure::getEnergy(const long &stateIndex) {
   return energies(ib, ik);
 }
 
-const double &FullBandStructure::getEnergy(const long &ib, const long &ik) {
-  if (!energies.indecesAreLocal(ib,ik)) {
+const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
+  long ibb = ib.get();
+  long ikk = ik.get();
+  if (!energies.indecesAreLocal(ibb,ikk)) {
     Error e("Cannot access a non-local energy.");
   }
-  return energies(ib, ik);
+  return energies(ibb, ikk);
 }
 
 const double &FullBandStructure::getEnergy(StateIndex &is) {
