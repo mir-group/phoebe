@@ -70,12 +70,10 @@ StatisticsSweep::StatisticsSweep(Context &context,
     // getStateIndices method, because getEnergy(stateIndex) expects a global energies idx,
     // and looping over getNumStates will only cover [0,numLocalStates].
     // getStateIndices provides a list of global state indices which belong to this process.
-    std::vector<std::tuple<long,long>> stateList = fullBandStructure->getStateIndices();
+    std::vector<std::tuple<WavevectorIndex, BandIndex>> stateList = fullBandStructure->getStateIndices();
     for (long is = 0; is < fullBandStructure->getNumStates(); is++) {
-      //long isb = std::get<0>(stateList[is]);
-      //long isk = std::get<1>(stateList[is]);
-      auto isb = BandIndex(std::get<0>(stateList[is]));
-      auto isk = WavevectorIndex(std::get<1>(stateList[is]));
+      auto isk = std::get<0>(stateList[is]);
+      auto isb = std::get<1>(stateList[is]);
       energies(is) = fullBandStructure->getEnergy(isk,isb);
     }
 

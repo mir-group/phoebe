@@ -136,8 +136,16 @@ std::vector<long> FullBandStructure::getWavevectorIndices() {
     return kptsList;
 }
 
-std::vector<std::tuple<long,long>> FullBandStructure::getStateIndices() {
-  return energies.getAllLocalStates();
+std::vector<std::tuple<WavevectorIndex,BandIndex>> FullBandStructure::getStateIndices() {
+  auto allLocalStates = energies.getAllLocalStates();
+  std::vector<std::tuple<WavevectorIndex, BandIndex>> idxs;
+  for ( auto t : allLocalStates ) {
+    auto ib = BandIndex(std::get<0>(t));
+    auto ik = WavevectorIndex(std::get<1>(t));
+    auto p = std::make_tuple(ik, ib);
+    idxs.push_back(p);
+  }
+  return idxs;
 }
 
 std::vector<long> FullBandStructure::getBandIndices() {

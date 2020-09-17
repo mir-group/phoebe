@@ -6,6 +6,7 @@
 #include "points.h"
 #include "utilities.h"
 #include "Matrix.h"
+#include <utility>
 
 /** Base class for describing objects containing the band structure, i.e.
  * the harmonic properties of a quasiparticle, as a function of wavevectors
@@ -279,7 +280,7 @@ class FullBandStructure : public BaseBandStructure {
   * @return stateIndices: a vector of tuples of (ib,ik) indices for use as
   * an iterator.
   */
-  std::vector<std::tuple<long,long>> getStateIndices();
+  std::vector<std::tuple<WavevectorIndex, BandIndex>> getStateIndices();
 
   /** Returns the indices of all bands on this process, or in an
   * undistributed case, returns all band indices.
