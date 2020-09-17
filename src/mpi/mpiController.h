@@ -4,8 +4,7 @@
 #include <chrono>
 #include <complex>
 #include <vector>
-#include "eigen.h" 
-#include "context.h"
+#include "eigen.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -27,24 +26,11 @@ class MPIcontroller {
     std::chrono::steady_clock::time_point startTime;
   #endif
 
-  int hasBlacs; 
-  int blasRank_;
-  int blacsContext_;
-  int numBlasRows_, numBlasCols_;
-  int myBlasRow_, myBlasCol_;
-  char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
-
  public:
   // MPIcontroller class constructors -----------------------------------
   /** a constructor which sets up the MPI environment, initializes the
    * communicator, and starts a timer **/
   MPIcontroller();
-
-  /** A method to initialize blacs parameters, if needed. 
-  * @param context: pass input information, which is used to determine 
-  *     if this is a blacs necessary application case. 
-  */
-  void initBlacs(); 
 
   /** Calls finalize and potentially reports statistics */
   void finalize() const;
@@ -82,12 +68,27 @@ class MPIcontroller {
    */
   template <typename T>
   void reduceMax(T* dataIn) const;
+
+  /** Wrapper for MPI_AllReduce which identifies the maximum of distributed data
+   * @param dataIn: pointer to sent data from each rank.
+   *       also acts as a receive buffer, as reduce is implemented IP.
+   */
+  template <typename T>
+  void allReduceMax(T* dataIn) const;
+
   /** Wrapper for MPI_Reduce which identifies the minimum of distributed data
    * @param dataIn: pointer to sent data from each rank.
-   * @param dataOut: pointer to buffer to receive min item from data.
+   *       also acts as a receive buffer, as reduce is implemented IP.
    */
   template <typename T>
   void reduceMin(T* dataIn) const;
+
+  /** Wrapper for MPI_AllReduce which identifies the minimum of distributed data
+   * @param dataIn: pointer to sent data from each rank.
+   *       also acts as a receive buffer, as reduce is implemented IP.
+   */
+  template <typename T>
+  void allReduceMin(T* dataIn) const;
 
   /** Wrapper for MPI_Gatherv which collects data from different ranks
    * and combines it into one buffer.
@@ -130,18 +131,6 @@ class MPIcontroller {
                                         // reports them, then kills the code
   void time() const;  // returns time elapsed since mpi started
 
-  // IO functions
-  // TODO: implement these functions, if we need them.
-  void mpiWrite();
-  void mpiRead();
-  void mpiAppend();
-
-  int getNumBlasRows();
-  int getNumBlasCols();
-  int getMyBlasRow();
-  int getMyBlasCol();
-  int getBlacsContext();
-
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns a vector of length 2, containing start and stop
    *       points for the divided number of tasks.
@@ -177,9 +166,9 @@ namespace mpiContainer {
           };
 
         // Use definition to generate containers for scalar types
-        MPIDataType(int, MPI_INT) 
+        MPIDataType(int, MPI_INT)
         MPIDataType(long, MPI_LONG)
-        MPIDataType(unsigned int, MPI_UNSIGNED) 
+        MPIDataType(unsigned int, MPI_UNSIGNED)
         MPIDataType(float, MPI_FLOAT)
         MPIDataType(double, MPI_DOUBLE)
         MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
@@ -216,7 +205,7 @@ namespace mpiContainer {
                 static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }
                 static inline size_t getSize(Eigen::Tensor<T, 3>* data) { return data->size(); }
                 static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        }; 
+        };
         // Container for Eigen::MatrixXi
         template <> struct containerType<Eigen::MatrixXi> {
                 static inline int* getAddress(Eigen::MatrixXi* data) { return data->data(); }
@@ -289,7 +278,7 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
     errorReport(errCode);
   }
 #endif
-} 
+}
 
 template <typename T>
 void MPIcontroller::allReduceSum(T* dataIn) const {
@@ -332,6 +321,22 @@ void MPIcontroller::reduceMax(T* dataIn) const {
 }
 
 template <typename T>
+void MPIcontroller::allReduceMax(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_MAX, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
+}
+
+template <typename T>
 void MPIcontroller::reduceMin(T* dataIn) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
@@ -353,6 +358,22 @@ void MPIcontroller::reduceMin(T* dataIn) const {
     errorReport(errCode);
   }
 #endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceMin(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_MIN, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
 }
 
 template <typename T>

@@ -4,17 +4,17 @@
 #include <tuple>
 #include <vector>
 #include "Blacs.h"
-#include "Matrix.h"
 #include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
 
+#include "SMatrix.h"
+
+// fall back to SerialMatrix if no MPI
 #ifndef MPI_AVAIL
-
-// alias template
+//alias template
 template<typename T>
-using ParallelMatrix = Matrix<T>;
-
+using ParallelMatrix = SerialMatrix<T>;
 #else
 
 #include <utility>
@@ -32,17 +32,27 @@ using ParallelMatrix = Matrix<T>;
  * Template specialization only valid for double or complex<double>.
  */
 template <typename T>
-class ParallelMatrix : public Matrix<T> {
+class ParallelMatrix {
  private:
+
   /// Class variables
   int numRows_, numCols_;
   int numLocalRows_, numLocalCols_;
   int numLocalElements_;
+
+  // BLACS variables
+  // numBlocksRows/Cols -- the number of units we divide nrows/ncols into
   int numBlocksRows_, numBlocksCols_;
+  // blockSizeRows/Cols -- the size of each unit we divide nrows/ncols into
   int blockSizeRows_, blockSizeCols_;
-  int descMat_[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+  // numBlasRows/Cols - the number of rows/cols in the process grid
   int numBlasRows_, numBlasCols_;
+  // myBlasRow/Col - this process's row/col in the process grid
   int myBlasRow_, myBlasCol_;
+  int descMat_[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+  int blasRank_;
+  int blacsContext_;
+  char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
   // dummy values to return when accessing elements not available locally
   T dummyZero = 0;
@@ -53,14 +63,15 @@ class ParallelMatrix : public Matrix<T> {
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
-  std::tuple<long, long> local2Global(const long& k);
+  std::tuple<long, long> local2Global(const long& k) const;
+  std::tuple<long, long> local2Global(const long& i, const long& j) const;
 
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
    * with value ranging from  0 to numLocalElements_-1.
    * Returns -1 if the matrix element is not stored on the current MPI process.
    */
-  long global2Local(const long& row, const long& col);
+  long global2Local(const long& row, const long& col) const;
 
  public:
   static const char transN = 'N';  // no transpose nor adjoint
@@ -93,31 +104,46 @@ class ParallelMatrix : public Matrix<T> {
    */
   ParallelMatrix& operator=(const ParallelMatrix<T>& that);
 
+  /** A method to initialize blacs parameters, if needed.
+  * @param numBlasRows -- number of rows requested for blacs grid
+  * @param numBlasCols -- number of cosl requested for blacs grid
+  * If both are zero, this function falls back to create a square
+  * blacs process grid.
+  */
+  void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0);
+
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
   std::vector<std::tuple<long, long>> getAllLocalStates();
+
+  /** Find the global indices of the rows that are stored locally
+   * by the current MPI process.
+   */
+  std::vector<long> getAllLocalRows();
+
+  /** Find the global indices of the cols that are stored locally
+   * by the current MPI process.
+   */
+  std::vector<long> getAllLocalCols();
 
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
   bool indecesAreLocal(const int& row, const int& col);
 
-  /** Returns a pointer to the interal data structure. */      
-  T* data() const;
-
   /** Find global number of rows
    */
   long rows() const;
-  /** Return local number of rows 
+  /** Return local number of rows
   */
-  long localRows() const; 
+  long localRows() const;
   /** Find global number of columns
    */
   long cols() const;
-  /** Return local number of cols 
+  /** Return local number of cols
   */
-  long localCols() const; 
+  long localCols() const;
   /** Find global number of matrix elements
    */
   long size() const;
@@ -170,6 +196,10 @@ class ParallelMatrix : public Matrix<T> {
    */
   void eye();
 
+  /** Sets this matrix to all zeros
+   */
+  void zeros();
+
   /** Diagonalize a complex-hermitian or real-symmetric matrix.
    * Nota bene: we don't check if the matrix is hermitian/symmetric or not.
    * By default, it operates on the upper-triangular part of the matrix.
@@ -200,35 +230,25 @@ class ParallelMatrix : public Matrix<T> {
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
-                                  const int& numBlocksCols) : Matrix<T>(numRows, numCols){
+                                  const int& numBlocksCols) {
 
-  // if blacs is not initalized, we need to start it.
-  mpi->initBlacs();
+  // call initBlacs to set all blacs related variables and contruct
+  // the blacs context and process grid setup.
+  // If numBlocksRows or numBlocksCols is not zero, this will
+  // initialize blacs with a square process grid
+  // (and number of processors must be a square number)
+  initBlacs(numBlocksRows,numBlocksCols);
 
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
   numCols_ = numCols;
 
-  numBlasRows_ = mpi->getNumBlasRows();
-  numBlasCols_ = mpi->getNumBlasCols();
-  myBlasRow_ = mpi->getMyBlasRow();
-  myBlasCol_ = mpi->getMyBlasCol();
-
   // determine the number of blocks (for parallel distribution) along rows/cols
-  // by default, we set the number of blocks equal to the number of
-  // rows in the blacs grid of processes
-  if (numBlocksRows != 0) {
-    numBlocksRows_ = numBlocksRows;
-  } else {
-    numBlocksRows_ = numBlasRows_;
-  }
-  if (numBlocksCols != 0) {
-    numBlocksCols_ = numBlocksCols;
-  } else {
-    numBlocksCols_ = numBlasCols_;
-  }
+  // numBlocksRows_/Cols_ -- the number of blocks we divide r/c of the matrix into
+  numBlocksRows_ = numBlasRows_;
+  numBlocksCols_ = numBlasCols_;
 
-  // compute the block size (over which matrix is distributed)
+  // compute the block size (chunks of rows/cols over which matrix is distributed)
   blockSizeRows_ = numRows_ / numBlocksRows_;
   if (numRows_ % numBlocksRows_ != 0) blockSizeRows_ += 1;
   blockSizeCols_ = numCols_ / numBlocksCols_;
@@ -236,11 +256,14 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
   // determine the number of local rows and columns
   int iZero = 0;  // helper variable
-  numLocalRows_ =
-      numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
-  numLocalCols_ =
-      numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
+
+  // numroc function takes information about the process grid and returns the number of
+  // rows and cols which are local to this process
+  numLocalRows_ = numroc_(&numRows_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_);
+  numLocalCols_ = numroc_(&numCols_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_);
   numLocalElements_ = numLocalRows_ * numLocalCols_;
+
+  // allocate the matrix
   mat = new T[numLocalElements_];
 
   // Memory could not be allocated, end program
@@ -253,16 +276,16 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   int info;  // error code
   int lddA =
       numLocalRows_ > 1 ? numLocalRows_ : 1;  // if mpA>1, ldda=mpA, else 1
-  int blacsContext = mpi->getBlacsContext();
+
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
-            &iZero, &iZero, &blacsContext, &lddA, &info);
+            &iZero, &iZero, &blacsContext_, &lddA, &info);
   if (info != 0) {
     Error e("Something wrong calling descinit", info);
   }
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
+ParallelMatrix<T>::ParallelMatrix()  {
   numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
@@ -276,11 +299,12 @@ ParallelMatrix<T>::ParallelMatrix() : Matrix<T>() {
   numBlasCols_ = 0;
   myBlasRow_ = 0;
   myBlasCol_ = 0;
-  mpi->initBlacs();
+  blasRank_ = 0;
+  blacsContext_ = 0;
 }
 
 template <typename T>
-ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) : Matrix<T>(that) {
+ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   numRows_ = that.numRows_;
   numCols_ = that.numCols_;
   numLocalRows_ = that.numLocalRows_;
@@ -294,6 +318,8 @@ ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) : Matrix<T>(tha
   numBlasCols_ = that.numBlasCols_;
   myBlasRow_ = that.myBlasRow_;
   myBlasCol_ = that.myBlasCol_;
+  blasRank_ = that.blasRank_;
+  blacsContext_ = that.blacsContext_;
 
   for (int i = 0; i < 9; i++) {
     descMat_[i] = that.descMat_[i];
@@ -326,6 +352,8 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
     numBlasCols_ = that.numBlasCols_;
     myBlasRow_ = that.myBlasRow_;
     myBlasCol_ = that.myBlasCol_;
+    blasRank_ = that.blasRank_;
+    blacsContext_ = that.blacsContext_;
 
     for (int i = 0; i < 9; i++) {
       descMat_[i] = that.descMat_[i];
@@ -347,11 +375,53 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
+  //blacs_gridexit_(&blacsContext_); // TODO where should I put this?
 }
 
 template <typename T>
-T* ParallelMatrix<T>::data() const {
-  return mat;
+void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols) {
+
+  int size = mpi->getSize(); // temp variable for mpi world size, used in setup
+
+  blacs_pinfo_(&blasRank_, &size);
+  int zero = 0;
+  blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+
+  // kill the code if we asked for more blas rows/cols than there are procs
+  if (mpi->getSize() < numBlasRows * numBlasCols) {
+     Error e("initBlacs requested too many MPI processes.");
+  }
+
+  // Cases for a blacs grid where we specified rows, cols, both,
+  // or the default, neither, which results in a square proc grid
+  if(numBlasRows != 0 && numBlasCols == 0) {
+      numBlasRows_ = numBlasRows;
+      numBlasCols_ = mpi->getSize()/numBlasRows;
+  }
+  else if(numBlasRows == 0 && numBlasCols != 0) {
+      numBlasRows_ = mpi->getSize()/numBlasCols;
+      numBlasCols_ = numBlasCols;
+  }
+  else if(numBlasRows !=0 && numBlasCols !=0 ) {
+      numBlasRows_ = numBlasRows;
+      numBlasCols_ = numBlasCols;
+  }
+  else { // set up a square procs grid, as the default
+    numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
+    numBlasCols_ = numBlasRows_;
+
+    // Throw an error if we tried to set up a square proc grid with
+    // a non-square number of processors
+    if (mpi->getSize() > numBlasRows_ * numBlasCols_) {
+      Error e("Phoebe needs a square number of MPI processes");
+    }
+  }
+
+  blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_,
+                    &numBlasCols_);
+  // Context -> Context grid info (# procs row/col, current procs row/col)
+  blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
+                    &myBlasCol_);
 }
 
 template <typename T>
@@ -413,12 +483,30 @@ bool ParallelMatrix<T>::indecesAreLocal(const int& row, const int& col) {
 }
 
 template <typename T>
-std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) {
+std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long& j) const {
+  int il = (int)i;
+  int jl = (int)j;
+  long ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+  long jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+  return {ig,jg};
+}
+
+template <typename T>
+std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   // first, we convert this combined local index k
   // into local row / col indeces
   // k = j * numLocalRows_ + i
   int j = k / numLocalRows_;
   int i = k - j * numLocalRows_;
+
+  // TODO this might need to be converted into a indxl2g version!
+  // should just be able to uncomment the below two lines and comment the rest over
+  // however, we should be careful to think that the above two conversions to i,j
+  // are safe for a rectangular matrix.
+
+  //long ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+  //long jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+  //return {ig,jg};
 
   // now we can convert local row/col indices into global indices
 
@@ -435,20 +523,25 @@ std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) {
 }
 
 template <typename T>
-long ParallelMatrix<T>::global2Local(const long& row, const long& col) {
+long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
   // note: row and col indices use the c++ convention of running from 0 to N-1
   // fortran (infog2l_) wants indices from 1 to N.
   int row_ = row + 1;
   int col_ = col + 1;
 
-  // first, we find the local index
+  // use infog2l_ to check that the current process owns this matrix element
   int iia, jja, iarow, iacol;
   infog2l_(&row_, &col_, &descMat_[0], &numBlasRows_, &numBlasCols_,
            &myBlasRow_, &myBlasCol_, &iia, &jja, &iarow, &iacol);
-  if (myBlasRow_ == iarow && myBlasCol_ == iacol) {
-    return iia + (jja - 1) * descMat_[8] - 1;
-  } else {
+
+  // return -1 to signify the element is not local to this process
+  if (myBlasRow_ != iarow || myBlasCol_ != iacol) {
     return -1;
+  } else {
+    // get the local indices, (il,jl) of the globally indexed element
+    long il = indxg2l_( &row_, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+    long jl = indxg2l_( &col_, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+    return il + (jl - 1) * descMat_[8] - 1;
   }
 }
 
@@ -458,6 +551,28 @@ std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
   for (long k = 0; k < numLocalElements_; k++) {
     std::tuple<long, long> t = local2Global(k);  // bloch indices
     x.push_back(t);
+  }
+  return x;
+}
+
+template <typename T>
+std::vector<long> ParallelMatrix<T>::getAllLocalRows() {
+  int iZero = 0;
+  std::vector<long> x;
+  for (int k = 0; k < numLocalRows_; k++) {
+    long gr = indxl2g_( &k, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
+    x.push_back(gr);
+  }
+  return x;
+}
+
+template <typename T>
+std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
+  std::vector<long> x;
+  int iZero = 0;
+  for (int k = 0; k < numLocalCols_; k++) {
+    long gc = indxl2g_( &k, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
+    x.push_back(gc);
   }
   return x;
 }
@@ -480,6 +595,9 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
+  if(numRows_ != that.rows() || numCols_ != that.cols()) {
+    Error e("Cannot adds matrices of different sizes.");
+  }
   for (long i = 0; i < numLocalElements_; i++) {
     *(mat + i) += *(that.mat + i);
   }
@@ -488,6 +606,9 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) 
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
+  if(numRows_ != that.rows() || numCols_ != that.cols()) {
+    Error e("Cannot subtract matrices of different sizes.");
+  }
   for (long i = 0; i < numLocalElements_; i++) {
     *(mat + i) -= *(that.mat + i);
   }
@@ -505,6 +626,11 @@ void ParallelMatrix<T>::eye() {
   for (int i = 0; i < numRows_; i++) {
     operator()(i, i) = 1.;
   }
+}
+
+template <typename T>
+void ParallelMatrix<T>::zeros() {
+  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 }
 
 template <typename T>
