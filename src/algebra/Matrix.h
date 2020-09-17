@@ -5,6 +5,19 @@
 #include "SMatrix.h"
 
 /** Container class which wraps an underlying serial or parallel matrix
+ * 
+ * The class hierarcy is set up using this container rather than an inheritance
+ * structure with specific intent. These objects cannot be set up using 
+ * an abstract Matrix parent class because because cpp does not allow for
+ * virtual operators, as it's not possible to overload something like 
+ * +=, for which the virtual base class function would have to return 
+ * an instance of the abstract base class (not possible), and which 
+ * cannot be overloaded with a covariant return type by the child classes.
+ * c++ does this intentionally -- otherwise, it would be possible to 
+ * write things like SMatrix + PMatrix in the code! 
+ * Similar issues with () and the assignment operator make a inheritance 
+ * structure impractical.   
+ *
  */
 template <typename T>
 class Matrix {
