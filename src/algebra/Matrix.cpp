@@ -6,7 +6,6 @@ Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
     const Matrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
   Matrix<std::complex<double>> c(*this); // copy this matrix
-  // TODO: this copying feels like there could be a better way
   if(isDistributed) *(c.pmat) = pmat->prod( *(that.pmat),trans1,trans2);
   else{ *(c.mat) = mat->prod( *(that.mat),trans1,trans2); }
   return c;
@@ -28,7 +27,7 @@ std::tuple<std::vector<double>, Matrix<std::complex<double>>>
 Matrix<std::complex<double>>::diagonalize() {
 
   std::vector<double> eigvals;
-  Matrix<std::complex<double>> eigvecs(*this); // TODO: is there a better way than copy
+  Matrix<std::complex<double>> eigvecs(*this);
 
   if(isDistributed) {
     auto tup = pmat->diagonalize();
@@ -48,7 +47,7 @@ template <>
 std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 
   std::vector<double> eigvals;
-  Matrix<double> eigvecs(*this); // TODO: is there a better way than copy
+  Matrix<double> eigvecs(*this);
 
   if(isDistributed) {
     auto tup = pmat->diagonalize();
