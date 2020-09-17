@@ -164,6 +164,18 @@ class ActiveBandStructure;
 /** FullBandStructure is the class that stores the energies, velocities and
  * eigenvectors of a quasiparticle computed on a set of wavevectors (as defined
  * by Points() ) in the Brillouin zone.
+ * By default, each MPI process holds a full copy of the bandstructure.
+ * However, the bandstructure can be distributed over the wavevectors, if so
+ * specified in the constructor.
+ *
+ * An important note for developers: When using a distributed bandstructure, 
+ * looping over numStates of the bandstructure will not work -- you need to 
+ * loop over the iterator of indices provided by getStateIndices or 
+ * getWavevectorIndices. The class will throw errors when nonlocal values are 
+ * being requested. All functions in bandstructure are written to take the 
+ * global wavevector indices associated with the Points object internal to the 
+ * bandstructure (because we use the Point class to find wavevector indices in
+ * get and set functions of bandstructure).
  */
 class FullBandStructure : public BaseBandStructure {
  public:
