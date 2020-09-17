@@ -106,10 +106,6 @@ long FullBandStructure::getIndex(const WavevectorIndex &ik,
   return ik.get() * numBands + ib.get();
 }
 
-long FullBandStructure::getIndex(const long &ik, const long &ib) {
-  return ik * numBands + ib;
-}
-
 std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
     const long &is) {
   int ik = is / numBands;

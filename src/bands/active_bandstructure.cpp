@@ -163,10 +163,6 @@ std::tuple<WavevectorIndex, BandIndex> ActiveBandStructure::getIndex(
   return getIndex(iss);
 }
 
-long ActiveBandStructure::getIndex(const long &ib, const long &ik) {
-  return bloch2Comb(ik, ib);
-}
-
 long ActiveBandStructure::getNumStates() {
   return numStates;
 }

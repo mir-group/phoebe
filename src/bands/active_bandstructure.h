@@ -105,7 +105,6 @@ class ActiveBandStructure : public BaseBandStructure {
    * @return stateIndex: integer from 0 to numStates-1
    */
   long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
-  long getIndex(const long &ik, const long &ib);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
