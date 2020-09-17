@@ -9,6 +9,7 @@
 #include "phonon_h0.h"
 #include "points.h"
 #include "utilities.h"
+#include "context.h"
 
 /** Class to handle the coupling between electron and phonons.
  * Currently implements the calculation of the diagram for the interaction

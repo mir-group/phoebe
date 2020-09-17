@@ -26,6 +26,10 @@ void infog2l_(const int *, const int *, const int *, const int *, const int *,
 
 int indxg2p_(int *, int *, int *, int *, int *);
 
+int indxg2l_(const int *, const int *, const int *, const int *, const int *);
+
+int indxl2g_(int *, int *, int *, int *, int *);
+
 void pdgemm_(const char *, const char *, int *, int *, const int *, double *,
              double *, int *, int *, const int *, double *, int *, int *,
              const int *, double *, double *, int *, int *, int *);

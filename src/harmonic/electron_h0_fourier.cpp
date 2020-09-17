@@ -141,8 +141,6 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
   return fullBandStructure;
 }
 
-//////////////////////////////////////////////////////////////////////////
-
 double ElectronH0Fourier::getRoughnessFunction(Eigen::Vector3d position) {
   double norm = position.norm();
   return pow(1. - coeff1 * norm / minDistance, 2) +
