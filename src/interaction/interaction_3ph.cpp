@@ -20,7 +20,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
                                Eigen::Tensor<double, 4> &ifc3Tensor,
                                Eigen::Tensor<double, 3> &cellPositions,
                                Eigen::Tensor<long, 2> &displacedAtoms)
-    : crystal_(crystal), dts(10), newdts(3) {
+    : crystal_(crystal){
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
@@ -192,7 +192,6 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   // precompute phases
   Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
       phaseMins("pm", nr3, nr2);
-  time_point t0 = std::chrono::steady_clock::now();
 
   Kokkos::parallel_for(
       "phase1loop", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
@@ -205,8 +204,6 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP);
         phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM);
       });
-  time_point t1 = std::chrono::steady_clock::now();
-  dts[0] += t1 - t0;
 
   // create cached D3
   Kokkos::parallel_for(
@@ -222,8 +219,6 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
         D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
       });
-  time_point t2 = std::chrono::steady_clock::now();
-  dts[1] += t2 - t1;
 }
 
 std::tuple<std::vector<Eigen::Tensor<double, 3>>,
@@ -313,7 +308,6 @@ Interaction3Ph::getCouplingsSquared(
 
   Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nq1, nr3),
       phaseMins("pm", nq1, nr3);
-  time_point t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "tmpphaseloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nq1, nr3}),
@@ -326,13 +320,10 @@ Interaction3Ph::getCouplingsSquared(
         phasePlus(iq1, ir3) = exp(complexI * argP);
         phaseMins(iq1, ir3) = exp(complexI * argM);
       });
-  time_point t1 = std::chrono::steady_clock::now();
-  dts[2] += t1 - t0;
 
   Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
                                                      numBands, numBands),
       tmpMins("tmpm", nq1, numBands, numBands, numBands);
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "tmploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
@@ -346,15 +337,12 @@ Interaction3Ph::getCouplingsSquared(
         tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
         tmpMins(iq1, iac1, iac2, iac3) = tmpm;
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[3] += t1 - t0;
   Kokkos::realloc(phasePlus, 0, 0);
   Kokkos::realloc(phaseMins, 0, 0);
 
   Kokkos::View<Kokkos::complex<double> ****> tmp1Plus("t1p", nq1, maxnb1,
                                                       numBands, numBands),
       tmp1Mins("t1m", nq1, maxnb1, numBands, numBands);
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "tmp1loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -370,15 +358,12 @@ Interaction3Ph::getCouplingsSquared(
         tmp1Plus(iq1, ib1, iac3, iac2) = tmpp * mask;
         tmp1Mins(iq1, ib1, iac3, iac2) = tmpm * mask;
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[4] += t1 - t0;
   Kokkos::realloc(tmpPlus, 0, 0, 0, 0);
   Kokkos::realloc(tmpMins, 0, 0, 0, 0);
 
   Kokkos::View<Kokkos::complex<double> ****> tmp2Plus("t2p", nq1, maxnb1, nb2,
                                                       numBands),
       tmp2Mins("t2m", nq1, maxnb1, nb2, numBands);
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "tmp2loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -394,15 +379,12 @@ Interaction3Ph::getCouplingsSquared(
         tmp2Plus(iq1, ib1, ib2, iac3) = tmpp * mask;
         tmp2Mins(iq1, ib1, ib2, iac3) = tmpm * mask;
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[5] += t1 - t0;
   Kokkos::realloc(tmp1Plus, 0, 0, 0, 0);
   Kokkos::realloc(tmp1Mins, 0, 0, 0, 0);
 
   Kokkos::View<Kokkos::complex<double> ****> vPlus("vp", nq1, maxnb1, nb2,
                                                    maxnb3Plus),
       vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "vploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -416,10 +398,7 @@ Interaction3Ph::getCouplingsSquared(
         }
         vPlus(iq1, ib1, ib2, ib3) = tmpp * mask;
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[6] += t1 - t0;
 
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "vmloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -434,14 +413,11 @@ Interaction3Ph::getCouplingsSquared(
         }
         vMins(iq1, ib1, ib2, ib3) = tmpp * mask;
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[7] += t1 - t0;
   Kokkos::realloc(tmp2Plus, 0, 0, 0, 0);
   Kokkos::realloc(tmp2Mins, 0, 0, 0, 0);
 
   Kokkos::View<double ****> couplingPlus("cp", nq1, maxnb1, nb2, maxnb3Plus),
       couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "cploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -451,10 +427,7 @@ Interaction3Ph::getCouplingsSquared(
         couplingPlus(iq1, ib1, ib2, ib3) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[8] += t1 - t0;
 
-  t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
       "cmloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
@@ -464,8 +437,6 @@ Interaction3Ph::getCouplingsSquared(
         couplingMins(iq1, ib1, ib2, ib3) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
       });
-  t1 = std::chrono::steady_clock::now();
-  dts[9] += t1 - t0;
   Kokkos::realloc(vPlus, 0, 0, 0, 0);
   Kokkos::realloc(vMins, 0, 0, 0, 0);
 
@@ -496,28 +467,6 @@ Interaction3Ph::getCouplingsSquared(
     }
   }
   return {couplingPlus_e, couplingMins_e};
-}
-
-Interaction3Ph::~Interaction3Ph() {
-  if (mpi->mpiHead() && std::getenv("PROFILE") != NULL) {
-    std::cout << "3-phonon coupling kernel timing breakdown:"
-              << "\n";
-    std::cout << "D3 cache phase loop (R2): " << tosec(dts[0]) << "\n";
-    std::cout << "D3 cache Fourier transform (R2): " << tosec(dts[1]) << "\n";
-    std::cout << "D3 phase loop (R3): " << tosec(dts[2]) << "\n";
-    std::cout << "D3 Fourier transform (R3): " << tosec(dts[3]) << "\n";
-    std::cout << "D3 eigenvector 1 loop: " << tosec(dts[4]) << "\n";
-    std::cout << "D3 eigenvector 2 loop: " << tosec(dts[5]) << "\n";
-    std::cout << "D3 (+) eigenvector 3 loop: " << tosec(dts[6]) << "\n";
-    std::cout << "D3 (-) eigenvector 3 loop: " << tosec(dts[7]) << "\n";
-    std::cout << "D3 (+) squaring: " << tosec(dts[8]) << "\n";
-    std::cout << "D3 (-) squaring: " << tosec(dts[9]) << "\n";
-    std::cout << "total kernel time: "
-              << tosec(dts[0]) + tosec(dts[1]) + tosec(dts[2]) + tosec(dts[3]) +
-                     tosec(dts[4]) + tosec(dts[5]) + tosec(dts[6]) +
-                     tosec(dts[7]) + tosec(dts[8]) + tosec(dts[9])
-              << std::endl;
-  }
 }
 
 int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
