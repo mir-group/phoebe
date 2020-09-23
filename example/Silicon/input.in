@@ -4,7 +4,7 @@ phD2FileName = "espresso.ifc2"
 sumRuleD2 = "simple"
 phD3FileName = "ShengBTEForceConstants3rd"
 
-qMesh = [4,4,4]
+qMesh = [8,8,8]
 temperatures = [30.]
 
 smearingMethod = "gaussian"

@@ -315,6 +315,7 @@ Interaction3Ph::getCouplingsSquared(
       phaseMins("pm", nq1, nr3);
   time_point t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmpphaseloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nq1, nr3}),
       KOKKOS_LAMBDA(int iq1, int ir3) {
         double argP = 0, argM = 0;
@@ -333,6 +334,7 @@ Interaction3Ph::getCouplingsSquared(
       tmpMins("tmpm", nq1, numBands, numBands, numBands);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
           {0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
@@ -354,6 +356,7 @@ Interaction3Ph::getCouplingsSquared(
       tmp1Mins("t1m", nq1, maxnb1, numBands, numBands);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmp1loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int ib1, int iac2, int iac3) {
@@ -377,6 +380,7 @@ Interaction3Ph::getCouplingsSquared(
       tmp2Mins("t2m", nq1, maxnb1, nb2, numBands);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "tmp2loop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, numBands}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int iac3) {
@@ -400,6 +404,7 @@ Interaction3Ph::getCouplingsSquared(
       vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "vploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Plus}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
@@ -416,6 +421,7 @@ Interaction3Ph::getCouplingsSquared(
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "vmloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Mins}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
@@ -437,6 +443,7 @@ Interaction3Ph::getCouplingsSquared(
       couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "cploop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Plus}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
@@ -449,6 +456,7 @@ Interaction3Ph::getCouplingsSquared(
 
   t0 = std::chrono::steady_clock::now();
   Kokkos::parallel_for(
+      "cmloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
                                              {nq1, maxnb1, nb2, maxnb3Mins}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {

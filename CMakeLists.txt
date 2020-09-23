@@ -16,6 +16,7 @@ project(Phoebe C CXX Fortran)
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
+    add_compile_options(-Wno-error=parentheses)
 endif()
 
 ############### SOURCE ###############
