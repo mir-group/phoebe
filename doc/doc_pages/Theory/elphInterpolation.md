@@ -206,3 +206,21 @@ While a wavevector \f$\boldsymbol{k}\f$ also falls on a Monkhors-Pack mesh, it m
 Therefore, we can discard the k-wavevectors of the grid that don't transform like \f$\boldsymbol{q}\f$ (for each irreducible q) and set their electron-phonon coupling to zero.
 The ph.x code computes the coupling only for the pairs of \f$\boldsymbol{k}\f$ and \f$\boldsymbol{q}\f$ wavevectors that obey the same subset of symmetries, which can be rotated with the relations described above.
 However, before testing this relation, we impose \f$\boldsymbol{k}\f$ to fall on a full grid.
+
+
+\subsection PHSYMMS Computational details, phonon symmetries
+We should not forget that also the phonon eigenvectors should satisfy the crystal symmetries when used for the Wannier transformation.
+The symmetries of phonons are thoroughly discussed in this [reference] (https://link.aps.org/doi/10.1103/RevModPhys.40.1), from which we need just Eq. 2.33.
+In detail, let the phonon eigenvector be \f$z_{\mu k j}(q)\f$, where \f$k\f$ is an atomic basis index, \f$\mu\f$ is a cartesian index, \f$q\f$ is the wavevector, and \f$j\f$ is the mode index.
+If \f$S\f$ is a symmetry operation of the crystal, the phonon eigenvector rotates as:
+\begin{equation}
+\boldsymbol{q}' = S\boldsymbol{q}
+\end{equation}
+\begin{equation}
+\omega_{j}(S\boldsymbol{q}) = \omega_{j}(\boldsymbol{q})
+\end{equation}
+\begin{equation}
+z_{\mu K j}(S\boldsymbol{q}) = \sum_{\alpha} S_{\mu\nu} z_{\nu k j}(\boldsymbol{q}) \exp( i\boldsymbol{k} \cdot (S^{-1} R_{at}(K) - R_{at}(k)) )
+\end{equation}
+where \f$ R_{at} \f$ is the atomic position of an atom in the unit cell.
+Furthermore, \f$K\f$ is the atomic basis index of the atom on which the atom \f$ k \f$ is transformed into upon the symmetry operation (since atoms of the same species are indistinguishable, they can be rotated into a different basis index, provided it's the same atomic species).
