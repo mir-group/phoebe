@@ -653,7 +653,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   if(!tmpIsDistributed_)
     iter = mpi->divideWorkIter(points.getNumPoints());
   else 
-    iter = fullBandStructure->getAllLocalWavevectors();  
+    iter = fullBandStructure.getWavevectorIndices();
 
   for (long ik : iter) {
     auto ikIndex = WavevectorIndex(ik);
