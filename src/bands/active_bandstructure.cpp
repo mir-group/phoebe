@@ -55,6 +55,8 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
                                          const bool &withVelocities)
     : particle(Particle(h0->getParticle().getParticleKind())),
       activePoints(activePoints_) {
+  // TODO might want to check on this section to make sure this works long term?
+  // not sure what activePoints will return here
   numPoints = activePoints.getNumPoints();
   numFullBands = h0->getNumBands();
   numBands = Eigen::VectorXi::Zero(numPoints);
@@ -398,7 +400,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
     return {activeBandStructure, s};
   }
 }
-
+// TODO check this out, may or may not need modificiation
 void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
                                         HarmonicHamiltonian &h0,
                                         const bool &withEigenvectors,
@@ -602,14 +604,17 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
  * on a dense grid of wavevectors, then compute chemical potential/temperatures
  * and then filter it
  */
+// TODO this is the function that has to change
 StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     Context &context, HarmonicHamiltonian &h0, Points &points,
     const bool &withEigenvectors, const bool &withVelocities) {
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
+  bool tmpIsDistributed_ = true; // TODO temporary, we need to pass this instead
   FullBandStructure fullBandStructure =
-      h0.populate(points, tmpWithVel_, tmpWithEig_);
+      h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
 
+  // This will work even if fullbandstructure is distributed
   StatisticsSweep statisticsSweep(context, &fullBandStructure);
 
   // find min/max value of temperatures and chemical potentials
@@ -628,7 +633,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   double chemicalPotentialMax = *max_element(chemPots.begin(), chemPots.end());
 
   // now we can apply the window
-
   Window window(context, particle, temperatureMin, temperatureMax,
                 chemicalPotentialMin, chemicalPotentialMax);
 
@@ -636,7 +640,22 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
-  for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
+  // TODO we need to change this most likely -- it will have to 
+  // handle only the k vectors beloning to each process
+  // one thing we could do is to have different iterators for 
+  // distributed and non distributed bandstructures -- 
+
+  // if all processes have the same points, divide up the points across 
+  // processes. If this bandstructure was already distributed, then we 
+  // can just perform this for the wavevectors belonging to each process's 
+  // part of the distributed bandstructure.  
+  std::vector<long> iter; 
+  if(!tmpIsDistributed_)
+    iter = mpi->divideWorkIter(points.getNumPoints());
+  else 
+    iter = fullBandStructure->getAllLocalWavevectors();  
+
+  for (long ik : iter) {
     auto ikIndex = WavevectorIndex(ik);
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
 
@@ -655,40 +674,52 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     numFullBands = theseEnergies.size();
   }
 
-  // now, we let each MPI process now how many points each process has found
+  // now that we've counted up the selected points and their 
+  // indices on each process, we need to reduce 
   int mySize = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
+
+  // this is where we are presently working
   for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
-  if (mpiSize > 1) {
+  if (mpiSize > 1) { // TODO this might be unnecessary once we add bcast function
+
+    // take the number of kpoints of each process and fill 
+    // buffer receiveCounts with these values
     mpi->gather(&mySize, receiveCounts);
-#ifdef MPI_AVAIL
+
+    #ifdef MPI_AVAIL
+    // TODO add a function to mpiController for bcast with a function call
+    // taking receive counts
     // note: bcast interface doesn't work for objects of unknown size
     // (here, we'd need to pass the size to the interface)
     // convert receiveCounts to std::vector?
+
+    // are we here now broadcasting the receive array to everyone? 
+    // wouldn't it make more sense to do an allGather in the first place? 
     MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
-#endif
+    #endif
   } else {
     receiveCounts[0] = mySize;
   }
-
   // receivecounts now tells how many wavevectors found per MPI process
 
   // now we count the total number of wavevectors
+  // by summing over receive counts
   numPoints = 0;
   for (int i = 0; i < mpi->getSize(); i++) {
     numPoints += *(receiveCounts + i);
   }
 
-  // now we collect the wavevector indeces
-  // first we find the offset to compute global indeces from local indices
+  // now we collect the wavevector indices
+  // first we find the offset to compute global indices from local indices
   std::vector<int> displacements(mpiSize, 0);
   for (int i = 1; i < mpiSize; i++) {
     displacements[i] = displacements[i - 1] + *(receiveCounts + i - 1);
   }
 
-  // collect all the indeces in the filteredPoints vector
+  // collect all the indices in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
   for (int i = 0; i < mySize; i++) {
@@ -729,7 +760,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   numStates = numEnStates;
 
   // initialize the raw data buffers of the activeBandStructure
-
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
   // construct the mapping from combined indices to Bloch indices
@@ -749,8 +779,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   /////////////////
 
   // now we can loop over the trimmed list of points
+  // TODO this maybe another problem wrt accessing wavevectors which are not
+  // owned by this process. 
   for (int i=0; i<filter.size(); i++ ) {
-    long ik = filter(i);
+    long ik = filter(i); // TODO we might be ok if ths is a global kpt index?
     auto ikIndex = WavevectorIndex(ik);
     Point point = activePoints.getPoint(i);
 
@@ -788,6 +820,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   if (withVelocities) {
 #pragma omp parallel for
+// TODO This is another place where we want to replace with getAllLocalWavevectors
     for (long ik : mpi->divideWorkIter(numPoints)) {
       Point point = activePoints.getPoint(ik);
 
