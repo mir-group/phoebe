@@ -444,13 +444,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   }
 
   // now, we let each MPI process now how many points each process has found
-  int mySize = myFilteredPoints.size();
+  int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
   for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
   if (mpiSize > 1) {
-    mpi->gather(&mySize, receiveCounts);
+    mpi->gather(&myNumPts, receiveCounts);
 #ifdef MPI_AVAIL
     // note: bcast interface doesn't work for objects of unknown size
     // (here, we'd need to pass the size to the interface)
@@ -458,7 +458,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
   } else {
-    receiveCounts[0] = mySize;
+    receiveCounts[0] = myNumPts;
   }
 
   // receivecounts now tells how many wavevectors found per MPI process
@@ -479,7 +479,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   // collect all the indeces in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filter(index) = myFilteredPoints[i];
   }
@@ -489,7 +489,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
   filteredBands.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filteredBands(index, 0) = myFilteredBands[i][0];
     filteredBands(index, 1) = myFilteredBands[i][1];
@@ -673,7 +673,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // now that we've counted up the selected points and their 
   // indices on each process, we need to reduce 
-  int mySize = myFilteredPoints.size(); // TODO can we rename this, it's not super clear
+  int myNumPts = myFilteredPoints.size(); // TODO can we rename this, it's not super clear
   int mpiSize = mpi->getSize();
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
@@ -682,7 +682,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
     // take the number of kpoints of each process and fill 
     // buffer receiveCounts with these values
-    mpi->gather(&mySize, receiveCounts);
+    mpi->gather(&myNumPts, receiveCounts);
 
     #ifdef MPI_AVAIL
     // TODO add a function to mpiController for bcast with a function call
@@ -696,7 +696,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
     #endif
   } else {
-    receiveCounts[0] = mySize;
+    receiveCounts[0] = myNumPts;
   }
   // receivecounts now tells how many wavevectors found per MPI process
 
@@ -717,7 +717,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // collect all the indices in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filter(index) = myFilteredPoints[i];
   }
@@ -727,7 +727,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
   filteredBands.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filteredBands(index, 0) = myFilteredBands[i][0];
     filteredBands(index, 1) = myFilteredBands[i][1];
