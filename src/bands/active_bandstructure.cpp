@@ -604,13 +604,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
  * on a dense grid of wavevectors, then compute chemical potential/temperatures
  * and then filter it
  */
-// TODO this is the function that has to change
 StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     Context &context, HarmonicHamiltonian &h0, Points &points,
     const bool &withEigenvectors, const bool &withVelocities) {
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
-  bool tmpIsDistributed_ = true; // TODO temporary, we need to pass this instead
+  bool tmpIsDistributed_ = false; // TODO temporary, we need to pass this instead
+
   FullBandStructure fullBandStructure =
       h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
 
@@ -640,22 +640,19 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
-  // TODO we need to change this most likely -- it will have to 
-  // handle only the k vectors beloning to each process
-  // one thing we could do is to have different iterators for 
-  // distributed and non distributed bandstructures -- 
-
   // if all processes have the same points, divide up the points across 
   // processes. If this bandstructure was already distributed, then we 
   // can just perform this for the wavevectors belonging to each process's 
   // part of the distributed bandstructure.  
-  std::vector<long> iter; 
+  std::vector<long> parallelIter; 
   if(!tmpIsDistributed_)
-    iter = mpi->divideWorkIter(points.getNumPoints());
+    parallelIter = mpi->divideWorkIter(points.getNumPoints());
   else 
-    iter = fullBandStructure.getWavevectorIndices();
+    parallelIter = fullBandStructure.getWavevectorIndices();
 
-  for (long ik : iter) {
+  // iterate over mpi-parallelized wavevectors
+  for (long ik : parallelIter) {
+
     auto ikIndex = WavevectorIndex(ik);
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
 
@@ -680,8 +677,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   int mpiSize = mpi->getSize();
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
-
-  // this is where we are presently working
   for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
   if (mpiSize > 1) { // TODO this might be unnecessary once we add bcast function
 
@@ -728,14 +723,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   mpi->allReduceSum(&filter);
 
-  // TODO probably myFilteredPoints is safe, but filter contains all 
-  // the indices -- it's a vector of all the 
-  // indices squashed down so that all processes have the same indices now. 
-
-  // in the distributed case, perhaps we could save the energies related to 
-  // myFilteredPoints/myFilteredBands and then allReduce or allGather those
-  // instead, post-collection.
-
   // unfortunately, a vector<vector> isn't contiguous
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
@@ -747,7 +734,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   mpi->allReduceSum(&filteredBands);
 
-  //    free(receiveCounts);
   delete[] receiveCounts;
 
   //////////////// Done MPI recollection
@@ -783,41 +769,38 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     hasEigenvectors = true;
     eigenvectors.resize(numEigStates, complexZero);
   }
-
   windowMethod = window.getMethodUsed();
 
   /////////////////
 
-  // now we can loop over the trimmed list of points
-  // TODO this is a problem wrt accessing wavevectors which are not
-  // owned by this process. 
-  //
-//  for (int i=0; i<filter.size(); i++ ) { // we might be able to loop over myFilteredPoints?
-  for (int i=0; i<myFilteredPoints.size(); i++) { // let's loop over myFilteredPoints. 
+  // Now we can loop over the trimmed list of points.
+  // To accomodate the case where FullBS is distributed, 
+  // we save the energies related to myFilteredPoints/Bands 
+  // and then allReduce or allGather those instead
 
-    //long ik = filter(i); // TODO we might be ok if ths is a global kpt index?
-    //auto ikIndex = WavevectorIndex(ik);
+  for (int i=0; i<myFilteredPoints.size(); i++) {
+
     long ik = myFilteredPoints[i];
     auto ikIndex = WavevectorIndex(ik);
 
     // use displacement array to get global idx of this point
+    // within the list of activePoints
     int ikg = i + displacements[mpi->getRank()];
     Point point = activePoints.getPoint(ikg);
 
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
     Eigen::MatrixXcd theseEigenvectors = fullBandStructure.getEigenvectors(ikIndex);
 
-    // copy energies
+    // copy energies into internal storage
     Eigen::VectorXd eigEns(numBands(i));
     long ibAct = 0;
     for (long ibFull = filteredBands(ikg, 0); ibFull <= filteredBands(ikg, 1); ibFull++) {
       eigEns(ibAct) = theseEnergies(ibFull);
       ibAct++;
     }
-    // so long as we hit the right point, this should be fine. 
     setEnergies(point, eigEns);
 
-    // copy eigenvectors
+    // copy eigenvectors into internal storage
     if (withEigenvectors) {
       // we are reducing the basis size!
       // the first index has the size of the Hamiltonian
@@ -832,17 +815,15 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     }
   }
   // all reduce sum the energies and eigenvectors here  
-  // TODO might want to make it so this only happens in 
-  // isDistributed case
   mpi->allReduceSum(&energies);
   if (withEigenvectors) mpi->allReduceSum(&eigenvectors);
   
   // compute velocities
   if (withVelocities) {
-// TODO make is so that we switch iterators based on is distributed or not? 
-//    for (long ik : mpi->divideWorkIter(numPoints)) {
+
+    // loop over the points available to this process
     #pragma omp parallel for
-    for (int i=0; i<myFilteredPoints.size(); i++) { // let's loop over myFilteredPoints. 
+    for (int i=0; i<myFilteredPoints.size(); i++) {
 
       long ik = myFilteredPoints[i];
       auto ikIndex = WavevectorIndex(ik);
@@ -868,7 +849,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       }
       setVelocities(point, thisVels);
     }
-    mpi->allReduceSum(&velocities); // I think this is what we will need to do in any case?
+    mpi->allReduceSum(&velocities);
   }
   return statisticsSweep;
 }
