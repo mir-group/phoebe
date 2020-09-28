@@ -165,6 +165,23 @@ Note that the wavefunction, or g, doesn't need to be smooth with respect to \f$\
 As a result, we fix both the gauge of the wavefunctions in degenerate subspaces and the gauge of the wavefunction across multiple \f$\boldsymbol{k}\f$ or \f$\boldsymbol{q}\f$ points.
 To verify that the gauge has been fixed successfully, compare the electron-phonon coupling with and without symmetries, and they should be the same, see below.
 
+Finally, we note a minor detail that should be fix in a future release.
+The wavefunction at \f$k\f$ and at a rotated point \f$k'\f$ cannot be rotated exactly, in the numerical implementation of a plane-wave code.
+In fact, the wavefunctions are typically expanded over a set of G-vectors such that \f$ |k+G|^2<E_{cut} \f$.
+Therefore, the wavefunctions at the two k-points use different G-vectors.
+The rotation procedure described above can only rotate the plane-wave coefficients that are shared between the wavefunctions.
+Some c(G) coefficients cannot be rotated, and are therefore set to zero (slightly breaking the normalization of the wavefunction).
+This loss of information is negligible, as long as the user converges the phonon frequencies against the cutoff value of the QE variable "ecutwfc".
+In the future, we should adjust this behavior by rotating the original wavefunction.
+While this could be simple for non-degenerate states (one could check the rotation phase on the G=0 plane wave), it might be a little less trivial for degenerate states.
+An idea worth exploring further, is to exploit the completeness of the degenerate subspace and rotate the wavefunction as: \f$ \big| \psi^{rot} \big> = \sum_{orig} \big< \psi^{orig} \big| \psi^{rot} \big> \big| \psi^{orig} \big> \f$, where the bracket identifies a unitary matrix to use for rotating the wavefunction.
+
+
+
+
+
+
+
 
 
 \subsection COMPELPHQE2 Computational details, symmetries in Quantum ESPRESSO
