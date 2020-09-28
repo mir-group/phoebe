@@ -395,7 +395,7 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
     return {activeBandStructure, statisticsSweep};
   } else {
     StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
-        context, h0, points, withEigenvectors, withVelocities);
+        context, points, h0, withEigenvectors, withVelocities);
     return {activeBandStructure, s};
   }
 }
@@ -604,7 +604,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
  * and then filter it
  */
 StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
-    Context &context, HarmonicHamiltonian &h0, Points &points,
+    Context &context, Points &points, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
 
   bool tmpWithVel_ = false;
@@ -781,7 +781,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // we save the energies related to myFilteredPoints/Bands 
   // and then allReduce or allGather those instead
 
-  for (int i=0; i<myFilteredPoints.size(); i++) {
+  for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
     long ik = myFilteredPoints[i];
     auto ikIndex = WavevectorIndex(ik);
@@ -826,8 +826,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
     // loop over the points available to this process
     #pragma omp parallel for
-    for (int i=0; i<myFilteredPoints.size(); i++) {
+    for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
+      // TODO check if we need to make ikg a WavevectorIdx, 
+      // or at least, remove auto ikIndex line, as it's unused
       long ik = myFilteredPoints[i];
       auto ikIndex = WavevectorIndex(ik);
       int ikg = i + displacements[mpi->getRank()];

@@ -371,7 +371,7 @@ class ActiveBandStructure : public BaseBandStructure {
                      const bool &withVelocities = true);
 
   StatisticsSweep buildAsPostprocessing(Context &context,
-                                        HarmonicHamiltonian &h0, Points &points,
+                                        Points &points, HarmonicHamiltonian &h0,
                                         const bool &withEigenvector=true,
                                         const bool &withVelocities=true);
 };
