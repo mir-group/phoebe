@@ -18,7 +18,6 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   std::string wannierPrefix = context.getWannier90Prefix();
-
   std::string interpolation = context.getElPhInterpolation();
 
   // read Hamiltonian of phonons and electrons
@@ -595,8 +594,9 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     std::cout << "Start reading from file" << std::endl;
   }
 
+  std::string interpolation = context.getElPhInterpolation();
   int bandsOffset;
-  if (true) { // postProcessingCase == "wannier") {
+  if (interpolation == "wannier") {
     std::string wannierPrefix = context.getWannier90Prefix();
     bandsOffset = computeOffset(energies, wannierPrefix);
   } else {
@@ -633,7 +633,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
 
     std::string line;
 
-    int nqStar;
+    int nqStar; // number of reducible q points in this file
     infileQ >> nqStar;
     std::vector<Eigen::Vector3d> qStar;
     for (int iq = 0; iq < nqStar; iq++) {
@@ -647,16 +647,19 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
       infileQ >> phononEnergies(nu);
     }
 
-    Eigen::MatrixXcd phononEigenvectors(numModes, numModes);
-    for (int j = 0; j < numModes; j++) {
-      for (int i = 0; i < numModes; i++) {
-        double re, im;
-        infileQ >> re >> im;
-        phononEigenvectors(i, j) = {re, im};
+    Eigen::Tensor<std::complex<double>,3> phononEigenvectorsStar(numModes, numModes, nqStar);
+    for (int iq = 0; iq < nqStar; iq++) {
+      for (int j = 0; j < numModes; j++) {
+        for (int i = 0; i < numModes; i++) {
+          double re, im;
+          infileQ >> re >> im;
+          phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
+        }
       }
     }
     std::getline(infileQ, line); // empty line
 
+    // read the g-coupling
     Eigen::Tensor<std::complex<double>, 5> thisG(numQEBands, numQEBands,
                                                  numModes, numKPoints, nqStar);
     thisG.setZero();
@@ -675,9 +678,11 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     }
     infileQ.close();
 
+    // reorder the q/k indices
     for (int iqStar = 0; iqStar < nqStar; iqStar++) {
       Eigen::Vector3d qVec = qStar[iqStar];
       long iqFull = qPoints.getIndex(qVec);
+
       for (int nu = 0; nu < numModes; nu++) {
         for (int ik = 0; ik < numKPoints; ik++) {
           for (int ib2 = 0; ib2 < numWannier; ib2++) {
@@ -688,9 +693,10 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
           }
         }
       }
+
       for (int j = 0; j < numModes; j++) {
         for (int i = 0; i < numModes; i++) {
-          phEigenvectors(i, j, iqFull) = phononEigenvectors(i, j);
+          phEigenvectors(i, j, iqFull) = phononEigenvectorsStar(i, j, iqStar);
         }
       }
 
