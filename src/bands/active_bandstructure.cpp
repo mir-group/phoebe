@@ -682,21 +682,22 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
   for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
-  if (mpiSize > 1) { // TODO this might be unnecessary once we add bcast function
+  if (mpiSize > 1) {
 
     // take the number of kpoints of each process and fill 
     // buffer receiveCounts with these values
     mpi->gather(&myNumPts, receiveCounts);
 
     #ifdef MPI_AVAIL
-    // TODO add a function to mpiController for bcast with a function call
-    // taking receive counts
+    // TODO try toadd a function to mpiController for bcast 
+    // with a function call taking receive counts
     // note: bcast interface doesn't work for objects of unknown size
     // (here, we'd need to pass the size to the interface)
     // convert receiveCounts to std::vector?
 
-    // are we here now broadcasting the receive array to everyone? 
-    // wouldn't it make more sense to do an allGather in the first place? 
+    // TODO is it possible to do an 
+    // allGather in the first place? Jenny 
+    // should check on this briefly for her own understanding. 
     MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
     #endif
   } else {
