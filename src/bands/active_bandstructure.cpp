@@ -676,7 +676,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // now that we've counted up the selected points and their 
   // indices on each process, we need to reduce 
-  int mySize = myFilteredPoints.size();
+  int mySize = myFilteredPoints.size(); // TODO can we rename this, it's not super clear
   int mpiSize = mpi->getSize();
   int *receiveCounts = nullptr;
   receiveCounts = new int[mpiSize];
@@ -728,6 +728,14 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   mpi->allReduceSum(&filter);
 
+  // TODO probably myFilteredPoints is safe, but filter contains all 
+  // the indices -- it's a vector of all the 
+  // indices squashed down so that all processes have the same indices now. 
+
+  // in the distributed case, perhaps we could save the energies related to 
+  // myFilteredPoints/myFilteredBands and then allReduce or allGather those
+  // instead, post-collection.
+
   // unfortunately, a vector<vector> isn't contiguous
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
@@ -760,8 +768,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   numStates = numEnStates;
 
   // initialize the raw data buffers of the activeBandStructure
+
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
+
   // construct the mapping from combined indices to Bloch indices
   buildIndeces();
 
@@ -779,25 +789,32 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   /////////////////
 
   // now we can loop over the trimmed list of points
-  // TODO this maybe another problem wrt accessing wavevectors which are not
+  // TODO this is a problem wrt accessing wavevectors which are not
   // owned by this process. 
-  for (int i=0; i<filter.size(); i++ ) {
-    long ik = filter(i); // TODO we might be ok if ths is a global kpt index?
+  //
+//  for (int i=0; i<filter.size(); i++ ) { // we might be able to loop over myFilteredPoints?
+  for (int i=0; i<myFilteredPoints.size(); i++) { // let's loop over myFilteredPoints. 
+
+    //long ik = filter(i); // TODO we might be ok if ths is a global kpt index?
+    //auto ikIndex = WavevectorIndex(ik);
+    long ik = myFilteredPoints[i];
     auto ikIndex = WavevectorIndex(ik);
-    Point point = activePoints.getPoint(i);
+
+    // use displacement array to get global idx of this point
+    int ikg = i + displacements[mpi->getRank()];
+    Point point = activePoints.getPoint(ikg);
 
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
-    Eigen::MatrixXcd theseEigenvectors =
-        fullBandStructure.getEigenvectors(ikIndex);
+    Eigen::MatrixXcd theseEigenvectors = fullBandStructure.getEigenvectors(ikIndex);
 
     // copy energies
     Eigen::VectorXd eigEns(numBands(i));
     long ibAct = 0;
-    for (long ibFull = filteredBands(i, 0); ibFull <= filteredBands(i, 1);
-         ibFull++) {
+    for (long ibFull = filteredBands(ikg, 0); ibFull <= filteredBands(ikg, 1); ibFull++) {
       eigEns(ibAct) = theseEnergies(ibFull);
       ibAct++;
     }
+    // so long as we hit the right point, this should be fine. 
     setEnergies(point, eigEns);
 
     // copy eigenvectors
@@ -807,37 +824,43 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       // the second index has the size of the filtered bands
       Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(i));
       long ibAct = 0;
-      for (long ibFull = filteredBands(i, 0); ibFull <= filteredBands(i, 1);
-           ibFull++) {
+      for (long ibFull = filteredBands(ikg, 0); ibFull <= filteredBands(ikg, 1); ibFull++) {
         theseEigvecs.col(ibAct) = theseEigenvectors.col(ibFull);
         ibAct++;
       }
       setEigenvectors(point, theseEigvecs);
     }
   }
-
+  // all reduce sum the energies and eigenvectors here  
+  // TODO might want to make it so this only happens in 
+  // isDistributed case
+  mpi->allReduceSum(&energies);
+  if (withEigenvectors) mpi->allReduceSum(&eigenvectors);
+  
   // compute velocities
-
   if (withVelocities) {
-#pragma omp parallel for
-// TODO This is another place where we want to replace with getAllLocalWavevectors
-    for (long ik : mpi->divideWorkIter(numPoints)) {
-      Point point = activePoints.getPoint(ik);
+// TODO make is so that we switch iterators based on is distributed or not? 
+//    for (long ik : mpi->divideWorkIter(numPoints)) {
+    #pragma omp parallel for
+    for (int i=0; i<myFilteredPoints.size(); i++) { // let's loop over myFilteredPoints. 
+
+      long ik = myFilteredPoints[i];
+      auto ikIndex = WavevectorIndex(ik);
+      int ikg = i + displacements[mpi->getRank()];
+      Point point = activePoints.getPoint(ikg);
 
       // thisVelocity is a tensor of dimensions (ib, ib, 3)
       auto thisVelocity = h0.diagonalizeVelocity(point);
 
       // now we filter it
-      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ik),
-                                                      numBands(ik), 3);
+      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ikg),
+                                                      numBands(ikg), 3);
       long ib1New = 0;
-      for (long ib1Old = filteredBands(ik, 0);
-           ib1Old < filteredBands(ik, 1) + 1; ib1Old++) {
+      for (long ib1Old = filteredBands(ikg, 0); ib1Old < filteredBands(ikg, 1) + 1; ib1Old++) {
         long ib2New = 0;
-        for (long ib2Old = filteredBands(ik, 0);
-             ib2Old < filteredBands(ik, 1) + 1; ib2Old++) {
-          for (long i = 0; i < 3; i++) {
-            thisVels(ib1New, ib2New, i) = thisVelocity(ib1Old, ib2Old, i);
+        for (long ib2Old = filteredBands(ikg, 0); ib2Old < filteredBands(ikg, 1) + 1; ib2Old++) {
+          for (long ic = 0; ic < 3; ic++) {
+            thisVels(ib1New, ib2New, ic) = thisVelocity(ib1Old, ib2Old, ic);
           }
           ib2New++;
         }
@@ -845,8 +868,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       }
       setVelocities(point, thisVels);
     }
-    mpi->allReduceSum(&velocities);
+    mpi->allReduceSum(&velocities); // I think this is what we will need to do in any case?
   }
-
   return statisticsSweep;
 }
