@@ -22,6 +22,10 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
   // read Hamiltonian of phonons and electrons
 
+  if (mpi->mpiHead()) {
+    std::cout << "Start initialization of Hamiltonians\n";
+  }
+
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t1);
@@ -36,6 +40,10 @@ void ElPhQeToPhoebeApp::run(Context &context) {
     auto t2 = QEParser::parseElHarmonicFourier(context);
     auto electronH0 = std::get<1>(t2);
     numWannier = electronH0.getNumBands();
+  }
+
+  if (mpi->mpiHead()) {
+    std::cout << "Done initialization of Hamiltonians\n" << std::endl;
   }
 
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
@@ -60,6 +68,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   int numBands; // number of bands in the QE calculation
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
   if (interpolation == "wannier") {
+    // uMatrices has size (numBands, numWannier, numKPoints)
     uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
     numBands = uMatrices.dimension(0);            // number of entangled bands
     assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
@@ -94,15 +103,9 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   // Bloch to Wannier transformation of el-ph coupling
   if (interpolation == "wannier") {
 
-    if (mpi->mpiHead()) {
-      std::cout << "Start Wannier-transform of g" << std::endl;
-    }
     Eigen::Tensor<std::complex<double>, 5> g_wannier =
         blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
                        phEigenvectors, kPoints, qPoints, crystal, phononH0);
-    if (mpi->mpiHead()) {
-      std::cout << "Done Wannier-transform of g\n" << std::endl;
-    }
 
     //----------------------------------------------------------------------------
 
@@ -169,6 +172,10 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     FullPoints &kPoints, FullPoints &qPoints, Crystal &crystal,
     PhononH0 &phononH0) {
 
+  if (mpi->mpiHead()) {
+    std::cout << "Start Wannier-transform of g" << std::endl;
+  }
+
   int numBands = gFull.dimension(0); // # of entangled bands
   int numModes = gFull.dimension(2);
   int numKPoints = gFull.dimension(3);
@@ -182,13 +189,14 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     s = 0;
   }
 
-  bool usePolarCorrection;
+  bool usePolarCorrection = false;
   Eigen::Matrix3d epsilon = phononH0.getDielectricMatrix();
   if (epsilon.squaredNorm() > 1.0e-10) { // i.e. if epsilon wasn't computed
     if (crystal.getNumSpecies() > 1) {   // otherwise polar correction = 0
       usePolarCorrection = true;
     }
   }
+
   if (usePolarCorrection) {
     // we need to subtract the polar correction
     // this contribution will be reinstated during the interpolation
@@ -249,9 +257,11 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Wannier rotation" << std::endl;
   }
+
   Eigen::Tensor<std::complex<double>, 5> gFullTmp(
       numWannier, numWannier, numModes, numKPoints, numQPoints);
   gFullTmp.setZero();
+
   for (long iq = 0; iq < numQPoints; iq++) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (long ik = 0; ik < numKPoints; ik++) {
@@ -264,15 +274,17 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
       // First we transform from the Bloch to Wannier Gauge
 
-      Eigen::MatrixXcd uK(numWannier, numBands);
-      Eigen::MatrixXcd uKq(numWannier, numBands);
+      // u has size (numBands, numWannier, numKPoints)
+      Eigen::MatrixXcd uK(numBands, numWannier);
+      Eigen::MatrixXcd tmpUkq(numBands, numWannier);
       for (int i = 0; i < numBands; i++) {
         for (int j = 0; j < numWannier; j++) {
           uK(i, j) = uMatrices(i, j, ik);
-          uKq(i, j) = uMatrices(i, j, ikq);
+          tmpUkq(i, j) = uMatrices(i, j, ikq);
         }
       }
-      uKq = uKq.adjoint();
+      Eigen::MatrixXcd uKq(numWannier, numBands);
+      uKq = tmpUkq.adjoint();
 
       Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
                                                  numModes);
@@ -281,6 +293,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numBands; j++) {
             for (int l = 0; l < numBands; l++) {
+              // ukq has size(numWannier,numBands)
+              // gFull has size numBands,numBands,...
               tmp(i, j, nu) += uKq(i, l) * gFull(l, j, nu, ik, iq);
             }
           }
@@ -380,6 +394,11 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     }
   }
   gWannierTmp.reshape(zeros);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Done Wannier-transform of g\n" << std::endl;
+  }
+
   return gWannier;
 }
 
@@ -501,15 +520,14 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
       }
     }
 
-    Eigen::MatrixXcd c = a * b; // matrix of shape (numBands, numWannier)
-
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numWannier; j++) {
-        u(i, j, ivec) = c(i, j);
+        for (int k = 0; k < numWannier; k++) {
+          u(i, j, ivec) += b(k,j) * a(i,k);
+        }
       }
     }
-  }
-
+  } // ivec
   return u;
 }
 
@@ -591,7 +609,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
                                    const Eigen::MatrixXd &energies) {
 
   if (mpi->mpiHead()) {
-    std::cout << "Start reading from file" << std::endl;
+    std::cout << "Start reading el-ph coupling from file" << std::endl;
   }
 
   std::string interpolation = context.getElPhInterpolation();
@@ -706,7 +724,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     }
   }
   if (mpi->mpiHead()) {
-    std::cout << "Done reading g from file" << std::endl << std::endl;
+    std::cout << "Done reading el-ph coupling from file\n" << std::endl;
   }
   return {g_full, phEigenvectors, phEnergies};
 }
