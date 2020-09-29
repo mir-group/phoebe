@@ -352,7 +352,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
       }
     }
-    uQ = uQ.inverse();
+    uQ = uQ.adjoint(); // the adjoint = inverse
 
     for (int nu = 0; nu < numModes; nu++) {
       for (int nu2 = 0; nu2 < numModes; nu2++) {
