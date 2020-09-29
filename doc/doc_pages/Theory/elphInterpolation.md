@@ -35,7 +35,7 @@ To transform the potential from the reciprocal to the real space representation,
 \begin{equation}
 \partial_{\kappa \boldsymbol{R}_p} V(\boldsymbol{r})
 =
-\frac{1}{N_p}
+\frac{1}{N_q}
 \sum_{\boldsymbol{q}\nu} e^{-i\boldsymbol{q}\cdot\boldsymbol{R}_p} [u_{\boldsymbol{q}\kappa}^{\nu}]^{-1} \partial_{\boldsymbol{q}\nu} V(\boldsymbol{r})
 \end{equation}
 
@@ -44,7 +44,7 @@ So, we first transform to Wannier space by:
 \begin{equation}
 g(\boldsymbol{R}_e,\boldsymbol{R}_p)
 =
-\frac{1}{N_p}
+\frac{1}{N_q N_k}
 \sum_{\boldsymbol{k}\boldsymbol{q}} e^{-i\boldsymbol{k}\cdot\boldsymbol{R}_e-i\boldsymbol{q}\cdot\boldsymbol{R}_p} U_{\boldsymbol{k}+\boldsymbol{q}}^\dagger g(\boldsymbol{k},\boldsymbol{q}) U_{\boldsymbol{k}} u_{\boldsymbol{q}}^{-1}
 \end{equation}
 Currently, the code phoebe is reading the matrix \f$g(\boldsymbol{R}_e,\boldsymbol{R}_p)\f$ from the code EPW.
