@@ -68,24 +68,49 @@ TEST(ActiveBandStructureTest,BandStructureStorage) {
   Point pointAPP = absAPP.getPoint(ik);
 
   // generate values directly from the hamiltonian
-  auto tup1 = phH0.diagonalize(pointOTF);
-  auto ensT = std::get<0>(tup1);
-  auto eigvecsT = std::get<1>(tup1);
-  auto velsT = phH0.diagonalizeVelocity(pointOTF);
+  //auto tup1 = phH0.diagonalize(pointOTF);
+  //auto ensT = std::get<0>(tup1);
+  //auto eigvecsT = std::get<1>(tup1);
+  //auto velsT = phH0.diagonalizeVelocity(pointOTF);
 
   // get the values stored in each active bandstructure
   auto ensOTF = absOTF.getEnergies(ikIndex);
   auto ensAPP = absAPP.getEnergies(ikIndex);
 
-  //Eigen::Tensor<std::complex<double>, 3> eigvecs = bandStructure.getPhEigenvectors(ikIndex);
-  //auto vels = bandStructure.getVelocities(ikIndex);
+  Eigen::Tensor<std::complex<double>, 3> eigvecsOTF = absOTF.getPhEigenvectors(ikIndex);
+  Eigen::Tensor<std::complex<double>, 3> eigvecsAPP = absAPP.getPhEigenvectors(ikIndex); 
 
-  // now we check the difference between each bandstructure and the H0 values
-  // TEST check OTF built bandstructure
-  double x1 = (ensOTF - ensT).norm();
+  auto velsOTF = absOTF.getVelocities(ikIndex);
+  auto velsAPP = absAPP.getVelocities(ikIndex);
+
+  // now we check the difference between the bandstructures
+
+  // TEST check OTF built bandstructure -----------------------
+  // check the energies 
+  double x1 = (ensOTF - ensAPP).norm();
   ASSERT_EQ(x1, 0.);
+
+  // check the velocities 
+  std::complex<double> c1 = complexZero;
+  for (long ib1 = 0; ib1 < numBands; ib1++) {
+    for (long ib2 = 0; ib2 < numBands; ib2++) {
+      for (long ic = 0; ic < 3; ic++) {
+        c1 += pow(velsOTF(ib1, ib2, ic) - velsAPP(ib1, ib2, ic), 2);
+      }
+    }
+  }
+  ASSERT_EQ(c1, complexZero);
  
-  // TEST check APP built bandstructure
-  x1 = (ensAPP - ensT).norm();
-  ASSERT_EQ(x1, 0.);
+  // check the eigenvectors 
+  std::complex<double> c2 = complexZero;
+  for ( long i = 0; i<numBands; i++ ) {
+        auto tup = decompress2Indeces(i,numAtoms,3);
+        auto iat = std::get<0>(tup);
+        auto ic = std::get<1>(tup);
+        for ( long j = 0; j<numBands; j++ ) {
+          c2 += pow(eigvecsOTF(ic,iat,j) - eigvecsAPP(ic, iat, j), 2);
+    }
+  }
+  ASSERT_EQ(c2, complexZero);
+
 } 

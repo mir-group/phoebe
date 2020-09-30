@@ -440,6 +440,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
       myFilteredBands.push_back(bandsExtrema);
     }
     numFullBands = theseEnergies.size();
+  
   }
 
   // now, we let each MPI process now how many points each process has found
@@ -597,6 +598,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   mpi->allReduceSum(&energies);
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
+
 }
 
 /** in this function, useful for electrons, we first compute the bandstructure
@@ -857,4 +859,5 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     mpi->allReduceSum(&velocities);
   }
   return statisticsSweep;
+
 }
