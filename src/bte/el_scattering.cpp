@@ -25,6 +25,11 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
       doBoundary = true;
     }
   }
+
+  // This is to prevent the code to keep the matrix in memory
+  // I will implement that with the symmetries, which require some modifications
+  highMemory = false;
+
 }
 
 ElScatteringMatrix::ElScatteringMatrix(const ElScatteringMatrix &that)

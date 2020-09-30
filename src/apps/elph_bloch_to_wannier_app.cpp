@@ -133,7 +133,27 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       for (auto x : g_wannier.dimensions()) {
         outfile << x << " ";
       }
-      outfile << g_wannier << "\n";
+      outfile << "\n";
+
+      outfile << std::setprecision(16);
+
+      int numPhBands = 3 * crystal.getNumAtoms();
+      for (int i5 = 0; i5 < phDegeneracies.size(); i5++) {
+        for (int i4 = 0; i4 < elDegeneracies.size(); i4++) {
+          for (int i3 = 0; i3 < numPhBands; i3++) {
+            for (int i2 = 0; i2 < numWannier; i2++) {
+              for (int i1 = 0; i1 < numWannier; i1++) {
+                outfile << std::setw(22)
+                        << g_wannier(i1, i2, i3, i4, i5).real() << " "
+                        << std::setw(22)
+                        << g_wannier(i1, i2, i3, i4, i5).imag() << "\n";
+              }
+            }
+          }
+        }
+      }
+//      outfile << g_wannier << "\n";
+
       std::cout << "Done writing g to file\n" << std::endl;
     }
   } else {
@@ -236,7 +256,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
               ev2(i, j) = uMatrices(i, j, ikq);
             }
           }
-          ev1 = ev1.adjoint();
+          // ev1 = ev1.adjoint();
           ev2 = ev2.adjoint();
 
           auto v = InteractionElPhWan::getPolarCorrectionStatic(
