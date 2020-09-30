@@ -138,7 +138,7 @@ void InteractionElPhWan::calcCouplingSquared(
           for (int ib1 = 0; ib1 < nb1; ib1++) {
             for (int ind1 = 0; ind1 < numElBands; ind1++) {
               elPhCached(ib1, ind2, ind3, irPh) +=
-                  tmp(ind1, ind2, ind3, irPh) * ev1(ib1, ind1);
+                  tmp(ind1, ind2, ind3, irPh) * ev1(ind1, ib1);
             }
           }
         }
@@ -182,7 +182,7 @@ void InteractionElPhWan::calcCouplingSquared(
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int iac2 = 0; iac2 < numElBands; iac2++) {
             tmp2(ib1, ib2, iac3) +=
-                tmp(ib1, iac2, iac3) * std::conj(ev2(ib2, iac2));
+                tmp(ib1, iac2, iac3) * std::conj(ev2(iac2, ib2));
           }
         }
       }
