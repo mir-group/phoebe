@@ -332,17 +332,8 @@ class ActiveBandStructure : public BaseBandStructure {
    */
   static std::tuple<ActiveBandStructure, StatisticsSweep> builder(
       Context &context, HarmonicHamiltonian &h0, Points &points,
-      const bool &withEigenvectors = true, const bool &withVelocities = true);
-
-  // TODO find a way to make these protected again
-  StatisticsSweep buildAsPostprocessing(Context &context,
-                                        Points &points, HarmonicHamiltonian &h0,
-                                        const bool &withEigenvector=true,
-                                        const bool &withVelocities=true);
-  void buildOnTheFly(Window &window, Points &points,
-                     HarmonicHamiltonian &h0,
-                     const bool &withEigenvectors = true,
-                     const bool &withVelocities = true);
+      const bool &withEigenvectors = true, const bool &withVelocities = true, 
+      const bool &forceBuildAPP = false);
 
  protected:
   // stores the quasiparticle kind
@@ -380,7 +371,7 @@ class ActiveBandStructure : public BaseBandStructure {
   long eigBloch2Comb(const long &ik, const long &ibFull, const long &ibRed);
   long bloch2Comb(const long &k, const long &b);
   std::tuple<long, long> comb2Bloch(const long &is);
-/*
+
   void buildOnTheFly(Window &window, Points &points,
                      HarmonicHamiltonian &h0,
                      const bool &withEigenvectors = true,
@@ -390,7 +381,7 @@ class ActiveBandStructure : public BaseBandStructure {
                                         Points &points, HarmonicHamiltonian &h0,
                                         const bool &withEigenvector=true,
                                         const bool &withVelocities=true);
-*/
+
 };
 
 #endif

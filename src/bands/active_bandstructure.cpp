@@ -385,13 +385,30 @@ void ActiveBandStructure::buildIndeces() {
 
 std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
     Context &context, HarmonicHamiltonian &h0, Points &points,
-    const bool &withEigenvectors, const bool &withVelocities) {
+    const bool &withEigenvectors, const bool &withVelocities, 
+    const bool &forceBuildAPP) {
+
   Particle particle = h0.getParticle();
 
   ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
   ActiveBandStructure activeBandStructure(particle, bogusPoints);
 
-  if (particle.isPhonon()) {
+  // select a build method based on particle type 
+  // if it's an electron, we can't build on the fly for any reason. 
+  // must buildAPP, because we need to calculate chemical potential.
+  // Phonons can be built APP.  
+  if(particle.isElectron() || forceBuildAPP) { 
+
+    std::cout << "we built this APP " << std::endl;
+
+    StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
+        context, points, h0, withEigenvectors, withVelocities);
+    return {activeBandStructure, s};
+
+  } 
+  // but phonons are default built OTF. 
+  else if (particle.isPhonon()) {
+    std::cout << "we built this OTF " << std::endl; 
     Eigen::VectorXd temperatures = context.getTemperatures();
     double temperatureMin = temperatures.minCoeff();
     double temperatureMax = temperatures.maxCoeff();
@@ -400,12 +417,10 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
 
     activeBandStructure.buildOnTheFly(window, points, h0, withEigenvectors,
                                       withVelocities);
+
     StatisticsSweep statisticsSweep(context);
     return {activeBandStructure, statisticsSweep};
-  } else {
-    StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
-        context, points, h0, withEigenvectors, withVelocities);
-    return {activeBandStructure, s};
+
   }
 }
 

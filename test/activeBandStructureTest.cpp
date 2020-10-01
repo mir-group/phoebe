@@ -28,29 +28,19 @@ TEST(ActiveBandStructureTest,BandStructureStorage) {
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();
 
-  // generate an active bandstructure for phonons
+  // setup parameters for active bandstructure creation
   Eigen::Vector3i qMesh;
   qMesh << 10, 10, 10;
   FullPoints points(crystal, qMesh);
-
   bool withVelocities = true;
   bool withEigenvectors = true;
 
-  // set up the window for filtering active points
-  Eigen::VectorXd temperatures = context.getTemperatures();
-  double temperatureMin = temperatures.minCoeff();
-  double temperatureMax = temperatures.maxCoeff();
-  Particle particle = phH0.getParticle();
-  Window window(context, particle, temperatureMin, temperatureMax);
-
-  // set up empty bandstructures
-  ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
-  ActiveBandStructure absOTF(particle, bogusPoints);
-  ActiveBandStructure absAPP(particle, bogusPoints);
-
-  // create two bandstructures, built with different methods
-  absOTF.buildOnTheFly(window, points, phH0, withEigenvectors, withVelocities);
-  absAPP.buildAsPostprocessing(context, points, phH0, withEigenvectors, withVelocities);
+  // create two active bandstructures for phonons, built with different methods
+  //  call OTF or APP based on builder(..., forceBuildAsAPP)
+  auto bsTup1 = ActiveBandStructure::builder(context, phH0, points, withEigenvectors, withVelocities, false);
+  ActiveBandStructure absAPP = std::get<0>(bsTup1);
+  auto bsTup2 = ActiveBandStructure::builder(context, phH0, points, withEigenvectors, withVelocities, true);
+  ActiveBandStructure absOTF = std::get<0>(bsTup2); 
 
   // TEST check that they selected the same number of states
   ASSERT_EQ(absOTF.getNumPoints(),absAPP.getNumPoints()); 
@@ -68,8 +58,7 @@ TEST(ActiveBandStructureTest,BandStructureStorage) {
   auto ikIndex = WavevectorIndex(ik);
 
   // grab the points associated with this wavevector
-  // TODO might be nice to check that they reference the same 
-  // point 
+  // TODO might be nice to check that they reference the same point 
   Point pointOTF = absOTF.getPoint(ik);
   //Point pointAPP = absAPP.getPoint(ik);
 
