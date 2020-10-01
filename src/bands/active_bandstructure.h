@@ -78,12 +78,18 @@ class ActiveBandStructure : public BaseBandStructure {
   long getNumPoints(const bool &useFullGrid = false);
 
   /** Returns the number of bands.
-   * If the number of bands is not constant, it rises an error.
+   * If the number of bands is not constant, it raises an error.
    * In that case, it's best to check the size of the objects returned by
-   * the get*() methods.
-   * @return numPoints: the total number of wavevectors of the bandStructure.
+   * the get*() methods or use getNumBands(ik).
+   * @return numBandsFull: the total number of bands of the bandStructure
+   *    (only returned in the case where the bands have not been filtered.)
    */
   long getNumBands();
+
+  /** Returns the number of bands at a given wavevector.
+   * @return numBands: the number of bands at the requested ik.
+   */  
+  long getNumBands(WavevectorIndex &ik);
 
   /** Checks whether the bandStructure has been built discarding some Bloch
    * states from those available.

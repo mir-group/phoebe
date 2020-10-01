@@ -139,6 +139,15 @@ long ActiveBandStructure::getNumBands() {
   }
 }
 
+long ActiveBandStructure::getNumBands(WavevectorIndex &ik) {
+  if (!hasPoints()) {
+    Error e("ActiveBandStructure hasn't been populated yet");
+  } else {
+    long ikk = ik.get();
+    return numBands(ikk);
+  }
+}
+
 long ActiveBandStructure::hasWindow() { return windowMethod; }
 
 bool ActiveBandStructure::getIsDistributed() { return false; }
@@ -433,6 +442,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     auto tup1 = window.apply(theseEnergies);
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
+
     if (ens.empty()) {  // nothing to do
       continue;
     } else {  // save point index and "relevant" band indices
@@ -510,7 +520,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   long numEigStates = 0;
   for (long ik = 0; ik < numPoints; ik++) {
     numBands(ik) = filteredBands(ik, 1) - filteredBands(ik, 0) + 1;
-    //
     numEnStates += numBands(ik);
     numVelStates += 3 * numBands(ik) * numBands(ik);
     numEigStates += numBands(ik) * numFullBands;
@@ -609,7 +618,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     Context &context, Points &points, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
 
-  bool tmpWithVel_ = false;
+  bool tmpWithVel_ = false; // TODO why is this false, seems problematic
   bool tmpWithEig_ = true;
   bool tmpIsDistributed_ = false; // TODO temporary, we need to pass this instead
 
@@ -667,6 +676,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     auto tup1 = window.apply(theseEnergies);
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
+
     if (ens.empty()) {  // nothing to do
       continue;
     } else {  // save point index and "relevant" band indices
