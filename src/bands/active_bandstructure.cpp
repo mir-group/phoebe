@@ -634,8 +634,8 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
-  bool tmpIsDistributed_ = true; // TODO temporary, we need to pass this instead
-
+  bool tmpIsDistributed_ = true;
+  // for now, we always generate a bandstructure which is distributed
   FullBandStructure fullBandStructure =
       h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
 
@@ -668,15 +668,17 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // ---------- select relevant bands and points  --------------- // 
   // if all processes have the same points, divide up the points across 
-  // processes. If this bandstructure was already distributed, then we 
+  // processes. As this bandstructure is already distributed, then we 
   // can just perform this for the wavevectors belonging to each process's 
   // part of the distributed bandstructure.  
-  // Regardless of which iterator is used, 
-  std::vector<long> parallelIter; 
-  if(!tmpIsDistributed_)
-    parallelIter = mpi->divideWorkIter(points.getNumPoints());
-  else 
-    parallelIter = fullBandStructure.getWavevectorIndices();
+  // 
+  // If we for some reason wanted to revert to an undistribured
+  // fullBandstructure, we would need to replace parallelIter with:
+  //     parallelIter = mpi->divideWorkIter(points.getNumPoints());
+  // All else will function once the swap is made. 
+  
+  // Loop over the wavevectors belonging to each process 
+  std::vector<long> parallelIter = fullBandStructure.getWavevectorIndices(); 
 
   // iterate over mpi-parallelized wavevectors
   for (long ik : parallelIter) {
@@ -854,7 +856,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     #pragma omp parallel for
     for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
-      long ik = myFilteredPoints[i];
+      // use the displacement array to find the global kidx
       int ikg = i + displacements[mpi->getRank()];
       Point point = activePoints.getPoint(ikg);
 
