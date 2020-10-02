@@ -1,4 +1,4 @@
 
 windowType = "population"
 #windowPopulationLimit = 1e-10
-temperatures = [10, 20, 30]
+temperatures = [20]

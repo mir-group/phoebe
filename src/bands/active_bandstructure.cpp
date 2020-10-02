@@ -142,6 +142,7 @@ long ActiveBandStructure::getNumBands() {
 long ActiveBandStructure::getNumBands(WavevectorIndex &ik) {
   if (!hasPoints()) {
     Error e("ActiveBandStructure hasn't been populated yet");
+    return 0;
   } else {
     long ikk = ik.get();
     return numBands(ikk);
@@ -399,16 +400,14 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
   // Phonons can be built APP.  
   if(particle.isElectron() || forceBuildAPP) { 
 
-    std::cout << "we built this APP " << std::endl;
-
     StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
         context, points, h0, withEigenvectors, withVelocities);
     return {activeBandStructure, s};
 
   } 
   // but phonons are default built OTF. 
-  else if (particle.isPhonon()) {
-    std::cout << "we built this OTF " << std::endl; 
+  else { // if (particle.isPhonon())
+
     Eigen::VectorXd temperatures = context.getTemperatures();
     double temperatureMin = temperatures.minCoeff();
     double temperatureMax = temperatures.maxCoeff();
@@ -633,9 +632,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     Context &context, Points &points, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
 
-  bool tmpWithVel_ = false; // TODO why is this false, seems problematic
+  bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
-  bool tmpIsDistributed_ = false; // TODO temporary, we need to pass this instead
+  bool tmpIsDistributed_ = true; // TODO temporary, we need to pass this instead
 
   FullBandStructure fullBandStructure =
       h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
@@ -855,10 +854,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     #pragma omp parallel for
     for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
-      // TODO check if we need to make ikg a WavevectorIdx, 
-      // or at least, remove auto ikIndex line, as it's unused
       long ik = myFilteredPoints[i];
-      auto ikIndex = WavevectorIndex(ik);
       int ikg = i + displacements[mpi->getRank()];
       Point point = activePoints.getPoint(ikg);
 
