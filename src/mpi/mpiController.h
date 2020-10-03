@@ -124,8 +124,8 @@ class MPIcontroller {
    * @param dataOut: pointer to output buffer, allocated only by the
    *       head rank, of length to contain all data from all processes.
    */
-  template <typename T>
-  void allGatherv(T* dataIn, T* dataOut) const;
+  template <typename T, typename V>
+  void allGatherv(T* dataIn, V* dataOut) const;
 
   /** Wrapper for MPI_Allgather which collects data from different ranks
    * and combines it into one buffer, which is also broadcast
@@ -484,14 +484,19 @@ void MPIcontroller::gather(T * dataIn, T * dataOut) const {
   dataOut = dataIn;  // just switch the pointers in serial case
   #endif
 }
-
-template <typename T>
-void MPIcontroller::allGatherv(T* dataIn, T* dataOut) const {
+// TODO we may need to make this take an optional parameter for length of data from each 
+// process, because while it will often correspond to work division as in 
+// divideWorkIter, this may not always be the case. In the case where it does 
+// take this parameter, we should use the division provided. 
+// When it's not provided, we should fall back on this default. 
+template <typename T, typename V>
+void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
+
   // TODO let's replace this with a helper function to avoid redundancy
-  int numTasks = containerType<T>::getSize(dataOut);
+  int numTasks = containerType<V>::getSize(dataOut);
   std::vector<int> workDivs(size);
   // start points for each rank's work
   std::vector<int> workDivisionHeads(size);
@@ -512,8 +517,8 @@ void MPIcontroller::allGatherv(T* dataIn, T* dataOut) const {
 
   errCode = MPI_Allgatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      workDivs.data(), workDivisionHeads.data(), containerType<V>::getMPItype(),
       MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
