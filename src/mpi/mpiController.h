@@ -5,14 +5,21 @@
 #include <complex>
 #include <vector>
 #include "eigen.h"
+#include <tuple>
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
 #endif
 
 //TODO is there a way we could write all the MPI function wrappers
-// to have take dataOut as an optional argument? This would reduce 
-// code duplication. 
+// to have take dataOut as an optional argument? This would reduce
+// code duplication.
+
+// TODO we may need to make this take an optional parameter for length of data from each 
+// process, because while it will often correspond to work division as in 
+// divideWorkIter, this may not always be the case. In the case where it does 
+// take this parameter, we should use the division provided.
+// When it's not provided, we should fall back on this default.
 
 /** Class for handling the MPI library usage inside of phoebe.
  */
@@ -23,6 +30,9 @@ class MPIcontroller {
   int size = 0;  // number of MPI processses
   int rank;
   const int mpiHeadId = 0;
+
+  // helper function used internally
+  std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
 
   #ifdef MPI_AVAIL
     double startTime;  // the time for the entire mpi operation
@@ -257,6 +267,7 @@ namespace mpiContainer {
 #endif
 }  // namespace mpiContainer
 
+
 // Collective communications functions -----------------------------------
 template <typename T>
 void MPIcontroller::bcast(T* dataIn) const {
@@ -416,24 +427,14 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
+
+  // calculate the number of elements coming from each process
+  // this will correspond to the save division of elements
+  // as divideWorkIter provides.
   int numTasks = containerType<T>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
+  auto tup = workDivHelper(numTasks);
+  std::vector<int> workDivs = std::get<0>(tup);
+  std::vector<int> workDivisionHeads = std::get<1>(tup);
 
   errCode = MPI_Gatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
@@ -453,24 +454,6 @@ void MPIcontroller::gather(T * dataIn, T * dataOut) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
-  int numTasks = containerType<T>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
 
   errCode = MPI_Gather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
@@ -484,36 +467,20 @@ void MPIcontroller::gather(T * dataIn, T * dataOut) const {
   dataOut = dataIn;  // just switch the pointers in serial case
   #endif
 }
-// TODO we may need to make this take an optional parameter for length of data from each 
-// process, because while it will often correspond to work division as in 
-// divideWorkIter, this may not always be the case. In the case where it does 
-// take this parameter, we should use the division provided. 
-// When it's not provided, we should fall back on this default. 
+
 template <typename T, typename V>
 void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
 
-  // TODO let's replace this with a helper function to avoid redundancy
+  // calculate the number of elements coming from each process
+  // this will correspond to the save division of elements
+  // as divideWorkIter provides.
   int numTasks = containerType<V>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
+  auto tup = workDivHelper(numTasks);
+  std::vector<int> workDivs = std::get<0>(tup);
+  std::vector<int> workDivisionHeads = std::get<1>(tup);
 
   errCode = MPI_Allgatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
@@ -533,24 +500,6 @@ void MPIcontroller::allGather(T * dataIn, T * dataOut) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
-  int numTasks = containerType<T>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
 
   errCode = MPI_Allgather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
