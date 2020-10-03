@@ -707,43 +707,23 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // indices on each process, we need to reduce 
   int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
-//  int *receiveCounts = nullptr;
-//  receiveCounts = new int[mpiSize];
-//  for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
-  std::vector<int> receiveCounts(mpiSize); 
-  if (mpiSize > 1) {
-
-    // take the number of kpoints of each process and fill 
-    // buffer receiveCounts with these values
-    // TODO what stops us from making this an allGather?
-    // AH here is the problem in this case -- getWavevector iter does not
-    // necessarily follow the same division of counts as mpi->workDivision
-    mpi->allGatherv(&myNumPts, &receiveCounts);
-/*
-    #ifdef MPI_AVAIL
-    // note: bcast interface doesn't work for objects of unknown size
-    // (here, we'd need to pass the size to the interface)
-    // convert receiveCounts to std::vector?
-    MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
-    #endif
-*/
-  } else {
-    receiveCounts[0] = myNumPts;
-  }
-  // receivecounts now tells how many wavevectors found per MPI process
+  
+  // take the number of kpoints of each process and fill 
+  // buffer receiveCounts with these values
+  std::vector<int> receiveCounts(mpiSize);
+  mpi->allGatherv(&myNumPts, &receiveCounts);
 
   // now we count the total number of wavevectors
   // by summing over receive counts
   numPoints = 0;
   for (int i = 0; i < mpi->getSize(); i++) {
-    numPoints += receiveCounts[i]; //*(receiveCounts + i);
+    numPoints += receiveCounts[i];
   }
 
   // now we collect the wavevector indices
   // first we find the offset to compute global indices from local indices
   std::vector<int> displacements(mpiSize, 0);
   for (int i = 1; i < mpiSize; i++) {
-    //displacements[i] = displacements[i - 1] + *(receiveCounts + i - 1);
     displacements[i] = displacements[i - 1] + receiveCounts[i-1];
   }
 
@@ -767,7 +747,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   mpi->allReduceSum(&filteredBands);
 
-  //delete[] receiveCounts;
   //////////////// Done MPI recollection
 
   // ---------- count numBands and numStates  --------------- // 
