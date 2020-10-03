@@ -10,6 +10,10 @@
 #include <mpi.h>
 #endif
 
+//TODO is there a way we could write all the MPI function wrappers
+// to have take dataOut as an optional argument? This would reduce 
+// code duplication. 
+
 /** Class for handling the MPI library usage inside of phoebe.
  */
 class MPIcontroller {
@@ -91,7 +95,8 @@ class MPIcontroller {
   void allReduceMin(T* dataIn) const;
 
   /** Wrapper for MPI_Gatherv which collects data from different ranks
-   * and combines it into one buffer.
+   * (with the possibility of a different number of elements from each
+   * process) and combines it into one buffer.
    * @param dataIn: pointer to sent data from each rank, with length
    *       of the number of points belonging to this rank.
    * @param dataOut: pointer to output buffer, allocated only by the
@@ -100,8 +105,38 @@ class MPIcontroller {
   template <typename T>
   void gatherv(T* dataIn, T* dataOut) const;
 
+  /** Wrapper for MPI_Gather which collects data from different ranks
+   * and combines it into one buffer.
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
   template <typename T>
   void gather(T* dataIn, T* dataOut) const;
+
+  /** Wrapper for MPI_Allgatherv which collects data from different ranks
+   * (with the possibility of a different number of elements from each
+   * process) and combines it into one buffer, which is also broadcast
+   * to all processes. 
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
+  template <typename T>
+  void allGatherv(T* dataIn, T* dataOut) const;
+
+  /** Wrapper for MPI_Allgather which collects data from different ranks
+   * and combines it into one buffer, which is also broadcast
+   * to all processes. 
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
+  template <typename T>
+  void allGather(T* dataIn, T* dataOut) const;
 
   // point to point functions -----------------------------------
   // template<typename T> void send(T&& data) const;
@@ -409,7 +444,7 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // in serial, we just switch pointers.
+  dataOut = dataIn;  // just switch the pointers in serial case
   #endif
 }
 
@@ -442,6 +477,81 @@ void MPIcontroller::gather(T * dataIn, T * dataOut) const {
       containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
       containerType<T>::getSize(dataIn), containerType<T>::getMPItype(),
       mpiHeadId, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #else
+  dataOut = dataIn;  // just switch the pointers in serial case
+  #endif
+}
+
+template <typename T>
+void MPIcontroller::allGatherv(T* dataIn, T* dataOut) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  int errCode;
+  // TODO let's replace this with a helper function to avoid redundancy
+  int numTasks = containerType<T>::getSize(dataOut);
+  std::vector<int> workDivs(size);
+  // start points for each rank's work
+  std::vector<int> workDivisionHeads(size);
+  std::vector<int> workDivisionTails(size);
+  // Recreate work division instructions
+  for (int i = 0; i < size; i++) {
+    workDivisionHeads[i] = (numTasks * i) / size;
+    workDivisionTails[i] = (numTasks * (i+1)) / size;
+  }
+  /** Note: it is important to compute workDivs as the subtraction of two
+   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
+   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
+   * which doesn't work when the division has a remainder.
+   */
+  for (int i = 0; i < size; i++) {
+    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
+  }
+
+  errCode = MPI_Allgatherv(
+      containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
+      workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
+      MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #else
+  dataOut = dataIn;  // just switch the pointers in serial case
+  #endif
+}
+
+template <typename T>
+void MPIcontroller::allGather(T * dataIn, T * dataOut) const {
+    using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  int errCode;
+  int numTasks = containerType<T>::getSize(dataOut);
+  std::vector<int> workDivs(size);
+  // start points for each rank's work
+  std::vector<int> workDivisionHeads(size);
+  std::vector<int> workDivisionTails(size);
+  // Recreate work division instructions
+  for (int i = 0; i < size; i++) {
+    workDivisionHeads[i] = (numTasks * i) / size;
+    workDivisionTails[i] = (numTasks * (i+1)) / size;
+  }
+  /** Note: it is important to compute workDivs as the subtraction of two
+   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
+   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
+   * which doesn't work when the division has a remainder.
+   */
+  for (int i = 0; i < size; i++) {
+    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
+  }
+
+  errCode = MPI_Allgather(
+      containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
+      containerType<T>::getSize(dataIn), containerType<T>::getMPItype(),
+      MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
