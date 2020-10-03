@@ -36,7 +36,6 @@ Window::Window(Context &context, Particle &particle_,
   } else if (method == energy) {
     minEnergy = context.getWindowEnergyLimit().minCoeff();
     maxEnergy = context.getWindowEnergyLimit().maxCoeff();
-    std::cout << "max and min energies " << maxEnergy << " " << minEnergy << std::endl;
     if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
       Error e("You must set min and max energies for your energy window!"); 
     }
