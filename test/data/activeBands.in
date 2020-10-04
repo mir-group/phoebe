@@ -1,4 +1,0 @@
-
-windowType = "population"
-#windowPopulationLimit = 1e-10
-temperatures = [20]
