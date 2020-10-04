@@ -1,0 +1,4 @@
+
+windowType = "population"
+windowPopulationLimit = 0.5e-8
+temperatures = [300]
