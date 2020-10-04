@@ -6,6 +6,7 @@
 #include <vector>
 #include "eigen.h"
 #include <tuple>
+#include "exceptions.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -267,7 +268,6 @@ namespace mpiContainer {
 #endif
 }  // namespace mpiContainer
 
-
 // Collective communications functions -----------------------------------
 template <typename T>
 void MPIcontroller::bcast(T* dataIn) const {
@@ -422,6 +422,19 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
   #endif
 }
 
+/* ---------- gather function wrappers ------------- */
+
+// helper function for gather mpi wrappers, needed for the case
+// where one of the output data type is an std::vector
+template <typename T>
+void pointerSwap(T* dataIn, std::vector<T>* dataOut) {
+  (*dataOut)[0] = (*dataIn);
+}
+template <typename T>
+void pointerSwap(T* dataIn, T* dataOut) {
+  dataOut = dataIn;
+}
+
 template <typename T>
 void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   using namespace mpiContainer;
@@ -445,7 +458,7 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
   #endif
 }
 
@@ -464,7 +477,7 @@ void MPIcontroller::gather(T * dataIn, T * dataOut) const {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
   #endif
 }
 
@@ -491,7 +504,7 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  pointerSwap(dataIn, dataOut);  
   #endif
 }
 
@@ -510,7 +523,7 @@ void MPIcontroller::allGather(T * dataIn, T * dataOut) const {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
   #endif
 }
 
