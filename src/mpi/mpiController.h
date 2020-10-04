@@ -113,8 +113,8 @@ class MPIcontroller {
    * @param dataOut: pointer to output buffer, allocated only by the
    *       head rank, of length to contain all data from all processes.
    */
-  template <typename T>
-  void gatherv(T* dataIn, T* dataOut) const;
+  template <typename T, typename V>
+  void gatherv(T* dataIn, V* dataOut) const;
 
   /** Wrapper for MPI_Gather which collects data from different ranks
    * and combines it into one buffer.
@@ -123,8 +123,8 @@ class MPIcontroller {
    * @param dataOut: pointer to output buffer, allocated only by the
    *       head rank, of length to contain all data from all processes.
    */
-  template <typename T>
-  void gather(T* dataIn, T* dataOut) const;
+  template <typename T, typename V>
+  void gather(T* dataIn, V* dataOut) const;
 
   /** Wrapper for MPI_Allgatherv which collects data from different ranks
    * (with the possibility of a different number of elements from each
@@ -146,8 +146,8 @@ class MPIcontroller {
    * @param dataOut: pointer to output buffer, allocated only by the
    *       head rank, of length to contain all data from all processes.
    */
-  template <typename T>
-  void allGather(T* dataIn, T* dataOut) const;
+  template <typename T, typename V>
+  void allGather(T* dataIn, V* dataOut) const;
 
   // point to point functions -----------------------------------
   // template<typename T> void send(T&& data) const;
@@ -435,8 +435,8 @@ void pointerSwap(T* dataIn, T* dataOut) {
   dataOut = dataIn;
 }
 
-template <typename T>
-void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
+template <typename T, typename V>
+void MPIcontroller::gatherv(T* dataIn, V* dataOut) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
@@ -444,15 +444,15 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   // calculate the number of elements coming from each process
   // this will correspond to the save division of elements
   // as divideWorkIter provides.
-  int numTasks = containerType<T>::getSize(dataOut);
+  int numTasks = containerType<V>::getSize(dataOut);
   auto tup = workDivHelper(numTasks);
   std::vector<int> workDivs = std::get<0>(tup);
   std::vector<int> workDivisionHeads = std::get<1>(tup);
 
   errCode = MPI_Gatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      workDivs.data(), workDivisionHeads.data(), containerType<V>::getMPItype(),
       mpiHeadId, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
@@ -462,16 +462,16 @@ void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
   #endif
 }
 
-template <typename T>
-void MPIcontroller::gather(T * dataIn, T * dataOut) const {
+template <typename T, typename V>
+void MPIcontroller::gather(T* dataIn, V* dataOut) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
 
   errCode = MPI_Gather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      containerType<T>::getSize(dataIn), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
       mpiHeadId, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
@@ -508,16 +508,16 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   #endif
 }
 
-template <typename T>
-void MPIcontroller::allGather(T * dataIn, T * dataOut) const {
+template <typename T, typename V>
+void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
 
   errCode = MPI_Allgather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      containerType<T>::getSize(dataIn), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
       MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
