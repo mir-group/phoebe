@@ -104,16 +104,9 @@ ParallelMatrix<double>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  // Make a new PMatrix of the same size
+  // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_,numCols_,
                                       numBlocksRows_,numBlocksCols_);
-  // fill it with zeros
-  eigenvectors.zeros();
-  // copy in the blacs context from this matrix, which MUST be the same for the 
-  // input and output buffers used in pdsyev
-  // This shouldn't need to be a deep copy, as the blacsContext is not modified, 
-  // only used to hold information. 
-  eigenvectors.blacsContext_ = this->blacsContext_;
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
@@ -147,8 +140,16 @@ ParallelMatrix<double>::diagonalize() {
   work = new double[lwork];
 
   int info = 0;
+
+  // Here, we are tricking scalapack a little bit. 
+  // normally, one would provide the descMat for the eigenvectors matrix 
+  // as the 12th argument to pdsyev. However, this will result in an error, 
+  // because the blacsContext for eigenvectors is not the exact same reference 
+  // as the one for the input matrix. However, because eigenvectors is 
+  // the same size and block distribution as the input matrix, 
+  // there is no harm in using the same values for descMat. 
   pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
+          eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork,
           &info);
 
   if (info != 0) {
