@@ -104,16 +104,16 @@ ParallelMatrix<double>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  // create a matrix which has the same blacsContext and shape as
-  // the original, but filled with zeros so that we can
-  // do this calculation. We have to use the same context, or
-  // pdsyev will fail on the second argument of descMat (an integer which
-  // represents the context, and fails if the in and out matrix
-  // contexts are not the same)
-  // TODO is there a nice way to do this that doesn't involve the copying
-  // of all the matrix elements over, as we throw them away regardless?
-  ParallelMatrix<double> eigenvectors(*this);
+  // Make a new PMatrix of the same size
+  ParallelMatrix<double> eigenvectors(numRows_,numCols_,
+                                      numBlocksRows_,numBlocksCols_);
+  // fill it with zeros
   eigenvectors.zeros();
+  // copy in the blacs context from this matrix, which MUST be the same for the 
+  // input and output buffers used in pdsyev
+  // This shouldn't need to be a deep copy, as the blacsContext is not modified, 
+  // only used to hold information. 
+  eigenvectors.blacsContext_ = this->blacsContext_;
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
@@ -143,7 +143,6 @@ ParallelMatrix<double>::diagonalize() {
   int lwork = 3 * n + 2 * n + lwqr2 + std::max(qrmem, lwmtr) + 1;
   lwork *= 2;  // just to be safe
 
-  // double work[lwork];
   double* work = nullptr;
   work = new double[lwork];
 
