@@ -328,7 +328,10 @@ class ActiveBandStructure : public BaseBandStructure {
    * @param points: initial unfiltered list of wavevectors, which will be
    * filtered into an ActivePoints object.
    * @param withEigenvectors: compute and store the eigenvectors
-   * @param withVelocities: compute and store the velocity matrix elements.
+   * @param withVelocities: compute and store the velocity matrix elements
+   * @param forceBuildAPP: forces activeBandStructure to be built 
+   * using the internal buildAsPostprocessing method, even if the input 
+   * H0 is for phonons.
    */
   static std::tuple<ActiveBandStructure, StatisticsSweep> builder(
       Context &context, HarmonicHamiltonian &h0, Points &points,
