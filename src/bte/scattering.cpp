@@ -379,7 +379,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       std::vector<std::tuple<std::vector<long>, long>> pairIterator;
 
       size_t a = outerBandStructure.getNumPoints();
-      std::vector<int> wavevectorIterator = mpi->divideWorkIter(a);
+      std::vector<long> wavevectorIterator = mpi->divideWorkIter(a);
       // Note: phScatteringMatrix needs iq2 to be the outer loop
       // in order to be efficient!
 
@@ -445,7 +445,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       std::vector<std::tuple<std::vector<long>, long>> pairIterator;
 
       size_t a = innerBandStructure.getNumPoints();
-      std::vector<int> wavevectorIterator = mpi->divideWorkIter(a);
+      std::vector<long> wavevectorIterator = mpi->divideWorkIter(a);
       // Note: phScatteringMatrix needs iq2 to be the outer loop
       // in order to be efficient!
 

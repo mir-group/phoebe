@@ -104,16 +104,9 @@ ParallelMatrix<double>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  // create a matrix which has the same blacsContext and shape as
-  // the original, but filled with zeros so that we can
-  // do this calculation. We have to use the same context, or
-  // pdsyev will fail on the second argument of descMat (an integer which
-  // represents the context, and fails if the in and out matrix
-  // contexts are not the same)
-  // TODO is there a nice way to do this that doesn't involve the copying
-  // of all the matrix elements over, as we throw them away regardless?
-  ParallelMatrix<double> eigenvectors(*this);
-  eigenvectors.zeros();
+  // Make a new PMatrix to receive the output
+  ParallelMatrix<double> eigenvectors(numRows_,numCols_,
+                                      numBlocksRows_,numBlocksCols_);
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
@@ -143,13 +136,20 @@ ParallelMatrix<double>::diagonalize() {
   int lwork = 3 * n + 2 * n + lwqr2 + std::max(qrmem, lwmtr) + 1;
   lwork *= 2;  // just to be safe
 
-  // double work[lwork];
   double* work = nullptr;
   work = new double[lwork];
 
   int info = 0;
+
+  // Here, we are tricking scalapack a little bit. 
+  // normally, one would provide the descMat for the eigenvectors matrix 
+  // as the 12th argument to pdsyev. However, this will result in an error, 
+  // because the blacsContext for eigenvectors is not the exact same reference 
+  // as the one for the input matrix. However, because eigenvectors is 
+  // the same size and block distribution as the input matrix, 
+  // there is no harm in using the same values for descMat. 
   pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
+          eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork,
           &info);
 
   if (info != 0) {

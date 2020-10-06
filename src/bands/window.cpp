@@ -36,14 +36,22 @@ Window::Window(Context &context, Particle &particle_,
   } else if (method == energy) {
     minEnergy = context.getWindowEnergyLimit().minCoeff();
     maxEnergy = context.getWindowEnergyLimit().maxCoeff();
+    if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
+      Error e("You must set min and max energies for your energy window!"); 
+    }
+    else if(minEnergy == maxEnergy) {
+      Error e("Your min and max window energies cannot be the same."); 
+    }
   }
 }
 
 std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     Eigen::VectorXd &energies) {
 
+  // no matter the method, we must set numBands
+  numBands = energies.size();
+
   if (method == population) {
-    numBands = energies.size();
     Eigen::VectorXd popMin(numBands), popMax(numBands);
     for (long ib = 0; ib < numBands; ib++) {
       popMin(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
@@ -55,13 +63,14 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     auto filteredEnergies = std::get<0>(tup);
     auto bandExtrema = std::get<1>(tup);
     return {filteredEnergies, bandExtrema};
+
   } else if (method == energy) {
     auto tup = internalEnWindow(energies);
     auto filteredEnergies = std::get<0>(tup);
     auto bandExtrema = std::get<1>(tup);
     return {filteredEnergies, bandExtrema};
+
   } else { // no filter
-    numBands = energies.size();
     std::vector<double> filteredEnergies(energies.size());
     for (long ib = 0; ib < numBands; ib++) {
       filteredEnergies[ib] = ib;
@@ -93,7 +102,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
   if (bandsIndeces.size() > 0) {
     bandsExtrema.push_back(bandsIndeces[0]);
     bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
-  }
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
@@ -103,7 +112,6 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema(2);
   std::vector<int> bandsIndeces;
-
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
     thisEnergy = energies(ib);
@@ -112,8 +120,12 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
       bandsIndeces.push_back(ib);
     }
   }
-  bandsExtrema.push_back(bandsIndeces[0]);
-  bandsExtrema.back();
+  // set the band extrema
+  if (bandsIndeces.size() > 0) {
+    bandsExtrema.push_back(bandsIndeces[0]);
+    bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
+    bandsExtrema.back();
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 

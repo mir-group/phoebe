@@ -78,12 +78,18 @@ class ActiveBandStructure : public BaseBandStructure {
   long getNumPoints(const bool &useFullGrid = false);
 
   /** Returns the number of bands.
-   * If the number of bands is not constant, it rises an error.
+   * If the number of bands is not constant, it raises an error.
    * In that case, it's best to check the size of the objects returned by
-   * the get*() methods.
-   * @return numPoints: the total number of wavevectors of the bandStructure.
+   * the get*() methods or use getNumBands(ik).
+   * @return numBandsFull: the total number of bands of the bandStructure
+   *    (only returned in the case where the bands have not been filtered.)
    */
   long getNumBands();
+
+  /** Returns the number of bands at a given wavevector.
+   * @return numBands: the number of bands at the requested ik.
+   */  
+  long getNumBands(WavevectorIndex &ik);
 
   /** Checks whether the bandStructure has been built discarding some Bloch
    * states from those available.
@@ -322,11 +328,15 @@ class ActiveBandStructure : public BaseBandStructure {
    * @param points: initial unfiltered list of wavevectors, which will be
    * filtered into an ActivePoints object.
    * @param withEigenvectors: compute and store the eigenvectors
-   * @param withVelocities: compute and store the velocity matrix elements.
+   * @param withVelocities: compute and store the velocity matrix elements
+   * @param forceBuildAPP: forces activeBandStructure to be built 
+   * using the internal buildAsPostprocessing method, even if the input 
+   * H0 is for phonons.
    */
   static std::tuple<ActiveBandStructure, StatisticsSweep> builder(
       Context &context, HarmonicHamiltonian &h0, Points &points,
-      const bool &withEigenvectors = true, const bool &withVelocities = true);
+      const bool &withEigenvectors = true, const bool &withVelocities = true, 
+      const bool &forceBuildAPP = false);
 
  protected:
   // stores the quasiparticle kind
@@ -371,9 +381,10 @@ class ActiveBandStructure : public BaseBandStructure {
                      const bool &withVelocities = true);
 
   StatisticsSweep buildAsPostprocessing(Context &context,
-                                        HarmonicHamiltonian &h0, Points &points,
+                                        Points &points, HarmonicHamiltonian &h0,
                                         const bool &withEigenvector=true,
                                         const bool &withVelocities=true);
+
 };
 
 #endif
