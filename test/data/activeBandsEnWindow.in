@@ -1,3 +1,0 @@
-windowType = "energy" 
-windowEnergyLimit =[0,0.004]
-temperatures = [300]

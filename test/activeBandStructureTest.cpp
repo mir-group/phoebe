@@ -21,12 +21,21 @@ TEST(ActiveBandStructureTest,BandStructureStorage) {
   // set up a phononH0
   Context context1;
   context1.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
-  context1.setupFromInput("../test/data/activeBandsEnWindow.in");
+  context1.setWindowType("energy");
+  Eigen::Vector2d x2;
+  x2 << 0, 0.004;
+  context1.setWindowEnergyLimit(x2);
+  Eigen::VectorXd x3(1);
+  x3(0) = 300./temperatureAuToSi;
+  context1.setTemperatures(x3);
+
   testConts.push_back(context1);
 
   Context context2;
   context2.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
-  context2.setupFromInput("../test/data/activeBandsPopWindow.in");
+  context2.setWindowType("population");
+  context2.setWindowPopulationLimit(0.5e-8);
+  context2.setTemperatures(x3);
   testConts.push_back(context2);
 
   for( Context context : testConts) { 

@@ -140,6 +140,7 @@ class Context {
    * or "population"
    */
   std::string getWindowType();
+  void setWindowType(const std::string x);
 
   /** gets the values of energy limits to be used with a window on energies.
    * @return x: a vector of 2 doubles representing the minimum and maximum
@@ -147,12 +148,15 @@ class Context {
    */
   Eigen::Vector2d getWindowEnergyLimit();
 
-  /** gets the value of population above which a state is considered active.
-   * i.e. the state will be used if its occupation number deviates from 0 or
-   * 1 by at least this amount.
-   * @return x: the <double> value of the population threshold.
-   */
+  void setWindowEnergyLimit(const Eigen::Vector2d x);
+
+    /** gets the value of population above which a state is considered active.
+     * i.e. the state will be used if its occupation number deviates from 0 or
+     * 1 by at least this amount.
+     * @return x: the <double> value of the population threshold.
+     */
   double getWindowPopulationLimit();
+  void setWindowPopulationLimit(const double x);
 
   /** gets the value of chemical potentials (in Rydbergs) to be used in the
    * calculation of transport properties
@@ -171,6 +175,7 @@ class Context {
    * @return x: the vector of values for temperatures
    */
   Eigen::VectorXd getTemperatures();
+  void setTemperatures(const Eigen::VectorXd x);
 
   std::vector<std::string> getSolverBTE();
 
