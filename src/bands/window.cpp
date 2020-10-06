@@ -102,9 +102,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
   if (bandsIndeces.size() > 0) {
     bandsExtrema.push_back(bandsIndeces[0]);
     bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
-  } else {
-    Error e("No bands found within the requested population window.");
-  }
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
@@ -127,10 +125,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
     bandsExtrema.push_back(bandsIndeces[0]);
     bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
     bandsExtrema.back();
-  } else {
-    Error e("No bands found within the requested energy window.\n"
-            "Did you set the min and max window values?");
-  }
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
