@@ -221,7 +221,6 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   // pick a wavevector to check energies, eigenvectors, vels
   long ik = 12;
   auto ikIndex = WavevectorIndex(ik);
-  Point pointOTF = absOTF.getPoint(ik);
   double nb = absOTF.getNumBands(ikIndex);
 
   // get the values stored in each active bandstructure
