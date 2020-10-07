@@ -528,7 +528,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   numStates = numEnStates;
 
   // initialize the raw data buffers of the activeBandStructure
-
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
   // construct the mapping from combined indices to Bloch indices
@@ -663,7 +662,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // fullBandstructure, we would need to replace parallelIter with:
   //     parallelIter = mpi->divideWorkIter(points.getNumPoints());
   // All else will function once the swap is made. 
-  
+ 
   // Loop over the wavevectors belonging to each process 
   std::vector<long> parallelIter = fullBandStructure.getWavevectorIndices(); 
 
@@ -774,24 +773,26 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // To accomodate the case where FullBS is distributed, 
   // we save the energies related to myFilteredPoints/Bands 
   // and then allReduce or allGather those instead
-
   for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
-    long ik = myFilteredPoints[i];
-    auto ikIndex = WavevectorIndex(ik);
+    // index corresponding to index of wavevector in fullPoints
+    auto ikIndex = WavevectorIndex(myFilteredPoints[i]);
 
-    // use displacement array to get global idx of this point
-    // within the list of activePoints
-    int ikg = i + displacements[mpi->getRank()];
-    Point point = activePoints.getPoint(ikg);
+    // index corresponding to wavevector in activePoints 
+    // as well as any array of length numActivePoints, 
+    // like numBands, filteredBands
+    // ika = ikActive
+    int ika = i + displacements[mpi->getRank()];
+    Point point = activePoints.getPoint(ika);
 
+    // local ik, which corresponds to filteredPoints on this processs
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
     Eigen::MatrixXcd theseEigenvectors = fullBandStructure.getEigenvectors(ikIndex);
 
     // copy energies into internal storage
-    Eigen::VectorXd eigEns(numBands(i));
+    Eigen::VectorXd eigEns(numBands(ika));
     long ibAct = 0;
-    for (long ibFull = filteredBands(ikg, 0); ibFull <= filteredBands(ikg, 1); ibFull++) {
+    for (long ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1); ibFull++) {
       eigEns(ibAct) = theseEnergies(ibFull);
       ibAct++;
     }
@@ -802,9 +803,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       // we are reducing the basis size!
       // the first index has the size of the Hamiltonian
       // the second index has the size of the filtered bands
-      Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(i));
+      Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(ika));
       long ibAct = 0;
-      for (long ibFull = filteredBands(ikg, 0); ibFull <= filteredBands(ikg, 1); ibFull++) {
+      for (long ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1); ibFull++) {
         theseEigvecs.col(ibAct) = theseEigenvectors.col(ibFull);
         ibAct++;
       }
@@ -814,7 +815,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // reduce over internal data buffers
   mpi->allReduceSum(&energies);
   if (withEigenvectors) mpi->allReduceSum(&eigenvectors);
-  
+
   // compute velocities, store, reduce
   if (withVelocities) {
 
@@ -822,20 +823,23 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     #pragma omp parallel for
     for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
-      // use the displacement array to find the global kidx
-      int ikg = i + displacements[mpi->getRank()];
-      Point point = activePoints.getPoint(ikg);
+      // index corresponding to wavevector in activePoints 
+      // as well as any array of length numActivePoints, 
+      // like numBands, filteredBands
+      // ika = ikActive
+      int ika = i + displacements[mpi->getRank()];
+      Point point = activePoints.getPoint(ika);
 
       // thisVelocity is a tensor of dimensions (ib, ib, 3)
       auto thisVelocity = h0.diagonalizeVelocity(point);
 
       // now we filter it
-      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ikg),
-                                                      numBands(ikg), 3);
+      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ika),
+                                                      numBands(ika), 3);
       long ib1New = 0;
-      for (long ib1Old = filteredBands(ikg, 0); ib1Old < filteredBands(ikg, 1) + 1; ib1Old++) {
+      for (long ib1Old = filteredBands(ika, 0); ib1Old < filteredBands(ika, 1) + 1; ib1Old++) {
         long ib2New = 0;
-        for (long ib2Old = filteredBands(ikg, 0); ib2Old < filteredBands(ikg, 1) + 1; ib2Old++) {
+        for (long ib2Old = filteredBands(ika, 0); ib2Old < filteredBands(ika, 1) + 1; ib2Old++) {
           for (long ic = 0; ic < 3; ic++) {
             thisVels(ib1New, ib2New, ic) = thisVelocity(ib1Old, ib2Old, ic);
           }
