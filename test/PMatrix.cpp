@@ -42,4 +42,11 @@ TEST (PMatrixTest, diagonalize) {
   }
   mpi->allReduceSum(&sumEigVecs); 
   EXPECT_EQ(sumEigVecs, 2*(1./sqrt(2)));
+
+  // check that the original matrix is still intact
+  if(pmat.indecesAreLocal(0,0)) { EXPECT_EQ(pmat(0,0), 0.0); }
+  if(pmat.indecesAreLocal(1,0)) { EXPECT_EQ(pmat(1,0), 1.0); }
+  if(pmat.indecesAreLocal(0,1)) { EXPECT_EQ(pmat(0,1), 1.0); }
+  if(pmat.indecesAreLocal(1,1)) { EXPECT_EQ(pmat(1,1), 0.0); }
+
 }

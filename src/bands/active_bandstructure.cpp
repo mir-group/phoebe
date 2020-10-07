@@ -783,7 +783,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     // like numBands, filteredBands
     // ika = ikActive
     int ika = i + displacements[mpi->getRank()];
-    auto ikaIndex = WavevectorIndex(ika);
     Point point = activePoints.getPoint(ika);
 
     // local ik, which corresponds to filteredPoints on this processs
