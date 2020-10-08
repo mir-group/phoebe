@@ -87,19 +87,44 @@ void MPIcontroller::barrier() const{
 }
 
 // Labor division functions -----------------------------------------
-std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
+std::vector<long> MPIcontroller::divideWork(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  std::vector<int> divs(2);
+  std::vector<long> divs(2);
   divs[0] = (numTasks * rank)/size;
   divs[1] = (numTasks * (rank+1))/size;
   return divs;
 }
 
-std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+std::vector<long> MPIcontroller::divideWorkIter(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  std::vector<int> divs;
+  std::vector<long> divs;
   int start = (numTasks * rank) / size;
   int stop = (numTasks * (rank + 1)) / size;
-  for (int i = start; i < stop; i++) divs.push_back(i);
+  for (long i = start; i < stop; i++) divs.push_back(i);
   return divs;
 }
+
+// Helper function to re-establish work divisions for MPI calls requiring
+// the number of tasks given to each point
+std::tuple<std::vector<int>, std::vector<int>> MPIcontroller::workDivHelper(size_t numTasks) const {
+
+  std::vector<int> workDivs(size);
+  // start points for each rank's work
+  std::vector<int> workDivisionHeads(size);
+  std::vector<int> workDivisionTails(size);
+  // Recreate work division instructions
+  for (int i = 0; i < size; i++) {
+    workDivisionHeads[i] = (numTasks * i) / size;
+    workDivisionTails[i] = (numTasks * (i+1)) / size;
+  }
+  /** Note: it is important to compute workDivs as the subtraction of two
+   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
+   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
+   * which doesn't work when the division has a remainder.
+   */
+  for (int i = 0; i < size; i++) {
+    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
+  }
+  return {workDivs,workDivisionHeads};
+}
+

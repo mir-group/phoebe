@@ -375,7 +375,6 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
   delete[] mat;
-  //blacs_gridexit_(&blacsContext_); // TODO where should I put this?
 }
 
 template <typename T>

@@ -339,8 +339,10 @@ void StatisticsSweep::printInfo() {
   std::cout << "\n";
   std::cout << "Statistical parameters for the calculation\n";
 
-  std::cout << "Fermi level: " << fermiLevel * energyRyToEv << " (eV)"
-            << std::endl;
+  if ( particle.isElectron() ) {
+    std::cout << "Fermi level: " << fermiLevel * energyRyToEv << " (eV)"
+              << std::endl;
+  }
 
   std::cout << "Index, temperature, chemical potential, doping concentration\n";
 

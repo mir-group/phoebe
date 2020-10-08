@@ -82,7 +82,7 @@ class BaseBandStructure {
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
    */
-  std::vector<int> parallelStateIterator();
+  std::vector<long> parallelStateIterator();
 
   /** Returns the energy of a quasiparticle from its Bloch index
    * Used for accessing the bandstructure in the BTE.
@@ -288,8 +288,6 @@ class FullBandStructure : public BaseBandStructure {
   */
   std::vector<long> getBandIndices();
 
-  // TODO in the distributed case, this might not be true!
-  // then, is will not run from [0,numStates].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
@@ -302,8 +300,6 @@ class FullBandStructure : public BaseBandStructure {
    */
   const double &getEnergy(const long &stateIndex);
 
-  // TODO in the distributed case, this might not be true!
-  // then, is will not run from [0,numStates-1].
   /** Returns the energy of a quasiparticle from its Bloch index.
    * Same as getEnergy(const long &stateIndex), but using a StateIndex input
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer

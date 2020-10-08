@@ -711,16 +711,26 @@ Eigen::Vector3i Context::getQMesh() { return qMesh; }
 Eigen::Vector3i Context::getKMesh() { return kMesh; }
 
 std::string Context::getWindowType() { return windowType; }
+void Context::setWindowType(const std::string x) { windowType = x; }
 
 Eigen::Vector2d Context::getWindowEnergyLimit() { return windowEnergyLimit; }
 
+void Context::setWindowEnergyLimit(const Eigen::Vector2d x) {
+  windowEnergyLimit = x;
+}
+
 double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
+void Context::setWindowPopulationLimit(const double x) {
+  windowPopulationLimit = x;
+}
 
 Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
+
+void Context::setTemperatures(const Eigen::VectorXd x) { temperatures = x; }
 
 std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 

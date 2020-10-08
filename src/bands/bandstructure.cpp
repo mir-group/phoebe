@@ -7,7 +7,7 @@
 #include "utilities.h"
 #include "Matrix.h"
 
-std::vector<int> BaseBandStructure::parallelStateIterator() {
+std::vector<long> BaseBandStructure::parallelStateIterator() {
     int numStates = getNumStates();
     return mpi->divideWorkIter(numStates);
 }

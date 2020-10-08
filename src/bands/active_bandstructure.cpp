@@ -55,6 +55,7 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
                                          const bool &withVelocities)
     : particle(Particle(h0->getParticle().getParticleKind())),
       activePoints(activePoints_) {
+
   numPoints = activePoints.getNumPoints();
   numFullBands = h0->getNumBands();
   numBands = Eigen::VectorXi::Zero(numPoints);
@@ -135,6 +136,16 @@ long ActiveBandStructure::getNumBands() {
   } else {
     Error e("ActiveBandStructure doesn't have constant number of bands");
     return 0;
+  }
+}
+
+long ActiveBandStructure::getNumBands(WavevectorIndex &ik) {
+  if (!hasPoints()) {
+    Error e("ActiveBandStructure hasn't been populated yet");
+    return 0;
+  } else {
+    long ikk = ik.get();
+    return numBands(ikk);
   }
 }
 
@@ -375,13 +386,28 @@ void ActiveBandStructure::buildIndeces() {
 
 std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
     Context &context, HarmonicHamiltonian &h0, Points &points,
-    const bool &withEigenvectors, const bool &withVelocities) {
+    const bool &withEigenvectors, const bool &withVelocities, 
+    const bool &forceBuildAPP) {
+
   Particle particle = h0.getParticle();
 
   ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
   ActiveBandStructure activeBandStructure(particle, bogusPoints);
 
-  if (particle.isPhonon()) {
+  // select a build method based on particle type 
+  // if it's an electron, we can't build on the fly for any reason. 
+  // must buildAPP, because we need to calculate chemical potential.
+  // Phonons can be built APP.  
+  if(particle.isElectron() || forceBuildAPP) { 
+
+    StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
+        context, points, h0, withEigenvectors, withVelocities);
+    return {activeBandStructure, s};
+
+  } 
+  // but phonons are default built OTF. 
+  else { // if (particle.isPhonon())
+
     Eigen::VectorXd temperatures = context.getTemperatures();
     double temperatureMin = temperatures.minCoeff();
     double temperatureMax = temperatures.maxCoeff();
@@ -390,12 +416,10 @@ std::tuple<ActiveBandStructure, StatisticsSweep> ActiveBandStructure::builder(
 
     activeBandStructure.buildOnTheFly(window, points, h0, withEigenvectors,
                                       withVelocities);
+
     StatisticsSweep statisticsSweep(context);
     return {activeBandStructure, statisticsSweep};
-  } else {
-    StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
-        context, h0, points, withEigenvectors, withVelocities);
-    return {activeBandStructure, s};
+
   }
 }
 
@@ -413,7 +437,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   // - loop over points. Diagonalize, and find if we want this k-point
   //   (while we are at it, we could save energies and the eigenvalues)
   // - find how many points each MPI rank has found
-  // - communicate the indeces
+  // - communicate the indices
   // - loop again over wavevectors to compute energies and velocities
 
   numFullBands = 0;  // save the unfiltered number of bands
@@ -432,6 +456,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     auto tup1 = window.apply(theseEnergies);
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
+
     if (ens.empty()) {  // nothing to do
       continue;
     } else {  // save point index and "relevant" band indices
@@ -439,45 +464,36 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
       myFilteredBands.push_back(bandsExtrema);
     }
     numFullBands = theseEnergies.size();
+  
   }
 
   // now, we let each MPI process now how many points each process has found
-  int mySize = myFilteredPoints.size();
+  int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
-  int *receiveCounts = nullptr;
-  receiveCounts = new int[mpiSize];
-  for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
-  if (mpiSize > 1) {
-    mpi->gather(&mySize, receiveCounts);
-#ifdef MPI_AVAIL
-    // note: bcast interface doesn't work for objects of unknown size
-    // (here, we'd need to pass the size to the interface)
-    // convert receiveCounts to std::vector?
-    MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
-#endif
-  } else {
-    receiveCounts[0] = mySize;
-  }
 
-  // receivecounts now tells how many wavevectors found per MPI process
+  // take the number of kpoints of each process and fill 
+  // buffer receiveCounts with these values
+  std::vector<int> receiveCounts(mpiSize);
+  mpi->allGatherv(&myNumPts, &receiveCounts);
 
   // now we count the total number of wavevectors
+  // by summing over receive counts
   numPoints = 0;
   for (int i = 0; i < mpi->getSize(); i++) {
-    numPoints += *(receiveCounts + i);
+    numPoints += receiveCounts[i];
   }
 
   // now we collect the wavevector indeces
   // first we find the offset to compute global indeces from local indices
   std::vector<int> displacements(mpiSize, 0);
   for (int i = 1; i < mpiSize; i++) {
-    displacements[i] = displacements[i - 1] + *(receiveCounts + i - 1);
+    displacements[i] = displacements[i - 1] + receiveCounts[i-1];
   }
 
   // collect all the indeces in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filter(index) = myFilteredPoints[i];
   }
@@ -487,15 +503,12 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
   filteredBands.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filteredBands(index, 0) = myFilteredBands[i][0];
     filteredBands(index, 1) = myFilteredBands[i][1];
   }
   mpi->allReduceSum(&filteredBands);
-
-  //    free(receiveCounts);
-  delete[] receiveCounts;
 
   //////////////// Done MPI recollection
 
@@ -508,7 +521,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   long numEigStates = 0;
   for (long ik = 0; ik < numPoints; ik++) {
     numBands(ik) = filteredBands(ik, 1) - filteredBands(ik, 0) + 1;
-    //
     numEnStates += numBands(ik);
     numVelStates += 3 * numBands(ik) * numBands(ik);
     numEigStates += numBands(ik) * numFullBands;
@@ -516,7 +528,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   numStates = numEnStates;
 
   // initialize the raw data buffers of the activeBandStructure
-
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
   // construct the mapping from combined indices to Bloch indices
@@ -596,6 +607,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   mpi->allReduceSum(&energies);
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
+
 }
 
 /** in this function, useful for electrons, we first compute the bandstructure
@@ -603,13 +615,18 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
  * and then filter it
  */
 StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
-    Context &context, HarmonicHamiltonian &h0, Points &points,
+    Context &context, Points &points, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
+
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
+  bool tmpIsDistributed_ = true;
+  // for now, we always generate a bandstructure which is distributed
   FullBandStructure fullBandStructure =
-      h0.populate(points, tmpWithVel_, tmpWithEig_);
+      h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
 
+  // ---------- establish mu and other statistics --------------- // 
+  // This will work even if fullbandstructure is distributed
   StatisticsSweep statisticsSweep(context, &fullBandStructure);
 
   // find min/max value of temperatures and chemical potentials
@@ -627,8 +644,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   double chemicalPotentialMin = *min_element(chemPots.begin(), chemPots.end());
   double chemicalPotentialMax = *max_element(chemPots.begin(), chemPots.end());
 
-  // now we can apply the window
-
+  // use statistics to determine the selection window for states
   Window window(context, particle, temperatureMin, temperatureMax,
                 chemicalPotentialMin, chemicalPotentialMax);
 
@@ -636,7 +652,23 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
-  for (long ik : mpi->divideWorkIter(points.getNumPoints())) {
+  // ---------- select relevant bands and points  --------------- // 
+  // if all processes have the same points, divide up the points across 
+  // processes. As this bandstructure is already distributed, then we 
+  // can just perform this for the wavevectors belonging to each process's 
+  // part of the distributed bandstructure.  
+  // 
+  // If we for some reason wanted to revert to an undistribured
+  // fullBandstructure, we would need to replace parallelIter with:
+  //     parallelIter = mpi->divideWorkIter(points.getNumPoints());
+  // All else will function once the swap is made. 
+ 
+  // Loop over the wavevectors belonging to each process 
+  std::vector<long> parallelIter = fullBandStructure.getWavevectorIndices(); 
+
+  // iterate over mpi-parallelized wavevectors
+  for (long ik : parallelIter) {
+
     auto ikIndex = WavevectorIndex(ik);
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
 
@@ -646,6 +678,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     auto tup1 = window.apply(theseEnergies);
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
+
     if (ens.empty()) {  // nothing to do
       continue;
     } else {  // save point index and "relevant" band indices
@@ -655,43 +688,35 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     numFullBands = theseEnergies.size();
   }
 
-  // now, we let each MPI process now how many points each process has found
-  int mySize = myFilteredPoints.size();
+  // ---------- collect indices of relevant states  --------------- // 
+  // now that we've counted up the selected points and their 
+  // indices on each process, we need to reduce 
+  int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
-  int *receiveCounts = nullptr;
-  receiveCounts = new int[mpiSize];
-  for (int i = 0; i < mpiSize; i++) *(receiveCounts + i) = 0;
-  if (mpiSize > 1) {
-    mpi->gather(&mySize, receiveCounts);
-#ifdef MPI_AVAIL
-    // note: bcast interface doesn't work for objects of unknown size
-    // (here, we'd need to pass the size to the interface)
-    // convert receiveCounts to std::vector?
-    MPI_Bcast(receiveCounts, mpiSize, MPI_INT, 0, MPI_COMM_WORLD);
-#endif
-  } else {
-    receiveCounts[0] = mySize;
-  }
-
-  // receivecounts now tells how many wavevectors found per MPI process
+  
+  // take the number of kpoints of each process and fill 
+  // buffer receiveCounts with these values
+  std::vector<int> receiveCounts(mpiSize);
+  mpi->allGatherv(&myNumPts, &receiveCounts);
 
   // now we count the total number of wavevectors
+  // by summing over receive counts
   numPoints = 0;
   for (int i = 0; i < mpi->getSize(); i++) {
-    numPoints += *(receiveCounts + i);
+    numPoints += receiveCounts[i];
   }
 
-  // now we collect the wavevector indeces
-  // first we find the offset to compute global indeces from local indices
+  // now we collect the wavevector indices
+  // first we find the offset to compute global indices from local indices
   std::vector<int> displacements(mpiSize, 0);
   for (int i = 1; i < mpiSize; i++) {
-    displacements[i] = displacements[i - 1] + *(receiveCounts + i - 1);
+    displacements[i] = displacements[i - 1] + receiveCounts[i-1];
   }
 
-  // collect all the indeces in the filteredPoints vector
+  // collect all the indices in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filter(index) = myFilteredPoints[i];
   }
@@ -701,18 +726,16 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // let's use Eigen matrices
   Eigen::MatrixXi filteredBands(numPoints, 2);
   filteredBands.setZero();
-  for (int i = 0; i < mySize; i++) {
+  for (int i = 0; i < myNumPts; i++) {
     int index = i + displacements[mpi->getRank()];
     filteredBands(index, 0) = myFilteredBands[i][0];
     filteredBands(index, 1) = myFilteredBands[i][1];
   }
   mpi->allReduceSum(&filteredBands);
 
-  //    free(receiveCounts);
-  delete[] receiveCounts;
-
   //////////////// Done MPI recollection
 
+  // ---------- count numBands and numStates  --------------- // 
   // numBands is a book-keeping of how many bands per kpoint there are
   // this isn't a constant number.
   // on top of that, we look for the size of the arrays containing bandstruc.
@@ -728,10 +751,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
   numStates = numEnStates;
 
-  // initialize the raw data buffers of the activeBandStructure
-
+  // ---------- initialize internal data buffers --------------- // 
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
+
   // construct the mapping from combined indices to Bloch indices
   buildIndeces();
 
@@ -743,68 +766,82 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     hasEigenvectors = true;
     eigenvectors.resize(numEigStates, complexZero);
   }
-
   windowMethod = window.getMethodUsed();
 
-  /////////////////
+  // ----- collect ens, vels, eigs, at each localPt, then reduce -------- // 
+  // Now we can loop over the trimmed list of points.
+  // To accomodate the case where FullBS is distributed, 
+  // we save the energies related to myFilteredPoints/Bands 
+  // and then allReduce or allGather those instead
+  for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
 
-  // now we can loop over the trimmed list of points
-  for (int i=0; i<filter.size(); i++ ) {
-    long ik = filter(i);
-    auto ikIndex = WavevectorIndex(ik);
-    Point point = activePoints.getPoint(i);
+    // index corresponding to index of wavevector in fullPoints
+    auto ikIndex = WavevectorIndex(myFilteredPoints[i]);
 
+    // index corresponding to wavevector in activePoints 
+    // as well as any array of length numActivePoints, 
+    // like numBands, filteredBands
+    // ika = ikActive
+    int ika = i + displacements[mpi->getRank()];
+    Point point = activePoints.getPoint(ika);
+
+    // local ik, which corresponds to filteredPoints on this processs
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
-    Eigen::MatrixXcd theseEigenvectors =
-        fullBandStructure.getEigenvectors(ikIndex);
+    Eigen::MatrixXcd theseEigenvectors = fullBandStructure.getEigenvectors(ikIndex);
 
-    // copy energies
-    Eigen::VectorXd eigEns(numBands(i));
+    // copy energies into internal storage
+    Eigen::VectorXd eigEns(numBands(ika));
     long ibAct = 0;
-    for (long ibFull = filteredBands(i, 0); ibFull <= filteredBands(i, 1);
-         ibFull++) {
+    for (long ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1); ibFull++) {
       eigEns(ibAct) = theseEnergies(ibFull);
       ibAct++;
     }
     setEnergies(point, eigEns);
 
-    // copy eigenvectors
+    // copy eigenvectors into internal storage
     if (withEigenvectors) {
       // we are reducing the basis size!
       // the first index has the size of the Hamiltonian
       // the second index has the size of the filtered bands
-      Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(i));
+      Eigen::MatrixXcd theseEigvecs(numFullBands, numBands(ika));
       long ibAct = 0;
-      for (long ibFull = filteredBands(i, 0); ibFull <= filteredBands(i, 1);
-           ibFull++) {
+      for (long ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1); ibFull++) {
         theseEigvecs.col(ibAct) = theseEigenvectors.col(ibFull);
         ibAct++;
       }
       setEigenvectors(point, theseEigvecs);
     }
   }
+  // reduce over internal data buffers
+  mpi->allReduceSum(&energies);
+  if (withEigenvectors) mpi->allReduceSum(&eigenvectors);
 
-  // compute velocities
-
+  // compute velocities, store, reduce
   if (withVelocities) {
-#pragma omp parallel for
-    for (long ik : mpi->divideWorkIter(numPoints)) {
-      Point point = activePoints.getPoint(ik);
+
+    // loop over the points available to this process
+    #pragma omp parallel for
+    for (unsigned long i=0; i<myFilteredPoints.size(); i++) {
+
+      // index corresponding to wavevector in activePoints 
+      // as well as any array of length numActivePoints, 
+      // like numBands, filteredBands
+      // ika = ikActive
+      int ika = i + displacements[mpi->getRank()];
+      Point point = activePoints.getPoint(ika);
 
       // thisVelocity is a tensor of dimensions (ib, ib, 3)
       auto thisVelocity = h0.diagonalizeVelocity(point);
 
       // now we filter it
-      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ik),
-                                                      numBands(ik), 3);
+      Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ika),
+                                                      numBands(ika), 3);
       long ib1New = 0;
-      for (long ib1Old = filteredBands(ik, 0);
-           ib1Old < filteredBands(ik, 1) + 1; ib1Old++) {
+      for (long ib1Old = filteredBands(ika, 0); ib1Old < filteredBands(ika, 1) + 1; ib1Old++) {
         long ib2New = 0;
-        for (long ib2Old = filteredBands(ik, 0);
-             ib2Old < filteredBands(ik, 1) + 1; ib2Old++) {
-          for (long i = 0; i < 3; i++) {
-            thisVels(ib1New, ib2New, i) = thisVelocity(ib1Old, ib2Old, i);
+        for (long ib2Old = filteredBands(ika, 0); ib2Old < filteredBands(ika, 1) + 1; ib2Old++) {
+          for (long ic = 0; ic < 3; ic++) {
+            thisVels(ib1New, ib2New, ic) = thisVelocity(ib1Old, ib2Old, ic);
           }
           ib2New++;
         }
@@ -814,6 +851,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     }
     mpi->allReduceSum(&velocities);
   }
-
   return statisticsSweep;
+
 }
