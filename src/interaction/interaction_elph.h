@@ -39,6 +39,7 @@ private:
   Eigen::VectorXd phBravaisVectorsWeights;
 
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
+  int numWavevectors;
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
 
@@ -86,6 +87,7 @@ public:
       const Eigen::VectorXd &elBravaisVectorsWeights_,
       const Eigen::MatrixXd &phBravaisVectors_,
       const Eigen::VectorXd &phBravaisVectorsWeights_,
+      const int &numWavevectors_,
       PhononH0 *phononH0_ = nullptr);
 
   /** Copy constructor

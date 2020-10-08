@@ -17,7 +17,9 @@ protected:
    */
   Eigen::Tensor<std::complex<double>, 5>
   blochToWannier(const Eigen::MatrixXd &elBravaisVectors,
+                 const Eigen::VectorXd &elDegeneracies,
                  const Eigen::MatrixXd &phBravaisVectors,
+                 const Eigen::VectorXd &phDegeneracies,
                  Eigen::Tensor<std::complex<double>, 5> &g_full,
                  const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
                  const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,

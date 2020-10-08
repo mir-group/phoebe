@@ -9,7 +9,9 @@ InteractionElPhWan::InteractionElPhWan(
     const Eigen::MatrixXd &elBravaisVectors_,
     const Eigen::VectorXd &elBravaisVectorsWeights_,
     const Eigen::MatrixXd &phBravaisVectors_,
-    const Eigen::VectorXd &phBravaisVectorsWeights_, PhononH0 *phononH0_)
+    const Eigen::VectorXd &phBravaisVectorsWeights_,
+    const int &numWavevectors_,
+    PhononH0 *phononH0_)
     : crystal(crystal_), phononH0(phononH0_) {
 
   couplingWannier = couplingWannier_;
@@ -17,6 +19,7 @@ InteractionElPhWan::InteractionElPhWan(
   elBravaisVectorsWeights = elBravaisVectorsWeights_;
   phBravaisVectors = phBravaisVectors_;
   phBravaisVectorsWeights = phBravaisVectorsWeights_;
+  numWavevectors = numWavevectors_;
 
   numElBands = couplingWannier.dimension(0);
   numPhBands = couplingWannier.dimension(2);
@@ -46,6 +49,7 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       numPhBands(that.numPhBands), numElBands(that.numElBands),
       numElBravaisVectors(that.numElBravaisVectors),
       numPhBravaisVectors(that.numPhBravaisVectors),
+      numWavevectors(that.numWavevectors),
       cacheCoupling(that.cacheCoupling), elPhCached(that.elPhCached),
       cachedK1(that.cachedK1), usePolarCorrection(that.usePolarCorrection) {}
 
@@ -64,6 +68,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     numElBands = that.numElBands;
     numElBravaisVectors = that.numElBravaisVectors;
     numPhBravaisVectors = that.numPhBravaisVectors;
+    numWavevectors = that.numWavevectors;
     cacheCoupling = that.cacheCoupling;
     elPhCached = that.elPhCached;
     cachedK1 = that.cachedK1;
@@ -107,8 +112,9 @@ void InteractionElPhWan::calcCouplingSquared(
     std::vector<std::complex<double>> phases;
     for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
       double arg = k1.dot(elBravaisVectors.col(irEl));
-      std::complex<double> phase =
-          exp(complexI * arg) / elBravaisVectorsWeights(irEl);
+      std::complex<double> phase = exp(complexI * arg)
+                                   / elBravaisVectorsWeights(irEl)
+                                   / double(numWavevectors);
       phases.push_back(phase);
     }
 
@@ -418,6 +424,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsWeights_, elBravaisVectorsWeights_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
+  int numWavevectors;
 
   // Open ElPh file
   if (mpi->mpiHead()) {
@@ -433,6 +440,8 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
     int qx, qy, qz;
     infile >> kx >> ky >> kz;
     infile >> qx >> qy >> qz;
+
+    numWavevectors = kx * ky * kz;
 
     int iCart;
 
@@ -476,13 +485,13 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
     for (int i5 = 0; i5 < numPhBravaisVectors; i5++) {
       for (int i4 = 0; i4 < numElBravaisVectors; i4++) {
         for (int i3 = 0; i3 < numPhBands; i3++) {
-          for (int i2 = 0; i2 < numElBands; i2++) {
-            for (int i1 = 0; i1 < numElBands; i1++) {
+          for (int i1 = 0; i1 < numElBands; i1++) {
+            for (int i2 = 0; i2 < numElBands; i2++) {
               infile >> re >> im;
               // note: in qe2Phoebe, the first index is on k+q bands,
               // and the second is on the bands of k. Here I invert them
               // similarly, in qe2Phoebe I inverted the order of R_el and R_ph
-              couplingWannier_(i2, i1, i3, i5, i4) = {re, im};
+              couplingWannier_(i1, i2, i3, i5, i4) = {re, im};
             }
           }
         }
@@ -493,6 +502,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 
   mpi->bcast(&numElectrons);
   mpi->bcast(&numSpin);
+  mpi->bcast(&numWavevectors);
 
   mpi->bcast(&numElBands);
   mpi->bcast(&numPhBands);
@@ -529,7 +539,8 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsWeights_, phBravaisVectors_,
-                            phBravaisVectorsWeights_, phononH0_);
+                            phBravaisVectorsWeights_, numWavevectors,
+                            phononH0_);
 
   return output;
 }

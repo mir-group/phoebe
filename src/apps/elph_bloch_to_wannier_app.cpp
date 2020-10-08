@@ -104,7 +104,8 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   if (interpolation == "wannier") {
 
     Eigen::Tensor<std::complex<double>, 5> g_wannier =
-        blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
+        blochToWannier(elBravaisVectors, elDegeneracies, phBravaisVectors,
+                       phDegeneracies, gFull, uMatrices,
                        phEigenvectors, kPoints, qPoints, crystal, phononH0);
 
     //----------------------------------------------------------------------------
@@ -152,8 +153,6 @@ void ElPhQeToPhoebeApp::run(Context &context) {
           }
         }
       }
-//      outfile << g_wannier << "\n";
-
       std::cout << "Done writing g to file\n" << std::endl;
     }
   } else {
@@ -185,7 +184,9 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
 
 Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     const Eigen::MatrixXd &elBravaisVectors,
+    const Eigen::VectorXd &elDegeneracies,
     const Eigen::MatrixXd &phBravaisVectors,
+    const Eigen::VectorXd &phDegeneracies,
     Eigen::Tensor<std::complex<double>, 5> &gFull,
     const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
     const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
@@ -195,6 +196,13 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Start Wannier-transform of g" << std::endl;
   }
+
+  std::cout << gFull(0, 0, 2, 0, 1) << " Check\n";
+
+  std::cout << std::norm(gFull(0, 0, 2, 0, 1)) << " Check\n";
+
+  // ststd::cout << "Done\n";
+  // exit(1);
 
   int numBands = gFull.dimension(0); // # of entangled bands
   int numModes = gFull.dimension(2);
@@ -344,7 +352,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
       double arg = k.dot(elBravaisVectors.col(iR));
-      std::complex<double> phase = exp(-complexI * arg) / double(numKPoints);
+      std::complex<double> phase = exp(-complexI * arg); // / elDegeneracies(iR);
       for (int iq = 0; iq < numQPoints; iq++) {
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
@@ -400,7 +408,9 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q.dot(phBravaisVectors.col(irP));
-      std::complex<double> phase = exp(-complexI * arg) / double(numQPoints);
+      std::complex<double> phase = exp(-complexI * arg)
+                      //             / phDegeneracies(irP)
+                                   / double(numQPoints);
       for (int irE = 0; irE < numElBravaisVectors; irE++) {
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
