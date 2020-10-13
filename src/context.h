@@ -170,6 +170,7 @@ class Context {
    * @return x: the vector of values for chemical potentials
    */
   Eigen::VectorXd getDopings();
+  void setDopings(const Eigen::VectorXd x);
 
   /** gets the value of temperatures (in Rydbergs) to be used in the
    * calculation of transport properties

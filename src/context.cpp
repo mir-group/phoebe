@@ -695,6 +695,8 @@ Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
+void Context::setDopings(const Eigen::VectorXd x) { dopings = x; }
+
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
 
 void Context::setTemperatures(const Eigen::VectorXd x) { temperatures = x; }
