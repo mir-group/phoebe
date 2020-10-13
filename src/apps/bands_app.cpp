@@ -6,6 +6,7 @@
 #include "qe_input_parser.h"
 #include "path_points.h"
 #include "mpiHelper.h"
+#include <nlohmann/json.hpp>
 
 void PhononBandsApp::run(Context &context) {
   if ( mpi->mpiHead()) {
@@ -27,21 +28,52 @@ void PhononBandsApp::run(Context &context) {
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
   // Save phonon band structure to file
+  std::vector<std::vector<double>> outEnergies; 
+  std::vector<int> wavevectorIndices;
+  std::vector<double> tempEns;  
+  std::vector<std::vector<double>> pathCoords; 
   if ( mpi->mpiHead()) {
     int numBands = phononH0.getNumBands();
     std::ofstream outfile("./phonon_bands.dat");
     outfile << "# Phonon bands: path index, Bands[cmm1]" << std::endl;
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
       outfile << ik;
+      wavevectorIndices.push_back(ik);
       auto ikIndex = WavevectorIndex(ik);
       Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
+      auto coord = pathPoints.getPointCoords(ik); 
+      pathCoords.push_back({coord[0],coord[1],coord[2]});
       for (int ib = 0; ib < numBands; ib++) {
         outfile << "\t" << energies(ib) * ryToCmm1;
+        tempEns.push_back(energies(ib)); 
       }
+      outEnergies.push_back(tempEns);
+      tempEns.clear(); 
       outfile << std::endl;
     }
+    // determine path extrema to output to json
+    std::vector<std::vector<double>> outExtrema; 
+    std::vector<std::string> pathLabels = context.getPathLabels(); 
+    Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema(); 
+    auto numExtrema = pathExtrema.dimensions(); 
+    for (int pe = 0; pe < numExtrema[0]; pe++) {
+      outExtrema.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
+    }
+
+    // output to json 
+    nlohmann::json output;
+    output["wavevectorIndices"] = wavevectorIndices; 
+    output["pathCoordinates"] = pathCoords; 
+    output["pathLabels"] = pathLabels; 
+    output["numBands"] = numBands; 
+    output["energies"] = outEnergies;
+    output["mu"] = 0.0; 
+    output["bandsType"] = "phonon";
+    std::ofstream o("phonon.json");
+    o << output << std::endl;
+
     std::cout << "Finishing phonon bands calculation" << std::endl;
-  }
+  }  
 }
 
 void ElectronWannierBandsApp::run(Context &context) {
