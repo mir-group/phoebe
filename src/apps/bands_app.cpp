@@ -12,9 +12,10 @@
 // forward declare this helper function, so we can leave the important
 // run functions at the top
 void outputBandsToJSON(FullBandStructure& fullBandStructure,
-               Context& context, PathPoints& pathPoints,
-               std::string bandsType, std::string outFileName,
-               std::string energyUnit, double energyConversion, double mu);
+          Context& context, PathPoints& pathPoints,
+          std::string bandsType, std::string outFileName,
+          std::string energyUnit, double energyConversion,
+          double chemicalPotential);
 
 void PhononBandsApp::run(Context &context) {
 
@@ -168,8 +169,27 @@ void ElectronFourierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Save phonon band structure to file
+  // Use statisticsSweep to get the chemical potential 
+  Eigen::VectorXd dummyZero(1);
+  dummyZero(0) = 0.0; // set both temperature and doping to zero
+  context.setTemperatures(dummyZero); 
+  context.setDopings(dummyZero); 
+  StatisticsSweep statisticsSweep(context,&fullBandStructure);
+  // in this case, there should only be one object containing calculated 
+  // statistics to reference at index 0
+  auto stats = statisticsSweep.getCalcStatistics(0);
+
+  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
+  // energyUnits, energyConversionFactor, chemicalPotential 
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
+        "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
+
   if ( mpi->mpiHead()) {
+    std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
+  }
+
+  // Save phonon band structure to file
+/*  if ( mpi->mpiHead()) {
     int numBands = electronH0.getNumBands();
     std::ofstream outfile("./electron_bands.dat");
     outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
@@ -181,15 +201,14 @@ void ElectronFourierBandsApp::run(Context &context) {
         outfile << "\t" << energies(ib) * energyRyToEv;
       }
       outfile << std::endl;
-    }
-    std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
-  }
+    }*/
 }
-
+/* helper function to output bands to a json file */ 
 void outputBandsToJSON(FullBandStructure& fullBandStructure, 
-                        Context& context, PathPoints& pathPoints,
-                        std::string bandsType, std::string outFileName,
-                        std::string energyUnit, double energyConversion, double mu) {
+                 Context& context, PathPoints& pathPoints,
+                 std::string bandsType, std::string outFileName,
+                 std::string energyUnit, double energyConversion,
+                 double chemicalPotential) {
 
   if ( mpi->mpiHead()) {
     std::vector<std::vector<double>> outEnergies;
@@ -242,12 +261,13 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
     output["highSymCoordinates"] = extremaCoords;
     output["numBands"] = numBands; 
     output["energies"] = outEnergies;
-    output["mu"] = mu;
-    output["bandsType"] = bandsType; //"phonon";
-    output["energyUnits"] = energyUnit; //"cmm-1";
+    output["chemicalPotential"] = chemicalPotential*energyConversion;
+    output["bandsType"] = bandsType;
+    output["energyUnits"] = energyUnit;
     output["coordsType"] = "lattice";
-    std::ofstream o(outFileName); //"phonon_bands.json");
+    std::ofstream o(outFileName);
     o << std::setw(3) << output << std::endl;
+    o.close();
   }
 }
 
