@@ -1,6 +1,7 @@
 #include "bands_app.h"
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include "eigen.h"
 #include "constants.h"
 #include "qe_input_parser.h"
@@ -8,7 +9,15 @@
 #include "mpiHelper.h"
 #include <nlohmann/json.hpp>
 
+// forward declare this helper function, so we can leave the important
+// run functions at the top
+void outputBandsToJSON(FullBandStructure& fullBandStructure,
+               Context& context, PathPoints& pathPoints,
+               std::string bandsType, std::string outFileName,
+               std::string energyUnit, double energyConversion, double mu);
+
 void PhononBandsApp::run(Context &context) {
+
   if ( mpi->mpiHead()) {
     std::cout << "Starting phonon bands calculation" << std::endl;
   }
@@ -21,12 +30,21 @@ void PhononBandsApp::run(Context &context) {
   // first we make compute the band structure on the fine grid
   PathPoints pathPoints(crystal, context.getPathExtrema(),
                         context.getDeltaPath());
-
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
+  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
+  // energyUnits, energyConversionFactor, chemicalPotential 
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon", 
+        "phonon_bands.json", "cmm-1", ryToCmm1, 0.0);
+
+  if ( mpi->mpiHead()) {
+    std::cout << "Finishing phonon bands calculation" << std::endl;
+  }
+/*
+ *
   // Save phonon band structure to file
   std::vector<std::vector<double>> outEnergies; 
   std::vector<int> wavevectorIndices;
@@ -34,46 +52,64 @@ void PhononBandsApp::run(Context &context) {
   std::vector<std::vector<double>> pathCoords; 
   if ( mpi->mpiHead()) {
     int numBands = phononH0.getNumBands();
-    std::ofstream outfile("./phonon_bands.dat");
-    outfile << "# Phonon bands: path index, Bands[cmm1]" << std::endl;
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      outfile << ik;
+      // store wavevector indices 
       wavevectorIndices.push_back(ik);
       auto ikIndex = WavevectorIndex(ik);
       Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
+
+      // store the path coordinates 
       auto coord = pathPoints.getPointCoords(ik); 
       pathCoords.push_back({coord[0],coord[1],coord[2]});
+
+      // store the energies 
+      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
       for (int ib = 0; ib < numBands; ib++) {
-        outfile << "\t" << energies(ib) * ryToCmm1;
-        tempEns.push_back(energies(ib)); 
+        tempEns.push_back(energies(ib)*ryToCmm1); 
       }
       outEnergies.push_back(tempEns);
       tempEns.clear(); 
-      outfile << std::endl;
     }
-    // determine path extrema to output to json
-    std::vector<std::vector<double>> outExtrema; 
-    std::vector<std::string> pathLabels = context.getPathLabels(); 
+    // determine path extrema and their ik indices, to output to json
+    std::vector<std::vector<double>> extremaCoords; 
+    std::vector<int> pathLabelIndices;
     Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema(); 
     auto numExtrema = pathExtrema.dimensions(); 
     for (int pe = 0; pe < numExtrema[0]; pe++) {
-      outExtrema.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
+      // store coordinates of the extrema
+      extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
+      extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
+
+      // determine the indices of the extrema and save for plotting
+      Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
+      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
+      Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
+      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
     }
 
     // output to json 
     nlohmann::json output;
-    output["wavevectorIndices"] = wavevectorIndices; 
-    output["pathCoordinates"] = pathCoords; 
-    output["pathLabels"] = pathLabels; 
-    output["numBands"] = numBands; 
+    output["pathIndices"] = wavevectorIndices;
+    output["pathCoordinates"] = pathCoords;
+    output["highSymLabels"] = context.getPathLabels();
+    output["highSymIndices"] = pathLabelIndices; 
+    output["highSymCoordinates"] = extremaCoords; 
+    output["numBands"] = numBands;
     output["energies"] = outEnergies;
-    output["mu"] = 0.0; 
+    output["mu"] = 0.0;
     output["bandsType"] = "phonon";
-    std::ofstream o("phonon.json");
-    o << output << std::endl;
+    output["energyUnits"] = "cmm-1"; 
+    output["coordsType"] = "cartesian";
+    std::ofstream o("phonon_bands.json");
+    o << std::setw(3) << output << std::endl;
+*/
+    // arguments: numBands, context, pathPoints, bandsType, outputFileName, 
+    // energyUnits, energyConversionFactor, chemicalPotential 
+   // outputBandsToJSON(numBands, context, pathPoints, "phonon", "phonon_bands.json", 
+    //                    "cmm-1", ryToCmm1, 0.0);
 
-    std::cout << "Finishing phonon bands calculation" << std::endl;
-  }  
+   // std::cout << "Finishing phonon bands calculation" << std::endl;
+  //}  
 }
 
 void ElectronWannierBandsApp::run(Context &context) {
@@ -149,6 +185,72 @@ void ElectronFourierBandsApp::run(Context &context) {
     std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
   }
 }
+
+void outputBandsToJSON(FullBandStructure& fullBandStructure, 
+                        Context& context, PathPoints& pathPoints,
+                        std::string bandsType, std::string outFileName,
+                        std::string energyUnit, double energyConversion, double mu) {
+
+  if ( mpi->mpiHead()) {
+    std::vector<std::vector<double>> outEnergies;
+    std::vector<int> wavevectorIndices;
+    std::vector<double> tempEns;
+    std::vector<std::vector<double>> pathCoords;
+    int numBands = fullBandStructure.getNumBands();
+
+    for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
+      // store wavevector indices 
+      wavevectorIndices.push_back(ik);
+      auto ikIndex = WavevectorIndex(ik);
+      
+      // store the path coordinates 
+      auto coord = pathPoints.getPointCoords(ik);
+      pathCoords.push_back({coord[0],coord[1],coord[2]});
+      
+      // store the energies 
+      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
+      for (int ib = 0; ib < numBands; ib++) {
+        tempEns.push_back(energies(ib)*energyConversion);
+      }
+      outEnergies.push_back(tempEns);
+      tempEns.clear();
+    }
+
+    // determine path extrema and their ik indices, to output to json
+    std::vector<std::vector<double>> extremaCoords;
+    std::vector<int> pathLabelIndices;
+    Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema();
+    auto numExtrema = pathExtrema.dimensions();
+    for (int pe = 0; pe < numExtrema[0]; pe++) {
+      // store coordinates of the extrema
+      extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
+      extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
+      
+      // determine the indices of the extrema and save for plotting
+      Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
+      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
+      Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
+      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
+    }
+
+    // output to json 
+    nlohmann::json output;
+    output["pathIndices"] = wavevectorIndices;
+    output["pathCoordinates"] = pathCoords;
+    output["highSymLabels"] = context.getPathLabels();
+    output["highSymIndices"] = pathLabelIndices;
+    output["highSymCoordinates"] = extremaCoords;
+    output["numBands"] = numBands; 
+    output["energies"] = outEnergies;
+    output["mu"] = mu;
+    output["bandsType"] = bandsType; //"phonon";
+    output["energyUnits"] = energyUnit; //"cmm-1";
+    output["coordsType"] = "lattice";
+    std::ofstream o(outFileName); //"phonon_bands.json");
+    o << std::setw(3) << output << std::endl;
+  }
+}
+
 
 void PhononBandsApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
