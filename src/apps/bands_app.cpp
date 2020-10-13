@@ -17,6 +17,7 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
           std::string energyUnit, double energyConversion,
           double chemicalPotential);
 
+/* --------------------- PhononBandsApp ------------------------------ */
 void PhononBandsApp::run(Context &context) {
 
   if ( mpi->mpiHead()) {
@@ -44,75 +45,9 @@ void PhononBandsApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "Finishing phonon bands calculation" << std::endl;
   }
-/*
- *
-  // Save phonon band structure to file
-  std::vector<std::vector<double>> outEnergies; 
-  std::vector<int> wavevectorIndices;
-  std::vector<double> tempEns;  
-  std::vector<std::vector<double>> pathCoords; 
-  if ( mpi->mpiHead()) {
-    int numBands = phononH0.getNumBands();
-    for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      // store wavevector indices 
-      wavevectorIndices.push_back(ik);
-      auto ikIndex = WavevectorIndex(ik);
-      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
-
-      // store the path coordinates 
-      auto coord = pathPoints.getPointCoords(ik); 
-      pathCoords.push_back({coord[0],coord[1],coord[2]});
-
-      // store the energies 
-      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
-      for (int ib = 0; ib < numBands; ib++) {
-        tempEns.push_back(energies(ib)*ryToCmm1); 
-      }
-      outEnergies.push_back(tempEns);
-      tempEns.clear(); 
-    }
-    // determine path extrema and their ik indices, to output to json
-    std::vector<std::vector<double>> extremaCoords; 
-    std::vector<int> pathLabelIndices;
-    Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema(); 
-    auto numExtrema = pathExtrema.dimensions(); 
-    for (int pe = 0; pe < numExtrema[0]; pe++) {
-      // store coordinates of the extrema
-      extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
-      extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
-
-      // determine the indices of the extrema and save for plotting
-      Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
-      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
-      Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
-      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
-    }
-
-    // output to json 
-    nlohmann::json output;
-    output["pathIndices"] = wavevectorIndices;
-    output["pathCoordinates"] = pathCoords;
-    output["highSymLabels"] = context.getPathLabels();
-    output["highSymIndices"] = pathLabelIndices; 
-    output["highSymCoordinates"] = extremaCoords; 
-    output["numBands"] = numBands;
-    output["energies"] = outEnergies;
-    output["mu"] = 0.0;
-    output["bandsType"] = "phonon";
-    output["energyUnits"] = "cmm-1"; 
-    output["coordsType"] = "cartesian";
-    std::ofstream o("phonon_bands.json");
-    o << std::setw(3) << output << std::endl;
-*/
-    // arguments: numBands, context, pathPoints, bandsType, outputFileName, 
-    // energyUnits, energyConversionFactor, chemicalPotential 
-   // outputBandsToJSON(numBands, context, pathPoints, "phonon", "phonon_bands.json", 
-    //                    "cmm-1", ryToCmm1, 0.0);
-
-   // std::cout << "Finishing phonon bands calculation" << std::endl;
-  //}  
 }
 
+/* --------------------- ElectronWannierBandsApp --------------------- */
 void ElectronWannierBandsApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "Starting electron (Wannier) bands calculation" << std::endl;
@@ -132,24 +67,27 @@ void ElectronWannierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Save phonon band structure to file
+  // Use statisticsSweep to get the chemical potential 
+  // TODO do we want to do this, or would we prefer to use whatever was read in
+  // by context (the value provided by QE)
+  Eigen::VectorXd dummyZero(1);
+  dummyZero(0) = 0.0; // set both temperature and doping to zero
+  context.setTemperatures(dummyZero);
+  context.setDopings(dummyZero);
+  StatisticsSweep statisticsSweep(context,&fullBandStructure);
+  auto stats = statisticsSweep.getCalcStatistics(0);
+
+  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
+  // energyUnits, energyConversionFactor, chemicalPotential 
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
+        "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
+
   if ( mpi->mpiHead()) {
-    int numBands = electronH0.getNumBands();
-    std::ofstream outfile("./electron_bands.dat");
-    outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
-    for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      outfile << ik;
-      auto ikIndex = WavevectorIndex(ik);
-      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
-      for (int ib = 0; ib < numBands; ib++) {
-        outfile << "\t" << energies(ib) * energyRyToEv;
-      }
-      outfile << std::endl;
-    }
     std::cout << "Finishing electron (Wannier) bands calculation" << std::endl;
   }
 }
 
+/* --------------------- ElectronFourierBandsApp --------------------- */
 void ElectronFourierBandsApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "Starting electron (Fourier) bands calculation" << std::endl;
@@ -170,13 +108,13 @@ void ElectronFourierBandsApp::run(Context &context) {
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
   // Use statisticsSweep to get the chemical potential 
+  // TODO do we want to do this, or would we prefer to use whatever was read in
+  // by context (the value provided by QE)
   Eigen::VectorXd dummyZero(1);
   dummyZero(0) = 0.0; // set both temperature and doping to zero
   context.setTemperatures(dummyZero); 
   context.setDopings(dummyZero); 
   StatisticsSweep statisticsSweep(context,&fullBandStructure);
-  // in this case, there should only be one object containing calculated 
-  // statistics to reference at index 0
   auto stats = statisticsSweep.getCalcStatistics(0);
 
   // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
@@ -187,22 +125,8 @@ void ElectronFourierBandsApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
   }
-
-  // Save phonon band structure to file
-/*  if ( mpi->mpiHead()) {
-    int numBands = electronH0.getNumBands();
-    std::ofstream outfile("./electron_bands.dat");
-    outfile << "# Electron bands: path index, Bands[eV]" << std::endl;
-    for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      outfile << ik;
-      auto ikIndex = WavevectorIndex(ik);
-      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
-      for (int ib = 0; ib < numBands; ib++) {
-        outfile << "\t" << energies(ib) * energyRyToEv;
-      }
-      outfile << std::endl;
-    }*/
 }
+
 /* helper function to output bands to a json file */ 
 void outputBandsToJSON(FullBandStructure& fullBandStructure, 
                  Context& context, PathPoints& pathPoints,
