@@ -9,7 +9,7 @@
  */
 class PhononThermalConductivity: public Observable {
 public:
- /** Constructor method
+  /** Constructor method
   * @param statisticsSweep: a StatisticsSweep object containing information
   * on the temperature loop
   * @param crystal: a Crystal object
@@ -75,7 +75,7 @@ public:
   */
  void print();
 
- /** Outputs the quantity to a json file.
+/** Outputs the quantity to a json file.
  * @param outFileName: string representing the name of the json file
  */
  void outputToJSON(std::string outFileName);
