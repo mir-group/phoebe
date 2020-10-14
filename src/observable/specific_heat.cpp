@@ -1,4 +1,8 @@
 #include "specific_heat.h"
+
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -45,36 +49,75 @@ void SpecificHeat::calc() {
 }
 
 void SpecificHeat::print() {
-    if ( ! mpi->mpiHead()) return;
+  if ( ! mpi->mpiHead()) return;
 
-    std::string units;
-    if (dimensionality == 1) {
-        units = "J / K / m";
-    } else if (dimensionality == 2) {
-        units = "J / K / m^2";
-    } else {
-        units = "J / K / m^3";
-    }
+  std::string units;
+  if (dimensionality == 1) {
+      units = "J / K / m";
+  } else if (dimensionality == 2) {
+      units = "J / K / m^2";
+  } else {
+      units = "J / K / m^3";
+  }
 
-    double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+  double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
 
-    std::cout << "\n";
-    std::cout << "Specific heat (" << units << ")\n";
+  std::cout << "\n";
+  std::cout << "Specific heat (" << units << ")\n";
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
 
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
 
-        std::cout << std::fixed;
-        std::cout.precision(2);
-        std::cout << "Temperature: " << temp * temperatureAuToSi
-                << " (K), C = ";
-        std::cout << std::scientific;
-        std::cout.precision(5);
-        std::cout << scalar(iCalc) * conversion;
-        std::cout << std::endl;
-    }
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "Temperature: " << temp * temperatureAuToSi
+            << " (K), C = ";
+    std::cout << std::scientific;
+    std::cout.precision(5);
+    std::cout << scalar(iCalc) * conversion;
+    std::cout << std::endl;
+  }
+}
+
+void SpecificHeat::outputToJSON(std::string outFileName) {
+  if ( ! mpi->mpiHead()) return;
+
+  std::string units;
+  if (dimensionality == 1) {
+      units = "J / K / m";
+  } else if (dimensionality == 2) {
+      units = "J / K / m^2";
+  } else {
+      units = "J / K / m^3";
+  }
+
+  double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+
+  std::vector<double> temps;
+  std::vector<double> specificHeat;
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+    // store temperatures
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    temps.push_back(temp*temperatureAuToSi);
+
+    // store the specific heat
+    specificHeat.push_back(scalar(iCalc) * conversion);
+
+  }
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["specificHeat"] = specificHeat;
+  output["temperatureUnit"] = "K";
+  output["specficiHeatUnits"] = units;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+
 }
 
 int SpecificHeat::whichType() {

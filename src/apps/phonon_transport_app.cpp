@@ -101,6 +101,7 @@ void PhononTransportApp::run(Context &context) {
   SpecificHeat specificHeat(statisticsSweep, crystal, bandStructure);
   specificHeat.calc();
   specificHeat.print();
+  specificHeat.outputToJSON("specific_heat.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "\n";
