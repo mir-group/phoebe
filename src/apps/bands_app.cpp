@@ -13,7 +13,7 @@
 // run functions at the top
 void outputBandsToJSON(FullBandStructure& fullBandStructure,
           Context& context, PathPoints& pathPoints,
-          std::string bandsType, std::string outFileName,
+          std::string particleType, std::string outFileName,
           std::string energyUnit, double energyConversion,
           double chemicalPotential);
 
@@ -40,7 +40,7 @@ void PhononBandsApp::run(Context &context) {
   // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
   // energyUnits, energyConversionFactor, chemicalPotential 
   outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon", 
-        "phonon_bands.json", "cmm-1", ryToCmm1, 0.0);
+        "phonon_bands.json", "cm$^{-1}$", ryToCmm1, 0.0);
 
   if ( mpi->mpiHead()) {
     std::cout << "Finishing phonon bands calculation" << std::endl;
@@ -117,7 +117,7 @@ void ElectronFourierBandsApp::run(Context &context) {
   StatisticsSweep statisticsSweep(context,&fullBandStructure);
   auto stats = statisticsSweep.getCalcStatistics(0);
 
-  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
+  // arguments: bandStructure, context, pathPoints, particleType, outputFileName, 
   // energyUnits, energyConversionFactor, chemicalPotential 
   outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
         "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
@@ -130,7 +130,7 @@ void ElectronFourierBandsApp::run(Context &context) {
 /* helper function to output bands to a json file */ 
 void outputBandsToJSON(FullBandStructure& fullBandStructure, 
                  Context& context, PathPoints& pathPoints,
-                 std::string bandsType, std::string outFileName,
+                 std::string particleType, std::string outFileName,
                  std::string energyUnit, double energyConversion,
                  double chemicalPotential) {
 
@@ -186,8 +186,8 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
     output["numBands"] = numBands; 
     output["energies"] = outEnergies;
     output["chemicalPotential"] = chemicalPotential*energyConversion;
-    output["bandsType"] = bandsType;
-    output["energyUnits"] = energyUnit;
+    output["particleType"] = particleType;
+    output["energyUnit"] = energyUnit;
     output["coordsType"] = "lattice";
     std::ofstream o(outFileName);
     o << std::setw(3) << output << std::endl;

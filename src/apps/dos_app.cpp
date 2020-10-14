@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <string>
 
 #include "constants.h"
@@ -12,12 +13,19 @@
 #include "mpiHelper.h"
 #include "qe_input_parser.h"
 #include "utilities.h"
+#include <nlohmann/json.hpp>
 
 // Forward declare this helper function so that 
 // app::run functions can remain at the top 
 std::tuple<std::vector<double>, std::vector<double>> calcDOS(
       Context& context, FullBandStructure& fullBandStructure);
 
+void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
+                 std::string particleType, std::string outFileName,
+                 std::string energyUnit, std::string dosUnit,  
+                 double energyConversion, double chemicalPotential);
+
+/* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context &context) {
   if (mpi->mpiHead()) {
@@ -41,17 +49,19 @@ void PhononDosApp::run(Context &context) {
   std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, outFileName,
+  //      energyUnit, dosUnit, energyConversion, chemicalPotential
+  outputDOSToJSON(energies, dos, "phonon", "phonon_dos.json",
+           "cm$^{-1}$", "1/(cm$^{-1}$)", ryToCmm1, 0.0);
+
   // Save phonon DOS to file
   if (mpi->mpiHead()) {
-    std::ofstream outfile("./phonon_dos.dat");
-    outfile << "# Phonon density of states: frequency[Cmm1], Dos[1/Ry]\n";
-    for (unsigned int i = 0; i < energies.size(); i++) {
-      outfile << energies[i] * ryToCmm1 << "\t" << dos[i] << "\n";
-    }
     std::cout << "Phonon DoS computed." << std::endl;
   }
 }
 
+/* ---------------- ElectronWannierDos --------------------*/
 // Compute the Electron DOS with tetrahedron method and Wannier interpolation
 void ElectronWannierDosApp::run(Context &context) {
   if (mpi->mpiHead())
@@ -74,18 +84,29 @@ void ElectronWannierDosApp::run(Context &context) {
   std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
+  // Use statisticsSweep to get the chemical potential 
+  // TODO do we want to do this, or would we prefer to use whatever was read in
+  // by context (the value provided by QE)
+  Eigen::VectorXd dummyZero(1);
+  dummyZero(0) = 0.0; // set both temperature and doping to zero
+  context.setTemperatures(dummyZero);
+  context.setDopings(dummyZero);
+  StatisticsSweep statisticsSweep(context,&fullBandStructure);
+  auto stats = statisticsSweep.getCalcStatistics(0);
+
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, outFileName,
+  //      energyUnit, dosUnit, energyConversion, chemicalPotential
+  outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
+           "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
+
   // Merge different ranks and save DOS to file (mpi head only)
   if (mpi->mpiHead()) {
-    std::ofstream outfile("./electron_dos.dat");
-    outfile << "# Electronic density of states: energy[eV], Dos[1/Ry]\n";
-    for (unsigned int i = 0; i < energies.size(); i++) {
-      outfile << energies[i] * energyRyToEv << "\t"
-              << dos[i] / energyRyToEv << "\n";
-    }
     std::cout << "Electronic (Wannier) DoS computed" << std::endl;
   }
 }
 
+/* ---------------- ElectronFourierDos --------------------*/
 // Compute the Electron DOS with tetrahedron method and Fourier interpolation
 void ElectronFourierDosApp::run(Context &context) {
   if (mpi->mpiHead())
@@ -108,16 +129,26 @@ void ElectronFourierDosApp::run(Context &context) {
   std::vector<double> energies = std::get<0>(tup1); 
   std::vector<double> dos = std::get<1>(tup1);
 
+  // Use statisticsSweep to get the chemical potential 
+  // TODO do we want to do this, or would we prefer to use whatever was read in
+  // by context (the value provided by QE)
+  Eigen::VectorXd dummyZero(1);
+  dummyZero(0) = 0.0; // set both temperature and doping to zero
+  context.setTemperatures(dummyZero);
+  context.setDopings(dummyZero);
+  StatisticsSweep statisticsSweep(context,&fullBandStructure);
+  auto stats = statisticsSweep.getCalcStatistics(0);
+
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, outFileName,
+  //      energyUnit, dosUnit, energyConversion, chemicalPotential
+  outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
+           "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
+
   // save dos to an output file
   if (mpi->mpiHead()) {
-    std::ofstream outfile("./electron_dos.dat");
-    outfile << "# Electronic density of states: energy[eV], Dos[1/Ry]\n";
-    for (unsigned int i = 0; i < energies.size(); i++) {
-      outfile << energies[i] * energyRyToEv << "\t"
-              << dos[i] / energyRyToEv << "\n";
-    }
     std::cout << "Electronic (Fourier) DoS computed" << std::endl;
-  }
+  }  
 }
 
 /* 
@@ -165,6 +196,36 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   mpi->gatherv(&energies, &eneTotal);
   mpi->gatherv(&dos, &dosTotal);
   return {eneTotal, dosTotal}; 
+
+}
+
+/* 
+ * helper function to output dos to a json file 
+ */
+void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos, 
+                 std::string particleType, std::string outFileName, 
+                 std::string energyUnit, std::string dosUnit, 
+                 double energyConversion, double chemicalPotential) {
+
+  if ( mpi->mpiHead()) {
+
+    for (unsigned int i = 0; i < energies.size(); i++) {
+      energies[i] *= energyConversion; 
+      dos[i] /= energyConversion; 
+    }
+
+    // output to json 
+    nlohmann::json output;
+    output["energies"] = energies;
+    output["dos"] = dos; 
+    output["chemicalPotential"] = chemicalPotential*energyConversion;
+    output["particleType"] = particleType;
+    output["energyUnit"] = energyUnit;
+    output["dosUnit"] = dosUnit; 
+    std::ofstream o(outFileName);
+    o << std::setw(3) << output << std::endl;
+    o.close();
+  }
 }
 
 void PhononDosApp::checkRequirements(Context &context) {
