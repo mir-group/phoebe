@@ -1,9 +1,9 @@
 #include "phonon_thermal_cond.h"
 
 #include <time.h>
-
+#include <nlohmann/json.hpp>
+#include <fstream>
 #include <iomanip>
-
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -186,7 +186,7 @@ void PhononThermalConductivity::calcFromRelaxons(SpecificHeat &specificHeat,
 }
 
 void PhononThermalConductivity::print() {
-  if (!mpi->mpiHead()) return;  // debugging now
+  if (!mpi->mpiHead()) return;
 
   std::string units;
   if (dimensionality == 1) {
@@ -217,6 +217,51 @@ void PhononThermalConductivity::print() {
       std::cout << "\n";
     }
     std::cout << std::endl;
+  }
+}
+
+void PhononThermalConductivity::outputToJSON(std::string outFileName) {
+
+  if(mpi->mpiHead()) {
+    std::string units;
+    if (dimensionality == 1) {
+      units = "W m / K";
+    } else if (dimensionality == 2) {
+      units = "W / K";
+    } else {
+      units = "W / m / K";
+    }
+
+    std::vector<double> temps;
+    std::vector<std::vector<std::vector<double>>> conds;
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+      // store temperatures
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+      temps.push_back(temp*temperatureAuToSi);
+
+      // store conductivity
+      std::vector<std::vector<double>> rows;
+      for (long i = 0; i < dimensionality; i++) {
+        std::vector<double> cols;
+        for (long j = 0; j < dimensionality; j++) {
+          cols.push_back(tensordxd(iCalc, i, j) * thConductivityAuToSi);
+        }
+        rows.push_back(cols);
+      }
+      conds.push_back(rows);
+    }
+
+    // output to json
+    nlohmann::json output;
+    output["temperatures"] = temps;
+    output["thermalConductivity"] = conds;
+    output["temperatureUnit"] = "K";
+    output["thermalConductivityUnits"] = units;
+    std::ofstream o(outFileName);
+    o << std::setw(3) << output << std::endl;
+    o.close();
   }
 }
 

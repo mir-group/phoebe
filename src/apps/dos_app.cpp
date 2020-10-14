@@ -55,7 +55,6 @@ void PhononDosApp::run(Context &context) {
   outputDOSToJSON(energies, dos, "phonon", "phonon_dos.json",
            "cm$^{-1}$", "1/(cm$^{-1}$)", ryToCmm1, 0.0);
 
-  // Save phonon DOS to file
   if (mpi->mpiHead()) {
     std::cout << "Phonon DoS computed." << std::endl;
   }
@@ -100,7 +99,6 @@ void ElectronWannierDosApp::run(Context &context) {
   outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
            "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
 
-  // Merge different ranks and save DOS to file (mpi head only)
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Wannier) DoS computed" << std::endl;
   }
@@ -145,7 +143,6 @@ void ElectronFourierDosApp::run(Context &context) {
   outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
            "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
 
-  // save dos to an output file
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Fourier) DoS computed" << std::endl;
   }  
@@ -208,12 +205,11 @@ void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
                  double energyConversion, double chemicalPotential) {
 
   if ( mpi->mpiHead()) {
-
+    // convert energies
     for (unsigned int i = 0; i < energies.size(); i++) {
       energies[i] *= energyConversion; 
       dos[i] /= energyConversion; 
     }
-
     // output to json 
     nlohmann::json output;
     output["energies"] = energies;

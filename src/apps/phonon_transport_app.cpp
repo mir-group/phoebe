@@ -82,12 +82,14 @@ void PhononTransportApp::run(Context &context) {
   PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
+  phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
   WignerPhononThermalConductivity phTCondWigner(statisticsSweep, crystal,
                                                 bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
+  phTCond.outputToJSON("wigner_phonon_thermal_cond.json");
 
   // compute the thermal conductivity
   PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
@@ -176,6 +178,8 @@ void PhononTransportApp::run(Context &context) {
       }
     }
     phTCond.print();
+    phTCond.outputToJSON("omini_phonon_thermal_cond.json");
+
     if ( mpi->mpiHead()) {
       std::cout << "Finished Omini Sparavigna BTE solver\n";
       std::cout << "\n";
@@ -267,6 +271,7 @@ void PhononTransportApp::run(Context &context) {
 
     // nice formatting of the thermal conductivity at the last step
     phTCond.print();
+    phTCond.outputToJSON("variational_phonon_thermal_cond.json");
 
     if ( mpi->mpiHead()) {
       std::cout << "Finished variational BTE solver\n";
@@ -304,6 +309,7 @@ void PhononTransportApp::run(Context &context) {
     VectorBTE relaxationTimes = eigenvalues.reciprocal();
     phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
     phTCond.print();
+    phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
 
     phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
                                  scatteringMatrix, eigenvectors);

@@ -75,6 +75,11 @@ public:
   */
  void print();
 
+ /** Outputs the quantity to a json file.
+ * @param outFileName: string representing the name of the json file
+ */
+ void outputToJSON(std::string outFileName);
+
  /** Prints to screen the thermal conductivity at various temperatures
   * To be used during an iterative BTE solver, this prints only the diagonal
   * elements of the thermal conductivity tensor.
