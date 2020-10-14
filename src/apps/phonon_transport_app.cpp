@@ -95,6 +95,7 @@ void PhononTransportApp::run(Context &context) {
   PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
   phViscosity.calcRTA(phononRelTimes);
   phViscosity.print();
+  phViscosity.outputToJSON("rta_phonon_viscosity.json");
 
   // compute the specific heat
   SpecificHeat specificHeat(statisticsSweep, crystal, bandStructure);
@@ -314,6 +315,7 @@ void PhononTransportApp::run(Context &context) {
     phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
                                  scatteringMatrix, eigenvectors);
     phViscosity.print();
+    phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
 
     if ( mpi->mpiHead()) {
       std::cout << "Finished relaxons BTE solver\n";
