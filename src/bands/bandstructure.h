@@ -44,6 +44,15 @@ class BaseBandStructure {
    */
   virtual long getNumBands() = 0;
 
+  /** Returns the number of bands. If the bandstructure is active, 
+   * and there are a different number of bands at each wavevector, this function 
+   * returns the number of bands at that point. If not, this defaults
+   * to the behavior of getNumBands() and just returns the number of bands. 
+   * This is necessary for parts of the code where we leave an option to 
+   * swap in different child bandstructure types. 
+   */
+  virtual long getNumBands(WavevectorIndex &ik) = 0;
+
   /** Checks whether the bandStructure has been built discarding some Bloch
    * states from those available.
    * @return windowMethod: one of the values of Window::filterMethod. 0 for
@@ -229,9 +238,14 @@ class FullBandStructure : public BaseBandStructure {
   long getNumPoints(const bool &useFullGrid = false);
 
   /** Returns the number of bands.
-   * @return numPoints: the total number of wavevectors of the bandStructure.
+   * @return numBands: the total number of bands in the bandStructure.
    */
   long getNumBands();
+  /** Returns the number of bands, to provide flexibility in cases where
+   * full or activeBandstructure could be used.
+   * @return numBands: the total number of bands in the bandStructure.
+   */
+  long getNumBands(WavevectorIndex &ik);
 
   long hasWindow();
 
