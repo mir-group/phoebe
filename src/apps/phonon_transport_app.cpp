@@ -78,6 +78,9 @@ void PhononTransportApp::run(Context &context) {
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE popRTA = drift * phononRelTimes;
 
+  // output relaxation times
+  scatteringMatrix.outputToJSON("rta_relaxation_times.json");
+
   // compute the thermal conductivity
   PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
@@ -312,6 +315,8 @@ void PhononTransportApp::run(Context &context) {
     phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
+    // output relaxation times
+    scatteringMatrix.outputToJSON("relaxons_relaxation_times.json");
 
     phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
                                  scatteringMatrix, eigenvectors);

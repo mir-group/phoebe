@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <numeric>  // std::iota
 #include <set>
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <iomanip>
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -347,6 +350,87 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
       return times;
     }
   }
+}
+
+void ScatteringMatrix::outputToJSON(std::string outFileName) {
+
+  if(!mpi->mpiHead()) return;
+
+  VectorBTE times = getSingleModeTimes();
+
+  std::string energyUnit;
+  std::string particleType;
+  double energyConversion;
+  auto particle = outerBandStructure.getParticle();
+  if(particle.isPhonon()) {
+    energyConversion = ryToCmm1;
+    energyUnit = "cm$^{-1}$";
+    particleType = "phonon";
+  } else {
+    energyConversion = energyRyToEv;
+    energyUnit = "eV";
+    particleType = "electron";
+  }
+
+  // need to store as a vector format with dimensions
+  // icalc, idim, ik. ib (where istate is unfolded into
+  // ik, ib) for the energies and lifetimes
+  std::vector<std::vector<std::vector<std::vector<double>>>> outTimes;
+  std::vector<std::vector<std::vector<std::vector<double>>>> energies;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    std::vector<std::vector<std::vector<double>>> iDimsT;
+    std::vector<std::vector<std::vector<double>>> iDimsE;
+
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    for (int iDim = 0; iDim < dimensionality_; iDim++) {
+      std::vector<std::vector<double>> wavevectorsT;
+      std::vector<std::vector<double>> wavevectorsE;
+      // TODO does getIndex from active bandstructure do right by us here?
+      for (int ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
+        // get numBands at this point specifically... in case it's an active
+        // bandstructure
+        auto ikIndex = WavevectorIndex(ik);
+        std::vector<double> bandsT;
+        std::vector<double> bandsE;
+        for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
+          auto ibIndex = BandIndex(ib);
+          int is = outerBandStructure.getIndex(ikIndex,ibIndex);
+          double tau = times(iCalc, iDim, is);
+          bandsT.push_back(tau*timeRyToFs);
+          double ene = outerBandStructure.getEnergy(is);
+          bandsE.push_back(ene * energyConversion);
+        }
+        wavevectorsT.push_back(bandsT);
+        wavevectorsE.push_back(bandsE);
+      }
+      iDimsT.push_back(wavevectorsT);
+      iDimsE.push_back(wavevectorsE);
+    }
+    outTimes.push_back(iDimsT);
+    energies.push_back(iDimsE);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["energies"] = energies;
+  output["energyUnit"] = energyUnit;
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
 }
 
 std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
