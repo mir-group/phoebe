@@ -94,6 +94,7 @@ void SpecificHeat::outputToJSON(std::string outFileName) {
   }
 
   double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+  auto particle = bandStructure.getParticle();
 
   std::vector<double> temps;
   std::vector<double> specificHeat;
@@ -113,7 +114,8 @@ void SpecificHeat::outputToJSON(std::string outFileName) {
   output["temperatures"] = temps;
   output["specificHeat"] = specificHeat;
   output["temperatureUnit"] = "K";
-  output["specficiHeatUnits"] = units;
+  output["specificHeatUnit"] = units;
+  output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();

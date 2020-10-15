@@ -413,6 +413,7 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   output["electronicThermalConductivityUnit"] = unitsKappa;
   output["seebeckCoefficient"] = seebeckOut;
   output["seebeckCoefficientUnits"] = unitsSeebeck;
+  output["particleType"] = "electron";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
