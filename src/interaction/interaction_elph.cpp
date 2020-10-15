@@ -113,8 +113,7 @@ void InteractionElPhWan::calcCouplingSquared(
     for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
       double arg = k1.dot(elBravaisVectors.col(irEl));
       std::complex<double> phase = exp(complexI * arg)
-                                   / elBravaisVectorsWeights(irEl)
-                                   / double(numWavevectors);
+                                   / elBravaisVectorsWeights(irEl);
       phases.push_back(phase);
     }
 
@@ -188,7 +187,7 @@ void InteractionElPhWan::calcCouplingSquared(
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int iac2 = 0; iac2 < numElBands; iac2++) {
             tmp2(ib1, ib2, iac3) +=
-                tmp(ib1, iac2, iac3) * std::conj(ev2(iac2, ib2));
+                std::conj(ev2(iac2, ib2)) * tmp(ib1, iac2, iac3);
           }
         }
       }

@@ -98,15 +98,25 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   Eigen::MatrixXd phBravaisVectors = std::get<0>(t4);
   Eigen::VectorXd phDegeneracies = std::get<1>(t4);
 
+  //-------------
+  // A test, for debug
+//  testElectronicTransform(
+//      Points &kPoints, const std::string &wannierPrefix,
+//      const Eigen::MatrixXd &elBravaisVectors,
+//      const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+//      const Eigen::VectorXd &elDegeneracies, ElectronH0Wannier &electronH0);
+//  testPhononTransform(crystal, phononH0, qPoints, phEigenvectors,
+//      phBravaisVectors, phDegeneracies, phEnergies);
+//  std::cout << "Phonons tested!\n";
+
   //----------------------------------------------------------------------------
 
   // Bloch to Wannier transformation of el-ph coupling
   if (interpolation == "wannier") {
 
-    Eigen::Tensor<std::complex<double>, 5> g_wannier =
-        blochToWannier(elBravaisVectors, elDegeneracies, phBravaisVectors,
-                       phDegeneracies, gFull, uMatrices,
-                       phEigenvectors, kPoints, qPoints, crystal, phononH0);
+    Eigen::Tensor<std::complex<double>, 5> g_wannier = blochToWannier(
+        elBravaisVectors, phBravaisVectors,
+        gFull, uMatrices, phEigenvectors, kPoints, qPoints, crystal, phononH0);
 
     //----------------------------------------------------------------------------
 
@@ -144,9 +154,8 @@ void ElPhQeToPhoebeApp::run(Context &context) {
           for (int i3 = 0; i3 < numPhBands; i3++) {
             for (int i2 = 0; i2 < numWannier; i2++) {
               for (int i1 = 0; i1 < numWannier; i1++) {
-                outfile << std::setw(22)
-                        << g_wannier(i1, i2, i3, i4, i5).real() << " "
-                        << std::setw(22)
+                outfile << std::setw(22) << g_wannier(i1, i2, i3, i4, i5).real()
+                        << " " << std::setw(22)
                         << g_wannier(i1, i2, i3, i4, i5).imag() << "\n";
               }
             }
@@ -184,9 +193,7 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
 
 Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     const Eigen::MatrixXd &elBravaisVectors,
-    const Eigen::VectorXd &elDegeneracies,
     const Eigen::MatrixXd &phBravaisVectors,
-    const Eigen::VectorXd &phDegeneracies,
     Eigen::Tensor<std::complex<double>, 5> &gFull,
     const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
     const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
@@ -197,9 +204,9 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     std::cout << "Start Wannier-transform of g" << std::endl;
   }
 
-  std::cout << gFull(0, 0, 2, 0, 1) << " Check\n";
+//  std::cout << gFull(0, 0, 2, 0, 1) << " Check\n";
 
-  std::cout << std::norm(gFull(0, 0, 2, 0, 1)) << " Check\n";
+//  std::cout << std::norm(gFull(0, 0, 2, 0, 1)) << " Check\n";
 
   // ststd::cout << "Done\n";
   // exit(1);
@@ -303,16 +310,16 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       // First we transform from the Bloch to Wannier Gauge
 
       // u has size (numBands, numWannier, numKPoints)
-      Eigen::MatrixXcd uK(numBands, numWannier);
-      Eigen::MatrixXcd tmpUkq(numBands, numWannier);
+      Eigen::MatrixXcd tmpUK(numBands, numWannier);
+      Eigen::MatrixXcd uKq(numBands, numWannier);
       for (int i = 0; i < numBands; i++) {
         for (int j = 0; j < numWannier; j++) {
-          uK(i, j) = uMatrices(i, j, ik);
-          tmpUkq(i, j) = uMatrices(i, j, ikq);
+          tmpUK(i, j) = uMatrices(i, j, ik);
+          uKq(i, j) = uMatrices(i, j, ikq);
         }
       }
-      Eigen::MatrixXcd uKq(numWannier, numBands);
-      uKq = tmpUkq.adjoint();
+      Eigen::MatrixXcd uK(numWannier, numBands);
+      uK = tmpUK.adjoint();
 
       Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
                                                  numModes);
@@ -323,7 +330,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
             for (int l = 0; l < numBands; l++) {
               // ukq has size(numWannier,numBands)
               // gFull has size numBands,numBands,...
-              tmp(i, j, nu) += uKq(i, l) * gFull(l, j, nu, ik, iq);
+              tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
             }
           }
         }
@@ -332,7 +339,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
             for (int l = 0; l < numBands; l++) {
-              gFullTmp(i, j, nu, ik, iq) += tmp(i, l, nu) * uK(l, j);
+              gFullTmp(i, j, nu, ik, iq) += tmp(i, l, nu) * uK(j, l);
             }
           }
         }
@@ -352,7 +359,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
       double arg = k.dot(elBravaisVectors.col(iR));
-      std::complex<double> phase = exp(-complexI * arg); // / elDegeneracies(iR);
+      std::complex<double> phase = exp(-complexI * arg) / double(numKPoints);
       for (int iq = 0; iq < numQPoints; iq++) {
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
@@ -408,9 +415,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q.dot(phBravaisVectors.col(irP));
-      std::complex<double> phase = exp(-complexI * arg)
-                      //             / phDegeneracies(irP)
-                                   / double(numQPoints);
+      std::complex<double> phase = exp(-complexI * arg) / double(numQPoints);
       for (int irE = 0; irE < numElBravaisVectors; irE++) {
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
@@ -553,7 +558,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numWannier; j++) {
         for (int k = 0; k < numWannier; k++) {
-          u(i, j, ivec) += b(k,j) * a(i,k);
+          u(i, j, ivec) += b(k, j) * a(i, k);
         }
       }
     }
@@ -690,15 +695,26 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
       qStar.push_back(thisQ);
     }
 
+    for (int iq = 0; iq < nqStar; iq++) {
+      Eigen::Vector3d thisQ; // in same as above, in cartesian coordinates
+      infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
+    }
+
     Eigen::VectorXd phononEnergies(numModes);
     for (int nu = 0; nu < numModes; nu++) {
       infileQ >> phononEnergies(nu);
     }
 
-    Eigen::Tensor<std::complex<double>,3> phononEigenvectorsStar(numModes, numModes, nqStar);
+    Eigen::Tensor<std::complex<double>, 3> phononEigenvectorsStar(
+        numModes, numModes, nqStar);
     for (int iq = 0; iq < nqStar; iq++) {
       for (int j = 0; j < numModes; j++) {
         for (int i = 0; i < numModes; i++) {
+          // Note, in Fortran I was writing:
+          // do jj = 1,nmodes
+          //   do k = 1,nat
+          //     do i_cart = 1,3
+          // This has to be aligned with what done by PhononH0
           double re, im;
           infileQ >> re >> im;
           phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
@@ -927,5 +943,282 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     }
     outfile << g2Epa << "\n";
     std::cout << "Done writing g to file\n" << std::endl;
+  }
+}
+
+void ElPhQeToPhoebeApp::testElectronicTransform(
+    Points &kPoints, const std::string &wannierPrefix,
+    const Eigen::MatrixXd &elBravaisVectors,
+    const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+    const Eigen::VectorXd &elDegeneracies, ElectronH0Wannier &electronH0) {
+  /** This is a simple test:
+   * 1) Fourier Transform the electronic Hamiltonian to Wannier representation
+   *    Here I use the U matrices from file
+   * 2) FT back to Bloch representation, using the U matrices from ElectronH0
+   *    on the original grid of kpoints
+   * If everything works, I expect to find the same electronic energies
+   * Phases of rotation matrices in the back-FT will be random.
+   */
+
+  int numBands = uMatrices.dimension(0);
+  int numWannier = uMatrices.dimension(1);
+  assert(numBands >= numWannier);
+
+  Eigen::MatrixXd blochEnergies(numBands, kPoints.getNumPoints());
+  blochEnergies.setZero();
+
+  auto t = kPoints.getMesh();
+  auto kMesh = std::get<0>(t);
+
+  // I try the FFT of the energies
+  for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
+    auto kCryst = kPoints.getPointCoords(ik);
+    kCryst(0) *= kMesh(0);
+    kCryst(1) *= kMesh(1);
+    kCryst(2) *= kMesh(2);
+
+    int ikOld = kCryst[0]*kMesh(2)*kMesh(1) + kCryst[1]*kMesh(2) + kCryst[2];
+    {
+      std::string eigFileName = wannierPrefix + ".eig";
+      std::ifstream eigfile(eigFileName);
+      int ib, ikk;
+      double x;
+      while (eigfile >> ib >> ikk >> x) {
+        if (ikk - 1 == ikOld) {
+          // Note: this causes some warnings from Eigen
+          blochEnergies(ib - 1, ikOld) = x;
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // Now FT to Wannier representation
+  Eigen::Tensor<std::complex<double>, 3> h0R(elBravaisVectors.size(), numWannier, numWannier);
+  h0R.setZero();
+  for (int ik1 = 0; ik1 < kPoints.getNumPoints(); ik1++) {
+    auto k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
+
+    // u has size (numBands, numWannier, numKPoints)
+    Eigen::MatrixXcd uK(numBands, numWannier);
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numWannier; j++) {
+        uK(i, j) = uMatrices(i, j, ik1);
+      }
+    }
+
+    Eigen::MatrixXcd h0K1(numBands, numBands);
+    for (int ib = 0; ib < numBands; ib++) {
+      h0K1(ib, ib) = {blochEnergies(ib, ik1), 0};
+    }
+    Eigen::MatrixXcd h0K(numWannier, numWannier);
+    h0K = uK.transpose() * h0K1 * uK.adjoint().transpose();
+
+    for (int iR = 0; iR < elBravaisVectors.cols(); iR++) {
+      Eigen::Vector3d R = elBravaisVectors.col(iR);
+      double phase = -k1C.dot(R);
+      std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+      for (int m = 0; m < numWannier; m++) {
+        for (int n = 0; n < numWannier; n++) {
+          h0R(iR, m, n) += phaseFactor * h0K(m, n) / double(kPoints.getNumPoints());
+        }
+      }
+    }
+  }
+
+  //  --------------------------------------------------------------------------
+  // FFT back
+
+  for (int ik1 = 0; ik1 < kPoints.getNumPoints(); ik1++) {
+    // get U
+    auto k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
+    auto t = electronH0.diagonalizeFromCoords(k1C);
+    auto en = std::get<0>(t);
+    auto u = std::get<1>(t);
+
+    Eigen::MatrixXcd h0K(numWannier, numWannier);
+    h0K.setZero();
+    for (long iR = 0; iR < elBravaisVectors.cols(); iR++) {
+      Eigen::Vector3d R = elBravaisVectors.col(iR);
+      double phase = k1C.dot(R);
+      std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+      for (long m = 0; m < numWannier; m++) {
+        for (long n = 0; n < numWannier; n++) {
+          h0K(m, n) += phaseFactor * h0R(iR, m, n) / elDegeneracies(iR);
+        }
+      }
+    }
+
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(h0K);
+    Eigen::VectorXd energies = eigensolver.eigenvalues();
+
+    for (int ib = 0; ib < numWannier; ib++) {
+      assert(abs(energies(ib) - blochEnergies(ib, ik1)) < 1.0e-3);
+    }
+  }
+
+}
+
+void ElPhQeToPhoebeApp::testPhononTransform(
+    Crystal &crystal, PhononH0 &phononH0, Points &qPoints,
+    const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
+    const Eigen::MatrixXd &phBravaisVectors,
+    const Eigen::VectorXd &phDegeneracies, const Eigen::MatrixXd &phEnergies) {
+  /** Like the test above, we
+   * 1) FT to Wannier representation.
+   *    Since these are force constants, they should be real.
+   * 2) FT back to Bloch space and check that we find the same results.
+   *
+   * We also verify that the eigenvectors are normalized by masses
+   * Note that the test works fine for non-polar systems.
+   */
+
+  int numPhBands = phononH0.getNumBands();
+
+  //--------------------------------------------------------------------------
+  // Bloch To Wannier transform
+
+  auto atomicPositions = crystal.getAtomicPositions();
+  int numAtoms = atomicPositions.rows();
+  auto atomicMasses = crystal.getAtomicMasses();
+
+  // test mass normalization as expected
+  for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
+    Eigen::MatrixXcd norm(numPhBands, numPhBands);
+    norm.setZero();
+    for (int ib1 = 0; ib1 < numPhBands; ib1++) {
+      for (int ib2 = 0; ib2 < numPhBands; ib2++) {
+        for (int k1 = 0; k1 < numAtoms; k1++) {
+          for (int iCart : {0, 1, 2}) {
+            int i = compress2Indeces(k1, iCart, numAtoms, 3);
+            norm(ib1, ib2) +=
+                phEigenvectors(i, ib1, iq) * sqrt(atomicMasses(k1)) *
+                phEigenvectors(i, ib2, iq) * sqrt(atomicMasses(k1));
+          }
+        }
+      }
+      norm(ib1) -= 1.; // It should be an identity matrix
+    }
+    assert(norm.sum() < 1.0e-6);
+  }
+
+  // FT to Wannier representation
+
+  Eigen::Tensor<std::complex<double>, 5> h0R(
+      numAtoms * numAtoms * phBravaisVectors.size(), numAtoms, numAtoms, 3, 3);
+  h0R.setZero();
+
+  for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
+    auto qC = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    qC = qPoints.bzToWs(qC, Points::cartesianCoords);
+
+    // u has size (numBands, numWannier, numKPoints)
+    Eigen::MatrixXcd uK(numPhBands, numPhBands);
+    for (int k1 = 0; k1 < numAtoms; k1++) {
+      for (int iCart : {0, 1, 2}) {
+        int i = compress2Indeces(k1, iCart, numAtoms, 3);
+        for (int j = 0; j < numPhBands; j++) {
+          uK(i, j) = phEigenvectors(i, j, iq) * sqrt(atomicMasses(k1));
+        }
+      }
+    }
+    assert(uK.inverse() == uK.adjoint()); // check is unitary matrix
+
+    // build dynamical matrix
+    Eigen::MatrixXcd h0K(numPhBands, numPhBands);
+    h0K.setZero();
+    for (int ib = 0; ib < numPhBands; ib++) {
+      h0K(ib, ib) = {phEnergies(ib, iq) * phEnergies(ib, iq), 0.};
+    }
+    h0K = uK * h0K * uK.adjoint();
+    // if here multiply by mass, we get the QE results
+
+    for (long iR = 0; iR < phBravaisVectors.cols(); iR++) {
+      Eigen::Vector3d R0 = phBravaisVectors.col(iR);
+      for (int k1 = 0; k1 < numAtoms; k1++) {
+        for (int k2 = 0; k2 < numAtoms; k2++) {
+
+          Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
+          //+ atomicPositions.col(k2);
+          double phase = -qC.dot(R);
+          std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+
+          for (int iCart : {0, 1, 2}) {
+            for (int jCart : {0, 1, 2}) {
+              int m = compress2Indeces(k1, iCart, numAtoms, 3);
+              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              h0R(iR, k1, k2, iCart, jCart) +=
+                  phaseFactor * h0K(m, n) / double(qPoints.getNumPoints());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // check that h0R, the force constants, are real
+  {
+    double realSum = 0.;
+    double imagSum = 0.;
+    for (long iR0 = 0; iR0 < phBravaisVectors.cols(); iR0++) {
+      for (int k1 = 0; k1 < numAtoms; k1++) {
+        for (int k2 = 0; k2 < numAtoms; k2++) {
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              double x = std::real(h0R(iR0, k1, k2, i, j));
+              realSum += pow(x, 2);
+              imagSum += pow(std::imag(h0R(iR0, k1, k2, i, j)), 2);
+              // set to zero the imag part to clean noise
+              // this is also what QE does
+              h0R(iR0, k1, k2, i, j) = {x,0.};
+            }
+          }
+        }
+      }
+    }
+    // I want the imag part to be much smaller than the real
+    assert(imagSum * pow(10, 6) < realSum);
+  }
+
+  //--------------------------------------------------------------------------
+  // FFT back
+
+  for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
+    // get U
+    auto qC = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    auto t = phononH0.diagonalizeFromCoords(qC, false);
+    auto en = std::get<0>(t);
+    auto u = std::get<0>(t);
+
+    Eigen::MatrixXcd hWK(numPhBands, numPhBands);
+    hWK.setZero();
+    for (long iR = 0; iR < phBravaisVectors.cols(); iR++) {
+      Eigen::Vector3d R0 = phBravaisVectors.col(iR);
+      for (int k1 = 0; k1 < numAtoms; k1++) {
+        for (int k2 = 0; k2 < numAtoms; k2++) {
+          Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
+          //+ atomicPositions.col(k2);
+          double phase = qC.dot(R);
+          std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+
+          for (int iCart : {0, 1, 2}) {
+            for (int jCart : {0, 1, 2}) {
+              int m = compress2Indeces(k1, iCart, numAtoms, 3);
+              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              hWK(m, n) += phaseFactor * h0R(iR, k1, k2, iCart, jCart) /
+                           phDegeneracies(iR);
+            }
+          }
+        }
+      }
+    }
+
+    // diagonalize it, using the matrices from phononH0
+    auto dq = u.adjoint() * hWK * u;
+    (void)dq;
+    // check I found again the same eigenvalues
+    for (int ib = 0; ib < numPhBands; ib++) {
+      assert(abs(std::sqrt(dq(ib, ib).real()) - phEnergies(ib, iq)) < 1.0e-6);
+    }
   }
 }

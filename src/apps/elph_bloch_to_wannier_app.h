@@ -3,6 +3,7 @@
 
 #include "app.h"
 #include "phonon_h0.h"
+#include "electron_h0_wannier.h"
 
 /** Main driver for the transport calculation
  */
@@ -17,9 +18,7 @@ protected:
    */
   Eigen::Tensor<std::complex<double>, 5>
   blochToWannier(const Eigen::MatrixXd &elBravaisVectors,
-                 const Eigen::VectorXd &elDegeneracies,
                  const Eigen::MatrixXd &phBravaisVectors,
-                 const Eigen::VectorXd &phDegeneracies,
                  Eigen::Tensor<std::complex<double>, 5> &g_full,
                  const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
                  const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
@@ -69,6 +68,19 @@ protected:
                          Eigen::MatrixXd &phEnergies, FullPoints &kPoints,
                          FullPoints &qPoints, const int &numElectrons,
                          const int &numSpin);
-};
+
+  void testElectronicTransform(
+      Points &kPoints, const std::string &wannierPrefix,
+      const Eigen::MatrixXd &elBravaisVectors,
+      const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+      const Eigen::VectorXd &elDegeneracies, ElectronH0Wannier &electronH0);
+
+  void testPhononTransform(
+      Crystal &crystal, PhononH0 &phononH0, Points &qPoints,
+      const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
+      const Eigen::MatrixXd &phBravaisVectors,
+      const Eigen::VectorXd &phDegeneracies, const Eigen::MatrixXd &phEnergies);
+
+  };
 
 #endif

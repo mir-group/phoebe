@@ -40,7 +40,7 @@ Make sure you checkout the branch with the QE point release that we want to patc
 Once the code has been modified, compiles and works, create the patch by typing (from the root folder of the QE repository)
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-git diff > patchfile.txt
+git diff reference_branch..modified_branch > patchfile.txt
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 and the patch file `"patchfile.txt"` will be created, containing the patch.
