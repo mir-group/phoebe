@@ -329,7 +329,7 @@ void PhononViscosity::outputToJSON(std::string outFileName) {
     output["temperatures"] = temps;
     output["phononViscosity"] = viscosity;
     output["temperatureUnit"] = "K";
-    output["phononViscosityUnits"] = units;
+    output["phononViscosityUnit"] = units;
     output["particleType"] = "phonon";
     std::ofstream o(outFileName);
     o << std::setw(3) << output << std::endl;

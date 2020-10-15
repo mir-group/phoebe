@@ -258,7 +258,7 @@ void PhononThermalConductivity::outputToJSON(std::string outFileName) {
   output["temperatures"] = temps;
   output["thermalConductivity"] = conds;
   output["temperatureUnit"] = "K";
-  output["thermalConductivityUnits"] = units;
+  output["thermalConductivityUnit"] = units;
   output["particleType"] = "phonon";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;

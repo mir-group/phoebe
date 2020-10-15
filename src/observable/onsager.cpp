@@ -406,13 +406,13 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["electricalConductivity"] = sigmaOut;
-  output["electricalConductivityUnits"] = unitsSigma;
+  output["electricalConductivityUnit"] = unitsSigma;
   output["mobility"] = mobilityOut;
-  output["mobilityUnits"] = unitsMobility;
+  output["mobilityUnit"] = unitsMobility;
   output["electronicThermalConductivity"] = kappaOut;
   output["electronicThermalConductivityUnit"] = unitsKappa;
   output["seebeckCoefficient"] = seebeckOut;
-  output["seebeckCoefficientUnits"] = unitsSeebeck;
+  output["seebeckCoefficientUnit"] = unitsSeebeck;
   output["particleType"] = "electron";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
