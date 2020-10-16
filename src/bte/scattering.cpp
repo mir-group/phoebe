@@ -375,7 +375,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   // need to store as a vector format with dimensions
   // icalc, ik. ib, idim (where istate is unfolded into
   // ik, ib) for the velocities and lifetimes, no dim for energies
-  std::vector<std::vector<std::vector<std::vector<double>>>> outTimes;
+  std::vector<std::vector<std::vector<double>>> outTimes;
   std::vector<std::vector<std::vector<std::vector<double>>>> velocities;
   std::vector<std::vector<std::vector<double>>> energies;
   std::vector<double> temps;
@@ -388,14 +388,14 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
     temps.push_back(temp * temperatureAuToSi);
     chemPots.push_back(chemPot * energyConversion);
 
-    std::vector<std::vector<std::vector<double>>> wavevectorsT;
+    std::vector<std::vector<double>> wavevectorsT;
     std::vector<std::vector<std::vector<double>>> wavevectorsV;
     std::vector<std::vector<double>> wavevectorsE;
     // loop over wavevectors
     for (int ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
       auto ikIndex = WavevectorIndex(ik);
 
-      std::vector<std::vector<double>> bandsT;
+      std::vector<double> bandsT;
       std::vector<std::vector<double>> bandsV;
       std::vector<double> bandsE;
       // loop over bands here
@@ -406,16 +406,14 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
         double ene = outerBandStructure.getEnergy(is);
         auto vel = outerBandStructure.getGroupVelocity(is);
         bandsE.push_back(ene * energyConversion);
+        double tau = times(iCalc, 0, is); // only zero dim is meaningful
+        bandsT.push_back(tau * timeRyToFs);
 
-        std::vector<double> iDimsT;
         std::vector<double> iDimsV;
         // loop over dimensions
         for (int iDim = 0; iDim < dimensionality_; iDim++) {
-          double tau = times(iCalc, iDim, is);
-          iDimsT.push_back(tau * timeRyToFs);
           iDimsV.push_back(vel[iDim] * velocityRyToSi);
         }
-        bandsT.push_back(iDimsT);
         bandsV.push_back(iDimsV);
       }
       wavevectorsT.push_back(bandsT);

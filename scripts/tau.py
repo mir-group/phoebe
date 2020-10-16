@@ -9,7 +9,7 @@ data = json.load(jfile)
 # unpack the json file
 energies = np.array(data['energies'])      # dimensions (iCalc, ik, ib)
 nbands = energies.shape[2]
-tau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib, idim)
+tau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib)
 mu = np.array(data['chemicalPotentials'])
 T = np.array(data['temperatures'])
 
@@ -32,8 +32,7 @@ print("Calculation Temperature: ", T[calcIndex])
 plt.figure(figsize=(5,5))
 colors = plt.get_cmap('winter')(np.linspace(0,1,nbands))
 for ib in range(nbands):
-        for idim in range(tau.shape[2]):
-                plt.scatter(energies[:,ib] - mu, tau[:,ib,idim], marker='x', s=18, alpha=0.25, color=colors[ib])
+        plt.scatter(energies[:,ib] - mu, tau[:,ib], marker='x', s=18, alpha=0.25, color=colors[ib])
 
 # plot aesthetics
 plt.yscale('log')
