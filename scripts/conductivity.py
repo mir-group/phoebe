@@ -18,4 +18,5 @@ plt.ylabel(r'$\kappa_\mathrm{' + data['particleType'] + '}$ [' + data['thermalCo
 plt.ylim(None, np.max(kappa) + np.max(kappa)*0.1)
 plt.xlim(None, np.max(T) + np.max(T)*0.1)
 
+plt.tight_layout()
 plt.show()

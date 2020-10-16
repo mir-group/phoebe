@@ -42,4 +42,5 @@ plt.ylabel(r'$\tau_{' + data['particleType'] + '}$ [' + data['relaxationTimeUnit
 plt.xlim(0,None)
 plt.ylim(1e3, np.max(tau)+np.max(tau)*0.1)
 
+plt.tight_layout()
 plt.show()
