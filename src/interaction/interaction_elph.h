@@ -39,7 +39,6 @@ private:
   Eigen::VectorXd phBravaisVectorsWeights;
 
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
-  int numWavevectors;
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
 
@@ -60,6 +59,12 @@ private:
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
 public:
+
+  Eigen::Tensor<double, 3> test(
+      const Eigen::MatrixXcd &eigvec1, const Eigen::MatrixXcd &eigvec2,
+      const Eigen::MatrixXcd &eigvec3, const Eigen::Vector3d &k1C,
+      const Eigen::Vector3d &k2C, const Eigen::Vector3d &q3C);
+
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
    * @param couplingWannier_: matrix elements of the electron phonon
@@ -87,7 +92,6 @@ public:
       const Eigen::VectorXd &elBravaisVectorsWeights_,
       const Eigen::MatrixXd &phBravaisVectors_,
       const Eigen::VectorXd &phBravaisVectorsWeights_,
-      const int &numWavevectors_,
       PhononH0 *phononH0_ = nullptr);
 
   /** Copy constructor

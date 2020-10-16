@@ -137,7 +137,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
               << "\n";
       outfile << elBravaisVectors << "\n";
       outfile << elDegeneracies << "\n";
-      
+
       outfile << "\n";
       for (auto x : gWannier.dimensions()) {
         outfile << x << " ";
@@ -147,8 +147,8 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       outfile << std::setprecision(16);
 
       int numPhBands = 3 * crystal.getNumAtoms();
-      for (int i5 = 0; i5 < phDegeneracies.size(); i5++) {
-        for (int i4 = 0; i4 < elDegeneracies.size(); i4++) {
+      for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
+        for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
           for (int i3 = 0; i3 < numPhBands; i3++) {
             for (int i2 = 0; i2 < numWannier; i2++) {
               for (int i1 = 0; i1 < numWannier; i1++) {
@@ -188,29 +188,69 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
     std::cout << "\nBack FT on g\n";
 
+
     int numKPoints = kPoints.getNumPoints();
     int numQPoints = qPoints.getNumPoints();
     int numElBravaisVectors = elBravaisVectors.cols();
     int numPhBravaisVectors = elBravaisVectors.cols();
 
+    double x = 0.;
+    for (int irE = 0; irE < numElBravaisVectors; irE++) {
+      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+        for (int i = 0; i < numWannier; i++) {
+          for (int j = 0; j < numWannier; j++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              x += std::norm(gWannier(i, j, nu, irP, irE));
+            }
+          }
+        }
+      }
+    }
+    std::cout << x << " Norm qui\n";
+
+    if (mpi->mpiHead()) {
+      std::cout << "Electronic Fourier Transform" << std::endl;
+    }
+    // Fourier transform on the electronic coordinates
+    Eigen::Tensor<std::complex<double>, 5> g1(
+        numWannier, numWannier, numModes, numKPoints, numPhBravaisVectors);
+    g1.setZero();
+    for (int irE = 0; irE < numElBravaisVectors; irE++) {
+      for (int ik = 0; ik < numKPoints; ik++) {
+        Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+        double arg = k.dot(elBravaisVectors.col(irE));
+        std::complex<double> phase = exp(complexI * arg)
+            / double(elDegeneracies(irE));
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int nu = 0; nu < numModes; nu++) {
+                g1(i, j, nu, ik, irP) += gWannier(i, j, nu, irP, irE) * phase;
+              }
+            }
+          }
+        }
+      }
+    }
+
     if (mpi->mpiHead()) {
       std::cout << "Phonon Fourier Transform" << std::endl;
     }
-    Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
-        numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
-    gWannierTmp.setZero();
+    Eigen::Tensor<std::complex<double>, 5> g2(
+        numWannier, numWannier, numModes, numKPoints, numQPoints);
+    g2.setZero();
     for (int iq = 0; iq < numQPoints; iq++) {
       Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
         double arg = q.dot(phBravaisVectors.col(irP));
-        std::complex<double> phase = exp(complexI*arg);
-        phase /= double(phDegeneracies(irP));
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
+        std::complex<double> phase = exp(complexI*arg)
+                                     / double(phDegeneracies(irP));
+        for (int ik = 0; ik < numKPoints; ik++) {
           for (int i = 0; i < numWannier; i++) {
             for (int j = 0; j < numWannier; j++) {
               for (int nu = 0; nu < numModes; nu++) {
-                gWannierTmp(i, j, nu, irE, iq) +=
-                    phase * gWannier(i, j, nu, irE, irP);
+                g2(i, j, nu, ik, iq) +=
+                    phase * g1(i, j, nu, ik, irP);
               }
             }
           }
@@ -222,51 +262,26 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       std::cout << "Phonon rotation" << std::endl;
     }
 
-    Eigen::Tensor<std::complex<double>, 5> gMixed(
-        numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
-    gMixed.setZero();
+    Eigen::Tensor<std::complex<double>, 5> g3(
+        numWannier, numWannier, numModes, numKPoints, numQPoints);
+    g3.setZero();
     for (long iq = 0; iq < numQPoints; iq++) {
       auto qC = qPoints.getPointCoords(iq,Points::cartesianCoords);
       auto t = phononH0.diagonalizeFromCoords(qC);
       auto uQ = std::get<1>(t);
       for (int nu = 0; nu < numModes; nu++) {
         for (int nu2 = 0; nu2 < numModes; nu2++) {
-          for (int irE = 0; irE < numElBravaisVectors; irE++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
             for (int i = 0; i < numWannier; i++) {
               for (int j = 0; j < numWannier; j++) {
-                gMixed(i, j, nu2, irE, iq) +=
-                    gWannierTmp(i, j, nu, irE, iq) * uQ(nu, nu2);
+                g3(i, j, nu2, ik, iq) +=
+                    g2(i, j, nu, ik, iq) * uQ(nu, nu2);
               }
             }
           }
         }
       }
     }
-
-    if (mpi->mpiHead()) {
-      std::cout << "Electronic Fourier Transform" << std::endl;
-    }
-    // Fourier transform on the electronic coordinates
-    Eigen::Tensor<std::complex<double>, 5> gFullTmp(
-        numWannier, numWannier, numModes, numKPoints, numQPoints);
-    gFullTmp.setZero();
-    for (int iR = 0; iR < numElBravaisVectors; iR++) {
-      for (long ik = 0; ik < numKPoints; ik++) {
-        Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
-        double arg = k.dot(elBravaisVectors.col(iR));
-        std::complex<double> phase = exp(complexI * arg)
-                                     / double(elDegeneracies(iR));
-        for (int iq = 0; iq < numQPoints; iq++) {
-          for (int i = 0; i < numWannier; i++) {
-            for (int j = 0; j < numWannier; j++) {
-              for (int nu = 0; nu < numModes; nu++) {
-                gFullTmp(i, j, nu, ik, iq) += gMixed(i, j, nu, iR, iq) * phase;
-              }
-            }
-          }
-        }
-      }
-    } // iq
 
     std::cout << "Electronic back-rotations\n";
     Eigen::Tensor<std::complex<double>, 5> gBFFT(
@@ -297,7 +312,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
           for (int i = 0; i < numWannier; i++) {
             for (int j = 0; j < numWannier; j++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
-                tmp(ib1, j, nu) += gFullTmp(i, j, nu, ik, iq) * uK(i, ib1);
+                tmp(ib1, j, nu) += g3(i, j, nu, ik, iq) * uK(i, ib1);
               }
             }
           }
@@ -315,46 +330,55 @@ void ElPhQeToPhoebeApp::run(Context &context) {
       } // ik
     }   // iq
 
+    std::cout << "Done\n";
 
     context.setEpwFileName("silicon.phoebe.elph.dat"); // needed by Parser
-    auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+//    auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+    InteractionElPhWan couplingElPh(crystal,
+                                    gWannier,
+                                    elBravaisVectors,
+                                    elDegeneracies,
+                                    phBravaisVectors,
+                                    phDegeneracies,
+                                    &phononH0);
+std::cout << "Last test\n";
+    for (long ik1 = 0; ik1 < numKPoints; ik1++) {
+      Eigen::Vector3d k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
+      for (long ik2 = 0; ik2 < numKPoints; ik2++) {
+        Eigen::Vector3d k2C = kPoints.getPointCoords(ik2, Points::cartesianCoords);
 
-    for (long iq3 = 0; iq3 < numQPoints; iq3++) {
-      Eigen::Vector3d q3C = qPoints.getPointCoords(iq3, Points::cartesianCoords);
-      for (long ik1 = 0; ik1 < numKPoints; ik1++) {
-        Eigen::Vector3d k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
 
-        // Coordinates and index of k+q point
-        Eigen::Vector3d k2C = k1C + q3C;
-        Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(k2C);
-        long ik2 = kPoints.getIndex(kqCrystal);
 
-        std::vector<Eigen::Vector3d> allK2C;
-        allK2C.push_back(k2C);
+//        std::vector<Eigen::Vector3d> allK2C;
+//        allK2C.push_back(k2C);
 
-//        Eigen::Vector3d q3C = k2C - k1C;
- //       Eigen::Vector3d q3Cryst = qPoints.cartesianToCrystal(q3C);
-  //      int iq3 = qPoints.getIndex(q3Cryst);
-        std::vector<Eigen::Vector3d> allQ3C;
-        allQ3C.push_back(q3C);
+        Eigen::Vector3d q3C = k2C - k1C;
+        Eigen::Vector3d q3Cryst = qPoints.cartesianToCrystal(q3C);
+        int iq3 = qPoints.getIndex(q3Cryst);
+//        std::vector<Eigen::Vector3d> allQ3C;
+//        allQ3C.push_back(q3C);
+
+//        std::cout << ik1 << " " << ik2 << " " << iq3 << "\n";
 
         auto ik1Index = WavevectorIndex(ik1);
         auto ik2Index = WavevectorIndex(ik2);
 
         Eigen::MatrixXcd eigvec1 = bandStructure.getEigenvectors(ik1Index);
         Eigen::MatrixXcd eigvec2 = bandStructure.getEigenvectors(ik2Index);
-        std::vector<Eigen::MatrixXcd> allEigvecs2;
-        allEigvecs2.push_back(eigvec2);
+//        std::vector<Eigen::MatrixXcd> allEigvecs2;
+//        allEigvecs2.push_back(eigvec2);
 
         auto t = phononH0.diagonalizeFromCoords(q3C);
-        auto en3 = std::get<0>(t);
         auto eigvec3 = std::get<1>(t);
-        std::vector<Eigen::MatrixXcd> allEigvecs3;
-        allEigvecs3.push_back(eigvec3);
+//        std::vector<Eigen::MatrixXcd> allEigvecs3;
+//        allEigvecs3.push_back(eigvec3);
 
-        couplingElPh.calcCouplingSquared(eigvec1, allEigvecs2, allEigvecs3,
-                                         k1C, allK2C, allQ3C);
-        auto coupling = couplingElPh.getCouplingSquared(0);
+//        couplingElPh.calcCouplingSquared(eigvec1, allEigvecs2, allEigvecs3,
+//                                         k1C, allK2C, allQ3C);
+//        auto coupling = couplingElPh.getCouplingSquared(0);
+
+        auto coupling2 = couplingElPh.test(eigvec1, eigvec2, eigvec3,
+                                           k1C, k2C, q3C);
 
         double sum1 = 0.;
         double sum2 = 0.;
@@ -365,7 +389,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
             for (int ib3 = 0; ib3 < numModes; ib3++) {
               sum1 += std::norm(gBFFT(ib1, ib2, ib3, ik1, iq3));
               sum2 += std::norm(gFull(ib2, ib1, ib3, ik1, iq3));
-              sum3 += coupling(ib1,ib2,ib3);
+              sum3 += coupling2(ib1,ib2,ib3);
             }
           }
         }
@@ -674,8 +698,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     std::cout << "Phonon Fourier Transform" << std::endl;
   }
   Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
-                                                  numModes, numElBravaisVectors,
-                                                  numPhBravaisVectors);
+                                                  numModes, numPhBravaisVectors,
+                                                  numElBravaisVectors);
   gWannier.setZero();
   for (int iq = 0; iq < numQPoints; iq++) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
@@ -686,7 +710,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int i = 0; i < numWannier; i++) {
           for (int j = 0; j < numWannier; j++) {
             for (int nu = 0; nu < numModes; nu++) {
-              gWannier(j, i, nu, irE, irP) +=
+              gWannier(j, i, nu, irP, irE) +=
                   phase * gWannierTmp(i, j, nu, irE, iq);
             }
           }
