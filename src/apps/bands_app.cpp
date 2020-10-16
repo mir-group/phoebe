@@ -12,10 +12,7 @@
 // forward declare this helper function, so we can leave the important
 // run functions at the top
 void outputBandsToJSON(FullBandStructure& fullBandStructure,
-          Context& context, PathPoints& pathPoints,
-          std::string particleType, std::string outFileName,
-          std::string energyUnit, double energyConversion,
-          double chemicalPotential);
+     Context& context, PathPoints& pathPoints, std::string outFileName);
 
 /* --------------------- PhononBandsApp ------------------------------ */
 void PhononBandsApp::run(Context &context) {
@@ -37,10 +34,8 @@ void PhononBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName,
-  // energyUnits, energyConversionFactor, chemicalPotential
-  outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon",
-        "phonon_bands.json", "cm$^{-1}$", ryToCmm1, 0.0);
+  // arguments: bandStructure, context, pathPoints, outputFileName
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon_bands.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "Finishing phonon bands calculation" << std::endl;
@@ -67,20 +62,8 @@ void ElectronWannierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Use statisticsSweep to get the chemical potential
-  // TODO do we want to do this, or would we prefer to use whatever was read in
-  // by context (the value provided by QE)
-  Eigen::VectorXd dummyZero(1);
-  dummyZero(0) = 0.0; // set both temperature and doping to zero
-  context.setTemperatures(dummyZero);
-  context.setDopings(dummyZero);
-  StatisticsSweep statisticsSweep(context,&fullBandStructure);
-  auto stats = statisticsSweep.getCalcStatistics(0);
-
-  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName,
-  // energyUnits, energyConversionFactor, chemicalPotential
-  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
-        "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
+  // arguments: bandStructure, context, pathPoints, outputFileName
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron_bands.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "Finishing electron (Wannier) bands calculation" << std::endl;
@@ -107,20 +90,8 @@ void ElectronFourierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Use statisticsSweep to get the chemical potential
-  // TODO do we want to do this, or would we prefer to use whatever was read in
-  // by context (the value provided by QE)
-  Eigen::VectorXd dummyZero(1);
-  dummyZero(0) = 0.0; // set both temperature and doping to zero
-  context.setTemperatures(dummyZero);
-  context.setDopings(dummyZero);
-  StatisticsSweep statisticsSweep(context,&fullBandStructure);
-  auto stats = statisticsSweep.getCalcStatistics(0);
-
-  // arguments: bandStructure, context, pathPoints, particleType, outputFileName,
-  // energyUnits, energyConversionFactor, chemicalPotential
-  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
-        "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
+  // arguments: bandStructure, context, pathPoints, outputFileName
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "electron_bands.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "Finishing electron (Fourier) bands calculation" << std::endl;
@@ -130,9 +101,7 @@ void ElectronFourierBandsApp::run(Context &context) {
 /* helper function to output bands to a json file */
 void outputBandsToJSON(FullBandStructure& fullBandStructure,
                  Context& context, PathPoints& pathPoints,
-                 std::string particleType, std::string outFileName,
-                 std::string energyUnit, double energyConversion,
-                 double chemicalPotential) {
+                 std::string outFileName) {
 
   if (!mpi->mpiHead()) return;
 
@@ -140,9 +109,11 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
   std::vector<int> wavevectorIndices;
   std::vector<double> tempEns;
   std::vector<std::vector<double>> pathCoords;
+  auto particle = fullBandStructure.getParticle();
+  double energyConversion = particle.isPhonon() ? ryToCmm1 : energyRyToEv;
   int numBands = fullBandStructure.getNumBands();
 
-  // determine path extrema and their ik indices, to output to json
+  // determine path extrema to output to json
   std::vector<std::vector<double>> extremaCoords;
   std::vector<int> pathLabelIndices;
   Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema();
@@ -151,15 +122,12 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
     // store coordinates of the extrema
     extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
     extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
-    // determine the indices of the extrema and save for plotting
-    //Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
-    //pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
-    //Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
-    //pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
   }
 
+  // store the wavevector indices, wavevectors and high sym point indices
   unsigned int extremaCount = 0; //keeps track of how many high sym points we've found
   for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
+
     // store wavevector indices
     wavevectorIndices.push_back(ik);
     auto ikIndex = WavevectorIndex(ik);
@@ -206,10 +174,14 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
   output["highSymCoordinates"] = extremaCoords;
   output["numBands"] = numBands;
   output["energies"] = outEnergies;
-  output["chemicalPotential"] = chemicalPotential*energyConversion;
-  output["particleType"] = particleType;
-  output["energyUnit"] = energyUnit;
+  output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
+  output["energyUnit"] =  particle.isPhonon() ? "cm$^{-1}$" : "eV";
   output["coordsType"] = "lattice";
+  // if the user supplied mu, we will output that as well
+  // if not, we don't include mu
+  if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
+    output["fermiLevel"] = context.getFermiLevel()*energyConversion;
+  }
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
