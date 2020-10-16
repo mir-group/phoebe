@@ -8,7 +8,7 @@ jfile = open('electron_bands.json')
 data = json.load(jfile)
 
 # unpack the json file
-points = np.array(data['pathIndices'])
+points = np.array(data['wavevectorIndices'])
 numBands = data['numBands']
 energies = np.array(data['energies'])
 mu = data['chemicalPotential']

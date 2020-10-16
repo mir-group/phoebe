@@ -134,67 +134,86 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
                  std::string energyUnit, double energyConversion,
                  double chemicalPotential) {
 
-  if ( mpi->mpiHead()) {
-    std::vector<std::vector<double>> outEnergies;
-    std::vector<int> wavevectorIndices;
-    std::vector<double> tempEns;
-    std::vector<std::vector<double>> pathCoords;
-    int numBands = fullBandStructure.getNumBands();
+  if (!mpi->mpiHead()) return;
 
-    for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      // store wavevector indices
-      wavevectorIndices.push_back(ik);
-      auto ikIndex = WavevectorIndex(ik);
+  std::vector<std::vector<double>> outEnergies;
+  std::vector<int> wavevectorIndices;
+  std::vector<double> tempEns;
+  std::vector<std::vector<double>> pathCoords;
+  int numBands = fullBandStructure.getNumBands();
 
-      // store the path coordinates
-      auto coord = pathPoints.getPointCoords(ik);
-      pathCoords.push_back({coord[0],coord[1],coord[2]});
-
-      // store the energies
-      Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
-      for (int ib = 0; ib < numBands; ib++) {
-        tempEns.push_back(energies(ib)*energyConversion);
-      }
-      outEnergies.push_back(tempEns);
-      tempEns.clear();
-    }
-
-    // determine path extrema and their ik indices, to output to json
-    std::vector<std::vector<double>> extremaCoords;
-    std::vector<int> pathLabelIndices;
-    Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema();
-    auto numExtrema = pathExtrema.dimensions();
-    for (int pe = 0; pe < numExtrema[0]; pe++) {
-      // store coordinates of the extrema
-      extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
-      extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
-
-      // determine the indices of the extrema and save for plotting
-      Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
-      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
-      Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
-      pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
-    }
-
-    // output to json
-    nlohmann::json output;
-    output["wavevectorIndices"] = wavevectorIndices;
-    output["wavevectorCoordinates"] = pathCoords;
-    output["highSymLabels"] = context.getPathLabels();
-    output["highSymIndices"] = pathLabelIndices;
-    output["highSymCoordinates"] = extremaCoords;
-    output["numBands"] = numBands;
-    output["energies"] = outEnergies;
-    output["chemicalPotential"] = chemicalPotential*energyConversion;
-    output["particleType"] = particleType;
-    output["energyUnit"] = energyUnit;
-    output["coordsType"] = "lattice";
-    std::ofstream o(outFileName);
-    o << std::setw(3) << output << std::endl;
-    o.close();
+  // determine path extrema and their ik indices, to output to json
+  std::vector<std::vector<double>> extremaCoords;
+  std::vector<int> pathLabelIndices;
+  Eigen::Tensor<double, 3> pathExtrema = context.getPathExtrema();
+  auto numExtrema = pathExtrema.dimensions();
+  for (int pe = 0; pe < numExtrema[0]; pe++) {
+    // store coordinates of the extrema
+    extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
+    extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
+    // determine the indices of the extrema and save for plotting
+    //Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
+    //pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
+    //Eigen::Vector3d tempCoords2 = {pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)};
+    //pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
   }
-}
 
+  unsigned int extremaCount = 0; //keeps track of how many high sym points we've found
+  for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
+    // store wavevector indices
+    wavevectorIndices.push_back(ik);
+    auto ikIndex = WavevectorIndex(ik);
+
+    // store the path coordinates
+    auto coord = pathPoints.getPointCoords(ik);
+    pathCoords.push_back({coord[0],coord[1],coord[2]});
+
+    // check if this point is one of the high sym points,
+    // and if it is, save the index
+    if(coord[0] == extremaCoords[extremaCount][0] &&
+          coord[1] == extremaCoords[extremaCount][1] &&
+          coord[2] == extremaCoords[extremaCount][2]) {
+      pathLabelIndices.push_back(ik);
+      // if the next extrema is the same as this one, add the index
+      //  twice and increment extrema count twice.
+      // we have to do this because the point won't occur a second time
+      // in the path list.
+      if(extremaCount+1 < extremaCoords.size()) { //check bounds
+        if(extremaCoords[extremaCount] == extremaCoords[extremaCount+1])  {
+          pathLabelIndices.push_back(ik);
+          extremaCount += 2;
+        } else {
+          extremaCount++;
+        }
+      }
+    }
+
+    // store the energies
+    Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
+    for (int ib = 0; ib < numBands; ib++) {
+      tempEns.push_back(energies(ib) * energyConversion);
+    }
+    outEnergies.push_back(tempEns);
+    tempEns.clear();
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["wavevectorIndices"] = wavevectorIndices;
+  output["wavevectorCoordinates"] = pathCoords;
+  output["highSymLabels"] = context.getPathLabels();
+  output["highSymIndices"] = pathLabelIndices;
+  output["highSymCoordinates"] = extremaCoords;
+  output["numBands"] = numBands;
+  output["energies"] = outEnergies;
+  output["chemicalPotential"] = chemicalPotential*energyConversion;
+  output["particleType"] = particleType;
+  output["energyUnit"] = energyUnit;
+  output["coordsType"] = "lattice";
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
 
 void PhononBandsApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");

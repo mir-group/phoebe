@@ -426,11 +426,11 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
     velocities.push_back(wavevectorsV);
     energies.push_back(wavevectorsE);
   }
- 
+
   auto points = outerBandStructure.getPoints();
   std::vector<std::vector<double>> meshCoords;
   for (long ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
-    // save the wavevectors 
+    // save the wavevectors
     auto coord = points.getPointCoords(ik);
     meshCoords.push_back({coord[0],coord[1],coord[2]});
   }
