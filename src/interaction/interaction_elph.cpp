@@ -78,144 +78,6 @@ InteractionElPhWan::getCouplingSquared(const int &ik2) {
   return cacheCoupling[ik2];
 }
 
-void InteractionElPhWan::calcCouplingSquared(
-    const Eigen::MatrixXcd &el1Eigenvec,
-    const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
-    const std::vector<Eigen::MatrixXcd> &phEigvecs, const Eigen::Vector3d &k1,
-    const std::vector<Eigen::Vector3d> &k2s,
-    const std::vector<Eigen::Vector3d> &q3s) {
-  (void)k2s;
-  int numLoops = el2Eigenvecs.size();
-  cacheCoupling.resize(0);
-  cacheCoupling.resize(numLoops);
-
-  // we allow the number of bands to be different in each direction
-  Eigen::MatrixXcd ev1 = el1Eigenvec;
-  int nb1 = ev1.cols();
-
-  // first, fourier transform on k2
-
-//  if (k1 != cachedK1 || elPhCached.size() == 0) {
-  if (true) {
-    cachedK1 = k1;
-
-    // NOTE: this is a loop that must be done only once per every value of k1
-    // if k2 is split in batches, the value of ElPhCached must be saved as
-    // member
-
-    std::vector<std::complex<double>> phases;
-    for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
-      double arg = k1.dot(elBravaisVectors.col(irEl));
-      std::complex<double> phase = exp(complexI * arg)
-                                   / elBravaisVectorsWeights(irEl);
-      phases.push_back(phase);
-    }
-
-    Eigen::Tensor<std::complex<double>, 4> tmp(
-        numElBands, numElBands, numPhBands, numPhBravaisVectors);
-    tmp.setZero();
-    for (int irEl = 0; irEl < numElBravaisVectors; irEl++) {
-      for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
-        // As a convention, the first primitive cell in the triplet is
-        // restricted to the origin, so the phase for that cell is unity.
-        for (int iw3 = 0; iw3 < numPhBands; iw3++) {
-          for (int iw2 = 0; iw2 < numElBands; iw2++) {
-            for (int iw1 = 0; iw1 < numElBands; iw1++) {
-              tmp(iw1, iw2, iw3, irPh) +=
-                  couplingWannier(iw1, iw2, iw3, irPh, irEl) * phases[irEl];
-            }
-          }
-        }
-      }
-    }
-
-    elPhCached.resize(nb1, numElBands, numPhBands, numPhBravaisVectors);
-    elPhCached.setZero();
-    // note: nb1 can be much smaller than numElBands
-    // doing this loop here in the caching makes the subsequent loops faster
-    for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
-      for (int iw3 = 0; iw3 < numPhBands; iw3++) {
-        for (int iw2 = 0; iw2 < numElBands; iw2++) {
-          for (int ib1 = 0; ib1 < nb1; ib1++) {
-            for (int iw1 = 0; iw1 < numElBands; iw1++) {
-              elPhCached(ib1, iw2, iw3, irPh) +=
-                  tmp(iw1, iw2, iw3, irPh) * ev1(iw1, ib1);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  for (int ik = 0; ik < numLoops; ik++) {
-    Eigen::Vector3d q3 = q3s[ik];
-
-    Eigen::MatrixXcd ev2 = el2Eigenvecs[ik];
-    int nb2 = ev2.cols();
-    Eigen::MatrixXcd ev3 = phEigvecs[ik];
-
-    // note: tmp* is a tensor over cartesian and atomic indices
-    // (whose size coincides with the band numbers)
-    Eigen::Tensor<std::complex<double>, 3> tmp(nb1, numElBands, numPhBands);
-    tmp.setZero();
-    for (int irPh = 0; irPh < numPhBravaisVectors; irPh++) {
-      // As a convention, the first primitive cell in the triplet is
-      // restricted to the origin, so the phase for that cell is unity.
-      double arg = q3.dot(phBravaisVectors.col(irPh));
-      std::complex<double> phase = exp( complexI * arg )
-                                   / phBravaisVectorsWeights(irPh);
-      for (int iw3 = 0; iw3 < numPhBands; iw3++) {
-        for (int iw2 = 0; iw2 < numElBands; iw2++) {
-          for (int ib1 = 0; ib1 < nb1; ib1++) {
-            tmp(ib1, iw2, iw3) += elPhCached(ib1, iw2, iw3, irPh) * phase;
-          }
-        }
-      }
-    }
-
-    Eigen::Tensor<std::complex<double>, 3> tmp2(nb1, nb2, numPhBands);
-    tmp2.setZero();
-    for (int ib1 = 0; ib1 < nb1; ib1++) {
-      for (int iw3 = 0; iw3 < numPhBands; iw3++) {
-        for (int ib2 = 0; ib2 < nb2; ib2++) {
-          for (int iw2 = 0; iw2 < numElBands; iw2++) {
-            tmp2(ib1, ib2, iw3) +=
-                std::conj(ev2(iw2, ib2)) * tmp(ib1, iw2, iw3);
-          }
-        }
-      }
-    }
-
-    Eigen::Tensor<std::complex<double>, 3> v(nb1, nb2, numPhBands);
-    v.setZero();
-    for (int ib2 = 0; ib2 < nb2; ib2++) {
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (int ib3 = 0; ib3 < numPhBands; ib3++) {
-          for (int iw3 = 0; iw3 < numPhBands; iw3++) {
-            v(ib1, ib2, ib3) += tmp2(ib1, ib2, iw3) * ev3(iw3, ib3);
-          }
-        }
-      }
-    }
-
-    if (usePolarCorrection && q3.norm() > 1.0e-8) {
-      std::cout << "Using polar\n";
-      v += getPolarCorrection(q3, ev1, ev2, ev3);
-    }
-
-    Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
-    coupling.setZero();
-    for (int ib3 = 0; ib3 < numPhBands; ib3++) {
-      for (int ib2 = 0; ib2 < nb2; ib2++) {
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          coupling(ib1, ib2, ib3) = std::norm(v(ib1, ib2, ib3));
-        }
-      }
-    }
-    cacheCoupling[ik] = coupling;
-  }
-}
-
 Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
     const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3) {
@@ -550,96 +412,120 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
   return output;
 }
 
-Eigen::Tensor<double, 3> InteractionElPhWan::test(const Eigen::MatrixXcd &eigvec1,
-                         const Eigen::MatrixXcd &eigvec2,
-                         const Eigen::MatrixXcd &eigvec3,
-                         const Eigen::Vector3d &k1C,
-                         const Eigen::Vector3d &k2C,
-                         const Eigen::Vector3d &q3C) {
-  (void) k2C;
+void InteractionElPhWan::calcCouplingSquared(
+    const Eigen::MatrixXcd &eigvec1,
+    const std::vector<Eigen::MatrixXcd> &eigvecs2,
+    const std::vector<Eigen::MatrixXcd> &eigvecs3,
+    const Eigen::Vector3d &k1C,
+    const std::vector<Eigen::Vector3d> &k2Cs,
+    const std::vector<Eigen::Vector3d> &q3Cs) {
+  (void)k2Cs;
   int numWannier = numElBands;
   int nb1 = eigvec1.cols();
-  int nb2 = eigvec2.cols();
 
-  Eigen::Tensor<std::complex<double>, 4> g1(
-      numWannier, numWannier, numPhBands, numPhBravaisVectors);
-  g1.setZero();
-  for (int irE = 0; irE < numElBravaisVectors; irE++) {
-    double arg = k1C.dot(elBravaisVectors.col(irE));
-    std::complex<double> phase = exp(complexI * arg)
-        / double(elBravaisVectorsWeights(irE));
+  int numLoops = eigvecs2.size();
+  cacheCoupling.resize(0);
+  cacheCoupling.resize(numLoops);
+
+  if (k1C != cachedK1 || elPhCached.size() == 0) {
+    cachedK1 = k1C;
+
+    Eigen::Tensor<std::complex<double>, 4> g1(numWannier, numWannier,
+                                              numPhBands, numPhBravaisVectors);
+    g1.setZero();
+    for (int irE = 0; irE < numElBravaisVectors; irE++) {
+      double arg = k1C.dot(elBravaisVectors.col(irE));
+      std::complex<double> phase =
+          exp(complexI * arg) / double(elBravaisVectorsWeights(irE));
+      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+        for (int iw1 = 0; iw1 < numWannier; iw1++) {
+          for (int iw2 = 0; iw2 < numWannier; iw2++) {
+            for (int nu = 0; nu < numPhBands; nu++) {
+              g1(iw1, iw2, nu, irP) +=
+                  couplingWannier(iw1, iw2, nu, irP, irE) * phase;
+            }
+          }
+        }
+      }
+    }
+
+    elPhCached.resize(nb1, numWannier, numPhBands, numPhBravaisVectors);
+    elPhCached.setZero();
+
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-      for (int iw1 = 0; iw1 < numWannier; iw1++) {
-        for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            g1(iw1, iw2, nu, irP) += couplingWannier(iw1, iw2, nu, irP, irE) * phase;
+      for (int nu = 0; nu < numPhBands; nu++) {
+        for (int iw1 = 0; iw1 < numWannier; iw1++) {
+          for (int iw2 = 0; iw2 < numWannier; iw2++) {
+            for (int ib1 = 0; ib1 < nb1; ib1++) {
+              elPhCached(ib1, iw2, nu, irP) +=
+                  g1(iw1, iw2, nu, irP) * eigvec1(iw1, ib1);
+            }
           }
         }
       }
     }
   }
 
-  Eigen::Tensor<std::complex<double>, 3> g2(numWannier, numWannier, numPhBands);
-  g2.setZero();
-  for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-    double arg = q3C.dot(phBravaisVectors.col(irP));
-    std::complex<double> phase =
-        exp(complexI * arg) / double(phBravaisVectorsWeights(irP));
-    for (int iw1 = 0; iw1 < numWannier; iw1++) {
-      for (int iw2 = 0; iw2 < numWannier; iw2++) {
-        for (int nu = 0; nu < numPhBands; nu++) {
-          g2(iw1, iw2, nu) += phase * g1(iw1, iw2, nu, irP);
-        }
-      }
-    }
-  }
+  for (int ik = 0; ik < numLoops; ik++) {
+    Eigen::Vector3d q3C = q3Cs[ik];
 
+    Eigen::MatrixXcd eigvec2 = eigvecs2[ik];
+    int nb2 = eigvec2.cols();
+    Eigen::MatrixXcd eigvec3 = eigvecs3[ik];
 
-  Eigen::Tensor<std::complex<double>, 3> g3(numWannier, numWannier, numPhBands);
-  g3.setZero();
-  for (int nu = 0; nu < numPhBands; nu++) {
-    for (int nu2 = 0; nu2 < numPhBands; nu2++) {
-      for (int iw1 = 0; iw1 < numWannier; iw1++) {
+    Eigen::Tensor<std::complex<double>, 3> g3(nb1, numWannier, numPhBands);
+    g3.setZero();
+    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+      double arg = q3C.dot(phBravaisVectors.col(irP));
+      std::complex<double> phase =
+          exp(complexI * arg) / double(phBravaisVectorsWeights(irP));
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          g3(iw1, iw2, nu2) += g2(iw1, iw2, nu) * eigvec3(nu, nu2);
+          for (int nu = 0; nu < numPhBands; nu++) {
+            g3(ib1, iw2, nu) += phase * elPhCached(ib1, iw2, nu, irP);
+          }
         }
       }
     }
-  }
 
-
-  Eigen::Tensor<std::complex<double>, 3> tmp(nb1, numWannier, numPhBands);
-  tmp.setZero();
-  for (int nu = 0; nu < numPhBands; nu++) {
-    for (int iw1 = 0; iw1 < numWannier; iw1++) {
-      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+    Eigen::Tensor<std::complex<double>, 3> g4(nb1, numWannier, numPhBands);
+    g4.setZero();
+    for (int nu = 0; nu < numPhBands; nu++) {
+      for (int nu2 = 0; nu2 < numPhBands; nu2++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
-          tmp(ib1, iw2, nu) += g3(iw1, iw2, nu) * eigvec1(iw1, ib1);
+          for (int iw2 = 0; iw2 < numWannier; iw2++) {
+            g4(ib1, iw2, nu2) += g3(ib1, iw2, nu) * eigvec3(nu, nu2);
+          }
         }
       }
     }
-  }
 
-  auto eigvec2Dagger = eigvec2.adjoint();
-  Eigen::Tensor<std::complex<double>, 3> gBFFT(nb1, nb2, numPhBands);
-  gBFFT.setZero();
-  for (int nu = 0; nu < numPhBands; nu++) {
-    for (int ib1 = 0; ib1 < nb1; ib1++) {
-      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+    auto eigvec2Dagger = eigvec2.adjoint();
+    Eigen::Tensor<std::complex<double>, 3> gFinal(nb1, nb2, numPhBands);
+    gFinal.setZero();
+    for (int nu = 0; nu < numPhBands; nu++) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int iw2 = 0; iw2 < numWannier; iw2++) {
+          for (int ib2 = 0; ib2 < nb2; ib2++) {
+            gFinal(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * g4(ib1, iw2, nu);
+          }
+        }
+      }
+    }
+
+    if (usePolarCorrection && q3C.norm() > 1.0e-8) {
+      std::cout << "Using polar\n";
+      gFinal += getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
+    }
+
+    Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
+    for (int nu = 0; nu < numPhBands; nu++) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
         for (int ib2 = 0; ib2 < nb2; ib2++) {
-          gBFFT(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * tmp(ib1, iw2, nu);
+          coupling(ib1, ib2, nu) = std::norm(gFinal(ib1, ib2, nu));
         }
       }
     }
+    cacheCoupling[ik] = coupling;
   }
-
-  Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
-  for (int nu = 0; nu < numPhBands; nu++) {
-    for (int ib1 = 0; ib1 < nb1; ib1++) {
-      for (int ib2 = 0; ib2 < nb2; ib2++) {
-        coupling(ib1, ib2, nu) = std::norm(gBFFT(ib1, ib2, nu));
-      }
-    }
-  }
-  return coupling;
 }

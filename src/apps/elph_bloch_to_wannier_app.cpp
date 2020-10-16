@@ -347,16 +347,14 @@ std::cout << "Last test\n";
       for (long ik2 = 0; ik2 < numKPoints; ik2++) {
         Eigen::Vector3d k2C = kPoints.getPointCoords(ik2, Points::cartesianCoords);
 
-
-
-//        std::vector<Eigen::Vector3d> allK2C;
-//        allK2C.push_back(k2C);
+        std::vector<Eigen::Vector3d> k2Cs;
+        k2Cs.push_back(k2C);
 
         Eigen::Vector3d q3C = k2C - k1C;
         Eigen::Vector3d q3Cryst = qPoints.cartesianToCrystal(q3C);
         int iq3 = qPoints.getIndex(q3Cryst);
-//        std::vector<Eigen::Vector3d> allQ3C;
-//        allQ3C.push_back(q3C);
+        std::vector<Eigen::Vector3d> q3Cs;
+        q3Cs.push_back(q3C);
 
 //        std::cout << ik1 << " " << ik2 << " " << iq3 << "\n";
 
@@ -365,20 +363,20 @@ std::cout << "Last test\n";
 
         Eigen::MatrixXcd eigvec1 = bandStructure.getEigenvectors(ik1Index);
         Eigen::MatrixXcd eigvec2 = bandStructure.getEigenvectors(ik2Index);
-//        std::vector<Eigen::MatrixXcd> allEigvecs2;
-//        allEigvecs2.push_back(eigvec2);
+        std::vector<Eigen::MatrixXcd> eigvecs2;
+        eigvecs2.push_back(eigvec2);
 
         auto t = phononH0.diagonalizeFromCoords(q3C);
         auto eigvec3 = std::get<1>(t);
-//        std::vector<Eigen::MatrixXcd> allEigvecs3;
-//        allEigvecs3.push_back(eigvec3);
+        std::vector<Eigen::MatrixXcd> eigvecs3;
+        eigvecs3.push_back(eigvec3);
 
 //        couplingElPh.calcCouplingSquared(eigvec1, allEigvecs2, allEigvecs3,
 //                                         k1C, allK2C, allQ3C);
 //        auto coupling = couplingElPh.getCouplingSquared(0);
 
-        auto coupling2 = couplingElPh.test(eigvec1, eigvec2, eigvec3,
-                                           k1C, k2C, q3C);
+        couplingElPh.calcCouplingSquared(eigvec1, eigvecs2, eigvecs3, k1C, k2Cs, q3Cs);
+        auto coupling2 = couplingElPh.getCouplingSquared(0);
 
         double sum1 = 0.;
         double sum2 = 0.;

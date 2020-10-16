@@ -60,10 +60,6 @@ private:
 
 public:
 
-  Eigen::Tensor<double, 3> test(
-      const Eigen::MatrixXcd &eigvec1, const Eigen::MatrixXcd &eigvec2,
-      const Eigen::MatrixXcd &eigvec3, const Eigen::Vector3d &k1C,
-      const Eigen::Vector3d &k2C, const Eigen::Vector3d &q3C);
 
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
@@ -119,12 +115,13 @@ public:
    * @param k2s: list of k2 wavevectors.
    * @param q3s: list of phonon wavevectors.
    */
-  void calcCouplingSquared(const Eigen::MatrixXcd &el1Eigenvec,
-                           const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
-                           const std::vector<Eigen::MatrixXcd> &phEigvecs,
-                           const Eigen::Vector3d &k1,
-                           const std::vector<Eigen::Vector3d> &k2s,
-                           const std::vector<Eigen::Vector3d> &q3s);
+  void calcCouplingSquared(
+      const Eigen::MatrixXcd &eigvec1,
+      const std::vector<Eigen::MatrixXcd> &eigvecs2,
+      const std::vector<Eigen::MatrixXcd> &eigvecs3,
+      const Eigen::Vector3d &k1C,
+      const std::vector<Eigen::Vector3d> &k2Cs,
+      const std::vector<Eigen::Vector3d> &q3Cs);
 
   /** Get the coupling for the values of the wavevectors triplet (k1,k2,q3),
    * where k1 is the wavevector used at calcCoupling Squared(),
