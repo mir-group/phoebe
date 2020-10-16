@@ -37,9 +37,9 @@ void PhononBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
-  // energyUnits, energyConversionFactor, chemicalPotential 
-  outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon", 
+  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName,
+  // energyUnits, energyConversionFactor, chemicalPotential
+  outputBandsToJSON(fullBandStructure, context, pathPoints, "phonon",
         "phonon_bands.json", "cm$^{-1}$", ryToCmm1, 0.0);
 
   if ( mpi->mpiHead()) {
@@ -67,7 +67,7 @@ void ElectronWannierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Use statisticsSweep to get the chemical potential 
+  // Use statisticsSweep to get the chemical potential
   // TODO do we want to do this, or would we prefer to use whatever was read in
   // by context (the value provided by QE)
   Eigen::VectorXd dummyZero(1);
@@ -77,8 +77,8 @@ void ElectronWannierBandsApp::run(Context &context) {
   StatisticsSweep statisticsSweep(context,&fullBandStructure);
   auto stats = statisticsSweep.getCalcStatistics(0);
 
-  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName, 
-  // energyUnits, energyConversionFactor, chemicalPotential 
+  // arguments: bandStructure, context, pathPoints, bandsType, outputFileName,
+  // energyUnits, energyConversionFactor, chemicalPotential
   outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
         "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
 
@@ -107,18 +107,18 @@ void ElectronFourierBandsApp::run(Context &context) {
   FullBandStructure fullBandStructure =
       electronH0.populate(pathPoints, withVelocities, withEigenvectors);
 
-  // Use statisticsSweep to get the chemical potential 
+  // Use statisticsSweep to get the chemical potential
   // TODO do we want to do this, or would we prefer to use whatever was read in
   // by context (the value provided by QE)
   Eigen::VectorXd dummyZero(1);
   dummyZero(0) = 0.0; // set both temperature and doping to zero
-  context.setTemperatures(dummyZero); 
-  context.setDopings(dummyZero); 
+  context.setTemperatures(dummyZero);
+  context.setDopings(dummyZero);
   StatisticsSweep statisticsSweep(context,&fullBandStructure);
   auto stats = statisticsSweep.getCalcStatistics(0);
 
-  // arguments: bandStructure, context, pathPoints, particleType, outputFileName, 
-  // energyUnits, energyConversionFactor, chemicalPotential 
+  // arguments: bandStructure, context, pathPoints, particleType, outputFileName,
+  // energyUnits, energyConversionFactor, chemicalPotential
   outputBandsToJSON(fullBandStructure, context, pathPoints, "electron",
         "electron_bands.json", "eV", energyRyToEv, stats.chemicalPotential);
 
@@ -127,8 +127,8 @@ void ElectronFourierBandsApp::run(Context &context) {
   }
 }
 
-/* helper function to output bands to a json file */ 
-void outputBandsToJSON(FullBandStructure& fullBandStructure, 
+/* helper function to output bands to a json file */
+void outputBandsToJSON(FullBandStructure& fullBandStructure,
                  Context& context, PathPoints& pathPoints,
                  std::string particleType, std::string outFileName,
                  std::string energyUnit, double energyConversion,
@@ -142,15 +142,15 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
     int numBands = fullBandStructure.getNumBands();
 
     for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
-      // store wavevector indices 
+      // store wavevector indices
       wavevectorIndices.push_back(ik);
       auto ikIndex = WavevectorIndex(ik);
-      
-      // store the path coordinates 
+
+      // store the path coordinates
       auto coord = pathPoints.getPointCoords(ik);
       pathCoords.push_back({coord[0],coord[1],coord[2]});
-      
-      // store the energies 
+
+      // store the energies
       Eigen::VectorXd energies = fullBandStructure.getEnergies(ikIndex);
       for (int ib = 0; ib < numBands; ib++) {
         tempEns.push_back(energies(ib)*energyConversion);
@@ -168,7 +168,7 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
       // store coordinates of the extrema
       extremaCoords.push_back({pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)});
       extremaCoords.push_back({pathExtrema(pe,1,0),pathExtrema(pe,1,1),pathExtrema(pe,1,2)});
-      
+
       // determine the indices of the extrema and save for plotting
       Eigen::Vector3d tempCoords1 = {pathExtrema(pe,0,0),pathExtrema(pe,0,1),pathExtrema(pe,0,2)};
       pathLabelIndices.push_back(pathPoints.getIndex(tempCoords1));
@@ -176,14 +176,14 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
       pathLabelIndices.push_back(pathPoints.getIndex(tempCoords2));
     }
 
-    // output to json 
+    // output to json
     nlohmann::json output;
-    output["pathIndices"] = wavevectorIndices;
-    output["pathCoordinates"] = pathCoords;
+    output["wavevectorIndices"] = wavevectorIndices;
+    output["wavevectorCoordinates"] = pathCoords;
     output["highSymLabels"] = context.getPathLabels();
     output["highSymIndices"] = pathLabelIndices;
     output["highSymCoordinates"] = extremaCoords;
-    output["numBands"] = numBands; 
+    output["numBands"] = numBands;
     output["energies"] = outEnergies;
     output["chemicalPotential"] = chemicalPotential*energyConversion;
     output["particleType"] = particleType;

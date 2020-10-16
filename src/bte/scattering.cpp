@@ -373,49 +373,66 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   }
 
   // need to store as a vector format with dimensions
-  // icalc, idim, ik. ib (where istate is unfolded into
-  // ik, ib) for the energies and lifetimes
+  // icalc, ik. ib, idim (where istate is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
   std::vector<std::vector<std::vector<std::vector<double>>>> outTimes;
-  std::vector<std::vector<std::vector<std::vector<double>>>> energies;
+  std::vector<std::vector<std::vector<std::vector<double>>>> velocities;
+  std::vector<std::vector<std::vector<double>>> energies;
   std::vector<double> temps;
   std::vector<double> chemPots;
 
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-    std::vector<std::vector<std::vector<double>>> iDimsT;
-    std::vector<std::vector<std::vector<double>>> iDimsE;
-
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
     temps.push_back(temp * temperatureAuToSi);
     chemPots.push_back(chemPot * energyConversion);
 
-    for (int iDim = 0; iDim < dimensionality_; iDim++) {
-      std::vector<std::vector<double>> wavevectorsT;
-      std::vector<std::vector<double>> wavevectorsE;
-      // TODO does getIndex from active bandstructure do right by us here?
-      for (int ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
-        // get numBands at this point specifically... in case it's an active
-        // bandstructure
-        auto ikIndex = WavevectorIndex(ik);
-        std::vector<double> bandsT;
-        std::vector<double> bandsE;
-        for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
-          auto ibIndex = BandIndex(ib);
-          int is = outerBandStructure.getIndex(ikIndex,ibIndex);
+    std::vector<std::vector<std::vector<double>>> wavevectorsT;
+    std::vector<std::vector<std::vector<double>>> wavevectorsV;
+    std::vector<std::vector<double>> wavevectorsE;
+    // loop over wavevectors
+    for (int ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
+      auto ikIndex = WavevectorIndex(ik);
+
+      std::vector<std::vector<double>> bandsT;
+      std::vector<std::vector<double>> bandsV;
+      std::vector<double> bandsE;
+      // loop over bands here
+      // get numBands at this point, in case it's an active bandstructure
+      for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
+        auto ibIndex = BandIndex(ib);
+        int is = outerBandStructure.getIndex(ikIndex,ibIndex);
+        double ene = outerBandStructure.getEnergy(is);
+        auto vel = outerBandStructure.getGroupVelocity(is);
+        bandsE.push_back(ene * energyConversion);
+
+        std::vector<double> iDimsT;
+        std::vector<double> iDimsV;
+        // loop over dimensions
+        for (int iDim = 0; iDim < dimensionality_; iDim++) {
           double tau = times(iCalc, iDim, is);
-          bandsT.push_back(tau*timeRyToFs);
-          double ene = outerBandStructure.getEnergy(is);
-          bandsE.push_back(ene * energyConversion);
+          iDimsT.push_back(tau * timeRyToFs);
+          iDimsV.push_back(vel[iDim] * velocityRyToSi);
         }
-        wavevectorsT.push_back(bandsT);
-        wavevectorsE.push_back(bandsE);
+        bandsT.push_back(iDimsT);
+        bandsV.push_back(iDimsV);
       }
-      iDimsT.push_back(wavevectorsT);
-      iDimsE.push_back(wavevectorsE);
+      wavevectorsT.push_back(bandsT);
+      wavevectorsV.push_back(bandsV);
+      wavevectorsE.push_back(bandsE);
     }
-    outTimes.push_back(iDimsT);
-    energies.push_back(iDimsE);
+    outTimes.push_back(wavevectorsT);
+    velocities.push_back(wavevectorsV);
+    energies.push_back(wavevectorsE);
+  }
+ 
+  auto points = outerBandStructure.getPoints();
+  std::vector<std::vector<double>> meshCoords;
+  for (long ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
+    // save the wavevectors 
+    auto coord = points.getPointCoords(ik);
+    meshCoords.push_back({coord[0],coord[1],coord[2]});
   }
 
   // output to json
@@ -425,8 +442,12 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   output["chemicalPotentials"] = chemPots;
   output["relaxationTimes"] = outTimes;
   output["relaxationTimeUnit"] = "fs";
+  output["velocities"] = velocities;
+  output["velocityUnit"] = "m/s";
   output["energies"] = energies;
   output["energyUnit"] = energyUnit;
+  output["wavevectorCoordinates"] = meshCoords;
+  output["coordsType"] = "lattice";
   output["particleType"] = particleType;
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
