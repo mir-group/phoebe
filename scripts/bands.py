@@ -35,10 +35,12 @@ else:
 for i in range(numBands):
         plt.plot(points, energies[:,i] - mu, lw=2, color='royalblue')
 
+# plot aesthetics
 plt.xticks(pathTicks,pathLabels,fontsize=12)
 plt.yticks(fontsize=12)
 plt.ylabel(energyLabel,fontsize=14)
 plt.ylim(None, None)
 plt.xlim(points[0],points[-1])
 
+plt.tight_layout()
 plt.show()

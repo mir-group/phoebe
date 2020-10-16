@@ -15,15 +15,13 @@
 #include "utilities.h"
 #include <nlohmann/json.hpp>
 
-// Forward declare this helper function so that 
-// app::run functions can remain at the top 
+// Forward declare this helper function so that
+// app::run functions can remain at the top
 std::tuple<std::vector<double>, std::vector<double>> calcDOS(
-      Context& context, FullBandStructure& fullBandStructure);
+        Context& context, FullBandStructure& fullBandStructure);
 
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-                 std::string particleType, std::string outFileName,
-                 std::string energyUnit, std::string dosUnit,  
-                 double energyConversion, double chemicalPotential);
+        Particle& particle, Context& context, std::string outFileName);
 
 /* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
@@ -43,17 +41,16 @@ void PhononDosApp::run(Context &context) {
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
       phononH0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-  // calculate DOS via the tetrahedron method 
+  // calculate DOS via the tetrahedron method
   auto tup1 = calcDOS(context, fullBandStructure);
   std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
   // save dos to an output file
-  // arguments are: energies, dos, particleType, outFileName,
-  //      energyUnit, dosUnit, energyConversion, chemicalPotential
-  outputDOSToJSON(energies, dos, "phonon", "phonon_dos.json",
-           "cm$^{-1}$", "1/(cm$^{-1}$)", ryToCmm1, 0.0);
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "phonon_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Phonon DoS computed." << std::endl;
@@ -77,27 +74,16 @@ void ElectronWannierDosApp::run(Context &context) {
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
       h0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-  // calculate DOS via the tetrahedron method 
+  // calculate DOS via the tetrahedron method
   auto tup1 = calcDOS(context, fullBandStructure);
   std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
-  // Use statisticsSweep to get the chemical potential 
-  // TODO do we want to do this, or would we prefer to use whatever was read in
-  // by context (the value provided by QE)
-  Eigen::VectorXd dummyZero(1);
-  dummyZero(0) = 0.0; // set both temperature and doping to zero
-  context.setTemperatures(dummyZero);
-  context.setDopings(dummyZero);
-  StatisticsSweep statisticsSweep(context,&fullBandStructure);
-  auto stats = statisticsSweep.getCalcStatistics(0);
-
   // save dos to an output file
-  // arguments are: energies, dos, particleType, outFileName,
-  //      energyUnit, dosUnit, energyConversion, chemicalPotential
-  outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
-           "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Wannier) DoS computed" << std::endl;
@@ -121,38 +107,27 @@ void ElectronFourierDosApp::run(Context &context) {
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
       h0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-  // calculate DOS via the tetrahedron method 
-  auto tup1 = calcDOS(context, fullBandStructure); 
-  std::vector<double> energies = std::get<0>(tup1); 
+  // calculate DOS via the tetrahedron method
+  auto tup1 = calcDOS(context, fullBandStructure);
+  std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
-  // Use statisticsSweep to get the chemical potential 
-  // TODO do we want to do this, or would we prefer to use whatever was read in
-  // by context (the value provided by QE)
-  Eigen::VectorXd dummyZero(1);
-  dummyZero(0) = 0.0; // set both temperature and doping to zero
-  context.setTemperatures(dummyZero);
-  context.setDopings(dummyZero);
-  StatisticsSweep statisticsSweep(context,&fullBandStructure);
-  auto stats = statisticsSweep.getCalcStatistics(0);
-
   // save dos to an output file
-  // arguments are: energies, dos, particleType, outFileName,
-  //      energyUnit, dosUnit, energyConversion, chemicalPotential
-  outputDOSToJSON(energies, dos, "electron", "electron_dos.json",
-           "eV", "1/eV", energyRyToEv, stats.chemicalPotential);
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Fourier) DoS computed" << std::endl;
-  }  
+  }
 }
 
-/* 
- * Generic helper function to calculate DoS via tetrahedron method 
- */ 
+/*
+ * Generic helper function to calculate DoS via tetrahedron method
+ */
 std::tuple<std::vector<double>, std::vector<double>> calcDOS(
-        Context& context, FullBandStructure& fullBandStructure) { 
+        Context& context, FullBandStructure& fullBandStructure) {
 
   // Form tetrahedra and fill them with eigenvalues
   TetrahedronDeltaFunction tetrahedra(fullBandStructure);
@@ -192,36 +167,39 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   // all processes send their data to be gathered into dos/eneTotal
   mpi->gatherv(&energies, &eneTotal);
   mpi->gatherv(&dos, &dosTotal);
-  return {eneTotal, dosTotal}; 
+  return {eneTotal, dosTotal};
 
 }
 
-/* 
- * helper function to output dos to a json file 
+/*
+ * helper function to output dos to a json file
  */
-void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos, 
-                 std::string particleType, std::string outFileName, 
-                 std::string energyUnit, std::string dosUnit, 
-                 double energyConversion, double chemicalPotential) {
+void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
+          Particle& particle, Context& context, std::string outFileName) {
 
-  if ( mpi->mpiHead()) {
-    // convert energies
-    for (unsigned int i = 0; i < energies.size(); i++) {
-      energies[i] *= energyConversion; 
-      dos[i] /= energyConversion; 
-    }
-    // output to json 
-    nlohmann::json output;
-    output["energies"] = energies;
-    output["dos"] = dos; 
-    output["chemicalPotential"] = chemicalPotential*energyConversion;
-    output["particleType"] = particleType;
-    output["energyUnit"] = energyUnit;
-    output["dosUnit"] = dosUnit; 
-    std::ofstream o(outFileName);
-    o << std::setw(3) << output << std::endl;
-    o.close();
+  if ( !mpi->mpiHead()) return;
+
+  // convert energies
+  double energyConversion = particle.isPhonon() ? ryToCmm1 : energyRyToEv;
+  for (unsigned int i = 0; i < energies.size(); i++) {
+    energies[i] *= energyConversion;
+    dos[i] /= energyConversion;
   }
+  // output to json
+  nlohmann::json output;
+  output["energies"] = energies;
+  output["dos"] = dos;
+  output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
+  output["energyUnit"] =  particle.isPhonon() ? "cm$^{-1}$" : "eV";
+  output["dosUnit"] = particle.isPhonon() ? "1/(cm$^{-1}$)" : "1/eV";
+  // if the user supplied mu, we will output that as well
+  // if not, we don't include mu
+  if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
+    output["fermiLevel"] = context.getFermiLevel()*energyConversion;
+  }
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
 }
 
 void PhononDosApp::checkRequirements(Context &context) {
