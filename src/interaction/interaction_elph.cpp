@@ -7,17 +7,17 @@ InteractionElPhWan::InteractionElPhWan(
     Crystal &crystal_,
     const Eigen::Tensor<std::complex<double>, 5> &couplingWannier_,
     const Eigen::MatrixXd &elBravaisVectors_,
-    const Eigen::VectorXd &elBravaisVectorsWeights_,
+    const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
     const Eigen::MatrixXd &phBravaisVectors_,
-    const Eigen::VectorXd &phBravaisVectorsWeights_,
+    const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
     PhononH0 *phononH0_)
     : crystal(crystal_), phononH0(phononH0_) {
 
   couplingWannier = couplingWannier_;
   elBravaisVectors = elBravaisVectors_;
-  elBravaisVectorsWeights = elBravaisVectorsWeights_;
+  elBravaisVectorsDegeneracies = elBravaisVectorsDegeneracies_;
   phBravaisVectors = phBravaisVectors_;
-  phBravaisVectorsWeights = phBravaisVectorsWeights_;
+  phBravaisVectorsDegeneracies = phBravaisVectorsDegeneracies_;
 
   numElBands = couplingWannier.dimension(0);
   numPhBands = couplingWannier.dimension(2);
@@ -41,9 +41,9 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
     : crystal(that.crystal), phononH0(that.phononH0),
       couplingWannier(that.couplingWannier),
       elBravaisVectors(that.elBravaisVectors),
-      elBravaisVectorsWeights(that.elBravaisVectorsWeights),
+      elBravaisVectorsDegeneracies(that.elBravaisVectorsDegeneracies),
       phBravaisVectors(that.phBravaisVectors),
-      phBravaisVectorsWeights(that.phBravaisVectorsWeights),
+      phBravaisVectorsDegeneracies(that.phBravaisVectorsDegeneracies),
       numPhBands(that.numPhBands), numElBands(that.numElBands),
       numElBravaisVectors(that.numElBravaisVectors),
       numPhBravaisVectors(that.numPhBravaisVectors),
@@ -58,9 +58,9 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     phononH0 = that.phononH0;
     couplingWannier = that.couplingWannier;
     elBravaisVectors = that.elBravaisVectors;
-    elBravaisVectorsWeights = that.elBravaisVectorsWeights;
+    elBravaisVectorsDegeneracies = that.elBravaisVectorsDegeneracies;
     phBravaisVectors = that.phBravaisVectors;
-    phBravaisVectorsWeights = that.phBravaisVectorsWeights;
+    phBravaisVectorsDegeneracies = that.phBravaisVectorsDegeneracies;
     numPhBands = that.numPhBands;
     numElBands = that.numElBands;
     numElBravaisVectors = that.numElBravaisVectors;
@@ -96,6 +96,7 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
                                   epsilon, bornCharges, atomicPositions,
                                   qCoarseMesh);
 }
+
 Eigen::Tensor<std::complex<double>, 3>
 InteractionElPhWan::getPolarCorrectionStatic(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
@@ -169,105 +170,6 @@ InteractionElPhWan::getPolarCorrectionStatic(
   return v;
 }
 
-// InteractionElPhWan InteractionElPhWan::parse(const std::string &fileName,
-//                                             Crystal &crystal,
-//                                             PhononH0 *phononH0_) {
-//  if (mpi->mpiHead()) {
-//    std::cout << "\n";
-//    std::cout << "Started parsing of el-ph interaction." << std::endl;
-//  }
-//
-//  int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
-//  Eigen::MatrixXd phBravaisVectors, elBravaisVectors;
-//  Eigen::VectorXd phBravaisVectorsWeights, elBravaisVectorsWeights;
-//  Eigen::Tensor<std::complex<double>, 5> couplingWannier;
-//
-//  // Open ElPh file
-//  if (mpi->mpiHead()) {
-//    std::string line;
-//    std::ifstream infile(fileName);
-//    if (not infile.is_open()) {
-//      Error e("ElPh file not found");
-//    }
-//
-//    // Read the bravais lattice vectors info for q mesh.
-//    int tmpI;
-//    infile >> tmpI >> numPhBravaisVectors;
-//
-//    phBravaisVectors.resize(3, numPhBravaisVectors);
-//    phBravaisVectorsWeights.resize(numPhBravaisVectors);
-//    for (int i = 0; i < numPhBravaisVectors; i++) {
-//      infile >> phBravaisVectors(0, i) >> phBravaisVectors(1, i) >>
-//          phBravaisVectors(2, i) >> phBravaisVectorsWeights(i);
-//    }
-//
-//    // Read the bravais lattice vectors info for k mesh.
-//    infile >> tmpI >> numElBravaisVectors;
-//    elBravaisVectors.resize(3, numElBravaisVectors);
-//    elBravaisVectorsWeights.resize(numElBravaisVectors);
-//    for (int i = 0; i < numElBravaisVectors; i++) {
-//      infile >> elBravaisVectors(0, i) >> elBravaisVectors(1, i) >>
-//          elBravaisVectors(2, i) >> elBravaisVectorsWeights(i);
-//    }
-//
-//    // Read real space matrix elements for el-ph coupling
-//    infile >> numElBands >> tmpI >> tmpI >> numPhBands >> tmpI;
-//    couplingWannier.resize(numElBands, numElBands, numPhBands,
-//                           numElBravaisVectors, numPhBravaisVectors);
-//    couplingWannier.setZero();
-//    for (int i3 = 0; i3 < numElBravaisVectors; i3++) {
-//      double re, im;
-//      for (int i4 = 0; i4 < numPhBands; i4++) {
-//        for (int i5 = 0; i5 < numPhBravaisVectors; i5++) {
-//          for (int i2 = 0; i2 < numElBands; i2++) {
-//            for (int i1 = 0; i1 < numElBands; i1++) {
-//              infile >> re >> im;
-//              couplingWannier(i2, i1, i4, i5, i3) = {re, im};
-//            }
-//          }
-//        }
-//      }
-//    }
-//    infile.close();
-//  } // mpiHead done reading file
-//
-//  mpi->bcast(&numElBands);
-//  mpi->bcast(&numPhBands);
-//  mpi->bcast(&numElBravaisVectors);
-//  mpi->bcast(&numPhBravaisVectors);
-//
-//  if (!mpi->mpiHead()) { // head already allocated these
-//    phBravaisVectors.resize(3, numElBravaisVectors);
-//    phBravaisVectorsWeights.resize(numElBravaisVectors);
-//    elBravaisVectors.resize(3, numElBravaisVectors);
-//    elBravaisVectorsWeights.resize(numElBravaisVectors);
-//    couplingWannier.resize(numElBands, numElBands, numPhBands,
-//                           numElBravaisVectors, numPhBravaisVectors);
-//  }
-//  mpi->bcast(&elBravaisVectors);
-//  mpi->bcast(&elBravaisVectorsWeights);
-//  mpi->bcast(&phBravaisVectors);
-//  mpi->bcast(&phBravaisVectorsWeights);
-//  mpi->bcast(&couplingWannier);
-//
-//  if (mpi->mpiHead()) {
-//    std::cout << "Finished parsing of el-ph interaction." << std::endl;
-//  }
-//
-//  Eigen::Matrix3d primitiveCell = crystal.getDirectUnitCell();
-//  for (int i = 0; i < numElBravaisVectors; i++) {
-//    elBravaisVectors.col(i) = primitiveCell * elBravaisVectors.col(i);
-//  }
-//  for (int i = 0; i < numPhBravaisVectors; i++) {
-//    phBravaisVectors.col(i) = primitiveCell * phBravaisVectors.col(i);
-//  }
-//
-//  InteractionElPhWan output(crystal, couplingWannier, elBravaisVectors,
-//                            elBravaisVectorsWeights, phBravaisVectors,
-//                            phBravaisVectorsWeights, phononH0_);
-//
-//  return output;
-//}
 InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
                                              PhononH0 *phononH0_) {
   if (mpi->mpiHead()) {
@@ -280,7 +182,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
   double numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
-  Eigen::VectorXd phBravaisVectorsWeights_, elBravaisVectorsWeights_;
+  Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
 
   // Open ElPh file
@@ -302,30 +204,30 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 
     infile >> iCart >> numPhBravaisVectors;
     phBravaisVectors_.resize(3, numPhBravaisVectors);
-    phBravaisVectorsWeights_.resize(numPhBravaisVectors);
+    phBravaisVectorsDegeneracies_.resize(numPhBravaisVectors);
     phBravaisVectors_.setZero();
-    phBravaisVectorsWeights_.setZero();
-    for (int j = 0; j < numPhBravaisVectors; j++) {
-      for (int i : {0, 1, 2}) {
+    phBravaisVectorsDegeneracies_.setZero();
+    for (int i : {0, 1, 2}) {
+      for (int j = 0; j < numPhBravaisVectors; j++) {
         infile >> phBravaisVectors_(i, j);
       }
     }
     for (int i = 0; i < numPhBravaisVectors; i++) {
-      infile >> phBravaisVectorsWeights_(i);
+      infile >> phBravaisVectorsDegeneracies_(i);
     }
 
     infile >> iCart >> numElBravaisVectors;
     elBravaisVectors_.resize(3, numElBravaisVectors);
-    elBravaisVectorsWeights_.resize(numElBravaisVectors);
+    elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     elBravaisVectors_.setZero();
-    elBravaisVectorsWeights_.setZero();
-    for (int j = 0; j < numPhBravaisVectors; j++) {
-      for (int i : {0, 1, 2}) {
+    elBravaisVectorsDegeneracies_.setZero();
+    for (int i : {0, 1, 2}) {
+      for (int j = 0; j < numPhBravaisVectors; j++) {
         infile >> elBravaisVectors_(i, j);
       }
     }
     for (int i = 0; i < numElBravaisVectors; i++) {
-      infile >> elBravaisVectorsWeights_(i);
+      infile >> elBravaisVectorsDegeneracies_(i);
     }
     std::string line;
     std::getline(infile, line);
@@ -352,7 +254,6 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
         }
       }
     }
-    std::cout << couplingWannier_(0,0,0,0,0) << "!!!\n";
     double x = 0.;
     for (int irE = 0; irE < numElBravaisVectors; irE++) {
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -365,8 +266,6 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
         }
       }
     }
-    std::cout << x << " Norm la'\n";
-
   } // mpiHead done reading file
 
   mpi->bcast(&numElectrons);
@@ -384,21 +283,21 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 
   if (!mpi->mpiHead()) { // head already allocated these
     phBravaisVectors_.resize(3, numElBravaisVectors);
-    phBravaisVectorsWeights_.resize(numElBravaisVectors);
+    phBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     elBravaisVectors_.resize(3, numElBravaisVectors);
-    elBravaisVectorsWeights_.resize(numElBravaisVectors);
+    elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     couplingWannier_.resize(numElBands, numElBands, numPhBands,
                             numElBravaisVectors, numPhBravaisVectors);
     phBravaisVectors_.setZero();
-    phBravaisVectorsWeights_.setZero();
+    phBravaisVectorsDegeneracies_.setZero();
     elBravaisVectors_.setZero();
-    elBravaisVectorsWeights_.setZero();
+    elBravaisVectorsDegeneracies_.setZero();
     couplingWannier_.setZero();
   }
   mpi->bcast(&elBravaisVectors_);
-  mpi->bcast(&elBravaisVectorsWeights_);
+  mpi->bcast(&elBravaisVectorsDegeneracies_);
   mpi->bcast(&phBravaisVectors_);
-  mpi->bcast(&phBravaisVectorsWeights_);
+  mpi->bcast(&phBravaisVectorsDegeneracies_);
   mpi->bcast(&couplingWannier_);
 
   if (mpi->mpiHead()) {
@@ -406,8 +305,8 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
   }
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
-                            elBravaisVectorsWeights_, phBravaisVectors_,
-                            phBravaisVectorsWeights_, phononH0_);
+                            elBravaisVectorsDegeneracies_, phBravaisVectors_,
+                            phBravaisVectorsDegeneracies_, phononH0_);
 
   return output;
 }
@@ -436,7 +335,7 @@ void InteractionElPhWan::calcCouplingSquared(
     for (int irE = 0; irE < numElBravaisVectors; irE++) {
       double arg = k1C.dot(elBravaisVectors.col(irE));
       std::complex<double> phase =
-          exp(complexI * arg) / double(elBravaisVectorsWeights(irE));
+          exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
         for (int iw1 = 0; iw1 < numWannier; iw1++) {
           for (int iw2 = 0; iw2 < numWannier; iw2++) {
@@ -478,7 +377,7 @@ void InteractionElPhWan::calcCouplingSquared(
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q3C.dot(phBravaisVectors.col(irP));
       std::complex<double> phase =
-          exp(complexI * arg) / double(phBravaisVectorsWeights(irP));
+          exp(complexI * arg) / double(phBravaisVectorsDegeneracies(irP));
       for (int ib1 = 0; ib1 < nb1; ib1++) {
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           for (int nu = 0; nu < numPhBands; nu++) {

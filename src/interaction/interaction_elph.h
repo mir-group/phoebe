@@ -26,7 +26,6 @@
  */
 // TODO: add flag to let user decide whether to use or not polar corrections
 class InteractionElPhWan {
-private:
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
 
@@ -34,9 +33,9 @@ private:
   // numElBands,numElBands,numPhBands,numPhBravaisVectors,numElBravaisVectors);
 
   Eigen::MatrixXd elBravaisVectors;
-  Eigen::VectorXd elBravaisVectorsWeights;
+  Eigen::VectorXd elBravaisVectorsDegeneracies;
   Eigen::MatrixXd phBravaisVectors;
-  Eigen::VectorXd phBravaisVectorsWeights;
+  Eigen::VectorXd phBravaisVectorsDegeneracies;
 
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
 
@@ -85,9 +84,9 @@ public:
       Crystal &crystal_,
       const Eigen::Tensor<std::complex<double>, 5> &couplingWannier_,
       const Eigen::MatrixXd &elBravaisVectors_,
-      const Eigen::VectorXd &elBravaisVectorsWeights_,
+      const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
       const Eigen::MatrixXd &phBravaisVectors_,
-      const Eigen::VectorXd &phBravaisVectorsWeights_,
+      const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
       PhononH0 *phononH0_ = nullptr);
 
   /** Copy constructor

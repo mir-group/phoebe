@@ -81,6 +81,10 @@ protected:
       const Eigen::MatrixXd &phBravaisVectors,
       const Eigen::VectorXd &phDegeneracies, const Eigen::MatrixXd &phEnergies);
 
-  };
+  void testBackTransform(
+      Context &context, PhononH0 &phononH0, Points &kPoints, Points &qPoints,
+      ElectronH0Wannier &electronH0, Crystal &crystal,
+      Eigen::Tensor<std::complex<double>, 5> &gFull);
+};
 
 #endif
