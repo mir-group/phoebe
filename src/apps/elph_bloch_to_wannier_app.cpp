@@ -16,36 +16,12 @@ void ElPhQeToPhoebeApp::run(Context &context) {
     std::cout << "\nLaunching app ElPhBlochToWannier\n" << std::endl;
   }
 
-  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  std::string wannierPrefix = context.getWannier90Prefix();
-  std::string interpolation = context.getElPhInterpolation();
-
-  // read Hamiltonian of phonons and electrons
-
-  if (mpi->mpiHead()) {
-    std::cout << "Start initialization of Hamiltonians\n";
-  }
-
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t1);
   auto phononH0 = std::get<1>(t1);
 
-  int numWannier; // number of bands used for g, at the end of the program
-  if (interpolation == "wannier") {
-    auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
-    auto electronH0 = std::get<1>(t2);
-    numWannier = electronH0.getNumBands();
-  } else {
-    auto t2 = QEParser::parseElHarmonicFourier(context);
-    auto electronH0 = std::get<1>(t2);
-    numWannier = electronH0.getNumBands();
-  }
-
-  if (mpi->mpiHead()) {
-    std::cout << "Done initialization of Hamiltonians\n" << std::endl;
-  }
-
+  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
   Eigen::Vector3i kMesh = std::get<1>(t0);
@@ -57,112 +33,24 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   int numElectrons = std::get<7>(t0);
   int numSpin = std::get<8>(t0);
 
-  //----------------------------------------------------------------------------
-  // read Wannier90 rotation matrices
-
   FullPoints kPoints(crystal, kMesh);
   FullPoints qPoints(crystal, qMesh);
 
   int numModes = 3 * crystal.getNumAtoms();
 
-  int numBands; // number of bands in the QE calculation
-  Eigen::Tensor<std::complex<double>, 3> uMatrices;
-  if (interpolation == "wannier") {
-    // uMatrices has size (numBands, numWannier, numKPoints)
-    uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
-    numBands = uMatrices.dimension(0);         // number of entangled bands
-    assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
-  } else { // epa: here we preserve the number of bands
-    numBands = numWannier;
-  }
+  std::string interpolation = context.getElPhInterpolation();
 
-  //----------------------------------------------------------------------------
-
-  // read coupling from file
-  auto t5 =
-      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
-                      kgridFull, numIrrQPoints, numQEBands, energies);
-  auto gFull = std::get<0>(t5);      // (nBands, nBands, nModes, numK, numQ)
-  auto phEigenvectors = std::get<1>(t5); // (numModes, numModes, numQPoints)
-  auto phEnergies = std::get<2>(t5);     // (numModes, numQPoints)
-
-  //----------------------------------------------------------------------------
-
-  // Find the lattice vectors for the Fourier transforms
-
-  auto t3 = crystal.buildWignerSeitzVectors(kMesh);
-  Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
-  Eigen::VectorXd elDegeneracies = std::get<1>(t3);
-
-  auto t4 = crystal.buildWignerSeitzVectors(qMesh);
-  Eigen::MatrixXd phBravaisVectors = std::get<0>(t4);
-  Eigen::VectorXd phDegeneracies = std::get<1>(t4);
-
-  //-------------
-  // A test, for debug
-  //  testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors,
-  //                          uMatrices, elDegeneracies, electronH0);
-  //  testPhononTransform(crystal, phononH0, qPoints, phEigenvectors,
-  //                      phBravaisVectors, phDegeneracies, phEnergies);
-  //  std::cout << "Phonons tested!\n";
-
-  //----------------------------------------------------------------------------
-
-  // Bloch to Wannier transformation of el-ph coupling
   if (interpolation == "wannier") {
 
-    Eigen::Tensor<std::complex<double>, 5> gWannier =
-        blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
-                       phEigenvectors, kPoints, qPoints, crystal, phononH0);
+    postProcessingWannier(context, crystal, phononH0, kPoints, qPoints,
+                          numQEBands, numModes, numIrrQPoints, numElectrons,
+                          numSpin, energies, kgridFull, kMesh, qMesh);
 
-    //--------------------------------------------------------------------------
+  } else { // EPA
 
-    // Dump el-ph in Wannier representation to file
-
-    if (mpi->mpiHead()) {
-      std::cout << "Start writing g to file" << std::endl;
-      std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
-      std::ofstream outfile(outFileName);
-      if (not outfile.is_open()) {
-        Error e("Output file couldn't be opened");
-      }
-      outfile << numElectrons << " " << numSpin << "\n";
-      outfile << kMesh << "\n";
-      outfile << qMesh << "\n";
-      outfile << phBravaisVectors.rows() << " " << phBravaisVectors.cols()
-              << "\n";
-      outfile << phBravaisVectors << "\n";
-      outfile << phDegeneracies << "\n";
-      outfile << elBravaisVectors.rows() << " " << elBravaisVectors.cols()
-              << "\n";
-      outfile << elBravaisVectors << "\n";
-      outfile << elDegeneracies << "\n";
-      outfile << "\n";
-      for (auto x : gWannier.dimensions()) {
-        outfile << x << " ";
-      }
-      outfile << "\n";
-
-      outfile << std::setprecision(16);
-      int numPhBands = 3 * crystal.getNumAtoms();
-      for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
-        for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
-          for (int i3 = 0; i3 < numPhBands; i3++) {
-            for (int i2 = 0; i2 < numWannier; i2++) {
-              for (int i1 = 0; i1 < numWannier; i1++) {
-                outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5).real()
-                        << " " << std::setw(22)
-                        << gWannier(i1, i2, i3, i4, i5).imag() << "\n";
-              }
-            }
-          }
-        }
-      }
-      std::cout << "Done writing g to file\n" << std::endl;
-    }
-  } else {
-    epaPostProcessing(context, gFull, energies, phEnergies, kPoints, qPoints,
-                      numElectrons, numSpin);
+    epaPostProcessing(context, energies, kPoints, qPoints, numElectrons,
+                      numSpin, numModes, numIrrQPoints, numQEBands, energies,
+                      kgridFull);
   }
 }
 
@@ -833,11 +721,33 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
 }
 
-void ElPhQeToPhoebeApp::epaPostProcessing(
-    Context &context, Eigen::Tensor<std::complex<double>, 5> gFull,
-    Eigen::MatrixXd &elEnergies, Eigen::MatrixXd &phEnergies,
-    FullPoints &kPoints, FullPoints &qPoints, const int &numElectrons,
-    const int &numSpin) {
+
+void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elEnergies,
+                       FullPoints &kPoints, FullPoints &qPoints,
+                       const int &numElectrons, const int &numSpin,
+                       const int &numModes, const int &numIrrQPoints,
+                       const int &numQEBands, const Eigen::MatrixXd &energies,
+                       const Eigen::MatrixXd &kgridFull) {
+
+  if (mpi->mpiHead()) {
+    std::cout << "Starting EPA post-processing\n" << std::endl;
+  }
+
+  auto t2 = QEParser::parseElHarmonicFourier(context);
+  auto electronH0 = std::get<1>(t2);
+  int numBands = electronH0.getNumBands();
+
+  // read coupling from file
+  auto t5 =
+      readGFromQEFile(context, numModes, numBands, numBands, kPoints, qPoints,
+                      kgridFull, numIrrQPoints, numQEBands, energies);
+  auto gFull = std::get<0>(t5);          // (nBands, nBands, nModes, numK, numQ)
+  auto phEigenvectors = std::get<1>(t5); // (numModes, numModes, numQPoints)
+  auto phEnergies = std::get<2>(t5);     // (numModes, numQPoints)
+
+  assert(numBands == gFull.dimension(0));
+  assert(numModes == gFull.dimension(2));
+
   // input
   double smearing = context.getEpaDeltaEnergy();
   double smearing2 = 2. * smearing * smearing;
@@ -856,12 +766,6 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     std::cout << "Building EPA with " << numEpaEnergies << " energy bins.";
   }
 
-  int numModes = gFull.dimension(2);
-  int numBands = gFull.dimension(0);
-
-  Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
-  g2Epa.setZero();
-
   int numKPoints = gFull.dimension(3);
   int numQPoints = gFull.dimension(4);
 
@@ -874,6 +778,9 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
       }
     }
   }
+
+  Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
+  g2Epa.setZero();
 
   LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
   for (int iq = 0; iq < numQPoints; iq++) {
@@ -1048,9 +955,6 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
 
     for (int ib = 0; ib < numWannier; ib++) {
       assert(abs(h0K(ib, ib).real() - blochEnergies(ib, ik)) < 1.0e-4);
-
-      std::cout << ik << " " << ib << " " << h0K(ib, ib).real() << " "
-                << blochEnergies(ib, ik) << "\n";
     }
   }
 }
@@ -1231,7 +1135,8 @@ void ElPhQeToPhoebeApp::testBackTransform(
   int numKPoints = kPoints.getNumPoints();
   int numModes = phononH0.getNumBands();
 
-  context.setEpwFileName("silicon.phoebe.elph.dat"); // needed by Parser
+  // needed by ::parse()
+  context.setEpwFileName(context.getQuantumEspressoPrefix() + ".phoebe.elph.dat");
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   for (long ik1 = 0; ik1 < numKPoints; ik1++) {
@@ -1279,5 +1184,115 @@ void ElPhQeToPhoebeApp::testBackTransform(
       // note that I change the meaning of the indeces
       assert(abs((sum1 - sum2) / sum1) < 0.0001);
     }
+  }
+}
+
+void ElPhQeToPhoebeApp::postProcessingWannier(
+    Context &context, Crystal &crystal, PhononH0 &phononH0, FullPoints &kPoints,
+    FullPoints &qPoints, int numQEBands, int numModes, int numIrrQPoints,
+    int numElectrons, int numSpin, const Eigen::MatrixXd &energies,
+    const Eigen::MatrixXd &kgridFull, const Eigen::Vector3i &kMesh,
+    const Eigen::Vector3i &qMesh, bool runTests) {
+  if (mpi->mpiHead()) {
+    std::cout << "Starting Wannier post-processing\n" << std::endl;
+  }
+
+  std::string wannierPrefix = context.getWannier90Prefix();
+
+  auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
+  auto electronH0 = std::get<1>(t2);
+  int numWannier = electronH0.getNumBands();
+
+  //----------------------------------------------------------------------------
+  // read Wannier90 rotation matrices
+
+  Eigen::Tensor<std::complex<double>, 3> uMatrices;
+  // uMatrices has size (numBands, numWannier, numKPoints)
+  uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
+  int numBands = uMatrices.dimension(0);        // number of entangled bands
+  assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
+
+  //----------------------------------------------------------------------------
+
+  // read coupling from file
+  auto t5 =
+      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
+                      kgridFull, numIrrQPoints, numQEBands, energies);
+  auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
+  auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
+  auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
+
+  //----------------------------------------------------------------------------
+
+  // Find the lattice vectors for the Fourier transforms
+
+  auto t3 = crystal.buildWignerSeitzVectors(kMesh);
+  Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
+  Eigen::VectorXd elDegeneracies = std::get<1>(t3);
+
+  auto t4 = crystal.buildWignerSeitzVectors(qMesh);
+  Eigen::MatrixXd phBravaisVectors = std::get<0>(t4);
+  Eigen::VectorXd phDegeneracies = std::get<1>(t4);
+
+  Eigen::Tensor<std::complex<double>, 5> gWannier =
+      blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
+                     phEigenvectors, kPoints, qPoints, crystal, phononH0);
+
+  //--------------------------------------------------------------------------
+
+  // Dump el-ph in Wannier representation to file
+
+  if (mpi->mpiHead()) {
+    std::cout << "Start writing g to file" << std::endl;
+    std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+    std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
+    std::ofstream outfile(outFileName);
+    if (not outfile.is_open()) {
+      Error e("Output file couldn't be opened");
+    }
+    outfile << numElectrons << " " << numSpin << "\n";
+    outfile << kMesh << "\n";
+    outfile << qMesh << "\n";
+    outfile << phBravaisVectors.rows() << " " << phBravaisVectors.cols()
+            << "\n";
+    outfile << phBravaisVectors << "\n";
+    outfile << phDegeneracies << "\n";
+    outfile << elBravaisVectors.rows() << " " << elBravaisVectors.cols()
+            << "\n";
+    outfile << elBravaisVectors << "\n";
+    outfile << elDegeneracies << "\n";
+    outfile << "\n";
+    for (auto x : gWannier.dimensions()) {
+      outfile << x << " ";
+    }
+    outfile << "\n";
+
+    outfile << std::setprecision(16);
+    int numPhBands = 3 * crystal.getNumAtoms();
+    for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
+      for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
+        for (int i3 = 0; i3 < numPhBands; i3++) {
+          for (int i2 = 0; i2 < numWannier; i2++) {
+            for (int i1 = 0; i1 < numWannier; i1++) {
+              outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5).real()
+                      << " " << std::setw(22)
+                      << gWannier(i1, i2, i3, i4, i5).imag() << "\n";
+            }
+          }
+        }
+      }
+    }
+    std::cout << "Done writing g to file\n" << std::endl;
+  }
+
+  if (runTests) {
+    testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors, uMatrices,
+                            elDegeneracies, electronH0);
+
+    testPhononTransform(crystal, phononH0, qPoints, phEigenvectors,
+                        phBravaisVectors, phDegeneracies, phEnergies);
+
+    testBackTransform(context, phononH0, kPoints, qPoints, electronH0, crystal,
+                      gFull);
   }
 }
