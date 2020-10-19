@@ -99,6 +99,11 @@ public:
      */
     std::tuple<VectorBTE, ParallelMatrix<double>> diagonalize();
 
+    /** Outputs the quantity to a json file.
+    * @param outFileName: string representing the name of the json file
+    */
+    void outputToJSON(std::string outFileName);
+
 protected:
     Context &context;
     StatisticsSweep &statisticsSweep;

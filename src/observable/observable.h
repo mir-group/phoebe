@@ -42,6 +42,7 @@ public:
      * numCalcs is the number of different temperatures/chemical potentials.
      */
     Eigen::VectorXd getNorm();
+
 protected:
     // save input parameters
     StatisticsSweep &statisticsSweep;

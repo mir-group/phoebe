@@ -9,7 +9,7 @@
  */
 class PhononThermalConductivity: public Observable {
 public:
- /** Constructor method
+  /** Constructor method
   * @param statisticsSweep: a StatisticsSweep object containing information
   * on the temperature loop
   * @param crystal: a Crystal object
@@ -74,6 +74,11 @@ public:
   * in a a nicely formatted way.
   */
  void print();
+
+/** Outputs the quantity to a json file.
+ * @param outFileName: string representing the name of the json file
+ */
+ void outputToJSON(std::string outFileName);
 
  /** Prints to screen the thermal conductivity at various temperatures
   * To be used during an iterative BTE solver, this prints only the diagonal

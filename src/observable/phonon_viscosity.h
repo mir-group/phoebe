@@ -38,6 +38,11 @@ public:
      */
     void print();
 
+    /** Outputs the quantity to a json file.
+    * @param outFileName: string representing the name of the json file
+    */
+    void outputToJSON(std::string outFileName);
+
     /** Computes the viscosity from the scattering matrix eigenvectors.
      * Following Simoncelli PRX 2020. Stores it internally.
      * @param vector0: VectorBTE object with the energy-conserving eigenvector.

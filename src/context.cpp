@@ -278,10 +278,13 @@ parseCrystal(std::vector<std::string> &lines) {
  * The code will pad the segments with equidistant points, as specified by the
  * parameter deltaPath (the distance between points).
  */
-Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
+std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
+         parsePathExtrema(std::vector<std::string> &lines) {
+
   long numSegments = lines.size();
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
   pathExtrema.setZero();
+  std::vector<std::string> pathLabels;
 
   long i = 0;
   for (std::string line : lines) {
@@ -290,6 +293,9 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
     std::istream_iterator<std::string> begin(ss);
     std::istream_iterator<std::string> end;
     std::vector<std::string> splitLine(begin, end);
+
+    pathLabels.push_back(splitLine[0]);
+    pathLabels.push_back(splitLine[4]);
 
     pathExtrema(i, 0, 0) = std::stod(splitLine[1]);
     pathExtrema(i, 0, 1) = std::stod(splitLine[2]);
@@ -301,8 +307,7 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
 
     i++;
   }
-
-  return pathExtrema;
+  return {pathLabels, pathExtrema};
 }
 
 /** Parse an input block (e.g. for crystal or points path).
@@ -636,7 +641,9 @@ void Context::setupFromInput(std::string fileName) {
         inputSpeciesNames = inputSpeciesNames_;
       }
       if (blockName == "point path") {
-        pathExtrema = parsePathExtrema(value);
+        auto tup = parsePathExtrema(value);
+        pathLabels = std::get<0>(tup);
+        pathExtrema = std::get<1>(tup);
       }
     }
 
@@ -688,6 +695,8 @@ Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
+void Context::setDopings(const Eigen::VectorXd x) { dopings = x; }
+
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
 
 void Context::setTemperatures(const Eigen::VectorXd x) { temperatures = x; }
@@ -727,6 +736,7 @@ void Context::setInputSpeciesNames(const std::vector<std::string> x) {
 }
 
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
+std::vector<std::string> Context::getPathLabels() {return pathLabels; }
 
 double Context::getDeltaPath() { return deltaPath; }
 

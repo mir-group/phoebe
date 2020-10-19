@@ -360,4 +360,5 @@ void StatisticsSweep::printInfo() {
                 << ", n = " << doping << " (cm^-3)" << std::endl;
     }
   }
+  std::cout << std::endl;
 }

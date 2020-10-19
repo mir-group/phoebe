@@ -32,6 +32,11 @@ public:
      */
     void print();
 
+    /** Outputs the quantity to a json file.
+    * @param outFileName: string representing the name of the json file
+    */
+    void outputToJSON(std::string outFileName);
+
     /** returns the specific heat computed at a specific chemical potential
      * and temperature. The indices are controlled by the statisticsSweep
      * object.

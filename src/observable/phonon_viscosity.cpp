@@ -1,7 +1,9 @@
 #include <iomanip>
+#include <fstream>
 #include "phonon_viscosity.h"
 #include "constants.h"
 #include "mpiHelper.h"
+#include <nlohmann/json.hpp>
 
 PhononViscosity::PhononViscosity(StatisticsSweep &statisticsSweep_,
         Crystal &crystal_, BaseBandStructure &bandStructure_) :
@@ -241,37 +243,101 @@ void PhononViscosity::print() {
     std::cout << "Thermal Viscosity (" << units << ")\n";
     std::cout << "i, j, k, eta[i,j,k,1,0], eta[i,j,k,1], eta[i,j,k,2]\n";
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-
-        double conversion = pow(hBarSi, 2) // momentum is hbar q
+    double conversion = pow(hBarSi, 2) // momentum is hbar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
         * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
-                / rydbergSi; // temperature conversion
+        / rydbergSi; // temperature conversion
 
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
 
-        std::cout << std::fixed;
-        std::cout.precision(2);
-        std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-        std::cout.precision(5);
-        std::cout << std::scientific;
-        for (long i = 0; i < dimensionality; i++) {
-            for (long j = 0; j < dimensionality; j++) {
-                for (long k = 0; k < dimensionality; k++) {
-                    std::cout << i << " " << j << " " << k;
-                    for (long l = 0; l < dimensionality; l++) {
-                        std::cout << " " << std::setw(12) << std::right
-                                << tensordxdxdxd(iCalc, i, j, k, l)
-                                        * conversion;
-                    }
-                    std::cout << "\n";
-                }
-            }
-        }
-        std::cout << std::endl;
-    }
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+
+      std::cout << std::fixed;
+      std::cout.precision(2);
+      std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
+      std::cout.precision(5);
+      std::cout << std::scientific;
+      for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+              for (long k = 0; k < dimensionality; k++) {
+                  std::cout << i << " " << j << " " << k;
+                  for (long l = 0; l < dimensionality; l++) {
+                      std::cout << " " << std::setw(12) << std::right
+                              << tensordxdxdxd(iCalc, i, j, k, l)
+                                      * conversion;
+                  }
+                  std::cout << "\n";
+              }
+          }
+      }
+      std::cout << std::endl;
+  }
 }
+
+void PhononViscosity::outputToJSON(std::string outFileName) {
+
+  if(mpi->mpiHead()) {
+
+    std::string units;
+    if (dimensionality == 1) {
+        units = "Pa s / m^2";
+    } else if (dimensionality == 2) {
+        units = "Pa s / m";
+    } else {
+        units = "Pa s";
+    }
+
+    double conversion = pow(hBarSi, 2) // momentum is hbar q
+        / pow(distanceRyToSi, dimensionality) // volume conversion
+        * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
+        / rydbergSi; // temperature conversion
+
+    std::vector<double> temps;
+    // this vector mess is of shape (iCalcs, irows, icols, k, l)
+    std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>> viscosity;
+
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+      // store temperatures
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+      temps.push_back(temp*temperatureAuToSi);
+
+      // store viscosity
+      std::vector<std::vector<std::vector<std::vector<double>>>> rows;
+      for (long i = 0; i < dimensionality; i++) {
+        std::vector<std::vector<std::vector<double>>> cols;
+        for (long j = 0; j < dimensionality; j++) {
+          std::vector<std::vector<double>> ijk;
+          for (long k = 0; k < dimensionality; k++) {
+            std::vector<double> ijkl;
+            for (long l = 0; l < dimensionality; l++) {
+              ijkl.push_back(tensordxdxdxd(iCalc, i, j, k, l) * conversion);
+            }
+            ijk.push_back(ijkl);
+          }
+          cols.push_back(ijk);
+        }
+        rows.push_back(cols);
+      }
+      viscosity.push_back(rows);
+    }
+
+    // output to json
+    nlohmann::json output;
+    output["temperatures"] = temps;
+    output["phononViscosity"] = viscosity;
+    output["temperatureUnit"] = "K";
+    output["phononViscosityUnit"] = units;
+    output["particleType"] = "phonon";
+    std::ofstream o(outFileName);
+    o << std::setw(3) << output << std::endl;
+    o.close();
+
+  }
+}
+
 
 int PhononViscosity::whichType() {
     return is4Tensor;

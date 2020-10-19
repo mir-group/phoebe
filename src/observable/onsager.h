@@ -48,6 +48,11 @@ public:
    */
   void print(const int &iter);
 
+  /** Outputs the quantity to a json file.
+  * @param outFileName: string representing the name of the json file
+  */
+  void outputToJSON(std::string outFileName);
+
   void calcTransportCoefficients();
 
   void calcFromEPA();

@@ -1,7 +1,8 @@
 #include "onsager.h"
 
 #include <iomanip>
-
+#include <fstream>
+#include <nlohmann/json.hpp>
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -177,8 +178,7 @@ void OnsagerCoefficients::calcTransportCoefficients() {
 }
 
 void OnsagerCoefficients::print() {
-  if (!mpi->mpiHead())
-    return; // debugging now
+  if (!mpi->mpiHead()) return;
 
   std::string unitsSigma, unitsKappa;
   double convSigma, convKappa;
@@ -306,3 +306,116 @@ void OnsagerCoefficients::print(const int &iter) {
   }
   std::cout << std::endl;
 }
+
+void OnsagerCoefficients::outputToJSON(std::string outFileName) {
+  if(!mpi->mpiHead()) return;
+
+  std::string unitsSigma, unitsKappa;
+  double convSigma, convKappa;
+  if (dimensionality == 1) {
+    unitsSigma = "S m";
+    unitsKappa = "W m / K";
+    convSigma = elConductivityAuToSi * rydbergSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi * rydbergSi;
+  } else if (dimensionality == 2) {
+    unitsSigma = "S";
+    unitsKappa = "W / K";
+    convSigma = elConductivityAuToSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi;
+  } else {
+    unitsSigma = "S / m";
+    unitsKappa = "W / m / K";
+    convSigma = elConductivityAuToSi;
+    convKappa = thConductivityAuToSi;
+  }
+
+  double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
+  std::string unitsMobility = "cm^2 / V s";
+
+  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  std::string unitsSeebeck = "muV / K";
+
+  std::vector<double> temps, dopings, chemPots;
+  std::vector<std::vector<std::vector<double>>> sigmaOut;
+  std::vector<std::vector<std::vector<double>>> mobilityOut;
+  std::vector<std::vector<std::vector<double>>> kappaOut;
+  std::vector<std::vector<std::vector<double>>> seebeckOut;
+  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+    // store temperatures
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    temps.push_back(temp * temperatureAuToSi);
+    double doping = calcStat.doping;
+    dopings.push_back(doping); // output in (cm^-3)
+    double chemPot = calcStat.chemicalPotential;
+    chemPots.push_back(chemPot * energyRyToEv); // output in eV
+
+    //std::cout << "Electrical Conductivity (" << unitsSigma << ")\n";
+    // store the electrical conductivity for output
+    std::vector<std::vector<double>> rows;
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(sigma(iCalc, i, j) * convSigma);
+      }
+      rows.push_back(cols);
+    }
+    sigmaOut.push_back(rows);
+
+    // store the carrier mobility for output
+    // Note: in metals, one has conductivity without doping
+    // and the mobility = sigma / doping-density is ill-defined
+    if ( abs(doping) > 0. ) {
+      rows.clear();
+      for (int i = 0; i < dimensionality; i++) {
+        std::vector<double> cols;
+        for (int j = 0; j < dimensionality; j++) {
+           cols.push_back(mobility(iCalc, i, j) * convMobility);
+        }
+        rows.push_back(cols);
+      }
+      mobilityOut.push_back(rows);
+    }
+
+    // store thermal conductivity for output
+    rows.clear();
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(kappa(iCalc, i, j) * convKappa);
+      }
+      rows.push_back(cols);
+    }
+    kappaOut.push_back(rows);
+
+    // store seebeck coefficient for output
+    rows.clear();
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(seebeck(iCalc, i, j) * convSeebeck);
+      }
+      rows.push_back(cols);
+    }
+    seebeckOut.push_back(rows);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["electricalConductivity"] = sigmaOut;
+  output["electricalConductivityUnit"] = unitsSigma;
+  output["mobility"] = mobilityOut;
+  output["mobilityUnit"] = unitsMobility;
+  output["electronicThermalConductivity"] = kappaOut;
+  output["electronicThermalConductivityUnit"] = unitsKappa;
+  output["seebeckCoefficient"] = seebeckOut;
+  output["seebeckCoefficientUnit"] = unitsSeebeck;
+  output["particleType"] = "electron";
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
