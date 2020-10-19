@@ -82,6 +82,13 @@ class Context {
   double epaSmearingEnergy = std::numeric_limits<double>::quiet_NaN();
   double epaDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
 
+  // plot of el-ph coupling
+  std::string g2PlotStyle = "";
+  Eigen::Vector3d g2PlotFixedPoint;
+  std::pair<int,int> g2PlotEl1Bands;
+  std::pair<int,int> g2PlotEl2Bands;
+  std::pair<int,int> g2PlotPhBands;
+
   // utilities for parsing
 
   std::vector<std::string> &split(const std::string &s, char delim,
@@ -90,8 +97,25 @@ class Context {
 //  bool lineHasParameter(const std::string &line);
 //  std::string parseParameterName(const std::string &line);
 
-  //  Setter and getter for all the variables above
  public:
+  // Methods for the apps of plotting the electron-phonon coupling
+  std::string getG2PlotStyle();
+  void setG2PlotStyle(const std::string x);
+
+  Eigen::Vector3d getG2PlotFixedPoint();
+  void setG2PlotFixedPoint(const Eigen::Vector3d x);
+
+  std::pair<int,int> getG2PlotEl1Bands();
+  void setG2PlotEl1Bands(const std::pair<int,int> x);
+
+  std::pair<int,int> getG2PlotEl2Bands();
+  void setG2PlotEl2Bands(const std::pair<int,int> x);
+
+  std::pair<int,int> getG2PlotPhBands();
+  void setG2PlotPhBands(const std::pair<int,int> x);
+
+  //  Setter and getter for all the variables above
+
   /** gets the name of the file containing the lattice force constants.
    * For Quantum Espresso, this is the path to the file produced by q2r.
    * @return x: the file path.

@@ -9,6 +9,7 @@
 #include "elph_qe_to_phoebe_app.h"
 #include "polarization_app.h"
 #include "utilities.h"
+#include "elph_plot_app.h"
 #include <cmath>
 #include <string>
 
@@ -23,7 +24,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronFourierBands",
                                             "electronPolarization",
                                             "electronWannierTransport",
-                                            "elPhQeToPhoebe"};
+                                            "elPhQeToPhoebe",
+                                            "elPhCouplingPlot"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -50,6 +52,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronFourierBandsApp);
   } else if (choice == "electronPolarization") {
     return std::unique_ptr<App>(new ElectronPolarizationApp);
+  } else if (choice == "elPhCouplingPlot") {
+    return std::unique_ptr<App>(new ElPhCouplingPlotApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }

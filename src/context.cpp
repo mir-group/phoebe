@@ -116,6 +116,36 @@ std::vector<double> parseDoubleList(std::string line) {
   return x;
 };
 
+/** Parse a string of format "key = [value1,value2]" to return a vector double.
+ */
+std::vector<int> parseIntList(std::string line) {
+  std::string delimeter = "[";
+  size_t pos1 = line.find_first_of(delimeter);
+  delimeter = "]";
+  size_t pos2 = line.find_last_of(delimeter);
+
+  if (pos1 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+  if (pos2 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+
+  std::vector<int> x;
+  delimeter = ",";
+  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+    std::string token = s.substr(0, pos1);
+    x.push_back(std::stoi(token));
+    s.erase(0, pos1 + delimeter.length());
+  }
+  // Must not forget the last element in the list
+  x.push_back(std::stoi(s));
+
+  return x;
+};
+
 /** Parse a string of format "key = value units" to return an integer value.
  */
 long parseLong(std::string line) {
@@ -637,6 +667,38 @@ void Context::setupFromInput(std::string fileName) {
         epaDeltaEnergy = parseDoubleWithUnits(val);
       }
 
+
+      // ELPH coupling plot App
+
+      if (parameterName == "g2PlotStyle") {
+        g2PlotStyle = parseString(val);
+      }
+
+      if (parameterName == "g2FixedPoint") {
+        std::vector<double> x = parseDoubleList(val);
+        for ( auto i : {0,1,2}) {
+          g2PlotFixedPoint(i) = x[i];
+        }
+      }
+
+      if (parameterName == "g2PlotBandEl1") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl1Bands.first = x[0];
+        g2PlotEl1Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandEl2") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl2Bands.first = x[0];
+        g2PlotEl2Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandPh") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotPhBands.first = x[0];
+        g2PlotPhBands.second = x[1];
+      }
+
       //////////////////////////////////////////
 
     } else {  // it might be a block, or its content
@@ -814,3 +876,26 @@ double Context::getEnergyRange() {return energyRange;}
 double Context::getEnergyStep() {return energyStep;}
 
 double Context::getEFermiRange() {return eFermiRange;}
+
+std::string Context::getG2PlotStyle() { return g2PlotStyle; }
+void Context::setG2PlotStyle(const std::string x) { g2PlotStyle = x; }
+
+Eigen::Vector3d Context::getG2PlotFixedPoint() { return g2PlotFixedPoint; }
+void Context::setG2PlotFixedPoint(const Eigen::Vector3d x) {
+  g2PlotFixedPoint = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl1Bands() { return g2PlotEl1Bands; }
+void Context::setG2PlotEl1Bands(const std::pair<int, int> x) {
+  g2PlotEl1Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl2Bands() { return g2PlotEl2Bands; }
+void Context::setG2PlotEl2Bands(const std::pair<int, int> x) {
+  g2PlotEl2Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotPhBands() { return g2PlotPhBands; }
+void Context::setG2PlotPhBands(const std::pair<int, int> x) {
+  g2PlotPhBands = x;
+}
