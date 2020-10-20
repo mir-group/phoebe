@@ -101,7 +101,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
   }
   mpi->allReduceSum(&outerFermi.data);
-  VectorBTE innerFermi(statisticsSweep, outerBandStructure, 1);
+  VectorBTE innerFermi(statisticsSweep, innerBandStructure, 1);
   if (&innerBandStructure == &outerBandStructure) {
     innerFermi = outerFermi;
   } else {
