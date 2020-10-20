@@ -22,8 +22,8 @@ BaseVectorBTE::BaseVectorBTE(StatisticsSweep &statisticsSweep_,
 
   numChemPots = statisticsSweep.getNumChemicalPotentials();
   numTemps = statisticsSweep.getNumTemperatures();
-
-  data = Eigen::MatrixXd::Zero(numCalcs, numStates);
+  data.resize(numCalcs, numStates);
+  data.setZero();
 }
 
 // copy constructor

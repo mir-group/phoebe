@@ -1,0 +1,20 @@
+appName = "phononLifetimes"
+
+phD2FileName = "espresso.ifc2",
+sumRuleD2 = "simple"
+phD3FileName = "ShengBTEForceConstants3rd"
+
+qMesh = [15,15,15]
+temperatures = [600.]
+
+smearingMethod = "gaussian"
+smearingWidth = 10. cmm1
+
+deltaPath = 0.01
+
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path

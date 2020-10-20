@@ -11,12 +11,10 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        BaseBandStructure &innerBandStructure_,
                                        BaseBandStructure &outerBandStructure_,
                                        PhononH0 &h0_,
-                                       InteractionElPhWan *couplingElPhWan_
-                                       )
+                                       InteractionElPhWan *couplingElPhWan_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
                        outerBandStructure_),
-      couplingElPhWan(couplingElPhWan_),
-      h0(h0_) {
+      couplingElPhWan(couplingElPhWan_), h0(h0_) {
 
   doBoundary = false;
   boundaryLength = context.getBoundaryLength();
@@ -29,18 +27,15 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
   // This is to prevent the code to keep the matrix in memory
   // I will implement that with the symmetries, which require some modifications
   highMemory = false;
-
 }
 
 ElScatteringMatrix::ElScatteringMatrix(const ElScatteringMatrix &that)
-    : ScatteringMatrix(that),
-      couplingElPhWan(that.couplingElPhWan),
-      h0(that.h0),
-      boundaryLength(that.boundaryLength),
+    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
+      h0(that.h0), boundaryLength(that.boundaryLength),
       doBoundary(that.doBoundary) {}
 
-ElScatteringMatrix &ElScatteringMatrix::operator=(
-    const ElScatteringMatrix &that) {
+ElScatteringMatrix &
+ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
   ScatteringMatrix::operator=(that);
   if (this != &that) {
     couplingElPhWan = that.couplingElPhWan;
@@ -60,7 +55,7 @@ ElScatteringMatrix &ElScatteringMatrix::operator=(
 void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
-  const double energyCutoff = 0.001 / ryToCmm1;  // discard states with small
+  const double energyCutoff = 0.001 / ryToCmm1; // discard states with small
   // phonon energies (smaller than 0.001 cm^-1
 
   int switchCase = 0;
@@ -96,12 +91,15 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     double energy = outerBandStructure.getEnergy(is);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
-      double chemicalPotential = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-      outerFermi.data(iCalc, is) = particle.getPopulation(energy, temperature, chemicalPotential);
+      double chemicalPotential =
+          statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+      outerFermi.data(iCalc, is) =
+          particle.getPopulation(energy, temperature, chemicalPotential);
     }
   }
   mpi->allReduceSum(&outerFermi.data);
-  VectorBTE innerFermi(statisticsSweep, outerBandStructure, 1);
+
+  VectorBTE innerFermi(statisticsSweep, innerBandStructure, 1);
   if (&innerBandStructure == &outerBandStructure) {
     innerFermi = outerFermi;
   } else {
@@ -216,21 +214,21 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 continue;
               }
 
-              int ind1 = outerBandStructure.getIndex(WavevectorIndex(ik1Irr),
+              int ind1 = innerBandStructure.getIndex(WavevectorIndex(ik1Irr),
                                                      BandIndex(ib1));
-              int ind2 = innerBandStructure.getIndex(WavevectorIndex(ik2Irr),
+              int ind2 = outerBandStructure.getIndex(WavevectorIndex(ik2Irr),
                                                      BandIndex(ib2));
-//
-//              if (switchCase == 0) {
-//                // note: above we are parallelizing over
-//                wavevectors.
-//                // (for convenience of computing coupling3ph)
-//                // Not the same way as Matrix() is parallelized.
-//                // here we check that we don't duplicate efforts
-//                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
-//                  continue;
-//                }
-//              }
+              //
+              //              if (switchCase == 0) {
+              //                // note: above we are parallelizing over
+              //                wavevectors.
+              //                // (for convenience of computing coupling3ph)
+              //                // Not the same way as Matrix() is parallelized.
+              //                // here we check that we don't duplicate efforts
+              //                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
+              //                  continue;
+              //                }
+              //              }
 
               double delta1, delta2;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -243,12 +241,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
               }
 
-              if (delta1 < 0. && delta2 < 0.) continue;
+              if (delta1 < 0. && delta2 < 0.)
+                continue;
 
               // loop on temperature
               for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-                double fermi1 = outerFermi.data(iCalc, ind1);
-                double fermi2 = innerFermi.data(iCalc, ind2);
+                double fermi1 = innerFermi.data(iCalc, ind1);
+                double fermi2 = outerFermi.data(iCalc, ind2);
                 double bose3 = bose3Data(iCalc, ib3);
 
                 // Calculate transition probability W+
@@ -291,7 +290,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   }
                 } else {
                   // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, ind1) += rate;
+                  linewidth->operator()(iCalc, 0, ind2) += rate;
                 }
               }
             }
@@ -327,23 +326,23 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         double rate = vel.squaredNorm() / boundaryLength * termPop;
 
         switch (switchCase) {
-          case (0):
-            // case of matrix construction
-            linewidth->operator()(iCalc, 0, is1) += rate;
-            break;
-          case (1):
-            // case of matrix-vector multiplication
-            for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-              for (int i = 0; i < dimensionality_; i++) {
-                outPopulations[iVec](iCalc, i, is1) +=
-                    rate * inPopulations[iVec](iCalc, i, is1);
-              }
+        case (0):
+          // case of matrix construction
+          linewidth->operator()(iCalc, 0, is1) += rate;
+          break;
+        case (1):
+          // case of matrix-vector multiplication
+          for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
+            for (int i = 0; i < dimensionality_; i++) {
+              outPopulations[iVec](iCalc, i, is1) +=
+                  rate * inPopulations[iVec](iCalc, i, is1);
             }
-            break;
-          case (2):
-            // case of linewidth construction
-            linewidth->operator()(iCalc, 0, is1) += rate;
-            break;
+          }
+          break;
+        case (2):
+          // case of linewidth construction
+          linewidth->operator()(iCalc, 0, is1) += rate;
+          break;
         }
       }
     }
@@ -351,7 +350,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // we place the linewidths back in the diagonal of the scattering matrix
   // this because we may need an MPI_allreduce on the linewidths
-  if (switchCase == 0) {  // case of matrix construction
+  if (switchCase == 0) { // case of matrix construction
     long iCalc = 0;
 #pragma omp parallel for
     for (long is = 0; is < outerBandStructure.getNumStates(); is++) {

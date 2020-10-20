@@ -19,8 +19,6 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
                        outerBandStructure_),
       coupling3Ph(coupling3Ph_), h0(h0_) {
-  //	couplingIsotope = couplingIsotope_;
-  //	couplingBoundary = couplingBoundary_;
   if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
     Error e("PhScatteringMatrix needs h0 for incommensurate grids");
   }
@@ -142,7 +140,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     }
   }
   mpi->allReduceSum(&outerBose.data);
-  VectorBTE innerBose(statisticsSweep, outerBandStructure, 1);
+  VectorBTE innerBose(statisticsSweep, innerBandStructure, 1);
   if (&innerBandStructure == &outerBandStructure) {
     innerBose = outerBose;
   } else {

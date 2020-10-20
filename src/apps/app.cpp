@@ -2,14 +2,15 @@
 #include "bands_app.h"
 #include "context.h"
 #include "dos_app.h"
+#include "electron_wannier_transport_app.h"
+#include "elph_plot_app.h"
+#include "elph_qe_to_phoebe_app.h"
 #include "exceptions.h"
 #include "io.h"
+#include "lifetimes_app.h"
 #include "phonon_transport_app.h"
-#include "electron_wannier_transport_app.h"
-#include "elph_qe_to_phoebe_app.h"
 #include "polarization_app.h"
 #include "utilities.h"
-#include "elph_plot_app.h"
 #include <cmath>
 #include <string>
 
@@ -25,7 +26,9 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronPolarization",
                                             "electronWannierTransport",
                                             "elPhQeToPhoebe",
-                                            "elPhCouplingPlot"};
+                                            "elPhCouplingPlot",
+                                            "electronLifetimes",
+                                            "phononLifetimes"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -54,6 +57,10 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronPolarizationApp);
   } else if (choice == "elPhCouplingPlot") {
     return std::unique_ptr<App>(new ElPhCouplingPlotApp);
+  } else if (choice == "electronLifetimes") {
+    return std::unique_ptr<App>(new ElectronLifetimesApp);
+  } else if (choice == "phononLifetimes") {
+    return std::unique_ptr<App>(new PhononLifetimesApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }

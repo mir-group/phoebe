@@ -33,11 +33,13 @@ class Matrix {
 
  /** Underlying ParallelMatrix instantiated only if isDistributed = true
  */
- ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
+ ParallelMatrix<T>* pmat = nullptr;
+//  ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
  */
- SerialMatrix<T>* mat = new SerialMatrix<T>();
+ SerialMatrix<T>* mat = nullptr;
+//  SerialMatrix<T>* mat = new SerialMatrix<T>();
 
  public:
   /** Default Matrix constructor.
@@ -196,7 +198,8 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 template <typename T>
 Matrix<T>::Matrix() {
   isDistributed = false;
-  pmat = new ParallelMatrix<T>();
+  if (pmat!=nullptr) delete pmat;
+  if (mat!=nullptr) delete mat;
   mat = new SerialMatrix<T>();
 }
 
@@ -232,8 +235,12 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 // destructor
 template <typename T>
 Matrix<T>::~Matrix() {
-  if(isDistributed) delete pmat;
-  else delete mat;
+  if (pmat!=nullptr) {
+    delete pmat;
+  }
+  if (mat!=nullptr) {
+    delete mat;
+  }
 }
 
 /* ------------- Very basic operations -------------- */
