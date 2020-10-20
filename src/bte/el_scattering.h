@@ -1,5 +1,5 @@
-#ifndef PHSCATTERING_H
-#define PHSCATTERING_H
+#ifndef ELSCATTERING_H
+#define ELSCATTERING_H
 
 #include "interaction_elph.h"
 #include "electron_h0_wannier.h"
