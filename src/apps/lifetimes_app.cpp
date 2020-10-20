@@ -1,14 +1,14 @@
 #include "lifetimes_app.h"
+#include "bands_app.h"
 #include "bandstructure.h"
 #include "context.h"
 #include "el_scattering.h"
-#include "ph_scattering.h"
 #include "exceptions.h"
+#include "ifc3_parser.h"
 #include "io.h"
 #include "path_points.h"
+#include "ph_scattering.h"
 #include "qe_input_parser.h"
-#include "ifc3_parser.h"
-#include "bands_app.h"
 
 void ElectronLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
@@ -29,28 +29,31 @@ void ElectronLifetimesApp::run(Context &context) {
   // set k and q point meshes and paths
   PathPoints pathKPoints(crystal, context.getPathExtrema(),
                          context.getDeltaPath());
-  FullPoints fullKPoints(crystal, context.getKMesh());
-  FullPoints fullQPoints(crystal, context.getQMesh());
+  auto kMesh = context.getKMesh();
+  FullPoints fullKPoints(crystal, kMesh);
 
   //----------------------------------------------------------------------------
 
   bool withVelocities = true;
   bool withEigenvectors = true;
-  FullBandStructure fullElBandStructure =
+  FullBandStructure fullBandStructure =
       electronH0.populate(fullKPoints, withVelocities, withEigenvectors);
-  FullBandStructure pathElBandStructure =
+  FullBandStructure pathBandStructure =
       electronH0.populate(pathKPoints, withVelocities, withEigenvectors);
 
-  StatisticsSweep statisticsSweep(context, &fullElBandStructure);
+  StatisticsSweep statisticsSweep(context, &fullBandStructure);
 
   //----------------------------------------------------------------------------
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep,
-                                      fullElBandStructure, pathElBandStructure,
+                                      fullBandStructure, pathBandStructure,
                                       phononH0, &couplingElPh);
   scatteringMatrix.setup();
-  VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
+
+  scatteringMatrix.outputToJSON("path_el_relaxation_times.json");
+  outputBandsToJSON(pathBandStructure, context, pathKPoints,
+                    "path_el_bandstructure.json");
 
   mpi->barrier();
 }
@@ -89,8 +92,9 @@ void PhononLifetimesApp::run(Context &context) {
                                       &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
 
-  scatteringMatrix.outputToJSON("path_relaxation_times.json");
-  outputBandsToJSON(pathBandStructure, context, pathPoints, "path_bandstructure.json");
+  scatteringMatrix.outputToJSON("path_ph_relaxation_times.json");
+  outputBandsToJSON(pathBandStructure, context, pathPoints,
+                    "path_ph_bandstructure.json");
   mpi->barrier();
 }
 
@@ -116,7 +120,7 @@ void PhononLifetimesApp::checkRequirements(Context &context) {
   throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
   throwErrorIfUnset(context.getPhD3FileName(), "phD3FileName");
   throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
-  throwErrorIfUnset(context.getKMesh(), "kMesh");
+  throwErrorIfUnset(context.getQMesh(), "qMesh");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {

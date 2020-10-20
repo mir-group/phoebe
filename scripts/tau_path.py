@@ -40,6 +40,7 @@ def punchPlotTau(plotFileName, tau, points, pathTicks, pathLabels):
     ymin = 10**np.floor(np.log10(np.min(flattenedTau)))
     ymax = 10**np.ceil(np.log10(np.max(flattenedTau)))
     plt.ylim(ymin, ymax)
+    plt.ylim(0,10000)
 
     plt.tight_layout()
     plt.xticks(pathTicks,pathLabels,fontsize=12)
@@ -53,13 +54,15 @@ def punchPlotTau(plotFileName, tau, points, pathTicks, pathLabels):
 
 def punchPlotBandTau(plotFileName2, energy, linewidth,
                      points, pathTicks, pathLabels, mu=None):
+
+    magFactor = 10. if data["particleType"]=="phonon" else 1.
     
     # plot some vertical lines at high sym points
     plt.figure(figsize=(5.5,5))
     for i in pathTicks:
         plt.axvline(i, color='grey')
 
-    if "eV" == data2['energyUnit']:
+    if "eV" == data2['energyUnit'] and data["particleType"]=="phonon":
         energy *= 1000. # conversion eV to meV
         linewidth *= 1000.
         data2['energyUnit'] = "meV"
@@ -82,8 +85,8 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
         
         error = linewidth[:,i]
         plt.fill_between(points,
-                         energies[:,i] - mu - error*10,
-                         energies[:,i] - mu + error*10,
+                         energies[:,i] - mu - error*magFactor,
+                         energies[:,i] - mu + error*magFactor,
                          color="orange",alpha=0.5)
         # *10 is a magnification factor
         
@@ -91,7 +94,8 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
     plt.xticks(pathTicks,pathLabels,fontsize=12)
     plt.yticks(fontsize=12)
     plt.ylabel(energyLabel,fontsize=14)
-    plt.ylim(None, None)
+    # plt.ylim(None, None)
+    plt.ylim(-20,20)
     plt.xlim(points[0],points[-1])
 
     plt.axhline(0, color='grey', ls='-')

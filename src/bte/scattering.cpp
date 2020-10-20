@@ -322,7 +322,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     return times;
   } else {
     VectorBTE times = internalDiagonal;
-    if (isMatrixOmega) {
+    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         for (long is = 0; is < internalDiagonal.numStates; is++) {
           times(iCalc, 0, is) = 1. / times(iCalc, 0, is);
@@ -362,7 +362,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     return linewidths;
   } else {
     VectorBTE linewidths = internalDiagonal;
-    if (isMatrixOmega) {
+    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
       linewidths.excludeIndeces = excludeIndeces;
       return linewidths;
     } else {  // A_nu,nu = N(1+-N) / tau
@@ -525,16 +525,15 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       std::vector<std::tuple<std::vector<long>, long>> pairIterator;
 
       size_t a = outerBandStructure.getNumPoints();
-      std::vector<long> wavevectorIterator = mpi->divideWorkIter(a);
+      std::vector<long> outerIterator = mpi->divideWorkIter(a);
       // Note: phScatteringMatrix needs iq2 to be the outer loop
       // in order to be efficient!
-
       std::vector<long> innerIterator(innerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
       std::iota(std::begin(innerIterator), std::end(innerIterator), 0);
 
-      for (long iq1 : wavevectorIterator) {
-        auto t = std::make_tuple(innerIterator, iq1);
+      for (long iq1 : innerIterator) {
+        auto t = std::make_tuple(outerIterator, iq1);
         pairIterator.push_back(t);
       }
       return pairIterator;
