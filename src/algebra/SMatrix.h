@@ -240,7 +240,7 @@ SerialMatrix<T>& SerialMatrix<T>::operator=(const SerialMatrix<T>& that) {
 // destructor
 template <typename T>
 SerialMatrix<T>::~SerialMatrix() {
-  delete[] mat;
+  if (mat != nullptr) delete[] mat;
 }
 
 /* ------------- Very basic operations -------------- */

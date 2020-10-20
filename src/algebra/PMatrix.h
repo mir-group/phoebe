@@ -374,7 +374,9 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
 
 template <typename T>
 ParallelMatrix<T>::~ParallelMatrix() {
-  delete[] mat;
+  if ( mat != nullptr ) {
+    delete[] mat;
+  }
 }
 
 template <typename T>
