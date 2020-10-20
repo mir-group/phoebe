@@ -269,6 +269,7 @@ class Context {
   double getConstantRelaxationTime();
 
   bool getScatteringMatrixInMemory();
+  void setScatteringMatrixInMemory(const bool &x);
 
   bool getWithIsotopeScattering();
 

@@ -52,7 +52,7 @@ double parseDouble(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  return std::stod(value);  // convert to double
+  return std::stod(value); // convert to double
 };
 
 /** Parse a string of format "key = value units" to return a double value
@@ -64,7 +64,7 @@ double parseDoubleWithUnits(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  x = std::stod(value);  // convert to double
+  x = std::stod(value); // convert to double
 
   // now check the units and convert
   if (patternInString(line, "eV")) {
@@ -152,7 +152,7 @@ long parseLong(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  return std::stoi(value);  // convert to integer
+  return std::stoi(value); // convert to integer
 };
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
@@ -175,7 +175,7 @@ std::vector<long> parseLongList(std::string line) {
   std::vector<long> x;
   while ((pos1 = s.find(delimeter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
-    x.push_back(std::stoi(token));  // convert to integer
+    x.push_back(std::stoi(token)); // convert to integer
     s.erase(0, pos1 + delimeter.length());
   }
   // Must not forget the last element in the list
@@ -309,7 +309,7 @@ parseCrystal(std::vector<std::string> &lines) {
  * parameter deltaPath (the distance between points).
  */
 std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
-         parsePathExtrema(std::vector<std::string> &lines) {
+parsePathExtrema(std::vector<std::string> &lines) {
 
   long numSegments = lines.size();
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
@@ -346,8 +346,9 @@ std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
  * Otherwise, returns the block name (i.e. what's named after "begin")
  * and the lines inside the block.
  */
-std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
-    const std::vector<std::string> &lines, const int &lineCounter) {
+std::tuple<std::string, std::vector<std::string>>
+parseBlockNameValue(const std::vector<std::string> &lines,
+                    const int &lineCounter) {
   std::string line;
   line = lines[lineCounter];
   if (!patternInString(line, "begin")) {
@@ -361,7 +362,7 @@ std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
     std::vector<std::string> val;
     for (int unsigned i = lineCounter + 1; i < lines.size(); i++) {
       if (patternInString(lines[i], "end")) {
-          break;
+        break;
       }
       val.push_back(lines[i]);
     }
@@ -403,11 +404,11 @@ bool lineHasParameter(const std::string &line) {
  * string containing "value". "value" could contain a string, a list or other
  * things to be further parsed.
  */
-std::tuple<std::string, std::string> parseParameterNameValue(
-    const std::string &line) {
+std::tuple<std::string, std::string>
+parseParameterNameValue(const std::string &line) {
   // we assume that there is "=" in the string
   std::string sep = "=";
-  size_t position = line.find(sep);  // unsigned integer
+  size_t position = line.find(sep); // unsigned integer
   std::string s = line.substr(0, position);
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 
@@ -434,7 +435,7 @@ void Context::setupFromInput(std::string fileName) {
 
   int lineCounter = 0;
   for (std::string line : lines) {
-    if (line.empty()) {  // nothing to do
+    if (line.empty()) { // nothing to do
       continue;
 
       // line with pair (key,value)
@@ -569,7 +570,7 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "fermiLevel") {
-        fermiLevel = parseDouble(val) / energyRyToEv;  // to Ry
+        fermiLevel = parseDouble(val) / energyRyToEv; // to Ry
       }
 
       if (parameterName == "hasSpinOrbit") {
@@ -583,13 +584,14 @@ void Context::setupFromInput(std::string fileName) {
         // for Fourier: the number of occupied bands
         // remember to NOT count the spin degeneracy
         double x = parseDouble(val);
-        if (!hasSpinOrbit) x *= 2;
+        if (!hasSpinOrbit)
+          x *= 2;
         numOccupiedStates = x;
       }
 
       if (parameterName == "smearingMethod") {
         std::string x_ = parseString(val);
-        //TODO: this is hardcoded, should be fixed how we validate input
+        // TODO: this is hardcoded, should be fixed how we validate input
         if (x_ == "gaussian") {
           smearingMethod = 0;
         } else if (x_ == "adaptiveGaussian") {
@@ -672,7 +674,6 @@ void Context::setupFromInput(std::string fileName) {
         epaDeltaEnergy = parseDoubleWithUnits(val);
       }
 
-
       // ELPH coupling plot App
 
       if (parameterName == "g2PlotStyle") {
@@ -681,7 +682,7 @@ void Context::setupFromInput(std::string fileName) {
 
       if (parameterName == "g2FixedPoint") {
         std::vector<double> x = parseDoubleList(val);
-        for ( auto i : {0,1,2}) {
+        for (auto i : {0, 1, 2}) {
           g2PlotFixedPoint(i) = x[i];
         }
       }
@@ -706,7 +707,7 @@ void Context::setupFromInput(std::string fileName) {
 
       //////////////////////////////////////////
 
-    } else {  // it might be a block, or its content
+    } else { // it might be a block, or its content
 
       auto tup = parseBlockNameValue(lines, lineCounter);
       auto blockName = std::get<0>(tup);
@@ -750,12 +751,8 @@ std::string Context::getElectronH0Name() { return electronH0Name; }
 
 void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
 
-std::string Context::getWannier90Prefix() {
-  return wannier90Prefix;
-}
-void Context::setWannier90Prefix(const std::string x) {
-  wannier90Prefix = x;
-}
+std::string Context::getWannier90Prefix() { return wannier90Prefix; }
+void Context::setWannier90Prefix(const std::string x) { wannier90Prefix = x; }
 std::string Context::getQuantumEspressoPrefix() {
   return quantumEspressoPrefix;
 }
@@ -763,13 +760,11 @@ void Context::setQuantumEspressoPrefix(const std::string x) {
   quantumEspressoPrefix = x;
 }
 
-std::string Context::getElPhInterpolation() {
-  return elPhInterpolation;
-}
+std::string Context::getElPhInterpolation() { return elPhInterpolation; }
 
-double Context::getEpaSmearingEnergy() {return epaSmearingEnergy;}
+double Context::getEpaSmearingEnergy() { return epaSmearingEnergy; }
 
-double Context::getEpaDeltaEnergy() {return epaDeltaEnergy;}
+double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -838,7 +833,7 @@ void Context::setInputSpeciesNames(const std::vector<std::string> x) {
 }
 
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
-std::vector<std::string> Context::getPathLabels() {return pathLabels; }
+std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
 double Context::getDeltaPath() { return deltaPath; }
 
@@ -862,6 +857,9 @@ void Context::setSmearingWidth(const double x) { smearingWidth = x; }
 double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 
 bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
+void Context::setScatteringMatrixInMemory(const bool &x) {
+  scatteringMatrixInMemory = x;
+}
 
 Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 
@@ -869,23 +867,23 @@ bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
 double Context::getBoundaryLength() { return boundaryLength; }
 
-double Context::getMinChemicalPotential() {return minChemicalPotential;}
+double Context::getMinChemicalPotential() { return minChemicalPotential; }
 
-double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
+double Context::getMaxChemicalPotential() { return maxChemicalPotential; }
 
-double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
+double Context::getDeltaChemicalPotential() { return deltaChemicalPotential; }
 
-double Context::getMinTemperature() {return minTemperature;}
+double Context::getMinTemperature() { return minTemperature; }
 
-double Context::getMaxTemperature() {return maxTemperature;}
+double Context::getMaxTemperature() { return maxTemperature; }
 
-double Context::getDeltaTemperature() {return deltaTemperature;}
+double Context::getDeltaTemperature() { return deltaTemperature; }
 
-double Context::getEnergyRange() {return energyRange;}
+double Context::getEnergyRange() { return energyRange; }
 
-double Context::getEnergyStep() {return energyStep;}
+double Context::getEnergyStep() { return energyStep; }
 
-double Context::getEFermiRange() {return eFermiRange;}
+double Context::getEFermiRange() { return eFermiRange; }
 
 std::string Context::getG2PlotStyle() { return g2PlotStyle; }
 void Context::setG2PlotStyle(const std::string x) { g2PlotStyle = x; }
