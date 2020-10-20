@@ -13,6 +13,8 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
       outerBose(outerBose_),
       smearingType(smearingType_),
       h0(h0_) {
+
+  storedAllQ3 = false;
   // three conditions must be met to avoid recomputing q3
   // 1 - q1 and q2 mesh must be the same
   // 2 - the mesh is gamma-centered
@@ -117,7 +119,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
  */
 std::tuple<Eigen::Vector3d, Eigen::VectorXd, long, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
-Helper3rdState ::get(Point &point1, Point &point2, const int &thisCase) {
+Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
   Eigen::Vector3d q3;
   if (thisCase == casePlus) {
     q3 = point1.getCoords(Points::cartesianCoords) +

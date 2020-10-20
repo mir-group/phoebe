@@ -21,6 +21,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   auto t1 = outerBandStructure.getPoints().getMesh();
 //  auto mesh = std::get<0>(t1);
   auto offset = std::get<1>(t1);
+  storedAllQ3 = false;
 
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
