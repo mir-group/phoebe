@@ -1,10 +1,10 @@
 #ifndef CRYSTAL_H
 #define CRYSTAL_H
 
+#include "eigen.h"
 #include <Eigen/Core>
 #include <string>
 #include <vector>
-#include "eigen.h"
 
 struct SymmetryOperation {
   Eigen::Matrix3d rotation;
@@ -16,7 +16,7 @@ struct SymmetryOperation {
  * Note that fractional occupancies are not supported.
  */
 class Crystal {
- private:
+private:
   /** utility function to invert the direct unit cell
    *
    */
@@ -43,20 +43,20 @@ class Crystal {
   long dimensionality;
 
   // these vectors/matrices  running over the number of atoms
-  Eigen::MatrixXd atomicPositions; // size (numAtoms,3)
-  Eigen::VectorXi atomicSpecies; // size (numAtoms)
+  Eigen::MatrixXd atomicPositions;      // size (numAtoms,3)
+  Eigen::VectorXi atomicSpecies;        // size (numAtoms)
   std::vector<std::string> atomicNames; // size (numAtoms)
-  Eigen::VectorXd atomicMasses; // size (numAtoms)
+  Eigen::VectorXd atomicMasses;         // size (numAtoms)
 
   // vectors running over the number of species
   std::vector<std::string> speciesNames; // size (numSpecies)
-  Eigen::VectorXd speciesMasses; // size (numSpecies)
+  Eigen::VectorXd speciesMasses;         // size (numSpecies)
 
   // Untested for now
   std::vector<SymmetryOperation> symmetryOperations;
   int numSymmetries;
 
- public:
+public:
   /** Class containing the information on the crystal structure
    * Note: a number of important quantities used throughout the code are
    * referenced here, so check if it does go out of scope.
@@ -165,6 +165,50 @@ class Crystal {
   /** Return the number of atomic species present in the crystal
    */
   long getNumSpecies();
+
+  /** Build the list of Bravais lattice vectors (real space) that live within
+   * the Wigner Seitz zone of a supercell
+   * which is grid(0) x grid(1) x grid(2) bigger than the unitCell.
+   *
+   * @param grid: size of the supercell for the WS construction.
+   * @param supercellFactor: in order to do the correct folding of wavevectors,
+   * we look for wavevectors in a slightly bigger supercell. A factor 2 should
+   * be enough, but could be increased if the code fails to find all vectors.
+   * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
+   * coordinates and their degeneracies(numVectors).
+   * Note: the weights to be used for integrations are 1/degeneracies.
+   */
+  std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
+  buildWignerSeitzVectors(const Eigen::Vector3i &grid,
+                          const int &supercellFactor = 2);
+
+  /** Similar to buildWignerSeitzVectors, we build the list of Bravais lattice
+   * vectors (real space) that live within the Wigner Seitz zone of a supercell
+   * which is grid(0) x grid(1) x grid(2) bigger than the unitCell.
+   * However, the vectors are slightly shifted. For example, for phonons, we
+   * want the vectors R+tau(3,na)-tau(3,nb), where tau are atomic positions.
+   * A similar transform may be used for the Wannier transformation, where the
+   * WS is centered on the Wannier-functions' centers.
+   *
+   * Note: for a well-converged calculation, the difference between with and
+   * without shift shouldn't make a difference when used in Fourier transforms.
+   * This is because the interactions should decay quickly.
+   *
+   * @param grid: size of the supercell for the WS construction.
+   * @param shift: a shift in cartesian coordinates of shape(3,nDim).
+   * @param supercellFactor: in order to do the correct folding of wavevectors,
+   * we look for wavevectors in a slightly bigger supercell. A factor 2 should
+   * be enough, but could be increased if the code fails to find all vectors.
+   * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
+   * coordinates and their degeneracies(numVectors,nDim,nDim), where the last
+   * two indices must be used in conjunction with the meaning of shift. Some
+   * weights might be set to zero if they don't fall in the WS zone.
+   * Note: the weights to be used for integrations are 1/degeneracies.
+   */
+  std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>>
+  buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
+                                   const Eigen::MatrixXd &shift,
+                                   const int &supercellFactor = 2);
 };
 
 #endif

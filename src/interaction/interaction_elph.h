@@ -9,6 +9,7 @@
 #include "phonon_h0.h"
 #include "points.h"
 #include "utilities.h"
+#include "context.h"
 
 /** Class to handle the coupling between electron and phonons.
  * Currently implements the calculation of the diagram for the interaction
@@ -25,7 +26,6 @@
  */
 // TODO: add flag to let user decide whether to use or not polar corrections
 class InteractionElPhWan {
-private:
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
 
@@ -33,9 +33,9 @@ private:
   // numElBands,numElBands,numPhBands,numPhBravaisVectors,numElBravaisVectors);
 
   Eigen::MatrixXd elBravaisVectors;
-  Eigen::VectorXd elBravaisVectorsWeights;
+  Eigen::VectorXd elBravaisVectorsDegeneracies;
   Eigen::MatrixXd phBravaisVectors;
-  Eigen::VectorXd phBravaisVectorsWeights;
+  Eigen::VectorXd phBravaisVectorsDegeneracies;
 
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
 
@@ -58,6 +58,8 @@ private:
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
 public:
+
+
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
    * @param couplingWannier_: matrix elements of the electron phonon
@@ -82,9 +84,9 @@ public:
       Crystal &crystal_,
       const Eigen::Tensor<std::complex<double>, 5> &couplingWannier_,
       const Eigen::MatrixXd &elBravaisVectors_,
-      const Eigen::VectorXd &elBravaisVectorsWeights_,
+      const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
       const Eigen::MatrixXd &phBravaisVectors_,
-      const Eigen::VectorXd &phBravaisVectorsWeights_,
+      const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
       PhononH0 *phononH0_ = nullptr);
 
   /** Copy constructor
@@ -112,12 +114,13 @@ public:
    * @param k2s: list of k2 wavevectors.
    * @param q3s: list of phonon wavevectors.
    */
-  void calcCouplingSquared(const Eigen::MatrixXcd &el1Eigenvec,
-                           const std::vector<Eigen::MatrixXcd> &el2Eigenvecs,
-                           const std::vector<Eigen::MatrixXcd> &phEigvecs,
-                           const Eigen::Vector3d &k1,
-                           const std::vector<Eigen::Vector3d> &k2s,
-                           const std::vector<Eigen::Vector3d> &q3s);
+  void calcCouplingSquared(
+      const Eigen::MatrixXcd &eigvec1,
+      const std::vector<Eigen::MatrixXcd> &eigvecs2,
+      const std::vector<Eigen::MatrixXcd> &eigvecs3,
+      const Eigen::Vector3d &k1C,
+      const std::vector<Eigen::Vector3d> &k2Cs,
+      const std::vector<Eigen::Vector3d> &q3Cs);
 
   /** Get the coupling for the values of the wavevectors triplet (k1,k2,q3),
    * where k1 is the wavevector used at calcCoupling Squared(),
@@ -138,8 +141,17 @@ public:
    * @param crystal: object describing the crystal unit cell.
    * @return intElPh: an instance of InteractionElPh.
    */
-  static InteractionElPhWan parse(const std::string &fileName, Crystal &crystal,
+  static InteractionElPhWan parse(Context &context, Crystal &crystal,
                                   PhononH0 *phononH0_ = nullptr);
+
+  static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
+      const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+      const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+      const Eigen::Matrix3d &epsilon,
+      const Eigen::Tensor<double, 3> &bornCharges,
+      const Eigen::MatrixXd &atomicPositions,
+      const Eigen::Vector3i &qCoarseMesh);
 };
 
 #endif

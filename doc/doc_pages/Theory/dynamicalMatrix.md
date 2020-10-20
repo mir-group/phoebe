@@ -12,17 +12,17 @@ Due to the periodicity of the crystal, one can set \f$l=0\f$.
 The dynamical matrix is the Fourier transform of this matrix.
 Excluding polar corrections, the dynamical matrix is:
 \begin{equation}
-D(s\alpha | s'\alpha')(q) = \sum_{l'} M(0s\alpha | l's'\alpha') e^{i q \cdot R_{l'}}
+D(s\alpha | s'\alpha')(\boldsymbol{q}) = \sum_{l'} M(0s\alpha | l's'\alpha') e^{i \boldsymbol{q} \cdot \boldsymbol{R}_{l'}}
 \end{equation}
 If ions carry a charge, one must not forget to add an additional term to D:
 \begin{equation}
-D(s\alpha | s'\alpha')(q) += \frac{4\pi}{\Omega} e^2 \frac{ (q \cdot Z^*_s)_{\alpha} (q \cdot Z^*_{s'})_{\alpha'} } { (q \cdot \epsilon^{\infty} \cdot q) }
+D(s\alpha | s'\alpha')(\boldsymbol{q}) += \frac{4\pi}{\Omega} e^2 \frac{ (\boldsymbol{q} \cdot Z^*_s)_{\alpha} (\boldsymbol{q} \cdot Z^*_{s'})_{\alpha'} } { (\boldsymbol{q} \cdot \epsilon^{\infty} \cdot \boldsymbol{q}) }
 \end{equation}
 where \f$Z_{s,\alpha,\beta}\f$ is the Born charge tensor of atom \f$s\f$ and \f$\epsilon^{\infty}\f$ is the static dielectric constant.
 
 The phonon energy and phonon eigenvectors are defined from the diagonalization problem as:
 
 \begin{equation}
-D(s\alpha | s'\alpha')(q) z_{s'\alpha'j}(q) = \omega_{j}^2(q) z_{s\alpha j}(q)
+D(s\alpha | s'\alpha')(\boldsymbol{q}) z_{s'\alpha'j}(\boldsymbol{q}) = \omega_{j}^2(\boldsymbol{q}) z_{s\alpha j}(\boldsymbol{q})
 \end{equation}
 

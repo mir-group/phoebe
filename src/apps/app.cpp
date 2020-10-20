@@ -1,20 +1,15 @@
 #include "app.h"
-//#include "active_bandstructure.h"
 #include "bands_app.h"
-//#include "bandstructure.h"
-//#include "constants.h"
 #include "context.h"
 #include "dos_app.h"
 #include "exceptions.h"
 #include "io.h"
-//#include "particle.h"
 #include "phonon_transport_app.h"
 #include "electron_wannier_transport_app.h"
-//#include "points.h"
+#include "elph_qe_to_phoebe_app.h"
 #include "polarization_app.h"
-//#include "qe_input_parser.h"
 #include "utilities.h"
-//#include "window.h"
+#include "elph_plot_app.h"
 #include <cmath>
 #include <string>
 
@@ -28,7 +23,9 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronWannierBands",
                                             "electronFourierBands",
                                             "electronPolarization",
-                                            "electronWannierTransport"};
+                                            "electronWannierTransport",
+                                            "elPhQeToPhoebe",
+                                            "elPhCouplingPlot"};
 
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
@@ -39,6 +36,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new PhononTransportApp);
   } else if (choice == "electronWannierTransport") {
     return std::unique_ptr<App>(new ElectronWannierTransportApp);
+  } else if (choice == "elPhQeToPhoebe") {
+    return std::unique_ptr<App>(new ElPhQeToPhoebeApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {
@@ -53,6 +52,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronFourierBandsApp);
   } else if (choice == "electronPolarization") {
     return std::unique_ptr<App>(new ElectronPolarizationApp);
+  } else if (choice == "elPhCouplingPlot") {
+    return std::unique_ptr<App>(new ElPhCouplingPlotApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }
