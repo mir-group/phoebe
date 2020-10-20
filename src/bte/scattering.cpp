@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <numeric>  // std::iota
 #include <set>
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <iomanip>
 #include "constants.h"
 #include "mpiHelper.h"
 
@@ -347,6 +350,106 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
       return times;
     }
   }
+}
+
+void ScatteringMatrix::outputToJSON(std::string outFileName) {
+
+  if(!mpi->mpiHead()) return;
+
+  VectorBTE times = getSingleModeTimes();
+
+  std::string energyUnit;
+  std::string particleType;
+  double energyConversion;
+  auto particle = outerBandStructure.getParticle();
+  if(particle.isPhonon()) {
+    energyConversion = ryToCmm1;
+    energyUnit = "cm$^{-1}$";
+    particleType = "phonon";
+  } else {
+    energyConversion = energyRyToEv;
+    energyUnit = "eV";
+    particleType = "electron";
+  }
+
+  // need to store as a vector format with dimensions
+  // icalc, ik. ib, idim (where istate is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
+  std::vector<std::vector<std::vector<double>>> outTimes;
+  std::vector<std::vector<std::vector<std::vector<double>>>> velocities;
+  std::vector<std::vector<std::vector<double>>> energies;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    std::vector<std::vector<double>> wavevectorsT;
+    std::vector<std::vector<std::vector<double>>> wavevectorsV;
+    std::vector<std::vector<double>> wavevectorsE;
+    // loop over wavevectors
+    for (int ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
+      auto ikIndex = WavevectorIndex(ik);
+
+      std::vector<double> bandsT;
+      std::vector<std::vector<double>> bandsV;
+      std::vector<double> bandsE;
+      // loop over bands here
+      // get numBands at this point, in case it's an active bandstructure
+      for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
+        auto ibIndex = BandIndex(ib);
+        int is = outerBandStructure.getIndex(ikIndex,ibIndex);
+        double ene = outerBandStructure.getEnergy(is);
+        auto vel = outerBandStructure.getGroupVelocity(is);
+        bandsE.push_back(ene * energyConversion);
+        double tau = times(iCalc, 0, is); // only zero dim is meaningful
+        bandsT.push_back(tau * timeRyToFs);
+
+        std::vector<double> iDimsV;
+        // loop over dimensions
+        for (int iDim = 0; iDim < dimensionality_; iDim++) {
+          iDimsV.push_back(vel[iDim] * velocityRyToSi);
+        }
+        bandsV.push_back(iDimsV);
+      }
+      wavevectorsT.push_back(bandsT);
+      wavevectorsV.push_back(bandsV);
+      wavevectorsE.push_back(bandsE);
+    }
+    outTimes.push_back(wavevectorsT);
+    velocities.push_back(wavevectorsV);
+    energies.push_back(wavevectorsE);
+  }
+
+  auto points = outerBandStructure.getPoints();
+  std::vector<std::vector<double>> meshCoords;
+  for (long ik = 0; ik < outerBandStructure.getNumPoints(); ik++) {
+    // save the wavevectors
+    auto coord = points.getPointCoords(ik);
+    meshCoords.push_back({coord[0],coord[1],coord[2]});
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["velocities"] = velocities;
+  output["velocityUnit"] = "m/s";
+  output["energies"] = energies;
+  output["energyUnit"] = energyUnit;
+  output["wavevectorCoordinates"] = meshCoords;
+  output["coordsType"] = "lattice";
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
 }
 
 std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {

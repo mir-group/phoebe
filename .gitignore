@@ -1,6 +1,9 @@
 # Build folders
 *build*/
 
+# Output files
+*.json
+
 # Prerequisites
 *.d
 

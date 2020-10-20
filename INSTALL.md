@@ -58,11 +58,11 @@ Then type
 There can be trouble linking to the libgfortran files required by scalapack.
 If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH:
 ```
-export LD_LIBRARY_PATH=/path/to/libgfortran/
+export LIBRARY_PATH=/path/to/libgfortran/
 ```
 If using homebrew installed gcc, you might need to add the cellar copy rather than the
 one located with gcc:
 ```
-export LD_LIBRARY_PATH=/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/
+export LIBRARY_PATH=/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/
 ```
 

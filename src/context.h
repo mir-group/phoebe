@@ -58,6 +58,7 @@ class Context {
   std::vector<std::string> inputSpeciesNames;
 
   Eigen::Tensor<double, 3> pathExtrema;
+  std::vector<std::string> pathLabels;
   double deltaPath = 0.05;
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
@@ -209,6 +210,7 @@ class Context {
    * @return x: the vector of values for chemical potentials
    */
   Eigen::VectorXd getDopings();
+  void setDopings(const Eigen::VectorXd x);
 
   /** gets the value of temperatures (in Rydbergs) to be used in the
    * calculation of transport properties
@@ -246,6 +248,7 @@ class Context {
   void setInputSpeciesNames(const std::vector<std::string> x);
 
   Eigen::Tensor<double, 3> getPathExtrema();
+  std::vector<std::string> getPathLabels();
 
   double getDeltaPath();
 

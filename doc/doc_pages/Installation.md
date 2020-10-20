@@ -107,9 +107,9 @@ Tested on Ubuntu 20.04.
 We have experienced troubles linking the SCALAPACK library, especially when linking it together with the libgfortran library.
 If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH:
 ~~~~~~~~~~~~~~~~~~~{.c}
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libgfortran/
+  export LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libgfortran/
 ~~~~~~~~~~~~~~~~~~~
 In particular, if you are using a version of gcc installed using homebrew, you might need to link the `Cellar` copy of libgfortran. As an example working for gcc v9.3.0_1 is: 
 ~~~~~~~~~~~~~~~~~~~{.c}
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/) 
+  export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/) 
 ~~~~~~~~~~~~~~~~~~~

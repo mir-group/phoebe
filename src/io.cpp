@@ -6,6 +6,8 @@
 #include <math.h>
 #include <time.h>
 
+#include <nlohmann/json.hpp>
+
 // Utility to get the command line option from it's name
 char *getCmdOption(char **begin, char **end, const std::string &option) {
   char **itr = std::find(begin, end, option);

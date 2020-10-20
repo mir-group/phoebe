@@ -73,6 +73,7 @@ void ElectronWannierTransportApp::run(Context &context) {
                                       context);
   transportCoeffs.calcFromPopulation(nERTA, nTRTA);
   transportCoeffs.print();
+  transportCoeffs.outputToJSON("onsager_coefficients.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "\n";
