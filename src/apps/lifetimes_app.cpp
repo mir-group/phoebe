@@ -9,7 +9,8 @@
 #include "qe_input_parser.h"
 #include "ifc3_parser.h"
 
-void ElLifetimesApp::run(Context &context) {
+void ElectronLifetimesApp::run(Context &context) {
+  context.setScatteringMatrixInMemory(false);
 
   auto t2 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
@@ -53,7 +54,9 @@ void ElLifetimesApp::run(Context &context) {
   mpi->barrier();
 }
 
-void PhLifetimesApp::run(Context &context) {
+void PhononLifetimesApp::run(Context &context) {
+  context.setScatteringMatrixInMemory(false);
+
   auto t2 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
@@ -89,7 +92,7 @@ void PhLifetimesApp::run(Context &context) {
   mpi->barrier();
 }
 
-void ElLifetimesApp::checkRequirements(Context &context) {
+void ElectronLifetimesApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getPhD2FileName(), "phD2FileName");
   throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
@@ -106,7 +109,7 @@ void ElLifetimesApp::checkRequirements(Context &context) {
   }
 }
 
-void PhLifetimesApp::checkRequirements(Context &context) {
+void PhononLifetimesApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD2FileName(), "phD2FileName");
   throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
   throwErrorIfUnset(context.getPhD3FileName(), "phD3FileName");

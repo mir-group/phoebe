@@ -6,7 +6,7 @@
 
 /** Driver for computing electronic lifetimes on a path
  */
-class ElLifetimesApp: public App {
+class ElectronLifetimesApp: public App {
 public:
   void run(Context &context);
   void checkRequirements(Context &context);
@@ -14,7 +14,7 @@ public:
 
 /** Driver for computing phonon lifetimes on a path
  */
-class PhLifetimesApp: public App {
+class PhononLifetimesApp: public App {
 public:
   void run(Context &context);
   void checkRequirements(Context &context);
