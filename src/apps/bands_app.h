@@ -4,26 +4,25 @@
 #include "app.h"
 #include "path_points.h"
 
-class PhononBandsApp: public App {
+class PhononBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context);
+  void checkRequirements(Context &context);
 };
 
-class ElectronWannierBandsApp: public App {
+class ElectronWannierBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context);
+  void checkRequirements(Context &context);
 };
 
-class ElectronFourierBandsApp: public App {
+class ElectronFourierBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context);
+  void checkRequirements(Context &context);
 };
 
-void outputBandsToJSON(FullBandStructure& fullBandStructure,
-                       Context& context, PathPoints& pathPoints,
-                       std::string outFileName);
+void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
+                       PathPoints &pathPoints, std::string outFileName);
 
 #endif
