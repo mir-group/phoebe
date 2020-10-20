@@ -352,23 +352,57 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
   }
 }
 
+// to compute the RTA, get the single mode relaxation times
+VectorBTE ScatteringMatrix::getLinewidths() {
+  if (constantRTA) {
+    double crt = context.getConstantRelaxationTime();
+    VectorBTE linewidths(statisticsSweep, outerBandStructure, 1);
+    linewidths.setConst(1./crt);
+    linewidths.excludeIndeces = excludeIndeces;
+    return linewidths;
+  } else {
+    VectorBTE linewidths = internalDiagonal;
+    if (isMatrixOmega) {
+      linewidths.excludeIndeces = excludeIndeces;
+      return linewidths;
+    } else {  // A_nu,nu = N(1+-N) / tau
+      auto particle = outerBandStructure.getParticle();
+      for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
+        auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStatistics.temperature;
+        double chemPot = calcStatistics.chemicalPotential;
+
+        for (long is = 0; is < internalDiagonal.numStates; is++) {
+          double en = outerBandStructure.getEnergy(is);
+
+          // n(n+1) for bosons, n(1-n) for fermions
+          double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+
+          linewidths(iCalc, 0, is) /= popTerm;
+        }
+      }
+      linewidths.excludeIndeces = excludeIndeces;
+      return linewidths;
+    }
+  }
+}
+
 void ScatteringMatrix::outputToJSON(std::string outFileName) {
 
   if(!mpi->mpiHead()) return;
 
   VectorBTE times = getSingleModeTimes();
+  VectorBTE tmpLinewidths = getLinewidths();
 
   std::string energyUnit;
   std::string particleType;
   double energyConversion;
   auto particle = outerBandStructure.getParticle();
+  energyConversion = energyRyToEv;
+  energyUnit = "eV";
   if(particle.isPhonon()) {
-    energyConversion = ryToCmm1;
-    energyUnit = "cm$^{-1}$";
     particleType = "phonon";
   } else {
-    energyConversion = energyRyToEv;
-    energyUnit = "eV";
     particleType = "electron";
   }
 
@@ -376,6 +410,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   // icalc, ik. ib, idim (where istate is unfolded into
   // ik, ib) for the velocities and lifetimes, no dim for energies
   std::vector<std::vector<std::vector<double>>> outTimes;
+  std::vector<std::vector<std::vector<double>>> outLinewidths;
   std::vector<std::vector<std::vector<std::vector<double>>>> velocities;
   std::vector<std::vector<std::vector<double>>> energies;
   std::vector<double> temps;
@@ -389,6 +424,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
     chemPots.push_back(chemPot * energyConversion);
 
     std::vector<std::vector<double>> wavevectorsT;
+    std::vector<std::vector<double>> wavevectorsL;
     std::vector<std::vector<std::vector<double>>> wavevectorsV;
     std::vector<std::vector<double>> wavevectorsE;
     // loop over wavevectors
@@ -396,6 +432,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
       auto ikIndex = WavevectorIndex(ik);
 
       std::vector<double> bandsT;
+      std::vector<double> bandsL;
       std::vector<std::vector<double>> bandsV;
       std::vector<double> bandsE;
       // loop over bands here
@@ -408,6 +445,8 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
         bandsE.push_back(ene * energyConversion);
         double tau = times(iCalc, 0, is); // only zero dim is meaningful
         bandsT.push_back(tau * timeRyToFs);
+        double linewidth = tmpLinewidths(iCalc, 0, is); // only zero dim is meaningful
+        bandsL.push_back(linewidth * energyRyToEv);
 
         std::vector<double> iDimsV;
         // loop over dimensions
@@ -417,10 +456,12 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
         bandsV.push_back(iDimsV);
       }
       wavevectorsT.push_back(bandsT);
+      wavevectorsL.push_back(bandsL);
       wavevectorsV.push_back(bandsV);
       wavevectorsE.push_back(bandsE);
     }
     outTimes.push_back(wavevectorsT);
+    outLinewidths.push_back(wavevectorsL);
     velocities.push_back(wavevectorsV);
     energies.push_back(wavevectorsE);
   }
@@ -438,6 +479,8 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
+  output["linewidths"] = outLinewidths;
+  output["linewidthsUnit"] = "eV";
   output["relaxationTimes"] = outTimes;
   output["relaxationTimeUnit"] = "fs";
   output["velocities"] = velocities;

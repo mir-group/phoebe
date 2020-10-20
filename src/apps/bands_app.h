@@ -2,6 +2,7 @@
 #define BANDSAPP_H
 
 #include "app.h"
+#include "path_points.h"
 
 class PhononBandsApp: public App {
 public:
@@ -20,5 +21,9 @@ public:
     void run(Context &context);
     void checkRequirements(Context &context);
 };
+
+void outputBandsToJSON(FullBandStructure& fullBandStructure,
+                       Context& context, PathPoints& pathPoints,
+                       std::string outFileName);
 
 #endif

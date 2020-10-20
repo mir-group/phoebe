@@ -180,7 +180,7 @@ void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
   if ( !mpi->mpiHead()) return;
 
   // convert energies
-  double energyConversion = particle.isPhonon() ? ryToCmm1 : energyRyToEv;
+  double energyConversion = energyRyToEv;
   for (unsigned int i = 0; i < energies.size(); i++) {
     energies[i] *= energyConversion;
     dos[i] /= energyConversion;
@@ -190,8 +190,8 @@ void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
   output["energies"] = energies;
   output["dos"] = dos;
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
-  output["energyUnit"] =  particle.isPhonon() ? "cm$^{-1}$" : "eV";
-  output["dosUnit"] = particle.isPhonon() ? "1/(cm$^{-1}$)" : "1/eV";
+  output["energyUnit"] =  "eV";
+  output["dosUnit"] = "1/eV";
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
   if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {

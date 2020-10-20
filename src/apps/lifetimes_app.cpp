@@ -8,6 +8,7 @@
 #include "path_points.h"
 #include "qe_input_parser.h"
 #include "ifc3_parser.h"
+#include "bands_app.h"
 
 void ElectronLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
@@ -87,8 +88,9 @@ void PhononLifetimesApp::run(Context &context) {
                                       fullBandStructure, pathBandStructure,
                                       &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
-  VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
 
+  scatteringMatrix.outputToJSON("path_relaxation_times.json");
+  outputBandsToJSON(pathBandStructure, context, pathPoints, "path_bandstructure.json");
   mpi->barrier();
 }
 
