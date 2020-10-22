@@ -191,9 +191,16 @@ Let \f$ \big| \psi^{QE} \big> \f$ be the wavefunction computed by QE at point k 
   where \f$L\f$ comes from the Cholesky decomposition of
   \f$( 1 + U^{\dagger} \Delta U ) = LL^{\dagger}\f$.
 * Redefine \f$\tilde{U} = UL\f$ (this matrix is unitary by construction).
-  Finally, the wavefunction at the point k is \f$ U \big| \psi^{QE} \big> \f$
+  Finally, the wavefunction at the point k is \f$ \tilde{U} \big| \psi^{QE} \big> \f$
 
-This procedure has been implemented.
+This procedure has been implemented in QE, in the file `c_bands.f90`.
+
+Note that there is a catch for entangled bands.
+In building the unitary matrix \f$U\f$, we assumed completeness of the wavefunction set.
+If you are Wannierizing disentangled bands, this is fine.
+If you are trying to disentangle some bands, than it is possible that, by choosing the number of bands to be computed, we may cut through a group of degenerate bands.
+If this happens, the last block of the matrix \f$U\f$ may not be unitary, not just because of numerical noise, but because of breaking the completeness relation.
+We checked that, as long as you are discarding such bands in the disentangling procedure, the Wannierized wavefunctions should be fine.
 
 Final comments:
 
