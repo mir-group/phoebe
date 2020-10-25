@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
   // decide which app to use
   std::unique_ptr<App> app = App::loadApp(context.getAppName());
   if (mpi->mpiHead()) {
-    std::cout << "Starting App \"" + context.getAppName() + "\".\n" << std::endl;
+    std::cout << "Launching App \"" + context.getAppName() + "\".\n" << std::endl;
   }
 
   // check that the user passed all the necessary input

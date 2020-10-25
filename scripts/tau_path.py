@@ -69,24 +69,31 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
     
     # if fermiLevel as set in the input file,
     # we can also read it in and plot it
-    if('fermiLevel' in data):
-        plt.axhline(0, color='grey', ls='--')
-        energyLabel = r'E-E$_F$ [' + data2['energyUnit'] +']'
-    # if it wasn't set, we won't subtract
-    # anything from the band energies
+
+    energyLabel = ''
+    if mu is not None:
+        energyLabel += r'E-E$_F$'
+        plt.axhline(0., color='grey', ls='--')
+        energy -= mu
     else:
-        mu = 0.
-        energyLabel = r'Energy $\pm$ 10$\cdot$linewith [' + data2['energyUnit'] +']'
+        energyLabel += 'Energy'
+    
+    if magFactor == 1.:
+        energyLabel += r' $\pm$ linewith'
+    else:
+        energyLabel += r' $\pm$ {}$\cdot$linewith'.format(magFactor)
+        
+    energyLabel += ' [' + data2['energyUnit'] +']'
         
     # plot the bands
     numBands = len(energies[0,:])
     for i in range(numBands):
-        plt.plot(points, energies[:,i] - mu, 'k-', color='royalblue')
+        plt.plot(points, energies[:,i], 'k-', color='royalblue')
         
         error = linewidth[:,i]
         plt.fill_between(points,
-                         energies[:,i] - mu - error*magFactor,
-                         energies[:,i] - mu + error*magFactor,
+                         energies[:,i] - error*magFactor,
+                         energies[:,i] + error*magFactor,
                          color="orange",alpha=0.5)
         # *10 is a magnification factor
         
@@ -94,8 +101,7 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
     plt.xticks(pathTicks,pathLabels,fontsize=12)
     plt.yticks(fontsize=12)
     plt.ylabel(energyLabel,fontsize=14)
-    # plt.ylim(None, None)
-    plt.ylim(-20,20)
+    plt.ylim(None, None)
     plt.xlim(points[0],points[-1])
 
     plt.axhline(0, color='grey', ls='-')
