@@ -157,49 +157,52 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       }
       loopPrint.update();
       pointHelper.prepare(k1C, ik2Indexes);
+      int nk2 = ik2Indexes.size();
+      std::vector<Eigen::Vector3d> allQ3C(nk2);
+      std::vector<Eigen::VectorXd> allStates3Energies(nk2);
+      std::vector<int> allNb3(nk2);
+      std::vector<Eigen::MatrixXcd> allEigvecs3(nk2);
+      std::vector<Eigen::MatrixXd> allV3s(nk2);
+      std::vector<Eigen::MatrixXd> allBose3Data(nk2);
 
-      std::vector<Eigen::Vector3d> allQ3C(ik2Indexes.size());
-      std::vector<Eigen::VectorXd> allStates3Energies(ik2Indexes.size());
-      std::vector<int> allNb3(ik2Indexes.size());
-      std::vector<Eigen::MatrixXcd> allEigvecs3(ik2Indexes.size());
-      std::vector<Eigen::MatrixXd> allV3s(ik2Indexes.size());
-      std::vector<Eigen::MatrixXd> allBose3Data(ik2Indexes.size());
+      std::vector<Eigen::Vector3d> allK2C(nk2);
+      std::vector<Eigen::MatrixXcd> allEigvecs2(nk2);
+      std::vector<Eigen::VectorXd> allState2Energies(nk2);
+      std::vector<Eigen::MatrixXd> allV2s(nk2);
 
-      std::vector<Eigen::Vector3d> allK2C(ik2Indexes.size());
-      std::vector<Eigen::MatrixXcd> allEigvecs2(ik2Indexes.size());
-      std::vector<Eigen::VectorXd> allState2Energies(ik2Indexes.size());
-      std::vector<Eigen::MatrixXd> allV2s(ik2Indexes.size());
-
+      int ik2Counter = -1;
       for (long ik2 : ik2Indexes) {
+        ik2Counter++;
         WavevectorIndex ik2Index(ik2);
-        allK2C[ik2] = outerBandStructure.getWavevector(ik2Index);
-        allState2Energies[ik2] = outerBandStructure.getEnergies(ik2Index);
-        allV2s[ik2] = outerBandStructure.getGroupVelocities(ik2Index);
-        allEigvecs2[ik2] = outerBandStructure.getEigenvectors(ik2Index);
-
-        auto t2 = pointHelper.get(k1C, ik2);
-        allQ3C[ik2] = std::get<0>(t2);
-        allStates3Energies[ik2] = std::get<1>(t2);
-        allNb3[ik2] = std::get<2>(t2);
-        allEigvecs3[ik2] = std::get<3>(t2);
-        allV3s[ik2] = std::get<4>(t2);
-        allBose3Data[ik2] = std::get<5>(t2);
+        allK2C[ik2Counter] = outerBandStructure.getWavevector(ik2Index);
+        allState2Energies[ik2Counter] = outerBandStructure.getEnergies(ik2Index);
+        allV2s[ik2Counter] = outerBandStructure.getGroupVelocities(ik2Index);
+        allEigvecs2[ik2Counter] = outerBandStructure.getEigenvectors(ik2Index);
+        auto t2 = pointHelper.get(k1C, ik2Counter);
+        allQ3C[ik2Counter] = std::get<0>(t2);
+        allStates3Energies[ik2Counter] = std::get<1>(t2);
+        allNb3[ik2Counter] = std::get<2>(t2);
+        allEigvecs3[ik2Counter] = std::get<3>(t2);
+        allV3s[ik2Counter] = std::get<4>(t2);
+        allBose3Data[ik2Counter] = std::get<5>(t2);
       }
 
       couplingElPhWan->calcCouplingSquared(eigvec1, allEigvecs2, allEigvecs3,
                                            k1C, allK2C, allQ3C);
 
+      ik2Counter = -1;
       for (auto ik2Irr : ik2Indexes) {
-        auto coupling = couplingElPhWan->getCouplingSquared(ik2Irr);
+        ik2Counter++;
+        auto coupling = couplingElPhWan->getCouplingSquared(ik2Counter);
 
-        Eigen::VectorXd state2Energies = allState2Energies[ik2Irr];
+        Eigen::VectorXd state2Energies = allState2Energies[ik2Counter];
         int nb2 = state2Energies.size();
-        Eigen::MatrixXd v2s = allV2s[ik2Irr];
+        Eigen::MatrixXd v2s = allV2s[ik2Counter];
 
-        int nb3 = allNb3[ik2Irr];
-        Eigen::VectorXd state3Energies = allStates3Energies[ik2Irr];
-        Eigen::VectorXd bose3Data = allBose3Data[ik2Irr];
-        Eigen::MatrixXd v3s = allV3s[ik2Irr];
+        int nb3 = allNb3[ik2Counter];
+        Eigen::VectorXd state3Energies = allStates3Energies[ik2Counter];
+        Eigen::VectorXd bose3Data = allBose3Data[ik2Counter];
+        Eigen::MatrixXd v3s = allV3s[ik2Counter];
 
         int ib2, ib3;
 #pragma omp parallel for private(ib2, ib3) collapse(3)
@@ -218,17 +221,17 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                                      BandIndex(ib1));
               int ind2 = outerBandStructure.getIndex(WavevectorIndex(ik2Irr),
                                                      BandIndex(ib2));
-              //
-              //              if (switchCase == 0) {
-              //                // note: above we are parallelizing over
-              //                wavevectors.
-              //                // (for convenience of computing coupling3ph)
-              //                // Not the same way as Matrix() is parallelized.
-              //                // here we check that we don't duplicate efforts
-              //                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
-              //                  continue;
-              //                }
-              //              }
+
+//              if (switchCase == 0) {
+//                // note: above we are parallelizing over
+//                wavevectors.
+//                // (for convenience of computing coupling3ph)
+//                // Not the same way as Matrix() is parallelized.
+//                // here we check that we don't duplicate efforts
+//                if (!theMatrix.indecesAreLocal(ind1, ind2)) {
+//                  continue;
+//                }
+//              }
 
               double delta1, delta2;
               if (smearing->getType() == DeltaFunction::gaussian) {

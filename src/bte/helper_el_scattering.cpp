@@ -186,7 +186,6 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
   } else {
     // otherwise, q3 doesn't fall into the same grid
     // and we must therefore compute it from the hamiltonian
-
     Eigen::VectorXd energies3;
     Eigen::MatrixXcd eigvecs3;
     Eigen::MatrixXd v3s;
@@ -206,7 +205,6 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
                                  const std::vector<long> k2Indexes) {
   if (!storedAllQ3) {
     int numPoints = k2Indexes.size();
-
     cacheEnergies.resize(numPoints);
     cacheEigvecs.resize(numPoints);
     cacheBose.resize(numPoints);
@@ -214,7 +212,9 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
 
     Particle particle = h0.getParticle();
 
+    int ik2Counter = -1;
     for (long ik2 : k2Indexes) {
+      ik2Counter++;
       Eigen::Vector3d k2 = outerBandStructure.getWavevector(ik2);
 
       Eigen::Vector3d q3 = k2 - k1;
@@ -252,10 +252,10 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
         }
       }
 
-      cacheEnergies[ik2] = energies3;
-      cacheEigvecs[ik2] = eigvecs3;
-      cacheBose[ik2] = bose3Data;
-      cacheVelocity[ik2] = v3s;
+      cacheEnergies[ik2Counter] = energies3;
+      cacheEigvecs[ik2Counter] = eigvecs3;
+      cacheBose[ik2Counter] = bose3Data;
+      cacheVelocity[ik2Counter] = v3s;
 
     }
   }

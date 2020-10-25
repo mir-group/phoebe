@@ -230,7 +230,9 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
 
     Particle particle = h0->getParticle();
 
+    int iq1Counter = -1;
     for (long iq1 : q1Indexes) {
+      iq1Counter++;
       Eigen::Vector3d q1 =
           outerBandStructure.getPoint(iq1).getCoords(Points::cartesianCoords);
       Eigen::Vector3d q2 =
@@ -289,15 +291,15 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
         }
       }
 
-      cachePlusEnergies[iq1] = energies3Plus;
-      cachePlusEigvecs[iq1] = eigvecs3Plus;
-      cachePlusBose[iq1] = bose3DataPlus;
-      cachePlusVelocity[iq1] = v3sPlus;
+      cachePlusEnergies[iq1Counter] = energies3Plus;
+      cachePlusEigvecs[iq1Counter] = eigvecs3Plus;
+      cachePlusBose[iq1Counter] = bose3DataPlus;
+      cachePlusVelocity[iq1Counter] = v3sPlus;
 
-      cacheMinsEnergies[iq1] = energies3Mins;
-      cacheMinsEigvecs[iq1] = eigvecs3Mins;
-      cacheMinsBose[iq1] = bose3DataMins;
-      cacheMinsVelocity[iq1] = v3sMins;
+      cacheMinsEnergies[iq1Counter] = energies3Mins;
+      cacheMinsEigvecs[iq1Counter] = eigvecs3Mins;
+      cacheMinsBose[iq1Counter] = bose3DataMins;
+      cacheMinsVelocity[iq1Counter] = v3sMins;
     }
   }
 }
