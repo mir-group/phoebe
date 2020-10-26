@@ -126,23 +126,25 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   std::vector<std::tuple<std::vector<long>, long>> kPairIterator =
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
-  HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
+  HelperElScattering pointHelper(outerBandStructure, innerBandStructure,
                                  statisticsSweep, smearing->getType(), h0);
 
   LoopPrint loopPrint("computing scattering matrix", "k-points",
                       kPairIterator.size());
+
+  std::cout << kPairIterator.size() << "!\n";
 
   for (auto t1 : kPairIterator) {
     auto ik2Indexes = std::get<0>(t1);
     auto ik1Irr = std::get<1>(t1);
 
     WavevectorIndex ik1IrrIndex(ik1Irr);
-    Eigen::Vector3d k1IrrC = innerBandStructure.getWavevector(ik1IrrIndex);
+    Eigen::Vector3d k1IrrC = outerBandStructure.getWavevector(ik1IrrIndex);
     Eigen::VectorXd state1Energies =
-        innerBandStructure.getEnergies(ik1IrrIndex);
+        outerBandStructure.getEnergies(ik1IrrIndex);
     int nb1 = state1Energies.size();
-    Eigen::MatrixXd v1sIrr = innerBandStructure.getGroupVelocities(ik1IrrIndex);
-    Eigen::MatrixXcd eigvec1 = innerBandStructure.getEigenvectors(ik1IrrIndex);
+    Eigen::MatrixXd v1sIrr = outerBandStructure.getGroupVelocities(ik1IrrIndex);
+    Eigen::MatrixXcd eigvec1 = outerBandStructure.getEigenvectors(ik1IrrIndex);
 
     //    auto rotations =
     //    innerBandStructure.getPoints().getRotationsStar(ik1Irr); for
@@ -176,10 +178,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     for (long ik2 : ik2Indexes) {
       ik2Counter++;
       WavevectorIndex ik2Index(ik2);
-      allK2C[ik2Counter] = outerBandStructure.getWavevector(ik2Index);
-      allState2Energies[ik2Counter] = outerBandStructure.getEnergies(ik2Index);
-      allV2s[ik2Counter] = outerBandStructure.getGroupVelocities(ik2Index);
-      allEigvecs2[ik2Counter] = outerBandStructure.getEigenvectors(ik2Index);
+      allK2C[ik2Counter] = innerBandStructure.getWavevector(ik2Index);
+      allState2Energies[ik2Counter] = innerBandStructure.getEnergies(ik2Index);
+      allV2s[ik2Counter] = innerBandStructure.getGroupVelocities(ik2Index);
+      allEigvecs2[ik2Counter] = innerBandStructure.getEigenvectors(ik2Index);
       auto t2 = pointHelper.get(k1C, ik2);
       allQ3C[ik2Counter] = std::get<0>(t2);
       allStates3Energies[ik2Counter] = std::get<1>(t2);
@@ -219,9 +221,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               continue;
             }
 
-            int ind1 = innerBandStructure.getIndex(WavevectorIndex(ik1Irr),
+            int ind1 = outerBandStructure.getIndex(WavevectorIndex(ik1Irr),
                                                    BandIndex(ib1));
-            int ind2 = outerBandStructure.getIndex(WavevectorIndex(ik2Irr),
+            int ind2 = innerBandStructure.getIndex(WavevectorIndex(ik2Irr),
                                                    BandIndex(ib2));
 
             if (switchCase == 0) {
@@ -250,8 +252,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
             // loop on temperature
             for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-              double fermi1 = innerFermi.data(iCalc, ind1);
-              double fermi2 = outerFermi.data(iCalc, ind2);
+              double fermi1 = outerFermi.data(iCalc, ind1);
+              double fermi2 = innerFermi.data(iCalc, ind2);
               double bose3 = bose3Data(iCalc, ib3);
 
               // Calculate transition probability W+
@@ -277,8 +279,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 //                    }
                 //                  }
                 theMatrix(ind1, ind2) += rateOffDiag;
-
-                linewidth->operator()(iCalc, 0, ind2) += rate;
+                linewidth->operator()(iCalc, 0, ind1) += rate;
               } else if (switchCase == 1) {
                 // case of matrix-vector multiplication
                 // we build the scattering matrix A = S*n(n+1)
@@ -303,14 +304,14 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   //                    }
                   for (int i : {0,1,2}) {
                     outPopulations[iVec](iCalc, i, ind1) +=
-                        rateOffDiag * inPopulations[iVec](iCalc, i, ind1);
+                        rateOffDiag * inPopulations[iVec](iCalc, i, ind2);
                     outPopulations[iVec](iCalc, i, ind1) +=
                         rate * inPopulations[iVec](iCalc, i, ind1);
                   }
                 }
               } else {
                 // case of linewidth construction
-                linewidth->operator()(iCalc, 0, ind2) += rate;
+                linewidth->operator()(iCalc, 0, ind1) += rate;
               }
             }
           }
