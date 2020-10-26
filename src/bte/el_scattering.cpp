@@ -132,8 +132,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   LoopPrint loopPrint("computing scattering matrix", "k-points",
                       kPairIterator.size());
 
-  std::cout << kPairIterator.size() << "!\n";
-
   for (auto t1 : kPairIterator) {
     auto ik2Indexes = std::get<0>(t1);
     auto ik1Irr = std::get<1>(t1);
