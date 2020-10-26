@@ -28,20 +28,17 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   // first we make compute the band structure on the fine grid
-
   FullPoints fullPoints(crystal, context.getKMesh());
+  bool withVelocities = true;
+  bool withEigenvectors = true;
+  FullBandStructure bandStructure = electronH0.populate(
+      fullPoints, withVelocities, withEigenvectors);
+  // set the chemical potentials to zero, load temperatures
+  StatisticsSweep statisticsSweep(context, &bandStructure);
 
-  //  bool withVelocities = true;
-  //  bool withEigenvectors = true;
-  //  FullBandStructure bandStructure = electronH0.populate(
-  //      fullPoints, withVelocities, withEigenvectors);
-  //  // set the chemical potentials to zero, load temperatures
-  //  StatisticsSweep statisticsSweep(context, &bandStructure);
-
-  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
-  auto bandStructure = std::get<0>(t3);
-  auto statisticsSweep = std::get<1>(t3);
-
+//  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
+//  auto bandStructure = std::get<0>(t3);
+//  auto statisticsSweep = std::get<1>(t3);
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);

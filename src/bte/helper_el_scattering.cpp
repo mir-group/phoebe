@@ -34,7 +34,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
     fullPoints3 = std::make_unique<FullPoints>(
         innerBandStructure.getPoints().getCrystal(), mesh, offset);
-
     bool withVelocities = true;
     bool withEigenvectors = true;
     FullBandStructure bs = h0.populate(*fullPoints3, withVelocities,
