@@ -96,7 +96,10 @@ long FullBandStructure::getNumPoints(const bool &useFullGrid) {
 }
 
 long FullBandStructure::getNumBands() { return numBands; }
-long FullBandStructure::getNumBands(WavevectorIndex &ik) { return numBands; }
+long FullBandStructure::getNumBands(WavevectorIndex &ik) {
+  (void) ik;
+  return numBands;
+}
 
 long FullBandStructure::hasWindow() { return 0; }
 
