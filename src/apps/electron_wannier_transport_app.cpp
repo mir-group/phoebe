@@ -11,6 +11,8 @@
 #include "onsager.h"
 #include "qe_input_parser.h"
 #include "specific_heat.h"
+#include "wigner_electron.h"
+#include "electron_viscosity.h"
 
 void ElectronWannierTransportApp::run(Context &context) {
 
@@ -73,6 +75,19 @@ void ElectronWannierTransportApp::run(Context &context) {
   transportCoeffs.calcFromPopulation(nERTA, nTRTA);
   transportCoeffs.print();
   transportCoeffs.outputToJSON("onsager_coefficients.json");
+
+  // compute the Wigner thermal conductivity
+  WignerElCoefficients wignerCoeffs(statisticsSweep, crystal,
+                                  bandStructure, context, relaxationTimes);
+  wignerCoeffs.calcFromPopulation(nERTA,nTRTA);
+  wignerCoeffs.print();
+  wignerCoeffs.outputToJSON("wigner_coefficients.json");
+
+  // compute the thermal conductivity
+  ElectronViscosity elViscosity(statisticsSweep, crystal, bandStructure);
+  elViscosity.calcRTA(relaxationTimes);
+  elViscosity.print();
+  elViscosity.outputToJSON("rta_electron_viscosity.json");
 
   if ( mpi->mpiHead()) {
     std::cout << "\n";
