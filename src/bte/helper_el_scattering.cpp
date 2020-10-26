@@ -25,6 +25,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
+
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case1;
 
@@ -190,10 +191,13 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
-    energies3 = cacheEnergies[ik2];
-    eigvecs3 = cacheEigvecs[ik2];
-    v3s = cacheVelocity[ik2];
-    bose3Data = cacheBose[ik2];
+    // iq2 in input is an index over wavevectors
+    // we need to find the index over the local cache
+    int ik2Counter = ik2 - cacheOffset;
+    energies3 = cacheEnergies[ik2Counter];
+    eigvecs3 = cacheEigvecs[ik2Counter];
+    v3s = cacheVelocity[ik2Counter];
+    bose3Data = cacheBose[ik2Counter];
 
     int nb3 = energies3.size();
     return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
@@ -208,6 +212,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
     cacheEigvecs.resize(numPoints);
     cacheBose.resize(numPoints);
     cacheVelocity.resize(numPoints);
+    cacheOffset = k2Indexes[0];
 
     Particle particle = h0.getParticle();
 
