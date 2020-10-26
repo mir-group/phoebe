@@ -278,7 +278,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 //                  }
                 theMatrix(ind1, ind2) += rateOffDiag;
 
-                linewidth->operator()(iCalc, 0, ind1) += rate;
+                linewidth->operator()(iCalc, 0, ind2) += rate;
               } else if (switchCase == 1) {
                 // case of matrix-vector multiplication
                 // we build the scattering matrix A = S*n(n+1)
