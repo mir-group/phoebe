@@ -321,16 +321,12 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     times.excludeIndeces = excludeIndeces;
     return times;
   } else {
-    VectorBTE times = internalDiagonal;
-    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
-      for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
-        for (long is = 0; is < internalDiagonal.numStates; is++) {
-          times(iCalc, 0, is) = 1. / times(iCalc, 0, is);
-        }
-      }
+    if (isMatrixOmega) {
+      VectorBTE times = internalDiagonal.reciprocal();
       times.excludeIndeces = excludeIndeces;
       return times;
     } else {  // A_nu,nu = N(1+-N) / tau
+      VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
@@ -339,11 +335,9 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 
         for (long is = 0; is < internalDiagonal.numStates; is++) {
           double en = outerBandStructure.getEnergy(is);
-
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-
-          times(iCalc, 0, is) = popTerm / times(iCalc, 0, is);
+          times(iCalc, 0, is) = popTerm / internalDiagonal(iCalc, 0, is);
         }
       }
       times.excludeIndeces = excludeIndeces;
@@ -362,26 +356,28 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     return linewidths;
   } else {
     VectorBTE linewidths = internalDiagonal;
-    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
-      linewidths.excludeIndeces = excludeIndeces;
-      return linewidths;
-    } else {  // A_nu,nu = N(1+-N) / tau
+    linewidths.excludeIndeces = excludeIndeces;
+    if (isMatrixOmega) {
+      // Important note: don't use this for fermions, or you can get rubbish!
+      // the factor popTerm could be = 0!
       auto particle = outerBandStructure.getParticle();
+      if ( particle.isElectron()) {
+        Error e("Attempting to use a numerically unstable quantity");
+      }
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcStatistics.temperature;
         double chemPot = calcStatistics.chemicalPotential;
-
         for (long is = 0; is < internalDiagonal.numStates; is++) {
           double en = outerBandStructure.getEnergy(is);
-
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-
           linewidths(iCalc, 0, is) /= popTerm;
         }
       }
-      linewidths.excludeIndeces = excludeIndeces;
+      return linewidths;
+
+    } else {  // A_nu,nu = N(1+-N) / tau
       return linewidths;
     }
   }
