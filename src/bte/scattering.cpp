@@ -321,16 +321,12 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     times.excludeIndeces = excludeIndeces;
     return times;
   } else {
-    VectorBTE times = internalDiagonal;
-    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
-      for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
-        for (long is = 0; is < internalDiagonal.numStates; is++) {
-          times(iCalc, 0, is) = 1. / times(iCalc, 0, is);
-        }
-      }
+    if (isMatrixOmega) {
+      VectorBTE times = internalDiagonal.reciprocal();
       times.excludeIndeces = excludeIndeces;
       return times;
     } else {  // A_nu,nu = N(1+-N) / tau
+      VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
@@ -339,11 +335,9 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 
         for (long is = 0; is < internalDiagonal.numStates; is++) {
           double en = outerBandStructure.getEnergy(is);
-
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-
-          times(iCalc, 0, is) = popTerm / times(iCalc, 0, is);
+          times(iCalc, 0, is) = popTerm / internalDiagonal(iCalc, 0, is);
         }
       }
       times.excludeIndeces = excludeIndeces;
@@ -362,26 +356,28 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     return linewidths;
   } else {
     VectorBTE linewidths = internalDiagonal;
-    if (isMatrixOmega || innerBandStructure.getParticle().isElectron()) {
-      linewidths.excludeIndeces = excludeIndeces;
-      return linewidths;
-    } else {  // A_nu,nu = N(1+-N) / tau
+    linewidths.excludeIndeces = excludeIndeces;
+    if (isMatrixOmega) {
+      // Important note: don't use this for fermions, or you can get rubbish!
+      // the factor popTerm could be = 0!
       auto particle = outerBandStructure.getParticle();
+      if ( particle.isElectron()) {
+        Error e("Attempting to use a numerically unstable quantity");
+      }
       for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcStatistics.temperature;
         double chemPot = calcStatistics.chemicalPotential;
-
         for (long is = 0; is < internalDiagonal.numStates; is++) {
           double en = outerBandStructure.getEnergy(is);
-
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-
           linewidths(iCalc, 0, is) /= popTerm;
         }
       }
-      linewidths.excludeIndeces = excludeIndeces;
+      return linewidths;
+
+    } else {  // A_nu,nu = N(1+-N) / tau
       return linewidths;
     }
   }
@@ -520,47 +516,47 @@ std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
 std::vector<std::tuple<std::vector<long>, long>>
 ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
                                              const bool &rowMajor) {
-  if ( rowMajor ) {
+  if ( rowMajor ) { // case for el-ph scattering
     if (switchCase != 0) {
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+      // this case is used by el_scattering, to compute lifetimes, or A.f
 
-      size_t a = outerBandStructure.getNumPoints();
-      std::vector<long> outerIterator = mpi->divideWorkIter(a);
+      size_t numOuter = outerBandStructure.getNumPoints();
+      std::vector<long> outerIterator = mpi->divideWorkIter(numOuter);
       // Note: phScatteringMatrix needs iq2 to be the outer loop
       // in order to be efficient!
       std::vector<long> innerIterator(innerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
       std::iota(std::begin(innerIterator), std::end(innerIterator), 0);
 
-      for (long iq1 : innerIterator) {
-        auto t = std::make_tuple(outerIterator, iq1);
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+      for (long iq1 : outerIterator) {
+        auto t = std::make_tuple(innerIterator, iq1);
         pairIterator.push_back(t);
       }
       return pairIterator;
 
-    } else {
+    } else { // case el-ph scattering, matrix in memory
+      // here we operate assuming innerBandStructure=outerBandStructure
 
       // list in form [[0,0],[1,0],[2,0],...]
-      std::set<std::pair<int, int>> x;
+      std::set<std::pair<int, int>> localPairs;
+      // first unpack Bloch Index and get all wavevector pairs
       for (auto tup0 : theMatrix.getAllLocalStates()) {
         auto is1 = std::get<0>(tup0);
         auto is2 = std::get<1>(tup0);
-        auto tup1 = outerBandStructure.getIndex(is1);
+        auto tup1 = innerBandStructure.getIndex(is1);
         auto ik1 = std::get<0>(tup1);
         auto tup2 = outerBandStructure.getIndex(is2);
         auto ik2 = std::get<0>(tup2);
-        std::pair<int, int> xx = std::make_pair(ik1.get(), ik2.get());
-        x.insert(xx);
-      }
-      std::vector<std::pair<int, int>> wavevectorPair;
-      for (auto t : x) {
-        wavevectorPair.push_back(t);
+        std::pair<int, int> x = std::make_pair(ik1.get(), ik2.get());
+        localPairs.insert(x);
       }
 
       // find set of q1
+      // this because we have duplicates with different band indices.
       std::set<long> q1Indexes;
-      for (auto tup : x) {
-        auto iq1 = std::get<1>(tup);
+      for (auto tup : localPairs) {
+        auto iq1 = std::get<0>(tup);
         q1Indexes.insert(iq1);
       }
 
@@ -570,9 +566,9 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
         std::vector<long> q2Indexes;
 
         // note: I'm assuming that the pairs in x are unique
-        for (auto tup : x) {
-          auto iq2 = std::get<0>(tup);
-          auto iq1_ = std::get<1>(tup);
+        for (auto tup : localPairs) {
+          auto iq1_ = std::get<0>(tup);
+          auto iq2 = std::get<1>(tup);
           if (iq1 == iq1_) {
             q2Indexes.push_back(iq2);
           }

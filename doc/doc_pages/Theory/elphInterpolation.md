@@ -94,90 +94,129 @@ As a further minor detail, remember that some bands (like deep core bands) may b
 \subsection COMPELPHQE Computational details, gauge fixing in Quantum ESPRESSO 
 
 The interpolation procedure described above implicitely assumes that the wavefunction \f$\big|b\boldsymbol{k}\big>\f$ has a fixed gauge.
-This is because the rotation \f$U\f$ must act on the same wavefunction used to compute the coupling \f$g\f$.
+In fact, all the quantities above are complex numbers, and the wavefunction is defined within a phase (or, more generally, a unitary rotation).
+In order for the interpolation to work, we must make sure that the wavefunction used for computing all the quantities above are exactly the same coefficient-wise, phase included, and make sure that pw.x, ph.x and wannier90.x operate on the same wavefunctions.
 
-If no gauge is imposed on the Bloch wavefunction, \f$g\f$ is a random function in the Brillouin zone.
-In details: consider the Bloch Hamiltonian \f$H_{\boldsymbol{k}}\f$.
-A DFT code using periodic boundary conditions will diagonalize it to find \f$ H_{\boldsymbol{k}} \psi_{\boldsymbol{k}} = \epsilon_k \psi_{\boldsymbol{k}}\f$.
-However, we can adopt the transformation \f$\psi_{\boldsymbol{k}} \to e^{i \theta_{\boldsymbol{k}}} \psi_{\boldsymbol{k}}\f$ and still have \f$e^{i \theta_{\boldsymbol{k}}} \psi_{\boldsymbol{k}}\f$ be an eigenvector.
-Specifically, the numerical diagonalization procedure doesn't by itself fix a gauge: in fact, we must assume that the diagonalization subroutines produce eigenvectors \f$e^{i \theta_{\boldsymbol{k}}} \psi_{\boldsymbol{k}}\f$ with \f$\theta_{\boldsymbol{k}}\f$ a random number (even diagonalizing twice the Hamiltonian at the same wavevector may give different phases).
+The problem comes from the arbitrariness of the phase choice of an eigenvector of a Hermitian matrix.
+In details: let \f$H_{\boldsymbol{k}}\f$ be a Bloch Hamiltonian.
+The DFT code will diagonalize the Hamiltonian and solvee \f$ H_{\boldsymbol{k}} \psi_{\boldsymbol{k}} = \epsilon_k \psi_{\boldsymbol{k}}\f$.
+For each eigenvector \f$\psi_{\boldsymbol{k}}\f$, we can apply the transformation \f$\psi_{\boldsymbol{k}} \to e^{i \theta_{\boldsymbol{k}}} \psi_{\boldsymbol{k}}\f$ and still have \f$e^{i \theta_{\boldsymbol{k}}} \psi_{\boldsymbol{k}}\f$ an eigenvector.
+Note also that the diagonalization may not have a strategy to fix the phase of the eigenvector: as a result, we may expect that every different run of a DFT code will generate a different phase, effectively behaving as a random number generator.
 
-As a result, we patch the Quantum ESPRESSO code so that everytime the Hamiltonian is diagonalized in a non-self-consistent run, a gauge is fixed.
-NOTA BENE: this implies that we need a nscf calculation before running ph.x!
-We choose the gauge in this way.
-Note that the wavefunction is expanded in a set of plane wave coefficients \f$ \psi_{\boldsymbol{k}} = \sum_{\boldsymbol{G}} c(\boldsymbol{G}) e^{i\boldsymbol{k}\cdot\boldsymbol{G}+i\boldsymbol{k}\cdot\boldsymbol{r}} \f$.
-We fix the gauge such that the zero plane wave coefficient is real and positive: \f$ c(\boldsymbol{G}=0) = (C,0) \f$, with \f$C\f$ being a positive number.
-While this gauge doesn't seem to have much physical value, is very simple to apply numerically.
+We thus patch the Quantum ESPRESSO code to fix a gauge of the wavefunction.
+Additionally, we want to make sure that the wavefunction satisfies rotational symmetries, as this will help us reduce the number of calculations of the electron-phonon coupling at the DFT level.
 
-There still is a catch in case of degenerate eigenvalues.
-Let's make the example of a double-degenerate eigenvalue.
-Let be \f$\psi_1\f$ and \f$\psi_2\f$ be two degenerate eigenvectors, then any \f$ \alpha \psi_1 + \beta \psi_2 \f$ is an eigenvector, as long as the coefficients are properly normalized.
-More generally, in case of \f$n\f$ degenerate eigenvalues, with \f$\psi_i\f$ being the set of eigenvectors spanning the degenerate eigen-subspace, then we can rotate these wavefunctions as \f$ \theta_i = \sum_{j} R_{ij} \psi_{j} \f$, where \f$ R \f$ is any unitary matrix.
-The unitary matrix is non-unique, and therefore it's much harder to fix a gauge for degenerate eigenvalues.
+In a plane-wave code, the wavefunction is expanded in a plane wave basis set as
+\begin{equation}
+\psi_{\boldsymbol{k}} = \sum_{\boldsymbol{G}} c(\boldsymbol{G}) e^{i\boldsymbol{k}\cdot\boldsymbol{G}+i\boldsymbol{k}\cdot\boldsymbol{r}}
+\end{equation}
+Quantum ESPRESSO, stores the plane wave coefficients in `evc(ig,ib)`, where `ib` is a band index and `ig` is a G-vector index.
+Details are described in the source code, but keep in mind that `evc` is parallel-distributed over G-vectors, and that each k-point has a different order of G-vectors.
+If we want to fix the gauge, we must operate on the plane wave coefficients.
 
-We therefore proceed by "fixing" the gauge in a way that is compatible with the wavefunction symmetries.
-The wavefunction, at non-degenerate eigenvalues, satisfies two relations.
-First, \f$ \psi_{\boldsymbol{k}}(\boldsymbol{r}) = \psi_{\boldsymbol{k}+\boldsymbol{G}}(\boldsymbol{r}) \f$ and then\f$ \psi_{S^{-1}\boldsymbol{k}}(\boldsymbol{r}) = \psi_{\boldsymbol{k}}(S\boldsymbol{r}) \f$, where \f$S\f$ is a symmetry operation of the crystal.
-The symmetry operation \f$S\f$ consists of two operations \f$ S=\{R,t\} \f$: a rotation \f$R\f$ and a translation \f$\boldsymbol{t}\f$.
-In terms of these quantities, the symmetry operation on the wavefunction is such that: \f$ \psi_{R\boldsymbol{k}}(\boldsymbol{r}) = \psi_{\boldsymbol{k}}(R^{-1}(\boldsymbol{r}-\boldsymbol{t})) \f$.
-As a consequence, some further relations are:
+The wavefunction satisfies some symmetries.
+Let \f$S\f$ be a symmetry operation of the crystal.
+A symmetry operation consists of a rotation \f$R\f$ and a fractional translation \f$t\f$, that leave the crystal invariant.
+As the wavefunction must transform like the crystal, it can be shown that \f$ \psi_{R\boldsymbol{k}}(\boldsymbol{r}) = \psi_{\boldsymbol{k}}(R^{-1}(\boldsymbol{r}-\boldsymbol{t})) \f$.
+From this symmetry property, one can verify that the following relations hold:
 \begin{equation}
 \epsilon_{R\boldsymbol{k},n} = \epsilon_{\boldsymbol{k}n}
 \end{equation}
 \begin{equation}
+c_{R\boldsymbol{k},n}(\boldsymbol{G}) = e^{-i(R\boldsymbol{k}+\boldsymbol{G}) \cdot \boldsymbol{t}} c_{\boldsymbol{k}n}(R^{-1}\boldsymbol{G})
+\end{equation}
+Additionally, the wavefunction is periodic over the Brillouin zone, i.e. \f$ \psi_{k}(r) = \psi_{k+G'}(r) \f$.
+From this, it follows that:
+\begin{equation}
 \epsilon_{\boldsymbol{k}+\boldsymbol{K},n} = \epsilon_{\boldsymbol{k}n}
 \end{equation}
 \begin{equation}
-c_{R\boldsymbol{k},n}(\boldsymbol{G}) = e^{-i(R\boldsymbol{k}+\boldsymbol{G}) \cdot \boldsymbol{t}} c_{\boldsymbol{k}n}(R^{-1}\boldsymbol{G})
+c_{\boldsymbol{k}+\boldsymbol{G}',n}(\boldsymbol{G})
+=
+c_{\boldsymbol{k}n}(\boldsymbol{G}+\boldsymbol{G}')
 \end{equation}
-\begin{equation}
-c_{\boldsymbol{k}+\boldsymbol{K},n}(\boldsymbol{G}) = c_{\boldsymbol{k}n}(\boldsymbol{G})
-\end{equation}
+Note: Abinit has a very well curated section on the symmetries of the wavefunction <https://docs.abinit.org/theory/wavefunctions/>
 
-Note, crucially, that the rotational/translational symmetries on the plane wave coefficients/ wavefunctions don't apply to degenerate states, due to the state-mixing problems mentioned above.
-That is, the wavefunctions computed at rotated points might be mixed in different ways.
+Before fixing the gauge, we also stress an additional problem: electronic degeneracy.
+If two (or more) energy levels are degenerate, the wavefunction is only defined up to a unitary rotation.
+In fact, let \f$i\f$ span the subspace of degenerate eigenvalues.
+Then, the wavefunctions can be rotated as \f$ \tilde{\psi}_i = \sum_j U_{ij} \psi_j  \f$, with \f$ U \f$ any unitary matrix.
+Therefore, when fixing the gauge, we must also deal with this problem: we must also mix the plane wave coefficients of different degenerate bands.
 
-We therefore fix a gauge for degenerate states and restore the symmetries of the wavefunction by modifying the Quantum-ESPRESSO codebase with the following algorithm:
+The algorithm to fix the gauge in Quantum ESPRESSO goes as follows:
 
-* The scf calculation is run using k-points in the irreducible wedge \f$ \{ k^{irr} \} \f$.
-  After the diagonalization of the Hamiltonian,
-  fix the gauge of non-degenerate eigenvectors setting c(G=0) to be real and positive.
-  For degenerate eigenvalues, we only rotate c(G=0) for the first eigenvector in the degenerate subspace (whatever the value is).
-  Save the wavefunction and its g-vectors (specifically, the arrays evc, igk_k).
-  Save information on the symmetries that have been recognized.
-
-* In any nscf/bands calculation, the Hamiltonian is diagonalized at a point k.
-  If a non-degenerate band is found, rotate the wavefunctions with the c(G=0) plane wave coefficient as discussed above (both for non-degenerate bands and the first degenerate band).
-  If a degenerate band is found:
-  * Find the irreducible point, and the symmetry operation or translation \f$S\f$ such that \f$ Sk \in k^{irr} \f$.
-  * Read from file the wavefunction at the irreducible k-point
-  * Rotate the wavefunction. If S is the identity, this can be skipped.
-  * Substitute the rotated wavefunction and energies in evc and et.
-  * Recompute the ultrasoft/PAW part of the wavefunction (call calbec() )
-    Otherwise, the augmented wavefunction may not use the correct phases.
-
-Note that we are making the hypothesis that the nscf calculation is done using the same Monkhorst-Pack mesh that has been used in the scf run.
-
-Note that both Wannier90 and ph.x must be run with the modified version of QE, so that the wavefunction gauge is fixed to be the same.
-
-Note that the wavefunction, or g, doesn't need to be smooth with respect to \f$\boldsymbol{k}\f$: we would need to make sure that the derivative of the wavefunction with respect to \f$\boldsymbol{k}\f$ is continuous.
-
-As a result, we fix both the gauge of the wavefunctions in degenerate subspaces and the gauge of the wavefunction across multiple \f$\boldsymbol{k}\f$ or \f$\boldsymbol{q}\f$ points.
-To verify that the gauge has been fixed successfully, compare the electron-phonon coupling with and without symmetries, and they should be the same, see below.
-
-Finally, we note a minor detail that should be fix in a future release.
-The wavefunction at \f$k\f$ and at a rotated point \f$k'\f$ cannot be rotated exactly, in the numerical implementation of a plane-wave code.
+* Run a scf calculation using the k-points in the irreducible wedge \f$ \{ k^{irr} \} \f$,
+  setting the number of bands equal to what you want to use in both Wannier90 and ph.x.
+  Right after the Hamiltonian is diagonalized at a given k-point (in file `PW/src/c_bands.f90`),
+  and fix the gauge of non-degenerate eigenvectors by setting c(G=0) to be real and positive.
+  For degenerate eigenvalues, set c(G=0)>0 only for the first band of the degenerate subspace.
+  Save the wavefunction and its G-vectors (the arrays `evc`, `g_vectors`, and the mapping `igk_k`).
+  
+* During a ph.x calculation, or a nscf calculation before Wannier90, the codes ask to
+  diagonalize the Hamiltonian at a point k (or k+q) that is commensurate with the grid of points
+  used in the scf calculation.
+  Given a point k, do:
+  * find the irreducible point \f$ k^* \f$ that is symmetry-equivalent to the current point.
+    If not found, block the code (the user has either messed symmetries or used wrong k/q meshes).
+    Find also the symmetry operation S such that \f$ R k = k^* + K\f$,
+    where \f$K\f$ is an Umklapp vector.
+  * Read the wavefunction at \f$ k^* \f$.
+  * Build `gmap`, a map between indices of two arrays of G-vectors such that
+    \f$ G[i] = (R^{-1}G+K)[gmap(i)] \f$. This will help us apply the roto-translational symmetry.
+  * Compute the roto-translated wavefunction \f$ \psi_{Rk} = \psi_{k^*+K} \f$
+    using the relations on the plane-wave coefficients described above.
+  
+This would be enough, if the wavefunctions were exact.
+Unfortunately, this procedure doesn't allow us to reconstruct the complete wavefunction.
 In fact, the wavefunctions are typically expanded over a set of G-vectors such that \f$ |k+G|^2<E_{cut} \f$.
-Therefore, the wavefunctions at the two k-points use different G-vectors.
-The rotation procedure described above can only rotate the plane-wave coefficients that are shared between the wavefunctions.
-Some c(G) coefficients cannot be rotated, and are therefore set to zero (slightly breaking the normalization of the wavefunction).
-This loss of information is negligible, as long as the user converges the phonon frequencies against the cutoff value of the QE variable "ecutwfc".
-In the future, we should adjust this behavior by rotating the original wavefunction.
-While this could be simple for non-degenerate states (one could check the rotation phase on the G=0 plane wave), it might be a little less trivial for degenerate states.
-An idea worth exploring further, is to exploit the completeness of the degenerate subspace and rotate the wavefunction as: \f$ \big| \psi^{rot} \big> = \sum_{orig} \big< \psi^{orig} \big| \psi^{rot} \big> \big| \psi^{orig} \big> \f$, where the bracket identifies a unitary matrix to use for rotating the wavefunction.
+Therefore, the wavefunction can only be rotated for the intersecting set of G-vectors between the wavefunctions at the irreducible (reference) point and the roto-translated point.
+We wouldn't have information for G-vectors outside this intersection and we would set them to zero, breaking the normalization condition.
 
+We bypass this problem in this way.
+Let \f$ \big| \psi^{QE} \big> \f$ be the wavefunction computed by QE at point k and \f$ \big| \psi^{rot} \big> \f$ the wavefunction we computed using the roto-translation of the irreducible point.
+* Using the relation
+  \f$ \big| \psi^{rot} \big>
+  =
+  \sum_{QE} \big< \psi^{rot} \big| \psi^{QE} \big>^* \big| \psi^{QE} \big>
+  =
+  U \big| \psi^{QE} \big>
+  \f$
+  to define a unitary matrix \f$ U \f$.
+* On paper, \f$ U \f$ should be unitary, i.e. \f$ U U^{\dagger} = 1 \f$.
+  But for the same problems of completeness of G-sphere, we have \f$ U U^{\dagger} = 1-\Delta \f$.
+  With some manipulations,
+  \f$ 1 = U U^{\dagger} + \Delta = U U^{\dagger} + U U^{\dagger} \Delta U U^{\dagger}
+  = U ( 1 + U^{\dagger} \Delta U ) U^{\dagger}
+  = U L L^{\dagger} U^{\dagger} \f$,
+  where \f$L\f$ comes from the Cholesky decomposition of
+  \f$( 1 + U^{\dagger} \Delta U ) = LL^{\dagger}\f$.
+* Redefine \f$\tilde{U} = UL\f$ (this matrix is unitary by construction).
+  Finally, the wavefunction at the point k is \f$ \tilde{U} \big| \psi^{QE} \big> \f$
 
+This procedure has been implemented in QE, in the file `c_bands.f90`.
 
+Note that there is a catch for entangled bands.
+In building the unitary matrix \f$U\f$, we assumed completeness of the wavefunction set.
+If you are Wannierizing disentangled bands, this is fine.
+If you are trying to disentangle some bands, than it is possible that, by choosing the number of bands to be computed, we may cut through a group of degenerate bands.
+If this happens, the last block of the matrix \f$U\f$ may not be unitary, not just because of numerical noise, but because of breaking the completeness relation.
+We checked that, as long as you are discarding such bands in the disentangling procedure, the Wannierized wavefunctions should be fine.
+
+Final comments:
+
+1. In order to rotate the wavefunction, each MPI process needs to have enough memory to store
+   the complete wavefunction (all G vectors) for a single band,
+   i.e., each MPI process requires an additional \f$ 16 N_G \f$ Bytes of memory.
+
+2. The lack of completeness implies that, as for any DFT calculation,
+   one must converge the G-vectors cutoff (`ecutwfc` in QE).
+
+3. The wavefunction, or g, even though it obeys symmetries,
+   it isn't smooth with respect to \f$\boldsymbol{k}\f$.
+   This is guaranteed by the maximally localized Wannier gauge
+   (which in the reciprocal space guarantees continuity with respect to k).
+
+4. Currently we don't support spin, but we will add it soon (must include a few more symmetries).
 
 
 
@@ -185,7 +224,6 @@ An idea worth exploring further, is to exploit the completeness of the degenerat
 
 
 \subsection COMPELPHQE2 Computational details, symmetries in Quantum ESPRESSO
-Note: Abinit has a very well curated section on the symmetries of the wavefunction <https://docs.abinit.org/theory/wavefunctions/>
 
 The phonon code can be used to compute the coupling \f$g(\boldsymbol{k},\boldsymbol{q})\f$, where k falls on a Monkhorst-Pack grid of points (nk1,nk2,nk3) and q falls on a Monkhorst-Pack mesh (nq1,nq2,nq3).
 We require that both meshes are centered at the Gamma point, so that we have the Wannier90 matrices for the Bloch to Wannier rotation.

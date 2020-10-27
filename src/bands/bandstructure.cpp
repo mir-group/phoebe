@@ -47,18 +47,18 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
 
 // copy constructor
 FullBandStructure::FullBandStructure(const FullBandStructure &that)
-    : particle(that.particle),
-      points(that.points),
-      isDistributed(that.isDistributed),
-      energies(that.energies),
-      velocities(that.velocities),
-      eigenvectors(that.eigenvectors),
-      numBands(that.numBands),
-      numAtoms(that.numAtoms),
-      numPoints(that.numPoints),
-      numLocalPoints(that.numLocalPoints),
-      hasEigenvectors(that.hasEigenvectors),
-      hasVelocities(that.hasVelocities) {}
+    : particle(that.particle), points(that.points) {
+  isDistributed = that.isDistributed;
+  hasEigenvectors = that.hasEigenvectors;
+  hasVelocities = that.hasVelocities;
+  energies = that.energies;
+  velocities = that.velocities;
+  eigenvectors = that.eigenvectors;
+  numBands = that.numBands;
+  numAtoms = that.numAtoms;
+  numPoints = that.numPoints;
+  numLocalPoints = that.numLocalPoints;
+}
 
 FullBandStructure &FullBandStructure::operator=(  // copy assignment
     const FullBandStructure &that) {
@@ -66,6 +66,8 @@ FullBandStructure &FullBandStructure::operator=(  // copy assignment
     particle = that.particle;
     points = that.points;
     isDistributed = that.isDistributed;
+    hasEigenvectors = that.hasEigenvectors;
+    hasVelocities = that.hasVelocities;
     energies = that.energies;
     velocities = that.velocities;
     eigenvectors = that.eigenvectors;
@@ -73,8 +75,6 @@ FullBandStructure &FullBandStructure::operator=(  // copy assignment
     numAtoms = that.numAtoms;
     numPoints = that.numPoints;
     numLocalPoints = that.numLocalPoints;
-    hasEigenvectors = that.hasEigenvectors;
-    hasVelocities = that.hasVelocities;
   }
   return *this;
 }
@@ -96,7 +96,10 @@ long FullBandStructure::getNumPoints(const bool &useFullGrid) {
 }
 
 long FullBandStructure::getNumBands() { return numBands; }
-long FullBandStructure::getNumBands(WavevectorIndex &ik) { return numBands; }
+long FullBandStructure::getNumBands(WavevectorIndex &ik) {
+  (void) ik;
+  return numBands;
+}
 
 long FullBandStructure::hasWindow() { return 0; }
 

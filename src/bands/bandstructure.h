@@ -516,6 +516,9 @@ class FullBandStructure : public BaseBandStructure {
   // if the bands are distributed or not
   bool isDistributed = false;
 
+  bool hasEigenvectors = false;
+  bool hasVelocities = false;
+
   // matrices storing the raw data
   Matrix<double> energies;       // size(bands,points)
   Matrix<std::complex<double>> velocities;    // size(3*bands^2,points)
@@ -526,9 +529,6 @@ class FullBandStructure : public BaseBandStructure {
   int numAtoms = 0;
   long numPoints = 0;
   long numLocalPoints = 0;
-
-  bool hasEigenvectors = false;
-  bool hasVelocities = false;
 
   // method to find the index of the kpoint, from its crystal coordinates
   long getIndex(Eigen::Vector3d &pointCoords);

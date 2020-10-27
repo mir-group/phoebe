@@ -223,10 +223,12 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
     isDistributed = that.isDistributed;
     // call SMatrix or PMatrix copy constructor
     if(isDistributed) {
-      (*pmat) = (*that.pmat);
+      if (pmat!=nullptr) delete pmat;
+      pmat = new ParallelMatrix<T>(*that.pmat);
     }
     else {
-      (*mat) = (*that.mat);
+      if (mat!=nullptr) delete mat;
+      mat = new SerialMatrix<T>(*that.mat);
     }
   }
   return *this;

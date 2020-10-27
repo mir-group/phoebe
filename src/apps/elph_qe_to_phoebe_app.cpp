@@ -12,10 +12,6 @@
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
 
-  if (mpi->mpiHead()) {
-    std::cout << "\nLaunching app ElPhBlochToWannier\n" << std::endl;
-  }
-
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t1);

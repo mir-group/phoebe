@@ -42,6 +42,7 @@ class HelperElScattering {
   const int storedAllQ3Case1=1;
   const int storedAllQ3Case2=2;
   int storedAllQ3Case;
+  int cacheOffset=0;
 
   std::vector<Eigen::VectorXd> cacheEnergies;
   std::vector<Eigen::MatrixXcd> cacheEigvecs;

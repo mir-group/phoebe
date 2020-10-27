@@ -37,7 +37,6 @@ class ElScatteringMatrix : public ScatteringMatrix {
                         const int &alfa, const int &beta);
   void addMatrixElement(const double &x, const int &m, const int &n,
                         const int &alfa, const int &beta);
-  VectorBTE dot(VectorBTE &inPopulation);
 };
 
 #endif

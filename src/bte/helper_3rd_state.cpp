@@ -196,16 +196,18 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
+    int iq1Counter = iq1 - cacheOffset;
+
     if (thisCase == casePlus) {
-      energies3 = cachePlusEnergies[iq1];
-      eigvecs3 = cachePlusEigvecs[iq1];
-      v3s = cachePlusVelocity[iq1];
-      bose3Data = cachePlusBose[iq1];
+      energies3 = cachePlusEnergies[iq1Counter];
+      eigvecs3 = cachePlusEigvecs[iq1Counter];
+      v3s = cachePlusVelocity[iq1Counter];
+      bose3Data = cachePlusBose[iq1Counter];
     } else {
-      energies3 = cacheMinsEnergies[iq1];
-      eigvecs3 = cacheMinsEigvecs[iq1];
-      v3s = cacheMinsVelocity[iq1];
-      bose3Data = cacheMinsBose[iq1];
+      energies3 = cacheMinsEnergies[iq1Counter];
+      eigvecs3 = cacheMinsEigvecs[iq1Counter];
+      v3s = cacheMinsVelocity[iq1Counter];
+      bose3Data = cacheMinsBose[iq1Counter];
     }
 
     long nb3 = energies3.size();
@@ -217,6 +219,7 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
                              const long &iq2) {
   if (!storedAllQ3) {
     int numPoints = q1Indexes.size();
+    cacheOffset = q1Indexes[0];
 
     cachePlusEnergies.resize(numPoints);
     cachePlusEigvecs.resize(numPoints);
@@ -230,7 +233,9 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
 
     Particle particle = h0->getParticle();
 
+    int iq1Counter = -1;
     for (long iq1 : q1Indexes) {
+      iq1Counter++;
       Eigen::Vector3d q1 =
           outerBandStructure.getPoint(iq1).getCoords(Points::cartesianCoords);
       Eigen::Vector3d q2 =
@@ -289,15 +294,15 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
         }
       }
 
-      cachePlusEnergies[iq1] = energies3Plus;
-      cachePlusEigvecs[iq1] = eigvecs3Plus;
-      cachePlusBose[iq1] = bose3DataPlus;
-      cachePlusVelocity[iq1] = v3sPlus;
+      cachePlusEnergies[iq1Counter] = energies3Plus;
+      cachePlusEigvecs[iq1Counter] = eigvecs3Plus;
+      cachePlusBose[iq1Counter] = bose3DataPlus;
+      cachePlusVelocity[iq1Counter] = v3sPlus;
 
-      cacheMinsEnergies[iq1] = energies3Mins;
-      cacheMinsEigvecs[iq1] = eigvecs3Mins;
-      cacheMinsBose[iq1] = bose3DataMins;
-      cacheMinsVelocity[iq1] = v3sMins;
+      cacheMinsEnergies[iq1Counter] = energies3Mins;
+      cacheMinsEigvecs[iq1Counter] = eigvecs3Mins;
+      cacheMinsBose[iq1Counter] = bose3DataMins;
+      cacheMinsVelocity[iq1Counter] = v3sMins;
     }
   }
 }

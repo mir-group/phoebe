@@ -57,6 +57,15 @@ public:
 
   void calcFromEPA();
 
+  void calcFromRelaxons(VectorBTE &eigenvalues,
+                        ParallelMatrix<double> &eigenvectors);
+
+  void calcVariational(VectorBTE &afE, VectorBTE &afT,
+                       VectorBTE &fE, VectorBTE &fT, VectorBTE &scalingCG);
+
+  Eigen::Tensor<double,3> getElectricalConductivity();
+  Eigen::Tensor<double,3> getThermalConductivity();
+
 protected:
   StatisticsSweep &statisticsSweep;
   Crystal &crystal;
