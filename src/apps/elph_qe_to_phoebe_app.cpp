@@ -658,6 +658,23 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
            Eigen::MatrixXd, int, int, int, int>
 ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
                                       const std::string &phoebePrefixQE) {
+  int numQEBands;             // number of Kohn-Sham states
+  double numElectrons;        // number of electrons (spin degeneracy included)
+  int numSpin;                // should always be one, without support for spin
+  Eigen::Vector3i kMesh, qMesh;
+  int bogusI;
+  double bogusD;
+  int numAtoms;
+  int numKPoints;
+  Eigen::MatrixXd qgridFull;
+  Eigen::MatrixXd kgridFull;
+  Eigen::MatrixXd energies;
+  (void)crystal;
+  int numQPoints, numIrrQPoints;
+
+
+  if (mpi->mpiHead()) {
+  
   std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
   std::ifstream infile(fileName);
   std::string line;
@@ -665,19 +682,13 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
     Error e("H0 file not found");
   }
   std::getline(infile, line); // first line is a title
-  int numQEBands;             // number of Kohn-Sham states
-  double numElectrons;        // number of electrons (spin degeneracy included)
-  int numSpin;                // should always be one, without support for spin
+  
   infile >> numQEBands >> numElectrons >> numSpin;
-  Eigen::Vector3i kMesh, qMesh;
   infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
       kMesh(2);
-  int bogusI;
-  double bogusD;
-  int numAtoms;
+
   infile >> bogusD >> numAtoms; // alat and nat
-  assert(numAtoms == crystal.getNumAtoms());
-  (void)crystal;
+  
   // unit cell
   for (int i = 0; i < 9; i++) {
     infile >> bogusD;
@@ -695,27 +706,44 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
     infile >> bogusD;
   }
 
-  int numQPoints, numIrrQPoints;
   infile >> numQPoints >> numIrrQPoints;
-
-  Eigen::MatrixXd qgridFull(3, numQPoints);
+  qgridFull.resize(3, numQPoints);
   for (int iq = 0; iq < numQPoints; iq++) {
     infile >> qgridFull(0, iq) >> qgridFull(1, iq) >> qgridFull(2, iq);
   }
 
-  int numKPoints;
   infile >> numKPoints;
-  Eigen::MatrixXd kgridFull(3, numKPoints);
+  kgridFull.resize(3, numKPoints);
   for (int ik = 0; ik < numKPoints; ik++) {
     infile >> kgridFull(0, ik) >> kgridFull(1, ik) >> kgridFull(2, ik);
   }
 
-  Eigen::MatrixXd energies(numQEBands, numKPoints);
+  energies.resize(numQEBands, numKPoints);
   for (int ik = 0; ik < numKPoints; ik++) {
     for (int ib = 0; ib < numQEBands; ib++) {
       infile >> energies(ib, ik);
     }
   }
+  assert(numAtoms == crystal.getNumAtoms());
+  }
+  
+  mpi->bcast(&numQEBands);
+  mpi->bcast(&numElectrons);
+  mpi->bcast(&numSpin);
+  mpi->bcast(&kMesh);
+  mpi->bcast(&qMesh);
+  mpi->bcast(&numAtoms);
+  mpi->bcast(&numKPoints);
+  mpi->bcast(&numQPoints);
+  mpi->bcast(&numIrrQPoints);
+  if (!mpi->mpiHead()) {
+    qgridFull.resize(3, numQPoints);
+    kgridFull.resize(3, numKPoints);
+    energies.resize(numQEBands, numKPoints);
+  }
+  mpi->bcast(&qgridFull);
+  mpi->bcast(&kgridFull);
+  mpi->bcast(&energies);
 
   return {qMesh,         kMesh,      kgridFull,    qgridFull, energies,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
