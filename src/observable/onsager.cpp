@@ -212,10 +212,7 @@ void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
       }
     }
   }
-  nE.canonical2Population();
-  nT.canonical2Population();
-
-  calcFromPopulation(nE,nT);
+  calcFromCanonicalPopulation(nE,nT);
 }
 
 void OnsagerCoefficients::print() {
