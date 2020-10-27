@@ -296,52 +296,34 @@ void ElectronWannierTransportApp::run(Context &context) {
 //    }
 //  }
 //
-//  if (doRelaxons) {
-//    if ( mpi->mpiHead()) {
-//      std::cout << "Starting relaxons BTE solver" << std::endl;
-//    }
-//    scatteringMatrix.a2Omega();
-//    auto tup = scatteringMatrix.diagonalize();
-//    auto eigenvalues = std::get<0>(tup);
-//    auto eigenvectors = std::get<1>(tup);
-//    // EV such that Omega = V D V^-1
-//    // eigenvectors(phonon index, eigenvalue index)
-//
-//    Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-//
-//    VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
-//    for (long iDim = 0; iDim < relaxonV.dimensionality; iDim++) {
-//      double norm = 1. /
-//          crystal.getVolumeUnitCell(context.getDimensionality()) /
-//          bandStructure.getNumPoints(true);
-//      for (long is = 0; is < bandStructure.getNumStates(); is++) {
-//        Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
-//        relaxonV(0, iDim, is) = boseEigenvector(0, 0, is) * norm * v(iDim);
-//      }
-//    }
-//    relaxonV = relaxonV * eigenvectors;
-//
-//    VectorBTE relaxationTimes = eigenvalues.reciprocal();
-//    phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
-//    phTCond.print();
-//    phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
-//    // output relaxation times
-//    scatteringMatrix.outputToJSON("relaxons_relaxation_times.json");
-//
-//    phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
-//                                 scatteringMatrix, eigenvectors);
-//    phViscosity.print();
-//    phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
-//
-//    if ( mpi->mpiHead()) {
-//      std::cout << "Finished relaxons BTE solver\n";
-//      std::cout << "\n";
-//      std::cout << std::string(80, '-') << "\n";
-//      std::cout << std::endl;
-//    }
-//  }
+  if (doRelaxons) {
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting relaxons BTE solver" << std::endl;
+    }
+    // scatteringMatrix.a2Omega(); Important!! Must use the matrix A, non-scaled
+    // this because the scaling used for phonons here would cause instability
+    // as it could contains factors like 1/0
+    auto tup = scatteringMatrix.diagonalize();
+    auto eigenvalues = std::get<0>(tup);
+    auto eigenvectors = std::get<1>(tup);
+    // EV such that Omega = V D V^-1
 
-  mpi->barrier();
+    transportCoeffs.calcFromRelaxons(eigenvalues, eigenvectors);
+    transportCoeffs.print();
+    transportCoeffs.outputToJSON("relaxons_onsager_coefficients.json");
+
+//    elViscosity.calcFromRelaxons(..., boseEigenvector, relaxationTimes,
+//                                 scatteringMatrix, eigenvectors);
+//    elViscosity.print();
+//    elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+
+    if ( mpi->mpiHead()) {
+      std::cout << "Finished relaxons BTE solver\n";
+      std::cout << "\n";
+      std::cout << std::string(80, '-') << "\n";
+      std::cout << std::endl;
+    }
+  }
 }
 
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
