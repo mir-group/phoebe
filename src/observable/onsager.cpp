@@ -296,11 +296,20 @@ void OnsagerCoefficients::print(const int &iter) {
     double temp = calcStat.temperature;
     std::cout << std::fixed;
     std::cout.precision(2);
-    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout << "T = " << temp * temperatureAuToSi << ", sigma = ";
     std::cout.precision(5);
     for (int i = 0; i < dimensionality; i++) {
       std::cout << std::scientific;
       std::cout << sigma(iCalc, i, i) * elConductivityAuToSi << " ";
+    }
+    std::cout << "\n";
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << std::scientific;
+      std::cout << kappa(iCalc, i, i) * thConductivityAuToSi << " ";
     }
     std::cout << "\n";
   }
@@ -419,3 +428,10 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   o.close();
 }
 
+Eigen::Tensor<double,3> OnsagerCoefficients::getElectricalConductivity() {
+  return sigma;
+}
+
+Eigen::Tensor<double,3> OnsagerCoefficients::getThermalConductivity() {
+  return kappa;
+}

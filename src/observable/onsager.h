@@ -57,6 +57,9 @@ public:
 
   void calcFromEPA();
 
+  Eigen::Tensor<double,3> getElectricalConductivity();
+  Eigen::Tensor<double,3> getThermalConductivity();
+
 protected:
   StatisticsSweep &statisticsSweep;
   Crystal &crystal;
