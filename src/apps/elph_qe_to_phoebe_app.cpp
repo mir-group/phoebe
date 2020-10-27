@@ -171,7 +171,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       numWannier, numWannier, numModes, numKPoints, numQPoints);
   gFullTmp.setZero();
 
-  for (long iq = 0; iq < numQPoints; iq++) {
+  for (int iq : mpi->divideWorkIter(numQPoints) ) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
@@ -220,8 +220,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       }
     } // ik
   }   // iq
-
-  //  gFull.reshape(zeros);
+  mpi->allReduceSum(&gFullTmp);
+  gFull.reshape(zeros);
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic Fourier Transform" << std::endl;
@@ -230,7 +230,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   Eigen::Tensor<std::complex<double>, 5> gMixed(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gMixed.setZero();
-  for (int iR = 0; iR < numElBravaisVectors; iR++) {
+  for (int iR : mpi->divideWorkIter(numElBravaisVectors) ) {
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
       double arg = k.dot(elBravaisVectors.col(iR));
@@ -246,6 +246,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       }
     }
   } // iq
+  mpi->allReduceSum(&gMixed);
   gFullTmp.reshape(zeros);
 
   if (mpi->mpiHead()) {
@@ -254,7 +255,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gWannierTmp.setZero();
-  for (long iq = 0; iq < numQPoints; iq++) {
+
+  for (long iq : mpi->divideWorkIter(numQPoints) ) {
     Eigen::MatrixXcd uQ(numModes, numModes);
     for (int nu = 0; nu < numModes; nu++) {
       for (int nu2 = 0; nu2 < numModes; nu2++) {
@@ -277,6 +279,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       }
     }
   }
+  mpi->allReduceSum(&gWannierTmp);
   gMixed.reshape(zeros);
 
   if (mpi->mpiHead()) {
@@ -286,7 +289,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
                                                   numModes, numPhBravaisVectors,
                                                   numElBravaisVectors);
   gWannier.setZero();
-  for (int iq = 0; iq < numQPoints; iq++) {
+  for (long iq : mpi->divideWorkIter(numQPoints) ) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q.dot(phBravaisVectors.col(irP));
@@ -303,6 +306,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       }
     }
   }
+  mpi->allReduceSum(&gWannier);
   gWannierTmp.reshape(zeros);
 
   if (mpi->mpiHead()) {
@@ -1233,7 +1237,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   Eigen::Tensor<std::complex<double>, 5> gWannier =
       blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
                      phEigenvectors, kPoints, qPoints, crystal, phononH0);
-
+std::cout << gWannier.sum() << "!!!\n";
   //--------------------------------------------------------------------------
 
   // Dump el-ph in Wannier representation to file
