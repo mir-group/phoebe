@@ -57,6 +57,9 @@ public:
 
   void calcFromEPA();
 
+  void calcFromRelaxons(VectorBTE &eigenvalues,
+                        ParallelMatrix<double> &eigenvectors);
+
   Eigen::Tensor<double,3> getElectricalConductivity();
   Eigen::Tensor<double,3> getThermalConductivity();
 

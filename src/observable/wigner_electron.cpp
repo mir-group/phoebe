@@ -65,7 +65,7 @@ WignerElCoefficients::WignerElCoefficients(
               2. * (energies(ib1)-energies(ib2))};
 
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
-            fE(ib1, ib2, ic1, iCalc) = 2. * velocities(ib1, ib2, ic1) / xC
+            fE(ib1, ib2, ic1, iCalc) = - 2. * velocities(ib1, ib2, ic1) / xC
                 * (fermi(ib1)-fermi(ib2)) / (energies(ib1)-energies(ib2));
             fT(ib1, ib2, ic1, iCalc) = 2. * velocities(ib1, ib2, ic1) / xC
                 * (dfdt(ib1)+dfdt(ib2));

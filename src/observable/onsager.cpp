@@ -1,10 +1,10 @@
 #include "onsager.h"
 
-#include <iomanip>
-#include <fstream>
-#include <nlohmann/json.hpp>
 #include "constants.h"
 #include "mpiHelper.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
                                          Crystal &crystal_,
@@ -169,7 +169,7 @@ void OnsagerCoefficients::calcTransportCoefficients() {
       for (int j = 0; j < dimensionality; j++) {
         seebeck(iCalc, i, j) = thisSeebeck(i, j);
         kappa(iCalc, i, j) = thisKappa(i, j);
-        if ( doping > 0. ) {
+        if (doping > 0.) {
           mobility(iCalc, i, j) /= doping;
         }
       }
@@ -177,8 +177,50 @@ void OnsagerCoefficients::calcTransportCoefficients() {
   }
 }
 
+void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
+    ParallelMatrix<double> &eigenvectors) {
+  int numStates = eigenvalues.numStates;
+  int iCalc = 0;
+  double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+  double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+  auto particle = bandStructure.getParticle();
+
+  double norm = 1. / bandStructure.getNumPoints(true) /
+      crystal.getVolumeUnitCell(dimensionality);
+
+  VectorBTE fE(statisticsSweep, bandStructure, 3);
+  VectorBTE fT(statisticsSweep, bandStructure, 3);
+  for (long is = 0; is < numStates; is++) {
+    auto isIndex = StateIndex(is);
+    double en = bandStructure.getEnergy(isIndex);
+    auto vel = bandStructure.getGroupVelocity(isIndex);
+    for (long alfa = 0; alfa < numStates; alfa++) {
+      for (int i = 0; i < dimensionality; i++) {
+        fE(iCalc, i, alfa) += -particle.getDnde(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
+        fT(iCalc, i, alfa) += particle.getDndt(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
+      }
+    }
+  }
+
+  VectorBTE nE(statisticsSweep, bandStructure, 3);
+  VectorBTE nT(statisticsSweep, bandStructure, 3);
+  for (long is = 0; is < numStates; is++) {
+    for (long alfa = 0; alfa < numStates; alfa++) {
+      for (int i = 0; i < dimensionality; i++) {
+        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
+        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
+      }
+    }
+  }
+  nE.canonical2Population();
+  nT.canonical2Population();
+
+  calcFromPopulation(nE,nT);
+}
+
 void OnsagerCoefficients::print() {
-  if (!mpi->mpiHead()) return;
+  if (!mpi->mpiHead())
+    return;
 
   std::string unitsSigma, unitsKappa;
   double convSigma, convKappa;
@@ -238,7 +280,7 @@ void OnsagerCoefficients::print() {
 
     // Note: in metals, one has conductivity without doping
     // and the mobility = sigma / doping-density is ill-defined
-    if ( abs(doping) > 0. ) {
+    if (abs(doping) > 0.) {
       std::cout << "Carrier mobility (" << unitsMobility << ")\n";
       std::cout.precision(5);
       for (int i = 0; i < dimensionality; i++) {
@@ -317,7 +359,8 @@ void OnsagerCoefficients::print(const int &iter) {
 }
 
 void OnsagerCoefficients::outputToJSON(std::string outFileName) {
-  if(!mpi->mpiHead()) return;
+  if (!mpi->mpiHead())
+    return;
 
   std::string unitsSigma, unitsKappa;
   double convSigma, convKappa;
@@ -360,7 +403,7 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
     double chemPot = calcStat.chemicalPotential;
     chemPots.push_back(chemPot * energyRyToEv); // output in eV
 
-    //std::cout << "Electrical Conductivity (" << unitsSigma << ")\n";
+    // std::cout << "Electrical Conductivity (" << unitsSigma << ")\n";
     // store the electrical conductivity for output
     std::vector<std::vector<double>> rows;
     for (int i = 0; i < dimensionality; i++) {
@@ -375,12 +418,12 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
     // store the carrier mobility for output
     // Note: in metals, one has conductivity without doping
     // and the mobility = sigma / doping-density is ill-defined
-    if ( abs(doping) > 0. ) {
+    if (abs(doping) > 0.) {
       rows.clear();
       for (int i = 0; i < dimensionality; i++) {
         std::vector<double> cols;
         for (int j = 0; j < dimensionality; j++) {
-           cols.push_back(mobility(iCalc, i, j) * convMobility);
+          cols.push_back(mobility(iCalc, i, j) * convMobility);
         }
         rows.push_back(cols);
       }
@@ -428,10 +471,10 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   o.close();
 }
 
-Eigen::Tensor<double,3> OnsagerCoefficients::getElectricalConductivity() {
+Eigen::Tensor<double, 3> OnsagerCoefficients::getElectricalConductivity() {
   return sigma;
 }
 
-Eigen::Tensor<double,3> OnsagerCoefficients::getThermalConductivity() {
+Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
   return kappa;
 }
