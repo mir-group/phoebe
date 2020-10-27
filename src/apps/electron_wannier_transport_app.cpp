@@ -139,10 +139,9 @@ void ElectronWannierTransportApp::run(Context &context) {
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
     // from n, we get f, such that n = bose(bose+1)f
-    VectorBTE fERTA = nERTA;
-    VectorBTE fTRTA = nTRTA;
-    fERTA.population2Canonical();
-    fTRTA.population2Canonical();
+    VectorBTE linewidths = scatteringMatrix.getLinewidths();
+    VectorBTE fERTA = driftE / linewidths;
+    VectorBTE fTRTA = driftT / linewidths;
     VectorBTE fEOld = fERTA;
     VectorBTE fTOld = fTRTA;
 
@@ -151,8 +150,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
       std::vector<VectorBTE> fIn;
-      fIn.push_back(fERTA);
-      fIn.push_back(fTRTA);
+      fIn.push_back(fEOld);
+      fIn.push_back(fTOld);
       auto fOut = scatteringMatrix.offDiagonalDot(fIn);
       fENext = fOut[0] / sMatrixDiagonal;
       fTNext = fOut[1] / sMatrixDiagonal;
@@ -169,8 +168,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
       Eigen::Tensor<double,3> diffE = ((elCond - elCondOld)/elCondOld).abs();
       Eigen::Tensor<double,3> diffT = ((thCond - thCondOld)/thCondOld).abs();
-      double dE = 10.;
-      double dT = 10.;
+      double dE = 10000.;
+      double dT = 10000.;
       for (int i=0;i<diffE.dimension(0);i++) {
         for (int j=0;j<diffE.dimension(0);j++) {
           for (int k=0;k<diffE.dimension(0);k++) {
@@ -203,99 +202,145 @@ void ElectronWannierTransportApp::run(Context &context) {
     }
   }
 
-//  if (doVariational) {
-//    if ( mpi->mpiHead()) {
-//      std::cout << "Starting variational BTE solver\n";
-//      std::cout << std::endl;
-//    }
-//
-//    // note: each iteration should take approximately twice as long as
-//    // the iterative method above (in the way it's written here.
-//
-//    // initialize the (old) thermal conductivity
-//    PhononThermalConductivity phTCondOld = phTCond;
-//
-//    // load the conjugate gradient rescaling factor
-//    VectorBTE sMatrixDiagonalSqrt = scatteringMatrix.diagonal().sqrt();
-//    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
-//
-//    // set the initial guess to the RTA solution
-//    VectorBTE fNew = popRTA;
-//    // from n, we get f, such that n = bose(bose+1)f
-//    fNew.population2Canonical();
-//    // CG rescaling
-//    fNew = fNew * sMatrixDiagonalSqrt; // CG scaling
-//
-//    // save the population of the previous step
-//    VectorBTE fOld = fNew;
-//
-//    // do the conjugate gradient method for thermal conductivity.
-//    //		auto gOld = scatteringMatrix.dot(fNew) - fOld;
-//    auto gOld = scatteringMatrix.dot(fNew);
-//    gOld = gOld / sMatrixDiagonal; // CG scaling
-//    gOld = gOld - fOld;
-//    auto hOld = -gOld;
-//
-//    auto tOld = scatteringMatrix.dot(hOld);
-//    tOld = tOld / sMatrixDiagonal; // CG scaling
-//
-//    double threshold = context.getConvergenceThresholdBTE();
-//
-//    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
-//      // execute CG step, as in
-//
-//      Eigen::VectorXd alpha =
-//          (gOld.dot(hOld)).array() / (hOld.dot(tOld)).array();
-//
-//      fNew = hOld * alpha;
-//      fNew = fOld - fNew;
-//
-//      auto gNew = tOld * alpha;
-//      gNew = gOld - gNew;
-//
-//      Eigen::VectorXd beta =
-//          (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
-//      auto hNew = hOld * beta;
-//      hNew = -gNew + hNew;
-//
-//      std::vector<VectorBTE> inVecs;
-//      inVecs.push_back(fNew);
-//      inVecs.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
-//      auto outVecs = scatteringMatrix.dot(inVecs);
-//      tOld = outVecs[1];
-//      tOld = tOld / sMatrixDiagonal; // CG scaling
-//
-//      phTCond.calcVariational(outVecs[0], fNew, sMatrixDiagonalSqrt);
-//      phTCond.print(iter);
-//
-//      // decide whether to exit or run the next iteration
-//      auto diff = phTCond - phTCondOld;
-//      if (diff.getNorm().maxCoeff() < threshold) {
-//        break;
-//      } else {
-//        phTCondOld = phTCond;
-//        fOld = fNew;
-//        gOld = gNew;
-//        hOld = hNew;
-//      }
-//
-//      if (iter == context.getMaxIterationsBTE() - 1) {
-//        Error e("Reached max BTE iterations without convergence");
-//      }
-//    }
-//
-//    // nice formatting of the thermal conductivity at the last step
-//    phTCond.print();
-//    phTCond.outputToJSON("variational_phonon_thermal_cond.json");
-//
-//    if ( mpi->mpiHead()) {
-//      std::cout << "Finished variational BTE solver\n";
-//      std::cout << "\n";
-//      std::cout << std::string(80, '-') << "\n";
-//      std::cout << std::endl;
-//    }
-//  }
-//
+  if (doVariational) {
+    if ( mpi->mpiHead()) {
+      std::cout << "Starting variational BTE solver\n";
+      std::cout << std::endl;
+    }
+
+    // initialize the (old) thermal conductivity
+    OnsagerCoefficients transportCoeffsOld = transportCoeffs;
+    Eigen::Tensor<double,3> elCond = transportCoeffs.getElectricalConductivity();
+    Eigen::Tensor<double,3> thCond = transportCoeffs.getThermalConductivity();
+    auto elCondOld = elCond;
+    auto thCondOld = thCond;
+
+    // load the conjugate gradient rescaling factor
+    VectorBTE sMatrixDiagonalSqrt = scatteringMatrix.diagonal().sqrt();
+    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
+
+    // set the initial guess to the RTA solution
+    VectorBTE linewidths = scatteringMatrix.getLinewidths();
+    VectorBTE fENew = driftE / linewidths;
+    VectorBTE fTNew = driftT / linewidths;
+    // CG rescaling
+    fENew = fENew * sMatrixDiagonalSqrt;
+    fTNew = fTNew * sMatrixDiagonalSqrt;
+
+    // save the population of the previous step
+    VectorBTE fEOld = fENew;
+    VectorBTE fTOld = fTNew;
+
+    // do the conjugate gradient method for thermal conductivity.
+    std::vector<VectorBTE> fIn;
+    fIn.push_back(fENew);
+    fIn.push_back(fTNew);
+    auto gOld = scatteringMatrix.offDiagonalDot(fIn);
+    auto gEOld = gOld[0] / sMatrixDiagonal; // CG scaling
+    auto gTOld = gOld[1] / sMatrixDiagonal; // CG scaling
+    gEOld = gEOld - fEOld;
+    gTOld = gTOld - fTOld;
+    auto hEOld = -gEOld;
+    auto hTOld = -gTOld;
+
+    auto tEOld = scatteringMatrix.dot(hEOld);
+    auto tTOld = scatteringMatrix.dot(hTOld);
+    tEOld = tEOld / sMatrixDiagonal; // CG scaling
+    tTOld = tTOld / sMatrixDiagonal; // CG scaling
+
+    double threshold = context.getConvergenceThresholdBTE();
+
+    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+      // execute CG step, as in
+
+      Eigen::VectorXd alphaE =
+          (gEOld.dot(hEOld)).array() / (hEOld.dot(tEOld)).array();
+      Eigen::VectorXd alphaT =
+          (gTOld.dot(hTOld)).array() / (hTOld.dot(tTOld)).array();
+
+      fENew = hEOld * alphaE;
+      fTNew = hTOld * alphaT;
+      fENew = fEOld - fENew;
+      fTNew = fTOld - fTNew;
+
+      auto gENew = tEOld * alphaE;
+      auto gTNew = tTOld * alphaT;
+      gENew = gEOld - gENew;
+      gTNew = gTOld - gTNew;
+
+      Eigen::VectorXd betaE =
+          (gENew.dot(gENew)).array() / (gEOld.dot(gEOld)).array();
+      Eigen::VectorXd betaT =
+          (gTNew.dot(gTNew)).array() / (gTOld.dot(gTOld)).array();
+      auto hENew = hEOld * betaE;
+      auto hTNew = hTOld * betaT;
+      hENew = -gENew + hENew;
+      hTNew = -gTNew + hTNew;
+
+      std::vector<VectorBTE> inVecs;
+      inVecs.push_back(fENew);
+      inVecs.push_back(hENew); // note: at next step hNew is hOld -> gives tOld
+      inVecs.push_back(fTNew);
+      inVecs.push_back(hTNew); // note: at next step hNew is hOld -> gives tOld
+      auto outVecs = scatteringMatrix.dot(inVecs);
+      tEOld = outVecs[1];
+      tTOld = outVecs[3];
+      tEOld = tEOld / sMatrixDiagonal; // CG scaling
+      tTOld = tTOld / sMatrixDiagonal; // CG scaling
+
+      transportCoeffs.calcVariational(outVecs[0], outVecs[2], fENew, fTNew,
+                                      sMatrixDiagonalSqrt);
+      transportCoeffs.print(iter);
+      elCond = transportCoeffs.getElectricalConductivity();
+      thCond = transportCoeffs.getThermalConductivity();
+
+      // decide whether to exit or run the next iteration
+      Eigen::Tensor<double,3> diffE = ((elCond - elCondOld)/elCondOld).abs();
+      Eigen::Tensor<double,3> diffT = ((thCond - thCondOld)/thCondOld).abs();
+      double dE = 10000.;
+      double dT = 10000.;
+      for (int i=0;i<diffE.dimension(0);i++) {
+        for (int j=0;j<diffE.dimension(0);j++) {
+          for (int k=0;k<diffE.dimension(0);k++) {
+            if ( diffE(i,j,k) < dE ) dE = diffE(i,j,k);
+            if ( diffT(i,j,k) < dT ) dT = diffT(i,j,k);
+          }
+        }
+      }
+      if ( (dE < threshold) && (dT < threshold) ) {
+        // this because calcVariational computes LTT and LEE
+        fENew = fENew / sMatrixDiagonalSqrt;
+        fTNew = fTNew / sMatrixDiagonalSqrt;
+        transportCoeffs.calcFromCanonicalPopulation(fENew, fTNew);
+        break;
+      } else {
+        elCondOld = elCond;
+        thCondOld = thCond;
+        fEOld = fENew;
+        fTOld = fTNew;
+        gEOld = gENew;
+        gTOld = gTNew;
+        hEOld = hENew;
+        hTOld = hTNew;
+      }
+
+      if (iter == context.getMaxIterationsBTE() - 1) {
+        Error e("Reached max BTE iterations without convergence");
+      }
+    }
+
+    // nice formatting of the thermal conductivity at the last step
+    transportCoeffs.print();
+    transportCoeffs.outputToJSON("variational_el_onsager_coeffs.json");
+
+    if ( mpi->mpiHead()) {
+      std::cout << "Finished variational BTE solver\n";
+      std::cout << "\n";
+      std::cout << std::string(80, '-') << "\n";
+      std::cout << std::endl;
+    }
+  }
+
   if (doRelaxons) {
     if ( mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;

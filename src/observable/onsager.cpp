@@ -475,3 +475,56 @@ Eigen::Tensor<double, 3> OnsagerCoefficients::getElectricalConductivity() {
 Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
   return kappa;
 }
+
+void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
+                                          VectorBTE &fE, VectorBTE &fT,
+                                          VectorBTE &scalingCG) {
+  double norm = 1. / bandStructure.getNumPoints(true) /
+      crystal.getVolumeUnitCell(dimensionality);
+
+  auto fEUnscaled = fE;
+  auto fTUnscaled = fT;
+  fEUnscaled = fEUnscaled / scalingCG;
+  fTUnscaled = fTUnscaled / scalingCG;
+
+  calcFromCanonicalPopulation(fEUnscaled, fTUnscaled);
+
+  sigma = LEE;
+  kappa = LTT;
+  sigma *= sigma.constant(2.);
+  kappa *= kappa.constant(2.);
+
+  Eigen::Tensor<double,3> tmpLEE = LEE.constant(0.); // retains shape
+  Eigen::Tensor<double,3> tmpLTT = LTT.constant(0.); // retains shape
+#pragma omp parallel
+  {
+    Eigen::Tensor<double,3> tmpLEEPrivate = LEE.constant(0.);
+    Eigen::Tensor<double,3> tmpLTTPrivate = LTT.constant(0.);
+#pragma omp for nowait
+    for ( long is : bandStructure.parallelStateIterator() ) {
+      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (long i = 0; i < dimensionality; i++) {
+          for (long j = 0; j < dimensionality; j++) {
+            tmpLEEPrivate(iCalc, i, j) +=
+                fE(iCalc, i, is) * afE(iCalc, j, is) * norm;
+            tmpLTTPrivate(iCalc, i, j) +=
+                fT(iCalc, i, is) * afT(iCalc, j, is) * norm;
+          }
+        }
+      }
+    }
+#pragma omp critical
+    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (long i = 0; i < dimensionality; i++) {
+        for (long j = 0; j < dimensionality; j++) {
+          tmpLEE(iCalc, i, j) += tmpLEEPrivate(iCalc, i, j);
+          tmpLTT(iCalc, i, j) += tmpLTTPrivate(iCalc, i, j);
+        }
+      }
+    }
+  }
+  mpi->allReduceSum(&tmpLEE);
+  mpi->allReduceSum(&tmpLTT);
+  sigma -= tmpLEE;
+  kappa -= tmpLTT;
+}
