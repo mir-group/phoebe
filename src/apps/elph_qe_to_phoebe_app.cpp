@@ -254,19 +254,15 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     phases.setZero();
 #pragma omp parallel for
     for (int ik : mpi->divideWorkIter(numKPoints)) {
-//      for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
         for (int iR=0; iR<numElBravaisVectors; iR++) {
-//          for (int iR : mpi->divideWorkIter(numElBravaisVectors)) {
         double arg = k.dot(elBravaisVectors.col(iR));
         phases(ik, iR) = exp(-complexI * arg) / double(numKPoints);
       }
     }
     mpi->allReduceSum(&phases);
-std::cout << "OK\n";
 
     for (int iq : mpi->divideWorkIter(numQPoints)) {
-
 #pragma omp parallel
       {
         Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
@@ -311,14 +307,14 @@ std::cout << "OK\n";
     uQM1s.setZero();
     for (long iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::MatrixXcd uQ(numModes, numModes);
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int nu2 = 0; nu2 < numModes; nu2++) {
+      for (int nu2 = 0; nu2 < numModes; nu2++) {
+        for (int nu = 0; nu < numModes; nu++) {
           uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
         }
       }
       auto uQM1 = uQ.inverse();
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int nu2 = 0; nu2 < numModes; nu2++) {
+      for (int nu2 = 0; nu2 < numModes; nu2++) {
+        for (int nu = 0; nu < numModes; nu++) {
           uQM1s(nu, nu2, iq) = uQM1(nu, nu2);
         }
       }
@@ -384,10 +380,10 @@ std::cout << "OK\n";
           }
         }
 #pragma omp critical
-        for (int i = 0; i < numWannier; i++) {
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int j = 0; j < numWannier; j++) {
-              for (int nu = 0; nu < numModes; nu++) {
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int i = 0; i < numWannier; i++) {
+              for (int j = 0; j < numWannier; j++) {
                 gWannier(j, i, nu, irP, irE) += tmp(i, j, nu, irP);
               }
             }
