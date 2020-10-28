@@ -39,13 +39,13 @@ add_executable(phoebe src/main.cpp ${SOURCE_FILES})
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
 set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
-add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
+add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep highfive_dep)
+add_dependencies(runTests spglib_dep pugixml_dep eigen_dep highfive_dep)
 
-target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json)
+target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json hdf5)
 
 enable_testing()
-target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json)
+target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json hdf5)
 gtest_discover_tests(
     runTests
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -113,12 +113,12 @@ else()
 
 endif()
 
-option(OMP_AVAIL "Build with OMP" ON)
+option(OMP_AVAIL "Build with OMP" OFF)
 if(OMP_AVAIL)
-        find_package(OpenMP)
-        target_link_libraries(phoebe OpenMP::OpenMP_CXX)
-        target_link_libraries(runTests OpenMP::OpenMP_CXX)
-        add_definitions("-DOMP_AVAIL")
+  find_package(OpenMP)
+  target_link_libraries(phoebe OpenMP::OpenMP_CXX)
+  target_link_libraries(runTests OpenMP::OpenMP_CXX)
+  add_definitions("-DOMP_AVAIL")
 endif()
 
 ############# DOCS ############
