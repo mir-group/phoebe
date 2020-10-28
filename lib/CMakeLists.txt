@@ -29,9 +29,8 @@ ExternalProject_Add(spglib_dep
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
 )
+
 ExternalProject_Add(pugixml_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src
@@ -40,12 +39,10 @@ ExternalProject_Add(pugixml_dep
     UPDATE_COMMAND ""
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+	-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 )
+
 ExternalProject_Add(eigen_dep
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
     CONFIGURE_COMMAND ""
@@ -54,9 +51,26 @@ ExternalProject_Add(eigen_dep
     UPDATE_COMMAND ""
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+)
+# TODO if we want parallel read/write in the future, 
+# we will need to find a way to set PARALLEL_HDF5 on 
+# or off depending on if MPI was detected. 
+ExternalProject_Add(highfive_dep
+    SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/highfive_src
+    GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+    UPDATE_COMMAND ""
+    CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/highfive_src
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -DHIGHFIVE_EXAMPLES=OFF
+        -DHIGHFIVE_USE_BOOST=OFF
+	-DHIGHFIVE_USE_EIGEN=ON
+        -DHIGHFIVE_PARALLEL_HDF5=OFF
+        -DHIGHFIVE_USE_OPENCV=OFF
+        -DHIGHFIVE_USE_XTENSOR=OFF
+	-DEIGEN3_INCLUDE_DIRS=${CMAKE_CURRENT_BINARY_DIR}/eigen_src
 )
 
 link_directories(
@@ -71,5 +85,6 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
     ${CMAKE_CURRENT_BINARY_DIR}/json_src/include
+    ${CMAKE_CURRENT_BINARY_DIR}/highfive_src/include
 )
 
