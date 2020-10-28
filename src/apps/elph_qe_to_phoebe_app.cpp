@@ -251,24 +251,45 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
   {
     Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
+    phases.setZero();
 #pragma omp parallel for
-    for (int iR : mpi->divideWorkIter(numElBravaisVectors)) {
-      for (long ik = 0; ik < numKPoints; ik++) {
-        Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+    for (int ik : mpi->divideWorkIter(numKPoints)) {
+//      for (long ik = 0; ik < numKPoints; ik++) {
+      Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+        for (int iR=0; iR<numElBravaisVectors; iR++) {
+//          for (int iR : mpi->divideWorkIter(numElBravaisVectors)) {
         double arg = k.dot(elBravaisVectors.col(iR));
         phases(ik, iR) = exp(-complexI * arg) / double(numKPoints);
       }
     }
     mpi->allReduceSum(&phases);
+std::cout << "OK\n";
 
-    for (int iR : mpi->divideWorkIter(numElBravaisVectors)) {
-      for (long ik = 0; ik < numKPoints; ik++) {
-#pragma omp parallel for collapse(4)
-        for (int iq = 0; iq < numQPoints; iq++) {
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+
+#pragma omp parallel
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, iR) +=
+                      gFullTmp(i, j, nu, ik, iq) * phases(ik, iR);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
           for (int nu = 0; nu < numModes; nu++) {
             for (int j = 0; j < numWannier; j++) {
               for (int i = 0; i < numWannier; i++) {
-                gMixed(i, j, nu, iR, iq) += gFullTmp(i, j, nu, ik, iq) * phases(ik, iR);
+                gMixed(i, j, nu, iR, iq) += tmp(i, j, nu, iR);
               }
             }
           }
@@ -278,7 +299,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     mpi->allReduceSum(&gMixed);
   }
   gFullTmp.reshape(zeros);
-  std::cout << gMixed.sum() << " gMixed\n";
 
   if (mpi->mpiHead()) {
     std::cout << "Phonon rotation" << std::endl;
@@ -288,6 +308,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   gWannierTmp.setZero();
   {
     Eigen::Tensor<std::complex<double>,3> uQM1s(numModes, numModes, numQPoints);
+    uQM1s.setZero();
     for (long iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::MatrixXcd uQ(numModes, numModes);
       for (int nu = 0; nu < numModes; nu++) {
@@ -333,6 +354,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   gWannier.setZero();
   {
     Eigen::MatrixXcd phases(numPhBravaisVectors,numQPoints);
+    phases.setZero();
 #pragma omp parallel for
     for (long iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
@@ -343,16 +365,30 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     }
     mpi->allReduceSum(&phases);
 
-    for (long iq : mpi->divideWorkIter(numQPoints)) {
-      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-
-#pragma omp parallel for collapse(4)
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
-          for (int i = 0; i < numWannier; i++) {
+    for (long irE : mpi->divideWorkIter(numElBravaisVectors)) {
+#pragma omp parallel
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iq = 0; iq < numQPoints; iq++) {
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, irP) +=
+                      phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int i = 0; i < numWannier; i++) {
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
             for (int j = 0; j < numWannier; j++) {
               for (int nu = 0; nu < numModes; nu++) {
-                gWannier(j, i, nu, irP, irE) +=
-                    phases(irP,iq) * gWannierTmp(i, j, nu, irE, iq);
+                gWannier(j, i, nu, irP, irE) += tmp(i, j, nu, irP);
               }
             }
           }
@@ -1328,7 +1364,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   Eigen::Tensor<std::complex<double>, 5> gWannier =
       blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
                      phEigenvectors, kPoints, qPoints, crystal, phononH0);
-std::cout << gWannier.sum() << "!!!\n";
+
   //--------------------------------------------------------------------------
 
   // Dump el-ph in Wannier representation to file
