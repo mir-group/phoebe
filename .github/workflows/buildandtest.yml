@@ -1,0 +1,38 @@
+name: Build and Test
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        omp: [OFF, ON]
+        mpi: [OFF, ON]
+    name: "(OpenMP, MPI) ="
+    runs-on: ubuntu-20.04
+    env:
+      BUILD_DIR: build_${{ matrix.omp }}_${{ matrix.mpi }}
+      OMP_NUM_THREADS: 4
+    steps:
+      - name: Install dependencies
+        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Configure
+        run: |
+          mkdir ${BUILD_DIR}
+          cd ${BUILD_DIR}
+          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }}
+      - name: Build
+        run: |
+          cd ${BUILD_DIR}
+          make -j4
+      - name: Run example without MPI
+        working-directory: example/Silicon
+        run: ../../${BUILD_DIR}/phoebe -in input.in
+      - name: Run example with MPI
+        working-directory: example/Silicon
+        if: matrix.mpi == 'ON'
+        run: |
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in input.in

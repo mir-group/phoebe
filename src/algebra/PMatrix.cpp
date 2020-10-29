@@ -11,9 +11,12 @@ template <>
 ParallelMatrix<double> ParallelMatrix<double>::prod(
     const ParallelMatrix<double>& that, const char& trans1,
     const char& trans2) {
+
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+  }
   ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
                                 numBlocksCols_);
-
   int m;
   if (trans1 == transN) {
     m = numRows_;
@@ -53,7 +56,9 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
     const char& trans2) {
   ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
                                               numBlocksRows_, numBlocksCols_);
-
+  if(cols() != that.rows()) {
+    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+  }
   int m;
   if (trans1 == transN) {
     m = numRows_;
@@ -91,13 +96,17 @@ template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
 ParallelMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Can not diagonalize non-square matrix");
+    Error e("Cannot diagonalize non-square matrix");
+  }
+  if ( numBlasRows_ != numBlasCols_ ) {
+    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
-  ParallelMatrix<double> eigenvectors(numRows_, numCols_, numBlocksRows_,
-                                      numBlocksCols_);
+  // Make a new PMatrix to receive the output
+  ParallelMatrix<double> eigenvectors(numRows_,numCols_,
+                                      numBlocksRows_,numBlocksCols_);
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangolar
@@ -105,10 +114,9 @@ ParallelMatrix<double>::diagonalize() {
   int ja = 1;       // row index from which we diagonalize
 
   // find the value of lwork. These are internal "scratch" arrays
-  // Since it's fortran, this is the simple way to estimate the scratch size:
-
+  // clearly user-friendly, this is the simple way to estimate the scratch size
   int izero = 0;
-  int n = numRows_ * numCols_;
+  int n = numRows_;
   int nb = blockSizeRows_; // = MB_A = NB_A = MB_Z = NB_Z
   int kkk = myBlasCol_ + myBlasRow_ * numBlasCols_;
   int nrc = numroc_(&n, &nb, &kkk, &izero, &n);
@@ -128,13 +136,20 @@ ParallelMatrix<double>::diagonalize() {
   int lwork = 3 * n + 2 * n + lwqr2 + std::max(qrmem, lwmtr) + 1;
   lwork *= 2;  // just to be safe
 
-  // double work[lwork];
   double* work = nullptr;
   work = new double[lwork];
 
   int info = 0;
+
+  // Here, we are tricking scalapack a little bit. 
+  // normally, one would provide the descMat for the eigenvectors matrix 
+  // as the 12th argument to pdsyev. However, this will result in an error, 
+  // because the blacsContext for eigenvectors is not the exact same reference 
+  // as the one for the input matrix. However, because eigenvectors is 
+  // the same size and block distribution as the input matrix, 
+  // there is no harm in using the same values for descMat. 
   pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0], work, &lwork,
+          eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork,
           &info);
 
   if (info != 0) {
@@ -157,6 +172,9 @@ std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
 ParallelMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
     Error e("Can not diagonalize non-square matrix");
+  }
+  if ( numBlasRows_ != numBlasCols_ ) {
+    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];

@@ -67,7 +67,7 @@ class WignerPhononThermalConductivity : public PhononThermalConductivity {
   void print();
 
  protected:
-  VectorBTE &linewidths;
+  VectorBTE &smaRelTimes;
   Eigen::Tensor<double, 3> wignerCorrection;
 };
 

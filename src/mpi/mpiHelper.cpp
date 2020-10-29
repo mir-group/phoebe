@@ -1,25 +1,28 @@
 #include "mpiHelper.h"
-#include <stdio.h>
+#include <iostream>
 
 #ifdef OMP_AVAIL
 #include "omp.h"
 #endif
 
-MPIcontroller* mpi = 0;
+MPIcontroller *mpi = nullptr;
 
-// A function to set up the mpi env by creating the controller object. 
-void initMPI(){
-
-        mpi = new MPIcontroller();
-        return;  
+// A function to set up the mpi env by creating the controller object.
+void initMPI() {
+  mpi = new MPIcontroller();
 }
 
-void parallelInfo() { 
-        fprintf(stdout,"\tIntialized with: \n");
-        #ifdef MPI_AVAIL
-        fprintf(stdout,"\tMPI Processes\t %d \n", mpi->getSize());
-        #endif
-        #ifdef OMP_AVAIL 
-        fprintf(stdout,"\tOMP Threads  \t %d \n", omp_get_max_threads());
-        #endif
+void deleteMPI() {
+  mpi->finalize();
+  delete mpi;
+}
+
+void parallelInfo() {
+  std::cout << "Initialized with:\n";
+#ifdef MPI_AVAIL
+  std::cout << "MPI Processes " << mpi->getSize() << std::endl;
+#endif
+#ifdef OMP_AVAIL
+  std::cout << "OMP Threads " << omp_get_max_threads() << std::endl;
+#endif
 }

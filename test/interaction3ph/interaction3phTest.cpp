@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "points.h"
-#include "state.h"
 #include "ifc3_parser.h"
 #include "qe_input_parser.h"
 #include "ph_scattering.h"
@@ -29,7 +28,9 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+	auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -50,16 +51,43 @@ TEST (Interaction3Ph, Coupling3Ph000) {
 	q2.setZero();
 	q3.setZero();
 
-	auto [energies1,ev1] = phononH0.diagonalizeFromCoords(q1);
-	auto [energies2,ev2] = phononH0.diagonalizeFromCoords(q2);
-	auto [energies3,ev3] = phononH0.diagonalizeFromCoords(q3);
+  auto tup1 = phononH0.diagonalizeFromCoords(q1);
+  auto energies1 = std::get<0>(tup1);
+  auto ev1 = std::get<1>(tup1);
+  auto tup2 = phononH0.diagonalizeFromCoords(q2);
+  auto energies2 = std::get<0>(tup2);
+  auto ev2 = std::get<1>(tup2);
+  auto tup3 = phononH0.diagonalizeFromCoords(q3);
+  auto energies3 = std::get<0>(tup3);
+  auto ev3 = std::get<1>(tup3);
 
-	DetachedState s1(q1, energies, numBands, numBands, ev1, nullptr);
-	DetachedState s2(q2, energies, numBands, numBands, ev2, nullptr);
-	DetachedState s3(q3, energies, numBands, numBands, ev3, nullptr);
+  int nb1 = energies.size();
+  int nb2 = energies.size();
 
-	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
+  std::vector<Eigen::Vector3d> q1s_e(1);
+  Eigen::Vector3d q2_e;
+  std::vector<Eigen::MatrixXcd> ev1s_e(1);
+  Eigen::MatrixXcd ev2_e;
+  std::vector<Eigen::MatrixXcd> ev3Pluss_e(1);
+  std::vector<Eigen::MatrixXcd> ev3Minss_e(1);
+  std::vector<int> nb1s_e(1);
+  std::vector<int> nb3Pluss_e(1);
+  std::vector<int> nb3Minss_e(1);
+
+  q1s_e[0] = q1;
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = energies.size();
+  nb3Minss_e[0] = energies.size();
+  ev1s_e[0] = ev1;
+  ev3Pluss_e[0] = ev3;
+  ev3Minss_e[0] = ev3;
+  ev2_e = ev2;
+  q2_e = q2;
+
+  auto tup8 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+           ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus = std::get<0>(tup8)[0];
+  auto couplingMins = std::get<1>(tup8)[0];
 
 	// we load reference data
 
@@ -124,7 +152,9 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	context.setSumRuleD2("simple");
 
 	QEParser qeParser;
-	auto [crystal,phononH0] = qeParser.parsePhHarmonic(context);
+	auto tup = qeParser.parsePhHarmonic(context);
+ auto crystal = std::get<0>(tup);
+ auto phononH0 = std::get<1>(tup);
 
 	IFC3Parser ifc3Parser;
 	auto coupling3Ph = ifc3Parser.parseFromShengBTE(context, crystal);
@@ -140,32 +170,62 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	long iq1 = 10;
 	long iq2 = 210;
 	long iq3 = 200;
+  auto iq1Index = WavevectorIndex(iq1);
+  auto iq2Index = WavevectorIndex(iq2);
+  auto iq3Index = WavevectorIndex(iq3);
+
 
 	Eigen::Vector3i qMesh;
 	qMesh << 20, 20, 20;
 	FullPoints points(crystal, qMesh);
-	auto p1 = points.getPoint(iq1);
-	auto p2 = points.getPoint(iq2);
-	auto p3 = points.getPoint(iq3);
-	auto [energies1,evm1] = phononH0.diagonalize(p1);
-	auto [energies2,evm2] = phononH0.diagonalize(p2);
-	auto [energies3,evm3] = phononH0.diagonalize(p3);
-	auto q1 = p1.getCoords(Points::cartesianCoords);
-	auto q2 = p2.getCoords(Points::cartesianCoords);
-	auto q3 = p3.getCoords(Points::cartesianCoords);
+  auto p1 = points.getPoint(iq1);
+  auto p2 = points.getPoint(iq2);
+  auto p3 = points.getPoint(iq3);
+  auto tup1 = phononH0.diagonalize(p1);
+  auto energies1 = std::get<0>(tup1);
+  auto evm1 = std::get<1>(tup1);
+  auto tup2 = phononH0.diagonalize(p2);
+  auto energies2 = std::get<0>(tup2);
+  auto evm2 = std::get<1>(tup2);
+  auto tup3 = phononH0.diagonalize(p3);
+  auto energies3 = std::get<0>(tup3);
+  auto evm3 = std::get<1>(tup3);
+  auto q1 = p1.getCoords(Points::cartesianCoords);
+  auto q2 = p2.getCoords(Points::cartesianCoords);
+//  auto q3 = p3.getCoords(Points::cartesianCoords);
 
-	// note: the reference was generated without the normalization by energies
+  // note: the reference was generated without the normalization by energies
 	// so we set them to one.
 	Eigen::VectorXd energies(numBands);
 	energies.setConstant(1.);
 
-	DetachedState s1(q1, energies, numBands, numBands, evm1, nullptr);
-	DetachedState s2(q2, energies, numBands, numBands, evm2, nullptr);
-	DetachedState s3(q3, energies, numBands, numBands, evm3, nullptr);
+  int nb1 = energies.size();
+  int nb2 = energies.size();
 
-	auto [couplingPlus,couplingMins] = coupling3Ph.getCouplingSquared(
-														s1, s2, s3, s3);
-	// we load reference data
+  std::vector<Eigen::Vector3d> q1s_e(1);
+  Eigen::Vector3d q2_e;
+  std::vector<Eigen::MatrixXcd> ev1s_e(1);
+  Eigen::MatrixXcd ev2_e;
+  std::vector<Eigen::MatrixXcd> ev3Pluss_e(1);
+  std::vector<Eigen::MatrixXcd> ev3Minss_e(1);
+  std::vector<int> nb1s_e(1);
+  std::vector<int> nb3Pluss_e(1);
+  std::vector<int> nb3Minss_e(1);
+
+  q1s_e[0] = q1;
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = energies.size();
+  nb3Minss_e[0] = energies.size();
+  ev1s_e[0] = evm1;
+  ev3Pluss_e[0] = evm3;
+  ev3Minss_e[0] = evm3;
+  ev2_e = evm2;
+  q2_e = q2;
+
+  auto tup7 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+      ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus = std::get<0>(tup7)[0];
+  auto couplingMins = std::get<1>(tup7)[0];
 
 	Eigen::Tensor<double,3> referenceCoupling(numBands,numBands,numBands);
 	referenceCoupling.setZero();
@@ -216,29 +276,39 @@ TEST (Interaction3Ph, Coupling3Ph210) {
 	FullBandStructure bandStructure = phononH0.populate(points,
 			withVelocities, withEigenvectors);
 
-	auto states1 = bandStructure.getState(iq1);
-	auto states2 = bandStructure.getState(iq2);
-	auto states3Plus = bandStructure.getState(iq3);
-	auto states3Mins = bandStructure.getState(iq3);
-
-	p1 = states1.getPoint();
-	p2 = states2.getPoint();
+	p1 = bandStructure.getPoint(iq1);
+	p2 = bandStructure.getPoint(iq2);
 	auto p3PlusTest = p1 + p2;
 	auto p3MinsTest = p1 - p2;
-	auto p3Plus = states3Plus.getPoint();
-	auto p3Mins = states3Mins.getPoint();
+	auto p3Plus = bandStructure.getPoint(iq3);
+	auto p3Mins = bandStructure.getPoint(iq3);
 
 	// check that the sum of Point works
 	ASSERT_EQ((p3PlusTest.getCoords(Points::cartesianCoords)-p3Plus.getCoords(Points::cartesianCoords)).norm(), 0.);
 	ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords)-p3Mins.getCoords(Points::cartesianCoords)).norm(), 0.);
 
-	auto [couplingPlus2,couplingMins2] = coupling3Ph.getCouplingSquared(
-			states1, states2, states3Plus, states3Mins);
+	auto en1 = bandStructure.getEnergies(iq1Index);
+	auto en2 = bandStructure.getEnergies(iq2Index);
+	auto en3Plus = bandStructure.getEnergies(iq3Index);
+	auto en3Mins = bandStructure.getEnergies(iq3Index);
 
-	auto en1 = states1.getEnergies();
-	auto en2 = states2.getEnergies();
-	auto en3Plus = states3Plus.getEnergies();
-	auto en3Mins = states3Mins.getEnergies();
+  nb1 = en1.size();
+  nb2 = en2.size();
+  q2 = bandStructure.getWavevector(iq2Index);
+
+  q1s_e[0] = bandStructure.getWavevector(iq1Index);
+  nb1s_e[0] = nb1;
+  nb3Pluss_e[0] = en3Plus.size();
+  nb3Minss_e[0] = en3Mins.size();
+  ev1s_e[0] = bandStructure.getEigenvectors(iq1Index);
+  ev2_e = bandStructure.getEigenvectors(iq2Index);
+  ev3Pluss_e[0] = bandStructure.getEigenvectors(iq3Index);
+  ev3Minss_e[0] = bandStructure.getEigenvectors(iq3Index);
+  q2_e = q2;
+  auto tup6 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+      ev3Pluss_e, ev3Minss_e, nb1s_e, nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus2 = std::get<0>(tup6)[0];
+  auto couplingMins2 = std::get<1>(tup6)[0];
 
 	x1 = 0.;
 	x2 = 0.;

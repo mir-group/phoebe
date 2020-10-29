@@ -15,75 +15,74 @@
  * considered.
  */
 class Window {
-public:
-    /** Class constructor.
-     * @param context: object with user input
-     * @param particle: object describing whether we have electrons or phonons.
-     * @param temperatureMin: smallest value of temperature used in the
-     * calculation.
-     * @param temperatureMax: largest value of temperature used.
-     * @param chemicalPotentialMin: smallest value of chemical potential used
-     * in the calculation.
-     * @param chemicalPotentialMax: largest value of chemical potential used
-     * in the calculation.
-     *
-     * Note: temperatures and chemical potentials are used only if we are
-     * using a filter on populations.
-     */
-    Window(Context &context, Particle &particle_, const double &temperatureMin =
-            0., const double &temperatureMax = 0.,
-            const double &chemicalPotentialMin = 0.,
-            const double &chemicalPotentialMax = 0.);
+ public:
+  /** Class constructor.
+   * @param context: object with user input
+   * @param particle: object describing whether we have electrons or phonons.
+   * @param temperatureMin: smallest value of temperature used in the
+   * calculation.
+   * @param temperatureMax: largest value of temperature used.
+   * @param chemicalPotentialMin: smallest value of chemical potential used
+   * in the calculation.
+   * @param chemicalPotentialMax: largest value of chemical potential used
+   * in the calculation.
+   *
+   * Note: temperatures and chemical potentials are used only if we are
+   * using a filter on populations.
+   */
+  Window(Context &context, Particle &particle_, const double &temperatureMin =
+  0., const double &temperatureMax = 0.,
+         const double &chemicalPotentialMin = 0.,
+         const double &chemicalPotentialMax = 0.);
 
-    /** public interface to use the window, used by activeBandStructure.
-     * @param: energies: a list of energies, in absolute units. They should be
-     * using the same offset of the chemical potential.
-     * Nota Bene: the energies should be sorted! This is typically true if we
-     * are looping over the energies of a single wavevector.
-     * @return filteredEnergies: the values of energies after the filter,
-     * an empty vector if nothing is found.
-     * @return filteredBandsExtrema: the smallest and largest band index of the
-     * bands that pass the filter. We are assuming that the filtered energies
-     * are contiguous in the band index. Returns an empty vector if nothing
-     * goes past the filter.
-     */
-    std::tuple<std::vector<double>, std::vector<long>> apply(
-            Eigen::VectorXd &energies);
+  /** public interface to use the window, used by activeBandStructure.
+   * @param: energies: a list of energies, in absolute units. They should be
+   * using the same offset of the chemical potential.
+   * Nota Bene: the energies should be sorted! This is typically true if we
+   * are looping over the energies of a single wavevector.
+   * @return filteredEnergies: the values of energies after the filter,
+   * an empty vector if nothing is found.
+   * @return filteredBandsExtrema: the smallest and largest band index of the
+   * bands that pass the filter. We are assuming that the filtered energies
+   * are contiguous in the band index. Returns an empty vector if nothing
+   * goes past the filter.
+   */
+  std::tuple<std::vector<double>, std::vector<int>> apply(
+      Eigen::VectorXd &energies);
 
-    // Constants that identify the kind of filter to be used
-    static const long nothing = 0;
-    static const long population = 1;
-    static const long energy = 2;
+  // Constants that identify the kind of filter to be used
+  static const long nothing = 0;
+  static const long population = 1;
+  static const long energy = 2;
 
-    /** Returns the kind of energy filter used.
-     * @return method: an integer equal to either Window::nothing,
-     * Window::population, or Window::energy.
-     */
-    long getMethodUsed();
-private:
-    // saves whether we have electrons or phonons
-    Particle &particle;
+  /** Returns the kind of energy filter used.
+   * @return method: an integer equal to either Window::nothing,
+   * Window::population, or Window::energy.
+   */
+  long getMethodUsed();
+ private:
+  // saves whether we have electrons or phonons
+  Particle &particle;
 
-    // parameters for window
-    double temperatureMin, temperatureMax;
-    double chemicalPotentialMin, chemicalPotentialMax;
-    double populationThreshold = 0.;
-    double minEnergy = 0., maxEnergy = 0.;
+  // parameters for window
+  double temperatureMin, temperatureMax;
+  double chemicalPotentialMin, chemicalPotentialMax;
+  double populationThreshold = 0.;
+  double minEnergy = 0., maxEnergy = 0.;
 
-    // selection of window type
-    int method;
+  // selection of window type
+  int method;
 
-    // temp variable to facilitate cpp code
-    long numBands;
+  // temp variable to facilitate cpp code
+  long numBands;
 
-    // internal method to apply the window on population
-    std::tuple<std::vector<double>, std::vector<long>> internalPopWindow(
-            Eigen::VectorXd &energies, Eigen::VectorXd &dndtMin,
-            Eigen::VectorXd &dndtMax, Eigen::VectorXd &dndeMin,
-            Eigen::VectorXd &dndeMax);
-    // internal method to apply the window on energy
-    std::tuple<std::vector<double>, std::vector<long>> internalEnWindow(
-            Eigen::VectorXd energies);
+  // internal method to apply the window on population
+  std::tuple<std::vector<double>, std::vector<int>> internalPopWindow(
+      const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
+      const Eigen::VectorXd &popMax);
+  // internal method to apply the window on energy
+  std::tuple<std::vector<double>, std::vector<int>> internalEnWindow(
+      const Eigen::VectorXd &energies);
 };
 
 #endif

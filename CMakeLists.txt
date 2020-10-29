@@ -1,11 +1,17 @@
-cmake_minimum_required(VERSION 3.17)
-set(CMAKE_CXX_STANDARD 17)
-
-project(Phoebe CXX)
-
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE "Release" CACHE
+      STRING "Choose the type of build." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+
+if(Kokkos_ENABLE_CUDA)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "don't touch")
+    set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
+endif()
+
+cmake_minimum_required(VERSION 3.16)
+set(CMAKE_CXX_STANDARD 14)
+
+project(Phoebe C CXX Fortran)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
@@ -14,24 +20,31 @@ endif()
 
 ############### SOURCE ###############
 
-SET (SOURCE_FILES src/bands/bandstructure.cpp src/apps/app.cpp src/apps/phonon_transport_app.cpp src/apps/polarization_app.cpp src/constants/periodic_table.cpp src/utilities.cpp src/exceptions/exceptions.cpp src/io.cpp src/particle.cpp src/context.cpp src/crystal.cpp src/harmonic/harmonic.cpp src/harmonic/phonon_h0.cpp src/points.cpp src/state.cpp src/bands/active_bandstructure.cpp src/harmonic/electron_h0_fourier.cpp src/harmonic/electron_h0_wannier.cpp src/bands/window.cpp src/bte/vector_bte.cpp src/bte/basevector_bte.cpp src/parser/qe_input_parser.cpp src/observable/observable.cpp src/bte/scattering.cpp src/bte/ph_scattering.cpp src/bte/drift.cpp src/delta_function.cpp src/statistics_sweep.cpp src/parser/ifc3_parser.cpp src/interaction/interaction_3ph.cpp src/apps/dos_app.cpp src/apps/bands_app.cpp src/observable/phonon_thermal_cond.cpp src/observable/phonon_viscosity.cpp src/observable/specific_heat.cpp src/mpi/mpiHelper.cpp src/mpi/mpiController.cpp src/algebra/PMatrix.cpp src/algebra/Matrix.cpp src/observable/wigner_phonon_thermal_cond.cpp src/observable/onsager.cpp src/interaction/interaction_epa.cpp src/parser/epa_parser.cpp src/apps/transport_epa_app.cpp src/bte/epa_scattering.cpp)
+FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
+list(REMOVE_ITEM SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
+
+message(${CMAKE_CURRENT_SOURCE_DIR})
+message(${SOURCE_FILES})
+
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
-include_directories(include)
+include_directories(src src/algebra src/apps src/bands src/bte src/constants src/harmonic src/interaction src/mpi src/observable src/parser src/points)
 
 include(lib/CMakeLists.txt)
 include(GoogleTest)
 
 add_executable(phoebe src/main.cpp ${SOURCE_FILES})
+
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
+set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
 add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
-target_link_libraries(phoebe symspg pugixml)
+target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json)
 
 enable_testing()
-target_link_libraries(runTests symspg pugixml gtest_main)
+target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json)
 gtest_discover_tests(
     runTests
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -45,15 +58,47 @@ if (MPI_AVAIL)
   target_link_libraries(runTests MPI::MPI_CXX)
   add_definitions("-DMPI_AVAIL") # this sets turns on ifdefs for mpi in the cpp
 
-  add_dependencies(phoebe scalapack_dep)
+  find_library(SCALAPACK_LIB NAMES scalapack scalapack-openmpi mkl_scalapack_lp64 PATHS ENV LD_LIBRARY_PATH)
+  if(${SCALAPACK_LIB} MATCHES NOTFOUND)
+      ExternalProject_Add(scalapack_dep
+          BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_build
+          SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/scalapack_src
+          GIT_REPOSITORY https://github.com/Reference-ScaLAPACK/scalapack.git
+          INSTALL_COMMAND ""
+          UPDATE_COMMAND ""
+          CMAKE_ARGS
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+              -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+              -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+          )
+      set(SCALAPACK_LIB scalapack)
+      message(WARNING "No SCALAPACK library found in CMAKE_LIBRARY_PATH, building our own.")
+      add_dependencies(phoebe scalapack_dep)
+  else()
+      if(${SCALAPACK_LIB} MATCHES mkl)
+          if("${MPI_CXX_LIBRARIES}" MATCHES openmpi)
+              find_library(BLACS_LIB NAMES mkl_blacs_openmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
+          elseif("${MPI_CXX_LIBRARIES}" MATCHES intel)
+              find_library(BLACS_LIB NAMES mkl_blacs_intelmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
+          else()
+              message(FATAL_ERROR "Confused by MPI library when looking for BLACS.")
+          endif()
+          if(${BLACS_LIB} MATCHES NOTFOUND)
+              message(FATAL_ERROR "Found Intel SCALAPACK but not BLACS")
+          endif()
+          message(STATUS "Found BLACS: ${BLACS_LIB}")
+      endif()
+      message(STATUS "Found SCALAPACK: ${SCALAPACK_LIB}")
+  endif()
 
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
   include_directories(${BLAS_INCLUDE_DIR})
   include_directories(${LAPACK_INCLUDE_DIR})
   ## Very important to link scalapack before blas and lapack
-  target_link_libraries(phoebe scalapack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
-  target_link_libraries(runTests scalapack ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(phoebe ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
+  target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
 
 else()
 
@@ -67,7 +112,7 @@ else()
 
 endif()
 
-option(OMP_AVAIL "Build with OMP" OFF)
+option(OMP_AVAIL "Build with OMP" ON)
 if(OMP_AVAIL)
         find_package(OpenMP)
         target_link_libraries(phoebe OpenMP::OpenMP_CXX)

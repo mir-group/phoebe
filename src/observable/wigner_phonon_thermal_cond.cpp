@@ -8,15 +8,8 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     StatisticsSweep &statisticsSweep_, Crystal &crystal_,
     BaseBandStructure &bandStructure_, VectorBTE &relaxationTimes)
     : PhononThermalConductivity(statisticsSweep_, crystal_, bandStructure_),
-      linewidths(relaxationTimes) {
+      smaRelTimes(relaxationTimes) {
   int numCalcs = statisticsSweep.getNumCalcs();
-
-  // since we pass in input the relaxation times, we invert them here
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-    for (int is = 0; is < bandStructure.getNumStates(); is++) {
-      linewidths.data(iCalc, is) = 1. / linewidths.data(iCalc, is);
-    }
-  }
 
   wignerCorrection =
       Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
@@ -37,9 +30,9 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
 
   int numPoints = bandStructure.getNumPoints();
   for (int iq : mpi->divideWorkIter(numPoints)) {
-    State state = bandStructure.getState(iq);
-    auto velocities = state.getVelocities();
-    auto energies = state.getEnergies();
+    auto iqIndex = WavevectorIndex(iq);
+    auto velocities = bandStructure.getVelocities(iqIndex);
+    auto energies = bandStructure.getEnergies(iqIndex);
 
     int numBands = energies.size();
 
@@ -70,11 +63,11 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                       .real();
               double den =
                   4. * pow(energies(ib1) - energies(ib2), 2) +
-                  pow(linewidths.data(iCalc, is1) + linewidths.data(iCalc, is2),
+                  pow(1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2),
                       2);
               wignerCorrection(iCalc, ic1, ic2) +=
                   (energies(ib1) + energies(ib2)) * vel * num / den *
-                  (linewidths.data(iCalc, is1) + linewidths.data(iCalc, is2)) *
+                  (1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2)) *
                   norm(iCalc);
             }
           }
@@ -89,7 +82,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
 WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     const WignerPhononThermalConductivity &that)
     : PhononThermalConductivity(that),
-      linewidths(that.linewidths),
+      smaRelTimes(that.smaRelTimes),
       wignerCorrection(that.wignerCorrection) {}
 
 // copy assigmnent
@@ -97,7 +90,7 @@ WignerPhononThermalConductivity &WignerPhononThermalConductivity::operator=(
     const WignerPhononThermalConductivity &that) {
   PhononThermalConductivity::operator=(that);
   if (this != &that) {
-    linewidths = that.linewidths;
+    smaRelTimes = that.smaRelTimes;
     wignerCorrection = that.wignerCorrection;
   }
   return *this;
@@ -154,6 +147,6 @@ void WignerPhononThermalConductivity::print() {
       }
       std::cout << "\n";
     }
-    std::cout << "\n";
+    std::cout << std::endl;
   }
 }

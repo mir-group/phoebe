@@ -83,7 +83,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalize(
         Point &point) {
     Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
 
-    auto [energies,eigenvectors] = diagonalizeFromCoords(k);
+    auto tup = diagonalizeFromCoords(k);
+    auto energies = std::get<0>(tup);
+    auto eigenvectors = std::get<1>(tup);
 
     // note: the eigenvector matrix is the unitary transformation matrix U
     // from the Bloch to the Wannier gauge.
@@ -136,7 +138,9 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     }
 
     // get the eigenvectors and the energies of the q-point
-    auto [energies,eigenvectors] = diagonalizeFromCoords(coords);
+    auto tup = diagonalizeFromCoords(coords);
+    auto energies = std::get<0>(tup);
+    auto eigenvectors = std::get<1>(tup);
 
     // now we compute the velocity operator, diagonalizing the expectation
     // value of the derivative of the dynamical matrix.
@@ -149,8 +153,12 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
         qMins(i) -= delta;
 
         // diagonalize the dynamical matrix at q+ and q-
-        auto [enPlus,eigPlus] = diagonalizeFromCoords(qPlus);
-        auto [enMins,eigMins] = diagonalizeFromCoords(qMins);
+        auto tup = diagonalizeFromCoords(qPlus);
+        auto enPlus = std::get<0>(tup);
+        auto eigPlus = std::get<1>(tup);
+        auto tup1 = diagonalizeFromCoords(qMins);
+        auto enMins = std::get<0>(tup1);
+        auto eigMins = std::get<1>(tup1);
 
         // build diagonal matrices with frequencies
         Eigen::MatrixXd enPlusMat(numBands, numBands);
@@ -244,14 +252,16 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
 }
 
 FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
-        bool &withVelocities, bool &withEigenvectors) {
+        bool &withVelocities, bool &withEigenvectors, bool isDistributed) {
 
     FullBandStructure fullBandStructure(numBands, particle, withVelocities,
-            withEigenvectors, fullPoints);
+            withEigenvectors, fullPoints, isDistributed);
 
-    for (long ik = 0; ik < fullBandStructure.getNumPoints(); ik++) {
+    for (auto ik : fullBandStructure.getWavevectorIndices()) {  
         Point point = fullBandStructure.getPoint(ik);
-        auto [ens, eigvecs] = diagonalize(point);
+        auto tup = diagonalize(point);
+        auto ens = std::get<0>(tup);
+        auto eigvecs = std::get<1>(tup);
         fullBandStructure.setEnergies(point, ens);
         if (withVelocities) {
             auto vels = diagonalizeVelocity(point);
@@ -269,7 +279,9 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
     Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
 
     // first we diagonalize the hamiltonian
-    auto [ens, eigvecs] = diagonalize(point);
+    auto tup = diagonalize(point);
+    auto ens = std::get<0>(tup);
+    auto eigvecs = std::get<1>(tup);
 
     // note: the eigenvector matrix is the unitary transformation matrix U
     // from the Bloch to the Wannier gauge.

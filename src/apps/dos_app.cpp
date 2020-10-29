@@ -1,241 +1,234 @@
+#include "dos_app.h"
+
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <string>
-#include "dos_app.h"
-#include "exceptions.h"
+
 #include "constants.h"
 #include "delta_function.h"
 #include "electron_h0_fourier.h"
-#include "utilities.h"
+#include "exceptions.h"
+#include "full_points.h"
+#include "mpiHelper.h"
 #include "qe_input_parser.h"
-#include "../mpi/mpiHelper.h" 
+#include "utilities.h"
+#include <nlohmann/json.hpp>
 
+// Forward declare this helper function so that
+// app::run functions can remain at the top
+std::tuple<std::vector<double>, std::vector<double>> calcDOS(
+        Context& context, FullBandStructure& fullBandStructure);
+
+void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
+        Particle& particle, Context& context, std::string outFileName);
+
+/* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
 void PhononDosApp::run(Context &context) {
-    if (mpi->mpiHead())
-        std::cout << "Starting phonon DoS calculation" << std::endl;
+  if (mpi->mpiHead()) {
+    std::cout << "Starting phonon DoS calculation" << std::endl;
+  }
 
-    // Read the necessary input files
-    auto [crystal, phononH0] = QEParser::parsePhHarmonic(context);
+  // Read the necessary input files
+  auto tup = QEParser::parsePhHarmonic(context);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
 
-    // first we make compute the band structure on the fine grid
-    FullPoints fullPoints(crystal, context.getQMesh());
-    bool withVelocities = false;
-    bool withEigenvectors = false;
-    FullBandStructure fullBandStructure = phononH0.populate(fullPoints,
-            withVelocities, withEigenvectors);
+  // first we make compute the band structure on the fine grid
+  FullPoints fullPoints(crystal, context.getQMesh());
+  bool withVelocities = false;
+  bool withEigenvectors = false;
+  FullBandStructure fullBandStructure =
+      phononH0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-    // Form tetrahedra and fill them with eigenvalues
-    TetrahedronDeltaFunction tetrahedra(fullBandStructure);
+  // calculate DOS via the tetrahedron method
+  auto tup1 = calcDOS(context, fullBandStructure);
+  std::vector<double> energies = std::get<0>(tup1);
+  std::vector<double> dos = std::get<1>(tup1);
 
-    double minEnergy = context.getDosMinEnergy();
-    double maxEnergy = context.getDosMaxEnergy();
-    double deltaEnergy = context.getDosDeltaEnergy();
-    long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "phonon_dos.json");
 
-    // create instructions about how to divide up the work
-    std::vector<int> divs;
-    divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
-    int start = divs[0];
-    int stop = divs[1];
-    int workFraction = stop - start;
-
-    std::vector<double> energies(workFraction);
-    for (long i = start; i < stop; i++) {
-        energies[i - start] = i * deltaEnergy;
-    }
-
-    // Calculate phonon density of states (DOS) [1/Ry]
-    std::vector<double> dos(workFraction, 0.); // phonon DOS initialized to zero
-    for (long i = 0; i < workFraction; i++) {
-        dos[i] += tetrahedra.getDOS(energies[i]);
-    }
-
-    // containers for the final result, only allocated for head process
-    std::vector<double> dosTotal;
-    std::vector<double> eneTotal;
-    // root allocates memory to receive the gathered data
-    if (mpi->mpiHead()) {
-        dosTotal.resize(numEnergies);
-        eneTotal.resize(numEnergies);
-    }
-    // all processes send their data to be gathered into dos/eneTotal
-    mpi->gatherv(&energies, &eneTotal);
-    mpi->gatherv(&dos, &dosTotal);
-
-    // Save phonon DOS to file
-    if (mpi->mpiHead()) {
-        std::ofstream outfile("./phonon_dos.dat");
-        outfile << "# Phonon density of states: frequency[Cmm1], Dos[1/Ry]\n";
-        for (long i = 0; i < numEnergies; i++) {
-            outfile << eneTotal[i] * ryToCmm1 << "\t" << dosTotal[i] << "\n";
-        }
-        std::cout << "Phonon DoS computed" << std::endl;
-    }
+  if (mpi->mpiHead()) {
+    std::cout << "Phonon DoS computed." << std::endl;
+  }
 }
 
-// Compute the Electron DOS with tetrahedron method and Fourier interpolation
+/* ---------------- ElectronWannierDos --------------------*/
+// Compute the Electron DOS with tetrahedron method and Wannier interpolation
 void ElectronWannierDosApp::run(Context &context) {
-    if (mpi->mpiHead())
-        std::cout << "Starting electronic DoS calculation" << std::endl;
+  if (mpi->mpiHead())
+    std::cout << "Starting electronic (Wannier) DoS calculation" << std::endl;
 
-    // Read the necessary input files
-    auto [crystal, h0] = QEParser::parseElHarmonicWannier(context);
+  // Read the necessary input files
+  auto tup = QEParser::parseElHarmonicWannier(context);
+  auto crystal = std::get<0>(tup);
+  auto h0 = std::get<1>(tup);
 
-    // first we make compute the band structure on the fine grid
-    FullPoints fullPoints(crystal, context.getKMesh());
-    bool withVelocities = false;
-    bool withEigenvectors = false;
-    FullBandStructure fullBandStructure = h0.populate(fullPoints,
-            withVelocities, withEigenvectors);
+  // first we make compute the band structure on the fine grid
+  FullPoints fullPoints(crystal, context.getKMesh());
+  bool withVelocities = false;
+  bool withEigenvectors = false;
+  FullBandStructure fullBandStructure =
+      h0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-    // Form tetrahedra and fill them with eigenvalues
-    TetrahedronDeltaFunction tetrahedra(fullBandStructure);
+  // calculate DOS via the tetrahedron method
+  auto tup1 = calcDOS(context, fullBandStructure);
+  std::vector<double> energies = std::get<0>(tup1);
+  std::vector<double> dos = std::get<1>(tup1);
 
-    double minEnergy = context.getDosMinEnergy();
-    double maxEnergy = context.getDosMaxEnergy();
-    double deltaEnergy = context.getDosDeltaEnergy();
-    long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
 
-    // create instructions about how to divide up the work
-    std::vector<int> divs;
-    divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
-    int start = divs[0];
-    int stop = divs[1];
-    int workFraction = stop - start;
-
-    std::vector<double> energies(workFraction);
-    // loop over the energies that this process should work on
-    #pragma omp parallel for
-    for (int i = start; i < stop; i++) {
-        energies[i - start] = i * deltaEnergy + minEnergy;
-    }
-
-    // Calculate density of states (DOS) [1/Ry], for energies on this process
-    std::vector<double> dos(workFraction, 0.); // DOS initialized to zero
-    #pragma omp parallel for
-    for (int i = 0; i < workFraction; i++) {
-        dos[i] += tetrahedra.getDOS(energies[i]);
-    }
-
-    std::vector<double> dosTotal;
-    std::vector<double> eneTotal;
-    // root allocates memory to receive the gathered data
-    if (mpi->mpiHead()) {
-        dosTotal.resize(numEnergies);
-        eneTotal.resize(numEnergies);
-    }
-    // all processes send their data to be gathered into dos/eneTotal
-    mpi->gatherv(&energies, &eneTotal);
-    mpi->gatherv(&dos, &dosTotal);
-
-    // Merge different ranks and save DOS to file (mpi head only)
-    if (mpi->mpiHead()) {
-        std::ofstream outfile("./electron_dos.dat");
-        outfile << "# Electronic density of states: energy[eV], Dos[1/Ry]\n";
-        for (long i = 0; i < numEnergies; i++) {
-            outfile << eneTotal[i] * energyRyToEv << "\t"
-                    << dosTotal[i] / energyRyToEv << "\n";
-        }
-        std::cout << "Electronic DoS computed" << std::endl;
-    }
+  if (mpi->mpiHead()) {
+    std::cout << "Electronic (Wannier) DoS computed" << std::endl;
+  }
 }
 
+/* ---------------- ElectronFourierDos --------------------*/
 // Compute the Electron DOS with tetrahedron method and Fourier interpolation
 void ElectronFourierDosApp::run(Context &context) {
-    if (mpi->mpiHead())
-        std::cout << "Starting electronic DoS calculation" << std::endl;
+  if (mpi->mpiHead())
+    std::cout << "Starting electronic (Fourier) DoS calculation" << std::endl;
 
-    // Read the necessary input files
-    auto [crystal, h0] = QEParser::parseElHarmonicFourier(context);
+  // Read the necessary input files
+  auto tup = QEParser::parseElHarmonicFourier(context);
+  auto crystal = std::get<0>(tup);
+  auto h0 = std::get<1>(tup);
 
-    // first we make compute the band structure on the fine grid
-    FullPoints fullPoints(crystal, context.getKMesh());
-    bool withVelocities = false;
-    bool withEigenvectors = false;
-    FullBandStructure fullBandStructure = h0.populate(fullPoints,
-            withVelocities, withEigenvectors);
+  // first we make compute the band structure on the fine grid
+  FullPoints fullPoints(crystal, context.getKMesh());
+  bool withVelocities = false;
+  bool withEigenvectors = false;
+  FullBandStructure fullBandStructure =
+      h0.populate(fullPoints, withVelocities, withEigenvectors);
+  auto particle = fullBandStructure.getParticle();
 
-    // Form tetrahedra and fill them with eigenvalues
-    TetrahedronDeltaFunction tetrahedra(fullBandStructure);
+  // calculate DOS via the tetrahedron method
+  auto tup1 = calcDOS(context, fullBandStructure);
+  std::vector<double> energies = std::get<0>(tup1);
+  std::vector<double> dos = std::get<1>(tup1);
 
-    double minEnergy = context.getDosMinEnergy();
-    double maxEnergy = context.getDosMaxEnergy();
-    double deltaEnergy = context.getDosDeltaEnergy();
-    long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  // save dos to an output file
+  // arguments are: energies, dos, particleType, context outFileName
+  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
 
-    // create instructions about how to divide up the work
-    std::vector<int> divs;
-    divs = mpi->divideWork(numEnergies);
-    // the amount of values this process has to take care of  
-    int start = divs[0];
-    int stop = divs[1];
-    int workFraction = stop - start;
+  if (mpi->mpiHead()) {
+    std::cout << "Electronic (Fourier) DoS computed" << std::endl;
+  }
+}
 
-    std::vector<double> energies(workFraction);
-    for (long i = start; i < stop; i++) {
-        energies[i - start] = i * deltaEnergy + minEnergy;
-    }
+/*
+ * Generic helper function to calculate DoS via tetrahedron method
+ */
+std::tuple<std::vector<double>, std::vector<double>> calcDOS(
+        Context& context, FullBandStructure& fullBandStructure) {
 
-    // Calculate phonon density of states (DOS) [1/Ry]
-    std::vector<double> dos(workFraction, 0.); // DOS initialized to zero
-    for (long i = 0; i < workFraction; i++) {
-        dos[i] += tetrahedra.getDOS(energies[i]);
-    }
+  // Form tetrahedra and fill them with eigenvalues
+  TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
-    std::vector<double> dosTotal;
-    std::vector<double> eneTotal;
-    // root allocates memory to receive the gathered data
-    if (mpi->mpiHead()) {
-        dosTotal.resize(numEnergies);
-        eneTotal.resize(numEnergies);
-    }
-    // all processes send their data to be gathered into dos/eneTotal
-    mpi->gatherv(&energies, &eneTotal);
-    mpi->gatherv(&dos, &dosTotal);
+  double minEnergy = context.getDosMinEnergy();
+  double maxEnergy = context.getDosMaxEnergy();
+  double deltaEnergy = context.getDosDeltaEnergy();
+  long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
 
-    // save dos to an output file
-    if (mpi->mpiHead()) {
-        std::ofstream outfile("./electron_dos.dat");
-        outfile << "# Electronic density of states: energy[eV], Dos[1/Ry]\n";
-        for (long i = 0; i < numEnergies; i++) {
-            outfile << eneTotal[i] * energyRyToEv << "\t"
-                    << dosTotal[i] / energyRyToEv << "\n";
-        }
-        std::cout << "Electronic DoS computed" << std::endl;
-    }
+  // create instructions about how to divide up the work
+  auto divs = mpi->divideWork(numEnergies);
+  // the amount of values this process has to take care of
+  int start = divs[0];
+  int stop = divs[1];
+  int workFraction = stop - start;
+
+  std::vector<double> energies(workFraction);
+  #pragma omp parallel for
+  for (long i = start; i < stop; i++) {
+    energies[i - start] = i * deltaEnergy + minEnergy;
+  }
+
+  // Calculate phonon density of states (DOS) [1/Ry]
+  std::vector<double> dos(workFraction, 0.);  // DOS initialized to zero
+  #pragma omp parallel for
+  for (long i = 0; i < workFraction; i++) {
+    dos[i] += tetrahedra.getDOS(energies[i]);
+  }
+
+  std::vector<double> dosTotal;
+  std::vector<double> eneTotal;
+  // root allocates memory to receive the gathered data
+  if (mpi->mpiHead()) {
+    dosTotal.resize(numEnergies);
+    eneTotal.resize(numEnergies);
+  }
+  // all processes send their data to be gathered into dos/eneTotal
+  mpi->gatherv(&energies, &eneTotal);
+  mpi->gatherv(&dos, &dosTotal);
+  return {eneTotal, dosTotal};
 
 }
+
+/*
+ * helper function to output dos to a json file
+ */
+void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
+          Particle& particle, Context& context, std::string outFileName) {
+
+  if ( !mpi->mpiHead()) return;
+
+  // convert energies
+  double energyConversion = energyRyToEv;
+  for (unsigned int i = 0; i < energies.size(); i++) {
+    energies[i] *= energyConversion;
+    dos[i] /= energyConversion;
+  }
+  // output to json
+  nlohmann::json output;
+  output["energies"] = energies;
+  output["dos"] = dos;
+  output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
+  output["energyUnit"] =  "eV";
+  output["dosUnit"] = "1/eV";
+  // if the user supplied mu, we will output that as well
+  // if not, we don't include mu
+  if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
+    output["fermiLevel"] = context.getFermiLevel()*energyConversion;
+  }
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
 void PhononDosApp::checkRequirements(Context &context) {
-    throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
-    throwErrorIfUnset(context.getQMesh(), "qMesh");
-    throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
-    throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
-    throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
-    throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getQMesh(), "qMesh");
+  throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+  throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+  throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+  throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
 }
 
 void ElectronWannierDosApp::checkRequirements(Context &context) {
-    throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-    throwErrorIfUnset(context.getQMesh(), "kMesh");
-    throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
-    throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
-    throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
-    std::string crystalMsg = "crystal structure";
-    throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
-    throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg);
-    throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+  throwErrorIfUnset(context.getQMesh(), "kMesh");
+  throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+  throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+  throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+  std::string crystalMsg = "crystal structure";
+  throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
+  throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg);
+  throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
 }
 
 void ElectronFourierDosApp::checkRequirements(Context &context) {
-    throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-    throwErrorIfUnset(context.getQMesh(), "kMesh");
-    throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
-    throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
-    throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
-    throwErrorIfUnset(context.getElectronFourierCutoff(),
-            "electronFourierCutoff");
+  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+  throwErrorIfUnset(context.getQMesh(), "kMesh");
+  throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
+  throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
+  throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
+  throwErrorIfUnset(context.getElectronFourierCutoff(),
+                    "electronFourierCutoff");
 }
-

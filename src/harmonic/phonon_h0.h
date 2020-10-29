@@ -27,9 +27,10 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param forceConstants: a tensor of doubles with the force constants
    * size is (meshx, meshy, meshz, 3, 3, numAtoms, numAtoms)
    */
-  PhononH0(Crystal &crystal, const Eigen::MatrixXd &dielectricMatrix_,
+  PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
            const Eigen::Tensor<double, 3> &bornCharges_,
-           const Eigen::Tensor<double, 7> &forceConstants_);
+           const Eigen::Tensor<double, 7> &forceConstants_,
+           const std::string &sumRule);
 
   /** Copy constructor
    */
@@ -89,8 +90,37 @@ class PhononH0 : public HarmonicHamiltonian {
    * complete phonon band structure.
    */
   FullBandStructure populate(Points &points, bool &withVelocities,
-                             bool &withEigenvectors);
+                             bool &withEigenvectors, bool isDistributed = false);
 
+  /** Returns the size of the q-point coarse grid on which the force constants
+   * have been computed.
+   * @return qCoarseGrid: an Eigen vector of 3 integers.
+   */
+  Eigen::Vector3i getCoarseGrid();
+
+  /** Utility to convert the indexes of atom basis and polarization into
+   *  the index that has to be used with the eigenvector in matrix form.
+   * @param iAt: atomic basis index.
+   * @param iPol: polarization index (0,1,2).
+   * @return k: index to be used in the phonon eigenvector.
+   */
+  int getIndexEigvec(const int &iAt, const int &iPol);
+
+  /** same as getIndexEigvec, but as a static member
+   * @param nAtoms: the number of atoms in the unit cell
+   */
+  static int getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms);
+
+  /** Get the static dielectric constant matrix.
+   * @return dielectricMatrix: a 3x3 eigen matrix.
+   */
+  Eigen::Matrix3d getDielectricMatrix();
+
+  /** Get the Born effective charges for the ions in the unit cell
+   * @return bornCharges: a real tensor of shape (numAtoms,3,3) with the charges
+   */
+  Eigen::Tensor<double, 3> getBornCharges();
+protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
    * Currently supported values are akin to those from Quantum ESPRESSO
@@ -99,11 +129,9 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   void setAcousticSumRule(const std::string &sumRule);
 
- protected:
-  Particle particle;
+  void reorderDynamicalMatrix();
 
-  Eigen::Vector3i getCoarseGrid();
-  // internal variables
+  Particle particle;
 
   // these 3 variables might be used for extending future functionalities.
   // for the first tests, they can be left at these default values
@@ -122,12 +150,17 @@ class PhononH0 : public HarmonicHamiltonian {
   Eigen::MatrixXi atomicSpecies;
   Eigen::VectorXd speciesMasses;
   Eigen::MatrixXd atomicPositions;
-  Eigen::MatrixXd dielectricMatrix;
+  Eigen::Matrix3d dielectricMatrix;
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
   Eigen::Tensor<double, 7> forceConstants;
   Eigen::Tensor<double, 5> wscache;
-  long nr1Big, nr2Big, nr3Big;
+  int nr1Big, nr2Big, nr3Big;
+
+  int numBravaisVectors;
+  Eigen::MatrixXd bravaisVectors;
+  Eigen::VectorXd weights;
+  Eigen::Tensor<double,5> mat2R;
 
   // private methods, used to diagonalize the Dyn matrix
   void wsinit(const Eigen::MatrixXd &unitCell);

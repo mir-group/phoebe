@@ -52,7 +52,7 @@ double parseDouble(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  return std::stod(value);  // convert to double
+  return std::stod(value); // convert to double
 };
 
 /** Parse a string of format "key = value units" to return a double value
@@ -64,7 +64,7 @@ double parseDoubleWithUnits(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  x = std::stod(value);  // convert to double
+  x = std::stod(value); // convert to double
 
   // now check the units and convert
   if (patternInString(line, "eV")) {
@@ -116,13 +116,43 @@ std::vector<double> parseDoubleList(std::string line) {
   return x;
 };
 
+/** Parse a string of format "key = [value1,value2]" to return a vector double.
+ */
+std::vector<int> parseIntList(std::string line) {
+  std::string delimeter = "[";
+  size_t pos1 = line.find_first_of(delimeter);
+  delimeter = "]";
+  size_t pos2 = line.find_last_of(delimeter);
+
+  if (pos1 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+  if (pos2 == std::string::npos) {
+    Error e("Error in parseDoubleList");
+  }
+
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+
+  std::vector<int> x;
+  delimeter = ",";
+  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+    std::string token = s.substr(0, pos1);
+    x.push_back(std::stoi(token));
+    s.erase(0, pos1 + delimeter.length());
+  }
+  // Must not forget the last element in the list
+  x.push_back(std::stoi(s));
+
+  return x;
+};
+
 /** Parse a string of format "key = value units" to return an integer value.
  */
 long parseLong(std::string line) {
   std::string delimeter = "=";
   size_t pos = line.find(delimeter);
   std::string value = line.substr(pos + 1);
-  return std::stoi(value);  // convert to integer
+  return std::stoi(value); // convert to integer
 };
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
@@ -145,7 +175,7 @@ std::vector<long> parseLongList(std::string line) {
   std::vector<long> x;
   while ((pos1 = s.find(delimeter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
-    x.push_back(std::stoi(token));  // convert to integer
+    x.push_back(std::stoi(token)); // convert to integer
     s.erase(0, pos1 + delimeter.length());
   }
   // Must not forget the last element in the list
@@ -278,10 +308,13 @@ parseCrystal(std::vector<std::string> &lines) {
  * The code will pad the segments with equidistant points, as specified by the
  * parameter deltaPath (the distance between points).
  */
-Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
+std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
+parsePathExtrema(std::vector<std::string> &lines) {
+
   long numSegments = lines.size();
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
   pathExtrema.setZero();
+  std::vector<std::string> pathLabels;
 
   long i = 0;
   for (std::string line : lines) {
@@ -290,6 +323,9 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
     std::istream_iterator<std::string> begin(ss);
     std::istream_iterator<std::string> end;
     std::vector<std::string> splitLine(begin, end);
+
+    pathLabels.push_back(splitLine[0]);
+    pathLabels.push_back(splitLine[4]);
 
     pathExtrema(i, 0, 0) = std::stod(splitLine[1]);
     pathExtrema(i, 0, 1) = std::stod(splitLine[2]);
@@ -301,8 +337,7 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
 
     i++;
   }
-
-  return pathExtrema;
+  return {pathLabels, pathExtrema};
 }
 
 /** Parse an input block (e.g. for crystal or points path).
@@ -311,8 +346,9 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
  * Otherwise, returns the block name (i.e. what's named after "begin")
  * and the lines inside the block.
  */
-std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
-    const std::vector<std::string> &lines, const int &lineCounter) {
+std::tuple<std::string, std::vector<std::string>>
+parseBlockNameValue(const std::vector<std::string> &lines,
+                    const int &lineCounter) {
   std::string line;
   line = lines[lineCounter];
   if (!patternInString(line, "begin")) {
@@ -326,7 +362,7 @@ std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
     std::vector<std::string> val;
     for (int unsigned i = lineCounter + 1; i < lines.size(); i++) {
       if (patternInString(lines[i], "end")) {
-          break;
+        break;
       }
       val.push_back(lines[i]);
     }
@@ -368,11 +404,11 @@ bool lineHasParameter(const std::string &line) {
  * string containing "value". "value" could contain a string, a list or other
  * things to be further parsed.
  */
-std::tuple<std::string, std::string> parseParameterNameValue(
-    const std::string &line) {
+std::tuple<std::string, std::string>
+parseParameterNameValue(const std::string &line) {
   // we assume that there is "=" in the string
   std::string sep = "=";
-  size_t position = line.find(sep);  // unsigned integer
+  size_t position = line.find(sep); // unsigned integer
   std::string s = line.substr(0, position);
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 
@@ -399,12 +435,14 @@ void Context::setupFromInput(std::string fileName) {
 
   int lineCounter = 0;
   for (std::string line : lines) {
-    if (line.empty()) {  // nothing to do
+    if (line.empty()) { // nothing to do
       continue;
 
       // line with pair (key,value)
     } else if (lineHasParameter(line)) {
-      auto [parameterName, val] = parseParameterNameValue(line);
+      auto tup = parseParameterNameValue(line);
+      auto parameterName = std::get<0>(tup);
+      auto val = std::get<1>(tup);
 
       if (parameterName == "phD2FileName") {
         phD2FileName = parseString(val);
@@ -420,6 +458,22 @@ void Context::setupFromInput(std::string fileName) {
 
       if (parameterName == "electronH0Name") {
         electronH0Name = parseString(val);
+      }
+
+      if (parameterName == "wannier90Prefix") {
+        wannier90Prefix = parseString(val);
+      }
+
+      if (parameterName == "quantumEspressoPrefix") {
+        quantumEspressoPrefix = parseString(val);
+      }
+
+      if (parameterName == "elPhInterpolation") {
+        elPhInterpolation = parseString(val);
+      }
+
+      if (parameterName == "epwFileName") {
+        setEpwFileName(parseString(val));
       }
 
       if (parameterName == "electronFourierCutoff") {
@@ -516,7 +570,7 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "fermiLevel") {
-          fermiLevel = parseDoubleWithUnits(val);
+        fermiLevel = parseDoubleWithUnits(val);
       }
 
       if (parameterName == "hasSpinOrbit") {
@@ -530,13 +584,14 @@ void Context::setupFromInput(std::string fileName) {
         // for Fourier: the number of occupied bands
         // remember to NOT count the spin degeneracy
         double x = parseDouble(val);
-        if (!hasSpinOrbit) x *= 2;
+        if (!hasSpinOrbit)
+          x *= 2;
         numOccupiedStates = x;
       }
 
       if (parameterName == "smearingMethod") {
         std::string x_ = parseString(val);
-        //TODO: this is hardcoded, should be fixed how we validate input
+        // TODO: this is hardcoded, should be fixed how we validate input
         if (x_ == "gaussian") {
           smearingMethod = 0;
         } else if (x_ == "adaptiveGaussian") {
@@ -577,8 +632,8 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       // EPA
-      if (parameterName == "epaEFileName") {
-        epaEFileName = parseString(val);
+      if (parameterName == "epaFileName") {
+        epaFileName = parseString(val);
       }
 
       if (parameterName == "minChemicalPotential") {
@@ -612,26 +667,70 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "energyStep") {
         energyStep = parseDoubleWithUnits(val);
       }
-      
+
       if (parameterName == "eFermiRange") {
         eFermiRange = parseDoubleWithUnits(val);
       }
 
+      if (parameterName == "epaSmearingEnergy") {
+        epaSmearingEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaDeltaEnergy") {
+        epaDeltaEnergy = parseDoubleWithUnits(val);
+      }
+
+      // ELPH coupling plot App
+
+      if (parameterName == "g2PlotStyle") {
+        g2PlotStyle = parseString(val);
+      }
+
+      if (parameterName == "g2FixedPoint") {
+        std::vector<double> x = parseDoubleList(val);
+        for (auto i : {0, 1, 2}) {
+          g2PlotFixedPoint(i) = x[i];
+        }
+      }
+
+      if (parameterName == "g2PlotBandEl1") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl1Bands.first = x[0];
+        g2PlotEl1Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandEl2") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl2Bands.first = x[0];
+        g2PlotEl2Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandPh") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotPhBands.first = x[0];
+        g2PlotPhBands.second = x[1];
+      }
+
       //////////////////////////////////////////
 
-    } else {  // it might be a block, or its content
+    } else { // it might be a block, or its content
 
-      auto [blockName, value] = parseBlockNameValue(lines, lineCounter);
+      auto tup = parseBlockNameValue(lines, lineCounter);
+      auto blockName = std::get<0>(tup);
+      auto value = std::get<1>(tup);
 
       if (blockName == "crystal") {
-        auto [inputAtomicPositions_, inputAtomicSpecies_, inputSpeciesNames_] =
-            parseCrystal(value);
+        auto tup1 = parseCrystal(value);
+        auto inputAtomicPositions_ = std::get<0>(tup1);
+        auto inputAtomicSpecies_ = std::get<1>(tup1);
+        auto inputSpeciesNames_ = std::get<2>(tup1);
         inputAtomicPositions = inputAtomicPositions_;
         inputAtomicSpecies = inputAtomicSpecies_;
         inputSpeciesNames = inputSpeciesNames_;
       }
       if (blockName == "point path") {
-        pathExtrema = parsePathExtrema(value);
+        auto tup = parsePathExtrema(value);
+        pathLabels = std::get<0>(tup);
+        pathExtrema = std::get<1>(tup);
       }
     }
 
@@ -650,7 +749,27 @@ void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
 std::string Context::getSumRuleD2() { return sumRuleD2; }
 void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
 
+std::string Context::getEpwFileName() { return epwFileName; }
+void Context::setEpwFileName(const std::string x) { epwFileName = x; }
+
 std::string Context::getElectronH0Name() { return electronH0Name; }
+
+void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
+
+std::string Context::getWannier90Prefix() { return wannier90Prefix; }
+void Context::setWannier90Prefix(const std::string x) { wannier90Prefix = x; }
+std::string Context::getQuantumEspressoPrefix() {
+  return quantumEspressoPrefix;
+}
+void Context::setQuantumEspressoPrefix(const std::string x) {
+  quantumEspressoPrefix = x;
+}
+
+std::string Context::getElPhInterpolation() { return elPhInterpolation; }
+
+double Context::getEpaSmearingEnergy() { return epaSmearingEnergy; }
+
+double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -661,16 +780,28 @@ Eigen::Vector3i Context::getQMesh() { return qMesh; }
 Eigen::Vector3i Context::getKMesh() { return kMesh; }
 
 std::string Context::getWindowType() { return windowType; }
+void Context::setWindowType(const std::string x) { windowType = x; }
 
 Eigen::Vector2d Context::getWindowEnergyLimit() { return windowEnergyLimit; }
 
+void Context::setWindowEnergyLimit(const Eigen::Vector2d x) {
+  windowEnergyLimit = x;
+}
+
 double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
+void Context::setWindowPopulationLimit(const double x) {
+  windowPopulationLimit = x;
+}
 
 Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
+void Context::setDopings(const Eigen::VectorXd x) { dopings = x; }
+
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
+
+void Context::setTemperatures(const Eigen::VectorXd x) { temperatures = x; }
 
 std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
@@ -696,7 +827,18 @@ std::vector<std::string> Context::getInputSpeciesNames() {
   return inputSpeciesNames;
 }
 
+void Context::setInputAtomicPositions(const Eigen::MatrixXd x) {
+  inputAtomicPositions = x;
+}
+void Context::setInputAtomicSpecies(const Eigen::VectorXi x) {
+  inputAtomicSpecies = x;
+}
+void Context::setInputSpeciesNames(const std::vector<std::string> x) {
+  inputSpeciesNames = x;
+}
+
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
+std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
 double Context::getDeltaPath() { return deltaPath; }
 
@@ -720,6 +862,9 @@ void Context::setSmearingWidth(const double x) { smearingWidth = x; }
 double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 
 bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
+void Context::setScatteringMatrixInMemory(const bool &x) {
+  scatteringMatrixInMemory = x;
+}
 
 Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 
@@ -727,9 +872,7 @@ bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
 double Context::getBoundaryLength() { return boundaryLength; }
 
-// EPA:
-
-std::string Context::getEpaEFileName() {return epaEFileName;}
+std::string Context::getEpaFileName() {return epaFileName;}
 
 double Context::getMinChemicalPotential() {return minChemicalPotential;}
 
@@ -748,3 +891,27 @@ double Context::getEnergyRange() {return energyRange;}
 double Context::getEnergyStep() {return energyStep;}
 
 double Context::getEFermiRange() {return eFermiRange;}
+
+std::string Context::getG2PlotStyle() { return g2PlotStyle; }
+void Context::setG2PlotStyle(const std::string x) { g2PlotStyle = x; }
+
+Eigen::Vector3d Context::getG2PlotFixedPoint() { return g2PlotFixedPoint; }
+void Context::setG2PlotFixedPoint(const Eigen::Vector3d x) {
+  g2PlotFixedPoint = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl1Bands() { return g2PlotEl1Bands; }
+void Context::setG2PlotEl1Bands(const std::pair<int, int> x) {
+  g2PlotEl1Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl2Bands() { return g2PlotEl2Bands; }
+void Context::setG2PlotEl2Bands(const std::pair<int, int> x) {
+  g2PlotEl2Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotPhBands() { return g2PlotPhBands; }
+void Context::setG2PlotPhBands(const std::pair<int, int> x) {
+  g2PlotPhBands = x;
+}
+

@@ -6,6 +6,8 @@
 #include <math.h>
 #include <time.h>
 
+#include <nlohmann/json.hpp>
+
 // Utility to get the command line option from it's name
 char *getCmdOption(char **begin, char **end, const std::string &option) {
   char **itr = std::find(begin, end, option);
@@ -31,10 +33,22 @@ IO::IO(int argc, char *argv[]) {
   // redirect std::cout to outputFilename, if passed on command line
   if (outputFileName_ != nullptr) {
     outputFileName = outputFileName_;
-    outputFile.open(outputFileName);
-    std::streambuf *coutbuf = std::cout.rdbuf(); // save old buf
-    (void)coutbuf;                       // suppress unused variable error
-    std::cout.rdbuf(outputFile.rdbuf()); // redirect std::cout to outputFile
+    outputFile.open(outputFileName, std::ios::out);
+
+    // Backup streambuffers of  cout
+    std::streambuf* stream_buffer_cout = std::cout.rdbuf();
+
+    // Get the streambuffer of the file
+    std::streambuf* stream_buffer_file = outputFile.rdbuf();
+
+    // Redirect cout to file
+    std::cout.rdbuf(stream_buffer_file);
+
+    // Redirect cout back to screen
+    std::cout.rdbuf(stream_buffer_cout);
+
+    // causes buffer to flush at every call of <<
+    std::cout.setf( std::ios_base::unitbuf );
   }
 };
 
@@ -58,9 +72,8 @@ void IO::welcome() {
       "  8888888P'  888 '88b d88''88b d8P  Y8b 888 '88b d8P  Y8b \n"
       "  888        888  888 888  888 88888888 888  888 88888888 \n"
       "  888        888  888 Y88..88P Y8b.     888 d88P Y8b.     \n"
-      "  888        888  888  'Y88P'   'Y8888  88888P'   'Y8888' \n"
-      "\n";
-  std::cout << welcomeMsg;
+      "  888        888  888  'Y88P'   'Y8888  88888P'   'Y8888' \n";
+  std::cout << welcomeMsg << std::endl;
 }
 
 void IO::goodbye() {
@@ -90,7 +103,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
 
   std::cout << "\n";
   std::cout << "Started " << task << " with " << numSteps << " " << step
-            << ".\n";
+            << "." << std::endl;
 
   stepDigits = long(log10(numSteps)) + 1; // number of digits in numSteps
 }
@@ -137,9 +150,10 @@ void LoopPrint::update() {
                 << std::setw(stepDigits) << " / " << numSteps;
       if (currentStep > 2) {
         std::cout << " | remaining: " << std::setw(8) << std::setprecision(2)
-                  << std::scientific << timeLeft << std::fixed << " s.\n";
+                  << std::scientific << timeLeft << std::fixed << " s." 
+		  << std::endl;
       } else {
-        std::cout << "\n";
+        std::cout << std::endl;
       }
     }
     std::cout << std::resetiosflags(std::cout.flags());
@@ -154,8 +168,7 @@ void LoopPrint::close() {
   currentTime = std::chrono::steady_clock::now();
   std::cout << "Elapsed time: " << std::setprecision(3)
             << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                   currentTime - initialTime)
-                       .count() /
-                   1e9
-            << " s.\n";
+                currentTime - initialTime)
+                .count() / 1e9
+            << " s." << std::endl;
 }

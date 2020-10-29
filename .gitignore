@@ -1,6 +1,9 @@
 # Build folders
 *build*/
 
+# Output files
+*.json
+
 # Prerequisites
 *.d
 
@@ -66,3 +69,6 @@ runTests[1]_include.cmake
 runTests
 tags
 *.plist
+
+# Clion IDE
+.idea

@@ -1,25 +1,37 @@
 #include "app.h"
-#include "active_bandstructure.h"
 #include "bands_app.h"
-#include "transport_epa_app.h"
-#include "bandstructure.h"
-#include "constants.h"
 #include "context.h"
 #include "dos_app.h"
+#include "electron_wannier_transport_app.h"
+#include "elph_plot_app.h"
+#include "elph_qe_to_phoebe_app.h"
 #include "exceptions.h"
 #include "io.h"
-#include "particle.h"
+#include "lifetimes_app.h"
 #include "phonon_transport_app.h"
-#include "points.h"
 #include "polarization_app.h"
-#include "qe_input_parser.h"
+#include "transport_epa_app.h"
 #include "utilities.h"
-#include "window.h"
 #include <cmath>
 #include <string>
 
 // app factory
 std::unique_ptr<App> App::loadApp(const std::string &choice) {
+  const std::vector<std::string> choices = {"phononTransport",
+                                            "phononDos",
+                                            "electronWannierDos",
+                                            "electronFourierDos",
+                                            "phononBands",
+                                            "electronWannierBands",
+                                            "electronFourierBands",
+                                            "electronPolarization",
+                                            "electronWannierTransport",
+                                            "elPhQeToPhoebe",
+                                            "elPhCouplingPlot",
+                                            "electronLifetimes",
+                                            "phononLifetimes",
+                                            "transportEpa"};
+
   // check if the app choice is valid, otherwise we stop.
   if (std::find(choices.begin(), choices.end(), choice) == choices.end()) {
     Error e("The app name is not valid, didn't find an app to launch.");
@@ -27,6 +39,10 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
 
   if (choice == "phononTransport") {
     return std::unique_ptr<App>(new PhononTransportApp);
+  } else if (choice == "electronWannierTransport") {
+    return std::unique_ptr<App>(new ElectronWannierTransportApp);
+  } else if (choice == "elPhQeToPhoebe") {
+    return std::unique_ptr<App>(new ElPhQeToPhoebeApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {
@@ -43,6 +59,12 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronPolarizationApp);
   } else if ( choice == "transportEpa" ) {
     return std::unique_ptr<App>(new TransportEpaApp);
+  } else if (choice == "elPhCouplingPlot") {
+    return std::unique_ptr<App>(new ElPhCouplingPlotApp);
+  } else if (choice == "electronLifetimes") {
+    return std::unique_ptr<App>(new ElectronLifetimesApp);
+  } else if (choice == "phononLifetimes") {
+    return std::unique_ptr<App>(new PhononLifetimesApp);
   } else {
     return std::unique_ptr<App>(nullptr);
   }

@@ -12,7 +12,7 @@
 
 InteractionEpa EpaParser::parseAvCouplings (Context & context) {
     //get the name of epa.e file
-    auto fileName = context.getEpaEFileName();
+    auto fileName = context.getEpaFileName();
     
     //open epa.e file for reading
     std::ifstream infile(fileName);

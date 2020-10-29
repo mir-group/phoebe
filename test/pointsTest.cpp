@@ -25,7 +25,9 @@ TEST (PointsTest, PointsHandling) {
 	mesh << 4,4,4;
 	FullPoints points(crystal, mesh);
 
-	auto [mesh_,offset_] = points.getMesh();
+	auto tup = points.getMesh();
+ auto mesh_ = std::get<0>(tup);
+ auto offset_ = std::get<1>(tup);
 
 	EXPECT_EQ ((mesh-mesh_).norm(),0.);
 

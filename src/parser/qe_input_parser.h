@@ -42,7 +42,7 @@ public:
      * interpolating the band structure on a fine grid of k-points.
      */
     static std::tuple<Crystal, ElectronH0Wannier> parseElHarmonicWannier(
-            Context &context);
+            Context &context, Crystal *inCrystal=nullptr);
 private:
     bool isQuantumEspressoXml(const std::string &fileName);
 };
