@@ -26,7 +26,6 @@ list(REMOVE_ITEM SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 message(${CMAKE_CURRENT_SOURCE_DIR})
 message(${SOURCE_FILES})
 
-
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
 include_directories(src src/algebra src/apps src/bands src/bte src/constants src/harmonic src/interaction src/mpi src/observable src/parser src/points)
@@ -39,13 +38,14 @@ add_executable(phoebe src/main.cpp ${SOURCE_FILES})
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
 set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
-add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep highfive_dep)
-add_dependencies(runTests spglib_dep pugixml_dep eigen_dep highfive_dep)
+# dependencies
+add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
+add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
-target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json hdf5)
-
+target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json)
 enable_testing()
-target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json hdf5)
+target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json)
+
 gtest_discover_tests(
     runTests
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -119,6 +119,14 @@ if(OMP_AVAIL)
   target_link_libraries(phoebe OpenMP::OpenMP_CXX)
   target_link_libraries(runTests OpenMP::OpenMP_CXX)
   add_definitions("-DOMP_AVAIL")
+endif()
+
+option(HDF5_AVAIL "Build with HDF5" ON)
+if(HDF5_AVAIL)
+  add_dependencies(phoebe highfive_dep)
+  add_dependencies(runTests highfive_dep)
+  target_link_libraries(phoebe hdf5)
+  target_link_libraries(runTests hdf5)
 endif()
 
 ############# DOCS ############
