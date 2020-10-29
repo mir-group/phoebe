@@ -121,7 +121,7 @@ if(OMP_AVAIL)
   add_definitions("-DOMP_AVAIL")
 endif()
 
-option(HDF5_AVAIL "Build with HDF5" ON)
+option(HDF5_AVAIL "Build with HDF5" OFF)
 if(HDF5_AVAIL)
   add_dependencies(phoebe highfive_dep)
   add_dependencies(runTests highfive_dep)
