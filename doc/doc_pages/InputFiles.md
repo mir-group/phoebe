@@ -2,6 +2,45 @@
 
 @section phtr Phonon transport
 
+Input variables:
+
+* @ref appName
+* @ref phD2FileName
+
+
+@section phononDos Phonon Dos
+
+Input variables:
+
+* @ref appName
+* @ref phD2FileName
+
+
+@subsubsection appName appName
+<blockquote>
+Set to "phononTransport" to run this application.
+
+Type: *string*
+
+Required
+</blockquote>
+
+
+@subsubsection phD2FileName phD2FileName
+<blockquote>
+Path to the file with harmonic force constants. File format supported is Quantum-ESPRESSO output of q2r.x.
+
+Type: *string*
+
+Required
+</blockquote>
+
+
+
+
+@subsection Table
+
+
 <table>
 <caption id="phTransport">Input variables for phonon transport</caption>
 <tr><th> Name <th> Kind <th> Default <th> Required <th> Description
