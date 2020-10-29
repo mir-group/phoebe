@@ -18,6 +18,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 
+############ OPTIONS ################
+option(MPI_AVAIL "Build with MPI wrappers" ON)
+option(OMP_AVAIL "Build with OMP" OFF)
+option(HDF5_AVAIL "Build with HDF5" OFF)
+option(BUILD_DOC "Build documentation" ON)
+
 ############### SOURCE ###############
 
 FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
@@ -34,7 +40,6 @@ include(lib/CMakeLists.txt)
 include(GoogleTest)
 
 add_executable(phoebe src/main.cpp ${SOURCE_FILES})
-
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
 set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
@@ -52,7 +57,7 @@ gtest_discover_tests(
 )
 
 ################ PARALLEL ####################
-option(MPI_AVAIL "Build with MPI wrappers" ON)
+# build with MPI and scalapack
 if (MPI_AVAIL)
   find_package(MPI REQUIRED)
   target_link_libraries(phoebe MPI::MPI_CXX)
@@ -113,7 +118,7 @@ else()
 
 endif()
 
-option(OMP_AVAIL "Build with OMP" OFF)
+# build with openMP
 if(OMP_AVAIL)
   find_package(OpenMP)
   target_link_libraries(phoebe OpenMP::OpenMP_CXX)
@@ -121,21 +126,18 @@ if(OMP_AVAIL)
   add_definitions("-DOMP_AVAIL")
 endif()
 
-option(HDF5_AVAIL "Build with HDF5" OFF)
+# build with HDF5
 if(HDF5_AVAIL)
   add_dependencies(phoebe highfive_dep)
   add_dependencies(runTests highfive_dep)
   target_link_libraries(phoebe hdf5)
   target_link_libraries(runTests hdf5)
+  add_definitions("-DHDF5_AVAIL")
 endif()
 
 ############# DOCS ############
 
-# check if Doxygen is installed
 find_package(Doxygen)
-
-# we can indicate the documentation build as an option and set it to ON by default
-option(BUILD_DOC "Build documentation" ON)
 
 IF (BUILD_DOC)
     IF (NOT DOXYGEN_FOUND)
