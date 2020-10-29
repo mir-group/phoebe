@@ -19,6 +19,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
 endif()
 
 ############ OPTIONS ################
+# these can be toggled in a build script by 
+# supplying arguments to cmake like cmake -DHDF5_AVAIL=OFF ../
 option(MPI_AVAIL "Build with MPI wrappers" ON)
 option(OMP_AVAIL "Build with OMP" OFF)
 option(HDF5_AVAIL "Build with HDF5" OFF)
