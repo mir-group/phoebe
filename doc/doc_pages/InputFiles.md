@@ -5,18 +5,24 @@ Note that the text in the user input file is case sensitive!
 In the code, we try to check the variables provided in input, and stop the code if we detect missing or invalid input parameters.
 Note that the executable is the same for all this applications; the applications are selected through the @ref appName parameter.
 
+
+
+
 @section phtr Phonon BTE
 
 Target: build and solve the phonon Boltzmann Transport Equation (BTE), and compute phonon transport properties such as thermal conductivity, relaxation times and viscosity.
 
 Input variables:
 <ul>
-<li> @ref appName</li>
+<li> @ref appName = "phononTransport"</li>
 <li> @ref phD2FileName</li>
 <li> @ref phD3FileName</li>
-<li> @ref  sumRuleD2</li>
+<li> @ref sumRuleD2</li>
 <li> @ref qMesh</li>
 <li> @ref temperatures</li>
+<li> @ref minTemperature</li>
+<li> @ref maxTemperature</li>
+<li> @ref deltaTemperature</li>
 <li> @ref smearingMethod</li>
 <li> @ref smearingWidth</li>
 <li> @ref solverBTE</li>
@@ -48,173 +54,84 @@ boundaryLength = 10. mum
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-@section phDos Phonon Dos
 
-Target: compute the phonon Density of States.
+@section elwTransport Electron BTE, Wannier interpolation
+
+Target: build and solve the electronic Boltzmann Transport Equation (BTE), using Wannier-based interpolation. Output quantites are electrical conductivity, electronic thermal conductivity, Seebeck coefficient, electron viscosity and electronic lifetimes.  
 
 Input variables:
 <ul>
-<li> @ref appName </li>
+<li> @ref appName = "electronWannierTransport" </li>
 <li> @ref phD2FileName </li>
 <li> @ref sumRuleD2 </li>
-<li> @ref qMesh </li>
-<li> @ref dosMinEnergy </li>
-<li> @ref dosMaxEnergy </li>
-<li> @ref dosDeltaEnergy </li>
-</ul>
-
-Sample input file:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-phD2FileName = "qespresso/silicon.fc",
-sumRuleD2 = "simple"
-qMesh = [10,10,10]
-appName = "phononDos"
-dosMinEnergy = 0. cmm1
-dosMaxEnergy = 600. cmm1
-dosDeltaEnergy = 0.5 cmm1
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-@section elwDos Electron DoS, Wannier interpolation
-
-Target: compute the electronic Density of States. Electronic bands are interpolated to a finer mesh using maximally localized Wannier function interpolation.
-
-Input variables:
-<ul>
-<li> @ref appName </li>
 <li> @ref electronH0Name </li>
+<li> @ref epwFileName </li>
 <li> @ref kMesh </li>
-<li> @ref dosMinEnergy </li>
-<li> @ref dosMaxEnergy </li>
-<li> @ref dosDeltaEnergy </li>
-<li> @ref beginEndCrystal </li>
+<li> @ref temperatures </li>
+<li> @ref minTemperature</li>
+<li> @ref maxTemperature</li>
+<li> @ref deltaTemperature</li>
+<li> @ref dopings </li>
+<li> @ref chemicalPotentials </li>
+<li> @ref minChemicalPotential </li>
+<li> @ref maxChemicalPotential </li>
+<li> @ref deltaChemicalPotential </li>
+<li> @ref smearingMethod </li>
+<li> @ref smearingWidth </li>
+<li> @ref windowType </li>
+<li> @ref dimensionality </li>
+<li> @ref constantRelaxationTime </li>
+<li> @ref convergenceThresholdBTE </li>
+<li> @ref maxIterationsBTE</li>
+<li> @ref windowType </li>
+<li> @ref windowEnergyLimit </li>
+<li> @ref windowPopulationLimit </li>
+<li> @ref solverBTE </li>
+<li> @ref scatteringMatrixInMemory </li>
+<li> @ref fermiLevel </li>
+<li> @ref numOccupiedStates </li>
 </ul>
 
 Sample input file:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-electronH0Name = "qespresso/si_tb.dat",
-kMesh = [10,10,10]
-appName = "electronWannierDos"
-dosMinEnergy = -6. eV
-dosMaxEnergy = 20. eV
-dosDeltaEnergy = 0.1 eV
-begin crystal
-Si 0.00000   0.00000   0.00000
-Si 1.34940   1.34940   1.34940
-end crystal
+appName = "electronWannierTransport"
+phD2FileName = "./silicon.fc"
+sumRuleD2 = "crystal"
+electronH0Name = "./si_tb.dat",
+epwFileName = "silicon.phoebe.elph.dat"
+kMesh = [15,15,15]
+temperatures = [300.]
+dopings = [1.e21]
+smearingMethod = "gaussian"
+smearingWidth = 0.5 eV
+windowType = "population"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-@section elfDos Electron DoS, Fourier interpolation
 
-Target: compute the electronic Density of States. Electronic bands are interpolated to finer meshes using a Fourier interpolation.
+@section qe2Phoebe QE to Phoebe
 
-Input variables:
-<ul>
-<li> @ref appName </li>
-<li> @ref electronH0Name </li>
-<li> @ref kMesh </li>
-<li> @ref dosMinEnergy </li>
-<li> @ref dosMaxEnergy </li>
-<li> @ref dosDeltaEnergy </li>
-<li> @ref electronFourierCutoff </li>
-</ul>
-
-Sample input file:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-electronH0Name = "qespresso/out/silicon.xml",
-kMesh = [10,10,10]
-appName = "electronFourierDos"
-dosMinEnergy = -6. eV
-dosMaxEnergy = 20. eV
-dosDeltaEnergy = 0.1 eV
-electronFourierCutoff = 4.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-@section phBands Phonon Bands
-
-Target: compute the phonon band structure on a path in the Brillouin zone.
+Target: convert the electron-phonon coupling from a Quantum-ESPRESSO format to a Phoebe format.
+In doing so, we postprocess data for the Wannier or EPA interpolations.
 
 Input variables:
 <ul>
-<li> @ref appName </li>
+<li> @ref appName = "elPhQeToPhoebe" </li>
 <li> @ref phD2FileName </li>
-<li> @ref sumRuleD2 </li>
-<li> @ref beginEndPointPath </li>
-</ul>
-
-Sample input file:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-phD2FileName = "qespresso/silicon.fc",
-sumRuleD2 = "simple"
-appName = "phononBands"
-begin point path
-L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
-G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
-K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
-end point path
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-@section elwBands Electron Bands, Wannier interpolation
-
-Target: compute the phonon band structure on a path in the Brillouin zone. Electronic bands are interpolated using Wannier functions.
-
-Input variables:
-<ul>
-<li> @ref appName </li>
+<li> @ref elPhInterpolation </li>
 <li> @ref electronH0Name </li>
-<li> @ref deltaPath </li>
-<li> @ref beginEndPointPath </li>
-<li> @ref beginEndCrystal </li>
+<li> @ref wannier90Prefix </li>
+<li> @ref quantumEspressoPrefix </li>
 </ul>
 
 Sample input file:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-appName = "electronWannierBands"
-electronH0Name = "qespresso/si_tb.dat",
-deltaPath = 0.01
-begin point path
-L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
-G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
-K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
-end point path
-begin crystal
-Si 0.00000   0.00000   0.00000
-Si 1.34940   1.34940   1.34940
-end crystal
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-@section elfBands Electron Bands, Fourier interpolation
-
-Target: compute the electronic band structure on a path in the Brillouin zone. Electronic bands are interpolated using Wannier functions.
-
-Input variables:
-<ul>
-<li> @ref appName </li>
-<li> @ref electronH0Name </li>
-<li> @ref deltaPath </li>
-<li> @ref electronFourierCutoff </li>
-<li> @ref beginEndPointPath </li>
-</ul>
-
-Sample input file:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-appName = "electronFourierBands"
-electronH0Name = "qespresso/out/silicon.xml",
-deltaPath = 0.01
-electronFourierCutoff = 4.
-begin point path
-L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
-G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
-K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
-end point path
+appName = "elPhQeToPhoebe"
+elPhInterpolation = "wannier"
+phD2FileName = "./silicon.fc"
+electronH0Name = "./si_tb.dat",
+wannier90Prefix = "si"
+quantumEspressoPrefix = "silicon"
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -224,14 +141,21 @@ Target: compute phonon lifetimes/linewidths on a path in the Brillouin zone.
 
 Input variables:
 <ul>
-<li> @ref appName </li>
+<li> @ref appName = "phononLifetimes" </li>
 <li> @ref phD2FileName </li>
 <li> @ref sumRuleD2 </li>
 <li> @ref phD3FileName </li>
 <li> @ref qMesh </li>
 <li> @ref temperatures </li>
+<li> @ref minTemperature</li>
+<li> @ref maxTemperature</li>
+<li> @ref deltaTemperature</li>
 <li> @ref smearingMethod </li>
 <li> @ref smearingWidth </li>
+<li> @ref constantRelaxationTime</li>
+<li> @ref withIsotopeScattering</li>
+<li> @ref massVariance</li>
+<li> @ref boundaryLength</li>
 <li> @ref deltaPath </li>
 <li> @ref beginEndPointPath </li>
 </ul>
@@ -262,17 +186,26 @@ Target: compute electron lifetimes/linewidths on a path in the Brillouin zone, u
 
 Input variables:
 <ul>
-<li> @ref appName </li>
+<li> @ref appName = "electronLifetimes" </li>
 <li> @ref phD2FileName </li>
 <li> @ref electronH0Name </li>
 <li> @ref sumRuleD2 </li>
 <li> @ref epwFileName </li>
 <li> @ref kMesh </li>
 <li> @ref temperatures </li>
+<li> @ref minTemperature</li>
+<li> @ref maxTemperature</li>
+<li> @ref deltaTemperature</li>
 <li> @ref dopings </li>
 <li> @ref chemicalPotentials </li>
+<li> @ref minChemicalPotential </li>
+<li> @ref maxChemicalPotential </li>
+<li> @ref deltaChemicalPotential </li>
 <li> @ref smearingMethod </li>
 <li> @ref smearingWidth </li>
+<li> @ref constantRelaxationTime </li>
+<li> @ref numOccupiedStates </li>
+<li> @ref fermiLevel </li>
 <li> @ref deltaPath </li>
 <li> @ref beginEndPointPath </li>
 </ul>
@@ -299,65 +232,178 @@ end point path
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-@section qe2Phoebe QE to Phoebe
+@section phDos Phonon Dos
 
-Target: convert the electron-phonon coupling from a Quantum-ESPRESSO format to a Phoebe format.
-In doing so, we postprocess data for the Wannier or EPA interpolations.
+Target: compute the phonon Density of States.
 
 Input variables:
 <ul>
-<li> @ref appName </li>
+<li> @ref appName = "phononDos" </li>
 <li> @ref phD2FileName </li>
-<li> @ref elPhInterpolation </li>
-<li> @ref electronH0Name </li>
-<li> @ref wannier90Prefix </li>
-<li> @ref quantumEspressoPrefix </li>
+<li> @ref sumRuleD2 </li>
+<li> @ref qMesh </li>
+<li> @ref dosMinEnergy </li>
+<li> @ref dosMaxEnergy </li>
+<li> @ref dosDeltaEnergy </li>
 </ul>
 
 Sample input file:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-appName = "elPhQeToPhoebe"
-elPhInterpolation = "wannier"
-phD2FileName = "./silicon.fc"
-electronH0Name = "./si_tb.dat",
-wannier90Prefix = "si"
-quantumEspressoPrefix = "silicon"
+phD2FileName = "qespresso/silicon.fc",
+sumRuleD2 = "simple"
+qMesh = [10,10,10]
+appName = "phononDos"
+dosMinEnergy = 0. cmm1
+dosMaxEnergy = 600. cmm1
+dosDeltaEnergy = 0.5 cmm1
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-@section elwTransport Electron BTE, Wannier interpolation
 
-Target: build and solve the electronic Boltzmann Transport Equation (BTE), using Wannier-based interpolation. Output quantites are electrical conductivity, electronic thermal conductivity, Seebeck coefficient, electron viscosity and electronic lifetimes.  
+@section elwDos Electron DoS, Wannier interpolation
+
+Target: compute the electronic Density of States. Electronic bands are interpolated to a finer mesh using maximally localized Wannier function interpolation.
 
 Input variables:
 <ul>
-<li> @ref appName </li>
-<li> @ref phD2FileName </li>
-<li> @ref sumRuleD2 </li>
+<li> @ref appName = "electronWannierDos" </li>
 <li> @ref electronH0Name </li>
-<li> @ref epwFileName </li>
+<li> @ref fermiLevel </li>
 <li> @ref kMesh </li>
-<li> @ref temperatures </li>
-<li> @ref dopings </li>
-<li> @ref chemicalPotentials </li>
-<li> @ref smearingMethod </li>
-<li> @ref smearingWidth </li>
-<li> @ref windowType </li>
+<li> @ref dosMinEnergy </li>
+<li> @ref dosMaxEnergy </li>
+<li> @ref dosDeltaEnergy </li>
+<li> @ref beginEndCrystal </li>
 </ul>
 
 Sample input file:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-appName = "electronWannierTransport"
-phD2FileName = "./silicon.fc"
-sumRuleD2 = "crystal"
-electronH0Name = "./si_tb.dat",
-epwFileName = "silicon.phoebe.elph.dat"
-kMesh = [15,15,15]
-temperatures = [300.]
-dopings = [1.e21]
-smearingMethod = "gaussian"
-smearingWidth = 0.5 eV
-windowType = "population"
+electronH0Name = "qespresso/si_tb.dat",
+kMesh = [10,10,10]
+appName = "electronWannierDos"
+dosMinEnergy = -6. eV
+dosMaxEnergy = 20. eV
+dosDeltaEnergy = 0.1 eV
+begin crystal
+Si 0.00000   0.00000   0.00000
+Si 1.34940   1.34940   1.34940
+end crystal
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+@section elfDos Electron DoS, Fourier interpolation
+
+Target: compute the electronic Density of States. Electronic bands are interpolated to finer meshes using a Fourier interpolation.
+
+Input variables:
+<ul>
+<li> @ref appName = "electronFourierDos" </li>
+<li> @ref electronH0Name </li>
+<li> @ref kMesh </li>
+<li> @ref fermiLevel </li>
+<li> @ref dosMinEnergy </li>
+<li> @ref dosMaxEnergy </li>
+<li> @ref dosDeltaEnergy </li>
+<li> @ref electronFourierCutoff </li>
+</ul>
+
+Sample input file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+electronH0Name = "qespresso/out/silicon.xml",
+kMesh = [10,10,10]
+appName = "electronFourierDos"
+dosMinEnergy = -6. eV
+dosMaxEnergy = 20. eV
+dosDeltaEnergy = 0.1 eV
+electronFourierCutoff = 4.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+@section phBands Phonon Bands
+
+Target: compute the phonon band structure on a path in the Brillouin zone.
+
+Input variables:
+<ul>
+<li> @ref appName = "phononBands" </li>
+<li> @ref phD2FileName </li>
+<li> @ref sumRuleD2 </li>
+<li> @ref deltaPath </li>
+<li> @ref beginEndPointPath </li>
+</ul>
+
+Sample input file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+phD2FileName = "qespresso/silicon.fc",
+sumRuleD2 = "simple"
+appName = "phononBands"
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+@section elwBands Electron Bands, Wannier interpolation
+
+Target: compute the phonon band structure on a path in the Brillouin zone. Electronic bands are interpolated using Wannier functions.
+
+Input variables:
+<ul>
+<li> @ref appName = "electronWannierBands" </li>
+<li> @ref electronH0Name </li>
+<li> @ref fermiLevel </li>
+<li> @ref deltaPath </li>
+<li> @ref beginEndPointPath </li>
+<li> @ref beginEndCrystal </li>
+</ul>
+
+Sample input file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+appName = "electronWannierBands"
+electronH0Name = "qespresso/si_tb.dat",
+deltaPath = 0.01
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path
+begin crystal
+Si 0.00000   0.00000   0.00000
+Si 1.34940   1.34940   1.34940
+end crystal
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+@section elfBands Electron Bands, Fourier interpolation
+
+Target: compute the electronic band structure on a path in the Brillouin zone. Electronic bands are interpolated using Wannier functions.
+
+Input variables:
+<ul>
+<li> @ref appName = "electronFourierBands" </li>
+<li> @ref electronH0Name </li>
+<li> @ref fermiLevel </li>
+<li> @ref deltaPath </li>
+<li> @ref electronFourierCutoff </li>
+<li> @ref beginEndPointPath </li>
+</ul>
+
+Sample input file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+appName = "electronFourierBands"
+electronH0Name = "qespresso/out/silicon.xml",
+deltaPath = 0.01
+electronFourierCutoff = 4.
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -372,20 +418,20 @@ windowType = "population"
 <ul>
 <li> This parameter, which must always be present, identifies which App (functionality) you want to run. Allowed values are:
   <ul>
-  <li> phononTransport: app to solve the @ref phtr and compute phonon transport properties.
-  <li> phononLifetimes: app to compute the @ref phTau.
+  <li> "phononTransport": app to solve the @ref phtr and compute phonon transport properties.
+  <li> "phononLifetimes": app to compute the @ref phTau.
 
-<li> elPhQeToPhoebe: app to convert electron-phonon coupling from @ref qe2Phoebe (must be run before running any electron Transport).
-  <li> electronWannierTransport: app to solve the @ref elwTransport.
-  <li> electronLifetimes: app to compute the @ref elwTau.
+  <li> "elPhQeToPhoebe": app to convert electron-phonon coupling from @ref qe2Phoebe (must be run before running any electron Transport).
+  <li> "electronWannierTransport": app to solve the @ref elwTransport.
+  <li> "electronLifetimes": app to compute the @ref elwTau.
   
-  <li> phononDos: app to compute the @ref phDos.
-  <li> electronWannierDos: app to compute the @ref elwDows.
-  <li> electronFourierDos: app to compute the @ref elfDos.
+  <li> "phononDos": app to compute the @ref phDos.
+  <li> "electronWannierDos": app to compute the @ref elwDows.
+  <li> "electronFourierDos": app to compute the @ref elfDos.
   
-  <li> phononBands: app to compute the @ref phBands on a path.
-  <li> electronWannierBands: app to compute the @ref elwBands on a path in the Brillouin zone.
-  <li> electronFourierBands: app to compute the @ref elfBands on a path in the Brillouin zone. 
+  <li> "phononBands": app to compute the @ref phBands on a path.
+  <li> "electronWannierBands": app to compute the @ref elwBands on a path in the Brillouin zone.
+  <li> "electronFourierBands": app to compute the @ref elfBands on a path in the Brillouin zone. 
 </ul>
 
 
@@ -721,7 +767,7 @@ end point path
 
 @subsubsection deltaTemperature deltaTemperature
 <ul>
-<li> To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures between `minTemperature` and `maxTemperature` in steps of `deltaTemperature`.
+<li> To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures between @ref minTemperature and @ref maxTemperature in steps of @ref deltaTemperature.
 <li> *double*
 <li> (Required): either set (@ref minTemperature, @ref maxTemperature, @ref deltaTemperature) or @ref temperatures.
 </ul>
