@@ -433,8 +433,6 @@ end point path
   <li> "electronWannierBands": app to compute the @ref elwBands on a path in the Brillouin zone.
   <li> "electronFourierBands": app to compute the @ref elfBands on a path in the Brillouin zone. 
 </ul>
-
-
 <li> *string*
 <li> Required
 </ul>
@@ -466,21 +464,21 @@ end point path
 @subsubsection qMesh qMesh
 <ul>
 <li> Triplet of integers with the fine q-point Monkhorst-Pack mesh that will be used for Brillouin zone integrations of phonon properties.
-<li> *int list*
+<li> *list of int*
 <li> Required
 </ul>
 
 @subsubsection kMesh kMesh
 <ul>
 <li> Triplet of integers with the fine k-point Monkhorst-Pack mesh that will be used for Brillouin zone integrations of electronic properties. In electron-phonon transport calculations, `qMesh` is set to be equal to this value and does not need to be specified by the user.
-<li> *int list*
+<li> *list of int*
 <li> Required
 </ul>
 
 @subsubsection temperatures temperatures
 <ul>
 <li> List with the values of temperatures to be used in the calculation. If scatteringMatrixInMemory=true, only one value of temperature is allowed.
-<li> *double list*
+<li> *list of doubles*
 <li> Required
 </ul>
 
@@ -497,14 +495,14 @@ end point path
 <ul>
 <li> This parameter is required if @ref smearingMethod="gaussian", where this parameter represents the full width at half maximum of the gaussian used to approximate the Dirac-delta conserving energy. Example: smearingWidth = 0.5 eV
 <li> *double+units*
-<li> (Required)
+<li> Required if @ref smearingMethod="gaussian"
 </ul>
 
 
 @subsubsection solverBTE solverBTE
 <ul>
 <li> If specified, solves the Boltzmann equation beyond the relaxation time approximation. Allowed values are: "variational", "iterative", and "relaxons", see the Theory section for a detailed explanation. Example: solverBTE=["variational","relaxons"]
-<li> *string list*
+<li> *list of strings*
 <li> Optional
 </ul>
 
@@ -529,9 +527,9 @@ end point path
 
 @subsubsection windowEnergyLimit windowEnergyLimit
 <ul>
-<li> Required if windowType="energy". Specify two values \f$E_{min}\f$ and \f$E_{max}\f$(in electronVolts) such that we discard all phonon states  with energy outside of these bounds.
-<li> *double list*
-<li> (Required)
+<li> Additional parameter for energy @ref windowType. Specify two values \f$E_{min}\f$ and \f$E_{max}\f$(in electronVolts) such that we discard all phonon states  with energy outside of these bounds.
+<li> *list of doubles*
+<li> Required if @ref windowType="energy"
 </ul>
 
 
@@ -539,7 +537,7 @@ end point path
 <ul>
 <li> Required if @ref windowType="population". Cutoff values for discarding phonon states based on their equilibrium phonon occupation number, such that \f$ \frac{\partial \bar{n}}{\partial T} <\f$ windowPopulationLimit.
 <li> *double*
-<li> (Required)
+<li> Required if @ref windowType="population"
 </ul>
 
 
@@ -590,7 +588,7 @@ end point path
 @subsubsection massVariance massVariance
 <ul>
 <li> User can specify a list of custom atomic mass variances \f$ g_2^s \f$. See Theory section for a description. The mass variances must be ordered in the same way that atomic species are specified in the file @ref phD2FileName. Defaults to the mass variance for natural isotopic abundance.
-<li> *double list*
+<li> *list of doubles*
 <li> Default: natural isotopic abundance
 <li> Optional
 </ul>
@@ -669,14 +667,14 @@ end point path
 @subsubsection dopings dopings
 <ul>
 <li> Specify a list of doping concentrations, in cm\f$^{-3}\f$, to compute electronic properties at various doping concentrations. The chemical potentials corresponding to this doping concentrations will be computed.
-<li> *double list*
-<li> (Required). User can specify @ref chemicalPotentials instead.
+<li> *list of doubles*
+<li> Required; alternatively one must specify @ref chemicalPotentials.
 </ul> 
 
 @subsubsection chemicalPotentials chemicalPotentials
 <ul>
 <li> Specify a list of chemical potentials to be used for the calculation of properties as a function of the chemical potential. If used in electron Wannier transport and scatteringMatrixInMemory=true, then only one value of chemical potentials can be specified. Values are in eV.
-<li> *double list*
+<li> *list of doubles*
 <li> Required. The user can substitute this parameter by specifying `(minChemicalPotential,maxChemicalPotential,deltaChemicalPotential)`.
 </ul>
 
