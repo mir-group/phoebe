@@ -845,7 +845,7 @@ INPUT = ./doc_pages/Doxygen.md \
 	./doc_pages/Theory/phononBTE.md \
 	./doc_pages/Theory/wignerThermal.md \ 
 	./doc_pages/Theory/elphInterpolation.md \
-	./doc_pages/Tutorial.md \
+	./doc_pages/Tutorials/Tutorials.md \
 	./doc_pages/UnitTesting.md \
 	./doc_pages/developerOverview.md \
 	./doc_pages/  \
