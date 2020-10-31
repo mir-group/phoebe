@@ -136,7 +136,101 @@ If the code run successfully, you should see a new file `silicon.fc`.
 
 
 @section step4 Step 4: 3rd derivatives
-Blank!
+In this section, we want to use a finite-displacement approach to computing the matrix of third derivatives of the total energy with respect to ionic displacements.
+To this aim, we will be using Quantum ESPRESSO to compute energies/forces, and thirdorder.py to generate a pattern of displacements in a supercell of the crystal.
+
+<ol>
+<li> Download thirdorder.py from <a href="http://www.shengbte.org/downloads"> here </a> </li>
+<li> Untar the file and cd into the `./thirdorder` directory that has been just created
+<li> Modify the source code in the following way.
+Modify line 559 of file thirdorder_core.c, from `#include "spglib/spglib.h"` to `#include "spglib.h"`.
+In file setup.py, set line 10 as `INCLUDE_DIRS = ["/your/path/to/phoebe/build/spglib_src/src"]` and line 13 as `LIBRARY_DIRS = ["/your/path/to/phoebe/build/spglib_build"]`.
+<li> Open a terminal in the `thirdorder` directory and type
+~~~~~~{.c}
+./compile.sh
+~~~~~~
+If everything works, you should find a `*.so` file in the subdirectories of `./build`.
+
+<li> Let's go back to the qespresso directory `/path/to/phoebe/example/Silicon/qespresso`.
+Let's check the file `supercell_template.in`.
+The content should look as
+~~~~~~~~~~~{.c}
+ &control
+    calculation = 'scf'
+    restart_mode='from_scratch',
+    prefix='silicon',
+    tstress = .true.
+    tprnfor = .true.,
+    pseudo_dir = '../../pseudoPotentials/',
+    outdir='./out',
+ /
+ &system
+    ibrav = 0
+    nat = ##NATOMS##
+    ntyp = 1,
+    ecutwfc = 30.
+ /
+ &electrons
+    conv_thr =  1.0d-12
+ /
+ATOMIC_SPECIES
+ Si  28.086  Si.pz-vbc.UPF
+##COORDINATES##
+
+##CELL##
+K_POINTS gamma
+~~~~~~~~~~~
+As you can notice, the file is the same as `scf.in`, but we modified a few things:
+   <ul>
+   <li> we set `tstress` and `tprnfor` to true.
+   <li> we removed `celldm` (and you should remove `alat`, if used)
+   <li> we set `ibrav=0`
+   <li> we set a tag in place of the number of atoms `nat`.
+   <li> Removed Cell and Coordinates cards and replaced them with tags
+   <li> Modified the k-points, as the k-point density should decrease like the size of the supercell we will set up. In this case, we initially set a k-point mesh of 4x4x4 points, but we will set up a supercell of size 4x4x4 and thus the new supercell k-point mesh is 1x1x1.
+   </ul>
+
+<blockquote>
+Note: if you use the `K_POINTS gamma` keyword, make sure you don't use the patched version of QE modified for the electron-phonon coupling, or use it with `K_POINTS automatic`.
+</blockquote>
+
+<li> Now, we generate the displacements on the supercell that are needed to compute the third-order force constants.
+From the phoebe example directory, run in the terminal: 
+~~~~~~~~~~{.c}
+ln -s /your/path/to/thirdorder_espresso.py .
+python3 thirdorder_espresso.py scf.in sow 4 4 4 -3 supercell_template.in
+~~~~~~~~~~
+In the first command, we link the script provided by `thirdorder`, please modify it to match the correct path.
+Next, you can see the script takes 7 parameters.
+    <ul>
+     <li> First, the QE input for the unit cell.
+     <li> Next, `sow` means we generate the supercells
+     <li> 4 4 4 is the three parameters indicating the 4x4x4 supercell size
+     <li> -3 indicates that we only include interactions up to the third nearest neighbor.
+     <li> Finally, we pass the path to the supercell template discussed above
+    </ul>
+This script will create a lot of input files, potentially, up to the cube of the number of atoms in the supercell, therefore choose an appropriate number of nearest neighbors (by converging the thermal conductivity)!
+<li> Now, it's time to run all of these supercell calculations!
+For example, you can do this by typing in the terminal:
+~~~~~~~~~~{.c}
+for f in DISP.supercell_template.in.*; do
+mpirun -np 4 pw.x -in $f > $f.out
+done
+~~~~~~~~~~
+This step may take a while...
+
+<li> Finally, we postprocess all these forces by typing:
+~~~~~~~~~~{.c}
+find . -name 'DISP.supercell_template.in.*out' | sort -n | python3 thirdorder_espresso.py scf.in reap 4 4 4 -3
+~~~~~~~~~~
+Note here that you should use the same parameters (here, 4 4 4 -3) used for generating the supercell displacements.
+If everything goes well, you should see a new file called `FORCE_CONSTANTS_3RD` with the desired output.
+
+</ol>
+
+Congratulations! You computed the ab-initio matrix of third order force constants.
+
+
 
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
