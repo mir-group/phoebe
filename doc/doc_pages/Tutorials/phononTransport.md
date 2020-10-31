@@ -360,3 +360,6 @@ Set the number of OpenMP threads equal to the number of physical cores available
 Compile phoebe with Kokkos if you have a GPU. If you do so, make sure that the number of GPU you are using matches the number of MPI processes.
 </li>
 </ul>
+
+
+@section phTrOutput

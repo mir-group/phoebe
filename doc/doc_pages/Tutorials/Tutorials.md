@@ -4,4 +4,5 @@ In this section, you can find a number of tutorials to run the different functio
 
 <ul>
 <li> \subpage phTrTut </li>
+<li> \subpage elWTrTut </li>
 </ul>
