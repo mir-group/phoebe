@@ -4,7 +4,7 @@ sumRuleD2 = "crystal"
 electronH0Name = "qe-elph/si_tb.dat",
 epwFileName = "qe-elph/silicon.phoebe.elph.dat"
  
-kMesh = [15,15,15]
+kMesh = [10,10,10]
 temperatures = [300.]
 dopings = [1.e21]
  
