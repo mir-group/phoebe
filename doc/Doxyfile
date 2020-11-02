@@ -837,14 +837,7 @@ INPUT = ./doc_pages/Introduction.md \
 	./doc_pages/Tutorials/ \
 	./doc_pages/Postprocessing.md \
 	./doc_pages/Theory/Theory.md \
-	./doc_pages/Theory/dynamicalMatrix.md \
-	./doc_pages/Theory/fourierInterpolation.md \
-	./doc_pages/Theory/wannierHarmonic.md \
-	./doc_pages/Theory/specificHeat.md \
-	./doc_pages/Theory/statistics.md \
-	./doc_pages/Theory/phononBTE.md \
-	./doc_pages/Theory/wignerThermal.md \ 
-	./doc_pages/Theory/elphInterpolation.md \
+	./doc_pages/Theory \	
 	./doc_pages/developerOverview.md \
 	./doc_pages/Units.md \
 	./doc_pages/UnitTesting.md \

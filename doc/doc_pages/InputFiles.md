@@ -414,7 +414,7 @@ end point path
 
 @section VarDesc Variable descriptions
 
-@subsubsection appName appName
+@subsection appName appName
 <ul>
 <li> This parameter, which must always be present, identifies which App (functionality) you want to run. Allowed values are:
   <ul>
@@ -438,7 +438,7 @@ end point path
 </ul>
 
 
-@subsubsection phD2FileName phD2FileName
+@subsection phD2FileName phD2FileName
 <ul>
 <li>Path to the file with harmonic force constants. File format supported is Quantum-ESPRESSO output of q2r.x.
 <li> *string*
@@ -446,7 +446,7 @@ end point path
 </ul>
 
 
-@subsubsection phD3FileName phD3FileName
+@subsection phD3FileName phD3FileName
 <ul>
 <li> Path to the file with anharmonic 3rd order force constants.
 <li> *string*
@@ -454,28 +454,28 @@ end point path
 </ul>
 
 
-@subsubsection sumRuleD2 sumRuleD2
+@subsection sumRuleD2 sumRuleD2
 <ul>
 <li> If specified, applies an acoustic sum rule to the phonon harmonic force constants. Allowed values are "simple" or "crystal", with the same algorithm and meaning of Quantum-ESPRESSO matdyn.x program.
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection qMesh qMesh
+@subsection qMesh qMesh
 <ul>
 <li> Triplet of integers with the fine q-point Monkhorst-Pack mesh that will be used for Brillouin zone integrations of phonon properties.
 <li> *list of int*
 <li> Required
 </ul>
 
-@subsubsection kMesh kMesh
+@subsection kMesh kMesh
 <ul>
 <li> Triplet of integers with the fine k-point Monkhorst-Pack mesh that will be used for Brillouin zone integrations of electronic properties. In electron-phonon transport calculations, `qMesh` is set to be equal to this value and does not need to be specified by the user.
 <li> *list of int*
 <li> Required
 </ul>
 
-@subsubsection temperatures temperatures
+@subsection temperatures temperatures
 <ul>
 <li> List with the values of temperatures to be used in the calculation. If scatteringMatrixInMemory=true, only one value of temperature is allowed.
 <li> *list of doubles*
@@ -483,7 +483,7 @@ end point path
 </ul>
 
 
-@subsubsection smearingMethod smearingMethod
+@subsection smearingMethod smearingMethod
 <ul>
 <li> Selects the level of approximation for replacing the Dirac-delta approximating energy conservation. Allowed values are "gaussian" and "adaptiveGaussian" (preferred)
 <li> *string*
@@ -491,7 +491,7 @@ end point path
 </ul>
 
 
-@subsubsection smearingWidth smearingWidth
+@subsection smearingWidth smearingWidth
 <ul>
 <li> This parameter is required if @ref smearingMethod="gaussian", where this parameter represents the full width at half maximum of the gaussian used to approximate the Dirac-delta conserving energy. Example: smearingWidth = 0.5 eV
 <li> *double+units*
@@ -499,7 +499,7 @@ end point path
 </ul>
 
 
-@subsubsection solverBTE solverBTE
+@subsection solverBTE solverBTE
 <ul>
 <li> If specified, solves the Boltzmann equation beyond the relaxation time approximation. Allowed values are: "variational", "iterative", and "relaxons", see the Theory section for a detailed explanation. Example: solverBTE=["variational","relaxons"]
 <li> *list of strings*
@@ -507,7 +507,7 @@ end point path
 </ul>
 
 
-@subsubsection scatteringMatrixInMemory scatteringMatrixInMemory
+@subsection scatteringMatrixInMemory scatteringMatrixInMemory
 <ul>
 <li> If true, the scattering matrix is kept in memory, and only one temperature is allowed. In exchange for a larger memory usage, exact BTE solvers are much faster; disable this flag to reduce the memory footprint but slowing down the exact BTE solvers.
 <li> *bool*
@@ -516,7 +516,7 @@ end point path
 </ul>
 
 
-@subsubsection windowType windowType
+@subsection windowType windowType
 <ul>
 <li> Enables the window used to discard some phonon states that don't contribute to transport. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if \f$ \frac{\partial \bar{n}}{\partial T} <\f$ windowPopulationLimit, where \f$ \frac{\partial \bar{n}}{\partial T}\f$ is the Bose--Einstein distribution derivative.
 <li> *string*
@@ -525,7 +525,7 @@ end point path
 </ul>
 
 
-@subsubsection windowEnergyLimit windowEnergyLimit
+@subsection windowEnergyLimit windowEnergyLimit
 <ul>
 <li> Additional parameter for energy @ref windowType. Specify two values \f$E_{min}\f$ and \f$E_{max}\f$(in electronVolts) such that we discard all phonon states  with energy outside of these bounds.
 <li> *list of doubles*
@@ -533,7 +533,7 @@ end point path
 </ul>
 
 
-@subsubsection windowPopulationLimit windowPopulationLimit
+@subsection windowPopulationLimit windowPopulationLimit
 <ul>
 <li> Required if @ref windowType="population". Cutoff values for discarding phonon states based on their equilibrium phonon occupation number, such that \f$ \frac{\partial \bar{n}}{\partial T} <\f$ windowPopulationLimit.
 <li> *double*
@@ -541,7 +541,7 @@ end point path
 </ul>
 
 
-@subsubsection maxIterationsBTE maxIterationsBTE
+@subsection maxIterationsBTE maxIterationsBTE
 <ul>
 <li> Maximum number of iterations for iterative and variational BTE solvers. If the maximum number of iterations is reached, the code will throw an error.
 <li> *int*
@@ -550,7 +550,7 @@ end point path
 </ul>
 
 
-@subsubsection convergenceThresholdBTE convergenceThresholdBTE
+@subsection convergenceThresholdBTE convergenceThresholdBTE
 <ul>
 <li> Convergence criterion to stop iterative BTE solvers. The calculation is converged if the transport coefficients have a relative change smaller than convergenceThresholdBTE. 
 <li> *double*
@@ -559,7 +559,7 @@ end point path
 </ul>
  
 
-@subsubsection dimensionality dimensionality
+@subsection dimensionality dimensionality
 <ul>
 <li> Input the dimensionality of the material. As a result, transport coefficients tensors will be of size (dim x dim), and units will be suitably scaled for the desired dimensionality.
 <li> *int*
@@ -568,7 +568,7 @@ end point path
 </ul>
 
 
-@subsubsection constantRelaxationTime constantRelaxationTime
+@subsection constantRelaxationTime constantRelaxationTime
 <ul>
 <li> If specified, we solve the BTE with the constant relaxation time approximation, where the phonon lifetime is set to this input value. (Fast but inaccurate!)
 <li> *double+units*
@@ -576,7 +576,7 @@ end point path
 </ul>
 
 
-@subsubsection withIsotopeScattering withIsotopeScattering
+@subsection withIsotopeScattering withIsotopeScattering
 <ul>
 <li> Controls whether to include or not phonon-isotope scattering
 <li> *bool*
@@ -585,7 +585,7 @@ end point path
 </ul>
 
 
-@subsubsection massVariance massVariance
+@subsection massVariance massVariance
 <ul>
 <li> User can specify a list of custom atomic mass variances \f$ g_2^s \f$. See Theory section for a description. The mass variances must be ordered in the same way that atomic species are specified in the file @ref phD2FileName. Defaults to the mass variance for natural isotopic abundance.
 <li> *list of doubles*
@@ -594,49 +594,49 @@ end point path
 </ul>
 
 
-@subsubsection boundaryLength boundaryLength
+@subsection boundaryLength boundaryLength
 <ul>
 <li> If specified, includes the phonon-boundary scattering within the RTA approximation. Example: boundaryLength = 10 mum
 <li> *double+units*
 <li> Optional
 </ul>
 
-@subsubsection electronH0Name electronH0Name
+@subsection electronH0Name electronH0Name
 <ul>
 <li> For Wannier-interpolation-based calculations, `electronH0Name` must contain the path to the `{prefix}_tb.dat` file generated by Wannier90. For Fourier-interpolation-based calculations, `electronH0Name` must contain the path to the Quantum-ESPRESSO {outdir}/{prefix}.xml file generated by `pw.x`.
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection dosMinEnergy
+@subsection dosMinEnergy
 <ul>
 <li> Used in conjunction with @ref dosMaxEnergy and @ref dosDeltaEnergy to compute the Density of States every @ref dosDeltaEnergy increments between @ref dosMinEnergy and @ref dosMaxEnergy.
 <li> *double+uints*
 <li> Required
 </ul>
 
-@subsubsection dosMaxEnergy dosMaxEnergy
+@subsection dosMaxEnergy dosMaxEnergy
 <ul>
 <li> Used in conjunction with @ref dosMinEnergy and @ref dosDeltaEnergy to compute the Density of States every @ref dosDeltaEnergy increments between @ref dosMinEnergy and @ref dosMaxEnergy.
 <li> *double+uints*
 <li> Required
 </ul>
 
-@subsubsection dosDeltaEnergy dosDeltaEnergy
+@subsection dosDeltaEnergy dosDeltaEnergy
 <ul>
 <li> Used in conjunction with @ref dosMinEnergy and @ref dosMaxEnergy to compute the Density of States every @ref dosDeltaEnergy increments between @ref dosMinEnergy and @ref dosMaxEnergy.
 <li> *double+uints*
 <li> Required
 </ul>
 
-@subsubsection electronFourierCutoff electronFourierCutoff
+@subsection electronFourierCutoff electronFourierCutoff
 <ul>
 <li> A parameter controlling the search of lattice vectors used for the Fourier interpolation of the electronic band structure. In detail, the lattice vectors used for the Fourier interpolation are searched in a supercell of size `electronFourierCutoff`\f$^3\f$ the primitive unit cell. Set it to at least 2.
 <li> *double*
 <li> Required
 </ul>
 
-@subsubsection beginEndCrystal begin/end crystal 
+@subsection beginEndCrystal begin/end crystal 
 <ul>
 <li> Specify the atomic species and atomic positions inside the crystal. This needs to be specified in some apps like WannierBands or WannierDos, as the output files of Wannier90 doesn't provide all the information about the crystal.
 <li> Namelist format, with atomic symbol and position coordinates in units of Angstroms. Example:
@@ -649,7 +649,7 @@ end crystal
 <li> Required
 </ul>
 
-@subsubsection beginEndPointPath begin/end point path
+@subsection beginEndPointPath begin/end point path
 <ul>
 <li> Specify the path of wavectors in the Brillouin zone used in apps such as `phononBands` or `phononLifetimes`. Use the parameter @ref deltaPath to control the number of wavevectors in each segment.
 <li> Namelist format, as pairs of special point symbol and wavevector coordinates. Wavevector coordinates are in fractional coordinates with respect to the primitive reciprocal lattice vectors. Example:
@@ -664,28 +664,28 @@ end point path
 <li> Required
 </ul>
 
-@subsubsection dopings dopings
+@subsection dopings dopings
 <ul>
 <li> Specify a list of doping concentrations, in cm\f$^{-3}\f$, to compute electronic properties at various doping concentrations. The chemical potentials corresponding to this doping concentrations will be computed.
 <li> *list of doubles*
 <li> Required; alternatively one must specify @ref chemicalPotentials.
 </ul> 
 
-@subsubsection chemicalPotentials chemicalPotentials
+@subsection chemicalPotentials chemicalPotentials
 <ul>
 <li> Specify a list of chemical potentials to be used for the calculation of properties as a function of the chemical potential. If used in electron Wannier transport and scatteringMatrixInMemory=true, then only one value of chemical potentials can be specified. Values are in eV.
 <li> *list of doubles*
 <li> Required. The user can substitute this parameter by specifying `(minChemicalPotential,maxChemicalPotential,deltaChemicalPotential)`.
 </ul>
 
-@subsubsection epwFileName epwFileName
+@subsection epwFileName epwFileName
 <ul>
 <li> Path to the file generated by the app `elPhQeToPhoebe` containing the electron-phonon coupling in the Wannier representation (e.g. `{prefix}.phoebe.elph.dat`)
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection deltaPath deltaPath
+@subsection deltaPath deltaPath
 <ul>
 <li> This variable controls how far apart are the wavevectors when a path in the Brillouin zone is specified, and it represents the distance (in Bohr) between wavevectors. Can be used when a path of wavevectors is specified with the @ref beginEndPointPath key. 
 <li> Default: 0.05 Bohr\f$^{-1}\f$
@@ -693,77 +693,77 @@ end point path
 <li> Optional
 </ul>
 
-@subsubsection elPhInterpolation elPhInterpolation
+@subsection elPhInterpolation elPhInterpolation
 <ul>
 <li> Can be either "wannier" or "epa". The first, prepares the electron-phonon coupling for the transport calculation with Wannier interpolation (i.e. does the transformation from Bloch to Wannier representation). The second, prepares the electron-phonon coupling to be used with the EPA approximation.
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection wannier90Prefix wannier90Prefix
+@subsection wannier90Prefix wannier90Prefix
 <ul>
 <li> Set to the same value of `prefix` in Wannier90. It's used to locate the files `{prefix}.eig` generated by `wannier90.x`.
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection quantumEspressoPrefix quantumEspressoPrefix
+@subsection quantumEspressoPrefix quantumEspressoPrefix
 <ul>
 <li> Set to the same value of `prefix` in Quantum-ESPRESSO. It's used to locate the files `{prefix}.dyn*` or `{prefix}.phoebe.*.dat` generated by `ph.x`.
 <li> *string*
 <li> Required
 </ul>
 
-@subsubsection fermiLevel fermiLevel
+@subsection fermiLevel fermiLevel
 <ul>
 <li> Sets the fermi level of the ground state. Can be specified e.g. in Bands or DOS apps to specify an otherwise unknown fermi level. This quantity is read from file for transport calculations: this input parameter overwrites that value, use with caution.
 <li> *double+units*
 <li> Optional
 </ul>
 
-@subsubsection numOccupiedStates numOccupiedStates
+@subsection numOccupiedStates numOccupiedStates
 <ul>
 <li> Determines the number of occupied Kohn-Sham states at the ground state. The default value can be read from either the @ref electronH0FileName (when this is the Quantum-ESPRESSO xml file) or the file with the el-ph interaction. The user choose instead to specify the @ref fermiLevel (@ref numOccupiedStates can be computed knowing that).
 <li> *double*
 <li> Optional.
 </ul>
 
-@subsubsection minChemicalPotential minChemicalPotential
+@subsection minChemicalPotential minChemicalPotential
 <ul>
 <li> To be used together with @ref maxChemicalPotential and @ref deltaChemicalPotential, sets the code to compute properties at all chemical Potentials between @ref minChemicalPotential and @ref maxChemicalPotential in steps of @ref deltaChemicalPotential. Can be exchanged with @ref chemicalPotentials to instead manually specify the chemical potentials of the calculation.
 <li> *double*
 <li> (Required) either specify (@ref minChemicalPotential, @ref maxChemicalPotential, @ref deltaChemicalPotential) or @ref chemicalPotentials.
 </ul>
 
-@subsubsection maxChemicalPotential maxChemicalPotential
+@subsection maxChemicalPotential maxChemicalPotential
 <ul>
 <li> To be used together with @ref minChemicalPotential and @ref deltaChemicalPotential, sets the code to compute properties at all chemical potentials between @ref minChemicalPotential and @ref maxChemicalPotential in steps of @ref deltaChemicalPotential. Can be exchanged with chemicalPotentials to instead manually specify the chemical potentials of the calculation.
 <li> *double*
 <li> (Required) either specify (@ref minChemicalPotential, @ref maxChemicalPotential, @ref deltaChemicalPotential) or @ref chemicalPotentials.
 </ul>
 
-@subsubsection deltaChemicalPotential deltaChemicalPotential
+@subsection deltaChemicalPotential deltaChemicalPotential
 <ul>
 <li> To be used together with @ref minChemicalPotential and @ref maxChemicalPotential, sets the code to compute properties at all chemical Potentials between @ref minChemicalPotential and @ref maxChemicalPotential in steps of @ref deltaChemicalPotential. Can be exchanged with @ref chemicalPotentials to instead manually specify the chemical potentials of the calculation.
 <li> *double*
 <li> (Required) either specify (@ref minChemicalPotential, @ref maxChemicalPotential, @ref deltaChemicalPotential) or @ref chemicalPotentials.
 </ul>
 
-@subsubsection minTemperature minTemperature
+@subsection minTemperature minTemperature
 <ul>
 <li> To be used together with @ref maxTemperature and @ref deltaTemperature, sets the code to compute observables at temperatures between @ref minTemperature and @ref maxTemperature in steps of @ref deltaTemperature.
 <li> *double*
 <li> (Required): either set (@ref minTemperature, @ref maxTemperature, @ref deltaTemperature) or @ref temperatures.
 </ul>
 
-@subsubsection maxTemperature maxTemperature
+@subsection maxTemperature maxTemperature
 <ul>
 <li> To be used together with @ref minTemperature and @ref deltaTemperature, sets the code to compute observables at temperatures between @ref minTemperature and @ref maxTemperature in steps of @ref deltaTemperature.
 <li> *double*
 <li> (Required): either set (@ref minTemperature, @ref maxTemperature, @ref deltaTemperature) or @ref temperatures.
 </ul>
 
-@subsubsection deltaTemperature deltaTemperature
+@subsection deltaTemperature deltaTemperature
 <ul>
 <li> To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures between @ref minTemperature and @ref maxTemperature in steps of @ref deltaTemperature.
 <li> *double*
