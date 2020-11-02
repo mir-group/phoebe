@@ -1,5 +1,5 @@
 appName = "electronWannierBands"
-electronH0Name = "qespresso/si_tb.dat",
+electronH0Name = "qe-elph/si_tb.dat",
 deltaPath = 0.01
 
 begin point path

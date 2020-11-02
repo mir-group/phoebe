@@ -1,4 +1,4 @@
-electronH0Name = "qespresso/si_tb.dat",
+electronH0Name = "qe-elph/si_tb.dat",
 kMesh = [10,10,10]
 appName = "electronWannierDos"
 dosMinEnergy = -6. eV

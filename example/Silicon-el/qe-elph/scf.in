@@ -1,7 +1,7 @@
 &control
   calculation = "scf"
   prefix = "silicon"
-  pseudo_dir = "../pseudoPotentials/"
+  pseudo_dir = "../../pseudoPotentials/"
   outdir = "./out"
   verbosity = "high"
   wf_collect = .true.

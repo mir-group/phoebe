@@ -2,7 +2,7 @@ appName = "electronWannierTransport"
 phD2FileName = "qe-elph/silicon.fc"
 sumRuleD2 = "crystal"
 electronH0Name = "qe-elph/si_tb.dat",
-epwFileName = "silicon.phoebe.elph.dat"
+epwFileName = "qe-elph/silicon.phoebe.elph.dat"
  
 kMesh = [15,15,15]
 temperatures = [300.]
