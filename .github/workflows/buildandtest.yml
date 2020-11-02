@@ -28,6 +28,13 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
+      - name: Download test data
+        run: |
+          wget github.com/mir-group/phoebe-data/archive/master.zip
+          unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-phonons/*" -d "example/Silicon-ph/qe-phonons"
+          unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-ph-anharmonic/*" -d "example/Silicon-ph/qe-ph-anharmonic"
+          unzip -j master.zip "phoebe-data-master/example/Silicon-el/qe-elph/*" -d "example/Silicon-el/qe-elph"
+          unzip 'example/Silicon-el/qe-elph/silicon.phoebe.*.dat.zip' -d example/Silicon-el/qe-elph/
       - name: Run ph example without MPI
         working-directory: example/Silicon-ph
         run: |
