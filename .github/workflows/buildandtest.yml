@@ -53,5 +53,6 @@ jobs:
         working-directory: example/Silicon-el
         if: matrix.mpi == 'ON'
         run: |
-          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          # Note: don't run this as it runs out-of-memory on the VM
+          # mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
