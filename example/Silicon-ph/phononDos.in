@@ -1,4 +1,4 @@
-phD2FileName = "qespresso/silicon.fc",
+phD2FileName = "qe-phonons/silicon.fc",
 sumRuleD2 = "simple"
 qMesh = [10,10,10]
 appName = "phononDos"

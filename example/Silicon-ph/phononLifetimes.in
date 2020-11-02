@@ -2,9 +2,9 @@ appName = "phononLifetimes"
 
 phD2FileName = "qe-phonons/silicon.fc",
 sumRuleD2 = "simple"
-phD3FileName = "ForceConstants3rd"
+phD3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
 
-qMesh = [15,15,15]
+qMesh = [10,10,10]
 temperatures = [600.]
 
 smearingMethod = "gaussian"

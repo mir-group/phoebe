@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export QE_PATH="/modify/the/path/to/QE/bin"
+export QE_PATH="/your/path/to/QE/bin"
 export NMPI=4
 export NPOOL=4
 

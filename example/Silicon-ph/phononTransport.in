@@ -2,9 +2,9 @@ appName = "phononTransport"
 
 phD2FileName = "qe-phonons/silicon.fc"
 sumRuleD2 = "simple"
-phD3FileName = "ForceConstants3rd"
+phD3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
 
-qMesh = [10,10,10]
+qMesh = [6,6,6]
 temperatures = [300.]
 
 smearingMethod = "gaussian"
