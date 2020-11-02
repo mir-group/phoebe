@@ -260,9 +260,15 @@ namespace mpiContainer {
         };
         // Container for Eigen::VectorXi
         template <> struct containerType<Eigen::VectorXi> {
-                static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
-                static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+          static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
+          static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
+        // Container for Eigen::Vector3i
+        template <> struct containerType<Eigen::Vector3i> {
+          static inline int* getAddress(Eigen::Vector3i* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Vector3i* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
         };
 
 #endif

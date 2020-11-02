@@ -1,5 +1,5 @@
 diff --git a/PHonon/PH/elphon.f90 b/PHonon/PH/elphon.f90
-index 02b465d8e..9fe63d5fa 100644
+index 02b465d8e..8f0a33219 100644
 --- a/PHonon/PH/elphon.f90
 +++ b/PHonon/PH/elphon.f90
 @@ -187,7 +187,7 @@ SUBROUTINE elphon()
@@ -11,20 +11,48 @@ index 02b465d8e..9fe63d5fa 100644
          CALL read_dyn_mat_tail(nat)
    
          deallocate( phip )
-@@ -1346,8 +1346,523 @@ SUBROUTINE elphsum_simple
+@@ -1346,8 +1346,554 @@ SUBROUTINE elphsum_simple
       
  
  END SUBROUTINE elphsum_simple
 -   
 -!-----------------------------------------------------------------------
++
++
++
++subroutine is_point_equal(is_in_grid, q_reference_crystal, q_point_crystal)
++  use kinds, only: dp
++    implicit none
++    real(dp), intent(in) :: q_reference_crystal(3), q_point_crystal(3)
++    logical, intent(out) :: is_in_grid
++    integer :: i, j, k
++    real(dp) :: diff, transl(3)
++    
++    is_in_grid = .false.
++
++    do i = -2,2
++      do j = -2,2
++        do k = -2,2
++          transl(1) = q_point_crystal(1) + dble(i)
++          transl(2) = q_point_crystal(2) + dble(j)
++          transl(3) = q_point_crystal(3) + dble(k)
++          diff = sum((transl(:) - q_reference_crystal(:))**2)
++          if ( diff < 1.0e-6 ) then
++            is_in_grid = .true.
++            return
++          end if
++        end do
++      end do
++    end do
++    
++    return
++  end subroutine is_point_equal
 +  !
 +  !------------------------------------------------------------
 +  !
 +  subroutine elphfil_phoebe(iq, xk_collect, ikks_collect, et_collect, &
 +       el_ph_mat_collect)
-+
-+    USE constants, ONLY : ry_to_thz, ry_to_cmm1, amu_ry
-+    
++    USE constants, ONLY : ry_to_thz, ry_to_cmm1, amu_ry    
 +    use constants, only: tpi
 +    use io_files, only: tmp_dir, prefix
 +    USE cell_base, ONLY : alat, at, bg
@@ -38,7 +66,7 @@ index 02b465d8e..9fe63d5fa 100644
 +    USE wvfct, ONLY : nbnd
 +    USE klist, ONLY : nelec
 +    USE qpoint, ONLY : nksqtot
-+    USE symm_base, ONLY : s, sr, nsym, t_rev, irt, time_reversal, ft
++    USE symm_base, ONLY : s, sr, nsym, t_rev, irt, time_reversal, ft, invs
 +    ! ft: FractionalTranslations(3,48) in crystal coords
 +    USE modes, ONLY : nmodes, u
 +    USE dynmat, ONLY : dyn, w2
@@ -60,25 +88,25 @@ index 02b465d8e..9fe63d5fa 100644
 +    integer, save :: nk, nq, nq_irr
 +    real(dp), allocatable, save :: kgrid_full(:,:), qgrid_full(:,:)
 +    !
-+    integer :: iqq, iq_phonon, ik_phonon, iq_rotated, ik_rotated, &
++    integer :: iqq, ik_phonon, iq_rotated, ik_rotated, &
 +         isym, iq_star, iq_full, iksq, i, j, n_star, unit_phoebe, &
-+         ii, jj, ios, kk, ll, kappa, k, ix, iy, iz, i_cart, j_cart, &
-+         i_eigenmode, i_pattern, i_mode
-+    integer, allocatable :: kappa_to_k(:)
-+    real(dp) :: vec(3), rotation(3,3), inv_rotation(3,3), translation(3), arg, &
-+         a1(3), a2(3), a3(3), k_rotated(3), q_rotated(3), q_phonon(3), &
-+         k_phonon(3), qdiff(3)
-+    real(dp), allocatable :: q_star(:,:), energies_unfolded(:,:), &
-+         q_star_cartesian(:,:), rotated_tau(:,:), ph_frequencies(:)
-+    complex(dp) :: phase
-+    complex(dp), allocatable :: gq_coupling(:,:,:,:,:), ph_eigenvector(:,:,:), &
-+         ph_star_eigenvector(:,:,:,:), tmp_el_ph_mat(:,:,:,:), &
-+         el_ph_mat_cartesian(:,:,:,:)
-+    character(len=4) :: iq_char
-+    character(len=200) :: file_phoebe, file_xml, line
-+    logical :: q_in_the_list, k_in_the_list, found
++         ii, jj, ios, kk, ll, k, i_cart, j_cart, my_kBig_to_k(48,nat), kbig, &
++         i_pattern, i_mode, na, isq(48), imq, i1, i2, nb, i3         
++    integer, allocatable :: list_of_isym(:)
 +    integer, external :: find_free_unit
-+
++    real(dp) :: vec(3), arg, my_S(3,3,48), my_xm(3,48,nat), my_v(3,48), vec2(3),  &
++         k_rotated(3), q_rotated(3), q_star_cartesian(3,48), q_star_crystal(3,48),&
++         k_phonon_crystal(3), qdiff(3), q_phonon_crystal(3), q_phonon_cartesian(3), &
++         rotations_crystal(3,3,48)
++    real(dp), allocatable :: energies_unfolded(:,:), ph_frequencies(:)
++    complex(dp) :: phase
++    complex(dp), allocatable :: gq_coupling(:,:,:,:,:), &
++         ph_star_eigenvector(:,:,:,:), tmp_el_ph_mat(:,:,:,:), &
++         el_ph_mat_cartesian(:,:,:,:), test_vec(:,:), Dq(:,:)
++    character(len=4) :: iq_char
++    character(len=200) :: file_phoebe, file_xml
++    logical :: q_in_the_list, k_in_the_list
++    
 +    ! Note: this subroutine is called n_q^irr times
 +    ! i.e. the number of irreducible q-points used during the phonon run
 +    
@@ -108,16 +136,12 @@ index 02b465d8e..9fe63d5fa 100644
 +      allocate(q_equiv_symmetry(nq))
 +      allocate(wk(nk))
 +      allocate(wq(nq))
++      rotations_crystal = 0.d0
++      rotations_crystal(:,:,1:nsym) = s(:,:,:)
 +      call find_irreducible_grid(nk1, nk2, nk3, k1, k2, k3, kgrid_full, &
-+           k_equiv, wk, k_equiv_symmetry)
++           k_equiv, wk, k_equiv_symmetry, nsym, rotations_crystal)
 +      call find_irreducible_grid(nq1, nq2, nq3, 0, 0, 0, qgrid_full, &
-+           q_equiv, wq, q_equiv_symmetry)
-+
-+      do i = 1,nk
-+        q_phonon = qgrid_full(:,i)
-+        CALL cryst_to_cart(1, q_phonon, at, -1)
-+        isym = q_equiv_symmetry(i)
-+      end do
++           q_equiv, wq, q_equiv_symmetry, nsym, rotations_crystal)
 +      
 +      nq_irr = 0
 +      do i = 1,nq
@@ -162,11 +186,13 @@ index 02b465d8e..9fe63d5fa 100644
 +
 +      file_xml = trim(tmp_dir) // "../" // trim(prefix) // ".phoebe.scf.0000.dat"
 +      ios = 0
++      unit_phoebe = find_free_unit()
 +      open(unit=unit_phoebe, file = TRIM(file_xml), status = 'old', iostat = ios)
 +      if ( ios /= 0 ) then
 +        call errore("phoebe", &
 +             "you must use the patch on pw.x calculation ahead of running ph.x", 1)
 +      end if
++      close(unit_phoebe)
 +            
 +    end if
 +
@@ -180,9 +206,9 @@ index 02b465d8e..9fe63d5fa 100644
 +      allocate(energies_unfolded(nbnd,nk))
 +      energies_unfolded = 0.
 +      do i = 1,nkstot
-+        k_phonon = xk_collect(:,i) ! wavevector used in the phonon code
-+        CALL cryst_to_cart(1, k_phonon, at, -1) ! fold to crystal coords
-+        call get_point_index(iq_full, k_phonon, nk1, nk2, nk3, k1, k2, k3,&
++        k_phonon_crystal = xk_collect(:,i) ! wavevector used in the phonon code
++        CALL cryst_to_cart(1, k_phonon_crystal, at, -1) ! fold to crystal coords
++        call get_point_index(iq_full, k_phonon_crystal, nk1, nk2, nk3, k1, k2, k3,&
 +             .false.)
 +        ! iq_full is the index of the vector in xk_collect inside my list
 +        do j = 1,nk
@@ -223,45 +249,59 @@ index 02b465d8e..9fe63d5fa 100644
 +      end do
 +      close(unit_phoebe)
 +    end if
-+    !
++
++    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++    ! Get the coordinates of the q_phonon point
++
++    ! coordinates of the point explicitly computed
++    q_phonon_cartesian = x_q(:,iq)
++    q_phonon_crystal = x_q(:,iq)
++    CALL cryst_to_cart(1, q_phonon_crystal, at, -1)
++
++    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
++    ! Reconstructs the current star of qpoints
++    ! 
++    call star_q1(q_phonon_cartesian, at, bg, nsym, s, invs, n_star, q_star_cartesian, &
++         isq, imq, .TRUE., t_rev)
++    ! convert q_star to crystal coords.
++    q_star_crystal = q_star_cartesian
++    do i = 1,n_star
++      call cryst_to_cart(1, q_star_crystal(:,i), at, -1)
++    end do
++
 +    !----------------------------------------------------------------------------
-+    ! Here we reconstruct the "star" of q-points equivalent
-+    ! to the current irreducible point under consideration
-+    !
-+    q_phonon = x_q(:,iq)    
-+    CALL cryst_to_cart(1, q_phonon, at, -1)
-+    
++    ! Find index of the irreducible qpoint in the list of points for Phoebe
 +    ! iq_full is the index of q (from ph.x) in my grid of q points
-+    call get_point_index(iq_full, q_phonon, nq1, nq2, nq3, 0, 0, 0, .false.)
-+    
-+    ! check q point in grid
-+    if ( q_equiv(iq_full) /= iq_full ) then
-+      call errore("phoebe", "qpoint not ordered as expected 1", 1)
-+    end if
-+
-+    qdiff(:) = q_phonon(:) -  qgrid_full(:,iq_full)
++    call get_point_index(iq_full, q_phonon_crystal, nq1, nq2, nq3, 0, 0, 0, .false.)
++    ! verify that the point was found
++    qdiff(:) = q_phonon_crystal(:) - qgrid_full(:,iq_full)
 +    qdiff = qdiff - nint(qdiff)
-+
 +    if ( sum(qdiff**2) > 1.0d-5 ) then
 +      call errore("phoebe", "qpoint grid not ordered as expected 2", 1)
 +    end if
-+    
-+    ! number of equivalent q points in this star
-+    n_star = 0
-+    do iqq = 1,nq
-+      if ( q_equiv(iqq) == iq_full ) then
-+        n_star = n_star + 1
-+      end if
-+    end do
-+    allocate(q_star(3,n_star))
-+    j = 0
-+    do iqq = 1,nq
-+      if ( q_equiv(iqq) == iq_full ) then
-+        j = j + 1
-+        q_star(:,j) = qgrid_full(:,iqq)
-+      end if
-+    end do
 +
++    allocate(list_of_isym(n_star))
++    list_of_isym = 0
++    do j = 1,n_star
++      do isym = 1,nsym
++        if ( isq(isym)==j ) then
++          list_of_isym(j) = isym
++        end if
++      end do
++    end do
++    list_of_isym(1) = 1 ! we overwrite the first sym, which should be identity
++    ! And I don't know what it's equal to otherwise
++
++    ! Here we check that the symmetries of the star are correct
++    do i = 1,n_star
++      isym = list_of_isym(i)
++      q_rotated = matmul(s(:,:,isym), q_star_crystal(:,i))
++      call is_point_equal(q_in_the_list, q_star_crystal(:,1), q_rotated)
++      if ( .not. q_in_the_list ) then
++        call errore("phoebe", "Star symms problem", 1)
++      end if
++    end do
++    
 +    !-------------------------------------------------------------------
 +    ! We miss a couple of things to the el_ph_mat matrix
 +    ! 1) the perturbation is computed in the pattern basis
@@ -293,7 +333,7 @@ index 02b465d8e..9fe63d5fa 100644
 +      end do
 +    end do
 +    deallocate(tmp_el_ph_mat)
-+    
++
 +    !----------------------------------------------------------------------------
 +    ! Here we start the coupling unfolding
 +    ! we use g(Sk,q) = g(k,S^{-1}q) to unfold the coupling
@@ -303,66 +343,37 @@ index 02b465d8e..9fe63d5fa 100644
 +    gq_coupling = cmplx(0., 0., kind=dp)
 +
 +    ! here we actually apply g(Sk,Sq^irr) = g(k,q^irr)
-+    
-+    do iksq = 1,nksqtot ! loop over the k's computed by phonon.x
-+      ! (xk_collect(3, nkstot) k point coordinates
-+      ! ikks_collect(nksqtot) ! indeces of k vectors in the loop nksqtot
-+      ik_phonon = ikks_collect(iksq) ! index of k in xk_collect list
-+      k_phonon = xk_collect(:,ik_phonon) ! k wavevector in cartesian coordinates
-+      CALL cryst_to_cart(1, k_phonon, at, -1) ! in crystal coords
++
++    do iq_star = 1,n_star
++      isym = list_of_isym(iq_star) ! index of symmetry that maps q to q*
 +      !
-+      do isym = 1,nsym
-+        k_rotated = matmul(s(:,:,isym), k_phonon)
-+        q_rotated = matmul(s(:,:,isym), q_phonon) ! q_phonon is the irred q-point
-+        k_rotated(:) = k_rotated(:) - nint( k_rotated(:) )
++      do iksq = 1,nksqtot ! loop over the k's computed by phonon.x
++        ! (xk_collect(3, nkstot) k point coordinates
++        ! ikks_collect(nksqtot) ! indeces of k vectors in the loop nksqtot
++        ik_phonon = ikks_collect(iksq) ! index of k in xk_collect list
++        k_phonon_crystal = xk_collect(:,ik_phonon) ! k wavevector in cartesian coordinates
++        CALL cryst_to_cart(1, k_phonon_crystal, at, -1) ! in crystal coords
++        !
++        k_rotated = matmul(s(:,:,isym), k_phonon_crystal) ! rotate point
++        q_rotated = matmul(s(:,:,isym), q_phonon_crystal) ! q_phonon is the irred q-point
++        k_rotated(:) = k_rotated(:) - nint( k_rotated(:) ) ! fold in 1st BZ 
 +        q_rotated(:) = q_rotated(:) - nint( q_rotated(:) )
-+        if ( t_rev(isym) == 1 ) then
-+          k_rotated = - k_rotated
-+          q_rotated = - q_rotated
-+        end if
++        !
 +        call is_point_in_grid(k_in_the_list, k_rotated, nk1, nk2, nk3, 0, 0, 0, .false.)
 +        call is_point_in_grid(q_in_the_list, q_rotated, nq1, nq2, nq3, 0, 0, 0, .false.)
 +        !
-+        if ( k_in_the_list .and. q_in_the_list ) then
-+          ! index of point in the full grid
-+          call get_point_index(ik_rotated, k_rotated, nk1, nk2, nk3, 0, 0, 0, .false.)
-+          call get_point_index(iq_rotated, q_rotated, nq1, nq2, nq3, 0, 0, 0, .false.)
-+          
-+          iq_star = 0
-+          do iqq = 1,n_star
-+            if ( sum((qgrid_full(:,iq_rotated)-q_star(:,iqq))**2) < 1.0d-5 ) then
-+              iq_star = iqq
-+              exit
-+            end if
-+          end do
-+          if ( iq_star == 0 ) call errore("phoebe", "q not found in star",1)
-+          
-+          gq_coupling(:,:,ik_rotated,:,iq_star) = el_ph_mat_cartesian(:,:,iksq,:)
++        if ( .not. q_in_the_list ) then
++          call errore("phoebe", "unexpected q rotation")
 +        end if
 +        !
-+        if ( time_reversal ) then
-+          call is_point_in_grid(k_in_the_list, k_rotated, nk1, nk2, nk3, &
-+               k1, k2, k3, .true.)
-+          call is_point_in_grid(q_in_the_list, q_rotated, nq1, nq2, nq3, &
-+               0, 0, 0, .true.)
-+          IF ( k_in_the_list .and. q_in_the_list ) THEN
-+            call get_point_index(ik_rotated, k_rotated, nk1, nk2, nk3, &
-+                 k1, k2, k3, .true.)
-+            call get_point_index(iq_rotated, q_rotated, nq1, nq2, nq3, &
-+                 0, 0, 0, .true.)
-+            
-+            iq_star = 0
-+            do iqq = 1,n_star
-+              if (sum((qgrid_full(:,iq_rotated)-q_star(:,iqq))**2) < 1.0d-5) then
-+                iq_star = iqq
-+                exit
-+              end if
-+            end do
-+            if ( iq_star == 0 ) call errore("phoebe", "q not found in star",1)
-+            
-+            gq_coupling(:, :, ik_rotated, :, iq_star) = &
-+                 el_ph_mat_cartesian(:, :, iksq, :)
-+          end if
++        ! if both points rotate and stay on the grid
++        ! then we can assign values to the rotated g coupling
++        ! if they are not rotating, we have 0 el-ph coupling
++        if ( k_in_the_list ) then
++          ! index of point in the full grid
++          call get_point_index(ik_rotated, k_rotated, nk1, nk2, nk3, 0, 0, 0, .false.)
++          call get_point_index(iq_rotated, q_rotated, nq1, nq2, nq3, 0, 0, 0, .false.)          
++          gq_coupling(:,:,ik_rotated,:,iq_star) = el_ph_mat_cartesian(:,:,iksq,:)
 +        end if
 +        !
 +      end do ! end nsym
@@ -371,120 +382,139 @@ index 02b465d8e..9fe63d5fa 100644
 +    !------------ Rotate the phonon eigenvectors -------------------------------
 +    ! I must do this, so that we can keep their phase information,
 +    ! needed to Fourier transform them to real space
-+    ! Eq. 2.33, Maradudin & Vosko, Rev. Mod. Phys. (1968)
++    ! Eq. 2.31 or 2.33 from Maradudin & Vosko, Rev. Mod. Phys. (1968)
 +    ! https://journals.aps.org/rmp/abstract/10.1103/RevModPhys.40.1
 +
-+    ! Note: a1 is in alat units, cartesian cords
-+    ! tau is in alat units, cartesian coords
-+    
-+    allocate(q_star_cartesian(3,n_star))
-+    q_star_cartesian = q_star
-+    do iq_star = 1,n_star
-+      call cryst_to_cart(1, q_star_cartesian(:,iq_star), bg, 1)
-+    end do
-+    
-+    a1 = at(:,1)
-+    a2 = at(:,2)
-+    a3 = at(:,3)
-+
-+    ! Note: I checked that dyn contains the eigenvectors
-+    ! normalized by sqrt of atomic mass
-+    ! to verify that, run:
-+    ! allocate(eigvec(3*nat,3*nat))
-+    ! eigvec = dyn * sqrt(amass(1) * amu_ry)
-+    ! dyn = cmplx(0.,0.,kind=dp)
-+    ! do ii = 1,3*nat
-+    !   dyn(ii,ii) = sqrt(w2(ii))
-+    ! end do
-+    ! dyn = matmul(eigvec, dyn)
-+    ! dyn = matmul(dyn,transpose(eigvec))
-+    ! allocate(freq(3*nat))
-+    ! CALL cdiagh (3*nat, dyn, 3*nat, freq, eigvec)
-+    ! print*, freq*ry_to_cmm1
-+    ! print*, w2*ry_to_cmm1
-+    ! print*, eigvec(:,1) ! this gives the same pattern of *.dyn* files
-+    ! deallocate(eigvec)
-+
-+    allocate(ph_eigenvector(3,nat,3*nat))
-+    ph_eigenvector = cmplx(0.,0.,kind=dp)
-+    do k = 1,nat
-+      do i_cart = 1,3
-+        ii = 3 * (k-1) + i_cart
-+        do jj = 1,3*nat
-+          ph_eigenvector(i_cart,k,jj) = dyn(ii,jj)
-+        end do
-+      end do
-+    end do
-+    allocate(ph_star_eigenvector(3,nat,3*nat,n_star))
-+    ph_star_eigenvector = cmplx(0.,0.,kind=dp)
-+    ph_star_eigenvector(:,:,:,1) = ph_eigenvector
-+    
-+    !--------------------------------------------
-+    
-+    if ( n_star > 1 ) then ! if not, nothing to rotate
-+      allocate(kappa_to_k(nat))
-+      allocate(rotated_tau(3,nat))
-+      do iq_star = 2,n_star
-+        ! step 1: identify the symmetry S such that q^rotated = S q^irreducible
-+
-+        ! iqq is the index of iq_star in the full grid
-+        call get_point_index(iqq, q_star(:,iq_star), nq1, nq2, nq3, 0, 0, 0, .false.)
-+        ! conveniently, I computed already what is the symmetry to use here
-+        isym = q_equiv_symmetry(iqq)        
-+        rotation = sr(:,:,isym)
-+        inv_rotation = transpose(rotation)
-+        translation(:) = ft(:,isym)
-+        ! transform in cartesian coordinates
-+        call cryst_to_cart(1,translation(:),at,+1)
-+
-+        ! step 2: build the mapping kappa_to_k
-+        kappa_to_k = 0
-+        do kappa = 1,nat
-+          ! note how the translation must be applied before the rotation
-+          rotated_tau(:,kappa) = matmul(rotation,tau(:,kappa) + translation)
-+          k = 0
-+          do ii = 1,nat
-+            do ix = -3,3
-+              do iy = -3,3
-+                do iz = -3,3
-+                  vec(:) = rotated_tau(:,kappa) &
-+                       + ix * a1(:) + iy * a2(:) + iz * a3(:)
-+                  if ( sum( ( vec - tau(:,ii))**2 ) < 1.0e-5 ) then
-+                    k = ii
-+                  end if
-+                end do
-+              end do
-+            end do
-+          end do
-+          if ( k == 0 ) then
-+            call errore("phoebe", "tau not folded", 1)
-+          end if
-+          kappa_to_k(kappa) = k
-+        end do
-+        
-+        ! step 3: rotation
-+        
-+        do kappa = 1,nat
-+          k = kappa_to_k(kappa)
-+          vec(:) = matmul(inv_rotation,tau(:,kappa)-translation) - tau(:,k)
-+          arg = tpi * sum( q_star_cartesian(:,1) * vec(:) )
-+          phase = cmplx(cos(arg),sin(arg),kind=dp)          
-+          do i_eigenmode = 1,nmodes
-+            do i_cart = 1,3
-+              do j_cart = 1,3
-+                jj = 3 * (kappa-1) + j_cart
-+                ph_star_eigenvector(i_cart,k,i_eigenmode,iq_star) =        &
-+                     ph_star_eigenvector(i_cart,k,i_eigenmode,iq_star)     &
-+                     + rotation(i_cart,j_cart) * phase * dyn(jj,i_eigenmode)
-+              end do
-+            end do
-+          end do
-+        end do
-+      end do
-+      deallocate(kappa_to_k)
-+      deallocate(rotated_tau)
++    if ( imq == 0 ) then
++      call errore("phoebe", "debug imq=0",1)
 +    end if
++    ! Note that the first point in the star list is the point being computed
++    
++    ! Testing Eq. 2.4 from Maradudin and Vosko
++    ! this helps understand the various terms in QE
++    do isym = 1,nsym
++      do na = 1,nat
++        vec = matmul(sr(:,:,isym),tau(:,na)) - matmul(at,ft(:,isym))
++        do i1 = -2,2
++          do i2 = -2,2
++            do i3 = -2,2
++              vec2(1) = dble(i1)
++              vec2(2) = dble(i2)
++              vec2(3) = dble(i3)
++              vec2 = vec + matmul(at,vec2)
++              do nb = 1,nat
++                if ( sum((vec2-tau(:,nb))**2) < 1.0e-6 ) then
++                  my_xm(:,isym,na) = matmul(at,vec2-vec)
++                  my_kBig_to_k(isym,na) = nb ! I need the inverse mapping
++                  vec = vec2
++                end if
++              end do
++            end do
++          end do
++        end do
++        if ( sum((vec-tau(:,irt(isym,na)))**2) > 1.0e-6 ) then
++          call errore("phoebe", "atom mapping failed", 1)
++        end if
++      end do
++      my_S(:,:,isym) = sr(:,:,isym)
++      my_v(:,isym) = - matmul(at,ft(:,isym))
++    end do
++    
++    
++    allocate(ph_star_eigenvector(3, nat, 3*nat, n_star))
++    ph_star_eigenvector = cmplx(0.,0.,kind=dp)
++    !
++    ! Here apply Eq. 2.31 from Maradudin & Vosko, RMP (1968)
++    !
++    do iq_star = 1,n_star
++      isym = list_of_isym(iq_star)
++      ! Note: isym is the index of the symmetry that brings
++      ! S*q^star = q^irr
++      
++      do kBig = 1,nat
++        k = my_kBig_to_k(isym,kBig)
 +
++        ! This replicates QE
++        ! In detail: I checked below that the dynamicam matrix is the same
++        ! of what is printed in the {prefix}.dyn* files
++        ! However, it doesn't seem to match the equation 2.34. Boh
++        vec = matmul(sr(:,:,isym), tau(:,k)) - tau(:,kBig)
++        arg = tpi * sum(q_star_cartesian(:,iq_star)*vec)
++        phase = cmplx(cos(arg),-sin(arg),kind=dp)
++        
++        ! This was correct for several qpoints
++        ! but sometimes, for k /= kBig, there was a phase shift by Pi
++        ! vec = matmul(transpose(my_S(:,:,isym)), tau(:,kBig)) - tau(:,k)
++        ! arg = tpi * sum(q_star_cartesian(:,iq_star)*vec)
++        ! phase = cmplx(cos(arg),sin(arg),kind=dp)
++
++        ! This seemed to me to be the equation of Maradudin & Vosko,
++        ! bug only gives correct results for k = kBig
++        ! vec = matmul(transpose(my_S(:,:,isym)), tau(:,kBig) - my_v(:,isym) &
++        !      - my_xm(:,isym,kBig)) - tau(:,k)
++        ! arg = tpi * sum(q_star_cartesian(:,iq_star)*vec)
++        ! phase = cmplx(cos(arg),sin(arg),kind=dp)
++
++        do i_cart = 1,3
++          do j_cart = 1,3
++            jj = 3 * (k-1) + j_cart
++            ph_star_eigenvector(i_cart,kBig,:,iq_star) =        &
++                 ph_star_eigenvector(i_cart,kBig,:,iq_star)     &
++                 + phase * my_s(i_cart,j_cart,isym) * dyn(jj,:)
++          end do
++        end do
++      end do
++      !
++    end do
++
++
++    if ( .false. ) then
++      ! In this test, I build the dynamical matrixes
++      ! which can be compared with the ones in silicon.dyn* files
++    
++      allocate(Dq(nmodes,nmodes))
++      allocate(test_vec(nmodes,nmodes))    
++      do iq_star = 1,n_star
++        Dq = cmplx(0.,0.,kind=dp)
++        do ii = 1,nmodes
++          Dq(ii,ii) = w2(ii)
++        end do
++        !
++        test_vec = cmplx(0.,0.,kind=dp)
++        do i1 = 1,nat
++          do i_cart = 1,3
++            ii = 3 * (i1-1) + i_cart
++            test_vec(ii,:) = ph_star_eigenvector(i_cart,i1,:,iq_star)
++          end do
++        end do
++        Dq = matmul(test_vec,Dq)
++        Dq = matmul(Dq,conjg(transpose(test_vec))) * (amass(1)*amu_ry)**2
++        ! Note: assuming mono-species for test!
++        !
++        isym = list_of_isym(iq_star)
++        !
++        print*, q_star_cartesian(:,iq_star)
++        print*, matmul(my_s(:,:,isym),q_star_cartesian(:,1))
++        print*, isym, ft(:,isym)
++        !      
++        do i1 = 1,nat
++          do i2 = 1,nat
++            print*, i1, i2
++            do ii = 1,3
++              write(*,"(6F12.8)") (Dq(3*(i1-1)+ii,3*(i2-1)+jj), jj = 1,3)
++            end do
++          end do
++        end do
++        !
++        print*, ""
++        print*, "---------------"
++        print*, ""
++        !
++      end do
++      deallocate(Dq, test_vec)
++    end if
++    
++    
 +    ! ph frequencies
 +    allocate(ph_frequencies(3*nat))
 +    do ii = 1,nmodes
@@ -506,7 +536,7 @@ index 02b465d8e..9fe63d5fa 100644
 +         access = 'sequential', status = 'replace', iostat = ios)
 +    write(unit_phoebe,*) n_star
 +    do iqq = 1,n_star
-+      write(unit_phoebe,*) (q_star(ii,iqq), ii = 1,3) ! crystal coords
++      write(unit_phoebe,*) (q_star_crystal(ii,iqq), ii = 1,3) ! crystal coords
 +    end do
 +    do iqq = 1,n_star
 +      write(unit_phoebe,*) (q_star_cartesian(ii,iqq), ii = 1,3)
@@ -526,9 +556,10 @@ index 02b465d8e..9fe63d5fa 100644
 +         ii=1,nbnd), jj=1,nbnd), kk=1,nk), ll=1,nmodes), iqq=1,n_star)
 +    close(unit_phoebe)
 +    
-+    deallocate(gq_coupling, q_star_cartesian, ph_star_eigenvector)
-+    deallocate(ph_eigenvector, el_ph_mat_cartesian, ph_frequencies)
-+    
++    deallocate(gq_coupling, ph_star_eigenvector)
++    deallocate(el_ph_mat_cartesian, ph_frequencies)
++    deallocate(list_of_isym)
++
 +    return
 +  end subroutine elphfil_phoebe
 +  !
@@ -537,7 +568,7 @@ index 02b465d8e..9fe63d5fa 100644
  SUBROUTINE elphfil_epa(iq)
    !-----------------------------------------------------------------------
    !
-@@ -1529,6 +2044,9 @@ SUBROUTINE elphfil_epa(iq)
+@@ -1529,6 +2075,9 @@ SUBROUTINE elphfil_epa(iq)
       CLOSE (unit = iuelph, status = 'keep')
    ENDIF
    CALL cryst_to_cart(nkstot, xk_collect, bg, 1)
@@ -583,10 +614,10 @@ index 62aa4a383..89deef4e9 100644
    CALL init_run()
    !
 diff --git a/PW/src/c_bands.f90 b/PW/src/c_bands.f90
-index 77d728ddb..13a93caeb 100644
+index 77d728ddb..81a6f3cb4 100644
 --- a/PW/src/c_bands.f90
 +++ b/PW/src/c_bands.f90
-@@ -1,3 +1,649 @@
+@@ -1,3 +1,798 @@
 +! Phoebe
 +
 +subroutine get_point_index(n,k_rotated,nk1,nk2,nk3,k1,k2,k3, time_reversal)
@@ -644,19 +675,20 @@ index 77d728ddb..13a93caeb 100644
 +!-----------------------------------------------------------------------------
 +!
 +subroutine find_irreducible_grid(nk1, nk2, nk3, k1, k2, k3, xkg, equiv, &
-+     wkk, equiv_symmetry)
++     wkk, equiv_symmetry, nsym, s)
 +  ! Returns:
 +  ! 1) the full grid of k-points
 +  ! 2) the weight of k-points on the full grid
 +  !    although the reducible points should be discarded here
 +  ! 3) equiv_symmetry: the index of the rotation such that S*k^red = k^irr
 +  use kinds, only: dp
-+  use symm_base, only: s, nsym, t_rev, irt, time_reversal, sname
++  use symm_base, only: t_rev, irt, time_reversal, sname
 +  implicit none
-+  integer, intent(in) :: nk1, nk2, nk3, k1, k2, k3
++  integer, intent(in) :: nk1, nk2, nk3, k1, k2, k3, nsym
 +  integer, intent(out) :: equiv(nk1*nk2*nk3), wkk(nk1*nk2*nk3), &
 +       equiv_symmetry(nk1*nk2*nk3)
 +  real(dp), intent(out) :: xkg(3,nk1*nk2*nk3)
++  real(dp), intent(in) :: s(3,3,48)
 +  !
 +  integer :: i, j, k, n, nk, nkr, ns, ik
 +  real(dp) :: xkr(3)
@@ -712,7 +744,7 @@ index 77d728ddb..13a93caeb 100644
 +            equiv(n) = nk
 +            wkk(nk) = wkk(nk) + 1
 +          else
-+            IF (equiv(n)/=nk .or. n<nk ) CALL errore('phoeve_kpoint_grid', &
++            IF (equiv(n)/=nk .or. n<nk ) CALL errore('phoebe_kpoint_grid', &
 +                 'something wrong in the checking algorithm',1)
 +          end if
 +        end if
@@ -769,14 +801,11 @@ index 77d728ddb..13a93caeb 100644
 +      end if
 +    end do
 +    
-+!    print*, ik, equiv(ik), equiv_symmetry(ik,1), sname(equiv_symmetry(ik,1))
-+!    print*, xkr, xkg(:,ik), xkg(:,n)
 +    if ( equiv_symmetry(ik) == 1 ) then
 +      call errore("phoebe", "Failed to find rotation",1)
 +    end if
 +    
 +  end do
-+    !  stop
 +
 +  return 
 +end subroutine find_irreducible_grid
@@ -830,28 +859,30 @@ index 77d728ddb..13a93caeb 100644
 +  integer, intent(in) :: ik
 +  !
 +  integer :: g0_pool, ib, ib1, ib2, sizeSubspace, shap(2), nRows, nBands, &
-+       num_local_plane_Waves,  i, j, ik_global, ngm_g_,  &
-+       ios, ik_irr, isym, nbnd_, ig_rotated, ig1, ig2, ig, ib1_
-+  integer, save :: nk_full=0, nk1_, nk2_, nk3_
++       num_local_plane_Waves,  i, j, ik_global, ngm_g_, degeneracy_group_counter, &
++       ios, ik_irr, isym, nbnd_, ig_rotated, ig1, ig2, ig, ib1_, degeneracy_group(nbnd)
++  integer, save :: nk_full=0, nk1_, nk2_, nk3_, num_symmetries
 +  integer, allocatable :: gmap(:)
 +  integer, allocatable, save :: xk_equiv(:), xk_equiv_symmetry(:), xk_weight(:)
 +  real(dp) :: theta, rotation(3,3), inv_rotation(3,3), translation(3), diff, &
-+       arg, this_rotated_g(3), this_g(3), xk_crys(3)
++       arg, this_rotated_g(3), this_g(3), xk_crys(3), xk_irr_from_file(3), &
++       umklapp_Vector(3), xk_irr_from_file_cart(3), eigenvalues(nbnd)
 +  real(dp), allocatable, save :: g_global(:,:), xk_full_cart(:,:), &
 +       xk_full_cryst(:,:)
-+  real(dp), allocatable :: et_irr(:), rotated_g_global(:,:), g_global_(:,:)
-+  complex(dp) :: correction, xc
++  real(dp), allocatable :: et_irr(:), rotated_g_global(:,:)
++  complex(dp) :: correction, xc, unitary_matrix(nbnd,nbnd), delta_matrix(nbnd,nbnd)
 +  complex(dp), allocatable :: gauge_coefficients(:), evc_collected(:), &
 +       phases(:), evc_irreducible(:), evc_rotated(:), evc_test(:)
 +  character(len=64) :: file_name
 +  character(len=4) :: ichar
 +  logical, save :: first = .true.
-+  logical, allocatable :: is_band_degenerate(:), is_band_degenerate_(:)
 +  logical :: any_prob, in_scf, in_nscf
 +  integer, parameter :: i_unit = 52
-+
++  real(dp), save :: rotations_crys(3,3,48)=0., rotations_cart(3,3,48)=0., fraction_trans(3,48)=0.
++  
 +  in_scf = (trim(calculation) == 'scf') ! .and. (restart) 
-+  in_nscf = (trim(calculation) == 'nscf') .or. (trim(calculation) == 'bands')
++  in_nscf = (trim(calculation) == 'nscf') .or. (trim(calculation) == 'bands') &
++       .or. (trim(calculation)=="none")
 +  
 +  if ( (.not. in_scf) .and. (.not. in_nscf) ) then
 +    return
@@ -899,9 +930,9 @@ index 77d728ddb..13a93caeb 100644
 +  ! can be set to have positive G=0 coefficient
 +  
 +  allocate(gauge_coefficients(nbnd))
-+  allocate(is_band_degenerate(nbnd))
-+  is_band_degenerate = .false.
 +  gauge_coefficients = cmplx(0.,0.,kind=dp)
++  degeneracy_group = 0
++  degeneracy_group_counter = 0
 +  if ( me_pool == g0_pool ) then
 +    ib = 0
 +    ! loop on bands
@@ -915,11 +946,13 @@ index 77d728ddb..13a93caeb 100644
 +        end if
 +        sizeSubspace = sizeSubspace + 1;
 +      end do
++      degeneracy_group_counter = degeneracy_group_counter + 1
 +      if (sizeSubspace == 1) then
 +        gauge_coefficients(ib) = evc(1,ib)
++        degeneracy_group(ib) = degeneracy_group_counter
 +      else
 +        gauge_coefficients(ib:ib+sizeSubspace-1) = evc(1,ib)
-+        is_band_degenerate(ib:ib+sizeSubspace-1) = .true.
++        degeneracy_group(ib:ib+sizeSubspace-1) = degeneracy_group_counter
 +      end if
 +      ib = ib + sizeSubspace - 1;      
 +    end do ! band loop    
@@ -927,6 +960,8 @@ index 77d728ddb..13a93caeb 100644
 + 
 +  ! test: let's fix the gauge Re{c(G=0)}>0, Im{c(G=0)}=0
 +  call mp_bcast(gauge_coefficients, g0_pool, intra_pool_comm)
++  call mp_bcast(degeneracy_group, g0_pool, intra_pool_comm)
++  
 +  ! for every band, find max
 +  do ib = 1,nbnd
 +    xc = gauge_coefficients(ib)
@@ -944,9 +979,15 @@ index 77d728ddb..13a93caeb 100644
 +
 +  !----------------------------------------------------------------
 +  ! STEP 2:
++  ! The first time this subroutine is called, we can setup some quantities
++  ! in particular, the reducible list of kpoints, and the list of G-vectors
 +  
 +  ! we save the global list of g-vectors
 +  if ( first ) then
++    first = .false.
++
++    ! setup list of G-vectors
++    ! Note: g is a local sublist of G-vectors, so we need an allreduce op
 +    allocate(g_global(3,ngm_g))
 +    g_global = 0.d0
 +    do i = 1,ngk(ik)
@@ -955,51 +996,90 @@ index 77d728ddb..13a93caeb 100644
 +    call mp_sum(g_global, intra_pool_comm)
 +
 +    if ( trim(calculation) == 'scf' ) then
++      ! setup kpoint grid parameters
 +      nk1_ = nk1
 +      nk2_ = nk2
 +      nk3_ = nk3
-+    else
-+      ! check that the code restarts with the same grid
-+      first = .false.
++
++      num_symmetries = nsym
++      rotations_crys = s
++      rotations_cart = sr
++      fraction_trans = ft
++
++      ! Save info on the G grid, to check that runs are consistent        
 +      if ( my_pool_id == 0 .and. me_pool == root_pool ) then
 +        file_name = trim(tmp_dir) // trim(prefix) // ".phoebe.scf.0000.dat"
 +        open(unit = i_unit, file = TRIM(file_name), form = 'unformatted', &
-+             access = 'sequential', status = 'old', iostat = ios)
-+        read(i_unit) ngm_g_
-+        read(i_unit) nk1_, nk2_, nk3_
++             access = 'sequential', status = 'replace', iostat = ios)
++        write(i_unit) ngm_g
++        write(i_unit) nk1, nk2, nk3
++        ! Note: QE may change order of symmetries, e.g. when this is called by ph.x
++        ! So, we must refer to our internal stuff 
++        write(i_unit) num_symmetries
++        write(i_unit) rotations_crys
++        write(i_unit) rotations_cart
++        write(i_unit) fraction_trans
++        close(i_unit) 
++      end if
 +
-+        allocate(g_global_(3,ngm_g_))
-+        
-+        read(i_unit) g_global_
++    else
++
++      num_symmetries = 0
++      rotations_crys = 0.d0
++      rotations_cart = 0.d0
++      fraction_trans = 0.d0
++
++      ! here we read the file generated by the scf run, and check consistency
++      ! check that the code restarts with the same grid
++      if ( me_pool == root_pool ) then
++        if ( calculation == "none" ) then ! case of phonons
++          file_name = trim(tmp_dir) // "/../../" // trim(prefix) // ".phoebe.scf.0000.dat"
++        else
++          file_name = trim(tmp_dir) // trim(prefix) // ".phoebe.scf.0000.dat"
++        end if
++        open(unit=i_unit, file=trim(file_name), form = 'unformatted', &
++             access='sequential', status='old', iostat=ios)
++        if ( ios /= 0 ) call errore("phoebe", "file not found", 1)
++        read(i_unit) ngm_g_ ! # of global G vectors
++        read(i_unit) nk1_, nk2_, nk3_ ! kgrid mesh
 +        ! I checked that g vectors are the same
-+        
++        read(i_unit) num_symmetries
++        read(i_unit) rotations_crys
++        read(i_unit) rotations_cart
++        read(i_unit) fraction_trans
 +        close(i_unit) 
 +      end if
 +      call mp_bcast(nk1_, root_pool, intra_pool_comm)
 +      call mp_bcast(nk2_, root_pool, intra_pool_comm)
 +      call mp_bcast(nk3_, root_pool, intra_pool_comm)
-+      
++      call mp_bcast(ngm_g_, root_pool, intra_pool_comm)
++
++      call mp_bcast(num_symmetries, root_pool, intra_pool_comm)
++      call mp_bcast(rotations_crys, root_pool, intra_pool_comm)
++      call mp_bcast(rotations_cart, root_pool, intra_pool_comm)
++      call mp_bcast(fraction_trans, root_pool, intra_pool_comm)
++
 +      if ( ngm_g_ /= ngm_g ) then
 +        call errore("phoebe", "Different number of Gvectors in restart", 1)
 +      end if
 +      
 +    end if
-+      
++    
 +    if ( nk1_ <= 0 .or. nk2_ <= 0 .or. nk3_ <= 0 ) then
 +      call errore("phoebe","k-point grid not found. Using kpoints automatic?",1)
 +    end if
 +   
 +    !
 +    ! full grid and symmetry analysis
-+    nk_full = nk1_*nk2_*nk3_
++    nk_full = nk1_*nk2_*nk3_ ! total # of reducible kpoints
 +    allocate(xk_full_cryst(3,nk_full))
 +    allocate(xk_equiv(nk_full))
 +    allocate(xk_weight(nk_full))
-+    allocate(xk_equiv_symmetry(nk_full))
++    allocate(xk_equiv_symmetry(nk_full)) ! index of symmetry s.t. S(idx)*k^irr = k
 +    call find_irreducible_grid(nk1_, nk2_, nk3_, k1, k2, k3, xk_full_cryst, &
-+         xk_equiv, xk_weight, xk_equiv_symmetry)
++         xk_equiv, xk_weight, xk_equiv_symmetry, num_symmetries, rotations_crys)
 +    
-+    allocate(xk_full_cart(3,nk_full))
++    allocate(xk_full_cart(3,nk_full)) ! same as xk_full_cryst, but in cartesian coords
 +    xk_full_cart = xk_full_cryst
 +    do i = 1,nk_full
 +      call cryst_to_cart(1, xk_full_cart(:,i), at, -1)
@@ -1009,37 +1089,35 @@ index 77d728ddb..13a93caeb 100644
 +
 +  ! define ik_global as the index of this point
 +  ! in the full list of points that we use internally
-+  
-+  DO i = 1, 3
++
++  ! xk(:,ik) is the irreducible kpoint being computed now, in cartesian coords
++  ! here we also get it in crystal coords
++  DO i = 1, 3 
 +    xk_crys(i) = at(1,i)*xk(1,ik) + at(2,i)*xk(2,ik) + at(3,i)*xk(3,ik)
 +  end do
++  ! find index of the irred. point in my global list of points
 +  ! this also folds point correctly in 1st BZ
 +  call get_point_index(ik_global, xk_crys, nk1_,nk2_,nk3_, k1,k2,k3, .false.)
-+  
++
++  !---------------------------------------------
++  ! Step 3:
++  ! we split the code in two cases
++  ! 1) If we are doing an scf calculation, we write the wavefunction to file
++  ! 2) In a nscf calculation, we read the wavefunction and fix the gauge
++    
++  ! if we run the scf, we need to save info to file
 +  if ( in_scf ) then ! -----------------------
 +
-+    if ( first ) then
-+      first = .false.      
-+        ! Save info on the grid, to check that runs are consistent        
-+      if ( my_pool_id == 0 .and. me_pool == root_pool ) then
-+        file_name = trim(tmp_dir) // trim(prefix) // ".phoebe.scf.0000.dat"
-+        open(unit = i_unit, file = TRIM(file_name), form = 'unformatted', &
-+             access = 'sequential', status = 'replace', iostat = ios)
-+        write(i_unit) ngm_g
-+        write(i_unit) nk1, nk2, nk3
-+        write(i_unit) g_global
-+        close(i_unit) 
-+      end if
-+    end if
++    ! print*, "Gauge saving"
 +    
 +    if ( me_pool == root_pool ) then
 +      write(ichar,"(I4.4)") ik_global
 +      file_name = trim(tmp_dir)//trim(prefix)//".phoebe.scf."//ichar//".dat"
 +      open(unit = i_unit, file = TRIM(file_name), form = 'unformatted', &
 +           access = 'sequential', status = 'replace', iostat = ios)
++      write(i_unit) xk_crys
 +      write(i_unit) nbnd
 +      write(i_unit) et(:,ik)
-+      write(i_unit) is_band_degenerate(:)
 +    end if
 +
 +    allocate(evc_collected(ngm_g))
@@ -1069,66 +1147,87 @@ index 77d728ddb..13a93caeb 100644
 +    
 +  else ! nscf ! ----------------------------------------------------
 +
-+    ! check if there are degeneracies
-+    ! if none, the gauge is set and we can proceed
-+    ! this is likely to happen for low-symmetry points.
-+
-+    ! Find irreducible index
-+
++    ! print*, "Gauge fixing"
++    
++    ! Here is the funny part
++    ! We are doing this nscf calculation on a full grid of points
++    
++    ! First, we find the index of the current kpoint
++    ! in the list of irreducible points
++    
 +    ik_irr = xk_equiv(ik_global)
 +    isym = xk_equiv_symmetry(ik_global)
 +    
-+    rotation = sr(:,:,isym) ! such that R*k^red = k^irr, in cartesian space
++    rotation = rotations_cart(:,:,isym) ! such that R*k^red = k^irr, in cartesian space
 +    inv_rotation = transpose(rotation) ! Rotations are unitary
-+    
++
++    ! Read from file the energies of the irreducible point
 +    allocate(et_irr(nbnd))
-+    allocate(is_band_degenerate_(nbnd))
 +    et_irr = 0.0d0
 +    if ( me_pool == root_pool ) then
 +      ! read info on g vectors and symmetries
 +      write(ichar,"(I4.4)") ik_irr
-+      file_name = trim(tmp_dir)//trim(prefix)//".phoebe.scf."//ichar//".dat"
-+      open(unit = i_unit, file = TRIM(file_name), form = 'unformatted', &
-+           access = 'sequential', status = 'old', iostat = ios)
++      if ( calculation == "none" ) then ! case of phonons
++        file_name = trim(tmp_dir) // "/../../" //trim(prefix)// ".phoebe.scf."//ichar//".dat"
++      else
++        file_name = trim(tmp_dir) // trim(prefix) // ".phoebe.scf."//ichar//".dat"
++      end if
++      
++      open(unit=i_unit, file=TRIM(file_name), form='unformatted', &
++           access='sequential', status='old', iostat=ios)
++      read(i_unit) xk_irr_from_file
 +      read(i_unit) nbnd_
 +      read(i_unit) et_irr(:)
-+      read(i_unit) is_band_degenerate_(:)
 +    end if
 +    call mp_bcast(et_irr, me_pool, intra_pool_comm)
-+    call mp_bcast(is_band_degenerate_, me_pool, intra_pool_comm)
++    call mp_bcast(xk_irr_from_file, me_pool, intra_pool_comm)
 +    call mp_bcast(nbnd_, me_pool, intra_pool_comm)
 +
-+    any_prob = .false.
++    ! find the Umklapp vector between the current k and the k from file
++    umklapp_vector = matmul(rotations_crys(:,:,isym),xk_crys(:)) - xk_irr_from_file(:)
++    ! make sure it has integer values
++    if ( sum(abs(umklapp_vector)) - nint(sum(abs(umklapp_vector))) > 1.0e-5 ) then
++      call errore("phoebe", "Umklapp with non-integer values. Wrong kPoints?", 1)
++      ! this also makes us test whether we are reading the correct wavevector
++    end if
++    ! we use cartesian coordinates
++    umklapp_vector = matmul(bg,umklapp_vector)
++
++    ! Sanity check: et_irr should be roughly the same of the current energies et
++    ! Note that this check should change when adding spin
++    if ( nbnd_ /= nbnd ) call errore("phoebe","scf and nscf run with different bands",1)
 +    do ib = 1,nbnd
-+      if ( is_band_degenerate_(ib) .neqv. is_band_degenerate(ib) ) then
-+        any_prob = .true.
++      if ( abs(et_irr(ib) - et(ib,ik)) > 1.0e-4 ) then
++        call errore("phoebe","incorrect symmetry on energies",1)
 +      end if
 +    end do
-+    if ( any_prob .or. nbnd_ /= nbnd) then
-+      call errore("phoebe","Info not consistent when restarting the nscf",1)
-+    end if
-+
-+    et(:,ik) = et_irr(:) ! we symmetrize the energies
 +    
-+    ! if I don't have degeneracy, I don't need to rotate wavefunction
-+    if ( .not. any(is_band_degenerate) ) then
-+      if ( me_pool == root_pool ) then
-+        close(i_unit)
-+      end if
-+      deallocate(is_band_degenerate, et_irr)
-+      return
-+    end if
++    ! we reinforce the symmetry on energies, to reduce numerical noise
++    ! Note: this causes some noise
++    ! et(:,ik) = et_irr(:)
++
++    ! Note: we still need to fix gauge for  all bands
++    ! except for those kpoints that coincide with the irreducible ones
++    ! if no degeneracy, no need to rotate wavefunction, and return
++!    if ( isym == 1 ) then ! this is the index of the identity matrix
++!      if ( me_pool == root_pool ) close(i_unit)
++!      return
++!    end if
++
++    !-----------------------------------------------------
++    ! Actual gauge fixing of degenerate states starts here
 +
 +    ! build the list of rotated G vectors
 +    allocate(rotated_g_global(3,ngm_g))
 +    do ig1 = 1,ngm_g
++      ! note that G vectors are in cartesian coordinates, in units of 2Pi/alat
 +      this_g(:) = g_global(:,ig1)
-+      this_rotated_g(:) = matmul(inv_rotation, this_g(:))
++      this_rotated_g(:) = matmul(inv_rotation, this_g(:)) + umklapp_vector
 +      rotated_g_global(:,ig1) = this_rotated_g(:)
 +    end do
 +
-+    !-------------------------------------
-+    ! find the mapping between G -> R G
++    !----------------------------------------
++    ! find the index mapping between G -> R G
 +    allocate(gmap(ngm_g))
 +    gmap = 0
 +    do ig1 = 1,ngm_g
@@ -1139,7 +1238,6 @@ index 77d728ddb..13a93caeb 100644
 +      ! then there are non-zero vectors, then it's again a lot of zero vectors
 +      ! here we make sure that the first gmap refers to 0 g-vector
 +      if ( (sum(this_g**2) < 1.0e-6) .and. (ig1>10) ) cycle
-+      
 +      ig_rotated = 0
 +      do ig2 = 1,ngm_g
 +        diff = sum(( g_global(:,ig1) - rotated_g_global(:,ig2) )**2)
@@ -1150,37 +1248,49 @@ index 77d728ddb..13a93caeb 100644
 +      end do
 +    end do
 +    call mp_sum(gmap, intra_pool_comm)
-+    ! deallocate(rotated_g_global)
++    deallocate(rotated_g_global)
 +
 +    !-------------------------------------------------------
 +    ! compute phases due to translation
++    ! these are the same for all bands
 +    allocate(phases(ngm_g))
 +    phases = cmplx(0.,0.,kind=dp)
 +    ! ft contains  fractional translations in crystal axis
-+    translation(:) = ft(:,isym)
 +    ! transform in cartesian coordinates
-+    call cryst_to_cart(1,translation(:),at,+1)
++    translation = matmul(at,fraction_trans(:,isym))
++
 +    ! These are phases that the pw coefficients gain on rotation
++    xk_irr_from_file_cart = matmul(bg,xk_irr_from_file)
 +    do ig1 = 1,ngm_g
 +      if ( mod(ig1-1,nproc_pool) /= me_pool ) cycle
 +      if ( (sum(g_global(:,ig1)**2) < 1.0e-6) .and. (ig1>10) ) cycle
-+      arg = - sum( ( xk(:,ik) + g(:,ig1) ) * translation(:) )
++      ! arg = - tpi * dot_product( matmul(rotation,xk_irr_from_file_cart) + g_global(:,ig1) , translation )
++      ! arg = - tpi * dot_product( xk(:,ik) + g_global(:,ig1) , translation )
++      arg = tpi * dot_product( matmul(rotation,xk_irr_from_file_cart) + g_global(:,ig1) , translation )
 +      phases(ig1) = cmplx(cos(arg), sin(arg), kind=dp)
 +    end do
 +    call mp_sum(phases, intra_pool_comm)
++    ! print*, translation, isym
++    ! write(*,"(3F12.5)") matmul(s(:,:,isym),xk_crys(:)) - xk_irr_from_file(:)
++    ! write(*,"(6F12.5)") xk_crys(:), xk_irr_from_file(:)
 +
++    ! time_invariance = .false.
++    
 +    !-------------------------------------------------------
 +    ! Rotate wavefunction plane wave coefficients
 +    
 +    allocate(evc_irreducible(ngm_g))
 +    allocate(evc_rotated(ngm_g))
 +
++    ! create a matrix that rotates the wavefunctions according to symmetry
++    unitary_matrix = cmplx(0.,0.,kind=dp)
++   
 +    do ib1 = 1,nbnd
-+!      if ( is_band_degenerate(ib1) ) then
 +      evc_irreducible(:) = cmplx(0.,0.,kind=dp)
 +      evc_rotated(:) = cmplx(0.,0.,kind=dp)
 +        
-+      ! Read the wavefunction
++      ! Read the wavefunction at the irreducible point
++      ! remember that the array is not distributed, and ordered like g_global
 +
 +      if ( me_pool == root_pool ) then
 +        ! read info on g vectors and symmetries
@@ -1201,28 +1311,98 @@ index 77d728ddb..13a93caeb 100644
 +      ! corrsponds to (k+G)(i) = k(ik)+G(igk_k(i,ik))   where ik is the index of
 +      ! k-points. G is the array of G-vectors
 +
++      ! create evc_rotated: a wfc, not parallel distributed, with G-vectors
++      ! ordered like g_global, which satisfies the symmetries
 +      do ig = 1,ngm_g
 +        if ( gmap(ig) > 0 ) then
 +          evc_rotated(ig) = evc_irreducible(gmap(ig)) * phases(ig)
 +        end if
 +      end do
++
++      allocate(evc_collected(ngm_g))
++      evc_collected = cmplx(0.,0.,kind=dp)
++      do ig = 1,ngk(ik)
++        evc_collected(ig_l2g(igk_k(ig,ik))) = evc(ig,ib1)
++      end do
++      ! print*, ib1, degeneracy_group(ib1), et(ib1,ik), abs(sum(conjg(evc_rotated)*evc_collected))
++      deallocate(evc_collected)
 +      
 +      ! substitute back in QE array
-+      do ig = 1,ngk(ik)
-+        evc(ig,ib1) = evc_rotated(ig_l2g(igk_k(ig,ik)))
-+      end do
-+
-+!      print*, ik,ib1,sum(evc(:,ib1)*conjg(evc(:,ib1)))
++      ! In doing so, we must reorder the G-vectors and distribute the wavefunction
++      !do ig = 1,ngk(ik)
++      !  evc(ig,ib1) = evc_rotated(ig_l2g(igk_k(ig,ik)))
++      !end do
 +      
-+!      end if
++     do ib2 = 1,nbnd
++       if ( degeneracy_group(ib1) == degeneracy_group(ib2) ) then
++         do ig = 1,ngk(ik)
++           unitary_matrix(ib1,ib2) = unitary_matrix(ib1,ib2) + &
++                conjg(evc(ig,ib2)) * evc_rotated(ig_l2g(igk_k(ig,ik)))
++         end do
++       end if
++     end do
++
++      ! print*, abs(sum(conjg(evc(:,ib1)) * evc(:,ib1)))
++      ! print*, abs(sum(conjg(evc(:,ib1)) * evc_rotated(ig_l2g(igk_k(:,ik)))))
++      ! print*, abs(sum(conjg(evc(:,ib1)) * evc_irreducible(:)))
++      ! print*, abs(sum(conjg(evc_irreducible(:)) * evc_rotated(ig_l2g(igk_k(:,ik)))))
++      ! do ig = 1,30
++      !   print*,ig,ig_l2g(ig),igk_k(ig,ik),gmap(ig),evc(ig,ib1),evc_rotated(ig_l2g(igk_k(ig,ik)))
++      ! end do
++      
 +    end do
 +    
++    call mp_sum(unitary_matrix, intra_pool_comm)
++
++    ! This is actually wrong!
++    ! unitary_matrix = ( unitary_matrix + conjg(transpose(unitary_matrix)) ) * 0.5d0
++
++!    do ib1 = 1,nbnd
++!      write(*,"(24F11.7)") unitary_matrix(ib1,:)
++!    end do
++        
++!    do ib1 = 1,nbnd
++!      print*, ib1, evc(1,ib1), sum(unitary_matrix(ib1,:)*evc(1,:))
++!    end do
++!    print*, "!!"
++
++    !------------------------------
++    ! reinforce matrix is unitary
++    delta_matrix = cmplx(0.,0.,kind=dp)
++    do ib1 = 1,nbnd
++      delta_matrix(ib1,ib1) = cmplx(1.,0.,kind=dp)
++    end do
++    delta_matrix = delta_matrix - matmul(unitary_matrix,conjg(transpose(unitary_matrix)))
++    delta_matrix = matmul(matmul(conjg(transpose(unitary_matrix)),delta_matrix),unitary_matrix)
++    do ib1 = 1,nbnd
++      delta_matrix(ib1,ib1) = delta_matrix(ib1,ib1) + cmplx(1.,0.,kind=dp)
++    end do
++    call zpotrf("L",nbnd,delta_matrix,nbnd,ib2)
++    if ( ib2 /= 0 ) call errore("phoebe","Cholesky failed",1)
++    unitary_matrix = matmul(unitary_matrix,delta_matrix)
++    
++!    call mp_bcast(unitary_matrix, root_pool, intra_pool_comm)
++
++!    do ib1 = 1,nbnd
++!      print*, ib1, evc(1,ib1), sum(unitary_matrix(ib1,:)*evc(1,:))
++!    end do
++
++!    do ib1 = 1,nbnd
++!      print*, ib1, sum(conjg(evc(:,ib1))*evc(:,ib1))
++!    end do
++    
++!    do ig = 1,ngk(ik)
++!      evc(ig,:) = matmul(unitary_matrix,evc(ig,:))
++!    end do    
++
++    unitary_matrix = matmul( unitary_matrix, conjg(transpose(unitary_matrix)) ) 
++!    do ib1 = 1,nbnd
++!      write(*,"(24F11.7)") unitary_matrix(ib1,:)
++!    end do
++    
++    deallocate(et_irr)
 +    deallocate(evc_rotated, evc_irreducible, gmap, phases)
-+    deallocate(is_band_degenerate, et_irr)
-+    if ( me_pool == root_pool ) then
-+      close(i_unit)
-+    end if
-+    deallocate(rotated_g_global)
++    if ( me_pool == root_pool ) close(i_unit)
 +
 +  end if
 +  
@@ -1236,7 +1416,7 @@ index 77d728ddb..13a93caeb 100644
  !
  ! Copyright (C) 2001-2020 Quantum ESPRESSO group
  ! This file is distributed under the terms of the
-@@ -255,6 +901,11 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
+@@ -255,6 +1050,11 @@ SUBROUTINE diag_bands( iter, ik, avg_iter )
       CALL diag_bands_k()
       !
    ENDIF

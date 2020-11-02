@@ -1,5 +1,4 @@
-@page Theory
-@section FINTERP Fourier interpolation of the electronic band structure
+@page thFourierElectrons Fourier interpolation of the electronic band structure
 
 We implemented the Fourier interpolation of the band structure (also used in Boltztrap v1).  
 The method is well described [in this reference] (https://link.aps.org/doi/10.1103/PhysRevB.38.2721).
