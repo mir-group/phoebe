@@ -1,13 +1,13 @@
 @page phTrTut Phonon Transport Tutorial
 
 @section Synopsis Synopsis
-<ol>
-<li> Run QE `pw.x` as an `scf` calculation </li>
-<li> Run QE `ph.x` phonon calculation </li>
-<li> Run QE `q2r.x` to process the dynamical matrix </li>
-<li> Compute 3rd order energy derivatives </li>
-<li> Run Phoebe's app @ref phtr </li>
-</ol>
+<ul>
+<li> @ref phTrStep1
+<li> @ref phTrStep2
+<li> @ref phTrStep3
+<li> @ref phTrStep4
+<li> @ref phTrStep5
+</ul>
 
 In this tutorial, we want to compute the lattice thermal conductivity of Silicon.
 We will use Quantum ESPRESSO as the code that provides DFT parameters.
@@ -17,7 +17,7 @@ Note that we assume the reader to be familiar with Quantum ESPRESSO.
 Several tutorials can be found on <a href="https://www.quantum-espresso.org/resources/tutorials">Quantum ESPRESSO's website</a>, which cover more complicated DFT calculations than that described here.
 
 
-@section step1 Step 1: Pw
+@section phTrStep1 Step 1: pw.x, total energy calculation
 First, we need to compute the total energy of the silicon crystal unit cell.
 This calculation will create the ground state charge density and wavefunctions that are needed for later.
 
@@ -71,20 +71,22 @@ after substituting the suitable path to the `pw.x` executable.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-@section step2 Step 2: Ph
+@section phTrStep2 Step 2: ph.x, phonon dynamical matrices
 The input file `ph.in` is as follows:
 ~~~~~~{.c}
 phonons of Si
  &inputph
-  tr2_ph = 1.0d-14,
-  prefix = 'silicon',
-  ldisp = .true.,
-  nq1=4, nq2=4, nq3=4
-  outdir = "./out",
-  fildyn = 'silicon.dyn',
+  tr2_ph = 1.0d-14
+  prefix = "silicon"
+  ldisp = .true.
+  nq1 = 4
+  nq2 = 4
+  nq3 = 4
+  outdir = "./out"
+  fildyn = "silicon.dyn"
  /
 ~~~~~~
-The values of `nqX` select the Monkhorst-Pack grid of q-points centered at Gamma, for which we will compute the phonon properties.
+The values of `nq*` select the Monkhorst-Pack grid of q-points centered at Gamma, for which we will compute the phonon properties.
 Here it's important that `prefix` and `outdir` are the same as those used in the `pw.x` calculation of before.
 Use a good value of `tr2_ph` (smaller is better, but harder to converge), which (indirectly) checks the convergence of phonon frequencies.
 
@@ -112,7 +114,7 @@ We also recommend to use a small `conv_thr`.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-@section step3 Step 3: Q2r
+@section phTrStep3 Step 3: q2r.x, harmonic force constants
 
 The code ph.x has created the `silicon.dyn*` files, which contain the dynamical matrix at every irreducible q-point.
 Now, we run `q2r.x` to Fourier transform the dynamical matrices in the reciprocal space representation to the real space representation, where they represent the interatomic force constants.
@@ -135,7 +137,7 @@ If the code run successfully, you should see a new file `silicon.fc`.
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-@section step4 Step 4: 3rd derivatives
+@section phTrStep4 Step 4: anharmonic force constants
 In this section, we want to use a finite-displacement approach to computing the matrix of third derivatives of the total energy with respect to ionic displacements.
 To this aim, we will be using Quantum ESPRESSO to compute energies/forces, and thirdorder.py to generate a pattern of displacements in a supercell of the crystal.
 
@@ -236,7 +238,7 @@ Congratulations! You computed the ab-initio matrix of third order force constant
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
-@section step5 Step 5: Phoebe
+@section phTrStep5 Step 5: Phoebe, phonon transport
 
 The typical input file looks like this:
 ~~~~~~~~~~~{.c}
@@ -280,7 +282,43 @@ In several studies you may want to include boundary scattering. To include it, u
 
 
 
-@section highmem Tradeoffs between speed and memory
+@section phTrOutput Output
+Here is what the code is doing:
+<ol>
+<li> parsing input files
+<li> Computing the phonon band structure (energies, eigenvectors and velocities)
+<li> Computes the scattering matrix (this takes place whenever you see a block like this one:
+~~~~~~~~~~~{.c}
+Started computing scattering matrix with 64 q-points.
+2020-10-30, 09:15:02 |   1% |  1 / 64
+2020-10-30, 09:15:02 |   4% |  3 / 64
+2020-10-30, 09:15:02 |   9% |  6 / 64 | remaining: 6.62e-01 s.
+......
+2020-10-31, 09:15:03 | 100% | 64 / 64 | remaining: 2.50e-02 s.
+Elapsed time: 0.81 s.
+~~~~~~~~~~~
+where, for your convenience, we try to estimate the time to completion.
+<li> Thermal conductivity, BTE theory, estimated within the relaxation time approximation.
+<li> Wigner Thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation.
+<li> Thermal viscosity tensor within the relaxation time approximation.
+<li> Lattice contribution to specific heat (at constant volume)
+<li> Optional: if you selected an exact solver, you will see additional output, which includes the thermal conductivity obtained by solving the full linearized BTE (including off-diagonal matrix elements of the scattering operator). 
+<li> Optional: if you use the relaxon solver, you will also see the thermal viscosity obtained by solving the BTE exactly.
+</ol>
+
+Note also that the code write results in a variety of JSON files, for ease of use.
+If, for example, you use Python for result postprocessing, you can load them as:
+~~~~~~~~~~~{.c}
+import json
+with open("rta_phonon_thermal_cond.json") as f: 
+    a=json.load(f) 
+~~~~~~~~~~~
+After this lines, the JSON is loaded in the variable `a` as a dictionary and is ready to be postprocessed.
+
+
+
+
+@section highMemTradeoff Tradeoffs between speed and memory
 There's a parameter @ref scatteringMatrixInMemory that you need to consider.
 If we set this parameter to true, we store the scattering matrix in memory.
 If false, we only compute the action of the scattering matrix, without ever storing all of it in memory.
@@ -329,7 +367,7 @@ As a result, we can increase the values of `qMesh`, so that we can accurately sa
 
 
 
-@section para Parallelization
+@section phTrPara Parallelization
 For this calculation, the bottleneck is typically the construction of the scattering matrix (or the evaluation of a scattering matrix-vector product).
 We have three different parallelization schemes.
 
@@ -362,4 +400,3 @@ Compile phoebe with Kokkos if you have a GPU. If you do so, make sure that the n
 </ul>
 
 
-@section phTrOutput
