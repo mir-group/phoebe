@@ -1,0 +1,22 @@
+appName = "electronLifetimes"
+
+phD2FileName = "silicon.fc",
+sumRuleD2 = "simple"
+electronH0Name = "si_tb.dat",
+epwFileName = "silicon.phoebe.elph.dat"
+
+kMesh = [5,5,5]
+temperatures = [600.]
+dopings = [1.e22]
+
+smearingMethod = "gaussian"
+smearingWidth = 0.5 eV
+
+deltaPath = 0.01
+
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path

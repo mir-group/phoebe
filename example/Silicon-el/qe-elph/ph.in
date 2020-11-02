@@ -1,0 +1,12 @@
+phonons of Si
+&inputph
+  tr2_ph = 1.0d-14
+  prefix = "silicon"
+  ldisp = .true.
+  nq1 = 6
+  nq2 = 6
+  nq3 = 6
+  outdir = "./out"
+  fildyn = "silicon.dyn"
+  electron_phonon = "epa"
+/

@@ -1,0 +1,10 @@
+appName = "elPhQeToPhoebe"
+
+elPhInterpolation = "epa"
+
+phD2FileName = "silicon.fc"
+electronH0Name = "si_tb.dat",
+quantumEspressoPrefix = "silicon"
+
+epaDeltaEnergy = 0.4 eV
+epaSmearingEnergy = 0.05 eV
