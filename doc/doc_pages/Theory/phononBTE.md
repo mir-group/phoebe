@@ -131,7 +131,7 @@ k^{\mathrm{RTA}}=\lambda \boldsymbol{b} \cdot \boldsymbol{f}^{\mathrm{SMA}}=\fra
 \end{equation}
 
 
-@section PHITER Iterative solution of the phonon BTE - Omini-Sparavigna method
+@section thPHITER Iterative solution of the phonon BTE - Omini-Sparavigna method
 
 Note: generally, we recommend the variational method over this. 
 
@@ -253,7 +253,7 @@ In the non-degenerate case, the group velocity is \f$\boldsymbol{v}_{\boldsymbol
 
 
 
-@section SMEARING Dirac-delta approximations
+@section thSMEARING Dirac-delta approximations
 The delta function for the energy conservation can be replaced by a Gaussian
 \begin{equation}
  \delta(\hbar \omega)=\frac{1} {\sqrt{\pi}  \sigma} \exp{(-(\hbar \omega/ \sigma )^2)} \;,

@@ -326,7 +326,275 @@ Furthermore, \f$K\f$ is the atomic basis index of the atom on which the atom \f$
 
 \section thElScatt Electron BTE
 
-The electronic BTE is
+Let \f$ f_{\nu} \f$ be the out-of-equilibrium electron occupation number, where \f$ \nu = (\boldsymbol{k},b) \f$ labels both electronic wavevectors and band index (i.e. the single-particle Bloch numbers).
+First, we rewrite the occupation number as:
+
+\f[
+f_{\lambda} = \bar{f}_{\lambda} + \bar{f}_{\lambda}(1-\bar{f}_{\lambda}) \delta f_{\lambda} 
+\f]
+where \f$ \bar{f}_{\lambda} \f$ is the Fermi--Dirac distribution function and we introduced \f$ \delta f_{\lambda} \f$ as the canonical distribution function.
+
+The linearized electronic BTE can be written as
+
+\f[
+ - e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
+- \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda'}
+\f]
+where the first term describes the diffusion due to an externally applied electric field \f$ \boldsymbol{E} \f$, the second  the diffusion due to a temperature gradient, and the third term is the linearized scattering operator.
+
+The scattering matrix \f$ A_{\lambda,\lambda'} \f$ can be computed as
+\f[
+A_{\boldsymbol{k}b,\boldsymbol{k}'b'} = \frac{1}{V N_k} \sum_{s, \boldsymbol{q}}
+2 \pi
+|g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2
+\times
+\bigg[
+\bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}'b'}) \bar{n}_{\boldsymbol{q}\nu}
+\delta(\epsilon_{\boldsymbol{k}b} + \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'})
++
+\bar{f}_{\boldsymbol{k}'b'}(1-\bar{f}_{\boldsymbol{k}b}) \bar{n}_{\boldsymbol{q}\nu}
+\delta(\epsilon_{\boldsymbol{k}b} - \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'})
+\bigg]
+\delta(\boldsymbol{k}-\boldsymbol{k}'+\boldsymbol{q})
+\f]
+
+This quantity can be computed knowing all the interpolation techniques on phonon energies, electronic energies and the electron-phonon coupling.
+Please note that, for convenience, here we use a coupling defined as
+\f[
+g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')
+=
+g_{b'b\nu}(\boldsymbol{k},\boldsymbol{q})
+\f]
+where the latter can be interpolated as described above.
+The Dirac-delta conserving momentum is enforced exactly, since we are using points on a uniform grid centered at gamma.
+The Dirac-delta conserving energy is instead with a Gaussian function, as described in the section @ref thSMEARING for the phonon BTE.
 
 
-And that's it
+
+
+
+\section thOnsager Onsager coefficients
+We make the hypothesis that the response is linear in the external fields:
+\f[
+\delta f_{\lambda} = \sum_{i} \delta^i f^E_{\lambda} E_i + \delta^i f^T_{\lambda} \nabla_i T 
+\f]
+
+After computing the out-of-equilibrium population, the charge and heat flux density can be computed as:
+\f[
+\boldsymbol{J} = \frac{e g_s}{V N_k} \sum_{\lambda} \boldsymbol{v}_{\lambda} f_{\lambda}
+\f]
+and
+\f[
+\boldsymbol{Q} = \frac{g_s}{V N_k} \sum_{\lambda} (\epsilon_{\lambda}-\mu) \boldsymbol{v}_{\lambda} f_{\lambda}
+\f]
+where \f$ g_s\f$ is the spin degeneracy.
+
+Thanks to the decomposition, we can write
+\f[
+\boldsymbol{J} = L_{EE} \boldsymbol{E} + L_{ET} \boldsymbol{\nabla} T
+\f]
+\f[
+\boldsymbol{Q} = L_{TE} \boldsymbol{E} + L_{TT} \boldsymbol{\nabla} T
+\f]
+
+The electrical conductivity \f$ \sigma \f$, the thermal conductivity \f$ k \f$, the Seebeck coefficient \f$ S \f$ and the mobility \f$ \mu \f$ are:
+\f[
+\sigma = L_{EE}
+\f]
+\f[
+k = L_{TT} - L_{TE} L_{EE}^{-1} L_{ET}
+\f]
+\f[
+S = - L_{EE}^{-1} L_{ET}
+\f]
+\f[
+\mu = \frac{\sigma}{d}
+\f]
+where \f$ d\f$ is the carriers'/doping concentration.
+
+
+
+
+\section thElRTA Electron transport in relaxation time approximation
+At this simple level of theory, we define the electron lifetime as:
+\f[
+A_{ \boldsymbol{k}b,\boldsymbol{k}b } = \frac{\bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}b})}{ \tau_{\boldsymbol{k}b} }
+\f]
+Next, we approximate the scattering matrix as diagonal, so that the BTE becomes:
+
+\f[
+ - e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
+- \frac{\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{ \tau_{\lambda} } \delta f_{\lambda}
+\f]
+
+Solving separately the response to the electric field and the thermal gradient, we find
+\f[
+\delta^i f^E_{\lambda} = - e v^i_{\lambda} \frac{1}{k_B T} \tau_{\lambda}
+\f]
+\f[
+\delta^i f^T_{\lambda} = v^i_{\lambda} \frac{\epsilon_{\lambda}}{k_B T^2} \tau_{\lambda}
+\f]
+
+
+
+@section thElIterative Iterative solution to the electron BTE - Omini Sparavigna method
+
+This is an adaptation of the Omini-Sparavigna method to electrons.
+<blockquote>
+Generally, we recommend the variational method over this. 
+</blockquote>
+To better understand this method, please have a look first at the phonon counterpart @ref thPHITER.
+
+The BTE consists in two linear algebra problems:
+\f[
+m^{i}_{\lambda} = - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda}^E
+\f]
+\f[
+n^{i}_{\lambda} = - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda}^T
+\f]
+where
+\f[
+m^{i}_{\lambda} = - e v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon}
+\f]
+\f[
+n^{i}_{\lambda} = v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial T}
+\f]
+
+The iterative scheme consists in solving iteratively this two independent linear algebra problems with geometric series:
+\f[
+\delta^i f^E_{K} = \sum_{K} \left(-\frac{1}{\boldsymbol{A}^{\mathrm{out}}}  \boldsymbol{A}^{\mathrm{in}}\right)^{K} \frac{1}{\boldsymbol{A}^{\mathrm{out}}} \:  m^i
+\f]
+and
+\f[
+\delta^i f^T_K = \sum_{K} \left(-\frac{1}{\boldsymbol{A}^{\mathrm{out}}}  \boldsymbol{A}^{\mathrm{in}}\right)^{K} \frac{1}{\boldsymbol{A}^{\mathrm{out}}} \:  n^i
+\f]
+where \f$ K \f$ is an iteration index, \f$ A^{in} \f$ is the off-diagonal part of the scattering matrix, and \f$ A^{out} \f$ is the diagonal part of the scattering matrix.
+Note that, like any geometric series, this algorithm may not converge.
+In the code, the two problems are solved together, as we compute the action on the two different vectors at the same time.
+
+
+
+
+
+
+@section thElVariational Variational solution to the electron BTE
+
+As seen above, the electron solvers to the BTE are identical to the phonon case.
+The only difference is that we need to solve two problems simultaneously, one for the electric field response and one for the response to the thermal gradient.
+
+For the variational method, we can define the variational thermal conductivity, in closed-circuit conditions, as:
+\f[
+k^\mathrm{V}(\delta f^T) = - 2 \mathcal{T}({\delta f^T})
+\f]
+where
+\f[
+\mathcal{T}(\delta f^T) = \frac{1}{2} \sum_{\lambda \lambda'} {\delta f^T_{\lambda}} \cdot{\boldsymbol A_{\lambda\lambda'}} {\delta f^T_{\lambda'}} - \sum_{\lambda} {\boldsymbol n_{\lambda}} \cdot {\delta f^T_{\lambda}}
+\f]
+
+The variational electrical conductivity is defined similarly as:
+\f[
+\sigma^\mathrm{V}(\delta f^E) = 2 \mathcal{E}({\delta f^E})
+\f]
+where
+\f[
+\mathcal{E}(\delta f^E) = \frac{1}{2} \sum_{\lambda \lambda'} {\delta f^E_{\lambda}} \cdot{\boldsymbol A_{\lambda\lambda'}} {\delta f^E_{\lambda'}} - \sum_{\lambda} {\boldsymbol m_{\lambda}} \cdot {\delta f^E_{\lambda}}
+\f]
+
+
+These two functionals are the minimization targets of a conjugate gradient method.
+Knowing this, the variational method is exactly the same as the phonon case described in section @ref thPHITER, with the proper substitution of the vector \f$b\f$ with either \f$m\f$ or \f$n\f$.
+
+As in the case of the Omini-Sparavigna method, we solve the two equations (response to electric field and thermal gradient) at the same time, as it allows us to minimize the number of times the scattering matrix is evaluated (the most expensive step).
+
+
+
+
+
+
+
+
+@section thElRelaxons Relaxons solution to the electronic BTE
+In this scheme, we use an algebraic solution to the BTE, solving the equation in the eigenvector basis.
+We first diagonalize the scattering matrix:
+\begin{equation}
+\frac{1}{N_k} \sum_{\lambda'} A_{\lambda\lambda'} \theta_{\lambda'\alpha} = \frac{1}{\tau_{\alpha}} \theta_{\lambda\alpha}
+\end{equation}
+where \f$ \theta \f$ are eigenvectors, \f$ \alpha \f$ are eigenvalue indices, and \f$ \frac{1}{\tau_{\alpha}} \f$ are eigenvalues.
+We first build the auxiliary quantities:
+\f[
+\delta^i f^E_{\alpha} = - \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
+\f]
+\f[
+\delta^i f^T_{\alpha} = \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial T} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
+\f]
+From these, we can compute the solutions of the BTE as:
+\f[
+\delta f^E_{\lambda} = \frac{1}{N_k V} \sum_{\alpha} f^E_{\alpha} \theta_{\lambda \alpha}
+\f]
+\f[
+\delta f^T_{\lambda} = \frac{1}{N_k V} \sum_{\alpha} f^T_{\alpha} \theta_{\lambda \alpha}
+\f]
+
+
+
+
+
+\section thElWigner Wigner correction to the BTE
+The Wigner transport equation is
+\f[
+\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t}
++
+ \frac{i}{\hbar} \Big[ \mathcal{E}(\boldsymbol{k}) + \boldsymbol{D}(\boldsymbol{k})\cdot\boldsymbol{E} , f(\boldsymbol{x},\boldsymbol{k},t) \Big]_{bb'}
++
+ \frac{1}{2} \Big\{ \boldsymbol{v}(\boldsymbol{k}) , \cdot \frac{\partial f(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{x}} \Big \}_{bb'}
+-
+ e \boldsymbol{E} \cdot \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{k}}
+=
+-\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll} 
+\f]
+where \f$ f_{bb'}(\boldsymbol{x},\boldsymbol{k},t) \f$ is the Wigner distribution function, \f$ \{ \cdot,\cdot \} \f$ indicates an anticommutator, \f$ [ \cdot,\cdot ] \f$ indicates a commutator, \f$ v_{bb'}(\boldsymbol{k}) \f$ is the velocity operator, and we defined the matrix \f$ \mathcal{E}(\boldsymbol{k})_{bb'} = \delta_{bb'} \epsilon_{\boldsymbol{k}b} \f$ and \f$ \mathcal{D}(\boldsymbol{k})_{bb'} = (1-\delta_{bb'}) d_{\boldsymbol{k}bb'} \f$ is a matrix of electronic dipoles.
+The electronic dipole can be computed as:
+\f[
+\boldsymbol{d}_{\boldsymbol{k},bb'}
+=
+- i e \frac{\boldsymbol{v}_{bb'}(\boldsymbol{k})}{\epsilon_{b}(\boldsymbol{k})-\epsilon_{b'}(\boldsymbol{k})}  , \quad \text{for }b \neq b'
+\f]
+
+The scattering operator acts on the diagonal Wigner distribution as the BTE scattering operator, instead it acts on the off-diagonal components with a decay term:
+\f[
+\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll} 
+=
+(1-\delta_{bb'}) \frac{\Gamma_{b}(\boldsymbol{k}) + \Gamma_{b'}(\boldsymbol{k})}{2} f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)
++
+\delta_{bb'} \frac{1}{V}
+\sum_{\boldsymbol{k}'b'} A_{\boldsymbol{k}b,\boldsymbol{k}'b'} f_{b'b'}(\boldsymbol{x},\boldsymbol{k}',t)
+\f]
+where \f$ \Gamma_b(\boldsymbol{k}) = \frac{2\pi}{\tau_{\boldsymbol{k}b}} \f$ are the electronic linewidths.
+
+To solve the Wigner transport equation, just like we did for the BTE, we assume linear response and separate the response to electric field and thermal gradient \f$ f = f^E E + f^T \nabla T \f$.
+The diagonal part of the Wigner transport equation is exactly equal to the BTE, and can be solved using one of solvers described above.
+The off-diagonal part of the Wigner distribution function can be solved easily with a little algebraic manipulation.
+
+The transport coefficients are defined as:
+\f[
+L_{EE}^{ij} = 
+\frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
+\f]
+\f[
+L_{ET}^{ij} = 
+\frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\}_{bb}
+\f]
+\f[
+L_{TE}^{ij} = 
+\frac{g_s}{V N_k} 
+\sum_{\boldsymbol{k}b} 
+\big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
+\frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
+\f]
+\f[
+L_{TT}^{ij} = 
+\frac{g_s}{V N_k} 
+\sum_{\boldsymbol{k}b} 
+\big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
+\frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\} _{bb}
+\f]
