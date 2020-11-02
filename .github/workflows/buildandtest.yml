@@ -28,11 +28,23 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
-      - name: Run example without MPI
-        working-directory: example/Silicon
-        run: ../../${BUILD_DIR}/phoebe -in input.in
-      - name: Run example with MPI
-        working-directory: example/Silicon
+      - name: Run ph example without MPI
+        working-directory: example/Silicon-ph
+        run: |
+	  ../../${BUILD_DIR}/phoebe -in phononTransport.in
+      - name: Run ph example with MPI
+        working-directory: example/Silicon-ph
         if: matrix.mpi == 'ON'
         run: |
-          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in input.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononTransport.in
+      - name: Run el example without MPI
+        working-directory: example/Silicon-el
+        run: |
+	  ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+ 	  ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+      - name: Run el example with MPI
+        working-directory: example/Silicon-el
+        if: matrix.mpi == 'ON'
+        run: |
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+	  mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
