@@ -31,7 +31,7 @@ jobs:
       - name: Run ph example without MPI
         working-directory: example/Silicon-ph
         run: |
-	  ../../${BUILD_DIR}/phoebe -in phononTransport.in
+          ../../${BUILD_DIR}/phoebe -in phononTransport.in
       - name: Run ph example with MPI
         working-directory: example/Silicon-ph
         if: matrix.mpi == 'ON'
@@ -40,11 +40,11 @@ jobs:
       - name: Run el example without MPI
         working-directory: example/Silicon-el
         run: |
-	  ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
- 	  ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
       - name: Run el example with MPI
         working-directory: example/Silicon-el
         if: matrix.mpi == 'ON'
         run: |
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
-	  mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
