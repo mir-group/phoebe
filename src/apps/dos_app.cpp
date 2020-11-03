@@ -160,6 +160,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   #pragma omp parallel for
   for (long i = 0; i < workFraction; i++) {
     dos[i] += tetrahedra.getDOS(energies[i]);
+    std::cout << dos[i] << " ?\n";
   }
 
   std::vector<double> dosTotal;
