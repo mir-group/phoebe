@@ -432,7 +432,7 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
 
 template <typename T>
 void pointerSwap(T* dataIn, std::vector<T>* dataOut) {
-  (*dataOut)[0] = (*dataIn);
+  std::fill(dataOut->begin(), dataOut->end(), *dataIn);
 }
 
 template <typename T> // this is implemented only for std::vector

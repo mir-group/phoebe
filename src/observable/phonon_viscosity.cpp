@@ -241,7 +241,7 @@ void PhononViscosity::print() {
 
     std::cout << "\n";
     std::cout << "Thermal Viscosity (" << units << ")\n";
-    std::cout << "i, j, k, eta[i,j,k,1,0], eta[i,j,k,1], eta[i,j,k,2]\n";
+    std::cout << "i, j, k, eta[i,j,k,0], eta[i,j,k,1], eta[i,j,k,2]\n";
 
     double conversion = pow(hBarSi, 2) // momentum is hbar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
