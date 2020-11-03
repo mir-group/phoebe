@@ -24,6 +24,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['thermalConductivity'])
             diff = ((k1-k2)**2).sum()
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
 
         if "specific_heat" in filename:
@@ -31,6 +33,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['specificHeat'])
             diff = (k1-k2)**2
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
 
         if "specific_heat" in filename:
@@ -38,6 +42,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['specificHeat'])
             diff = (k1-k2)**2
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
 
         if "_bands." in filename:
@@ -45,6 +51,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['energies'])
             diff = ((k1-k2)**2).sum()
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
             
         if "_dos." in filename:
@@ -52,6 +60,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['dos'])
             diff = ((k1-k2)**2).sum()
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
             
         if "path_" in filename and "_relaxation_times" in filename:
@@ -59,6 +69,8 @@ if __name__ == "__main__":
             k2 = numpy.array(data2['linewidths'])
             diff = ((k1-k2)**2).sum()
             if diff > 0.1:
+                print(diff)
+                print(filename)
                 sys.exit(1)
             
     print("Reference checks Done")
