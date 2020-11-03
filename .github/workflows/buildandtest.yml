@@ -47,6 +47,8 @@ jobs:
           ls
           echo "!"
           ls reference
+          echo "!!"
+          head phonon_dos.json
           python3 reference/run_check.py
       - name: Run ph example with MPI
         working-directory: example/Silicon-ph
