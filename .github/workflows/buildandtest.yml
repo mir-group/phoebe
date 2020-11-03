@@ -53,6 +53,9 @@ jobs:
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononBands.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononDos.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
+	  ls
+	  echo "!"
+	  ls reference
           python3 reference/run_check.py
       - name: Run el example without MPI
         working-directory: example/Silicon-el
