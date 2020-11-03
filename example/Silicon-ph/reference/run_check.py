@@ -14,11 +14,15 @@ if __name__ == "__main__":
 
         filename2 = os.path.join("reference", filename)
     
-        with open(filename) as f:
-            data1 = json.load(f)
-        with open(filename2) as f:
-            data2 = json.load(f)
+        with open(filename) as f1:
+            data1 = json.load(f1)
+        with open(filename2) as f2:
+            data2 = json.load(f2)
 
+        print(filename)
+        print(filename2)
+        print(" ")
+            
         if "thermal_cond" in filename:
             k1 = numpy.array(data1['thermalConductivity'])
             k2 = numpy.array(data2['thermalConductivity'])
@@ -70,6 +74,8 @@ if __name__ == "__main__":
             diff = ((k1-k2)**2).sum()
             if diff > 0.1:
                 print(diff)
+                print(k1.sum())
+                print(k2.sum())
                 print(filename)
                 sys.exit(1)
             
