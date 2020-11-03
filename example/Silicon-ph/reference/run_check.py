@@ -62,3 +62,4 @@ if __name__ == "__main__":
                 sys.exit(1)
             
     print("Reference checks Done")
+    sys.exit(0)
