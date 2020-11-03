@@ -136,6 +136,7 @@ phonons of Si
   nq1 = 6, nq2 = 6, nq3 = 6
   outdir = "./out"
   fildyn = "silicon.dyn"
+  fildvscf = "silicon.dvscf"
   electron_phonon = "epa"
  /
 ~~~~~~

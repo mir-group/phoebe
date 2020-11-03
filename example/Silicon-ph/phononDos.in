@@ -1,0 +1,7 @@
+phD2FileName = "qe-phonons/silicon.fc",
+sumRuleD2 = "simple"
+qMesh = [10,10,10]
+appName = "phononDos"
+dosMinEnergy = 0. cmm1
+dosMaxEnergy = 600. cmm1
+dosDeltaEnergy = 0.5 cmm1
