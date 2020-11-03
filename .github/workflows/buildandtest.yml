@@ -42,8 +42,7 @@ jobs:
           ../../${BUILD_DIR}/phoebe -in phononBands.in
           ../../${BUILD_DIR}/phoebe -in phononDos.in
           ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
-          cd reference
-          python3 run_check.py
+          python3 reference/run_check.py
       - name: Run ph example with MPI
         working-directory: example/Silicon-ph
         if: matrix.mpi == 'ON'
