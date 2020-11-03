@@ -43,7 +43,7 @@ jobs:
           ../../${BUILD_DIR}/phoebe -in phononTransport.in
           ../../${BUILD_DIR}/phoebe -in phononBands.in
           ../../${BUILD_DIR}/phoebe -in phononDos.in
-          ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
+          # ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
           python3 reference/run_check.py
       - name: Run ph example with MPI
         working-directory: example/Silicon-ph
