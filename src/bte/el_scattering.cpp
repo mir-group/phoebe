@@ -206,11 +206,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Eigen::VectorXd bose3Data = allBose3Data[ik2Counter];
       Eigen::MatrixXd v3s = allV3s[ik2Counter];
 
-      int ib2, ib3;
-//#pragma omp parallel for private(ib2, ib3) collapse(3)
+#pragma omp parallel for
       for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (ib2 = 0; ib2 < nb2; ib2++) {
-          for (ib3 = 0; ib3 < nb3; ib3++) {
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          for (int ib3 = 0; ib3 < nb3; ib3++) {
             double en1 = state1Energies(ib1);
             double en2 = state2Energies(ib2);
             double en3 = state3Energies(ib3);
