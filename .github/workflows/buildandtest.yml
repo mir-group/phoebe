@@ -59,6 +59,10 @@ jobs:
         run: |
           ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
           ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
+          ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
+          python3 reference/run_check.py
       - name: Run el example with MPI
         working-directory: example/Silicon-el
         if: matrix.mpi == 'ON'
@@ -66,3 +70,7 @@ jobs:
           # Note: don't run this as it runs out-of-memory on the VM
           # mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
+          python3 reference/run_check.py
