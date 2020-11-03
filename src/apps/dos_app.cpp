@@ -48,6 +48,11 @@ void PhononDosApp::run(Context &context) {
   std::vector<double> energies = std::get<0>(tup1);
   std::vector<double> dos = std::get<1>(tup1);
 
+  for (auto x : energies) {
+    std::cout << x << " ";
+  }
+  std::cout << "\n";
+  
   // save dos to an output file
   // arguments are: energies, dos, particleType, context outFileName
   outputDOSToJSON(energies, dos, particle, context, "phonon_dos.json");
