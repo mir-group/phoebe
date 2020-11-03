@@ -174,8 +174,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // outer loop over q2
   for (auto tup : qPairIterator) {
-    auto iq1Indexes = std::get<0>(tup);
-    auto iq2 = std::get<1>(tup);
+    std::vector<long> iq1Indexes = std::get<0>(tup);
+    long iq2 = std::get<1>(tup);
     auto iq2Index = WavevectorIndex(iq2);
 
     Point q2 = innerBandStructure.getPoint(iq2);
