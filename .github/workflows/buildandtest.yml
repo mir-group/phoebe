@@ -14,7 +14,9 @@ jobs:
       OMP_NUM_THREADS: 4
     steps:
       - name: Install dependencies
-        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
+        run: |
+          sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev python3-pip
+          pip3 install numpy
       - name: Checkout
         uses: actions/checkout@v2
         with:
