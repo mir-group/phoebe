@@ -41,15 +41,6 @@ class MPIcontroller {
     std::chrono::steady_clock::time_point startTime;
   #endif
 
-
-
-// helper function for gather mpi wrappers, needed for the case
-// where one of the output data type is an std::vector
-  template <typename T>
-  void pointerSwap(T* dataIn, std::vector<T>* dataOut);
-  template <typename T>
-  void pointerSwap(T* dataIn, T* dataOut);
-
  public:
   // MPIcontroller class constructors -----------------------------------
   /** a constructor which sets up the MPI environment, initializes the
@@ -440,20 +431,14 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
 /* ---------- gather function wrappers ------------- */
 
 template <typename T>
-void MPIcontroller::pointerSwap(T* dataIn, std::vector<T>* dataOut) {
-  using namespace mpiContainer;
-  int size = containerType<T>::getSize(dataIn);
-  for (int i=0; i<size; i++) {
-    *(dataOut[0]+i) = *(dataIn+i);
-  }
+void pointerSwap(T* dataIn, std::vector<T>* dataOut) {
+  (*dataOut)[0] = (*dataIn);
 }
 
-template <typename T>
-void MPIcontroller::pointerSwap(T* dataIn, T* dataOut) {
-  using namespace mpiContainer;
-  int size = containerType<T>::getSize(dataIn);
-  for (int i=0; i<size; i++) {
-    *(dataOut+i) = *(dataIn+i);
+template <typename T> // this is implemented only for std::vector
+void pointerSwap(T* dataIn, T* dataOut) {
+  for (unsigned int i=0;i<dataIn->size();i++) {
+    (*dataOut)[i] = (*dataIn)[i];
   }
 }
 
