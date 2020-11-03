@@ -283,7 +283,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto v3ms = std::get<4>(tup2);
         auto bose3MinsData = std::get<5>(tup2);
 
-#pragma omp parallel for
+//#pragma omp parallel for
         for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Plus; ibbb++) {
           auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Plus);
           auto ib1 = std::get<0>(tup);
@@ -370,7 +370,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             }
           }
         }
-#pragma omp parallel for
+//#pragma omp parallel for
         for (long ibbb = 0; ibbb < nb1 * nb2 * nb3Mins; ibbb++) {
           auto tup = decompress3Indeces(ibbb, nb1, nb2, nb3Mins);
           auto ib1 = std::get<0>(tup);
@@ -602,6 +602,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
+  std::cout << std::setprecision(8);
+  std::cout << linewidth->data.squaredNorm() << "???\n";
+
   // Add boundary scattering
 
   if (doBoundary) {
@@ -675,4 +678,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       theMatrix(i, i) = linewidth->operator()(iCalc, 0, i);
     }
   }
+
+  std::cout << std::setprecision(8);
+  std::cout << theMatrix.squaredNorm() << "!!!!\n";
+
 }
