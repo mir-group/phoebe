@@ -14,7 +14,9 @@ jobs:
       OMP_NUM_THREADS: 4
     steps:
       - name: Install dependencies
-        run: sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev
+        run: |
+          sudo apt install -y libopenblas-dev liblapack-dev libscalapack-openmpi-dev python3-pip
+          pip3 install numpy
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -28,11 +30,52 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
-      - name: Run example without MPI
-        working-directory: example/Silicon
-        run: ../../${BUILD_DIR}/phoebe -in input.in
-      - name: Run example with MPI
-        working-directory: example/Silicon
+          make -j4 runTests
+      - name: RunTests
+        run : |
+          cd ${BUILD_DIR}
+          ./runTests
+      - name: Download test data
+        run: |
+          wget github.com/mir-group/phoebe-data/archive/master.zip
+          unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-phonons/*" -d "example/Silicon-ph/qe-phonons"
+          unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-ph-anharmonic/*" -d "example/Silicon-ph/qe-ph-anharmonic"
+          unzip -j master.zip "phoebe-data-master/example/Silicon-el/qe-elph/*" -d "example/Silicon-el/qe-elph"
+          unzip 'example/Silicon-el/qe-elph/silicon.phoebe.*.dat.zip' -d example/Silicon-el/qe-elph/
+      - name: Run ph example without MPI
+        working-directory: example/Silicon-ph
+        run: |
+          ../../${BUILD_DIR}/phoebe -in phononTransport.in
+          ../../${BUILD_DIR}/phoebe -in phononBands.in
+          ../../${BUILD_DIR}/phoebe -in phononDos.in
+          ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
+          python3 reference/run_check.py
+      - name: Run ph example with MPI
+        working-directory: example/Silicon-ph
         if: matrix.mpi == 'ON'
         run: |
-          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in input.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononTransport.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononBands.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononDos.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
+          python3 reference/run_check.py
+      - name: Run el example without MPI
+        working-directory: example/Silicon-el
+        run: |
+          ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
+          ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
+          python3 reference/run_check.py
+      - name: Run el example with MPI
+        working-directory: example/Silicon-el
+        if: matrix.mpi == 'ON'
+        run: |
+          # Note: don't run this as it runs out-of-memory on the VM
+          # mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
+          python3 reference/run_check.py

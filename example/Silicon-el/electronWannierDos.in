@@ -1,0 +1,11 @@
+electronH0Name = "qe-elph/si_tb.dat",
+kMesh = [10,10,10]
+appName = "electronWannierDos"
+dosMinEnergy = -6. eV
+dosMaxEnergy = 20. eV
+dosDeltaEnergy = 0.1 eV
+
+begin crystal
+Si 0.00000   0.00000   0.00000
+Si 1.34940   1.34940   1.34940
+end crystal

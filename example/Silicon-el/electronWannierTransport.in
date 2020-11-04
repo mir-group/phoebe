@@ -1,0 +1,16 @@
+appName = "electronWannierTransport"
+phD2FileName = "qe-elph/silicon.fc"
+sumRuleD2 = "crystal"
+electronH0Name = "qe-elph/si_tb.dat",
+epwFileName = "qe-elph/silicon.phoebe.elph.dat"
+ 
+kMesh = [10,10,10]
+temperatures = [300.]
+dopings = [1.e21]
+ 
+smearingMethod = "gaussian"
+smearingWidth = 0.5 eV
+windowType = "population"
+ 
+scatteringMatrixInMemory=true
+solverBTE = ["iterative","variational","relaxons"]

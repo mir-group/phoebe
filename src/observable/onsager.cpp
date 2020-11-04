@@ -241,28 +241,32 @@ void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
 
   VectorBTE fE(statisticsSweep, bandStructure, 3);
   VectorBTE fT(statisticsSweep, bandStructure, 3);
-  for (long is = 0; is < numStates; is++) {
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alfa = std::get<1>(tup0);
     auto isIndex = StateIndex(is);
     double en = bandStructure.getEnergy(isIndex);
     auto vel = bandStructure.getGroupVelocity(isIndex);
-    for (long alfa = 0; alfa < numStates; alfa++) {
-      for (int i = 0; i < dimensionality; i++) {
-        fE(iCalc, i, alfa) += -particle.getDnde(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
-        fT(iCalc, i, alfa) += particle.getDndt(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
-      }
+    for (int i = 0; i < dimensionality; i++) {
+      fE(iCalc, i, alfa) += -particle.getDnde(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
+      fT(iCalc, i, alfa) += particle.getDndt(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
     }
   }
+  mpi->allReduceSum(&fE.data);
+  mpi->allReduceSum(&fT.data);
 
   VectorBTE nE(statisticsSweep, bandStructure, 3);
   VectorBTE nT(statisticsSweep, bandStructure, 3);
-  for (long is = 0; is < numStates; is++) {
-    for (long alfa = 0; alfa < numStates; alfa++) {
-      for (int i = 0; i < dimensionality; i++) {
-        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
-        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
-      }
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alfa = std::get<1>(tup0);
+    for (int i = 0; i < dimensionality; i++) {
+      nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
+      nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
     }
   }
+  mpi->allReduceSum(&nE.data);
+  mpi->allReduceSum(&nT.data);
   calcFromCanonicalPopulation(nE,nT);
 }
 
