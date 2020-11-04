@@ -76,4 +76,5 @@ jobs:
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
           python3 reference/run_check.py
       - name: Run el example with MPI
-        run : ./{BUILD_DIR}/runTests
+        working-directory: ${BUILD_DIR}
+        run : ./runTests
