@@ -33,9 +33,7 @@ jobs:
           make -j4 runTests
       - name: RunTests
         run : |
-          pwd
           cd ${BUILD_DIR}
-          ls
           ./runTests
       - name: Download test data
         run: |
