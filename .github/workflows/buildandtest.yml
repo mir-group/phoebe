@@ -32,10 +32,11 @@ jobs:
           make -j4
           make -j4 runTests
       - name: RunTests
-        working-directory: ${BUILD_DIR}
         run : |
+          pwd
+          cd ${BUILD_DIR}
           ls
-          runTests
+          ./runTests
       - name: Download test data
         run: |
           wget github.com/mir-group/phoebe-data/archive/master.zip
