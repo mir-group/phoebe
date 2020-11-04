@@ -30,6 +30,7 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
+          make -j4 runTests
       - name: Download test data
         run: |
           wget github.com/mir-group/phoebe-data/archive/master.zip
@@ -74,3 +75,5 @@ jobs:
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
           python3 reference/run_check.py
+      - name: Run el example with MPI
+        run : ./{BUILD_DIR}/runTests
