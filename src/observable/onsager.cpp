@@ -1,7 +1,7 @@
 #include "onsager.h"
 #include "constants.h"
-#include "mpiHelper.h"
 #include "io.h"
+#include "mpiHelper.h"
 #include "particle.h"
 #include <fstream>
 #include <iomanip>
@@ -84,56 +84,51 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
-void OnsagerCoefficients::calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle) {
-    
-    double factor = spinFactor/pow(twoPi,3)/(crystal.getVolumeUnitCell(dimensionality));
-    
-    double LEEtoSi = pow(electronSi,2)*pow(velocityRyToSi,2)*hBarSi/temperatureAuToSi/kBoltzmannSi/pow(bohrRadiusSi,3)/rydbergSi;
-    
-    double LETtoSi = electronSi*pow(velocityRyToSi,2)*hBarSi/pow(temperatureAuToSi,2)/kBoltzmannSi/pow(bohrRadiusSi,3);
-    
-    double LTEtoSi = electronSi*pow(velocityRyToSi,2)*hBarSi/temperatureAuToSi/kBoltzmannSi/pow(bohrRadiusSi,3);
-    
-    double LTTtoSi = pow(velocityRyToSi,2)*hBarSi*rydbergSi/pow(temperatureAuToSi,2)/kBoltzmannSi/pow(bohrRadiusSi,3);
-    
-    LEE.setZero();
-    LET.setZero();
-    LTE.setZero();
-    LTT.setZero();
-    
-    LoopPrint loopPrint("to calculate electronic transport properties", "pairs of temperatures and chemical potentials" , numCalcs);
-    
-    for (long iCalc = 0; iCalc != numCalcs; ++iCalc) {
-        
-        int numChemPots = statisticsSweep.getNumChemicalPotentials();
-        int numTemps = statisticsSweep.getNumTemperatures();
-        auto [imu, it] = decompress2Indeces(iCalc, numChemPots, numTemps);
-            
-        double chemicalPotential =
+void OnsagerCoefficients::calcFromEPA(
+    BaseVectorBTE &scatteringRates,
+    Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies,
+    double &energyStep, Particle &particle) {
+
+  double factor =
+      spinFactor / pow(twoPi, 3) / (crystal.getVolumeUnitCell(dimensionality));
+
+  LEE.setZero();
+  LET.setZero();
+  LTE.setZero();
+  LTT.setZero();
+
+#pragma omp parallel for collapse(3)
+  for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
+    for (long iBeta = 0; iBeta < dimensionality; ++iBeta) {
+      for (long iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
+        double chemPot =
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-        double temperature =
-        statisticsSweep.getCalcStatistics(iCalc).temperature;
-        
-        for ( long iEnergy = 0; iEnergy != energies.size(); ++iEnergy ) {
-        double en = energies(iEnergy) - chemicalPotential;
-            
-            for (long iBeta = 0; iBeta != dimensionality; ++iBeta) {
-                for (long iAlpha = 0; iAlpha != dimensionality; ++iAlpha) {
-                    
-                    double transportDistFunc = energyProjVelocity(iAlpha,iBeta,iEnergy)*(1/scatteringRates.data(iCalc,iEnergy));
-                    
-                    LEE(iCalc, iAlpha, iBeta) += -LEEtoSi*factor*transportDistFunc*particle.getDnde(energies(iEnergy),it,imu)*energyStep; //in Siemens/meter (Coulomb^2*sec/kg/meter^3)
-                    
-                    LET(iCalc, iAlpha, iBeta) += -LETtoSi*factor*transportDistFunc*particle.getDndt(energies(iEnergy),it,imu)*energyStep; //in Coulomb/sec/meter/Kelvin
-                    
-                    LTE(iCalc,iAlpha,iBeta) += -LTEtoSi*factor*transportDistFunc*particle.getDnde(energies(iEnergy),it,imu)*en*energyStep; //in Coulomb/meter/sec
-                    
-                    LTT(iCalc, iAlpha, iBeta) +=  LTTtoSi*factor*transportDistFunc*particle.getDndt(energies(iEnergy),it,imu)*en*energyStep; //in Joule/sec/Kelvin/meter
-                }
-            }
+        double temp =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+
+        for (long iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
+          double en = energies(iEnergy);
+
+          double transportDistFunc =
+              energyProjVelocity(iAlpha, iBeta, iEnergy) *
+              (1 / scatteringRates.data(iCalc, iEnergy));
+          LEE(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
+                                       particle.getDnde(en, temp, chemPot) *
+                                       energyStep;
+          LET(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
+                                       particle.getDndt(en, temp, chemPot) *
+                                       energyStep;
+          LTE(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
+                                       particle.getDnde(en, temp, chemPot) *
+                                       (en - chemPot) * energyStep;
+          LTT(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       particle.getDndt(en, temp, chemPot) *
+                                       (en - chemPot) * energyStep;
         }
+      }
     }
-    loopPrint.close();
+  }
+  calcTransportCoefficients();
 }
 
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
@@ -228,16 +223,15 @@ void OnsagerCoefficients::calcTransportCoefficients() {
   }
 }
 
-void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
-    ParallelMatrix<double> &eigenvectors) {
-  int numStates = eigenvalues.numStates;
+void OnsagerCoefficients::calcFromRelaxons(
+    VectorBTE &eigenvalues, ParallelMatrix<double> &eigenvectors) {
   int iCalc = 0;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   auto particle = bandStructure.getParticle();
 
   double norm = 1. / bandStructure.getNumPoints(true) /
-      crystal.getVolumeUnitCell(dimensionality);
+                crystal.getVolumeUnitCell(dimensionality);
 
   VectorBTE fE(statisticsSweep, bandStructure, 3);
   VectorBTE fT(statisticsSweep, bandStructure, 3);
@@ -248,8 +242,12 @@ void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
     double en = bandStructure.getEnergy(isIndex);
     auto vel = bandStructure.getGroupVelocity(isIndex);
     for (int i = 0; i < dimensionality; i++) {
-      fE(iCalc, i, alfa) += -particle.getDnde(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
-      fT(iCalc, i, alfa) += particle.getDndt(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
+      fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
+                            eigenvectors(is, alfa) /
+                            eigenvalues(iCalc, 0, alfa);
+      fT(iCalc, i, alfa) += particle.getDndt(en, temp, chemPot) * vel(i) *
+                            eigenvectors(is, alfa) /
+                            eigenvalues(iCalc, 0, alfa);
     }
   }
   mpi->allReduceSum(&fE.data);
@@ -267,7 +265,7 @@ void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
   }
   mpi->allReduceSum(&nE.data);
   mpi->allReduceSum(&nT.data);
-  calcFromCanonicalPopulation(nE,nT);
+  calcFromCanonicalPopulation(nE, nT);
 }
 
 void OnsagerCoefficients::print() {
@@ -535,7 +533,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
                                           VectorBTE &scalingCG) {
   double norm = 1. / bandStructure.getNumPoints(true) /
-      crystal.getVolumeUnitCell(dimensionality);
+                crystal.getVolumeUnitCell(dimensionality);
 
   auto fEUnscaled = fE;
   auto fTUnscaled = fT;
@@ -549,14 +547,14 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   sigma *= sigma.constant(2.);
   kappa *= kappa.constant(2.);
 
-  Eigen::Tensor<double,3> tmpLEE = LEE.constant(0.); // retains shape
-  Eigen::Tensor<double,3> tmpLTT = LTT.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
 #pragma omp parallel
   {
-    Eigen::Tensor<double,3> tmpLEEPrivate = LEE.constant(0.);
-    Eigen::Tensor<double,3> tmpLTTPrivate = LTT.constant(0.);
+    Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
+    Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
 #pragma omp for nowait
-    for ( long is : bandStructure.parallelStateIterator() ) {
+    for (long is : bandStructure.parallelStateIterator()) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
         for (long i = 0; i < dimensionality; i++) {
           for (long j = 0; j < dimensionality; j++) {
