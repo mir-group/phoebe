@@ -30,6 +30,11 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
+          make -j4 runTests
+      - name: RunTests
+        run : |
+          cd ${BUILD_DIR}
+          ./runTests
       - name: Download test data
         run: |
           wget github.com/mir-group/phoebe-data/archive/master.zip
