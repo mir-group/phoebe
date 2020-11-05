@@ -791,9 +791,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   // if the user didn't set the Fermi level, we do it here.
   if (std::isnan(context.getFermiLevel())) context.setFermiLevel(homo);
-  std::cout << homo << "!!!!!\n";
-  std::cout << homo*energyRyToEv << "!!!!!\n";
-
+  
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
 
