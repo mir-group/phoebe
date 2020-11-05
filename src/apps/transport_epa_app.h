@@ -7,6 +7,7 @@
 class TransportEpaApp : public App {
 public:
   void run(Context &context);
+  void checkRequirements(Context &context);
 
 private:
   Eigen::Tensor<double, 3>

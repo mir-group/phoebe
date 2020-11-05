@@ -16,11 +16,6 @@
 #include <math.h>
 
 void TransportEpaApp::run(Context &context) {
-
-  double fermiLevel = context.getFermiLevel();
-  if (std::isnan(fermiLevel)) {
-    Error e("Fermi energy must be provided for EPA calculation");
-  }
   // Read necessary input: xml file of QE.
   // name of xml file should be provided in the input
   // electronFourierCutoff should be provided in the input (should it be the
@@ -50,8 +45,8 @@ void TransportEpaApp::run(Context &context) {
   //--------------------------------
   // Setup energy grid
 
-  double minEnergy = fermiLevel - context.getEnergyRange();
-  double maxEnergy = fermiLevel + context.getEnergyRange();
+  double minEnergy = context.getFermiLevel() - context.getEnergyRange();
+  double maxEnergy = context.getFermiLevel() + context.getEnergyRange();
   double energyStep = context.getEnergyStep();
   // in principle, we should add 1 to account for ends of energy interval
   // i will not do that, because will work with the centers of energy steps
@@ -88,16 +83,21 @@ void TransportEpaApp::run(Context &context) {
   transCoeffs.print();
 }
 
-// void TransportEpaApp::checkRequirements(Context & context) {
-//    throwErrorIfUnset(context.getEpaEFileName(), "epaEFileName");
-//    throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-//    throwErrorIfUnset(context.getQMesh(), "kMesh");
-//    throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
-//    throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
-//    throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
-//    throwErrorIfUnset(context.getElectronFourierCutoff(),
-//                      "electronFourierCutoff");
-//}
+void TransportEpaApp::checkRequirements(Context &context) {
+  throwErrorIfUnset(context.getEpaFileName(), "epaFileName");
+  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+  throwErrorIfUnset(context.getQMesh(), "kMesh");
+
+  throwErrorIfUnset(context.getElectronFourierCutoff(),
+                    "electronFourierCutoff");
+  throwErrorIfUnset(context.getEnergyStep(), "electronStep");
+  throwErrorIfUnset(context.getEnergyRange(), "electronRange");
+  throwErrorIfUnset(context.getTemperatures(), "temperatures");
+  if ( context.getDopings().size() == 0 &&
+      context.getChemicalPotentials().size() == 0) {
+    Error e("Either chemical potentials or dopings must be set");
+  }
+}
 
 void foldWithinBounds(int &idx, const int &numBins) {
   if (idx < 0) {
@@ -174,7 +174,9 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   long numCalcs = statisticsSweep.getNumCalcs();
 
-  std::cout << "\nCalculate electronic density of states." << std::endl;
+  if (mpi->mpiHead()) {
+    std::cout << "\nCalculate electronic density of states." << std::endl;
+  }
   TetrahedronDeltaFunction tetrahedra(fullBandStructure);
 
   long numEnergies = energies.size();
@@ -255,9 +257,8 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
           // Note: we do a linear interpolation
           int iJump = (int)phJump(iPhFreq);
           double iInterp = phJump(iPhFreq) - (double)iJump;
-          double dosAbsorption =
-              dos(iEnergy + iJump) * (1. - iInterp) +
-              dos(iEnergy + iJump + 1) * iInterp;
+          double dosAbsorption = dos(iEnergy + iJump) * (1. - iInterp) +
+                                 dos(iEnergy + iJump + 1) * iInterp;
           double dosEmission = dos(iEnergy - iJump - 1) * iInterp +
                                dos(iEnergy - iJump) * (1. - iInterp);
 
@@ -303,5 +304,6 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   }
   mpi->allReduceSum(&epaRate.data);
   loopPrint.close();
+
   return epaRate;
 }

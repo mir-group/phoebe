@@ -46,7 +46,7 @@ InteractionEpa InteractionEpa::parseEpaCoupling(Context &context) {
 
   int numElectrons, numSpin;
   infile >> numElectrons >> numSpin;
-  if ( numSpin != 2) {
+  if (numSpin != 1) {
     Error e("Spin not supported in EPA coupling");
   }
   context.setNumOccupiedStates(numElectrons);
@@ -66,7 +66,7 @@ InteractionEpa InteractionEpa::parseEpaCoupling(Context &context) {
   infile >> numEnergies;
   // energies - vector containing the electronic energies
   // at which the el-ph coupling has been computed
-  Eigen::VectorXd energies(numModes);
+  Eigen::VectorXd energies(numEnergies);
   for (int i = 0; i < numEnergies; i++) {
     infile >> energies(i);
   }

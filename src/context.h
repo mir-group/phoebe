@@ -70,7 +70,6 @@ class Context {
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
   std::string epwFileName = "";
-  std::string epaFileName = "";
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
@@ -81,6 +80,10 @@ class Context {
   double energyStep = std::numeric_limits<double>::quiet_NaN();
   double eFermiRange = std::numeric_limits<double>::quiet_NaN();
 
+  std::string epaFileName = "";
+  double epaMinEnergy = std::numeric_limits<double>::quiet_NaN();
+  double epaMaxEnergy = std::numeric_limits<double>::quiet_NaN();
+  int epaNumBins;
   double epaSmearingEnergy = std::numeric_limits<double>::quiet_NaN();
   double epaDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
 
@@ -137,6 +140,9 @@ class Context {
 
   double getEpaSmearingEnergy();
   double getEpaDeltaEnergy();
+  double getEpaMinEnergy();
+  double getEpaMaxEnergy();
+  int getEpaNumBins();
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.

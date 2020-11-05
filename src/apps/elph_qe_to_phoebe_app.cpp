@@ -62,9 +62,15 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   if (x == "wannier") {
     throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
   } else {
-    throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
     throwErrorIfUnset(context.getEpaSmearingEnergy(), "epaSmearingEnergy");
     throwErrorIfUnset(context.getElectronFourierCutoff(), "electronFourierCutoff");
+    throwErrorIfUnset(context.getEpaMinEnergy(), "epaMinEnergy");
+    throwErrorIfUnset(context.getEpaMaxEnergy(), "epaMaxEnergy");
+    if (std::isnan(context.getEpaDeltaEnergy())) {
+      throwErrorIfUnset(context.getEpaNumBins(), "epaNumBins");
+    } else {
+      throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
+    }
   }
 }
 
@@ -869,14 +875,25 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   assert(numModes == gFull.dimension(2));
 
   // input
-  double smearing = context.getEpaDeltaEnergy();
+  double smearing = context.getEpaSmearingEnergy();
   double smearing2 = 2. * smearing * smearing;
-  double deltaEnergy = context.getEpaDeltaEnergy();
 
   // prepare energy bins
-  double minEnergy = elEnergies.minCoeff();
-  double maxEnergy = elEnergies.maxCoeff();
-  long numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  double minEnergy = context.getEpaMinEnergy();
+  double maxEnergy = context.getEpaMaxEnergy();
+  if ( maxEnergy < minEnergy ) {
+    Error e("Problems in setting the EPA energy ranges");
+  }
+
+  double deltaEnergy = context.getEpaDeltaEnergy();
+  int numEpaEnergies = context.getEpaNumBins();
+  if ( std::isnan(deltaEnergy)) {
+    context.getEpaNumBins();
+    deltaEnergy = (maxEnergy-minEnergy)/numEpaEnergies;
+  } else {
+    numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  }
+
   Eigen::VectorXd epaEnergies(numEpaEnergies);
 #pragma omp parallel for
   for (int i = 0; i < numEpaEnergies; i++) {

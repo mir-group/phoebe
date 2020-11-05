@@ -678,6 +678,15 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "epaDeltaEnergy") {
         epaDeltaEnergy = parseDoubleWithUnits(val);
       }
+      if (parameterName == "epaNumBins") {
+        epaNumBins = parseLong(val);
+      }
+      if (parameterName == "epaMinEnergy") {
+        epaMinEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaMaxEnergy") {
+        epaMaxEnergy = parseDoubleWithUnits(val);
+      }
 
       // ELPH coupling plot App
 
@@ -768,8 +777,10 @@ void Context::setQuantumEspressoPrefix(const std::string x) {
 std::string Context::getElPhInterpolation() { return elPhInterpolation; }
 
 double Context::getEpaSmearingEnergy() { return epaSmearingEnergy; }
-
 double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
+double Context::getEpaMinEnergy() { return epaMinEnergy; }
+double Context::getEpaMaxEnergy() { return epaMaxEnergy; }
+int Context::getEpaNumBins() { return epaNumBins; }
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 

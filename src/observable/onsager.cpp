@@ -98,20 +98,21 @@ void OnsagerCoefficients::calcFromEPA(
   LTT.setZero();
 
 #pragma omp parallel for collapse(3)
-  for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
-    for (long iBeta = 0; iBeta < dimensionality; ++iBeta) {
-      for (long iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
+  for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+    for (int iBeta = 0; iBeta < dimensionality; ++iBeta) {
+      for (int iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
         double chemPot =
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         double temp =
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-
         for (long iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
-          double en = energies(iEnergy);
 
+          if ( scatteringRates.data(iCalc, iEnergy) <= 0. ) continue;
           double transportDistFunc =
               energyProjVelocity(iAlpha, iBeta, iEnergy) *
-              (1 / scatteringRates.data(iCalc, iEnergy));
+              (1. / scatteringRates.data(iCalc, iEnergy));
+
+          double en = energies(iEnergy);
           LEE(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
                                        particle.getDnde(en, temp, chemPot) *
                                        energyStep;
