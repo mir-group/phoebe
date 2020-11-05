@@ -25,7 +25,7 @@ public:
 
   Eigen::VectorXd getPhEnergies();
   Eigen::VectorXd getElEnergies();
-  Eigen::Tensor<double, 3> getElPhMatAverage();
+  double getCoupling(const int&i,const int&j,const int&k);
 
   static InteractionEpa parseEpaCoupling(Context &context);
 };

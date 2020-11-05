@@ -33,8 +33,8 @@ Eigen::VectorXd InteractionEpa::getElEnergies() { return elEnergies; }
 
 Eigen::VectorXd InteractionEpa::getPhEnergies() { return phEnergies; }
 
-Eigen::Tensor<double, 3> InteractionEpa::getElPhMatAverage() {
-  return elPhMatAverage;
+double InteractionEpa::getCoupling(const int&i,const int&j,const int&k) {
+  return elPhMatAverage(i,j,k);
 }
 
 InteractionEpa InteractionEpa::parseEpaCoupling(Context &context) {

@@ -246,8 +246,6 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     binSize = elphEnergies(1) - elphEnergies(0);
   }
 
-  Eigen::Tensor<double, 3> elPhMatElements = couplingEpa.getElPhMatAverage();
-
   LoopPrint loopPrint("calculation of EPA scattering rates", "energies",
                       mpi->divideWorkIter(numEnergies).size());
 
@@ -312,8 +310,8 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
           //------------------------------------
           // estimate strength of el-ph coupling |g|^2
 
-          double gAbsorption = elPhMatElements(iPhFreq, iAbsInt, intBinPos);
-          double gEmission = elPhMatElements(iPhFreq, iEmisInt, intBinPos);
+          double gAbsorption = couplingEpa.getCoupling(iPhFreq, iAbsInt, intBinPos);
+          double gEmission = couplingEpa.getCoupling(iPhFreq, iEmisInt, intBinPos);
 
           //-----------------------------
           // finally, the scattering rate
