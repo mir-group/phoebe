@@ -188,8 +188,6 @@ protected:
     Eigen::VectorXi qToTetCount;
     /** Mapping of a wave vector to a tetrahedron. */
     Eigen::MatrixXi qToTet;
-    /** Holder for the eigenvalues. */
-    Eigen::Tensor<double, 3> tetraEigVals;
 };
 
 #endif

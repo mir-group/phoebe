@@ -111,7 +111,6 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 
   // number of grid points (wavevectors)
   long numPoints = fullPoints.getNumPoints();
-  long numBands = fullBandStructure.getNumBands();
   // note: the code will fail at numBands if we are using ActiveBandStructure
   // this is intentional, as the implementation of tetrahedra works only
   // assuming a full grid of wavevectors.
@@ -164,44 +163,8 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
         tetrahedra(iq, iv) = aux2;
         // Save mapping of a wave vector index
         // to the ordered pair (tetrahedron,vertex)
-        qToTetCount(aux2) = qToTetCount(aux2) + 1;
-        qToTet(aux2, qToTetCount(aux2) - 1) = iq;
-      }
-    }
-  }
-  /**
-   * Fill all tetrahedra with the eigenvalues.
-   *
-   * Method for filling the tetrahedra with the eigenvalues for
-   * all polarizations. For eigenvalues are sorted along the vertex.
-   */
-
-  // Internal variables
-  std::vector<double> temp(4);
-
-  // Allocate tetraEigVals
-  tetraEigVals = Eigen::Tensor<double, 3>(numTetra, numBands, 4);
-
-  for (long it = 0; it < numTetra; it++) { // over tetrahedra
-    // over bands
-    for (int ib = 0; ib < numBands; ib++) {
-      for (int iv = 0; iv < 4; iv++) { // over vertices
-        // Index of wave vector
-        long ik = tetrahedra(it, iv);
-
-        // Fill tetrahedron vertex with the band energy
-        auto is =
-            fullBandStructure.getIndex(WavevectorIndex(ik), BandIndex(ib));
-        double energy = fullBandStructure.getEnergy(is);
-        tetraEigVals(it, ib, iv) = energy;
-        temp[iv] = energy; // save for later
-      }
-
-      // sort energies in the vertex
-      std::sort(temp.begin(), temp.end());
-      // refill tetrahedron vertex
-      for (int iv = 0; iv < 4; iv++) {
-        tetraEigVals(it, ib, iv) = temp[iv];
+        qToTet(aux2, qToTetCount(aux2)) = iq;
+        qToTetCount(aux2) += 1;
       }
     }
   }
@@ -231,11 +194,21 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
   for (long i = 0; i < qToTetCount(iq); i++) { // over all tetrahedra
     long it = qToTet(iq, i); // get index of tetrahedron
 
+    // Fill tetrahedron vertex with the band energy
+    std::vector<double> tmp(4);
+    for ( int iv : {0,1,2,3}) {
+      long ikv = tetrahedra(it, iv);
+      auto is = fullBandStructure.getIndex(WavevectorIndex(ikv), BandIndex(ib));
+      double energy = fullBandStructure.getEnergy(is);
+      tmp[iv] = energy;
+    }
+    // sort energies in vertex
+    std::sort(tmp.begin(), tmp.end());
     // Sorted energies at the 4 vertices
-    double e1 = tetraEigVals(it, ib, 0);
-    double e2 = tetraEigVals(it, ib, 1);
-    double e3 = tetraEigVals(it, ib, 2);
-    double e4 = tetraEigVals(it, ib, 3);
+    double e1 = tmp[0];
+    double e2 = tmp[1];
+    double e3 = tmp[2];
+    double e4 = tmp[3];
 
     // We follow Eq. B6 of Lambin and Vigneron PRB 29 3430 (1984)
 
