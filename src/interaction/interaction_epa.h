@@ -7,19 +7,15 @@
 class InteractionEpa {
 
 private:
-  int numBandGroups;
-  Eigen::VectorXd bandExtrema;
-  Eigen::VectorXd binSize;
-  Eigen::VectorXi numBins;
-  Eigen::VectorXd phFreqAverage;
-  Eigen::Tensor<double, 4> elPhMatAverage;
+  Eigen::VectorXd elEnergies;
+  Eigen::VectorXd phEnergies;
+  Eigen::Tensor<double, 3> elPhMatAverage;
 
 public:
   // default constructor
-  InteractionEpa(int &numBandGroups_, Eigen::VectorXd &bandExtrema_,
-                 Eigen::VectorXd &binSize_, Eigen::VectorXi &numBins_,
-                 Eigen::VectorXd &phFreqAverage_,
-                 Eigen::Tensor<double, 4> &elPhMatAverage_);
+  InteractionEpa(Eigen::VectorXd &elEnergies_,
+                 Eigen::VectorXd &phEnergies_,
+                 Eigen::Tensor<double, 3> &elPhMatAverage_);
 
   // copy constructor
   InteractionEpa(const InteractionEpa &that);
@@ -27,12 +23,9 @@ public:
   // assignment operator overload
   InteractionEpa &operator=(const InteractionEpa &that);
 
-  int getNumBandGroups();
-  Eigen::VectorXd getBandExtrema();
-  Eigen::VectorXd getBinSize();
-  Eigen::VectorXi getNumBins();
-  Eigen::VectorXd getPhFreqAverage();
-  Eigen::Tensor<double, 4> getElPhMatAverage();
+  Eigen::VectorXd getPhEnergies();
+  Eigen::VectorXd getElEnergies();
+  Eigen::Tensor<double, 3> getElPhMatAverage();
 
   static InteractionEpa parseEpaCoupling(Context &context);
 };

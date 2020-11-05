@@ -881,6 +881,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   double maxEnergy = elEnergies.maxCoeff();
   long numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
   Eigen::VectorXd epaEnergies(numEpaEnergies);
+#pragma omp parallel for
   for (int i = 0; i < numEpaEnergies; i++) {
     epaEnergies[i] = i * deltaEnergy + minEnergy;
   }
@@ -893,6 +894,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   int numQPoints = gFull.dimension(4);
 
   Eigen::Tensor<double, 3> gaussians(numEpaEnergies, numBands, numKPoints);
+#pragma omp parallel for collapse(3)
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
@@ -954,15 +956,17 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       Error e("Output file couldn't be opened");
     }
     outfile << numElectrons << " " << numSpin << "\n";
-    outfile << numEpaEnergies << "\n";
-    outfile << epaEnergies.transpose() << "\n";
     outfile << phAvgEnergies.size() << "\n";
     outfile << phAvgEnergies.transpose() << "\n";
-    outfile << "\n";
-    for (auto x : g2Epa.dimensions()) {
-      outfile << x << " ";
+    outfile << numEpaEnergies << "\n";
+    outfile << epaEnergies.transpose() << "\n";
+    for (auto i = 0; i < numModes; ++i) {
+      for (auto j = 0; j < numEpaEnergies; ++j) {
+        for (auto k = 0; k < numEpaEnergies; ++k) {
+          outfile << g2Epa(i, j, k) << "\n";
+        }
+      }
     }
-    outfile << g2Epa << "\n";
     std::cout << "Done writing g to file\n" << std::endl;
   }
 }

@@ -13,6 +13,7 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
+#include <math.h>
 
 void TransportEpaApp::run(Context &context) {
 
@@ -97,6 +98,15 @@ void TransportEpaApp::run(Context &context) {
 //    throwErrorIfUnset(context.getElectronFourierCutoff(),
 //                      "electronFourierCutoff");
 //}
+
+void foldWithinBounds(int &idx, const int &numBins) {
+  if (idx < 0) {
+    idx = 0;
+  }
+  if (idx > numBins) {
+    idx = numBins - 1;
+  }
+}
 
 Eigen::Tensor<double, 3>
 TransportEpaApp::calcEnergyProjVelocity(Context &context,
@@ -183,128 +193,115 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   // get vector containing averaged phonon frequencies per mode
   InteractionEpa couplingEpa = InteractionEpa::parseEpaCoupling(context);
 
-  Eigen::VectorXd phFreqAverage = couplingEpa.getPhFreqAverage();
-  int numPhFreq = phFreqAverage.size();
+  Eigen::VectorXd phEnergies = couplingEpa.getPhEnergies();
+  int numPhEnergies = phEnergies.size();
 
-  // phJump - contains the values of phFreqAverage/energyStep
-  // defines in which step of electron energy grid the electron energy will go
-  // after phonon absorption/emission
-  Eigen::VectorXd phJump(phFreqAverage.size());
-  for (auto i = 0; i != phFreqAverage.size(); ++i) {
-    phJump(i) = phFreqAverage(i) / energyStep;
+  // phJump describes how bin-jumps the electron does after scattering
+  // as a double
+  Eigen::VectorXd phJump(numPhEnergies);
+  for (auto i = 0; i != phEnergies.size(); ++i) {
+    phJump(i) = phEnergies(i) / energyStep;
   }
 
-  int numBandGroups = couplingEpa.getNumBandGroups();
-  Eigen::VectorXd extrema = couplingEpa.getBandExtrema();
-  Eigen::VectorXi numBins = couplingEpa.getNumBins();
-  int numBinsMax = numBins.maxCoeff();
-  Eigen::Tensor<double, 4> elPhMatElements = couplingEpa.getElPhMatAverage();
-  Eigen::VectorXd binSize = couplingEpa.getBinSize();
+  Eigen::VectorXd elphEnergies = couplingEpa.getElEnergies();
+  double minElphEnergy = elphEnergies(0);
+  int numElphBins = elphEnergies.size();
+  double binSize = 1.;
+  if (numElphBins > 1) {
+    binSize = elphEnergies(1) - elphEnergies(0);
+  }
 
-  LoopPrint loopPrint("to calculate EPA scattering rates",
-                      "pairs of temperatures and chemical potentials",
-                      numCalcs);
+  Eigen::Tensor<double, 3> elPhMatElements = couplingEpa.getElPhMatAverage();
+
+  LoopPrint loopPrint("calculation of EPA scattering rates", "energies",
+                      mpi->divideWorkIter(numEnergies).size());
 
   BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
 
   // loop over temperatures and chemical potentials
-  for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
-    loopPrint.update();
-    double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
-    double chemPotential =
-        statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+  // loop over energies
+#pragma omp parallel
+  {
+    Eigen::MatrixXd privateRates(numCalcs, numStates);
+    privateRates.setZero();
 
-    // loop over energies
-    for (long iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
+#pragma omp for nowait
+    for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
+      loopPrint.update();
 
-      // iTest: make sure that by phonon absorption or emission we will not go
-      // outside of the considered energy range
-      int iTest = (int)phJump(numPhFreq);
-      if (iEnergy < iTest || iEnergy > numEnergies - iTest) {
-        continue;
-      }
+      for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
+        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double chemPot =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
 
-      double scatRateTemp = 0.0;
+        // loop over phonon frequencies
+        for (int iPhFreq = 0; iPhFreq < numPhEnergies; ++iPhFreq) {
 
-      // loop over phonon frequencies
-      for (int iPhFreq = 0; iPhFreq < numPhFreq; ++iPhFreq) {
-
-        // population of phonons, electron after emission/absorption
-        double nBose =
-            phParticle.getPopulation(phFreqAverage(iPhFreq), temperature);
-        double nFermiAbsorption =
-            particle.getPopulation(energies[iEnergy] + phFreqAverage(iPhFreq),
-                                   temperature, chemPotential);
-        double nFermiEmission =
-            particle.getPopulation(energies[iEnergy] - phFreqAverage(iPhFreq),
-                                   temperature, chemPotential);
-
-        int iJump = (int)phJump(iPhFreq);
-        double iInterp = phJump(iPhFreq) - (double)iJump;
-        double dosAbsorption = dos(iEnergy + iJump) * (1.0 - iInterp) +
-                               dos(iEnergy + iJump + 1) * iInterp;
-        double dosEmission = dos(iEnergy - iJump - 1) * iInterp +
-                             dos(iEnergy - iJump) * (1.0 - iInterp);
-
-        // this integer selects either valence or conduction bands
-        int iBandGroup;
-        if (energies(iEnergy) <= extrema.sum() / numBandGroups) {
-          iBandGroup = 0;
-        } else {
-          iBandGroup = 1;
-        }
-
-        double iBinPos =
-            (energies(iEnergy) - extrema(iBandGroup)) / binSize(iBandGroup);
-
-        iBinPos = std::max(iBinPos, 1.0e-12);
-        iBinPos = std::min(iBinPos, numBins(iBandGroup) - 1.0e-12);
-        int intBinPos = (int)iBinPos;
-
-        //------------------------------------
-        // estimate strength of el-ph coupling
-
-        double gAbsorption, gEmission;
-
-        if (numBins(iBandGroup) == 1) {
-          gAbsorption = elPhMatElements(iPhFreq, 0, 0, iBandGroup);
-          gEmission = elPhMatElements(iPhFreq, 0, 0, iBandGroup);
-        } else {
-          Eigen::VectorXd elPhAvTemp(numBinsMax);
-          for (int i = 0; i < numBinsMax; ++i) {
-            elPhAvTemp(i) = elPhMatElements(iPhFreq, i, intBinPos, iBandGroup);
+          // Avoid some index out of bound errors
+          if (iEnergy + phJump(iPhFreq) + 1 >= numEnergies ||
+              iEnergy - phJump(iPhFreq) - 1 < 0) {
+            continue;
           }
 
-          double iAbs = (energies(iEnergy) + phFreqAverage(iPhFreq) -
-                         extrema(iBandGroup)) /
-                        binSize(iBandGroup);
-          iAbs = std::max(iAbs, 1.0e-12);
-          iAbs = std::min(iAbs, numBins(iBandGroup) - 1.0e-12);
-          int iAbsInt = (int)iAbs;
+          // population of phonons, electron after emission/absorption
+          double nBose = phParticle.getPopulation(phEnergies(iPhFreq), temp);
+          double nFermiAbsorption = particle.getPopulation(
+              energies[iEnergy] + phEnergies(iPhFreq), temp, chemPot);
+          double nFermiEmission = particle.getPopulation(
+              energies[iEnergy] - phEnergies(iPhFreq), temp, chemPot);
 
-          gAbsorption = elPhAvTemp(iAbsInt);
+          // compute the dos for electron in the final state for the two
+          // scatterings mechanisms
+          // Note: we do a linear interpolation
+          int iJump = (int)phJump(iPhFreq);
+          double iInterp = phJump(iPhFreq) - (double)iJump;
+          double dosAbsorption =
+              dos(iEnergy + iJump) * (1. - iInterp) +
+              dos(iEnergy + iJump + 1) * iInterp;
+          double dosEmission = dos(iEnergy - iJump - 1) * iInterp +
+                               dos(iEnergy - iJump) * (1. - iInterp);
 
-          double iEmis = (energies[iEnergy] - phFreqAverage(iPhFreq) -
-                          extrema(iBandGroup)) /
-                         binSize(iBandGroup);
-          iEmis = std::max(iEmis, 1.0e-12);
-          iEmis = std::min(iEmis, numBins(iBandGroup) - 1.0e-12);
-          int iEmisInt = (int)iEmis;
+          // find index of the energy in the bins of the elph energies
+          int intBinPos =
+              int(std::round((energies(iEnergy) - minElphEnergy) / binSize));
+          int iAbsInt = int(std::round(
+              (energies(iEnergy) + phEnergies(iPhFreq) - minElphEnergy) /
+              binSize));
+          int iEmisInt = int(std::round(
+              (energies(iEnergy) - phEnergies(iPhFreq) - minElphEnergy) /
+              binSize));
+          // check and fold within bounds:
+          foldWithinBounds(intBinPos, numElphBins);
+          foldWithinBounds(iAbsInt, numElphBins);
+          foldWithinBounds(iEmisInt, numElphBins);
 
-          gEmission = elPhAvTemp(iEmisInt);
+          //------------------------------------
+          // estimate strength of el-ph coupling |g|^2
+
+          double gAbsorption = elPhMatElements(iPhFreq, iAbsInt, intBinPos);
+          double gEmission = elPhMatElements(iPhFreq, iEmisInt, intBinPos);
+
+          //-----------------------------
+          // finally, the scattering rate
+
+          privateRates(iCalc, iEnergy) +=
+              twoPi / spinFactor * gAbsorption * (nBose + nFermiAbsorption) *
+                  dosAbsorption +
+              gEmission * (nBose + 1 - nFermiEmission) * dosEmission;
         }
-
-        //-----------------------------
-        // finally, the scattering rate
-
-        scatRateTemp +=
-            gAbsorption * (nBose + nFermiAbsorption) * dosAbsorption +
-            gEmission * (nBose + 1 - nFermiEmission) * dosEmission;
       }
-      // scattering rate in Rydbergs
-      epaRate.data(iCalc, iEnergy) = twoPi * scatRateTemp / spinFactor;
+    }
+
+#pragma omp critical
+    {
+      for (long iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
+        for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
+          epaRate.data(iCalc, iEnergy) += privateRates(iCalc, iEnergy);
+        }
+      }
     }
   }
+  mpi->allReduceSum(&epaRate.data);
   loopPrint.close();
   return epaRate;
 }
