@@ -621,7 +621,6 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   pugi::xml_node atomicStructure = output.child("atomic_structure");
   int numAtoms = atomicStructure.attribute("nat").as_int();
-  // double alat = atomicStructure.attribute("alat").as_double();
 
   //  we read the atomic positions
 
@@ -686,8 +685,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // this may or may not be present! if so, I get mesh and offset
   pugi::xml_node mp = startingKPoints.child("monkhorst_pack");
   if (mp) {
-    Error e("Full k-grid is required: the list of k-points in the grid should "
-	    "be explicitly specified for nscf calculation");
+    Error e("Grid found in QE:XML, should have used full kpoints grid", 1);
   }
 
   // Initialize the crystal class
@@ -732,17 +730,15 @@ QEParser::parseElHarmonicFourier(Context &context) {
     lineSplit = split(kpoint.child_value("k_point"), ' ');
 
     // note:
-    // k_cart = bvectors.transpose() *  k_cryst
+    // k_cart = bVectors * k_cryst
 
     p(0) = std::stod(lineSplit[0]);
     p(1) = std::stod(lineSplit[1]);
     p(2) = std::stod(lineSplit[2]);
 
-    // the XML contains kpoints in cartesian coordinates, in units of 2Pi/alat
     // convert from cartesian to crystal coordinates
-    // but also bvectors are given in 2Pi/alat units, so we don't set them
-    p = (bVectors.transpose().inverse() * p).transpose();
-    irredPoints.col(i) = p; // * twoPi / alat;
+    p = bVectors.inverse() * p;
+    irredPoints.col(i) = p;
 
     lineSplit = split(kpoint.child_value("eigenvalues"), ' ');
     for (int j = 0; j < numBands; j++) {
@@ -933,7 +929,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
   // I need to convert crystalVectors in cartesian coordinates
   // must check if I am aligning the unit cell correctly
-  bravaisVectors = directUnitCell.transpose() * bravaisVectors;
+  bravaisVectors = directUnitCell * bravaisVectors;
   // note: for Wannier90, lattice vectors are the rows of the matrix
 
   ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
