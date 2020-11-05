@@ -43,11 +43,10 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
   return prefactor * exp(-x * x);
 }
 
-double GaussianDeltaFunction::getSmearing(const double &energy, const long &iq,
-                                          const long &ib) {
+double GaussianDeltaFunction::getSmearing(const double &energy,
+                                          StateIndex &is) {
   (void)energy;
-  (void)iq;
-  (void)ib;
+  (void)is;
   Error e("GaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
@@ -88,11 +87,9 @@ AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
 }
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
-                                                  const long &iq,
-                                                  const long &ib) {
+                                                  StateIndex &is) {
   (void)energy;
-  (void)iq;
-  (void)ib;
+  (void)is;
   Error e("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
@@ -213,23 +210,19 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 double TetrahedronDeltaFunction::getDOS(const double &energy) {
   // initialize tetrahedron weight
   double weight = 0.;
-  for (int iq = 0; iq < fullBandStructure.getNumPoints(); iq++) {
-    for (int ib = 0; ib < fullBandStructure.getNumBands(); ib++) {
-      weight += getWeight(energy, iq, ib);
-    }
+  for (long is=0; is<fullBandStructure.getNumStates(); is++) {
+    auto isIndex = StateIndex(is);
+    weight += getSmearing(energy, isIndex);
   }
   weight /= fullBandStructure.getNumPoints(true);
   return weight;
 }
 
 double TetrahedronDeltaFunction::getSmearing(const double &energy,
-                                             const long &iq, const long &ib) {
-  // initialize tetrahedron weight
-  return getWeight(energy, iq, ib);
-}
-
-double TetrahedronDeltaFunction::getWeight(const double &energy, const long &iq,
-                                           const long &ib) {
+                                             StateIndex &is) {
+  auto t = fullBandStructure.getIndex(is);
+  long iq = std::get<0>(t).get();
+  long ib = std::get<1>(t).get();
 
   // initialize tetrahedron weight
   double weight = 0.;

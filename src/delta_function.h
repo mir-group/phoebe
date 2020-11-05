@@ -47,8 +47,7 @@ public:
      * @param iq: wavevector index.
      * @param ib: band index.
      */
-    virtual double getSmearing(const double &energy, const long &iq,
-            const long &ib) = 0;
+    virtual double getSmearing(const double &energy, StateIndex &is) = 0;
 
     /** Method to identify which kind of smearing is being used.
      * Returns a int value between gaussian, adaptiveGaussian, tetrahedron.
@@ -78,8 +77,7 @@ public:
 
     /** phantom method that should not be used. Will throw an error.
      */
-    virtual double getSmearing(const double &energy, const long &iq,
-            const long &ib);
+    virtual double getSmearing(const double &energy, StateIndex &is);
 
     /** returns an integer identifying this class as AdaptiveGaussian
      * @return int: id.
@@ -113,8 +111,7 @@ public:
 
     /** phantom method that should not be used. Will throw an error.
      */
-    virtual double getSmearing(const double &energy, const long &iq,
-            const long &ib);
+    virtual double getSmearing(const double &energy, StateIndex &is);
 
     /** returns an integer identifying this class as AdaptiveGaussian
      * @return int: id.
@@ -172,8 +169,7 @@ public:
      * @param[in] State: state at which the tetrahedron is computed.
      * @returns weight: the tetrahedron weight approximating the dirac delta.
      */
-    virtual double getSmearing(const double &energy, const long &iq,
-            const long &ib);
+    virtual double getSmearing(const double &energy, StateIndex &is);
 
     /** overload abstract base method, but simply raises an error if it's
      * called. One should really use the other getSmearing method.
@@ -194,8 +190,6 @@ protected:
     Eigen::MatrixXi qToTet;
     /** Holder for the eigenvalues. */
     Eigen::Tensor<double, 3> tetraEigVals;
-
-    double getWeight(const double &energy, const long &iq, const long &ib);
 };
 
 #endif

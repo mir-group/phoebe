@@ -149,11 +149,9 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
 #pragma omp for nowait
     for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
       for (long iState = 0; iState != numStates; ++iState) {
-        auto t = bandStructure.getIndex(iState);
-        int ik = std::get<0>(t).get();
-        int ib = std::get<1>(t).get();
+        auto isIndex = StateIndex(iState);
         double deltaFunction =
-            tetrahedrons.getSmearing(energies(iEnergy), ik, ib);
+            tetrahedrons.getSmearing(energies(iEnergy), isIndex);
         Eigen::Vector3d velocity = bandStructure.getGroupVelocity(iState);
         for (int j = 0; j < dim; ++j) {
           for (int i = 0; i < dim; ++i) {
@@ -194,8 +192,9 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   auto hasSpinOrbit = context.getHasSpinOrbit();
   int spinFactor = 2;
-  if (hasSpinOrbit)
+  if (hasSpinOrbit) {
     spinFactor = 1;
+  }
 
   auto particle = Particle(Particle::electron);
   auto phParticle = Particle(Particle::phonon);

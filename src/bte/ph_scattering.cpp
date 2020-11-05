@@ -23,7 +23,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     Error e("PhScatteringMatrix needs h0 for incommensurate grids");
   }
 
-  // setup here the isotopic scattering
+    // setup here the isotopic scattering
   if (context.getWithIsotopeScattering()) {
     auto crystal = outerBandStructure.getPoints().getCrystal();
     int numAtoms = crystal.getNumAtoms();
@@ -322,7 +322,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
               } break;
               default:
-                deltaPlus = smearing->getSmearing(en3Plus - en1, iq2, ib2);
+                auto ib2Index = BandIndex(ib2);
+                auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
+                auto iss2 = StateIndex(is2);
+                deltaPlus = smearing->getSmearing(en3Plus - en1, iss2);
                 break;
               }
 
@@ -409,8 +412,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
               } break;
               default:
-                deltaMins1 = smearing->getSmearing(en2 - en3Mins, iq1, ib1);
-                deltaMins2 = smearing->getSmearing(en1 - en3Mins, iq2, ib2);
+                auto ib2Index = BandIndex(ib2);
+                auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
+                auto iss2 = StateIndex(is2);
+                auto ib1Index = BandIndex(ib1);
+                auto is1 = innerBandStructure.getIndex(iq1Index, ib1Index);
+                auto iss1 = StateIndex(is1);
+                // Note: here I require inner == outer bandstructure
+                deltaMins1 = smearing->getSmearing(en2 - en3Mins, iss1);
+                deltaMins2 = smearing->getSmearing(en1 - en3Mins, iss2);
                 break;
               }
 
@@ -534,8 +544,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               deltaIso *= 0.5;
               break;
             default:
-              deltaIso = smearing->getSmearing(en2, iq2, ib2);
-              deltaIso += smearing->getSmearing(en1, iq1, ib1);
+              auto ib1Index = BandIndex(ib1);
+              auto ib2Index = BandIndex(ib2);
+              auto is1 = innerBandStructure.getIndex(iq1Index, ib1Index);
+              auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
+              auto iss1 = StateIndex(is1);
+              auto iss2 = StateIndex(is2);
+              // note here I require inner==outer bandstructure
+              deltaIso = smearing->getSmearing(en2, iss2);
+              deltaIso += smearing->getSmearing(en1, iss1);
               deltaIso *= 0.5;
               break;
             }
