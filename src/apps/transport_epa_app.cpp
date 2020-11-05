@@ -217,6 +217,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   // calculate the density of states at the energies in energies vector
   Eigen::VectorXd dos(numEnergies);
+  dos.setZero();
 #pragma omp parallel for
   for (long i : mpi->divideWorkIter(numEnergies)) {
     dos(i) = tetrahedrons.getDOS(energies(i));
