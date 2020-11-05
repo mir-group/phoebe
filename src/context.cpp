@@ -660,14 +660,6 @@ void Context::setupFromInput(std::string fileName) {
         deltaTemperature = parseDouble(val) / temperatureAuToSi;
       }
 
-      if (parameterName == "energyRange") {
-        energyRange = parseDoubleWithUnits(val);
-      }
-
-      if (parameterName == "energyStep") {
-        energyStep = parseDoubleWithUnits(val);
-      }
-
       if (parameterName == "eFermiRange") {
         eFermiRange = parseDoubleWithUnits(val);
       }
@@ -686,6 +678,12 @@ void Context::setupFromInput(std::string fileName) {
       }
       if (parameterName == "epaMaxEnergy") {
         epaMaxEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyRange") {
+        epaEnergyRange = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyStep") {
+        epaEnergyStep = parseDoubleWithUnits(val);
       }
 
       // ELPH coupling plot App
@@ -781,6 +779,9 @@ double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
 double Context::getEpaMinEnergy() { return epaMinEnergy; }
 double Context::getEpaMaxEnergy() { return epaMaxEnergy; }
 int Context::getEpaNumBins() { return epaNumBins; }
+double Context::getEpaEnergyRange() {return epaEnergyRange;}
+double Context::getEpaEnergyStep() {return epaEnergyStep;}
+
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -896,10 +897,6 @@ double Context::getMinTemperature() {return minTemperature;}
 double Context::getMaxTemperature() {return maxTemperature;}
 
 double Context::getDeltaTemperature() {return deltaTemperature;}
-
-double Context::getEnergyRange() {return energyRange;}
-
-double Context::getEnergyStep() {return energyStep;}
 
 double Context::getEFermiRange() {return eFermiRange;}
 

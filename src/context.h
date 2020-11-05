@@ -76,11 +76,11 @@ class Context {
   double minTemperature = std::numeric_limits<double>::quiet_NaN();
   double maxTemperature = std::numeric_limits<double>::quiet_NaN();
   double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
-  double energyRange = std::numeric_limits<double>::quiet_NaN();
-  double energyStep = std::numeric_limits<double>::quiet_NaN();
   double eFermiRange = std::numeric_limits<double>::quiet_NaN();
 
   std::string epaFileName = "";
+  double epaEnergyRange = std::numeric_limits<double>::quiet_NaN();
+  double epaEnergyStep = std::numeric_limits<double>::quiet_NaN();
   double epaMinEnergy = std::numeric_limits<double>::quiet_NaN();
   double epaMaxEnergy = std::numeric_limits<double>::quiet_NaN();
   int epaNumBins;
@@ -290,8 +290,8 @@ class Context {
   double getMinTemperature();
   double getMaxTemperature();
   double getDeltaTemperature();
-  double getEnergyRange();
-  double getEnergyStep();
+  double getEpaEnergyRange();
+  double getEpaEnergyStep();
   double getEFermiRange();
 
   /** Reads the user-provided input file and saves the input parameters
