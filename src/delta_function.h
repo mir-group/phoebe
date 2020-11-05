@@ -191,7 +191,7 @@ protected:
     /** Count of how many tetrahedra wave vector belongs to. */
     Eigen::VectorXi qToTetCount;
     /** Mapping of a wave vector to a tetrahedron. */
-    Eigen::Tensor<long, 3> qToTet;
+    Eigen::MatrixXi qToTet;
     /** Holder for the eigenvalues. */
     Eigen::Tensor<double, 3> tetraEigVals;
 

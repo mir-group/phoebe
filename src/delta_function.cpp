@@ -124,8 +124,7 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
   // Allocate tetrahedron data holders
   tetrahedra = Eigen::MatrixXi::Zero(numTetra, 4);
   qToTetCount = Eigen::VectorXi::Zero(numPoints);
-  qToTet = Eigen::Tensor<long, 3>(numPoints, 24, 2);
-  qToTet.setZero();
+  qToTet = Eigen::MatrixXi::Zero(numPoints, 24);
 
   // Label the vertices of each tetrahedron in a subcell
   Eigen::MatrixXi verticesLabels(6, 4);
@@ -169,8 +168,7 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
         // Save mapping of a wave vector index
         // to the ordered pair (tetrahedron,vertex)
         qToTetCount(aux2) = qToTetCount(aux2) + 1;
-        qToTet(aux2, qToTetCount(aux2) - 1, 0) = iq;
-        qToTet(aux2, qToTetCount(aux2) - 1, 1) = iv;
+        qToTet(aux2, qToTetCount(aux2) - 1) = iq;
       }
     }
   }
@@ -236,13 +234,9 @@ double TetrahedronDeltaFunction::getWeight(const double &energy, const long &iq,
   // initialize tetrahedron weight
   double weight = 0.;
 
-  // Internal variables
-  double tmp = 0.0;
-
   // loop on the number of tetrahedra in which the wave vector belongs
   for (long i = 0; i < qToTetCount(iq); i++) { // over all tetrahedra
-    long it = qToTet(iq, i, 0);                // get index of tetrahedron
-    long iv = qToTet(iq, i, 1);                // get index of vertex
+    long it = qToTet(iq, i); // get index of tetrahedron
 
     // Sorted energies at the 4 vertices
     double e1 = tetraEigVals(it, ib, 0);
@@ -250,133 +244,44 @@ double TetrahedronDeltaFunction::getWeight(const double &energy, const long &iq,
     double e3 = tetraEigVals(it, ib, 2);
     double e4 = tetraEigVals(it, ib, 3);
 
-    // Define the shorthands
-    // We follow Appendix B of Lambin and Vigneron PRB 29 3430 (1984)
-    // e* are called E* in the article, tmp is called "c" in the article
-    double e1e = e1 - energy;
-    double e2e = e2 - energy;
-    double e3e = e3 - energy;
-    double e4e = e4 - energy;
-    double e21 = e2 - e1;
-    double e31 = e3 - e1;
-    double e41 = e4 - e1;
-    double e32 = e3 - e2;
-    double e42 = e4 - e2;
-    double e43 = e4 - e3;
+    // We follow Eq. B6 of Lambin and Vigneron PRB 29 3430 (1984)
 
-    // Check the inequalities
-    bool c1 = (e1 <= energy) && (energy <= e2);
-    bool c2 = (e2 <= energy) && (energy <= e3);
-    bool c3 = (e3 <= energy) && (energy <= e4);
+    double cnE = 0.;
+    if (e1 <= energy && energy <= e2) {
+      if ( e2==e1 || e3==e1 || e4==e1 ) {
+        cnE = 0.;
+      } else {
+        cnE = 3. * (energy-e1)*(energy-e1) / (e2-e1) / (e3-e1) / (e4-e1);
+      }
+    } else if (e2 <= energy && energy <= e3) {
 
-    if (((energy < e1) || (energy > e4))) {
-      continue; // skip point
+      cnE = 0.;
+      if ( e4==e2 || e3==e2 || e3==e1 ) {
+        cnE += 0.;
+      } else {
+        cnE += (e3-energy)*(energy-e2) / (e4-e2) / (e3-e2) / (e3-e1);
+      }
+      if ( e4==e1 || e4==e2 || e3==e1 ) {
+        cnE += 0.;
+      } else {
+        cnE += (e4-energy)*(energy-e1) / (e4-e1) / (e4-e2) / (e3-e1);
+      }
+      cnE *= 3.;
+
+    } else if (e3 <= energy && energy <= e4) {
+      if ( e4==e1 || e4==e2 || e4==e3 ) {
+        cnE = 0.;
+      } else {
+        cnE = 3. * (e4-energy)*(e4-energy) / (e4-e1) / (e4-e2) / (e4-e3);
+      }
     }
 
-    if (iv == 0) { // switch over 4 vertices
-      if (c1) {
-        tmp =
-            (e2e / e21 + e3e / e31 + e4e / e41) * pow(e1e, 2) / e41 / e31 / e21;
-        if (e1 == e2) {
-          tmp = 0.0;
-        }
-      } else if (c2) {
-        tmp = -0.5 * (e3e / pow(e31, 2) *
-                          (e3e * e2e / e42 / e32 + e4e * e1e / e41 / e42 +
-                           e3e * e1e / e32 / e41) +
-                      e4e / pow(e41, 2) *
-                          (e4e * e1e / e42 / e31 + e4e * e2e / e42 / e32 +
-                           e3e * e1e / e31 / e32));
-
-        if (e2 == e3) {
-          tmp = -0.5 * (e4e * e1e / e41 / e42 + e1e / e41 +
-                        e4e / pow(e41, 2) *
-                            (e4e * e1e / e42 / e31 + e4e / e42 + e1e / e31));
-        }
-      } else if (c3) {
-        tmp = pow(e4e, 3) / pow(e41, 2) / e42 / e43;
-
-        if (e3 == e4) {
-          tmp = pow(e4e, 2) / pow(e41, 2) / e42;
-        }
-      }
-    } else if (iv == 1) {
-      if (c1) {
-        tmp = -pow(e1e, 3) / pow(e21, 2) / e31 / e41;
-
-        if (e1 == e2) {
-          tmp = 0.0;
-        }
-      } else if (c2) {
-        tmp = -0.5 * (e3e / pow(e32, 2) *
-                          (e3e * e2e / e42 / e31 + e4e * e2e / e42 / e41 +
-                           e3e * e1e / e31 / e41) +
-                      e4e / pow(e42, 2) *
-                          (e3e * e2e / e32 / e31 + e4e * e1e / e41 / e31 +
-                           e4e * e2e / e32 / e41));
-        if (e2 == e3) {
-          tmp = -0.5 * (e4e / e42 / e41 +
-                        e4e / pow(e42, 2) * (e4e * e1e / e41 / e31 + 1.0));
-        }
-      } else if (c3) {
-        tmp = pow(e4e, 3) / e41 / pow(e42, 2) / e43;
-        if (e3 == e4) {
-          tmp = 0.0;
-        }
-      }
-    } else if (iv == 2) {
-      if (c1) {
-        tmp = -pow(e1e, 3) / e21 / pow(e31, 2) / e41;
-        if (e1 == e2) {
-          tmp = 0.0;
-        }
-      } else if (c2) {
-        tmp = 0.5 * (e2e / pow(e32, 2) *
-                         (e3e * e2e / e42 / e31 + e4e * e2e / e42 / e41 +
-                          e3e * e1e / e31 / e41) +
-                     e1e / pow(e31, 2) *
-                         (e3e * e2e / e42 / e32 + e4e * e1e / e41 / e42 +
-                          e3e * e1e / e32 / e41));
-        if (e2 == e3) {
-          tmp = 0.5 * (e4e / e42 / e41 + e1e / e31 / e41 +
-                       e1e / pow(e31, 2) * (e4e * e1e / e41 / e42 + e1e / e41));
-        }
-      } else if (c3) {
-        tmp = pow(e4e, 3) / e41 / e42 / pow(e43, 2);
-        if (e3 == e4)
-          tmp = 0.0;
-      }
-    } else { // iv == 3
-      if (c1) {
-        tmp = -pow(e1e, 3) / e21 / e31 / pow(e41, 2);
-        if (e1 == e2)
-          tmp = 0.0;
-      } else if (c2) {
-        tmp = 0.5 * (e2e / pow(e42, 2) *
-                         (e3e * e2e / e32 / e31 + e4e * e1e / e41 / e31 +
-                          e4e * e2e / e32 / e41) +
-                     e1e / pow(e41, 2) *
-                         (e4e * e1e / e42 / e31 + e4e * e2e / e42 / e32 +
-                          e3e * e1e / e31 / e32));
-
-        if (e2 == e3) {
-          tmp = 0.5 * e1e / pow(e41, 2) *
-                (e4e * e1e / e42 / e31 + e4e / e42 + e1e / e31);
-        }
-      } else if (c3) {
-        tmp = -(e3e / e43 + e2e / e42 + e1e / e41) * pow(e4e, 2) / e41 / e42 /
-              e43;
-        if (e3 == e4) {
-          tmp = 0.0;
-        }
-      }
-    } // switch over 4 vertices
-
+    // exception
     if ((e1 == e2) && (e1 == e3) && (e1 == e4) & (energy == e1)) {
-      tmp = 0.25;
+      cnE = 0.25;
     }
 
-    weight += tmp;
+    weight += cnE;
   } // loop over all tetrahedra
 
   // Zero out extremely small weights
@@ -384,8 +289,8 @@ double TetrahedronDeltaFunction::getWeight(const double &energy, const long &iq,
     weight = 0.;
   }
 
-  // Normalize by number of tetrahedra
-  weight /= 6.;
+  // Normalize by number of tetrahedra and the vertices
+  weight /= 6. * 4.;
   return weight;
 }
 

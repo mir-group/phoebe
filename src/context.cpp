@@ -782,7 +782,6 @@ int Context::getEpaNumBins() { return epaNumBins; }
 double Context::getEpaEnergyRange() {return epaEnergyRange;}
 double Context::getEpaEnergyStep() {return epaEnergyStep;}
 
-
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
 std::string Context::getAppName() { return appName; }
