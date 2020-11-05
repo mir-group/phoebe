@@ -26,19 +26,18 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
   setPositionVectors();
   // now we look for the expansion coefficients that interpolates the bands
   // note that setPositionVectors must stay above this call
-  Eigen::MatrixXcd expansionCoefficients_(numBands, numPositionVectors);
-  Eigen::VectorXd energies(numDataPoints);
-  expansionCoefficients_.setZero();
-  energies.setZero();
 
   LoopPrint loopPrint("setting up Fourier interpolation", "bands", numBands);
-  for (long iBand = 0; iBand < numBands; iBand++) {
+
+  expansionCoefficients.resize(numBands, numPositionVectors);
+  expansionCoefficients.setZero();
+  for (long iBand : mpi->divideWorkIter(numBands)) {
     loopPrint.update();
-    energies = coarseBandStructure.getBandEnergies(iBand);
-    expansionCoefficients_.row(iBand) = getCoefficients(energies);
+    Eigen::VectorXd energies = coarseBandStructure.getBandEnergies(iBand);
+    expansionCoefficients.row(iBand) = getCoefficients(energies);
   }
+  mpi->allReduceSum(&expansionCoefficients);
   loopPrint.close();
-  expansionCoefficients = expansionCoefficients_;
 }
 
 // Copy constructor
@@ -301,41 +300,55 @@ void ElectronH0Fourier::setPositionVectors() {
 
 Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
     Eigen::VectorXd energies) {
-  Eigen::VectorXcd multipliers(numDataPoints - 1);
-  Eigen::VectorXcd deltaEnergies(numDataPoints - 1);
-  Eigen::MatrixXcd h(numDataPoints - 1, numDataPoints - 1);
-  h.setZero();
 
+  Eigen::VectorXcd deltaEnergies(numDataPoints - 1);
+#pragma omp parallel for
   for (long i = 1; i < numDataPoints; i++) {
     deltaEnergies(i - 1) = energies(i) - energies(0);
   }
 
-  Eigen::Vector3d iWavevector;
-  std::complex<double> smki, smkj;
   Eigen::MatrixXcd smk(numDataPoints, numPositionVectors);
+#pragma omp parallel for collapse(2)
   for (long iR = 0; iR < numPositionVectors; iR++) {
     for (long i = 0; i < numDataPoints; i++) {
-      iWavevector =
+      Eigen::Vector3d iWavevector =
           coarseBandStructure.getPoint(i).getCoords(Points::cartesianCoords);
-      std::complex<double> smki = getStarFunction(iWavevector, iR);
-      smk(i, iR) = smki;
+      smk(i, iR) = getStarFunction(iWavevector, iR);
     }
   }
 
-  for (long iR = 0; iR < numPositionVectors; iR++) {
-    Eigen::Vector3d position = positionVectors.col(iR);
-    double rho = getRoughnessFunction(position);
-    std::complex<double> smk0 = getStarFunction(refWavevector, iR);
-    for (long i = 0; i < numDataPoints - 1; i++) {
-      smki = smk(i + 1, iR);
-      for (long j = 0; j < numDataPoints - 1; j++) {
-        smkj = smk(j + 1, iR);
-        h(i, j) += (smki - smk0) * std::conj(smkj - smk0) / rho;
+  Eigen::MatrixXcd h(numDataPoints - 1, numDataPoints - 1);
+  h.setZero();
+
+#pragma omp parallel
+  {
+    Eigen::MatrixXcd hPrivate(numDataPoints - 1, numDataPoints - 1);
+    hPrivate.setZero();
+#pragma omp for nowait
+    for (long iR = 0; iR < numPositionVectors; iR++) {
+      Eigen::Vector3d position = positionVectors.col(iR);
+      double rho = getRoughnessFunction(position);
+      std::complex<double> smk0 = getStarFunction(refWavevector, iR);
+      for (long i = 0; i < numDataPoints - 1; i++) {
+        std::complex<double> smki = smk(i + 1, iR);
+        for (long j = 0; j < numDataPoints - 1; j++) {
+          std::complex<double> smkj = smk(j + 1, iR);
+          hPrivate(i, j) += (smki - smk0) * std::conj(smkj - smk0) / rho;
+        }
+      }
+    }
+#pragma omp critical
+    {
+      for (long i = 0; i < numDataPoints - 1; i++) {
+        for (long j = 0; j < numDataPoints - 1; j++) {
+          h(i, j) += hPrivate(i, j);
+        }
       }
     }
   }
 
   // solve h*multipliers = deltaEnergies
+  Eigen::VectorXcd multipliers(numDataPoints - 1);
   multipliers = h.ldlt().solve(deltaEnergies);
   return multipliers;
 }
@@ -345,12 +358,11 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
 
   Eigen::VectorXcd coefficients(numPositionVectors);
   coefficients.setZero();
-  Eigen::Vector3d wavevector;
 
   for (long m = 1; m < numPositionVectors; m++) {
     std::complex<double> smk0 = getStarFunction(refWavevector, m);
     for (long i = 1; i < numDataPoints; i++) {
-      wavevector =
+      Eigen::Vector3d wavevector =
           coarseBandStructure.getPoint(i).getCoords(Points::cartesianCoords);
       coefficients(m) +=
           multipliers(i - 1) * std::conj(getStarFunction(wavevector, m) - smk0);

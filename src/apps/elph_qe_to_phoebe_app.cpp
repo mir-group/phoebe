@@ -11,12 +11,10 @@
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
-
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t1);
   auto phononH0 = std::get<1>(t1);
-
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
@@ -34,9 +32,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
   int numModes = 3 * crystal.getNumAtoms();
 
-  std::string interpolation = context.getElPhInterpolation();
-
-  if (interpolation == "wannier") {
+  if (context.getElPhInterpolation() == "wannier") {
 
     postProcessingWannier(context, crystal, phononH0, kPoints, qPoints,
                           numQEBands, numModes, numIrrQPoints, numElectrons,
@@ -68,6 +64,7 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   } else {
     throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
     throwErrorIfUnset(context.getEpaSmearingEnergy(), "epaSmearingEnergy");
+    throwErrorIfUnset(context.getElectronFourierCutoff(), "electronFourierCutoff");
   }
 }
 
@@ -774,7 +771,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   std::ifstream infile(fileName);
   std::string line;
   if (not infile.is_open()) {
-    Error e("H0 file not found");
+    Error e("QE el-ph file not found");
   }
   std::getline(infile, line); // first line is a title
   
@@ -904,11 +901,28 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
     }
   }
 
+  Eigen::Tensor<double,5> g2Full(numBands,numBands,numModes,numKPoints,numQPoints);
+  for (int iq = 0; iq < numQPoints; iq++) {
+    for (int ik = 0; ik < numKPoints; ik++) {
+      for (int nu = 0; nu < numModes; nu++) {
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+          for (int ib1 = 0; ib1 < numBands; ib1++) {
+            g2Full(ib1, ib2, nu, ik, iq) =
+                std::norm(gFull(ib1, ib2, nu, ik, iq));
+          }
+        }
+      }
+    }
+  }
+  gFull.resize(0,0,0,0,0);
+
   Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
   g2Epa.setZero();
 
+  std::cout << numEpaEnergies << "!!\n";
+
   LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
-  for (int iq = 0; iq < numQPoints; iq++) {
+  for (int iq : mpi->divideWorkIter(numQPoints)) {
     loopPrint.update();
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int ik = 0; ik < numKPoints; ik++) {
@@ -919,16 +933,17 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
       int ikq = kPoints.getIndex(kqCrystal);
 
-      for (int ib1 = 0; ib1 < numBands; ib1++) {
-        for (int ib2 = 0; ib2 < numBands; ib2++) {
+ #pragma omp parallel for collapse(3)
+      for (int j = 0; j < numEpaEnergies; j++) {
+        for (int i = 0; i < numEpaEnergies; i++) {
+          for (int nu = 0; nu < numModes; nu++) {
 
-          for (int j = 0; j < numEpaEnergies; j++) {
-            for (int i = 0; i < numEpaEnergies; i++) {
+            for (int ib2 = 0; ib2 < numBands; ib2++) {
+              for (int ib1 = 0; ib1 < numBands; ib1++) {
 
               double gaussian = gaussians(i, ib1, ik) * gaussians(j, ib2, ikq);
 
-              for (int nu = 0; nu < numModes; nu++) {
-                g2Epa(nu, i, j) += std::norm(gFull(ib1, ib2, nu, ik, iq)) *
+                g2Epa(nu, i, j) += g2Full(ib1, ib2, nu, ik, iq) *
                                    gaussian / 2. / phEnergies(nu, iq);
                 // /2omega, because there is a difference between the
                 // coupling <k+q| dV_q |k> from quantum espresso
@@ -940,6 +955,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       }
     }
   }
+  mpi->allReduceSum(&g2Epa);
   loopPrint.close();
 
   Eigen::VectorXd phAvgEnergies(numModes); // phEnergies(numModes, numQPoints);
