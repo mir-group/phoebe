@@ -501,8 +501,8 @@ void Context::setupFromInput(std::string fileName) {
 
       if (parameterName == "windowEnergyLimit") {
         std::vector<double> winLim = parseDoubleList(val);
-        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]);
-        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]);
+        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]) / energyRyToEv;
+        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]) / energyRyToEv;
       }
 
       if (parameterName == "windowPopulationLimit") {

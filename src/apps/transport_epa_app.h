@@ -12,7 +12,7 @@ public:
 
 private:
   Eigen::Tensor<double, 3>
-  calcEnergyProjVelocity(Context &context, BaseBandStructure &bandStructure,
+  calcEnergyProjVelocity(Context &context, FullBandStructure &bandStructure,
                          const Eigen::VectorXd &energies,
                          TetrahedronDeltaFunction &tetrahedrons);
   BaseVectorBTE getScatteringRates(

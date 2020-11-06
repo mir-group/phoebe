@@ -2,11 +2,46 @@
 
 #include <cmath>
 #include <string>
-
 #include "constants.h"
 #include "exceptions.h"
 #include "io.h"
 #include "particle.h"
+
+void ElectronH0Fourier::trimBands(Context &context,
+                                  const double &minEn, const double &maxEn) {
+  std::vector<int> retainBand;
+  int newNumBands = 0;
+  for ( long ib=0;ib<numBands;ib++) {
+    bool keepBand = false;
+    Eigen::VectorXd bandEnergies = coarseBandStructure.getBandEnergies(ib);
+    for ( auto x : bandEnergies) {
+      if ( x >= minEn && x <= maxEn  ) {
+        keepBand = true;
+      }
+    }
+    if ( keepBand ) {
+      newNumBands += 1;
+      retainBand.push_back(ib);
+    }
+  }
+
+  numBands = newNumBands;
+  Eigen::MatrixXcd newExpansionCoefficients(numBands, numPositionVectors);
+  int newIb = 0;
+  for ( int ib : retainBand ) {
+    newExpansionCoefficients.row(newIb) = expansionCoefficients.row(ib);
+    newIb += 1;
+  }
+  expansionCoefficients = newExpansionCoefficients;
+
+  double n = context.getNumOccupiedStates();
+  double spinFactor = 2.;
+  if ( context.getHasSpinOrbit()) {
+    spinFactor = 1.;
+  }
+  n -= retainBand[0] * spinFactor;
+  context.setNumOccupiedStates(n);
+}
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
                                      FullPoints coarsePoints_,
