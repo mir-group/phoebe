@@ -90,7 +90,8 @@ void OnsagerCoefficients::calcFromEPA(
     double &energyStep, Particle &particle) {
 
   double factor =
-      spinFactor / pow(twoPi, 3) / (crystal.getVolumeUnitCell(dimensionality));
+      spinFactor / pow(twoPi, dimensionality)
+      / (crystal.getVolumeUnitCell(dimensionality));
 
   LEE.setZero();
   LET.setZero();
@@ -104,27 +105,30 @@ void OnsagerCoefficients::calcFromEPA(
         double chemPot =
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         double temp =
-            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+            statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (long iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
 
-          if ( scatteringRates.data(iCalc, iEnergy) <= 0. ) continue;
+          if ( scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ) continue;
+          double en = energies(iEnergy);
+          double pop = particle.getPopPopPm1(en, temp, chemPot);
+          if ( pop <= 1.0e-20 ) continue;
+
           double transportDistFunc =
               energyProjVelocity(iAlpha, iBeta, iEnergy) *
               (1. / scatteringRates.data(iCalc, iEnergy));
 
-          double en = energies(iEnergy);
-          LEE(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
-                                       particle.getDnde(en, temp, chemPot) *
-                                       energyStep;
-          LET(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
-                                       particle.getDndt(en, temp, chemPot) *
-                                       energyStep;
-          LTE(iCalc, iAlpha, iBeta) += -factor * transportDistFunc *
-                                       particle.getDnde(en, temp, chemPot) *
-                                       (en - chemPot) * energyStep;
+          LEE(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       energyStep / temp;
+          LET(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       energyStep / temp;
+          LTE(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       (en - chemPot) * energyStep / temp / temp;
           LTT(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
-                                       particle.getDndt(en, temp, chemPot) *
-                                       (en - chemPot) * energyStep;
+                                       pop *
+                                       pow(en - chemPot,2) * energyStep / temp / temp / temp;
         }
       }
     }
