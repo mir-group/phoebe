@@ -4,37 +4,42 @@
 In the subfolder `phoebe/scripts`, we prepared a few simple python scripts that can be used to plot the results in JSON files.
 
 <ul>
-<li> bands.py
+<li> \b bands.py \b
 
 Plots the band structure. Usage example:
 ~~~~~~~~~{.c}
 ./bands.py path/to/electron_bands.json
 ~~~~~~~~~
 
-<li> conductivity.py
+<li> \b transport_coefficients.py \b
 
-Plots the thermal conductivity as a function of temperature.
-Works for the conductivity computed with different BTE solvers.
+Plots the transport coefficients (thermal conductivity, electrical conductivity, etc...) as a function of temperature.
+Works for transport coefficients computed with different BTE solvers (EPA, Wannier interpolation, RTA, iterative, ...).
 Usage example:
 ~~~~~~~~~{.c}
-./conductivity.py path/to/rta_phonon_thermal_cond.json
+./transport_coefficients.py path/to/rta_phonon_thermal_cond.json xx
+~~~~~~~~~
+or
+~~~~~~~~~{.c}
+./transport_coefficients.py path/to/epa_onsager_coefficients.json xx
 ~~~~~~~~~
 
-<li> dos.py
+
+<li> \b dos.py \b
 
 Plots the density of states. Usage example:
 ~~~~~~~~~{.c}
 ./dos.py path/to/electron_dos.json
 ~~~~~~~~~
 
-<li> tau_path.py
+<li> \b tau_path.py \b
 
 Overlays the band structure with the particle linewidths. Usage example:
 ~~~~~~~~~{.c}
 ./tau_path.py path_el_relaxation_times.json path_el_bandstructure.json
 ~~~~~~~~~
 
-<li> tau.py
+<li> \b tau.py \b
 
 Plots lifetimes vs energy. Usage example:
 ~~~~~~~~~{.c}
