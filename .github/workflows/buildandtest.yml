@@ -42,7 +42,7 @@ jobs:
           unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-ph-anharmonic/*" -d "example/Silicon-ph/qe-ph-anharmonic"
           unzip -j master.zip "phoebe-data-master/example/Silicon-el/qe-elph/*" -d "example/Silicon-el/qe-elph"
           unzip 'example/Silicon-el/qe-elph/silicon.phoebe.*.dat.zip' -d example/Silicon-el/qe-elph/
-          cp example/Silicon-el/qe-elph example/Silicon-epa/qe-elph
+          cp example/Silicon-el/qe-elph/* example/Silicon-epa/qe-elph
           mkdir example/Silicon-epa/qe-elph/out
           unzip -j master.zip "phoebe-data-master/example/Silicon-epa/qe-elph/out/*" -d "example/Silicon-epa/qe-elph/out"
       - name: Run epa example without MPI
