@@ -321,7 +321,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
               } break;
-              default:
+              default: // tetrahedron
                 auto ib2Index = BandIndex(ib2);
                 auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
                 auto iss2 = StateIndex(is2);
@@ -411,15 +411,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaMins1 = smearing->getSmearing(en1 + en3Mins - en2, v);
                 deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
               } break;
-              default:
+              default: // tetrahedron
                 auto ib2Index = BandIndex(ib2);
                 auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
                 auto iss2 = StateIndex(is2);
-                auto ib1Index = BandIndex(ib1);
-                auto is1 = innerBandStructure.getIndex(iq1Index, ib1Index);
-                auto iss1 = StateIndex(is1);
                 // Note: here I require inner == outer bandstructure
-                deltaMins1 = smearing->getSmearing(en2 - en3Mins, iss1);
+                deltaMins1 = smearing->getSmearing(en1 + en3Mins, iss2);
                 deltaMins2 = smearing->getSmearing(en1 - en3Mins, iss2);
                 break;
               }
@@ -544,16 +541,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               deltaIso *= 0.5;
               break;
             default:
-              auto ib1Index = BandIndex(ib1);
               auto ib2Index = BandIndex(ib2);
-              auto is1 = innerBandStructure.getIndex(iq1Index, ib1Index);
               auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
-              auto iss1 = StateIndex(is1);
               auto iss2 = StateIndex(is2);
-              // note here I require inner==outer bandstructure
-              deltaIso = smearing->getSmearing(en2, iss2);
-              deltaIso += smearing->getSmearing(en1, iss1);
-              deltaIso *= 0.5;
+              deltaIso = smearing->getSmearing(en1, iss2);
               break;
             }
 
