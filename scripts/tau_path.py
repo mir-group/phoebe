@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import os
 
 def punchPlotTau(plotFileName, tau, points, pathTicks, pathLabels):
     nbands = len(tau[0,:])
@@ -195,9 +196,9 @@ if __name__ == "__main__":
         tau = np.delete(tau, en, 0)
         lwidths = np.delete(lwidths, en, 0)
     
-    plotFileName = "./" + jfileName.rstrip(".json")+".tau.pdf"
+    plotFileName = os.path.splitext(jfileName)[0] + ".tau.pdf"
     punchPlotTau(plotFileName, tau, points, pathTicks, pathLabels)
 
-    plotFileName2 = "./" + jfileName2.rstrip(".json")+".tau.pdf"
+    plotFileName2 = os.path.splitext(jfileName2)[0] + ".tau.pdf"
     punchPlotBandTau(plotFileName2, energies, lwidths,
                      points, pathTicks, pathLabels, mu)
