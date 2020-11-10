@@ -88,6 +88,7 @@ void TransportEpaApp::run(Context &context) {
 
   transCoeffs.calcTransportCoefficients();
   transCoeffs.print();
+  transCoeffs.outputToJSON("epa_onsager_coefficients.json");
 }
 
 void TransportEpaApp::checkRequirements(Context &context) {

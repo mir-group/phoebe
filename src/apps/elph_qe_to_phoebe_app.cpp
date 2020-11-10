@@ -936,8 +936,6 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
   g2Epa.setZero();
 
-  std::cout << numEpaEnergies << "!!\n";
-
   LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
   for (int iq : mpi->divideWorkIter(numQPoints)) {
     loopPrint.update();
