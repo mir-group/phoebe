@@ -47,7 +47,7 @@ if __name__ == "__main__":
     plt.ylabel(r'DoS [' + data['dosUnit'] + ']',fontsize=12)
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    plt.xlim(np.min(energies),np.max(energies))
+    plt.xlim(np.min(energies-mu),np.max(energies-mu))
     plt.ylim(None, np.max(dos)+np.max(dos)*0.1)
 
     plt.tight_layout()

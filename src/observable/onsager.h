@@ -55,7 +55,7 @@ public:
 
   void calcTransportCoefficients();
 
-  void calcFromEPA();
+  void calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle);
 
   void calcFromRelaxons(VectorBTE &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);

@@ -237,11 +237,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             if (smearing->getType() == DeltaFunction::gaussian) {
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
-            } else {
+            } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
               // Eigen::Vector3d smear = v1s.row(ib1s) - v2s.row(ib2);
               Eigen::Vector3d smear = v3s.row(ib3);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
+            } else {
+              auto ib2Index = BandIndex(ib2);
+              auto ik2Index = WavevectorIndex(ik2Irr);
+              auto is2 = innerBandStructure.getIndex(ik2Index, ib2Index);
+              auto iss2 = StateIndex(is2);
+              delta1 = smearing->getSmearing(en3 + en1, iss2);
+              delta2 = smearing->getSmearing(en3 - en1, iss2);
             }
 
             if (delta1 < 0. && delta2 < 0.)

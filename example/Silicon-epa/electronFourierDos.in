@@ -1,4 +1,4 @@
-electronH0Name = "qespresso/out/silicon.xml",
+electronH0Name = "qe-elph/out/silicon.xml",
 kMesh = [10,10,10]
 appName = "electronFourierDos"
 dosMinEnergy = -6. eV

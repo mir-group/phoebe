@@ -32,6 +32,12 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
 
+  if ( // innerBandStructure != outerBandStructure &&
+      smearing->getType()==smearing->tetrahedron) {
+    Error e("Tetrahedron smearing for transport untested and thus blocked");
+    // not for linewidths. Although this should be double-checked
+  }
+
   numCalcs = statisticsSweep.getNumCalcs();
 
   // we want to know the state index of acoustic modes at gamma,

@@ -1,5 +1,5 @@
 appName = "electronFourierBands"
-electronH0Name = "qespresso/out/silicon.xml",
+electronH0Name = "qe-elph/out/silicon.xml",
 deltaPath = 0.01
 electronFourierCutoff = 4.
 

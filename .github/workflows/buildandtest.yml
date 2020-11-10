@@ -42,6 +42,25 @@ jobs:
           unzip -j master.zip "phoebe-data-master/example/Silicon-ph/qe-ph-anharmonic/*" -d "example/Silicon-ph/qe-ph-anharmonic"
           unzip -j master.zip "phoebe-data-master/example/Silicon-el/qe-elph/*" -d "example/Silicon-el/qe-elph"
           unzip 'example/Silicon-el/qe-elph/silicon.phoebe.*.dat.zip' -d example/Silicon-el/qe-elph/
+          cp example/Silicon-el/qe-elph/* example/Silicon-epa/qe-elph
+          mkdir example/Silicon-epa/qe-elph/out
+          unzip -j master.zip "phoebe-data-master/example/Silicon-epa/qe-elph/out/*" -d "example/Silicon-epa/qe-elph/out"
+      - name: Run epa example without MPI
+        working-directory: example/Silicon-epa
+        run: |
+          ../../${BUILD_DIR}/phoebe -in qe2Epa.in
+          ../../${BUILD_DIR}/phoebe -in epaTransport.in
+          ../../${BUILD_DIR}/phoebe -in electronFourierBands.in
+          ../../${BUILD_DIR}/phoebe -in electronFourierDos.in
+          python3 reference/run_check.py
+      - name: Run epa example with MPI
+        working-directory: example/Silicon-epa
+        if: matrix.mpi == 'ON'
+        run: |
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in epaTransport.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronFourierBands.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronFourierDos.in
+          python3 reference/run_check.py
       - name: Run ph example without MPI
         working-directory: example/Silicon-ph
         run: |

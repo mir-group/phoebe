@@ -1,0 +1,12 @@
+appName = "transportEpa"
+
+electronH0Name = "qe-elph/out/silicon.xml",
+epaFileName = "qe-elph/silicon.phoebe.epa.dat"
+
+electronFourierCutoff = 4.
+epaEnergyStep = 0.01 eV
+epaEnergyRange = 3.0 eV
+
+kMesh = [10,10,10]
+temperatures = [300.]
+dopings = [1.0e21]

@@ -26,7 +26,6 @@ list(REMOVE_ITEM SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 message(${CMAKE_CURRENT_SOURCE_DIR})
 message(${SOURCE_FILES})
 
-
 FILE(GLOB TEST_SOURCES test/*.cpp test/interaction3ph/*.cpp)
 
 include_directories(src src/algebra src/apps src/bands src/bte src/constants src/harmonic src/interaction src/mpi src/observable src/parser src/points)

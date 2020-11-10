@@ -7,6 +7,7 @@
 #include "harmonic.h"
 #include "points.h"
 #include "full_points.h"
+#include "context.h"
 
 /** Class for a Fourier-like interpolation of an electronic band structure.
  * Takes the information on the band structure computed on a uniform coarse
@@ -84,6 +85,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    */
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
                              bool &withEigenvectors, bool isDistributed=false);
+
+  void trimBands(Context &context, const double &minEn, const double &maxEn);
 
  protected:
   Crystal &crystal;

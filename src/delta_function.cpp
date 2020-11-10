@@ -1,11 +1,10 @@
 #include "delta_function.h"
-#include "exceptions.h"
-#include "utilities.h"
 #include "constants.h"
 #include "context.h"
+#include "exceptions.h"
+#include "utilities.h"
 
-DeltaFunction::~DeltaFunction() {
-}
+DeltaFunction::~DeltaFunction() {}
 
 int DeltaFunction::getType() { return id; }
 
@@ -16,8 +15,9 @@ int AdaptiveGaussianDeltaFunction::getType() { return id; }
 int TetrahedronDeltaFunction::getType() { return id; }
 
 // app factory
-DeltaFunction *DeltaFunction::smearingFactory(
-    Context &context, BaseBandStructure &fullBandStructure) {
+DeltaFunction *
+DeltaFunction::smearingFactory(Context &context,
+                               BaseBandStructure &fullBandStructure) {
   auto choice = context.getSmearingMethod();
   if (choice == gaussian) {
     return new GaussianDeltaFunction(context);
@@ -43,11 +43,10 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
   return prefactor * exp(-x * x);
 }
 
-double GaussianDeltaFunction::getSmearing(const double &energy, const long &iq,
-                                          const long &ib) {
+double GaussianDeltaFunction::getSmearing(const double &energy,
+                                          StateIndex &is) {
   (void)energy;
-  (void)iq;
-  (void)ib;
+  (void)is;
   Error e("GaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
@@ -62,8 +61,9 @@ AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
   qTensor.row(2) /= mesh(2);
 }
 
-double AdaptiveGaussianDeltaFunction::getSmearing(
-    const double &energy, const Eigen::Vector3d &velocity) {
+double
+AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
+                                           const Eigen::Vector3d &velocity) {
   if (velocity.norm() == 0. && energy == 0.) {
     // in this case, velocities are parallel, there shouldn't be
     // scattering unless energy is strictly conserved
@@ -76,20 +76,20 @@ double AdaptiveGaussianDeltaFunction::getSmearing(
   }
   sigma = prefactor * sqrt(sigma / 6.);
 
-  if (sigma == 0.) return 0.;
+  if (sigma == 0.)
+    return 0.;
 
-  if (abs(energy) > 2. * sigma) return 0.;
+  if (abs(energy) > 2. * sigma)
+    return 0.;
   double x = energy / sigma;
   // note: the factor ERF_2 corrects for the cutoff at 2*sigma
   return exp(-x * x) / sqrtPi / sigma / erf2;
 }
 
 double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
-                                                  const long &iq,
-                                                  const long &ib) {
+                                                  StateIndex &is) {
   (void)energy;
-  (void)iq;
-  (void)ib;
+  (void)is;
   Error e("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
@@ -104,312 +104,158 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
   if (offset.norm() > 0.) {
     Error e("We didnt' implement tetrahedra with offsets", 1);
   }
-  if (grid(0) == 1 || grid(1) == 1 || grid(2) == 1) {
-    Error e(
-        "Tetrahedron method with k-grid dimensionality<3 not "
-        "supported");
+  if (grid(0) < 1 || grid(1) < 1 || grid(2) < 1) {
+    Error e("Tetrahedron method initialized with invalid wavevector grid");
   }
 
-  // number of grid points (wavevectors)
-  long numPoints = fullPoints.getNumPoints();
-  long numBands = fullBandStructure.getNumBands();
-  // note: the code will fail at numBands if we are using ActiveBandStructure
-  // this is intentional, as the implementation of tetrahedra works only
-  // assuming a full grid of wavevectors.
+  // shifts of 1 kpoint in the grid in crystal coordinates
+  Eigen::Vector3d deltaGrid;
+  for (int i : {0,1,2}) {
+    deltaGrid(i) = 1. / grid(i);
+  }
 
-  // Number of tetrahedra
-  numTetra = 6 * numPoints;
-  // Allocate tetrahedron data holders
-  tetrahedra = Eigen::MatrixXi::Zero(numTetra, 4);
-  qToTetCount = Eigen::VectorXi::Zero(numPoints);
-  qToTet = Eigen::Tensor<long, 3>(numPoints, 24, 2);
-  qToTet.setZero();
+  // in this tensor, we store the offset to find the vertices of the
+  // tetrahedrons to which the current point belongs to
+  // (6: number of tetrahedra, 4: number of vertices, 3: cartesian)
+  // multiplying this by the vector Delta k of the grid, we can reconstruct
+  // all the points of the tetrahedron.
 
-  // Label the vertices of each tetrahedron in a subcell
-  Eigen::MatrixXi verticesLabels(6, 4);
-  verticesLabels << 0, 1, 2, 5, 0, 2, 4, 5, 2, 4, 5, 6, 2, 5, 6, 7, 2, 3, 5, 7,
-      1, 2, 3, 5;
-
-  // 8 corners of a subcell
-  Eigen::MatrixXi subcellCorners(8, 3);
-
-  for (long iq = 0; iq < fullPoints.getNumPoints(); iq++) {
-    // point is a vector with coordinates between 0 and 1
-    Eigen::Vector3d point =
-        fullPoints.getPointCoords(iq, Points::crystalCoords);
-    // scale it to integers between 0 and grid size
-    point(0) *= grid(0);
-    point(1) *= grid(1);
-    point(2) *= grid(2);
-
-    int i = int(point(0));
-    int j = int(point(1));
-    int k = int(point(2));
-    int ip1 = mod((i + 1), grid(0));
-    int jp1 = mod((j + 1), grid(1));
-    int kp1 = mod((k + 1), grid(2));
-
-    subcellCorners << i, j, k, ip1, j, k, i, jp1, k, ip1, jp1, k, i, j, kp1,
-        ip1, j, kp1, i, jp1, kp1, ip1, jp1, kp1;
-
-    for (int it = 0; it < 6; it++) {    // over 6 tetrahedra
-      for (int iv = 0; iv < 4; iv++) {  // over 4 vertices
-        // Grab a label
-        long aux = verticesLabels(it, iv);
-        // Grab a corner of subcell
-        point(0) = double(subcellCorners(aux, 0)) / grid(0);
-        point(1) = double(subcellCorners(aux, 1)) / grid(1);
-        point(2) = double(subcellCorners(aux, 2)) / grid(2);
-        // Get combined index of corner
-        long aux2 = fullPoints.getIndex(point);
-        // Save corner as a tetrahedron vertex
-        tetrahedra(iq, iv) = aux2;
-        // Save mapping of a wave vector index
-        // to the ordered pair (tetrahedron,vertex)
-        qToTetCount(aux2) = qToTetCount(aux2) + 1;
-        qToTet(aux2, qToTetCount(aux2) - 1, 0) = iq;
-        qToTet(aux2, qToTetCount(aux2) - 1, 1) = iv;
-      }
+  subcellShift.resize(8,3);
+  subcellShift.row(0) << 0., 0., 0.;
+  subcellShift.row(1) << 1., 0., 0.;
+  subcellShift.row(2) << 0., 1., 0.;
+  subcellShift.row(3) << 1., 1., 0.;
+  subcellShift.row(4) << 0., 0., 1.;
+  subcellShift.row(5) << 1., 0., 1.;
+  subcellShift.row(6) << 0., 1., 1.;
+  subcellShift.row(7) << 1., 1., 1.;
+  for ( int i=0; i<8; i++) {
+    for (int j :  {0,1,2}) {
+      subcellShift(i, j) *= deltaGrid(j);
     }
   }
-  /**
-   * Fill all tetrahedra with the eigenvalues.
-   *
-   * Method for filling the tetrahedra with the eigenvalues for
-   * all polarizations. For eigenvalues are sorted along the vertex.
-   */
 
-  // Internal variables
-  std::vector<double> temp(4);
-
-  // Allocate tetraEigVals
-  tetraEigVals = Eigen::Tensor<double, 3>(numTetra, numBands, 4);
-
-  for (long it = 0; it < numTetra; it++) {  // over tetrahedra
-    // over bands
-    for (int ib = 0; ib < numBands; ib++) {
-      for (int iv = 0; iv < 4; iv++) {  // over vertices
-        // Index of wave vector
-        long ik = tetrahedra(it, iv);
-
-        // Fill tetrahedron vertex with the band energy
-        auto is =
-            fullBandStructure.getIndex(WavevectorIndex(ik), BandIndex(ib));
-        double energy = fullBandStructure.getEnergy(is);
-        tetraEigVals(it, ib, iv) = energy;
-        temp[iv] = energy;  // save for later
-      }
-
-      // sort energies in the vertex
-      std::sort(temp.begin(), temp.end());
-      // refill tetrahedron vertex
-      for (int iv = 0; iv < 4; iv++) {
-        tetraEigVals(it, ib, iv) = temp[iv];
-      }
-    }
-  }
+  // list of quadruplets identifying the vertices of the tetrahedra.
+  // each number corresponds to the one number corresponds to the (interal) coordinate
+  vertices.resize(6,4);
+  vertices.row(0) << 0, 1, 2, 5;
+  vertices.row(1) << 0, 2, 4, 5;
+  vertices.row(2) << 2, 4, 5, 6;
+  vertices.row(3) << 2, 5, 6, 7;
+  vertices.row(4) << 2, 3, 5, 7;
+  vertices.row(5) << 1, 2, 3, 5;
 }
 
 double TetrahedronDeltaFunction::getDOS(const double &energy) {
   // initialize tetrahedron weight
   double weight = 0.;
-
-  for (int iq = 0; iq < fullBandStructure.getNumPoints(); iq++) {
-    for (int ib = 0; ib < fullBandStructure.getNumBands(); ib++) {
-      weight += getWeight(energy, iq, ib);
-    }
+  for (long is=0; is<fullBandStructure.getNumStates(); is++) {
+    auto isIndex = StateIndex(is);
+    weight += getSmearing(energy, isIndex);
   }
-  weight /= fullBandStructure.getNumPoints();
+  weight /= fullBandStructure.getNumPoints(true);
   return weight;
 }
 
 double TetrahedronDeltaFunction::getSmearing(const double &energy,
-                                             const long &iq, const long &ib) {
+                                             StateIndex &is) {
+  auto t = fullBandStructure.getIndex(is);
+  long ik = std::get<0>(t).get();
+  auto ibIndex = std::get<1>(t);
+
+  auto fullPoints = fullBandStructure.getPoints();
+  // if the mesh is uniform, each kpoint belongs to 6 tetrahedra
+  auto kCoords = fullPoints.getPointCoords(ik, Points::crystalCoords);
+
+  // in this tensor, we store the offset to find the vertices of the
+  // tetrahedrons to which the current point belongs to
+  // (6: number of tetrahedra, 4: number of vertices, 3: cartesian)
+  // multiplying this by the vector Delta k of the grid, we can reconstruct
+  // all the points of the tetrahedron.
+
+  Eigen::MatrixXd kVectorsSubcell(8,3);
+  for ( int i=0; i<8; i++) {
+    Eigen::Vector3d x = subcellShift.row(i);
+    kVectorsSubcell.row(i) = kCoords + x;
+  }
+
+  Eigen::VectorXi ikSubcellIndices(8);
+  ikSubcellIndices(0) = ik;
+  for ( int i=1; i<8; i++) {
+    ikSubcellIndices(i) = fullPoints.getIndex(kVectorsSubcell.row(i));
+  }
+
+  Eigen::VectorXd energies(8);
+  for ( int i=1; i<8; i++) {
+    long is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubcellIndices(i)),ibIndex);
+    energies(i) = fullBandStructure.getEnergy(is1);
+  }
+
   // initialize tetrahedron weight
-  return getWeight(energy, iq, ib);
-}
+  double numTetra = 0.;
+  double weight = 0.;
+  for (int iTetra=0; iTetra<6; iTetra++) {
+    std::vector<double> tmp(4);
+    tmp[0] = energies(vertices(iTetra,0));
+    tmp[1] = energies(vertices(iTetra,1));
+    tmp[2] = energies(vertices(iTetra,2));
+    tmp[3] = energies(vertices(iTetra,3));
+    std::sort(tmp.begin(), tmp.end());
+    double e1 = tmp[0];
+    double e2 = tmp[1];
+    double e3 = tmp[2];
+    double e4 = tmp[3];
 
-double TetrahedronDeltaFunction::getWeight(const double &energy, const long &iq,
-        const long &ib) {
+    // We follow Eq. B6 of Lambin and Vigneron PRB 29 3430 (1984)
 
-    // initialize tetrahedron weight
-    double weight = 0.;
+    double cnE = 0.;
+    if (e1 <= energy && energy <= e2) {
+      if ( e2==e1 || e3==e1 || e4==e1 ) {
+        cnE = 0.;
+      } else {
+        cnE = 3. * (energy-e1)*(energy-e1) / (e2-e1) / (e3-e1) / (e4-e1);
+      }
+    } else if (e2 <= energy && energy <= e3) {
 
-    // Internal variables
-    double tmp = 0.0;
+      cnE = 0.;
+      if ( e4==e2 || e3==e2 || e3==e1 ) {
+        cnE += 0.;
+      } else {
+        cnE += (e3-energy)*(energy-e2) / (e4-e2) / (e3-e2) / (e3-e1);
+      }
+      if ( e4==e1 || e4==e2 || e3==e1 ) {
+        cnE += 0.;
+      } else {
+        cnE += (e4-energy)*(energy-e1) / (e4-e1) / (e4-e2) / (e3-e1);
+      }
+      cnE *= 3.;
 
-    // loop on the number of tetrahedra in which the wave vector belongs
-    for (long i = 0; i < qToTetCount(iq); i++) { //over all tetrahedra
-        long it = qToTet(iq, i, 0); //get index of tetrahedron
-        long iv = qToTet(iq, i, 1); //get index of vertex
+    } else if (e3 <= energy && energy <= e4) {
+      if ( e4==e1 || e4==e2 || e4==e3 ) {
+        cnE = 0.;
+      } else {
+        cnE = 3. * (e4-energy)*(e4-energy) / (e4-e1) / (e4-e2) / (e4-e3);
+      }
+    }
 
-        //Sorted energies at the 4 vertices
-        double e1 = tetraEigVals(it, ib, 0);
-        double e2 = tetraEigVals(it, ib, 1);
-        double e3 = tetraEigVals(it, ib, 2);
-        double e4 = tetraEigVals(it, ib, 3);
+    // exception
+    if ((e1 == e2) && (e1 == e3) && (e1 == e4) & (energy == e1)) {
+      cnE = 0.25;
+    }
 
-        //Define the shorthands
-        // Refer to Lambin and Vigneron prb 29.6 (1984): 3430 to understand
-        // what these mean.
-        double e1e = e1 - energy;
-        double e2e = e2 - energy;
-        double e3e = e3 - energy;
-        double e4e = e4 - energy;
-        double e21 = e2 - e1;
-        double e31 = e3 - e1;
-        double e41 = e4 - e1;
-        double e32 = e3 - e2;
-        double e42 = e4 - e2;
-        double e43 = e4 - e3;
+    numTetra += 1.;
 
-        //Check the inequalities
-        bool c1 = (e1 <= energy) && (energy <= e2);
-        bool c2 = (e2 <= energy) && (energy <= e3);
-        bool c3 = (e3 <= energy) && (energy <= e4);
+    weight += cnE;
+  } // loop over all tetrahedra
 
-        if (!((energy < e1) || (energy > e4))) {
-            if (iv == 0) { //switch over 4 vertices
-                if (c1) {
-                    tmp = (e2e / e21 + e3e / e31 + e4e / e41) * pow(e1e, 2)
-                            / e41 / e31 / e21;
+  // Zero out extremely small weights
+  if (weight < 1.0e-12) {
+    weight = 0.;
+  }
 
-                    if (e1 == e2)
-                        tmp = 0.0;
-                } else if (c2) {
-                    tmp = -0.5
-                            * (e3e / pow(e31, 2)
-                                    * (e3e * e2e / e42 / e32
-                                            + e4e * e1e / e41 / e42
-                                            + e3e * e1e / e32 / e41)
-                                    + e4e / pow(e41, 2)
-                                            * (e4e * e1e / e42 / e31
-                                                    + e4e * e2e / e42 / e32
-                                                    + e3e * e1e / e31 / e32));
-
-                    if (e2 == e3) {
-                        tmp =
-                                -0.5
-                                        * (e4e * e1e / e41 / e42 + e1e / e41
-                                                + e4e / pow(e41, 2)
-                                                        * (e4e * e1e / e42 / e31
-                                                                + e4e / e42
-                                                                + e1e / e31));
-                    }
-                } else if (c3) {
-                    tmp = pow(e4e, 3) / pow(e41, 2) / e42 / e43;
-
-                    if (e3 == e4) {
-                        tmp = pow(e4e, 2) / pow(e41, 2) / e42;
-                    }
-                }
-            } else if (iv == 1) {
-                if (c1) {
-                    tmp = -pow(e1e, 3) / pow(e21, 2) / e31 / e41;
-
-                    if (e1 == e2)
-                        tmp = 0.0;
-                } else if (c2) {
-                    tmp = -0.5
-                            * (e3e / pow(e32, 2)
-                                    * (e3e * e2e / e42 / e31
-                                            + e4e * e2e / e42 / e41
-                                            + e3e * e1e / e31 / e41)
-                                    + e4e / pow(e42, 2)
-                                            * (e3e * e2e / e32 / e31
-                                                    + e4e * e1e / e41 / e31
-                                                    + e4e * e2e / e32 / e41));
-
-                    if (e2 == e3) {
-                        tmp =
-                                -0.5
-                                        * (e4e / e42 / e41
-                                                + e4e / pow(e42, 2)
-                                                        * (e4e * e1e / e41 / e31
-                                                                + 1.0));
-                    }
-                } else if (c3) {
-                    tmp = pow(e4e, 3) / e41 / pow(e42, 2) / e43;
-
-                    if (e3 == e4)
-                        tmp = 0.0;
-                }
-            } else if (iv == 2) {
-                if (c1) {
-                    tmp = -pow(e1e, 3) / e21 / pow(e31, 2) / e41;
-
-                    if (e1 == e2)
-                        tmp = 0.0;
-                } else if (c2) {
-                    tmp = 0.5
-                            * (e2e / pow(e32, 2)
-                                    * (e3e * e2e / e42 / e31
-                                            + e4e * e2e / e42 / e41
-                                            + e3e * e1e / e31 / e41)
-                                    + e1e / pow(e31, 2)
-                                            * (e3e * e2e / e42 / e32
-                                                    + e4e * e1e / e41 / e42
-                                                    + e3e * e1e / e32 / e41));
-
-                    if (e2 == e3) {
-                        tmp = 0.5
-                                * (e4e / e42 / e41 + e1e / e31 / e41
-                                        + e1e / pow(e31, 2)
-                                                * (e4e * e1e / e41 / e42
-                                                        + e1e / e41));
-                    }
-                } else if (c3) {
-                    tmp = pow(e4e, 3) / e41 / e42 / pow(e43, 2);
-
-                    if (e3 == e4)
-                        tmp = 0.0;
-                }
-            } else {
-                if (c1) {
-                    tmp = -pow(e1e, 3) / e21 / e31 / pow(e41, 2);
-
-                    if (e1 == e2)
-                        tmp = 0.0;
-                } else if (c2) {
-                    tmp = 0.5
-                            * (e2e / pow(e42, 2)
-                                    * (e3e * e2e / e32 / e31
-                                            + e4e * e1e / e41 / e31
-                                            + e4e * e2e / e32 / e41)
-                                    + e1e / pow(e41, 2)
-                                            * (e4e * e1e / e42 / e31
-                                                    + e4e * e2e / e42 / e32
-                                                    + e3e * e1e / e31 / e32));
-
-                    if (e2 == e3) {
-                        tmp =
-                                0.5 * e1e / pow(e41, 2)
-                                        * (e4e * e1e / e42 / e31 + e4e / e42
-                                                + e1e / e31);
-                    }
-                } else if (c3) {
-                    tmp = -(e3e / e43 + e2e / e42 + e1e / e41) * pow(e4e, 2)
-                            / e41 / e42 / e43;
-
-                    if (e3 == e4)
-                        tmp = 0.0;
-                }
-            } // switch over 4 vertices
-
-            if ((e1 == e2) && (e1 == e3) && (e1 == e4) & (energy == e1))
-                tmp = 0.25;
-
-            weight += tmp;
-        } //!((energy < e1) || (energy > e4))
-    } //over all tetrahedra
-
-    // Zero out extremely small weights
-    if (weight < 1.0e-12)
-        weight = 0.;
-
-    // Normalize by number of tetrahedra
-    weight /= 6.;
-    return weight;
+  // Normalize by number of tetrahedra and the vertices
+  weight /= numTetra;
+  return weight;
 }
 
 double TetrahedronDeltaFunction::getSmearing(const double &energy,

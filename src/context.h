@@ -76,10 +76,14 @@ class Context {
   double minTemperature = std::numeric_limits<double>::quiet_NaN();
   double maxTemperature = std::numeric_limits<double>::quiet_NaN();
   double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
-  double energyRange = std::numeric_limits<double>::quiet_NaN();
-  double energyStep = std::numeric_limits<double>::quiet_NaN();
   double eFermiRange = std::numeric_limits<double>::quiet_NaN();
 
+  std::string epaFileName = "";
+  double epaEnergyRange = std::numeric_limits<double>::quiet_NaN();
+  double epaEnergyStep = std::numeric_limits<double>::quiet_NaN();
+  double epaMinEnergy = std::numeric_limits<double>::quiet_NaN();
+  double epaMaxEnergy = std::numeric_limits<double>::quiet_NaN();
+  int epaNumBins;
   double epaSmearingEnergy = std::numeric_limits<double>::quiet_NaN();
   double epaDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
 
@@ -95,8 +99,6 @@ class Context {
   std::vector<std::string> &split(const std::string &s, char delim,
                                   std::vector<std::string> &elems);
   std::vector<std::string> split(const std::string &s, char delim);
-//  bool lineHasParameter(const std::string &line);
-//  std::string parseParameterName(const std::string &line);
 
  public:
   // Methods for the apps of plotting the electron-phonon coupling
@@ -138,6 +140,9 @@ class Context {
 
   double getEpaSmearingEnergy();
   double getEpaDeltaEnergy();
+  double getEpaMinEnergy();
+  double getEpaMaxEnergy();
+  int getEpaNumBins();
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.
@@ -277,14 +282,16 @@ class Context {
 
   double getBoundaryLength();
 
+  // EPA:
+  std::string getEpaFileName();
   double getMinChemicalPotential();
   double getMaxChemicalPotential();
   double getDeltaChemicalPotential();
   double getMinTemperature();
   double getMaxTemperature();
   double getDeltaTemperature();
-  double getEnergyRange();
-  double getEnergyStep();
+  double getEpaEnergyRange();
+  double getEpaEnergyStep();
   double getEFermiRange();
 
   /** Reads the user-provided input file and saves the input parameters

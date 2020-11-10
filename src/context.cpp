@@ -501,8 +501,8 @@ void Context::setupFromInput(std::string fileName) {
 
       if (parameterName == "windowEnergyLimit") {
         std::vector<double> winLim = parseDoubleList(val);
-        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]);
-        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]);
+        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]) / energyRyToEv;
+        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]) / energyRyToEv;
       }
 
       if (parameterName == "windowPopulationLimit") {
@@ -570,7 +570,7 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "fermiLevel") {
-        fermiLevel = parseDouble(val) / energyRyToEv; // to Ry
+        fermiLevel = parseDoubleWithUnits(val);
       }
 
       if (parameterName == "hasSpinOrbit") {
@@ -631,6 +631,11 @@ void Context::setupFromInput(std::string fileName) {
         boundaryLength = parseDoubleWithUnits(val);
       }
 
+      // EPA
+      if (parameterName == "epaFileName") {
+        epaFileName = parseString(val);
+      }
+
       if (parameterName == "minChemicalPotential") {
         minChemicalPotential = parseDoubleWithUnits(val);
       }
@@ -655,14 +660,6 @@ void Context::setupFromInput(std::string fileName) {
         deltaTemperature = parseDouble(val) / temperatureAuToSi;
       }
 
-      if (parameterName == "energyRange") {
-        energyRange = parseDoubleWithUnits(val);
-      }
-
-      if (parameterName == "energyStep") {
-        energyStep = parseDoubleWithUnits(val);
-      }
-
       if (parameterName == "eFermiRange") {
         eFermiRange = parseDoubleWithUnits(val);
       }
@@ -672,6 +669,21 @@ void Context::setupFromInput(std::string fileName) {
       }
       if (parameterName == "epaDeltaEnergy") {
         epaDeltaEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaNumBins") {
+        epaNumBins = parseLong(val);
+      }
+      if (parameterName == "epaMinEnergy") {
+        epaMinEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaMaxEnergy") {
+        epaMaxEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyRange") {
+        epaEnergyRange = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyStep") {
+        epaEnergyStep = parseDoubleWithUnits(val);
       }
 
       // ELPH coupling plot App
@@ -763,8 +775,12 @@ void Context::setQuantumEspressoPrefix(const std::string x) {
 std::string Context::getElPhInterpolation() { return elPhInterpolation; }
 
 double Context::getEpaSmearingEnergy() { return epaSmearingEnergy; }
-
 double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
+double Context::getEpaMinEnergy() { return epaMinEnergy; }
+double Context::getEpaMaxEnergy() { return epaMaxEnergy; }
+int Context::getEpaNumBins() { return epaNumBins; }
+double Context::getEpaEnergyRange() {return epaEnergyRange;}
+double Context::getEpaEnergyStep() {return epaEnergyStep;}
 
 double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
 
@@ -867,23 +883,21 @@ bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
 
 double Context::getBoundaryLength() { return boundaryLength; }
 
-double Context::getMinChemicalPotential() { return minChemicalPotential; }
+std::string Context::getEpaFileName() {return epaFileName;}
 
-double Context::getMaxChemicalPotential() { return maxChemicalPotential; }
+double Context::getMinChemicalPotential() {return minChemicalPotential;}
 
-double Context::getDeltaChemicalPotential() { return deltaChemicalPotential; }
+double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
 
-double Context::getMinTemperature() { return minTemperature; }
+double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
 
-double Context::getMaxTemperature() { return maxTemperature; }
+double Context::getMinTemperature() {return minTemperature;}
 
-double Context::getDeltaTemperature() { return deltaTemperature; }
+double Context::getMaxTemperature() {return maxTemperature;}
 
-double Context::getEnergyRange() { return energyRange; }
+double Context::getDeltaTemperature() {return deltaTemperature;}
 
-double Context::getEnergyStep() { return energyStep; }
-
-double Context::getEFermiRange() { return eFermiRange; }
+double Context::getEFermiRange() {return eFermiRange;}
 
 std::string Context::getG2PlotStyle() { return g2PlotStyle; }
 void Context::setG2PlotStyle(const std::string x) { g2PlotStyle = x; }
@@ -907,3 +921,4 @@ std::pair<int, int> Context::getG2PlotPhBands() { return g2PlotPhBands; }
 void Context::setG2PlotPhBands(const std::pair<int, int> x) {
   g2PlotPhBands = x;
 }
+
