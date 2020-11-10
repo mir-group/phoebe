@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import os
 
 if __name__ == "__main__":
 
@@ -51,6 +52,6 @@ if __name__ == "__main__":
     plt.ylim(None, np.max(dos)+np.max(dos)*0.1)
 
     plt.tight_layout()
-    plotFileName = "./" + jfileName.rstrip(".json")+".pdf"
+    plotFileName = os.path.splitext(jfileName)[0] + ".pdf"
     plt.savefig(plotFileName)
     plt.show(block=False)

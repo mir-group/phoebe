@@ -297,7 +297,7 @@ void OnsagerCoefficients::print() {
   }
 
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
-  std::string unitsMobility = "cm^2 / V s";
+  std::string unitsMobility = "cm^2 / V / s";
 
   double convSeebeck = thermopowerAuToSi * 10.0e6;
   std::string unitsSeebeck = "muV / K";
@@ -437,7 +437,7 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   }
 
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
-  std::string unitsMobility = "cm^2 / V s";
+  std::string unitsMobility = "cm^2 / V / s";
 
   double convSeebeck = thermopowerAuToSi * 10.0e6;
   std::string unitsSeebeck = "muV / K";
