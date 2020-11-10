@@ -11,6 +11,7 @@ def noWindow(data,jfileName,calcIndex):
     # unpack the json file
     tau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib)
     energies = np.array(data['energies'])      # dimensions (iCalc, ik, ib)
+    linewidths = np.array(data['linewidths'])      # dimensions (iCalc, ik, ib)
     nbands = energies.shape[2]
     mu = np.array(data['chemicalPotentials'])
     T = np.array(data['temperatures'])
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         
         
     if len(np.array(data['relaxationTimes']).shape) == 3:
-        energies, tau, linewidths = plotNoWindow(data,jfileName,calcIndex)
+        energies, tau, linewidths = noWindow(data,jfileName,calcIndex)
     else:
         energies, tau, linewidths = withWindow(data,jfileName,calcIndex)
         
