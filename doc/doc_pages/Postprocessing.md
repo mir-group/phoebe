@@ -46,6 +46,13 @@ Plots lifetimes vs energy. Usage example:
 ./tau.py rta_relaxation_times.json
 ~~~~~~~~~
 
+<li> \b tau_bandResolved.py \b
+
+Plots lifetimes/linewidths vs energy. It's similar to the script tau.py, but (1) has a color-code for lifetimes and linewidths from each different band (2) it only works if no window has been used in the transport code. Note that the n-th band index is defined as the n-th lowest-energy band. Usage example:
+~~~~~~~~~{.c}
+./tau_bandResolved.py rta_relaxation_times.json
+~~~~~~~~~
+
 </ul>
 
 The scripts are self-documented, e.g. you can run 
