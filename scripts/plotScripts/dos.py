@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+import os
 
 if __name__ == "__main__":
 
@@ -47,10 +48,10 @@ if __name__ == "__main__":
     plt.ylabel(r'DoS [' + data['dosUnit'] + ']',fontsize=12)
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    plt.xlim(np.min(energies),np.max(energies))
+    plt.xlim(np.min(energies-mu),np.max(energies-mu))
     plt.ylim(None, np.max(dos)+np.max(dos)*0.1)
 
     plt.tight_layout()
-    plotFileName = "./" + jfileName.rstrip(".json")+".pdf"
+    plotFileName = os.path.splitext(jfileName)[0] + ".pdf"
     plt.savefig(plotFileName)
     plt.show(block=False)

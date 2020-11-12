@@ -1,7 +1,8 @@
 #include "onsager.h"
-
 #include "constants.h"
+#include "io.h"
 #include "mpiHelper.h"
+#include "particle.h"
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -83,7 +84,57 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
-void OnsagerCoefficients::calcFromEPA() {}
+void OnsagerCoefficients::calcFromEPA(
+    BaseVectorBTE &scatteringRates,
+    Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies,
+    double &energyStep, Particle &particle) {
+
+  double factor =
+      spinFactor / pow(twoPi, dimensionality)
+      / (crystal.getVolumeUnitCell(dimensionality));
+
+  LEE.setZero();
+  LET.setZero();
+  LTE.setZero();
+  LTT.setZero();
+
+#pragma omp parallel for collapse(3)
+  for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+    for (int iBeta = 0; iBeta < dimensionality; ++iBeta) {
+      for (int iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
+        double chemPot =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+        double temp =
+            statisticsSweep.getCalcStatistics(iCalc).temperature;
+        for (long iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
+
+          if ( scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ) continue;
+          double en = energies(iEnergy);
+          double pop = particle.getPopPopPm1(en, temp, chemPot);
+          if ( pop <= 1.0e-20 ) continue;
+
+          double transportDistFunc =
+              energyProjVelocity(iAlpha, iBeta, iEnergy) *
+              (1. / scatteringRates.data(iCalc, iEnergy));
+
+          LEE(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       energyStep / temp;
+          LET(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       energyStep / temp;
+          LTE(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       (en - chemPot) * energyStep / temp / temp;
+          LTT(iCalc, iAlpha, iBeta) += factor * transportDistFunc *
+                                       pop *
+                                       pow(en - chemPot,2) * energyStep / temp / temp / temp;
+        }
+      }
+    }
+  }
+  calcTransportCoefficients();
+}
 
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   double norm = spinFactor / bandStructure.getNumPoints(true) /
@@ -177,42 +228,49 @@ void OnsagerCoefficients::calcTransportCoefficients() {
   }
 }
 
-void OnsagerCoefficients::calcFromRelaxons(VectorBTE &eigenvalues,
-    ParallelMatrix<double> &eigenvectors) {
-  int numStates = eigenvalues.numStates;
+void OnsagerCoefficients::calcFromRelaxons(
+    VectorBTE &eigenvalues, ParallelMatrix<double> &eigenvectors) {
   int iCalc = 0;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   auto particle = bandStructure.getParticle();
 
   double norm = 1. / bandStructure.getNumPoints(true) /
-      crystal.getVolumeUnitCell(dimensionality);
+                crystal.getVolumeUnitCell(dimensionality);
 
   VectorBTE fE(statisticsSweep, bandStructure, 3);
   VectorBTE fT(statisticsSweep, bandStructure, 3);
-  for (long is = 0; is < numStates; is++) {
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alfa = std::get<1>(tup0);
     auto isIndex = StateIndex(is);
     double en = bandStructure.getEnergy(isIndex);
     auto vel = bandStructure.getGroupVelocity(isIndex);
-    for (long alfa = 0; alfa < numStates; alfa++) {
-      for (int i = 0; i < dimensionality; i++) {
-        fE(iCalc, i, alfa) += -particle.getDnde(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
-        fT(iCalc, i, alfa) += particle.getDndt(en,temp,chemPot) * vel(i) * eigenvectors(is, alfa) / eigenvalues(iCalc,0,alfa);
-      }
+    for (int i = 0; i < dimensionality; i++) {
+      fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
+                            eigenvectors(is, alfa) /
+                            eigenvalues(iCalc, 0, alfa);
+      fT(iCalc, i, alfa) += particle.getDndt(en, temp, chemPot) * vel(i) *
+                            eigenvectors(is, alfa) /
+                            eigenvalues(iCalc, 0, alfa);
     }
   }
+  mpi->allReduceSum(&fE.data);
+  mpi->allReduceSum(&fT.data);
 
   VectorBTE nE(statisticsSweep, bandStructure, 3);
   VectorBTE nT(statisticsSweep, bandStructure, 3);
-  for (long is = 0; is < numStates; is++) {
-    for (long alfa = 0; alfa < numStates; alfa++) {
-      for (int i = 0; i < dimensionality; i++) {
-        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
-        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
-      }
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alfa = std::get<1>(tup0);
+    for (int i = 0; i < dimensionality; i++) {
+      nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
+      nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa) * norm;
     }
   }
-  calcFromCanonicalPopulation(nE,nT);
+  mpi->allReduceSum(&nE.data);
+  mpi->allReduceSum(&nT.data);
+  calcFromCanonicalPopulation(nE, nT);
 }
 
 void OnsagerCoefficients::print() {
@@ -239,7 +297,7 @@ void OnsagerCoefficients::print() {
   }
 
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
-  std::string unitsMobility = "cm^2 / V s";
+  std::string unitsMobility = "cm^2 / V / s";
 
   double convSeebeck = thermopowerAuToSi * 10.0e6;
   std::string unitsSeebeck = "muV / K";
@@ -379,7 +437,7 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   }
 
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
-  std::string unitsMobility = "cm^2 / V s";
+  std::string unitsMobility = "cm^2 / V / s";
 
   double convSeebeck = thermopowerAuToSi * 10.0e6;
   std::string unitsSeebeck = "muV / K";
@@ -480,7 +538,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
                                           VectorBTE &scalingCG) {
   double norm = 1. / bandStructure.getNumPoints(true) /
-      crystal.getVolumeUnitCell(dimensionality);
+                crystal.getVolumeUnitCell(dimensionality);
 
   auto fEUnscaled = fE;
   auto fTUnscaled = fT;
@@ -494,14 +552,14 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   sigma *= sigma.constant(2.);
   kappa *= kappa.constant(2.);
 
-  Eigen::Tensor<double,3> tmpLEE = LEE.constant(0.); // retains shape
-  Eigen::Tensor<double,3> tmpLTT = LTT.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
 #pragma omp parallel
   {
-    Eigen::Tensor<double,3> tmpLEEPrivate = LEE.constant(0.);
-    Eigen::Tensor<double,3> tmpLTTPrivate = LTT.constant(0.);
+    Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
+    Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
 #pragma omp for nowait
-    for ( long is : bandStructure.parallelStateIterator() ) {
+    for (long is : bandStructure.parallelStateIterator()) {
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
         for (long i = 0; i < dimensionality; i++) {
           for (long j = 0; j < dimensionality; j++) {

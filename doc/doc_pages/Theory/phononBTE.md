@@ -1,5 +1,4 @@
-@page Theory Theory
-@section PHBTE Phonon Boltzmann transport equation
+@page thPhononBTE Phonon Boltzmann transport equation
 
 We follow the theory of the reference available [at this link] (https://arxiv.org/abs/1212.0470).
 Here we report the most relevant points of the manuscript. 
@@ -132,7 +131,7 @@ k^{\mathrm{RTA}}=\lambda \boldsymbol{b} \cdot \boldsymbol{f}^{\mathrm{SMA}}=\fra
 \end{equation}
 
 
-@section PHITER Iterative solution of the phonon BTE - Omini-Sparavigna method
+@section thPHITER Iterative solution of the phonon BTE - Omini-Sparavigna method
 
 Note: generally, we recommend the variational method over this. 
 
@@ -219,11 +218,29 @@ Notice that each iteration requires only one application of the matrix \f$\bolds
 
 
 @section PHRELAXONS Relaxons solution to the BTE
-TBD after deciding how to handle symmetries
+We first diagonalize the scattering matrix:
+\begin{equation}
+\frac{1}{N_k} \sum_{\nu} \Omega_{\nu\nu'} \theta_{\nu'\alpha} = \frac{1}{\tau_{\alpha}} \theta_{\nu\alpha}
+\end{equation}
+where \f$ \theta \f$ are eigenvectors, \f$ \alpha \f$ are eigenvalue indices, \f$ \frac{1}{\tau_{\alpha}} \f$ are eigenvalues, and the scattering matrix is:
+\begin{equation}
+\Omega_{\nu\nu'} = \frac{ A_{\nu\nu'} } { \sqrt{ \bar{n}_{\nu}(\bar{n}_{\nu}+1) \bar{n}_{\nu'}(\bar{n}_{\nu'}+1)  } }
+\end{equation}
+Next, we compute the velocities:
+\begin{equation}
+\boldsymbol{V}_{\alpha} = \frac{1}{N_k} \sum_{\nu} \theta_{\nu0} \boldsymbol{v}_{\nu} \theta_{\nu\alpha}
+\end{equation}
+where
+\begin{equation}
+\theta_{\nu0} = \sqrt { \frac{ \frac{\partial \bar{n}_{\nu}}{\partial \epsilon} }{C T} } \hbar \omega_{\nu}
+\end{equation}
+Finally, the thermal conductivity is:
+\begin{equation}
+k^{ij} = \sum_{\alpha} C V_{\alpha}^i V_{\alpha}^j \tau_{\alpha}
+\end{equation}
 
 
-@section SYMM BTE with symmetries
-To be written
+
 
 
 
@@ -236,7 +253,7 @@ In the non-degenerate case, the group velocity is \f$\boldsymbol{v}_{\boldsymbol
 
 
 
-@section SMEARING Dirac-delta approximations
+@section thSMEARING Dirac-delta approximations
 The delta function for the energy conservation can be replaced by a Gaussian
 \begin{equation}
  \delta(\hbar \omega)=\frac{1} {\sqrt{\pi}  \sigma} \exp{(-(\hbar \omega/ \sigma )^2)} \;,
@@ -262,3 +279,13 @@ Note that the adaptive scheme may be critical in the case where the velocity sum
 
 
 
+@section WIGNERPH Wigner correction to phonon thermal conductivity.
+
+The theory is fully described in the Reference available at this [link](https://www.nature.com/articles/s41567-019-0520-x).
+
+In extreme synthesis, the thermal conductivity is estimated as:
+\begin{equation}
+k_{\alpha\beta} = k^{BTE}_{\alpha\beta} +  \frac{k_BT^2}{\Omega N_k} \sum_{\boldsymbol{q}} \sum_{s\neq s'} \frac{\omega_{\boldsymbol{q}j}+\omega_{\boldsymbol{q}j'}}{2}   V_{jj'}^{\alpha}(\boldsymbol{q}) V_{j'j}^{\beta}(\boldsymbol{q}) \frac{ ( \frac{\partial n_{\boldsymbol{q}j}}{\partial T} + \frac{\partial n_{\boldsymbol{q}j'}}{\partial T})(\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'}) }{4(\omega_{\boldsymbol{q}j}-\omega_{\boldsymbol{q}j'})^2 + (\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'})^2} 
+\end{equation}
+
+where \f$k^{BTE}_{\alpha\beta}\f$ is the thermal conductivity estimated by the Boltzmann transport equation discussed above, and \f$\Gamma_{\boldsymbol{q}j} = \frac{1}{\tau_{\boldsymbol{q}j}}\f$ is the phonon linewidth, i.e. a diagonal element of the scattering matrix.

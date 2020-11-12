@@ -11,12 +11,12 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   // bandstructure object correctly and consistently
 
   Context context;
-  context.setPhD2FileName("../test/interaction3ph/QEspresso.fc");
+  context.setPhD2FileName("../test/data/444_silicon.fc");
 
   QEParser qeParser;
   auto tup = qeParser.parsePhHarmonic(context);
- auto crystal = std::get<0>(tup);
- auto phononH0 = std::get<1>(tup);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
 
   // Number of atoms
   long numAtoms = crystal.getNumAtoms();
@@ -43,7 +43,8 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   auto velsT = phononH0.diagonalizeVelocity(point);
 
   auto ens = bandStructure.getEnergies(ikIndex);
-  Eigen::Tensor<std::complex<double>, 3> eigvecs = bandStructure.getPhEigenvectors(ikIndex);
+  Eigen::Tensor<std::complex<double>, 3> eigvecs =
+      bandStructure.getPhEigenvectors(ikIndex);
   auto vels = bandStructure.getVelocities(ikIndex);
 
   // now we check the difference
@@ -61,12 +62,12 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   ASSERT_EQ(c1, complexZero);
 
   std::complex<double> c2 = complexZero;
-  for ( long i = 0; i<numBands; i++ ) {
-  	auto tup = decompress2Indeces(i,numAtoms,3);
- auto iat = std::get<0>(tup);
- auto ic = std::get<1>(tup);
-  	for ( long j = 0; j<numBands; j++ ) {
-        c2 += pow(eigvecsT(i,j) - eigvecs(ic, iat, j), 2);
+  for (long i = 0; i < numBands; i++) {
+    auto tup = decompress2Indeces(i, numAtoms, 3);
+    auto iat = std::get<0>(tup);
+    auto ic = std::get<1>(tup);
+    for (long j = 0; j < numBands; j++) {
+      c2 += pow(eigvecsT(i, j) - eigvecs(ic, iat, j), 2);
     }
   }
   ASSERT_EQ(c2, complexZero);

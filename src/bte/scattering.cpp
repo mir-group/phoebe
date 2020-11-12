@@ -32,6 +32,12 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
 
+  if ( // innerBandStructure != outerBandStructure &&
+      smearing->getType()==smearing->tetrahedron) {
+    Error e("Tetrahedron smearing for transport untested and thus blocked");
+    // not for linewidths. Although this should be double-checked
+  }
+
   numCalcs = statisticsSweep.getNumCalcs();
 
   // we want to know the state index of acoustic modes at gamma,
@@ -583,23 +589,24 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
   } else {
 
     if (switchCase != 0) {
+      // must parallelize over the inner band structure (iq2 in phonons)
+      // which is the outer loop on q-points
       size_t a = innerBandStructure.getNumPoints();
-      std::vector<long> wavevectorIterator = mpi->divideWorkIter(a);
-      // Note: phScatteringMatrix needs iq2 to be the outer loop
-      // in order to be efficient!
+      std::vector<long> q2Iterator = mpi->divideWorkIter(a);
 
-      std::vector<long> outerIterator(outerBandStructure.getNumPoints());
+      // I don't parallelize the outer band structure (iq1 in phonons)
+      // which is the inner loop on q-points
+      std::vector<long> q1Iterator(outerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
-      std::iota(std::begin(outerIterator), std::end(outerIterator), 0);
+      std::iota(std::begin(q1Iterator), std::end(q1Iterator), 0);
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator(a);
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator(q2Iterator.size());
       int i=0;
-      for (long iq2 : wavevectorIterator) {
-        auto t = std::make_tuple(outerIterator, iq2);
+      for (long iq2 : q2Iterator) {
+        auto t = std::make_tuple(q1Iterator,iq2);
         pairIterator[i] = t;
         i++;
       }
-
       return pairIterator;
 
     } else {

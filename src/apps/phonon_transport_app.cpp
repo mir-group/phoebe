@@ -43,11 +43,11 @@ void PhononTransportApp::run(Context &context) {
   if ( mpi->mpiHead()) {
     std::cout << "\n" << "Constructing the band structure" << std::endl;
   }
-  auto tup1 =      ActiveBandStructure::builder(context, phononH0, fullPoints);
+  auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
   auto bandStructure = std::get<0>(tup1);
   auto statisticsSweep = std::get<1>(tup1);
   if ( mpi->mpiHead()) {
-    std::cout << "Done!\n" << std::endl;
+    std::cout << "Band structure done!\n" << std::endl;
   }
 
   // load the 3phonon coupling
@@ -79,7 +79,7 @@ void PhononTransportApp::run(Context &context) {
   VectorBTE popRTA = drift * phononRelTimes;
 
   // output relaxation times
-  scatteringMatrix.outputToJSON("rta_relaxation_times.json");
+  scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
   PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);

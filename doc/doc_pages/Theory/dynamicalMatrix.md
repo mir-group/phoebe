@@ -1,5 +1,4 @@
-@page Theory Theory
-@section MAT2 Dynamical matrix
+@page thMat2 Dynamical matrix
 
 A density-functional code, detailed elsewhere, can compute the following force-constants matrix:
 \begin{equation}

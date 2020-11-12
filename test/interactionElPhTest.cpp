@@ -15,10 +15,10 @@ TEST(InteractionElPh, Test1) {
 
   // setup input file
   Context context;
-  context.setPhD2FileName("../example/development_silicon/silicon.fc");
-  context.setElectronH0Name("../example/development_silicon/si_tb.dat");
-  context.setWannier90Prefix("../example/development_silicon/si");
-  context.setQuantumEspressoPrefix("../example/development_silicon/silicon");
+  context.setPhD2FileName("../test/data/silicon.fc");
+  context.setElectronH0Name("../test/data/si_tb.dat");
+  context.setWannier90Prefix("../test/data/si");
+  context.setQuantumEspressoPrefix("../test/data/silicon");
 
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);

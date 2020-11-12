@@ -260,9 +260,15 @@ namespace mpiContainer {
         };
         // Container for Eigen::VectorXi
         template <> struct containerType<Eigen::VectorXi> {
-                static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
-                static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+          static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
+          static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
+        // Container for Eigen::Vector3i
+        template <> struct containerType<Eigen::Vector3i> {
+          static inline int* getAddress(Eigen::Vector3i* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Vector3i* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
         };
 
 #endif
@@ -424,15 +430,16 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
 
 /* ---------- gather function wrappers ------------- */
 
-// helper function for gather mpi wrappers, needed for the case
-// where one of the output data type is an std::vector
 template <typename T>
 void pointerSwap(T* dataIn, std::vector<T>* dataOut) {
-  (*dataOut)[0] = (*dataIn);
+  std::fill(dataOut->begin(), dataOut->end(), *dataIn);
 }
-template <typename T>
+
+template <typename T> // this is implemented only for std::vector
 void pointerSwap(T* dataIn, T* dataOut) {
-  dataOut = dataIn;
+  for (unsigned int i=0;i<dataIn->size();i++) {
+    (*dataOut)[i] = (*dataIn)[i];
+  }
 }
 
 template <typename T, typename V>

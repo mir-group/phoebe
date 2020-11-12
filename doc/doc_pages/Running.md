@@ -8,10 +8,6 @@ The basic syntax for launching Phoebe is:
 where inputFile.in is the name of the input file with the user-defined variables, and outputFile.out is the name of the output file on which the standard output will be written.
 
 
-@section Input Input files
-Wow, such empty!
-
-
 @section Parallel Parallel runs
 Phoebe uses MPI, OpenMP and GPU parallelizations schemes.
 It is recommended to compile and run the code with MPI and OpenMP, additionally with CUDA if GPUs are available.

@@ -11,12 +11,10 @@
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
-
   // actually, we only need the crystal
   auto t1 = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t1);
   auto phononH0 = std::get<1>(t1);
-
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
@@ -34,9 +32,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
   int numModes = 3 * crystal.getNumAtoms();
 
-  std::string interpolation = context.getElPhInterpolation();
-
-  if (interpolation == "wannier") {
+  if (context.getElPhInterpolation() == "wannier") {
 
     postProcessingWannier(context, crystal, phononH0, kPoints, qPoints,
                           numQEBands, numModes, numIrrQPoints, numElectrons,
@@ -66,8 +62,15 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   if (x == "wannier") {
     throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
   } else {
-    throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
     throwErrorIfUnset(context.getEpaSmearingEnergy(), "epaSmearingEnergy");
+    throwErrorIfUnset(context.getElectronFourierCutoff(), "electronFourierCutoff");
+    throwErrorIfUnset(context.getEpaMinEnergy(), "epaMinEnergy");
+    throwErrorIfUnset(context.getEpaMaxEnergy(), "epaMaxEnergy");
+    if (std::isnan(context.getEpaDeltaEnergy())) {
+      throwErrorIfUnset(context.getEpaNumBins(), "epaNumBins");
+    } else {
+      throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
+    }
   }
 }
 
@@ -171,7 +174,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       numWannier, numWannier, numModes, numKPoints, numQPoints);
   gFullTmp.setZero();
 
-  for (long iq = 0; iq < numQPoints; iq++) {
+  for (int iq : mpi->divideWorkIter(numQPoints) ) {
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (long ik = 0; ik < numKPoints; ik++) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
@@ -195,33 +198,51 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       Eigen::MatrixXcd uKDagger(numWannier, numBands);
       uKDagger = uK.adjoint();
 
-      Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
-                                                 numModes);
-      tmp.setZero();
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int i = 0; i < numWannier; i++) {
-          for (int j = 0; j < numBands; j++) {
-            for (int l = 0; l < numBands; l++) {
-              // ukq has size(numWannier,numBands)
-              // gFull has size numBands,numBands,...
-              tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
+#pragma omp parallel
+      {
+        Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
+                                                   numModes);
+        tmp.setZero();
+#pragma omp for nowait collapse(4)
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numBands; j++) {
+              for (int l = 0; l < numBands; l++) {
+                // ukq has size(numWannier,numBands)
+                // gFull has size numBands,numBands,...
+                tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
+              }
             }
           }
         }
-      }
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int i = 0; i < numWannier; i++) {
-          for (int j = 0; j < numWannier; j++) {
-            for (int l = 0; l < numBands; l++) {
-              gFullTmp(i, j, nu, ik, iq) += tmp(i, l, nu) * uKDagger(j, l);
+        Eigen::Tensor<std::complex<double>, 3> tmp2(numWannier, numWannier,
+                                                    numModes);
+        tmp2.setZero();
+#pragma omp for nowait collapse(4)
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int l = 0; l < numBands; l++) {
+                tmp2(i, j, nu) += tmp(i, l, nu) * uKDagger(j, l);
+              }
             }
           }
         }
+
+#pragma omp critical
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              gFullTmp(i, j, nu, ik, iq) += tmp2(i, j, nu);
+            }
+          }
+        }
+
       }
     } // ik
   }   // iq
-
-  //  gFull.reshape(zeros);
+  mpi->allReduceSum(&gFullTmp);
+  gFull.reshape(zeros);
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic Fourier Transform" << std::endl;
@@ -230,22 +251,52 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   Eigen::Tensor<std::complex<double>, 5> gMixed(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gMixed.setZero();
-  for (int iR = 0; iR < numElBravaisVectors; iR++) {
-    for (long ik = 0; ik < numKPoints; ik++) {
+
+  {
+    Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
+    phases.setZero();
+#pragma omp parallel for
+    for (int ik : mpi->divideWorkIter(numKPoints)) {
       Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
-      double arg = k.dot(elBravaisVectors.col(iR));
-      std::complex<double> phase = exp(-complexI * arg) / double(numKPoints);
-      for (int iq = 0; iq < numQPoints; iq++) {
-        for (int i = 0; i < numWannier; i++) {
-          for (int j = 0; j < numWannier; j++) {
+        for (int iR=0; iR<numElBravaisVectors; iR++) {
+        double arg = k.dot(elBravaisVectors.col(iR));
+        phases(ik, iR) = exp(-complexI * arg) / double(numKPoints);
+      }
+    }
+    mpi->allReduceSum(&phases);
+
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+#pragma omp parallel
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
             for (int nu = 0; nu < numModes; nu++) {
-              gMixed(i, j, nu, iR, iq) += gFullTmp(i, j, nu, ik, iq) * phase;
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, iR) +=
+                      gFullTmp(i, j, nu, ik, iq) * phases(ik, iR);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int i = 0; i < numWannier; i++) {
+                gMixed(i, j, nu, iR, iq) += tmp(i, j, nu, iR);
+              }
             }
           }
         }
       }
-    }
-  } // iq
+    } // iq
+    mpi->allReduceSum(&gMixed);
+  }
   gFullTmp.reshape(zeros);
 
   if (mpi->mpiHead()) {
@@ -254,28 +305,42 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gWannierTmp.setZero();
-  for (long iq = 0; iq < numQPoints; iq++) {
-    Eigen::MatrixXcd uQ(numModes, numModes);
-    for (int nu = 0; nu < numModes; nu++) {
+  {
+    Eigen::Tensor<std::complex<double>,3> uQM1s(numModes, numModes, numQPoints);
+    uQM1s.setZero();
+    for (long iq : mpi->divideWorkIter(numQPoints)) {
+      Eigen::MatrixXcd uQ(numModes, numModes);
       for (int nu2 = 0; nu2 < numModes; nu2++) {
-        uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
+        for (int nu = 0; nu < numModes; nu++) {
+          uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
+        }
       }
-    }
-    auto uQM1 = uQ.inverse();
-    // this isn't equal to the adjoint, due to mass renormalization
-
-    for (int nu = 0; nu < numModes; nu++) {
+      auto uQM1 = uQ.inverse();
       for (int nu2 = 0; nu2 < numModes; nu2++) {
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
-          for (int i = 0; i < numWannier; i++) {
-            for (int j = 0; j < numWannier; j++) {
-              gWannierTmp(i, j, nu, irE, iq) +=
-                  gMixed(i, j, nu2, irE, iq) * uQM1(nu2, nu);
+        for (int nu = 0; nu < numModes; nu++) {
+          uQM1s(nu, nu2, iq) = uQM1(nu, nu2);
+        }
+      }
+      // this isn't equal to the adjoint, due to mass renormalization
+      // should be parallelized with OMP already
+    }
+    mpi->allReduceSum(&uQM1s);
+    for (long iq : mpi->divideWorkIter(numQPoints)) {
+      for (int nu = 0; nu < numModes; nu++) {
+        for (int nu2 = 0; nu2 < numModes; nu2++) {
+#pragma omp parallel for collapse(3)
+          for (int irE = 0; irE < numElBravaisVectors; irE++) {
+            for (int i = 0; i < numWannier; i++) {
+              for (int j = 0; j < numWannier; j++) {
+                gWannierTmp(i, j, nu, irE, iq) +=
+                    gMixed(i, j, nu2, irE, iq) * uQM1s(nu2, nu, iq);
+              }
             }
           }
         }
       }
     }
+    mpi->allReduceSum(&gWannierTmp);
   }
   gMixed.reshape(zeros);
 
@@ -286,22 +351,50 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
                                                   numModes, numPhBravaisVectors,
                                                   numElBravaisVectors);
   gWannier.setZero();
-  for (int iq = 0; iq < numQPoints; iq++) {
-    Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
-    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-      double arg = q.dot(phBravaisVectors.col(irP));
-      std::complex<double> phase = exp(-complexI * arg) / double(numQPoints);
-      for (int irE = 0; irE < numElBravaisVectors; irE++) {
-        for (int i = 0; i < numWannier; i++) {
-          for (int j = 0; j < numWannier; j++) {
+  {
+    Eigen::MatrixXcd phases(numPhBravaisVectors,numQPoints);
+    phases.setZero();
+#pragma omp parallel for
+    for (long iq : mpi->divideWorkIter(numQPoints)) {
+      Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+        double arg = q.dot(phBravaisVectors.col(irP));
+        phases(irP,iq) = exp(-complexI * arg) / double(numQPoints);
+      }
+    }
+    mpi->allReduceSum(&phases);
+
+    for (long irE : mpi->divideWorkIter(numElBravaisVectors)) {
+#pragma omp parallel
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iq = 0; iq < numQPoints; iq++) {
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
             for (int nu = 0; nu < numModes; nu++) {
-              gWannier(j, i, nu, irP, irE) +=
-                  phase * gWannierTmp(i, j, nu, irE, iq);
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, irP) +=
+                      phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int i = 0; i < numWannier; i++) {
+              for (int j = 0; j < numWannier; j++) {
+                gWannier(j, i, nu, irP, irE) += tmp(i, j, nu, irP);
+              }
             }
           }
         }
       }
     }
+    mpi->allReduceSum(&gWannier);
   }
   gWannierTmp.reshape(zeros);
 
@@ -543,110 +636,119 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
   phEigenvectors.setZero();
   phEnergies.setZero();
 
-  Eigen::VectorXi ikMap(numKPoints);
-  for (long ikOld = 0; ikOld < numKPoints; ikOld++) {
-    Eigen::Vector3d kOld = kgridFull.col(ikOld);
-    long ikNew = kPoints.getIndex(kOld);
-    ikMap(ikOld) = ikNew;
-  }
-
-  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-
-  for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
-    std::stringstream ss;
-    ss << std::setw(4) << std::setfill('0') << iqIrr + 1;
-    std::string numString = ss.str();
-    std::string fileName = phoebePrefixQE + ".phoebe." + numString + ".dat";
-    std::ifstream infileQ(fileName);
-
-    std::string line;
-
-    int nqStar; // number of reducible q points in this file
-    infileQ >> nqStar;
-    std::vector<Eigen::Vector3d> qStar;
-    for (int iq = 0; iq < nqStar; iq++) {
-      Eigen::Vector3d thisQ; // in crystal coordinates
-      infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
-      qStar.push_back(thisQ);
-    }
-
-    for (int iq = 0; iq < nqStar; iq++) {
-      Eigen::Vector3d thisQ; // in same as above, in cartesian coordinates
-      infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
-    }
-
-    Eigen::VectorXd phononEnergies(numModes);
-    for (int nu = 0; nu < numModes; nu++) {
-      infileQ >> phononEnergies(nu);
-    }
-
-    Eigen::Tensor<std::complex<double>, 3> phononEigenvectorsStar(
-        numModes, numModes, nqStar);
-    for (int iq = 0; iq < nqStar; iq++) {
-      for (int j = 0; j < numModes; j++) {
-        for (int i = 0; i < numModes; i++) {
-          // Note, in Fortran I was writing:
-          // do jj = 1,nmodes
-          //   do k = 1,nat
-          //     do i_cart = 1,3
-          // This has to be aligned with what done by PhononH0
-          double re, im;
-          infileQ >> re >> im;
-          phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
-        }
-      }
-    }
-    std::getline(infileQ, line); // empty line
-
-    // read the g-coupling
-    Eigen::Tensor<std::complex<double>, 5> thisG(numQEBands, numQEBands,
-                                                 numModes, numKPoints, nqStar);
-    thisG.setZero();
-    for (int iq = 0; iq < nqStar; iq++) {
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int ik = 0; ik < numKPoints; ik++) {
-          for (int ib2 = 0; ib2 < numQEBands; ib2++) {
-            for (int ib1 = 0; ib1 < numQEBands; ib1++) {
-              double re, im;
-              infileQ >> re >> im;
-              thisG(ib1, ib2, nu, ik, iq) = {re, im};
-            }
-          }
-        }
-      }
-    }
-    infileQ.close();
-
-    // reorder the q/k indices
-    for (int iqStar = 0; iqStar < nqStar; iqStar++) {
-      Eigen::Vector3d qVec = qStar[iqStar];
-      long iqFull = qPoints.getIndex(qVec);
-
-      for (int nu = 0; nu < numModes; nu++) {
-        for (int ik = 0; ik < numKPoints; ik++) {
-          for (int ib2 = 0; ib2 < numWannier; ib2++) {
-            for (int ib1 = 0; ib1 < numWannier; ib1++) {
-              g_full(ib1, ib2, nu, ikMap(ik), iqFull) =
-                  thisG(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
-            }
-          }
-        }
-      }
-
-      for (int j = 0; j < numModes; j++) {
-        for (int i = 0; i < numModes; i++) {
-          phEigenvectors(i, j, iqFull) = phononEigenvectorsStar(i, j, iqStar);
-        }
-      }
-
-      for (int i = 0; i < numModes; i++) {
-        phEnergies(i, iqFull) = phononEnergies(i);
-      }
-    }
-  }
   if (mpi->mpiHead()) {
+
+    Eigen::VectorXi ikMap(numKPoints);
+#pragma omp parallel for
+    for (long ikOld = 0; ikOld < numKPoints; ikOld++) {
+      Eigen::Vector3d kOld = kgridFull.col(ikOld);
+      long ikNew = kPoints.getIndex(kOld);
+      ikMap(ikOld) = ikNew;
+    }
+
+    std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+
+#pragma omp parallel for
+    for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
+      std::stringstream ss;
+      ss << std::setw(4) << std::setfill('0') << iqIrr + 1;
+      std::string numString = ss.str();
+      std::string fileName = phoebePrefixQE + ".phoebe." + numString + ".dat";
+      std::ifstream infileQ(fileName);
+
+      std::string line;
+
+      int nqStar; // number of reducible q points in this file
+      infileQ >> nqStar;
+      std::vector<Eigen::Vector3d> qStar;
+      for (int iq = 0; iq < nqStar; iq++) {
+        Eigen::Vector3d thisQ; // in crystal coordinates
+        infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
+        qStar.push_back(thisQ);
+      }
+
+      for (int iq = 0; iq < nqStar; iq++) {
+        Eigen::Vector3d thisQ; // in same as above, in cartesian coordinates
+        infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
+      }
+
+      Eigen::VectorXd phononEnergies(numModes);
+      for (int nu = 0; nu < numModes; nu++) {
+        infileQ >> phononEnergies(nu);
+      }
+
+      Eigen::Tensor<std::complex<double>, 3> phononEigenvectorsStar(
+          numModes, numModes, nqStar);
+      for (int iq = 0; iq < nqStar; iq++) {
+        for (int j = 0; j < numModes; j++) {
+          for (int i = 0; i < numModes; i++) {
+            // Note, in Fortran I was writing:
+            // do jj = 1,nmodes
+            //   do k = 1,nat
+            //     do i_cart = 1,3
+            // This has to be aligned with what done by PhononH0
+            double re, im;
+            infileQ >> re >> im;
+            phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
+          }
+        }
+      }
+      std::getline(infileQ, line); // empty line
+
+      // read the g-coupling
+      Eigen::Tensor<std::complex<double>, 5> thisG(
+          numQEBands, numQEBands, numModes, numKPoints, nqStar);
+      thisG.setZero();
+      for (int iq = 0; iq < nqStar; iq++) {
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
+            for (int ib2 = 0; ib2 < numQEBands; ib2++) {
+              for (int ib1 = 0; ib1 < numQEBands; ib1++) {
+                double re, im;
+                infileQ >> re >> im;
+                thisG(ib1, ib2, nu, ik, iq) = {re, im};
+              }
+            }
+          }
+        }
+      }
+      infileQ.close();
+
+      // reorder the q/k indices
+      for (int iqStar = 0; iqStar < nqStar; iqStar++) {
+        Eigen::Vector3d qVec = qStar[iqStar];
+        long iqFull = qPoints.getIndex(qVec);
+
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
+            for (int ib2 = 0; ib2 < numWannier; ib2++) {
+              for (int ib1 = 0; ib1 < numWannier; ib1++) {
+                g_full(ib1, ib2, nu, ikMap(ik), iqFull) =
+                    thisG(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
+              }
+            }
+          }
+        }
+
+        for (int j = 0; j < numModes; j++) {
+          for (int i = 0; i < numModes; i++) {
+            phEigenvectors(i, j, iqFull) = phononEigenvectorsStar(i, j, iqStar);
+          }
+        }
+
+        for (int i = 0; i < numModes; i++) {
+          phEnergies(i, iqFull) = phononEnergies(i);
+        }
+      }
+    }
+
     std::cout << "Done reading el-ph coupling from file\n" << std::endl;
   }
+
+  mpi->bcast(&g_full);
+  mpi->bcast(&phEigenvectors);
+  mpi->bcast(&phEnergies);
+
   return {g_full, phEigenvectors, phEnergies};
 }
 
@@ -654,26 +756,37 @@ std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
            Eigen::MatrixXd, int, int, int, int>
 ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
                                       const std::string &phoebePrefixQE) {
+  int numQEBands;             // number of Kohn-Sham states
+  double numElectrons;        // number of electrons (spin degeneracy included)
+  int numSpin;                // should always be one, without support for spin
+  Eigen::Vector3i kMesh, qMesh;
+  int bogusI;
+  double bogusD;
+  int numAtoms;
+  int numKPoints;
+  Eigen::MatrixXd qgridFull;
+  Eigen::MatrixXd kgridFull;
+  Eigen::MatrixXd energies;
+  (void)crystal;
+  int numQPoints, numIrrQPoints;
+
+
+  if (mpi->mpiHead()) {
+  
   std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
   std::ifstream infile(fileName);
   std::string line;
   if (not infile.is_open()) {
-    Error e("H0 file not found");
+    Error e("QE el-ph file not found");
   }
   std::getline(infile, line); // first line is a title
-  int numQEBands;             // number of Kohn-Sham states
-  double numElectrons;        // number of electrons (spin degeneracy included)
-  int numSpin;                // should always be one, without support for spin
+  
   infile >> numQEBands >> numElectrons >> numSpin;
-  Eigen::Vector3i kMesh, qMesh;
   infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
       kMesh(2);
-  int bogusI;
-  double bogusD;
-  int numAtoms;
+
   infile >> bogusD >> numAtoms; // alat and nat
-  assert(numAtoms == crystal.getNumAtoms());
-  (void)crystal;
+  
   // unit cell
   for (int i = 0; i < 9; i++) {
     infile >> bogusD;
@@ -691,27 +804,44 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
     infile >> bogusD;
   }
 
-  int numQPoints, numIrrQPoints;
   infile >> numQPoints >> numIrrQPoints;
-
-  Eigen::MatrixXd qgridFull(3, numQPoints);
+  qgridFull.resize(3, numQPoints);
   for (int iq = 0; iq < numQPoints; iq++) {
     infile >> qgridFull(0, iq) >> qgridFull(1, iq) >> qgridFull(2, iq);
   }
 
-  int numKPoints;
   infile >> numKPoints;
-  Eigen::MatrixXd kgridFull(3, numKPoints);
+  kgridFull.resize(3, numKPoints);
   for (int ik = 0; ik < numKPoints; ik++) {
     infile >> kgridFull(0, ik) >> kgridFull(1, ik) >> kgridFull(2, ik);
   }
 
-  Eigen::MatrixXd energies(numQEBands, numKPoints);
+  energies.resize(numQEBands, numKPoints);
   for (int ik = 0; ik < numKPoints; ik++) {
     for (int ib = 0; ib < numQEBands; ib++) {
       infile >> energies(ib, ik);
     }
   }
+  assert(numAtoms == crystal.getNumAtoms());
+  }
+  
+  mpi->bcast(&numQEBands);
+  mpi->bcast(&numElectrons);
+  mpi->bcast(&numSpin);
+  mpi->bcast(&kMesh);
+  mpi->bcast(&qMesh);
+  mpi->bcast(&numAtoms);
+  mpi->bcast(&numKPoints);
+  mpi->bcast(&numQPoints);
+  mpi->bcast(&numIrrQPoints);
+  if (!mpi->mpiHead()) {
+    qgridFull.resize(3, numQPoints);
+    kgridFull.resize(3, numKPoints);
+    energies.resize(numQEBands, numKPoints);
+  }
+  mpi->bcast(&qgridFull);
+  mpi->bcast(&kgridFull);
+  mpi->bcast(&energies);
 
   return {qMesh,         kMesh,      kgridFull,    qgridFull, energies,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
@@ -745,15 +875,27 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   assert(numModes == gFull.dimension(2));
 
   // input
-  double smearing = context.getEpaDeltaEnergy();
+  double smearing = context.getEpaSmearingEnergy();
   double smearing2 = 2. * smearing * smearing;
-  double deltaEnergy = context.getEpaDeltaEnergy();
 
   // prepare energy bins
-  double minEnergy = elEnergies.minCoeff();
-  double maxEnergy = elEnergies.maxCoeff();
-  long numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  double minEnergy = context.getEpaMinEnergy();
+  double maxEnergy = context.getEpaMaxEnergy();
+  if ( maxEnergy < minEnergy ) {
+    Error e("Problems in setting the EPA energy ranges");
+  }
+
+  double deltaEnergy = context.getEpaDeltaEnergy();
+  int numEpaEnergies = context.getEpaNumBins();
+  if ( std::isnan(deltaEnergy)) {
+    context.getEpaNumBins();
+    deltaEnergy = (maxEnergy-minEnergy)/numEpaEnergies;
+  } else {
+    numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  }
+
   Eigen::VectorXd epaEnergies(numEpaEnergies);
+#pragma omp parallel for
   for (int i = 0; i < numEpaEnergies; i++) {
     epaEnergies[i] = i * deltaEnergy + minEnergy;
   }
@@ -766,6 +908,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   int numQPoints = gFull.dimension(4);
 
   Eigen::Tensor<double, 3> gaussians(numEpaEnergies, numBands, numKPoints);
+#pragma omp parallel for collapse(3)
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
@@ -775,11 +918,26 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
     }
   }
 
+  Eigen::Tensor<double,5> g2Full(numBands,numBands,numModes,numKPoints,numQPoints);
+  for (int iq = 0; iq < numQPoints; iq++) {
+    for (int ik = 0; ik < numKPoints; ik++) {
+      for (int nu = 0; nu < numModes; nu++) {
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+          for (int ib1 = 0; ib1 < numBands; ib1++) {
+            g2Full(ib1, ib2, nu, ik, iq) =
+                std::norm(gFull(ib1, ib2, nu, ik, iq));
+          }
+        }
+      }
+    }
+  }
+  gFull.resize(0,0,0,0,0);
+
   Eigen::Tensor<double, 3> g2Epa(numModes, numEpaEnergies, numEpaEnergies);
   g2Epa.setZero();
 
   LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
-  for (int iq = 0; iq < numQPoints; iq++) {
+  for (int iq : mpi->divideWorkIter(numQPoints)) {
     loopPrint.update();
     Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
     for (int ik = 0; ik < numKPoints; ik++) {
@@ -790,16 +948,17 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
       int ikq = kPoints.getIndex(kqCrystal);
 
-      for (int ib1 = 0; ib1 < numBands; ib1++) {
-        for (int ib2 = 0; ib2 < numBands; ib2++) {
+ #pragma omp parallel for collapse(3)
+      for (int j = 0; j < numEpaEnergies; j++) {
+        for (int i = 0; i < numEpaEnergies; i++) {
+          for (int nu = 0; nu < numModes; nu++) {
 
-          for (int j = 0; j < numEpaEnergies; j++) {
-            for (int i = 0; i < numEpaEnergies; i++) {
+            for (int ib2 = 0; ib2 < numBands; ib2++) {
+              for (int ib1 = 0; ib1 < numBands; ib1++) {
 
               double gaussian = gaussians(i, ib1, ik) * gaussians(j, ib2, ikq);
 
-              for (int nu = 0; nu < numModes; nu++) {
-                g2Epa(nu, i, j) += std::norm(gFull(ib1, ib2, nu, ik, iq)) *
+                g2Epa(nu, i, j) += g2Full(ib1, ib2, nu, ik, iq) *
                                    gaussian / 2. / phEnergies(nu, iq);
                 // /2omega, because there is a difference between the
                 // coupling <k+q| dV_q |k> from quantum espresso
@@ -811,6 +970,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       }
     }
   }
+  mpi->allReduceSum(&g2Epa);
   loopPrint.close();
 
   Eigen::VectorXd phAvgEnergies(numModes); // phEnergies(numModes, numQPoints);
@@ -827,15 +987,17 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       Error e("Output file couldn't be opened");
     }
     outfile << numElectrons << " " << numSpin << "\n";
-    outfile << numEpaEnergies << "\n";
-    outfile << epaEnergies.transpose() << "\n";
     outfile << phAvgEnergies.size() << "\n";
     outfile << phAvgEnergies.transpose() << "\n";
-    outfile << "\n";
-    for (auto x : g2Epa.dimensions()) {
-      outfile << x << " ";
+    outfile << numEpaEnergies << "\n";
+    outfile << epaEnergies.transpose() << "\n";
+    for (auto i = 0; i < numModes; ++i) {
+      for (auto j = 0; j < numEpaEnergies; ++j) {
+        for (auto k = 0; k < numEpaEnergies; ++k) {
+          outfile << g2Epa(i, j, k) << "\n";
+        }
+      }
     }
-    outfile << g2Epa << "\n";
     std::cout << "Done writing g to file\n" << std::endl;
   }
 }

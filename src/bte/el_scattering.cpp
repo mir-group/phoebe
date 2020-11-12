@@ -206,11 +206,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Eigen::VectorXd bose3Data = allBose3Data[ik2Counter];
       Eigen::MatrixXd v3s = allV3s[ik2Counter];
 
-      int ib2, ib3;
-#pragma omp parallel for private(ib2, ib3) collapse(3)
+#pragma omp parallel for
       for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (ib2 = 0; ib2 < nb2; ib2++) {
-          for (ib3 = 0; ib3 < nb3; ib3++) {
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          for (int ib3 = 0; ib3 < nb3; ib3++) {
             double en1 = state1Energies(ib1);
             double en2 = state2Energies(ib2);
             double en3 = state3Energies(ib3);
@@ -238,11 +237,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             if (smearing->getType() == DeltaFunction::gaussian) {
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
-            } else {
+            } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
               // Eigen::Vector3d smear = v1s.row(ib1s) - v2s.row(ib2);
               Eigen::Vector3d smear = v3s.row(ib3);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
+            } else {
+              auto ib2Index = BandIndex(ib2);
+              auto ik2Index = WavevectorIndex(ik2Irr);
+              auto is2 = innerBandStructure.getIndex(ik2Index, ib2Index);
+              auto iss2 = StateIndex(is2);
+              delta1 = smearing->getSmearing(en3 + en1, iss2);
+              delta2 = smearing->getSmearing(en3 - en1, iss2);
             }
 
             if (delta1 < 0. && delta2 < 0.)

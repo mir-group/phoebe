@@ -47,6 +47,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
+  scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
@@ -192,7 +193,7 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
     }
     transportCoeffs.print();
-    transportCoeffs.outputToJSON("omini_phonon_onsager_coefficients.json");
+    transportCoeffs.outputToJSON("omini_onsager_coefficients.json");
 
     if ( mpi->mpiHead()) {
       std::cout << "Finished Omini-Sparavigna BTE solver\n";
@@ -331,7 +332,7 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     // nice formatting of the thermal conductivity at the last step
     transportCoeffs.print();
-    transportCoeffs.outputToJSON("variational_el_onsager_coeffs.json");
+    transportCoeffs.outputToJSON("variational_onsager_coefficients.json");
 
     if ( mpi->mpiHead()) {
       std::cout << "Finished variational BTE solver\n";

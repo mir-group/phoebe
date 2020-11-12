@@ -7,6 +7,7 @@
 #include "constants.h"
 #include "context.h"
 #include "utilities.h"
+#include "mpiHelper.h"
 
 StatisticsSweep::StatisticsSweep(Context &context,
                                  FullBandStructure *fullBandStructure)
@@ -24,7 +25,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
 
     if (std::isnan(minTemperature) || std::isnan(maxTemperature) ||
         std::isnan(deltaTemperature)) {
-      Error e("Temperatures haven't been set in input");
+      Error e("Temperatures haven't been set in user input");
     }
 
     int i = 0;
