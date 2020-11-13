@@ -8,6 +8,9 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+//#include <highfive/H5File.hpp>
+#include <exception>
+#include <highfive/H5Easy.hpp>
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
@@ -1400,11 +1403,59 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   // Dump el-ph in Wannier representation to file
 
+  // TODO fix the indentation here, depending on what we do for 
+  // the parallel read write
   if (mpi->mpiHead()) {
-    std::cout << "Start writing g to file" << std::endl;
-    std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-    std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
-    std::ofstream outfile(outFileName);
+  std::cout << "Start writing g to file" << std::endl;
+  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+  std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
+
+  // TODO first let's get this to work without MPI
+  // next try:
+  // https://github.com/BlueBrain/HighFive/blob/master/src/examples/parallel_hdf5_write_dataset.cpp
+  try {
+    // open the hdf5 file with MPI read/write
+    // TODO need to send com world from mpiController
+    //File file(FILE_NAME, File::ReadWrite | File::Create | File::Truncate,
+    //        MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+    HighFive::File file(outFileName, HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);    
+
+    // write out the number of electrons and the spin
+    HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
+    HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
+    dnelec.write(numElectrons);
+    dnspin.write(numSpin);
+
+    // write out the kMesh and qMesh
+    HighFive::DataSet dkmesh = file.createDataSet<double>("/kMesh", HighFive::DataSpace::From(kMesh));
+    HighFive::DataSet dqmesh = file.createDataSet<double>("/qMesh", HighFive::DataSpace::From(qMesh));
+    dkmesh.write(kMesh);
+    dqmesh.write(qMesh);
+
+    // write bravais lattice vectors
+    // TODO can I get away without writing their rows/cols?
+    HighFive::DataSet dphbravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
+    HighFive::DataSet delbravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
+    dphbravais.write(phBravaisVectors);
+    delbravais.write(elBravaisVectors);
+
+    // write electron and phonon degeneracies
+    HighFive::DataSet dphDegeneracies = file.createDataSet<double>("/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
+    HighFive::DataSet delDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
+    dphDegeneracies.write(phDegeneracies);
+    delDegeneracies.write(elDegeneracies);
+ 
+    // write the electron phonon matrix elements
+    // TODO we will try to write this eigen tensor, but it's unlikely to work
+    // because eigen tensor is not offical
+    //HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gWannier));
+    //dgwannier.write(gWannier);
+  }
+  catch(std::exception& error) {
+    Error e("Issue writing elph Wannier represenation to hdf5.");
+  }
+
+/*    std::ofstream outfile(outFileName);
     if (not outfile.is_open()) {
       Error e("Output file couldn't be opened");
     }
@@ -1440,6 +1491,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
         }
       }
     }
+  */
     std::cout << "Done writing g to file\n" << std::endl;
   }
 
