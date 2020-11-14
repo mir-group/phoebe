@@ -1403,6 +1403,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   // Dump el-ph in Wannier representation to file
 
+  // NEXT -- DO THIS WITH MPI
   // TODO fix the indentation here, depending on what we do for 
   // the parallel read write
   if (mpi->mpiHead()) {
@@ -1427,14 +1428,12 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     dnspin.write(numSpin);
 
     // write out the kMesh and qMesh
-    // TODO this is where the issue is
     HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
     HighFive::DataSet dqmesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
     dkmesh.write(kMesh);
     dqmesh.write(qMesh);
 
     // write bravais lattice vectors
-    // TODO can I get away without writing their rows/cols?
     HighFive::DataSet dphbravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
     HighFive::DataSet delbravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
     dphbravais.write(phBravaisVectors);
@@ -1447,10 +1446,11 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     delDegeneracies.write(elDegeneracies);
  
     // write the electron phonon matrix elements
-    // TODO we will try to write this eigen tensor, but it's unlikely to work
-    // because eigen tensor is not offical
-    //HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gWannier.data()));
-    //dgwannier.write(gWannier.data());
+    // must write out as a flattened vector because eigen 
+    // tensor is not a supported eigen type.
+    Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
+    HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+    dgwannier.write(gwan);
 
   }
   catch(std::exception& error) {
