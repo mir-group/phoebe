@@ -1403,55 +1403,72 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   // Dump el-ph in Wannier representation to file
 
-  // NEXT -- DO THIS WITH MPI
-  // TODO fix the indentation here, depending on what we do for 
-  // the parallel read write
-  if (mpi->mpiHead()) {
-  std::cout << "Start writing g to file" << std::endl;
+  // open the hdf5 file
+  if(mpi->mpiHead()) std::cout << "Start writing g to file" << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.dat";
 
-  // TODO first let's get this to work without MPI
-  // next try:
-  // https://github.com/BlueBrain/HighFive/blob/master/src/examples/parallel_hdf5_write_dataset.cpp
   try {
-    // open the hdf5 file with MPI read/write
-    // TODO need to send com world from mpiController
-    //File file(FILE_NAME, File::ReadWrite | File::Create | File::Truncate,
-    //        MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
-    HighFive::File file(outFileName, HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);    
+    // TODO need to supply com world here
+    // need to open the files differently if MPI is available or not
+    #ifdef MPI_AVAIL 
+      HighFive::File file(outFileName, HighFive::File::ReadWrite | HighFive::File::Create | 
+             HighFive::File::Truncate, HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-    // write out the number of electrons and the spin
-    HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
-    HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
-    dnelec.write(numElectrons);
-    dnspin.write(numSpin);
+      // flatten the tensor and create the data set
+      Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
+      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+      // get the start and stop points of elements to be written by this process
+      std::vector<long> workDivs = mpi->divideWork(gwan.size());
 
-    // write out the kMesh and qMesh
-    HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
-    HighFive::DataSet dqmesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
-    dkmesh.write(kMesh);
-    dqmesh.write(qMesh);
+      // Tell highfive which part of the dataset to write with this process.
+      // The format is ((startRow,startCol),(numRows,numCols)).write(data)
+      // Because it's a vector (1 row) all procs write to row=0, col=startPoint
+      // with nRows = 1, nCols = number of items this process will write.
+      size_t numCols = workDivs[1]-workDivs[0];
+      dgwannier.select({0, size_t(workDivs[1])}, {1, numCols}).write(gwan);
 
-    // write bravais lattice vectors
-    HighFive::DataSet dphbravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
-    HighFive::DataSet delbravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
-    dphbravais.write(phBravaisVectors);
-    delbravais.write(elBravaisVectors);
+    #else
+      HighFive::File file(outFileName, HighFive::File::ReadWrite | 
+              HighFive::File::Create | HighFive::File::Truncate); 
 
-    // write electron and phonon degeneracies
-    HighFive::DataSet dphDegeneracies = file.createDataSet<double>("/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
-    HighFive::DataSet delDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
-    dphDegeneracies.write(phDegeneracies);
-    delDegeneracies.write(elDegeneracies);
- 
-    // write the electron phonon matrix elements
-    // must write out as a flattened vector because eigen 
-    // tensor is not a supported eigen type.
-    Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
-    HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
-    dgwannier.write(gwan);
+      // write the electron phonon matrix elements
+      // must write out as a flattened vector because eigen 
+      // tensor is not a supported eigen type.
+      Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
+      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+      dgwannier.write(gwan);
+    #endif    
 
+    // we write the small quantities only with MPI head
+    if (mpi->mpiHead()) {
+
+      // write out the number of electrons and the spin
+      HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
+      HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
+      dnelec.write(numElectrons);
+      dnspin.write(numSpin);
+
+      // write out the kMesh and qMesh
+      HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
+      HighFive::DataSet dqmesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
+      dkmesh.write(kMesh);
+      dqmesh.write(qMesh);
+
+      // write bravais lattice vectors
+      HighFive::DataSet dphbravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
+      HighFive::DataSet delbravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
+      dphbravais.write(phBravaisVectors);
+      delbravais.write(elBravaisVectors);
+
+      // write electron and phonon degeneracies
+      HighFive::DataSet dphDegeneracies = file.createDataSet<double>("/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
+      HighFive::DataSet delDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
+      dphDegeneracies.write(phDegeneracies);
+      delDegeneracies.write(elDegeneracies);
+
+      std::cout << "Done writing g to file\n" << std::endl;
+    }
   }
   catch(std::exception& error) {
     Error e("Issue writing elph Wannier represenation to hdf5.");
@@ -1494,8 +1511,8 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       }
     }
   */
-    std::cout << "Done writing g to file\n" << std::endl;
-  }
+  //  std::cout << "Done writing g to file\n" << std::endl;
+ // }
 
   if (runTests) {
     testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors, uMatrices,
