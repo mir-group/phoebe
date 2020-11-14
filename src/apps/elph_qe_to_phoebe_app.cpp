@@ -1408,7 +1408,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   if (mpi->mpiHead()) {
   std::cout << "Start writing g to file" << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  std::string outFileName = phoebePrefixQE + ".phoebe.elph.dat";
+  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.dat";
 
   // TODO first let's get this to work without MPI
   // next try:
@@ -1427,8 +1427,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     dnspin.write(numSpin);
 
     // write out the kMesh and qMesh
-    HighFive::DataSet dkmesh = file.createDataSet<double>("/kMesh", HighFive::DataSpace::From(kMesh));
-    HighFive::DataSet dqmesh = file.createDataSet<double>("/qMesh", HighFive::DataSpace::From(qMesh));
+    // TODO this is where the issue is
+    HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
+    HighFive::DataSet dqmesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
     dkmesh.write(kMesh);
     dqmesh.write(qMesh);
 
@@ -1448,8 +1449,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     // write the electron phonon matrix elements
     // TODO we will try to write this eigen tensor, but it's unlikely to work
     // because eigen tensor is not offical
-    //HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gWannier));
-    //dgwannier.write(gWannier);
+    //HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gWannier.data()));
+    //dgwannier.write(gWannier.data());
+
   }
   catch(std::exception& error) {
     Error e("Issue writing elph Wannier represenation to hdf5.");
