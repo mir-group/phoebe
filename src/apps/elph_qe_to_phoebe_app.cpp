@@ -8,9 +8,11 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-//#include <highfive/H5File.hpp>
 #include <exception>
+
+#ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
+#endif
 
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
