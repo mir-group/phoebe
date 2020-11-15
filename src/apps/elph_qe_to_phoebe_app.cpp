@@ -775,7 +775,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
 
 
   if (mpi->mpiHead()) {
-  
+
   std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
   std::ifstream infile(fileName);
   std::string line;
@@ -783,13 +783,13 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
     Error e("QE el-ph file not found");
   }
   std::getline(infile, line); // first line is a title
-  
+
   infile >> numQEBands >> numElectrons >> numSpin;
   infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
       kMesh(2);
 
   infile >> bogusD >> numAtoms; // alat and nat
-  
+
   // unit cell
   for (int i = 0; i < 9; i++) {
     infile >> bogusD;
@@ -827,7 +827,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   }
   assert(numAtoms == crystal.getNumAtoms());
   }
-  
+
   mpi->bcast(&numQEBands);
   mpi->bcast(&numElectrons);
   mpi->bcast(&numSpin);
@@ -1403,45 +1403,63 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   // Dump el-ph in Wannier representation to file
 
-  // open the hdf5 file
   if(mpi->mpiHead()) std::cout << "Start writing g to file" << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
   std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.dat";
 
+  #ifdef HDF5_AVAIL
   try {
-    // TODO need to supply com world here
     // need to open the files differently if MPI is available or not
-    #ifdef MPI_AVAIL 
-      HighFive::File file(outFileName, HighFive::File::ReadWrite | HighFive::File::Create | 
-             HighFive::File::Truncate, HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+    // NOTE: do not remove the braces inside this if -- the file must
+    // go out of scope, so that it can be reopened/written by head for the
+    // small quantities as in the next block.
+    #ifdef MPI_AVAIL
+    {
+      // open the hdf5 file
+      HighFive::File file(outFileName, HighFive::File::Overwrite,
+          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-      // flatten the tensor and create the data set
+      // flatten the tensor (tensor is not supported) and create the data set
       Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
-      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+
+      // Create the dataspace to write gWannier to
+      std::vector<size_t> dims(2);
+      dims[0] = 1;
+      dims[1] = size_t(gwan.size());
+      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace(dims));
+
       // get the start and stop points of elements to be written by this process
       std::vector<long> workDivs = mpi->divideWork(gwan.size());
+      size_t numElems = workDivs[1]-workDivs[0];
 
-      // Tell highfive which part of the dataset to write with this process.
+      // We want to write only this part of the vector from this process
+      Eigen::VectorXcd gwanSlice = gwan(Eigen::seq(workDivs[0],workDivs[1]));
+
+      // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all procs write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      size_t numCols = workDivs[1]-workDivs[0];
-      dgwannier.select({0, size_t(workDivs[1])}, {1, numCols}).write(gwan);
-
+      dgwannier.select({0, size_t(workDivs[0])}, {1, numElems}).write(gwanSlice);
+    }
     #else
-      HighFive::File file(outFileName, HighFive::File::ReadWrite | 
-              HighFive::File::Create | HighFive::File::Truncate); 
+    { // do not remove these braces, see above note.
 
-      // write the electron phonon matrix elements
-      // must write out as a flattened vector because eigen 
-      // tensor is not a supported eigen type.
+      // open the hdf5 file
+      HighFive::File file(outFileName, HighFive::File::Overwrite);
+
+      // flatten the tensor (tensor is not supported) and create the data set
       Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
       HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+
+      // write to hdf5
       dgwannier.write(gwan);
-    #endif    
+    }
+    #endif
 
     // we write the small quantities only with MPI head
     if (mpi->mpiHead()) {
+
+      HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       // write out the number of electrons and the spin
       HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
@@ -1466,15 +1484,14 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       HighFive::DataSet delDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
       dphDegeneracies.write(phDegeneracies);
       delDegeneracies.write(elDegeneracies);
-
-      std::cout << "Done writing g to file\n" << std::endl;
     }
   }
   catch(std::exception& error) {
     Error e("Issue writing elph Wannier represenation to hdf5.");
   }
 
-/*    std::ofstream outfile(outFileName);
+  #else // need a non-hdf5 write option
+    std::ofstream outfile(outFileName);
     if (not outfile.is_open()) {
       Error e("Output file couldn't be opened");
     }
@@ -1510,9 +1527,10 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
         }
       }
     }
-  */
-  //  std::cout << "Done writing g to file\n" << std::endl;
- // }
+  }
+  #endif
+
+  if(mpi->mpiHead()) std::cout << "Done writing g to file\n" << std::endl;
 
   if (runTests) {
     testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors, uMatrices,

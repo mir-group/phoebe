@@ -53,9 +53,6 @@ ExternalProject_Add(eigen_dep
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
 )
-# TODO if we want parallel read/write in the future, 
-# we will need to find a way to set PARALLEL_HDF5 on 
-# or off depending on if MPI was detected. 
 if(HDF5_AVAIL)
   ExternalProject_Add(highfive_dep
       SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/highfive_src
@@ -65,10 +62,12 @@ if(HDF5_AVAIL)
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/highfive_src
           -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DHIGHFIVE_BUILD_DOCS=OFF
           -DHIGHFIVE_EXAMPLES=OFF
+          -DHIGHFIVE_UNIT_TESTS=OFF
           -DHIGHFIVE_USE_BOOST=OFF
           -DHIGHFIVE_USE_EIGEN=ON
-          -DHIGHFIVE_PARALLEL_HDF5=OFF
+          -DHIGHFIVE_PARALLEL_HDF5=${MPI_AVAIL}
           -DHIGHFIVE_USE_OPENCV=OFF
           -DHIGHFIVE_USE_XTENSOR=OFF
 	  -DEIGEN3_INCLUDE_DIRS=${CMAKE_CURRENT_BINARY_DIR}/eigen_src
