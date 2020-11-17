@@ -1407,7 +1407,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   if(mpi->mpiHead()) std::cout << "Start writing g to file" << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.dat";
+  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.hdf5";
 
   #ifdef HDF5_AVAIL
   try {
@@ -1468,6 +1468,11 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
       dnelec.write(numElectrons);
       dnspin.write(numSpin);
+
+      HighFive::DataSet dnElBands = file.createDataSet<int>("/numElBands", HighFive::DataSpace::From(numWannier));
+      HighFive::DataSet dnModes = file.createDataSet<int>("/numPhModes", HighFive::DataSpace::From(numModes));
+      dnElBands.write(numWannier);
+      dnModes.write(numModes);
 
       // write out the kMesh and qMesh
       HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
