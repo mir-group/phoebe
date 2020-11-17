@@ -1,6 +1,10 @@
 #include "interaction_3ph.h"
 #include "mpiHelper.h"
 
+#ifdef HDF5_AVAIL
+#include "highfive/H5Easy.hpp"
+#endif
+
 long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
   long ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
