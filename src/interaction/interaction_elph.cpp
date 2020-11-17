@@ -1,6 +1,9 @@
 #include "interaction_elph.h"
-
 #include <fstream>
+
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
 
 // default constructor
 InteractionElPhWan::InteractionElPhWan(
@@ -170,16 +173,44 @@ InteractionElPhWan::getPolarCorrectionStatic(
   return v;
 }
 
+// Forward declare these helper functions, as it reads nicely to have
+// the general parse function first
+InteractionElPhWan parseParallelHDF5(Context &context, Crystal &crystal,
+                                             PhononH0 *phononH0_);
+InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
+                                             PhononH0 *phononH0_);
+
+// General parse function
 InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
                                              PhononH0 *phononH0_) {
   if (mpi->mpiHead()) {
     std::cout << "\n";
     std::cout << "Started parsing of el-ph interaction." << std::endl;
   }
+  #ifdef HDF5_AVAIL
+    #ifdef MPI_AVAIL
+      auto output = parseParallelHDF5(context, crystal, phononH0_);
+    #else
+      //auto output = parseSerialHDF5(context, crystal, &phononH0_);    
+    #endif
+  #else 
+    auto output = parseNoHDF5(context, crystal, phononH0_);
+  #endif
 
-  std::string fileName = context.getEpwFileName();
+  if (mpi->mpiHead()) {
+    std::cout << "Finished parsing of el-ph interaction." << std::endl;
+  }
 
-  double numElectrons, numSpin;
+  return output;
+}
+// specific parse function for the case where there is no 
+// HDF5 available
+InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
+                                             PhononH0 *phononH0_) {
+
+  std::string fileName = context.getEpwFileName(); // TODO this isn't epw anymore, is it?
+
+  int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
@@ -307,8 +338,144 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
                             phBravaisVectorsDegeneracies_, phononH0_);
-
   return output;
+}
+// ============================= PARALLEL HDF5 PARSE ==========================
+// specific parse function for the case where parallel HDF5 is available
+InteractionElPhWan parseParallelHDF5(Context &context, Crystal &crystal,
+                                             PhononH0 *phononH0_) {
+
+  std::string fileName = context.getEpwFileName(); // TODO this isn't epw anymore, is it?
+
+  int numElectrons, numSpin;
+  int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
+  Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
+  Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
+  Eigen::Tensor<std::complex<double>, 5> couplingWannier_; 
+
+  try {
+    // Use MPI head only to read in the small data structures
+    // then distribute them below this
+    if(mpi->mpiHead()) { 
+      // need to open the files differently if MPI is available or not
+      // NOTE: do not remove the braces inside this if -- the file must
+      // go out of scope, so that it can be reopened for parallel 
+      // read in the next block.
+      { 
+        // Open the HDF5 ElPh file  
+        HighFive::File file(fileName, HighFive::File::ReadOnly);
+
+        // read in the number of electrons and the spin
+        HighFive::DataSet dnelec = file.getDataSet("/numElectrons");
+        HighFive::DataSet dnspin = file.getDataSet("/numSpin");
+        dnelec.read(numElectrons);
+        dnspin.read(numSpin);
+
+        // read in the number of phonon and electron bands
+        HighFive::DataSet dnElBands = file.getDataSet("/numElBands");
+        HighFive::DataSet dnModes = file.getDataSet("/numPhModes");
+        dnElBands.read(numElBands);
+        dnModes.read(numPhBands);
+
+        // TODO do we need this? 
+        // read in the kMesh and qMesh
+        //HighFive::DataSet dkmesh = file.getDataSet("/kMesh");
+        //HighFive::DataSet dqmesh = file.getDataSet("/qMesh");
+        //dkmesh.read(kMesh);
+        //dqmesh.read(qMesh);
+
+        // read in bravais lattice vectors
+        HighFive::DataSet dphbravais = file.getDataSet("/phBravaisVectors");
+        HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
+        dphbravais.read(phBravaisVectors_);
+        delbravais.read(elBravaisVectors_);
+        numElBravaisVectors = elBravaisVectors_.size();
+        numPhBravaisVectors = phBravaisVectors_.size();
+
+        // Read in electron and phonon degeneracies
+        HighFive::DataSet dphDegeneracies = file.getDataSet("/phDegeneracies");
+        HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
+        dphDegeneracies.read(phBravaisVectorsDegeneracies_);
+        delDegeneracies.read(elBravaisVectorsDegeneracies_);
+
+      }
+    }
+    // bcast to all MPI processes
+    mpi->bcast(&numElectrons);
+    mpi->bcast(&numSpin);
+    mpi->bcast(&numElBands);
+    mpi->bcast(&numPhBands);
+    mpi->bcast(&numElBravaisVectors);
+    mpi->bcast(&numPhBravaisVectors);
+
+    if (numSpin == 2) {
+      Error e("Spin is not currently supported");
+    }
+    context.setNumOccupiedStates(numElectrons);
+
+    // TODO do we need to do this still in the hdf5 case? 
+    if (!mpi->mpiHead()) { // head already allocated these
+      phBravaisVectors_.resize(3, numElBravaisVectors);
+      phBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+      elBravaisVectors_.resize(3, numElBravaisVectors);
+      elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+      couplingWannier_.resize(numElBands, numElBands, numPhBands,
+                            numElBravaisVectors, numPhBravaisVectors);
+      phBravaisVectors_.setZero();
+      phBravaisVectorsDegeneracies_.setZero();
+      elBravaisVectors_.setZero();
+      elBravaisVectorsDegeneracies_.setZero();
+    }
+
+    mpi->bcast(&elBravaisVectors_);
+    mpi->bcast(&elBravaisVectorsDegeneracies_);
+    mpi->bcast(&phBravaisVectors_);
+    mpi->bcast(&phBravaisVectorsDegeneracies_);
+
+    // Define the eph matrix element containers
+    size_t totElems = numElBands * numElBands * numPhBands 
+        * numPhBravaisVectors * numElBravaisVectors;
+    couplingWannier_.resize(numElBands, numElBands, numPhBands, 
+        numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_.setZero();
+    //Eigen::VectorXcd gWanFlat(totElems);
+/*
+    // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
+    HighFive::File file(fileName, HighFive::File::ReadOnly,
+       HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+
+    // get the start and stop points of elements to be written by this process
+    std::vector<long> workDivs = mpi->divideWork(totElems);
+    size_t localElems = workDivs[1]-workDivs[0];
+    Eigen::VectorXcd gWanSlice(localElems);
+    Eigen::VectorXcd gWanFlat(totElems);
+
+    // Set up dataset for gWannier
+    HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+    // Read in the elements for this process
+    dgWannier.select({0, size_t(workDivs[0])}, {1, localElems}).read(gWanSlice);
+
+    // Gather the elements read in by each process
+    mpi->allGatherv(&gWanSlice,&gWanFlat);
+
+    // TODO this is a guess at how we could store the data underlying the map 
+    // and hopefully convert this to a regular old eigen::tensor
+    // Otherwise, we will define coupling Wannier as a TensorMap, and then 
+    // just be sure to hold on to gWanFlat as the memory object. 
+    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(), 
+        numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_ = gWanTemp;
+*/
+  }
+  catch(std::exception& error) {
+    Error e("Issue reading elph Wannier represenation from hdf5.");
+  }
+
+  InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
+                            elBravaisVectorsDegeneracies_, phBravaisVectors_,
+                            phBravaisVectorsDegeneracies_, phononH0_);
+  return output;
+
 }
 
 void InteractionElPhWan::calcCouplingSquared(
