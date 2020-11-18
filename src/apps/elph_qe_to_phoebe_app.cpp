@@ -1407,9 +1407,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   if(mpi->mpiHead()) std::cout << "Start writing g to file" << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.hdf5";
 
   #ifdef HDF5_AVAIL
+  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.hdf5";
   try {
     // need to open the files differently if MPI is available or not
     // NOTE: do not remove the braces inside this if -- the file must
@@ -1498,6 +1498,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   }
 
   #else // need a non-hdf5 write option
+
+    std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.dat";
+
     std::ofstream outfile(outFileName);
     if (not outfile.is_open()) {
       Error e("Output file couldn't be opened");
