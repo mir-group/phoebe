@@ -2,7 +2,7 @@
 #include "mpiHelper.h"
 
 #ifdef HDF5_AVAIL
-#include "highfive/H5Easy.hpp"
+#include <highfive/H5Easy.hpp>
 #endif
 
 long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
