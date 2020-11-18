@@ -1534,7 +1534,6 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
         }
       }
     }
-  }
   #endif
 
   if(mpi->mpiHead()) std::cout << "Done writing g to file\n" << std::endl;
