@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export QE_PATH="/your/path/to/patched/phoebe-quantum-espresso/bin"
+export QE_PATH=/your/path/to/patched/phoebe-quantum-espresso/bin
 export NMPI=4
 export NPOOL=4
 
