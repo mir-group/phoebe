@@ -1410,6 +1410,10 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   #ifdef HDF5_AVAIL
   std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.hdf5";
+  // if the hdf5 file is there already, we want to delete it. Occasionally
+  // these files seem to get stuck open when a process dies while writing to them,
+  // (even if a python script dies) and then they can't be overwritten properly.
+  std::remove(&outFileName[0]);
   try {
     // need to open the files differently if MPI is available or not
     // NOTE: do not remove the braces inside this if -- the file must
