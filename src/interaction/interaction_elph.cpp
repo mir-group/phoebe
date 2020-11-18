@@ -333,6 +333,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   return output;
 }
 
+#ifdef HDF5_AVAIL
 // specific parse function for the case where parallel HDF5 is available
 InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
                                              PhononH0 *phononH0_) {
@@ -466,6 +467,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
   return output;
 
 }
+#endif
 
 void InteractionElPhWan::calcCouplingSquared(
     const Eigen::MatrixXcd &eigvec1,
