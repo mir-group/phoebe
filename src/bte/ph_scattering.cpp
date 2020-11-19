@@ -609,9 +609,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
-  std::cout << std::setprecision(8);
-  std::cout << linewidth->data.squaredNorm() << "???\n";
-
   // Add boundary scattering
 
   if (doBoundary) {
