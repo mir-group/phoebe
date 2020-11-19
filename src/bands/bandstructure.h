@@ -165,6 +165,9 @@ class BaseBandStructure {
    */
   virtual void setVelocities(
       Point &point, Eigen::Tensor<std::complex<double>, 3> &velocities_) = 0;
+
+  virtual std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex) = 0;
+  virtual std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex) = 0;
 };
 
 class ActiveBandStructure;
@@ -506,6 +509,8 @@ class FullBandStructure : public BaseBandStructure {
    */
   Eigen::VectorXd getBandEnergies(long &bandIndex);
 
+  std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex);
+  std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex);
  protected:
   // stores the quasiparticle kind
   Particle particle;

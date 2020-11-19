@@ -239,15 +239,19 @@ void ElectronWannierTransportApp::run(Context &context) {
     fIn.push_back(fENew);
     fIn.push_back(fTNew);
     auto gOld = scatteringMatrix.offDiagonalDot(fIn);
-    auto gEOld = gOld[0] / sMatrixDiagonal; // CG scaling
-    auto gTOld = gOld[1] / sMatrixDiagonal; // CG scaling
+    VectorBTE gEOld = gOld[0] / sMatrixDiagonal; // CG scaling
+    VectorBTE gTOld = gOld[1] / sMatrixDiagonal; // CG scaling
     gEOld = gEOld - fEOld;
     gTOld = gTOld - fTOld;
-    auto hEOld = -gEOld;
-    auto hTOld = -gTOld;
+    VectorBTE hEOld = -gEOld;
+    VectorBTE hTOld = -gTOld;
 
-    auto tEOld = scatteringMatrix.dot(hEOld);
-    auto tTOld = scatteringMatrix.dot(hTOld);
+    std::vector<VectorBTE> tIn;
+    tIn.push_back(hEOld);
+    tIn.push_back(hTOld);
+    auto tOut = scatteringMatrix.dot(tIn);
+    VectorBTE tEOld = tOut[0];
+    VectorBTE tTOld = tOut[1];
     tEOld = tEOld / sMatrixDiagonal; // CG scaling
     tTOld = tTOld / sMatrixDiagonal; // CG scaling
 
@@ -256,9 +260,9 @@ void ElectronWannierTransportApp::run(Context &context) {
     for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
 
-      Eigen::VectorXd alphaE =
+      Eigen::MatrixXd alphaE =
           (gEOld.dot(hEOld)).array() / (hEOld.dot(tEOld)).array();
-      Eigen::VectorXd alphaT =
+      Eigen::MatrixXd alphaT =
           (gTOld.dot(hTOld)).array() / (hTOld.dot(tTOld)).array();
 
       fENew = hEOld * alphaE;
@@ -266,17 +270,17 @@ void ElectronWannierTransportApp::run(Context &context) {
       fENew = fEOld - fENew;
       fTNew = fTOld - fTNew;
 
-      auto gENew = tEOld * alphaE;
-      auto gTNew = tTOld * alphaT;
+      VectorBTE gENew = tEOld * alphaE;
+      VectorBTE gTNew = tTOld * alphaT;
       gENew = gEOld - gENew;
       gTNew = gTOld - gTNew;
 
-      Eigen::VectorXd betaE =
+      Eigen::MatrixXd betaE =
           (gENew.dot(gENew)).array() / (gEOld.dot(gEOld)).array();
-      Eigen::VectorXd betaT =
+      Eigen::MatrixXd betaT =
           (gTNew.dot(gTNew)).array() / (gTOld.dot(gTOld)).array();
-      auto hENew = hEOld * betaE;
-      auto hTNew = hTOld * betaT;
+      VectorBTE hENew = hEOld * betaE;
+      VectorBTE hTNew = hTOld * betaT;
       hENew = -gENew + hENew;
       hTNew = -gTNew + hTNew;
 

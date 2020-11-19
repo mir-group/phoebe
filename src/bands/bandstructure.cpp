@@ -394,3 +394,15 @@ Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
   }
   return bandEnergies;
 }
+
+std::vector<Eigen::Matrix3d> FullBandStructure::getRotationsStar(
+    WavevectorIndex &ikIndex) {
+  return points.getRotationsStar(ikIndex.get());
+}
+
+std::vector<Eigen::Matrix3d> FullBandStructure::getRotationsStar(
+    StateIndex &isIndex) {
+  auto t = getIndex(isIndex);
+  WavevectorIndex ikIndex = std::get<0>(t);
+  return getRotationsStar(ikIndex);
+}

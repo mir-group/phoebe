@@ -45,30 +45,43 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 
 #pragma omp for nowait
     for (long is : bandStructure.parallelStateIterator()) {
-      auto en = bandStructure.getEnergy(is);
-
-      auto vel = bandStructure.getGroupVelocity(is);
-      auto q = bandStructure.getWavevector(is);
-
       // skip the acoustic phonons
       if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
           excludeIndeces.end())
         continue;
 
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto en = bandStructure.getEnergy(is);
+      auto velIrr = bandStructure.getGroupVelocity(is);
+      auto qIrr = bandStructure.getWavevector(is);
 
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temperature = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+      auto isIndex = StateIndex(is);
+      auto t = bandStructure.getIndex(isIndex);
+      WavevectorIndex kIndex = std::get<0>(t);
+      std::vector<Eigen::Matrix3d> rotationsStar =
+          bandStructure.getRotationsStar(kIndex);
 
-        for (long i = 0; i < dimensionality; i++) {
-          for (long j = 0; j < dimensionality; j++) {
-            for (long k = 0; k < dimensionality; k++) {
-              for (long l = 0; l < dimensionality; l++) {
-                tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j) * q(k) * vel(l) *
-                                                bosep1 * tau(iCalc, 0, is) /
-                                                temperature * norm;
+      for (Eigen::Matrix3d rotation : rotationsStar) {
+
+        Eigen::Vector3d q;
+        Eigen::Vector3d vel;
+        q = rotation * qIrr;
+        vel = rotation * velIrr;
+
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+          auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+          double temperature = calcStat.temperature;
+          double chemPot = calcStat.chemicalPotential;
+          double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+
+          for (long i = 0; i < dimensionality; i++) {
+            for (long j = 0; j < dimensionality; j++) {
+              for (long k = 0; k < dimensionality; k++) {
+                for (long l = 0; l < dimensionality; l++) {
+                  tmpTensor(iCalc, i, j, k, l) +=
+                      q(i) * vel(j) * q(k) * vel(l) * bosep1 *
+                      tau(iCalc, 0, is) / temperature * norm;
+                }
               }
             }
           }
@@ -91,7 +104,8 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
-void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
+void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
+                                       Eigen::VectorXd &eigenvalues,
                                        PhScatteringMatrix &sMatrix,
                                        ParallelMatrix<double> &eigenvectors) {
 
@@ -99,15 +113,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
     Error e("Viscosity for relaxons only for 1 temperature");
   }
 
-  // we decide to skip relaxon states
-  // 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
-  // 2) if we include (3) acoustic modes at gamma, we have 3 zero eigenvalues
-  //    because we set some matrix rows/cols to zero
-  long firstState = 1;
-  firstState += relTimes.excludeIndeces.size();
-
   double volume = crystal.getVolumeUnitCell(dimensionality);
-  double numPoints = context.getQMesh().prod();
   long numStates = bandStructure.getNumStates();
   auto particle = bandStructure.getParticle();
 
@@ -122,7 +128,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
   double temp = calcStat.temperature;
   double chemPot = calcStat.chemicalPotential;
 
-  for (long is = firstState; is < numStates; is++) {
+  for (long is : bandStructure.parallelStateIterator()) {
     auto en = bandStructure.getEnergy(is);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(is);
@@ -130,10 +136,11 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
       A(idim) += bosep1 * q(idim) * q(idim);
     }
   }
-  A /= temp * numPoints * volume;
+  A /= temp * context.getQMesh().prod() * volume;
+  mpi->allReduceSum(&A);
 
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
-  for (long is = firstState; is < numStates; is++) {
+  for (long is : bandStructure.parallelStateIterator()) {
     auto en = bandStructure.getEnergy(is);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(is);
@@ -141,25 +148,27 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
       driftEigenvector(0, idim, is) = q(idim) * sqrt(bosep1 / temp / A(idim));
     }
   }
+  mpi->allReduceSum(&driftEigenvector.data);
 
   Eigen::MatrixXd D(3, 3);
   D.setZero();
   //    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
   VectorBTE tmp = sMatrix.dot(driftEigenvector);
-  for (long is = firstState; is < numStates; is++) {
+  for (long is : bandStructure.parallelStateIterator()) {
     for (auto i : {0, 1, 2}) {
       for (auto j : {0, 1, 2}) {
         D(i, j) += driftEigenvector(0, i, is) * tmp(0, j, is);
       }
     }
   }
-  D /= volume * numPoints;
+  D /= volume * context.getQMesh().prod();
+  mpi->allReduceSum(&D);
 
   Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
   tmpDriftEigvecs.setZero();
   Eigen::MatrixXd W(3, 3);
   W.setZero();
-  for (long is = firstState; is < bandStructure.getNumStates(); is++) {
+  for (long is : bandStructure.parallelStateIterator()) {
     auto v = bandStructure.getGroupVelocity(is);
     for (auto i : {0, 1, 2}) {
       for (auto j : {0, 1, 2}) {
@@ -168,7 +177,9 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
       }
     }
   }
-  W /= volume * numPoints;
+  W /= volume * context.getQMesh().prod();
+  mpi->allReduceSum(&W);
+  mpi->allReduceSum(&tmpDriftEigvecs);
 
   Eigen::Tensor<double, 3> w(3, 3, numStates);
   w.setZero();
@@ -190,8 +201,11 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
       mpi->allReduceSum(&x2);
 
       for (long is = 0; is < numStates; is++) {
-        w(i, j, is) = x2[is] / volume / numPoints;
+        w(i, j, is) = x2[is] / sqrt(volume) / sqrt(context.getQMesh().prod());
       }
+      // note: in Eq. 9 of PRX, w is normalized by V*N_q
+      // here however I normalize the eigenvectors differently:
+      // \sum_state theta_s^2 = 1, instead of 1/VN_q \sum_state theta_s^2 = 1
     }
   }
 
@@ -201,7 +215,10 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
   {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 #pragma omp for nowait
-    for (long is = firstState; is < numStates; is++) {
+    for (long is : bandStructure.parallelStateIterator()) {
+      if (eigenvalues(is) <= 0.) { // avoid division by zero
+        continue;
+      }
       for (long i = 0; i < dimensionality; i++) {
         for (long j = 0; j < dimensionality; j++) {
           for (long k = 0; k < dimensionality; k++) {
@@ -209,7 +226,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
               tmpTensor(iCalc, i, j, k, l) +=
                   0.5 *
                   (w(i, j, is) * w(k, l, is) + w(i, l, is) * w(k, j, is)) *
-                  A(i) * A(k) * relTimes(0, 0, is);
+                  A(i) * A(k) / eigenvalues(is);
             }
           }
         }
@@ -226,6 +243,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
       }
     }
   }
+  mpi->allReduceSum(&tensordxdxdxd);
 }
 
 void PhononViscosity::print() {

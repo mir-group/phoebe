@@ -486,7 +486,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   o.close();
 }
 
-std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
+std::tuple<Eigen::VectorXd, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
   //    std::vector<double> eigenvalues;
   //    ParallelMatrix<double> eigenvectors;
   auto tup = theMatrix.diagonalize();
@@ -494,21 +494,9 @@ std::tuple<VectorBTE, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
   auto eigenvectors = std::get<1>(tup);
 
   // place eigenvalues in an VectorBTE object
-  VectorBTE eigvals(statisticsSweep, outerBandStructure, 1);
-  for (long is = 0; is < numStates; is++) {
-    eigvals(0, 0, is) = eigenvalues[is];
-  }
-  eigvals.excludeIndeces = excludeIndeces;
-
-  // correct normalization of eigenvectors
-  double volume = outerBandStructure.getPoints().getCrystal().getVolumeUnitCell(
-      context.getDimensionality());
-  if (outerBandStructure.getParticle().isElectron()) {
-    eigenvectors *= sqrt(context.getKMesh().prod() * volume);
-  } else if (outerBandStructure.getParticle().isPhonon()) {
-    eigenvectors *= sqrt(context.getQMesh().prod() * volume);
-  } else {
-    Error e("Unrecognized particle");
+  Eigen::VectorXd eigvals(theMatrix.rows());
+  for (long is = 0; is < eigvals.size(); is++) {
+    eigvals(is) = eigenvalues[is];
   }
 
   return {eigvals, eigenvectors};

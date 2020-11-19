@@ -43,7 +43,7 @@ class BaseVectorBTE {
    * states, and iCalc is an index over temperatures and chemical potentials.
    * @param that: the second vector used in the scalar product
    */
-  Eigen::VectorXd dot(const BaseVectorBTE &that);
+  virtual Eigen::MatrixXd dot(const BaseVectorBTE &that);
 
   /** element wise product between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute

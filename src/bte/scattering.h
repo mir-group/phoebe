@@ -98,11 +98,11 @@ public:
   void omega2A();
 
   /** Diagonalize the scattering matrix
-   * @return eigenvalues: a VectorBTE object with the eigenvalues
+   * @return eigenvalues: a Eigen::VectorXd with the eigenvalues
    * @return eigenvectors: a Eigen::MatrixXd with the eigenvectors
    * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
    */
-  std::tuple<VectorBTE, ParallelMatrix<double>> diagonalize();
+  std::tuple<Eigen::VectorXd, ParallelMatrix<double>> diagonalize();
 
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file

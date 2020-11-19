@@ -852,5 +852,16 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     mpi->allReduceSum(&velocities);
   }
   return statisticsSweep;
+}
 
+std::vector<Eigen::Matrix3d>
+ActiveBandStructure::getRotationsStar(WavevectorIndex &ikIndex) {
+  return activePoints.getRotationsStar(ikIndex.get());
+}
+
+std::vector<Eigen::Matrix3d>
+ActiveBandStructure::getRotationsStar(StateIndex &isIndex) {
+  auto t = getIndex(isIndex);
+  WavevectorIndex ikIndex = std::get<0>(t);
+  return getRotationsStar(ikIndex);
 }

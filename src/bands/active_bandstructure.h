@@ -338,6 +338,9 @@ class ActiveBandStructure : public BaseBandStructure {
       const bool &withEigenvectors = true, const bool &withVelocities = true, 
       const bool &forceBuildAPP = false);
 
+  std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex);
+  std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex);
+protected:
  protected:
   // stores the quasiparticle kind
   Particle particle;

@@ -50,7 +50,7 @@ public:
    * @oaram sMatrix: the scattering matrix.
    * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
    */
-  void calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
+  void calcFromRelaxons(Vector0 &vector0, Eigen::VectorXd &eigenvalues,
                         PhScatteringMatrix &sMatrix,
                         ParallelMatrix<double> &eigenvectors);
 

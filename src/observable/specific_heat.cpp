@@ -46,7 +46,11 @@ void SpecificHeat::calc() {
     for (long is = 0; is < bandStructure.getNumStates(); is++) {
       auto en = bandStructure.getEnergy(is);
       auto dndt = particle.getDndt(en, temp, chemPot);
-      sum += dndt * en * norm;
+
+      auto isIndex = StateIndex(is);
+      auto rs = bandStructure.getRotationsStar(isIndex);
+
+      sum += dndt * en * norm * rs.size();
     }
     scalar(iCalc) = sum;
   }

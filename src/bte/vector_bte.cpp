@@ -33,15 +33,32 @@ VectorBTE &VectorBTE::operator=(const VectorBTE &that) {
 }
 
 // product operator overload
-Eigen::VectorXd VectorBTE::dot(const VectorBTE &that) {
+Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   if (that.numCalcs != numCalcs || that.numStates != numStates) {
     Error e("The 2 VectorBTE must be aligned for dot() to work.");
   }
-  Eigen::VectorXd result(numCalcs);
+  if (that.dimensionality != 3 ) {
+    Error("VectorBTE dot is implemented for 3D vectors only");
+  }
+  Eigen::MatrixXd result(statisticsSweep.getNumCalcs(),3);
   result.setZero();
   for (long is : bandStructure.parallelStateIterator()) {
-    for (long i = 0; i < numCalcs; i++) {
-      result(i) += this->data(i, is) * that.data(i, is);
+    auto isIndex = StateIndex(is);
+    auto rotationsStar = bandStructure.getRotationsStar(isIndex);
+    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (Eigen::Matrix3d rot : rotationsStar) {
+        Eigen::Vector3d x = Eigen::Vector3d::Zero();
+        Eigen::Vector3d y = Eigen::Vector3d::Zero();
+        for (int i : {0,1,2}) {
+          for (int j : {0, 1, 2}) {
+            x(i) += rot(i,j) * operator()(iCalc, j, is);
+            y(i) += rot(i,j) * that(iCalc,j,is);
+          }
+        }
+        for (int i : {0,1,2}) {
+          result(iCalc,i) += x(i) * y(i);
+        }
+      }
     }
   }
   mpi->allReduceSum(&result);
@@ -113,10 +130,17 @@ VectorBTE VectorBTE::operator*(const double &scalar) {
 }
 
 // product operator overload
-VectorBTE VectorBTE::operator*(const Eigen::VectorXd &vector) {
+VectorBTE VectorBTE::operator*(const Eigen::MatrixXd &vector) {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  for (long i = 0; i < numCalcs; i++) {
-    newPopulation.data.row(i) = this->data.row(i) * vector(i);
+  if (vector.rows() != statisticsSweep.getNumCalcs() || vector.cols() != 3) {
+    Error e("VectorBTE * unexpected alignment with MatrixXd");
+  }
+  for (long is=0; is<numStates; is++) {
+    for (int i : {0, 1, 2}) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        newPopulation(iCalc, i, is) = operator()(iCalc, i, is) * vector(iCalc,i);
+      }
+    }
   }
   return newPopulation;
 }

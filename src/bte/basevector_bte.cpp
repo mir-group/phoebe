@@ -54,15 +54,20 @@ BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
 }
 
 // product operator overload
-Eigen::VectorXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
+Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
   if (that.numCalcs != numCalcs || that.numStates != numStates) {
     Error e("The 2 BaseVectorBTE must be aligned for dot() to work.");
   }
-  Eigen::VectorXd result(numCalcs);
+  if (that.dimensionality != 3 ) {
+    Error("VectorBTE dot is implemented for 3D vectors only");
+  }
+  Eigen::VectorXd result(numCalcs,3);
   result.setZero();
   for (long is : mpi->divideWorkIter(numStates)) {
-    for (long i = 0; i < numCalcs; i++) {
-      result(i) += this->data(i, is) * that.data(i, is);
+    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int i : {0,1,2}) {
+        result(iCalc, i) += operator()(iCalc, i, is) * that(iCalc, i, is);
+      }
     }
   }
   mpi->allReduceSum(&result);

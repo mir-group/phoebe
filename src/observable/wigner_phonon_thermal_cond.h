@@ -59,8 +59,9 @@ public:
    * @param relaxationTimes: the reciprocal of the scattering matrix
    * eigenvalues (from eq.7), i.e. the relaxation times of the system.
    */
-  void calcFromRelaxons(SpecificHeat &specificHeat, VectorBTE &relaxonV,
-                        VectorBTE &relaxationTimes);
+  void calcFromRelaxons(Context &context, StatisticsSweep &statisticsSweep,
+                        BaseBandStructure &bandStructure, ParallelMatrix<double> &eigenvectors,
+                        PhScatteringMatrix &scatteringMatrix, const Eigen::VectorXd &eigenvalues);
 
   /** Prints to screen the thermal conductivity at various temperatures
    * in a a nicely formatted way.

@@ -57,7 +57,7 @@ public:
 
   void calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle);
 
-  void calcFromRelaxons(VectorBTE &eigenvalues,
+  void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);
 
   void calcVariational(VectorBTE &afE, VectorBTE &afT,

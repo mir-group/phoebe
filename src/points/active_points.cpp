@@ -108,7 +108,6 @@ std::tuple<int,Eigen::Matrix3d> ActivePoints::getRotationToIrreducible(
 }
 
 std::vector<Eigen::Matrix3d> ActivePoints::getRotationsStar(const int & ik) {
-  std::cout << "Dimmi qui\n";
   return parentPoints.getRotationsStar(filteredToFullIndeces(ik));
 }
 
