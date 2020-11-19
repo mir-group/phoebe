@@ -63,6 +63,8 @@ private:
 };
 
 using DimIndex = NamedType<long, struct DimTag>;
+using CartIndex = NamedType<long, struct CartTag>;
+using MatIndex = NamedType<long, struct MatTag>;
 using CalcIndex = NamedType<long, struct CalcTag>;
 using TempIndex = NamedType<long, struct TempTag>;
 using ChemPotIndex = NamedType<long, struct ChemPotTag>;
