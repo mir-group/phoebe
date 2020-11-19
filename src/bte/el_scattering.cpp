@@ -80,7 +80,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
-  int innerNumFullPoints = innerBandStructure.getNumPoints(true);
+  double norm = 1. / context.getKMesh().prod();
 
   // precompute Fermi-Dirac populations
   VectorBTE outerFermi(statisticsSweep, outerBandStructure, 1);
@@ -126,7 +126,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   std::vector<std::tuple<std::vector<long>, long>> kPairIterator =
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
-  HelperElScattering pointHelper(outerBandStructure, innerBandStructure,
+  HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
                                  statisticsSweep, smearing->getType(), h0);
 
   LoopPrint loopPrint("computing scattering matrix", "k-points",
@@ -144,16 +144,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     Eigen::MatrixXd v1sIrr = outerBandStructure.getGroupVelocities(ik1IrrIndex);
     Eigen::MatrixXcd eigvec1 = outerBandStructure.getEigenvectors(ik1IrrIndex);
 
-    //    auto rotations =
-    //    innerBandStructure.getPoints().getRotationsStar(ik1Irr); for
-    //    (Eigen::Matrix3d rotation : rotations) {
-    //      Eigen::Vector3d k1C = rotation * k1IrrC;
-    //      Eigen::MatrixXd v1s = v1sIrr;
-    //      for (int ib1 = 0; ib1 < nb1; ib1++) {
-    //        Eigen::Vector3d thisV1Irr = v1sIrr.row(ib1);
-    //        Eigen::Vector3d thisV1 = rotation * thisV1Irr;
-    //        v1s.row(ib1) = thisV1;
-    //      }
     Eigen::MatrixXd v1s = v1sIrr;
     Eigen::Vector3d k1C = k1IrrC;
 
@@ -263,25 +253,15 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               // Calculate transition probability W+
               double rate =
                   coupling(ib1, ib2, ib3) *
-                  ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) /
-                  innerNumFullPoints * pi / en3;
+                  ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) *
+                  norm * pow(twoPi,4) / en3;
 
               double rateOffDiag = coupling(ib1, ib2, ib3) *
                                    (fermi1 * (1. - fermi2) * bose3 * delta1 +
-                                    fermi2 * (1. - fermi1) * bose3 * delta2) /
-                                   innerNumFullPoints * pi / en3;
+                                    fermi2 * (1. - fermi1) * bose3 * delta2) *
+                                   norm * pow(twoPi,4) / en3;
 
               if (switchCase == 0) {
-                // case of matrix construction
-                // we build the scattering matrix S
-                //                  for (int i = 0; i < dimensionality_; i++) {
-                //                    for (int j = 0; j < dimensionality_; j++)
-                //                    {
-                //                      addMatrixElement(rotation(i, j) *
-                //                      rateOffDiag, ind1, ind2,
-                //                                       i, j);
-                //                    }
-                //                  }
                 theMatrix(ind1, ind2) += rateOffDiag;
                 linewidth->operator()(iCalc, 0, ind1) += rate;
               } else if (switchCase == 1) {
@@ -290,22 +270,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
                 for (unsigned int iVec = 0; iVec < inPopulations.size();
                      iVec++) {
-                  //                    for (int i = 0; i < dimensionality_;
-                  //                    i++) {
-                  //                      for (int j = 0; j < dimensionality_;
-                  //                      j++) {
-                  //                        outPopulations[iVec](iCalc, i, ind1)
-                  //                        +=
-                  //                            rateOffDiag * rotation(i, j) *
-                  //                                inPopulations[iVec](iCalc,
-                  //                                j, ind1);
-                  //                        outPopulations[iVec](iCalc, i, ind1)
-                  //                        +=
-                  //                            rate * rotation(i, j) *
-                  //                                inPopulations[iVec](iCalc,
-                  //                                j, ind1);
-                  //                      }
-                  //                    }
                   for (int i : {0,1,2}) {
                     outPopulations[iVec](iCalc, i, ind1) +=
                         rateOffDiag * inPopulations[iVec](iCalc, i, ind2);
@@ -321,7 +285,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           }
         }
       }
-      //      }
     }
   }
   if (switchCase == 1) {
@@ -378,66 +341,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     long iCalc = 0;
 #pragma omp parallel for
     for (long is = 0; is < outerBandStructure.getNumStates(); is++) {
-      // TODO: check if this is the right assignment
-//      for (int alfa = 0; alfa < dimensionality_; alfa++) {
-//        for (int beta = 0; beta < dimensionality_; beta++) {
-//          setMatrixElement(linewidth->operator()(iCalc, 0, is), is, is, alfa,
-//                           beta);
-//        }
-//      }
       theMatrix(is,is) = linewidth->operator()(iCalc, 0, is);
     }
   }
 }
-
-double ElScatteringMatrix::getMatrixElement(const int &m, const int &n,
-                                            const int &alfa, const int &beta) {
-  int i = m * dimensionality_ + alfa;
-  int j = n * dimensionality_ + beta;
-  return theMatrix(i, j);
-}
-
-void ElScatteringMatrix::setMatrixElement(const double &x, const int &m,
-                                          const int &n, const int &alfa,
-                                          const int &beta) {
-  int i = compress2Indeces(m, alfa, numStates, dimensionality_);
-  int j = compress2Indeces(n, beta, numStates, dimensionality_);
-  theMatrix(i, j) = x;
-}
-
-void ElScatteringMatrix::addMatrixElement(const double &x, const int &m,
-                                          const int &n, const int &alfa,
-                                          const int &beta) {
-  int i = compress2Indeces(m, alfa, numStates, dimensionality_);
-  int j = compress2Indeces(n, beta, numStates, dimensionality_);
-  theMatrix(i, j) += x;
-}
-//
-// VectorBTE ElScatteringMatrix::dot(VectorBTE &inPopulation) {
-//  if (highMemory) {
-//    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-//                            inPopulation.dimensionality);
-//    outPopulation.data.setZero();
-//    // note: we are assuming that ScatteringMatrix has numCalcs = 1
-//    for (auto t0 : theMatrix.getAllLocalStates()) {
-//      auto i = std::get<0>(t0);
-//      auto j = std::get<1>(t0);
-//
-//      auto t1 = decompress2Indeces(i, numStates, dimensionality_);
-//      auto m = std::get<0>(t1);
-//      auto alfa = std::get<1>(t1);
-//      auto t2 = decompress2Indeces(j, numStates, dimensionality_);
-//      auto n = std::get<0>(t2);
-//      auto beta = std::get<1>(t2);
-//      outPopulation(0, alfa, m) +=
-//          getMatrixElement(m, n, alfa, beta) * inPopulation(0, beta, n);
-//    }
-//    mpi->allReduceSum(&outPopulation.data);
-//    return outPopulation;
-//  } else {
-//    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-//                            inPopulation.dimensionality);
-//    builder(nullptr, &inPopulation, &outPopulation);
-//    return outPopulation;
-//  }
-//}

@@ -30,13 +30,6 @@ class ElScatteringMatrix : public ScatteringMatrix {
   virtual void builder(VectorBTE *linewidth,
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations);
-
-  double getMatrixElement(const int &m, const int &n, const int &alfa,
-                          const int &beta);
-  void setMatrixElement(const double &x, const int &m, const int &n,
-                        const int &alfa, const int &beta);
-  void addMatrixElement(const double &x, const int &m, const int &n,
-                        const int &alfa, const int &beta);
 };
 
 #endif
