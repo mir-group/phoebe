@@ -218,17 +218,16 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto elCondOld = elCond;
     auto thCondOld = thCond;
 
-    // load the conjugate gradient rescaling factor
-    VectorBTE sMatrixDiagonalSqrt = scatteringMatrix.diagonal().sqrt();
-    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
-
     // set the initial guess to the RTA solution
     VectorBTE linewidths = scatteringMatrix.getLinewidths();
     VectorBTE fENew = driftE / linewidths;
     VectorBTE fTNew = driftT / linewidths;
+
+    VectorBTE preconditioning = linewidths.sqrt();
+
     // CG rescaling
-    fENew = fENew * sMatrixDiagonalSqrt;
-    fTNew = fTNew * sMatrixDiagonalSqrt;
+    fENew = fENew * preconditioning;
+    fTNew = fTNew * preconditioning;
 
     // save the population of the previous step
     VectorBTE fEOld = fENew;
@@ -239,8 +238,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     fIn.push_back(fENew);
     fIn.push_back(fTNew);
     auto gOld = scatteringMatrix.offDiagonalDot(fIn);
-    VectorBTE gEOld = gOld[0] / sMatrixDiagonal; // CG scaling
-    VectorBTE gTOld = gOld[1] / sMatrixDiagonal; // CG scaling
+    VectorBTE gEOld = gOld[0] / linewidths; // CG scaling
+    VectorBTE gTOld = gOld[1] / linewidths; // CG scaling
     gEOld = gEOld - fEOld;
     gTOld = gTOld - fTOld;
     VectorBTE hEOld = -gEOld;
@@ -252,8 +251,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto tOut = scatteringMatrix.dot(tIn);
     VectorBTE tEOld = tOut[0];
     VectorBTE tTOld = tOut[1];
-    tEOld = tEOld / sMatrixDiagonal; // CG scaling
-    tTOld = tTOld / sMatrixDiagonal; // CG scaling
+    tEOld = tEOld / linewidths; // CG scaling
+    tTOld = tTOld / linewidths; // CG scaling
 
     double threshold = context.getConvergenceThresholdBTE();
 
@@ -292,11 +291,11 @@ void ElectronWannierTransportApp::run(Context &context) {
       auto outVecs = scatteringMatrix.dot(inVecs);
       tEOld = outVecs[1];
       tTOld = outVecs[3];
-      tEOld = tEOld / sMatrixDiagonal; // CG scaling
-      tTOld = tTOld / sMatrixDiagonal; // CG scaling
+      tEOld = tEOld / linewidths; // CG scaling
+      tTOld = tTOld / linewidths; // CG scaling
 
       transportCoeffs.calcVariational(outVecs[0], outVecs[2], fENew, fTNew,
-                                      sMatrixDiagonalSqrt);
+                                      preconditioning);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();
@@ -318,8 +317,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
       if ((dE < threshold) && (dT < threshold)) {
         // this because calcVariational computes LTT and LEE
-        fENew = fENew / sMatrixDiagonalSqrt;
-        fTNew = fTNew / sMatrixDiagonalSqrt;
+        fENew = fENew / preconditioning;
+        fTNew = fTNew / preconditioning;
         transportCoeffs.calcFromCanonicalPopulation(fENew, fTNew);
         break;
       } else {
@@ -364,10 +363,12 @@ void ElectronWannierTransportApp::run(Context &context) {
     transportCoeffs.print();
     transportCoeffs.outputToJSON("relaxons_onsager_coefficients.json");
 
-    //    elViscosity.calcFromRelaxons(..., boseEigenvector, relaxationTimes,
-    //                                 scatteringMatrix, eigenvectors);
-    //    elViscosity.print();
-    //    elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+    if (!context.getUseSymmetries()) {
+      //    elViscosity.calcFromRelaxons(..., boseEigenvector, relaxationTimes,
+      //                                 scatteringMatrix, eigenvectors);
+      //    elViscosity.print();
+      //    elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+    }
 
     if (mpi->mpiHead()) {
       std::cout << "Finished relaxons BTE solver\n\n";
