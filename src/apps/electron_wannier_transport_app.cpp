@@ -85,7 +85,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   wignerCoeffs.outputToJSON("rta_wigner_coefficients.json");
 
   // compute the thermal conductivity
-  ElectronViscosity elViscosity(statisticsSweep, crystal, bandStructure);
+  ElectronViscosity elViscosity(context, statisticsSweep, crystal, bandStructure);
   elViscosity.calcRTA(relaxationTimes);
   elViscosity.print();
   elViscosity.outputToJSON("rta_electron_viscosity.json");

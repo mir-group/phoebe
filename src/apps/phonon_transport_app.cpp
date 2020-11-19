@@ -82,26 +82,26 @@ void PhononTransportApp::run(Context &context) {
   scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
-  PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
+  PhononThermalConductivity phTCond(context, statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
-  WignerPhononThermalConductivity phTCondWigner(statisticsSweep, crystal,
+  WignerPhononThermalConductivity phTCondWigner(context, statisticsSweep, crystal,
                                                 bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
   phTCond.outputToJSON("wigner_phonon_thermal_cond.json");
 
   // compute the thermal conductivity
-  PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
+  PhononViscosity phViscosity(context, statisticsSweep, crystal, bandStructure);
   phViscosity.calcRTA(phononRelTimes);
   phViscosity.print();
   phViscosity.outputToJSON("rta_phonon_viscosity.json");
 
   // compute the specific heat
-  SpecificHeat specificHeat(statisticsSweep, crystal, bandStructure);
+  SpecificHeat specificHeat(context, statisticsSweep, crystal, bandStructure);
   specificHeat.calc();
   specificHeat.print();
   specificHeat.outputToJSON("specific_heat.json");

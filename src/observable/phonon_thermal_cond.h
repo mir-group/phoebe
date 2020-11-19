@@ -17,7 +17,7 @@ public:
   * conductivity. This should be aligned with the phonon population vector
   * used in the BTE.
   */
- PhononThermalConductivity(StatisticsSweep &statisticsSweep_, Crystal &crystal_,
+ PhononThermalConductivity(Context &context_, StatisticsSweep &statisticsSweep_, Crystal &crystal_,
                            BaseBandStructure &bandStructure_);
 
  /** Copy constructor

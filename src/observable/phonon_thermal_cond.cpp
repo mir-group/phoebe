@@ -7,10 +7,10 @@
 #include "constants.h"
 #include "mpiHelper.h"
 
-PhononThermalConductivity::PhononThermalConductivity(
+PhononThermalConductivity::PhononThermalConductivity(Context &context_,
     StatisticsSweep &statisticsSweep_, Crystal &crystal_,
     BaseBandStructure &bandStructure_)
-    : Observable(statisticsSweep_, crystal_), bandStructure(bandStructure_) {
+    : Observable(context_, statisticsSweep_, crystal_), bandStructure(bandStructure_) {
   tensordxd =
       Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
   tensordxd.setZero();
@@ -33,7 +33,7 @@ PhononThermalConductivity &PhononThermalConductivity::operator=(
 
 PhononThermalConductivity PhononThermalConductivity::operator-(
     const PhononThermalConductivity &that) {
-  PhononThermalConductivity newObservable(statisticsSweep, crystal,
+  PhononThermalConductivity newObservable(context, statisticsSweep, crystal,
                                           bandStructure);
   baseOperatorMinus(newObservable, that);
   return newObservable;
@@ -46,7 +46,7 @@ void PhononThermalConductivity::calcFromCanonicalPopulation(VectorBTE &f) {
 }
 
 void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
 
@@ -100,7 +100,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &scalingCG) {
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
   auto fUnscaled = f;

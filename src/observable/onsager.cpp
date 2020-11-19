@@ -137,7 +137,7 @@ void OnsagerCoefficients::calcFromEPA(
 }
 
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
-  double norm = spinFactor / bandStructure.getNumPoints(true) /
+  double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
   LEE.setZero();
@@ -235,7 +235,7 @@ void OnsagerCoefficients::calcFromRelaxons(
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   auto particle = bandStructure.getParticle();
 
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double norm = 1. / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
   VectorBTE fE(statisticsSweep, bandStructure, 3);
@@ -537,7 +537,7 @@ Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
 void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
                                           VectorBTE &scalingCG) {
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double norm = 1. / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
   auto fEUnscaled = fE;

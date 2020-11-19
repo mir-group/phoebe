@@ -5,10 +5,10 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
-ElectronViscosity::ElectronViscosity(StatisticsSweep &statisticsSweep_,
+ElectronViscosity::ElectronViscosity(Context &context_, StatisticsSweep &statisticsSweep_,
                                      Crystal &crystal_,
                                      BaseBandStructure &bandStructure_)
-    : Observable(statisticsSweep_, crystal_), bandStructure(bandStructure_) {
+    : Observable(context_, statisticsSweep_, crystal_), bandStructure(bandStructure_) {
 
   tensordxdxdxd = Eigen::Tensor<double, 5>(
       numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);

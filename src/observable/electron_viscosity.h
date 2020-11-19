@@ -17,7 +17,7 @@ public:
      * @param BaseBandStructure: object with the quasiparticle energies and
      * velocities computed on a mesh of wavevectors.
      */
-    ElectronViscosity(StatisticsSweep &statisticsSweep_, Crystal &crystal_,
+    ElectronViscosity(Context &context_, StatisticsSweep &statisticsSweep_, Crystal &crystal_,
             BaseBandStructure &bandStructure_);
 
     /** copy constructor

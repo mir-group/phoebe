@@ -128,7 +128,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
-  long innerNumFullPoints = innerBandStructure.getNumPoints(true);
+  double norm = 1. / context.getQMesh().prod();
 
   // precompute Bose populations
   VectorBTE outerBose(statisticsSweep, outerBandStructure, 1);
@@ -340,8 +340,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
                 // Calculate transition probability W+
                 double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                                  couplingPlus(ib1, ib2, ib3) * deltaPlus /
-                                  innerNumFullPoints / enProd;
+                                  couplingPlus(ib1, ib2, ib3) * deltaPlus *
+                                  norm / enProd;
 
                 switch (switchCase) {
                 case (0):
@@ -436,10 +436,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 // Calculatate transition probability W-
                 double rateMins1 = pi * 0.25 * bose3Mins * bose1 *
                                    (bose2 + 1.) * couplingMins(ib1, ib2, ib3) *
-                                   deltaMins1 / innerNumFullPoints / enProd;
+                                   deltaMins1 * norm / enProd;
                 double rateMins2 = pi * 0.25 * bose2 * bose3Mins *
                                    (bose1 + 1.) * couplingMins(ib1, ib2, ib3) *
-                                   deltaMins2 / innerNumFullPoints / enProd;
+                                   deltaMins2 * norm / enProd;
 
                 switch (switchCase) {
                 case (0):
@@ -556,7 +556,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               }
               termIso += std::norm(zzIso) * massVariance(iat);
             }
-            termIso *= pi * 0.5 / innerNumFullPoints * en1 * en2 * deltaIso;
+            termIso *= pi * 0.5 * norm * en1 * en2 * deltaIso;
 
             for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
               double bose1 = outerBose(iCalc, 0, ind1);
@@ -685,8 +685,4 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       theMatrix(i, i) = linewidth->operator()(iCalc, 0, i);
     }
   }
-
-  std::cout << std::setprecision(8);
-  std::cout << theMatrix.squaredNorm() << "!!!!\n";
-
 }

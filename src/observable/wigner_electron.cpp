@@ -20,7 +20,7 @@ WignerElCoefficients::WignerElCoefficients(
 
   auto particle = bandStructure.getParticle();
 
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double norm = 1. / context.getKMesh().prod() /
                   crystal.getVolumeUnitCell(dimensionality) / 2. * spinFactor;
 
   Eigen::Tensor<std::complex<double>,4> fE, fT;
