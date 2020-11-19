@@ -69,7 +69,7 @@ public:
    * @param speciesMasses(numSpecies): array with the masses of each species,
    *  in rydbergs.
    */
-  Crystal(Context &context_, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
+  Crystal(Context &context, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
           Eigen::VectorXi &atomicSpecies_,
           std::vector<std::string> &speciesNames_,
           Eigen::VectorXd &speciesMasses_, long &dimensionality_);
