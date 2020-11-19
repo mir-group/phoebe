@@ -20,9 +20,11 @@ TEST(Crystal, Test1) {
   speciesMasses(0) = 28.086;
   long dimensionality = 3;
 
+  Context context;
+
   // set up the crystal object
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
+  Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
+                  speciesNames, speciesMasses, dimensionality);
 
   EXPECT_EQ(crystal.getNumAtoms(), 2);
   EXPECT_EQ(crystal.getNumSpecies(), 1);
