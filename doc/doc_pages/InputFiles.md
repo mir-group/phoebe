@@ -37,6 +37,7 @@ Input variables:
 <li> @ref withIsotopeScattering</li>
 <li> @ref massVariance</li>
 <li> @ref boundaryLength</li>
+<li> @ref useSymmetries</li>
 </ul>
 
 Sample input file:
@@ -90,6 +91,7 @@ Input variables:
 <li> @ref scatteringMatrixInMemory </li>
 <li> @ref fermiLevel </li>
 <li> @ref numOccupiedStates </li>
+<li> @ref useSymmetries </li>
 </ul>
 
 Sample input file:
@@ -723,7 +725,7 @@ end point path
 
 @subsection numOccupiedStates numOccupiedStates
 <ul>
-<li> Determines the number of occupied Kohn-Sham states at the ground state. The default value can be read from either the @ref electronH0FileName (when this is the Quantum-ESPRESSO xml file) or the file with the el-ph interaction. The user choose instead to specify the @ref fermiLevel (@ref numOccupiedStates can be computed knowing that).
+<li> Determines the number of occupied Kohn-Sham states at the ground state. The default value might be read from the @ref electronH0FileName (when this is the Quantum-ESPRESSO xml file) or the file with the el-ph interaction (so, the user may not need to specify it for transport calculations). This value controls where the Fermi level is set. The user alternatively can specify the @ref fermiLevel (and @ref numOccupiedStates will be computed from the Fermi level).
 <li> *double*
 <li> Optional.
 </ul>
@@ -768,4 +770,12 @@ end point path
 <li> To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures between @ref minTemperature and @ref maxTemperature in steps of @ref deltaTemperature.
 <li> *double*
 <li> (Required): either set (@ref minTemperature, @ref maxTemperature, @ref deltaTemperature) or @ref temperatures.
+</ul>
+
+@subsection useSymmetries useSymmetries
+<ul>
+<li> When set to true, triggers the BTE to be computed only on the irreducible wedge of the Brillouin zone. For systems with several symmetries, this speeds up calculations. On the other hand, it may slow down the code for systems with few symmetries. If set to true, the viscosity is only computed at the RTA level.
+<li> *bool*
+<li> Default = `true`
+<li> Optional
 </ul>
