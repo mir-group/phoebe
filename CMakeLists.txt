@@ -24,7 +24,7 @@ endif()
 option(MPI_AVAIL "Build with MPI wrappers" ON)
 option(OMP_AVAIL "Build with OMP" ON)
 option(HDF5_AVAIL "Build with HDF5" ON)
-option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" ON)
+option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" OFF)
 option(BUILD_DOC "Build documentation" ON)
 
 ############### SOURCE ###############

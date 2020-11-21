@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-openmpi-dev libscalapack-openmpi-dev python3-pip
+          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-dev libscalapack-openmpi-dev python3-pip
           pip3 install numpy
       - name: Checkout
         uses: actions/checkout@v2
@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
-          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"
+          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/serial/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/serial/"
       - name: Build
         run: |
           cd ${BUILD_DIR}
