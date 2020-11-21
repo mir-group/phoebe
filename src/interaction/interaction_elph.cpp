@@ -423,40 +423,59 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         numPhBravaisVectors, numElBravaisVectors);
     couplingWannier_.setZero();
 
-    #ifdef MPI_AVAIL
+    // Regular parallel read
+    #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
+
       // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
       HighFive::File file(fileName,  HighFive::File::ReadOnly,
          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+
+      // get the start and stop points of elements to be written by this process
+      std::vector<long> workDivs = mpi->divideWork(totElems);
+      size_t localElems = workDivs[1]-workDivs[0];
+
+      // Set up buffer to be filled from hdf5
+      std::vector<std::complex<double>> gWanSlice(localElems);
+      // Set up buffer to receive full matrix data
+      std::vector<std::complex<double>> gWanFlat(totElems);
+
+      // Set up dataset for gWannier
+      HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+      // Read in the elements for this process
+      dgWannier.select({0, size_t(workDivs[0])}, {1, localElems}).read(gWanSlice);
+
+      // Gather the elements read in by each process
+      mpi->allGatherv(&gWanSlice,&gWanFlat);
+
+      // Map the flattened matrix back to tensor structure
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(),
+          numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
+      couplingWannier_ = gWanTemp;
+
     #else
-      // Reopen serial version
-      // Other than this, mpi functions below all resort back to
-      // dumb single core behavior as it is.
-      HighFive::File file(fileName,  HighFive::File::ReadOnly);
+      // Reopen serial version, either because MPI does not exist
+      // or because we forced HDF5 to run in serial.
+
+      // Set up buffer to receive full matrix data
+      std::vector<std::complex<double>> gWanFlat(totElems);
+
+      if(mpi->mpiHead()) {
+        HighFive::File file(fileName,  HighFive::File::ReadOnly);
+
+        // Set up dataset for gWannier
+        HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+        // Read in the elements for this process
+        dgWannier.read(gWanFlat);
+      }
+      mpi->bcast(&gWanFlat);
+
+      // Map the flattened matrix back to tensor structure
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(),
+          numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
+      couplingWannier_ = gWanTemp;
     #endif
 
-    // get the start and stop points of elements to be written by this process
-    std::vector<long> workDivs = mpi->divideWork(totElems);
-    size_t localElems = workDivs[1]-workDivs[0];
-
-    // Set up buffer to be filled from hdf5
-    std::vector<std::complex<double>> gWanSlice(localElems);
-    // Set up buffer to receive full matrix data
-    std::vector<std::complex<double>> gWanFlat(totElems);
-
-    // Set up dataset for gWannier
-    HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
-    // Read in the elements for this process
-    dgWannier.select({0, size_t(workDivs[0])}, {1, localElems}).read(gWanSlice);
-
-    // Gather the elements read in by each process
-    mpi->allGatherv(&gWanSlice,&gWanFlat);
-
-    // Map the flattened matrix back to tensor structure
-    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(),
-        numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
-    couplingWannier_ = gWanTemp;
-
-  }
+}
   catch(std::exception& error) {
     Error e("Issue reading elph Wannier represenation from hdf5.");
   }
