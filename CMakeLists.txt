@@ -23,7 +23,8 @@ endif()
 # supplying arguments to cmake like cmake -DHDF5_AVAIL=OFF ../
 option(MPI_AVAIL "Build with MPI wrappers" ON)
 option(OMP_AVAIL "Build with OMP" ON)
-option(HDF5_AVAIL "Build with HDF5" OFF)
+option(HDF5_AVAIL "Build with HDF5" ON)
+option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" ON)
 option(BUILD_DOC "Build documentation" ON)
 
 ############### SOURCE ###############
@@ -135,6 +136,9 @@ if(HDF5_AVAIL)
   target_link_libraries(phoebe hdf5)
   target_link_libraries(runTests hdf5)
   add_definitions("-DHDF5_AVAIL")
+  if(HDF5_SERIAL)
+    add_definitions("-DHDF5_SERIAL")
+  endif()
 endif()
 
 ############# DOCS ############

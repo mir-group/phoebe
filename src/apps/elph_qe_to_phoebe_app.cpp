@@ -1419,7 +1419,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     // NOTE: do not remove the braces inside this if -- the file must
     // go out of scope, so that it can be reopened/written by head for the
     // small quantities as in the next block.
-    #ifdef MPI_AVAIL
+    #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
     {
       // open the hdf5 file
       HighFive::File file(outFileName, HighFive::File::Overwrite,
@@ -1450,15 +1450,18 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     #else
     { // do not remove these braces, see above note.
 
-      // open the hdf5 file
-      HighFive::File file(outFileName, HighFive::File::Overwrite);
+      if(mpi->mpiHead()) { // this is here for the case where mpi exists,
+                           // but HDF5 was built serially
+        // open the hdf5 file
+        HighFive::File file(outFileName, HighFive::File::Overwrite);
 
-      // flatten the tensor (tensor is not supported) and create the data set
-      Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
-      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
+        // flatten the tensor (tensor is not supported) and create the data set
+        Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
+        HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>("/gWannier", HighFive::DataSpace::From(gwan));
 
-      // write to hdf5
-      dgwannier.write(gwan);
+        // write to hdf5
+        dgwannier.write(gwan);
+      }
     }
     #endif
 
