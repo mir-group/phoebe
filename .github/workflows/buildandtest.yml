@@ -25,7 +25,14 @@ jobs:
         run: |
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
-          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/serial/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/serial/"
+          if [ "${{matrix.mpi}}" = "ON" ]; then
+            hdf5lib="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/"
+            hdf5include="-I/usr/include/hdf5/openmpi/"
+          else
+            hdf5lib="-L/usr/lib/x86_64-linux-gnu/hdf5/serial/"
+            hdf5include="-I/usr/include/hdf5/serial/"
+          fi
+          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib} -DCMAKE_CXX_FLAGS=${hdf5include}
       - name: Build
         run: |
           cd ${BUILD_DIR}
@@ -92,7 +99,7 @@ jobs:
         if: matrix.mpi == 'ON'
         run: |
           # Note: don't run this as it runs out-of-memory on the VM
-          # mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
