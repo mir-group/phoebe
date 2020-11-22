@@ -101,7 +101,7 @@ jobs:
         if: matrix.mpi == 'ON'
         run: |
           # Note: don't run this as it runs out-of-memory on the VM
-          mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          #mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
           mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
