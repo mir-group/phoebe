@@ -1299,7 +1299,12 @@ void ElPhQeToPhoebeApp::testBackTransform(
   int numModes = phononH0.getNumBands();
 
   // needed by ::parse()
+  #ifdef HDF5_AVAIL
+  context.setEpwFileName(context.getQuantumEspressoPrefix() + ".phoebe.elph.hdf5");
+  #else
   context.setEpwFileName(context.getQuantumEspressoPrefix() + ".phoebe.elph.dat");
+  #endif
+
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   for (long ik1 = 0; ik1 < numKPoints; ik1++) {
