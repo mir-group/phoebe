@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-dev libscalapack-openmpi-dev python3-pip
+          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-openmpi-dev libscalapack-openmpi-dev python3-pip
           pip3 install numpy
       - name: Checkout
         uses: actions/checkout@v2
@@ -25,13 +25,14 @@ jobs:
         run: |
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
-          echo "MPI ${{ matrix.mpi }}"
           if [ "${{ matrix.mpi }}" = "ON" ]; then
             hdf5lib="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/"
             hdf5include="-I/usr/include/hdf5/openmpi/"
+            echo "MPI ${{ matrix.mpi }}, using $hdf5lib $hdf5include"
           else
             hdf5lib="-L/usr/lib/x86_64-linux-gnu/hdf5/serial/"
             hdf5include="-I/usr/include/hdf5/serial/"
+            echo "MPI ${{ matrix.mpi }}, using $hdf5lib $hdf5include"
           fi
           cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib} -DCMAKE_CXX_FLAGS=${hdf5include}
       - name: Build
