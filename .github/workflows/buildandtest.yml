@@ -25,7 +25,8 @@ jobs:
         run: |
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
-          if [ "${{matrix.mpi}}" = "ON" ]; then
+          echo "MPI ${{ matrix.mpi }}"
+          if [ "${{ matrix.mpi }}" = "ON" ]; then
             hdf5lib="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/"
             hdf5include="-I/usr/include/hdf5/openmpi/"
           else
