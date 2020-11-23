@@ -37,11 +37,16 @@ CMake will inspect the paths found in the environmental variable `LD_LIBRARY_PAT
 Phoebe can make use of HDF5 through the HighFive library to write the electron-phonon matrix elements in the elPhQeToPhoebe app, 
 as well as any app which reads in and uses these matrix elements. 
 This is highly recommended, as it speeds up what can be time consuming IO, and also significantly reduces file sizes. 
-When built using cmake with the flag -DHDF5_AVAIL=ON, Phoebe will be built with HDF5. If MPI is also present, 
+When built using cmake with the flag `-DHDF5_AVAIL=ON`, Phoebe will be built with HDF5. If MPI is also present, 
 Phoebe will be built to perform HDF5 operations in parallel. 
 
 If, for some reason, a user has MPI present, but has built a copy of HDF5 which does not link to MPI and therefore cannot 
 perform parallel read/write operations, they must build Phoebe using the -DHDF5_SERIAL=ON cmake option to force serial HDF5 operations.
+
+Note: When building on Ubuntu, one may need to specify the location of hdf5 to cmake. This can be done, for example, when using 
+libhdf5-openmpi-dev:
+`cmake .. -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"`
+
 
 @subsection OpenMP OpenMP build
 ~~~~~~~~~~~~~~~{.c}
