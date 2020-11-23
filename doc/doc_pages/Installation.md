@@ -34,8 +34,9 @@ This will create the executable `phoebe` in the `build` directory.
 CMake will inspect the paths found in the environmental variable `LD_LIBRARY_PATH` to verify the existence of an installed copy of the SCALAPACK library and link it. If not found, the installation will compile a copy of the SCALAPACK.
 
 @subsection HDF5 HDF5 build
-Phoebe can make use HDF5 through the HighFive library to read/write some of the larger file sets involved in a calculation. 
-This speeds up what can be time consuming IO, and also significantly reduces file sizes. 
+Phoebe can make use of HDF5 through the HighFive library to write the electron-phonon matrix elements in the elPhQeToPhoebe app, 
+as well as any app which reads in and uses these matrix elements. 
+This is highly recommended, as it speeds up what can be time consuming IO, and also significantly reduces file sizes. 
 When built using cmake with the flag -DHDF5_AVAIL=ON, Phoebe will be built with HDF5. If MPI is also present, 
 Phoebe will be built to perform HDF5 operations in parallel. 
 
