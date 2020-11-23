@@ -18,6 +18,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 endif()
 
+############ OPTIONS ################
+# these can be toggled in a build script by 
+# supplying arguments to cmake like cmake -DHDF5_AVAIL=OFF ../
+option(MPI_AVAIL "Build with MPI wrappers" ON)
+option(OMP_AVAIL "Build with OMP" ON)
+option(HDF5_AVAIL "Build with HDF5" ON)
+option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" OFF)
+option(BUILD_DOC "Build documentation" ON)
+
 ############### SOURCE ###############
 
 FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
@@ -34,24 +43,24 @@ include(lib/CMakeLists.txt)
 include(GoogleTest)
 
 add_executable(phoebe src/main.cpp ${SOURCE_FILES})
-
 add_executable(runTests ${TEST_SOURCES} ${SOURCE_FILES})
 set_target_properties(runTests PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
+# dependencies
 add_dependencies(phoebe spglib_dep pugixml_dep eigen_dep)
 add_dependencies(runTests spglib_dep pugixml_dep eigen_dep)
 
 target_link_libraries(phoebe symspg pugixml kokkos nlohmann_json::nlohmann_json)
-
 enable_testing()
 target_link_libraries(runTests symspg pugixml gtest_main kokkos nlohmann_json::nlohmann_json)
+
 gtest_discover_tests(
     runTests
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
 ################ PARALLEL ####################
-option(MPI_AVAIL "Build with MPI wrappers" ON)
+# build with MPI and scalapack
 if (MPI_AVAIL)
   find_package(MPI REQUIRED)
   target_link_libraries(phoebe MPI::MPI_CXX)
@@ -112,21 +121,29 @@ else()
 
 endif()
 
-option(OMP_AVAIL "Build with OMP" ON)
+# build with openMP
 if(OMP_AVAIL)
-        find_package(OpenMP)
-        target_link_libraries(phoebe OpenMP::OpenMP_CXX)
-        target_link_libraries(runTests OpenMP::OpenMP_CXX)
-        add_definitions("-DOMP_AVAIL")
+  find_package(OpenMP)
+  target_link_libraries(phoebe OpenMP::OpenMP_CXX)
+  target_link_libraries(runTests OpenMP::OpenMP_CXX)
+  add_definitions("-DOMP_AVAIL")
+endif()
+
+# build with HDF5
+if(HDF5_AVAIL)
+  add_dependencies(phoebe highfive_dep)
+  add_dependencies(runTests highfive_dep)
+  target_link_libraries(phoebe hdf5)
+  target_link_libraries(runTests hdf5)
+  add_definitions("-DHDF5_AVAIL")
+  if(HDF5_SERIAL)
+    add_definitions("-DHDF5_SERIAL")
+  endif()
 endif()
 
 ############# DOCS ############
 
-# check if Doxygen is installed
 find_package(Doxygen)
-
-# we can indicate the documentation build as an option and set it to ON by default
-option(BUILD_DOC "Build documentation" ON)
 
 IF (BUILD_DOC)
     IF (NOT DOXYGEN_FOUND)
