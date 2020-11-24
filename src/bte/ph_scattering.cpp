@@ -360,7 +360,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         theMatrix(iMat1, iMat2) += rotation(i, j) * ratePlus;
                       }
                     }
-                    theMatrix(ind1, ind2) += ratePlus;
                   } else {
                     theMatrix(ind1, ind2) += ratePlus;
                   }

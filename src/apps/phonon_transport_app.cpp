@@ -275,19 +275,7 @@ void PhononTransportApp::run(Context &context) {
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
-    Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-
-    VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
-    for (long iDim = 0; iDim < relaxonV.dimensionality; iDim++) {
-      double norm = 1. / context.getQMesh().prod() /
-                    crystal.getVolumeUnitCell(context.getDimensionality());
-
-      for (long is = 0; is < bandStructure.getNumStates(); is++) {
-        Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
-        relaxonV(0, iDim, is) = boseEigenvector(0, 0, is) * norm * v(iDim);
-      }
-    }
-    relaxonV = relaxonV * eigenvectors;
+    std::cout <<"Diag done\n";
 
     phTCond.calcFromRelaxons(context, statisticsSweep, bandStructure,
                              eigenvectors, scatteringMatrix, eigenvalues);

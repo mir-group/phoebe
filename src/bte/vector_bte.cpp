@@ -10,10 +10,10 @@ VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
       bandStructure(bandStructure_) {
 
   if (bandStructure.getParticle().isPhonon()) {
-    for (long is = 0; is < numStates; is++) {
-      double en = bandStructure.getEnergy(is);
+    for (long is : bandStructure.irrStateIterator()) {
+      auto isIdx = StateIndex(is);
+      double en = bandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-        auto isIdx = StateIndex(is);
         long ibte = bandStructure.stateToBte(isIdx).get();
         excludeIndeces.push_back(ibte);
       }
@@ -55,7 +55,7 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
         for (int i : {0,1,2}) {
           for (int j : {0, 1, 2}) {
             x(i) += rot(i,j) * operator()(iCalc, j, ibteIdx.get());
-            y(i) += rot(i,j) * that(iCalc,j,ibteIdx.get());
+            y(i) += rot(i,j) * that(iCalc, j, ibteIdx.get());
           }
         }
         for (int i : {0,1,2}) {
@@ -215,7 +215,7 @@ void VectorBTE::canonical2Population() {
       auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double pop = particle.getPopPopPm1(en, temp, chemPot);
-      for (int iDim = 0; iDim < dimensionality; iDim++) {
+      for (int iDim : {0,1,2}) {
         VectorBTE::operator()(iCalc, iDim, ibte) *= pop;
       }
     }
@@ -235,7 +235,7 @@ void VectorBTE::population2Canonical() {
       auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double pop = particle.getPopPopPm1(en, temp, chemPot);
-      for (int iDim = 0; iDim < dimensionality; iDim++) {
+      for (int iDim : {0,1,2}) {
         VectorBTE::operator()(iCalc, iDim, ibte) /= pop;
       }
     }

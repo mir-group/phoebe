@@ -44,28 +44,25 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
 #pragma omp for nowait
-    for (long is : bandStructure.parallelStateIterator()) {
+    for (long is : bandStructure.parallelIrrStateIterator()) {
+
+      auto isIdx = StateIndex(is);
+      long ibte = bandStructure.stateToBte(isIdx).get();
+
       // skip the acoustic phonons
-      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte) !=
           excludeIndeces.end())
         continue;
 
-      auto en = bandStructure.getEnergy(is);
-      auto velIrr = bandStructure.getGroupVelocity(is);
-      auto qIrr = bandStructure.getWavevector(is);
+      auto en = bandStructure.getEnergy(isIdx);
+      auto velIrr = bandStructure.getGroupVelocity(isIdx);
+      auto qIrr = bandStructure.getWavevector(isIdx);
 
-      auto isIndex = StateIndex(is);
-      auto t = bandStructure.getIndex(isIndex);
-      WavevectorIndex kIndex = std::get<0>(t);
-      std::vector<Eigen::Matrix3d> rotationsStar =
-          bandStructure.getRotationsStar(kIndex);
+      auto rotations = bandStructure.getRotationsStar(isIdx);
+      for (Eigen::Matrix3d rotation : rotations) {
 
-      for (Eigen::Matrix3d rotation : rotationsStar) {
-
-        Eigen::Vector3d q;
-        Eigen::Vector3d vel;
-        q = rotation * qIrr;
-        vel = rotation * velIrr;
+        Eigen::Vector3d q = rotation * qIrr;
+        Eigen::Vector3d vel = rotation * velIrr;
 
         for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
 
@@ -80,7 +77,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
                 for (long l = 0; l < dimensionality; l++) {
                   tmpTensor(iCalc, i, j, k, l) +=
                       q(i) * vel(j) * q(k) * vel(l) * bosep1 *
-                      tau(iCalc, 0, is) / temperature * norm;
+                      tau(iCalc, 0, ibte) / temperature * norm;
                 }
               }
             }

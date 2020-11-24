@@ -70,7 +70,6 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
       Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
 
       auto isIndex = StateIndex(is);
-      auto rots = bandStructure.getRotationsStar(isIndex);
       long iBte = bandStructure.stateToBte(isIndex).get();
 
       // skip the acoustic phonons
@@ -78,6 +77,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
           excludeIndeces.end())
         continue;
 
+      auto rots = bandStructure.getRotationsStar(isIndex);
       for (Eigen::Matrix3d rot : rots) {
         auto vel = rot * velIrr;
 
@@ -212,13 +212,13 @@ void PhononThermalConductivity::calcFromRelaxons(
         CartIndex dimIndex = std::get<1>(tup1);
         long iDim = dimIndex.get();
         StateIndex isIndex = bandStructure.bteToState(ibteIndex);
-        long is = isIndex.get();
         //
-        auto vel = bandStructure.getGroupVelocity(is);
-        double en = bandStructure.getEnergy(is);
-        double term = particle.getPopPopPm1(en, temp, chemPot);
+        auto vel = bandStructure.getGroupVelocity(isIndex);
+        double en = bandStructure.getEnergy(isIndex);
+        double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
+        double dndt = particle.getDndt(en, temp, chemPot);
         if (eigenvalues(alpha) > 0.) {
-          relPopPrivate(alpha) += sqrt(term) * en / temp / temp * vel(iDim) *
+          relPopPrivate(alpha) += dndt / term * vel(iDim) *
                                   eigenvectors(iMat1, alpha) /
                                   eigenvalues(alpha);
         }
@@ -234,7 +234,7 @@ void PhononThermalConductivity::calcFromRelaxons(
 
 #pragma omp parallel
     {
-      Eigen::MatrixXd popPrivate(3, bandStructure.getNumStates());
+      Eigen::MatrixXd popPrivate(3, bandStructure.irrStateIterator().size());
       popPrivate.setZero();
 
 #pragma omp for nowait
@@ -244,14 +244,14 @@ void PhononThermalConductivity::calcFromRelaxons(
         auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
         BteIndex ibteIndex = std::get<0>(tup1);
         CartIndex dimIndex = std::get<1>(tup1);
-        long is = ibteIndex.get();
+        long ibte = ibteIndex.get();
         long iDim = dimIndex.get();
-        popPrivate(iDim, is) +=
+        popPrivate(iDim, ibte) +=
             eigenvectors(iMat1, alpha) * relPopulation(alpha);
       }
 
 #pragma omp critical
-      for (long is = 0; is < bandStructure.getNumStates(); is++) {
+      for (long is = 0; is < popPrivate.cols(); is++) {
         for (int iDim : {0, 1, 2}) {
           population(iCalc, iDim, is) += popPrivate(iDim, is);
         }
@@ -292,7 +292,6 @@ void PhononThermalConductivity::calcFromRelaxons(
       }
     }
     mpi->allReduceSum(&relPopulation);
-
     // back rotate to phonon coordinates
 #pragma omp parallel
     {
@@ -319,12 +318,14 @@ void PhononThermalConductivity::calcFromRelaxons(
   // put back the rescaling factor
 
 #pragma omp parallel for
-  for (long is = 0; is < bandStructure.getNumStates(); is++) {
+  for (long is : bandStructure.irrStateIterator()) {
     double en = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    long ibte = bandStructure.stateToBte(isIdx).get();
     if (en>0.) {
       double term = particle.getPopPopPm1(en, temp, chemPot);
       for (int iDim : {0, 1, 2}) {
-        population(iCalc, iDim, is) *= sqrt(term);
+        population(iCalc, iDim, ibte) *= sqrt(term);
       }
     }
   }
