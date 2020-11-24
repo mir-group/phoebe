@@ -8,7 +8,6 @@
 #include "full_points.h"
 #include "ifc3_parser.h"
 #include "io.h"
-#include "irreducible_points.h"
 #include "observable.h"
 #include "particle.h"
 #include "ph_scattering.h"
@@ -31,18 +30,8 @@ void PhononTransportApp::run(Context &context) {
 
   FullPoints fullPoints(crystal, context.getQMesh());
 
-  // IrreduciblePoints irredPoints(fullPoints);
-
-  //	bool withVelocities = true;
-  //	bool withEigenvectors = true;
-  //	FullBandStructure bandStructure = phononH0.populate(
-  //			fullPoints, withVelocities, withEigenvectors);
-  //	// set the chemical potentials to zero, load temperatures
-  //	StatisticsSweep statisticsSweep(context);
-
   if (mpi->mpiHead()) {
-    std::cout << "\n"
-              << "Constructing the band structure" << std::endl;
+    std::cout << "\nConstructing the band structure" << std::endl;
   }
   auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
   auto bandStructure = std::get<0>(tup1);
@@ -64,10 +53,8 @@ void PhononTransportApp::run(Context &context) {
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
-    std::cout << "Solving BTE within the relaxation time approximation."
+    std::cout << "\n" << std::string(80, '-') << "\n\n"
+              << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
 

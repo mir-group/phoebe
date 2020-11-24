@@ -7,18 +7,22 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        const long &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
-  for (long is = 0; is < numStates; is++) {
+#pragma omp parallel for
+  for (long is : bandStructure.parallelIrrStateIterator()) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
+    auto isIdx = StateIndex(is);
+    long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemicalPotential = calcStat.chemicalPotential;
       auto temperature = calcStat.temperature;
       for (int i : {0,1,2}) {
-        operator()(iCalc, i, is) = particle.getDndt(energy, temperature, chemicalPotential) * vel(i);
+        operator()(iCalc, i, ibte) = particle.getDndt(energy, temperature, chemicalPotential) * vel(i);
       }
     }
   }
+  mpi->allReduceSum(&data);
 }
 
 BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
@@ -26,26 +30,33 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
                        const long &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
-  for (long is = 0; is < numStates; is++) {
+#pragma omp parallel for
+  for (long is : bandStructure.parallelIrrStateIterator()) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
+    auto isIdx = StateIndex(is);
+    long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemicalPotential = calcStat.chemicalPotential;
       auto temperature = calcStat.temperature;
       for (int i : {0,1,2}) {
-        operator()(iCalc, i, is) = -particle.getDnde(energy, temperature, chemicalPotential) * vel(i);
+        operator()(iCalc, i, ibte) = -particle.getDnde(energy, temperature, chemicalPotential) * vel(i);
       }
     }
   }
+  mpi->allReduceSum(&data);
 }
 
 Vector0::Vector0(StatisticsSweep &statisticsSweep_,
                  BaseBandStructure &bandStructure_, SpecificHeat &specificHeat)
     : VectorBTE(statisticsSweep_, bandStructure_, 1) {
   Particle particle = bandStructure.getParticle();
-  for (long is = 0; is < numStates; is++) {
+#pragma omp parallel for
+  for (long is : bandStructure.parallelIrrStateIterator()) {
     double energy = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double temp = calcStat.temperature;
@@ -54,8 +65,9 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
       // note dnde = n(n+1)/T  (for bosons)
       auto c = specificHeat.get(iCalc);
       double x = -dnde / temp / c;
-      operator()(iCalc, 0, is) += std::sqrt(x) * energy;
+      operator()(iCalc, 0, ibte) += std::sqrt(x) * energy;
       // we use std::sqrt because we overwrote sqrt() in the base class
     }
   }
+  mpi->allReduceSum(&data);
 }

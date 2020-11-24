@@ -44,8 +44,6 @@ class ActivePoints : public Points {
    */
   Point getPoint(const long &index);
 
-  virtual double getWeight(const long &ik);
-
   /** Returns the Points object from which the ActivePoints have been built.
    */
   Points getParentPoints();
@@ -58,11 +56,6 @@ class ActivePoints : public Points {
    */
   Eigen::Vector3d getPointCoords(const long &index, const int &basis =
   crystalCoords);
-
-  std::tuple<int,Eigen::Matrix3d> getRotationToIrreducible(
-      const Eigen::Vector3d &x, const int & basis=crystalCoords);
-  std::vector<Eigen::Matrix3d> getRotationsStar(const int & ik);
-//  int irreducibleToReducible(const int &ikIrr);
 };
 
 #endif

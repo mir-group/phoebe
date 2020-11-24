@@ -555,7 +555,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
     Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
 #pragma omp for nowait
     for (long is : bandStructure.parallelStateIterator()) {
-      for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
             tmpLEEPrivate(iCalc, i, j) +=
@@ -567,7 +567,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
       }
     }
 #pragma omp critical
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       for (int i : {0,1,2}) {
         for (int j : {0,1,2}) {
           tmpLEE(iCalc, i, j) += tmpLEEPrivate(iCalc, i, j);

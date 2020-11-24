@@ -65,7 +65,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
 
-  if (false) { // context.getUseSymmetries()) {
+  if (context.getUseSymmetries()) {
 
     // We now look for the symmetry operations of the crystal
     // in this implementation, we rely on spglib

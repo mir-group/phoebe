@@ -133,10 +133,6 @@ class BaseBandStructure {
   virtual Eigen::Vector3d getWavevector(StateIndex &is) = 0;
   virtual Eigen::Vector3d getWavevector(WavevectorIndex &ik) = 0;
 
-  virtual double getWeight(const long &stateIndex) = 0;
-  virtual double getWeight(StateIndex &is) = 0;
-  virtual double getWeight(WavevectorIndex &ik) = 0;
-
   /** Method to save quasiparticle eigenvectors inside FullBandStructure().
    * @param point: a vector of 3 crystal coordinates. The method will look
    * for the wavevector index.
@@ -168,6 +164,20 @@ class BaseBandStructure {
 
   virtual std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex) = 0;
   virtual std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex) = 0;
+  virtual std::tuple<long, Eigen::Matrix3d> getRotationToIrreducible(
+      const Eigen::Vector3d &x,
+      const int &basis = Points::crystalCoords) = 0;
+
+  virtual BteIndex stateToBte(StateIndex &isIndex) = 0;
+  virtual StateIndex bteToState(BteIndex &ibteIndex) = 0;
+  virtual std::vector<long> irrStateIterator() = 0;
+  virtual std::vector<long> parallelIrrStateIterator() = 0;
+  virtual std::vector<long> irrPointsIterator() = 0;
+  virtual std::vector<long> parallelIrrPointsIterator() = 0;
+
+  virtual long getPointIndex(const Eigen::Vector3d &crystalCoords,
+                             const bool &suppressError=false) = 0;
+  virtual std::vector<long> getReduciblesFromIrreducible(const long &ik) = 0;
 };
 
 class ActiveBandStructure;
@@ -440,32 +450,6 @@ class FullBandStructure : public BaseBandStructure {
    */
   Eigen::Vector3d getWavevector(WavevectorIndex &ik);
 
-  /** Returns the weight of a quasiparticle from its Bloch index, to be used
-   * when integrating the Brillouin zone.
-   * @param stateIndex: an integer index in range [0,numStates-1].
-   * @return weight: a double value normalized such that
-   * \f$\sum_{ik} weight(ik) = 1\f$.
-   */
-  double getWeight(const long &stateIndex);
-
-  /** Returns the weight of a quasiparticle from its Bloch index, to be used
-   * when integrating the Brillouin zone.
-   * @param stateIndex: a StateIndex(is) object where 'is' is an integer
-   * index in range [0,numStates-1].
-   * @return weight: a double value normalized such that
-   * \f$\sum_{ik} weight(ik) = 1\f$.
-   */
-  double getWeight(StateIndex &is);
-
-  /** Returns the weight of a quasiparticle from its wavevector index, to be
-   * used when integrating the Brillouin zone.
-   * @param wavevectorIndex: a WavevectorIndex(ik) object where 'ik' is an
-   * integer index in range [0,numPoints-1].
-   * @return weight: a double value normalized such that
-   * \f$\sum_{ik} weight(ik) = 1\f$.
-   */
-  double getWeight(WavevectorIndex &ik);
-
   /** Method to save quasiparticle energies inside FullBandStructure().
    * @param point: a point object, which also provides the wavevector index.
    * @param energies: a vector of size (numBands) with the quasiparticle
@@ -511,7 +495,22 @@ class FullBandStructure : public BaseBandStructure {
 
   std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex);
   std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex);
- protected:
+  std::tuple<long, Eigen::Matrix3d> getRotationToIrreducible(
+      const Eigen::Vector3d &x,
+      const int &basis = Points::crystalCoords);
+
+  BteIndex stateToBte(StateIndex &isIndex);
+  StateIndex bteToState(BteIndex &ibteIndex);
+
+  std::vector<long> irrStateIterator();
+  std::vector<long> parallelIrrStateIterator();
+  std::vector<long> irrPointsIterator();
+  std::vector<long> parallelIrrPointsIterator();
+
+  long getPointIndex(const Eigen::Vector3d &crystalCoords,
+                     const bool &suppressError=false);
+  std::vector<long> getReduciblesFromIrreducible(const long &ik);
+protected:
   // stores the quasiparticle kind
   Particle particle;
 

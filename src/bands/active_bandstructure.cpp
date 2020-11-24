@@ -20,12 +20,16 @@ ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure &that)
       eigenvectors(that.eigenvectors),
       hasEigenvectors(that.hasEigenvectors),
       numStates(that.numStates),
+      numIrrStates(that.numIrrStates),
+      numIrrPoints(that.numIrrPoints),
       numPoints(that.numPoints),
       numBands(that.numBands),
       numFullBands(that.numFullBands),
       windowMethod(that.windowMethod),
       auxBloch2Comb(that.auxBloch2Comb),
       cumulativeKbOffset(that.cumulativeKbOffset),
+      bteAuxBloch2Comb(that.bteAuxBloch2Comb),
+      bteCumulativeKbOffset(that.bteCumulativeKbOffset),
       cumulativeKbbOffset(that.cumulativeKbbOffset) {}
 
 ActiveBandStructure &ActiveBandStructure::operator=(
@@ -38,12 +42,16 @@ ActiveBandStructure &ActiveBandStructure::operator=(
     eigenvectors = that.eigenvectors;
     hasEigenvectors = that.hasEigenvectors;
     numStates = that.numStates;
+    numIrrStates = that.numIrrStates;
+    numIrrPoints = that.numIrrPoints;
     numPoints = that.numPoints;
     numBands = that.numBands;
     numFullBands = that.numFullBands;
     windowMethod = that.windowMethod;
     auxBloch2Comb = that.auxBloch2Comb;
     cumulativeKbOffset = that.cumulativeKbOffset;
+    bteAuxBloch2Comb = that.bteAuxBloch2Comb;
+    bteCumulativeKbOffset = that.bteCumulativeKbOffset;
     cumulativeKbbOffset = that.cumulativeKbbOffset;
   }
   return *this;
@@ -98,11 +106,7 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
 Particle ActiveBandStructure::getParticle() { return particle; }
 
 bool ActiveBandStructure::hasPoints() {
-  //	if ( activePoints != nullptr ) {
   return true;
-  //	} else {
-  //		return false;
-  //	}
 }
 
 Points ActiveBandStructure::getPoints() {
@@ -291,18 +295,6 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(WavevectorIndex &ik) {
   return p.getCoords(Points::cartesianCoords, true);
 }
 
-double ActiveBandStructure::getWeight(const long &stateIndex) {
-  auto tup = getIndex(stateIndex);
-  auto ik = std::get<0>(tup);
-  return getWeight(ik);
-}
-
-double ActiveBandStructure::getWeight(StateIndex &is) { return getWeight(is.get()); }
-
-double ActiveBandStructure::getWeight(WavevectorIndex &ik) {
-  return activePoints.getWeight(ik.get());
-}
-
 void ActiveBandStructure::setEnergies(Point &point,
                                       Eigen::VectorXd &energies_) {
   long ik = point.getIndex();
@@ -363,6 +355,14 @@ std::tuple<long, long> ActiveBandStructure::comb2Bloch(const long &is) {
   return {auxBloch2Comb(is, 0), auxBloch2Comb(is, 1)};
 }
 
+long ActiveBandStructure::bteBloch2Comb(const long &ik, const long &ib) {
+  return bteCumulativeKbOffset(ik) + ib;
+}
+
+std::tuple<long, long> ActiveBandStructure::bteComb2Bloch(const long &is) {
+  return {bteAuxBloch2Comb(is, 0), bteAuxBloch2Comb(is, 1)};
+}
+
 void ActiveBandStructure::buildIndeces() {
   auxBloch2Comb = Eigen::MatrixXi::Zero(numStates, 2);
   cumulativeKbOffset = Eigen::VectorXi::Zero(numPoints);
@@ -381,6 +381,35 @@ void ActiveBandStructure::buildIndeces() {
       auxBloch2Comb(is, 1) = ib;
       is += 1;
     }
+  }
+
+  // ------------------
+  // things to use in presence of symmetries
+
+  activePoints.setIrreduciblePoints();
+
+  numIrrPoints = 0;
+  numIrrStates = 0;
+  for (long ik : activePoints.irrPointsIterator()) {
+    numIrrStates += numBands(ik);
+    numIrrPoints++;
+  }
+
+  bteAuxBloch2Comb = Eigen::MatrixXi::Zero(numIrrStates, 2);
+  bteCumulativeKbOffset = Eigen::VectorXi::Zero(numIrrPoints);
+  is = 0;
+  long ikIrr = 0;
+  for (long ik : activePoints.irrPointsIterator()) {
+    if (ikIrr > 0) {
+      bteCumulativeKbOffset(ikIrr) =
+          bteCumulativeKbOffset(ikIrr - 1) + numBands(ik - 1);
+    }
+    for (long ib = 0; ib < numBands(ik); ib++) {
+      bteAuxBloch2Comb(is, 0) = ikIrr;
+      bteAuxBloch2Comb(is, 1) = ib;
+      is++;
+    }
+    ikIrr++;
   }
 }
 
@@ -530,6 +559,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   // initialize the raw data buffers of the activeBandStructure
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
+//  activePoints.setIrreduciblePoints();
   // construct the mapping from combined indices to Bloch indices
   buildIndeces();
 
@@ -754,6 +784,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // ---------- initialize internal data buffers --------------- // 
   ActivePoints activePoints_(points, filter);
   activePoints = activePoints_;
+//  activePoints.setIrreduciblePoints();
 
   // construct the mapping from combined indices to Bloch indices
   buildIndeces();
@@ -854,6 +885,39 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   return statisticsSweep;
 }
 
+std::vector<long> ActiveBandStructure::irrStateIterator() {
+  std::vector<long> ikIter = activePoints.irrPointsIterator();
+  std::vector<long> iter;
+  for (long ik : ikIter) {
+    auto ikIdx = WavevectorIndex(ik);
+    for (int ib=0; ib<numBands(ik); ib++) {
+      auto ibIdx = BandIndex(ib);
+      long is = getIndex(ikIdx, ibIdx);
+      iter.push_back(is);
+    }
+  }
+  return iter;
+}
+
+std::vector<long> ActiveBandStructure::parallelIrrStateIterator() {
+  auto v = irrStateIterator();
+  //
+  auto divs = mpi->divideWork(v.size());
+  long start = divs[0];
+  long stop = divs[1];
+  //
+  std::vector<long> iter(v.begin() + start, v.begin() + stop);
+  return iter;
+}
+
+std::vector<long> ActiveBandStructure::irrPointsIterator() {
+  return activePoints.irrPointsIterator();
+}
+
+std::vector<long> ActiveBandStructure::parallelIrrPointsIterator() {
+  return activePoints.parallelIrrPointsIterator();
+}
+
 std::vector<Eigen::Matrix3d>
 ActiveBandStructure::getRotationsStar(WavevectorIndex &ikIndex) {
   return activePoints.getRotationsStar(ikIndex.get());
@@ -864,4 +928,47 @@ ActiveBandStructure::getRotationsStar(StateIndex &isIndex) {
   auto t = getIndex(isIndex);
   WavevectorIndex ikIndex = std::get<0>(t);
   return getRotationsStar(ikIndex);
+}
+
+BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
+  auto t = getIndex(isIndex);
+  WavevectorIndex ikIdx = std::get<0>(t);
+  BandIndex ibIdx = std::get<1>(t);
+  // from k from 0 to N_k
+  // to k from 0 to N_k_irreducible
+  long ikBte = activePoints.asIrreducibleIndex(ikIdx.get());
+  if (ikBte<0){
+    Error e("stateToBte is used on a non-irreducible point");
+  }
+  long iBte = bteBloch2Comb(ikBte,ibIdx.get());
+  auto iBteIdx = BteIndex(iBte);
+  return iBteIdx;
+}
+
+StateIndex ActiveBandStructure::bteToState(BteIndex &ibteIndex) {
+  long iBte = ibteIndex.get();
+  auto t = bteComb2Bloch(iBte);
+  long ikBte = std::get<0>(t);
+  long ib = std::get<1>(t);
+  long ik = activePoints.asReducibleIndex(ikBte);
+  long iss = getIndex(WavevectorIndex(ik), BandIndex(ib));
+  return StateIndex(iss);
+}
+
+std::tuple<long, Eigen::Matrix3d> ActiveBandStructure::getRotationToIrreducible(
+    const Eigen::Vector3d &x, const int &basis) {
+  return activePoints.getRotationToIrreducible(x, basis);
+}
+
+long ActiveBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
+                                        const bool &suppressError) {
+  if (suppressError) {
+    return activePoints.isPointStored(crystalCoords);
+  } else {
+    return activePoints.getIndex(crystalCoords);
+  }
+}
+
+std::vector<long> ActiveBandStructure::getReduciblesFromIrreducible(const long &ik) {
+  return activePoints.getReduciblesFromIrreducible(ik);
 }

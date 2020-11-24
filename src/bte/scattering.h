@@ -93,9 +93,9 @@ public:
    */
   void a2Omega();
 
-  /** The inverse of a2Omega, converts the matrix Omega to A
-   */
-  void omega2A();
+//  /** The inverse of a2Omega, converts the matrix Omega to A
+//   */
+//  void omega2A();
 
   /** Diagonalize the scattering matrix
    * @return eigenvalues: a Eigen::VectorXd with the eigenvalues
@@ -109,7 +109,10 @@ public:
    */
   void outputToJSON(std::string outFileName);
 
-protected:
+  long getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
+  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const long &iMat);
+
+ protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
 

@@ -29,12 +29,10 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                   temperature / 2.;
   }
 
-  int numPoints = bandStructure.getNumPoints();
-  for (int iq : mpi->divideWorkIter(numPoints)) {
-    auto iqIndex = WavevectorIndex(iq);
-    auto velocities = bandStructure.getVelocities(iqIndex);
-    auto energies = bandStructure.getEnergies(iqIndex);
-
+  for (long iq = 0; iq < bandStructure.getNumPoints(); iq++) {
+    auto iqIdx = WavevectorIndex(iq);
+    auto velocities = bandStructure.getVelocities(iqIdx);
+    auto energies = bandStructure.getEnergies(iqIdx);
     int numBands = energies.size();
 
     Eigen::MatrixXd bose(numCalcs, numBands);
@@ -51,8 +49,12 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         if (ib1 == ib2)
           continue;
 
-        int is1 = bandStructure.getIndex(WavevectorIndex(iq), BandIndex(ib1));
-        int is2 = bandStructure.getIndex(WavevectorIndex(iq), BandIndex(ib2));
+        long is1 = bandStructure.getIndex(iqIdx, BandIndex(ib1));
+        long is2 = bandStructure.getIndex(iqIdx, BandIndex(ib2));
+        auto is1Idx = StateIndex(is1);
+        auto is2Idx = StateIndex(is2);
+        long ind1 = bandStructure.stateToBte(is1Idx).get();
+        long ind2 = bandStructure.stateToBte(is2Idx).get();
 
         for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
@@ -64,13 +66,13 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                   (velocities(ib1, ib2, ic1) * velocities(ib2, ib1, ic2))
                       .real();
               double den = 4. * pow(energies(ib1) - energies(ib2), 2) +
-                           pow(1. / smaRelTimes(iCalc, 0, is1) +
-                                   1. / smaRelTimes(iCalc, 0, is2),
+                           pow(1. / smaRelTimes(iCalc, 0, ind1) +
+                                   1. / smaRelTimes(iCalc, 0, ind2),
                                2);
               wignerCorrection(iCalc, ic1, ic2) +=
                   (energies(ib1) + energies(ib2)) * vel * num / den *
-                  (1. / smaRelTimes(iCalc, 0, is1) +
-                   1. / smaRelTimes(iCalc, 0, is2)) *
+                  (1. / smaRelTimes(iCalc, 0, ind1) +
+                   1. / smaRelTimes(iCalc, 0, ind2)) *
                   norm(iCalc);
             }
           }

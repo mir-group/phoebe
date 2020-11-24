@@ -1,6 +1,5 @@
 #include "electron_wannier_transport_app.h"
 #include "bandstructure.h"
-#include "constants.h"
 #include "context.h"
 #include "drift.h"
 #include "el_scattering.h"
@@ -9,9 +8,7 @@
 #include "io.h"
 #include "observable.h"
 #include "onsager.h"
-#include "particle.h"
 #include "qe_input_parser.h"
-#include "specific_heat.h"
 #include "wigner_electron.h"
 
 void ElectronWannierTransportApp::run(Context &context) {
