@@ -31,7 +31,7 @@ class Context {
   long maxIterationsBTE = 50;
 
   bool scatteringMatrixInMemory = true;
-  bool useSymmetries = true;
+  bool useSymmetries = false;
 
   std::string windowType = "nothing";
   Eigen::Vector2d windowEnergyLimit;
