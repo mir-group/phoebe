@@ -323,10 +323,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
               } break;
               default: // tetrahedron
-                auto ib2Index = BandIndex(ib2);
-                auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
-                auto iss2 = StateIndex(is2);
-                deltaPlus = smearing->getSmearing(en3Plus - en1, iss2);
+                deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
                 break;
               }
 
@@ -430,12 +427,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaMins2 = smearing->getSmearing(en2 + en3Mins - en1, v);
               } break;
               default: // tetrahedron
-                auto ib2Index = BandIndex(ib2);
-                auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
-                auto iss2 = StateIndex(is2);
                 // Note: here I require inner == outer bandstructure
-                deltaMins1 = smearing->getSmearing(en1 + en3Mins, iss2);
-                deltaMins2 = smearing->getSmearing(en1 - en3Mins, iss2);
+                deltaMins1 = smearing->getSmearing(en1 + en3Mins, is2Idx);
+                deltaMins2 = smearing->getSmearing(en1 - en3Mins, is2Idx);
                 break;
               }
 
@@ -581,10 +575,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               deltaIso *= 0.5;
               break;
             default:
-              auto ib2Index = BandIndex(ib2);
-              auto is2 = innerBandStructure.getIndex(iq2Index, ib2Index);
-              auto iss2 = StateIndex(is2);
-              deltaIso = smearing->getSmearing(en1, iss2);
+              deltaIso = smearing->getSmearing(en1, is2Idx);
               break;
             }
 
@@ -690,11 +681,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           linewidth->operator()(iCalc, 0, ind1) += rate;
 
         } else if (switchCase == 1) { // case of matrix-vector multiplication
-          for (unsigned int iInput = 0; iInput < inPopulations.size();
-               iInput++) {
-            for (int i = 0; i < dimensionality_; i++) {
-              outPopulations[iInput](iCalc, i, ind1) +=
-                  rate * inPopulations[iInput](iCalc, i, ind1);
+          for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
+            for (int i : {0,1,2}) {
+              outPopulations[iVec](iCalc, i, ind1) +=
+                  rate * inPopulations[iVec](iCalc, i, ind1);
             }
           }
 
@@ -756,10 +746,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     long iCalc = 0;
     if (context.getUseSymmetries()) {
       for (long ibte = 0; ibte < numStates; ibte++) {
+        auto ibteIdx = BteIndex(ibte);
         for (int i : {0, 1, 2}) {
-          auto ibte1Index = BteIndex(ibte);
-          auto iCart1 = CartIndex(i);
-          long iMat1 = getSMatrixIndex(ibte1Index, iCart1);
+          auto iCart = CartIndex(i);
+          long iMat1 = getSMatrixIndex(ibteIdx, iCart);
           theMatrix(iMat1, iMat1) = linewidth->operator()(iCalc, 0, ibte);
         }
       }

@@ -76,14 +76,14 @@ void ElectronWannierTransportApp::run(Context &context) {
   WignerElCoefficients wignerCoeffs(statisticsSweep, crystal, bandStructure,
                                     context, relaxationTimes);
   wignerCoeffs.calcFromPopulation(nERTA, nTRTA);
-  wignerCoeffs.print();
+  //  wignerCoeffs.print();
   wignerCoeffs.outputToJSON("rta_wigner_coefficients.json");
 
   // compute the electron viscosity
   ElectronViscosity elViscosity(context, statisticsSweep, crystal,
                                 bandStructure);
   elViscosity.calcRTA(relaxationTimes);
-  elViscosity.print();
+  //  elViscosity.print();
   elViscosity.outputToJSON("rta_electron_viscosity.json");
 
   if (mpi->mpiHead()) {

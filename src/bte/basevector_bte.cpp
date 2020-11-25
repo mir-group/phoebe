@@ -1,4 +1,3 @@
-#include "constants.h"
 #include "vector_bte.h"
 
 // default constructor

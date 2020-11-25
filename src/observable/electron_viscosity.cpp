@@ -5,10 +5,12 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
-ElectronViscosity::ElectronViscosity(Context &context_, StatisticsSweep &statisticsSweep_,
+ElectronViscosity::ElectronViscosity(Context &context_,
+                                     StatisticsSweep &statisticsSweep_,
                                      Crystal &crystal_,
                                      BaseBandStructure &bandStructure_)
-    : Observable(context_, statisticsSweep_, crystal_), bandStructure(bandStructure_) {
+    : Observable(context_, statisticsSweep_, crystal_),
+      bandStructure(bandStructure_) {
 
   tensordxdxdxd = Eigen::Tensor<double, 5>(
       numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
@@ -29,12 +31,14 @@ ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
 }
 
 void ElectronViscosity::calcRTA(VectorBTE &tau) {
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double spinFactor = 2.;
+  if (context.getHasSpinOrbit()) {
+    spinFactor = 1.;
+  }
+  double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
-
   auto particle = bandStructure.getParticle();
   tensordxdxdxd.setZero();
-
   auto excludeIndeces = tau.excludeIndeces;
 
 #pragma omp parallel
@@ -42,31 +46,38 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
 #pragma omp for nowait
-    for (long is : bandStructure.parallelStateIterator()) {
-      auto en = bandStructure.getEnergy(is);
+    for (long is : bandStructure.parallelIrrStateIterator()) {
+      double en = bandStructure.getEnergy(is);
+      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
+      Eigen::Vector3d qIrr = bandStructure.getWavevector(is);
 
-      auto vel = bandStructure.getGroupVelocity(is);
-      auto q = bandStructure.getWavevector(is);
+      auto isIndex = StateIndex(is);
+      long ibte = bandStructure.stateToBte(isIndex).get();
 
-      // should I skip some states?
-      //      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
-      //              != excludeIndeces.end())
-      //          continue;
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte) !=
+          excludeIndeces.end())
+        continue;
 
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      auto rots = bandStructure.getRotationsStar(isIndex);
+      for (Eigen::Matrix3d rot : rots) {
+        Eigen::Vector3d vel = rot * velIrr;
+        Eigen::Vector3d q = rot * qIrr;
 
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temperature = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+          double temperature = calcStat.temperature;
+          double chemPot = calcStat.chemicalPotential;
+          double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
 
-        for (long i = 0; i < dimensionality; i++) {
-          for (long j = 0; j < dimensionality; j++) {
+          for (long l = 0; l < dimensionality; l++) {
             for (long k = 0; k < dimensionality; k++) {
-              for (long l = 0; l < dimensionality; l++) {
-                tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j) * q(k) * vel(l) *
-                                                bosep1 * tau(iCalc, 0, is) /
-                                                temperature * norm;
+              for (long j = 0; j < dimensionality; j++) {
+                for (long i = 0; i < dimensionality; i++) {
+                  tmpTensor(iCalc, i, j, k, l) +=
+                      q(i) * vel(j) * q(k) * vel(l) * bosep1 *
+                      tau(iCalc, 0, ibte) / temperature * norm;
+                }
               }
             }
           }
@@ -74,11 +85,11 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       }
     }
 #pragma omp critical
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      for (long i = 0; i < dimensionality; i++) {
+    for (long l = 0; l < dimensionality; l++) {
+      for (long k = 0; k < dimensionality; k++) {
         for (long j = 0; j < dimensionality; j++) {
-          for (long k = 0; k < dimensionality; k++) {
-            for (long l = 0; l < dimensionality; l++) {
+          for (long i = 0; i < dimensionality; i++) {
+            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
               tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
             }
           }

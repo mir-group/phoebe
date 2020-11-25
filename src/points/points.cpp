@@ -375,6 +375,8 @@ void Points::setIrreduciblePoints() {
 
   std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
   {
+    rotationMatricesCrystal.resize(0);
+    rotationMatricesCartesian.resize(0);
     Eigen::Matrix3d bg = crystal.getReciprocalUnitCell();
     for (auto symm : symms) {
       Eigen::Matrix3d rotation = symm.rotation;

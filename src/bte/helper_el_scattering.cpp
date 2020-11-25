@@ -170,14 +170,12 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       v3s = bandStructure3->getGroupVelocities(iq3Index);
     }
     int nb3 = energies3.size();
+    auto particle = h0.getParticle();
     Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-      double temperature =
-          statisticsSweep.getCalcStatistics(iCalc).temperature;
-      double chemPot = 0.; // chemicalPotential always = 0 for phonons
+      double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       for (int ib3 = 0; ib3 < nb3; ib3++) {
-        bose3Data(iCalc, ib3) = h0.getParticle().getPopulation(
-            energies3(ib3), temperature, chemPot);
+        bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
       }
     }
 
@@ -233,11 +231,9 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       bose3Data.setZero();
 
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (long ib3 = 0; ib3 < nb3; ib3++) {
-          bose3Data(iCalc, ib3) =
-              particle.getPopulation(energies3(ib3), temperature);
+          bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
         }
       }
 

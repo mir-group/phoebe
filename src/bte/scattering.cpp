@@ -551,20 +551,42 @@ std::vector<std::tuple<std::vector<long>, long>>
 ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
                                              const bool &rowMajor) {
   if (rowMajor) { // case for el-ph scattering
-    if (switchCase != 0) {
-      // this case is used by el_scattering, to compute lifetimes, or A.f
 
-      size_t numOuter = outerBandStructure.getNumPoints();
-      std::vector<long> outerIterator = mpi->divideWorkIter(numOuter);
+    if (switchCase == 2) { // case for linewidth construction
+      // here I parallelize over ik1
+      // which is the outer loop on q-points
+      size_t a = innerBandStructure.getNumPoints();
+      std::vector<long> q2Iterator = mpi->divideWorkIter(a);
+
+      // I don't parallelize the outer band structure (iq1 in phonons)
+      // which is the inner loop on q-points
+      std::vector<long> q1Iterator(outerBandStructure.getNumPoints());
+      // populate vector with integers from 0 to numPoints-1
+      std::iota(std::begin(q1Iterator), std::end(q1Iterator), 0);
+
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator(
+          q2Iterator.size());
+      int i = 0;
+      for (long iq2 : q2Iterator) {
+        auto t = std::make_tuple(q1Iterator, iq2);
+        pairIterator[i] = t;
+        i++;
+      }
+      return pairIterator;
+
+    } else if (switchCase == 1) {
+      // this case is used by el_scattering, to compute lifetimes, or A.f
+      std::vector<long> k1Iterator = outerBandStructure.parallelIrrPointsIterator();
+
       // Note: phScatteringMatrix needs iq2 to be the outer loop
       // in order to be efficient!
-      std::vector<long> innerIterator(innerBandStructure.getNumPoints());
+      std::vector<long> k2Iterator(innerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
-      std::iota(std::begin(innerIterator), std::end(innerIterator), 0);
+      std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
 
       std::vector<std::tuple<std::vector<long>, long>> pairIterator;
-      for (long iq1 : outerIterator) {
-        auto t = std::make_tuple(innerIterator, iq1);
+      for (long ik1 : k1Iterator) {
+        auto t = std::make_tuple(k2Iterator, ik1);
         pairIterator.push_back(t);
       }
       return pairIterator;
@@ -576,14 +598,25 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       std::set<std::pair<int, int>> localPairs;
       // first unpack Bloch Index and get all wavevector pairs
       for (auto tup0 : theMatrix.getAllLocalStates()) {
-        auto is1 = std::get<0>(tup0);
-        auto is2 = std::get<1>(tup0);
-        auto tup1 = innerBandStructure.getIndex(is1);
-        auto ik1 = std::get<0>(tup1);
-        auto tup2 = outerBandStructure.getIndex(is2);
-        auto ik2 = std::get<0>(tup2);
-        std::pair<int, int> x = std::make_pair(ik1.get(), ik2.get());
-        localPairs.insert(x);
+        auto iMat1 = std::get<0>(tup0);
+        auto iMat2 = std::get<1>(tup0);
+        auto tup1 = getSMatrixIndex(iMat1);
+        auto tup2 = getSMatrixIndex(iMat2);
+        BteIndex ibte1 = std::get<0>(tup1);
+        BteIndex ibte2 = std::get<0>(tup2);
+        // map the index on the irreducible points of BTE to bandstructure index
+        StateIndex is1 = outerBandStructure.bteToState(ibte1);
+        StateIndex is2 = outerBandStructure.bteToState(ibte2);
+        auto tupp1 = outerBandStructure.getIndex(is1);
+        auto tupp2 = outerBandStructure.getIndex(is2);
+        WavevectorIndex ik1Index = std::get<0>(tupp1);
+        WavevectorIndex ik2Index = std::get<0>(tupp2);
+        long ik1Irr = ik1Index.get();
+        long ik2Irr = ik2Index.get();
+        for ( long ik2 : outerBandStructure.getReduciblesFromIrreducible(ik2Irr) ) {
+          std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
+          localPairs.insert(xx);
+        }
       }
 
       // find set of q1

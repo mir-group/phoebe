@@ -275,8 +275,6 @@ void PhononTransportApp::run(Context &context) {
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
-    std::cout <<"Diag done\n";
-
     phTCond.calcFromRelaxons(context, statisticsSweep, bandStructure,
                              eigenvectors, scatteringMatrix, eigenvalues);
     phTCond.print();

@@ -143,36 +143,35 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   LET.setZero();
   LTE.setZero();
   LTT.setZero();
-  for (long is : bandStructure.parallelStateIterator()) {
+  for (long is : bandStructure.parallelIrrStateIterator()) {
     double energy = bandStructure.getEnergy(is);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
-    auto isIndex = StateIndex(is);
-    auto rotations = bandStructure.getRotationsStar(isIndex);
+    Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
+
+    auto isIdx = StateIndex(is);
+    long ibte = bandStructure.stateToBte(isIdx).get();
+    auto rotations = bandStructure.getRotationsStar(isIdx);
 
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-      double chemPot =
-          statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-      double en = energy - chemPot;
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double en = energy - calcStat.chemicalPotential;
 
-      for (Eigen::Matrix3d rotation : rotations) {
-        Eigen::Vector3d thisNE, thisNT, thisVel;
-        thisNE.setZero();
-        thisNT.setZero();
-        thisVel.setZero();
+      for (Eigen::Matrix3d r : rotations) {
+        Eigen::Vector3d thisNE = Eigen::Vector3d::Zero();
+        Eigen::Vector3d thisNT = Eigen::Vector3d::Zero();
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
-            thisNE(i) += rotation(i, j) * nE(iCalc, j, is);
-            thisNT(i) += rotation(i, j) * nT(iCalc, j, is);
-            thisVel(i) += rotation(i, j) * vel(j);
+            thisNE(i) += r(i, j) * nE(iCalc, j, ibte);
+            thisNT(i) += r(i, j) * nT(iCalc, j, ibte);
           }
         }
+        Eigen::Vector3d vel = r * velIrr;
 
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
-            LEE(iCalc, i, j) += thisNE(i) * thisVel(j) * norm;
-            LET(iCalc, i, j) += thisNT(i) * thisVel(j) * norm;
-            LTE(iCalc, i, j) += thisNE(i) * thisVel(j) * en * norm;
-            LTT(iCalc, i, j) += thisNT(i) * thisVel(j) * en * norm;
+            LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
+            LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
+            LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
+            LTT(iCalc, i, j) += thisNT(i) * vel(j) * en * norm;
           }
         }
       }

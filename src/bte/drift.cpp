@@ -1,7 +1,5 @@
 #include "drift.h"
 
-#include <math.h>
-
 BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
                        const long &dimensionality_)
@@ -15,10 +13,11 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
     long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      auto chemicalPotential = calcStat.chemicalPotential;
-      auto temperature = calcStat.temperature;
-      for (int i : {0,1,2}) {
-        operator()(iCalc, i, ibte) = particle.getDndt(energy, temperature, chemicalPotential) * vel(i);
+      auto chemPot = calcStat.chemicalPotential;
+      auto temp = calcStat.temperature;
+      for (int i : {0, 1, 2}) {
+        operator()(iCalc, i, ibte) =
+            particle.getDndt(energy, temp, chemPot) * vel(i);
       }
     }
   }
@@ -38,10 +37,11 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
     long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      auto chemicalPotential = calcStat.chemicalPotential;
-      auto temperature = calcStat.temperature;
-      for (int i : {0,1,2}) {
-        operator()(iCalc, i, ibte) = -particle.getDnde(energy, temperature, chemicalPotential) * vel(i);
+      auto chemPot = calcStat.chemicalPotential;
+      auto temp = calcStat.temperature;
+      for (int i : {0, 1, 2}) {
+        operator()(iCalc, i, ibte) =
+            -particle.getDnde(energy, temp, chemPot) * vel(i);
       }
     }
   }
