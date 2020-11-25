@@ -27,6 +27,13 @@ public:
      */
     static Interaction3Ph parseFromShengBTE(Context &context, Crystal &crystal);
 
+    /** Parse the 3rd derivative of the total energy wrt ionic displacements.
+     * using the Phono3py format.
+     * @param context: the Context object with the user input (to get filename)
+     * @return Interaction3Ph: the object that contains the 3rd derivative.
+     */
+    static Interaction3Ph parseFromPhono3py(Context &context);
+
     /** In development!
      * TODO: while the parsing is done, and it's easy, QE uses a different
      * convention. Let D3(r1,r2,r3) be the 3rd derivative matrix (cartesian and

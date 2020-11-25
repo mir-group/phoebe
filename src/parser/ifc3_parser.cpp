@@ -37,18 +37,49 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
     }
 }
 
-Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal) {
+Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &crystal) {
+
+#ifndef HDF5_AVAIL 
+
+  Error e("Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
+  return void;
+
+#else
+
+  // for now this read write will be in serial, as 
+  // we likely won't benefit much from parallel read, 
+  // and this function is called by MPI head.
 
   // Open the hdf5 file containing the IFC3s
   auto fileName = context.getPhD3FileName();
-  HighFive::File file(outFileName, HighFive::File::ReadWrite);
+  HighFive::File file(fileName, HighFive::File::ReadOnly);
 
-  // write out the number of electrons and the spin
-  HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
-  HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
-  dnelec.write(numElectrons);
-  dnspin.write(numSpin);
+  // TODO determine how we can get these from p3py hdf5
+  long numTriplets = 1;
+  Crystal crystal; // TODO will this come from p3py or phoebe?
 
+  // Set up hdf5 datasets
+  HighFive::DataSet difc3 = file.getDataSet("/temp");
+ 
+  // Read in simple HDF5 information
+
+  // set up buffer to read entire matrix flattened
+  std::vector<double> ifc3Flat(3*3*3*numTriplets);
+
+  // read in the ifc3 data
+  difc3.read(ifc3Flat);
+
+  // Allocate final storage of read in quantitiess
+  Eigen::Tensor<double, 4> ifc3Tensor(3, 3, 3, numTriplets);
+  ifc3Tensor.setZero();
+  Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
+  cellPositions.setZero();
+  Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+  displacedAtoms.setZero();
+
+  // Map the flattened matrix back to tensor structure
+  Eigen::TensorMap<Eigen::Tensor<double, 4>> ifc3Map(ifc3Flat.data(), 3, 3, 3, numTriplets);
+  ifc3Tensor = ifc3Map;
 
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
@@ -56,6 +87,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
   return interaction3Ph;
 
+#endif
 }
 
 Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
