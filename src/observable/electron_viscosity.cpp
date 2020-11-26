@@ -47,19 +47,20 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
 
 #pragma omp for nowait
     for (long is : bandStructure.parallelIrrStateIterator()) {
-      double en = bandStructure.getEnergy(is);
-      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
-      Eigen::Vector3d qIrr = bandStructure.getWavevector(is);
+      auto isIdx = StateIndex(is);
 
-      auto isIndex = StateIndex(is);
-      long ibte = bandStructure.stateToBte(isIndex).get();
+      double en = bandStructure.getEnergy(isIdx);
+      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+      Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
+
+      long ibte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
       if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte) !=
           excludeIndeces.end())
         continue;
 
-      auto rots = bandStructure.getRotationsStar(isIndex);
+      auto rots = bandStructure.getRotationsStar(isIdx);
       for (Eigen::Matrix3d rot : rots) {
         Eigen::Vector3d vel = rot * velIrr;
         Eigen::Vector3d q = rot * qIrr;
@@ -131,9 +132,10 @@ void ElectronViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
   double chemPot = calcStat.chemicalPotential;
 
   for (long is = firstState; is < numStates; is++) {
-    auto en = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
+    auto q = bandStructure.getWavevector(isIdx);
     for (long idim = 0; idim < dimensionality; idim++) {
       A(idim) += bosep1 * q(idim) * q(idim);
     }
@@ -142,9 +144,10 @@ void ElectronViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
 
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
   for (long is = firstState; is < numStates; is++) {
-    auto en = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
+    auto q = bandStructure.getWavevector(isIdx);
     for (auto idim : {0, 1, 2}) {
       driftEigenvector(0, idim, is) = q(idim) * sqrt(bosep1 / temp / A(idim));
     }

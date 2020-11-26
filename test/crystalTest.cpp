@@ -21,6 +21,7 @@ TEST(Crystal, Test1) {
   long dimensionality = 3;
 
   Context context;
+  context.setUseSymmetries(true);
 
   // set up the crystal object
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,

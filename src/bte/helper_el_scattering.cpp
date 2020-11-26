@@ -143,7 +143,8 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
     HelperElScattering::get(Eigen::Vector3d &k1, const long &ik2) {
 
-  Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2);
+  auto ik2Idx = WavevectorIndex(ik2);
+  Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
   Eigen::Vector3d q3 = k2 - k1;
 
   if (storedAllQ3) {
@@ -217,7 +218,8 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
     int ik2Counter = -1;
     for (long ik2 : k2Indexes) {
       ik2Counter++;
-      Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2);
+      auto ik2Idx = WavevectorIndex(ik2);
+      Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
 
       Eigen::Vector3d q3 = k2 - k1;
 

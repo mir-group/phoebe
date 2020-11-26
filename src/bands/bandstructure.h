@@ -129,7 +129,6 @@ class BaseBandStructure {
    * @return wavevector: a 3d vector with the wavevector in cartesian
    * coordinates in units of Bohr^-1.
    */
-  virtual Eigen::Vector3d getWavevector(const long &stateIndex) = 0;
   virtual Eigen::Vector3d getWavevector(StateIndex &is) = 0;
   virtual Eigen::Vector3d getWavevector(WavevectorIndex &ik) = 0;
 
@@ -425,14 +424,6 @@ class FullBandStructure : public BaseBandStructure {
    * 3 is a cartesian directions.
    */
   Eigen::Tensor<std::complex<double>, 3> getPhEigenvectors(WavevectorIndex &ik);
-
-  /** Returns the energy of a quasiparticle from its Bloch index
-   * Used for accessing the bandstructure in the BTE.
-   * @param stateIndex: an integer index in range [0,numStates[
-   * @return wavevector: a 3d vector with the wavevector in cartesian
-   * coordinates in units of Bohr^-1.
-   */
-  Eigen::Vector3d getWavevector(const long &stateIndex);
 
   /** Returns the energy of a quasiparticle from its Bloch index.
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer

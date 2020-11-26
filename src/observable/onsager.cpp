@@ -143,6 +143,9 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   LET.setZero();
   LTE.setZero();
   LTT.setZero();
+
+  auto points = bandStructure.getPoints();
+
   for (long is : bandStructure.parallelIrrStateIterator()) {
     double energy = bandStructure.getEnergy(is);
     Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
@@ -168,6 +171,10 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
+//            LEE(iCalc, i, j) += thisNE(i) * norm;
+//            LET(iCalc, i, j) += thisNT(i) * norm;
+//            LTE(iCalc, i, j) += thisNE(i) * en * norm;
+//            LTT(iCalc, i, j) += thisNT(i) * en * norm;
             LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
             LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
             LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;

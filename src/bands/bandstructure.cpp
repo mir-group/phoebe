@@ -281,18 +281,15 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
   return eigs_;
 }
 
-Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
-  auto ik = std::get<0>(tup);
-  return points.getPoint(ik).getCoords(Points::cartesianCoords, true);
-}
-
 Eigen::Vector3d FullBandStructure::getWavevector(StateIndex &is) {
-  return getWavevector(is.get());
+  auto tup = getIndex(is);
+  WavevectorIndex ik = std::get<0>(tup);
+  return getWavevector(ik);
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(WavevectorIndex &ik) {
-  return points.getPoint(ik.get()).getCoords(Points::cartesianCoords, true);
+  Eigen::Vector3d k = points.getPointCoords(ik.get(), Points::cartesianCoords);
+  return points.bzToWs(k, Points::cartesianCoords);
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,

@@ -126,9 +126,10 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
   double chemPot = calcStat.chemicalPotential;
 
   for (long is : bandStructure.parallelStateIterator()) {
-    auto en = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
+    auto q = bandStructure.getWavevector(isIdx);
     for (long idim = 0; idim < dimensionality; idim++) {
       A(idim) += bosep1 * q(idim) * q(idim);
     }
@@ -138,9 +139,10 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
 
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
   for (long is : bandStructure.parallelStateIterator()) {
-    auto en = bandStructure.getEnergy(is);
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
     double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
+    auto q = bandStructure.getWavevector(isIdx);
     for (auto idim : {0, 1, 2}) {
       driftEigenvector(0, idim, is) = q(idim) * sqrt(bosep1 / temp / A(idim));
     }
@@ -166,7 +168,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
   Eigen::MatrixXd W(3, 3);
   W.setZero();
   for (long is : bandStructure.parallelStateIterator()) {
-    auto v = bandStructure.getGroupVelocity(is);
+    auto isIdx = StateIndex(is);
+    auto v = bandStructure.getGroupVelocity(isIdx);
     for (auto i : {0, 1, 2}) {
       for (auto j : {0, 1, 2}) {
         tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);

@@ -243,14 +243,6 @@ public:
    * coordinates in units of Bohr^-1.
    */
 
-  Eigen::Vector3d getWavevector(const long &stateIndex);
-  /** Returns the energy of a quasiparticle from its Bloch index.
-   * @param stateIndex: a StateIndex(is) object where 'is' is an integer
-   * index in range [0,numStates-1].
-   * @return wavevector: a 3d vector with the wavevector in cartesian
-   * coordinates in units of Bohr^-1.
-   */
-
   Eigen::Vector3d getWavevector(StateIndex &is);
   /** Returns the energy of a quasiparticle from its Bloch index.
    * @param wavevectorIndex: a WavevectorIndex(ik) object where 'ik' is an
