@@ -50,21 +50,47 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
   // we likely won't benefit much from parallel read, 
   // and this function is called by MPI head.
 
+  // Notes about p3py's fc3.hdf5 file:
+  // 3rd order fcs are listed as (num_atom, num_atom, num_atom, 3, 3, 3)
+  // stored in eV/Angstrom3
+  // Look here for additional detals
+  // https://phonopy.github.io/phono3py/output-files.html#fc3-hdf5
+
+  // the information we need outside the ifcs3 is in a file called
+  // disp_fc3.yaml, which contains the atomic positions of the 
+  // supercell and the displacements of the atoms
+
+  // First, read in the information form disp_fc3.yaml
+  long numTriplets;
+  int numAtoms;
+  Crystal crystal;
+
+  // Open disp_fc3 file
+  // TODO we need to supply a path rather than a filename, 
+  // since in this case there's two files...
+  std::ifstream infile("disp_fc3.yaml");
+  std::string line;
+
+  if (not infile.is_open()) {
+      Error e("Phono3py disp_fc3.yaml file not found");
+  }
+
+  std::getline(infile, line);
+  // first line is nAtoms: # 
+  numAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
+  long numTriplets = pow(numAtoms,3);
+
+  // Now, read in the fc3s from fc3.hdf5 ------
+
   // Open the hdf5 file containing the IFC3s
   auto fileName = context.getPhD3FileName();
   HighFive::File file(fileName, HighFive::File::ReadOnly);
 
-  // TODO determine how we can get these from p3py hdf5
-  long numTriplets = 1;
-  Crystal crystal; // TODO will this come from p3py or phoebe?
-
   // Set up hdf5 datasets
-  HighFive::DataSet difc3 = file.getDataSet("/temp");
+  HighFive::DataSet difc3 = file.getDataSet("/fc3");
  
-  // Read in simple HDF5 information
-
   // set up buffer to read entire matrix flattened
-  std::vector<double> ifc3Flat(3*3*3*numTriplets);
+  std::vector<double> ifc3Flat(3*3*3*numAtoms*numAtoms*numAtoms);
 
   // read in the ifc3 data
   difc3.read(ifc3Flat);
@@ -78,8 +104,23 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
   displacedAtoms.setZero();
 
   // Map the flattened matrix back to tensor structure
-  Eigen::TensorMap<Eigen::Tensor<double, 4>> ifc3Map(ifc3Flat.data(), 3, 3, 3, numTriplets);
-  ifc3Tensor = ifc3Map;
+  // At first, we keep the tensor structure used by phono3py
+  Eigen::TensorMap<Eigen::Tensor<double, 4>> ifc3Map(ifc3Flat.data(), numAtoms, numAtoms, numAtoms, 3, 3, 3);
+  //ifc3Tensor = ifc3Map;
+
+  // Read the 3x3x3 force constants tensor
+  double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
+  long i1, i2, i3;
+  double d4;
+  for (long a : { 0, 1, 2 }) {
+    for (long b : { 0, 1, 2 }) {
+      for (long c : { 0, 1, 2 }) {
+        while (iss4 >> i1 >> i2 >> i3 >> d4) {
+          ifc3Tensor(c, b, a, i) = d4; // already in ev/ang, shouldn't need converting
+        }
+      }
+    }
+  }
 
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
