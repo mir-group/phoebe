@@ -70,18 +70,18 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
     double chemPot = calcStat.chemicalPotential;
 
     for (long is = 0; is < numStates; is++) {
+
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
+        excludeIndeces.end())
+      continue;
+
       double energy = bandStructure.getEnergy(is);
       double dnde = particle.getDnde(energy, temp, chemPot);
       // note dnde = n(n+1)/T  (for bosons)
       auto c = specificHeat.get(imu, it);
       double x = -dnde / temp / c;
-
-      // we have to check for ph acoustic ph where E = 0, which is a divergence in n(E),
-      // so that dndt = nan. We explicitly set this to zero, as en * dndt should = 0 if en = 0.
-      // However, in c++, nan * 0 = nan.
-      if(energy != 0.0 || particle.isElectron()) {
-        data(iCalc, is) += std::sqrt(x) * energy;
-      }
+      data(iCalc, is) += std::sqrt(x) * energy;
       // we use std::sqrt because we overwrote sqrt() in the base class
     }
   }

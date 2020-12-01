@@ -28,6 +28,7 @@ SpecificHeat& SpecificHeat::operator =(const SpecificHeat &that) {
 }
 
 void SpecificHeat::calc() {
+
   double norm = 1. / bandStructure.getNumPoints(true)
           / crystal.getVolumeUnitCell(dimensionality);
   scalar.setZero();
@@ -43,12 +44,11 @@ void SpecificHeat::calc() {
       auto en = bandStructure.getEnergy(is);
       auto dndt = particle.getDndt(en, temp, chemPot);
 
-      // we have to check for ph acoustic ph where E = 0, which is a divergence in n(E),
-      // so that dndt = nan. We explicitly don't include this term, as en * dndt should = 0.
-      // However, in c++, nan * 0 = nan.
-      if(en != 0.0 || particle.isElectron()) {
-        sum += dndt * en * norm;
+      // exclude acoustic phonons, cutoff at 0.1 cm^-1
+      if (en < 0.1 / ryToCmm1 && particle.isPhonon()) {
+        continue;
       }
+      sum += dndt * en * norm;
     }
     scalar(iCalc) = sum;
   }

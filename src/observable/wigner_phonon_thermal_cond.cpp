@@ -9,6 +9,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     BaseBandStructure &bandStructure_, VectorBTE &relaxationTimes)
     : PhononThermalConductivity(statisticsSweep_, crystal_, bandStructure_),
       smaRelTimes(relaxationTimes) {
+
   int numCalcs = statisticsSweep.getNumCalcs();
 
   wignerCorrection =
@@ -16,7 +17,6 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
   wignerCorrection.setZero();
 
   auto particle = bandStructure.getParticle();
-
   int dimensionality = crystal.getDimensionality();
 
   Eigen::VectorXd norm(numCalcs);
@@ -33,18 +33,26 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     auto iqIndex = WavevectorIndex(iq);
     auto velocities = bandStructure.getVelocities(iqIndex);
     auto energies = bandStructure.getEnergies(iqIndex);
-
     int numBands = energies.size();
 
+    // calculate bose factors
     Eigen::MatrixXd bose(numCalcs, numBands);
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
         auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
         double temperature = calcStat.temperature;
         bose(iCalc, ib1) = particle.getPopulation(energies(ib1), temperature);
+
+        // exclude acoustic phonons, cutoff at 0.1 cm^-1
+        // setting this to zero here causes acoustic ph
+        // contribution below to evaluate to zero
+        if (energies(ib1) < 0.1 / ryToCmm1) {
+          bose(iCalc, ib1) = 0.0;
+        }
       }
     }
 
+    // calculate wigner correction
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         if (ib1 == ib2) continue;
@@ -55,21 +63,10 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
             for (int ic2 = 0; ic2 < dimensionality; ic2++) {
-              // have to deal with possible divergence of bose factor for gamma acoustic phonons
-              // if energy = exactly zero, because bose(=inf)*energy(=0) = nan.
-              // therefore, if e = 0, we don't include that term.
-              double num;
-              if(energies(ib1) == 0.0) {
-                num = energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
-              }
-              else if(energies(ib2) == 0.0) {
-                num = energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.);
-              }
-              else {
-                num = energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
-                  energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
-              }
 
+              double num =
+                  energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
+                  energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
               double vel =
                   (velocities(ib1, ib2, ic1) * velocities(ib2, ib1, ic2))
                       .real();
@@ -77,6 +74,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                   4. * pow(energies(ib1) - energies(ib2), 2) +
                   pow(1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2),
                       2);
+
               wignerCorrection(iCalc, ic1, ic2) +=
                   (energies(ib1) + energies(ib2)) * vel * num / den *
                   (1./smaRelTimes(iCalc, 0, is1) + 1./smaRelTimes(iCalc, 0, is2)) *
@@ -129,7 +127,7 @@ void WignerPhononThermalConductivity::calcFromRelaxons(
 }
 
 void WignerPhononThermalConductivity::print() {
-  if (!mpi->mpiHead()) return;  // debugging now
+  if (!mpi->mpiHead()) return;
 
   std::string units;
   if (dimensionality == 1) {
