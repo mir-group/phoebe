@@ -92,7 +92,7 @@ void PhononTransportApp::run(Context &context) {
                                                 bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
-  phTCond.outputToJSON("wigner_phonon_thermal_cond.json");
+  phTCondWigner.outputToJSON("wigner_phonon_thermal_cond.json");
 
   // compute the thermal conductivity
   PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
