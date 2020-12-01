@@ -1,105 +1,16 @@
 #include "interaction_3ph.h"
 #include "mpiHelper.h"
 
-long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
-  long ir2 = -1;
-  for (int i = 0; i < cellPositions2.cols(); i++) {
-    if ((position2 - cellPositions2.col(i)).norm() == 0.) {
-      ir2 = i;
-      return ir2;
-    }
-  }
-  if (ir2 == -1) {
-    Error e("index not found");
-  }
-  return ir2;
-}
-
-// default constructor
-Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
-                               Eigen::Tensor<double, 4> &ifc3Tensor,
-                               Eigen::Tensor<double, 3> &cellPositions,
-                               Eigen::Tensor<long, 2> &displacedAtoms)
-    : crystal_(crystal), dts(10), newdts(3) {
+Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
+                                 Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3)
+                                 : crystal_(crystal), dts(10), newdts(3) {
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
-
-  nr2 = 0;
-  nr3 = 0;
-  std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
-
-  for (long it = 0; it < numTriplets; it++) {
-    // load the position of the 2 atom in the current triplet
-    Eigen::Vector3d position2, position3;
-    for (int ic : {0, 1, 2}) {
-      position2(ic) = cellPositions(it, 0, ic);
-      position3(ic) = cellPositions(it, 1, ic);
-    }
-    // now check if this element is in the list.
-    bool found2 = false;
-    if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
-                  position2) != tmpCellPositions2.end()) {
-      found2 = true;
-    }
-    bool found3 = false;
-    if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
-                  position3) != tmpCellPositions3.end()) {
-      found3 = true;
-    }
-
-    if (!found2) {
-      tmpCellPositions2.push_back(position2);
-      nr2++;
-    }
-    if (!found3) {
-      tmpCellPositions3.push_back(position3);
-      nr3++;
-    }
-  }
-
-  Eigen::MatrixXd cellPositions2(3, nr2);
-  Eigen::MatrixXd cellPositions3(3, nr3);
-  for (int i = 0; i < nr2; i++) {
-    cellPositions2.col(i) = tmpCellPositions2[i];
-  }
-  for (int i = 0; i < nr3; i++) {
-    cellPositions3.col(i) = tmpCellPositions3[i];
-  }
-
-  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
-  D3.setZero();
-
-  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
-    long ia1 = displacedAtoms(it, 0);
-    long ia2 = displacedAtoms(it, 1);
-    long ia3 = displacedAtoms(it, 2);
-
-    Eigen::Vector3d position2, position3;
-    for (int ic : {0, 1, 2}) {
-      position2(ic) = cellPositions(it, 0, ic);
-      position3(ic) = cellPositions(it, 1, ic);
-    }
-
-    long ir2 = findIndexRow(cellPositions2, position2);
-    long ir3 = findIndexRow(cellPositions3, position3);
-
-    for (int ic1 : {0, 1, 2}) {
-      for (int ic2 : {0, 1, 2}) {
-        for (int ic3 : {0, 1, 2}) {
-
-          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
-
-          D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
-        }
-      }
-    }
-  }
+  nr2 = cellPositions2.cols();
+  nr3 = cellPositions3.cols();
 
   // Copy everything to kokkos views
-
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);
 

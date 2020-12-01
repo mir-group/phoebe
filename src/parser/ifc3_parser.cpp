@@ -6,7 +6,7 @@
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
-#endif 
+#endif
 
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
     auto fileName = context.getPhD3FileName();
@@ -39,15 +39,15 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 
 Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &crystal) {
 
-#ifndef HDF5_AVAIL 
+#ifndef HDF5_AVAIL
 
   Error e("Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
-  return void;
+  //return void;
 
 #else
 
-  // for now this read write will be in serial, as 
-  // we likely won't benefit much from parallel read, 
+  // for now this read write will be in serial, as
+  // we likely won't benefit much from parallel read,
   // and this function is called by MPI head.
 
   // Notes about p3py's fc3.hdf5 file:
@@ -57,16 +57,17 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
   // https://phonopy.github.io/phono3py/output-files.html#fc3-hdf5
 
   // the information we need outside the ifcs3 is in a file called
-  // disp_fc3.yaml, which contains the atomic positions of the 
+  // disp_fc3.yaml, which contains the atomic positions of the
   // supercell and the displacements of the atoms
 
   // First, read in the information form disp_fc3.yaml
-  long numTriplets;
   int numAtoms;
   Crystal crystal;
+  long nr2, nr3; // these are likely... nunit cells in supercell?
+  int numBands;
 
   // Open disp_fc3 file
-  // TODO we need to supply a path rather than a filename, 
+  // TODO we need to supply a path rather than a filename,
   // since in this case there's two files...
   std::ifstream infile("disp_fc3.yaml");
   std::string line;
@@ -76,9 +77,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
   }
 
   std::getline(infile, line);
-  // first line is nAtoms: # 
+  // first line is nAtoms: #
   numAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
-  long numTriplets = pow(numAtoms,3);
 
   // Now, read in the fc3s from fc3.hdf5 ------
 
@@ -88,7 +88,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
 
   // Set up hdf5 datasets
   HighFive::DataSet difc3 = file.getDataSet("/fc3");
- 
+
   // set up buffer to read entire matrix flattened
   std::vector<double> ifc3Flat(3*3*3*numAtoms*numAtoms*numAtoms);
 
@@ -96,39 +96,55 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context) { //, Crystal &cr
   difc3.read(ifc3Flat);
 
   // Allocate final storage of read in quantitiess
-  Eigen::Tensor<double, 4> ifc3Tensor(3, 3, 3, numTriplets);
-  ifc3Tensor.setZero();
-  Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
-  cellPositions.setZero();
-  Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
-  displacedAtoms.setZero();
+  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
+  D3.setZero();
+  Eigen::MatrixXd cellPositions2(3, nr2);
+  Eigen::MatrixXd cellPositions3(3, nr3);
+  cellPositions2.setZero();
+  cellPositions3.setZero();
+  //Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+  //displacedAtoms.setZero();
 
   // Map the flattened matrix back to tensor structure
   // At first, we keep the tensor structure used by phono3py
-  Eigen::TensorMap<Eigen::Tensor<double, 4>> ifc3Map(ifc3Flat.data(), numAtoms, numAtoms, numAtoms, 3, 3, 3);
+  Eigen::TensorMap<Eigen::Tensor<double, 6>> ifc3Map(ifc3Flat.data(), numAtoms, numAtoms, numAtoms, 3, 3, 3);
   //ifc3Tensor = ifc3Map;
 
   // Read the 3x3x3 force constants tensor
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
-  long i1, i2, i3;
+  long i1, i2, i3, i;
   double d4;
   for (long a : { 0, 1, 2 }) {
     for (long b : { 0, 1, 2 }) {
       for (long c : { 0, 1, 2 }) {
-        while (iss4 >> i1 >> i2 >> i3 >> d4) {
-          ifc3Tensor(c, b, a, i) = d4; // already in ev/ang, shouldn't need converting
-        }
+        D3(c, b, a, i, i) = d4; // already in ev/ang, shouldn't need converting
       }
     }
   }
 
   // Create interaction3Ph object
-  Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
-          cellPositions, displacedAtoms);
+  //Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
+  //        cellPositions, displacedAtoms);
+
+  Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3);
 
   return interaction3Ph;
 
 #endif
+}
+
+long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
+  long ir2 = -1;
+  for (int i = 0; i < cellPositions2.cols(); i++) {
+    if ((position2 - cellPositions2.col(i)).norm() == 0.) {
+      ir2 = i;
+      return ir2;
+    }
+  }
+  if (ir2 == -1) {
+    Error e("index not found");
+  }
+  return ir2;
 }
 
 Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
@@ -214,8 +230,89 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
 
   //TODO Round cellPositions to the nearest lattice vectors
 
-  Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
-          cellPositions, displacedAtoms);
+  // start processing ifc3s into D3 matrix
+  int numAtoms = crystal.getNumAtoms();
+  int numBands = numAtoms * 3;
+  int nr2 = 0;
+  int nr3 = 0;
+  std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
+
+  // TODO can't we simplify this? why are we setting
+  // found2 and found3?
+  for (long it = 0; it < numTriplets; it++) {
+
+    // load the position of the 2 atom in the current triplet
+    Eigen::Vector3d position2, position3;
+    for (int ic : {0, 1, 2}) {
+      position2(ic) = cellPositions(it, 0, ic);
+      position3(ic) = cellPositions(it, 1, ic);
+    }
+
+    // now check if this element is in the list.
+    bool found2 = false;
+    if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
+                  position2) != tmpCellPositions2.end()) {
+      found2 = true;
+    }
+    bool found3 = false;
+    if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
+                  position3) != tmpCellPositions3.end()) {
+      found3 = true;
+    }
+
+    if (!found2) {
+      tmpCellPositions2.push_back(position2);
+      nr2++;
+    }
+    if (!found3) {
+      tmpCellPositions3.push_back(position3);
+      nr3++;
+    }
+  }
+
+  Eigen::MatrixXd cellPositions2(3, nr2);
+  Eigen::MatrixXd cellPositions3(3, nr3);
+  cellPositions2.setZero();
+  cellPositions3.setZero();
+  for (int i = 0; i < nr2; i++) {
+    cellPositions2.col(i) = tmpCellPositions2[i];
+  }
+  for (int i = 0; i < nr3; i++) {
+    cellPositions3.col(i) = tmpCellPositions3[i];
+  }
+
+  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
+  D3.setZero();
+
+  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
+    long ia1 = displacedAtoms(it, 0);
+    long ia2 = displacedAtoms(it, 1);
+    long ia3 = displacedAtoms(it, 2);
+
+    Eigen::Vector3d position2, position3;
+    for (int ic : {0, 1, 2}) {
+      position2(ic) = cellPositions(it, 0, ic);
+      position3(ic) = cellPositions(it, 1, ic);
+    }
+
+    long ir2 = findIndexRow(cellPositions2, position2);
+    long ir3 = findIndexRow(cellPositions3, position3);
+
+    for (int ic1 : {0, 1, 2}) {
+      for (int ic2 : {0, 1, 2}) {
+        for (int ic3 : {0, 1, 2}) {
+
+          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+
+          D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
+        }
+      }
+    }
+  }
+
+  Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3);
 
   return interaction3Ph;
 }
@@ -330,7 +427,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
         for (long j1 : { 0, 1, 2 }) {
           for (long j2 : { 0, 1, 2 }) {
             for (long j3 : { 0, 1, 2 }) {
- 
+
               // read 6 integer which represent cartesian and
               // atomic basis indeces
               std::getline(infile, line);
@@ -376,8 +473,89 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   }
   infile.close();
 
-  Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
-          cellPositions, displacedAtoms);
+  // start processing ifc3s into D3 matrix
+  int numBands = numAtoms * 3;
+  int nr2 = 0;
+  int nr3 = 0;
+  std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
+
+  // TODO can't we simplify this? why are we setting
+  // found2 and found3?
+  for (long it = 0; it < numTriplets; it++) {
+
+    // load the position of the 2 atom in the current triplet
+    Eigen::Vector3d position2, position3;
+    for (int ic : {0, 1, 2}) {
+      position2(ic) = cellPositions(it, 0, ic);
+      position3(ic) = cellPositions(it, 1, ic);
+    }
+
+    // now check if this element is in the list.
+    bool found2 = false;
+    if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
+                  position2) != tmpCellPositions2.end()) {
+      found2 = true;
+    }
+    bool found3 = false;
+    if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
+                  position3) != tmpCellPositions3.end()) {
+      found3 = true;
+    }
+
+    if (!found2) {
+      tmpCellPositions2.push_back(position2);
+      nr2++;
+    }
+    if (!found3) {
+      tmpCellPositions3.push_back(position3);
+      nr3++;
+    }
+  }
+
+  Eigen::MatrixXd cellPositions2(3, nr2);
+  Eigen::MatrixXd cellPositions3(3, nr3);
+  for (int i = 0; i < nr2; i++) {
+    cellPositions2.col(i) = tmpCellPositions2[i];
+  }
+  for (int i = 0; i < nr3; i++) {
+    cellPositions3.col(i) = tmpCellPositions3[i];
+  }
+
+  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
+  D3.setZero();
+
+  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
+    long ia1 = displacedAtoms(it, 0);
+    long ia2 = displacedAtoms(it, 1);
+    long ia3 = displacedAtoms(it, 2);
+
+    Eigen::Vector3d position2, position3;
+    for (int ic : {0, 1, 2}) {
+      position2(ic) = cellPositions(it, 0, ic);
+      position3(ic) = cellPositions(it, 1, ic);
+    }
+
+    long ir2 = findIndexRow(cellPositions2, position2);
+    long ir3 = findIndexRow(cellPositions3, position3);
+
+    for (int ic1 : {0, 1, 2}) {
+      for (int ic2 : {0, 1, 2}) {
+        for (int ic3 : {0, 1, 2}) {
+
+          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+
+          D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
+        }
+      }
+    }
+  }
+
+  //Interaction3Ph interaction3Ph(crystal, numTriplets, ifc3Tensor,
+  //        cellPositions, displacedAtoms);
+
+  Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3);
 
   return interaction3Ph;
 }

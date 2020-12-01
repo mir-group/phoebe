@@ -72,6 +72,7 @@ class Interaction3Ph {
 
  public:
 
+  // TODO change this to reflect p3py changes
   /** Default constructor.
    * This method mostly reshapes the input into something more manageable and
    * moves data to the GPU if necessary.
@@ -92,10 +93,8 @@ class Interaction3Ph {
    * @param displacedAtoms: indices of the atoms that are displaced for each
    * element (triplet) of the Ifc3Tensor.
    */
-  Interaction3Ph(Crystal &crystal_, long &numTriplets,
-                 Eigen::Tensor<double, 4> &ifc3Tensor,
-                 Eigen::Tensor<double, 3> &cellPositions,
-                 Eigen::Tensor<long, 2> &displacedAtoms);
+   Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
+                   Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3);
 
   /** Copy constructor
    */
