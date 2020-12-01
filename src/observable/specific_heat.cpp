@@ -42,7 +42,13 @@ void SpecificHeat::calc() {
     for (long is = 0; is < bandStructure.getNumStates(); is++) {
       auto en = bandStructure.getEnergy(is);
       auto dndt = particle.getDndt(en, temp, chemPot);
-      sum += dndt * en * norm;
+
+      // we have to check for ph acoustic ph where E = 0, which is a divergence in n(E),
+      // so that dndt = nan. We explicitly don't include this term, as en * dndt should = 0.
+      // However, in c++, nan * 0 = nan.
+      if(en != 0.0 || particle.isElectron()) {
+        sum += dndt * en * norm;
+      }
     }
     scalar(iCalc) = sum;
   }

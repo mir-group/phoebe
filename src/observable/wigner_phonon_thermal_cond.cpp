@@ -55,9 +55,21 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
             for (int ic2 = 0; ic2 < dimensionality; ic2++) {
-              double num =
-                  energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
+              // have to deal with possible divergence of bose factor for gamma acoustic phonons
+              // if energy = exactly zero, because bose(=inf)*energy(=0) = nan.
+              // therefore, if e = 0, we don't include that term.
+              double num;
+              if(energies(ib1) == 0.0) {
+                num = energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
+              }
+              else if(energies(ib2) == 0.0) {
+                num = energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.);
+              }
+              else {
+                num = energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
                   energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
+              }
+
               double vel =
                   (velocities(ib1, ib2, ic1) * velocities(ib2, ib1, ic2))
                       .real();

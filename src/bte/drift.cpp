@@ -75,7 +75,13 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
       // note dnde = n(n+1)/T  (for bosons)
       auto c = specificHeat.get(imu, it);
       double x = -dnde / temp / c;
-      data(iCalc, is) += std::sqrt(x) * energy;
+
+      // we have to check for ph acoustic ph where E = 0, which is a divergence in n(E),
+      // so that dndt = nan. We explicitly set this to zero, as en * dndt should = 0 if en = 0.
+      // However, in c++, nan * 0 = nan.
+      if(energy != 0.0 || particle.isElectron()) {
+        data(iCalc, is) += std::sqrt(x) * energy;
+      }
       // we use std::sqrt because we overwrote sqrt() in the base class
     }
   }
