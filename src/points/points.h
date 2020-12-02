@@ -58,6 +58,7 @@ public:
   /** Get the index of the wavevector in the referenced Points object.
    */
   long getIndex();
+
 private:
   Eigen::Vector3d umklappVector;
   long index;
@@ -174,7 +175,8 @@ public:
   // finds the integer index ikIrr of the irreducible point in the irreducible
   // list. Provides also the rotation matrix, in cartesian coordinates, such
   // that rotation * kIrr = kRed
-  virtual void setIrreduciblePoints();
+  virtual void setIrreduciblePoints(
+      std::vector<Eigen::MatrixXd> *groupVelocities = nullptr);
   std::vector<long> irrPointsIterator();
   std::vector<long> parallelIrrPointsIterator();
   long asIrreducibleIndex(const long &ik);
@@ -184,6 +186,7 @@ public:
                            const int &basis = cartesianCoords);
   virtual std::vector<Eigen::Matrix3d> getRotationsStar(const long &ik);
   virtual std::vector<long> getReduciblesFromIrreducible(const long &ik);
+
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);
   Crystal &crystal;

@@ -371,6 +371,7 @@ public:
   // this is the functionality to build the indices
   void buildIndeces(); // to be called after building the band structure
   // and these are the tools to convert indices
+  void buildSymmetries();
 
   // utilities to convert Bloch indices into internal indices
   long velBloch2Comb(const long &ik, const long &ib1, const long &ib2,

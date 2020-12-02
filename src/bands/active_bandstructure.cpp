@@ -365,11 +365,20 @@ void ActiveBandStructure::buildIndeces() {
       is += 1;
     }
   }
+}
 
+void ActiveBandStructure::buildSymmetries() {
   // ------------------
   // things to use in presence of symmetries
-
-  activePoints.setIrreduciblePoints();
+  {
+    std::vector<Eigen::MatrixXd> allVels;
+    for ( long ik = 0; ik<getNumPoints(); ik++ ) {
+      auto ikIdx = WavevectorIndex(ik);
+      Eigen::MatrixXd v = getGroupVelocities(ikIdx);
+      allVels.push_back(v);
+    }
+    activePoints.setIrreduciblePoints(&allVels);
+  }
 
   numIrrPoints = activePoints.irrPointsIterator().size();
   numIrrStates = 0;
@@ -379,7 +388,7 @@ void ActiveBandStructure::buildIndeces() {
 
   bteAuxBloch2Comb = Eigen::MatrixXi::Zero(numIrrStates, 2);
   bteCumulativeKbOffset = Eigen::VectorXi::Zero(numIrrPoints);
-  is = 0;
+  long is = 0;
   long ikIrr = 0;
   for (long ik : activePoints.irrPointsIterator()) {
     if (ikIrr > 0) { // skip first iteration
@@ -617,6 +626,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   mpi->allReduceSum(&energies);
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
+
+  buildSymmetries();
 }
 
 /** in this function, useful for electrons, we first compute the bandstructure
@@ -867,6 +878,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     }
     mpi->allReduceSum(&velocities);
   }
+  buildSymmetries();
   return statisticsSweep;
 }
 

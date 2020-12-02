@@ -32,7 +32,7 @@ TEST(ABS, Symmetries) {
 
   // setup parameters for active bandstructure creation
   Eigen::Vector3i qMesh;
-  qMesh << 2, 2, 2;
+  qMesh << 2,2,2;
   FullPoints points(crystal, qMesh);
   bool withVelocities = true;
   bool withEigenvectors = true;
@@ -43,7 +43,14 @@ TEST(ABS, Symmetries) {
       context, phH0, points, withEigenvectors, withVelocities);
   ActiveBandStructure abs = std::get<0>(bsTup2);
 
-  points.setIrreduciblePoints();
+  std::vector<Eigen::MatrixXd> allVels;
+  for ( long ik = 0; ik<fbs.getNumPoints(); ik++ ) {
+    auto ikIdx = WavevectorIndex(ik);
+    Eigen::MatrixXd v = fbs.getGroupVelocities(ikIdx);
+    allVels.push_back(v);
+  }
+
+  points.setIrreduciblePoints(&allVels);
   // we expect 3 irreducible points out of 8 reducible
   EXPECT_EQ(points.irrPointsIterator().size(),3);
   EXPECT_EQ(points.getNumPoints(),8);
@@ -107,48 +114,78 @@ TEST(ABS, Symmetries) {
       }
       EXPECT_NEAR(diff2, 0., 1.e-12);
     }
+  }
 
-    std::cout << "\n";
-    for ( Eigen::Matrix3d r : rotations) {
-      std::cout << r << "\n\n";
-    }
-    for (int ib=0; ib<abs.getNumBands(ikIdx); ib++) {
-      auto ibIdx = BandIndex(ib);
-      auto isIdx = abs.getIndex(ikIdx,ibIdx);
-      Eigen::Vector3d vIrr = abs.getGroupVelocity(isIdx);
-
-      for ( auto r : rotations) {
-        Eigen::Vector3d v = r * vIrr;
-
-        Eigen::Vector3d q = r * qIrr;
-        Eigen::Vector3d qCrys = abs.getPoints().cartesianToCrystal(q);
-        int ikFull = points.getIndex(qCrys);
-        auto ikFullIdx = WavevectorIndex(ikFull);
-        Eigen::Vector3d v2 = fbs.getGroupVelocity(fbs.getIndex(ikFullIdx,ibIdx));
-
-        std::cout << ik << " " << ib << " " << v.transpose() << " | "
-                  << v2.transpose() << "\n";
-        std::cout << q.transpose() << "\n\n";
+  // Here I check that I can reconstruct the full list of points from
+  // the irreducibles points
+  {
+    std::vector<long> allKs;
+    for (long ik : abs.irrPointsIterator()) {
+      WavevectorIndex ikIdx(ik);
+      Eigen::Vector3d kIrr = abs.getWavevector(ikIdx);
+      auto rotations = abs.getRotationsStar(ikIdx);
+      for (auto rot : rotations) {
+        Eigen::Vector3d kRot = rot * kIrr;
+        kRot = points.cartesianToCrystal(kRot);
+        long ikFull = points.getIndex(kRot);
+        allKs.push_back(ikFull);
       }
     }
-
-
+    long count = std::distance(allKs.begin(),
+                               std::unique(allKs.begin(), allKs.end()));
+    EXPECT_EQ(count, abs.getNumPoints());
   }
-  std::cout << "\n";
 
-  Eigen::Vector3d x = Eigen::Vector3d::Zero();
+  // here we check that the rotated q-point and velocities are similar
+  // to those of the FullBandStructure without symmetries
+
+
   for (int is : abs.irrStateIterator()) {
     auto isIdx = StateIndex(is);
     WavevectorIndex ikIdx = std::get<0>(abs.getIndex(isIdx));
     BandIndex ibIdx = std::get<1>(abs.getIndex(isIdx));
-    auto vIrr = abs.getGroupVelocity(isIdx);
+    Eigen::Vector3d vIrr = abs.getGroupVelocity(isIdx);
+    Eigen::Vector3d qIrr = abs.getWavevector(isIdx);
     auto rotations = abs.getRotationsStar(ikIdx);
-    for ( auto r : rotations) {
-      auto v = r * vIrr;
-      x += v;
-    }
-    std::cout << ibIdx.get() << " " << x.transpose() << "!!\n";
-  }
-  std::cout << "\n" << abs.getNumStates() << "\n";
 
+    for ( Eigen::Matrix3d r : rotations) {
+      Eigen::Vector3d v = r * vIrr;
+      Eigen::Vector3d q = r * qIrr;
+
+      int ikFull = fbs.getPoints().getIndex(points.cartesianToCrystal(q));
+      auto ikFullIdx = WavevectorIndex(ikFull);
+      Eigen::Vector3d v2 = fbs.getGroupVelocity(fbs.getIndex(ikFullIdx,ibIdx));
+      Eigen::Vector3d q2 = fbs.getWavevector(ikFullIdx);
+
+      q = points.bzToWs(q,Points::cartesianCoords);
+      q2 = points.bzToWs(q2,Points::cartesianCoords);
+
+      double diff = (q-q2).squaredNorm();
+      EXPECT_NEAR(diff, 0., 1.0e-6);
+
+      for (int i : {0,1,2}) {
+        double diff = std::abs(v(i) - v2(i))*velocityRyToSi;
+        EXPECT_NEAR(diff, 0., 0.001);
+      }
+    }
+  }
+
+  // The group velocity has odd parity over the Brillouin zone
+  // its integral should be zero
+  {
+    Eigen::Vector3d x = Eigen::Vector3d::Zero();
+    for (int is : abs.irrStateIterator()) {
+      auto isIdx = StateIndex(is);
+      WavevectorIndex ikIdx = std::get<0>(abs.getIndex(isIdx));
+      Eigen::Vector3d vIrr = abs.getGroupVelocity(isIdx);
+      auto rotations = abs.getRotationsStar(ikIdx);
+      for ( Eigen::Matrix3d r : rotations) {
+        Eigen::Vector3d v = r * vIrr;
+        x += v;
+      }
+    }
+    for (int i : {0,1,2}) {
+      EXPECT_NEAR(x(i), 0., 1.0e-3);
+    }
+  }
 }

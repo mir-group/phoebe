@@ -149,9 +149,12 @@ Eigen::Vector3d Points::bzToWs(const Eigen::Vector3d &point, const int &basis) {
 
   double norm2 = pointCart.squaredNorm();
   long iws = 0;
+  Eigen::Vector3d constShift;
+  constShift.setConstant(1.0e-8);
   for (long iG = 1; iG < gVectors.cols(); iG++) {
-    double thisNorm2 = (pointCart + gVectors.col(iG)).squaredNorm();
-    if (thisNorm2 < norm2 - 1.0e-12) {
+    Eigen::Vector3d thisG = gVectors.col(iG);
+    double thisNorm2 = (pointCart + thisG + constShift).squaredNorm();
+    if (thisNorm2 < norm2) {
       norm2 = thisNorm2;
       iws = iG;
     }
@@ -361,7 +364,7 @@ Point Point::operator-(Point &b) {
   return p;
 }
 
-void Points::setIrreduciblePoints() {
+void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities) {
   // go through the list of wavevectors and find the irreducible points
 
   const double epsilon = 1.0e-5;
@@ -370,8 +373,8 @@ void Points::setIrreduciblePoints() {
   for (long i = 0; i < numPoints; i++) {
     equiv(i) = i;
   }
-  // equiv(nk) =nk : k-point nk is not equivalent to any previous k-point
-  // equiv(nk)!=nk : k-point nk is equivalent to k-point equiv(nk)
+  // equiv(i) = i : k-point i is not equivalent to any other (irreducible)
+  // equiv(i)!=i : k-point i is equivalent to k-point equiv(nk)
 
   std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
   {
@@ -385,7 +388,6 @@ void Points::setIrreduciblePoints() {
       rotationMatricesCartesian.push_back(rotation);
     }
   }
-  mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(numPoints);
 
   // the identity is assumed to be the first symmetry. Let's check it
   {
@@ -402,7 +404,7 @@ void Points::setIrreduciblePoints() {
       // check if there are equivalent k-point to this in the list
       // (excepted those previously found to be equivalent to another)
       // check both k and -k
-      long is = 0;
+      std::vector<int> possibleRotations;
       for (auto symm : symms) {
         Eigen::Matrix3d rot = symm.rotation;
         Eigen::Vector3d rotatedPoint =
@@ -411,14 +413,91 @@ void Points::setIrreduciblePoints() {
         if (ikRot >= 0 && equiv(ikRot) == ikRot) {
           if (ikRot >= ik) {
             equiv(ikRot) = ik;
-            mapEquivalenceRotationIndex(ikRot) = is;
           } else {
             if (equiv(ikRot) != ik || ikRot < ik) {
               Error e("Error in finding irred kpoints");
             }
           }
         }
-        is++;
+      }
+    }
+  }
+
+  // here we find the rotations mapping the reducible point ot the irreducible
+  // Note: I want to see how velocities rotate.
+  mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(numPoints);
+  mapEquivalenceRotationIndex.setConstant(-1);
+  if ( groupVelocities == nullptr ) {
+    for (long ikRed = 0; ikRed < numPoints; ikRed++) {
+      if (equiv(ikRed) == ikRed) { // identity
+        mapEquivalenceRotationIndex(ikRed) = 0; // checked above it's identity
+      } else {
+        long ikIrr = equiv(ikRed);
+
+        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
+        Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
+
+        int is = 0;
+        for (auto symm : symms) {
+          Eigen::Matrix3d rot = symm.rotation;
+          Eigen::Vector3d rotatedPoint = rot * kIrr;
+          double diff = (rotatedPoint - kRed).squaredNorm();
+          if (diff < 1.0e-5) {
+            mapEquivalenceRotationIndex(ikRed) = is;
+            break;
+          }
+          is++;
+        }
+      }
+    }
+  } else {
+    if ( long((*groupVelocities).size()) != numPoints ) {
+      Error e("setIrreducible: velocities not aligned with the full grid");
+    }
+
+    for (long ikRed = 0; ikRed < numPoints; ikRed++) {
+      if (equiv(ikRed) == ikRed) { // identity
+        mapEquivalenceRotationIndex(ikRed) = 0; // checked above it's identity
+      } else {
+        long ikIrr = equiv(ikRed);
+
+//        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
+        Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
+
+        Eigen::MatrixXd irrVels = (*groupVelocities)[ikIrr];
+        Eigen::MatrixXd redVels = (*groupVelocities)[ikRed];
+
+        if (irrVels.rows() != redVels.rows()) {
+          Error e("Different number of bands at two equivalent points");
+        }
+
+        std::vector<int> isSelects;
+        std::vector<double> diffs;
+
+        for (unsigned int is = 0; is < symms.size(); is++) {
+          Eigen::Vector3d rotatedPoint = rotationMatricesCrystal[is] * kIrr;
+          long ikRot = isPointStored(rotatedPoint);
+          if (ikRot != ikRed) {
+            continue;
+          }
+
+          int numBands = irrVels.rows();
+          double diff = 0.;
+          for (int ib=0; ib<numBands; ib++) {
+            Eigen::Vector3d thisIrrVel = irrVels.row(ib);
+            Eigen::Vector3d thisRedVel = redVels.row(ib);
+            Eigen::Vector3d rotVel = rotationMatricesCartesian[is] * thisIrrVel;
+            diff += (rotVel - thisRedVel).squaredNorm();
+          }
+          isSelects.push_back(is);
+          diffs.push_back(diff);
+        }
+
+        int minElementIndex = std::min_element(diffs.begin(),diffs.end())
+                              - diffs.begin();
+
+        mapEquivalenceRotationIndex(ikRed) = isSelects[minElementIndex];
+
       }
     }
   }
@@ -469,59 +548,6 @@ void Points::setIrreduciblePoints() {
     }
     irreducibleStars.push_back(thisStar);
   }
-  //
-  //  // Test 1:
-  //  // rotation from qIrr to qRed in crystal coordinates
-  //  for ( int ikRed=0; ikRed<numPoints; ikRed++ ) {
-  //    auto qRed = getPointCoords(ikRed, crystalCoords);
-  //    qRed = foldToBz(qRed, crystalCoords);
-  //    auto qIrr = getPointCoords(mapReducibleToIrreducibleList(ikRed),
-  //    crystalCoords);
-  //
-  //    // Equivalently:
-  //    auto qIrr2 = getPointCoords(equiv(ikRed), crystalCoords);
-  //    if ( (qIrr2 - qIrr).norm() > 1.0e-8 ) {
-  //      Error e("Unexpected behavior");
-  //    }
-  //
-  //    qIrr = foldToBz(qIrr, crystalCoords);
-  //
-  //    auto rotation =
-  //    rotationMatricesCrystal[mapEquivalenceRotationIndex(ikRed)];
-  //    Eigen::Vector3d qRot = rotation * qIrr;
-  //    qRot = foldToBz(qRot, crystalCoords);
-  //
-  //    if ( (qRed - qRot).norm() > 1.0e-8 ) {
-  //      Error e("Unexpected behavior");
-  //    }
-  //  }
-  //
-  //  // Test 2
-  //  // same as above, in cartesian coordinates
-  //  for ( int ikRed=0; ikRed<numPoints; ikRed++ ) {
-  //    auto qRed = getPointCoords(ikRed, cartesianCoords);
-  //    auto qIrr = getPointCoords(mapReducibleToIrreducibleList(ikRed),
-  //    cartesianCoords);
-  //
-  //    // Equivalently:
-  //    auto qIrr2 = getPointCoords(equiv(ikRed), cartesianCoords);
-  //    if ( (qIrr2 - qIrr).norm() > 1.0e-8 ) {
-  //      Error e("Unexpected behavior 1");
-  //    }
-  //
-  //    qIrr = foldToBz(qIrr, cartesianCoords);
-  //
-  //    auto rotation =
-  //    rotationMatricesCartesian[mapEquivalenceRotationIndex(ikRed)];
-  //    Eigen::Vector3d qRot = rotation * qIrr;
-  //
-  //    qRed = bzToWs(qRed, cartesianCoords);
-  //    qRot = bzToWs(qRot, cartesianCoords);
-  //
-  //    if ( (qRed - qRot).norm() > 1.0e-8 ) {
-  //      Error e("Unexpected behavior 2");
-  //    }
-  //  }
 }
 
 std::vector<long> Points::irrPointsIterator() {
