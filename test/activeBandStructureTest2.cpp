@@ -188,4 +188,26 @@ TEST(ABS, Symmetries) {
       EXPECT_NEAR(x(i), 0., 1.0e-3);
     }
   }
+
+  // now we test getRotationToIrreducible, which is used in the scattering
+  // it's used to map a reducible point to a irreducible one
+  for (long ik = 0; ik<abs.getNumPoints(); ik++) {
+    WavevectorIndex ikIdx(ik);
+    Eigen::Vector3d k = abs.getWavevector(ikIdx);
+
+    auto t = abs.getRotationToIrreducible(k, Points::cartesianCoords);
+    long ikIrr = std::get<0>(t);
+    Eigen::Matrix3d rot = std::get<1>(t);
+
+    WavevectorIndex ikIrrIdx(ikIrr);
+    Eigen::Vector3d kIrr = abs.getWavevector(ikIrrIdx);
+    Eigen::Vector3d k2 = rot * k;
+
+    k2 = points.bzToWs(k2,Points::cartesianCoords);
+    kIrr = points.bzToWs(kIrr,Points::cartesianCoords);
+
+    double diff = (k2-kIrr).squaredNorm();
+    EXPECT_NEAR(diff, 0., 1.0e-6);
+  }
+
 }
