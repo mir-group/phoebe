@@ -455,19 +455,17 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
       } else {
         long ikIrr = equiv(ikRed);
 
-        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
+//        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
         Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
 
-        int is = 0;
-        for (auto symm : symms) {
-          Eigen::Matrix3d rot = symm.rotation;
+        for (unsigned int is = 0; is < symms.size(); is++) {
+          Eigen::Matrix3d rot = rotationMatricesCrystal[is];
           Eigen::Vector3d rotatedPoint = rot * kIrr;
-          double diff = (rotatedPoint - kRed).squaredNorm();
-          if (diff < 1.0e-5) {
+          long ikRot = isPointStored(rotatedPoint);
+          if (ikRot == ikRed) {
             mapEquivalenceRotationIndex(ikRed) = is;
             break;
           }
-          is++;
         }
       }
     }

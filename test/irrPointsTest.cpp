@@ -29,41 +29,41 @@ TEST(IrrPointsTest, Symmetries) {
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;
-  FullPoints fullPoints(crystal, mesh);
-  fullPoints.setIrreduciblePoints();
+  FullPoints points(crystal, mesh);
+  points.setIrreduciblePoints();
 
   //-----------------------------------
 
   // I hard code that I expect 8 irreducible points
-  long numIrrPoints = fullPoints.irrPointsIterator().size();
+  long numIrrPoints = points.irrPointsIterator().size();
   ASSERT_EQ(numIrrPoints,8);
 
   int numFullPoints = 0;
-  for (long ik : fullPoints.irrPointsIterator()) {
-    numFullPoints += fullPoints.getRotationsStar(ik).size();
+  for (long ik : points.irrPointsIterator()) {
+    numFullPoints += points.getRotationsStar(ik).size();
   }
-  ASSERT_EQ(numFullPoints,fullPoints.getNumPoints());
+  ASSERT_EQ(numFullPoints,points.getNumPoints());
 
   // here I check the symmetries matrices
   // loop over irreducible points, unfold the star, and check that we can
   // reconstruct the whole list of points of the full grid
   int counter = 0;
-  std::vector<long> allIndeces;
-  for (long ikIrr : fullPoints.irrPointsIterator()) {
-    auto kIrr = fullPoints.getPointCoords(ikIrr, Points::cartesianCoords);
+  std::vector<long> allIndices;
+  for (long ikIrr : points.irrPointsIterator()) {
+    auto kIrr = points.getPointCoords(ikIrr, Points::cartesianCoords);
 
-    long ikIrrAsRed = fullPoints.asIrreducibleIndex(ikIrr);
+    long ikIrrAsRed = points.asIrreducibleIndex(ikIrr);
     ASSERT_EQ(ikIrrAsRed, counter);
     counter++;
 
-    auto rots = fullPoints.getRotationsStar(ikIrr);
+    auto rots = points.getRotationsStar(ikIrr);
     for ( auto s : rots ) {
       auto kRedCart = s * kIrr; // in cartesian coordinates
-      auto kRedCrys = fullPoints.cartesianToCrystal(kRedCart);
-      long oldIndex = fullPoints.getIndex(kRedCrys); // getIndex needs crystal coords
-      allIndeces.push_back(oldIndex);
+      auto kRedCrys = points.cartesianToCrystal(kRedCart);
+      long oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords
+      allIndices.push_back(oldIndex);
 
-      auto t = fullPoints.getRotationToIrreducible(kRedCart, Points::cartesianCoords);
+      auto t = points.getRotationToIrreducible(kRedCart, Points::cartesianCoords);
       long ik2 = std::get<0>(t);
       ASSERT_EQ(ik2,ikIrr);
 
@@ -73,11 +73,11 @@ TEST(IrrPointsTest, Symmetries) {
 
       ASSERT_NEAR((rot.inverse()-s).squaredNorm(),0.,0.0001);
 
-      Eigen::Vector3d x1 = fullPoints.cartesianToCrystal(kIrr2).transpose();
-      Eigen::Vector3d x2 = fullPoints.cartesianToCrystal(kIrr).transpose();
+      Eigen::Vector3d x1 = points.cartesianToCrystal(kIrr2).transpose();
+      Eigen::Vector3d x2 = points.cartesianToCrystal(kIrr).transpose();
       ASSERT_NEAR((x1-x2).squaredNorm(),0.,0.0001);
     }
   }
-  int uniqueCount = std::unique(allIndeces.begin(), allIndeces.end()) - allIndeces.begin();
+  int uniqueCount = std::unique(allIndices.begin(), allIndices.end()) - allIndices.begin();
   ASSERT_EQ(mesh.prod(),uniqueCount);
 }
