@@ -110,18 +110,39 @@ long Points::getIndex(const Eigen::Vector3d &point) {
 }
 
 long Points::isPointStored(const Eigen::Vector3d &crystalCoords) {
-  for (long ikTest = 0; ikTest < numPoints; ikTest++) {
-    Eigen::Vector3d kTest = getPointCoords(ikTest, Points::crystalCoords);
-    Eigen::Vector3d diff = kTest - crystalCoords;
+
+  if (numPoints == mesh.prod()) { // full list is faster
+    Eigen::Vector3i p;
+    // multiply by grid, so that p now contains integers
+    double diff = 0.;
     for (int i : {0, 1, 2}) {
-      diff(i) -= std::floor(diff(i) + 1.0e-8);
+      // bring the point to integer coordinates
+      double x = (crystalCoords(i) - offset(i)) * mesh(i);
+      // check that p is indeed a point commensurate to the mesh.
+      diff += round(x) - x;
+      // fold in Brillouin zone in range [0,mesh-1]
+      p(i) = mod(int(round(x)), mesh(i));
     }
-    if (diff.squaredNorm() < 1.0e-5) {
-      return ikTest;
+    if (diff >= 1.0e-6) {
+      long ik = -1;
+      return ik;
     }
+    long ik = p(2) * mesh(0) * mesh(1) + p(1) * mesh(0) + p(0);
+    return ik;
+  } else {
+    for (long ikTest = 0; ikTest < numPoints; ikTest++) {
+      Eigen::Vector3d kTest = getPointCoords(ikTest, Points::crystalCoords);
+      Eigen::Vector3d diff = kTest - crystalCoords;
+      for (int i : {0, 1, 2}) {
+        diff(i) -= std::floor(diff(i) + 1.0e-8);
+      }
+      if (diff.squaredNorm() < 1.0e-5) {
+        return ikTest;
+      }
+    }
+    long ik = -1;
+    return ik;
   }
-  long ik = -1;
-  return ik;
 }
 
 // change of basis methods

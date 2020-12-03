@@ -33,14 +33,8 @@ public:
    */
   Point getPoint(const long &index);
 
-  /** Get the wavevector index given the crystal coordinates of a wavevector.
-   * @param point: the wavevector in crystal coordinates.
-   * @return index: the index of the wavevector in the range [0,numPoints[
-   */
-  virtual long getIndex(const Eigen::Vector3d &point);
-
   // like getIndex, but returns -1 if point not found
-  virtual long isPointStored(const Eigen::Vector3d &crystalCoords);
+  long isPointStored(const Eigen::Vector3d &crystalCoords);
 };
 
 #endif

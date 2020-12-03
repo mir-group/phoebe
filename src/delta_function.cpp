@@ -149,9 +149,10 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 double TetrahedronDeltaFunction::getDOS(const double &energy) {
   // initialize tetrahedron weight
   double weight = 0.;
-  for (long is=0; is<fullBandStructure.getNumStates(); is++) {
+  for (long is : fullBandStructure.irrStateIterator()) {
     auto isIndex = StateIndex(is);
-    weight += getSmearing(energy, isIndex);
+    long degeneracy = fullBandStructure.getRotationsStar(isIndex).size();
+    weight += getSmearing(energy, isIndex) * degeneracy;
   }
   weight /= fullBandStructure.getNumPoints(true);
   return weight;
