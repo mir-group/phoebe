@@ -47,10 +47,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
 #else
 
-  // for now this read write will be in serial, as
-  // we likely won't benefit much from parallel read,
-  // and this function is called by MPI head.
-
   // Notes about p3py's fc3.hdf5 file:
   // 3rd order fcs are listed as (num_atom, num_atom, num_atom, 3, 3, 3)
   // stored in eV/Angstrom3
@@ -60,33 +56,32 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // the information we need outside the ifcs3 is in a file called
   // disp_fc3.yaml, which contains the atomic positions of the
   // supercell and the displacements of the atoms
+  // The mapping between the supercell and unit cell atoms is 
+  // set up so that the first nAtoms*dimSup of the supercell are unit cell 
+  // atom #1, and the second nAtoms*dimSup are atom #2, and so on.
 
   // First, read in the information form disp_fc3.yaml
   int numAtoms = crystal.getNumAtoms();
   int numSupAtoms;
   int numBands = numAtoms * 3;
-  Eigen::MatrixXd supPositions;
 
-  // Open disp_fc3 file
+  // Open disp_fc3 file, read supercell positions, nSupAtoms
   // TODO we need to supply a path rather than a filename,
   // since in this case there's two files...
-
-  // from this file, we need to get the number and positions 
-  // of atoms in the supercell. 
   std::ifstream infile("disp_fc3.yaml");
   std::string line;
   if (not infile.is_open()) {
       Error e("Phono3py disp_fc3.yaml file not found");
   }
 
-  // TODO process this file
   // first line will always be natoms in supercell
   std::getline(infile, line);
   numSupAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
-  std::cout << "numSupAtoms: " << numSupAtoms << std::endl;
 
   // read the rest of the file to look for supercell positions
   Eigen::MatrixXd supPositions(numSupAtoms, 3);
+  Eigen::MatrixXd lattice(3, 3);
+  int ilatt = 3;
   int ipos = 0;
   while(infile) {
     getline(infile, line);
@@ -98,16 +93,34 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
       int idx2 = temp.find(",", idx1+1);
       supPositions(ipos,1) = std::stod(temp.substr(idx1+1,idx2));
       supPositions(ipos,2) = std::stod(temp.substr(idx2+1));
-      //std::cout << "cell positions from pos " << ipos << "  " << lPositions(ipos,0) << " " << cellPositions(ipos,1) << " " << cellPositions(ipos,2) << std::endl;
       ipos++;
+    }
+    if(ilatt < 3) { // count down lattice lines 
+      std::string temp = line.substr(5,62); // just the elements
+      int idx1 = temp.find(",");
+      lattice(ilatt,0) = std::stod(temp.substr(0,idx1));
+      int idx2 = temp.find(",", idx1+1);
+      lattice(ilatt,1) = std::stod(temp.substr(idx1+1,idx2));
+      lattice(ilatt,2) = std::stod(temp.substr(idx2+1));      
+      ilatt++;
+    }
+    if(line.find("lattice:") != std::string::npos) {
+      ilatt = 0;
     }
   }
   infile.close();
 
-  // TODO read lattice vectors of supercell!
-  // TODO convert positions to cartesian!
+  // convert positions to cartesian, remember to make in bohr
+  for(int i = 0; i<ipos; i++) {
+    Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
+    Eigen::Vector3d temp2 = lattice * temp;
+    temp2 = temp2 * ang2Bohr;
+    supPositions(i,0) = temp2(0);
+    supPositions(i,1) = temp2(1);
+    supPositions(i,2) = temp2(2);
+  }
 
-  // Read in the fc3s from fc3.hdf5 -----------
+
   // Open the hdf5 file containing the IFC3s
   auto fileName = context.getPhD3FileName();
   HighFive::File file(fileName, HighFive::File::ReadOnly);
@@ -120,43 +133,27 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // have to use this monstrosity because the phono3py data is shaped as a
   // 6 dimensional array, and eigen tensor is not supported by highFive
   std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>> ifc3Tensor;
-/*  ifc3Tensor.resize(3);
-  for (int ic1 : { 0, 1, 2 }) {
-    ifc3Tensor[ic1].resize(3);
-    for (int ic2 : { 0, 1, 2 }) {
-      ifc3Tensor[ic1][ic2].resize(3);
-      for (int ic3 : { 0, 1, 2 }) {
-        ifc3Tensor[ic1][ic2][ic3].resize(numSupAtoms);
-        for (int ia1 = 0; ia1 < numSupAtoms; ia1++) {
-          ifc3Tensor[ic1][ic2][ic3][ia1].resize(numSupAtoms);
-          for (int ia2 = 0; ia2 < numSupAtoms; ia2++) {
-             ifc3Tensor[ic1][ic2][ic3][ia1][ia2].resize(numSupAtoms);
-          }
-        }
-      }
-    }
-  }*/
-  //std::vector<int> cellMap;
+  std::vector<int> cellMap;
 
   // read in the ifc3 data
   difc3.read(ifc3Tensor);
-  //dcellMap.read(cellMap);
-
-  // Map the flattened matrix back to tensor structure
-  // At first, we keep the tensor structure used by phono3py
-  //Eigen::TensorMap<Eigen::Tensor<double, 6>> ifc3Map(ifc3Flat.data(), numSupAtoms, numSupAtoms, numSupAtoms, 3, 3, 3);
+  dcellMap.read(cellMap); 
 
   // Determine the list of unique triplets
-  std::vector<std::tuple<int>> triplets;
-  std::vector<std::tuple<int>> supTriplets;
+  std::vector<std::tuple<int,int>> triplets;
+  std::vector<std::tuple<int,int>> supTriplets;
   int numTriplets = 0;
   for (int isa2 = 0; isa2 < numSupAtoms; isa2++) { 
     for (int isa3 = 0; isa3 < numSupAtoms; isa3++) {
+
       // Convert supercell atoms 2 and 3 to unit cell 2 and 3
-      // first atoms are in unit cell
-      int ia2 = isa2 % numAtoms;
-      int ia3 = isa3 % numAtoms;
-      std::tuple<int> triplet = {ia2,ia3}; 
+      // these indices are the index of each atom in the
+      // unit cell -- not the p3py supercell. 
+      // To get that information, use cellMap[ia2]
+      int ia2 = floor(isa2 / numAtoms);
+      int ia3 = floor(isa3 / numAtoms);
+      std::tuple<int,int> triplet = {ia2,ia3}; 
+
       // check to see if this one is already in the list
       if(std::find(triplets.begin(), triplets.end(), triplet) != triplets.end()) {
         triplets.push_back(triplet);
@@ -170,57 +167,55 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   numTriplets *= numAtoms;
 
   // Allocate final storage of read in quantities
+  // TODO this needs to be last two dims changed to #2nd atom moves, #3rd atom moves.
   Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, numTriplets, numTriplets);
   D3.setZero();
   Eigen::MatrixXd cellPositions2(3, numTriplets);
   Eigen::MatrixXd cellPositions3(3, numTriplets);
   cellPositions2.setZero();
   cellPositions3.setZero();
-  Eigen::VectorXd unitCellPos = crystal.getAtomicPositions(); // are these direct?
+  Eigen::MatrixXd unitCellPos = crystal.getAtomicPositions(); // TODO are these direct?
 
-  double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
+  // reshape to D3 format
 
-  // TODO probably this runs over some duplicates, 
-  // maybe there's a way to do less work here. 
-  // loop over atoms in the supercell and then cartesian indices
-  // to reshape to D3 format
   // For the first atom index, we only go over atoms in the unit cell, 
   // as we consider R1 = 0. 
-  std::vector<int> triplets;
+  double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
   for (int ia1 = 0; ia1 < numAtoms; ia1++) {
-    // loop over unique R2 and R3 atoms
-    for ( auto idxTriplet : numTriplets ) {
+    // loop over unique R2 and R3 atom triplets
+    for ( int idxTriplet = 0; idxTriplet<numTriplets; idxTriplet++) {
 
-        int ia2 = std::get<0>(triplets[idxTriplet]);
-        int ia3 = std::get<1>(triplets[idxTriplet]); 
-        int isa2 = std::get<0>(supTriplets[idxTriplet]);
-        int isa3 = std::get<1>(supTriplets[idxTriplet]);
+      int ia2 = std::get<0>(triplets[idxTriplet]);
+      int ia3 = std::get<1>(triplets[idxTriplet]); 
+      int isa2 = std::get<0>(supTriplets[idxTriplet]);
+      int isa3 = std::get<1>(supTriplets[idxTriplet]);
 
-        // find the vectors R2, R3 for this triplet
-        // position of atomPosSupercell - atomPosUnitCell = R
-        cellPositions2.col(idxTriplet) = supPositions(isa2) - unitCellPos(ia2);
-        cellPositions3.col(idxTriplet) = supPositions(isa3) - unitCellPos(ia3);
+      // find the vectors R2, R3 for this triplet
+      // position of atomPosSupercell - atomPosUnitCell = R
+      cellPositions2.col(idxTriplet) = supPositions.row(isa2) - unitCellPos.row(ia2);
+      cellPositions3.col(idxTriplet) = supPositions.row(isa3) - unitCellPos.row(ia3);
         
-        for (int ic1 : { 0, 1, 2 }) {
-          for (int ic2 : { 0, 1, 2 }) {
-            for (int ic3 : { 0, 1, 2 }) {
+      for (int ic1 : { 0, 1, 2 }) {
+        for (int ic2 : { 0, 1, 2 }) {
+          for (int ic3 : { 0, 1, 2 }) {
 
-              // mux the cartesian indices and unit cell atom indices 
-              // for the first three indices of D3
-              auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-              auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-              auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);              
+            // mux the cartesian indices and unit cell atom indices 
+            // for the first three indices of D3
+            auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+            auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+            auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);              
 
-              // indices here are atom+cart index, then indices for displaced atoms 
-              // in this triplet?
-              D3(ind1, ind2, ind3, ias2, ias3) // convert from ev/ang to atomic 
-                = ifc3Tensor[ia1][isa2][isa3][ic1][ic2][ic3] * conversion;
-            }
+            // indices here are atom+cart index, then indices for displaced atoms 
+            // in this triplet -- TODO, if there are issues, 
+            // check the last two indices. 
+            D3(ind1, ind2, ind3, idxTriplet, idxTriplet) // convert from ev/ang to atomic 
+              = ifc3Tensor[cellMap[ia1]][isa2][isa3][ic1][ic2][ic3] * conversion;
           }
         }
       }
     }
   }
+
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3);
 
