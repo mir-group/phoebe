@@ -25,18 +25,18 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
 
   numCalcs = statisticsSweep.getNumCalcs();
 
-  sigma = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  seebeck = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  kappa = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  mobility = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  sigma.resize(numCalcs, dimensionality, dimensionality);
+  seebeck.resize(numCalcs, dimensionality, dimensionality);
+  kappa.resize(numCalcs, dimensionality, dimensionality);
+  mobility.resize(numCalcs, dimensionality, dimensionality);
   sigma.setZero();
   seebeck.setZero();
   kappa.setZero();
   mobility.setZero();
-  LEE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LTE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LET = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LTT = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  LEE.resize(numCalcs, dimensionality, dimensionality);
+  LTE.resize(numCalcs, dimensionality, dimensionality);
+  LET.resize(numCalcs, dimensionality, dimensionality);
+  LTT.resize(numCalcs, dimensionality, dimensionality);
   LEE.setZero();
   LTE.setZero();
   LET.setZero();
@@ -147,10 +147,9 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   auto points = bandStructure.getPoints();
 
   for (long is : bandStructure.parallelIrrStateIterator()) {
-    double energy = bandStructure.getEnergy(is);
-    Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
-
-    auto isIdx = StateIndex(is);
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
     long ibte = bandStructure.stateToBte(isIdx).get();
     auto rotations = bandStructure.getRotationsStar(isIdx);
 
@@ -171,10 +170,6 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
-//            LEE(iCalc, i, j) += thisNE(i) * norm;
-//            LET(iCalc, i, j) += thisNT(i) * norm;
-//            LTE(iCalc, i, j) += thisNE(i) * en * norm;
-//            LTT(iCalc, i, j) += thisNT(i) * en * norm;
             LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
             LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
             LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;

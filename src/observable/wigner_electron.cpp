@@ -27,10 +27,14 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
   Eigen::Tensor<std::complex<double>, 4> fE, fT;
 
   for (long ik = 0; ik < bandStructure.getNumPoints(); ik++) {
-    auto ikIndex = WavevectorIndex(ik);
-    auto velocities = bandStructure.getVelocities(ikIndex);
-    auto energies = bandStructure.getEnergies(ikIndex);
+    WavevectorIndex ikIdx(ik);
+    auto velocities = bandStructure.getVelocities(ikIdx);
+    auto energies = bandStructure.getEnergies(ikIdx);
     int numBands = energies.size();
+
+    Eigen::Vector3d k = bandStructure.getWavevector(ikIdx);
+    auto t = bandStructure.getRotationToIrreducible(k, Points::cartesianCoords);
+    long ikIrr = std::get<0>(t);
 
     // we do the calculation in two steps
 
@@ -58,10 +62,10 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
           if (ib1 == ib2) {
             continue;
           }
-          int is1 = bandStructure.getIndex(WavevectorIndex(ik), BandIndex(ib1));
-          int is2 = bandStructure.getIndex(WavevectorIndex(ik), BandIndex(ib2));
-          auto is1Idx = StateIndex(is1);
-          auto is2Idx = StateIndex(is2);
+          int is1 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib1));
+          int is2 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib2));
+          StateIndex is1Idx(is1);
+          StateIndex is2Idx(is2);
           long ibte1 = bandStructure.stateToBte(is1Idx).get();
           long ibte2 = bandStructure.stateToBte(is2Idx).get();
 

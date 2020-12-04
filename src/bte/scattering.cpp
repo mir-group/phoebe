@@ -555,22 +555,17 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
     if (switchCase == 2) { // case for linewidth construction
       // here I parallelize over ik1
       // which is the outer loop on q-points
-      size_t a = innerBandStructure.getNumPoints();
-      std::vector<long> q2Iterator = mpi->divideWorkIter(a);
+      std::vector<long> k1Iterator = outerBandStructure.parallelIrrPointsIterator();
 
-      // I don't parallelize the outer band structure (iq1 in phonons)
-      // which is the inner loop on q-points
-      std::vector<long> q1Iterator(outerBandStructure.getNumPoints());
+      // I don't parallelize the inner band structure, the inner loop
+      std::vector<long> k2Iterator(innerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
-      std::iota(std::begin(q1Iterator), std::end(q1Iterator), 0);
+      std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator(
-          q2Iterator.size());
-      int i = 0;
-      for (long iq2 : q2Iterator) {
-        auto t = std::make_tuple(q1Iterator, iq2);
-        pairIterator[i] = t;
-        i++;
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+      for (long ik1 : k1Iterator) {
+        auto t = std::make_tuple(k2Iterator, ik1);
+        pairIterator.push_back(t);
       }
       return pairIterator;
 

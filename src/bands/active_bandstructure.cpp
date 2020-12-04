@@ -389,18 +389,19 @@ void ActiveBandStructure::buildSymmetries() {
   bteAuxBloch2Comb = Eigen::MatrixXi::Zero(numIrrStates, 2);
   bteCumulativeKbOffset = Eigen::VectorXi::Zero(numIrrPoints);
   long is = 0;
-  long ikIrr = 0;
+  long ikOld = 0;
   for (long ik : activePoints.irrPointsIterator()) {
+    long ikIrr = activePoints.asIrreducibleIndex(ik);
     if (ikIrr > 0) { // skip first iteration
       bteCumulativeKbOffset(ikIrr) =
-          bteCumulativeKbOffset(ikIrr - 1) + numBands(ik - 1);
+          bteCumulativeKbOffset(ikIrr - 1) + numBands(ikOld);
     }
     for (long ib = 0; ib < numBands(ik); ib++) {
       bteAuxBloch2Comb(is, 0) = ikIrr;
       bteAuxBloch2Comb(is, 1) = ib;
       is++;
     }
-    ikIrr++;
+    ikOld = ik;
   }
 }
 
@@ -683,14 +684,30 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   //     parallelIter = mpi->divideWorkIter(points.getNumPoints());
   // All else will function once the swap is made.
 
+  points.setIrreduciblePoints();
+
   // Loop over the wavevectors belonging to each process
   std::vector<long> parallelIter = fullBandStructure.getWavevectorIndices();
 
   // iterate over mpi-parallelized wavevectors
   for (long ik : parallelIter) {
 
-    auto ikIndex = WavevectorIndex(ik);
-    Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
+    auto ikIdx = WavevectorIndex(ik);
+//    Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
+
+    // Note: to respect symmetries, we want to make sure that the bands
+    // filtered at point k are the same as the equivalent point.
+    // this is slower (setIrreduciblePoints and re-diagonalization) but kind
+    // of necessary to be consistent in using symmetries
+    // also, since the bandstructure is distributed, we have to recompute
+    // the quasiparticle energies, as they may not be available locally
+
+    Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
+    auto t = points.getRotationToIrreducible(k, Points::cartesianCoords);
+    long ikIrr = std::get<0>(t);
+    Eigen::Vector3d kIrr = points.getPointCoords(ikIrr, Points::cartesianCoords);
+    auto t2 = h0.diagonalizeFromCoords(kIrr);
+    Eigen::VectorXd theseEnergies = std::get<0>(t2);
 
     // ens is empty if no "relevant" energy is found.
     // bandsExtrema contains the lower and upper band index of "relevant"
@@ -934,7 +951,7 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   // to k from 0 to N_k_irreducible
   long ikBte = activePoints.asIrreducibleIndex(ikIdx.get());
   if (ikBte < 0) {
-    Error e("stateToBte is used on a non-irreducible point");
+    Error e("stateToBte is used on a reducible point");
   }
   long iBte = bteBloch2Comb(ikBte, ibIdx.get());
   return BteIndex(iBte);

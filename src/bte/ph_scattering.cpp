@@ -188,6 +188,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
     auto t = innerBandStructure.getRotationToIrreducible(
         q2.getCoords(Points::cartesianCoords), Points::cartesianCoords);
+    long iq2Irr = std::get<0>(t);
     Eigen::Matrix3d rotation = std::get<1>(t);
     // rotation such that qIrr = R * qRed
 
@@ -306,10 +307,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                                      BandIndex(ib1));
               long is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
                                                      BandIndex(ib2));
+              long is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+                                                        BandIndex(ib2));
               auto is1Idx = StateIndex(is1);
               auto is2Idx = StateIndex(is2);
+              auto is2IrrIdx = StateIndex(is2Irr);
               BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
-              BteIndex ind2Idx = innerBandStructure.stateToBte(is2Idx);
+              BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
               long ind1 = ind1Idx.get();
               long ind2 = ind2Idx.get();
 
@@ -408,10 +412,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                                      BandIndex(ib1));
               long is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
                                                      BandIndex(ib2));
+              long is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+                                                     BandIndex(ib2));
               auto is1Idx = StateIndex(is1);
               auto is2Idx = StateIndex(is2);
+              auto is2IrrIdx = StateIndex(is2Irr);
               BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
-              BteIndex ind2Idx = innerBandStructure.stateToBte(is2Idx);
+              BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
               long ind1 = ind1Idx.get();
               long ind2 = ind2Idx.get();
 
@@ -515,6 +522,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       auto q2Coords = innerBandStructure.getPoint(iq2).getCoords(Points::cartesianCoords);
       auto t = outerBandStructure.getRotationToIrreducible(q2Coords, Points::cartesianCoords);
       // rotation such that
+      long iq2Irr = std::get<0>(t);
       Eigen::Matrix3d rotation = std::get<1>(t);
 
       for (auto iq1 : iq1Indexes) {
@@ -556,7 +564,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = state2Energies(ib2);
             long is2 =
-                innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
+                innerBandStructure.getIndex(WavevectorIndex(iq2Irr), BandIndex(ib2));
             auto is2Idx = StateIndex(is2);
             long ind2 = innerBandStructure.stateToBte(is2Idx).get();
 
