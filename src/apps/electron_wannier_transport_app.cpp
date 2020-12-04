@@ -76,15 +76,21 @@ void ElectronWannierTransportApp::run(Context &context) {
   WignerElCoefficients wignerCoeffs(statisticsSweep, crystal, bandStructure,
                                     context, relaxationTimes);
   wignerCoeffs.calcFromPopulation(nERTA, nTRTA);
-  //  wignerCoeffs.print();
+  wignerCoeffs.print();
   wignerCoeffs.outputToJSON("rta_wigner_coefficients.json");
 
   // compute the electron viscosity
   ElectronViscosity elViscosity(context, statisticsSweep, crystal,
                                 bandStructure);
   elViscosity.calcRTA(relaxationTimes);
-  //  elViscosity.print();
+  elViscosity.print();
   elViscosity.outputToJSON("rta_electron_viscosity.json");
+
+  // compute the specific heat
+  SpecificHeat specificHeat(context, statisticsSweep, crystal, bandStructure);
+  specificHeat.calc();
+  specificHeat.print();
+  specificHeat.outputToJSON("el_specific_heat.json");
 
   if (mpi->mpiHead()) {
     std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
@@ -352,19 +358,20 @@ void ElectronWannierTransportApp::run(Context &context) {
     // this because the scaling used for phonons here would cause instability
     // as it could contains factors like 1/0
     auto tup = scatteringMatrix.diagonalize();
-    auto eigenvalues = std::get<0>(tup);
-    auto eigenvectors = std::get<1>(tup);
+    Eigen::VectorXd eigenvalues = std::get<0>(tup);
+    ParallelMatrix<double> eigenvectors = std::get<1>(tup);
     // EV such that Omega = V D V^-1
 
-    transportCoeffs.calcFromRelaxons(eigenvalues, eigenvectors);
+    transportCoeffs.calcFromRelaxons(eigenvalues, eigenvectors,
+                                     scatteringMatrix);
     transportCoeffs.print();
     transportCoeffs.outputToJSON("relaxons_onsager_coefficients.json");
 
     if (!context.getUseSymmetries()) {
-      //    elViscosity.calcFromRelaxons(..., boseEigenvector, relaxationTimes,
-      //                                 scatteringMatrix, eigenvectors);
-      //    elViscosity.print();
-      //    elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+      Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);
+      elViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
+      elViscosity.print();
+      elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
     }
 
     if (mpi->mpiHead()) {

@@ -50,8 +50,8 @@ public:
      * @oaram sMatrix: the scattering matrix.
      * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
      */
-    void calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-            ElScatteringMatrix &sMatrix, ParallelMatrix<double> &eigenvectors);
+    void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
+                          ParallelMatrix<double> &eigenvectors);
 protected:
     virtual int whichType();
     BaseBandStructure &bandStructure;

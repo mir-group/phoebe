@@ -225,47 +225,98 @@ void OnsagerCoefficients::calcTransportCoefficients() {
 }
 
 void OnsagerCoefficients::calcFromRelaxons(
-    Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors) {
+    Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors,
+    ElScatteringMatrix &scatteringMatrix) {
   int iCalc = 0;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   auto particle = bandStructure.getParticle();
 
-  VectorBTE fE(statisticsSweep, bandStructure, 3);
-  VectorBTE fT(statisticsSweep, bandStructure, 3);
-  for (auto tup0 : eigenvectors.getAllLocalStates()) {
-    long is = std::get<0>(tup0);
-    long alfa = std::get<1>(tup0);
-    if (eigenvalues(alfa)<=0.) {
-      continue;
-    }
-    auto isIndex = StateIndex(is);
-    double en = bandStructure.getEnergy(isIndex);
-    auto vel = bandStructure.getGroupVelocity(isIndex);
-    for (int i : {0,1,2}) {
-      fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
-                            eigenvectors(is, alfa) /
-                            eigenvalues(alfa);
-      fT(iCalc, i, alfa) += particle.getDndt(en, temp, chemPot) * vel(i) *
-                            eigenvectors(is, alfa) /
-                            eigenvalues(alfa);
-    }
-  }
-  mpi->allReduceSum(&fE.data);
-  mpi->allReduceSum(&fT.data);
-
   VectorBTE nE(statisticsSweep, bandStructure, 3);
   VectorBTE nT(statisticsSweep, bandStructure, 3);
-  for (auto tup0 : eigenvectors.getAllLocalStates()) {
-    long is = std::get<0>(tup0);
-    long alfa = std::get<1>(tup0);
-    for (int i : {0,1,2}) {
-      nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa);
-      nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa);
+
+  if (!context.getUseSymmetries()) {
+
+    VectorBTE fE(statisticsSweep, bandStructure, 3);
+    VectorBTE fT(statisticsSweep, bandStructure, 3);
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      long is = std::get<0>(tup0);
+      long alfa = std::get<1>(tup0);
+      if (eigenvalues(alfa) <= 0.) {
+        continue;
+      }
+      auto isIndex = StateIndex(is);
+      double en = bandStructure.getEnergy(isIndex);
+      auto vel = bandStructure.getGroupVelocity(isIndex);
+      for (int i : {0, 1, 2}) {
+        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
+                              eigenvectors(is, alfa) / eigenvalues(alfa);
+        fT(iCalc, i, alfa) += particle.getDndt(en, temp, chemPot) * vel(i) *
+                              eigenvectors(is, alfa) / eigenvalues(alfa);
+      }
     }
+    mpi->allReduceSum(&fE.data);
+    mpi->allReduceSum(&fT.data);
+
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      long is = std::get<0>(tup0);
+      long alfa = std::get<1>(tup0);
+      for (int i : {0, 1, 2}) {
+        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa);
+        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa);
+      }
+    }
+    mpi->allReduceSum(&nE.data);
+    mpi->allReduceSum(&nT.data);
+
+  } else { // with symmetries
+
+    Eigen::MatrixXd fE(3, eigenvectors.cols());
+    Eigen::MatrixXd fT(3, eigenvectors.cols());
+    fE.setZero();
+    fT.setZero();
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      long iMat1 = std::get<0>(tup0);
+      long alpha = std::get<1>(tup0);
+      auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
+      BteIndex ibteIndex = std::get<0>(tup1);
+      CartIndex dimIndex = std::get<1>(tup1);
+      long iDim = dimIndex.get();
+      StateIndex isIndex = bandStructure.bteToState(ibteIndex);
+
+      auto vel = bandStructure.getGroupVelocity(isIndex);
+      double en = bandStructure.getEnergy(isIndex);
+      double dndt = particle.getDndt(en, temp, chemPot);
+      double dnde = particle.getDnde(en, temp, chemPot);
+
+      if (eigenvalues(alpha) <= 0.) {
+        continue;
+      }
+      fE(iDim, alpha) += - dnde * vel(iDim) * eigenvectors(iMat1, alpha)
+                         / eigenvalues(alpha);
+      fT(iDim, alpha) += dndt * vel(iDim) * eigenvectors(iMat1, alpha)
+                         / eigenvalues(alpha);
+    }
+    mpi->allReduceSum(&fT);
+    mpi->allReduceSum(&fE);
+
+    // back rotate to Bloch electron coordinates
+
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      long iMat1 = std::get<0>(tup0);
+      long alpha = std::get<1>(tup0);
+      auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
+      BteIndex ibteIndex = std::get<0>(tup1);
+      CartIndex dimIndex = std::get<1>(tup1);
+      long ibte = ibteIndex.get();
+      long iDim = dimIndex.get();
+      nE(iCalc, iDim, ibte) += fE(iDim, alpha) * eigenvectors(iMat1, alpha);
+      nT(iCalc, iDim, ibte) += fT(iDim, alpha) * eigenvectors(iMat1, alpha);
+    }
+    mpi->allReduceSum(&nE.data);
+    mpi->allReduceSum(&nT.data);
+
   }
-  mpi->allReduceSum(&nE.data);
-  mpi->allReduceSum(&nT.data);
   calcFromCanonicalPopulation(nE, nT);
 }
 
@@ -555,14 +606,32 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
     Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
     Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
 #pragma omp for nowait
-    for (long is : bandStructure.parallelStateIterator()) {
+    for (long is : bandStructure.parallelIrrStateIterator()) {
+      StateIndex isIdx(is);
+      long ibte = bandStructure.stateToBte(isIdx).get();
+      auto rotations = bandStructure.getRotationsStar(isIdx);
+
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-        for (int i : {0,1,2}) {
-          for (int j : {0,1,2}) {
-            tmpLEEPrivate(iCalc, i, j) +=
-                fE(iCalc, i, is) * afE(iCalc, j, is) * norm;
-            tmpLTTPrivate(iCalc, i, j) +=
-                fT(iCalc, i, is) * afT(iCalc, j, is) * norm;
+
+        for (Eigen::Matrix3d r : rotations) {
+          Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisAFE = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisFT = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisAFT = Eigen::Vector3d::Zero();
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              thisFE(i) += r(i, j) * fE(iCalc, j, ibte);
+              thisAFE(i) += r(i, j) * afE(iCalc, j, ibte);
+              thisFT(i) += r(i, j) * fT(iCalc, j, ibte);
+              thisAFT(i) += r(i, j) * afT(iCalc, j, ibte);
+            }
+          }
+
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              tmpLEEPrivate(iCalc, i, j) += thisFE(i) * thisAFE(j) * norm;
+              tmpLTTPrivate(iCalc, i, j) += thisFT(i) * thisAFT(j) * norm;
+            }
           }
         }
       }

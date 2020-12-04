@@ -275,7 +275,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                       if (!theMatrix.indecesAreLocal(iMat1, iMat2)) {
                         continue;
                       }
-//                      theMatrix(iMat1, iMat2) += rotation(i, j) * rateOffDiag;
+                      theMatrix(iMat1, iMat2) += rotation(i, j) * rateOffDiag;
                     }
                   }
                 } else {

@@ -6,6 +6,7 @@
 #include "crystal.h"
 #include "statistics_sweep.h"
 #include "vector_bte.h"
+#include "el_scattering.h"
 
 /** Class to compute the electronic transport coefficients.
  */
@@ -58,7 +59,8 @@ public:
   void calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle);
 
   void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
-                        ParallelMatrix<double> &eigenvectors);
+                        ParallelMatrix<double> &eigenvectors,
+                        ElScatteringMatrix &scatteringMatrix);
 
   void calcVariational(VectorBTE &afE, VectorBTE &afT,
                        VectorBTE &fE, VectorBTE &fT, VectorBTE &scalingCG);
