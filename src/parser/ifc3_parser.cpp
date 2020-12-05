@@ -96,12 +96,13 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
       ipos++;
     }
     if(ilatt < 3) { // count down lattice lines 
+      // converty from angstrom to bohr
       std::string temp = line.substr(5,62); // just the elements
       int idx1 = temp.find(",");
-      lattice(ilatt,0) = std::stod(temp.substr(0,idx1));
+      lattice(ilatt,0) = std::stod(temp.substr(0,idx1))/distanceBohrToAng;
       int idx2 = temp.find(",", idx1+1);
-      lattice(ilatt,1) = std::stod(temp.substr(idx1+1,idx2));
-      lattice(ilatt,2) = std::stod(temp.substr(idx2+1));      
+      lattice(ilatt,1) = std::stod(temp.substr(idx1+1,idx2))/distanceBohrToAng;
+      lattice(ilatt,2) = std::stod(temp.substr(idx2+1))/distanceBohrToAng;      
       ilatt++;
     }
     if(line.find("lattice:") != std::string::npos) {
@@ -110,16 +111,14 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   }
   infile.close();
 
-  // convert positions to cartesian, remember to make in bohr
+  // convert positions to cartesian, in bohr
   for(int i = 0; i<ipos; i++) {
     Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
     Eigen::Vector3d temp2 = lattice * temp;
-    temp2 = temp2 * ang2Bohr;
     supPositions(i,0) = temp2(0);
     supPositions(i,1) = temp2(1);
     supPositions(i,2) = temp2(2);
   }
-
 
   // Open the hdf5 file containing the IFC3s
   auto fileName = context.getPhD3FileName();
@@ -154,8 +153,9 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
       int ia3 = floor(isa3 / numAtoms);
       std::tuple<int,int> triplet = {ia2,ia3}; 
 
-      // check to see if this one is already in the list
-      if(std::find(triplets.begin(), triplets.end(), triplet) != triplets.end()) {
+      // this check does not work TODO
+      // check to see if this one is already in the list -- if not, add it
+      if(std::find(triplets.begin(), triplets.end(), triplet) == triplets.end()) {
         triplets.push_back(triplet);
         supTriplets.push_back({isa2,isa3});
         numTriplets++;
@@ -165,6 +165,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // num triplets goes over unit cell atoms, plus all the r2, r3 atom
   // combinations found above
   numTriplets *= numAtoms;
+
+  std::cout << "num triplets " << numTriplets << std::endl;
 
   // Allocate final storage of read in quantities
   // TODO this needs to be last two dims changed to #2nd atom moves, #3rd atom moves.
@@ -182,8 +184,10 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // as we consider R1 = 0. 
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
   for (int ia1 = 0; ia1 < numAtoms; ia1++) {
+    std::cout << "loop1" << std::endl;
     // loop over unique R2 and R3 atom triplets
     for ( int idxTriplet = 0; idxTriplet<numTriplets; idxTriplet++) {
+      std::cout << "loop2" << std::endl;
 
       int ia2 = std::get<0>(triplets[idxTriplet]);
       int ia3 = std::get<1>(triplets[idxTriplet]); 
@@ -192,6 +196,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
       // find the vectors R2, R3 for this triplet
       // position of atomPosSupercell - atomPosUnitCell = R
+      std::cout << unitCellPos(ia2,0) << " " << unitCellPos(ia2,1) << " " << unitCellPos(ia2,2) << std::endl;;
       cellPositions2.col(idxTriplet) = supPositions.row(isa2) - unitCellPos.row(ia2);
       cellPositions3.col(idxTriplet) = supPositions.row(isa3) - unitCellPos.row(ia3);
         
