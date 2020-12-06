@@ -72,7 +72,11 @@ void SpecificHeat::print() {
   double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
 
   std::cout << "\n";
-  std::cout << "Specific heat (" << units << ")\n";
+  if (bandStructure.getParticle().isPhonon()) {
+    std::cout << "Phonon specific heat (" << units << ")\n";
+  } else if (bandStructure.getParticle().isElectron()) {
+    std::cout << "Electron specific heat (" << units << ")\n";
+  }
 
   for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
 

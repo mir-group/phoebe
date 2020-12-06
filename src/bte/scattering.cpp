@@ -588,56 +588,63 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 
     } else { // case el-ph scattering, matrix in memory
       // here we operate assuming innerBandStructure=outerBandStructure
-
       // list in form [[0,0],[1,0],[2,0],...]
-      std::set<std::pair<int, int>> localPairs;
-      // first unpack Bloch Index and get all wavevector pairs
-      for (auto tup0 : theMatrix.getAllLocalStates()) {
-        auto iMat1 = std::get<0>(tup0);
-        auto iMat2 = std::get<1>(tup0);
-        auto tup1 = getSMatrixIndex(iMat1);
-        auto tup2 = getSMatrixIndex(iMat2);
-        BteIndex ibte1 = std::get<0>(tup1);
-        BteIndex ibte2 = std::get<0>(tup2);
-        // map the index on the irreducible points of BTE to bandstructure index
-        StateIndex is1 = outerBandStructure.bteToState(ibte1);
-        StateIndex is2 = outerBandStructure.bteToState(ibte2);
-        auto tupp1 = outerBandStructure.getIndex(is1);
-        auto tupp2 = outerBandStructure.getIndex(is2);
-        WavevectorIndex ik1Index = std::get<0>(tupp1);
-        WavevectorIndex ik2Index = std::get<0>(tupp2);
-        long ik1Irr = ik1Index.get();
-        long ik2Irr = ik2Index.get();
-        for ( long ik2 : outerBandStructure.getReduciblesFromIrreducible(ik2Irr) ) {
-          std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
-          localPairs.insert(xx);
+      std::set<std::pair<long, long>> localPairs;
+#pragma omp parallel
+      {
+        std::vector<std::pair<long, long>> localPairsPrivate;
+        // first unpack Bloch Index and get all wavevector pairs
+#pragma omp for nowait
+        for (auto tup0 : theMatrix.getAllLocalStates()) {
+          auto iMat1 = std::get<0>(tup0);
+          auto iMat2 = std::get<1>(tup0);
+          auto tup1 = getSMatrixIndex(iMat1);
+          auto tup2 = getSMatrixIndex(iMat2);
+          BteIndex ibte1 = std::get<0>(tup1);
+          BteIndex ibte2 = std::get<0>(tup2);
+          // map the index on the irreducible points of BTE to bandstructure index
+          StateIndex is1 = outerBandStructure.bteToState(ibte1);
+          StateIndex is2 = outerBandStructure.bteToState(ibte2);
+          auto tupp1 = outerBandStructure.getIndex(is1);
+          auto tupp2 = outerBandStructure.getIndex(is2);
+          WavevectorIndex ik1Index = std::get<0>(tupp1);
+          WavevectorIndex ik2Index = std::get<0>(tupp2);
+          long ik1Irr = ik1Index.get();
+          long ik2Irr = ik2Index.get();
+          for (long ik2 :
+               outerBandStructure.getReduciblesFromIrreducible(ik2Irr)) {
+            std::pair<long, long> xx = std::make_pair(ik1Irr, ik2);
+            localPairsPrivate.push_back(xx);
+          }
+        }
+#pragma omp critical
+        for (auto y : localPairsPrivate) {
+          localPairs.insert(y);
         }
       }
 
       // find set of q1
       // this because we have duplicates with different band indices.
       std::set<long> q1Indexes;
-      for (auto tup : localPairs) {
-        auto iq1 = std::get<0>(tup);
+      for (std::pair<long,long> p : localPairs) {
+        auto iq1 = p.first;
         q1Indexes.insert(iq1);
       }
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator(q1Indexes.size());
       // find all q2 for fixed q1
-      for (long iq1 : q1Indexes) {
+      int i = 0;
+      for (long iq1_ : q1Indexes) {
         std::vector<long> q2Indexes;
-
         // note: I'm assuming that the pairs in x are unique
-        for (auto tup : localPairs) {
-          auto iq1_ = std::get<0>(tup);
-          auto iq2 = std::get<1>(tup);
-          if (iq1 == iq1_) {
-            q2Indexes.push_back(iq2);
+        for (std::pair<long,long> p : localPairs) {
+          if (p.first == iq1_) {
+            q2Indexes.push_back(p.second);
           }
         }
-
-        auto t = std::make_tuple(q2Indexes, iq1);
-        pairIterator.push_back(t);
+        auto t = std::make_tuple(q2Indexes, iq1_);
+        pairIterator[i] = t;
+        i++;
       }
       return pairIterator;
     }

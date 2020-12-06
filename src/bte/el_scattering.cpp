@@ -264,7 +264,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                    norm * pow(twoPi, 4) / en3;
 
               if (switchCase == 0) {
-                linewidth->operator()(iCalc, 0, ibte1) += rate;
+
                 if (withSymmetries) {
                   for (long i : {0, 1, 2}) {
                     for (long j : {0, 1, 2}) {
@@ -272,14 +272,19 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                       auto jIndex = CartIndex(j);
                       long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                       long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                      if (!theMatrix.indecesAreLocal(iMat1, iMat2)) {
-                        continue;
+                      if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                        if (iMat1 == 0 && iMat2 == 0) {
+                          linewidth->operator()(iCalc, 0, ibte1) += rate;
+                        }
+                        theMatrix(iMat1, iMat2) += rotation(i, j) * rateOffDiag;
                       }
-                      theMatrix(iMat1, iMat2) += rotation(i, j) * rateOffDiag;
                     }
                   }
                 } else {
-                  theMatrix(ibte1, ibte2) += rateOffDiag;
+                  if (theMatrix.indecesAreLocal(ibte1,ibte2)) {
+                    linewidth->operator()(iCalc, 0, ibte1) += rate;
+                    theMatrix(ibte1, ibte2) += rateOffDiag;
+                  }
                 }
               } else if (switchCase == 1) {
                 // case of matrix-vector multiplication
