@@ -347,7 +347,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                   norm / enProd;
 
                 if (switchCase == 0) { // case of matrix construction
-                  linewidth->operator()(iCalc, 0, ind1) += ratePlus;
                   if (context.getUseSymmetries()) {
                     for (int i : {0, 1, 2}) {
                       for (int j : {0, 1, 2}) {
@@ -355,13 +354,17 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         auto jIndex = CartIndex(j);
                         long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                         long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (!theMatrix.indecesAreLocal(iMat1, iMat2)) {
-                          continue;
+                        if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                          if (i==0 && j==0) {
+                            linewidth->operator()(iCalc, 0, ind1) += ratePlus;
+                          }
+                          theMatrix(iMat1, iMat2) +=
+                              rotation(i, j) * ratePlus;
                         }
-                        theMatrix(iMat1, iMat2) += rotation(i, j) * ratePlus;
                       }
                     }
                   } else {
+                    linewidth->operator()(iCalc, 0, ind1) += ratePlus;
                     theMatrix(ind1, ind2) += ratePlus;
                   }
 
@@ -461,7 +464,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                    deltaMins2 * norm / enProd;
 
                 if (switchCase == 0) { // case of matrix construction
-                  linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
                   if (context.getUseSymmetries()) {
                     for (int i : {0, 1, 2}) {
                       for (int j : {0, 1, 2}) {
@@ -469,14 +471,18 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         auto jIndex = CartIndex(j);
                         long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                         long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (!theMatrix.indecesAreLocal(iMat1, iMat2)) {
-                          continue;
+                        if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                          if (i==0 && j == 0) {
+                            linewidth->operator()(iCalc, 0, ind1) +=
+                                0.5 * rateMins2;
+                          }
+                          theMatrix(iMat1, iMat2) -=
+                              rotation(i, j) * (rateMins1 + rateMins2);
                         }
-                        theMatrix(iMat1, iMat2) -=
-                            rotation(i, j) * (rateMins1 + rateMins2);
                       }
                     }
                   } else {
+                    linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMins2;
                     theMatrix(ind1, ind2) -= rateMins1 + rateMins2;
                   }
 
@@ -605,7 +611,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
 
               if (switchCase == 0) { // case of matrix construction
-                linewidth->operator()(iCalc, 0, ind1) += rateIso;
                 if (context.getUseSymmetries()) {
                   for (int i : {0, 1, 2}) {
                     for (int j : {0, 1, 2}) {
@@ -615,13 +620,16 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       auto jIndex = CartIndex(j);
                       long iMat1 = getSMatrixIndex(ibte1, iIndex);
                       long iMat2 = getSMatrixIndex(ibte2, jIndex);
-                      if (!theMatrix.indecesAreLocal(iMat1, iMat2)) {
-                        continue;
+                      if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                        if (i == 0 && j == 0 ) {
+                          linewidth->operator()(iCalc, 0, ind1) += rateIso;
+                        }
+                        theMatrix(iMat1, iMat2) += rotation(i, j) * rateIso;
                       }
-                      theMatrix(iMat1, iMat2) += rotation(i, j) * rateIso;
                     }
                   }
                 } else {
+                  linewidth->operator()(iCalc, 0, ind1) += rateIso;
                   theMatrix(ind1, ind2) += rateIso;
                 }
 
