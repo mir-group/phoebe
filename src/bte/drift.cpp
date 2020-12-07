@@ -7,9 +7,9 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
   for (long is : bandStructure.parallelIrrStateIterator()) {
-    double energy = bandStructure.getEnergy(is);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
-    auto isIdx = StateIndex(is);
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
     long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -31,17 +31,17 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
   for (long is : bandStructure.parallelIrrStateIterator()) {
-    double energy = bandStructure.getEnergy(is);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
-    auto isIdx = StateIndex(is);
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
     long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
+      double x = particle.getDnde(energy, temp, chemPot);
       for (int i : {0, 1, 2}) {
-        operator()(iCalc, i, ibte) =
-            -particle.getDnde(energy, temp, chemPot) * vel(i);
+        operator()(iCalc, i, ibte) = - x * vel(i);
       }
     }
   }
@@ -65,7 +65,7 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
       // note dnde = n(n+1)/T  (for bosons)
       auto c = specificHeat.get(iCalc);
       double x = -dnde / temp / c;
-      operator()(iCalc, 0, ibte) += std::sqrt(x) * energy;
+      operator()(iCalc, 0, ibte) = std::sqrt(x) * energy;
       // we use std::sqrt because we overwrote sqrt() in the base class
     }
   }

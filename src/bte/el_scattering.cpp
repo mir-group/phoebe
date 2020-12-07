@@ -273,7 +273,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                       long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                       long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
                       if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
-                        if (iMat1 == 0 && iMat2 == 0) {
+                        if (i == 0 && j == 0) {
                           linewidth->operator()(iCalc, 0, ibte1) += rate;
                         }
                         theMatrix(iMat1, iMat2) += rotation(i, j) * rateOffDiag;
