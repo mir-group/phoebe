@@ -371,7 +371,7 @@ void ElectronWannierTransportApp::run(Context &context) {
       Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);
       elViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       elViscosity.print();
-      elViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+      elViscosity.outputToJSON("relaxons_electron_viscosity.json");
     }
 
     if (mpi->mpiHead()) {
