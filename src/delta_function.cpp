@@ -189,7 +189,8 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
   Eigen::VectorXd energies(8);
   for ( int i=1; i<8; i++) {
     long is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubcellIndices(i)),ibIndex);
-    energies(i) = fullBandStructure.getEnergy(is1);
+    StateIndex is1Idx(is1);
+    energies(i) = fullBandStructure.getEnergy(is1Idx);
   }
 
   // initialize tetrahedron weight

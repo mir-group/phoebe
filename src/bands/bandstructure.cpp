@@ -160,16 +160,6 @@ std::vector<long> FullBandStructure::getBandIndices() {
   return bandsList;
 }
 
-const double &FullBandStructure::getEnergy(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
-  if (!energies.indecesAreLocal(ib,ik)) {
-    Error e("Cannot access a non-local energy.");
-  }
-  return energies(ib, ik);
-}
-
 const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
   long ibb = ib.get();
   long ikk = ik.get();
@@ -180,7 +170,14 @@ const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
 }
 
 const double &FullBandStructure::getEnergy(StateIndex &is) {
-  return getEnergy(is.get());
+  long stateIndex = is.get();
+  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+  if (!energies.indecesAreLocal(ib,ik)) {
+    Error e("Cannot access a non-local energy.");
+  }
+  return energies(ib, ik);
 }
 
 Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
@@ -194,7 +191,8 @@ Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
   return x;
 }
 
-Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
+Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
+  long stateIndex = is.get();
   auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
@@ -207,10 +205,6 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
     vel(i) = velocities(ind, ik).real();
   }
   return vel;
-}
-
-Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
-  return getGroupVelocity(is.get());
 }
 
 Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {

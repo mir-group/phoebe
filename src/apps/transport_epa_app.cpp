@@ -143,10 +143,10 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
     for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
       loopPrint.update();
       for (long iState = 0; iState != numStates; ++iState) {
-        auto isIndex = StateIndex(iState);
+        StateIndex isIdx(iState);
         double deltaFunction =
-            tetrahedrons.getSmearing(energies(iEnergy), isIndex);
-        Eigen::Vector3d velocity = bandStructure.getGroupVelocity(iState);
+            tetrahedrons.getSmearing(energies(iEnergy), isIdx);
+        Eigen::Vector3d velocity = bandStructure.getGroupVelocity(isIdx);
         for (int j = 0; j < dim; ++j) {
           for (int i = 0; i < dim; ++i) {
             privateVel(i, j, iEnergy) +=

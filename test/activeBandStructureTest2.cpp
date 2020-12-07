@@ -154,7 +154,9 @@ TEST(ABS, Symmetries) {
 
       int ikFull = fbs.getPoints().getIndex(points.cartesianToCrystal(q));
       auto ikFullIdx = WavevectorIndex(ikFull);
-      Eigen::Vector3d v2 = fbs.getGroupVelocity(fbs.getIndex(ikFullIdx,ibIdx));
+
+      StateIndex isFullIdx(fbs.getIndex(ikFullIdx,ibIdx));
+      Eigen::Vector3d v2 = fbs.getGroupVelocity(isFullIdx);
       Eigen::Vector3d q2 = fbs.getWavevector(ikFullIdx);
 
       q = points.bzToWs(q,Points::cartesianCoords);

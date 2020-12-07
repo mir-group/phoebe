@@ -170,15 +170,12 @@ ActiveBandStructure::getIndex(StateIndex &is) {
 
 long ActiveBandStructure::getNumStates() { return numStates; }
 
-const double &ActiveBandStructure::getEnergy(const long &stateIndex) {
+const double &ActiveBandStructure::getEnergy(StateIndex &is) {
+  long stateIndex = is.get();
   if (energies.size() == 0) {
     Error e("ActiveBandStructure energies haven't been populated");
   }
   return energies[stateIndex];
-}
-
-const double &ActiveBandStructure::getEnergy(StateIndex &is) {
-  return getEnergy(is.get());
 }
 
 Eigen::VectorXd ActiveBandStructure::getEnergies(WavevectorIndex &ik) {
@@ -192,7 +189,8 @@ Eigen::VectorXd ActiveBandStructure::getEnergies(WavevectorIndex &ik) {
   return x;
 }
 
-Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long &stateIndex) {
+Eigen::Vector3d ActiveBandStructure::getGroupVelocity(StateIndex &is) {
+  long stateIndex = is.get();
   if (velocities.size() == 0) {
     Error e("ActiveBandStructure velocities haven't been populated");
   }
@@ -204,10 +202,6 @@ Eigen::Vector3d ActiveBandStructure::getGroupVelocity(const long &stateIndex) {
   vel(1) = velocities[velBloch2Comb(ik, ib, ib, 1)].real();
   vel(2) = velocities[velBloch2Comb(ik, ib, ib, 2)].real();
   return vel;
-}
-
-Eigen::Vector3d ActiveBandStructure::getGroupVelocity(StateIndex &is) {
-  return getGroupVelocity(is.get());
 }
 
 Eigen::MatrixXd ActiveBandStructure::getGroupVelocities(WavevectorIndex &ik) {

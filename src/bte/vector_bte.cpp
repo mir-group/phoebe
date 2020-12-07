@@ -209,8 +209,8 @@ void VectorBTE::canonical2Population() {
   auto particle = bandStructure.getParticle();
   for (long ibte = 0; ibte < numStates; ibte++) {
     BteIndex ibteIdx = BteIndex(ibte);
-    long is = bandStructure.bteToState(ibteIdx).get();
-    double en = bandStructure.getEnergy(is);
+    StateIndex isIdx = bandStructure.bteToState(ibteIdx);
+    double en = bandStructure.getEnergy(isIdx);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
@@ -229,8 +229,8 @@ void VectorBTE::population2Canonical() {
   }
   for (long ibte = 0; ibte < numStates; ibte++) {
     BteIndex ibteIdx = BteIndex(ibte);
-    long is = bandStructure.bteToState(ibteIdx).get();
-    double en = bandStructure.getEnergy(is);
+    StateIndex isIdx = bandStructure.bteToState(ibteIdx);
+    double en = bandStructure.getEnergy(isIdx);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;

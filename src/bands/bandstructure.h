@@ -76,7 +76,8 @@ class BaseBandStructure {
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
-   * @param stateIndex: integer from 0 to numStates-1=numBands*numPoints-1
+   * @param stateIndex: StateIndex integer from 0 to numStates - 1 =
+   * numBands*numPoints-1
    * @return WavevectorIndex: strong-typed index on wavevector
    * @return BandIndex: strong-typed index on bands
    */
@@ -103,7 +104,6 @@ class BaseBandStructure {
    * chemical potential computed by StatisticsSweep. By policy, it's in
    * rydbergs units.
    */
-  virtual const double &getEnergy(const long &stateIndex) = 0;
   virtual const double &getEnergy(StateIndex &is) = 0;
   virtual Eigen::VectorXd getEnergies(WavevectorIndex &ik) = 0;
 
@@ -113,7 +113,6 @@ class BaseBandStructure {
    * @return velocity: a 3d vector with velocity. By policy, we save it in
    * the cartesian basis and in atomic rydberg units.
    */
-  virtual Eigen::Vector3d getGroupVelocity(const long &stateIndex) = 0;
   virtual Eigen::Vector3d getGroupVelocity(StateIndex &is) = 0;
   virtual Eigen::MatrixXd getGroupVelocities(WavevectorIndex &ik) = 0;
   virtual Eigen::Tensor<std::complex<double>, 3> getVelocities(
@@ -315,18 +314,6 @@ class FullBandStructure : public BaseBandStructure {
   std::vector<long> getBandIndices();
 
   /** Returns the energy of a quasiparticle from its Bloch index.
-   * Used for accessing the bandstructure in the BTE.
-   * @param stateIndex: an integer index in range [0,numStates[
-   * @return energy: the value of the QP energy for that given Bloch index.
-   * Phonon energies are referred to zero, with negative energies being
-   * actually complex phonon frequencies. Electronic energies are not saved
-   * with any particular reference, and should be used together with the
-   * chemical potential computed by StatisticsSweep. By policy, it's in
-   * rydbergs units.
-   */
-  const double &getEnergy(const long &stateIndex);
-
-  /** Returns the energy of a quasiparticle from its Bloch index.
    * Same as getEnergy(const long &stateIndex), but using a StateIndex input
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer
    * running over the number of states [0,numStates-1].
@@ -365,14 +352,6 @@ class FullBandStructure : public BaseBandStructure {
    * chemical potential computed by StatisticsSweep. In rydbergs units.
    */
   Eigen::VectorXd getEnergies(WavevectorIndex &ik);
-
-  /** Returns the group velocity of a quasiparticle from its Bloch index.
-   * Used for accessing the bandstructure in the BTE.
-   * @param stateIndex: an integer index in range [0,numStates-1]
-   * @return velocity: a 3d vector with velocity. By policy, we save it in
-   * the cartesian basis and in atomic rydberg units.
-   */
-  Eigen::Vector3d getGroupVelocity(const long &stateIndex);
 
   /** Returns the group velocity of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.

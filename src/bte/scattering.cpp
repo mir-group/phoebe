@@ -44,8 +44,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   if (outerBandStructure.getParticle().isPhonon()) {
     for (long ibte = 0; ibte < numStates; ibte++) {
       auto ibteIdx = BteIndex(ibte);
-      long is = outerBandStructure.bteToState(ibteIdx).get();
-      double en = outerBandStructure.getEnergy(is);
+      StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+      double en = outerBandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
         excludeIndeces.push_back(ibte);
       }
@@ -253,7 +253,8 @@ void ScatteringMatrix::a2Omega() {
   double chemPot = calcStatistics.chemicalPotential;
 
   for (auto tup : theMatrix.getAllLocalStates()) {
-    long ibte1, ibte2, iMat1, iMat2, is1, is2;
+    long ibte1, ibte2, iMat1, iMat2;
+    StateIndex is1Idx(-1), is2Idx(-1);
     if (context.getUseSymmetries()) {
       iMat1 = std::get<0>(tup);
       iMat2 = std::get<1>(tup);
@@ -263,15 +264,15 @@ void ScatteringMatrix::a2Omega() {
       BteIndex ibte2Idx = std::get<0>(tup2);
       ibte1 = ibte1Idx.get();
       ibte2 = ibte2Idx.get();
-      is1 = outerBandStructure.bteToState(ibte1Idx).get();
-      is2 = outerBandStructure.bteToState(ibte2Idx).get();
+      is1Idx = outerBandStructure.bteToState(ibte1Idx);
+      is2Idx = outerBandStructure.bteToState(ibte2Idx);
     } else {
       ibte1 = std::get<0>(tup);
       ibte2 = std::get<1>(tup);
       iMat1 = ibte1;
       iMat2 = ibte2;
-      is1 = ibte1;
-      is2 = ibte2;
+      is1Idx = StateIndex(ibte1);
+      is2Idx = StateIndex(ibte2);
     }
     if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte1) !=
         excludeIndeces.end())
@@ -280,8 +281,8 @@ void ScatteringMatrix::a2Omega() {
         excludeIndeces.end())
       continue;
 
-    double en1 = outerBandStructure.getEnergy(is1);
-    double en2 = outerBandStructure.getEnergy(is2);
+    double en1 = outerBandStructure.getEnergy(is1Idx);
+    double en2 = outerBandStructure.getEnergy(is2Idx);
 
     // n(n+1) for bosons, n(1-n) for fermions
     double term1 = particle.getPopPopPm1(en1, temp, chemPot);
@@ -360,9 +361,9 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
       VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
       for (long ibte = 0; ibte < numStates; ibte++) {
-        auto ibteIdx = BteIndex(ibte);
-        long is = outerBandStructure.bteToState(ibteIdx).get();
-        double en = outerBandStructure.getEnergy(is);
+        BteIndex ibteIdx(ibte);
+        StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+        double en = outerBandStructure.getEnergy(isIdx);
         for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
@@ -398,8 +399,8 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       }
       for (long ibte = 0; ibte < numStates; ibte++) {
         auto ibteIdx = BteIndex(ibte);
-        long is = outerBandStructure.bteToState(ibteIdx).get();
-        double en = outerBandStructure.getEnergy(is);
+        StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+        double en = outerBandStructure.getEnergy(isIdx);
         for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
@@ -471,10 +472,10 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
       for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
         auto ibIndex = BandIndex(ib);
         long is = outerBandStructure.getIndex(ikIndex, ibIndex);
-        double ene = outerBandStructure.getEnergy(is);
-        auto vel = outerBandStructure.getGroupVelocity(is);
+        StateIndex isIdx(is);
+        double ene = outerBandStructure.getEnergy(isIdx);
+        auto vel = outerBandStructure.getGroupVelocity(isIdx);
         bandsE.push_back(ene * energyConversion);
-        auto isIdx = StateIndex(is);
         long ibte = outerBandStructure.stateToBte(isIdx).get();
         double tau = times(iCalc, 0, ibte); // only zero dim is meaningful
         bandsT.push_back(tau * timeRyToFs);

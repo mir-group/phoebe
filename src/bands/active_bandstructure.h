@@ -135,18 +135,6 @@ public:
   long getNumStates();
 
   /** Returns the energy of a quasiparticle from its Bloch index.
-   * Used for accessing the bandstructure in the BTE.
-   * @param stateIndex: an integer index in range [0,numStates[
-   * @return energy: the value of the QP energy for that given Bloch index.
-   * Phonon energies are referred to zero, with negative energies being
-   * actually complex phonon frequencies. Electronic energies are not saved
-   * with any particular reference, and should be used together with the
-   * chemical potential computed by StatisticsSweep. By policy, it's in
-   * rydbergs units.
-   */
-  const double &getEnergy(const long &stateIndex);
-
-  /** Returns the energy of a quasiparticle from its Bloch index.
    * Same as getEnergy(const long &stateIndex), but using a StateIndex input
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer
    * running over the number of states [0,numStates-1].
@@ -171,14 +159,6 @@ public:
    * chemical potential computed by StatisticsSweep. In rydbergs units.
    */
   Eigen::VectorXd getEnergies(WavevectorIndex &ik);
-
-  /** Returns the group velocity of a quasiparticle from its Bloch index.
-   * Used for accessing the bandstructure in the BTE.
-   * @param stateIndex: an integer index in range [0,numStates-1]
-   * @return velocity: a 3d vector with velocity. By policy, we save it in
-   * the cartesian basis and in atomic rydberg units.
-   */
-  Eigen::Vector3d getGroupVelocity(const long &stateIndex);
 
   /** Returns the group velocity of a quasiparticle from its Bloch index.
    * Used for accessing the bandstructure in the BTE.

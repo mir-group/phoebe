@@ -44,12 +44,10 @@ void SpecificHeat::calc() {
     double sum = 0.;
 #pragma omp parallel for reduction(+ : sum)
     for (long is = 0; is < bandStructure.getNumStates(); is++) {
-      auto en = bandStructure.getEnergy(is);
+      StateIndex isIdx(is);
+      auto en = bandStructure.getEnergy(isIdx);
       auto dndt = particle.getDndt(en, temp, chemPot);
-
-      auto isIndex = StateIndex(is);
-      auto rs = bandStructure.getRotationsStar(isIndex);
-
+      auto rs = bandStructure.getRotationsStar(isIdx);
       sum += dndt * en * norm * rs.size();
     }
     scalar(iCalc) = sum;

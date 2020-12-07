@@ -130,8 +130,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 #pragma omp parallel for
   for (long ibte : mpi->divideWorkIter(numStates)) {
     auto ibteIdx = BteIndex(ibte);
-    long is = outerBandStructure.bteToState(ibteIdx).get();
-    double energy = outerBandStructure.getEnergy(is);
+    StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+    double energy = outerBandStructure.getEnergy(isIdx);
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
       outerBose(iCalc, 0, ibte) = particle.getPopulation(energy, temperature);
@@ -145,8 +145,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 #pragma omp parallel for
     for (long ibte : mpi->divideWorkIter(numStates)) {
       auto ibteIdx = BteIndex(ibte);
-      long is = innerBandStructure.bteToState(ibteIdx).get();
-      double energy = innerBandStructure.getEnergy(is);
+      StateIndex isIdx = innerBandStructure.bteToState(ibteIdx);
+      double energy = innerBandStructure.getEnergy(isIdx);
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
@@ -680,10 +680,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (doBoundary) {
 #pragma omp parallel for
     for (long is1 : outerBandStructure.irrStateIterator()) { // in serial!
-      double energy = outerBandStructure.getEnergy(is1);
-      auto vel = outerBandStructure.getGroupVelocity(is1);
-
-      auto is1Idx = StateIndex(is1);
+      StateIndex is1Idx(is1);
+      double energy = outerBandStructure.getEnergy(is1Idx);
+      auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       long ind1 = outerBandStructure.stateToBte(is1Idx).get();
 
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {

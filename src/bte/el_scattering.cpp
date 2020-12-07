@@ -332,10 +332,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   if (doBoundary) {
 #pragma omp parallel for
     for (long is1 : outerBandStructure.irrStateIterator()) {
-      double energy = outerBandStructure.getEnergy(is1);
-      auto vel = outerBandStructure.getGroupVelocity(is1);
-
-      auto is1Idx = StateIndex(is1);
+      StateIndex is1Idx(is1);
+      double energy = outerBandStructure.getEnergy(is1Idx);
+      auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       long ind1 = outerBandStructure.stateToBte(is1Idx).get();
 
       for (long iCalc = 0; iCalc < numCalcs; iCalc++) {

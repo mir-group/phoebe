@@ -66,18 +66,18 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 #pragma omp for nowait
     for (long is : bandStructure.parallelIrrStateIterator()) {
-      double en = bandStructure.getEnergy(is);
-      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(is);
+      StateIndex isIdx(is);
+      double en = bandStructure.getEnergy(isIdx);
+      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
 
-      auto isIndex = StateIndex(is);
-      long iBte = bandStructure.stateToBte(isIndex).get();
+      long iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
       if (std::find(excludeIndeces.begin(), excludeIndeces.end(), iBte) !=
           excludeIndeces.end())
         continue;
 
-      auto rots = bandStructure.getRotationsStar(isIndex);
+      auto rots = bandStructure.getRotationsStar(isIdx);
       for (Eigen::Matrix3d rot : rots) {
         auto vel = rot * velIrr;
 
@@ -270,11 +270,12 @@ void PhononThermalConductivity::calcFromRelaxons(
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
         long is = std::get<0>(tup0);
+        StateIndex isIdx(is);
         long alpha = std::get<1>(tup0);
         //
-        double en = bandStructure.getEnergy(is);
+        double en = bandStructure.getEnergy(isIdx);
         if (eigenvalues(alpha) > 0. && en >= 0.) {
-          auto vel = bandStructure.getGroupVelocity(is);
+          auto vel = bandStructure.getGroupVelocity(isIdx);
           double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
           double dndt = particle.getDndt(en, temp, chemPot);
           for (int i : {0, 1, 2}) {
@@ -319,8 +320,8 @@ void PhononThermalConductivity::calcFromRelaxons(
 
 #pragma omp parallel for
   for (long is : bandStructure.irrStateIterator()) {
-    double en = bandStructure.getEnergy(is);
     auto isIdx = StateIndex(is);
+    double en = bandStructure.getEnergy(isIdx);
     long ibte = bandStructure.stateToBte(isIdx).get();
     if (en>0.) {
       double term = particle.getPopPopPm1(en, temp, chemPot);

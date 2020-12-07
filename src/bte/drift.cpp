@@ -54,8 +54,8 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
   for (long is : bandStructure.parallelIrrStateIterator()) {
-    double energy = bandStructure.getEnergy(is);
-    auto isIdx = StateIndex(is);
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
     long ibte = bandStructure.stateToBte(isIdx).get();
     for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
