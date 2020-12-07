@@ -552,29 +552,12 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
                                              const bool &rowMajor) {
   if (rowMajor) { // case for el-ph scattering
 
-    if (switchCase == 2) { // case for linewidth construction
+    if (switchCase == 1 || switchCase == 2) { // case for linewidth construction
       // here I parallelize over ik1
       // which is the outer loop on q-points
       std::vector<long> k1Iterator = outerBandStructure.parallelIrrPointsIterator();
 
       // I don't parallelize the inner band structure, the inner loop
-      std::vector<long> k2Iterator(innerBandStructure.getNumPoints());
-      // populate vector with integers from 0 to numPoints-1
-      std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
-
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
-      for (long ik1 : k1Iterator) {
-        auto t = std::make_tuple(k2Iterator, ik1);
-        pairIterator.push_back(t);
-      }
-      return pairIterator;
-
-    } else if (switchCase == 1) {
-      // this case is used by el_scattering, to compute lifetimes, or A.f
-      std::vector<long> k1Iterator = outerBandStructure.parallelIrrPointsIterator();
-
-      // Note: phScatteringMatrix needs iq2 to be the outer loop
-      // in order to be efficient!
       std::vector<long> k2Iterator(innerBandStructure.getNumPoints());
       // populate vector with integers from 0 to numPoints-1
       std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
@@ -665,27 +648,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 
   } else { // case for ph_scattering
 
-    if (switchCase == 2) { // case for linewidth
-      // must parallelize over the inner band structure (iq2 in phonons)
-      // which is the outer loop on q-points
-      size_t a = innerBandStructure.getNumPoints();
-      std::vector<long> q2Iterator = mpi->divideWorkIter(a);
-
-      // I don't parallelize the outer band structure (iq1 in phonons)
-      // which is the inner loop on q-points
-      std::vector<long> q1Iterator(outerBandStructure.getNumPoints());
-      // populate vector with integers from 0 to numPoints-1
-      std::iota(std::begin(q1Iterator), std::end(q1Iterator), 0);
-
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
-      for (long iq2 : q2Iterator) {
-        auto t = std::make_tuple(q1Iterator, iq2);
-        pairIterator.push_back(t);
-      }
-
-      return pairIterator;
-
-    } else if (switchCase == 1) { // case for dot
+    if (switchCase == 1 || switchCase == 2) { // case for dot
       // must parallelize over the inner band structure (iq2 in phonons)
       // which is the outer loop on q-points
       size_t a = innerBandStructure.getNumPoints();
