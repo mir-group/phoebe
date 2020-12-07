@@ -587,6 +587,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       return pairIterator;
 
     } else { // case el-ph scattering, matrix in memory
+
       // here we operate assuming innerBandStructure=outerBandStructure
       // list in form [[0,0],[1,0],[2,0],...]
       std::set<std::pair<long, long>> localPairs;
@@ -625,28 +626,41 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 
       // find set of q1
       // this because we have duplicates with different band indices.
-      std::set<long> q1Indexes;
+      std::set<long> q1IndexesSet;
       for (std::pair<long,long> p : localPairs) {
         auto iq1 = p.first;
-        q1Indexes.insert(iq1);
+        q1IndexesSet.insert(iq1);
       }
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator(q1Indexes.size());
-      // find all q2 for fixed q1
-      int i = 0;
-      for (long iq1_ : q1Indexes) {
-        std::vector<long> q2Indexes;
-        // note: I'm assuming that the pairs in x are unique
-        for (std::pair<long,long> p : localPairs) {
-          if (p.first == iq1_) {
-            q2Indexes.push_back(p.second);
-          }
+      // we move the set into a vector
+      // vector, unlike set, has well-defined indices for its elements
+      std::vector<long> q1Indexes;
+      for (long x : q1IndexesSet) {
+        q1Indexes.push_back(x);
+      }
+
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
+      for ( long iq1 : q1Indexes) {
+        std::vector<long> x;
+        auto y = std::make_tuple(x,iq1);
+        pairIterator.push_back(y);
+      }
+
+      for (std::pair<long,long> p : localPairs) {
+        long iq1 = p.first;
+        long iq2 = p.second;
+
+        auto idx = std::find(q1Indexes.begin(), q1Indexes.end(), iq1);
+        if (idx != q1Indexes.end()) {
+          long i = idx - q1Indexes.begin();
+          // note: get<> returns a reference to the tuple elements
+          std::get<0>(pairIterator[i]).push_back(iq2);
+        } else {
+          Error e("iq1 not found, not supposed to happen");
         }
-        auto t = std::make_tuple(q2Indexes, iq1_);
-        pairIterator[i] = t;
-        i++;
       }
       return pairIterator;
+
     }
 
   } else { // case for ph_scattering
@@ -663,14 +677,12 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // populate vector with integers from 0 to numPoints-1
       std::iota(std::begin(q1Iterator), std::end(q1Iterator), 0);
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator(
-          q2Iterator.size());
-      int i = 0;
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
       for (long iq2 : q2Iterator) {
         auto t = std::make_tuple(q1Iterator, iq2);
-        pairIterator[i] = t;
-        i++;
+        pairIterator.push_back(t);
       }
+
       return pairIterator;
 
     } else if (switchCase == 1) { // case for dot
@@ -680,69 +692,83 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       std::vector<long> q2Iterator = mpi->divideWorkIter(a);
       std::vector<long> q1Iterator = outerBandStructure.irrPointsIterator();
 
-      std::vector<std::tuple<std::vector<long>, long>> pairIterator(
-          q2Iterator.size());
-      int i = 0;
+      std::vector<std::tuple<std::vector<long>, long>> pairIterator;
       for (long iq2 : q2Iterator) {
         auto t = std::make_tuple(q1Iterator, iq2);
-        pairIterator[i] = t;
-        i++;
+        pairIterator.push_back(t);
       }
+
       return pairIterator;
 
     } else { // case for constructing A matrix
 
-      // list in form [[0,0],[1,0],[2,0],...]
-      std::set<std::pair<int, int>> x;
-      auto points = outerBandStructure.getPoints();
-      for (auto tup0 : theMatrix.getAllLocalStates()) {
-        auto iMat1 = std::get<0>(tup0);
-        auto iMat2 = std::get<1>(tup0);
-        auto tup1 = getSMatrixIndex(iMat1);
-        auto tup2 = getSMatrixIndex(iMat2);
-        BteIndex ibte1 = std::get<0>(tup1);
-        BteIndex ibte2 = std::get<0>(tup2);
-        // map the index on the irreducible points of BTE to bandstructure index
-        StateIndex is1 = outerBandStructure.bteToState(ibte1);
-        StateIndex is2 = outerBandStructure.bteToState(ibte2);
-        auto tupp1 = outerBandStructure.getIndex(is1);
-        auto tupp2 = outerBandStructure.getIndex(is2);
-        WavevectorIndex ik1Index = std::get<0>(tupp1);
-        WavevectorIndex ik2Index = std::get<0>(tupp2);
-        long ik1Irr = ik1Index.get();
-        long ik2Irr = ik2Index.get();
-        for ( long ik2 : outerBandStructure.getReduciblesFromIrreducible(ik2Irr) ) {
-          std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
-          x.insert(xx);
+      std::set<std::pair<long, long>> localPairs;
+#pragma omp parallel
+      {
+        std::vector<std::pair<long, long>> localPairsPrivate;
+        // first unpack Bloch Index and get all wavevector pairs
+#pragma omp for nowait
+        for (auto tup0 : theMatrix.getAllLocalStates()) {
+          auto iMat1 = std::get<0>(tup0);
+          auto iMat2 = std::get<1>(tup0);
+          auto tup1 = getSMatrixIndex(iMat1);
+          auto tup2 = getSMatrixIndex(iMat2);
+          BteIndex ibte1 = std::get<0>(tup1);
+          BteIndex ibte2 = std::get<0>(tup2);
+          // map the index on the irreducible points of BTE to bandstructure index
+          StateIndex is1 = outerBandStructure.bteToState(ibte1);
+          StateIndex is2 = outerBandStructure.bteToState(ibte2);
+          auto tupp1 = outerBandStructure.getIndex(is1);
+          auto tupp2 = outerBandStructure.getIndex(is2);
+          WavevectorIndex iq1Index = std::get<0>(tupp1);
+          WavevectorIndex iq2Index = std::get<0>(tupp2);
+          long iq1Irr = iq1Index.get();
+          long iq2Irr = iq2Index.get();
+          for (long iq2 :
+              outerBandStructure.getReduciblesFromIrreducible(iq2Irr)) {
+            std::pair<long, long> xx = std::make_pair(iq1Irr, iq2);
+            localPairsPrivate.push_back(xx);
+          }
+        }
+#pragma omp critical
+        for (auto y : localPairsPrivate) {
+          localPairs.insert(y);
         }
       }
-      std::vector<std::pair<int, int>> wavevectorPair;
-      for (auto t : x)
-        wavevectorPair.push_back(t);
 
       // find set of q2
-      std::set<long> q2Indexes;
-      for (auto tup : x) {
+      std::set<long> q2IndexesSet;
+      for (auto tup : localPairs) {
         auto iq2 = std::get<1>(tup);
-        q2Indexes.insert(iq2);
+        q2IndexesSet.insert(iq2);
+      }
+
+      // we move the set into a vector
+      // vector, unlike set, has well-defined indices for its elements
+      std::vector<long> q2Indexes;
+      for (long x : q2IndexesSet) {
+        q2Indexes.push_back(x);
       }
 
       std::vector<std::tuple<std::vector<long>, long>> pairIterator;
-      // find all q1 for fixes q2
-      for (long iq2 : q2Indexes) {
-        std::vector<long> q1Indexes;
+      for ( long iq2 : q2Indexes) {
+        std::vector<long> x;
+        auto y = std::make_tuple(x,iq2);
+        pairIterator.push_back(y);
+      }
 
-        // note: I'm assuming that the pairs in x are unique
-        for (auto tup : x) {
-          auto iq1 = std::get<0>(tup);
-          auto iq2_ = std::get<1>(tup);
-          if (iq2 == iq2_) {
-            q1Indexes.push_back(iq1);
-          }
+      for (std::pair<long,long> p : localPairs) {
+        long iq1 = p.first;
+        long iq2 = p.second;
+
+        auto idx = std::find(q2Indexes.begin(), q2Indexes.end(), iq2);
+        if (idx != q2Indexes.end()) {
+          long i = idx - q2Indexes.begin();
+          // note: get<> returns a reference to the tuple elements
+          std::get<0>(pairIterator[i]).push_back(iq1);
+        } else {
+          Error e("iq2 not found, not supposed to happen");
         }
-
-        auto t = std::make_tuple(q1Indexes, iq2);
-        pairIterator.push_back(t);
       }
       return pairIterator;
     }
