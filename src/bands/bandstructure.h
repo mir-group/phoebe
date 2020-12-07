@@ -160,21 +160,109 @@ class BaseBandStructure {
   virtual void setVelocities(
       Point &point, Eigen::Tensor<std::complex<double>, 3> &velocities_) = 0;
 
+  /** Given a irreducible point index, find the list of rotations to reconstruct
+   * the equivalent points.
+   *
+   * @param ikIndex: Index of the irreducible wavevector. This index is a
+   * number between 0 and N_k_reducible.
+   * @return rotations: a vector with the rotations used to reconstruct the
+   * symmetry-equivalent Bloch states.
+   */
   virtual std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex) = 0;
+
+  /** Given an irreducible Bloch state (i.e. any band at an irreducible point),
+   * find the list of rotations to reconstruct the equivalent points.
+   *
+   * @param isIndex: Index of the irreducible Bloch State. This index is a
+   * number between 0 and numStates.
+   * @return rotations: a vector with the rotations used to reconstruct the
+   * symmetry-equivalent Bloch states.
+   */
   virtual std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex) = 0;
+
+  /** Given a point in crystal or cartesian coordinates, returns the index of
+   * the irreducible point and the rotation such that
+   * rotation*irrPoint = redPoint
+   *
+   * @param x: point coordinates
+   * @param basis: either Points::crystalCoords or Points::cartesianCoords,
+   * this will treat x in the appropriate coordinate. Also the returned rotation
+   * will be in the corresponding basis.
+   * @return <ik,rot>: a tuple with the index of the irreducible point and the
+   * rotation matrix connecting the irreducible and reducible point.
+   */
   virtual std::tuple<long, Eigen::Matrix3d> getRotationToIrreducible(
       const Eigen::Vector3d &x,
       const int &basis = Points::crystalCoords) = 0;
 
+  /** Utility method to convert an index over Bloch states in the bandstructure
+   * into a Bloch state index usable by VectorBTE.
+   * If a state is not mapped to the VectorBTE, throws an error.
+   *
+   * @param StateIndex: the index of the Bloch state in the bandstructure.
+   * @return BteIndex: index of the Bloch state in the BTE
+   */
   virtual BteIndex stateToBte(StateIndex &isIndex) = 0;
+
+  /** Utility method to convert an index over Bloch states in a VectorBTE into
+   * the Bloch state index in the bandstructure.
+   * Unlike stateToBte, this should always have a solution.
+   *
+   * @param ibteIndex: index of the Bloch state in the BTE
+   * @return StateIndex: the index of the Bloch state in the bandstructure.
+   */
   virtual StateIndex bteToState(BteIndex &ibteIndex) = 0;
+
+  /** Iterator over the Bloch states in the band structure, over just the
+   * irreducible wavevectors, but isn't distributed over MPI processes.
+   *
+   * @return State-indices: a vector<long> with the indices over Bloch states
+   * stored in the bandstructure
+   */
   virtual std::vector<long> irrStateIterator() = 0;
+
+  /** Iterator over the Bloch states in the band structure, distributed over
+   * MPI processes, running only over irreducible wavevectors.
+   *
+   * @return State-indices: a vector<long> with the indices over Bloch states
+   * stored in the bandstructure
+   */
   virtual std::vector<long> parallelIrrStateIterator() = 0;
+
+  /** Iterator over the irreducible points indices.
+   * The iterator is serial, not parallelized with MPI.
+   *
+   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * points.
+   */
   virtual std::vector<long> irrPointsIterator() = 0;
+
+  /** Iterator over the irreducible points indices.
+   * The iterator is parallelized over MPI processes.
+   *
+   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * points.
+   */
   virtual std::vector<long> parallelIrrPointsIterator() = 0;
 
+  /** Find the index of a point in the reducible list of points, given its
+   * coordinates in the crystal basis.
+   *
+   * @param crystalCoords: coordinates of the kpoint in crystal basis
+   * @param suppressError: default false. If false, will throw an error if the
+   * point is not found
+   * @return ik: the index of the point
+   */
   virtual long getPointIndex(const Eigen::Vector3d &crystalCoords,
                              const bool &suppressError=false) = 0;
+
+  /** Method to find the points equivalent to an irreducible point.
+   *
+   * @param ik: index of the irreducible point, with ik running on the full list
+   * of reducible points.
+   * @return vector<long>: the list of indices of the reducible points
+   * equivalent to point #ik.
+   */
   virtual std::vector<long> getReduciblesFromIrreducible(const long &ik) = 0;
 };
 
@@ -463,22 +551,109 @@ class FullBandStructure : public BaseBandStructure {
    */
   Eigen::VectorXd getBandEnergies(long &bandIndex);
 
+  /** Given a irreducible point index, find the list of rotations to reconstruct
+   * the equivalent points.
+   *
+   * @param ikIndex: Index of the irreducible wavevector. This index is a
+   * number between 0 and N_k_reducible.
+   * @return rotations: a vector with the rotations used to reconstruct the
+   * symmetry-equivalent Bloch states.
+   */
   std::vector<Eigen::Matrix3d> getRotationsStar(WavevectorIndex &ikIndex);
+
+  /** Given an irreducible Bloch state (i.e. any band at an irreducible point),
+   * find the list of rotations to reconstruct the equivalent points.
+   *
+   * @param isIndex: Index of the irreducible Bloch State. This index is a
+   * number between 0 and numStates.
+   * @return rotations: a vector with the rotations used to reconstruct the
+   * symmetry-equivalent Bloch states.
+   */
   std::vector<Eigen::Matrix3d> getRotationsStar(StateIndex &isIndex);
+
+  /** Given a point in crystal or cartesian coordinates, returns the index of
+   * the irreducible point and the rotation such that
+   * rotation*irrPoint = redPoint
+   *
+   * @param x: point coordinates
+   * @param basis: either Points::crystalCoords or Points::cartesianCoords,
+   * this will treat x in the appropriate coordinate. Also the returned rotation
+   * will be in the corresponding basis.
+   * @return <ik,rot>: a tuple with the index of the irreducible point and the
+   * rotation matrix connecting the irreducible and reducible point.
+   */
   std::tuple<long, Eigen::Matrix3d> getRotationToIrreducible(
       const Eigen::Vector3d &x,
       const int &basis = Points::crystalCoords);
 
+  /** Utility method to convert an index over Bloch states in the bandstructure
+   * into a Bloch state index usable by VectorBTE.
+   * If a state is not mapped to the VectorBTE, throws an error.
+   *
+   * @param StateIndex: the index of the Bloch state in the bandstructure.
+   * @return BteIndex: index of the Bloch state in the BTE
+   */
   BteIndex stateToBte(StateIndex &isIndex);
+
+  /** Utility method to convert an index over Bloch states in a VectorBTE into
+   * the Bloch state index in the bandstructure.
+   * Unlike stateToBte, this should always have a solution.
+   *
+   * @param ibteIndex: index of the Bloch state in the BTE
+   * @return StateIndex: the index of the Bloch state in the bandstructure.
+   */
   StateIndex bteToState(BteIndex &ibteIndex);
 
+  /** Iterator over the Bloch states in the band structure, over just the
+   * irreducible wavevectors, but isn't distributed over MPI processes.
+   *
+   * @return State-indices: a vector<long> with the indices over Bloch states
+   * stored in the bandstructure
+   */
   std::vector<long> irrStateIterator();
+
+  /** Iterator over the Bloch states in the band structure, distributed over
+   * MPI processes, running only over irreducible wavevectors.
+   *
+   * @return State-indices: a vector<long> with the indices over Bloch states
+   * stored in the bandstructure
+   */
   std::vector<long> parallelIrrStateIterator();
+
+  /** Iterator over the irreducible points indices.
+   * The iterator is serial, not parallelized with MPI.
+   *
+   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * points.
+   */
   std::vector<long> irrPointsIterator();
+
+  /** Iterator over the irreducible points indices.
+   * The iterator is parallelized over MPI processes.
+   *
+   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * points.
+   */
   std::vector<long> parallelIrrPointsIterator();
 
+  /** Find the index of a point in the reducible list of points, given its
+   * coordinates in the crystal basis.
+   *
+   * @param crystalCoords: coordinates of the kpoint in crystal basis
+   * @param suppressError: default false. If false, will throw an error if the
+   * point is not found
+   * @return ik: the index of the point
+   */
   long getPointIndex(const Eigen::Vector3d &crystalCoords,
                      const bool &suppressError=false);
+
+  /** Method to find the points equivalent to an irreducible point.
+   *
+   * @param ik: index of the irreducible point, with ik running on the full list
+   * of reducible points.
+   * @return vector<long>: the list of indices of the reducible points
+   * equivalent to point #ik.
+   */
   std::vector<long> getReduciblesFromIrreducible(const long &ik);
 protected:
   // stores the quasiparticle kind

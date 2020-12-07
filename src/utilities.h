@@ -62,15 +62,32 @@ private:
     T value_;
 };
 
-using DimIndex = NamedType<long, struct DimTag>;
+/** CartIndex is used to label cartesian directions
+ */
 using CartIndex = NamedType<long, struct CartTag>;
-using MatIndex = NamedType<long, struct MatTag>;
+
+/** BteIndex is used to label the Bloch states entering the BTE
+ */
 using BteIndex = NamedType<long, struct BteTag>;
+
+/** CalcIndex is used to label the pairs of (chemical potential , temperature)
+ * used in transport calculations
+ */
 using CalcIndex = NamedType<long, struct CalcTag>;
 using TempIndex = NamedType<long, struct TempTag>;
 using ChemPotIndex = NamedType<long, struct ChemPotTag>;
+
+/** WavevectorIndex is used to label k/q points
+ */
 using WavevectorIndex = NamedType<long, struct WavevectorTag>;
+
+/** BandIndex is used to label bands at a given k/q points
+ */
 using BandIndex = NamedType<long, struct BandTag>;
+
+/** StateIndex is used to label the Bloch states in the bandstructure.
+ * Not always equal to BteIndex, because some states may be discarded!
+ */
 using StateIndex = NamedType<long, struct StateTag>;
 
 #endif

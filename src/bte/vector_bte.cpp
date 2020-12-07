@@ -91,7 +91,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, DimIndex(0));
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =

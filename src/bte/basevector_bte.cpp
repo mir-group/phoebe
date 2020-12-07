@@ -95,7 +95,7 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, DimIndex(0));
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =
@@ -206,19 +206,19 @@ void BaseVectorBTE::setConst(const double &constant) {
 }
 
 long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                             const DimIndex &idim) {
+                             const CartIndex &idim) {
   long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
-std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
+std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
     const long &i) {
   auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto idim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
+  return {ChemPotIndex(imu), TempIndex(it), CartIndex(idim)};
 }
 
 // get/set operator
