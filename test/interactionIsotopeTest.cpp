@@ -76,7 +76,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
 
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numBands; j++) {
-        auto tup = decompress2Indeces(i, numAtoms, 3);
+        auto tup = decompress2Indices(i, numAtoms, 3);
         auto iat = std::get<0>(tup);
         auto idim = std::get<1>(tup);
         evt1(idim, iat, j) = ev1(i, j);

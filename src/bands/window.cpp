@@ -82,7 +82,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
 
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema;
-  std::vector<int> bandsIndeces;
+  std::vector<int> bandsIndices;
 
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
@@ -90,12 +90,12 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
     if ((abs(popMin(ib)) > populationThreshold) ||
         (abs(popMax(ib)) > populationThreshold)) {
       filteredEnergies.push_back(thisEnergy);
-      bandsIndeces.push_back(ib);
+      bandsIndices.push_back(ib);
     }
   }
-  if (bandsIndeces.size() > 0) {
-    bandsExtrema.push_back(bandsIndeces[0]);
-    bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
+  if (bandsIndices.size() > 0) {
+    bandsExtrema.push_back(bandsIndices[0]);
+    bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
@@ -105,19 +105,19 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
 
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema;
-  std::vector<int> bandsIndeces;
+  std::vector<int> bandsIndices;
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
     thisEnergy = energies(ib);
     if (thisEnergy < maxEnergy && thisEnergy > minEnergy) {
       filteredEnergies.push_back(thisEnergy);
-      bandsIndeces.push_back(ib);
+      bandsIndices.push_back(ib);
     }
   }
   // set the band extrema
-  if (bandsIndeces.size() > 0) {
-    bandsExtrema.push_back(bandsIndeces[0]);
-    bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
+  if (bandsIndices.size() > 0) {
+    bandsExtrema.push_back(bandsIndices[0]);
+    bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }

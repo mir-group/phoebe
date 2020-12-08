@@ -435,7 +435,7 @@ public:
   Eigen::VectorXi bteCumulativeKbOffset;
   Eigen::VectorXi cumulativeKbbOffset;
   // this is the functionality to build the indices
-  void buildIndeces(); // to be called after building the band structure
+  void buildIndices(); // to be called after building the band structure
   // and these are the tools to convert indices
   void buildSymmetries();
 

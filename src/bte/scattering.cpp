@@ -47,7 +47,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
       double en = outerBandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-        excludeIndeces.push_back(ibte);
+        excludeIndices.push_back(ibte);
       }
     }
   }
@@ -64,7 +64,7 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
       internalDiagonal(that.internalDiagonal), theMatrix(that.theMatrix),
       numStates(that.numStates), numPoints(that.numPoints),
       numCalcs(that.numCalcs), dimensionality_(that.dimensionality_),
-      excludeIndeces(that.excludeIndeces) {}
+      excludeIndices(that.excludeIndices) {}
 
 // assignment operator
 ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
@@ -81,7 +81,7 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     numStates = that.numStates;
     numPoints = that.numPoints;
     numCalcs = that.numCalcs;
-    excludeIndeces = that.excludeIndeces;
+    excludeIndices = that.excludeIndices;
     dimensionality_ = that.dimensionality_;
   }
   return *this;
@@ -274,11 +274,11 @@ void ScatteringMatrix::a2Omega() {
       is1Idx = StateIndex(ibte1);
       is2Idx = StateIndex(ibte2);
     }
-    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte1) !=
-        excludeIndeces.end())
+    if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte1) !=
+        excludeIndices.end())
       continue;
-    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte2) !=
-        excludeIndeces.end())
+    if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte2) !=
+        excludeIndices.end())
       continue;
 
     double en1 = outerBandStructure.getEnergy(is1Idx);
@@ -321,11 +321,11 @@ void ScatteringMatrix::a2Omega() {
 //  for (auto tup : theMatrix.getAllLocalStates()) {
 //    auto ind1 = std::get<0>(tup);
 //    auto ind2 = std::get<1>(tup);
-//    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind1) !=
-//        excludeIndeces.end())
+//    if (std::find(excludeIndices.begin(), excludeIndices.end(), ind1) !=
+//        excludeIndices.end())
 //      continue;
-//    if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ind2) !=
-//        excludeIndeces.end())
+//    if (std::find(excludeIndices.begin(), excludeIndices.end(), ind2) !=
+//        excludeIndices.end())
 //      continue;
 //
 //    double en1 = outerBandStructure.getEnergy(ind1);
@@ -350,12 +350,12 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     double crt = context.getConstantRelaxationTime();
     VectorBTE times(statisticsSweep, outerBandStructure, 1);
     times.setConst(crt);
-    times.excludeIndeces = excludeIndeces;
+    times.excludeIndices = excludeIndices;
     return times;
   } else {
     if (isMatrixOmega) {
       VectorBTE times = internalDiagonal.reciprocal();
-      times.excludeIndeces = excludeIndeces;
+      times.excludeIndices = excludeIndices;
       return times;
     } else { // A_nu,nu = N(1+-N) / tau
       VectorBTE times = internalDiagonal;
@@ -373,7 +373,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
           times(iCalc, 0, ibte) = popTerm / internalDiagonal(iCalc, 0, ibte);
         }
       }
-      times.excludeIndeces = excludeIndeces;
+      times.excludeIndices = excludeIndices;
       return times;
     }
   }
@@ -385,11 +385,11 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     double crt = context.getConstantRelaxationTime();
     VectorBTE linewidths(statisticsSweep, outerBandStructure, 1);
     linewidths.setConst(1. / crt);
-    linewidths.excludeIndeces = excludeIndeces;
+    linewidths.excludeIndices = excludeIndices;
     return linewidths;
   } else {
     VectorBTE linewidths = internalDiagonal;
-    linewidths.excludeIndeces = excludeIndeces;
+    linewidths.excludeIndices = excludeIndices;
     if (isMatrixOmega) {
       // Important note: don't use this for fermions, or you can get rubbish!
       // the factor popTerm could be = 0!
@@ -744,7 +744,7 @@ long ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex,
   if (context.getUseSymmetries()) {
     long is = bteIndex.get();
     long alpha = cartIndex.get();
-    return compress2Indeces(is, alpha, numStates, 3);
+    return compress2Indices(is, alpha, numStates, 3);
   } else {
     return bteIndex.get();
   }
@@ -753,7 +753,7 @@ long ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex,
 std::tuple<BteIndex, CartIndex>
 ScatteringMatrix::getSMatrixIndex(const long &iMat) {
   if (context.getUseSymmetries()) {
-    auto t = decompress2Indeces(iMat, numStates, 3);
+    auto t = decompress2Indices(iMat, numStates, 3);
     return {BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t))};
   } else {
     return {BteIndex(iMat), CartIndex(0)};

@@ -11,8 +11,8 @@ class ActivePoints : public Points {
   Points &parentPoints;
   Eigen::MatrixXd pointsList;
 
-  Eigen::VectorXi filteredToFullIndeces;
-  long fullToFilteredIndeces(const long &indexIn);
+  Eigen::VectorXi filteredToFullIndices;
+  long fullToFilteredIndices(const long &indexIn);
  public:
   /** Default constructor
    * @param parentPoints: the "parent" Points object, from which we take a

@@ -98,7 +98,7 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   Eigen::Vector3i getCoarseGrid();
 
-  /** Utility to convert the indexes of atom basis and polarization into
+  /** Utility to convert the indices of atom basis and polarization into
    *  the index that has to be used with the eigenvector in matrix form.
    * @param iAt: atomic basis index.
    * @param iPol: polarization index (0,1,2).

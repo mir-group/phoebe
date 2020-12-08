@@ -8,9 +8,9 @@ ActivePoints::ActivePoints(Points &parentPoints_, Eigen::VectorXi filter) :
                 parentPoints_) {
   // this contain the list of indices of the points in the FullPoints class
   // which we want to include in the ActivePoints class
-  filteredToFullIndeces = filter;
+  filteredToFullIndices = filter;
 
-  numPoints = filteredToFullIndeces.size();
+  numPoints = filteredToFullIndices.size();
 
   // we then construct the list of points
   Eigen::MatrixXd pointsList_(3, numPoints);
@@ -19,7 +19,7 @@ ActivePoints::ActivePoints(Points &parentPoints_, Eigen::VectorXi filter) :
 
   long ik;
   for (long ikNew = 0; ikNew < numPoints; ikNew++) {
-    ik = filteredToFullIndeces(ikNew);
+    ik = filteredToFullIndices(ikNew);
     x = parentPoints.getPointCoords(ik);
     pointsList_.col(ikNew) = x;
   }
@@ -29,8 +29,8 @@ ActivePoints::ActivePoints(Points &parentPoints_, Eigen::VectorXi filter) :
 // copy constructor
 ActivePoints::ActivePoints(const ActivePoints &that) :
         Points(that), parentPoints(that.parentPoints), pointsList(
-                that.pointsList), filteredToFullIndeces(
-                that.filteredToFullIndeces) {
+                that.pointsList), filteredToFullIndices(
+                that.filteredToFullIndices) {
 }
 
 // copy assignment operator
@@ -42,7 +42,7 @@ ActivePoints& ActivePoints::operator=(const ActivePoints &that) {
     numPoints = that.numPoints;
     gVectors = that.gVectors;
     parentPoints = that.parentPoints;
-    filteredToFullIndeces = that.filteredToFullIndeces;
+    filteredToFullIndices = that.filteredToFullIndices;
     pointsList = that.pointsList;
   }
   return *this;
@@ -73,18 +73,18 @@ Eigen::Vector3d ActivePoints::getPointCoords(const long &index,
 long ActivePoints::getIndex(const Eigen::Vector3d &coords) {
   // we take advantage of the fact that the parent points have an order
   long indexFull = parentPoints.getIndex(coords);
-  long ik = fullToFilteredIndeces(indexFull);
+  long ik = fullToFilteredIndices(indexFull);
   return ik;
 }
 
-long ActivePoints::fullToFilteredIndeces(const long &indexIn) {
+long ActivePoints::fullToFilteredIndices(const long &indexIn) {
   // Note: this function could obviously be made much faster if you could
   // save in memory the map of every point in the Full list into the
   // ActivePoints list (and 0 if there's no mapping.
   // But the list of kpoints might be too large!
   long target = -1;
   for (long ik = 0; ik < numPoints; ik++) {
-    if (indexIn == filteredToFullIndeces(ik)) {
+    if (indexIn == filteredToFullIndices(ik)) {
       target = ik;
       break;
     }

@@ -354,7 +354,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         auto jIndex = CartIndex(j);
                         long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                         long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                        if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i==0 && j==0) {
                             linewidth->operator()(iCalc, 0, ind1) += ratePlus;
                           }
@@ -471,7 +471,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         auto jIndex = CartIndex(j);
                         long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                         long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                        if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i==0 && j == 0) {
                             linewidth->operator()(iCalc, 0, ind1) +=
                                 0.5 * rateMins2;
@@ -620,7 +620,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       auto jIndex = CartIndex(j);
                       long iMat1 = getSMatrixIndex(ibte1, iIndex);
                       long iMat2 = getSMatrixIndex(ibte2, jIndex);
-                      if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                      if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                         if (i == 0 && j == 0 ) {
                           linewidth->operator()(iCalc, 0, ind1) += rateIso;
                         }
@@ -716,9 +716,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 0) {
     // case of matrix construction
     if (context.getUseSymmetries()) {
-      for (auto ibte1 : excludeIndeces) {
+      for (auto ibte1 : excludeIndices) {
         linewidth->data.col(ibte1).setZero();
-        for (auto ibte2 : excludeIndeces) {
+        for (auto ibte2 : excludeIndices) {
           for (int i : {0, 1, 2}) {
             for (int j : {0, 1, 2}) {
               auto ibte1Idx = BteIndex(ibte1);
@@ -733,16 +733,16 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         }
       }
     } else {
-      for (auto ibte1 : excludeIndeces) {
+      for (auto ibte1 : excludeIndices) {
         linewidth->data.col(ibte1).setZero();
-        for (auto ibte2 : excludeIndeces) {
+        for (auto ibte2 : excludeIndices) {
           theMatrix(ibte1, ibte2) = 0.;
         }
       }
     }
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
-    for (auto ibte1 : excludeIndeces) {
+    for (auto ibte1 : excludeIndices) {
       for (unsigned int i = 0; i < outPopulations.size(); i++) {
         outPopulations[i].data.col(ibte1).setZero();
       }
@@ -750,7 +750,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   } else if (switchCase == 2) {
     // case of linewidth construction
-    for (auto ibte1 : excludeIndeces) {
+    for (auto ibte1 : excludeIndices) {
       linewidth->data.col(ibte1).setZero();
     }
   }

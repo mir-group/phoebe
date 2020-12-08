@@ -175,7 +175,7 @@ public:
   // at gamma, which have zero frequencies and thus have several non-analytic
   // behaviors (e.g. Bose--Einstein population=infinity). We set to zero
   // terms related to these states.
-  std::vector<long> excludeIndeces;
+  std::vector<long> excludeIndices;
 
   /** Method that actually computes the scattering matrix.
    * Pure virtual function: needs an implementation in every subclass.

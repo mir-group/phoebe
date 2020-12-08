@@ -34,7 +34,7 @@ BaseVectorBTE::BaseVectorBTE(const BaseVectorBTE &that)
   numTemps = that.numTemps;
   dimensionality = that.dimensionality;
   data = that.data;
-  excludeIndeces = that.excludeIndeces;
+  excludeIndices = that.excludeIndices;
 }
 
 // copy assignment
@@ -47,7 +47,7 @@ BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
     numTemps = that.numTemps;
     dimensionality = that.dimensionality;
     data = that.data;
-    excludeIndeces = that.excludeIndeces;
+    excludeIndices = that.excludeIndices;
   }
   return *this;
 }
@@ -116,7 +116,7 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
   } else {
     Error e("BaseVectorBTE can't handle dimensionality for this case");
   }
-  for (auto is : excludeIndeces) {
+  for (auto is : excludeIndices) {
     newPopulation.data.col(is).setZero();
   }
   return newPopulation;
@@ -207,14 +207,14 @@ void BaseVectorBTE::setConst(const double &constant) {
 
 long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
                              const CartIndex &idim) {
-  long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
+  long i = compress3Indices(imu.get(), it.get(), idim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
 std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
     const long &i) {
-  auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
+  auto tup = decompress3Indices(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto idim = std::get<2>(tup);

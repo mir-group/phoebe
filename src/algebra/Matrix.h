@@ -77,7 +77,7 @@ class Matrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -285,8 +285,8 @@ const T& Matrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
-  if(isDistributed) return pmat->indecesAreLocal(row,col);
+bool Matrix<T>::indicesAreLocal(const int& row, const int& col) {
+  if(isDistributed) return pmat->indicesAreLocal(row,col);
   else{ return true; }
 }
 

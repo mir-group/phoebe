@@ -163,7 +163,7 @@ std::vector<long> FullBandStructure::getBandIndices() {
 const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
   long ibb = ib.get();
   long ikk = ik.get();
-  if (!energies.indecesAreLocal(ibb,ikk)) {
+  if (!energies.indicesAreLocal(ibb,ikk)) {
     Error e("Cannot access a non-local energy.");
   }
   return energies(ibb, ikk);
@@ -171,10 +171,10 @@ const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
 
 const double &FullBandStructure::getEnergy(StateIndex &is) {
   long stateIndex = is.get();
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
+  auto tup = decompress2Indices(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
-  if (!energies.indecesAreLocal(ib,ik)) {
+  if (!energies.indicesAreLocal(ib,ik)) {
     Error e("Cannot access a non-local energy.");
   }
   return energies(ib, ik);
@@ -182,7 +182,7 @@ const double &FullBandStructure::getEnergy(StateIndex &is) {
 
 Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
   Eigen::VectorXd x(numBands);
-  if (!energies.indecesAreLocal(0,ik.get())) {
+  if (!energies.indicesAreLocal(0,ik.get())) {
     Error e("Cannot access a non-local energy.");
   }
   for (int ib=0; ib<numBands; ib++) {
@@ -193,15 +193,15 @@ Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
 
 Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
   long stateIndex = is.get();
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
+  auto tup = decompress2Indices(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
-  if (!velocities.indecesAreLocal(ib,ik)) { // note ib is smaller than nRows
+  if (!velocities.indicesAreLocal(ib,ik)) { // note ib is smaller than nRows
     Error e("Cannot access a non-local velocity.");
   }
   Eigen::Vector3d vel;
   for (int i : {0, 1, 2}) {
-    long ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
+    long ind = compress3Indices(ib, ib, i, numBands, numBands, 3);
     vel(i) = velocities(ind, ik).real();
   }
   return vel;
@@ -209,13 +209,13 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
 
 Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {
   long ikk = ik.get();
-  if (!velocities.indecesAreLocal(0,ikk)) {
+  if (!velocities.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
   Eigen::MatrixXd vel(numBands,3);
   for (int ib=0; ib<numBands; ib++ ) {
     for (int i : {0, 1, 2}) {
-      int ind = compress3Indeces(ib, ib, i, numBands, numBands, 3);
+      int ind = compress3Indices(ib, ib, i, numBands, numBands, 3);
       vel(ib,i) = velocities(ind, ikk).real();
     }
   }
@@ -225,14 +225,14 @@ Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {
 Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getVelocities(
     WavevectorIndex &ik) {
   long ikk = ik.get();
-  if (!velocities.indecesAreLocal(0,ikk)) {
+  if (!velocities.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
   Eigen::Tensor<std::complex<double>, 3> vel(numBands, numBands, 3);
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ib2 = 0; ib2 < numBands; ib2++) {
       for (int i : {0, 1, 2}) {
-        int ind = compress3Indeces(ib1, ib2, i, numBands, numBands, 3);
+        int ind = compress3Indices(ib1, ib2, i, numBands, numBands, 3);
         vel(ib1,ib2,i) = velocities(ind, ikk);
       }
     }
@@ -242,7 +242,7 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getVelocities(
 
 Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
   long ikk = ik.get();
-  if (!eigenvectors.indecesAreLocal(0,ikk)) {
+  if (!eigenvectors.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
 
@@ -250,7 +250,7 @@ Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
   eigs.setZero();
   for (long ib1 = 0; ib1 < numBands; ib1++) {
     for (long ib2 = 0; ib2 < numBands; ib2++) {
-      long ind = compress2Indeces(ib1, ib2, numBands, numBands);
+      long ind = compress2Indices(ib1, ib2, numBands, numBands);
       eigs(ib1, ib2) = eigenvectors(ind, ikk);
     }
   }
@@ -260,14 +260,14 @@ Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
 Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
     WavevectorIndex &ik) {
   long ikk = ik.get();
-  if (!eigenvectors.indecesAreLocal(0,ikk)) {
+  if (!eigenvectors.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
   Eigen::Tensor<std::complex<double>, 3> eigs_(3, numAtoms, numBands);
   for (int ib = 0; ib < numBands; ib++) {
     for (int ia = 0; ia < numAtoms; ia++) {
       for (int ic : {0, 1, 2}) {
-        long ind = compress3Indeces(ia, ic, ib, numAtoms, 3, numBands);
+        long ind = compress3Indices(ia, ic, ib, numAtoms, 3, numBands);
         eigs_(ic, ia, ib) = eigenvectors(ind, ikk);
       }
     }
@@ -289,7 +289,7 @@ Eigen::Vector3d FullBandStructure::getWavevector(WavevectorIndex &ik) {
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
                                     Eigen::VectorXd &energies_) {
   long ik = points.getIndex(coords);
-  if (!energies.indecesAreLocal(0,ik)) {
+  if (!energies.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local energy");
   }
@@ -300,7 +300,7 @@ void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
 
 void FullBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
   long ik = point.getIndex();
-  if (!energies.indecesAreLocal(0,ik)) {
+  if (!energies.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local energy");
   }
@@ -320,13 +320,13 @@ void FullBandStructure::setVelocities(
     for (long j = 0; j < numBands; j++) {
       for (long k = 0; k < 3; k++) {
         // Note: State must know this order of index compression
-        long idx = compress3Indeces(i, j, k, numBands, numBands, 3);
+        long idx = compress3Indices(i, j, k, numBands, numBands, 3);
         tmpVelocities_(idx) = velocities_(i, j, k);
       }
     }
   }
   long ik = point.getIndex();
-  if (!velocities.indecesAreLocal(0,ik)) {
+  if (!velocities.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local velocity");
   }
@@ -345,12 +345,12 @@ void FullBandStructure::setEigenvectors(Point &point,
   for (long i = 0; i < numBands; i++) {
     for (long j = 0; j < numBands; j++) {
       // Note: State must know this order of index compression
-      long idx = compress2Indeces(i, j, numBands, numBands);
+      long idx = compress2Indices(i, j, numBands, numBands);
       tmp(idx) = eigenvectors_(i, j);
     }
   }
   long ik = point.getIndex();
-  if (!eigenvectors.indecesAreLocal(0,ik)) {
+  if (!eigenvectors.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local eigenvector.");
   }

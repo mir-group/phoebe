@@ -272,7 +272,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                       auto jIndex = CartIndex(j);
                       long iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                       long iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                      if (theMatrix.indecesAreLocal(iMat1, iMat2)) {
+                      if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                         if (i == 0 && j == 0) {
                           linewidth->operator()(iCalc, 0, ibte1) += rate;
                         }
@@ -281,7 +281,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                 } else {
-                  if (theMatrix.indecesAreLocal(ibte1,ibte2)) {
+                  if (theMatrix.indicesAreLocal(ibte1,ibte2)) {
                     linewidth->operator()(iCalc, 0, ibte1) += rate;
                     theMatrix(ibte1, ibte2) += rateOffDiag;
                   }

@@ -50,7 +50,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
-  auto excludeIndeces = n.excludeIndeces;
+  auto excludeIndices = n.excludeIndices;
 
   tensordxd.setZero();
 
@@ -73,8 +73,8 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
       long iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
-      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), iBte) !=
-          excludeIndeces.end())
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
+          excludeIndices.end())
         continue;
 
       auto rots = bandStructure.getRotationsStar(isIdx);
@@ -119,7 +119,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &scalingCG) {
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
-  auto excludeIndeces = f.excludeIndeces;
+  auto excludeIndices = f.excludeIndices;
 
   auto fUnscaled = f;
   fUnscaled = fUnscaled / scalingCG;
@@ -137,8 +137,8 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     for (long is : bandStructure.parallelIrrStateIterator()) {
 
       // skip the acoustic phonons
-      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is) !=
-          excludeIndeces.end()) {
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
+          excludeIndices.end()) {
         continue;
       }
 

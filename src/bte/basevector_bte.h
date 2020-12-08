@@ -23,8 +23,8 @@ class BaseVectorBTE {
    * @param numStates: saves the number of states on which we compute the
    * vector.
    * @param dimensionality: determines the size of the vector on cartesian
-   * indices. 1 for scalar quantities like linewidths Gamma(BlochIndeces), 3
-   * for vector quantities like phonon populations f(blochIndeces,cartesian).
+   * indices. 1 for scalar quantities like linewidths Gamma(BlochIndices), 3
+   * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
   BaseVectorBTE(StatisticsSweep &statisticsSweep_, const long &numStates_,
                 const long &dimensionality_ = 3);
@@ -150,7 +150,7 @@ class BaseVectorBTE {
 
   /** glob2Loc and loc2Glob compress/decompress the indices on temperature,
    * chemical potential, and cartesian direction into/from a single index.
-   * TODO: these indeces, and how they are used elsewhere, is rather messy
+   * TODO: these indices, and how they are used elsewhere, is rather messy
    * That's because we have to work both with quantities such as linewidths,
    * which are a scalar over the Bloch states, and phonon populations, which
    * are cartesian vectors over the Bloch states.
@@ -164,7 +164,7 @@ class BaseVectorBTE {
    * which vectorBTE values are 0), for example, the acoustic modes at the
    * gamma point, whose zero frequencies may cause problems.
    */
-  std::vector<long> excludeIndeces;
+  std::vector<long> excludeIndices;
 
  protected:
   /** base class to implement +, -, / and * operations.

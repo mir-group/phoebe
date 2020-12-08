@@ -20,16 +20,16 @@ template<typename T> int sgn(T &val) {
     return (T(0) < val) - (val < T(0));
 }
 
-long compress3Indeces(const long &i1, const long &i2, const long &i3,
+long compress3Indices(const long &i1, const long &i2, const long &i3,
         const long &size1, const long &size2, const long &size3);
 
-std::tuple<long, long, long> decompress3Indeces(const long &iTot,
+std::tuple<long, long, long> decompress3Indices(const long &iTot,
         const long &size1, const long &size2, const long &size3);
 
-long compress2Indeces(const long &i1, const long &i2, const long &size1,
+long compress2Indices(const long &i1, const long &i2, const long &size1,
         const long &size2);
 
-std::tuple<long, long> decompress2Indeces(const long &iTot, const long &size1,
+std::tuple<long, long> decompress2Indices(const long &iTot, const long &size1,
         const long &size2);
 
 // A function to allocate a dynamically sized array. It tricks the 

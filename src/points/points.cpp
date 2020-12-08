@@ -89,7 +89,7 @@ Eigen::Vector3d Points::getPointCoords(const long &index, const int &basis) {
 }
 
 Eigen::Vector3d Points::reduciblePoints(const long &idx) {
-  // find 3 indexes from the single index
+  // find 3 indices from the single index
   int ikz = idx / (mesh(0) * mesh(1));
   int idx_ = idx - (ikz * mesh(0) * mesh(1));
   int iky = idx_ / mesh(0);

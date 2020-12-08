@@ -23,8 +23,8 @@ public:
    * @param bandStructure: saves the underlying bandstructure for which we
    * compute the out-of-equilibrium populations.
    * @param dimensionality: determines the size of the vector on cartesian
-   * indices. 1 for scalar quantities like linewidths Gamma(BlochIndeces), 3
-   * for vector quantities like phonon populations f(blochIndeces,cartesian).
+   * indices. 1 for scalar quantities like linewidths Gamma(BlochIndices), 3
+   * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
   VectorBTE(StatisticsSweep &statisticsSweep_,
             BaseBandStructure &bandStructure_, const long &dimensionality_ = 3);

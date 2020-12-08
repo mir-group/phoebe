@@ -52,7 +52,7 @@ class StatisticsSweep {
   struct CalcStatistics getCalcStatistics(const long &index);
 
   /** returns the CalcStatistics object containing temperature,
-   * chemical potential and temperature, given indeces on temperature and
+   * chemical potential and temperature, given indices on temperature and
    * chemical potential.
    * @param iTemp: a strong-typed index, ranging in [0,numTemperatures[
    * @param iChemPot: a strong-typed index, ranging in

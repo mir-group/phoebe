@@ -75,7 +75,7 @@ class SerialMatrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -283,7 +283,7 @@ const T& SerialMatrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool SerialMatrix<T>::indecesAreLocal(const int& row, const int& col) {
+bool SerialMatrix<T>::indicesAreLocal(const int& row, const int& col) {
   (void) row;
   (void) col;
   return true;
@@ -291,7 +291,7 @@ bool SerialMatrix<T>::indecesAreLocal(const int& row, const int& col) {
 
 template <typename T>
 std::tuple<long, long> SerialMatrix<T>::local2Global(const long& k) {
-  // we convert this combined local index k into row / col indeces
+  // we convert this combined local index k into row / col indices
   // k = j * nRows + i
   if(numRows_ == 0) Error e("attempted to div by zero in l2g");
   int j = k / numRows_;

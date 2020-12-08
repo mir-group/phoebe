@@ -1152,7 +1152,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
       for (int ib2 = 0; ib2 < numPhBands; ib2++) {
         for (int k1 = 0; k1 < numAtoms; k1++) {
           for (int iCart : {0, 1, 2}) {
-            int i = compress2Indeces(k1, iCart, numAtoms, 3);
+            int i = compress2Indices(k1, iCart, numAtoms, 3);
             norm(ib1, ib2) +=
                 phEigenvectors(i, ib1, iq) * sqrt(atomicMasses(k1)) *
                 phEigenvectors(i, ib2, iq) * sqrt(atomicMasses(k1));
@@ -1178,7 +1178,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
     Eigen::MatrixXcd uK(numPhBands, numPhBands);
     for (int k1 = 0; k1 < numAtoms; k1++) {
       for (int iCart : {0, 1, 2}) {
-        int i = compress2Indeces(k1, iCart, numAtoms, 3);
+        int i = compress2Indices(k1, iCart, numAtoms, 3);
         for (int j = 0; j < numPhBands; j++) {
           uK(i, j) = phEigenvectors(i, j, iq) * sqrt(atomicMasses(k1));
         }
@@ -1206,8 +1206,8 @@ void ElPhQeToPhoebeApp::testPhononTransform(
               exp(-complexI * arg) / double(qPoints.getNumPoints());
           for (int iCart : {0, 1, 2}) {
             for (int jCart : {0, 1, 2}) {
-              int m = compress2Indeces(k1, iCart, numAtoms, 3);
-              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              int m = compress2Indices(k1, iCart, numAtoms, 3);
+              int n = compress2Indices(k2, jCart, numAtoms, 3);
               h0R(iR, k1, k2, iCart, jCart) += phase * h0K(m, n);
             }
           }
@@ -1262,8 +1262,8 @@ void ElPhQeToPhoebeApp::testPhononTransform(
           std::complex<double> phase = exp(complexI * arg) / phDegeneracies(iR);
           for (int iCart : {0, 1, 2}) {
             for (int jCart : {0, 1, 2}) {
-              int m = compress2Indeces(k1, iCart, numAtoms, 3);
-              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              int m = compress2Indices(k1, iCart, numAtoms, 3);
+              int n = compress2Indices(k2, jCart, numAtoms, 3);
               hWK(m, n) += phase * h0R(iR, k1, k2, iCart, jCart);
             }
           }
@@ -1349,7 +1349,7 @@ void ElPhQeToPhoebeApp::testBackTransform(
           }
         }
       }
-      // note that I change the meaning of the indeces
+      // note that I change the meaning of the indices
       assert(abs((sum1 - sum2) / sum1) < 0.0001);
     }
   }

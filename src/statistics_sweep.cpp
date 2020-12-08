@@ -165,7 +165,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
           double doping = dopings(id);
           double chemPot = findChemicalPotentialFromDoping(doping, temp);
 
-          long iCalc = compress2Indeces(it, id, nTemp, nDop);
+          long iCalc = compress2Indices(it, id, nTemp, nDop);
           calcTable(iCalc, 0) = temp;
           calcTable(iCalc, 1) = chemPot;
           calcTable(iCalc, 2) = doping;
@@ -182,7 +182,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
           double chemPot = chemicalPotentials(imu);
           double doping = findDopingFromChemicalPotential(chemPot, temp);
 
-          long iCalc = compress2Indeces(it, imu, nTemp, nChemPot);
+          long iCalc = compress2Indices(it, imu, nTemp, nChemPot);
           calcTable(iCalc, 0) = temp;
           calcTable(iCalc, 1) = chemPot;
           calcTable(iCalc, 2) = doping;
@@ -325,7 +325,7 @@ struct CalcStatistics StatisticsSweep::getCalcStatistics(const long &index) {
 
 struct CalcStatistics StatisticsSweep::getCalcStatistics(
     const TempIndex &iTemp, const ChemPotIndex &iChemPot) {
-  long index = compress2Indeces(iTemp.get(), iChemPot.get(), nTemp, nChemPot);
+  long index = compress2Indices(iTemp.get(), iChemPot.get(), nTemp, nChemPot);
   return getCalcStatistics(index);
 }
 

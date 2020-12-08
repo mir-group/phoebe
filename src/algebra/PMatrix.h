@@ -130,7 +130,7 @@ class ParallelMatrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -474,7 +474,7 @@ const T& ParallelMatrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool ParallelMatrix<T>::indecesAreLocal(const int& row, const int& col) {
+bool ParallelMatrix<T>::indicesAreLocal(const int& row, const int& col) {
   long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return false;
@@ -495,7 +495,7 @@ std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long&
 template <typename T>
 std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   // first, we convert this combined local index k
-  // into local row / col indeces
+  // into local row / col indices
   // k = j * numLocalRows_ + i
   int j = k / numLocalRows_;
   int i = k - j * numLocalRows_;

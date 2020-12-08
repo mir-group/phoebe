@@ -15,7 +15,7 @@ VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
       double en = bandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
         long ibte = bandStructure.stateToBte(isIdx).get();
-        excludeIndeces.push_back(ibte);
+        excludeIndices.push_back(ibte);
       }
     }
   }
@@ -112,7 +112,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
   } else {
     Error e("VectorBTE can't handle dimensionality for this case");
   }
-  for (auto ibte : excludeIndeces) {
+  for (auto ibte : excludeIndices) {
     newPopulation.data.col(ibte).setZero();
   }
   return newPopulation;

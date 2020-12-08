@@ -930,11 +930,11 @@ Eigen::Matrix3d PhononH0::getDielectricMatrix() { return dielectricMatrix; }
 Eigen::Tensor<double,3> PhononH0::getBornCharges() { return bornCharges; }
 
 int PhononH0::getIndexEigvec(const int &iAt, const int &iPol) {
-  return compress2Indeces(iAt, iPol, numAtoms, 3);
+  return compress2Indices(iAt, iPol, numAtoms, 3);
 }
 
 int PhononH0::getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms) {
-  return compress2Indeces(iAt, iPol, nAtoms, 3);
+  return compress2Indices(iAt, iPol, nAtoms, 3);
 }
 
 
