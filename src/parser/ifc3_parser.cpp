@@ -42,14 +42,12 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
   long ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
-    //std::cout << cellPositions2(i,0) << " " << cellPositions2(i,1) << " " << cellPositions2(i,2) << " " << position2(0) << " " << position2(1) << " " << position2(2) << " norm " << (position2 - cellPositions2.col(i)).norm() << std::endl;
     if ((position2 - cellPositions2.col(i)).norm() < 1.e-12) {
       ir2 = i;
       return ir2;
     }
   }
   if (ir2 == -1) {
-    std::cout << "help "  << position2 << std::endl;
     Error e("index not found");
   }
   return ir2;
@@ -155,38 +153,24 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   difc3.read(ifc3Tensor);
   dcellMap.read(cellMap); 
 
-  // Determine the list of unique triplets
+  // Determine the list of possible R2, R3 vectors
+  // the distances from the unit cell to a supercell 
   Eigen::MatrixXd cellPositions2(3, nr);
   Eigen::MatrixXd cellPositions3(3, nr);
   cellPositions2.setZero();
   cellPositions3.setZero();
   for (int is = 0; is < nr; is++) { 
 
-      // Convert supercell atom to unit cell equivalent.
-      // This index is the index of each atom in the
-      // phoebe unit cell -- not the p3py supercell. 
-      // To get that information, use cellMap[ia]
-      //int ia = floor(is / numAtoms);
-
-      // find the vectors R2, R3 for this triplet
+      // find all possible vectors R2, R3, which are 
       // position of atomPosSupercell - atomPosUnitCell = R
-      cellPositions2(0,is) = supPositions(is,0) - supPositions(0,0);//supPositions(cellMap[ia],0);
-      cellPositions2(1,is) = supPositions(is,1) - supPositions(0,1);//supPositions(cellMap[ia],1);
-      cellPositions2(2,is) = supPositions(is,2) - supPositions(0,2);//supPositions(cellMap[ia],2);
+      cellPositions2(0,is) = supPositions(is,0) - supPositions(0,0);
+      cellPositions2(1,is) = supPositions(is,1) - supPositions(0,1);
+      cellPositions2(2,is) = supPositions(is,2) - supPositions(0,2);
 
-      cellPositions3(0,is) = supPositions(is,0) - supPositions(0,0); //supPositions(cellMap[ia],0);
-      cellPositions3(1,is) = supPositions(is,1) - supPositions(0,1); //supPositions(cellMap[ia],1);
-      cellPositions3(2,is) = supPositions(is,2) - supPositions(0,2); //supPositions(cellMap[ia],2);
+      cellPositions3(0,is) = supPositions(is,0) - supPositions(0,0);
+      cellPositions3(1,is) = supPositions(is,1) - supPositions(0,1);
+      cellPositions3(2,is) = supPositions(is,2) - supPositions(0,2);
 
-      //std::cout << is << " " << ia << " " << cellMap[ia] << " " <<  supPositions(cellMap[ia],0) << " " <<  supPositions(cellMap[ia],1) << " " <<  supPositions(cellMap[ia],2) << std::endl;  
-
-      // check to see if this one is already in the list -- if not, add it
-      //if(std::find(triplets.begin(), triplets.end(), triplet) == triplets.end()) {
-      //  supTriplets.push_back(triplet);
-      //  triplets.push_back({ia2,ia3});
-      //  numTriplets++;
-      //}
-    //}
   }
 
   // reshape to D3 format
@@ -198,7 +182,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
   for (int ia1 = 0; ia1 < numAtoms; ia1++) {
   
-    int idxTriplet = 0;
     // loop over R2 and R3 atom triplets
     for ( int isa2 = 0; isa2<numSupAtoms; isa2++) {
       for ( int isa3 = 0; isa3<numSupAtoms; isa3++) {
@@ -218,7 +201,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
               auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);              
 
               // index of r2, r3 in the list of cellPositions
-              Eigen::Vector3d r2, r3;// = supPositions(isa2) - supPositions(cellMap[ia2]);
+              Eigen::Vector3d r2, r3;
               r2(0,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
               r2(1,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
               r2(2,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
@@ -226,13 +209,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
               r3(0,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
               r3(1,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
               r3(2,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
-
-              //cellPositions2(1,is) = supPositions(is,1) - supPositions(0,1);//supPositions(cellMap[ia],1);
-              //cellPositions2(2,is) = supPositions(is,2) - supPositions(0,2);//supPositions(cellMap[ia],2);
-
-              //cellPositions3(0,is) = supPositions(is,0) - supPositions(0,0); //supPositions(cellMap[ia],0);
-              //cellPositions3(1,is) = supPositions(is,1) - supPositions(0,1); //supPositions(cellMap[ia],1);
-              //cellPositions3(2,is) = supPositions(is,2) - supPositions(0,2); //supPositions(cellMap[ia],2);
 
               auto ir2 = findIndexRow(cellPositions2, r2);
               auto ir3 = findIndexRow(cellPositions3, r3);
