@@ -1,0 +1,184 @@
+
+
+
+std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
+  //  Here we read the dynamical matrix of interatomic force constants
+  //    in real space.
+
+  // First, we read in crystal information from phono3py.yaml
+  std::string fileName = context.getP3pyFileName();
+  if (fileName == "") {
+    Error e("Must provide a phono3py.yaml file.", 1);
+  }
+  // open input file
+  if (not infile.is_open()) {
+    Error e("phono3py.yaml file not found", 1);
+  }
+
+  // first line will always be natoms in supercell
+  std::getline(infile, line);
+  int numAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
+
+  int numElements = std::stoi(lineSplit[0]);
+
+  // read the rest of the file to find atomic positions, 
+  // lattice vectors, and species
+  Eigen::Matrix3d directUnitCell;
+
+  Eigen::MatrixXd atomicPositions(numAtoms, 3);
+  Eigen::VectorXi atomicSpecies(numAtoms);
+
+  std::vector<std::string> speciesNames;
+  Eigen::VectorXd speciesMasses(numElements);
+
+  int ilatt = 3;
+  int ipos = 0;
+  // TODO watchout, this is reading the primitive cell from phono3py. 
+  // we might want to read in the unit cell, which could be different
+  // because of some conversions they do internally. 
+  // Unit cell is also written to this fine in the same way as read
+  // below.
+  while(infile) {
+    getline(infile, line);
+    // if this line has a species, save it 
+    if(line.find("symbol: ") != std::string::npos) {
+      speciesNames.push_back(line.substr(13,line.find("#")-1));
+    // if this line has a mass, save it 
+    if(line.find("mass: ") != std::string::npos) {
+      speciesMasses(ipos) = std::stod(line.substr(10)); // TODO convert to ry?
+    // if this is a cell position, save it
+    if(line.find("coordinates: ") != std::string::npos) {
+      std::string temp = line.substr(19,59); // just the positions
+      int idx1 = temp.find(",");
+      atomicPositions(ipos,0) = std::stod(temp.substr(0,idx1));
+      int idx2 = temp.find(",", idx1+1);
+      atomicPositions(ipos,1) = std::stod(temp.substr(idx1+1,idx2));
+      atomicPositions(ipos,2) = std::stod(temp.substr(idx2+1));
+      ipos++;
+    }
+    // parse lattice vectors
+    if(ilatt < 3) { // count down lattice lines 
+      std::string temp = line.substr(5,62); // just the elements
+      int idx1 = temp.find(",");
+      directUnitCell(ilatt,0) = std::stod(temp.substr(0,idx1));
+      int idx2 = temp.find(",", idx1+1);
+      directUnitCell(ilatt,1) = std::stod(temp.substr(idx1+1,idx2));
+      directUnitCell(ilatt,2) = std::stod(temp.substr(idx2+1));
+      ilatt++;
+    }
+    if(line.find("lattice:") != std::string::npos) {
+      ilatt = 0;
+    }
+    // only read lines before this point
+    if(line.find("unit_cell:") != std::string::npos) {
+      break;
+    }
+  }
+  infile.close();
+
+  // in the file, they appear in crystal coordinates
+  // we convert from crystal to cartesian coordinates
+  // TODO can we do eigen mat*vector better than this?
+  for(int i = 0; i<ipos; i++) {
+    Eigen::Vector3d temp(
+        atomicPositions(i,0),atomicPositions(i,1),atomicPositions(i,2));
+    Eigen::Vector3d temp2 = lattice * temp;
+    temp2 = temp2 / distanceBohrToAng; // lattice vectors are in angstrom
+    atomicPositions(i,0) = temp2(0);
+    atomicPositions(i,1) = temp2(1);
+    atomicPositions(i,2) = temp2(2);
+  }
+
+  // build the atomicSpecies list 
+  // this is a list of integers specifying which species
+  // number each element is 
+  std::vector<std::string> species;
+  for(int i = 0; i<ipos; i++) {
+    int speciesIdx = std::find(species.begin(), species.end(), speciesNames(ipos));
+    atomicSpecies(i) = speciesIdx;
+    // species was not in the list
+    if(speciesIdx == species.end()) {
+      species.push_back(speciesNames(ipos));
+    }
+  }
+
+  //  Read if hasDielectric
+  hasDielectric = false; // TODO for now, we just say no dielectric
+  Eigen::Matrix3d dielectricMatrix;
+  dielectricMatrix.setZero();
+  Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
+  bornCharges.setZero();
+
+  // Parse the fc2.hdf5 file and read in the dynamical matrix 
+  #ifndef HDF5_AVAIL
+    Error e("Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
+    //return void;
+  #else
+
+  // now we parse the coarse q grid
+  fileName = context.getPhD2FileName();
+  if (fileName == "") {
+    Error e("Must provide a D2 file name, like fc2.hdf5", 1);
+  }
+
+  // Open the hdf5 file containing the IFC3s
+  HighFive::File file(fileName, HighFive::File::ReadOnly);
+
+  // Set up hdf5 datasets
+  HighFive::DataSet difc2 = file.getDataSet("/fc2");
+
+  // set up buffer to read entire matrix
+  // have to use this monstrosity because the phono3py data is shaped as a
+  // 4 dimensional array, and eigen tensor is not supported by highFive
+  std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
+
+  // read in the ifc3 data
+  difc2.read(ifc2);
+
+  std::getline(infile, line);
+  lineSplit = split(line, ' ');
+
+  Eigen::Tensor<double, 7> forceConstants(
+      3, 3, qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], numAtoms, numAtoms);
+
+  for (int ic : {0,1,2}) {
+    for (int jc : {0,1,2}) {
+      for (int isat = 0; iat < numSupAtoms; iat++) {
+        for (int jsat = 0; jat < numSupAtoms; jat++) {
+
+           // here, we need to construct r1, r2, r3 from 
+           // the supercell atomic positions. 
+           // TODO we don't supply this information in any other way
+           // to dynamicalMatrix. Is this right? doesn't it need to know
+           // the r vectors?  
+           int r1 =
+           int r2 =
+           int r3 = 
+
+           int iat = 
+           int jat = 
+
+           forceConstants(ic, jc, r1, r2, r3, iat, jat) = 
+                ifc2(isat,jsat,ic,jc);
+        }
+      }
+    }
+  }
+  infile.close();
+
+  #endif
+
+  // Now we do postprocessing
+  long dimensionality = context.getDimensionality();
+  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
+                  speciesMasses, dimensionality);
+
+  if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
+    Error e("qCoarseGrid smaller than zero", 1);
+  }
+
+  PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
+                           forceConstants, context.getSumRuleD2());
+
+  return {crystal, dynamicalMatrix};
+};
