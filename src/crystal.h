@@ -2,9 +2,9 @@
 #define CRYSTAL_H
 
 #include "eigen.h"
-#include <Eigen/Core>
 #include <string>
 #include <vector>
+#include "context.h"
 
 struct SymmetryOperation {
   Eigen::Matrix3d rotation;
@@ -16,14 +16,12 @@ struct SymmetryOperation {
  * Note that fractional occupancies are not supported.
  */
 class Crystal {
-private:
+protected:
   /** utility function to invert the direct unit cell
-   *
    */
   Eigen::Matrix3d calcReciprocalCell(const Eigen::Matrix3d directUnitCell);
 
   /** Internal utility to set the crystal unit cell and the reciprocal cell
-   *
    */
   void setDirectUnitCell(Eigen::Matrix3d directUnitCell_);
 
@@ -71,7 +69,7 @@ public:
    * @param speciesMasses(numSpecies): array with the masses of each species,
    *  in rydbergs.
    */
-  Crystal(Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
+  Crystal(Context &context, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
           Eigen::VectorXi &atomicSpecies_,
           std::vector<std::string> &speciesNames_,
           Eigen::VectorXd &speciesMasses_, long &dimensionality_);

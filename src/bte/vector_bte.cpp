@@ -5,15 +5,17 @@
 VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &bandStructure_,
                      const long &dimensionality_)
-    : BaseVectorBTE(statisticsSweep_, bandStructure_.getNumStates(),
-                    dimensionality_),
+    : BaseVectorBTE(statisticsSweep_,
+                    bandStructure_.irrStateIterator().size(), dimensionality_),
       bandStructure(bandStructure_) {
 
   if (bandStructure.getParticle().isPhonon()) {
-    for (long is = 0; is < numStates; is++) {
-      double en = bandStructure.getEnergy(is);
+    for (long is : bandStructure.irrStateIterator()) {
+      auto isIdx = StateIndex(is);
+      double en = bandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-        excludeIndeces.push_back(is);
+        long ibte = bandStructure.stateToBte(isIdx).get();
+        excludeIndeces.push_back(ibte);
       }
     }
   }
@@ -33,15 +35,33 @@ VectorBTE &VectorBTE::operator=(const VectorBTE &that) {
 }
 
 // product operator overload
-Eigen::VectorXd VectorBTE::dot(const VectorBTE &that) {
+Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   if (that.numCalcs != numCalcs || that.numStates != numStates) {
     Error e("The 2 VectorBTE must be aligned for dot() to work.");
   }
-  Eigen::VectorXd result(numCalcs);
+  if (that.dimensionality != 3 ) {
+    Error("VectorBTE dot is implemented for 3D vectors only");
+  }
+  Eigen::MatrixXd result(statisticsSweep.getNumCalcs(),3);
   result.setZero();
-  for (long is : bandStructure.parallelStateIterator()) {
-    for (long i = 0; i < numCalcs; i++) {
-      result(i) += this->data(i, is) * that.data(i, is);
+  for (long is : bandStructure.parallelIrrStateIterator()) {
+    auto isIndex = StateIndex(is);
+    BteIndex ibteIdx = bandStructure.stateToBte(isIndex);
+    auto rotationsStar = bandStructure.getRotationsStar(isIndex);
+    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (Eigen::Matrix3d rot : rotationsStar) {
+        Eigen::Vector3d x = Eigen::Vector3d::Zero();
+        Eigen::Vector3d y = Eigen::Vector3d::Zero();
+        for (int i : {0,1,2}) {
+          for (int j : {0, 1, 2}) {
+            x(i) += rot(i,j) * operator()(iCalc, j, ibteIdx.get());
+            y(i) += rot(i,j) * that(iCalc, j, ibteIdx.get());
+          }
+        }
+        for (int i : {0,1,2}) {
+          result(iCalc,i) += x(i) * y(i);
+        }
+      }
     }
   }
   mpi->allReduceSum(&result);
@@ -71,7 +91,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, DimIndex(0));
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =
@@ -92,8 +112,8 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
   } else {
     Error e("VectorBTE can't handle dimensionality for this case");
   }
-  for (auto is : excludeIndeces) {
-    newPopulation.data.col(is).setZero();
+  for (auto ibte : excludeIndeces) {
+    newPopulation.data.col(ibte).setZero();
   }
   return newPopulation;
 }
@@ -113,10 +133,17 @@ VectorBTE VectorBTE::operator*(const double &scalar) {
 }
 
 // product operator overload
-VectorBTE VectorBTE::operator*(const Eigen::VectorXd &vector) {
+VectorBTE VectorBTE::operator*(const Eigen::MatrixXd &vector) {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  for (long i = 0; i < numCalcs; i++) {
-    newPopulation.data.row(i) = this->data.row(i) * vector(i);
+  if (vector.rows() != statisticsSweep.getNumCalcs() || vector.cols() != 3) {
+    Error e("VectorBTE * unexpected alignment with MatrixXd");
+  }
+  for (long ibte=0; ibte<numStates; ibte++) {
+    for (int i : {0, 1, 2}) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        newPopulation(iCalc, i, ibte) = operator()(iCalc, i, ibte) * vector(iCalc,i);
+      }
+    }
   }
   return newPopulation;
 }
@@ -180,14 +207,16 @@ VectorBTE VectorBTE::reciprocal() {
 
 void VectorBTE::canonical2Population() {
   auto particle = bandStructure.getParticle();
-  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-    auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-    auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-    for (long is = 0; is < numStates; is++) {
-      double en = bandStructure.getEnergy(is);
+  for (long ibte = 0; ibte < numStates; ibte++) {
+    BteIndex ibteIdx = BteIndex(ibte);
+    StateIndex isIdx = bandStructure.bteToState(ibteIdx);
+    double en = bandStructure.getEnergy(isIdx);
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+      auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double pop = particle.getPopPopPm1(en, temp, chemPot);
-      for (int iDim = 0; iDim < dimensionality; iDim++) {
-        VectorBTE::operator()(iCalc, iDim, is) *= pop;
+      for (int iDim : {0,1,2}) {
+        VectorBTE::operator()(iCalc, iDim, ibte) *= pop;
       }
     }
   }
@@ -198,14 +227,16 @@ void VectorBTE::population2Canonical() {
   if (particle.isFermi()) {
     Error e("Possible divergency in population2Canonical");
   }
-  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-    auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-    auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-    for (long is = 0; is < numStates; is++) {
-      double en = bandStructure.getEnergy(is);
+  for (long ibte = 0; ibte < numStates; ibte++) {
+    BteIndex ibteIdx = BteIndex(ibte);
+    StateIndex isIdx = bandStructure.bteToState(ibteIdx);
+    double en = bandStructure.getEnergy(isIdx);
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      auto temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+      auto chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
       double pop = particle.getPopPopPm1(en, temp, chemPot);
-      for (int iDim = 0; iDim < dimensionality; iDim++) {
-        VectorBTE::operator()(iCalc, iDim, is) /= pop;
+      for (int iDim : {0,1,2}) {
+        VectorBTE::operator()(iCalc, iDim, ibte) /= pop;
       }
     }
   }

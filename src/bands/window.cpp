@@ -59,16 +59,10 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
       popMax(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
                                          chemicalPotentialMax);
     }
-    auto tup = internalPopWindow(energies, popMin, popMax);
-    auto filteredEnergies = std::get<0>(tup);
-    auto bandExtrema = std::get<1>(tup);
-    return {filteredEnergies, bandExtrema};
+    return internalPopWindow(energies, popMin, popMax);
 
   } else if (method == energy) {
-    auto tup = internalEnWindow(energies);
-    auto filteredEnergies = std::get<0>(tup);
-    auto bandExtrema = std::get<1>(tup);
-    return {filteredEnergies, bandExtrema};
+    return internalEnWindow(energies);
 
   } else { // no filter
     std::vector<double> filteredEnergies(energies.size());
@@ -110,7 +104,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
     const Eigen::VectorXd &energies) {
 
   std::vector<double> filteredEnergies;
-  std::vector<int> bandsExtrema(2);
+  std::vector<int> bandsExtrema;
   std::vector<int> bandsIndeces;
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
@@ -124,7 +118,6 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
   if (bandsIndeces.size() > 0) {
     bandsExtrema.push_back(bandsIndeces[0]);
     bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
-    bandsExtrema.back();
   } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }

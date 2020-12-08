@@ -16,8 +16,11 @@ if __name__ == "__main__":
     
         with open(filename) as f1:
             data1 = json.load(f1)
-        with open(filename2) as f2:
-            data2 = json.load(f2)
+        try:
+            with open(filename2) as f2:
+                data2 = json.load(f2)
+        except FileNotFoundError:
+            continue
 
         print(filename)
         print(filename2)

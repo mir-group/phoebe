@@ -1,23 +1,22 @@
 #include "phonon_transport_app.h"
+#include "active_points.h"
 #include "bandstructure.h"
 #include "constants.h"
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
+#include "full_points.h"
 #include "ifc3_parser.h"
 #include "io.h"
 #include "observable.h"
 #include "particle.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
-#include "wigner_phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
 #include "qe_input_parser.h"
 #include "specific_heat.h"
+#include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
-#include "full_points.h"
-#include "active_points.h"
-#include "irreducible_points.h"
 
 void PhononTransportApp::run(Context &context) {
 
@@ -31,22 +30,13 @@ void PhononTransportApp::run(Context &context) {
 
   FullPoints fullPoints(crystal, context.getQMesh());
 
-  // IrreduciblePoints irredPoints(fullPoints);
-
-  //	bool withVelocities = true;
-  //	bool withEigenvectors = true;
-  //	FullBandStructure bandStructure = phononH0.populate(
-  //			fullPoints, withVelocities, withEigenvectors);
-  //	// set the chemical potentials to zero, load temperatures
-  //	StatisticsSweep statisticsSweep(context);
-
-  if ( mpi->mpiHead()) {
-    std::cout << "\n" << "Constructing the band structure" << std::endl;
+  if (mpi->mpiHead()) {
+    std::cout << "\nConstructing the band structure" << std::endl;
   }
   auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
   auto bandStructure = std::get<0>(tup1);
   auto statisticsSweep = std::get<1>(tup1);
-  if ( mpi->mpiHead()) {
+  if (mpi->mpiHead()) {
     std::cout << "Band structure done!\n" << std::endl;
   }
 
@@ -62,11 +52,9 @@ void PhononTransportApp::run(Context &context) {
   // we always do this, as it's the cheapest solver and is required to know
   // the diagonal for the exact method.
 
-  if ( mpi->mpiHead()) {
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
-    std::cout << "Solving BTE within the relaxation time approximation."
+  if (mpi->mpiHead()) {
+    std::cout << "\n" << std::string(80, '-') << "\n\n"
+              << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
 
@@ -82,34 +70,33 @@ void PhononTransportApp::run(Context &context) {
   scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
-  PhononThermalConductivity phTCond(statisticsSweep, crystal, bandStructure);
+  PhononThermalConductivity phTCond(context, statisticsSweep, crystal,
+                                    bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
-  WignerPhononThermalConductivity phTCondWigner(statisticsSweep, crystal,
-                                                bandStructure, phononRelTimes);
+  WignerPhononThermalConductivity phTCondWigner(
+      context, statisticsSweep, crystal, bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
   phTCond.outputToJSON("wigner_phonon_thermal_cond.json");
 
   // compute the thermal conductivity
-  PhononViscosity phViscosity(statisticsSweep, crystal, bandStructure);
+  PhononViscosity phViscosity(context, statisticsSweep, crystal, bandStructure);
   phViscosity.calcRTA(phononRelTimes);
   phViscosity.print();
   phViscosity.outputToJSON("rta_phonon_viscosity.json");
 
   // compute the specific heat
-  SpecificHeat specificHeat(statisticsSweep, crystal, bandStructure);
+  SpecificHeat specificHeat(context, statisticsSweep, crystal, bandStructure);
   specificHeat.calc();
   specificHeat.print();
   specificHeat.outputToJSON("specific_heat.json");
 
-  if ( mpi->mpiHead()) {
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
+  if (mpi->mpiHead()) {
+    std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
   }
 
   // if requested, we solve the BTE exactly
@@ -142,9 +129,8 @@ void PhononTransportApp::run(Context &context) {
 
   if (doIterative) {
 
-    if ( mpi->mpiHead()) {
-      std::cout << "Starting Omini Sparavigna BTE solver\n";
-      std::cout << std::endl;
+    if (mpi->mpiHead()) {
+      std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
     }
 
     // initialize the (old) thermal conductivity
@@ -185,18 +171,15 @@ void PhononTransportApp::run(Context &context) {
     phTCond.print();
     phTCond.outputToJSON("omini_phonon_thermal_cond.json");
 
-    if ( mpi->mpiHead()) {
-      std::cout << "Finished Omini Sparavigna BTE solver\n";
-      std::cout << "\n";
-      std::cout << std::string(80, '-') << "\n";
-      std::cout << std::endl;
+    if (mpi->mpiHead()) {
+      std::cout << "Finished Omini Sparavigna BTE solver\n\n";
+      std::cout << std::string(80, '-') << "\n" << std::endl;
     }
   }
 
   if (doVariational) {
-    if ( mpi->mpiHead()) {
-      std::cout << "Starting variational BTE solver\n";
-      std::cout << std::endl;
+    if (mpi->mpiHead()) {
+      std::cout << "Starting variational BTE solver\n" << std::endl;
     }
 
     // note: each iteration should take approximately twice as long as
@@ -234,24 +217,21 @@ void PhononTransportApp::run(Context &context) {
     for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
 
-      Eigen::VectorXd alpha =
-          (gOld.dot(hOld)).array() / (hOld.dot(tOld)).array();
-
+      Eigen::MatrixXd alpha = (gOld.dot(hOld)).array() / hOld.dot(tOld).array();
       fNew = hOld * alpha;
       fNew = fOld - fNew;
-
-      auto gNew = tOld * alpha;
+      VectorBTE gNew = tOld * alpha;
       gNew = gOld - gNew;
 
-      Eigen::VectorXd beta =
+      Eigen::MatrixXd beta = // (numCalcs,3)
           (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
-      auto hNew = hOld * beta;
+      VectorBTE hNew = hOld * beta;
       hNew = -gNew + hNew;
 
       std::vector<VectorBTE> inVecs;
       inVecs.push_back(fNew);
       inVecs.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
-      auto outVecs = scatteringMatrix.dot(inVecs);
+      std::vector<VectorBTE> outVecs = scatteringMatrix.dot(inVecs);
       tOld = outVecs[1];
       tOld = tOld / sMatrixDiagonal; // CG scaling
 
@@ -278,16 +258,14 @@ void PhononTransportApp::run(Context &context) {
     phTCond.print();
     phTCond.outputToJSON("variational_phonon_thermal_cond.json");
 
-    if ( mpi->mpiHead()) {
-      std::cout << "Finished variational BTE solver\n";
-      std::cout << "\n";
-      std::cout << std::string(80, '-') << "\n";
-      std::cout << std::endl;
+    if (mpi->mpiHead()) {
+      std::cout << "Finished variational BTE solver\n\n";
+      std::cout << std::string(80, '-') << "\n" << std::endl;
     }
   }
 
   if (doRelaxons) {
-    if ( mpi->mpiHead()) {
+    if (mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     scatteringMatrix.a2Omega();
@@ -297,37 +275,24 @@ void PhononTransportApp::run(Context &context) {
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
-    Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-
-    VectorBTE relaxonV(statisticsSweep, bandStructure, 3);
-    for (long iDim = 0; iDim < relaxonV.dimensionality; iDim++) {
-      double norm = 1. /
-                    crystal.getVolumeUnitCell(context.getDimensionality()) /
-                    bandStructure.getNumPoints(true);
-      for (long is = 0; is < bandStructure.getNumStates(); is++) {
-        Eigen::Vector3d v = bandStructure.getGroupVelocity(is);
-        relaxonV(0, iDim, is) = boseEigenvector(0, 0, is) * norm * v(iDim);
-      }
-    }
-    relaxonV = relaxonV * eigenvectors;
-
-    VectorBTE relaxationTimes = eigenvalues.reciprocal();
-    phTCond.calcFromRelaxons(specificHeat, relaxonV, relaxationTimes);
+    phTCond.calcFromRelaxons(context, statisticsSweep, bandStructure,
+                             eigenvectors, scatteringMatrix, eigenvalues);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
     // output relaxation times
     scatteringMatrix.outputToJSON("relaxons_relaxation_times.json");
 
-    phViscosity.calcFromRelaxons(boseEigenvector, relaxationTimes,
-                                 scatteringMatrix, eigenvectors);
-    phViscosity.print();
-    phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+    if (!context.getUseSymmetries()) {
+      Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
+      phViscosity.calcFromRelaxons(boseEigenvector, eigenvalues,
+                                   scatteringMatrix, eigenvectors);
+      phViscosity.print();
+      phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
+    }
 
-    if ( mpi->mpiHead()) {
-      std::cout << "Finished relaxons BTE solver\n";
-      std::cout << "\n";
-      std::cout << std::string(80, '-') << "\n";
-      std::cout << std::endl;
+    if (mpi->mpiHead()) {
+      std::cout << "Finished relaxons BTE solver\n\n";
+      std::cout << std::string(80, '-') << "\n" << std::endl;
     }
   }
   mpi->barrier();

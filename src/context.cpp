@@ -615,6 +615,10 @@ void Context::setupFromInput(std::string fileName) {
         scatteringMatrixInMemory = parseBool(val);
       }
 
+      if (parameterName == "useSymmetries") {
+        useSymmetries = parseBool(val);
+      }
+
       if (parameterName == "withIsotopeScattering") {
         withIsotopeScattering = parseBool(val);
       }
@@ -875,6 +879,11 @@ double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
 void Context::setScatteringMatrixInMemory(const bool &x) {
   scatteringMatrixInMemory = x;
+}
+
+bool Context::getUseSymmetries() { return useSymmetries; }
+void Context::setUseSymmetries(const bool &x) {
+  useSymmetries = x;
 }
 
 Eigen::VectorXd Context::getMassVariance() { return massVariance; }

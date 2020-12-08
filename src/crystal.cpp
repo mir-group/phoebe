@@ -3,8 +3,8 @@
 #include "exceptions.h"
 #include "spglib.h"
 #include "utilities.h"
-#include <Eigen/Core>
-#include <Eigen/Dense>
+#include "eigen.h"
+#include "mpi/mpiHelper.h"
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -18,7 +18,7 @@ double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   return volume;
 }
 
-Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
+Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
                  Eigen::MatrixXd &atomicPositions_,
                  Eigen::VectorXi &atomicSpecies_,
                  std::vector<std::string> &speciesNames_,
@@ -61,51 +61,81 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
   atomicMasses = atomicMasses_;
   atomicNames = atomicNames_;
 
-  // We now look for the symmetry operations of the crystal
-  // in this implementation, we rely on spglib
-
-  // Declare and allocate c-style arrays for spglib calls
-  double latticeSPG[3][3];
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      // note: directUnitCell has lattice vectors along rows (a1 = cell.row(0))
-      latticeSPG[i][j] = directUnitCell(i, j);
-    }
-  }
-
-  // note: spglib wants fractional positions
-  double(*positionSPG)[3];
-  allocate(positionSPG, numAtoms);
-  Eigen::Vector3d positionCrystal;
-  Eigen::Vector3d positionCartesian;
-  for (int i = 0; i < numAtoms; i++) {
-    positionCartesian = atomicPositions.row(i);
-    positionCrystal = directUnitCell.inverse() * positionCartesian;
-    for (int j = 0; j < 3; j++) {
-      positionSPG[i][j] = positionCrystal(j);
-    }
-  }
-
-  // also wants integer types >= 1
-  int *typesSPG;
-  allocate(typesSPG, numAtoms);
-  for (int i = 0; i < numAtoms; i++) {
-    typesSPG[i] = atomicSpecies(i) + 1;
-  }
-
   int maxSize = 50;
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
-  double symprec = 1e-5;
-  numSymmetries = spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
-                                   positionSPG, typesSPG, numAtoms, symprec);
 
-  // need to explicitly deallocate allocated arrays.
-  delete[] typesSPG;
-  delete[] positionSPG;
+  if (context.getUseSymmetries()) {
 
-  if (numSymmetries == 0) {
-    Error e("SPGlib failed at recognizing symmetries");
+    // We now look for the symmetry operations of the crystal
+    // in this implementation, we rely on spglib
+
+    // Declare and allocate c-style arrays for spglib calls
+    double latticeSPG[3][3];
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        // note: directUnitCell has lattice vectors along rows (a1 = cell.row(0))
+        latticeSPG[i][j] = directUnitCell(i, j);
+      }
+    }
+
+    // note: spglib wants fractional positions
+    double(*positionSPG)[3];
+    allocate(positionSPG, numAtoms);
+    Eigen::Vector3d positionCrystal;
+    Eigen::Vector3d positionCartesian;
+    for (int i = 0; i < numAtoms; i++) {
+      positionCartesian = atomicPositions.row(i);
+      positionCrystal = directUnitCell.inverse() * positionCartesian;
+      for (int j = 0; j < 3; j++) {
+        positionSPG[i][j] = positionCrystal(j);
+      }
+    }
+
+    // also wants integer types >= 1
+    int *typesSPG;
+    allocate(typesSPG, numAtoms);
+    for (int i = 0; i < numAtoms; i++) {
+      typesSPG[i] = atomicSpecies(i) + 1;
+    }
+
+    double symprec = 1e-5;
+    numSymmetries =
+        spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
+                         positionSPG, typesSPG, numAtoms, symprec);
+
+    // need to explicitly deallocate allocated arrays.
+    delete[] typesSPG;
+    delete[] positionSPG;
+
+    if (numSymmetries == 0) {
+      Error e("SPGlib failed at recognizing symmetries");
+    }
+
+    if (mpi->mpiHead()) {
+      std::cout << "Found " << numSymmetries << " symmetries\n";
+    }
+
+  } else { // if we disable symmetries, and just use the identity
+
+    if (mpi->mpiHead()) {
+      std::cout << "Disabling symmetries\n";
+    }
+    numSymmetries = 1;
+    for ( int i : {0,1,2}) {
+      for ( int j : {0,1,2}) {
+        rotations[0][i][j] = 0.;
+      }
+    }
+    for ( int i : {0,1,2}) {
+      translations[0][i] = 0.;
+      rotations[0][i][i] = 1.;
+    }
+  }
+
+  // If the system has no symmetries, we disable them
+  if (numSymmetries==1) {
+    context.setUseSymmetries(false);
   }
 
   // store the symmetries inside the class
@@ -119,32 +149,13 @@ Crystal::Crystal(Eigen::Matrix3d &directUnitCell_,
     Eigen::Matrix3d thisMatrix;
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        thisMatrix(i, j) = rotations[isym][i][j];
+        thisMatrix(j, i) = rotations[isym][i][j]; // note the transpose
       }
     }
 
     SymmetryOperation s = {thisMatrix, thisTranslation};
     symmetryOperations.push_back(s);
   }
-
-  //  // this is to remember to modify things if I break this symmetry
-  //  // got to modify here and below
-  //  Warning w("Using time reversal symmetry");
-  //  numSymmetries *= 2;
-  //  for (int isym = numSymmetries/2; isym < numSymmetries; isym++) {
-  //    Eigen::Vector3d thisTranslation;
-  //    thisTranslation(0) = -translations[isym-numSymmetries/2][0];
-  //    thisTranslation(1) = -translations[isym-numSymmetries/2][1];
-  //    thisTranslation(2) = -translations[isym-numSymmetries/2][2];
-  //    Eigen::Matrix3d thisMatrix;
-  //    for (int i = 0; i < 3; i++) {
-  //      for (int j = 0; j < 3; j++) {
-  //        thisMatrix(i, j) = -rotations[isym-numSymmetries/2][i][j];
-  //      }
-  //    }
-  //    SymmetryOperation s = {thisMatrix, thisTranslation};
-  //    symmetryOperations.push_back(s);
-  //  }
 }
 
 // empty constructor

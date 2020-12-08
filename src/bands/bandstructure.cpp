@@ -160,16 +160,6 @@ std::vector<long> FullBandStructure::getBandIndices() {
   return bandsList;
 }
 
-const double &FullBandStructure::getEnergy(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
-  auto ik = std::get<0>(tup);
-  auto ib = std::get<1>(tup);
-  if (!energies.indecesAreLocal(ib,ik)) {
-    Error e("Cannot access a non-local energy.");
-  }
-  return energies(ib, ik);
-}
-
 const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
   long ibb = ib.get();
   long ikk = ik.get();
@@ -180,7 +170,14 @@ const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
 }
 
 const double &FullBandStructure::getEnergy(StateIndex &is) {
-  return getEnergy(is.get());
+  long stateIndex = is.get();
+  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
+  auto ik = std::get<0>(tup);
+  auto ib = std::get<1>(tup);
+  if (!energies.indecesAreLocal(ib,ik)) {
+    Error e("Cannot access a non-local energy.");
+  }
+  return energies(ib, ik);
 }
 
 Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
@@ -194,7 +191,8 @@ Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
   return x;
 }
 
-Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
+Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
+  long stateIndex = is.get();
   auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
@@ -207,10 +205,6 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(const long &stateIndex) {
     vel(i) = velocities(ind, ik).real();
   }
   return vel;
-}
-
-Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
-  return getGroupVelocity(is.get());
 }
 
 Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {
@@ -281,32 +275,15 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
   return eigs_;
 }
 
-Eigen::Vector3d FullBandStructure::getWavevector(const long &stateIndex) {
-  auto tup = decompress2Indeces(stateIndex, numPoints, numBands);
-  auto ik = std::get<0>(tup);
-  return points.getPoint(ik).getCoords(Points::cartesianCoords, true);
-}
-
 Eigen::Vector3d FullBandStructure::getWavevector(StateIndex &is) {
-  return getWavevector(is.get());
+  auto tup = getIndex(is);
+  WavevectorIndex ik = std::get<0>(tup);
+  return getWavevector(ik);
 }
 
 Eigen::Vector3d FullBandStructure::getWavevector(WavevectorIndex &ik) {
-  return points.getPoint(ik.get()).getCoords(Points::cartesianCoords, true);
-}
-
-double FullBandStructure::getWeight(const long &stateIndex) {
-  auto tup = getIndex(stateIndex);
-  auto ik = std::get<0>(tup);
-  return getWeight(ik);
-}
-
-double FullBandStructure::getWeight(StateIndex &is) {
-  return getWeight(is.get());
-}
-
-double FullBandStructure::getWeight(WavevectorIndex &ik) {
-  return points.getWeight(ik.get());
+  Eigen::Vector3d k = points.getPointCoords(ik.get(), Points::cartesianCoords);
+  return points.bzToWs(k, Points::cartesianCoords);
 }
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
@@ -393,4 +370,98 @@ Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
     bandEnergies(i) = energies(bandIndex, ik);
   }
   return bandEnergies;
+}
+
+std::vector<Eigen::Matrix3d> FullBandStructure::getRotationsStar(
+    WavevectorIndex &ikIndex) {
+  return points.getRotationsStar(ikIndex.get());
+}
+
+std::vector<Eigen::Matrix3d> FullBandStructure::getRotationsStar(
+    StateIndex &isIndex) {
+  auto t = getIndex(isIndex);
+  WavevectorIndex ikIndex = std::get<0>(t);
+  return getRotationsStar(ikIndex);
+}
+
+std::tuple<long, Eigen::Matrix3d> FullBandStructure::getRotationToIrreducible(
+    const Eigen::Vector3d &x, const int &basis) {
+  return points.getRotationToIrreducible(x, basis);
+}
+
+BteIndex FullBandStructure::stateToBte(StateIndex &isIndex) {
+  auto t = getIndex(isIndex);
+  // ik is in [0,N_k]
+  WavevectorIndex ikIdx = std::get<0>(t);
+  BandIndex ibIdx = std::get<1>(t);
+  // to k from 0 to N_k_irreducible
+  // ik is in [0,N_kIrr]
+  long ikBte = points.asIrreducibleIndex(ikIdx.get());
+  if (ikBte<0){
+    Error e("stateToBte is used on a non-irreducible point");
+  }
+  auto ik2Idx = WavevectorIndex(ikBte);
+  long iBte = getIndex(ik2Idx,ibIdx);
+  auto iBteIdx = BteIndex(iBte);
+  return iBteIdx;
+}
+
+StateIndex FullBandStructure::bteToState(BteIndex &ibteIndex) {
+  long iBte = ibteIndex.get();
+  auto t = getIndex(iBte);
+  // find ikIrr in interval [0,N_kIrr]
+  long ikIrr = std::get<0>(t).get();
+  BandIndex ib = std::get<1>(t);
+  // find ik in interval [0,N_k]
+  long ik = points.asReducibleIndex(ikIrr);
+  auto ikIdx = WavevectorIndex(ik);
+  long iss = getIndex(ikIdx, ib);
+  return StateIndex(iss);
+}
+
+
+std::vector<long> FullBandStructure::irrStateIterator() {
+  std::vector<long> ikIter = points.irrPointsIterator();
+  std::vector<long> iter;
+  for (long ik : ikIter) {
+    auto ikIdx = WavevectorIndex(ik);
+    for (int ib=0; ib<numBands; ib++) {
+      auto ibIdx = BandIndex(ib);
+      long is = getIndex(ikIdx, ibIdx);
+      iter.push_back(is);
+    }
+  }
+  return iter;
+}
+
+std::vector<long> FullBandStructure::parallelIrrStateIterator() {
+  auto v = irrStateIterator();
+  //
+  auto divs = mpi->divideWork(v.size());
+  long start = divs[0];
+  long stop = divs[1];
+  //
+  std::vector<long> iter(v.begin() + start, v.begin() + stop);
+  return iter;
+}
+
+std::vector<long> FullBandStructure::irrPointsIterator() {
+  return points.irrPointsIterator();
+}
+
+std::vector<long> FullBandStructure::parallelIrrPointsIterator() {
+  return points.parallelIrrPointsIterator();
+}
+
+long FullBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
+                   const bool &suppressError) {
+  if (suppressError) {
+    return points.isPointStored(crystalCoords);
+  } else {
+    return points.getIndex(crystalCoords);
+  }
+}
+
+std::vector<long> FullBandStructure::getReduciblesFromIrreducible(const long &ik) {
+  return points.getReduciblesFromIrreducible(ik);
 }

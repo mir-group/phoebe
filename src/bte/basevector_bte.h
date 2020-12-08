@@ -43,7 +43,7 @@ class BaseVectorBTE {
    * states, and iCalc is an index over temperatures and chemical potentials.
    * @param that: the second vector used in the scalar product
    */
-  Eigen::VectorXd dot(const BaseVectorBTE &that);
+  virtual Eigen::MatrixXd dot(const BaseVectorBTE &that);
 
   /** element wise product between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute
@@ -157,8 +157,8 @@ class BaseVectorBTE {
    * I should probably create two different classes for these.
    */
   long glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                const DimIndex &idim);
-  std::tuple<ChemPotIndex, TempIndex, DimIndex> loc2Glob(const long &i);
+                const CartIndex &idim);
+  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const long &i);
 
   /** List of Bloch states to be excluded from the calculation (i.e. for
    * which vectorBTE values are 0), for example, the acoustic modes at the
