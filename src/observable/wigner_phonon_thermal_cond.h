@@ -7,7 +7,7 @@
  *
  */
 class WignerPhononThermalConductivity : public PhononThermalConductivity {
- public:
+public:
   /** Constructor method
    * @param statisticsSweep: a StatisticsSweep object containing information
    * on the temperature loop
@@ -19,7 +19,8 @@ class WignerPhononThermalConductivity : public PhononThermalConductivity {
    * Hence, it is expected that this class is called after the scattering matrix
    * has been computed.
    */
-  WignerPhononThermalConductivity(StatisticsSweep &statisticsSweep_,
+  WignerPhononThermalConductivity(Context &context_,
+                                  StatisticsSweep &statisticsSweep_,
                                   Crystal &crystal_,
                                   BaseBandStructure &bandStructure_,
                                   VectorBTE &relaxationTimes);
@@ -32,8 +33,8 @@ class WignerPhononThermalConductivity : public PhononThermalConductivity {
   /** Copy assignment operator
    *
    */
-  WignerPhononThermalConductivity &operator=(
-      const WignerPhononThermalConductivity &that);
+  WignerPhononThermalConductivity &
+  operator=(const WignerPhononThermalConductivity &that);
 
   /** Compute the thermal conductivity from the phonon populations
    * @param n: the phonon population out-of-equilibrium. Note that this
@@ -58,15 +59,16 @@ class WignerPhononThermalConductivity : public PhononThermalConductivity {
    * @param relaxationTimes: the reciprocal of the scattering matrix
    * eigenvalues (from eq.7), i.e. the relaxation times of the system.
    */
-  void calcFromRelaxons(SpecificHeat &specificHeat, VectorBTE &relaxonV,
-                        VectorBTE &relaxationTimes);
+  void calcFromRelaxons(Context &context, StatisticsSweep &statisticsSweep,
+                        BaseBandStructure &bandStructure, ParallelMatrix<double> &eigenvectors,
+                        PhScatteringMatrix &scatteringMatrix, const Eigen::VectorXd &eigenvalues);
 
   /** Prints to screen the thermal conductivity at various temperatures
    * in a a nicely formatted way.
    */
   void print();
 
- protected:
+protected:
   VectorBTE &smaRelTimes;
   Eigen::Tensor<double, 3> wignerCorrection;
 };

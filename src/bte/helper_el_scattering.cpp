@@ -143,7 +143,8 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
     HelperElScattering::get(Eigen::Vector3d &k1, const long &ik2) {
 
-  Eigen::Vector3d k2 = outerBandStructure.getWavevector(ik2);
+  auto ik2Idx = WavevectorIndex(ik2);
+  Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
   Eigen::Vector3d q3 = k2 - k1;
 
   if (storedAllQ3) {
@@ -170,14 +171,12 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       v3s = bandStructure3->getGroupVelocities(iq3Index);
     }
     int nb3 = energies3.size();
+    auto particle = h0.getParticle();
     Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-      double temperature =
-          statisticsSweep.getCalcStatistics(iCalc).temperature;
-      double chemPot = 0.; // chemicalPotential always = 0 for phonons
+      double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       for (int ib3 = 0; ib3 < nb3; ib3++) {
-        bose3Data(iCalc, ib3) = h0.getParticle().getPopulation(
-            energies3(ib3), temperature, chemPot);
+         bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
       }
     }
 
@@ -186,20 +185,16 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
   } else {
     // otherwise, q3 doesn't fall into the same grid
     // and we must therefore compute it from the hamiltonian
-    Eigen::VectorXd energies3;
-    Eigen::MatrixXcd eigvecs3;
-    Eigen::MatrixXd v3s;
-    Eigen::MatrixXd bose3Data;
 
     // iq2 in input is an index over wavevectors
     // we need to find the index over the local cache
     int ik2Counter = ik2 - cacheOffset;
-    energies3 = cacheEnergies[ik2Counter];
-    eigvecs3 = cacheEigvecs[ik2Counter];
-    v3s = cacheVelocity[ik2Counter];
-    bose3Data = cacheBose[ik2Counter];
-
+    Eigen::VectorXd energies3 = cacheEnergies[ik2Counter];
+    Eigen::MatrixXcd eigvecs3 = cacheEigvecs[ik2Counter];
+    Eigen::MatrixXd v3s = cacheVelocity[ik2Counter];
+    Eigen::MatrixXd bose3Data = cacheBose[ik2Counter];
     int nb3 = energies3.size();
+
     return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
   }
 }
@@ -219,7 +214,8 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
     int ik2Counter = -1;
     for (long ik2 : k2Indexes) {
       ik2Counter++;
-      Eigen::Vector3d k2 = outerBandStructure.getWavevector(ik2);
+      auto ik2Idx = WavevectorIndex(ik2);
+      Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
 
       Eigen::Vector3d q3 = k2 - k1;
 
@@ -233,11 +229,9 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       bose3Data.setZero();
 
       for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (long ib3 = 0; ib3 < nb3; ib3++) {
-          bose3Data(iCalc, ib3) =
-              particle.getPopulation(energies3(ib3), temperature);
+          bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
         }
       }
 

@@ -107,14 +107,15 @@ Note that compiling the documentation doesn't require compiling the code.
 @subsection Ubuntu Ubuntu
 To install (without GPU support):
 ~~~~~~~~~~~~~~~~~~~{.c}
-sudo apt install cmake gcc doxygen graphviz libomp-dev libopenmpi3
+sudo apt install cmake gcc doxygen graphviz libomp-dev libopenmpi3 libhdf5-openmpi-dev
 git submodule update --init
 mkdir build
 cd build
-cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON
+cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"`
 make -j$(nproc)
 make doc
 ~~~~~~~~~~~~~~~~~~~
+Note that paths to the hdf5 library may need to be updated
 Tested on Ubuntu 20.04.
 
 @subsection Mac MacOs 

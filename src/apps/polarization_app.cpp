@@ -36,7 +36,7 @@ void ElectronPolarizationApp::run(Context &context) {
     std::vector<Eigen::MatrixXcd> thisBerryConnection =
         h0.getBerryConnection(point);
     for (long ib = 0; ib < h0.getNumBands(); ib++) {
-      for (long i = 0; i < 3; i++) {
+      for (int i : {0, 1, 2}) {
         auto x = thisBerryConnection[i](ib, ib);
         berryConnection(ik, ib, i) = x.real();
       }
@@ -55,24 +55,25 @@ void ElectronPolarizationApp::run(Context &context) {
   polarization.setZero();
 
   for (long is = 0; is < bandStructure.getNumStates(); is++) {
-    double energy = bandStructure.getEnergy(is);
-    auto t = bandStructure.getIndex(is);
-    int ik = std::get<0>(t).get();
-    int ib = std::get<0>(t).get();
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    auto t = bandStructure.getIndex(isIdx);
+    long ik = std::get<0>(t).get();
+    long ib = std::get<0>(t).get();
 
     for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
       auto sc = statisticsSweep.getCalcStatistics(iCalc);
       double temp = sc.temperature;
       double chemPot = sc.chemicalPotential;
       double population = particle.getPopulation(energy, temp, chemPot);
-      for (long i = 0; i < 3; i++) {
+      for (int i : {0, 1, 2}) {
         polarization(iCalc, i) -= population * berryConnection(ik, ib, i);
       }
     }
   }
 
   double volume = crystal.getVolumeUnitCell();
-  polarization.array() /= points.getNumPoints() * volume;
+  polarization.array() /= context.getKMesh().prod();
 
   // now we add the ionic term
 

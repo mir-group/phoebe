@@ -289,3 +289,81 @@ k_{\alpha\beta} = k^{BTE}_{\alpha\beta} +  \frac{k_BT^2}{\Omega N_k} \sum_{\bold
 \end{equation}
 
 where \f$k^{BTE}_{\alpha\beta}\f$ is the thermal conductivity estimated by the Boltzmann transport equation discussed above, and \f$\Gamma_{\boldsymbol{q}j} = \frac{1}{\tau_{\boldsymbol{q}j}}\f$ is the phonon linewidth, i.e. a diagonal element of the scattering matrix.
+
+
+@section thPhViscosity Thermal Viscosity
+The theory is described to far greater extent in this <a href="https://journals.aps.org/prx/abstract/10.1103/PhysRevX.10.011019">PRX</a>.
+The equilibrium of a system of bosonic particles that conserves energy and momentum is the drifting distribution:
+\begin{equation}
+n_{\nu}^{D}
+=
+\frac{1}{e^{\beta(\hbar \omega_\nu - \hbar \boldsymbol{q} \cdot \boldsymbol{u})}-1} \;,
+\end{equation}
+where \f$\boldsymbol{q} \f$ is the phonon wavevector (proportional to the phonon crystal momentum, and \f$\boldsymbol{u}\f$ is the phonon drift velocity.
+The thermal viscosity is defined as the coefficient of proportionality between the crystal momentum flux \f$\Pi\f$ and a local perturbation in the drift velocity \f$\boldsymbol{u}\f$.
+\begin{equation}
+\Pi^{ij} = - \sum_{kl} \eta^{ijkl} \frac{\partial u^k}{\partial r^l}
+\end{equation}
+and the momentum flux (at least, the component relevant to our case) is defined as:
+\begin{equation}
+\Pi^{ij} = \frac{1}{V N_q} \sum_{\nu} \hbar q^i v_{\nu}^j n_{\nu}
+\end{equation}
+The population in response to the perturbation is fixed by the phonon BTE.
+At the RTA level, we simply need to solve
+\begin{equation}
+\boldsymbol{v}_{\nu} \cdot (\frac{\partial n^{D}_{\nu}}{\partial \boldsymbol{u}} \cdot \nabla \boldsymbol{u} )
+= - \frac{n_{\nu}}{\tau_{\nu}}
+\end{equation}
+We linearize the solution, stating \f$ n_{\nu} = n_{\nu} \nabla \boldsymbol{u} \f$, and the equation is readily solved.
+Beyond the RTA, we must solve the equation:
+\begin{equation}
+\frac{\boldsymbol{v}_{\nu}}{\sqrt{\bar{n}_{\nu}(\bar{n}_{\nu}+1)}} \cdot (\frac{\partial n^{D}_{\nu}}{\partial \boldsymbol{u}} \cdot \nabla \boldsymbol{u} )
+= - \frac{1}{V N_q} \sum_{\nu'} \Omega_{\nu\nu'} n_{\nu'}
+\end{equation}
+which we do with the eigenvector formalism.
+Using the eigenvectors of the scattering matrix, we expand the phonon population as:
+\begin{equation}
+n_{\nu} = \sum_{kl} f^{kl}_{\alpha} \theta_{\nu\alpha} \nabla_l u^k
+\end{equation}
+We find the solution as:
+\begin{equation}
+f^{kl}_{\alpha} = - \tau_{\alpha} \sum_{\nu} \theta_{\nu\alpha} \frac{\boldsymbol{v}^l_{\nu}}{\sqrt{\bar{n}_{\nu}(\bar{n}_{\nu}+1)}} \frac{\partial n^{D}_{\nu}}{\partial u^k} 
+\end{equation}
+which can be used to reconstruct the phonon population response.
+Finally, the viscosity tensor is symmetrized, finding the thermal viscosity:
+\begin{equation}
+\mu^{ijkl} = \frac{1}{2} ( \eta^{ijkl} + \eta^{ilkj} )
+\end{equation}
+The code also prints other quantities needed to write the viscous heat equations derived <a href="https://journals.aps.org/prx/abstract/10.1103/PhysRevX.10.011019">in this reference</a>.
+
+
+@section thPhBTESymms Symmetries of the BTE
+We exploit the symmetries of the crystal to speed-up the calculation of thermal conductivity.
+We took inspiration from <a href='https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.110.265506'>this reference</a>.
+Let \f$q\f$ indicate any wavevector in the Brillouin zone.
+The symmetries of a crystal identify an irreducible set of wavevectors \f$ q^* \f$, such that any other wavevector \f$q\f$ can be obtained from a rotation of these irreducible wavevectors \f$ q = R q^* \f$.
+The basic idea is to restrict the calculation to the irreducible set of wavevectors.
+The conductivity for example, is:
+\begin{equation}
+k^{ij}
+= \frac{1}{V N_k} \sum_{\nu} \hbar \omega_{\nu} v^i_{\nu} n^{j}_{\nu}
+= \frac{1}{V N_k} \sum_{\nu^*} \sum_{R} \hbar \omega_{\nu^*} (R v_{\nu})_{i} (R n_{\nu})_{j}
+\end{equation}
+where \f$ R \f$ is the set of rotations used to reconstruct all the symmetry-equivalent wavevectors of \f$q^*\f$, and the summation over \f$\nu^*\f$ is only done in the irreducible set of wavevectors.
+
+The BTE too can be restricted to the irreducible wedge.
+\begin{equation}
+v^i_{\nu^*} \frac{\partial \bar{n}_{\nu}}{\partial T}
+= - \frac{1}{V N_q} \sum_{\nu'} A_{\nu^*\nu'} f^i_{\nu'}
+= - \frac{1}{V N_q} \sum_{\nu'^*} \sum_{R} \sum_{j} A_{\nu^*\nu'^*} R_{ij} f^j_{\nu'}
+= - \frac{1}{V N_q} \sum_{\nu'^* j} A^{ij}_{\nu^*\nu'^*} f^j_{\nu'}
+\end{equation}
+Hence, one can work with the same techniques detailed above, provided that we work with an enlarged matrix \f$ A^{ij}_{\nu^*\nu'^*} \f$.
+
+By default, we make use of symmetries.
+Some comments:
+<ul>
+<li> Advantage: for a system with a lot of symmetries, the matrix \f$ A^{ij}_{\nu^*\nu'^*} \f$ is generally smaller than \f$ A_{\nu\nu'} \f$, and thus calculations will be much faster.
+<li> Disadvantage 1: we cannot compute viscosity beyond the RTA using symmetries. To do so, one must disable symmetries.
+<li> Disadvantage 2: note that the symmetric matrix gains two indices on cartesian coordinates. As a result, in the limit case that there are no symmetries in the system (only the identity), the matrix \f$ A^{ij}_{\nu^*\nu'^*} \f$ will still be computed on the same number of wavevectors of  \f$ A_{\nu\nu'} \f$, but occupies 3x3 times more memory without adding any information. Therefore, for low-symmetry systems, consider disabling symmetries.
+</ul>

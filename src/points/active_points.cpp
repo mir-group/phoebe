@@ -52,11 +52,6 @@ Point ActivePoints::getPoint(const long &index) {
   return Point(*this, index);
 }
 
-double ActivePoints::getWeight(const long &ik) {
-  int index = filteredToFullIndeces(ik);
-  return parentPoints.getWeight(index);
-}
-
 Points ActivePoints::getParentPoints() {
   return parentPoints;
 }
@@ -99,19 +94,3 @@ long ActivePoints::fullToFilteredIndeces(const long &indexIn) {
   }
   return target;
 }
-
-
-
-std::tuple<int,Eigen::Matrix3d> ActivePoints::getRotationToIrreducible(
-    const Eigen::Vector3d &x, const int & basis) {
-  return parentPoints.getRotationToIrreducible(x, basis);
-}
-
-std::vector<Eigen::Matrix3d> ActivePoints::getRotationsStar(const int & ik) {
-  std::cout << "Dimmi qui\n";
-  return parentPoints.getRotationsStar(filteredToFullIndeces(ik));
-}
-
-//int ActivePoints::irreducibleToReducible(const int &ikIrr) {
-//  int parentIkIrr = filteredToFullIndeces(ikIrr);
-//}

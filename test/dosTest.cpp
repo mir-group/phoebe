@@ -14,6 +14,8 @@ TEST(TetrahedronTest, Normalization) {
   context.setPhD2FileName("../test/data/444_silicon.fc");
   context.setSumRuleD2("simple");
 
+  context.setUseSymmetries(true);
+
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
@@ -40,9 +42,21 @@ TEST(TetrahedronTest, Normalization) {
     energies[i] = i * deltaEnergy + minEnergy;
   }
 
+  // DOS should integrate to the number of bands
+  {
+    double x = 0.;
+    for (long i = 0; i < numEnergies; i++) {
+      x += tetrahedra.getDOS(energies[i]) * deltaEnergy;
+    }
+    ASSERT_NEAR(x, h0.getNumBands(), 0.02);
+  }
+
+  // now we try to use symmetries
+  points.setIrreduciblePoints();
   double x = 0.;
   for (long i = 0; i < numEnergies; i++) {
     x += tetrahedra.getDOS(energies[i]) * deltaEnergy;
   }
   ASSERT_NEAR(x,h0.getNumBands(),0.02);
+
 }

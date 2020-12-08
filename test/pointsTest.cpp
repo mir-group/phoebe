@@ -18,8 +18,10 @@ TEST(PointsTest, PointsHandling) {
   speciesMasses(0) = 28.086;
   long dimensionality = 3;
 
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
+  Context context;
+
+  Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
+                  speciesNames, speciesMasses, dimensionality);
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;

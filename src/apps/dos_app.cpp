@@ -37,6 +37,7 @@ void PhononDosApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
   FullPoints fullPoints(crystal, context.getQMesh());
+  fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
@@ -70,6 +71,7 @@ void ElectronWannierDosApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
   FullPoints fullPoints(crystal, context.getKMesh());
+  fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
@@ -103,6 +105,7 @@ void ElectronFourierDosApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
   FullPoints fullPoints(crystal, context.getKMesh());
+  fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
