@@ -7,4 +7,5 @@ This section contains a summary of the equations and brief description of the th
 <li> \subpage thStat
 <li> \subpage thFourierElectrons
 <li> \subpage thWannierElectrons
+<li> \subpage thEpa
 </ul>
