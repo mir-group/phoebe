@@ -15,8 +15,9 @@ ParallelMatrix<double> ParallelMatrix<double>::prod(
   if(cols() != that.rows()) {
     Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
-  ParallelMatrix<double> result(numRows_, numCols_, numBlocksRows_,
-                                numBlocksCols_);
+  auto result = that;
+  result.zeros();
+
   int m;
   if (trans1 == transN) {
     m = numRows_;
@@ -101,8 +102,9 @@ ParallelMatrix<double>::diagonalize() {
   if ( numBlasRows_ != numBlasCols_ ) {
     Error e("Cannot diagonalize via scalapack with a non-square process grid!");
   }
-  double* eigenvalues = nullptr;
-  eigenvalues = new double[numRows_];
+
+  double *eigenvalues;
+  allocate(eigenvalues, numRows_);
 
   // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_,numCols_,
@@ -136,8 +138,8 @@ ParallelMatrix<double>::diagonalize() {
   int lwork = 3 * n + 2 * n + lwqr2 + std::max(qrmem, lwmtr) + 1;
   lwork *= 2;  // just to be safe
 
-  double* work = nullptr;
-  work = new double[lwork];
+  double *work;
+  allocate(work, lwork);
 
   int info = 0;
 

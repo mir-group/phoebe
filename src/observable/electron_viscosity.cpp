@@ -5,10 +5,12 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
-ElectronViscosity::ElectronViscosity(StatisticsSweep &statisticsSweep_,
+ElectronViscosity::ElectronViscosity(Context &context_,
+                                     StatisticsSweep &statisticsSweep_,
                                      Crystal &crystal_,
                                      BaseBandStructure &bandStructure_)
-    : Observable(statisticsSweep_, crystal_), bandStructure(bandStructure_) {
+    : Observable(context_, statisticsSweep_, crystal_),
+      bandStructure(bandStructure_) {
 
   tensordxdxdxd = Eigen::Tensor<double, 5>(
       numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
@@ -29,12 +31,14 @@ ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
 }
 
 void ElectronViscosity::calcRTA(VectorBTE &tau) {
-  double norm = 1. / bandStructure.getNumPoints(true) /
+  double spinFactor = 2.;
+  if (context.getHasSpinOrbit()) {
+    spinFactor = 1.;
+  }
+  double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
-
   auto particle = bandStructure.getParticle();
   tensordxdxdxd.setZero();
-
   auto excludeIndeces = tau.excludeIndeces;
 
 #pragma omp parallel
@@ -42,31 +46,39 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
 #pragma omp for nowait
-    for (long is : bandStructure.parallelStateIterator()) {
-      auto en = bandStructure.getEnergy(is);
+    for (long is : bandStructure.parallelIrrStateIterator()) {
+      auto isIdx = StateIndex(is);
 
-      auto vel = bandStructure.getGroupVelocity(is);
-      auto q = bandStructure.getWavevector(is);
+      double en = bandStructure.getEnergy(isIdx);
+      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+      Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
 
-      // should I skip some states?
-      //      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), is)
-      //              != excludeIndeces.end())
-      //          continue;
+      long ibte = bandStructure.stateToBte(isIdx).get();
 
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      // skip the acoustic phonons
+      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte) !=
+          excludeIndeces.end())
+        continue;
 
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temperature = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+      auto rots = bandStructure.getRotationsStar(isIdx);
+      for (Eigen::Matrix3d rot : rots) {
+        Eigen::Vector3d vel = rot * velIrr;
+        Eigen::Vector3d q = rot * qIrr;
 
-        for (long i = 0; i < dimensionality; i++) {
-          for (long j = 0; j < dimensionality; j++) {
+        for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+          auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+          double temperature = calcStat.temperature;
+          double chemPot = calcStat.chemicalPotential;
+          double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+
+          for (long l = 0; l < dimensionality; l++) {
             for (long k = 0; k < dimensionality; k++) {
-              for (long l = 0; l < dimensionality; l++) {
-                tmpTensor(iCalc, i, j, k, l) += q(i) * vel(j) * q(k) * vel(l) *
-                                                bosep1 * tau(iCalc, 0, is) /
-                                                temperature * norm;
+              for (long j = 0; j < dimensionality; j++) {
+                for (long i = 0; i < dimensionality; i++) {
+                  tmpTensor(iCalc, i, j, k, l) +=
+                      q(i) * vel(j) * q(k) * vel(l) * bosep1 *
+                      tau(iCalc, 0, ibte) / temperature * norm;
+                }
               }
             }
           }
@@ -74,11 +86,11 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       }
     }
 #pragma omp critical
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
-      for (long i = 0; i < dimensionality; i++) {
+    for (long l = 0; l < dimensionality; l++) {
+      for (long k = 0; k < dimensionality; k++) {
         for (long j = 0; j < dimensionality; j++) {
-          for (long k = 0; k < dimensionality; k++) {
-            for (long l = 0; l < dimensionality; l++) {
+          for (long i = 0; i < dimensionality; i++) {
+            for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
               tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
             }
           }
@@ -89,10 +101,8 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
-void ElectronViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
-                                         ElScatteringMatrix &sMatrix,
+void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                                          ParallelMatrix<double> &eigenvectors) {
-  Error e("Viscosity from relaxons untested");
   if (numCalcs > 1) {
     Error e("Viscosity for relaxons only for 1 temperature");
   }
@@ -100,129 +110,74 @@ void ElectronViscosity::calcFromRelaxons(Vector0 &vector0, VectorBTE &relTimes,
   // we decide to skip relaxon states
   // 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
   // 2) there might be other states with infinite lifetimes, we skip them
-  long firstState = 1;
-  firstState += relTimes.excludeIndeces.size();
 
   double volume = crystal.getVolumeUnitCell(dimensionality);
-  double numPoints = double(bandStructure.getNumPoints(true));
-  long numStates = bandStructure.getNumStates();
   auto particle = bandStructure.getParticle();
 
   // to simplify, here I do everything considering there is a single
   // temperature (due to memory constraints)
-
-  Eigen::VectorXd A(dimensionality);
-  A.setZero();
 
   long iCalc = 0;
   auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
   double temp = calcStat.temperature;
   double chemPot = calcStat.chemicalPotential;
 
-  for (long is = firstState; is < numStates; is++) {
-    auto en = bandStructure.getEnergy(is);
-    double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
-    for (long idim = 0; idim < dimensionality; idim++) {
-      A(idim) += bosep1 * q(idim) * q(idim);
+  Eigen::Tensor<double,3> fRelaxons(3, 3, bandStructure.getNumStates());
+  fRelaxons.setZero();
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alpha = std::get<1>(tup0);
+    if ( eigenvalues(alpha) <= 0. ) {
+      continue;
     }
-  }
-  A /= temp * numPoints * volume;
-
-  VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
-  for (long is = firstState; is < numStates; is++) {
-    auto en = bandStructure.getEnergy(is);
-    double bosep1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
-    auto q = bandStructure.getWavevector(is);
-    for (auto idim : {0, 1, 2}) {
-      driftEigenvector(0, idim, is) = q(idim) * sqrt(bosep1 / temp / A(idim));
-    }
-  }
-
-  Eigen::MatrixXd D(3, 3);
-  D.setZero();
-  //    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
-  VectorBTE tmp = sMatrix.dot(driftEigenvector);
-  for (long is = firstState; is < numStates; is++) {
-    for (auto i : {0, 1, 2}) {
-      for (auto j : {0, 1, 2}) {
-        D(i, j) += driftEigenvector(0, i, is) * tmp(0, j, is);
-      }
-    }
-  }
-  D /= volume * numPoints;
-
-  Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
-  tmpDriftEigvecs.setZero();
-  Eigen::MatrixXd W(3, 3);
-  W.setZero();
-  for (long is = firstState; is < bandStructure.getNumStates(); is++) {
-    auto v = bandStructure.getGroupVelocity(is);
-    for (auto i : {0, 1, 2}) {
-      for (auto j : {0, 1, 2}) {
-        tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);
-        W(i, j) += vector0(0, 0, is) * v(i) * driftEigenvector(0, j, is);
-      }
-    }
-  }
-  W /= volume * numPoints;
-
-  Eigen::Tensor<double, 3> w(3, 3, numStates);
-  w.setZero();
-  for (auto i : {0, 1, 2}) {
-    for (auto j : {0, 1, 2}) {
-      Eigen::VectorXd x(numStates);
-      for (long is = 0; is < numStates; is++) {
-        x(is) = tmpDriftEigvecs(i, j, is);
-      }
-
-      // auto x2 = x.transpose() * eigenvectors;
-
-      std::vector<double> x2(numStates, 0.);
-      for (auto tup : eigenvectors.getAllLocalStates()) {
-        auto is1 = std::get<0>(tup);
-        auto is2 = std::get<1>(tup);
-        x2[is2] += x(is1) * eigenvectors(is1, is2);
-      }
-      mpi->allReduceSum(&x2);
-
-      for (long is = 0; is < numStates; is++) {
-        w(i, j, is) = x2[is] / volume / numPoints;
+    StateIndex isIdx(is);
+    Eigen::Vector3d vec = bandStructure.getWavevector(isIdx);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
+    double en = bandStructure.getEnergy(isIdx);
+    double pop = particle.getPopPopPm1(en, temp, chemPot);
+    for (long k = 0; k < dimensionality; k++) {
+      for (long l = 0; l < dimensionality; l++) {
+        fRelaxons(k, l, alpha) += vec(k) * vel(l) * pop / temp /
+                                  eigenvalues(alpha) * eigenvectors(is, alpha);
       }
     }
   }
 
-  // Eq. 9, Simoncelli PRX (2019)
+  Eigen::Tensor<double,3> f(3, 3, bandStructure.getNumStates());
+  f.setZero();
+  for (auto tup0 : eigenvectors.getAllLocalStates()) {
+    long is = std::get<0>(tup0);
+    long alpha = std::get<1>(tup0);
+    for (int i : {0, 1, 2}) {
+      for (int j : {0, 1, 2}) {
+        f(i, j, is) += eigenvectors(is, alpha) * fRelaxons(i, j, alpha);
+      }
+    }
+  }
+
+  double norm = 1. / volume / context.getKMesh().prod();
   tensordxdxdxd.setZero();
-#pragma omp parallel
-  {
-    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
-#pragma omp for nowait
-    for (long is = firstState; is < numStates; is++) {
-      for (long i = 0; i < dimensionality; i++) {
-        for (long j = 0; j < dimensionality; j++) {
-          for (long k = 0; k < dimensionality; k++) {
-            for (long l = 0; l < dimensionality; l++) {
-              tmpTensor(iCalc, i, j, k, l) +=
-                  0.5 *
-                  (w(i, j, is) * w(k, l, is) + w(i, l, is) * w(k, j, is)) *
-                  A(i) * A(k) * relTimes(0, 0, is);
-            }
-          }
-        }
-      }
-    }
-#pragma omp critical
+  for (long is : bandStructure.parallelStateIterator()) {
+    StateIndex isIdx(is);
+    Eigen::Vector3d vec = bandStructure.getWavevector(isIdx);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
+    double en = bandStructure.getEnergy(isIdx);
+    double pop = particle.getPopPopPm1(en, temp, chemPot);
+
     for (long i = 0; i < dimensionality; i++) {
       for (long j = 0; j < dimensionality; j++) {
         for (long k = 0; k < dimensionality; k++) {
           for (long l = 0; l < dimensionality; l++) {
-            tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
+            tensordxdxdxd(iCalc, i, j, k, l) +=
+                0.5 * pop * norm *
+                (vec(i) * vel(j) * f(k, l, is) +
+                 vec(i) * vel(l) * f(k, j, is));
           }
         }
       }
     }
   }
+  mpi->allReduceSum(&tensordxdxdxd);
 }
 
 void ElectronViscosity::print() {

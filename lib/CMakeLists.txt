@@ -11,7 +11,7 @@ FetchContent_Declare(googletest
 FetchContent_MakeAvailable(googletest)
 
 # grabs a copy of nlohmann/json from a lighter repository
-# which tracks the original, minus the large test data set. 
+# which tracks the original, minus the large test data set.
 # This is recommended by the readme of nlohmann/json
 FetchContent_Declare(json
     GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
@@ -29,9 +29,8 @@ ExternalProject_Add(spglib_dep
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
 )
+
 ExternalProject_Add(pugixml_dep
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/pugixml_src
@@ -40,12 +39,10 @@ ExternalProject_Add(pugixml_dep
     UPDATE_COMMAND ""
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
+	-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 )
+
 ExternalProject_Add(eigen_dep
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_build
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
     CONFIGURE_COMMAND ""
@@ -54,10 +51,33 @@ ExternalProject_Add(eigen_dep
     UPDATE_COMMAND ""
     CMAKE_ARGS
         -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
 )
+if(HDF5_AVAIL)
+  if(HDF5_SERIAL)
+    set(PARALLEL_HDF5 OFF)
+  else()
+    set(PARALLEL_HDF5 ${MPI_AVAIL})
+  endif()
+  ExternalProject_Add(highfive_dep
+      SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/highfive_src
+      GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+      UPDATE_COMMAND ""
+      CMAKE_ARGS
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/highfive_src
+          -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DHIGHFIVE_BUILD_DOCS=OFF
+          -DHIGHFIVE_EXAMPLES=OFF
+          -DHIGHFIVE_UNIT_TESTS=OFF
+          -DHIGHFIVE_USE_BOOST=OFF
+          -DHIGHFIVE_USE_EIGEN=ON
+          -DHIGHFIVE_PARALLEL_HDF5=${PARALLEL_HDF5}
+          -DHIGHFIVE_USE_OPENCV=OFF
+          -DHIGHFIVE_USE_XTENSOR=OFF
+          -DEIGEN3_INCLUDE_DIRS=${CMAKE_CURRENT_BINARY_DIR}/eigen_src
+)
+endif()
 
 link_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/pugixml_build
@@ -71,5 +91,6 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
     ${CMAKE_CURRENT_BINARY_DIR}/json_src/include
+    ${CMAKE_CURRENT_BINARY_DIR}/highfive_src/include
 )
 

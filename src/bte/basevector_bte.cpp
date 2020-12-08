@@ -1,4 +1,3 @@
-#include "constants.h"
 #include "vector_bte.h"
 
 // default constructor
@@ -54,15 +53,20 @@ BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
 }
 
 // product operator overload
-Eigen::VectorXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
+Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
   if (that.numCalcs != numCalcs || that.numStates != numStates) {
     Error e("The 2 BaseVectorBTE must be aligned for dot() to work.");
   }
-  Eigen::VectorXd result(numCalcs);
+  if (that.dimensionality != 3 ) {
+    Error("VectorBTE dot is implemented for 3D vectors only");
+  }
+  Eigen::VectorXd result(numCalcs,3);
   result.setZero();
   for (long is : mpi->divideWorkIter(numStates)) {
-    for (long i = 0; i < numCalcs; i++) {
-      result(i) += this->data(i, is) * that.data(i, is);
+    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int i : {0,1,2}) {
+        result(iCalc, i) += operator()(iCalc, i, is) * that(iCalc, i, is);
+      }
     }
   }
   mpi->allReduceSum(&result);
@@ -91,7 +95,7 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, DimIndex(0));
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =
@@ -202,19 +206,19 @@ void BaseVectorBTE::setConst(const double &constant) {
 }
 
 long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                             const DimIndex &idim) {
+                             const CartIndex &idim) {
   long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
-std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
+std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
     const long &i) {
   auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto idim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
+  return {ChemPotIndex(imu), TempIndex(it), CartIndex(idim)};
 }
 
 // get/set operator

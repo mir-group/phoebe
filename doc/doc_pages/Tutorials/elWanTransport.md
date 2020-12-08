@@ -44,7 +44,7 @@ If you have a different version of QE, you may try to use that patch anyway. We 
 
 <li> Alternatively, download our patched version and install it. From an installation folder of your choice, type:
 ~~~~~~~~~~{.c}
-git clone git@github.com:mir-group/phoebe-quantum-espresso.git
+git clone https://github.com/mir-group/phoebe-quantum-espresso.git
 cd phoebe-quantum-espresso
 git checkout phoebe-qe-6.6
 ./configure MPIF90=mpif90 --with-scalapack=yes

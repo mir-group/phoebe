@@ -3,6 +3,9 @@
 #include "ifc3_parser.h"
 #include "eigen.h"
 #include "constants.h"
+#ifdef HDF5_AVAIL
+  #include <highfive/H5File.hpp>
+#endif 
 
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
     auto fileName = context.getPhD3FileName();

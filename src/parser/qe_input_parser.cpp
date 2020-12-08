@@ -543,8 +543,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   // Now we do postprocessing
 
   long dimensionality = context.getDimensionality();
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
+  Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
+                  speciesNames, speciesMasses, dimensionality);
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
     Error e("qCoarseGrid smaller than zero", 1);
@@ -692,8 +692,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // Initialize the crystal class
 
   long dimensionality = context.getDimensionality();
-  Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                  speciesMasses, dimensionality);
+  Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
+                  speciesNames, speciesMasses, dimensionality);
 
   // initialize reciprocal lattice cell
   // I need this to convert kpoints from cartesian to crystal coordinates
@@ -952,8 +952,8 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
       i += 1;
     }
 
-    Crystal crystal(directUnitCell, atomicPositions, atomicSpecies, speciesNames,
-                    speciesMasses, dimensionality);
+    Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
+                    speciesNames, speciesMasses, dimensionality);
 
     return {crystal, electronH0};
   }

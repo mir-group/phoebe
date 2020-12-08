@@ -93,23 +93,54 @@ public:
    */
   void a2Omega();
 
-  /** The inverse of a2Omega, converts the matrix Omega to A
-   */
-  void omega2A();
+//  /** The inverse of a2Omega, converts the matrix Omega to A
+//   */
+//  void omega2A();
 
   /** Diagonalize the scattering matrix
-   * @return eigenvalues: a VectorBTE object with the eigenvalues
+   * @return eigenvalues: a Eigen::VectorXd with the eigenvalues
    * @return eigenvectors: a Eigen::MatrixXd with the eigenvectors
    * Eigenvectors are aligned on rows: eigenvectors(qpState,eigenIndex)
    */
-  std::tuple<VectorBTE, ParallelMatrix<double>> diagonalize();
+  std::tuple<Eigen::VectorXd, ParallelMatrix<double>> diagonalize();
 
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
   void outputToJSON(std::string outFileName);
 
-protected:
+  /** Function to combine a BTE index and a cartesian index into one index of
+   * the scattering matrix. If no symmetries are used, the output is equal to
+   * the BteIndex.
+   *
+   * @param bteIndex: BteIndex for a Bloch state entering the BTE
+   * @param cartIndex: CartIndex for a cartesian direction
+   * @return sMatrixIndex: and index identifying the scattering matrix row/col.
+   *
+   * Note: when symmetries are used, the scattering matrix has indices (i,j)
+   * where i,j = (BteIndex,CartIndex) combined together, where CartIndex is an
+   * index on cartesian directions, and BteIndex an index on the Bloch states
+   * entering the Boltzmann equation.
+   */
+  long getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
+
+  /** Function to split a scattering matrix index (on rows/columns of S) into
+   * a BTE index and a cartesian index. If no symmetries are used, the output
+   * is equal to the BteIndex and CartIndex is set to 0. It is suggested to skip
+   * this function if symmetries are NOT used.
+   *
+   * @param bteIndex: BteIndex for a Bloch state entering the BTE
+   * @param cartIndex: CartIndex for a cartesian direction
+   * @return sMatrixIndex: and index identifying the scattering matrix row/col.
+   *
+   * Note: when symmetries are used, the scattering matrix has indices (i,j)
+   * where i,j = (BteIndex,CartIndex) combined together, where CartIndex is an
+   * index on cartesian directions, and BteIndex an index on the Bloch states
+   * entering the Boltzmann equation.
+   */
+  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const long &iMat);
+
+ protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
 
@@ -171,6 +202,16 @@ protected:
    * for iq1 { for iq2 {...}}. False for the opposite (default).
    * @return vector<tuple<iq1,iq2>>: a tuple of wavevector indices to loop
    * over in the construction of the scattering matrix.
+   *
+   * Implementation: note that ph and el scattering are implemented differently.
+   * In detail, ph is computed as (for iq2) {(for iq1)}.
+   * instead el is computed as (for ik1) {(for ik2)}.
+   * where index1 is computed over irreducible points and iq2 over reducible
+   * points. Therefore, we have to distinguish the two cases (they're inverted).
+   * Also, we distinguish the case of matrix in memory or not.
+   * For scattering matrix in memory, we parallelize over the matrix elements
+   * owned by an MPI process. Otherwise, we trivially parallelize over the outer
+   * loop on points.
    */
   std::vector<std::tuple<std::vector<long>, long>>
   getIteratorWavevectorPairs(const int &switchCase,

@@ -101,7 +101,7 @@ std::vector<long> MPIcontroller::divideWork(size_t numTasks) {
 }
 
 std::vector<long> MPIcontroller::divideWorkIter(size_t numTasks) {
-  // return a vector of the start and stop points for task division
+  // return a vector of indices for tasks to be completed by thsi process 
   int start = (numTasks * rank) / size;
   int stop = (numTasks * (rank + 1)) / size;
   size_t localSize = stop - start;
