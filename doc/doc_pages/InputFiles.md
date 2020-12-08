@@ -776,6 +776,6 @@ end point path
 <ul>
 <li> When set to true, triggers the BTE to be computed only on the irreducible wedge of the Brillouin zone. For systems with several symmetries, this speeds up calculations. On the other hand, it may slow down the code for systems with few symmetries. If set to true, the viscosity is only computed at the RTA level.
 <li> *bool*
-<li> Default = `true`
+<li> Default = `false`
 <li> Optional
 </ul>
