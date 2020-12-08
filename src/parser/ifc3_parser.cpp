@@ -3,6 +3,7 @@
 #include "ifc3_parser.h"
 #include "eigen.h"
 #include "constants.h"
+#include "mpiHelper.h" 
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -38,6 +39,22 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
     //}
 }
 
+long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
+  long ir2 = -1;
+  for (int i = 0; i < cellPositions2.cols(); i++) {
+    //std::cout << cellPositions2(i,0) << " " << cellPositions2(i,1) << " " << cellPositions2(i,2) << " " << position2(0) << " " << position2(1) << " " << position2(2) << " norm " << (position2 - cellPositions2.col(i)).norm() << std::endl;
+    if ((position2 - cellPositions2.col(i)).norm() < 1.e-12) {
+      ir2 = i;
+      return ir2;
+    }
+  }
+  if (ir2 == -1) {
+    std::cout << "help "  << position2 << std::endl;
+    Error e("index not found");
+  }
+  return ir2;
+}
+
 Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal) {
 
 #ifndef HDF5_AVAIL
@@ -62,7 +79,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
   // First, read in the information form disp_fc3.yaml
   int numAtoms = crystal.getNumAtoms();
-  int numSupAtoms;
   int numBands = numAtoms * 3;
 
   // Open disp_fc3 file, read supercell positions, nSupAtoms
@@ -76,7 +92,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
   // first line will always be natoms in supercell
   std::getline(infile, line);
-  numSupAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
+  int numSupAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
+  int nr = numSupAtoms/numAtoms;
 
   // read the rest of the file to look for supercell positions
   Eigen::MatrixXd supPositions(numSupAtoms, 3);
@@ -96,7 +113,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
       ipos++;
     }
     if(ilatt < 3) { // count down lattice lines 
-      // converty from angstrom to bohr
+      // convert from angstrom to bohr
       std::string temp = line.substr(5,62); // just the elements
       int idx1 = temp.find(",");
       lattice(ilatt,0) = std::stod(temp.substr(0,idx1))/distanceBohrToAng;
@@ -139,30 +156,29 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   dcellMap.read(cellMap); 
 
   // Determine the list of unique triplets
-  //std::vector<std::tuple<int,int>> triplets;
- // std::vector<std::tuple<int,int>> supTriplets;
-  Eigen::MatrixXd cellPositions2(3, numSupAtoms);
-  Eigen::MatrixXd cellPositions3(3, numSupAtoms);
+  Eigen::MatrixXd cellPositions2(3, nr);
+  Eigen::MatrixXd cellPositions3(3, nr);
   cellPositions2.setZero();
   cellPositions3.setZero();
-  for (int is = 0; is < numSupAtoms; is++) { 
-    //for (int isa3 = 0; isa3 < numSupAtoms; isa3++) {
+  for (int is = 0; is < nr; is++) { 
 
-      // Convert supercell atoms 2 and 3 to unit cell 2 and 3
-      // these indices are the index of each atom in the
-      // unit cell -- not the p3py supercell. 
-      // To get that information, use cellMap[ia2]
-      int ia = floor(is / numAtoms);
+      // Convert supercell atom to unit cell equivalent.
+      // This index is the index of each atom in the
+      // phoebe unit cell -- not the p3py supercell. 
+      // To get that information, use cellMap[ia]
+      //int ia = floor(is / numAtoms);
 
       // find the vectors R2, R3 for this triplet
       // position of atomPosSupercell - atomPosUnitCell = R
-      cellPositions2(0,is) = supPositions(is,0) - supPositions(cellMap[ia],0);
-      cellPositions2(1,is) = supPositions(is,1) - supPositions(cellMap[ia],1);
-      cellPositions2(2,is) = supPositions(is,2) - supPositions(cellMap[ia],2);
+      cellPositions2(0,is) = supPositions(is,0) - supPositions(0,0);//supPositions(cellMap[ia],0);
+      cellPositions2(1,is) = supPositions(is,1) - supPositions(0,1);//supPositions(cellMap[ia],1);
+      cellPositions2(2,is) = supPositions(is,2) - supPositions(0,2);//supPositions(cellMap[ia],2);
 
-      cellPositions3(0,is) = supPositions(is,0) - supPositions(cellMap[ia],0);
-      cellPositions3(1,is) = supPositions(is,1) - supPositions(cellMap[ia],1);
-      cellPositions3(2,is) = supPositions(is,2) - supPositions(cellMap[ia],2);
+      cellPositions3(0,is) = supPositions(is,0) - supPositions(0,0); //supPositions(cellMap[ia],0);
+      cellPositions3(1,is) = supPositions(is,1) - supPositions(0,1); //supPositions(cellMap[ia],1);
+      cellPositions3(2,is) = supPositions(is,2) - supPositions(0,2); //supPositions(cellMap[ia],2);
+
+      //std::cout << is << " " << ia << " " << cellMap[ia] << " " <<  supPositions(cellMap[ia],0) << " " <<  supPositions(cellMap[ia],1) << " " <<  supPositions(cellMap[ia],2) << std::endl;  
 
       // check to see if this one is already in the list -- if not, add it
       //if(std::find(triplets.begin(), triplets.end(), triplet) == triplets.end()) {
@@ -173,22 +189,9 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
     //}
   }
 
-  //int numTriplets = numSupAtoms/numAtoms;
-  //std::cout << "num triplets " << numTriplets << std::endl;
-
-  // Allocate final storage of read in quantities
-  // TODO this needs to be last two dims changed to #2nd atom moves, #3rd atom moves.
-  // TODO this can likely be reduced for both cellPos and D3 to be over numTriplets, 
-  // which will only be the number of unit cells in the supercell
-  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, numSupAtoms, numSupAtoms);
-  D3.setZero();
-  //Eigen::MatrixXd cellPositions2(3, numSupAtoms*numSupAtoms);
- // Eigen::MatrixXd cellPositions3(3, numSupAtoms*numSupAtoms);
-  //cellPositions2.setZero();
-  //cellPositions3.setZero();
-  // Eigen::MatrixXd unitCellPos = crystal.getAtomicPositions(); // TODO are these direct?
-
   // reshape to D3 format
+  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr, nr);
+  D3.setZero();
 
   // For the first atom index, we only go over atoms in the unit cell, 
   // as we consider R1 = 0. 
@@ -196,62 +199,55 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   for (int ia1 = 0; ia1 < numAtoms; ia1++) {
   
     int idxTriplet = 0;
-    // loop over unique R2 and R3 atom triplets
+    // loop over R2 and R3 atom triplets
     for ( int isa2 = 0; isa2<numSupAtoms; isa2++) {
       for ( int isa3 = 0; isa3<numSupAtoms; isa3++) {
 
-      //int ia2 = std::get<0>(triplets[idxTriplet]);
-      //int ia3 = std::get<1>(triplets[idxTriplet]); 
-      //int isa2 = std::get<0>(supTriplets[idxTriplet]);
-      //int isa3 = std::get<1>(supTriplets[idxTriplet]);
       int ia2 = floor(isa2 / numAtoms);
       int ia3 = floor(isa3 / numAtoms);
 
-      // find the vectors R2, R3 for this triplet
-      // position of atomPosSupercell - atomPosUnitCell = R
-      //Eigen::Vector3d temp2; 
-      //temp2(0) = supPositions(isa2,0) - unitCellPos(ia2,0);
-      //Eigen::Vector3d temp3; = supPositions(isa3,0) - unitCellPos(ia3,0);
-      //cellPositions2.col(idxTriplet) = supPositions.row(isa2) - unitCellPos.row(ia2);
-      //cellPositions3.col(idxTriplet) = supPositions.row(isa3) - unitCellPos.row(ia3);
-      //cellPositions2(0,idxTriplet) = supPositions(isa2,0) - supPositions(cellMap[ia2],0);
-      //cellPositions2(1,idxTriplet) = supPositions(isa2,1) - supPositions(cellMap[ia2],1);
-      //cellPositions2(2,idxTriplet) = supPositions(isa2,2) - supPositions(cellMap[ia2],2);
+        // loop over cartesian coordinates
+        for (int ic1 : { 0, 1, 2 }) {
+          for (int ic2 : { 0, 1, 2 }) {
+            for (int ic3 : { 0, 1, 2 }) {
 
-      //std::cout << "unit cell pos " << supPositions(cellMap[ia2],0) << " " << supPositions(cellMap[ia2],1) << " " << supPositions(cellMap[ia2],2) << std::endl;;
-      //std::cout << "sup cell pos " << supPositions(isa2,0) << " " << supPositions(isa2,1) << " " << supPositions(isa2,2) << std::endl;;
-      //std::cout << isa2 << " "<< isa3 << " " << idxTriplet << " cell pos "<<   cellPositions2(0,idxTriplet) << " " << cellPositions2(1,idxTriplet) << " " << cellPositions2(2,idxTriplet) << std::endl;;
+              // compress the cartesian indices and unit cell atom indices 
+              // for the first three indices of D3
+              auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
+              auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
+              auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);              
 
-      //cellPositions3(0,idxTriplet) = supPositions(isa3,0) - supPositions(cellMap[ia3],0);
-      //cellPositions3(1,idxTriplet) = supPositions(isa3,1) - supPositions(cellMap[ia3],1);
-      //cellPositions3(2,idxTriplet) = supPositions(isa3,2) - supPositions(cellMap[ia3],2);
-      //idxTriplet++;
+              // index of r2, r3 in the list of cellPositions
+              Eigen::Vector3d r2, r3;// = supPositions(isa2) - supPositions(cellMap[ia2]);
+              r2(0,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
+              r2(1,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
+              r2(2,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
 
-      for (int ic1 : { 0, 1, 2 }) {
-        for (int ic2 : { 0, 1, 2 }) {
-          for (int ic3 : { 0, 1, 2 }) {
+              r3(0,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
+              r3(1,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
+              r3(2,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
 
-            // mux the cartesian indices and unit cell atom indices 
-            // for the first three indices of D3
-            auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-            auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-            auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);              
+              //cellPositions2(1,is) = supPositions(is,1) - supPositions(0,1);//supPositions(cellMap[ia],1);
+              //cellPositions2(2,is) = supPositions(is,2) - supPositions(0,2);//supPositions(cellMap[ia],2);
 
-            // indices here are atom+cart index, then indices for displaced atoms 
-            // in this triplet -- TODO, if there are issues, 
-            // check the last two indices. 
-            //std::cout << "ind 123 " << ind1 << " "<< ind2 << " " << ind3 << " isa23 "<< isa2 << " " << isa3 << " ia1 " << ia1 << " cellmap ia1 " << cellMap[ia1] << " ic123 " << ic1 << " " << ic2 << " " << ic3 << " " << D3(ind1, ind2, ind3, isa2, isa3) << std::endl;
+              //cellPositions3(0,is) = supPositions(is,0) - supPositions(0,0); //supPositions(cellMap[ia],0);
+              //cellPositions3(1,is) = supPositions(is,1) - supPositions(0,1); //supPositions(cellMap[ia],1);
+              //cellPositions3(2,is) = supPositions(is,2) - supPositions(0,2); //supPositions(cellMap[ia],2);
 
-            D3(ind1, ind2, ind3, isa2, isa3) // convert from ev/ang to atomic 
-              = ifc3Tensor[cellMap[ia1]][isa2][isa3][ic1][ic2][ic3] * conversion;
-            // TODO print these to see wtf is going on
+              auto ir2 = findIndexRow(cellPositions2, r2);
+              auto ir3 = findIndexRow(cellPositions3, r3);
+
+              D3(ind1, ind2, ind3, ir2, ir3) // convert from ev/ang to atomic 
+                = ifc3Tensor[cellMap[ia1]][isa2][isa3][ic1][ic2][ic3] * conversion;
+
+            }
           }
         }
       }
     }
   }
-  }
-  std::cout << "Done generating D3" << std::endl;
+  if(mpi->mpiHead()) std::cout << "Done reading in D3.\n" << std::endl;
+
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3);
 
@@ -260,22 +256,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 #endif
 }
 
-long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
-  long ir2 = -1;
-  for (int i = 0; i < cellPositions2.cols(); i++) {
-    if ((position2 - cellPositions2.col(i)).norm() == 0.) {
-      ir2 = i;
-      return ir2;
-    }
-  }
-  if (ir2 == -1) {
-    Error e("index not found");
-  }
-  return ir2;
-}
-
-Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
-        Crystal &crystal) {
+Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal) {
 
   auto fileName = context.getPhD3FileName();
 
