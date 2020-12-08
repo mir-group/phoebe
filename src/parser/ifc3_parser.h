@@ -32,7 +32,7 @@ public:
      * @param context: the Context object with the user input (to get filename)
      * @return Interaction3Ph: the object that contains the 3rd derivative.
      */
-    static Interaction3Ph parseFromPhono3py(Context &context);
+    static Interaction3Ph parseFromPhono3py(Context &context, Crystal &crystal);
 
     /** In development!
      * TODO: while the parsing is done, and it's easy, QE uses a different
