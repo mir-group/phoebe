@@ -2,7 +2,7 @@
 
 We implemented the Fourier interpolation of the band structure (also used in Boltztrap v1).  
 The method is well described [in this reference] (https://link.aps.org/doi/10.1103/PhysRevB.38.2721).
-Note that the algorithm works for a single band (so it must be repeated for every distinct band we want to interpolate).
+Note that the algorithm described below works for a single band (so it must be repeated for every distinct band we want to interpolate).
 
 Let's suppose to have \f$N\f$ data points, i.e. an energy \f$\epsilon(\boldsymbol{k}_i)\f$, specified over a (coarse) mesh of kpoints \f$\boldsymbol{k}_i\f$, with \f$i=0,\dots,N-1\f$.
 We want to interpolate these points, so we can obtain an energy \f$\tilde{\epsilon}(\boldsymbol{k})\f$ for an arbitrary k-point.
@@ -56,7 +56,7 @@ One can compute the expansion coefficients once and store them in memory.
 The star function \f$S\f$ must be recomputed at every evaluation of energy.
 Additionally, the velocity is easily computed as:
 \begin{equation}
-\tilde{\epsilon}(\boldsymbol{k}) = \sum_{m=0}^{M-1} c_m \bigg( i \frac{1}{n} \sum_{\Lambda}  \Lambda \boldsymbol{R}_m e^{i\boldsymbol{k} \Lambda \boldsymbol{R}_m} \bigg) \;.
+\tilde{v}(\boldsymbol{k}) = \sum_{m=0}^{M-1} c_m \bigg( i \frac{1}{n} \sum_{\Lambda}  \Lambda \boldsymbol{R}_m e^{i\boldsymbol{k} \Lambda \boldsymbol{R}_m} \bigg) \;.
 \end{equation}
 
 
