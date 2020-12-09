@@ -1,6 +1,8 @@
-layout: page
+---
 title: PAGE TITLE
-permalink: /team/
+layout: template
+filename: team
+---
 
 ## Team
 

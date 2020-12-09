@@ -1,3 +1,9 @@
+---
+title: PAGE TITLE
+layout: template
+filename: index
+---
+
 ## Welcome to GitHub Pages
 
 A code for computing ab-initio transport properties of electrons and phonons.
