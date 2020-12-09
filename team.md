@@ -9,9 +9,14 @@ filename: team
 ![](pictures/andrea.png)
 *Andrea Cepellotti*
 
-* Andrea Cepellotti
+![](pictures/andrea.png)
+*Jenny Coulter*
 
-![Andrea](pictures/andrea.png) 
+![](pictures/andrea.png)
+*Anders Johansson*
 
-* A
-* B
+![](pictures/andrea.png)
+*Natalya Fedorova*
+
+![](pictures/kozinsky.png)
+*Boris Kozinsky*
