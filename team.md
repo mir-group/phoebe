@@ -4,15 +4,11 @@ layout: template
 filename: team
 ---
 
-## Team
+## Phoebe Development Team
 
-A second page
+* ![Andrea](pictures/andrea.png) Andrea Cepellotti
 
-
-![Andrea](pictures/andrea.png)
-
-
-oppure Andrea
+* ![Andrea](pictures/andrea.png) Andrea Cepellotti
 
 * A
 * B
