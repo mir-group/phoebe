@@ -4,8 +4,6 @@ layout: template
 filename: team
 ---
 
-<a href=index class="btn"> Home </a>
-
 ## Phoebe Development Team
 
 

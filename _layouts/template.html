@@ -9,8 +9,49 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+
+    <style>
+    body {margin:0;}
+    
+    ul {
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	background-color: #333;
+	position: fixed;
+	top: 0;
+	width: 100%;
+    }
+    
+    li {
+	float: left;
+    }
+    
+    li a {
+	display: block;
+	color: white;
+	text-align: center;
+	padding: 14px 16px;
+	text-decoration: none;
+    }
+    
+    li a:hover:not(.active) {
+	background-color: #111;
+    }
+    
+    .active {
+	background-color: #4CAF50;
+    }
+    </style>
   </head>
   <body>
+
+    <ul>
+      <li><a href=index> Home </a></li>
+      <li><a href=team> Team </a></li>
+    </ul>
+    
     <section class="page-header">
       <h1 class="project-name">Phoebe</h1>
       <h2 class="project-tagline">PHOnon and Electron Boltzmann Equation</h2>
