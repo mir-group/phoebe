@@ -1,5 +1,5 @@
 ---
-title: PAGE TITLE
+title: Team
 layout: template
 filename: team
 ---
