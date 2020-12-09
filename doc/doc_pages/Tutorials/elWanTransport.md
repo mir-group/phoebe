@@ -20,7 +20,7 @@ The algorithms are described in the @ref Theory section of this manual, and we a
 
 
 @section elWTrStep1 Step 1: patch Quantum ESPRESSO
-As we discussed in the @ref ELPHC page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
+As we discussed in the @ref thCOMPELPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
 This will require to compile Quantum ESPRESSO. We provide two options.
 <ol>
 <li> Patch a copy of QE.
@@ -62,7 +62,7 @@ where again you should probably customize the installation parameters.
 First, we need to compute the total energy of the silicon crystal unit cell.
 This calculation will create the ground state charge density and wavefunctions that are needed for later.
 
-To run, go to the folder `./example/Silicon_elph/qespresso` in the phoebe repository.
+To run, go to the folder `./example/Silicon-el/qespresso` in the phoebe repository.
 The file `scf.in` is the input file for the `pw.x` executable.
 The input for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal, is
 ~~~~~~~~~~{.c}
