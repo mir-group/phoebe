@@ -21,4 +21,4 @@ filename: team
 ![](pictures/kozinsky.jpg | width=200)
 *Boris Kozinsky*
 
-<img src="https://github.com/mir-group/phoebe/blob/gh-pages/pictures/kozinsky.jpg" width="200">
+<img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/kozinsky.jpg" width="200">
