@@ -9,7 +9,9 @@ filename: team
 ![](pictures/andrea.png)
 *Andrea Cepellotti*
 
-* ![Andrea](pictures/andrea.png) Andrea Cepellotti
+* Andrea Cepellotti
+
+![Andrea](pictures/andrea.png) 
 
 * A
 * B
