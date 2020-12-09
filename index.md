@@ -1,8 +1,6 @@
-title: Custom Phoebe
+## Welcome to GitHub Pages
 
 A code for computing ab-initio transport properties of electrons and phonons.
-
-## Welcome to GitHub Pages
 
 You can use the [editor on GitHub](https://github.com/mir-group/phoebe/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
