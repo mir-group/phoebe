@@ -18,5 +18,5 @@ filename: team
 ![](pictures/andrea.png)
 *Natalya Fedorova*
 
-![](pictures/kozinsky.png)
+![](pictures/kozinsky.jpg)
 *Boris Kozinsky*
