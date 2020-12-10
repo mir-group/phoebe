@@ -11,11 +11,12 @@ filename: team
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
+<div>
 *Andrea Cepellotti* <a href="https://www.linkedin.com/in/andrea-cepellotti">   
 <i class="fa fa-linkedin-square fa_custom"></i>
 </a>
 <a href="mailto:acepellotti@g.harvard.edu"><i class="fa fa-envelope"></i></a>
-
+</div>
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/jcoulter.png" width="200">
 *Jenny Coulter*
