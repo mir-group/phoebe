@@ -19,17 +19,6 @@
       }
     </style>
     
-<div class="row">
-    <div class="col-md-6">
-        {{ include-code-blocks }}
-    </div>
-    <div class="col-md-6">
-        {{ include-texts }}
-        {{ include-headers }}
-        {{ include-what-you-want }}
-    </div>
-</div>
-      
     <style>
       body {margin:0;}
       
@@ -78,6 +67,18 @@
   </head>
   <body>
 
+    <div class="topbar">
+      <topbar>
+	<ul>
+	  <li><a href=index> Home </a></li>
+	  <li><a href=team> Team </a></li>
+	  <li><a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a></li>
+	  <li><a href=news> News </a></li>
+	  <li><a href=contact> Contact </a></li>
+	</ul>
+      </topbar>
+    </div>
+    
     <section class="page-header">
       <h1 class="project-name">Phoebe</h1>
       <h2 class="project-tagline">PHOnon and Electron Boltzmann Equation</h2>
@@ -104,18 +105,15 @@
   
   </body>
 
-
-    <div class="topbar">
-      <topbar>
-	<ul>
-	  <li><a href=index> Home </a></li>
-	  <li><a href=team> Team </a></li>
-	  <li><a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a></li>
-	  <li><a href=news> News </a></li>
-	  <li><a href=contact> Contact </a></li>
-	</ul>
-      </topbar>
+<div class="row">
+    <div class="col-md-6">
+        {{ include-code-blocks }}
     </div>
-    
-  
+    <div class="col-md-6">
+        {{ include-texts }}
+        {{ include-headers }}
+        {{ include-what-you-want }}
+    </div>
+</div>
+      
 </html>
