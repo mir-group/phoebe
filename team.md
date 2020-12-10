@@ -11,9 +11,9 @@ filename: team
 
 
 <div class="container">
-  <img class="container__image" src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg"/>
+  <img class="container__image" src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg">
   <div class="container__text">
-    <h3>Andrea Cepellotti</h3>
+    <h2>Andrea Cepellotti</h2>
     <p>
       <a href="https://www.linkedin.com/in/andrea-cepellotti">   
       <i class="fa fa-linkedin-square fa_custom"></i>
