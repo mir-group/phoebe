@@ -10,11 +10,10 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 
-    <div class="my-navbar">
       <style>
 	body {margin:0;}
 	
-	ul {
+	.topbar ul {
 	    list-style-type: none;
 	    margin: 0;
 	    padding: 0;
@@ -25,11 +24,11 @@
 	    width: 100%;
 	}
 	
-	li {
+	.topbar li {
 	    float: left;
 	}
 	
-	li a {
+	.topbar li a {
 	    display: block;
 	    color: white;
 	    text-align: center;
@@ -37,7 +36,7 @@
 	    text-decoration: none;
 	}
 	
-	li a:hover:not(.active) {
+	.topbar li a:hover:not(.active) {
 	    background-color: #111;
 	}
 	
@@ -45,16 +44,15 @@
 	    background-color: #4CAF50;
 	}
       </style>
-    </div>
   </head>
   <body>
 
-    <ul class="my-navbar">
-      <li><a href=index> Home </a></li>
-      <li><a href=team> Team </a></li>
-      <li><a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a></li>
-      <li><a href=news> News </a></li>
-      <li><a href=contact> Contact </a></li>
+    <ul class="topbar">
+      <li class="topbar"><a href=index> Home </a></li>
+      <li class="topbar"><a href=team> Team </a></li>
+      <li class="topbar"><a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a></li>
+      <li class="topbar"><a href=news> News </a></li>
+      <li class="topbar"><a href=contact> Contact </a></li>
     </ul>
     
     <section class="page-header">
