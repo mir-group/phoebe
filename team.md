@@ -12,10 +12,9 @@ filename: team
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
 *Andrea Cepellotti*
-<i class="fa fa-linkedin-square fa_custom fa-2x"></i>
-
-
-<div class="LI-profile-badge"  data-version="v1" data-size="medium" data-locale="en_US" data-type="vertical" data-theme="light" data-vanity="andrea-cepellotti"><a class="LI-simple-link" href='https://www.linkedin.com/in/andrea-cepellotti?trk=profile-badge'>Andrea Cepellotti</a></div>
+<a href="https://www.linkedin.com/in/andrea-cepellotti">
+<i class="fa fa-linkedin-square fa_custom"></i>
+</a>
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/jcoulter.png" width="200">
