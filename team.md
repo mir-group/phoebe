@@ -11,15 +11,12 @@ filename: team
 
 
 <div class="grid-container">
-  <div class="grid-item">1</div>
+  <div class="grid-item"> <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200"> </div>
   <div class="grid-item">2</div>
   <div class="grid-item">3</div>  
   <div class="grid-item">4</div>
   <div class="grid-item">5</div>
   <div class="grid-item">6</div>  
-  <div class="grid-item">7</div>
-  <div class="grid-item">8</div>
-  <div class="grid-item">9</div>  
 </div>
 
 
