@@ -7,19 +7,19 @@ filename: team
 ## Phoebe Development Team
 
 
-![](pictures/andrea.png)
+<img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
 *Andrea Cepellotti*
 
 
-![](pictures/andrea.png)
+<img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/jcoulter.png" width="200">
 *Jenny Coulter*
 
 
-![](pictures/andrea.png)
+<img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/anders.jpg" width="200">
 *Anders Johansson*
 
 
-![](pictures/andrea.png)
+<img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/natalya.jpg" width="200">
 *Natalya Fedorova*
 
 
