@@ -21,28 +21,27 @@
     
     <style>
       body {margin:0;}
-      
-      body {
-	  padding: 50px;
+
+      .container {
+	  display: grid;
       }
       
-      .container {
-	  border: 3px solid blue;
-	  padding: 20px 40px 40px;
-	  max-width: 640px;
-	  &__image {
-	      display: inline-block;
-	      vertical-align: top;
-	      width:46%;
-	      margin: 20px 30px 0 0;
-	  }
-	  &__text {
-	      display: inline-block;
-	      width:46%;
-	      @media (max-width: 620px) {
-		  width: 100%;
-	      }
-	  }
+      .left-half {
+	  background: #ff9e2c;
+	  grid-column: 1;
+      }
+      
+      .right-half {
+	  background: #b6701e;
+	  grid-column: 2;
+      }
+      
+      article {
+	  position: relative;
+	  top: 50%;
+	  text-align: center;
+	  transform: translate(0, -50%);
+	  padding: 1rem;
       }
       
       .topbar {

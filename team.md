@@ -20,6 +20,24 @@ filename: team
   </div>
 </div>
 
+<section class="container"
+<div class="left-half">
+<article>
+    <p>
+    Text 1.
+    </p>
+</article>
+</div>
+<div class="right-half">
+<article>
+    <p>
+    Text 2.
+    </p>
+</article>
+</div>
+
+</section>
+
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
 *Andrea Cepellotti* <a href="https://www.linkedin.com/in/andrea-cepellotti">   
