@@ -10,22 +10,21 @@ filename: team
 ## Phoebe Development Team
 
 
-
-<div class="row">
-    <div class="col-md-6">
-        **some code block here**
-        **another code block here**
-    </div>
-    <div class="col-md-6">
-        **some text here**
-        ##some header here
-        ###something else here
-    </div>
+<div class="grid-container">
+  <div class="grid-item">1</div>
+  <div class="grid-item">2</div>
+  <div class="grid-item">3</div>  
+  <div class="grid-item">4</div>
+  <div class="grid-item">5</div>
+  <div class="grid-item">6</div>  
+  <div class="grid-item">7</div>
+  <div class="grid-item">8</div>
+  <div class="grid-item">9</div>  
 </div>
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
-*Andrea Cepellotti* <a href="https://www.linkedin.com/in/andrea-cepellotti">   
+*Andrea Cepellotti* <a href="https://www.linkedin.com/in/andrea-cepellotti">
 <i class="fa fa-linkedin-square fa_custom"></i>
 </a>
 <a href="mailto:acepellotti@g.harvard.edu"><i class="fa fa-envelope"></i></a>
