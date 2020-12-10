@@ -21,28 +21,17 @@
     
     <style>
       body {margin:0;}
-
-      .container {
-	  display: grid;
-      }
       
-      .left-half {
-	  background: #ff9e2c;
-	  grid-column: 1;
-      }
-      
-      .right-half {
-	  background: #b6701e;
-	  grid-column: 2;
-      }
-      
-      article {
-	  position: relative;
-	  top: 50%;
-	  text-align: center;
-	  transform: translate(0, -50%);
-	  padding: 1rem;
-      }
+<div class="row">
+    <div class="col-md-6">
+        {{ include-code-blocks }}
+    </div>
+    <div class="col-md-6">
+        {{ include-texts }}
+        {{ include-headers }}
+        {{ include-what-you-want }}
+    </div>
+</div>
       
       .topbar {
 	  list-style-type: none;

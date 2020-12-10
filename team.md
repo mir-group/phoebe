@@ -10,33 +10,18 @@ filename: team
 ## Phoebe Development Team
 
 
-<div class="container">
-  <img class="container__image" src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg">
-  <div class="container__text">
-    <h2>Andrea Cepellotti</h2>
-    <p>
-    Text.
-    </p>
-  </div>
-</div>
 
-<section class="container"
-<div class="left-half">
-<article>
-    <p>
-    Text 1.
-    </p>
-</article>
+<div class="row">
+    <div class="col-md-6">
+        **some code block here**
+        **another code block here**
+    </div>
+    <div class="col-md-6">
+        **some text here**
+        ##some header here
+        ###something else here
+    </div>
 </div>
-<div class="right-half">
-<article>
-    <p>
-    Text 2.
-    </p>
-</article>
-</div>
-
-</section>
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
