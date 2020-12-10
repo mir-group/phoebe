@@ -15,12 +15,7 @@ filename: team
   <div class="container__text">
     <h2>Andrea Cepellotti</h2>
     <p>
-      <a href="https://www.linkedin.com/in/andrea-cepellotti">   
-      <i class="fa fa-linkedin-square fa_custom"></i>
-      </a>
-      <a href="mailto:acepellotti@g.harvard.edu">
-        <i class="fa fa-envelope"></i>
-      </a>
+    Text.
     </p>
   </div>
 </div>
