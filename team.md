@@ -4,11 +4,18 @@ layout: template
 filename: team
 ---
 
+<script type="text/javascript" src="https://platform.linkedin.com/badges/js/profile.js" async defer></script>
+
+
 ## Phoebe Development Team
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" width="200">
 *Andrea Cepellotti*
+<i class="fa fa-linkedin-square fa_custom fa-2x"></i>
+
+
+<div class="LI-profile-badge"  data-version="v1" data-size="medium" data-locale="en_US" data-type="vertical" data-theme="light" data-vanity="andrea-cepellotti"><a class="LI-simple-link" href='https://www.linkedin.com/in/andrea-cepellotti?trk=profile-badge'>Andrea Cepellotti</a></div>
 
 
 <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/jcoulter.png" width="200">
