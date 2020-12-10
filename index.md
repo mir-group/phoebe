@@ -4,44 +4,27 @@ layout: template
 filename: index
 ---
 
-## Welcome to GitHub Pages
+# Welcome to Phoebe
 
-A code for computing ab-initio transport properties of electrons and phonons.
-
-Link to another page [Link](https://mir-group.github.io/phoebe/team)
+Phoebe is a code for the ab-initio compoutation of electron and phonon transport properties of crystals.
 
 
-You can use the [editor on GitHub](https://github.com/mir-group/phoebe/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+## Functionalities
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+Current capabilities include:
 
-### Markdown
+- Electron mobility
+- Phonon thermal conductivity, limited by
+- Electron and phonon viscosity
+- Wigner distribution corrections to Boltzmann equation
+- Density of states
+- Plot of band structure dispersion.
+- Powered by Quantum-ESPRESSO and Phonon3py
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+With more in development!
 
-```markdown
-Syntax highlighted code block
 
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/mir-group/phoebe/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+s). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
 
 ### Support or Contact
 
