@@ -33,7 +33,7 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 
     return parseFromPhono3py(context,crystal);
     //if (counter == 1) {
-    //    return parseFromShengBTE(context, crystal);
+    //   return parseFromShengBTE(context, crystal);
     //} else {
     //    return parseFromQE(context, crystal);
     //}
@@ -126,6 +126,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   }
   infile.close();
 
+  std::cout << "check supercell positions" << std::endl;
+
   // convert positions to cartesian, in bohr
   for(int i = 0; i<ipos; i++) {
     Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
@@ -133,6 +135,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
     supPositions(i,0) = temp2(0);
     supPositions(i,1) = temp2(1);
     supPositions(i,2) = temp2(2);
+    std::cout << temp2(0) << " " << temp2(1) << " " << temp2(2) << std::endl;
   }
 
   // Open the hdf5 file containing the IFC3s
@@ -202,16 +205,20 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
               // index of r2, r3 in the list of cellPositions
               Eigen::Vector3d r2, r3;
-              r2(0,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
-              r2(1,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
-              r2(2,isa2) = supPositions(isa2) - supPositions(cellMap[ia2]);
+              r2(0) = supPositions(isa2,0) - supPositions(cellMap[ia2],0);
+              r2(1) = supPositions(isa2,1) - supPositions(cellMap[ia2],1);
+              r2(2) = supPositions(isa2,2) - supPositions(cellMap[ia2],2);
 
-              r3(0,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
-              r3(1,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
-              r3(2,isa3) = supPositions(isa3) - supPositions(cellMap[ia3]);
+              r3(0) = supPositions(isa3,0) - supPositions(cellMap[ia3],0);
+              r3(1) = supPositions(isa3,1) - supPositions(cellMap[ia3],1);
+              r3(2) = supPositions(isa3,2) - supPositions(cellMap[ia3],2);
 
               auto ir2 = findIndexRow(cellPositions2, r2);
               auto ir3 = findIndexRow(cellPositions3, r3);
+
+              //std::cout << " ia1 ia2 ia3 isa2 isa3 " << ia1 << " " << ia2 << " " << ia3 << " " << isa2 << " " << isa3 << " ind1 ind2 ind3 ir2 ir3 " << ind1 << " " << ind2 << " " << ind3 << "  " << ir2 << " " << ir3 << " " << ifc3Tensor[cellMap[ia1]][isa2][isa3][ic1][ic2][ic3] << std::endl; 
+              //std::cout << " r3 " << r3(0) << " " << r3(1) << " " << r3(2) << std::endl; 
+              //std::cout << " cellPos3 " << cellPositions3(0,ir3) << " " << cellPositions3(1,ir3) << " " << cellPositions3(2,ir3) << std::endl; 
 
               D3(ind1, ind2, ind3, ir2, ir3) // convert from ev/ang to atomic 
                 = ifc3Tensor[cellMap[ia1]][isa2][isa3][ic1][ic2][ic3] * conversion;
@@ -390,6 +397,9 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
           auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
           auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
 
+          std::cout << " ia1 ia2 ia3 " << ia1 << " " << ia2 << " " << ia3 << " ind1 ind2 ind3 ir2 ir3 " << ind1 << " " << ind2 << " " << ind3 << "  " << ir2 << " " << ir3 << " " << ifc3Tensor(ic3, ic2, ic1, it) << std::endl; 
+          //std::cout << " r3 " << r3(0) << " " << r3(1) << " " << r3(2) << std::endl; 
+          std::cout << " cellPos3 " << cellPositions3(0,ir3) << " " << cellPositions3(1,ir3) << " " << cellPositions3(2,ir3) << std::endl; 
           D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }
       }
