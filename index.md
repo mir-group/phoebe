@@ -4,24 +4,27 @@ layout: template
 filename: index
 ---
 
-# Welcome to Phoebe
+## Welcome to Phoebe
 
-Phoebe is a code for the ab-initio compoutation of electron and phonon transport properties of crystals.
+Phoebe is a code for the ab-initio compoutation of electron and phonon transport properties of crystals using HPC computers.
 
 
-## Functionalities
+### Functionalities
 
 
 Current capabilities include:
 
 
-- Electron mobility
-- Phonon thermal conductivity, limited by
-- Electron and phonon viscosity
-- Wigner distribution corrections to Boltzmann equation
-- Density of states
-- Plot of band structure dispersion.
-- Powered by Quantum-ESPRESSO and Phonon3py
+<ul>
+<li> Electron mobility</li>
+<li> Phonon thermal conductivity</li>
+<li> Electron and phonon viscosity</li>
+<li> Wigner distribution corrections to Boltzmann equation</li>
+<li> Density of states</li>
+<li> Plot of band structure dispersion.</li>
+<li> GPU acceleration</li>
+<li> Powered by Quantum-ESPRESSO and Phonon3py</li>
+</ul>
 
 
 With more in development!
