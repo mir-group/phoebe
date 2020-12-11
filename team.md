@@ -68,22 +68,6 @@ html {
 <script type="text/javascript" src="https://platform.linkedin.com/badges/js/profile.js" async defer></script>
 
 
-
-    <div class="topbar">
-      <topbar>
-	<ul>
-	  <li><a href=index> <i class="fa fa-fw fa-home"></i> Home </a></li>
-	  <li><a class="active" href=team> Team </a></li>
-	  <li><a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a></li>
-	  <li><a href=news> News </a></li>
-	  <li><a href=https://phoebe.readthedocs.io/en/documentation/? target="_blank">Docs</a></li>
-	</ul>
-      </topbar>
-    </div>
-
-
-
-
 <h2>Meet The Team</h2>
 
 <br>
