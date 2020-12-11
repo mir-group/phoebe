@@ -1,5 +1,7 @@
 @page DEVDOCS Developer's documentation
 
+This section of the manual covers more technical details useful to a developer.
+
 The main program does very few things: intializes the paralllel environment, loads a subprogram (App) using an AppFactory, and launches it. Currently, supported apps are:
 * PhononTransportApp
 * ElectronWannierTransportApp
