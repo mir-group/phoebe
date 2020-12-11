@@ -157,6 +157,7 @@ On top of that, you should also see several files named as `{prefix}.phoebe.****
 These files contain the values of the electron-phonon coupling that will be used by Phoebe.
 
 *Current limitations:*
+
 * There are restrictions to the choice of k and q points.
   The `K_POINTS` in `pw.x` must be `automatic`. The `K_POINTS` must be gamma centered.
   And the q-point mesh must be the same as the k-point mesh.

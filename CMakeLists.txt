@@ -13,6 +13,9 @@ set(CMAKE_CXX_STANDARD 14)
 
 project(Phoebe C CXX Fortran)
 
+## load custom cmake find_package
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
@@ -144,14 +147,15 @@ endif()
 ############# DOCS ############
 
 find_package(Doxygen)
+find_package(Sphinx)
 
 IF (BUILD_DOC)
     IF (NOT DOXYGEN_FOUND)
         message("Doxygen need to be installed to generate the doxygen documentation")
     else()
         # set input and output files
-        set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile)
-        set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/doc/Doxyfile.out)
+        set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/doxygen/Doxyfile)
+        set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/doc/doxygen/Doxyfile.out)
 
         # request to configure the file
         configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
@@ -161,9 +165,22 @@ IF (BUILD_DOC)
         add_custom_target(
             doc
             COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc/doxygen
             COMMENT "Generating API documentation with Doxygen"
             VERBATIM)
+
+	IF (NOT SPHINX_FOUND)
+	  message("Documentation needs also sphinx")
+	else()		
+	  add_custom_target(
+	    doc2
+	    COMMAND make html
+	    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc/sphinx
+	    COMMENT "Building user documentation with Sphinx"
+	    VERBATIM)
+	endif()
     ENDIF()
 endif()
+
+
 
