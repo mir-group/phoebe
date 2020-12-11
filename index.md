@@ -4,7 +4,14 @@ layout: template
 filename: index
 ---
 
-## Welcome to Phoebe
+<head>
+<style>
+h1 {text-align: center;}
+</style>
+</head>
+
+<h1> Ab-initio transport </h1>
+<h1> Simple and fast </h1>
 
 Phoebe is a code for the ab-initio compoutation of electron and phonon transport properties of crystals using HPC computers.
 
