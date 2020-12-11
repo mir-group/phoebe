@@ -73,10 +73,10 @@ html {
 <div class="row">
   <div class="column">
     <div class="card">
-      <img src="/w3images/team1.jpg" alt="Jane" style="width:100%">
+      <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" alt="Andrea" style="width:100%">
       <div class="container">
-        <h2>Jane Doe</h2>
-        <p class="title">CEO & Founder</p>
+        <h2>Andrea Cepellotti</h2>
+        <p class="title">Hi</p>
         <p>Some text that describes me lorem ipsum ipsum lorem.</p>
         <p>example@example.com</p>
         <p><button class="button">Contact</button></p>
