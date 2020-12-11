@@ -53,32 +53,32 @@ html {
   display: inline-block;
   padding: 8px;
   color: white;
-  background-color: #000;
+  background-color: #333;
   text-align: center;
   cursor: pointer;
   width: 100%;
 }
 
 .button:hover {
-  background-color: #555;
+  background-color: #000;
 }
 </style>
 </head>
 
 
-<h2>Responsive "Meet The Team" Section</h2>
-<p>Resize the browser window to see the effect.</p>
+<h2>Meet The Team</h2>
+
 <br>
 
 <div class="row">
+
   <div class="column">
     <div class="card">
       <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" alt="Andrea" style="width:100%">
       <div class="container">
         <h2>Andrea Cepellotti</h2>
-        <p class="title">Hi</p>
-        <p>Some text that describes me lorem ipsum ipsum lorem.</p>
-        <p>example@example.com</p>
+        <p class="title">Team lead</p>
+        <p>acepellotti@g.harvard.edu</p>
         <p><button class="button">Contact</button></p>
       </div>
     </div>
@@ -92,7 +92,12 @@ html {
         <p class="title">Art Director</p>
         <p>Some text that describes me lorem ipsum ipsum lorem.</p>
         <p>example@example.com</p>
-        <p><button class="button">Contact</button></p>
+	<a href="https://www.linkedin.com/in/andrea-cepellotti">  
+	  <i class="fa fa-linkedin-square fa_custom"></i>
+	</a>
+	<a href="mailto:acepellotti@g.harvard.edu">
+  	  <i class="fa fa-envelope"></i>
+        </a>
       </div>
     </div>
   </div>
