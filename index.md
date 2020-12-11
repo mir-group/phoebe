@@ -65,6 +65,24 @@ Phoebe is a code for the ab-initio compoutation of electron and phonon transport
 
 Current capabilities include:
 
+<div class="section group">
+  <div class="col span_1_of_2">
+    Electron mobility
+  </div>
+  <div class="col span_1_of_2">
+    Phonon thermal conductivity
+  </div>  
+</div>
+
+<div class="section group">
+  <div class="col span_1_of_2">
+    Electron and phonon Viscosity
+  </div>
+  <div class="col span_1_of_2">
+    Wigner distribution
+  </div>  
+</div>
+
 
 <ul>
 <li> Electron mobility</li>
@@ -80,12 +98,3 @@ Current capabilities include:
 
 With more in development!
 
-
-<div class="section group">
-	<div class="col span_1_of_2">
-	This is column 1
-	</div>
-	<div class="col span_1_of_2">
-	This is column 2
-	</div>
-</div>
