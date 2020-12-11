@@ -83,17 +83,24 @@ Current capabilities include:
   </div>  
 </div>
 
+<div class="section group">
+  <div class="col span_1_of_2">
+    Density of States
+  </div>
+  <div class="col span_1_of_2">
+    Band Structure
+  </div>  
+</div>
 
-<ul>
-<li> Electron mobility</li>
-<li> Phonon thermal conductivity</li>
-<li> Electron and phonon viscosity</li>
-<li> Wigner distribution corrections to Boltzmann equation</li>
-<li> Density of states</li>
-<li> Plot of band structure dispersion.</li>
-<li> GPU acceleration</li>
-<li> Powered by Quantum-ESPRESSO and Phonon3py</li>
-</ul>
+<div class="section group">
+  <div class="col span_1_of_2">
+    GPU acceleration
+  </div>
+  <div class="col span_1_of_2">
+    Quantum-ESPRESSO + Phono3py
+  </div>  
+</div>
+
 
 
 With more in development!
