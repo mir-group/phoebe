@@ -163,7 +163,7 @@ IF (BUILD_DOC)
 
         # note the option ALL which allows to build the docs together with the application
         add_custom_target(
-            doc
+            docDevel
             COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_IN}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc/doxygen
             COMMENT "Generating API documentation with Doxygen"
@@ -173,12 +173,14 @@ IF (BUILD_DOC)
 	  message("Documentation needs also sphinx")
 	else()		
 	  add_custom_target(
-	    doc2
+	    doc
 	    COMMAND make html
 	    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/../doc/sphinx
 	    COMMENT "Building user documentation with Sphinx"
 	    VERBATIM)
+	  add_dependencies(doc docDevel)
 	endif()
+
     ENDIF()
 endif()
 

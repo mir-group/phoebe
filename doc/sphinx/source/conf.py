@@ -59,3 +59,8 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+
+# Build doxygen docs from here (needed for read the docs)
+import subprocess
+ subprocess.call('cd ../../doxygen ; doxygen', shell=True)
+ 
