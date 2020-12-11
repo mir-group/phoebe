@@ -54,13 +54,14 @@ html_theme_options = {
     'navigation_depth': 4,
 }
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
-
 # Build doxygen docs from here (needed for read the docs)
 import subprocess
 subprocess.call('cd ../../doxygen ; doxygen', shell=True)
- 
+subprocess.call('cp -r ../../doxygen/html ./doxygen', shell=True) 
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ['_static','doxygen']
+
+

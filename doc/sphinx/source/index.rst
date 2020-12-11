@@ -14,7 +14,7 @@ Welcome to Phoebe's documentation!
    postProcessing
    tutorials/tutorials
    theory/theory
-   Developers' documentation <../../../doxygen/html/index.html#http://>
+   Developers' documentation <_static/index.html#http://>
 	     
 This is the documentation of Phoebe's project.
 	     
