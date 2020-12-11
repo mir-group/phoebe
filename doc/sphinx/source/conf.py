@@ -62,5 +62,5 @@ html_static_path = ['_static']
 
 # Build doxygen docs from here (needed for read the docs)
 import subprocess
- subprocess.call('cd ../../doxygen ; doxygen', shell=True)
+subprocess.call('cd ../../doxygen ; doxygen', shell=True)
  
