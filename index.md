@@ -60,10 +60,7 @@ h2 {text-align: center;}
 Phoebe is a code for the ab-initio compoutation of electron and phonon transport properties of crystals using HPC computers.
 
 
-### Functionalities
-
-
-Current capabilities include:
+### Current functionalities
 
 <div class="section group">
   <div class="col span_1_of_2">
@@ -100,8 +97,6 @@ Current capabilities include:
     Quantum-ESPRESSO + Phono3py
   </div>  
 </div>
-
-
 
 With more in development!
 
