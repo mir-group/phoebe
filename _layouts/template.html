@@ -40,7 +40,7 @@
       }
       .hamburger-menu {
 	  height: 100%;
-	  width: 300px;
+	  width: 200px;
 	  position: absolute;
 	  top: 0;
 	  left: 0;
@@ -85,7 +85,7 @@
       }
 
       .hamburger-menu__wrapper input:checked ~ .hamburger-menu__button {
-	  background: #d2f2fc;
+	  background: #111;
       }
 
       .hamburger-menu__wrapper input:checked ~ .hamburger-menu__slider {
@@ -98,7 +98,7 @@
 	  left: 0;
 	  width: 300px;
 	  height: 100%;
-	  background-color: #555;
+	  background-color: #444;
 	  z-index: 2;
 	  transform: translateX(-310px);
 	  transition: transform 0.3s;
@@ -109,6 +109,10 @@
 	  padding: 10px 0 10px 10px;
       }
       
+      .hamburger-menu__item a:link {color: white;}
+      .hamburger-menu__item a:visited {color: white;}
+      .hamburger-menu__item a:hover {color: white;}
+
       .hamburger-menu__item:hover {
 	  background-color: #333;
       }
