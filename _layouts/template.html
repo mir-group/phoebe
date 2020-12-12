@@ -136,17 +136,6 @@
   </head>
   <body>
 
-    <script>
-      function myFunction() {
-	  var x = document.getElementById("myTopnav");
-	  if (x.className === "topnav") {
-	      x.className += " responsive";
-	  } else {
-	      x.className = "topnav";
-	  }
-      }
-    </script>
-
     <div class="topnav" id="myTopNav">
       <a href=index> <i class="fa fa-fw fa-home"></i> Home </a>
       <a href=team> Team </a>
@@ -157,6 +146,17 @@
 	<i class="fa fa-bars"></i>
       </a>
     </div>
+
+    <script>
+      function myFunction() {
+	  var x = document.getElementById("myTopnav");
+	  if (x.className === "topnav") {
+	      x.className += " responsive";
+	  } else {
+	      x.className = "topnav";
+	  }
+      }
+    </script>
     
     <section class="page-header">
       <h1 class="project-name">Phoebe</h1>
