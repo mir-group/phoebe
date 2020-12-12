@@ -107,18 +107,23 @@
       
       .hamburger-menu__item {
 	  padding: 10px 0 10px 10px;
-      }
-      
+      }      
       .hamburger-menu__item a:link {color: white;}
       .hamburger-menu__item a:visited {color: white;}
       .hamburger-menu__item a:hover {color: white;}
-
       .hamburger-menu__item a:hover {
-	  background-color: #333;
+	  background-color: #222;
       }
 
-      .hamburger-menu__item:nth-child(1) {
+      .hamburger-menu__firstitem {
 	  margin-top: 60px;
+	  padding: 10px 0 10px 10px;
+      }      
+      .hamburger-menu__firstitem a:link {color: white;}
+      .hamburger-menu__firstitem a:visited {color: white;}
+      .hamburger-menu__firstitem a:hover {color: white;}
+      .hamburger-menu__firstitem a:hover {
+	  background-color: #222;
       }
       
     </style>
@@ -135,7 +140,7 @@
 	</div>
 	<div class="hamburger-menu__slider">
 	  <a href=index>
-            <div class="hamburger-menu__item">
+            <div class="hamburger-menu__firstitem">
 	      <i class="fa fa-fw fa-home"></i> Home
 	    </div>
 	  </a>
