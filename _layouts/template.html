@@ -33,130 +33,110 @@
 	  text-align: left;
       }
       
-      .topbar {
-	  list-style-type: none;
-	  margin: 0;
-	  padding: 0;
-	  overflow: hidden;
-	  background-color: #333;
-	  position: fixed;
-	  top: 0;
-	  width: 100%;
-      }
-      
-      .topbar ul {
-	  list-style: none;
-      }
-      
-      .topbar li {
-	  float: left;
-      }
-      
-      .topbar li a {
-	  display: block;
-	  color: white;
-	  text-align: center;
-	  padding: 9px 16px;
-	  text-decoration: none;
-      }
-      
-      .topbar li a:hover:not(.active) {
-	  background-color: #111;
-      }
-      
-      .topbar .active {
-	  background-color: #4CAF50;
-      }
-      
-      .topbar {
-	  position: -webkit-sticky;
-	  position: sticky;
-	  top: 0;
-      }
+      .hamburger-menu__wrapper {
+  min-height: 400px;
+  position: relative;
+  text-align: center;
+}
+.hamburger-menu {
+  height: 100%;
+  width: 300px;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.hamburger-menu__button {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #777;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 3;
+}
 
-       /* Add a black background color to the top navigation */
-      .topnav {
-	  background-color: #333;
-	  overflow: hidden;
-      }
+.hamburger-menu__button span {
+  line-height: 8px;
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 400;
+}
 
-      /* Style the links inside the navigation bar */
-      .topnav a {
-	  float: left;
-	  display: block;
-	  color: #f2f2f2;
-	  text-align: center;
-	  padding: 14px 16px;
-	  text-decoration: none;
-	  font-size: 17px;
-      }
-      
-      /* Change the color of links on hover */
-      .topnav a:hover {
-	  background-color: #ddd;
-	  color: black;
-      }
-      
-      /* Add an active class to highlight the current page */
-      .topnav a.active {
-	  background-color: #4CAF50;
-	  color: white;
-      }
-      
-      /* Hide the link that should open and close the topnav on small screens */
-      .topnav .icon {
-	  display: none;
-      }
+.hamburger-menu__button span:last-child {
+  padding-bottom: 5px;
+}
+.hamburger-menu__wrapper {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+.hamburger-menu__wrapper input[type='checkbox'] {
+  width: 40px;
+  height: 40px;
+  outline: 3px solid red;
+  opacity: 0;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 4;
+  cursor: pointer;
+}
 
-      /* When the screen is less than 600 pixels wide, hide all links, except for the first one ("Home"). Show the link that contains should open and close the topnav (.icon) */
-      @media screen and (max-width: 600px) {
-	  .topnav a:not(:first-child) {display: none;}
-	  .topnav a.icon {
-	      float: right;
-	      display: block;
-	  }
-      }
-      
-      /* The "responsive" class is added to the topnav with JavaScript when the user clicks on the icon. This class makes the topnav look good on small screens (display the links vertically instead of horizontally) */
-      @media screen and (max-width: 600px) {
-	  .topnav.responsive {position: relative;}
-	  .topnav.responsive a.icon {
-	      position: absolute;
-	      right: 0;
-	      top: 0;
-	  }
-	  .topnav.responsive a {
-	      float: none;
-	      display: block;
-	      text-align: left;
-	  }
-      } 
+.hamburger-menu__wrapper input:checked ~ .hamburger-menu__button {
+  background: #d2f2fc;
+}
+
+.hamburger-menu__wrapper input:checked ~ .hamburger-menu__slider {
+  transform: none;
+}
+
+.hamburger-menu__slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100%;
+  background-color: lightblue;
+  z-index: 2;
+  transform: translateX(-310px);
+  transition: transform 0.3s;
+  text-align: left;
+}
+
+.hamburger-menu__item {
+  padding: 10px 0 10px 10px;
+}
+
+.hamburger-menu__item:hover {
+  background-color: #d2f2fc;
+}
+
+.hamburger-menu__item:first-of-type {
+  margin-top: 60px;
+}
       
     </style>
   </head>
   <body>
 
-    <div class="topnav" id="myTopNav">
-      <a href=index> <i class="fa fa-fw fa-home"></i> Home </a>
-      <a href=team> Team </a>
-      <a href=https://github.com/mir-group/phoebe/discussions?discussions_q=category%3AQ%26A> Q&A </a>
-      <a href=news> News </a>
-      <a href=https://phoebe.readthedocs.io/en/documentation/? target="_blank">Docs</a>
-      <a href="javascript:void(0);" class="icon" onclick="myFunction()">
-	<i class="fa fa-bars"></i>
-      </a>
+  <div class="hamburger-menu">
+    <div class="hamburger-menu__wrapper">
+      <input type="checkbox" />
+      <div class="hamburger-menu__button">
+        <span>&mdash;</span>
+        <span>&mdash;</span>
+        <span>&mdash;</span>
+      </div>
+      <div class="hamburger-menu__slider">
+        <div class="hamburger-menu__item">Thing 1</div>
+        <div class="hamburger-menu__item">Thing 2</div>
+        <div class="hamburger-menu__item">Thing 3</div>
+        <div class="hamburger-menu__item">Thing 4</div>
+      </div>
     </div>
-
-    <script>
-      function myFunction() {
-	  var x = document.getElementById("myTopnav");
-	  if (x.className === "topnav") {
-	      x.className += " responsive";
-	  } else {
-	      x.className = "topnav";
-	  }
-      }
-    </script>
+  </div>
     
     <section class="page-header">
       <h1 class="project-name">Phoebe</h1>
