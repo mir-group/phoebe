@@ -1,12 +1,32 @@
+#include <algorithm> // to use .remove_if
+#include <fstream>
+#include <iomanip> // to declare istringstream
+#include <iostream>
+#include <math.h>   // round()
+#include <stdlib.h> // abs()
+#include <string>
+#include <vector>
 
+#include "constants.h"
+#include "eigen.h"
+#include "exceptions.h"
+#include "particle.h"
+#include "periodic_table.h"
+//#include "qe_input_parser.h"
+#include "utilities.h"
+#include "full_points.h"
 
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
 
 std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
   //  Here we read the dynamical matrix of interatomic force constants
   //    in real space.
 
   // First, we read in crystal information from phono3py.yaml
-  std::string fileName = context.getP3pyFileName();
+  // TODO have to call this file something else
+  std::string fileName = context.getPhD2FileName();
   if (fileName == "") {
     Error e("Must provide a phono3py.yaml file.", 1);
   }
@@ -24,6 +44,7 @@ std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
   // read the rest of the file to find atomic positions, 
   // lattice vectors, and species
   Eigen::Matrix3d directUnitCell;
+  Eigen::Vector3i qCoarseGrid;
 
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
@@ -40,12 +61,20 @@ std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
   // below.
   while(infile) {
     getline(infile, line);
+
+    if(line.find("dim: ") != std::string::npos) {
+      std::string temp = line.substr(line.find("\""), line.find("\"\n"));
+      std::istringstream iss(line);
+      iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
+    }
     // if this line has a species, save it 
     if(line.find("symbol: ") != std::string::npos) {
       speciesNames.push_back(line.substr(13,line.find("#")-1));
+    }
     // if this line has a mass, save it 
     if(line.find("mass: ") != std::string::npos) {
       speciesMasses(ipos) = std::stod(line.substr(10)); // TODO convert to ry?
+    }
     // if this is a cell position, save it
     if(line.find("coordinates: ") != std::string::npos) {
       std::string temp = line.substr(19,59); // just the positions
@@ -94,7 +123,7 @@ std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
   // number each element is 
   std::vector<std::string> species;
   for(int i = 0; i<ipos; i++) {
-    int speciesIdx = std::find(species.begin(), species.end(), speciesNames(ipos));
+    int speciesIdx = std::find(species.begin(), species.end(), speciesNames[ipos]);
     atomicSpecies(i) = speciesIdx;
     // species was not in the list
     if(speciesIdx == species.end()) {
@@ -121,51 +150,81 @@ std::tuple<Crystal, PhononH0> P3pyParser::parsePhHarmonic(Context &context) {
     Error e("Must provide a D2 file name, like fc2.hdf5", 1);
   }
 
-  // Open the hdf5 file containing the IFC3s
+  // Open the hdf5 file
   HighFive::File file(fileName, HighFive::File::ReadOnly);
 
   // Set up hdf5 datasets
   HighFive::DataSet difc2 = file.getDataSet("/fc2");
 
   // set up buffer to read entire matrix
-  // have to use this monstrosity because the phono3py data is shaped as a
+  // have to use this because the phono3py data is shaped as a
   // 4 dimensional array, and eigen tensor is not supported by highFive
   std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
 
   // read in the ifc3 data
   difc2.read(ifc2);
 
-  std::getline(infile, line);
-  lineSplit = split(line, ' ');
-
   Eigen::Tensor<double, 7> forceConstants(
       3, 3, qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], numAtoms, numAtoms);
 
-  for (int ic : {0,1,2}) {
-    for (int jc : {0,1,2}) {
-      for (int isat = 0; iat < numSupAtoms; iat++) {
-        for (int jsat = 0; jat < numSupAtoms; jat++) {
+  // for the second atom, we must loop over all possible
+  // cells in the supercell containing copies of these 
+  // unit cell atoms
+  for (int r3 = 0; r3 < qCoarseGrid[2]; r3++) {
+    for (int r2 = 0; r2 < qCoarseGrid[1]; r2++) {
+      for (int r1 = 0; r1 < qCoarseGrid[0]; r1++) {
 
-           // here, we need to construct r1, r2, r3 from 
-           // the supercell atomic positions. 
-           // TODO we don't supply this information in any other way
-           // to dynamicalMatrix. Is this right? doesn't it need to know
-           // the r vectors?  
-           int r1 =
-           int r2 =
-           int r3 = 
+        // NOTE we do this because phonopy has an 
+        // "old" and "new" format for supercell files, 
+        // and there's not an eay way for us to tell which 
+        // one a user might have loaded in. Therefore, 
+        // we can't intelligently guess the ordering of 
+        // atoms in the supercell, and instead use R
+        // to find their index. 
 
-           int iat = 
-           int jat = 
+        // build the R vector associated with this 
+        // cell in the supercell
+        Eigen::Vector3d R;
+        R = ir1 * directUnitCell(0) +
+            ir2 * directUnitCell(1) +
+            ir3 * directUnitCell(2);
 
-           forceConstants(ic, jc, r1, r2, r3, iat, jat) = 
-                ifc2(isat,jsat,ic,jc);
+        // use the find cell function to determine
+        // the index of this cell in the list of 
+        // R vectors (named cellPositions from above)
+        //TODO copy this function in from ifc3
+        int ir =
+
+        // loop over the first atoms. Because we consider R1=0, 
+        // these are only primitive unit cell atoms.
+        for (int iat = 0; iat < numAtoms; iat++) {
+          for (int jat = 0; jat < numAtoms; jat++) {
+   
+            // Need to convert jat to supercell index 
+            // Atoms in supercell are ordered so that
+            // there is a unit cell atom followed by 
+            // numUnitcell-in-supercell-#-of-atoms
+            // TODO lets think of an atom in the 8th cell. 
+            // the 8th cell. the 8th cell atoms are every idx 
+            // 7, 15, 23, 31.... that's ir + iat*numAtom.
+            int jsat = ir + numAtoms * jat; 
+
+            // loop over cartesian directions
+            for (int ic : {0,1,2}) {
+              for (int jc : {0,1,2}) {
+
+                // here, cellMap tells us the position of this
+                // unit cell atom in the supercell of phonopy
+                forceConstants(ic, jc, r1, r2, r3, iat, jat) = 
+                      ifc2[cellMap{iat}][jsat][ic][jc];
+
+              }
+            }
+          }
         }
       }
     }
   }
-  infile.close();
-
   #endif
 
   // Now we do postprocessing
