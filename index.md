@@ -47,57 +47,25 @@ Phoebe is a code for the ab-initio compoutation of electron and phonon transport
 
 
 <section class="section">
-  <img src="https://placehold.it/150x150" class="image" />
+  <img src="pictures/home/gpu.jpg" class="image" alt="GPU"/>
   <div class="content">
-
     <h2 class="title">
       This is a title
     </h2>
     <p class="paragraph">
-
-      Lorem ipsum dolor sit amet, consectetur adipisicing elit. At non ex earum, libero dignissimos voluptates. Quis beatae dolorem autem ipsa!
+      GPU acceleration, powered by Kokkos
     </p>
   </div>
 </section>
 
 
-<div class="section group">
-  <div class="col span_1_of_2">
     Electron mobility
-  </div>
-  <div class="col span_1_of_2">
     Phonon thermal conductivity
-  </div>  
-</div>
-
-<div class="section group">
-  <div class="col span_1_of_2">
     Electron and phonon Viscosity
-  </div>
-  <div class="col span_1_of_2">
     Wigner distribution
-  </div>  
-</div>
-
-<div class="section group">
-  <div class="col span_1_of_2">
     Density of States
-  </div>
-  <div class="col span_1_of_2">
     Band Structure
-  </div>  
-</div>
-
-<div class="section group">
-  <div class="col span_1_of_2">
-     <img src="pictures/home/gpu.jpg" alt="GPU" style="width:100%">
-    GPU acceleration
-  </div>
-  <div class="col span_1_of_2">
-     <img src="pictures/home/qe.png" alt="QE" style="width:100%">
-     Quantum-ESPRESSO + Phono3py
-  </div>  
-</div>
+    Quantum-ESPRESSO + Phono3py
 
 With more in development!
 
