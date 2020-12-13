@@ -91,10 +91,12 @@ Phoebe is a code for the ab-initio compoutation of electron and phonon transport
 
 <div class="section group">
   <div class="col span_1_of_2">
+     <img src="pictures/home/gpu.jpg" alt="GPU" style="width:100%">
     GPU acceleration
   </div>
   <div class="col span_1_of_2">
-    Quantum-ESPRESSO + Phono3py
+     <img src="pictures/home/qe.png" alt="QE" style="width:100%">
+     Quantum-ESPRESSO + Phono3py
   </div>  
 </div>
 
