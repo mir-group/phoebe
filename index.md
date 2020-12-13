@@ -9,50 +9,33 @@ filename: index
 h1 {text-align: center;}
 h2 {text-align: center;}
 
-/*  SECTIONS  */
 .section {
-	clear: both;
-	padding: 0px;
-	margin: 0px;
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: row;
+  font-family: sans-serif;
 }
 
-/*  COLUMN SETUP  */
-.col {
-	display: block;
-	float:left;
-	margin: 1% 0 1% 1.6%;
-}
-.col:first-child { margin-left: 0; }
-
-/*  GROUPING  */
-.group:before,
-.group:after { content:""; display:table; }
-.group:after { clear:both;}
-.group { zoom:1; /* For IE 6/7 */ }
-
-/*  GRID OF TWO  */
-.span_2_of_2 {
-	width: 100%;
-}
-.span_1_of_2 {
-	width: 49.2%;
+.paragraph {
+  color: #555;
+  display: flex;
+  flex-direction: column;
 }
 
-/*  GO FULL WIDTH AT LESS THAN 480 PIXELS */
-
-@media only screen and (max-width: 480px) {
-	.col { 
-		margin: 1% 0 1% 0%;
-	}
+.content {
+  padding: 20px;
 }
 
-@media only screen and (max-width: 480px) {
-	.span_2_of_2, .span_1_of_2 { width: 100%; }
+.title {
+  font-size: 24px;
+  color: #222;
+  line-height: 24px;
 }
-
 
 </style>
 </head>
+
+<h1>Website under construction!</h1>
 
 <h1> Ab-initio transport </h1>
 <h2> Simple and fast </h2>
@@ -61,6 +44,22 @@ Phoebe is a code for the ab-initio compoutation of electron and phonon transport
 
 
 ### Current functionalities
+
+
+<section class="section">
+  <img src="https://placehold.it/150x150" class="image" />
+  <div class="content">
+
+    <h2 class="title">
+      This is a title
+    </h2>
+    <p class="paragraph">
+
+      Lorem ipsum dolor sit amet, consectetur adipisicing elit. At non ex earum, libero dignissimos voluptates. Quis beatae dolorem autem ipsa!
+    </p>
+  </div>
+</section>
+
 
 <div class="section group">
   <div class="col span_1_of_2">
