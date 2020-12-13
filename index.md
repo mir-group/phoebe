@@ -130,12 +130,12 @@ With more in development!
 <div class="container">
   <div class="mySlides">
     <div class="numbertext">1 / 6</div>
-    <img src="img_woods_wide.jpg" style="width:100%">
+    <img src="pictures/home/gpu.jpg" style="width:100%">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">2 / 6</div>
-    <img src="img_5terre_wide.jpg" style="width:100%">
+    <img src="pictures/home/qe.png" style="width:100%">
   </div>
 
   <div class="mySlides">
