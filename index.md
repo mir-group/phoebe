@@ -129,33 +129,43 @@ With more in development!
 
 <div class="container">
   <div class="mySlides">
-    <div class="numbertext">1 / 6</div>
-    <img src="pictures/home/gpu.jpg" style="width:100%">
+    <div class="numbertext">1 / 8</div>
+    <img src="pictures/home/1.jpg" style="width:100%">
   </div>
 
   <div class="mySlides">
-    <div class="numbertext">2 / 6</div>
-    <img src="pictures/home/qe.png" style="width:100%">
+    <div class="numbertext">2 / 8</div>
+    <img src="pictures/home/2.png" style="width:100%">
   </div>
 
   <div class="mySlides">
-    <div class="numbertext">3 / 6</div>
-    <img src="img_mountains_wide.jpg" style="width:100%">
+    <div class="numbertext">3 / 8</div>
+    <img src="pictures/home/3.png" style="width:100%">
   </div>
     
   <div class="mySlides">
-    <div class="numbertext">4 / 6</div>
-    <img src="img_lights_wide.jpg" style="width:100%">
+    <div class="numbertext">4 / 8</div>
+    <img src="pictures/home/4.png" style="width:100%">
   </div>
 
   <div class="mySlides">
-    <div class="numbertext">5 / 6</div>
-    <img src="img_nature_wide.jpg" style="width:100%">
+    <div class="numbertext">5 / 8</div>
+    <img src="pictures/home/5.png" style="width:100%">
   </div>
     
   <div class="mySlides">
-    <div class="numbertext">6 / 6</div>
-    <img src="img_snow_wide.jpg" style="width:100%">
+    <div class="numbertext">6 / 8</div>
+    <img src="pictures/home/6.png" style="width:100%">
+  </div>
+    
+  <div class="mySlides">
+    <div class="numbertext">7 / 8</div>
+    <img src="pictures/home/7.jpg" style="width:100%">
+  </div>
+    
+  <div class="mySlides">
+    <div class="numbertext">8 / 8</div>
+    <img src="pictures/home/8.png" style="width:100%">
   </div>
     
   <a class="prev" onclick="plusSlides(-1)">❮</a>
@@ -167,22 +177,28 @@ With more in development!
 
   <div class="row">
     <div class="column">
-      <img class="demo cursor" src="img_woods.jpg" style="width:100%" onclick="currentSlide(1)" alt="The Woods">
+      <img class="demo cursor" src="pictures/home/1.png" style="width:100%" onclick="currentSlide(1)" alt="Electron mobility">
     </div>
     <div class="column">
-      <img class="demo cursor" src="img_5terre.jpg" style="width:100%" onclick="currentSlide(2)" alt="Cinque Terre">
+      <img class="demo cursor" src="pictures/home/2.png" style="width:100%" onclick="currentSlide(2)" alt="Thermal conductivity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="img_mountains.jpg" style="width:100%" onclick="currentSlide(3)" alt="Mountains and fjords">
+      <img class="demo cursor" src="pictures/home/3.png" style="width:100%" onclick="currentSlide(3)" alt="Quasiparticle viscosity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="img_lights.jpg" style="width:100%" onclick="currentSlide(4)" alt="Northern Lights">
+      <img class="demo cursor" src="pictures/home/4.png" style="width:100%" onclick="currentSlide(4)" alt="Wigner distribution">
     </div>
     <div class="column">
-      <img class="demo cursor" src="img_nature.jpg" style="width:100%" onclick="currentSlide(5)" alt="Nature and sunrise">
+      <img class="demo cursor" src="pictures/home/5.png" style="width:100%" onclick="currentSlide(5)" alt="Density of States">
     </div>    
     <div class="column">
-      <img class="demo cursor" src="img_snow.jpg" style="width:100%" onclick="currentSlide(6)" alt="Snowy Mountains">
+      <img class="demo cursor" src="pictures/home/6.png" style="width:100%" onclick="currentSlide(6)" alt="Band structure">
+    </div>
+    <div class="column">
+      <img class="demo cursor" src="pictures/home/7.jpg" style="width:100%" onclick="currentSlide(7)" alt="GPU acceleration">
+    </div>
+    <div class="column">
+      <img class="demo cursor" src="pictures/home/8.png" style="width:100%" onclick="currentSlide(8)" alt="Quantum ESPRESSO">
     </div>
   </div>
 </div>
