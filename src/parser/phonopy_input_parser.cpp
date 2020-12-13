@@ -35,25 +35,62 @@ long findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
 }
 
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
-  //  Here we read the dynamical matrix of interatomic force constants
-  //    in real space.
+
+  // Here we read the real space dynmat of interatomic force constants
 
   // we have to read information from the disp_fc2.yaml file, 
   // which has the fc2 supercell regardless of whether or not forces 
   // were generated with different fc2 vs fc3 supercells.
-  std::string fileName = context.getPhD2FileName();
-  if (fileName == "") {
-    Error e("Must provide a disp_fc3.yaml (if p3py force constants "
-        "were generated with same dim for fc2 and fc3 supercells) "
+
+  // this should be the directory containing all phonopy D2 files. 
+  // this should include fc2.hdf5, disp_fc2/3.yaml,and phono3py_disp.yaml
+  std::string directory = context.getPhD2FileName();
+  std::string line;
+  if (directory == "") {
+    Error e("Must provide a path to a directory containing fc2.hdf5, \n"
+        "phono3py_disp.yaml, and either disp_fc3.yaml (if p3py force constants \n"
+        "were generated with same dim for fc2 and fc3 supercells) \n"
         "or disp_fc2.yaml (if supercell dims were different).", 1);
   }
+  // check the phono3py.yaml file was provided and 
+  // determine if different supercell sizes were used.
+//  {
+//    std::ifstream infile(directory+"/phono3py.yaml");
+//    // open input file
+//    if (not infile.is_open()) {
+//      Error e("phono3py.yaml file not found at path " + directory, 1);
+//    }
+//    while(infile) {
+//      getline(infile, line);
+//      if(line.find("dim_fc2:") != std::string::npos) {
+
+//      }
+//    }
+//  }
+  // ====================================================
+  // we have to read information from the disp_fc2.yaml file, 
+  // which has the fc2 supercell regardless of whether or not forces 
+  // were generated with different fc2 vs fc3 supercells, or if both 
+  // supercells were the same, from disp_fc3.yaml.
+  // If both used the same supercell, disp_fc2.yaml will not have been
+  // created.
 
   // open input file
-  std::ifstream infile(fileName);
-  std::string line;
-
-  if (not infile.is_open()) {
-    Error e("disp_fc2.yaml/disp_fc3.yaml file not found", 1);
+  std::ifstream infile(directory+"/disp_fc2.yaml");
+  bool sameSupercell = false;
+  if(infile.is_open()) {
+    if (mpi->mpiHead()) std::cout << "Running using disp_fc2.yaml." << std::endl; 
+  }
+  else { 
+    sameSupercell = true;
+    infile.clear();
+    infile.open(directory+"/disp_fc3.yaml");
+    if(infile.is_open()) {
+      if (mpi->mpiHead()) std::cout << "Running using disp_fc3.yaml." << std::endl;
+    }
+    else {
+      Error e("disp_fc2.yaml/disp_fc3.yaml file not found at path " + directory, 1);
+    }
   }
 
   // first line will always be natoms in supercell
@@ -95,25 +132,26 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // ===================================================
   // now, we read in unit cell crystal information from phono3py.yaml
-  fileName = context.getPhD2FileName();
-  if (fileName == "") {
-    Error e("Must provide a phono3py.yaml file.", 1);
-  }
+  //fileName = context.getPhD2FileName();
+  //if (fileName == "") {
+  //  Error e("Must provide a phono3py.yaml file.", 1);
+ // }
 
   // open input file
-  std::ifstream infile2(fileName);
+  infile.clear();
+  infile.open(directory+"/phono3py_disp.yaml");
 
   // open input file
-  if (not infile2.is_open()) {
-    Error e("phono3py.yaml file not found", 1);
+  if (not infile.is_open()) {
+    Error e("phono3py_disp.yaml file not found in " + directory, 1);
   }
  
   // read in the dimension information. 
   // we have to do this first, because we need to use this info
   // to allocate the below data storage.
   Eigen::Vector3i qCoarseGrid;
-  while(infile2) {
-    getline(infile2, line);
+  while(infile) {
+    getline(infile, line);
 
     // In the case where force constants where generated with different
     // supercells for fc2 and fc3, the label we need is dim_fc2. 
@@ -205,7 +243,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     //  readSuperCell = true;
    // }
   }
-  infile2.close();
+  infile.close();
 
   // take only the unique mass values for later use
   auto iter = std::unique(allSpeciesMasses.begin(), allSpeciesMasses.end());
@@ -274,17 +312,10 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   #else
 
   // now we parse the coarse q grid
-  fileName = context.getPhD2FileName();
-  if (fileName == "") {
-    Error e("Must provide a D2 file name, like fc2.hdf5", 1);
-  }
-
-  // Open the hdf5 file
-  HighFive::File file(fileName, HighFive::File::ReadOnly);
-
-  // Set up hdf5 datasets
-  HighFive::DataSet difc2 = file.getDataSet("/fc2");
-  HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
+  //fileName = context.getPhD2FileName();
+  //if (fileName == "") {
+  //  Error e("Must provide a D2 file name, like fc2.hdf5", 1);
+ // }
 
   // set up buffer to read entire matrix
   // have to use this because the phono3py data is shaped as a
@@ -292,9 +323,22 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
   std::vector<int> cellMap;
 
-  // read in the ifc3 data
-  difc2.read(ifc2);
-  dcellMap.read(cellMap);
+  try {
+    // Open the hdf5 file
+    HighFive::File file(directory+"/fc2.hdf5", HighFive::File::ReadOnly);
+
+    // Set up hdf5 datasets
+    HighFive::DataSet difc2 = file.getDataSet("/fc2");
+    HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
+
+    // read in the ifc3 data
+    difc2.read(ifc2);
+    dcellMap.read(cellMap);
+  }
+  catch(std::exception& error) {
+    Error e("Issue reading fc2.hdf5 file. Make sure it exists in " + directory +
+        "\n and is not open by some other persisting processes.");
+  }
 
   Eigen::Tensor<double, 7> forceConstants(
       3, 3, qCoarseGrid[0], qCoarseGrid[1], qCoarseGrid[2], numAtoms, numAtoms);
