@@ -103,8 +103,6 @@ img {
 </style>
 </head>
 
-<h1>Website under construction!</h1>
-
 <h1> Ab-initio transport </h1>
 <h2> Simple and fast </h2>
 
