@@ -165,7 +165,7 @@ With more in development!
     
   <div class="mySlides">
     <div class="numbertext">8 / 8</div>
-    <img src="pictures/home/8.png" style="width:100%">
+    <img src="pictures/home/8.jpg" style="width:100%">
   </div>
     
   <a class="prev" onclick="plusSlides(-1)">❮</a>
@@ -198,7 +198,7 @@ With more in development!
       <img class="demo cursor" src="pictures/home/7.jpg" style="width:100%" onclick="currentSlide(7)" alt="GPU acceleration">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/8.png" style="width:100%" onclick="currentSlide(8)" alt="Quantum ESPRESSO">
+      <img class="demo cursor" src="pictures/home/8.jpg" style="width:100%" onclick="currentSlide(8)" alt="Quantum ESPRESSO">
     </div>
   </div>
 </div>
