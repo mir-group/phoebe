@@ -110,7 +110,6 @@ img {
 
 Phoebe is an open-source code for the ab-initio computation of electron and phonon transport properties of crystals using HPC computers.
 
-
 ### Current functionalities
 
 <div class="container">
@@ -141,11 +140,11 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
     
   <div class="mySlides">
     <div class="numbertext">6 / 6</div>
-    <img src="pictures/home/6.png" style="width:100%">
+    <img src="pictures/home/6.jpg" style="width:100%">
   </div>
     
-  <a class="prev" onclick="plusSlides(-1)">❮</a>
-  <a class="next" onclick="plusSlides(1)">❯</a>
+  <a class="prev" style="text-decoration: none" onclick="plusSlides(-1)">❮</a>
+  <a class="next" style="text-decoration: none" onclick="plusSlides(1)">❯</a>
 
   <div class="caption-container">
     <p id="caption"></p>
