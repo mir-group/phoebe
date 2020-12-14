@@ -115,7 +115,7 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 <div class="container">
   <div class="mySlides">
     <div class="numbertext">1 / 6</div>
-    <img src="pictures/home/1.jpg" style="width:100%">
+    <img src="pictures/home/1.png" style="width:100%">
   </div>
 
   <div class="mySlides">
