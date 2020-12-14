@@ -150,22 +150,22 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 
   <div class="row">
     <div class="column">
-      <img class="demo cursor" src="pictures/home/1.png" style="width:100%" onclick="currentSlide(1)" alt="Electronic conductivity">
+      <img class="demo cursor" src="pictures/home/1.png" style="width:100%" onclick="currentSlide(1)" alt="Electronic conductivity limited by electron-phonon scattering">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/2.png" style="width:100%" onclick="currentSlide(2)" alt="Thermal conductivity">
+      <img class="demo cursor" src="pictures/home/2.png" style="width:100%" onclick="currentSlide(2)" alt="Thermal conductivity with phonon-phonon scattering">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/3.png" style="width:100%" onclick="currentSlide(3)" alt="Quasiparticle viscosity">
+      <img class="demo cursor" src="pictures/home/3.png" style="width:100%" onclick="currentSlide(3)" alt="Electron and phonon viscosity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/4.png" style="width:100%" onclick="currentSlide(4)" alt="Band Structure">
+      <img class="demo cursor" src="pictures/home/4.png" style="width:100%" onclick="currentSlide(4)" alt="Band Structure and density of states calculations">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/5.png" style="width:100%" onclick="currentSlide(5)" alt="GPU">
+      <img class="demo cursor" src="pictures/home/5.png" style="width:100%" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
     </div>    
     <div class="column">
-      <img class="demo cursor" src="pictures/home/6.jpg" style="width:100%" onclick="currentSlide(6)" alt="Quantum ESPRESSO">
+      <img class="demo cursor" src="pictures/home/6.jpg" style="width:100%" onclick="currentSlide(6)" alt="Support for ab-initio data from Quantum ESPRESSO">
     </div>
   </div>
 </div>
