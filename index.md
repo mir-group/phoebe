@@ -181,19 +181,23 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 
 In details:
 
-* Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient);
+<ul style="padding-left:20px;">
 
-* Electron-phonon scattering with Wannier interpolation;
+<li style="margin: 0 0 10px 0;"> Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient);</li>
 
-* Electron-phonon scattering within the EPA approximation;
+<li style="margin: 0 0 10px 0;"> Electron-phonon scattering with Wannier interpolation;</li>
 
-* Phonon thermal conductivity with 3-phonon scattering;
+<li style="margin: 0 0 10px 0;"> Electron-phonon scattering within the EPA approximation;</li>
 
-* Calculation of electron and phonon band structure
+<li style="margin: 0 0 10px 0;"> Phonon thermal conductivity with 3-phonon scattering;</li>
 
-* Calculation of electron and phonon linewidths or relaxation times.
+<li style="margin: 0 0 10px 0;"> Calculation of electron and phonon band structure;</li>
 
-* Calculation of the electron or phonon density of states.
+<li style="margin: 0 0 10px 0;"> Calculation of electron and phonon linewidths or relaxation times;</li>
+
+<li style="margin: 0 0 10px 0;"> Calculation of the electron or phonon density of states.</li>
+
+</ul>
 
 and more to come...
 
