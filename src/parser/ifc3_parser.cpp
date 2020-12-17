@@ -284,6 +284,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
       }
     }
   }
+  ifc3Tensor.resize(0);
 
   // reshape to D3 format
   Eigen::Tensor<double, 5> D3(numBands, numBands, numBands,
