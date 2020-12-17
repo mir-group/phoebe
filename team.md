@@ -59,7 +59,6 @@ html {
       <div class="container">
         <h2>Andrea Cepellotti</h2>
         <p class="title">Research Associate</p>
-        <p>acepellotti@g.harvard.edu</p>
         <p>
           <a style="text-decoration:none" href="https://www.linkedin.com/in/andrea-cepellotti">  
           <i class="fa fa-linkedin-square fa_custom"></i>

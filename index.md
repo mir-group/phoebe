@@ -62,9 +62,10 @@ img {
   background-color: #333;
 }
 
-/* On hover, add a black background color with a little bit see-through */
+/* background color without hover with a little bit see-through */
 .prev, .next {
   background-color: #555;
+  opacity: 0.7;
 }
 
 /* Number text (1/3 etc) */
@@ -175,6 +176,8 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
     </div>
   </div>
 </div>
+
+<br>
 
 In details:
 

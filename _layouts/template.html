@@ -20,130 +20,194 @@
     </style>
     
     <style>
-      body {margin:0;}
 
-      .hamburger-menu__wrapper {
-	  min-height: 400px;
-	  position: relative;
-	  text-align: center;
-      }
-      .hamburger-menu {
-	  height: 100%;
-	  width: 200px;
-	  position: absolute;
-	  top: 2;
-	  left: 2;
-      }
-      .hamburger-menu__button {
-	  width: 60px;
-	  height: 60px;
-	  border: 1px solid white;
-	  border-radius: 5px;
-	  display: flex;
-	  flex-direction: column;
-	  justify-content: center;
-	  position: relative;
-	  z-index: 3;
-      }
+/* Basic styling */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+nav {
+  background: #222;
+  padding: 0 15px;
+}
+.menu a {
+  color: white;
+  text-decoration: none;
+}
+.menu,
+.submenu {
+  list-style-type: none;
+}
+.logo {
+  font-size: 20px;
+  padding: 7.5px 10px 7.5px 0;
+}
+.item {
+  padding: 10px;
+}
+.item.button {
+  padding: 9px 5px;
+}
+.item:not(.button) a:hover,
+.item a:hover::after {
+  color: #ccc;
+}
+/* Mobile menu */
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+}
+.menu li a {
+  display: block;
+  padding: 15px 5px;
+}
+.menu li.subitem a {
+  padding: 15px;
+}
+.toggle {
+  order: 1;
+  font-size: 20px;
+}
+.item.button {
+  order: 2;
+}
+.item {
+  order: 3;
+  width: 100%;
+  text-align: center;
+  display: none;
+}
+.active .item {
+  display: block;
+}
+.button.secondary {
+  /* divider between buttons and menu links */
+  border-bottom: 1px #444 solid;
+}
+/* Submenu up from mobile screens */
+.submenu {
+  display: none;
+}
+.submenu-active .submenu {
+  display: block;
+}
+.has-submenu i {
+  font-size: 12px;
+}
+.has-submenu > a::after {
+  font-family: "Font Awesome 5 Free";
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 900;
+  content: "\f078";
+  color: white;
+  padding-left: 5px;
+}
+.subitem a {
+  padding: 10px 15px;
+}
+.submenu-active {
+  background-color: #111;
+  border-radius: 3px;
+}
 
-      .hamburger-menu__button span {
-	  line-height: 8px;
-	  text-align: center;
-	  font-size: 1.6rem;
-	  font-weight: 400;
-      }
+/* Tablet menu */
+@media all and (min-width: 700px) {
+  .menu {
+    justify-content: center;
+  }
+  .logo {
+    flex: 1;
+  }
+  .item.button {
+    width: auto;
+    order: 1;
+    display: block;
+  }
+  .toggle {
+    flex: 1;
+    text-align: right;
+    order: 2;
+  }
+  /* Button up from tablet screen */
+  .menu li.button a {
+    padding: 10px 15px;
+    margin: 5px 0;
+  }
+  .button a {
+    background: #0080ff;
+    border: 1px royalblue solid;
+  }
+  .button.secondary {
+    border: 0;
+  }
+  .button.secondary a {
+    background: transparent;
+    border: 1px #0080ff solid;
+  }
+  .button a:hover {
+    text-decoration: none;
+  }
+  .button:not(.secondary) a:hover {
+    background: royalblue;
+    border-color: darkblue;
+  }
+}
+/* Desktop menu */
+@media all and (min-width: 700px) {
+  .menu {
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    background: none;
+  }
+  .logo {
+    order: 0;
+  }
+  .item {
+    order: 1;
+    position: relative;
+    display: block;
+    width: auto;
+  }
+  .button {
+    order: 2;
+  }
+  .submenu-active .submenu {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 68px;
+    background: #111;
+  }
+  .toggle {
+    display: none;
+  }
+  .submenu-active {
+    border-radius: 0;
+  }
+}      
       
-      .hamburger-menu__button span:last-child {
-	  padding-bottom: 5px;
-      }
-      .hamburger-menu__wrapper {
-	  position: relative;
-	  height: 100%;
-	  overflow: hidden;
-      }
-      .hamburger-menu__wrapper input[type='checkbox'] {
-	  width: 40px;
-	  height: 40px;
-	  outline: 3px solid red;
-	  opacity: 0;
-	  position: absolute;
-	  top: 6px;
-	  left: 6px;
-	  z-index: 4;
-	  cursor: pointer;
-      }
-
-      .hamburger-menu__wrapper input:checked ~ .hamburger-menu__button {
-	  background: #222;
-      }
-
-      .hamburger-menu__wrapper input:checked ~ .hamburger-menu__slider {
-	  transform: none;
-      }
-      
-      .hamburger-menu__slider {
-	  position: absolute;
-	  top: 0;
-	  left: 0;
-	  width: 200px;
-	  height: 300px;
-	  background-color: #444;
-	  z-index: 2;
-	  transform: translateX(-310px);
-	  transition: transform 0.3s;
-	  text-align: left;
-      }
-      
-      .hamburger-menu__item {
-	  padding: 10px 0 10px 10px;
-      }      
-
-      .hamburger-menu__firstitem {
-	  margin-top: 60px;
-	  padding: 10px 0 10px 10px;
-      }      
-
-      .hamburger-menu__item:hover {
-	  background-color: #333;
-      }
-      .hamburger-menu__firstitem:hover {
-	  background-color: #333;
-      }
-
     </style>
   </head>
   <body>
-
-    <div class="hamburger-menu">
-      <div class="hamburger-menu__wrapper">
-	<input type="checkbox" />
-	<div class="hamburger-menu__button">
-          <span style="color:white">&mdash;</span>
-          <span style="color:white">&mdash;</span>
-          <span style="color:white">&mdash;</span>
-	</div>
-	<div class="hamburger-menu__slider">
-	  <a class="hamburger-a" href=index style="color:white; text-decoration:none">
-            <div class="hamburger-menu__firstitem" style="color:white">
-	      <i class="fa fa-fw fa-home"></i> Home
-	    </div>
-	  </a>
-	  <a href=team style="color:white; text-decoration:none">
-            <div class="hamburger-menu__item" style="color:white"> Team </div>
-	  </a>
-	  <a href="https://github.com/mir-group/phoebe/discussions" style="color:white; text-decoration:none">
-            <div class="hamburger-menu__item" style="color:white"> Q&A </div>
-	  </a>
-	  <a href=news style="color:white; text-decoration:none">
-            <div class="hamburger-menu__item" style="color:white"> News </div>
-	  </a>
-	  <a href=https://phoebe.readthedocs.io/en/documentation/? target="_blank" style="color:white; text-decoration:none">
-            <div class="hamburger-menu__item" style="color:white">Docs</div>
-	  </a>
-	</div>
-      </div>
-    </div>
     
+<!-- topbar taken from https://webdesign.tutsplus.com/tutorials/how-to-build-a-responsive-navigation-bar-with-flexbox--cms-33535 -->
+<nav>
+  <ul class="menu">
+    <li class="logo"><a style="text-decoration: none" href="index">Phoebe</a></li>
+    <li class="item"><a style="text-decoration: none" href="index">Home</a></li>
+    <li class="item"><a style="text-decoration: none" href="team">Team</a></li>
+    <li class="item"><a style="text-decoration: none" href="https://github.com/mir-group/phoebe/discussions">Q&A</a></li>
+    <li class="item"><a style="text-decoration: none" href="news">News</a></li>
+    <li class="item"><a style="text-decoration: none" href="https://phoebe.readthedocs.io/en/documentation/?">Docs</a>
+    </li>
+    <li class="toggle"><a href="#"><i class="fa fa-bars"></i></a></li>
+  </ul>
+</nav>
+
     <section class="page-header">
       <h1 class="project-name">Phoebe</h1>
       <h2 class="project-tagline">PHOnon and Electron Boltzmann Equation</h2>
@@ -151,7 +215,7 @@
       <a href="https://github.com/mir-group/phoebe/zipball/master" class="btn">Download .zip</a>
       <a href="https://github.com/mir-group/phoebe/tarball/master" class="btn">Download .tar.gz</a>
     </section>
-
+    
     <section class="main-content">
       
       {{ content }}
@@ -167,6 +231,54 @@
       </footer>
 
     </section>
+
+    <script>
+      const toggle = document.querySelector(".toggle");
+const menu = document.querySelector(".menu");
+const items = document.querySelectorAll(".item");
+
+/* Toggle mobile menu */
+function toggleMenu() {
+  if (menu.classList.contains("active")) {
+    menu.classList.remove("active");
+    toggle.querySelector("a").innerHTML = "<i class='fa fa-bars'></i>";
+  } else {
+    menu.classList.add("active");
+    toggle.querySelector("a").innerHTML = "<i class='fa fa-times'></i>";
+  }
+}
+
+/* Activate Submenu */
+function toggleItem() {
+  if (this.classList.contains("submenu-active")) {
+    this.classList.remove("submenu-active");
+  } else if (menu.querySelector(".submenu-active")) {
+    menu.querySelector(".submenu-active").classList.remove("submenu-active");
+    this.classList.add("submenu-active");
+  } else {
+    this.classList.add("submenu-active");
+  }
+}
+
+/* Close Submenu From Anywhere */
+function closeSubmenu(e) {
+  let isClickInside = menu.contains(e.target);
+
+  if (!isClickInside && menu.querySelector(".submenu-active")) {
+    menu.querySelector(".submenu-active").classList.remove("submenu-active");
+  }
+}
+/* Event Listeners */
+toggle.addEventListener("click", toggleMenu, false);
+for (let item of items) {
+  if (item.querySelector(".submenu")) {
+    item.addEventListener("click", toggleItem, false);
+  }
+  item.addEventListener("keypress", toggleItem, false);
+}
+document.addEventListener("click", closeSubmenu, false);
+    </script>
+      
   
   </body>      
 </html>
