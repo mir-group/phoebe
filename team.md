@@ -87,6 +87,9 @@ html {
 	<a href="mailto:acepellotti@g.harvard.edu">
   	  <i class="fa fa-envelope"></i>
         </a>
+	<a href=https://scholar.google.com/citations?user=5qwgh3UAAAAJ&hl=en-us>
+	  <i class="fa fa-google" aria-hidden="true"></i>
+	</a>
       </div>
     </div>
   </div>

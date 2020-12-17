@@ -171,7 +171,7 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
   </div>
 </div>
 
-In details
+In details:
 
 * Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient);
 
