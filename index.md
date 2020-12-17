@@ -32,7 +32,7 @@ img {
   cursor: pointer;
 }
 
-/* Next & previous buttons */
+/* Next & previous buttons to the left/right of picture */
 .prev,
 .next {
   cursor: pointer;
@@ -59,7 +59,12 @@ img {
 /* On hover, add a black background color with a little bit see-through */
 .prev:hover,
 .next:hover {
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: #333;
+}
+
+/* On hover, add a black background color with a little bit see-through */
+.prev, .next {
+  background-color: #555;
 }
 
 /* Number text (1/3 etc) */
@@ -71,10 +76,10 @@ img {
   top: 0;
 }
 
-/* Container for image text */
+/* Container for caption below the images */
 .caption-container {
   text-align: center;
-  background-color: #222;
+  background-color: #555;
   padding: 2px 16px;
   color: white;
 }
