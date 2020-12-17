@@ -41,7 +41,8 @@ img {
   width: auto;
   padding: 16px;
   margin-top: -50px;
-  color: rgba(0, 0, 0, 0.4);
+  color: white;
+  background-color: rgba(0,0,0,0.4)
   font-weight: bold;
   font-size: 20px;
   border-radius: 0 3px 3px 0;
