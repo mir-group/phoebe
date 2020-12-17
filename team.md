@@ -79,7 +79,7 @@ html {
       <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/andrea.jpg" alt="Andrea" style="width:100%">
       <div class="container">
         <h2>Andrea Cepellotti</h2>
-        <p class="title">Team lead</p>
+        <p class="title">Research Associate</p>
         <p>acepellotti@g.harvard.edu</p>
 	<a href="https://www.linkedin.com/in/andrea-cepellotti">  
 	  <i class="fa fa-linkedin-square fa_custom"></i>
@@ -96,7 +96,7 @@ html {
       <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/jcoulter.png" alt="Jenny" style="width:100%">
       <div class="container">
         <h2>Jenny Coulter</h2>
-        <p class="title">PhD student</p>
+        <p class="title">Ph.D. student</p>
       </div>
     </div>
   </div>
@@ -106,7 +106,7 @@ html {
       <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/anders.jpg" alt="AndersMike" style="width:100%">
       <div class="container">
         <h2>Anders Johansson</h2>
-        <p class="title">PhD student</p>
+        <p class="title">Ph.D. student</p>
       </div>
     </div>
   </div>
@@ -126,7 +126,7 @@ html {
       <img src="https://raw.githubusercontent.com/mir-group/phoebe/gh-pages/pictures/kozinsky.jpg" alt="Boris" style="width:100%">
       <div class="container">
         <h2>Boris Kozinsky</h2>
-        <p class="title">Professor</p>
+        <p class="title">Associate Professor</p>
       </div>
     </div>
   </div>
