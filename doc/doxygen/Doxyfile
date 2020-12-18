@@ -830,8 +830,9 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT = ./doc_pages/developerOverview.md \
-	./doc_pages/Units.md \
-	./doc_pages/UnitTesting.md \
+	./doc_pages/units.md \
+	./doc_pages/unitTesting.md \
+	./doc_pages/website.md
 	../../src/ 
 
 # This tag can be used to specify the character encoding of the source files
