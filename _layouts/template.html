@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>{{ page.title }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="/stylesheets/normalize.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
-    <link rel="stylesheet" type="text/css" href="/stylesheets/stylesheet.css" media="screen">
-    <link rel="stylesheet" type="text/css" href="/stylesheets/github-light.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
     <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">
@@ -234,51 +234,50 @@ nav {
 
     <script>
       const toggle = document.querySelector(".toggle");
-const menu = document.querySelector(".menu");
-const items = document.querySelectorAll(".item");
+      const menu = document.querySelector(".menu");
+      const items = document.querySelectorAll(".item");
+ 
+      /* Toggle mobile menu */
+      function toggleMenu() {
+        if (menu.classList.contains("active")) {
+          menu.classList.remove("active");
+          toggle.querySelector("a").innerHTML = "<i class='fa fa-bars'></i>";
+        } else {
+          menu.classList.add("active");
+          toggle.querySelector("a").innerHTML = "<i class='fa fa-times'></i>";
+        }
+      }
 
-/* Toggle mobile menu */
-function toggleMenu() {
-  if (menu.classList.contains("active")) {
-    menu.classList.remove("active");
-    toggle.querySelector("a").innerHTML = "<i class='fa fa-bars'></i>";
-  } else {
-    menu.classList.add("active");
-    toggle.querySelector("a").innerHTML = "<i class='fa fa-times'></i>";
-  }
-}
+      /* Activate Submenu */
+      function toggleItem() {
+        if (this.classList.contains("submenu-active")) {
+          this.classList.remove("submenu-active");
+        } else if (menu.querySelector(".submenu-active")) {
+          menu.querySelector(".submenu-active").classList.remove("submenu-active");
+          this.classList.add("submenu-active");
+        } else {
+          this.classList.add("submenu-active");
+        }
+      }
 
-/* Activate Submenu */
-function toggleItem() {
-  if (this.classList.contains("submenu-active")) {
-    this.classList.remove("submenu-active");
-  } else if (menu.querySelector(".submenu-active")) {
-    menu.querySelector(".submenu-active").classList.remove("submenu-active");
-    this.classList.add("submenu-active");
-  } else {
-    this.classList.add("submenu-active");
-  }
-}
+      /* Close Submenu From Anywhere */
+      function closeSubmenu(e) {
+        let isClickInside = menu.contains(e.target);
 
-/* Close Submenu From Anywhere */
-function closeSubmenu(e) {
-  let isClickInside = menu.contains(e.target);
-
-  if (!isClickInside && menu.querySelector(".submenu-active")) {
-    menu.querySelector(".submenu-active").classList.remove("submenu-active");
-  }
-}
-/* Event Listeners */
-toggle.addEventListener("click", toggleMenu, false);
-for (let item of items) {
-  if (item.querySelector(".submenu")) {
-    item.addEventListener("click", toggleItem, false);
-  }
-  item.addEventListener("keypress", toggleItem, false);
-}
-document.addEventListener("click", closeSubmenu, false);
+        if (!isClickInside && menu.querySelector(".submenu-active")) {
+          menu.querySelector(".submenu-active").classList.remove("submenu-active");
+        }
+      }
+      /* Event Listeners */
+      toggle.addEventListener("click", toggleMenu, false);
+      for (let item of items) {
+        if (item.querySelector(".submenu")) {
+          item.addEventListener("click", toggleItem, false);
+        }
+        item.addEventListener("keypress", toggleItem, false);
+      }
+      document.addEventListener("click", closeSubmenu, false);
     </script>
-      
-  
+        
   </body>      
 </html>
