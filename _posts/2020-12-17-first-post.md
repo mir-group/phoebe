@@ -2,7 +2,6 @@
 layout: post
 title:  "Welcome to Phoebe News!"
 author: Phoebe Team
-permalink: post_1
 ---
 
 Phoebe is currently being tested and finalized for official release.
