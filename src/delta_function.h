@@ -1,5 +1,5 @@
-#ifndef DELTAF_H
-#define DELTAF_H
+#ifndef DELTA_F_H
+#define DELTA_F_H
 
 #include "bandstructure.h"
 #include "context.h"
@@ -22,7 +22,7 @@ public:
    * afterwards.
    * @param context: object with the user input, containing the choice of
    * smearing.
-   * @param BaseBandStructure: the object containing the bandstructure
+   * @param BaseBandStructure: the object containing the band structure
    * computed on a mesh of wavevectors in the Brillouin zone.
    */
   static DeltaFunction *smearingFactory(Context &context,
@@ -67,25 +67,25 @@ public:
   /** Constructor of the gaussian smearing scheme.
    * @param context: object with user input.
    */
-  GaussianDeltaFunction(Context &context); // context to get amplitude
+  explicit GaussianDeltaFunction(Context &context); // context to get amplitude
 
   /** Method to obtain the value of smearing.
    * @param energy: the energy difference.
    * @param[optional] velocity: ignored parameter.
    * @return smearing: the approximation to the dirac-delta.
    */
-  virtual double
+  double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero());
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
 
   /** phantom method that should not be used. Will throw an error.
    */
-  virtual double getSmearing(const double &energy, StateIndex &is);
+  double getSmearing(const double &energy, StateIndex &is) override;
 
   /** returns an integer identifying this class as AdaptiveGaussian
    * @return int: id.
    */
-  virtual int getType();
+  int getType() override;
 
 protected:
   int id = DeltaFunction::gaussian;
@@ -103,31 +103,28 @@ public:
    * @param bandStructure: mainly to see what mesh of points and crystal is
    * being used, and to prepare a suitable scaling of velocities.
    */
-  AdaptiveGaussianDeltaFunction(BaseBandStructure &bandStructure);
+  explicit AdaptiveGaussianDeltaFunction(BaseBandStructure &bandStructure);
 
   /** Method to obtain the value of smearing.
    * @param energy: the energy difference.
-   * @param velocity; the velocity (difference) of the quasiparticles.
+   * @param velocity; the velocity (difference) of the quasi-particles.
    * @return smearing: the approximation to the dirac-delta
    */
-  virtual double
+  double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero());
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
 
   /** phantom method that should not be used. Will throw an error.
    */
-  virtual double getSmearing(const double &energy, StateIndex &is);
+  double getSmearing(const double &energy, StateIndex &is)  override;
 
   /** returns an integer identifying this class as AdaptiveGaussian
    * @return int: id.
    */
-  virtual int getType();
+  int getType() override;
 
 protected:
   int id = DeltaFunction::adaptiveGaussian;
-
-  // we use a cutoff to treat specially cases where the smearing approaches 0
-  const double smearingCutoff = 1.0e-8;
 
   const double prefactor = 1.; // could be exposed to the user
   Eigen::Matrix3d qTensor;     // to normalize by the number of wavevectors.
@@ -141,7 +138,7 @@ protected:
  */
 class TetrahedronDeltaFunction : public DeltaFunction {
 public:
-  virtual int getType();
+  int getType() override;
 
   /** Constructor method.
    * Forms all tetrahedra for the 3D wave vector mesh.
@@ -151,12 +148,12 @@ public:
    * for a given 3D mesh of wave vectors following Fig. 5 of
    * Bloechl, Jepsen and Andersen prb 49.23 (1994): 16223.
    *
-   * @param[in] bandStructure: the bandstructure on which the dirac delta
+   * @param[in] bandStructure: the band structure on which the dirac delta
    * will be computed.
    */
-  TetrahedronDeltaFunction(BaseBandStructure &fullBandStructure_);
+  explicit TetrahedronDeltaFunction(BaseBandStructure &fullBandStructure_);
 
-  /** Calculate the total tetrehedron weight for all states at given energy.
+  /** Calculate the total tetrahedron weight for all states at given energy.
    *
    * Method for calculating the tetrahedron weight for given wave vector and
    * polarization following Lambin and Vigneron prb 29.6 (1984): 3430.
@@ -166,7 +163,7 @@ public:
    */
   double getDOS(const double &energy);
 
-  /** Calculate tetrehedron weight.
+  /** Calculate tetrahedron weight.
    *
    * Method for calculating the tetrahedron weight for given wave vector and
    * polarization following Lambin and Vigneron prb 29.6 (1984): 3430.
@@ -175,19 +172,19 @@ public:
    * @param[in] State: state at which the tetrahedron is computed.
    * @returns weight: the tetrahedron weight approximating the dirac delta.
    */
-  virtual double getSmearing(const double &energy, StateIndex &is);
+  double getSmearing(const double &energy, StateIndex &is) override;
 
   /** overload abstract base method, but simply raises an error if it's
    * called. One should really use the other getSmearing method.
    */
-  virtual double
+  double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero());
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
 
 protected:
   BaseBandStructure &fullBandStructure;
   int id = DeltaFunction::tetrahedron;
-  Eigen::MatrixXd subcellShift;
+  Eigen::MatrixXd subCellShift;
   Eigen::MatrixXi vertices;
 };
 

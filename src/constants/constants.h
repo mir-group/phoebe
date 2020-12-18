@@ -2,7 +2,7 @@
 #define CONSTANTS_H
 
 #include <complex>
-#include <math.h>
+#include <cmath>
 //
 // mathematical constants
 //
@@ -12,15 +12,13 @@ const double twoPi = 2. * pi;
 const double fourPi = 2. * pi;
 const double one = 1.;
 const double zero = 0.;
-const std::complex<double> complexZero = {0., 0.};
-const std::complex<double> complexOne = {1., 0.};
-const std::complex<double> complexI = {0., 1.};
+const std::complex<double> complexZero = {0., 0.}; /* NOLINT */
+const std::complex<double> complexOne = {1., 0.}; /* NOLINT */
+const std::complex<double> complexI = {0., 1.}; /* NOLINT */
 //
 // small numbers
 //
-const double epsilon6 = 1.e-6;
 const double epsilon8 = 1.e-8;
-const double epsilon16 = 1.e-16;
 //
 // Physical constants
 //
@@ -69,10 +67,9 @@ const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
 const double thConductivityAuToSi =
     kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
 const double viscosityAuToSi =
-    rydbergSi / hPlanckSi * twoPi * pow(bohrRadiusSi, 2);
-const double elConductivityAuToSi = pow(electronSi, 2) / hBarSi / bohrRadiusSi;
-const double mobilityAuToSi = electronSi / hBarSi * pow(bohrRadiusSi,2);
-const double thermopowerAuToSi = -kBoltzmannRy / electronSi * rydbergSi;
-const double peltierAuToSi = -rydbergSi / electronSi;
+    rydbergSi / hPlanckSi * twoPi * bohrRadiusSi * bohrRadiusSi;
+const double elConductivityAuToSi = electronSi * electronSi / hBarSi / bohrRadiusSi;
+const double mobilityAuToSi = electronSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
+const double thermopowerAuToSi = - kBoltzmannRy / electronSi * rydbergSi;
 
 #endif

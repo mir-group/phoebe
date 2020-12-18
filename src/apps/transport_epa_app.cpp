@@ -13,7 +13,7 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
-#include <math.h>
+#include <cmath>
 
 void TransportEpaApp::run(Context &context) {
   // parse QE-xml file
@@ -34,7 +34,7 @@ void TransportEpaApp::run(Context &context) {
   Eigen::VectorXd energies(numEnergies);
   for (long i = 0; i < numEnergies; ++i) {
     // add 0.5 to be in the middle of the energy step
-    energies(i) = (i + 0.5) * energyStep + minEnergy;
+    energies(i) = (double(i) + 0.5) * energyStep + minEnergy;
   }
 
   // Read and setup k-point mesh for interpolating bandstructure
@@ -122,8 +122,8 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
   int numEnergies = energies.size();
   long numStates = bandStructure.getNumStates();
-  int numPoints = bandStructure.getNumPoints(true);
-  int dim = context.getDimensionality();
+  long numPoints = bandStructure.getNumPoints(true);
+  long dim = context.getDimensionality();
 
   Eigen::Tensor<double, 3> energyProjVelocity(dim, dim, numEnergies);
   energyProjVelocity.setZero();
@@ -150,7 +150,7 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
         for (int j = 0; j < dim; ++j) {
           for (int i = 0; i < dim; ++i) {
             privateVel(i, j, iEnergy) +=
-                velocity(i) * velocity(j) * deltaFunction / numPoints;
+                velocity(i) * velocity(j) * deltaFunction / double(numPoints);
           }
         }
       }
@@ -264,8 +264,8 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
         for (int iPhFreq = 0; iPhFreq < numPhEnergies; ++iPhFreq) {
 
           // Avoid some index out of bound errors
-          if (iEnergy + phJump(iPhFreq) + 1 >= numEnergies ||
-              iEnergy - phJump(iPhFreq) - 1 < 0) {
+          if (double(iEnergy) + phJump(iPhFreq) + 1. >= double(numEnergies) ||
+              double(iEnergy) - phJump(iPhFreq) - 1. < 0.) {
             continue;
           }
 

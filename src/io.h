@@ -8,7 +8,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
-#include <time.h>
+#include <ctime>
 
 /** class used to parse Phoebe command line arguments, and to redirect output
  * from std::cout to output-File
@@ -16,8 +16,8 @@
 class IO {
 private:
     std::ofstream outputFile;
-    std::string outputFileName = "";
-    std::string inputFileName = "";
+    std::string outputFileName;
+    std::string inputFileName;
 public:
     /** Constructor: parses Phoebe's command line arguments and set up output
      */
@@ -56,7 +56,7 @@ public:
      * "Started {task} with {numSteps} {step}." e.g.
      * "Started {q-point loop} with {100} {q-points}.".
      */
-    LoopPrint(const std::string &task, const std::string step,
+    LoopPrint(const std::string &task, const std::string &step,
             const long &numSteps);
 
     /** Method to update on the progress of the loop
@@ -66,7 +66,7 @@ public:
      */
     void update();
 
-    /** Close loopinfo and print summary of loop execution time.
+    /** Close loopInfo and print summary of loop execution time.
      */
     void close();
 private:

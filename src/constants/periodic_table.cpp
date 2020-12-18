@@ -3,7 +3,7 @@
 #include "periodic_table.h"
 
 long PeriodicTable::findElementByStr(const std::string &speciesName) {
-    for (auto element : elements) {
+    for (const Element &element : elements) {
         if (element.symbol == speciesName) {
             return element.atomicNumber - 1;
         }

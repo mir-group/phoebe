@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iostream>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -22,9 +21,9 @@ bool patternInString(const std::string &s, const std::string &pattern) {
 
 /** Parse a string of format "key = value" to return a boolean value.
  */
-bool parseBool(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+bool parseBool(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string s = line.substr(pos + 1);
 
   std::transform(s.begin(), s.end(), s.begin(), ::tolower);
@@ -48,9 +47,9 @@ bool parseBool(std::string line) {
 
 /** Parse a string of format "key = value" to return a double value.
  */
-double parseDouble(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+double parseDouble(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
   return std::stod(value); // convert to double
 };
@@ -58,11 +57,11 @@ double parseDouble(std::string line) {
 /** Parse a string of format "key = value units" to return a double value
  * converted in rydberg atomic units.
  */
-double parseDoubleWithUnits(std::string line) {
+double parseDoubleWithUnits(std::string &line) {
   double x;
 
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
   x = std::stod(value); // convert to double
 
@@ -88,11 +87,11 @@ double parseDoubleWithUnits(std::string line) {
 
 /** Parse a string of format "key = [value1,value2]" to return a vector double.
  */
-std::vector<double> parseDoubleList(std::string line) {
-  std::string delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+std::vector<double> parseDoubleList(std::string &line) {
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
     Error e("Error in parseDoubleList");
@@ -104,11 +103,11 @@ std::vector<double> parseDoubleList(std::string line) {
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
 
   std::vector<double> x;
-  delimeter = ",";
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  delimiter = ",";
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     x.push_back(std::stod(token));
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   x.push_back(std::stod(s));
@@ -118,11 +117,11 @@ std::vector<double> parseDoubleList(std::string line) {
 
 /** Parse a string of format "key = [value1,value2]" to return a vector double.
  */
-std::vector<int> parseIntList(std::string line) {
-  std::string delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+std::vector<int> parseIntList(std::string &line) {
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
     Error e("Error in parseDoubleList");
@@ -134,11 +133,11 @@ std::vector<int> parseIntList(std::string line) {
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
 
   std::vector<int> x;
-  delimeter = ",";
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  delimiter = ",";
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     x.push_back(std::stoi(token));
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   x.push_back(std::stoi(s));
@@ -148,20 +147,20 @@ std::vector<int> parseIntList(std::string line) {
 
 /** Parse a string of format "key = value units" to return an integer value.
  */
-long parseLong(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+long parseLong(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
   return std::stoi(value); // convert to integer
 };
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
  */
-std::vector<long> parseLongList(std::string line) {
-  std::string delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+std::vector<long> parseLongList(std::string &line) {
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
     Error e("Error in parseLongList");
@@ -171,12 +170,12 @@ std::vector<long> parseLongList(std::string line) {
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-  delimeter = ",";
+  delimiter = ",";
   std::vector<long> x;
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     x.push_back(std::stoi(token)); // convert to integer
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   x.push_back(std::stoi(s));
@@ -186,15 +185,15 @@ std::vector<long> parseLongList(std::string line) {
 
 /** Parse a string of format "key = value" to return a string value.
  */
-std::string parseString(std::string line) {
-  std::string delimeter = "'";
-  size_t pos1 = line.find_first_of(delimeter);
-  size_t pos2 = line.find_last_of(delimeter);
+std::string parseString(std::string &line) {
+  std::string delimiter = "'";
+  size_t pos1 = line.find_first_of(delimiter);
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    delimeter = "\"";
-    pos1 = line.find_first_of(delimeter);
-    pos2 = line.find_last_of(delimeter);
+    delimiter = "\"";
+    pos1 = line.find_first_of(delimiter);
+    pos2 = line.find_last_of(delimiter);
     if (pos1 == std::string::npos) {
       Error e("Couldn't solve string parsing");
     }
@@ -209,15 +208,15 @@ std::string parseString(std::string line) {
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of strings.
  */
-std::vector<std::string> parseStringList(std::string line) {
+std::vector<std::string> parseStringList(std::string &line) {
   // remove empty spaces
   line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 
-  std::string delimeter;
-  delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+  std::string delimiter;
+  delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
     Error e("Error in parseDoubleList");
@@ -227,14 +226,14 @@ std::vector<std::string> parseStringList(std::string line) {
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-  delimeter = ",";
+  delimiter = ",";
   std::vector<std::string> x;
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     // we also remove the " symbols
     token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
     x.push_back(token);
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
@@ -352,7 +351,7 @@ parseBlockNameValue(const std::vector<std::string> &lines,
   std::string line;
   line = lines[lineCounter];
   if (!patternInString(line, "begin")) {
-    std::string empty1 = "";
+    std::string empty1;
     std::vector<std::string> empty2;
     return {empty1, empty2};
   } else {
@@ -370,23 +369,23 @@ parseBlockNameValue(const std::vector<std::string> &lines,
   }
 }
 
-std::vector<std::string> &Context::split(const std::string &s, char delim,
-                                         std::vector<std::string> &elems) {
+std::vector<std::string> &Context::split(const std::string &s, char delimiter,
+                                         std::vector<std::string> &elements) {
   std::stringstream ss(s);
   std::string item;
-  while (std::getline(ss, item, delim)) {
+  while (std::getline(ss, item, delimiter)) {
     if (item.length() > 0) {
-      elems.push_back(item);
+      elements.push_back(item);
     }
   }
-  return elems;
+  return elements;
 }
 
-/** Split a string by a char delimeter.
+/** Split a string by a char delimiter.
  */
-std::vector<std::string> Context::split(const std::string &s, char delim) {
+std::vector<std::string> Context::split(const std::string &s, char delimiter) {
   std::vector<std::string> elems;
-  split(s, delim, elems);
+  split(s, delimiter, elems);
   return elems;
 }
 
@@ -417,7 +416,7 @@ parseParameterNameValue(const std::string &line) {
   return {s, val};
 }
 
-void Context::setupFromInput(std::string fileName) {
+void Context::setupFromInput(const std::string &fileName) {
   std::vector<std::string> lines;
   std::string line;
 
@@ -752,27 +751,27 @@ void Context::setupFromInput(std::string fileName) {
 };
 
 std::string Context::getPhD2FileName() { return phD2FileName; }
-void Context::setPhD2FileName(const std::string x) { phD2FileName = x; }
+void Context::setPhD2FileName(const std::string &x) { phD2FileName = x; }
 
 std::string Context::getPhD3FileName() { return phD3FileName; }
-void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
+void Context::setPhD3FileName(const std::string &x) { phD3FileName = x; }
 
 std::string Context::getSumRuleD2() { return sumRuleD2; }
-void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
+void Context::setSumRuleD2(const std::string &x) { sumRuleD2 = x; }
 
 std::string Context::getEpwFileName() { return epwFileName; }
-void Context::setEpwFileName(const std::string x) { epwFileName = x; }
+void Context::setEpwFileName(const std::string &x) { epwFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
-void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
+void Context::setElectronH0Name(const std::string &x) { electronH0Name = x; }
 
 std::string Context::getWannier90Prefix() { return wannier90Prefix; }
-void Context::setWannier90Prefix(const std::string x) { wannier90Prefix = x; }
+void Context::setWannier90Prefix(const std::string &x) { wannier90Prefix = x; }
 std::string Context::getQuantumEspressoPrefix() {
   return quantumEspressoPrefix;
 }
-void Context::setQuantumEspressoPrefix(const std::string x) {
+void Context::setQuantumEspressoPrefix(const std::string &x) {
   quantumEspressoPrefix = x;
 }
 
@@ -795,16 +794,16 @@ Eigen::Vector3i Context::getQMesh() { return qMesh; }
 Eigen::Vector3i Context::getKMesh() { return kMesh; }
 
 std::string Context::getWindowType() { return windowType; }
-void Context::setWindowType(const std::string x) { windowType = x; }
+void Context::setWindowType(const std::string &x) { windowType = x; }
 
 Eigen::Vector2d Context::getWindowEnergyLimit() { return windowEnergyLimit; }
 
-void Context::setWindowEnergyLimit(const Eigen::Vector2d x) {
+void Context::setWindowEnergyLimit(const Eigen::Vector2d &x) {
   windowEnergyLimit = x;
 }
 
 double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
-void Context::setWindowPopulationLimit(const double x) {
+void Context::setWindowPopulationLimit(const double &x) {
   windowPopulationLimit = x;
 }
 
@@ -812,11 +811,11 @@ Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
-void Context::setDopings(const Eigen::VectorXd x) { dopings = x; }
+void Context::setDopings(const Eigen::VectorXd &x) { dopings = x; }
 
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
 
-void Context::setTemperatures(const Eigen::VectorXd x) { temperatures = x; }
+void Context::setTemperatures(const Eigen::VectorXd &x) { temperatures = x; }
 
 std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
@@ -842,13 +841,13 @@ std::vector<std::string> Context::getInputSpeciesNames() {
   return inputSpeciesNames;
 }
 
-void Context::setInputAtomicPositions(const Eigen::MatrixXd x) {
+void Context::setInputAtomicPositions(const Eigen::MatrixXd &x) {
   inputAtomicPositions = x;
 }
-void Context::setInputAtomicSpecies(const Eigen::VectorXi x) {
+void Context::setInputAtomicSpecies(const Eigen::VectorXi &x) {
   inputAtomicSpecies = x;
 }
-void Context::setInputSpeciesNames(const std::vector<std::string> x) {
+void Context::setInputSpeciesNames(const std::vector<std::string> &x) {
   inputSpeciesNames = x;
 }
 
@@ -872,7 +871,7 @@ void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 int Context::getSmearingMethod() { return smearingMethod; }
 
 double Context::getSmearingWidth() { return smearingWidth; }
-void Context::setSmearingWidth(const double x) { smearingWidth = x; }
+void Context::setSmearingWidth(const double &x) { smearingWidth = x; }
 
 double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
 
@@ -909,25 +908,25 @@ double Context::getDeltaTemperature() {return deltaTemperature;}
 double Context::getEFermiRange() {return eFermiRange;}
 
 std::string Context::getG2PlotStyle() { return g2PlotStyle; }
-void Context::setG2PlotStyle(const std::string x) { g2PlotStyle = x; }
+void Context::setG2PlotStyle(const std::string &x) { g2PlotStyle = x; }
 
 Eigen::Vector3d Context::getG2PlotFixedPoint() { return g2PlotFixedPoint; }
-void Context::setG2PlotFixedPoint(const Eigen::Vector3d x) {
+void Context::setG2PlotFixedPoint(const Eigen::Vector3d &x) {
   g2PlotFixedPoint = x;
 }
 
 std::pair<int, int> Context::getG2PlotEl1Bands() { return g2PlotEl1Bands; }
-void Context::setG2PlotEl1Bands(const std::pair<int, int> x) {
+void Context::setG2PlotEl1Bands(const std::pair<int, int> &x) {
   g2PlotEl1Bands = x;
 }
 
 std::pair<int, int> Context::getG2PlotEl2Bands() { return g2PlotEl2Bands; }
-void Context::setG2PlotEl2Bands(const std::pair<int, int> x) {
+void Context::setG2PlotEl2Bands(const std::pair<int, int> &x) {
   g2PlotEl2Bands = x;
 }
 
 std::pair<int, int> Context::getG2PlotPhBands() { return g2PlotPhBands; }
-void Context::setG2PlotPhBands(const std::pair<int, int> x) {
+void Context::setG2PlotPhBands(const std::pair<int, int> &x) {
   g2PlotPhBands = x;
 }
 

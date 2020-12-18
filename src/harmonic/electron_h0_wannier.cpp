@@ -148,36 +148,36 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     for (long i = 0; i < 3; i++) {
         // define q+ and q- from finite differences.
         Eigen::Vector3d qPlus = coords;
-        Eigen::Vector3d qMins = coords;
+        Eigen::Vector3d qMinus = coords;
         qPlus(i) += delta;
-        qMins(i) -= delta;
+        qMinus(i) -= delta;
 
         // diagonalize the dynamical matrix at q+ and q-
-        auto tup = diagonalizeFromCoords(qPlus);
-        auto enPlus = std::get<0>(tup);
-        auto eigPlus = std::get<1>(tup);
-        auto tup1 = diagonalizeFromCoords(qMins);
-        auto enMins = std::get<0>(tup1);
-        auto eigMins = std::get<1>(tup1);
+        auto tup2 = diagonalizeFromCoords(qPlus);
+        auto enPlus = std::get<0>(tup2);
+        auto eigPlus = std::get<1>(tup2);
+        auto tup1 = diagonalizeFromCoords(qMinus);
+        auto enMinus = std::get<0>(tup1);
+        auto eigMinus = std::get<1>(tup1);
 
         // build diagonal matrices with frequencies
         Eigen::MatrixXd enPlusMat(numBands, numBands);
-        Eigen::MatrixXd enMinsMat(numBands, numBands);
+        Eigen::MatrixXd enMinusMat(numBands, numBands);
         enPlusMat.setZero();
-        enMinsMat.setZero();
+        enMinusMat.setZero();
         enPlusMat.diagonal() << enPlus;
-        enMinsMat.diagonal() << enMins;
+        enMinusMat.diagonal() << enMinus;
 
         // build the dynamical matrix at the two wavevectors
         // since we diagonalized it before, A = M.U.M*
         Eigen::MatrixXcd sqrtDPlus(numBands, numBands);
         sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
-        Eigen::MatrixXcd sqrtDMins(numBands, numBands);
-        sqrtDMins = eigMins * enMinsMat * eigMins.adjoint();
+        Eigen::MatrixXcd sqrtDMinus(numBands, numBands);
+        sqrtDMinus = eigMinus * enMinusMat * eigMinus.adjoint();
 
         // now we can build the velocity operator
         Eigen::MatrixXcd der(numBands, numBands);
-        der = (sqrtDPlus - sqrtDMins) / (2. * delta);
+        der = (sqrtDPlus - sqrtDMinus) / (2. * delta);
 
         // and to be safe, we reimpose hermiticity
         der = 0.5 * (der + der.adjoint());
@@ -261,14 +261,14 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
         Point point = fullBandStructure.getPoint(ik);
         auto tup = diagonalize(point);
         auto ens = std::get<0>(tup);
-        auto eigvecs = std::get<1>(tup);
+        auto eigenVectors = std::get<1>(tup);
         fullBandStructure.setEnergies(point, ens);
         if (withVelocities) {
-            auto vels = diagonalizeVelocity(point);
-            fullBandStructure.setVelocities(point, vels);
+            auto velocities = diagonalizeVelocity(point);
+            fullBandStructure.setVelocities(point, velocities);
         }
         if (withEigenvectors) {
-            fullBandStructure.setEigenvectors(point, eigvecs);
+            fullBandStructure.setEigenvectors(point, eigenVectors);
         }
     }
     return fullBandStructure;
@@ -280,7 +280,7 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
 
     // first we diagonalize the hamiltonian
     auto tup = diagonalize(point);
-    auto ens = std::get<0>(tup);
+    // auto ens = std::get<0>(tup);
     auto eigvecs = std::get<1>(tup);
 
     // note: the eigenvector matrix is the unitary transformation matrix U

@@ -19,7 +19,7 @@ class Crystal {
 protected:
   /** utility function to invert the direct unit cell
    */
-  Eigen::Matrix3d calcReciprocalCell(const Eigen::Matrix3d directUnitCell);
+  static Eigen::Matrix3d calcReciprocalCell(const Eigen::Matrix3d &directUnitCell);
 
   /** Internal utility to set the crystal unit cell and the reciprocal cell
    */
@@ -67,7 +67,7 @@ public:
    * @param speciesNames(numSpecies): list of names of species. The position
    * should match the indices of the parameter atomicSpecies.
    * @param speciesMasses(numSpecies): array with the masses of each species,
-   *  in rydbergs.
+   *  in rydberg.
    */
   Crystal(Context &context, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
           Eigen::VectorXi &atomicSpecies_,
@@ -109,7 +109,7 @@ public:
    * dimensionality. If 2D, it is ASSUMED that the z-direction is the non
    * periodic direction. If 1D, it's assumed that z is the periodic direction
    */
-  double getVolumeUnitCell(long dimensionality = 3);
+  double getVolumeUnitCell(long dimensionality_ = 3);
 
   /** get the symmetry operations of the crystal, in cartesian coordinates.
    * Returns a vector of SymmetryOperation. A SymmetryOperation is a
@@ -151,7 +151,7 @@ public:
    */
   const std::vector<std::string> &getSpeciesNames();
 
-  /** get the vector of masses of atomic species, in rydbergs
+  /** get the vector of masses of atomic species, in rydberg
    * the vector has size (numSpecies)
    */
   const Eigen::VectorXd &getSpeciesMasses();
@@ -165,12 +165,12 @@ public:
   long getNumSpecies();
 
   /** Build the list of Bravais lattice vectors (real space) that live within
-   * the Wigner Seitz zone of a supercell
+   * the Wigner Seitz zone of a super cell
    * which is grid(0) x grid(1) x grid(2) bigger than the unitCell.
    *
-   * @param grid: size of the supercell for the WS construction.
+   * @param grid: size of the super cell for the WS construction.
    * @param supercellFactor: in order to do the correct folding of wavevectors,
-   * we look for wavevectors in a slightly bigger supercell. A factor 2 should
+   * we look for wavevectors in a slightly bigger super cell. A factor 2 should
    * be enough, but could be increased if the code fails to find all vectors.
    * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
    * coordinates and their degeneracies(numVectors).
@@ -181,7 +181,7 @@ public:
                           const int &supercellFactor = 2);
 
   /** Similar to buildWignerSeitzVectors, we build the list of Bravais lattice
-   * vectors (real space) that live within the Wigner Seitz zone of a supercell
+   * vectors (real space) that live within the Wigner Seitz zone of a super cell
    * which is grid(0) x grid(1) x grid(2) bigger than the unitCell.
    * However, the vectors are slightly shifted. For example, for phonons, we
    * want the vectors R+tau(3,na)-tau(3,nb), where tau are atomic positions.
@@ -192,10 +192,10 @@ public:
    * without shift shouldn't make a difference when used in Fourier transforms.
    * This is because the interactions should decay quickly.
    *
-   * @param grid: size of the supercell for the WS construction.
+   * @param grid: size of the super cell for the WS construction.
    * @param shift: a shift in cartesian coordinates of shape(3,nDim).
    * @param supercellFactor: in order to do the correct folding of wavevectors,
-   * we look for wavevectors in a slightly bigger supercell. A factor 2 should
+   * we look for wavevectors in a slightly bigger super cell. A factor 2 should
    * be enough, but could be increased if the code fails to find all vectors.
    * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
    * coordinates and their degeneracies(numVectors,nDim,nDim), where the last

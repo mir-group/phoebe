@@ -51,8 +51,16 @@ class Window {
       Eigen::VectorXd &energies);
 
   // Constants that identify the kind of filter to be used
+  /** nothing=0 identifies the do-nothing window
+   */
   static const long nothing = 0;
+
+  /** population labels the window type looking for partially occupied states
+   */
   static const long population = 1;
+
+  /** energy labels the window type looking for states within two energy values
+   */
   static const long energy = 2;
 
   /** Returns the kind of energy filter used.
@@ -61,7 +69,8 @@ class Window {
    */
   long getMethodUsed();
  private:
-  // saves whether we have electrons or phonons
+  /** particle stores whether we are working with electrons or phonons
+   */
   Particle &particle;
 
   // parameters for window
@@ -70,10 +79,12 @@ class Window {
   double populationThreshold = 0.;
   double minEnergy = 0., maxEnergy = 0.;
 
-  // selection of window type
+  /** variable for selecting the window type
+   */
   int method;
 
-  // temp variable to facilitate cpp code
+  /** temp variable to facilitate code writing
+   */
   long numBands;
 
   // internal method to apply the window on population

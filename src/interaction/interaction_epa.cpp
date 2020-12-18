@@ -1,5 +1,4 @@
 #include "interaction_epa.h"
-#include "constants.h"
 #include "exceptions.h"
 #include <fstream>
 
