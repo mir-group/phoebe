@@ -11,7 +11,6 @@
 #include "phonon_transport_app.h"
 #include "polarization_app.h"
 #include "transport_epa_app.h"
-#include "utilities.h"
 #include <cmath>
 #include <string>
 

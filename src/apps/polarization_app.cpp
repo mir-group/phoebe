@@ -47,11 +47,11 @@ void ElectronPolarizationApp::run(Context &context) {
 
   // before moving on, we need to fix the chemical potential
   StatisticsSweep statisticsSweep(context, &bandStructure);
-  auto numCalcs = statisticsSweep.getNumCalcs();
+  auto numCalculations = statisticsSweep.getNumCalcs();
 
   // now we can compute the polarization
 
-  Eigen::MatrixXd polarization(numCalcs, 3);
+  Eigen::MatrixXd polarization(numCalculations, 3);
   polarization.setZero();
 
   for (long is = 0; is < bandStructure.getNumStates(); is++) {
@@ -61,7 +61,7 @@ void ElectronPolarizationApp::run(Context &context) {
     long ik = std::get<0>(t).get();
     long ib = std::get<0>(t).get();
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (long iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto sc = statisticsSweep.getCalcStatistics(iCalc);
       double temp = sc.temperature;
       double chemPot = sc.chemicalPotential;
@@ -85,7 +85,7 @@ void ElectronPolarizationApp::run(Context &context) {
     Eigen::Vector3d position = atomicPositions.row(ia);
     auto charge = periodicTable.getIonicCharge(atomicNames[ia]);
     for (long i = 0; i < 3; i++) {
-      for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (long iCalc = 0; iCalc < numCalculations; iCalc++) {
         polarization(iCalc, i) += charge * position(i);
       }
     }
@@ -97,7 +97,7 @@ void ElectronPolarizationApp::run(Context &context) {
   outfile << "# Electrical polarization density: "
              "chemical potential (eV), doping (cm^-3), temperature (K)"
              "polarization[x,y,z] (a.u.)\n";
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (long iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto sc = statisticsSweep.getCalcStatistics(iCalc);
     auto temp = sc.temperature;
     auto chemPot = sc.chemicalPotential;

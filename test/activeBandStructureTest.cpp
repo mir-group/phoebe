@@ -127,7 +127,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     // check the eigenvectors
     std::complex<double> otfEigs = complexZero;
     for (long i = 0; i < nbOTF; i++) {
-      auto tup = decompress2Indeces(i, numAtoms, 3);
+      auto tup = decompress2Indices(i, numAtoms, 3);
       auto iat = std::get<0>(tup);
       auto ic = std::get<1>(tup);
       for (long j = 0; j < nbOTF; j++) {
@@ -156,7 +156,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     // check the eigenvectors
     std::complex<double> appEigs = complexZero;
     for (long i = 0; i < nbAPP; i++) {
-      auto tup = decompress2Indeces(i, numAtoms, 3);
+      auto tup = decompress2Indices(i, numAtoms, 3);
       auto iat = std::get<0>(tup);
       auto ic = std::get<1>(tup);
       for (long j = 0; j < nbAPP; j++) {
@@ -253,7 +253,7 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   // check the eigenvectors
   std::complex<double> eigs = complexZero;
   for (long i = 0; i < nb; i++) {
-    auto tup = decompress2Indeces(i, numAtoms, 3);
+    auto tup = decompress2Indices(i, numAtoms, 3);
     auto iat = std::get<0>(tup);
     auto ic = std::get<1>(tup);
     for (long j = 0; j < nb; j++) {

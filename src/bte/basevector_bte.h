@@ -1,5 +1,5 @@
-#ifndef BASEVECTORBTE_H
-#define BASEVECTORBTE_H
+#ifndef BASE_VECTOR_BTE_H
+#define BASE_VECTOR_BTE_H
 
 #include "Matrix.h"
 #include "PMatrix.h"
@@ -12,7 +12,7 @@
  * is the number of temperatures/chemical potentials, and numStates is
  * specified in input. Used for the EPA electron transport calculation.
  * It is subclassed to a VectorBTE case when numStates is aligned with the
- * Bloch states of the bandstructure class.
+ * Bloch states of the band structure class.
  */
 class BaseVectorBTE {
  public:
@@ -23,8 +23,8 @@ class BaseVectorBTE {
    * @param numStates: saves the number of states on which we compute the
    * vector.
    * @param dimensionality: determines the size of the vector on cartesian
-   * indices. 1 for scalar quantities like linewidths Gamma(BlochIndeces), 3
-   * for vector quantities like phonon populations f(blochIndeces,cartesian).
+   * indices. 1 for scalar quantities like line-widths Gamma(BlochIndices), 3
+   * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
   BaseVectorBTE(StatisticsSweep &statisticsSweep_, const long &numStates_,
                 const long &dimensionality_ = 3);
@@ -150,8 +150,8 @@ class BaseVectorBTE {
 
   /** glob2Loc and loc2Glob compress/decompress the indices on temperature,
    * chemical potential, and cartesian direction into/from a single index.
-   * TODO: these indeces, and how they are used elsewhere, is rather messy
-   * That's because we have to work both with quantities such as linewidths,
+   * TODO: these indices, and how they are used elsewhere, is rather messy
+   * That's because we have to work both with quantities such as line-widths,
    * which are a scalar over the Bloch states, and phonon populations, which
    * are cartesian vectors over the Bloch states.
    * I should probably create two different classes for these.
@@ -164,7 +164,7 @@ class BaseVectorBTE {
    * which vectorBTE values are 0), for example, the acoustic modes at the
    * gamma point, whose zero frequencies may cause problems.
    */
-  std::vector<long> excludeIndeces;
+  std::vector<long> excludeIndices;
 
  protected:
   /** base class to implement +, -, / and * operations.

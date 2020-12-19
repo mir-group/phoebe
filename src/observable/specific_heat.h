@@ -1,5 +1,5 @@
-#ifndef SPECIFICHEAT_H
-#define SPECIFICHEAT_H
+#ifndef SPECIFIC_HEAT_H
+#define SPECIFIC_HEAT_H
 
 #include "observable.h"
 
@@ -35,7 +35,7 @@ public:
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string &outFileName);
 
   /** returns the specific heat computed at a specific chemical potential
    * and temperature. The indices are controlled by the statisticsSweep
@@ -47,7 +47,7 @@ public:
   const double &get(const int &iCalc);
 
 protected:
-  virtual int whichType();
+  int whichType() override;
   BaseBandStructure &bandStructure;
 };
 

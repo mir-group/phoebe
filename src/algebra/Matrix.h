@@ -6,7 +6,7 @@
 
 /** Container class which wraps an underlying serial or parallel matrix
  * 
- * The class hierarcy is set up using this container rather than an inheritance
+ * The class hierarchy is set up using this container rather than an inheritance
  * structure with specific intent. These objects cannot be set up using 
  * an abstract Matrix parent class because because cpp does not allow for
  * virtual operators, as it's not possible to overload something like 
@@ -77,7 +77,7 @@ class Matrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -95,11 +95,11 @@ class Matrix {
 
   /** Get and set operator
    */
-  T& operator()(const int row, const int col);
+  T& operator()(const int &row, const int &col);
 
   /** Const get and set operator
    */
-  const T& operator()(const int row, const int col) const;
+  const T& operator()(const int &row, const int &col) const;
 
   /** Matrix-matrix multiplication.
    * Computes result = trans1(*this) * trans2(that)
@@ -273,20 +273,20 @@ long Matrix<T>::size() const {
 
 /* ------------- get-set operations -------------- */
 template <typename T>
-T& Matrix<T>::operator()(const int row, const int col) {
+T& Matrix<T>::operator()(const int &row, const int &col) {
   if(isDistributed) return (*pmat)(row,col);
   else { return (*mat)(row,col); }
 }
 
 template <typename T>
-const T& Matrix<T>::operator()(const int row, const int col) const {
+const T& Matrix<T>::operator()(const int &row, const int &col) const {
   if(isDistributed) return (*pmat)(row,col);
   else{ return (*mat)(row,col); }
 }
 
 template <typename T>
-bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
-  if(isDistributed) return pmat->indecesAreLocal(row,col);
+bool Matrix<T>::indicesAreLocal(const int& row, const int& col) {
+  if(isDistributed) return pmat->indicesAreLocal(row,col);
   else{ return true; }
 }
 
@@ -319,7 +319,7 @@ Matrix<T> Matrix<T>::operator-() const {
   return c;
 }
 
-// Sets the matrix to the idenity matrix
+// Sets the matrix to the identity matrix
 template <typename T>
 void Matrix<T>::eye() {
   if(isDistributed) pmat->eye();

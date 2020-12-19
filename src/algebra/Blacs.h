@@ -28,7 +28,7 @@ int indxg2p_(int *, int *, int *, int *, int *);
 
 int indxg2l_(const int *, const int *, const int *, const int *, const int *);
 
-int indxl2g_(int *, int *, int *, int *, int *);
+int indxl2g_(const int *, const int *, const int *, const int *, const int *);
 
 void pdgemm_(const char *, const char *, int *, int *, const int *, double *,
              double *, int *, int *, const int *, double *, int *, int *,
@@ -48,6 +48,6 @@ void pzheev_(char *, char *, int *, std::complex<double> *, int *, int *, int *,
              double *, std::complex<double> *, int *, int *, int *,
              std::complex<double> *, int *, std::complex<double> *, int *,
              int *);
-};
+}
 
 #endif /* BLACS_H */

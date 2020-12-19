@@ -11,7 +11,7 @@ SpecificHeat::SpecificHeat(Context &context_, StatisticsSweep &statisticsSweep_,
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
   scalar = Eigen::VectorXd::Zero(numCalcs);
-};
+}
 
 // copy constructor
 SpecificHeat::SpecificHeat(const SpecificHeat &that)
@@ -91,7 +91,7 @@ void SpecificHeat::print() {
   }
 }
 
-void SpecificHeat::outputToJSON(std::string outFileName) {
+void SpecificHeat::outputToJSON(const std::string &outFileName) {
   if (!mpi->mpiHead())
     return;
 

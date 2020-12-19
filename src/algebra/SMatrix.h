@@ -33,7 +33,7 @@ class SerialMatrix {
   /** Indicates that the matrix A is not modified: transN(A) = A
    */
   static const char transN = 'N';
-  /** Indicat_es that the matrix A is taken as its transpose: transT(A) = A^T
+  /** Indicates that the matrix A is taken as its transpose: transT(A) = A^T
    */
   static const char transT = 'T';
   /** Indicates that the matrix A is taken as its adjoint: transC(A) = A^+
@@ -75,7 +75,7 @@ class SerialMatrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -94,10 +94,10 @@ class SerialMatrix {
   long size() const;
   /** Get and set operator
    */
-  T& operator()(const int row, const int col);
+  T& operator()(const int &row, const int &col);
   /** Const get and set operator
    */
-  const T& operator()(const int row, const int col) const;
+  const T& operator()(const int &row, const int &col) const;
 
   /** Matrix-matrix multiplication.
    * Computes result = trans1(*this) * trans2(that)
@@ -267,7 +267,7 @@ long SerialMatrix<T>::size() const {
 
 // Get/set element
 template <typename T>
-T& SerialMatrix<T>::operator()(const int row, const int col) {
+T& SerialMatrix<T>::operator()(const int &row, const int &col) {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
     Error e("Attempted to reference a matrix element out of bounds.");
   }
@@ -275,7 +275,7 @@ T& SerialMatrix<T>::operator()(const int row, const int col) {
 }
 
 template <typename T>
-const T& SerialMatrix<T>::operator()(const int row, const int col) const {
+const T& SerialMatrix<T>::operator()(const int &row, const int &col) const {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
     Error e("Attempted to reference a matrix element out of bounds.");
   }
@@ -283,7 +283,7 @@ const T& SerialMatrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool SerialMatrix<T>::indecesAreLocal(const int& row, const int& col) {
+bool SerialMatrix<T>::indicesAreLocal(const int& row, const int& col) {
   (void) row;
   (void) col;
   return true;
@@ -291,7 +291,7 @@ bool SerialMatrix<T>::indecesAreLocal(const int& row, const int& col) {
 
 template <typename T>
 std::tuple<long, long> SerialMatrix<T>::local2Global(const long& k) {
-  // we convert this combined local index k into row / col indeces
+  // we convert this combined local index k into row / col indices
   // k = j * nRows + i
   if(numRows_ == 0) Error e("attempted to div by zero in l2g");
   int j = k / numRows_;
@@ -325,7 +325,7 @@ SerialMatrix<T> SerialMatrix<T>::operator-() const {
   return ret;
 }
 
-// Sets the matrix to the idenity matrix
+// Sets the matrix to the identity matrix
 template <typename T>
 void SerialMatrix<T>::eye() {
   if(numRows_ != numCols_) {

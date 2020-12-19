@@ -24,7 +24,7 @@ public:
   /** Factory method, used to load the desired subclass.
    * Note: auto_ptr transfers the ownership to the returned pointer itself
    * the returned app pointer is then destructed at the end of main().
-   * @param choice: a string witht the app name.
+   * @param choice: a string with the app name.
    * @return app: a unique_pointer to the subclass app instance.
    */
   static std::unique_ptr<App> loadApp(const std::string &choice);

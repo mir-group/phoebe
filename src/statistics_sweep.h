@@ -27,12 +27,12 @@ class StatisticsSweep {
   /** Constructor of the loop over temperatures and chemical potentials.
    * For phonons, the constructor simply stores the temperatures.
    * For electrons, the class finds chemical potentials from doping (or
-   * viceversa, depending on user input), and builds a table of all
+   * vice versa, depending on user input), and builds a table of all
    * pairs of temperatures and chemical potentials.
    * @param context: object with user input.
    */
-  StatisticsSweep(Context &context,
-                  FullBandStructure *fullBandStructure = nullptr);
+  explicit StatisticsSweep(Context &context,
+                           FullBandStructure *fullBandStructure = nullptr);
 
   /** Copy constructor
    */
@@ -49,10 +49,10 @@ class StatisticsSweep {
    * @return calcStatistics: a struct object with temperature, chemical
    * potential and doping concentration, for this particular index.
    */
-  struct CalcStatistics getCalcStatistics(const long &index);
+  CalcStatistics getCalcStatistics(const long &index);
 
   /** returns the CalcStatistics object containing temperature,
-   * chemical potential and temperature, given indeces on temperature and
+   * chemical potential and temperature, given indices on temperature and
    * chemical potential.
    * @param iTemp: a strong-typed index, ranging in [0,numTemperatures[
    * @param iChemPot: a strong-typed index, ranging in
@@ -60,7 +60,7 @@ class StatisticsSweep {
    * @return calcStatistics: a struct object with temperature, chemical
    * potential and doping concentration.
    */
-  struct CalcStatistics getCalcStatistics(const TempIndex &iTemp,
+  CalcStatistics getCalcStatistics(const TempIndex &iTemp,
                                           const ChemPotIndex &iChemPot);
 
   /** Returns the number of "calculations" i.e. the number of temperatures
@@ -83,12 +83,12 @@ class StatisticsSweep {
 
  protected:
   Particle particle;
-  long numCalcs;
+  long numCalcs = 0;
   Eigen::MatrixXd infoCalcs;
-  long nTemp;
-  long nChemPot;
-  long nDop;
-  bool isDistributed;
+  long nTemp = 0;
+  long nChemPot = 0;
+  long nDop = 0;
+  bool isDistributed = false;
 
   // note: these three private methods are only meant to be used
   // during the construction of this class, as they depend on energies
@@ -110,14 +110,14 @@ class StatisticsSweep {
 
   // this block is temporary variables for electronic calculations
   const long maxIter = 100;
-  long numPoints;
-  long numBands;
+  long numPoints = 0;
+  long numBands = 0;
   Eigen::VectorXd energies;
-  double numElectronsDoped;
-  double volume;
-  double spinFactor;
-  double occupiedStates;
-  double fermiLevel;
+  double numElectronsDoped = 0.;
+  double volume = 0.;
+  double spinFactor = 0.;
+  double occupiedStates = 0.;
+  double fermiLevel = 0.;
 };
 
 #endif

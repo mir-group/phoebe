@@ -1,46 +1,43 @@
-@page DEVDOCS Developer's documentation
+@page QEPATCHDOCS Quantum ESPRESSO patch
 
-The main program does very few things: intializes the paralllel environment, loads a subprogram (App) using an AppFactory, and launches it. Currently, supported apps are:
-* PhononTransportApp
-* ElectronWannierTransportApp
-* ElectronEPATransportApp
-* PhononDosApp
-* ElectronWannierDosApp
-* ElectronFourierDosApp
-* PhononBandsApp
-* ElectronWannierBandsApp
-* ElectronFourierBandsApp
-* ElectronPolarizationApp
+As explained in the theory section about the electron-phonon coupling with Wannier interpolation, we modified QE to fix a gauge on the wavefunction.
 
-@section scheme Code schematics
+@section fcode Fortran code
 
-To have a good overview of the main Phoebe classes and how these work, it's easier to start with a graphical sketch of the PhononTransportApp and its code workflow.
+The code is modified on a separate git repository available [at this link](https://github.com/mir-group/phoebe-quantum-espresso/).
+This repository is a fork from the official QE repository.
+To develop a new patch or update it to the latest QE version, remember to pull from the remote quantum espresso repository.
+For the first Phoebe release, we only patched the latest QE 6.6 version, although a retrofit should be doable.
 
-![Fig.1: appScheme] (../images/TransportCode.png)
+** Files changed **
+For the `pw.x` part of the code, we modified the file `PW/src/c_bands.f90`.
+There are several subroutines in this file.
 
-We refer to the class documentation for a detailed overview of all the classes.
+* First, skim through `c_bands()`. This subroutine has a loop over k-points. At each k-point, the Bloch Hamiltonian is built and diagonalized.
 
+* The diagonalization happens in `diag_bands()`. Right after the diagonalization has been done, we call our custom subroutine `set_wavefunction_gauge()`. So this function is called at every k-point separately.
 
+We do several things in our subroutine.
 
+1. First, we rotate the wavefunction such that the G=0 plane wave coefficient is real and positive (with some care for degenerate bands). 
 
+2. The first time this function is called, we analyze k-points and their symmetries.
 
-@section Format Code formatting
+3. Lastly, we distinguish two cases: if we are doing a `scf` calculation, we write the wavefunctions to file, imposing that these are only computed on the irreducible kpoints. If not `scf`, we read the irreducible wavefunction from file, compare it with the current wavefunction, and rotate the current wavefunction to carry the same phase of the irreducible one and to obey the symmetry operations, as described in the theory section.
 
-Use the camelCase notation for variable definitions.
-Classes should start with a capital letter.
-The code should be formatted according to the clang-format style.
-Classes and files should be documented using a Doxygen-compatible style, in order to render nicely in this documentation.
+As for the phonon code, we modify it in a few parts.
+Two of these are easy:
 
-Name variables with sensible and clear names or the code can easily become a mess.
+1. `PHonon/PH/phq_readin.f90` here we simply allow for the calculation of electron-phonon coefficients also for semiconductors if we trigger the `epa` input variable.
 
-Use two spaces for indentation.
-We are typically using CLion to format the source text, using its default code style.
+2. `PHonon/PH/run_nscf.f90` this file sets up the nscf calculations needed by PH. Here, we modify an input variable of `setup_nscf` which disables symmetries on the k-points: while the calculation uses irreducible q-points, now it will use all points without symmetries in the k-point grid.
+
+3. `elphon.f90` is a bigger modification, but not too difficult. The first time our subroutine `elphfil_phoebe` is called we analyze the symmetries of the q-point grid. This subroutine is called once for every q-point calculation. Next, we unfold the symmetries of the g coupling. Note that we also need to put it in a cartesian basis. Then, we write to file the quantity \f$ g(k,q^*) \f$, where k runs on the full grid of k-points, and \f$ q^* \f$ is the star of points that are symmetry equivalent to the current irreducible q point that is being computed. These output files are those that are passed as input to phoebe.
 
 
 
 
-
-@section Patch Quantum ESPRESSO Patch
+@section CREATEPATCH Create+apply the patch
 
 **Code modifications**
 
@@ -107,23 +104,3 @@ In this case, one should manually open the `"*.f90.rej"` file and manually apply
 Note that the patch consists in added code. In the file c_bands.f90, we simply add a new subroutine and its call. In the phonon code, we modify the behavior of the 'epa' calculation so that data are written in phoebe format.
 Generally, we only added new lines to the code or added new variables, so, as a guideline to fix a failed patch, add the extra lines/variables that appear in the diff. Do so for every file where the patch has failed.
 
-
-
-
-
-@section Debugging
-Valgrind is a great programming tool for memory debugging, memory leak detection and profiling.
-To launch it with phoebe, an example of syntax is:
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
-valgrind --track-origins=yes --leak-check=full ./build/phoebe -in phoebe.in > phoebe.out &> valgrind.out
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This command launches the default valgrind tool, which is, "memcheck", which helps finding bugs in the code.
-
-**Tip for running valgrind when the code is compiled with OpenMPI**:
-Valgrind detects some false positive memory leaks, that originate from the MPI library and that you shouldn't worry about.
-OpenMPI provides a file "openmpi-valgrind.supp", that can be used to suppress these wrong memory leaks messages.
-The syntax is
-~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c }
-valgrind --track-origins=yes --leak-check=full --suppressions=/usr/share/openmpi/openmpi-valgrind.supp ./build/phoebe -in phoebe.in > phoebe.out &> valgrind.out
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The "suppressions" flag is only relevant if you are compiling the code with MPI, and the path to the file "openmpi-valgrind.supp" should be modified to match the path on your computer.

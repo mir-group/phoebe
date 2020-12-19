@@ -32,7 +32,7 @@ DOXYFILE_ENCODING      = UTF-8
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "Phoebe"
+PROJECT_NAME           = "Phoebe developer's documentation"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -51,7 +51,7 @@ PROJECT_BRIEF          = "Phonon and Electron Boltzmann Equations"
 # pixels and the maximum width should not exceed 200 pixels. Doxygen will copy
 # the logo to the output directory.
 
-PROJECT_LOGO           = ./images/Logo.png
+PROJECT_LOGO           = 
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is
@@ -829,19 +829,13 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT = ./doc_pages/Introduction.md \
-	./doc_pages/Installation.md \
-	./doc_pages/Running.md \	
-	./doc_pages/InputFiles.md \
-	./doc_pages/Tutorials/Tutorials.md \
-	./doc_pages/Tutorials/ \
-	./doc_pages/Postprocessing.md \
-	./doc_pages/Theory/Theory.md \
-	./doc_pages/Theory \	
-	./doc_pages/developerOverview.md \
-	./doc_pages/Units.md \
-	./doc_pages/UnitTesting.md \
-	../src/ 
+INPUT = ./Overview.md \
+        ./doc_pages/developerOverview.md \
+	./doc_pages/units.md \
+	./doc_pages/unitTesting.md \
+	./doc_pages/website.md \
+	./doc_pages/qe_patch.md \
+	../../src/ 
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1250,7 +1244,7 @@ HTML_EXTRA_FILES       =
 # Minimum value: 0, maximum value: 359, default value: 220.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_HUE    = 240
 
 # The HTML_COLORSTYLE_SAT tag controls the purity (or saturation) of the colors
 # in the HTML output. For a value of 0 the output will use grayscales only. A

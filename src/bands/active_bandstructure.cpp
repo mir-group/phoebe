@@ -72,7 +72,7 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
 
   windowMethod = Window::nothing;
 
-  buildIndeces();
+  buildIndices();
 
   // now we can loop over the trimmed list of points
   for (long ik : mpi->divideWorkIter(numPoints)) {
@@ -252,7 +252,7 @@ ActiveBandStructure::getPhEigenvectors(WavevectorIndex &ik) {
   int numAtoms = numFullBands / 3;
   Eigen::Tensor<std::complex<double>, 3> eigs(3, numAtoms, numBands(ikk));
   for (long i = 0; i < numFullBands; i++) {
-    auto tup = decompress2Indeces(i, numAtoms, 3);
+    auto tup = decompress2Indices(i, numAtoms, 3);
     auto iat = std::get<0>(tup);
     auto ic = std::get<1>(tup);
     for (long ib2 = 0; ib2 < numBands(ikk); ib2++) {
@@ -340,7 +340,7 @@ std::tuple<long, long> ActiveBandStructure::bteComb2Bloch(const long &ibte) {
   return {bteAuxBloch2Comb(ibte, 0), bteAuxBloch2Comb(ibte, 1)};
 }
 
-void ActiveBandStructure::buildIndeces() {
+void ActiveBandStructure::buildIndices() {
   auxBloch2Comb = Eigen::MatrixXi::Zero(numStates, 2);
   cumulativeKbOffset = Eigen::VectorXi::Zero(numPoints);
   cumulativeKbbOffset = Eigen::VectorXi::Zero(numPoints);
@@ -496,14 +496,14 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     numPoints += receiveCounts[i];
   }
 
-  // now we collect the wavevector indeces
-  // first we find the offset to compute global indeces from local indices
+  // now we collect the wavevector indices
+  // first we find the offset to compute global indices from local indices
   std::vector<int> displacements(mpiSize, 0);
   for (int i = 1; i < mpiSize; i++) {
     displacements[i] = displacements[i - 1] + receiveCounts[i - 1];
   }
 
-  // collect all the indeces in the filteredPoints vector
+  // collect all the indices in the filteredPoints vector
   Eigen::VectorXi filter(numPoints);
   filter.setZero();
   for (int i = 0; i < myNumPts; i++) {
@@ -545,7 +545,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   activePoints = activePoints_;
   //  activePoints.setIrreduciblePoints();
   // construct the mapping from combined indices to Bloch indices
-  buildIndeces();
+  buildIndices();
 
   energies.resize(numEnStates, 0.);
   if (withVelocities) {
@@ -788,7 +788,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   //  activePoints.setIrreduciblePoints();
 
   // construct the mapping from combined indices to Bloch indices
-  buildIndeces();
+  buildIndices();
 
   energies.resize(numEnStates, 0.);
   if (withVelocities) {

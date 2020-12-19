@@ -15,8 +15,8 @@ TEST (PMatrixTest, diagonalize) {
 
   // construct a pauli matrix in a very brute force way
   // let's first do sigma_x
-  if(pmat.indecesAreLocal(0,1)) pmat(0,1) = 1.0;
-  if(pmat.indecesAreLocal(1,0)) pmat(1,0) = 1.0;
+  if(pmat.indicesAreLocal(0,1)) pmat(0,1) = 1.0;
+  if(pmat.indicesAreLocal(1,0)) pmat(1,0) = 1.0;
 
   auto tup = pmat.diagonalize(); 
   auto eigenvalues = std::get<0>(tup); 
@@ -35,7 +35,7 @@ TEST (PMatrixTest, diagonalize) {
   double sumEigVecs = 0.0; 
   for(int i = 0; i < 2; i++) {
     for(int j = 0; j < 2; j++) {
-      if(eigenvectors.indecesAreLocal(i,j)) { 
+      if(eigenvectors.indicesAreLocal(i,j)) { 
         sumEigVecs += eigenvectors(i,j);  
       }
     }  
@@ -44,9 +44,9 @@ TEST (PMatrixTest, diagonalize) {
   EXPECT_EQ(sumEigVecs, 2*(1./sqrt(2)));
 
   // check that the original matrix is still intact
-  if(pmat.indecesAreLocal(0,0)) { EXPECT_EQ(pmat(0,0), 0.0); }
-  if(pmat.indecesAreLocal(1,0)) { EXPECT_EQ(pmat(1,0), 1.0); }
-  if(pmat.indecesAreLocal(0,1)) { EXPECT_EQ(pmat(0,1), 1.0); }
-  if(pmat.indecesAreLocal(1,1)) { EXPECT_EQ(pmat(1,1), 0.0); }
+  if(pmat.indicesAreLocal(0,0)) { EXPECT_EQ(pmat(0,0), 0.0); }
+  if(pmat.indicesAreLocal(1,0)) { EXPECT_EQ(pmat(1,0), 1.0); }
+  if(pmat.indicesAreLocal(0,1)) { EXPECT_EQ(pmat(0,1), 1.0); }
+  if(pmat.indicesAreLocal(1,1)) { EXPECT_EQ(pmat(1,1), 0.0); }
 
 }

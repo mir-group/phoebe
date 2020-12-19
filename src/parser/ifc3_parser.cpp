@@ -171,7 +171,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
                             (void) j3;
 
                             // read 6 integer which represent cartesian and
-                            // atomic basis indeces
+                            // atomic basis indices
                             std::getline(infile, line);
 
                             // read the # of elements in this block
@@ -237,7 +237,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
                         for (long j3 : { 0, 1, 2 }) {
 
                             // read 6 integer which represent cartesian and
-                            // atomic basis indeces
+                            // atomic basis indices
                             std::getline(infile, line);
 
                             // read the # of elements in this block

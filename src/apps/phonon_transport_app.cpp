@@ -1,15 +1,11 @@
 #include "phonon_transport_app.h"
-#include "active_points.h"
 #include "bandstructure.h"
-#include "constants.h"
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
 #include "full_points.h"
 #include "ifc3_parser.h"
-#include "io.h"
 #include "observable.h"
-#include "particle.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
@@ -146,7 +142,7 @@ void PhononTransportApp::run(Context &context) {
 
     auto threshold = context.getConvergenceThresholdBTE();
 
-    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
       fNext = scatteringMatrix.offDiagonalDot(fOld) / sMatrixDiagonal;
       fNext = fRTA - fNext;
@@ -214,7 +210,7 @@ void PhononTransportApp::run(Context &context) {
 
     double threshold = context.getConvergenceThresholdBTE();
 
-    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
 
       Eigen::MatrixXd alpha = (gOld.dot(hOld)).array() / hOld.dot(tOld).array();
@@ -228,14 +224,14 @@ void PhononTransportApp::run(Context &context) {
       VectorBTE hNew = hOld * beta;
       hNew = -gNew + hNew;
 
-      std::vector<VectorBTE> inVecs;
-      inVecs.push_back(fNew);
-      inVecs.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
-      std::vector<VectorBTE> outVecs = scatteringMatrix.dot(inVecs);
-      tOld = outVecs[1];
+      std::vector<VectorBTE> inVectors;
+      inVectors.push_back(fNew);
+      inVectors.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
+      std::vector<VectorBTE> outVectors = scatteringMatrix.dot(inVectors);
+      tOld = outVectors[1];
       tOld = tOld / sMatrixDiagonal; // CG scaling
 
-      phTCond.calcVariational(outVecs[0], fNew, sMatrixDiagonalSqrt);
+      phTCond.calcVariational(outVectors[0], fNew, sMatrixDiagonalSqrt);
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
@@ -269,14 +265,14 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     scatteringMatrix.a2Omega();
-    auto tup = scatteringMatrix.diagonalize();
-    auto eigenvalues = std::get<0>(tup);
-    auto eigenvectors = std::get<1>(tup);
+    auto tup2 = scatteringMatrix.diagonalize();
+    auto eigenvalues = std::get<0>(tup2);
+    auto eigenvectors = std::get<1>(tup2);
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
-    phTCond.calcFromRelaxons(context, statisticsSweep, bandStructure,
-                             eigenvectors, scatteringMatrix, eigenvalues);
+    phTCond.calcFromRelaxons(context, statisticsSweep, eigenvectors,
+                             scatteringMatrix, eigenvalues);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
     // output relaxation times

@@ -4,7 +4,6 @@
 #include "interaction_elph.h"
 #include "io.h"
 #include "qe_input_parser.h"
-#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -24,8 +23,8 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
   Eigen::Vector3i kMesh = std::get<1>(t0);
-  Eigen::MatrixXd kgridFull = std::get<2>(t0);
-  Eigen::MatrixXd qgridFull = std::get<3>(t0);
+  Eigen::MatrixXd kGridFull = std::get<2>(t0);
+  Eigen::MatrixXd qGridFull = std::get<3>(t0);
   Eigen::MatrixXd energies = std::get<4>(t0);
   int numIrrQPoints = std::get<5>(t0);
   int numQEBands = std::get<6>(t0);
@@ -41,13 +40,13 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
     postProcessingWannier(context, crystal, phononH0, kPoints, qPoints,
                           numQEBands, numModes, numIrrQPoints, numElectrons,
-                          numSpin, energies, kgridFull, kMesh, qMesh);
+                          numSpin, energies, kGridFull, kMesh, qMesh);
 
   } else { // EPA
 
     epaPostProcessing(context, energies, kPoints, qPoints, numElectrons,
                       numSpin, numModes, numIrrQPoints, numQEBands, energies,
-                      kgridFull);
+                      kGridFull);
   }
 }
 
@@ -106,8 +105,9 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   }
 
   bool usePolarCorrection = false;
-  Eigen::Matrix3d epsilon = phononH0.getDielectricMatrix();
-  if (epsilon.squaredNorm() > 1.0e-10) { // i.e. if epsilon wasn't computed
+  Eigen::Matrix3d dielectricMatrix = phononH0.getDielectricMatrix();
+  if (dielectricMatrix.squaredNorm() > 1.0e-10) { // i.e. if dielectricMatrix
+                                                  // wasn't computed
     if (crystal.getNumSpecies() > 1) {   // otherwise polar correction = 0
       usePolarCorrection = true;
     }
@@ -119,7 +119,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     // this contribution will be reinstated during the interpolation
     auto volume = crystal.getVolumeUnitCell();
     auto reciprocalUnitCell = crystal.getReciprocalUnitCell();
-    auto epsilon = phononH0.getDielectricMatrix();
     auto bornCharges = phononH0.getBornCharges();
     auto atomicPositions = crystal.getAtomicPositions();
     auto qCoarseMesh = phononH0.getCoarseGrid();
@@ -157,7 +156,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           ev2 = ev2.adjoint();
 
           auto v = InteractionElPhWan::getPolarCorrectionStatic(
-              q, ev1, ev2, ev3, volume, reciprocalUnitCell, epsilon,
+              q, ev1, ev2, ev3, volume, reciprocalUnitCell, dielectricMatrix,
               bornCharges, atomicPositions, qCoarseMesh);
           for (int nu = 0; nu < numModes; nu++) {
             for (int j = 0; j < numBands; j++) {
@@ -443,7 +442,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
     // empty line
     std::getline(infile, line);
 
-    Eigen::Vector3d thisK; // vector in crystal coords
+    Eigen::Vector3d thisK; // vector in crystal coordinates
     infile >> thisK(0) >> thisK(1) >> thisK(2);
 
     long ikk = fullPoints.getIndex(thisK);
@@ -494,7 +493,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
     double x, y, z;
     infileDis >> x >> y >> z;
     Eigen::Vector3d thisK;
-    thisK << x, y, z; // vector in crystal coords
+    thisK << x, y, z; // vector in crystal coordinates
 
     long ikk = fullPoints.getIndex(thisK);
 
@@ -512,30 +511,30 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
 
   Eigen::Tensor<std::complex<double>, 3> u(numBands, numWannier, numPoints);
   u.setZero();
-  for (int ivec = 0; ivec < numPoints; ivec++) {
+  for (int ik = 0; ik < numPoints; ik++) {
 
     Eigen::MatrixXcd a(numBands, numWannier);
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numWannier; j++) {
-        a(i, j) = uMatrixDis(i, j, ivec);
+        a(i, j) = uMatrixDis(i, j, ik);
       }
     }
 
     Eigen::MatrixXcd b(numWannier, numWannier);
     for (int i = 0; i < numWannier; i++) {
       for (int j = 0; j < numWannier; j++) {
-        b(i, j) = uMatrix(i, j, ivec);
+        b(i, j) = uMatrix(i, j, ik);
       }
     }
 
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numWannier; j++) {
         for (int k = 0; k < numWannier; k++) {
-          u(i, j, ivec) += b(k, j) * a(i, k);
+          u(i, j, ik) += b(k, j) * a(i, k);
         }
       }
     }
-  } // ivec
+  } // ik
   return u;
 }
 
@@ -553,7 +552,7 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     double kx, ky, kz;
     infile >> kx >> ky >> kz;
     if (kx * kx + ky * ky + kz * kz > 1.0e-5) {
-      Error e("Expecting first coarse grid kpoint in Wannier90 to be gamma");
+      Error e("Expecting first coarse grid k-point in Wannier90 to be gamma");
     }
   }
 
@@ -562,10 +561,10 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
   std::vector<double> energiesWannierAtZero;
   {
     std::string eigFileName = wannierPrefix + ".eig";
-    std::ifstream eigfile(eigFileName);
+    std::ifstream eigenFile(eigFileName);
     int ib, ik;
     double x;
-    while (eigfile >> ib >> ik >> x) {
+    while (eigenFile >> ib >> ik >> x) {
       if (ik > 1) {
         break;
       }
@@ -611,7 +610,7 @@ std::tuple<Eigen::Tensor<std::complex<double>, 5>,
 ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
                                    const int &numBands, const int &numWannier,
                                    FullPoints &kPoints, FullPoints &qPoints,
-                                   const Eigen::MatrixXd &kgridFull,
+                                   const Eigen::MatrixXd &kGridFull,
                                    const int &numIrrQPoints,
                                    const int &numQEBands,
                                    const Eigen::MatrixXd &energies) {
@@ -646,7 +645,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     Eigen::VectorXi ikMap(numKPoints);
 #pragma omp parallel for
     for (long ikOld = 0; ikOld < numKPoints; ikOld++) {
-      Eigen::Vector3d kOld = kgridFull.col(ikOld);
+      Eigen::Vector3d kOld = kGridFull.col(ikOld);
       long ikNew = kPoints.getIndex(kOld);
       ikMap(ikOld) = ikNew;
     }
@@ -688,7 +687,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
         for (int j = 0; j < numModes; j++) {
           for (int i = 0; i < numModes; i++) {
             // Note, in Fortran I was writing:
-            // do jj = 1,nmodes
+            // do jj = 1,nModes
             //   do k = 1,nat
             //     do i_cart = 1,3
             // This has to be aligned with what done by PhononH0
@@ -769,8 +768,8 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   double bogusD;
   int numAtoms;
   int numKPoints;
-  Eigen::MatrixXd qgridFull;
-  Eigen::MatrixXd kgridFull;
+  Eigen::MatrixXd qGridFull;
+  Eigen::MatrixXd kGridFull;
   Eigen::MatrixXd energies;
   (void)crystal;
   int numQPoints, numIrrQPoints;
@@ -790,7 +789,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
       kMesh(2);
 
-  infile >> bogusD >> numAtoms; // alat and nat
+  infile >> bogusD >> numAtoms; // lattice parameter and numAtoms
 
   // unit cell
   for (int i = 0; i < 9; i++) {
@@ -800,7 +799,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   for (int i = 0; i < 9; i++) {
     infile >> bogusD;
   }
-  // ityp
+  // iType
   for (int i = 0; i < numAtoms; i++) {
     infile >> bogusI;
   }
@@ -810,15 +809,15 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   }
 
   infile >> numQPoints >> numIrrQPoints;
-  qgridFull.resize(3, numQPoints);
+  qGridFull.resize(3, numQPoints);
   for (int iq = 0; iq < numQPoints; iq++) {
-    infile >> qgridFull(0, iq) >> qgridFull(1, iq) >> qgridFull(2, iq);
+    infile >> qGridFull(0, iq) >> qGridFull(1, iq) >> qGridFull(2, iq);
   }
 
   infile >> numKPoints;
-  kgridFull.resize(3, numKPoints);
+  kGridFull.resize(3, numKPoints);
   for (int ik = 0; ik < numKPoints; ik++) {
-    infile >> kgridFull(0, ik) >> kgridFull(1, ik) >> kgridFull(2, ik);
+    infile >> kGridFull(0, ik) >> kGridFull(1, ik) >> kGridFull(2, ik);
   }
 
   energies.resize(numQEBands, numKPoints);
@@ -840,15 +839,15 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   mpi->bcast(&numQPoints);
   mpi->bcast(&numIrrQPoints);
   if (!mpi->mpiHead()) {
-    qgridFull.resize(3, numQPoints);
-    kgridFull.resize(3, numKPoints);
+    qGridFull.resize(3, numQPoints);
+    kGridFull.resize(3, numKPoints);
     energies.resize(numQEBands, numKPoints);
   }
-  mpi->bcast(&qgridFull);
-  mpi->bcast(&kgridFull);
+  mpi->bcast(&qGridFull);
+  mpi->bcast(&kGridFull);
   mpi->bcast(&energies);
 
-  return {qMesh,         kMesh,      kgridFull,    qgridFull, energies,
+  return {qMesh,         kMesh,      kGridFull,    qGridFull, energies,
           numIrrQPoints, numQEBands, numElectrons, numSpin};
 }
 
@@ -858,7 +857,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
                        const int &numElectrons, const int &numSpin,
                        const int &numModes, const int &numIrrQPoints,
                        const int &numQEBands, const Eigen::MatrixXd &energies,
-                       const Eigen::MatrixXd &kgridFull) {
+                       const Eigen::MatrixXd &kGridFull) {
 
   if (mpi->mpiHead()) {
     std::cout << "Starting EPA post-processing\n" << std::endl;
@@ -866,12 +865,12 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
 
   auto t2 = QEParser::parseElHarmonicFourier(context);
   auto electronH0 = std::get<1>(t2);
-  int numBands = electronH0.getNumBands();
+  int numBands = int(electronH0.getNumBands());
 
   // read coupling from file
   auto t5 =
       readGFromQEFile(context, numModes, numBands, numBands, kPoints, qPoints,
-                      kgridFull, numIrrQPoints, numQEBands, energies);
+                      kGridFull, numIrrQPoints, numQEBands, energies);
   auto gFull = std::get<0>(t5);          // (nBands, nBands, nModes, numK, numQ)
   auto phEigenvectors = std::get<1>(t5); // (numModes, numModes, numQPoints)
   auto phEnergies = std::get<2>(t5);     // (numModes, numQPoints)
@@ -896,7 +895,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
     context.getEpaNumBins();
     deltaEnergy = (maxEnergy-minEnergy)/numEpaEnergies;
   } else {
-    numEpaEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+    numEpaEnergies = int( (maxEnergy - minEnergy) / deltaEnergy ) + 1;
   }
 
   Eigen::VectorXd epaEnergies(numEpaEnergies);
@@ -912,13 +911,13 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   int numKPoints = gFull.dimension(3);
   int numQPoints = gFull.dimension(4);
 
-  Eigen::Tensor<double, 3> gaussians(numEpaEnergies, numBands, numKPoints);
+  Eigen::Tensor<double, 3> gaussian(numEpaEnergies, numBands, numKPoints);
 #pragma omp parallel for collapse(3)
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
         double arg = pow(elEnergies(ib1, ik) - epaEnergies(i), 2) / smearing2;
-        gaussians(i, ib1, ik) = exp(-arg);
+        gaussian(i, ib1, ik) = exp(-arg);
       }
     }
   }
@@ -951,7 +950,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       // Coordinates and index of k+q point
       Eigen::Vector3d kq = k + q;
       Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
-      int ikq = kPoints.getIndex(kqCrystal);
+      int ikq = int(kPoints.getIndex(kqCrystal));
 
  #pragma omp parallel for collapse(3)
       for (int j = 0; j < numEpaEnergies; j++) {
@@ -961,13 +960,13 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
             for (int ib2 = 0; ib2 < numBands; ib2++) {
               for (int ib1 = 0; ib1 < numBands; ib1++) {
 
-              double gaussian = gaussians(i, ib1, ik) * gaussians(j, ib2, ikq);
+              double gaussianX = gaussian(i, ib1, ik) * gaussian(j, ib2, ikq);
 
                 g2Epa(nu, i, j) += g2Full(ib1, ib2, nu, ik, iq) *
-                                   gaussian / 2. / phEnergies(nu, iq);
+                    gaussianX / 2. / phEnergies(nu, iq);
                 // /2omega, because there is a difference between the
                 // coupling <k+q| dV_q |k> from quantum espresso
-                // and the coupling g to be used for transport calcs
+                // and the coupling g to be used for transport calculations
               }
             }
           }
@@ -1016,7 +1015,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
    * 1) Fourier Transform the electronic Hamiltonian to Wannier representation
    *    Here I use the U matrices from file
    * 2) FT back to Bloch representation, using the U matrices from ElectronH0
-   *    on the original grid of kpoints
+   *    on the original grid of k-points
    * If everything works, I expect to find the same electronic energies
    * Phases of rotation matrices in the back-FT will be random.
    */
@@ -1033,19 +1032,19 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
 
   // I try the FFT of the energies
   for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
-    auto kCryst = kPoints.getPointCoords(ik);
-    kCryst(0) *= kMesh(0);
-    kCryst(1) *= kMesh(1);
-    kCryst(2) *= kMesh(2);
+    auto kCrystal = kPoints.getPointCoords(ik);
+    kCrystal(0) *= kMesh(0);
+    kCrystal(1) *= kMesh(1);
+    kCrystal(2) *= kMesh(2);
 
-    int ikOld =
-        kCryst[0] * kMesh(2) * kMesh(1) + kCryst[1] * kMesh(2) + kCryst[2];
+    long ikOld =
+        kCrystal[0] * kMesh(2) * kMesh(1) + kCrystal[1] * kMesh(2) + kCrystal[2];
     {
       std::string eigFileName = wannierPrefix + ".eig";
-      std::ifstream eigfile(eigFileName);
-      int ib, ikk;
+      std::ifstream eigenFile(eigFileName);
+      long ib, ikk;
       double x;
-      while (eigfile >> ib >> ikk >> x) {
+      while (eigenFile >> ib >> ikk >> x) {
         if (ikk - 1 == ikOld) {
           // Note: this causes some warnings from Eigen
           blochEnergies(ib - 1, ik) = x;
@@ -1097,9 +1096,9 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
   for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
     // get U
     auto k1C = kPoints.getPointCoords(ik, Points::cartesianCoords);
-    auto t = electronH0.diagonalizeFromCoords(k1C);
-    auto en = std::get<0>(t);
-    auto u = std::get<1>(t);
+    auto t3 = electronH0.diagonalizeFromCoords(k1C);
+    auto en = std::get<0>(t3);
+    auto u = std::get<1>(t3);
 
     Eigen::MatrixXcd h0K(numWannier, numWannier);
     h0K.setZero();
@@ -1136,7 +1135,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
    * Note that the test works fine for non-polar systems.
    */
 
-  int numPhBands = phononH0.getNumBands();
+  int numPhBands = int(phononH0.getNumBands());
 
   // Bloch To Wannier transform
 
@@ -1152,7 +1151,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
       for (int ib2 = 0; ib2 < numPhBands; ib2++) {
         for (int k1 = 0; k1 < numAtoms; k1++) {
           for (int iCart : {0, 1, 2}) {
-            int i = compress2Indeces(k1, iCart, numAtoms, 3);
+            long i = compress2Indices(k1, iCart, numAtoms, 3);
             norm(ib1, ib2) +=
                 phEigenvectors(i, ib1, iq) * sqrt(atomicMasses(k1)) *
                 phEigenvectors(i, ib2, iq) * sqrt(atomicMasses(k1));
@@ -1161,7 +1160,9 @@ void ElPhQeToPhoebeApp::testPhononTransform(
       }
       norm(ib1) -= 1.; // It should be an identity matrix
     }
-    assert(norm.sum() < 1.0e-6);
+    for (int ib1 = 0; ib1 < numPhBands; ib1++) {
+      assert(abs(norm(ib1)) < 1.0e-6);
+    }
   }
 
   // FT to Wannier representation
@@ -1178,7 +1179,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
     Eigen::MatrixXcd uK(numPhBands, numPhBands);
     for (int k1 = 0; k1 < numAtoms; k1++) {
       for (int iCart : {0, 1, 2}) {
-        int i = compress2Indeces(k1, iCart, numAtoms, 3);
+        long i = compress2Indices(k1, iCart, numAtoms, 3);
         for (int j = 0; j < numPhBands; j++) {
           uK(i, j) = phEigenvectors(i, j, iq) * sqrt(atomicMasses(k1));
         }
@@ -1199,15 +1200,15 @@ void ElPhQeToPhoebeApp::testPhononTransform(
       Eigen::Vector3d R0 = phBravaisVectors.col(iR);
       for (int k1 = 0; k1 < numAtoms; k1++) {
         for (int k2 = 0; k2 < numAtoms; k2++) {
-          Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
+          // Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
           //+ atomicPositions.col(k2);
-          double arg = qC.dot(R);
+          double arg = qC.dot(R0);
           std::complex<double> phase =
               exp(-complexI * arg) / double(qPoints.getNumPoints());
           for (int iCart : {0, 1, 2}) {
             for (int jCart : {0, 1, 2}) {
-              int m = compress2Indeces(k1, iCart, numAtoms, 3);
-              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              long m = compress2Indices(k1, iCart, numAtoms, 3);
+              long n = compress2Indices(k2, jCart, numAtoms, 3);
               h0R(iR, k1, k2, iCart, jCart) += phase * h0K(m, n);
             }
           }
@@ -1219,7 +1220,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
   // check that h0R, the force constants, are real
   {
     double realSum = 0.;
-    double imagSum = 0.;
+    double imaginarySum = 0.;
     for (long iR0 = 0; iR0 < phBravaisVectors.cols(); iR0++) {
       for (int k1 = 0; k1 < numAtoms; k1++) {
         for (int k2 = 0; k2 < numAtoms; k2++) {
@@ -1227,8 +1228,8 @@ void ElPhQeToPhoebeApp::testPhononTransform(
             for (int j : {0, 1, 2}) {
               double x = std::real(h0R(iR0, k1, k2, i, j));
               realSum += pow(x, 2);
-              imagSum += pow(std::imag(h0R(iR0, k1, k2, i, j)), 2);
-              // set to zero the imag part to clean noise
+              imaginarySum += pow(std::imag(h0R(iR0, k1, k2, i, j)), 2);
+              // set to zero the imaginary part to clean noise
               // this is also what QE does
               h0R(iR0, k1, k2, i, j) = {x, 0.};
             }
@@ -1236,8 +1237,8 @@ void ElPhQeToPhoebeApp::testPhononTransform(
         }
       }
     }
-    // I want the imag part to be much smaller than the real
-    assert(imagSum * pow(10, 6) < realSum);
+    // I want the imaginary part to be much smaller than the real
+    assert(imaginarySum * pow(10, 6) < realSum);
   }
 
   //--------------------------------------------------------------------------
@@ -1256,14 +1257,14 @@ void ElPhQeToPhoebeApp::testPhononTransform(
       Eigen::Vector3d R0 = phBravaisVectors.col(iR);
       for (int k1 = 0; k1 < numAtoms; k1++) {
         for (int k2 = 0; k2 < numAtoms; k2++) {
-          Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
+          // Eigen::Vector3d R = R0; // - atomicPositions.col(k1)
           //+ atomicPositions.col(k2);
-          double arg = qC.dot(R);
+          double arg = qC.dot(R0);
           std::complex<double> phase = exp(complexI * arg) / phDegeneracies(iR);
           for (int iCart : {0, 1, 2}) {
             for (int jCart : {0, 1, 2}) {
-              int m = compress2Indeces(k1, iCart, numAtoms, 3);
-              int n = compress2Indeces(k2, jCart, numAtoms, 3);
+              long m = compress2Indices(k1, iCart, numAtoms, 3);
+              long n = compress2Indices(k2, jCart, numAtoms, 3);
               hWK(m, n) += phase * h0R(iR, k1, k2, iCart, jCart);
             }
           }
@@ -1295,8 +1296,8 @@ void ElPhQeToPhoebeApp::testBackTransform(
   bool withEigenvectors = true;
   FullBandStructure bandStructure =
       electronH0.populate(kPoints, withVelocities, withEigenvectors);
-  int numKPoints = kPoints.getNumPoints();
-  int numModes = phononH0.getNumBands();
+  int numKPoints = int(kPoints.getNumPoints());
+  int numModes = int(phononH0.getNumBands());
 
   // needed by ::parse()
   #ifdef HDF5_AVAIL
@@ -1317,26 +1318,26 @@ void ElPhQeToPhoebeApp::testBackTransform(
       k2Cs.push_back(k2C);
 
       Eigen::Vector3d q3C = k2C - k1C;
-      Eigen::Vector3d q3Cryst = qPoints.cartesianToCrystal(q3C);
-      int iq3 = qPoints.getIndex(q3Cryst);
+      Eigen::Vector3d q3Crystal = qPoints.cartesianToCrystal(q3C);
+      int iq3 = int(qPoints.getIndex(q3Crystal));
       std::vector<Eigen::Vector3d> q3Cs;
       q3Cs.push_back(q3C);
 
       auto ik1Index = WavevectorIndex(ik1);
       auto ik2Index = WavevectorIndex(ik2);
 
-      Eigen::MatrixXcd eigvec1 = bandStructure.getEigenvectors(ik1Index);
-      Eigen::MatrixXcd eigvec2 = bandStructure.getEigenvectors(ik2Index);
-      std::vector<Eigen::MatrixXcd> eigvecs2;
-      eigvecs2.push_back(eigvec2);
+      Eigen::MatrixXcd eigenVector1 = bandStructure.getEigenvectors(ik1Index);
+      Eigen::MatrixXcd eigenVector2 = bandStructure.getEigenvectors(ik2Index);
+      std::vector<Eigen::MatrixXcd> eigenVectors2;
+      eigenVectors2.push_back(eigenVector2);
 
       auto t = phononH0.diagonalizeFromCoords(q3C);
-      auto eigvec3 = std::get<1>(t);
-      std::vector<Eigen::MatrixXcd> eigvecs3;
-      eigvecs3.push_back(eigvec3);
+      auto eigenVector3 = std::get<1>(t);
+      std::vector<Eigen::MatrixXcd> eigenVectors3;
+      eigenVectors3.push_back(eigenVector3);
 
-      couplingElPh.calcCouplingSquared(eigvec1, eigvecs2, eigvecs3, k1C, k2Cs,
-                                       q3Cs);
+      couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2,
+                                       eigenVectors3, k1C, k2Cs, q3Cs);
       auto coupling2 = couplingElPh.getCouplingSquared(0);
 
       double sum1 = 0.;
@@ -1349,7 +1350,7 @@ void ElPhQeToPhoebeApp::testBackTransform(
           }
         }
       }
-      // note that I change the meaning of the indeces
+      // note that I change the meaning of the indices
       assert(abs((sum1 - sum2) / sum1) < 0.0001);
     }
   }
@@ -1359,7 +1360,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     Context &context, Crystal &crystal, PhononH0 &phononH0, FullPoints &kPoints,
     FullPoints &qPoints, int numQEBands, int numModes, int numIrrQPoints,
     int numElectrons, int numSpin, const Eigen::MatrixXd &energies,
-    const Eigen::MatrixXd &kgridFull, const Eigen::Vector3i &kMesh,
+    const Eigen::MatrixXd &kGridFull, const Eigen::Vector3i &kMesh,
     const Eigen::Vector3i &qMesh, bool runTests) {
   if (mpi->mpiHead()) {
     std::cout << "Starting Wannier post-processing\n" << std::endl;
@@ -1369,7 +1370,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   auto t2 = QEParser::parseElHarmonicWannier(context, &crystal);
   auto electronH0 = std::get<1>(t2);
-  int numWannier = electronH0.getNumBands();
+  int numWannier = int(electronH0.getNumBands());
 
   //----------------------------------------------------------------------------
   // read Wannier90 rotation matrices
@@ -1385,7 +1386,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   // read coupling from file
   auto t5 =
       readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
-                      kgridFull, numIrrQPoints, numQEBands, energies);
+                      kGridFull, numIrrQPoints, numQEBands, energies);
   auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
   auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
   auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
@@ -1433,7 +1434,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       // flatten the tensor (tensor is not supported) and create the data set
       Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(), gWannier.size());
 
-      // Create the dataspace to write gWannier to
+      // Create the data-space to write gWannier to
       std::vector<size_t> dims(2);
       dims[0] = 1;
       dims[1] = size_t(gwan.size());
@@ -1441,16 +1442,17 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
       // get the start and stop points of elements to be written by this process
       std::vector<long> workDivs = mpi->divideWork(gwan.size());
-      size_t numElems = workDivs[1]-workDivs[0];
+      size_t numElements = workDivs[1]-workDivs[0];
 
       // We want to write only this part of the vector from this process
       Eigen::VectorXcd gwanSlice = gwan(Eigen::seq(workDivs[0],workDivs[1]));
 
       // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
-      // Because it's a vector (1 row) all procs write to row=0, col=startPoint
+      // Because it's a vector (1 row) all processes write to row=0,
+      // col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgwannier.select({0, size_t(workDivs[0])}, {1, numElems}).write(gwanSlice);
+      dgwannier.select({0, size_t(workDivs[0])}, {1, numElements}).write(gwanSlice);
     }
     #else
     { // do not remove these braces, see above note.
@@ -1476,10 +1478,10 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       // write out the number of electrons and the spin
-      HighFive::DataSet dnelec = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
-      HighFive::DataSet dnspin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
-      dnelec.write(numElectrons);
-      dnspin.write(numSpin);
+      HighFive::DataSet dnElectrons = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
+      HighFive::DataSet dnSpin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
+      dnElectrons.write(numElectrons);
+      dnSpin.write(numSpin);
 
       HighFive::DataSet dnElBands = file.createDataSet<int>("/numElBands", HighFive::DataSpace::From(numWannier));
       HighFive::DataSet dnModes = file.createDataSet<int>("/numPhModes", HighFive::DataSpace::From(numModes));
@@ -1487,26 +1489,26 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       dnModes.write(numModes);
 
       // write out the kMesh and qMesh
-      HighFive::DataSet dkmesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
-      HighFive::DataSet dqmesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
-      dkmesh.write(kMesh);
-      dqmesh.write(qMesh);
+      HighFive::DataSet dkMesh = file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
+      HighFive::DataSet dqMesh = file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
+      dkMesh.write(kMesh);
+      dqMesh.write(qMesh);
 
       // write bravais lattice vectors
-      HighFive::DataSet dphbravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
-      HighFive::DataSet delbravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
-      dphbravais.write(phBravaisVectors);
-      delbravais.write(elBravaisVectors);
+      HighFive::DataSet dPhBravais = file.createDataSet<double>("/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
+      HighFive::DataSet dElBravais = file.createDataSet<double>("/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
+      dPhBravais.write(phBravaisVectors);
+      dElBravais.write(elBravaisVectors);
 
       // write electron and phonon degeneracies
-      HighFive::DataSet dphDegeneracies = file.createDataSet<double>("/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
-      HighFive::DataSet delDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
-      dphDegeneracies.write(phDegeneracies);
-      delDegeneracies.write(elDegeneracies);
+      HighFive::DataSet dPhDegeneracies = file.createDataSet<double>("/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
+      HighFive::DataSet dElDegeneracies = file.createDataSet<double>("/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
+      dPhDegeneracies.write(phDegeneracies);
+      dElDegeneracies.write(elDegeneracies);
     }
   }
   catch(std::exception& error) {
-    Error e("Issue writing elph Wannier represenation to hdf5.");
+    Error e("Issue writing elph Wannier representation to hdf5.");
   }
 
   #else // need a non-hdf5 write option

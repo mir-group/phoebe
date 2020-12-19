@@ -32,7 +32,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto bandStructure = std::get<0>(t3);
   auto statisticsSweep = std::get<1>(t3);
 
-  // Old code for using all the bandstructure
+  // Old code for using all the band structure
   //  bool withVelocities = true;
   //  bool withEigenvectors = true;
   //  FullBandStructure bandStructure = electronH0.populate(
@@ -103,7 +103,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
-  for (auto s : solverBTE) {
+  for (const std::string &s : solverBTE) {
     if (s.compare("iterative") == 0)
       doIterative = true;
     if (s.compare("variational") == 0)
@@ -144,15 +144,15 @@ void ElectronWannierTransportApp::run(Context &context) {
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
     // from n, we get f, such that n = bose(bose+1)f
-    VectorBTE linewidths = scatteringMatrix.getLinewidths();
-    VectorBTE fERTA = driftE / linewidths;
-    VectorBTE fTRTA = driftT / linewidths;
+    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE fERTA = driftE / lineWidths;
+    VectorBTE fTRTA = driftT / lineWidths;
     VectorBTE fEOld = fERTA;
     VectorBTE fTOld = fTRTA;
 
     auto threshold = context.getConvergenceThresholdBTE();
 
-    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
       std::vector<VectorBTE> fIn;
       fIn.push_back(fEOld);
@@ -222,11 +222,11 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto thCondOld = thCond;
 
     // set the initial guess to the RTA solution
-    VectorBTE linewidths = scatteringMatrix.getLinewidths();
-    VectorBTE fENew = driftE / linewidths;
-    VectorBTE fTNew = driftT / linewidths;
+    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE fENew = driftE / lineWidths;
+    VectorBTE fTNew = driftT / lineWidths;
 
-    VectorBTE preconditioning = linewidths.sqrt();
+    VectorBTE preconditioning = lineWidths.sqrt();
 
     // CG rescaling
     fENew = fENew * preconditioning;
@@ -241,8 +241,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     fIn.push_back(fENew);
     fIn.push_back(fTNew);
     auto gOld = scatteringMatrix.offDiagonalDot(fIn);
-    VectorBTE gEOld = gOld[0] / linewidths; // CG scaling
-    VectorBTE gTOld = gOld[1] / linewidths; // CG scaling
+    VectorBTE gEOld = gOld[0] / lineWidths; // CG scaling
+    VectorBTE gTOld = gOld[1] / lineWidths; // CG scaling
     gEOld = gEOld - fEOld;
     gTOld = gTOld - fTOld;
     VectorBTE hEOld = -gEOld;
@@ -254,12 +254,12 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto tOut = scatteringMatrix.dot(tIn);
     VectorBTE tEOld = tOut[0];
     VectorBTE tTOld = tOut[1];
-    tEOld = tEOld / linewidths; // CG scaling
-    tTOld = tTOld / linewidths; // CG scaling
+    tEOld = tEOld / lineWidths; // CG scaling
+    tTOld = tTOld / lineWidths; // CG scaling
 
     double threshold = context.getConvergenceThresholdBTE();
 
-    for (long iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
 
       Eigen::MatrixXd alphaE =
@@ -286,19 +286,19 @@ void ElectronWannierTransportApp::run(Context &context) {
       hENew = -gENew + hENew;
       hTNew = -gTNew + hTNew;
 
-      std::vector<VectorBTE> inVecs;
-      inVecs.push_back(fENew);
-      inVecs.push_back(hENew); // note: at next step hNew is hOld -> gives tOld
-      inVecs.push_back(fTNew);
-      inVecs.push_back(hTNew); // note: at next step hNew is hOld -> gives tOld
-      auto outVecs = scatteringMatrix.dot(inVecs);
-      tEOld = outVecs[1];
-      tTOld = outVecs[3];
-      tEOld = tEOld / linewidths; // CG scaling
-      tTOld = tTOld / linewidths; // CG scaling
+      std::vector<VectorBTE> inVectors;
+      inVectors.push_back(fENew);
+      inVectors.push_back(hENew); // note: at next step hNew is hOld -> gives tOld
+      inVectors.push_back(fTNew);
+      inVectors.push_back(hTNew); // note: at next step hNew is hOld -> gives tOld
+      auto outVectors = scatteringMatrix.dot(inVectors);
+      tEOld = outVectors[1];
+      tTOld = outVectors[3];
+      tEOld = tEOld / lineWidths; // CG scaling
+      tTOld = tTOld / lineWidths; // CG scaling
 
-      transportCoeffs.calcVariational(outVecs[0], outVecs[2], fENew, fTNew,
-                                      preconditioning);
+      transportCoeffs.calcVariational(outVectors[0], outVectors[2], fENew,
+                                      fTNew, preconditioning);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();

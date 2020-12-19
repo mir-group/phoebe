@@ -130,7 +130,7 @@ class ParallelMatrix {
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
@@ -152,13 +152,13 @@ class ParallelMatrix {
    * Returns the stored value if the matrix element (row,col) is stored in
    * memory by the MPI process, otherwise returns zero.
    */
-  T& operator()(const int row, const int col);
+  T& operator()(const int &row, const int &col);
 
   /** Const get and set operator
    * Returns the stored value if the matrix element (row,col) is stored in
    * memory by the MPI process, otherwise returns zero.
    */
-  const T& operator()(const int row, const int col) const;
+  const T& operator()(const int &row, const int &col) const;
 
   /** Matrix-matrix multiplication.
    * Computes result = trans1(*this) * trans2(that)
@@ -385,8 +385,8 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
   int size = mpi->getSize(); // temp variable for mpi world size, used in setup
 
   blacs_pinfo_(&blasRank_, &size);
-  int zero = 0;
-  blacs_get_(&zero, &zero, &blacsContext_);  // -> Create context
+  int iZero = 0;
+  blacs_get_(&iZero, &iZero, &blacsContext_);  // -> Create context
 
   // kill the code if we asked for more blas rows/cols than there are procs
   if (mpi->getSize() < numBlasRows * numBlasCols) {
@@ -453,7 +453,7 @@ long ParallelMatrix<T>::size() const {
 // Get/set element
 
 template <typename T>
-T& ParallelMatrix<T>::operator()(const int row, const int col) {
+T& ParallelMatrix<T>::operator()(const int &row, const int &col) {
   long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     dummyZero = 0.;
@@ -464,7 +464,7 @@ T& ParallelMatrix<T>::operator()(const int row, const int col) {
 }
 
 template <typename T>
-const T& ParallelMatrix<T>::operator()(const int row, const int col) const {
+const T& ParallelMatrix<T>::operator()(const int &row, const int &col) const {
   long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return dummyConstZero;
@@ -474,7 +474,7 @@ const T& ParallelMatrix<T>::operator()(const int row, const int col) const {
 }
 
 template <typename T>
-bool ParallelMatrix<T>::indecesAreLocal(const int& row, const int& col) {
+bool ParallelMatrix<T>::indicesAreLocal(const int& row, const int& col) {
   long localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return false;
@@ -487,15 +487,16 @@ template <typename T>
 std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long& j) const {
   int il = (int)i;
   int jl = (int)j;
-  long ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
-  long jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+  int iZero = 0;
+  int ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
+  int jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
   return {ig,jg};
 }
 
 template <typename T>
 std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   // first, we convert this combined local index k
-  // into local row / col indeces
+  // into local row / col indices
   // k = j * numLocalRows_ + i
   int j = k / numLocalRows_;
   int i = k - j * numLocalRows_;
@@ -527,8 +528,8 @@ template <typename T>
 long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
   // note: row and col indices use the c++ convention of running from 0 to N-1
   // fortran (infog2l_) wants indices from 1 to N.
-  int row_ = row + 1;
-  int col_ = col + 1;
+  int row_ = int(row) + 1;
+  int col_ = int(col) + 1;
 
   // use infog2l_ to check that the current process owns this matrix element
   int iia, jja, iarow, iacol;
@@ -540,8 +541,9 @@ long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
     return -1;
   } else {
     // get the local indices, (il,jl) of the globally indexed element
-    long il = indxg2l_( &row_, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
-    long jl = indxg2l_( &col_, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+    int iZero = 0;
+    int il = indxg2l_( &row_, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
+    int jl = indxg2l_( &col_, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
     return il + (jl - 1) * descMat_[8] - 1;
   }
 }

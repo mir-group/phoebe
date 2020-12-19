@@ -92,9 +92,9 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
       for (int ic2 : {0, 1, 2}) {
         for (int ic3 : {0, 1, 2}) {
 
-          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+          auto ind1 = compress2Indices(ia1, ic1, numAtoms, 3);
+          auto ind2 = compress2Indices(ia2, ic2, numAtoms, 3);
+          auto ind3 = compress2Indices(ia3, ic3, numAtoms, 3);
 
           D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }

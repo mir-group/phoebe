@@ -15,13 +15,13 @@ ElectronViscosity::ElectronViscosity(Context &context_,
   tensordxdxdxd = Eigen::Tensor<double, 5>(
       numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
   tensordxdxdxd.setZero();
-};
+}
 
 // copy constructor
 ElectronViscosity::ElectronViscosity(const ElectronViscosity &that)
     : Observable(that), bandStructure(that.bandStructure) {}
 
-// copy assigmnent
+// copy assignment
 ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
   Observable::operator=(that);
   if (this != &that) {
@@ -39,7 +39,7 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
                 crystal.getVolumeUnitCell(dimensionality);
   auto particle = bandStructure.getParticle();
   tensordxdxdxd.setZero();
-  auto excludeIndeces = tau.excludeIndeces;
+  auto excludeIndices = tau.excludeIndices;
 
 #pragma omp parallel
   {
@@ -56,8 +56,8 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       long ibte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
-      if (std::find(excludeIndeces.begin(), excludeIndeces.end(), ibte) !=
-          excludeIndeces.end())
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte) !=
+          excludeIndices.end())
         continue;
 
       auto rots = bandStructure.getRotationsStar(isIdx);

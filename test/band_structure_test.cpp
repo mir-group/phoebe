@@ -63,7 +63,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   std::complex<double> c2 = complexZero;
   for (long i = 0; i < numBands; i++) {
-    auto tup = decompress2Indeces(i, numAtoms, 3);
+    auto tup = decompress2Indices(i, numAtoms, 3);
     auto iat = std::get<0>(tup);
     auto ic = std::get<1>(tup);
     for (long j = 0; j < numBands; j++) {
@@ -105,7 +105,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   for (long iband = 0; iband < numBands; iband++) {
     for (long iat = 0; iat < numAtoms; iat++) {
       for (long ipol = 0; ipol < 3; ipol++) {
-        auto ind = compress2Indeces(iat, ipol, numAtoms, 3);
+        auto ind = compress2Indices(iat, ipol, numAtoms, 3);
         c2 += pow(eigvecs(ipol, iat, iband) - eigvecsC(ind, iband), 2);
       }
     }

@@ -17,11 +17,6 @@ class HarmonicHamiltonian {
    */
   HarmonicHamiltonian();
 
-  // To mark whether the class has eigenvectors.
-  // In particular, we distinguish that the Fourier interpolation doesn't
-  // have eigenvectors
-  const bool hasEigenvectors = true;
-
   /** Returns the total number of phonon branches / electron bands that are
    * available in the interpolator.
    * @return numBands: integer number of bands.
@@ -44,7 +39,7 @@ class HarmonicHamiltonian {
       Point &point);
 
   /** Diagonalize the Harmonic Hamiltonian at an arbitrary wavevector.
-   * Same as diagonalize(), but the wavevector coordinates are explicitely
+   * Same as diagonalize(), but the wavevector coordinates are explicitly
    * passed in input.
    * @param point: the wavevector in cartesian coordinates.
    * @return eigenvalues: the values of quasiparticle energies, a double
@@ -68,11 +63,11 @@ class HarmonicHamiltonian {
   virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
       Eigen::Vector3d &coords);
 
-  /** Method for the construction of the bandstructure on a grid of
+  /** Method for the construction of the band structure on a grid of
    * of wavevectors of the Brillouin zone. In particular, we save the
    * information for all the bands available to the harmonic hamiltonian.
    * @param fullPoints: a Points object class over which we will compute the
-   * bandstructure (e.g. FullPoints, or PathPoints)
+   * band structure (e.g. FullPoints, or PathPoints)
    * @param withVelocities: bool. If set to true, we store the velocity
    * operator.
    * @param withEigenvectors: bool. If set to true, we store the eigenvectors
