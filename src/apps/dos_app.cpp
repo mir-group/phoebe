@@ -7,8 +7,6 @@
 
 #include "constants.h"
 #include "delta_function.h"
-#include "electron_h0_fourier.h"
-#include "exceptions.h"
 #include "full_points.h"
 #include "mpiHelper.h"
 #include "qe_input_parser.h"
@@ -21,7 +19,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
         Context& context, FullBandStructure& fullBandStructure);
 
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-        Particle& particle, Context& context, std::string outFileName);
+        Particle& particle, Context& context, const std::string &outFileName);
 
 /* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
@@ -138,7 +136,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   double minEnergy = context.getDosMinEnergy();
   double maxEnergy = context.getDosMaxEnergy();
   double deltaEnergy = context.getDosDeltaEnergy();
-  long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  long numEnergies = long((maxEnergy - minEnergy) / deltaEnergy) + 1;
 
   // create instructions about how to divide up the work
   auto divs = mpi->divideWork(numEnergies);
@@ -150,7 +148,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   std::vector<double> energies(workFraction);
   #pragma omp parallel for
   for (long i = start; i < stop; i++) {
-    energies[i - start] = i * deltaEnergy + minEnergy;
+    energies[i - start] = double(i) * deltaEnergy + minEnergy;
   }
 
   // Calculate phonon density of states (DOS) [1/Ry]
@@ -178,7 +176,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
  * helper function to output dos to a json file
  */
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-          Particle& particle, Context& context, std::string outFileName) {
+          Particle& particle, Context& context, const std::string &outFileName) {
 
   if ( !mpi->mpiHead()) return;
 

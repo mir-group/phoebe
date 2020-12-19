@@ -1,5 +1,4 @@
 #include "observable.h"
-#include "constants.h"
 #include <cmath>
 
 Observable::Observable(Context &context_, StatisticsSweep &statisticsSweep_,

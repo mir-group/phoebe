@@ -116,11 +116,11 @@ long ElectronH0Fourier::getNumBands() { return numBands; }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Fourier::diagonalize(
     Point &point) {
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-  auto tup = diagonalizeFromCoords(coords);
+  Eigen::Vector3d coordinates = point.getCoords(Points::cartesianCoords);
+  auto tup = diagonalizeFromCoords(coordinates);
   auto energies = std::get<0>(tup);
-  auto eigvecs = std::get<1>(tup);
-  return {energies, eigvecs};
+  auto eigenVectors = std::get<1>(tup);
+  return {energies, eigenVectors};
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -136,8 +136,8 @@ ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d &wavevector) {
 
 Eigen::Tensor<std::complex<double>, 3> ElectronH0Fourier::diagonalizeVelocity(
     Point &point) {
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
-  return diagonalizeVelocityFromCoords(coords);
+  Eigen::Vector3d coordinates = point.getCoords(Points::cartesianCoords);
+  return diagonalizeVelocityFromCoords(coordinates);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -175,8 +175,8 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
 
 double ElectronH0Fourier::getRoughnessFunction(const Eigen::Vector3d &position) {
   double norm = position.norm();
-  return pow(1. - coeff1 * norm / minDistance, 2) +
-         coeff2 * pow(norm / minDistance, 6);
+  return pow(1. - coefficient1 * norm / minDistance, 2) +
+      coefficient2 * pow(norm / minDistance, 6);
 }
 
 std::complex<double> ElectronH0Fourier::getStarFunction(
@@ -315,10 +315,10 @@ void ElectronH0Fourier::setPositionVectors() {
   double tmp2 = positionDegeneracies(0);
   positionDegeneracies(0) = tmp1;
   positionDegeneracies(originIndex) = tmp2;
-  Eigen::Vector3d tmpv1 = positionVectors.col(originIndex);
-  Eigen::Vector3d tmpv2 = positionVectors.col(0);
-  positionVectors.col(0) = tmpv1;
-  positionVectors.col(originIndex) = tmpv2;
+  Eigen::Vector3d tmpV1 = positionVectors.col(originIndex);
+  Eigen::Vector3d tmpV2 = positionVectors.col(0);
+  positionVectors.col(0) = tmpV1;
+  positionVectors.col(originIndex) = tmpV2;
 
   // the interpolation schemes also requires to know the minimum norm
   // of the lattice vectors
@@ -363,10 +363,10 @@ Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
       double rho = getRoughnessFunction(position);
       std::complex<double> smk0 = getStarFunction(refWavevector, iR);
       for (long i = 0; i < numDataPoints - 1; i++) {
-        std::complex<double> smki = smk(i + 1, iR);
+        std::complex<double> sFactor1 = smk(i + 1, iR);
         for (long j = 0; j < numDataPoints - 1; j++) {
-          std::complex<double> smkj = smk(j + 1, iR);
-          hPrivate(i, j) += (smki - smk0) * std::conj(smkj - smk0) / rho;
+          std::complex<double> sFactor2 = smk(j + 1, iR);
+          hPrivate(i, j) += (sFactor1 - smk0) * std::conj(sFactor2 - smk0) / rho;
         }
       }
     }

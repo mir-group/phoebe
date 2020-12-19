@@ -22,7 +22,7 @@ PhononThermalConductivity::PhononThermalConductivity(
     const PhononThermalConductivity &that)
     : Observable(that), bandStructure(that.bandStructure) {}
 
-// copy assigmnent
+// copy assignment
 PhononThermalConductivity &
 PhononThermalConductivity::operator=(const PhononThermalConductivity &that) {
   Observable::operator=(that);
@@ -182,7 +182,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
 
 void PhononThermalConductivity::calcFromRelaxons(
       Context &context, StatisticsSweep &statisticsSweep,
-      BaseBandStructure &bandStructure, ParallelMatrix<double> &eigenvectors,
+      ParallelMatrix<double> &eigenvectors,
       PhScatteringMatrix &scatteringMatrix, const Eigen::VectorXd &eigenvalues) {
 
   int dimensionality = context.getDimensionality();

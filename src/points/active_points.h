@@ -1,10 +1,10 @@
-#ifndef ACTIVEPOINTS_H
-#define ACTIVEPOINTS_H
+#ifndef ACTIVE_POINTS_H
+#define ACTIVE_POINTS_H
 
 #include "points.h"
 
 /** Class for storing an "active" list of wavevectors, i.e. a selection of
- * points taken from a monkhorst-pack grid of points.
+ * points taken from a Monkhorst-Pack grid of points.
  */
 class ActivePoints : public Points {
  protected:
@@ -34,7 +34,7 @@ class ActivePoints : public Points {
    * @param point: the wavevector in crystal coordinates.
    * @return index: the index of the wavevector in the range [0,numPoints[
    */
-  long getIndex(const Eigen::Vector3d &coords);
+  long getIndex(const Eigen::Vector3d &coordinates);
 
   /** Returns a Point object given its integer index.
    * The Point object is used to move around the code the coordinates of the

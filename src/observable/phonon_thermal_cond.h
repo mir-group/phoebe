@@ -1,5 +1,5 @@
-#ifndef PHONONCONDUCTIVITY_H
-#define PHONONCONDUCTIVITY_H
+#ifndef PHONON_CONDUCTIVITY_H
+#define PHONON_CONDUCTIVITY_H
 
 #include "observable.h"
 #include "ph_scattering.h"
@@ -56,9 +56,9 @@ public:
   /** Compute the thermal conductivity using a variational estimator
    * See Eq. 26 of https://link.aps.org/doi/10.1103/PhysRevB.88.045430
    * @param af: the product of the scattering matrix A with the canonical
-   * population, rescaled with a Conjugate gradient preconditioner.
+   * population, rescaled with a Conjugate gradient preconditioning.
    * @param f: the canonical phonon population
-   * @param scalingCG: the conjugate gradient preconditioner, which in detail
+   * @param scalingCG: the conjugate gradient preconditioning, which in detail
    * is the sqrt of the diagonal elements of the scattering matrix A.
    */
   void calcVariational(VectorBTE &af, VectorBTE &f, VectorBTE &scalingCG);
@@ -71,7 +71,6 @@ public:
    * eigenvalues (from eq.7), i.e. the relaxation times of the system.
    */
   void calcFromRelaxons(Context &context, StatisticsSweep &statisticsSweep,
-                        BaseBandStructure &bandStructure,
                         ParallelMatrix<double> &eigenvectors,
                         PhScatteringMatrix &scatteringMatrix,
                         const Eigen::VectorXd &eigenvalues);

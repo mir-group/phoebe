@@ -18,7 +18,7 @@ class Point {
 public:
   /** Constructor
    * @param index: integer index of the wavevector in the Points object.
-   * @param umklappVector: the crystal coordinates of a possible Umklapp
+   * @param umklappVector: the crystal coordinates of a possible umklapp
    * vector, used for example in sum or differences between wavevectors.
    * @param points: the points object that this Point object belongs to.
    */
@@ -36,7 +36,7 @@ public:
   /** Get the coordinates of the k-point
    * @param basis: either "cartesian" or "crystal"
    * @param inWignerSeitz: default false, if true, folds point in WS cell.
-   * @return coords: a 3d vector of coordinates
+   * @return coordinates: a 3d vector of coordinates
    */
   Eigen::Vector3d getCoords(const int &basis = crystalCoords_,
                             const bool &inWignerSeitz = false);
@@ -112,7 +112,7 @@ public:
   Eigen::Vector3d cartesianToCrystal(const Eigen::Vector3d &point);
 
   /** Folds a wavevector in crystal coordinates to the Wigner Seitz zone.
-   * @param pointCrystal: the crystal coordinates of a wavevecto
+   * @param pointCrystal: the crystal coordinates of a wavevector
    * @param basis: basis (Points::cartesianCoordinates or
    * Points::crystalCoordinates) in which to return the folded wavevector.
    * @return wavevector: the wavevector coordinates folded in the WS zone.
@@ -164,7 +164,7 @@ public:
   virtual long getIndex(const Eigen::Vector3d &point);
 
   // like getIndex, but returns -1 if point not found
-  virtual long isPointStored(const Eigen::Vector3d &crystalCoords);
+  virtual long isPointStored(const Eigen::Vector3d &crystalCoordinates);
 
   // note: constexpr tells the compiler that the class member is
   // available at compilation time
@@ -211,7 +211,8 @@ protected:
 
   // vector of size 0 to numIrrPoints: given an irreducible wavevector i,
   // where i runs from 0 to numIrrPoints,
-  // mITRL(i) is the index of the irreducible point in the reducible list
+  // mapIrreducibleToReducibleList(i) is the index of the irreducible point in
+  // the reducible list
   Eigen::VectorXi mapIrreducibleToReducibleList;
 
   // vector of size 0 to numPoints. Given a reducible wavevector i,

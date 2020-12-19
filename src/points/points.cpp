@@ -3,7 +3,6 @@
 #include "mpiHelper.h"
 #include "utilities.h" // for mod()
 #include <cmath>
-#include <math.h>
 #include <set>
 
 const int Points::crystalCoords = 0;
@@ -19,19 +18,18 @@ Points::Points(Crystal &crystal_, const Eigen::Vector3i &mesh_,
 
   // This block allows the folding to the wigner seitz zone
   long nGx = 2;
-  long nGvec = (2 * nGx + 1) * (2 * nGx + 1) * (2 * nGx + 1);
-  gVectors = Eigen::MatrixXd::Zero(3, nGvec);
+  long nGVectors = (2 * nGx + 1) * (2 * nGx + 1) * (2 * nGx + 1);
+  gVectors = Eigen::MatrixXd::Zero(3, nGVectors);
   Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
-  Eigen::Vector3d vec;
-  nGvec = 1; // we skip the first point which is G=(0,0,0)
+  nGVectors = 1; // we skip the first point which is G=(0,0,0)
   for (long i1 = -nGx; i1 <= nGx; i1++) {
     for (long i2 = -nGx; i2 <= nGx; i2++) {
       for (long i3 = -nGx; i3 <= nGx; i3++) {
         if ((i1 <= 0) || (i2 <= 0) || (i3 <= 0)) {
           Eigen::Vector3d vec;
           vec << i1, i2, i3;
-          gVectors.col(nGvec) = reciprocalUnitCell * vec;
-          nGvec += 1;
+          gVectors.col(nGVectors) = reciprocalUnitCell * vec;
+          nGVectors += 1;
         }
       }
     }
@@ -90,14 +88,14 @@ Eigen::Vector3d Points::getPointCoords(const long &index, const int &basis) {
 
 Eigen::Vector3d Points::reduciblePoints(const long &idx) {
   // find 3 indices from the single index
-  int ikz = idx / (mesh(0) * mesh(1));
-  int idx_ = idx - (ikz * mesh(0) * mesh(1));
-  int iky = idx_ / mesh(0);
-  int ikx = mod(idx_, mesh(0));
+  long ikz = idx / (mesh(0) * mesh(1));
+  long idx_ = idx - (ikz * mesh(0) * mesh(1));
+  long iky = idx_ / mesh(0);
+  long ikx = mod(idx_, long(mesh(0)));
   Eigen::Vector3d p;
-  p(0) = ikx / (double)mesh(0) + offset(0);
-  p(1) = iky / (double)mesh(1) + offset(1);
-  p(2) = ikz / (double)mesh(2) + offset(2);
+  p(0) = double(ikx) / (double)mesh(0) + offset(0);
+  p(1) = double(iky) / (double)mesh(1) + offset(1);
+  p(2) = double(ikz) / (double)mesh(2) + offset(2);
   return p;
 }
 
@@ -109,7 +107,7 @@ long Points::getIndex(const Eigen::Vector3d &point) {
   return ik;
 }
 
-long Points::isPointStored(const Eigen::Vector3d &crystalCoords) {
+long Points::isPointStored(const Eigen::Vector3d &crystalCoordinates) {
 
   if (numPoints == mesh.prod()) { // full list is faster
     Eigen::Vector3i p;
@@ -117,7 +115,7 @@ long Points::isPointStored(const Eigen::Vector3d &crystalCoords) {
     double diff = 0.;
     for (int i : {0, 1, 2}) {
       // bring the point to integer coordinates
-      double x = (crystalCoords(i) - offset(i)) * mesh(i);
+      double x = (crystalCoordinates(i) - offset(i)) * mesh(i);
       // check that p is indeed a point commensurate to the mesh.
       diff += round(x) - x;
       // fold in Brillouin zone in range [0,mesh-1]
@@ -132,7 +130,7 @@ long Points::isPointStored(const Eigen::Vector3d &crystalCoords) {
   } else {
     for (long ikTest = 0; ikTest < numPoints; ikTest++) {
       Eigen::Vector3d kTest = getPointCoords(ikTest, Points::crystalCoords);
-      Eigen::Vector3d diff = kTest - crystalCoords;
+      Eigen::Vector3d diff = kTest - crystalCoordinates;
       for (int i : {0, 1, 2}) {
         diff(i) -= std::floor(diff(i) + 1.0e-8);
       }
@@ -321,9 +319,7 @@ Points::findMesh(const Eigen::Matrix<double, 3, Eigen::Dynamic> &testPoints) {
 ////////////////////////////////////////////////////////////////
 
 Point::Point(Points &points_, long index_, Eigen::Vector3d umklappVector_)
-    : points(points_) {
-  umklappVector = umklappVector_;
-  index = index_;
+    : umklappVector(umklappVector_), index(index_), points(points_) {
 }
 
 // copy constructor
@@ -367,10 +363,10 @@ Point Point::operator+(Point &b) {
   if (&b.points != &points) {
     Error e("Points sum should refer to points of the same mesh");
   }
-  Eigen::Vector3d coords = getCoords() + b.getCoords();
-  long ik = points.getIndex(coords);
-  Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-  Point p(points, ik, umklappVector);
+  Eigen::Vector3d coordinates = getCoords() + b.getCoords();
+  long ik = points.getIndex(coordinates);
+  Eigen::Vector3d umklappVector2 = points.getPointCoords(ik) - coordinates;
+  Point p(points, ik, umklappVector2);
   return p;
 }
 
@@ -378,10 +374,10 @@ Point Point::operator-(Point &b) {
   if (&b.points != &points) {
     Error e("Points sum should refer to points of the same mesh");
   }
-  Eigen::Vector3d coords = getCoords() - b.getCoords();
-  long ik = points.getIndex(coords);
-  Eigen::Vector3d umklappVector = points.getPointCoords(ik) - coords;
-  Point p(points, ik, umklappVector);
+  Eigen::Vector3d coordinates = getCoords() - b.getCoords();
+  long ik = points.getIndex(coordinates);
+  Eigen::Vector3d umklappVector2 = points.getPointCoords(ik) - coordinates;
+  Point p(points, ik, umklappVector2);
   return p;
 }
 
@@ -397,13 +393,13 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
   // equiv(i) = i : k-point i is not equivalent to any other (irreducible)
   // equiv(i)!=i : k-point i is equivalent to k-point equiv(nk)
 
-  std::vector<SymmetryOperation> symms = crystal.getSymmetryOperations();
+  std::vector<SymmetryOperation> symmetries = crystal.getSymmetryOperations();
   {
     rotationMatricesCrystal.resize(0);
     rotationMatricesCartesian.resize(0);
     Eigen::Matrix3d bg = crystal.getReciprocalUnitCell();
-    for (auto symm : symms) {
-      Eigen::Matrix3d rotation = symm.rotation;
+    for (const SymmetryOperation &symmetry : symmetries) {
+      Eigen::Matrix3d rotation = symmetry.rotation;
       rotationMatricesCrystal.push_back(rotation);
       rotation = bg * rotation * bg.inverse();
       rotationMatricesCartesian.push_back(rotation);
@@ -426,8 +422,8 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
       // (excepted those previously found to be equivalent to another)
       // check both k and -k
       std::vector<int> possibleRotations;
-      for (auto symm : symms) {
-        Eigen::Matrix3d rot = symm.rotation;
+      for (const auto &symmetry : symmetries) {
+        Eigen::Matrix3d rot = symmetry.rotation;
         Eigen::Vector3d rotatedPoint =
             rot * getPointCoords(ik, Points::crystalCoords);
         long ikRot = isPointStored(rotatedPoint);
@@ -436,7 +432,7 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
             equiv(ikRot) = ik;
           } else {
             if (equiv(ikRot) != ik || ikRot < ik) {
-              Error e("Error in finding irred kpoints");
+              Error e("Error in finding irreducible points");
             }
           }
         }
@@ -458,7 +454,7 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
 //        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
         Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
 
-        for (unsigned int is = 0; is < symms.size(); is++) {
+        for (unsigned int is = 0; is < symmetries.size(); is++) {
           Eigen::Matrix3d rot = rotationMatricesCrystal[is];
           Eigen::Vector3d rotatedPoint = rot * kIrr;
           long ikRot = isPointStored(rotatedPoint);
@@ -493,7 +489,7 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
         std::vector<int> isSelects;
         std::vector<double> diffs;
 
-        for (unsigned int is = 0; is < symms.size(); is++) {
+        for (unsigned int is = 0; is < symmetries.size(); is++) {
           Eigen::Vector3d rotatedPoint = rotationMatricesCrystal[is] * kIrr;
           long ikRot = isPointStored(rotatedPoint);
           if (ikRot != ikRed) {
@@ -529,17 +525,19 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
     }
   }
 
-  // this allows us to map (ikIrr in the irrPoints) -> (ikRed in fullpoints)
+  // this allows us to map (ikIrr in the irrPoints) -> (ikRed in fullPoints)
   mapIrreducibleToReducibleList = Eigen::VectorXi::Zero(numIrrPoints);
-  long i = 0;
-  for (long j = 0; j < numPoints; j++) {
-    if (equiv(j) == j) { // if is irreducible
-      mapIrreducibleToReducibleList(i) = j;
-      i += 1;
+  {
+    long i = 0;
+    for (long j = 0; j < numPoints; j++) {
+      if (equiv(j) == j) { // if is irreducible
+        mapIrreducibleToReducibleList(i) = j;
+        i += 1;
+      }
     }
   }
 
-  // this allows us to map (ikRed in fullpoints) -> (ikIrr in the irrPoints)
+  // this allows us to map (ikRed in fullPoints) -> (ikIrr in the irrPoints)
   // basically the inverse of mapIrrToRedList
   mapReducibleToIrreducibleList = Eigen::VectorXi(numPoints);
   for (long ik = 0; ik < numPoints; ik++) {

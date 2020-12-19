@@ -1,5 +1,5 @@
-#ifndef PATHPOINTS_H
-#define PATHPOINTS_H
+#ifndef PATH_POINTS_H
+#define PATH_POINTS_H
 
 #include "points.h"
 #include "full_points.h"
@@ -16,10 +16,10 @@ public:
      * segment, and 3 is the cartesian coordinates of the extrema.
      * Point coordinates must be in crystal coordinates.
      * Example: if we want a path G->X->L, we have: 2 segments: G->X and X->L
-     * pathExtrema(0,0,:) = G.coords
-     * pathExtrema(0,1,:) = X.coords
-     * pathExtrema(1,0,:) = X.coords
-     * pathExtrema(1,1,:) = L.coords
+     * pathExtrema(0,0,:) = G. coordinates
+     * pathExtrema(0,1,:) = X. coordinates
+     * pathExtrema(1,0,:) = X. coordinates
+     * pathExtrema(1,1,:) = L. coordinates
      * @param delta: segments are populated with points, with a distance
      * "delta" between different points in crystal coordinates.
      */
@@ -46,7 +46,7 @@ public:
      * @param point: the wavevector in crystal coordinates.
      * @return index: the index of the wavevector in the range [0,numPoints[
      */
-    long getIndex(const Eigen::Vector3d &coords);
+    long getIndex(const Eigen::Vector3d &coordinates);
 
     /** Get the coordinates of a wavevector from its index.
      * @param index: the index of the desired wavevector.

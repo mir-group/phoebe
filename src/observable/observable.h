@@ -8,7 +8,7 @@
 /** Base class for computing properties depending on quasiparticle occupation
  * numbers.
  * Supports the calculation of scalar (specific heat) observables, vector
- * (polarizato=ion), rank-2 tensors (conductivity) and rank-4 (viscosity)
+ * (polarization), rank-2 tensors (conductivity) and rank-4 (viscosity)
  * observables.
  * The dimensionality of the observables is set by Crystal -> e.g. conductivity
  * becomes a DxD tensor with D the dimensionality taken from Crystal.

@@ -37,13 +37,13 @@ void TransportEpaApp::run(Context &context) {
     energies(i) = (double(i) + 0.5) * energyStep + minEnergy;
   }
 
-  // Read and setup k-point mesh for interpolating bandstructure
+  // Read and setup k-point mesh for interpolating band structure
   FullPoints fullPoints(crystal, context.getKMesh());
   bool withVelocities = true;
   bool withEigenvectors = false;
 
   if (mpi->mpiHead()) {
-    std::cout << "\nBuilding electronic bandstructure" << std::endl;
+    std::cout << "\nBuilding electronic band structure" << std::endl;
   }
 
   electronH0.trimBands(context, minEnergy, maxEnergy);
@@ -195,7 +195,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   auto phParticle = Particle(Particle::phonon);
 
   if (particle.isPhonon())
-    Error e("Electronic bandstructure has to be provided");
+    Error e("Electronic band structure has to be provided");
 
   long numCalcs = statisticsSweep.getNumCalcs();
 

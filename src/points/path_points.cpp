@@ -20,7 +20,7 @@ PathPoints::PathPoints(Crystal &crystal_,
 
   // we loop over the segments provided in user input
   for (long i = 0; i < pathExtrema.dimension(0); i++) {
-    // load coords of the extrema of the segment
+    // load coordinates of the extrema of the segment
     p0(0) = pathExtrema(i, 0, 0);
     p0(1) = pathExtrema(i, 0, 1);
     p0(2) = pathExtrema(i, 0, 2);
@@ -104,11 +104,11 @@ Eigen::Vector3d PathPoints::getPointCoords(const long &index,
   }
 }
 
-long PathPoints::getIndex(const Eigen::Vector3d &coords) {
+long PathPoints::getIndex(const Eigen::Vector3d &coordinates) {
   // in this case there is no order, so we just search through a loop
   long counter = 0;
   for (counter = 0; counter < numPoints; counter++) {
-    if ((pointsList.col(counter) - coords).norm() < 1.0e-8) {
+    if ((pointsList.col(counter) - coordinates).norm() < 1.0e-8) {
       break;
     }
   }

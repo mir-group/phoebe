@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
 
   // setup input/output
   IO io(argc, argv);
-  io.welcome();
+  IO::welcome();
 
   // Print parallelization info
   if (mpi->mpiHead()) parallelInfo();
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
   }
 
   // exiting program
-  io.goodbye();
+  IO::goodbye();
 
   // here close parallel environment
   // make sure all processes finish before printing end info

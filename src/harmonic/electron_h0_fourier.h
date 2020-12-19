@@ -111,8 +111,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
   Eigen::Vector3cd getDerivativeStarFunction(Eigen::Vector3d &wavevector,
                                              long &iR);
   double getRoughnessFunction(const Eigen::Vector3d &position);
-  const double coeff1 = 0.75;  // 3/4
-  const double coeff2 = 0.75;
+  const double coefficient1 = 0.75;  // 3/4
+  const double coefficient2 = 0.75;
   double getEnergyFromCoords(Eigen::Vector3d &wavevector, long &bandIndex);
   Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d &wavevector,
                                              long &bandIndex);

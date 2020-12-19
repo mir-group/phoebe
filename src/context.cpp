@@ -52,7 +52,7 @@ double parseDouble(std::string &line) {
   size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
   return std::stod(value); // convert to double
-};
+}
 
 /** Parse a string of format "key = value units" to return a double value
  * converted in rydberg atomic units.
@@ -83,7 +83,7 @@ double parseDoubleWithUnits(std::string &line) {
   }
 
   return x;
-};
+}
 
 /** Parse a string of format "key = [value1,value2]" to return a vector double.
  */
@@ -113,7 +113,7 @@ std::vector<double> parseDoubleList(std::string &line) {
   x.push_back(std::stod(s));
 
   return x;
-};
+}
 
 /** Parse a string of format "key = [value1,value2]" to return a vector double.
  */
@@ -143,7 +143,7 @@ std::vector<int> parseIntList(std::string &line) {
   x.push_back(std::stoi(s));
 
   return x;
-};
+}
 
 /** Parse a string of format "key = value units" to return an integer value.
  */
@@ -152,7 +152,7 @@ long parseLong(std::string &line) {
   size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
   return std::stoi(value); // convert to integer
-};
+}
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
  */
@@ -181,7 +181,7 @@ std::vector<long> parseLongList(std::string &line) {
   x.push_back(std::stoi(s));
 
   return x;
-};
+}
 
 /** Parse a string of format "key = value" to return a string value.
  */
@@ -204,7 +204,7 @@ std::string parseString(std::string &line) {
   }
   std::string x = line.substr(pos1 + 1, pos2 - pos1 - 1);
   return x;
-};
+}
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of strings.
  */
@@ -240,7 +240,7 @@ std::vector<std::string> parseStringList(std::string &line) {
   x.push_back(s);
 
   return x;
-};
+}
 
 /** Parse the block of information on the crystal structure.
  * Format:

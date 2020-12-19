@@ -1,6 +1,3 @@
-#include <iterator>
-#include <sstream>
-#include <vector>
 #include "utilities.h"
 
 long mod(const long &a, const long &b) {
@@ -9,12 +6,6 @@ long mod(const long &a, const long &b) {
 
 int mod(const int &a, const int &b) {
     return (a % b + b) % b;
-}
-
-bool hasSuffix(const std::string &str, const std::string &suffix) {
-    return str.size() >= suffix.size()
-            && str.compare(str.size() - suffix.size(), suffix.size(), suffix)
-                    == 0;
 }
 
 long compress3Indices(const long &i1, const long &i2, const long &i3,

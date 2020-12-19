@@ -15,13 +15,13 @@ ElectronViscosity::ElectronViscosity(Context &context_,
   tensordxdxdxd = Eigen::Tensor<double, 5>(
       numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
   tensordxdxdxd.setZero();
-};
+}
 
 // copy constructor
 ElectronViscosity::ElectronViscosity(const ElectronViscosity &that)
     : Observable(that), bandStructure(that.bandStructure) {}
 
-// copy assigmnent
+// copy assignment
 ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
   Observable::operator=(that);
   if (this != &that) {

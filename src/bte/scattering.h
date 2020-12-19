@@ -16,7 +16,7 @@ public:
    * @param statisticsSweep: object controlling the loops over temperature
    * and chemical potential.
    * @param innerBandStructure: bandStructure object. This is the mesh used
-   * to integrate the anharmonic properties for each state of outerBandStruc.
+   * to integrate the anharmonic properties for each state of outerBandStructure.
    * For transport calculation, this object is typically equal to
    * outerBandStructure. Might differ when outerBS is on a path of points.
    * @param outerBandStructure: bandStructure object. The anharmonic
@@ -83,9 +83,9 @@ public:
    */
   VectorBTE getLinewidths();
 
-  /** Converts the scttering matrix from the form A to the symmetrized Omega.
+  /** Converts the scattering matrix from the form A to the symmetrised Omega.
    * A acts on the canonical phonon population f, while Omega acts on the
-   * symmetrized phonon population \tilde{n}.
+   * symmetrised phonon population \tilde{n}.
    * Note: for phonons, n = bose(bose+1)f , with bose being the
    * bose--einstein distribution, while n = sqrt(bose(bose+1)) tilde(n).
    * Only works if the matrix is kept in memory and after setup() has been
@@ -107,7 +107,7 @@ public:
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string &outFileName);
 
   /** Function to combine a BTE index and a cartesian index into one index of
    * the scattering matrix. If no symmetries are used, the output is equal to
@@ -185,7 +185,7 @@ public:
    * 2) if matrix.size > 0 and linewidth is passed, builder computes the
    * quasiparticle linewidths and the scattering matrix. Memory intensive!
    * 3) if matrix.size()==0, linewidth is not passed, but we pass in+out
-   * populations, we compute outPopulation = scattMatrix * inPopulation.
+   * populations, we compute outPopulation = scatteringMatrix * inPopulation.
    * This doesn't require to store the matrix in memory.
    */
   virtual void builder(VectorBTE *linewidth,

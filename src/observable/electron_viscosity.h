@@ -1,5 +1,5 @@
-#ifndef ELECTRONVISCOSITY_H
-#define ELECTRONVISCOSITY_H
+#ifndef ELECTRON_VISCOSITY_H
+#define ELECTRON_VISCOSITY_H
 
 #include "drift.h"
 #include "el_scattering.h"

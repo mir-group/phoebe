@@ -70,9 +70,9 @@ Eigen::Vector3d ActivePoints::getPointCoords(const long &index,
   }
 }
 
-long ActivePoints::getIndex(const Eigen::Vector3d &coords) {
+long ActivePoints::getIndex(const Eigen::Vector3d &coordinates) {
   // we take advantage of the fact that the parent points have an order
-  long indexFull = parentPoints.getIndex(coords);
+  long indexFull = parentPoints.getIndex(coordinates);
   long ik = fullToFilteredIndices(indexFull);
   return ik;
 }
@@ -81,7 +81,7 @@ long ActivePoints::fullToFilteredIndices(const long &indexIn) {
   // Note: this function could obviously be made much faster if you could
   // save in memory the map of every point in the Full list into the
   // ActivePoints list (and 0 if there's no mapping.
-  // But the list of kpoints might be too large!
+  // But the list of k-points might be too large!
   long target = -1;
   for (long ik = 0; ik < numPoints; ik++) {
     if (indexIn == filteredToFullIndices(ik)) {
@@ -90,7 +90,7 @@ long ActivePoints::fullToFilteredIndices(const long &indexIn) {
     }
   }
   if (target == -1) {
-    Error e("Couldn't find the desired kpoint");
+    Error e("Couldn't find the desired point");
   }
   return target;
 }

@@ -24,7 +24,8 @@ public:
      * @param statistics: an integer equal to Statistics::electron or
      * Statistics::phonon.
      */
-    Particle(int kind_);
+
+    explicit Particle(int kind_);
 
     /** Copy constructor
      */

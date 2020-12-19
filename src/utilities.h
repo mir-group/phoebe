@@ -12,9 +12,6 @@
 long mod(const long &a, const long &b);
 int mod(const int &a, const int &b);
 
-// checks if string ends with a suffix
-bool hasSuffix(const std::string &str, const std::string &suffix);
-
 // returns -1 if val<0, 0 if val=0, and 1 if val>0
 template<typename T> int sgn(T &val) {
     return (T(0) < val) - (val < T(0));
@@ -73,7 +70,6 @@ using BteIndex = NamedType<long, struct BteTag>;
 /** CalcIndex is used to label the pairs of (chemical potential , temperature)
  * used in transport calculations
  */
-using CalcIndex = NamedType<long, struct CalcTag>;
 using TempIndex = NamedType<long, struct TempTag>;
 using ChemPotIndex = NamedType<long, struct ChemPotTag>;
 
@@ -85,7 +81,7 @@ using WavevectorIndex = NamedType<long, struct WavevectorTag>;
  */
 using BandIndex = NamedType<long, struct BandTag>;
 
-/** StateIndex is used to label the Bloch states in the bandstructure.
+/** StateIndex is used to label the Bloch states in the band structure.
  * Not always equal to BteIndex, because some states may be discarded!
  */
 using StateIndex = NamedType<long, struct StateTag>;

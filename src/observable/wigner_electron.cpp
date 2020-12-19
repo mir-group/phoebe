@@ -62,8 +62,8 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
           if (ib1 == ib2) {
             continue;
           }
-          int is1 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib1));
-          int is2 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib2));
+          long is1 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib1));
+          long is2 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib2));
           StateIndex is1Idx(is1);
           StateIndex is2Idx(is2);
           long ibte1 = bandStructure.stateToBte(is1Idx).get();

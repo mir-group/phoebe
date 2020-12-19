@@ -1,5 +1,5 @@
-#ifndef PHSCATTERING_H
-#define PHSCATTERING_H
+#ifndef PH_SCATTERING_H
+#define PH_SCATTERING_H
 
 #include "interaction_3ph.h"
 #include "phonon_h0.h"
@@ -17,7 +17,7 @@ class PhScatteringMatrix : public ScatteringMatrix {
    * @param context: the user-initialized variables.
    * @param statisticsSweep: the object containing the information on the
    * temperatures to be used in the calculation.
-   * @param innerBandStructure: this is the bandstructure object used for
+   * @param innerBandStructure: this is the band structure object used for
    * integrating the sum over q2 wavevectors.
    * @param outerBandStructure: this is the bandStructure object used for
    * integrating the sum over q1 wavevectors.
@@ -25,10 +25,10 @@ class PhScatteringMatrix : public ScatteringMatrix {
    * interaction calculation.
    * @param h0: the object used for constructing phonon energies.
    *
-   * Note: inner and outer bandstructures may be different, for example, if we
-   * want to compute the phonon linewidths on a path, the outer bandstructure
+   * Note: inner and outer band structures may be different, for example, if we
+   * want to compute the phonon linewidths on a path, the outer band structure
    * contains the phonon dispersion relation along high symmetry lines, whereas
-   * the inner bandstructure contains the dispersion relation on a full grid
+   * the inner band structure contains the dispersion relation on a full grid
    * of wavevectors. For transport calculations instead, inner=outer.
    * Especially in the case of computing linewidths on a path, it might be
    * necessary to compute phonon energies on a wavevector q3=q1+q2: for this
@@ -59,9 +59,9 @@ class PhScatteringMatrix : public ScatteringMatrix {
   bool doBoundary;
 
   // implementation of the scattering matrix
-  virtual void builder(VectorBTE *linewidth,
-                       std::vector<VectorBTE> &inPopulations,
-                       std::vector<VectorBTE> &outPopulations);
+  void builder(VectorBTE *linewidth,
+               std::vector<VectorBTE> &inPopulations,
+               std::vector<VectorBTE> &outPopulations) override;
 };
 
 #endif

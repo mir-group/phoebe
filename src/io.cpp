@@ -43,7 +43,7 @@ IO::IO(int argc, char *argv[]) {
     // causes buffer to flush at every call of <<
     std::cout.setf( std::ios_base::unitbuf );
   }
-};
+}
 
 IO::~IO() {
   if (outputFile.is_open()) {

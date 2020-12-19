@@ -25,7 +25,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     return;
   }
 
-  dimensionality_ = context.getDimensionality();
+  dimensionality_ = int(context.getDimensionality());
 
   highMemory = context.getScatteringMatrixInMemory();
 
@@ -42,12 +42,12 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   // we want to know the state index of acoustic modes at gamma,
   // so that we can set their populations to zero
   if (outerBandStructure.getParticle().isPhonon()) {
-    for (long ibte = 0; ibte < numStates; ibte++) {
-      auto ibteIdx = BteIndex(ibte);
-      StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+    for (long iBte = 0; iBte < numStates; iBte++) {
+      auto iBteIdx = BteIndex(iBte);
+      StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
       double en = outerBandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-        excludeIndices.push_back(ibte);
+        excludeIndices.push_back(iBte);
       }
     }
   }
@@ -104,13 +104,15 @@ void ScatteringMatrix::setup() {
       Error e("High memory BTE methods can only work with one "
               "temperature and/or chemical potential in a single run");
     }
+    int matSize;
     if (context.getUseSymmetries()) {
-      theMatrix = ParallelMatrix<double>(3*numStates, 3*numStates);
+      matSize = int(3*numStates);
     } else {
-      theMatrix = ParallelMatrix<double>(numStates, numStates);
+      matSize = int(numStates);
     }
+    theMatrix = ParallelMatrix<double>(matSize, matSize);
 
-    // calc matrix and linew.
+    // calc matrix and linewidth.
     builder(&internalDiagonal, emptyVector, emptyVector);
   } else {
     // calc linewidths only
@@ -121,9 +123,9 @@ void ScatteringMatrix::setup() {
 VectorBTE ScatteringMatrix::diagonal() {
   if (constantRTA) {
     double crt = context.getConstantRelaxationTime();
-    VectorBTE diag(statisticsSweep, outerBandStructure, 1);
-    diag.setConst(1. / crt);
-    return diag;
+    VectorBTE diagonal(statisticsSweep, outerBandStructure, 1);
+    diagonal.setConst(1. / crt);
+    return diagonal;
   } else {
     return internalDiagonal;
   }
@@ -135,9 +137,9 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
 #pragma omp parallel for collapse(3)
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     for (int iDim : {0, 1, 2}) {
-      for (long ibte = 0; ibte < numStates; ibte++) {
-        outPopulation(iCalc, iDim, ibte) -=
-            internalDiagonal(iCalc, 0, ibte) * inPopulation(iCalc, iDim, ibte);
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        outPopulation(iCalc, iDim, iBte) -=
+            internalDiagonal(iCalc, 0, iBte) * inPopulation(iCalc, iDim, iBte);
       }
     }
   }
@@ -152,10 +154,10 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
 #pragma omp parallel for collapse(3)
     for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       for (int iDim : {0, 1, 2}) {
-        for (long ibte = 0; ibte < numStates; ibte++) {
-          outPopulations[iVec](iCalc, iDim, ibte) -=
-              internalDiagonal(iCalc, 0, ibte) *
-              inPopulations[iVec](iCalc, iDim, ibte);
+        for (int iBte = 0; iBte < numStates; iBte++) {
+          outPopulations[iVec](iCalc, iDim, iBte) -=
+              internalDiagonal(iCalc, 0, iBte) *
+              inPopulations[iVec](iCalc, iDim, iBte);
         }
       }
     }
@@ -171,24 +173,24 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
 
     if (context.getUseSymmetries()) {
       for (auto tup : theMatrix.getAllLocalStates()) {
-        long iMat1 = std::get<0>(tup);
-        long iMat2 = std::get<1>(tup);
+        int iMat1 = std::get<0>(tup);
+        int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
         auto t2 = getSMatrixIndex(iMat2);
-        long ibte1 = std::get<0>(t1).get();
-        long ibte2 = std::get<0>(t2).get();
-        long i = std::get<1>(t1).get();
-        long j = std::get<1>(t2).get();
-        outPopulation(0, i, ibte1) +=
-            theMatrix(iMat1, iMat2) * inPopulation(0, j, ibte2);
+        int iBte1 = std::get<0>(t1).get();
+        int iBte2 = std::get<0>(t2).get();
+        int i = std::get<1>(t1).get();
+        int j = std::get<1>(t2).get();
+        outPopulation(0, i, iBte1) +=
+            theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
       for (auto tup : theMatrix.getAllLocalStates()) {
-        auto ibte1 = std::get<0>(tup);
-        auto ibte2 = std::get<1>(tup);
+        auto iBte1 = std::get<0>(tup);
+        auto iBte2 = std::get<1>(tup);
         for (int i : {0, 1, 2}) {
-          outPopulation(0, i, ibte1) +=
-              theMatrix(ibte1, ibte2) * inPopulation(0, i, ibte2);
+          outPopulation(0, i, iBte1) +=
+              theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
         }
       }
     }
@@ -221,7 +223,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
     return outPopulations;
   } else {
     std::vector<VectorBTE> outPopulations;
-    for (auto inPopulation : inPopulations) {
+    for (auto &inPopulation : inPopulations) {
       VectorBTE outPopulation(statisticsSweep, outerBandStructure,
                               inPopulation.dimensionality);
       outPopulations.push_back(outPopulation);
@@ -253,31 +255,31 @@ void ScatteringMatrix::a2Omega() {
   double chemPot = calcStatistics.chemicalPotential;
 
   for (auto tup : theMatrix.getAllLocalStates()) {
-    long ibte1, ibte2, iMat1, iMat2;
+    int iBte1, iBte2, iMat1, iMat2;
     StateIndex is1Idx(-1), is2Idx(-1);
     if (context.getUseSymmetries()) {
       iMat1 = std::get<0>(tup);
       iMat2 = std::get<1>(tup);
       auto tup1 = getSMatrixIndex(iMat1);
       auto tup2 = getSMatrixIndex(iMat2);
-      BteIndex ibte1Idx = std::get<0>(tup1);
-      BteIndex ibte2Idx = std::get<0>(tup2);
-      ibte1 = ibte1Idx.get();
-      ibte2 = ibte2Idx.get();
-      is1Idx = outerBandStructure.bteToState(ibte1Idx);
-      is2Idx = outerBandStructure.bteToState(ibte2Idx);
+      BteIndex iBte1Idx = std::get<0>(tup1);
+      BteIndex iBte2Idx = std::get<0>(tup2);
+      iBte1 = iBte1Idx.get();
+      iBte2 = iBte2Idx.get();
+      is1Idx = outerBandStructure.bteToState(iBte1Idx);
+      is2Idx = outerBandStructure.bteToState(iBte2Idx);
     } else {
-      ibte1 = std::get<0>(tup);
-      ibte2 = std::get<1>(tup);
-      iMat1 = ibte1;
-      iMat2 = ibte2;
-      is1Idx = StateIndex(ibte1);
-      is2Idx = StateIndex(ibte2);
+      iBte1 = std::get<0>(tup);
+      iBte2 = std::get<1>(tup);
+      iMat1 = iBte1;
+      iMat2 = iBte2;
+      is1Idx = StateIndex(iBte1);
+      is2Idx = StateIndex(iBte2);
     }
-    if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte1) !=
+    if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
         excludeIndices.end())
       continue;
-    if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte2) !=
+    if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) !=
         excludeIndices.end())
       continue;
 
@@ -288,8 +290,8 @@ void ScatteringMatrix::a2Omega() {
     double term1 = particle.getPopPopPm1(en1, temp, chemPot);
     double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
-    if (ibte1 == ibte2) {
-      internalDiagonal(0, 0, ibte1) /= term1;
+    if (iBte1 == iBte2) {
+      internalDiagonal(0, 0, iBte1) /= term1;
     }
 
     theMatrix(iMat1, iMat2) /= sqrt(term1 * term2);
@@ -360,17 +362,17 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     } else { // A_nu,nu = N(1+-N) / tau
       VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
-      for (long ibte = 0; ibte < numStates; ibte++) {
-        BteIndex ibteIdx(ibte);
-        StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        BteIndex iBteIdx(iBte);
+        StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          times(iCalc, 0, ibte) = popTerm / internalDiagonal(iCalc, 0, ibte);
+          times(iCalc, 0, iBte) = popTerm / internalDiagonal(iCalc, 0, iBte);
         }
       }
       times.excludeIndices = excludeIndices;
@@ -397,17 +399,17 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       if (particle.isElectron()) {
         Error e("Attempting to use a numerically unstable quantity");
       }
-      for (long ibte = 0; ibte < numStates; ibte++) {
-        auto ibteIdx = BteIndex(ibte);
-        StateIndex isIdx = outerBandStructure.bteToState(ibteIdx);
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        auto iBteIdx = BteIndex(iBte);
+        StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (long iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          linewidths(iCalc, 0, ibte) /= popTerm;
+          linewidths(iCalc, 0, iBte) /= popTerm;
         }
       }
       return linewidths;
@@ -418,7 +420,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   }
 }
 
-void ScatteringMatrix::outputToJSON(std::string outFileName) {
+void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
 
   if (!mpi->mpiHead())
     return;
@@ -439,7 +441,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
   }
 
   // need to store as a vector format with dimensions
-  // icalc, ik. ib, idim (where istate is unfolded into
+  // iCalc, ik. ib, iDim (where iState is unfolded into
   // ik, ib) for the velocities and lifetimes, no dim for energies
   std::vector<std::vector<std::vector<double>>> outTimes;
   std::vector<std::vector<std::vector<double>>> outLinewidths;
@@ -468,7 +470,7 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
       std::vector<std::vector<double>> bandsV;
       std::vector<double> bandsE;
       // loop over bands here
-      // get numBands at this point, in case it's an active bandstructure
+      // get numBands at this point, in case it's an active band structure
       for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
         auto ibIndex = BandIndex(ib);
         long is = outerBandStructure.getIndex(ikIndex, ibIndex);
@@ -476,11 +478,11 @@ void ScatteringMatrix::outputToJSON(std::string outFileName) {
         double ene = outerBandStructure.getEnergy(isIdx);
         auto vel = outerBandStructure.getGroupVelocity(isIdx);
         bandsE.push_back(ene * energyConversion);
-        long ibte = outerBandStructure.stateToBte(isIdx).get();
-        double tau = times(iCalc, 0, ibte); // only zero dim is meaningful
+        int iBte = int(outerBandStructure.stateToBte(isIdx).get());
+        double tau = times(iCalc, 0, iBte); // only zero dim is meaningful
         bandsT.push_back(tau * timeRyToFs);
         double linewidth =
-            tmpLinewidths(iCalc, 0, ibte); // only zero dim is meaningful
+            tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
         bandsL.push_back(linewidth * energyRyToEv);
 
         std::vector<double> iDimsV;
@@ -540,12 +542,12 @@ std::tuple<Eigen::VectorXd, ParallelMatrix<double>> ScatteringMatrix::diagonaliz
   auto eigenvectors = std::get<1>(tup);
 
   // place eigenvalues in an VectorBTE object
-  Eigen::VectorXd eigvals(theMatrix.rows());
-  for (long is = 0; is < eigvals.size(); is++) {
-    eigvals(is) = eigenvalues[is];
+  Eigen::VectorXd eigenValues(theMatrix.rows());
+  for (long is = 0; is < eigenValues.size(); is++) {
+    eigenValues(is) = eigenvalues[is];
   }
 
-  return {eigvals, eigenvectors};
+  return {eigenValues, eigenvectors};
 }
 
 std::vector<std::tuple<std::vector<long>, long>>
@@ -585,15 +587,15 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto iMat2 = std::get<1>(tup0);
           auto tup1 = getSMatrixIndex(iMat1);
           auto tup2 = getSMatrixIndex(iMat2);
-          BteIndex ibte1 = std::get<0>(tup1);
-          BteIndex ibte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to bandstructure index
-          StateIndex is1 = outerBandStructure.bteToState(ibte1);
-          StateIndex is2 = outerBandStructure.bteToState(ibte2);
-          auto tupp1 = outerBandStructure.getIndex(is1);
-          auto tupp2 = outerBandStructure.getIndex(is2);
-          WavevectorIndex ik1Index = std::get<0>(tupp1);
-          WavevectorIndex ik2Index = std::get<0>(tupp2);
+          BteIndex iBte1 = std::get<0>(tup1);
+          BteIndex iBte2 = std::get<0>(tup2);
+          // map the index on the irreducible points of BTE to band structure index
+          StateIndex is1 = outerBandStructure.bteToState(iBte1);
+          StateIndex is2 = outerBandStructure.bteToState(iBte2);
+          auto tuple1 = outerBandStructure.getIndex(is1);
+          auto tuple2 = outerBandStructure.getIndex(is2);
+          WavevectorIndex ik1Index = std::get<0>(tuple1);
+          WavevectorIndex ik2Index = std::get<0>(tuple2);
           long ik1Irr = ik1Index.get();
           long ik2Irr = ik2Index.get();
           for (long ik2 :
@@ -677,15 +679,15 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto iMat2 = std::get<1>(tup0);
           auto tup1 = getSMatrixIndex(iMat1);
           auto tup2 = getSMatrixIndex(iMat2);
-          BteIndex ibte1 = std::get<0>(tup1);
-          BteIndex ibte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to bandstructure index
-          StateIndex is1 = outerBandStructure.bteToState(ibte1);
-          StateIndex is2 = outerBandStructure.bteToState(ibte2);
-          auto tupp1 = outerBandStructure.getIndex(is1);
-          auto tupp2 = outerBandStructure.getIndex(is2);
-          WavevectorIndex iq1Index = std::get<0>(tupp1);
-          WavevectorIndex iq2Index = std::get<0>(tupp2);
+          BteIndex iBte1 = std::get<0>(tup1);
+          BteIndex iBte2 = std::get<0>(tup2);
+          // map the index on the irreducible points of BTE to band structure index
+          StateIndex is1 = outerBandStructure.bteToState(iBte1);
+          StateIndex is2 = outerBandStructure.bteToState(iBte2);
+          auto tuple1 = outerBandStructure.getIndex(is1);
+          auto tuple2 = outerBandStructure.getIndex(is2);
+          WavevectorIndex iq1Index = std::get<0>(tuple1);
+          WavevectorIndex iq2Index = std::get<0>(tuple2);
           long iq1Irr = iq1Index.get();
           long iq2Irr = iq2Index.get();
           for (long iq2 :

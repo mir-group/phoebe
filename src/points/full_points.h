@@ -1,5 +1,5 @@
-#ifndef FULLPOINTS_H
-#define FULLPOINTS_H
+#ifndef FULL_POINTS_H
+#define FULL_POINTS_H
 
 #include "points.h"
 
