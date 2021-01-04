@@ -147,8 +147,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
     // this comes up first in the file, so if dim_fc2 is present, we'll overwrite it
     if(line.find("dim: ") != std::string::npos) {
-      std::string temp = line.substr(line.find("\""+1), line.find("\"\n")-3);
-      std::istringstream iss(temp);
+      std::string temp = line.substr(10,5);
       iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
     }
     // pause reading here
@@ -156,7 +155,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   }
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
-    Error e("Phonon supercell dims read as 0 or less."
+    Error e("Phonon supercell dims read as 0 or less.\n"
         "Something is wrong with your input.", 1);
   }
 
@@ -186,6 +185,8 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     // if this line has a species, save it
     if(line.find("symbol: ") != std::string::npos) {
       std::string temp = line.substr(line.find("symbol: ")+8,line.find("#")-13);
+      // remove any trailing whitespaces
+      temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
       if(std::find(speciesNames.begin(), speciesNames.end(), temp) == speciesNames.end()) {
         speciesNames.push_back(temp);
       }
