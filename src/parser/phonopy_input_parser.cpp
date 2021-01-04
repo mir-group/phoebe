@@ -148,6 +148,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     // this comes up first in the file, so if dim_fc2 is present, we'll overwrite it
     if(line.find("dim: ") != std::string::npos) {
       std::string temp = line.substr(10,5);
+      std::istringstream iss(temp);
       iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
     }
     // pause reading here
@@ -343,7 +344,10 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
             // Atoms in supercell are ordered so that there is a
             // unit cell atom followed by numUnitcell-in-supercell-#-of-atoms,
             // which are representations of the unit cell atom in other cells
-            int jsat = ir + numAtoms * jat;
+            // we find this by using cellMap to tell us where the
+            // first atom of this type is, then adding ir, which tells us
+            // which cell it's in.
+            int jsat = cellMap[jat] + ir;
 
             // loop over cartesian directions
             for (int ic : {0,1,2}) {
