@@ -51,17 +51,17 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
 
     // Number of triplets
     std::getline(infile, line);
-    long numTriplets = std::stoi(line);
+    int numTriplets = std::stoi(line);
 
     // Allocate readables
     Eigen::Tensor<double, 4> ifc3Tensor(3, 3, 3, numTriplets);
     ifc3Tensor.setZero();
     Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
     cellPositions.setZero();
-    Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+    Eigen::Tensor<int, 2> displacedAtoms(numTriplets, 3);
     displacedAtoms.setZero();
 
-    for (long i = 0; i < numTriplets; i++) {	// loop over all triplets
+    for (int i = 0; i < numTriplets; i++) {	// loop over all triplets
 
         // empty line
         std::getline(infile, line);
@@ -91,19 +91,19 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
         std::getline(infile, line);
         std::istringstream iss3(line);
         j = 0;
-        long i0;
+        int i0;
         while (iss3 >> i0) {
             displacedAtoms(i, j) = i0 - 1;
             j++;
         }
 
         // Read the 3x3x3 force constants tensor
-        long i1, i2, i3;
+        int i1, i2, i3;
         double d4;
         double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
-        for (long a : { 0, 1, 2 }) {
-            for (long b : { 0, 1, 2 }) {
-                for (long c : { 0, 1, 2 }) {
+        for (int a : { 0, 1, 2 }) {
+            for (int b : { 0, 1, 2 }) {
+                for (int c : { 0, 1, 2 }) {
                     std::getline(infile, line);
                     std::istringstream iss4(line);
                     while (iss4 >> i1 >> i2 >> i3 >> d4) {
@@ -138,8 +138,8 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
         Error e("D3 file not found");
     }
 
-    long numAtoms = crystal.getNumAtoms();
-    long numSpecies = crystal.getSpeciesMasses().size();
+    int numAtoms = crystal.getNumAtoms();
+    int numSpecies = crystal.getSpeciesMasses().size();
 
     // The first few lines contain info on the crystal, which we ignore
     std::getline(infile, line);
@@ -155,16 +155,16 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
     // read the mesh of triplets
     std::getline(infile, line);
 
-    long numTriplets = 0;
+    int numTriplets = 0;
 
     // in this first loop we count the number of triplets that have
     // non zero derivative. This allows us to decrease the size of the matrix
-    for (long na1 = 0; na1 < numAtoms; na1++) {
-        for (long na2 = 0; na2 < numAtoms; na2++) {
-            for (long na3 = 0; na3 < numAtoms; na3++) {
-                for (long j1 : { 0, 1, 2 }) {
-                    for (long j2 : { 0, 1, 2 }) {
-                        for (long j3 : { 0, 1, 2 }) {
+    for (int na1 = 0; na1 < numAtoms; na1++) {
+        for (int na2 = 0; na2 < numAtoms; na2++) {
+            for (int na3 = 0; na3 < numAtoms; na3++) {
+                for (int j1 : { 0, 1, 2 }) {
+                    for (int j2 : { 0, 1, 2 }) {
+                        for (int j3 : { 0, 1, 2 }) {
                             // suppress compiler warnings
                             (void) j1;
                             (void) j2;
@@ -177,10 +177,10 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
                             // read the # of elements in this block
                             std::getline(infile, line);
                             std::istringstream iss2(line);
-                            long nR;
+                            int nR;
                             iss2 >> nR;
 
-                            for (long i = 0; i < nR; i++) {
+                            for (int i = 0; i < nR; i++) {
 
                                 std::getline(infile, line);
                                 std::istringstream iss3(line);
@@ -208,7 +208,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
     ifc3Tensor.setZero();
     Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
     cellPositions.setZero();
-    Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+    Eigen::Tensor<int, 2> displacedAtoms(numTriplets, 3);
     displacedAtoms.setZero();
 
     // Open IFC3 file
@@ -227,14 +227,14 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
     // read the mesh of triplets
     std::getline(infile, line);
 
-    long it = 0;
+    int it = 0;
 
-    for (long na1 = 0; na1 < numAtoms; na1++) {
-        for (long na2 = 0; na2 < numAtoms; na2++) {
-            for (long na3 = 0; na3 < numAtoms; na3++) {
-                for (long j1 : { 0, 1, 2 }) {
-                    for (long j2 : { 0, 1, 2 }) {
-                        for (long j3 : { 0, 1, 2 }) {
+    for (int na1 = 0; na1 < numAtoms; na1++) {
+        for (int na2 = 0; na2 < numAtoms; na2++) {
+            for (int na3 = 0; na3 < numAtoms; na3++) {
+                for (int j1 : { 0, 1, 2 }) {
+                    for (int j2 : { 0, 1, 2 }) {
+                        for (int j3 : { 0, 1, 2 }) {
 
                             // read 6 integer which represent cartesian and
                             // atomic basis indices
@@ -243,10 +243,10 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
                             // read the # of elements in this block
                             std::getline(infile, line);
                             std::istringstream iss2(line);
-                            long nR;
+                            int nR;
                             iss2 >> nR;
 
-                            for (long i = 0; i < nR; i++) {
+                            for (int i = 0; i < nR; i++) {
 
                                 std::getline(infile, line);
                                 std::istringstream iss3(line);

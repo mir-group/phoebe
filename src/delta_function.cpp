@@ -149,7 +149,7 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 double TetrahedronDeltaFunction::getDOS(const double &energy) {
   // initialize tetrahedron weight
   double weight = 0.;
-  for (long is : fullBandStructure.irrStateIterator()) {
+  for (int is : fullBandStructure.irrStateIterator()) {
     auto isIndex = StateIndex(is);
     double degeneracy = double(fullBandStructure.getRotationsStar(isIndex).size());
     weight += getSmearing(energy, isIndex) * degeneracy;
@@ -161,7 +161,7 @@ double TetrahedronDeltaFunction::getDOS(const double &energy) {
 double TetrahedronDeltaFunction::getSmearing(const double &energy,
                                              StateIndex &is) {
   auto t = fullBandStructure.getIndex(is);
-  long ik = std::get<0>(t).get();
+  int ik = std::get<0>(t).get();
   auto ibIndex = std::get<1>(t);
 
   auto fullPoints = fullBandStructure.getPoints();
@@ -188,7 +188,7 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
 
   Eigen::VectorXd energies(8);
   for ( int i=1; i<8; i++) {
-    long is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubCellIndices(i)),ibIndex);
+    int is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubCellIndices(i)),ibIndex);
     StateIndex is1Idx(is1);
     energies(i) = fullBandStructure.getEnergy(is1Idx);
   }

@@ -30,7 +30,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     // load the mass variance at natural abundances. Hard coded.
     PeriodicTable periodicTable;
     auto atomsNames = crystal.getAtomicNames();
-    long i = 0;
+    int i = 0;
     for (const auto &atomName : atomsNames) {
       double thisMass = periodicTable.getMass(atomName);
       // since the phonon eigenvectors are renormalised with sqrt(mass)
@@ -118,7 +118,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   auto particle = outerBandStructure.getParticle();
-  long numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
+  int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
   int numCalcs = int(statisticsSweep.getNumCalcs());
 
   // note: innerNumFullPoints is the number of points in the full grid
@@ -156,7 +156,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     mpi->allReduceSum(&innerBose.data);
   }
 
-  std::vector<std::tuple<std::vector<long>, long>> qPairIterator =
+  std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
       getIteratorWavevectorPairs(switchCase);
 
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
@@ -173,8 +173,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
    */
   // outer loop over q2
   for (auto tup : qPairIterator) {
-    std::vector<long> iq1Indexes = std::get<0>(tup);
-    long iq2 = std::get<1>(tup);
+    std::vector<int> iq1Indexes = std::get<0>(tup);
+    int iq2 = std::get<1>(tup);
     auto iq2Index = WavevectorIndex(iq2);
 
     Point q2 = innerBandStructure.getPoint(iq2);
@@ -188,7 +188,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
     auto t = innerBandStructure.getRotationToIrreducible(
         q2.getCoords(Points::cartesianCoords), Points::cartesianCoords);
-    long iq2Irr = std::get<0>(t);
+    int iq2Irr = std::get<0>(t);
     Eigen::Matrix3d rotation = std::get<1>(t);
     // rotation such that qIrr = R * qRed
 
@@ -303,11 +303,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               }
               double enProd = en1 * en2 * en3Plus;
 
-              long is1 = outerBandStructure.getIndex(WavevectorIndex(iq1),
+              int is1 = outerBandStructure.getIndex(WavevectorIndex(iq1),
                                                      BandIndex(ib1));
-              long is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
+              int is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
                                                      BandIndex(ib2));
-              long is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+              int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
                                                         BandIndex(ib2));
               auto is1Idx = StateIndex(is1);
               auto is2Idx = StateIndex(is2);
@@ -528,7 +528,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       auto q2Coords = innerBandStructure.getPoint(iq2).getCoords(Points::cartesianCoords);
       auto t = outerBandStructure.getRotationToIrreducible(q2Coords, Points::cartesianCoords);
       // rotation such that
-      long iq2Irr = std::get<0>(t);
+      int iq2Irr = std::get<0>(t);
       Eigen::Matrix3d rotation = std::get<1>(t);
 
       for (auto iq1 : iq1Indexes) {
@@ -569,7 +569,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = state2Energies(ib2);
-            long is2 =
+            int is2 =
                 innerBandStructure.getIndex(WavevectorIndex(iq2Irr), BandIndex(ib2));
             StateIndex is2Idx(is2);
             int ind2 = innerBandStructure.stateToBte(is2Idx).get();

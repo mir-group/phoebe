@@ -49,13 +49,13 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     double sum;
 
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
         sum = 0.;
-        for (long na = 0; na < numAtoms; na++) {
+        for (int na = 0; na < numAtoms; na++) {
           sum += bornCharges(na, i, j);
         }
-        for (long na = 0; na < numAtoms; na++) {
+        for (int na = 0; na < numAtoms; na++) {
           bornCharges(na, i, j) -= sum / numAtoms;
         }
       }
@@ -63,14 +63,14 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     // Simple Acoustic Sum Rule on force constants in real space
 
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
-        for (long na = 0; na < numAtoms; na++) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        for (int na = 0; na < numAtoms; na++) {
           sum = 0.;
-          for (long nb = 0; nb < numAtoms; nb++) {
-            for (long n1 = 0; n1 < qCoarseGrid(0); n1++) {
-              for (long n2 = 0; n2 < qCoarseGrid(1); n2++) {
-                for (long n3 = 0; n3 < qCoarseGrid(2); n3++) {
+          for (int nb = 0; nb < numAtoms; nb++) {
+            for (int n1 = 0; n1 < qCoarseGrid(0); n1++) {
+              for (int n2 = 0; n2 < qCoarseGrid(1); n2++) {
+                for (int n3 = 0; n3 < qCoarseGrid(2); n3++) {
                   sum += forceConstants(i, j, n1, n2, n3, na, nb);
                 }
               }
@@ -91,18 +91,18 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     Eigen::Tensor<double, 3> zeu_new(3, 3, numAtoms);
     zeu_new.setZero();
 
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
-        for (long iat = 0; iat < numAtoms; iat++) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        for (int iat = 0; iat < numAtoms; iat++) {
           zeu_new(i, j, iat) = bornCharges(iat, i, j);
         }
       }
     }
 
-    long p = 0;
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
-        for (long iat = 0; iat < numAtoms; iat++) {
+    int p = 0;
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        for (int iat = 0; iat < numAtoms; iat++) {
           // These are the 3*3 vectors associated with the
           // translational acoustic sum rules
           zeu_u(p, i, j, iat) = 1.;
@@ -123,30 +123,30 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     Eigen::VectorXi zeu_less(6 * 3);
     zeu_less.setZero();
     double scal;
-    long nzeu_less = 0;
-    long r;
+    int nzeu_less = 0;
+    int r;
 
-    for (long k = 0; k < p; k++) {
-      for (long i = 0; i < 3; i++) {
-        for (long j = 0; j < 3; j++) {
-          for (long iat = 0; iat < numAtoms; iat++) {
+    for (int k = 0; k < p; k++) {
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          for (int iat = 0; iat < numAtoms; iat++) {
             zeu_w(i, j, iat) = zeu_u(k, i, j, iat);
             zeu_x(i, j, iat) = zeu_u(k, i, j, iat);
           }
         }
       }
 
-      for (long q = 0; q < k - 1; q++) {
+      for (int q = 0; q < k - 1; q++) {
         r = 1;
-        for (long izeu_less = 0; izeu_less < nzeu_less; izeu_less++) {
+        for (int izeu_less = 0; izeu_less < nzeu_less; izeu_less++) {
           if (zeu_less(izeu_less) == q) {
             r = 0;
           };
         }
         if (r != 0) {
-          for (long i = 0; i < 3; i++) {
-            for (long j = 0; j < 3; j++) {
-              for (long iat = 0; iat < numAtoms; iat++) {
+          for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+              for (int iat = 0; iat < numAtoms; iat++) {
                 tempZeu(i, j, iat) = zeu_u(q, i, j, iat);
               }
             }
@@ -159,9 +159,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       sp_zeu(zeu_w, zeu_w, norm2);
 
       if (norm2 > 1.0e-16) {
-        for (long i = 0; i < 3; i++) {
-          for (long j = 0; j < 3; j++) {
-            for (long iat = 0; iat < numAtoms; iat++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            for (int iat = 0; iat < numAtoms; iat++) {
               zeu_u(k, i, j, iat) = zeu_w(i, j, iat) / sqrt(norm2);
             }
           }
@@ -176,18 +176,18 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     // subspace of the vectors verifying the sum rules
 
     zeu_w.setZero();
-    for (long k = 0; k < p; k++) {
+    for (int k = 0; k < p; k++) {
       r = 1;
-      for (long izeu_less = 0; izeu_less < nzeu_less; izeu_less++) {
+      for (int izeu_less = 0; izeu_less < nzeu_less; izeu_less++) {
         if (zeu_less(izeu_less) == k) {
           r = 0;
         };
       }
       if (r != 0) {
         // copy vector
-        for (long i = 0; i < 3; i++) {
-          for (long j = 0; j < 3; j++) {
-            for (long iat = 0; iat < numAtoms; iat++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            for (int iat = 0; iat < numAtoms; iat++) {
               zeu_x(i, j, iat) = zeu_u(k, i, j, iat);
             }
           }
@@ -195,9 +195,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         // get rescaling factor
         sp_zeu(zeu_x, zeu_new, scal);
         // rescale vector
-        for (long i = 0; i < 3; i++) {
-          for (long j = 0; j < 3; j++) {
-            for (long iat = 0; iat < numAtoms; iat++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            for (int iat = 0; iat < numAtoms; iat++) {
               zeu_w(i, j, iat) += scal * zeu_u(k, i, j, iat);
             }
           }
@@ -215,9 +215,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
                    "charges: " << sqrt(norm2) << std::endl;
     }
 
-    for (long i = 0; i < 3; i++) {
-      for (long j = 0; j < 3; j++) {
-        for (long iat = 0; iat < numAtoms; iat++) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        for (int iat = 0; iat < numAtoms; iat++) {
           bornCharges(iat, i, j) = zeu_new(i, j, iat);
         }
       }
@@ -238,13 +238,13 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     uvec.setZero();
 
     Eigen::Tensor<double,7> frc_new(nr1,nr2,nr3,3,3,numAtoms,numAtoms);
-    for (long nb = 0; nb < numAtoms; nb++) {
-      for (long na = 0; na < numAtoms; na++) {
-        for (long j = 0; j < 3; j++) {
-          for (long i = 0; i < 3; i++) {
-            for (long n3 = 0; n3 < nr3; n3++) {
-              for (long n2 = 0; n2 < nr2; n2++) {
-                for (long n1 = 0; n1 < nr1; n1++) {
+    for (int nb = 0; nb < numAtoms; nb++) {
+      for (int na = 0; na < numAtoms; na++) {
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
+            for (int n3 = 0; n3 < nr3; n3++) {
+              for (int n2 = 0; n2 < nr2; n2++) {
+                for (int n1 = 0; n1 < nr1; n1++) {
                   frc_new(n1,n2,n3,i,j,na,nb) = forceConstants(i,j,n1,n2,n3,na,nb);
                 }
               }
@@ -593,13 +593,13 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     }
 
 //    forceConstants = frc_new;
-    for (long nb = 0; nb < numAtoms; nb++) {
-      for (long na = 0; na < numAtoms; na++) {
-        for (long i = 0; i < 3; i++) {
-          for (long j = 0; j < 3; j++) {
-            for (long n3 = 0; n3 < nr3; n3++) {
-              for (long n2 = 0; n2 < nr2; n2++) {
-                for (long n1 = 0; n1 < nr1; n1++) {
+    for (int nb = 0; nb < numAtoms; nb++) {
+      for (int na = 0; na < numAtoms; na++) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            for (int n3 = 0; n3 < nr3; n3++) {
+              for (int n2 = 0; n2 < nr2; n2++) {
+                for (int n1 = 0; n1 < nr1; n1++) {
                   forceConstants(i,j,n1,n2,n3,na,nb) = frc_new(n1,n2,n3,i,j,na,nb);
                 }
               }
@@ -622,9 +622,9 @@ void PhononH0::sp_zeu(Eigen::Tensor<double, 3> &zeu_u,
   // (considered as vectors in the R^(3*3*nat) space)
 
   scal = 0.;
-  for (long i = 0; i < 3; i++) {
-    for (long j = 0; j < 3; j++) {
-      for (long na = 0; na < numAtoms; na++) {
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      for (int na = 0; na < numAtoms; na++) {
         scal += zeu_u(i, j, na) * zeu_v(i, j, na);
       }
     }

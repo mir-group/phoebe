@@ -40,13 +40,13 @@ public:
      * @param index: the integer wavevector index ranging in [0,numPoints[
      * @return point: a point object.
      */
-    Point getPoint(const long &index);
+    Point getPoint(const int &index);
 
     /** Get the wavevector index given the crystal coordinates of a wavevector.
      * @param point: the wavevector in crystal coordinates.
      * @return index: the index of the wavevector in the range [0,numPoints[
      */
-    long getIndex(const Eigen::Vector3d &coordinates);
+    int getIndex(const Eigen::Vector3d &coordinates);
 
     /** Get the coordinates of a wavevector from its index.
      * @param index: the index of the desired wavevector.
@@ -54,7 +54,7 @@ public:
      * Either Points::crystalCoords or Points::cartesianCoords.
      * @return wavevector: the coordinates of the desired wavevector.
      */
-    Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+    Eigen::Vector3d getPointCoords(const int &index, const int &basis =
             Points::crystalCoords);
 protected:
     Eigen::Matrix<double, 3, Eigen::Dynamic> pointsList;

@@ -6,7 +6,7 @@
 
 HarmonicHamiltonian::HarmonicHamiltonian() : particle(Particle::phonon) {}
 
-long HarmonicHamiltonian::getNumBands() { return numBands; }
+int HarmonicHamiltonian::getNumBands() { return numBands; }
 
 Particle HarmonicHamiltonian::getParticle() { return particle; }
 

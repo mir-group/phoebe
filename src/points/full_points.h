@@ -31,10 +31,10 @@ public:
    * @param index: the integer wavevector index ranging in [0,numPoints[
    * @return point: a point object.
    */
-  Point getPoint(const long &index);
+  Point getPoint(const int &index);
 
   // like getIndex, but returns -1 if point not found
-  long isPointStored(const Eigen::Vector3d &crystalCoords);
+  int isPointStored(const Eigen::Vector3d &crystalCoords);
 };
 
 #endif

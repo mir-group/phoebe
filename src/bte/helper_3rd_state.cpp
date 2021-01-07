@@ -96,7 +96,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
     i = 0;
-    for (long iq : setOfIndexes) {
+    for (int iq : setOfIndexes) {
       filter(i) = iq;
       i++;
     }
@@ -117,7 +117,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
  * and returns the harmonic info for that vector.
  * This is to be used for the third wavevector of the 3-phonon scattering.
  */
-std::tuple<Eigen::Vector3d, Eigen::VectorXd, long, Eigen::MatrixXcd,
+std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
 Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
   Eigen::Vector3d q3;
@@ -136,8 +136,8 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     // note: 3rdBandStructure might still be different from inner/outer bs.
     // so, we must use the points from 3rdBandStructure to get the values
 
-    long iq3;
-    long nb3;
+    int iq3;
+    int nb3;
     Eigen::VectorXd energies3;
     Eigen::MatrixXcd eigvecs3;
     Eigen::MatrixXd v3s;
@@ -156,8 +156,8 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
-      for (long ib3 = 0; ib3 < nb3; ib3++) {
-        long ind3 =
+      for (int ib3 = 0; ib3 < nb3; ib3++) {
+        int ind3 =
             outerBandStructure.getIndex(WavevectorIndex(iq3), BandIndex(ib3));
         bose3Data.col(ib3) = outerBose.data.col(ind3);
       }
@@ -173,10 +173,10 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       }
       nb3 = energies3.size();
       bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
-      for (long iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
+      for (int iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
         double temperature =
             outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (long ib3 = 0; ib3 < nb3; ib3++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) = h0->getParticle().getPopulation(
               energies3(ib3), temperature);
         }
@@ -189,7 +189,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     // otherwise, q3 doesn't fall into the same grid
     // and we must therefore compute it from the hamiltonian
 
-    long iq1 = point1.getIndex();
+    int iq1 = point1.getIndex();
 
     Eigen::VectorXd energies3;
     Eigen::MatrixXcd eigvecs3;
@@ -210,13 +210,13 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       bose3Data = cacheMinsBose[iq1Counter];
     }
 
-    long nb3 = energies3.size();
+    int nb3 = energies3.size();
     return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
   }
 }
 
-void Helper3rdState::prepare(const std::vector<long> q1Indexes,
-                             const long &iq2) {
+void Helper3rdState::prepare(const std::vector<int> q1Indexes,
+                             const int &iq2) {
   if (!storedAllQ3) {
     int numPoints = q1Indexes.size();
     cacheOffset = q1Indexes[0];
@@ -234,7 +234,7 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
     Particle particle = h0->getParticle();
 
     int iq1Counter = -1;
-    for (long iq1 : q1Indexes) {
+    for (int iq1 : q1Indexes) {
       iq1Counter++;
       Eigen::Vector3d q1 =
           outerBandStructure.getPoint(iq1).getCoords(Points::cartesianCoords);
@@ -259,14 +259,14 @@ void Helper3rdState::prepare(const std::vector<long> q1Indexes,
       bose3DataPlus.setZero();
       bose3DataMins.setZero();
 
-      for (long iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
+      for (int iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
         double temperature =
             outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (long ib3 = 0; ib3 < nb3Plus; ib3++) {
+        for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
           bose3DataPlus(iCalc, ib3) =
               particle.getPopulation(energies3Plus(ib3), temperature);
         }
-        for (long ib3 = 0; ib3 < nb3Mins; ib3++) {
+        for (int ib3 = 0; ib3 < nb3Mins; ib3++) {
           bose3DataMins(iCalc, ib3) =
               particle.getPopulation(energies3Mins(ib3), temperature);
         }

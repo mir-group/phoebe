@@ -17,8 +17,8 @@ ActivePoints::ActivePoints(Points &parentPoints_, Eigen::VectorXi filter) :
 
   Eigen::Vector3d x;
 
-  long ik;
-  for (long ikNew = 0; ikNew < numPoints; ikNew++) {
+  int ik;
+  for (int ikNew = 0; ikNew < numPoints; ikNew++) {
     ik = filteredToFullIndices(ikNew);
     x = parentPoints.getPointCoords(ik);
     pointsList_.col(ikNew) = x;
@@ -48,7 +48,7 @@ ActivePoints& ActivePoints::operator=(const ActivePoints &that) {
   return *this;
 }
 
-Point ActivePoints::getPoint(const long &index) {
+Point ActivePoints::getPoint(const int &index) {
   return Point(*this, index);
 }
 
@@ -56,7 +56,7 @@ Points ActivePoints::getParentPoints() {
   return parentPoints;
 }
 
-Eigen::Vector3d ActivePoints::getPointCoords(const long &index,
+Eigen::Vector3d ActivePoints::getPointCoords(const int &index,
         const int &basis) {
   if (basis != crystalCoords && basis != cartesianCoords) {
     Error e("Wrong basis for getPoint");
@@ -70,20 +70,20 @@ Eigen::Vector3d ActivePoints::getPointCoords(const long &index,
   }
 }
 
-long ActivePoints::getIndex(const Eigen::Vector3d &coordinates) {
+int ActivePoints::getIndex(const Eigen::Vector3d &coordinates) {
   // we take advantage of the fact that the parent points have an order
-  long indexFull = parentPoints.getIndex(coordinates);
-  long ik = fullToFilteredIndices(indexFull);
+  int indexFull = parentPoints.getIndex(coordinates);
+  int ik = fullToFilteredIndices(indexFull);
   return ik;
 }
 
-long ActivePoints::fullToFilteredIndices(const long &indexIn) {
+int ActivePoints::fullToFilteredIndices(const int &indexIn) {
   // Note: this function could obviously be made much faster if you could
   // save in memory the map of every point in the Full list into the
   // ActivePoints list (and 0 if there's no mapping.
   // But the list of k-points might be too large!
-  long target = -1;
-  for (long ik = 0; ik < numPoints; ik++) {
+  int target = -1;
+  for (int ik = 0; ik < numPoints; ik++) {
     if (indexIn == filteredToFullIndices(ik)) {
       target = ik;
       break;

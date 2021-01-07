@@ -58,7 +58,7 @@ public:
    * "Started {q-point loop} with {100} {q-points}.".
    */
   LoopPrint(const std::string &task, const std::string &step,
-            const long &numSteps);
+            const int &numSteps);
 
   /** Method to update on the progress of the loop
    * It must be called in the loop numSteps times.
@@ -74,14 +74,14 @@ public:
 private:
   typedef std::chrono::steady_clock::time_point time_point;
   typedef std::chrono::steady_clock::duration time_delta;
-  long reportEvery;
-  long numSteps;
+  int reportEvery;
+  int numSteps;
   std::string task;
   std::string step;
-  long currentStep = -1;
+  int currentStep = -1;
   time_point initialTime;
   time_delta deltaTime;
-  long stepDigits;
+  int stepDigits;
 };
 
 #endif

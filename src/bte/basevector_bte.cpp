@@ -2,8 +2,8 @@
 
 // default constructor
 BaseVectorBTE::BaseVectorBTE(StatisticsSweep &statisticsSweep_,
-                             const long &numStates_,
-                             const long &dimensionality_)
+                             const int &numStates_,
+                             const int &dimensionality_)
     : statisticsSweep(statisticsSweep_) {
   if (dimensionality_ <= 0) {
     Error e("BaseVectorBTE doesn't accept <=0 dimensions");
@@ -62,8 +62,8 @@ Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
   }
   Eigen::VectorXd result(numCalcs,3);
   result.setZero();
-  for (long is : mpi->divideWorkIter(numStates)) {
-    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int is : mpi->divideWorkIter(numStates)) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       for (int i : {0,1,2}) {
         result(iCalc, i) += operator()(iCalc, i, is) * that(iCalc, i, is);
       }
@@ -91,7 +91,7 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
     }
 
   } else if (that.dimensionality == 1) {
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
@@ -130,7 +130,7 @@ BaseVectorBTE BaseVectorBTE::operator*(BaseVectorBTE &that) {
 // product operator overload
 BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
   BaseVectorBTE newPopulation = *this;
-  for (long i = 0; i < numCalcs; i++) {
+  for (int i = 0; i < numCalcs; i++) {
     newPopulation.data.row(i) = this->data.row(i) * scalar;
   }
   return newPopulation;
@@ -139,7 +139,7 @@ BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
 // product operator overload
 BaseVectorBTE BaseVectorBTE::operator*(const Eigen::VectorXd &vector) {
   BaseVectorBTE newPopulation = *this;
-  for (long i = 0; i < numCalcs; i++) {
+  for (int i = 0; i < numCalcs; i++) {
     newPopulation.data.row(i) = this->data.row(i) * vector(i);
   }
   return newPopulation;
@@ -156,7 +156,7 @@ BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
   }
   BaseVectorBTE newPopulation = *this;
   newPopulation.data.setZero();
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     for (auto tup : matrix.getAllLocalStates()) {
       auto i = std::get<0>(tup);
       auto j = std::get<1>(tup);
@@ -205,15 +205,15 @@ void BaseVectorBTE::setConst(const double &constant) {
   data.setConstant(constant);
 }
 
-long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+int BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
                              const CartIndex &idim) {
-  long i = compress3Indices(imu.get(), it.get(), idim.get(), numChemPots,
+  int i = compress3Indices(imu.get(), it.get(), idim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
 std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
-    const long &i) {
+    const int &i) {
   auto tup = decompress3Indices(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);

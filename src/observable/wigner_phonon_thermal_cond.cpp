@@ -29,7 +29,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                   temperature / 2.;
   }
 
-  for (long iq = 0; iq < bandStructure.getNumPoints(); iq++) {
+  for (int iq = 0; iq < bandStructure.getNumPoints(); iq++) {
     auto iqIdx = WavevectorIndex(iq);
     auto velocities = bandStructure.getVelocities(iqIdx);
     auto energies = bandStructure.getEnergies(iqIdx);
@@ -49,12 +49,12 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         if (ib1 == ib2)
           continue;
 
-        long is1 = bandStructure.getIndex(iqIdx, BandIndex(ib1));
-        long is2 = bandStructure.getIndex(iqIdx, BandIndex(ib2));
+        int is1 = bandStructure.getIndex(iqIdx, BandIndex(ib1));
+        int is2 = bandStructure.getIndex(iqIdx, BandIndex(ib2));
         auto is1Idx = StateIndex(is1);
         auto is2Idx = StateIndex(is2);
-        long ind1 = bandStructure.stateToBte(is1Idx).get();
-        long ind2 = bandStructure.stateToBte(is2Idx).get();
+        int ind1 = bandStructure.stateToBte(is1Idx).get();
+        int ind2 = bandStructure.stateToBte(is2Idx).get();
 
         for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
@@ -138,7 +138,7 @@ void WignerPhononThermalConductivity::print() {
   std::cout << "\n";
   std::cout << "Wigner Thermal Conductivity (" << units << ")\n";
 
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
 
@@ -146,9 +146,9 @@ void WignerPhononThermalConductivity::print() {
     std::cout.precision(2);
     std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
     std::cout.precision(5);
-    for (long i = 0; i < dimensionality; i++) {
+    for (int i = 0; i < dimensionality; i++) {
       std::cout << "  " << std::scientific;
-      for (long j = 0; j < dimensionality; j++) {
+      for (int j = 0; j < dimensionality; j++) {
         std::cout << " " << std::setw(13) << std::right;
         std::cout << tensordxd(iCalc, i, j) * thConductivityAuToSi;
       }

@@ -7,13 +7,13 @@
 #include "utilities.h"
 #include "Matrix.h"
 
-std::vector<long> BaseBandStructure::parallelStateIterator() {
+std::vector<int> BaseBandStructure::parallelStateIterator() {
     int numStates = getNumStates();
     return mpi->divideWorkIter(numStates);
 }
 //-----------------------------------------------------------------------------
 
-FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
+FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
                                      bool withVelocities, bool withEigenvectors,
                                      Points &points_, bool isDistributed_)
     : particle(particle_), points(points_), isDistributed(isDistributed_) {
@@ -27,7 +27,7 @@ FullBandStructure::FullBandStructure(long numBands_, Particle &particle_,
   // Initialize data structures depending on memory distribution.
   // If is distributed is true, numBlockCols is used to column/wavevector
   // distribute the internal matrices
-  int numBlockCols = std::min((long)mpi->getSize(), numPoints);
+  int numBlockCols = std::min((int)mpi->getSize(), numPoints);
   energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
   numLocalPoints = energies.localCols();
   if (hasVelocities) {
@@ -83,11 +83,11 @@ Particle FullBandStructure::getParticle() { return particle; }
 
 Points FullBandStructure::getPoints() { return points; }
 
-Point FullBandStructure::getPoint(const long &pointIndex) {
+Point FullBandStructure::getPoint(const int &pointIndex) {
   return points.getPoint(pointIndex);
 }
 
-long FullBandStructure::getNumPoints(const bool &useFullGrid) {
+int FullBandStructure::getNumPoints(const bool &useFullGrid) {
   if ( useFullGrid) {
     return points.getNumPoints();
   } else {
@@ -95,23 +95,23 @@ long FullBandStructure::getNumPoints(const bool &useFullGrid) {
   }
 }
 
-long FullBandStructure::getNumBands() { return numBands; }
-long FullBandStructure::getNumBands(WavevectorIndex &ik) {
+int FullBandStructure::getNumBands() { return numBands; }
+int FullBandStructure::getNumBands(WavevectorIndex &ik) {
   (void) ik;
   return numBands;
 }
 
-long FullBandStructure::hasWindow() { return 0; }
+int FullBandStructure::hasWindow() { return 0; }
 
 bool FullBandStructure::getIsDistributed() { return isDistributed; }
 
-long FullBandStructure::getIndex(const WavevectorIndex &ik,
+int FullBandStructure::getIndex(const WavevectorIndex &ik,
                                  const BandIndex &ib) {
   return ik.get() * numBands + ib.get();
 }
 
 std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
-    const long &is) {
+    const int &is) {
   int ik = is / numBands;
   int ib = is - ik * numBands;
   auto ikk = WavevectorIndex(ik);
@@ -124,11 +124,11 @@ std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
   return getIndex(is.get());
 }
 
-long FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
+int FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
 
 // TODO this might be something I can simplify
-std::vector<long> FullBandStructure::getWavevectorIndices() {
-    std::vector<long> kptsList;
+std::vector<int> FullBandStructure::getWavevectorIndices() {
+    std::vector<int> kptsList;
     // loop over local states
     for ( auto tup : energies.getAllLocalStates()) {
         // returns global indices for local index
@@ -152,8 +152,8 @@ std::vector<std::tuple<WavevectorIndex,BandIndex>> FullBandStructure::getStateIn
   return idxs;
 }
 
-std::vector<long> FullBandStructure::getBandIndices() {
-  std::vector<long> bandsList;
+std::vector<int> FullBandStructure::getBandIndices() {
+  std::vector<int> bandsList;
   for(int ib = 0; ib < numBands; ib++) {
       bandsList.push_back(ib);
   }
@@ -161,8 +161,8 @@ std::vector<long> FullBandStructure::getBandIndices() {
 }
 
 const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
-  long ibb = ib.get();
-  long ikk = ik.get();
+  int ibb = ib.get();
+  int ikk = ik.get();
   if (!energies.indicesAreLocal(ibb,ikk)) {
     Error e("Cannot access a non-local energy.");
   }
@@ -170,7 +170,7 @@ const double &FullBandStructure::getEnergy(WavevectorIndex &ik, BandIndex &ib) {
 }
 
 const double &FullBandStructure::getEnergy(StateIndex &is) {
-  long stateIndex = is.get();
+  int stateIndex = is.get();
   auto tup = decompress2Indices(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
@@ -192,7 +192,7 @@ Eigen::VectorXd FullBandStructure::getEnergies(WavevectorIndex &ik) {
 }
 
 Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
-  long stateIndex = is.get();
+  int stateIndex = is.get();
   auto tup = decompress2Indices(stateIndex, numPoints, numBands);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
@@ -201,14 +201,14 @@ Eigen::Vector3d FullBandStructure::getGroupVelocity(StateIndex &is) {
   }
   Eigen::Vector3d vel;
   for (int i : {0, 1, 2}) {
-    long ind = compress3Indices(ib, ib, i, numBands, numBands, 3);
+    int ind = compress3Indices(ib, ib, i, numBands, numBands, 3);
     vel(i) = velocities(ind, ik).real();
   }
   return vel;
 }
 
 Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {
-  long ikk = ik.get();
+  int ikk = ik.get();
   if (!velocities.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
@@ -224,7 +224,7 @@ Eigen::MatrixXd FullBandStructure::getGroupVelocities(WavevectorIndex &ik) {
 
 Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getVelocities(
     WavevectorIndex &ik) {
-  long ikk = ik.get();
+  int ikk = ik.get();
   if (!velocities.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
@@ -241,16 +241,16 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getVelocities(
 }
 
 Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
-  long ikk = ik.get();
+  int ikk = ik.get();
   if (!eigenvectors.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
 
   Eigen::MatrixXcd eigs(numBands, numBands);
   eigs.setZero();
-  for (long ib1 = 0; ib1 < numBands; ib1++) {
-    for (long ib2 = 0; ib2 < numBands; ib2++) {
-      long ind = compress2Indices(ib1, ib2, numBands, numBands);
+  for (int ib1 = 0; ib1 < numBands; ib1++) {
+    for (int ib2 = 0; ib2 < numBands; ib2++) {
+      int ind = compress2Indices(ib1, ib2, numBands, numBands);
       eigs(ib1, ib2) = eigenvectors(ind, ikk);
     }
   }
@@ -259,7 +259,7 @@ Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
 
 Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
     WavevectorIndex &ik) {
-  long ikk = ik.get();
+  int ikk = ik.get();
   if (!eigenvectors.indicesAreLocal(0,ikk)) {
     Error e("Cannot access a non-local velocity.");
   }
@@ -267,7 +267,7 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getPhEigenvectors(
   for (int ib = 0; ib < numBands; ib++) {
     for (int ia = 0; ia < numAtoms; ia++) {
       for (int ic : {0, 1, 2}) {
-        long ind = compress3Indices(ia, ic, ib, numAtoms, 3, numBands);
+        int ind = compress3Indices(ia, ic, ib, numAtoms, 3, numBands);
         eigs_(ic, ia, ib) = eigenvectors(ind, ikk);
       }
     }
@@ -288,7 +288,7 @@ Eigen::Vector3d FullBandStructure::getWavevector(WavevectorIndex &ik) {
 
 void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
                                     Eigen::VectorXd &energies_) {
-  long ik = points.getIndex(coords);
+  int ik = points.getIndex(coords);
   if (!energies.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local energy");
@@ -299,7 +299,7 @@ void FullBandStructure::setEnergies(Eigen::Vector3d &coords,
 }
 
 void FullBandStructure::setEnergies(Point &point, Eigen::VectorXd &energies_) {
-  long ik = point.getIndex();
+  int ik = point.getIndex();
   if (!energies.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local energy");
@@ -316,16 +316,16 @@ void FullBandStructure::setVelocities(
   }
   // we convert from a tensor to a vector (how it's stored in memory)
   Eigen::VectorXcd tmpVelocities_(numBands * numBands * 3);
-  for (long i = 0; i < numBands; i++) {
-    for (long j = 0; j < numBands; j++) {
-      for (long k = 0; k < 3; k++) {
+  for (int i = 0; i < numBands; i++) {
+    for (int j = 0; j < numBands; j++) {
+      for (int k = 0; k < 3; k++) {
         // Note: State must know this order of index compression
-        long idx = compress3Indices(i, j, k, numBands, numBands, 3);
+        int idx = compress3Indices(i, j, k, numBands, numBands, 3);
         tmpVelocities_(idx) = velocities_(i, j, k);
       }
     }
   }
-  long ik = point.getIndex();
+  int ik = point.getIndex();
   if (!velocities.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local velocity");
@@ -342,14 +342,14 @@ void FullBandStructure::setEigenvectors(Point &point,
   }
   // we convert from a matrix to a vector (how it's stored in memory)
   Eigen::VectorXcd tmp(numBands * numBands);
-  for (long i = 0; i < numBands; i++) {
-    for (long j = 0; j < numBands; j++) {
+  for (int i = 0; i < numBands; i++) {
+    for (int j = 0; j < numBands; j++) {
       // Note: State must know this order of index compression
-      long idx = compress2Indices(i, j, numBands, numBands);
+      int idx = compress2Indices(i, j, numBands, numBands);
       tmp(idx) = eigenvectors_(i, j);
     }
   }
-  long ik = point.getIndex();
+  int ik = point.getIndex();
   if (!eigenvectors.indicesAreLocal(0,ik)) {
     // col distributed, only need to check ik
     Error e("Cannot access a non-local eigenvector.");
@@ -359,14 +359,14 @@ void FullBandStructure::setEigenvectors(Point &point,
   }
 }
 
-Eigen::VectorXd FullBandStructure::getBandEnergies(long &bandIndex) {
+Eigen::VectorXd FullBandStructure::getBandEnergies(int &bandIndex) {
   // note: here we use the getWavevectorIndices function because if the
   // energies are distributed, we need to use global k indices
   // when calling energies(ib,ik)
   Eigen::VectorXd bandEnergies(energies.localCols());
-  std::vector<long> wavevectorIndices = getWavevectorIndices();
+  std::vector<int> wavevectorIndices = getWavevectorIndices();
   for (int i = 0; i < energies.localCols(); i++) {
-    long ik = wavevectorIndices[i];  // global wavevector index
+    int ik = wavevectorIndices[i];  // global wavevector index
     bandEnergies(i) = energies(bandIndex, ik);
   }
   return bandEnergies;
@@ -384,7 +384,7 @@ std::vector<Eigen::Matrix3d> FullBandStructure::getRotationsStar(
   return getRotationsStar(ikIndex);
 }
 
-std::tuple<long, Eigen::Matrix3d> FullBandStructure::getRotationToIrreducible(
+std::tuple<int, Eigen::Matrix3d> FullBandStructure::getRotationToIrreducible(
     const Eigen::Vector3d &x, const int &basis) {
   return points.getRotationToIrreducible(x, basis);
 }
@@ -396,64 +396,64 @@ BteIndex FullBandStructure::stateToBte(StateIndex &isIndex) {
   BandIndex ibIdx = std::get<1>(t);
   // to k from 0 to N_k_irreducible
   // ik is in [0,N_kIrr]
-  long ikBte = points.asIrreducibleIndex(ikIdx.get());
+  int ikBte = points.asIrreducibleIndex(ikIdx.get());
   if (ikBte<0){
     Error e("stateToBte is used on a non-irreducible point");
   }
   auto ik2Idx = WavevectorIndex(ikBte);
-  long iBte = getIndex(ik2Idx,ibIdx);
+  int iBte = getIndex(ik2Idx,ibIdx);
   auto iBteIdx = BteIndex(iBte);
   return iBteIdx;
 }
 
 StateIndex FullBandStructure::bteToState(BteIndex &ibteIndex) {
-  long iBte = ibteIndex.get();
+  int iBte = ibteIndex.get();
   auto t = getIndex(iBte);
   // find ikIrr in interval [0,N_kIrr]
-  long ikIrr = std::get<0>(t).get();
+  int ikIrr = std::get<0>(t).get();
   BandIndex ib = std::get<1>(t);
   // find ik in interval [0,N_k]
-  long ik = points.asReducibleIndex(ikIrr);
+  int ik = points.asReducibleIndex(ikIrr);
   auto ikIdx = WavevectorIndex(ik);
-  long iss = getIndex(ikIdx, ib);
+  int iss = getIndex(ikIdx, ib);
   return StateIndex(iss);
 }
 
 
-std::vector<long> FullBandStructure::irrStateIterator() {
-  std::vector<long> ikIter = points.irrPointsIterator();
-  std::vector<long> iter;
-  for (long ik : ikIter) {
+std::vector<int> FullBandStructure::irrStateIterator() {
+  std::vector<int> ikIter = points.irrPointsIterator();
+  std::vector<int> iter;
+  for (int ik : ikIter) {
     auto ikIdx = WavevectorIndex(ik);
     for (int ib=0; ib<numBands; ib++) {
       auto ibIdx = BandIndex(ib);
-      long is = getIndex(ikIdx, ibIdx);
+      int is = getIndex(ikIdx, ibIdx);
       iter.push_back(is);
     }
   }
   return iter;
 }
 
-std::vector<long> FullBandStructure::parallelIrrStateIterator() {
+std::vector<int> FullBandStructure::parallelIrrStateIterator() {
   auto v = irrStateIterator();
   //
   auto divs = mpi->divideWork(v.size());
-  long start = divs[0];
-  long stop = divs[1];
+  int start = divs[0];
+  int stop = divs[1];
   //
-  std::vector<long> iter(v.begin() + start, v.begin() + stop);
+  std::vector<int> iter(v.begin() + start, v.begin() + stop);
   return iter;
 }
 
-std::vector<long> FullBandStructure::irrPointsIterator() {
+std::vector<int> FullBandStructure::irrPointsIterator() {
   return points.irrPointsIterator();
 }
 
-std::vector<long> FullBandStructure::parallelIrrPointsIterator() {
+std::vector<int> FullBandStructure::parallelIrrPointsIterator() {
   return points.parallelIrrPointsIterator();
 }
 
-long FullBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
+int FullBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
                    const bool &suppressError) {
   if (suppressError) {
     return points.isPointStored(crystalCoords);
@@ -462,6 +462,6 @@ long FullBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
   }
 }
 
-std::vector<long> FullBandStructure::getReduciblesFromIrreducible(const long &ik) {
+std::vector<int> FullBandStructure::getReduciblesFromIrreducible(const int &ik) {
   return points.getReduciblesFromIrreducible(ik);
 }

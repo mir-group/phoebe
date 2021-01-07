@@ -28,7 +28,7 @@ class Context {
   Eigen::VectorXd temperatures;
   std::vector<std::string> solverBTE;
   double convergenceThresholdBTE = 1e-5;
-  long maxIterationsBTE = 50;
+  int maxIterationsBTE = 50;
 
   bool scatteringMatrixInMemory = true;
   bool useSymmetries = false;
@@ -48,7 +48,7 @@ class Context {
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
   bool hasSpinOrbit = false;
 
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   double dosMinEnergy = std::numeric_limits<double>::quiet_NaN();
   double dosMaxEnergy = std::numeric_limits<double>::quiet_NaN();
@@ -229,9 +229,9 @@ class Context {
 
   double getConvergenceThresholdBTE();
 
-  long getMaxIterationsBTE();
+  int getMaxIterationsBTE();
 
-  long getDimensionality();
+  int getDimensionality();
 
   double getDosMinEnergy();
 

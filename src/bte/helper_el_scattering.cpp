@@ -117,7 +117,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
     i = 0;
-    for (long iq : setOfIndexes) {
+    for (int iq : setOfIndexes) {
       filter(i) = iq;
       i++;
     }
@@ -141,7 +141,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
  */
 std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
            Eigen::MatrixXd, Eigen::MatrixXd>
-    HelperElScattering::get(Eigen::Vector3d &k1, const long &ik2) {
+    HelperElScattering::get(Eigen::Vector3d &k1, const int &ik2) {
 
   auto ik2Idx = WavevectorIndex(ik2);
   Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
@@ -154,7 +154,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     // note: 3rdBandStructure might still be different from inner/outer bs.
     // so, we must use the points from 3rdBandStructure to get the values
 
-    long iq3;
+    int iq3;
     if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStruc
       Eigen::Vector3d crystalPoints = fullPoints3->cartesianToCrystal(q3);
       iq3 = fullPoints3->getIndex(crystalPoints);
@@ -200,7 +200,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
 }
 
 void HelperElScattering::prepare(const Eigen::Vector3d &k1,
-                                 const std::vector<long> k2Indexes) {
+                                 const std::vector<int> k2Indexes) {
   if (!storedAllQ3) {
     int numPoints = k2Indexes.size();
     cacheEnergies.resize(numPoints);
@@ -212,7 +212,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
     Particle particle = h0.getParticle();
 
     int ik2Counter = -1;
-    for (long ik2 : k2Indexes) {
+    for (int ik2 : k2Indexes) {
       ik2Counter++;
       auto ik2Idx = WavevectorIndex(ik2);
       Eigen::Vector3d k2 = innerBandStructure.getWavevector(ik2Idx);
@@ -228,9 +228,9 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       Eigen::MatrixXd bose3Data(statisticsSweep.getNumCalcs(), nb3);
       bose3Data.setZero();
 
-      for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (long ib3 = 0; ib3 < nb3; ib3++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
         }
       }

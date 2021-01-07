@@ -22,7 +22,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
                  Eigen::MatrixXd &atomicPositions_,
                  Eigen::VectorXi &atomicSpecies_,
                  std::vector<std::string> &speciesNames_,
-                 Eigen::VectorXd &speciesMasses_, long &dimensionality_) {
+                 Eigen::VectorXd &speciesMasses_, int &dimensionality_) {
 
   setDirectUnitCell(directUnitCell_); // sets both direct and reciprocal
   volumeUnitCell = calcVolume(directUnitCell);
@@ -227,7 +227,7 @@ const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
 
 const int &Crystal::getNumAtoms() { return numAtoms; }
 
-double Crystal::getVolumeUnitCell(long dimensionality_) {
+double Crystal::getVolumeUnitCell(int dimensionality_) {
   double volume;
   if (dimensionality_ == 3) {
     volume = volumeUnitCell;
@@ -262,9 +262,9 @@ const std::vector<SymmetryOperation> &Crystal::getSymmetryOperations() {
 
 const int &Crystal::getNumSymmetries() { return numSymmetries; }
 
-long Crystal::getDimensionality() { return dimensionality; }
+int Crystal::getDimensionality() { return dimensionality; }
 
-long Crystal::getNumSpecies() { return numSpecies; }
+int Crystal::getNumSpecies() { return numSpecies; }
 
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
 Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
@@ -319,7 +319,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
         // if it's the minimum vector, than it's in the
         // Wigner Seitz zone of super cell A.
         // Therefore we save this vector.
-        unsigned long midIndex = distances.size() / 2;
+        unsigned int midIndex = distances.size() / 2;
         if (abs(distances[midIndex] - distMin) < 1.0e-6) {
           // count its degeneracy
           double degeneracy = 0.;
@@ -451,7 +451,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
             // if it's the minimum vector, than it's in the
             // Wigner Seitz zone of super cell A.
             // Therefore we save this vector.
-            unsigned long midIndex = distances.size() / 2;
+            unsigned int midIndex = distances.size() / 2;
             if (abs(distances[midIndex] - distMin) < 1.0e-6) {
               // count its degeneracy
               double degeneracy = 0.;

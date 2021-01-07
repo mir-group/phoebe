@@ -126,7 +126,7 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure,
 
   // store the wavevector indices, wavevectors and high sym point indices
   unsigned int extremaCount = 0; //keeps track of how many high sym points we've found
-  for (long ik = 0; ik < pathPoints.getNumPoints(); ik++) {
+  for (int ik = 0; ik < pathPoints.getNumPoints(); ik++) {
 
     // store wavevector indices
     wavevectorIndices.push_back(ik);

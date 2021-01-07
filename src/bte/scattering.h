@@ -122,7 +122,7 @@ public:
    * index on cartesian directions, and BteIndex an index on the Bloch states
    * entering the Boltzmann equation.
    */
-  long getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
+  int getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
 
   /** Function to split a scattering matrix index (on rows/columns of S) into
    * a BTE index and a cartesian index. If no symmetries are used, the output
@@ -138,7 +138,7 @@ public:
    * index on cartesian directions, and BteIndex an index on the Bloch states
    * entering the Boltzmann equation.
    */
-  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const long &iMat);
+  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const int &iMat);
 
  protected:
   Context &context;
@@ -165,9 +165,9 @@ public:
   // the scattering matrix, initialized if highMemory==true
   ParallelMatrix<double> theMatrix;
 
-  long numStates; // number of Bloch states (i.e. the size of theMatrix)
-  long numPoints; // number of wavevectors
-  long numCalcs;  // number of "Calculations", i.e. number of temperatures and
+  int numStates; // number of Bloch states (i.e. the size of theMatrix)
+  int numPoints; // number of wavevectors
+  int numCalcs;  // number of "Calculations", i.e. number of temperatures and
   // chemical potentials on which we compute scattering.
   int dimensionality_;
 
@@ -175,7 +175,7 @@ public:
   // at gamma, which have zero frequencies and thus have several non-analytic
   // behaviors (e.g. Bose--Einstein population=infinity). We set to zero
   // terms related to these states.
-  std::vector<long> excludeIndices;
+  std::vector<int> excludeIndices;
 
   /** Method that actually computes the scattering matrix.
    * Pure virtual function: needs an implementation in every subclass.
@@ -213,7 +213,7 @@ public:
    * owned by an MPI process. Otherwise, we trivially parallelize over the outer
    * loop on points.
    */
-  std::vector<std::tuple<std::vector<long>, long>>
+  std::vector<std::tuple<std::vector<int>, int>>
   getIteratorWavevectorPairs(const int &switchCase,
                              const bool &rowMajor = false);
 };

@@ -29,7 +29,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     PathPoints kPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
-    for (long ik = 0; ik < kPoints.getNumPoints(); ik++) {
+    for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
       auto thisK = kPoints.getPointCoords(ik, Points::cartesianCoords);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = thisK;
@@ -41,7 +41,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     PathPoints qPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
-    for (long iq = 0; iq < qPoints.getNumPoints(); iq++) {
+    for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
       auto thisQ = qPoints.getPointCoords(iq, Points::cartesianCoords);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = context.getG2PlotFixedPoint();

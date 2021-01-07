@@ -20,9 +20,9 @@ public:
    * @param index: integer index of the wavevector in the Points object.
    * @param umklappVector: the crystal coordinates of a possible umklapp
    * vector, used for example in sum or differences between wavevectors.
-   * @param points: the points object that this Point object belongs to.
+   * @param points: the points object that this Point object beints to.
    */
-  Point(Points &points_, long index_,
+  Point(Points &points_, int index_,
         Eigen::Vector3d umklappVector = Eigen::Vector3d::Zero());
 
   /** copy constructor
@@ -57,11 +57,11 @@ public:
 
   /** Get the index of the wavevector in the referenced Points object.
    */
-  long getIndex();
+  int getIndex();
 
 private:
   Eigen::Vector3d umklappVector;
-  long index;
+  int index;
   Points &points;
 };
 
@@ -97,7 +97,7 @@ public:
 
   /** Returns the number of wavevectors stored in the points class.
    */
-  long getNumPoints();
+  int getNumPoints();
 
   /** Converts a wavevector from crystal to cartesian coordinates.
    * @param point: the input wavevector in crystal coordinates.
@@ -146,7 +146,7 @@ public:
    * @param index: the integer wavevector index ranging in [0,numPoints[
    * @return point: a point object.
    */
-  virtual Point getPoint(const long &index);
+  virtual Point getPoint(const int &index);
 
   /** Get the coordinates of a wavevector from its index.
    * @param index: the index of the desired wavevector.
@@ -154,17 +154,17 @@ public:
    * Either Points::crystalCoords or Points::cartesianCoords.
    * @return wavevector: the coordinates of the desired wavevector.
    */
-  virtual Eigen::Vector3d getPointCoords(const long &index,
+  virtual Eigen::Vector3d getPointCoords(const int &index,
                                          const int &basis = crystalCoords);
 
   /** Get the wavevector index given the crystal coordinates of a wavevector.
    * @param point: the wavevector in crystal coordinates.
    * @return index: the index of the wavevector in the range [0,numPoints[
    */
-  virtual long getIndex(const Eigen::Vector3d &point);
+  virtual int getIndex(const Eigen::Vector3d &point);
 
   // like getIndex, but returns -1 if point not found
-  virtual long isPointStored(const Eigen::Vector3d &crystalCoordinates);
+  virtual int isPointStored(const Eigen::Vector3d &crystalCoordinates);
 
   // note: constexpr tells the compiler that the class member is
   // available at compilation time
@@ -177,27 +177,27 @@ public:
   // that rotation * kIrr = kRed
   virtual void setIrreduciblePoints(
       std::vector<Eigen::MatrixXd> *groupVelocities = nullptr);
-  std::vector<long> irrPointsIterator();
-  std::vector<long> parallelIrrPointsIterator();
-  long asIrreducibleIndex(const long &ik);
-  long asReducibleIndex(const long &ik);
-  virtual std::tuple<long, Eigen::Matrix3d>
+  std::vector<int> irrPointsIterator();
+  std::vector<int> parallelIrrPointsIterator();
+  int asIrreducibleIndex(const int &ik);
+  int asReducibleIndex(const int &ik);
+  virtual std::tuple<int, Eigen::Matrix3d>
   getRotationToIrreducible(const Eigen::Vector3d &x,
                            const int &basis = cartesianCoords);
-  virtual std::vector<Eigen::Matrix3d> getRotationsStar(const long &ik);
-  virtual std::vector<long> getReduciblesFromIrreducible(const long &ik);
+  virtual std::vector<Eigen::Matrix3d> getRotationsStar(const int &ik);
+  virtual std::vector<int> getReduciblesFromIrreducible(const int &ik);
 
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);
   Crystal &crystal;
   Eigen::Vector3i mesh;
   Eigen::Vector3d offset;
-  long numPoints = 0;
+  int numPoints = 0;
   // for Wigner Seitz folding
   Eigen::MatrixXd gVectors;
 
   // methods to be overwritten
-  Eigen::Vector3d reduciblePoints(const long &idx);
+  Eigen::Vector3d reduciblePoints(const int &idx);
 
   //------------------------------------------
   // Symmetries
@@ -218,12 +218,12 @@ protected:
   // vector of size 0 to numPoints. Given a reducible wavevector i,
   // mRTI
   Eigen::VectorXi mapReducibleToIrreducibleList;
-  long numIrrPoints = 0;
+  int numIrrPoints = 0;
 
   // vector of size numIrrPoints. Given an irreducible point i
   // (i from 0,numIrrPoints), gets the list of reducible point indices
   // that are symmetry equivalent to point i.
-  std::vector<std::vector<long>> irreducibleStars;
+  std::vector<std::vector<int>> irreducibleStars;
 
   // if equiv(i) == i, point is irreducible, otherwise, equiv(i) gives the
   // index of the irreducible equivalent index.

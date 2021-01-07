@@ -4,17 +4,17 @@
 // default constructor
 VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &bandStructure_,
-                     const long &dimensionality_)
+                     const int &dimensionality_)
     : BaseVectorBTE(statisticsSweep_,
                     bandStructure_.irrStateIterator().size(), dimensionality_),
       bandStructure(bandStructure_) {
 
   if (bandStructure.getParticle().isPhonon()) {
-    for (long is : bandStructure.irrStateIterator()) {
+    for (int is : bandStructure.irrStateIterator()) {
       auto isIdx = StateIndex(is);
       double en = bandStructure.getEnergy(isIdx);
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
-        long iBte = bandStructure.stateToBte(isIdx).get();
+        int iBte = bandStructure.stateToBte(isIdx).get();
         excludeIndices.push_back(iBte);
       }
     }
@@ -44,11 +44,11 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   }
   Eigen::MatrixXd result(statisticsSweep.getNumCalcs(),3);
   result.setZero();
-  for (long is : bandStructure.parallelIrrStateIterator()) {
+  for (int is : bandStructure.parallelIrrStateIterator()) {
     auto isIndex = StateIndex(is);
     BteIndex iBteIdx = bandStructure.stateToBte(isIndex);
     auto rotationsStar = bandStructure.getRotationsStar(isIndex);
-    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       for (Eigen::Matrix3d rot : rotationsStar) {
         Eigen::Vector3d x = Eigen::Vector3d::Zero();
         Eigen::Vector3d y = Eigen::Vector3d::Zero();
@@ -87,7 +87,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
 
   } else if (that.dimensionality == 1) {
 
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
@@ -112,7 +112,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
   } else {
     Error e("VectorBTE can't handle dimensionality for this case");
   }
-  for (const long &iBte : excludeIndices) {
+  for (const int &iBte : excludeIndices) {
     newPopulation.data.col(iBte).setZero();
   }
   return newPopulation;
@@ -126,7 +126,7 @@ VectorBTE VectorBTE::operator*(VectorBTE &that) {
 // product operator overload
 VectorBTE VectorBTE::operator*(const double &scalar) {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  for (long i = 0; i < numCalcs; i++) {
+  for (int i = 0; i < numCalcs; i++) {
     newPopulation.data.row(i) = this->data.row(i) * scalar;
   }
   return newPopulation;
@@ -138,7 +138,7 @@ VectorBTE VectorBTE::operator*(const Eigen::MatrixXd &vector) {
   if (vector.rows() != statisticsSweep.getNumCalcs() || vector.cols() != 3) {
     Error e("VectorBTE * unexpected alignment with MatrixXd");
   }
-  for (long iBte=0; iBte<numStates; iBte++) {
+  for (int iBte=0; iBte<numStates; iBte++) {
     for (int i : {0, 1, 2}) {
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
         newPopulation(iCalc, i, iBte) = operator()(iCalc, i, iBte) * vector(iCalc,i);
@@ -163,7 +163,7 @@ VectorBTE VectorBTE::operator*(ParallelMatrix<double> &matrix) {
   for (auto tup : matrix.getAllLocalStates()) {
     auto i = std::get<0>(tup);
     auto j = std::get<1>(tup);
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       newPopulation.data(iCalc, j) += data(iCalc, i) * matrix(i, j); // -5e-12
     }
   }
@@ -207,7 +207,7 @@ VectorBTE VectorBTE::reciprocal() {
 
 void VectorBTE::canonical2Population() {
   auto particle = bandStructure.getParticle();
-  for (long iBte = 0; iBte < numStates; iBte++) {
+  for (int iBte = 0; iBte < numStates; iBte++) {
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = bandStructure.bteToState(iBteIdx);
     double en = bandStructure.getEnergy(isIdx);
@@ -227,7 +227,7 @@ void VectorBTE::population2Canonical() {
   if (particle.isFermi()) {
     Error e("Possible divergence in population2Canonical");
   }
-  for (long iBte = 0; iBte < numStates; iBte++) {
+  for (int iBte = 0; iBte < numStates; iBte++) {
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = bandStructure.bteToState(iBteIdx);
     double en = bandStructure.getEnergy(isIdx);

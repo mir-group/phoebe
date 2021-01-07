@@ -12,7 +12,7 @@ class ActivePoints : public Points {
   Eigen::MatrixXd pointsList;
 
   Eigen::VectorXi filteredToFullIndices;
-  long fullToFilteredIndices(const long &indexIn);
+  int fullToFilteredIndices(const int &indexIn);
  public:
   /** Default constructor
    * @param parentPoints: the "parent" Points object, from which we take a
@@ -34,7 +34,7 @@ class ActivePoints : public Points {
    * @param point: the wavevector in crystal coordinates.
    * @return index: the index of the wavevector in the range [0,numPoints[
    */
-  long getIndex(const Eigen::Vector3d &coordinates);
+  int getIndex(const Eigen::Vector3d &coordinates);
 
   /** Returns a Point object given its integer index.
    * The Point object is used to move around the code the coordinates of the
@@ -42,7 +42,7 @@ class ActivePoints : public Points {
    * @param index: the integer wavevector index ranging in [0,numPoints[
    * @return point: a point object.
    */
-  Point getPoint(const long &index);
+  Point getPoint(const int &index);
 
   /** Returns the Points object from which the ActivePoints have been built.
    */
@@ -54,7 +54,7 @@ class ActivePoints : public Points {
    * Either Points::crystalCoords or Points::cartesianCoords.
    * @return wavevector: the coordinates of the desired wavevector.
    */
-  Eigen::Vector3d getPointCoords(const long &index, const int &basis =
+  Eigen::Vector3d getPointCoords(const int &index, const int &basis =
   crystalCoords);
 };
 

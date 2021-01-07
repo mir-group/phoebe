@@ -18,7 +18,7 @@ TEST(Crystal, Test1) {
   speciesNames.push_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   Context context;
   context.setUseSymmetries(true);

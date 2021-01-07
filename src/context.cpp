@@ -147,7 +147,7 @@ std::vector<int> parseIntList(std::string &line) {
 
 /** Parse a string of format "key = value units" to return an integer value.
  */
-long parseLong(std::string &line) {
+int parseint(std::string &line) {
   std::string delimiter = "=";
   size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
@@ -156,22 +156,22 @@ long parseLong(std::string &line) {
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
  */
-std::vector<long> parseLongList(std::string &line) {
+std::vector<int> parseintList(std::string &line) {
   std::string delimiter = "[";
   size_t pos1 = line.find_first_of(delimiter);
   delimiter = "]";
   size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseLongList");
+    Error e("Error in parseintList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseLongList");
+    Error e("Error in parseintList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
   delimiter = ",";
-  std::vector<long> x;
+  std::vector<int> x;
   while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     x.push_back(std::stoi(token)); // convert to integer
@@ -251,7 +251,7 @@ std::vector<std::string> parseStringList(std::string &line) {
  */
 std::tuple<Eigen::MatrixXd, Eigen::VectorXi, std::vector<std::string>>
 parseCrystal(std::vector<std::string> &lines) {
-  long numAtoms = lines.size();
+  int numAtoms = lines.size();
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
   std::vector<std::string> speciesNames;
@@ -272,7 +272,7 @@ parseCrystal(std::vector<std::string> &lines) {
       speciesNames.push_back(thisElement);
     }
     // find the index of the current element
-    long index = 0;
+    int index = 0;
     for (auto speciesName : speciesNames) {
       if (speciesName == thisElement) {
         break;
@@ -310,12 +310,12 @@ parseCrystal(std::vector<std::string> &lines) {
 std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
 parsePathExtrema(std::vector<std::string> &lines) {
 
-  long numSegments = lines.size();
+  int numSegments = lines.size();
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
   pathExtrema.setZero();
   std::vector<std::string> pathLabels;
 
-  long i = 0;
+  int i = 0;
   for (std::string line : lines) {
     // split line by spaces
     std::stringstream ss(line);
@@ -481,14 +481,14 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "qMesh") {
-        std::vector<long> vecMesh = parseLongList(val);
+        std::vector<int> vecMesh = parseintList(val);
         qMesh(0) = vecMesh[0];
         qMesh(1) = vecMesh[1];
         qMesh(2) = vecMesh[2];
       }
 
       if (parameterName == "kMesh") {
-        std::vector<long> vecMesh = parseLongList(val);
+        std::vector<int> vecMesh = parseintList(val);
         kMesh(0) = vecMesh[0];
         kMesh(1) = vecMesh[1];
         kMesh(2) = vecMesh[2];
@@ -511,7 +511,7 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "chemicalPotentials") {
         std::vector<double> x = parseDoubleList(val);
         chemicalPotentials = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           chemicalPotentials(i) = x[i] / energyRyToEv;
         }
       }
@@ -519,7 +519,7 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "dopings") {
         std::vector<double> x = parseDoubleList(val);
         dopings = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           dopings(i) = x[i];
         }
       }
@@ -527,7 +527,7 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "temperatures") {
         std::vector<double> x = parseDoubleList(val);
         temperatures = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           temperatures(i) = x[i] / temperatureAuToSi;
         }
       }
@@ -545,11 +545,11 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "maxIterationsBTE") {
-        maxIterationsBTE = parseLong(val);
+        maxIterationsBTE = parseint(val);
       }
 
       if (parameterName == "dimensionality") {
-        dimensionality = parseLong(val);
+        dimensionality = parseint(val);
       }
 
       if (parameterName == "dosMinEnergy") {
@@ -625,7 +625,7 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "massVariance") {
         std::vector<double> x = parseDoubleList(val);
         massVariance = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           massVariance(i) = x[i];
         }
       }
@@ -674,7 +674,7 @@ void Context::setupFromInput(const std::string &fileName) {
         epaDeltaEnergy = parseDoubleWithUnits(val);
       }
       if (parameterName == "epaNumBins") {
-        epaNumBins = parseLong(val);
+        epaNumBins = parseint(val);
       }
       if (parameterName == "epaMinEnergy") {
         epaMinEnergy = parseDoubleWithUnits(val);
@@ -821,9 +821,9 @@ std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
 double Context::getConvergenceThresholdBTE() { return convergenceThresholdBTE; }
 
-long Context::getMaxIterationsBTE() { return maxIterationsBTE; }
+int Context::getMaxIterationsBTE() { return maxIterationsBTE; }
 
-long Context::getDimensionality() { return dimensionality; }
+int Context::getDimensionality() { return dimensionality; }
 
 double Context::getDosMinEnergy() { return dosMinEnergy; }
 

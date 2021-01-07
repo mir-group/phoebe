@@ -37,7 +37,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   /** get the total number of bands.
    * This is a constant for all wavevectors.
    */
-  long getNumBands() override;
+  int getNumBands() override;
 
   /** get the electronic energies (in Ry) at a single k-point.
    * Energies don't have any reference value, and must be used in connection
@@ -95,8 +95,8 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   // position matrix elements <0m|r|nR>
   Eigen::Tensor<std::complex<double>, 4> rMatrix;
 
-  long numBands;
-  long numVectors;
+  int numBands;
+  int numVectors;
 };
 
 #endif

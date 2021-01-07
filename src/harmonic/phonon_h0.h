@@ -42,7 +42,7 @@ class PhononH0 : public HarmonicHamiltonian {
 
   /** Returns the number of phonon bands for the crystal in consideration.
    */
-  long getNumBands() override;
+  int getNumBands() override;
 
   /** Returns the underlying phonon-boson particle.
    */
@@ -104,12 +104,12 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param iPol: polarization index (0,1,2).
    * @return k: index to be used in the phonon eigenvector.
    */
-  long getIndexEigvec(const long &iAt, const long &iPol);
+  int getIndexEigvec(const int &iAt, const int &iPol);
 
   /** same as getIndexEigvec, but as a static member
    * @param nAtoms: the number of atoms in the unit cell
    */
-  static long getIndexEigvec(const long &iAt, const long &iPol, const long &nAtoms);
+  static int getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms);
 
   /** Get the static dielectric constant matrix.
    * @return dielectricMatrix: a 3x3 eigen matrix.
@@ -141,8 +141,8 @@ protected:
   bool frozenPhonon = false;
 
   bool hasDielectric;
-  long numAtoms;
-  long numBands;
+  int numAtoms;
+  int numBands;
   Eigen::MatrixXd directUnitCell;
   Eigen::MatrixXd reciprocalUnitCell;
   double volumeUnitCell;
@@ -175,7 +175,7 @@ protected:
 
   // These functions treat hte long range corrections
   void longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                     const Eigen::VectorXd &q, const long &sign);
+                     const Eigen::VectorXd &q, const int &sign);
   void nonAnalyticTerm(const Eigen::VectorXd &q,
                        Eigen::Tensor<std::complex<double>, 4> &dyn);
   void nonAnalIFC(const Eigen::VectorXd &q,

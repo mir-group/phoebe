@@ -15,9 +15,9 @@ FullPoints &FullPoints::operator=(const FullPoints &that) {
   return *this;
 }
 
-Point FullPoints::getPoint(const long &index) { return Point(*this, index); }
+Point FullPoints::getPoint(const int &index) { return Point(*this, index); }
 
-long FullPoints::isPointStored(const Eigen::Vector3d &crystalCoords) {
+int FullPoints::isPointStored(const Eigen::Vector3d &crystalCoords) {
   Eigen::Vector3i p;
   // multiply by grid, so that p now contains integers
   double diff = 0.;
@@ -30,9 +30,9 @@ long FullPoints::isPointStored(const Eigen::Vector3d &crystalCoords) {
     p(i) = mod(int(round(x)), mesh(i));
   }
   if (diff >= 1.0e-6) {
-    long ik = -1;
+    int ik = -1;
     return ik;
   }
-  long ik = p(2) * mesh(0) * mesh(1) + p(1) * mesh(0) + p(0);
+  int ik = p(2) * mesh(0) * mesh(1) + p(1) * mesh(0) + p(0);
   return ik;
 }

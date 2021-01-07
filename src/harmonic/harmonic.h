@@ -21,7 +21,7 @@ class HarmonicHamiltonian {
    * available in the interpolator.
    * @return numBands: integer number of bands.
    */
-  virtual long getNumBands();
+  virtual int getNumBands();
 
   /** Returns the Particle object to distinguish between electrons and phonons
    * @return particle: a Particle object
@@ -82,7 +82,7 @@ class HarmonicHamiltonian {
  protected:
   Particle particle;
 
-  long numBands = 0;
+  int numBands = 0;
 };
 
 #endif

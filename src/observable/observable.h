@@ -52,10 +52,10 @@ protected:
   Crystal &crystal;
 
   // auxiliary variables, here to simplify the code
-  long numChemPots;
-  long numTemps;
-  long dimensionality = 3;
-  long numCalcs;
+  int numChemPots;
+  int numTemps;
+  int dimensionality = 3;
+  int numCalcs;
 
   // whichType, to be reimplemented in the subclasses, decides what kind of
   // property must be stored. Returns one of the const int defined below
@@ -75,8 +75,8 @@ protected:
   // (de)combine the indices on chemical potentials and temperature.
   // used to reduce the number of indices of observables stored in memory.
   // We use strong typing to avoid confusing indices.
-  long glob2Loc(const ChemPotIndex &imu, const TempIndex &it);
-  std::tuple<ChemPotIndex, TempIndex> loc2Glob(const long &i);
+  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it);
+  std::tuple<ChemPotIndex, TempIndex> loc2Glob(const int &i);
 
   // base method for the - operator. It is separated because each subclass
   // should instantiate a dedicated object for the difference.

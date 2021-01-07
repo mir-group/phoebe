@@ -56,11 +56,11 @@ class Helper3rdState {
    * 1 and 2) we don't do anything. Otherwise, we compute all q3 for this list
    * of q1 (case 3).
    */
-  void prepare(const std::vector<long> q1Indexes, const long &iq2);
+  void prepare(const std::vector<int> q1Indexes, const int &iq2);
 
   /** to be called inside the loops on q1 and q2 to get the harmonic info on q3.
    */
-  std::tuple<Eigen::Vector3d, Eigen::VectorXd, long, Eigen::MatrixXcd,
+  std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
              Eigen::MatrixXd, Eigen::MatrixXd> get(Point &point1,
                                                    Point &point2,
                                                    const int &thisCase);

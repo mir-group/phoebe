@@ -75,7 +75,7 @@ Particle ElectronH0Wannier::getParticle() {
     return particle;
 }
 
-long ElectronH0Wannier::getNumBands() {
+int ElectronH0Wannier::getNumBands() {
     return numBands;
 }
 
@@ -99,12 +99,12 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFrom
     Eigen::MatrixXcd h0K(numBands, numBands);
     h0K.setZero();
 
-    for (long iR = 0; iR < bravaisVectors.cols(); iR++) {
+    for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
         Eigen::Vector3d R = bravaisVectors.col(iR);
         double phase = k.dot(R);
         std::complex<double> phaseFactor = { cos(phase), sin(phase) };
-        for (long m = 0; m < numBands; m++) {
-            for (long n = 0; n < numBands; n++) {
+        for (int m = 0; m < numBands; m++) {
+            for (int n = 0; n < numBands; n++) {
                 h0K(m, n) += phaseFactor * h0R(iR, m, n)
                         / vectorsDegeneracies(iR);
             }
@@ -145,7 +145,7 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     // now we compute the velocity operator, diagonalizing the expectation
     // value of the derivative of the dynamical matrix.
     // This works better than doing finite differences on the frequencies.
-    for (long i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         // define q+ and q- from finite differences.
         Eigen::Vector3d qPlus = coords;
         Eigen::Vector3d qMinus = coords;
@@ -185,8 +185,8 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
         // now we rotate in the basis of the eigenvectors at q.
         der = eigenvectors.adjoint() * der * eigenvectors;
 
-        for (long ib1 = 0; ib1 < numBands; ib1++) {
-            for (long ib2 = 0; ib2 < numBands; ib2++) {
+        for (int ib1 = 0; ib1 < numBands; ib1++) {
+            for (int ib2 = 0; ib2 < numBands; ib2++) {
                 velocity(ib1, ib2, i) = der(ib1, ib2);
             }
         }
@@ -195,12 +195,12 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     // turns out that the above algorithm has problems with degenerate bands
     // so, we diagonalize the velocity operator in the degenerate subspace,
 
-    for (long ib = 0; ib < numBands; ib++) {
+    for (int ib = 0; ib < numBands; ib++) {
 
         // first, we check if the band is degenerate, and the size of the
         // degenerate subspace
-        long sizeSubspace = 1;
-        for (long ib2 = ib + 1; ib2 < numBands; ib2++) {
+        int sizeSubspace = 1;
+        for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
             // I consider bands degenerate if their frequencies are the same
             // within 0.0001 cm^-1
             if (abs(energies(ib) - energies(ib2)) > threshold) {
@@ -212,11 +212,11 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
         if (sizeSubspace > 1) {
             Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
             // we have to repeat for every direction
-            for (long iCart = 0; iCart < 3; iCart++) {
+            for (int iCart = 0; iCart < 3; iCart++) {
 
                 // take the velocity matrix of the degenerate subspace
-                for (long i = 0; i < sizeSubspace; i++) {
-                    for (long j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                    for (int j = 0; j < sizeSubspace; j++) {
                         subMat(i, j) = velocity(ib + i, ib + j, iCart);
                     }
                 }
@@ -237,8 +237,8 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
                 subMat = 0.5 * (subMat + subMat.adjoint());
 
                 // substitute back
-                for (long i = 0; i < sizeSubspace; i++) {
-                    for (long j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                    for (int j = 0; j < sizeSubspace; j++) {
                         velocity(ib + i, ib + j, iCart) = subMat(i, j);
                     }
                 }
@@ -288,18 +288,18 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
 
     std::vector < Eigen::MatrixXcd > bc;
 
-    for (long i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
 
         // now construct the berryConnection in reciprocal space and Wannier gauge
         Eigen::MatrixXcd berryConnectionW(numBands, numBands);
         berryConnectionW.setZero();
 
-        for (long iR = 0; iR < bravaisVectors.cols(); iR++) {
+        for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
             Eigen::Vector3d R = bravaisVectors.col(iR);
             double phase = k.dot(R);
             std::complex<double> phaseFactor = { cos(phase), sin(phase) };
-            for (long m = 0; m < numBands; m++) {
-                for (long n = 0; n < numBands; n++) {
+            for (int m = 0; m < numBands; m++) {
+                for (int n = 0; n < numBands; n++) {
                     berryConnectionW(m, n) += phaseFactor * rMatrix(i, iR, m, n)
                             / vectorsDegeneracies(iR);
                 }

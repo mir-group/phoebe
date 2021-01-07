@@ -26,8 +26,8 @@ class BaseVectorBTE {
    * indices. 1 for scalar quantities like line-widths Gamma(BlochIndices), 3
    * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
-  BaseVectorBTE(StatisticsSweep &statisticsSweep_, const long &numStates_,
-                const long &dimensionality_ = 3);
+  BaseVectorBTE(StatisticsSweep &statisticsSweep_, const int &numStates_,
+                const int &dimensionality_ = 3);
 
   /** Copy constructor
    */
@@ -142,11 +142,11 @@ class BaseVectorBTE {
 
   // we store auxiliary objects and parameters
   StatisticsSweep &statisticsSweep;
-  long numCalcs;
-  long numStates;
-  long numChemPots;
-  long numTemps;
-  long dimensionality;
+  int numCalcs;
+  int numStates;
+  int numChemPots;
+  int numTemps;
+  int dimensionality;
 
   /** glob2Loc and loc2Glob compress/decompress the indices on temperature,
    * chemical potential, and cartesian direction into/from a single index.
@@ -156,15 +156,15 @@ class BaseVectorBTE {
    * are cartesian vectors over the Bloch states.
    * I should probably create two different classes for these.
    */
-  long glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
                 const CartIndex &idim);
-  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const long &i);
+  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const int &i);
 
   /** List of Bloch states to be excluded from the calculation (i.e. for
    * which vectorBTE values are 0), for example, the acoustic modes at the
    * gamma point, whose zero frequencies may cause problems.
    */
-  std::vector<long> excludeIndices;
+  std::vector<int> excludeIndices;
 
  protected:
   /** base class to implement +, -, / and * operations.

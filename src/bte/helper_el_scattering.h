@@ -41,7 +41,7 @@ class HelperElScattering {
    * @param k1: k1 wavevector in cartesian coordinates
    * @param k2Indexes: list of k-point indices running in the innerbandstructure
    */
-  void prepare(const Eigen::Vector3d &k1, const std::vector<long> k2Indexes);
+  void prepare(const Eigen::Vector3d &k1, const std::vector<int> k2Indexes);
 
   /** This function returns the phonon properties at the point q such that
    * q = k1 - innerBandStructure.points(ik2)
@@ -54,7 +54,7 @@ class HelperElScattering {
    */
   std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
              Eigen::MatrixXd, Eigen::MatrixXd> get(Eigen::Vector3d &k1,
-                                                   const long &ik2);
+                                                   const int &ik2);
 
  private:
   BaseBandStructure &innerBandStructure;

@@ -542,7 +542,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
 
   // Now we do postprocessing
 
-  long dimensionality = context.getDimensionality();
+  int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 
@@ -691,7 +691,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   // Initialize the crystal class
 
-  long dimensionality = context.getDimensionality();
+  int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 
@@ -835,25 +835,25 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
   // Next, we the number of Wannier functions / bands, after disentanglement
   std::getline(infile, line);
-  long numWann = std::stoi(line);
+  int numWann = std::stoi(line);
 
   // The number of irreducible vectors in real space
   std::getline(infile, line);
-  long numVectors = std::stoi(line);
+  int numVectors = std::stoi(line);
 
   // now, we must read numVectors integers with the vector degeneracies
   // there can be only up to 15 numbers per line
-  long numLines = numVectors / long(15);
+  int numLines = numVectors / int(15);
   if (double(numVectors) / 15. > 0.)
     numLines += 1;
   Eigen::VectorXd vectorsDegeneracies(numVectors);
   vectorsDegeneracies.setZero();
-  long j = 0;
-  for (long i = 0; i < numLines; i++) {
+  int j = 0;
+  for (int i = 0; i < numLines; i++) {
     std::getline(infile, line);
     lineSplit = split(line, ' ');
     for (auto x : lineSplit) {
-      long deg = std::stoi(x);
+      int deg = std::stoi(x);
       vectorsDegeneracies(j) = double(deg);
       j += 1;
     }
@@ -870,7 +870,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
   // parse the Hamiltonian
 
-  for (long iR = 0; iR < numVectors; iR++) {
+  for (int iR = 0; iR < numVectors; iR++) {
     // first we have an empty line
     std::getline(infile, line);
 
@@ -881,8 +881,8 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     bravaisVectors(1, iR) = std::stod(lineSplit[1]);
     bravaisVectors(2, iR) = std::stod(lineSplit[2]);
 
-    for (long i = 0; i < numWann; i++) {
-      for (long j = 0; j < numWann; j++) {
+    for (int i = 0; i < numWann; i++) {
+      for (int j = 0; j < numWann; j++) {
         std::getline(infile, line);
         lineSplit = split(line, ' ');
         double re = std::stod(lineSplit[2]) / energyRyToEv;
@@ -895,7 +895,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   // now parse the R matrix
   // the format is similar, but we have a complex vector
 
-  for (long iR = 0; iR < numVectors; iR++) {
+  for (int iR = 0; iR < numVectors; iR++) {
     // first we have an empty line
     std::getline(infile, line);
 
@@ -904,8 +904,8 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     lineSplit = split(line, ' ');
     // they have been initialized above, and they are the same
 
-    for (long i = 0; i < numWann; i++) {
-      for (long j = 0; j < numWann; j++) {
+    for (int i = 0; i < numWann; i++) {
+      for (int j = 0; j < numWann; j++) {
         std::getline(infile, line);
         lineSplit = split(line, ' ');
         double re = std::stod(lineSplit[2]) / distanceBohrToAng;
@@ -939,14 +939,14 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   if ( inCrystal != nullptr ) {
     return {*inCrystal, electronH0};
   } else {
-    long dimensionality = context.getDimensionality();
+    int dimensionality = context.getDimensionality();
     Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
     Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
     std::vector<std::string> speciesNames = context.getInputSpeciesNames();
     // we default the masses to the conventional ones here.
     Eigen::VectorXd speciesMasses(speciesNames.size());
     PeriodicTable periodicTable;
-    long i = 0;
+    int i = 0;
     for (auto speciesName : speciesNames) {
       speciesMasses[i] = periodicTable.getMass(speciesName);
       i += 1;

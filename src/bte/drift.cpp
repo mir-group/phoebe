@@ -2,16 +2,16 @@
 
 BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
-                       const long &dimensionality_)
+                       const int &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
-  for (long is : bandStructure.parallelIrrStateIterator()) {
+  for (int is : bandStructure.parallelIrrStateIterator()) {
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
-    long ibte = bandStructure.stateToBte(isIdx).get();
-    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    int ibte = bandStructure.stateToBte(isIdx).get();
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
@@ -26,16 +26,16 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
 
 BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
-                       const long &dimensionality_)
+                       const int &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
-  for (long is : bandStructure.parallelIrrStateIterator()) {
+  for (int is : bandStructure.parallelIrrStateIterator()) {
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
-    long ibte = bandStructure.stateToBte(isIdx).get();
-    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    int ibte = bandStructure.stateToBte(isIdx).get();
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
@@ -53,11 +53,11 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
     : VectorBTE(statisticsSweep_, bandStructure_, 1) {
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for
-  for (long is : bandStructure.parallelIrrStateIterator()) {
+  for (int is : bandStructure.parallelIrrStateIterator()) {
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
-    long ibte = bandStructure.stateToBte(isIdx).get();
-    for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    int ibte = bandStructure.stateToBte(isIdx).get();
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double temp = calcStat.temperature;
       double chemPot = calcStat.chemicalPotential;

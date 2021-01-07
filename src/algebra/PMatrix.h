@@ -63,15 +63,15 @@ class ParallelMatrix {
   /** Converts a local one-dimensional storage index (MPI-dependent) into the
    * row/column index of the global matrix.
    */
-  std::tuple<long, long> local2Global(const long& k) const;
-  std::tuple<long, long> local2Global(const long& i, const long& j) const;
+  std::tuple<int, int> local2Global(const int& k) const;
+  std::tuple<int, int> local2Global(const int& i, const int& j) const;
 
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
    * with value ranging from  0 to numLocalElements_-1.
    * Returns -1 if the matrix element is not stored on the current MPI process.
    */
-  long global2Local(const long& row, const long& col) const;
+  int global2Local(const int& row, const int& col) const;
 
  public:
   static const char transN = 'N';  // no transpose nor adjoint
@@ -115,17 +115,17 @@ class ParallelMatrix {
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
-  std::vector<std::tuple<long, long>> getAllLocalStates();
+  std::vector<std::tuple<int, int>> getAllLocalStates();
 
   /** Find the global indices of the rows that are stored locally
    * by the current MPI process.
    */
-  std::vector<long> getAllLocalRows();
+  std::vector<int> getAllLocalRows();
 
   /** Find the global indices of the cols that are stored locally
    * by the current MPI process.
    */
-  std::vector<long> getAllLocalCols();
+  std::vector<int> getAllLocalCols();
 
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
@@ -134,19 +134,19 @@ class ParallelMatrix {
 
   /** Find global number of rows
    */
-  long rows() const;
+  int rows() const;
   /** Return local number of rows
   */
-  long localRows() const;
+  int localRows() const;
   /** Find global number of columns
    */
-  long cols() const;
+  int cols() const;
   /** Return local number of cols
   */
-  long localCols() const;
+  int localCols() const;
   /** Find global number of matrix elements
    */
-  long size() const;
+  int size() const;
 
   /** Get and set operator.
    * Returns the stored value if the matrix element (row,col) is stored in
@@ -270,7 +270,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   assert(mat != nullptr);
 
   // fill the matrix with zeroes
-  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
+  for (int i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 
   // Create descriptor for block cyclic distribution of matrix
   int info;  // error code
@@ -331,7 +331,7 @@ ParallelMatrix<T>::ParallelMatrix(const ParallelMatrix<T>& that) {
   mat = new T[numLocalElements_];
   // Memory could not be allocated, end program
   assert(mat != nullptr);
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     mat[i] = that.mat[i];
   }
 }
@@ -365,7 +365,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator=(const ParallelMatrix<T>& that) {
     mat = new T[numLocalElements_];
     // Memory could not be allocated, end program
     assert(mat != nullptr);
-    for (long i = 0; i < numLocalElements_; i++) {
+    for (int i = 0; i < numLocalElements_; i++) {
       mat[i] = that.mat[i];
     }
   }
@@ -426,27 +426,27 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
 }
 
 template <typename T>
-long ParallelMatrix<T>::rows() const {
+int ParallelMatrix<T>::rows() const {
   return numRows_;
 }
 
 template <typename T>
-long ParallelMatrix<T>::localRows() const {
+int ParallelMatrix<T>::localRows() const {
   return numLocalRows_;
 }
 
 template <typename T>
-long ParallelMatrix<T>::cols() const {
+int ParallelMatrix<T>::cols() const {
   return numCols_;
 }
 
 template <typename T>
-long ParallelMatrix<T>::localCols() const {
+int ParallelMatrix<T>::localCols() const {
   return numLocalCols_;
 }
 
 template <typename T>
-long ParallelMatrix<T>::size() const {
+int ParallelMatrix<T>::size() const {
   return cols() * rows();
 }
 
@@ -454,7 +454,7 @@ long ParallelMatrix<T>::size() const {
 
 template <typename T>
 T& ParallelMatrix<T>::operator()(const int &row, const int &col) {
-  long localIndex = global2Local(row, col);
+  int localIndex = global2Local(row, col);
   if (localIndex == -1) {
     dummyZero = 0.;
     return dummyZero;
@@ -465,7 +465,7 @@ T& ParallelMatrix<T>::operator()(const int &row, const int &col) {
 
 template <typename T>
 const T& ParallelMatrix<T>::operator()(const int &row, const int &col) const {
-  long localIndex = global2Local(row, col);
+  int localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return dummyConstZero;
   } else {
@@ -475,7 +475,7 @@ const T& ParallelMatrix<T>::operator()(const int &row, const int &col) const {
 
 template <typename T>
 bool ParallelMatrix<T>::indicesAreLocal(const int& row, const int& col) {
-  long localIndex = global2Local(row, col);
+  int localIndex = global2Local(row, col);
   if (localIndex == -1) {
     return false;
   } else {
@@ -484,7 +484,7 @@ bool ParallelMatrix<T>::indicesAreLocal(const int& row, const int& col) {
 }
 
 template <typename T>
-std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long& j) const {
+std::tuple<int,int> ParallelMatrix<T>::local2Global(const int& i, const int& j) const {
   int il = (int)i;
   int jl = (int)j;
   int iZero = 0;
@@ -494,7 +494,7 @@ std::tuple<long,long> ParallelMatrix<T>::local2Global(const long& i, const long&
 }
 
 template <typename T>
-std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
+std::tuple<int, int> ParallelMatrix<T>::local2Global(const int& k) const {
   // first, we convert this combined local index k
   // into local row / col indices
   // k = j * numLocalRows_ + i
@@ -506,8 +506,8 @@ std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
   // however, we should be careful to think that the above two conversions to i,j
   // are safe for a rectangular matrix.
 
-  //long ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
-  //long jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
+  //int ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
+  //int jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
   //return {ig,jg};
 
   // now we can convert local row/col indices into global indices
@@ -525,7 +525,7 @@ std::tuple<long, long> ParallelMatrix<T>::local2Global(const long& k) const {
 }
 
 template <typename T>
-long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
+int ParallelMatrix<T>::global2Local(const int& row, const int& col) const {
   // note: row and col indices use the c++ convention of running from 0 to N-1
   // fortran (infog2l_) wants indices from 1 to N.
   int row_ = int(row) + 1;
@@ -549,32 +549,32 @@ long ParallelMatrix<T>::global2Local(const long& row, const long& col) const {
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> ParallelMatrix<T>::getAllLocalStates() {
-  std::vector<std::tuple<long, long>> x;
-  for (long k = 0; k < numLocalElements_; k++) {
-    std::tuple<long, long> t = local2Global(k);  // bloch indices
+std::vector<std::tuple<int, int>> ParallelMatrix<T>::getAllLocalStates() {
+  std::vector<std::tuple<int, int>> x;
+  for (int k = 0; k < numLocalElements_; k++) {
+    std::tuple<int, int> t = local2Global(k);  // bloch indices
     x.push_back(t);
   }
   return x;
 }
 
 template <typename T>
-std::vector<long> ParallelMatrix<T>::getAllLocalRows() {
+std::vector<int> ParallelMatrix<T>::getAllLocalRows() {
   int iZero = 0;
-  std::vector<long> x;
+  std::vector<int> x;
   for (int k = 0; k < numLocalRows_; k++) {
-    long gr = indxl2g_( &k, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
+    int gr = indxl2g_( &k, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
     x.push_back(gr);
   }
   return x;
 }
 
 template <typename T>
-std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
-  std::vector<long> x;
+std::vector<int> ParallelMatrix<T>::getAllLocalCols() {
+  std::vector<int> x;
   int iZero = 0;
   for (int k = 0; k < numLocalCols_; k++) {
-    long gc = indxl2g_( &k, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
+    int gc = indxl2g_( &k, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
     x.push_back(gc);
   }
   return x;
@@ -582,7 +582,7 @@ std::vector<long> ParallelMatrix<T>::getAllLocalCols() {
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator*=(const T& that) {
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) *= that;
   }
   return *this;
@@ -590,7 +590,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator*=(const T& that) {
 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) /= that;
   }
   return *this;
@@ -601,7 +601,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) 
   if(numRows_ != that.rows() || numCols_ != that.cols()) {
     Error e("Cannot adds matrices of different sizes.");
   }
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) += *(that.mat + i);
   }
   return *this;
@@ -612,7 +612,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) 
   if(numRows_ != that.rows() || numCols_ != that.cols()) {
     Error e("Cannot subtract matrices of different sizes.");
   }
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) -= *(that.mat + i);
   }
   return *this;
@@ -633,7 +633,7 @@ void ParallelMatrix<T>::eye() {
 
 template <typename T>
 void ParallelMatrix<T>::zeros() {
-  for (long i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
+  for (int i = 0; i < numLocalElements_; ++i) *(mat + i) = 0.;
 }
 
 template <typename T>
@@ -660,7 +660,7 @@ T ParallelMatrix<T>::dot(const ParallelMatrix<T>& that) {
 template <typename T>
 ParallelMatrix<T> ParallelMatrix<T>::operator-() const {
   ParallelMatrix<T> result = *this;
-  for (long i = 0; i < numLocalElements_; i++) {
+  for (int i = 0; i < numLocalElements_; i++) {
     *(result.mat + i) = -*(result.mat + i);
   }
   return result;

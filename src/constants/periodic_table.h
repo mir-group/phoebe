@@ -6,7 +6,7 @@
  */
 struct Element {
   std::string symbol;
-  long atomicNumber;
+  int atomicNumber;
   double mass;
   double massVariance;
 };
@@ -157,12 +157,12 @@ public:
    * @param speciesName: the name of the element to be inspected
    * @return atomicNumber: returns an integer with the atomic number
    */
-  long getIonicCharge(const std::string &speciesName);
+  int getIonicCharge(const std::string &speciesName);
 
 private:
   /** Given the element name, finds the index in the array of elements.
    */
-  long findElementByStr(const std::string &x);
+  int findElementByStr(const std::string &x);
 };
 
 /*

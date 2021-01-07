@@ -136,7 +136,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   double minEnergy = context.getDosMinEnergy();
   double maxEnergy = context.getDosMaxEnergy();
   double deltaEnergy = context.getDosDeltaEnergy();
-  long numEnergies = long((maxEnergy - minEnergy) / deltaEnergy) + 1;
+  int numEnergies = int((maxEnergy - minEnergy) / deltaEnergy) + 1;
 
   // create instructions about how to divide up the work
   auto divs = mpi->divideWork(numEnergies);
@@ -147,14 +147,14 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
 
   std::vector<double> energies(workFraction);
   #pragma omp parallel for
-  for (long i = start; i < stop; i++) {
+  for (int i = start; i < stop; i++) {
     energies[i - start] = double(i) * deltaEnergy + minEnergy;
   }
 
   // Calculate phonon density of states (DOS) [1/Ry]
   std::vector<double> dos(workFraction, 0.);  // DOS initialized to zero
   #pragma omp parallel for
-  for (long i = 0; i < workFraction; i++) {
+  for (int i = 0; i < workFraction; i++) {
     dos[i] += tetrahedra.getDOS(energies[i]);
   }
 

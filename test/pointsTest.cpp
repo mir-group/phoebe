@@ -16,7 +16,7 @@ TEST(PointsTest, PointsHandling) {
   speciesNames.push_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   Context context;
 
@@ -39,8 +39,8 @@ TEST(PointsTest, PointsHandling) {
 
   auto p1 = points.getPoint(4);
   // find the index of the inverted point
-  long i4 = points.getIndex(-p1.getCoords(Points::crystalCoords));
-  //	long i4 = points.getIndexInverted(4);
+  int i4 = points.getIndex(-p1.getCoords(Points::crystalCoords));
+  //	int i4 = points.getIndexInverted(4);
   auto p2 = points.getPoint(i4);
   auto p3 = p1 + p2;
   EXPECT_EQ(p3.getCoords(Points::cartesianCoords).norm(), 0.);
@@ -50,10 +50,10 @@ TEST(PointsTest, PointsHandling) {
 
   mesh << 2, 2, 2;
   points = FullPoints(crystal, mesh);
-  long iq = 7;
+  int iq = 7;
   p1 = points.getPoint(iq);
-  //	long iqr = points.getIndexInverted(iq);
-  long iqr = points.getIndex(-p1.getCoords(Points::crystalCoords));
+  //	int iqr = points.getIndexInverted(iq);
+  int iqr = points.getIndex(-p1.getCoords(Points::crystalCoords));
   p2 = points.getPoint(iqr);
   p3 = p1 + p2;
 

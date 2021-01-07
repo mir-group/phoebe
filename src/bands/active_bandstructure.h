@@ -63,7 +63,7 @@ public:
    * The wavevector index runs from 0 to numPoints-1, where numPoints is the
    * number of active wavevectors to be used in the calculations.
    */
-  Point getPoint(const long &pointIndex);
+  Point getPoint(const int &pointIndex);
 
   /** Returns the total number of k/q-points.
    * @param useFullGrid: default = false. If true, returns the number of
@@ -75,7 +75,7 @@ public:
    * original full grid of points (useful when normalizing equations).
    * @return numPoints: the total number of wavevectors of the bandStructure.
    */
-  long getNumPoints(const bool &useFullGrid = false);
+  int getNumPoints(const bool &useFullGrid = false);
 
   /** Returns the number of bands.
    * If the number of bands is not constant, it raises an error.
@@ -84,19 +84,19 @@ public:
    * @return numBandsFull: the total number of bands of the bandStructure
    *    (only returned in the case where the bands have not been filtered.)
    */
-  long getNumBands();
+  int getNumBands();
 
   /** Returns the number of bands at a given wavevector.
    * @return numBands: the number of bands at the requested ik.
    */
-  long getNumBands(WavevectorIndex &ik);
+  int getNumBands(WavevectorIndex &ik);
 
   /** Checks whether the bandStructure has been built discarding some Bloch
    * states from those available.
    * @return windowMethod: one of the values of Window::filterMethod. 0 for
    * no filter.
    */
-  long hasWindow();
+  int hasWindow();
 
   /** Returns if this bandstructure is distributed. In the case of
    * activeBandstructure, currently always returns false.
@@ -110,7 +110,7 @@ public:
    * has different range for every wavevector
    * @return stateIndex: integer from 0 to numStates-1
    */
-  long getIndex(const WavevectorIndex &ik, const BandIndex &ib);
+  int getIndex(const WavevectorIndex &ik, const BandIndex &ib);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -118,7 +118,7 @@ public:
    * @return WavevectorIndex: a strong-typed index on wavevector
    * @return BandIndex: a strong-typed index on bands
    */
-  std::tuple<WavevectorIndex, BandIndex> getIndex(const long &is);
+  std::tuple<WavevectorIndex, BandIndex> getIndex(const int &is);
 
   /** Given a Bloch state index, finds the corresponding wavevector and band
    * index.
@@ -132,10 +132,10 @@ public:
   /** Returns the total number of Bloch states, equal to numPoints*numBands.
    * @return numStates: the total number of Bloch states in the class.
    */
-  long getNumStates();
+  int getNumStates();
 
   /** Returns the energy of a quasiparticle from its Bloch index.
-   * Same as getEnergy(const long &stateIndex), but using a StateIndex input
+   * Same as getEnergy(const int &stateIndex), but using a StateIndex input
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer
    * running over the number of states [0,numStates-1].
    * @return energy: the value of the QP energy for that given Bloch index.
@@ -332,7 +332,7 @@ public:
    * @return <ik,rot>: a tuple with the index of the irreducible point and the
    * rotation matrix connecting the irreducible and reducible point.
    */
-  std::tuple<long, Eigen::Matrix3d> getRotationToIrreducible(
+  std::tuple<int, Eigen::Matrix3d> getRotationToIrreducible(
       const Eigen::Vector3d &x, const int &basis = Points::crystalCoords);
 
   /** Utility method to convert an index over Bloch states in the bandstructure
@@ -356,34 +356,34 @@ public:
   /** Iterator over the Bloch states in the band structure, over just the
    * irreducible wavevectors, but isn't distributed over MPI processes.
    *
-   * @return State-indices: a vector<long> with the indices over Bloch states
+   * @return State-indices: a vector<int> with the indices over Bloch states
    * stored in the bandstructure
    */
-  std::vector<long> irrStateIterator();
+  std::vector<int> irrStateIterator();
 
   /** Iterator over the Bloch states in the band structure, distributed over
    * MPI processes, running only over irreducible wavevectors.
    *
-   * @return State-indices: a vector<long> with the indices over Bloch states
+   * @return State-indices: a vector<int> with the indices over Bloch states
    * stored in the bandstructure
    */
-  std::vector<long> parallelIrrStateIterator();
+  std::vector<int> parallelIrrStateIterator();
 
   /** Iterator over the irreducible points indices.
    * The iterator is serial, not parallelized with MPI.
    *
-   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * @return k-indices: a std::vector<int> with the indices of the irreducible
    * points.
    */
-  std::vector<long> irrPointsIterator();
+  std::vector<int> irrPointsIterator();
 
   /** Iterator over the irreducible points indices.
    * The iterator is parallelized over MPI processes.
    *
-   * @return k-indices: a std::vector<long> with the indices of the irreducible
+   * @return k-indices: a std::vector<int> with the indices of the irreducible
    * points.
    */
-  std::vector<long> parallelIrrPointsIterator();
+  std::vector<int> parallelIrrPointsIterator();
 
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
@@ -393,17 +393,17 @@ public:
    * point is not found
    * @return ik: the index of the point
    */
-  long getPointIndex(const Eigen::Vector3d &crystalCoords,
+  int getPointIndex(const Eigen::Vector3d &crystalCoords,
                      const bool &suppressError = false);
 
   /** Method to find the points equivalent to an irreducible point.
    *
    * @param ik: index of the irreducible point, with ik running on the full list
    * of reducible points.
-   * @return vector<long>: the list of indices of the reducible points
+   * @return vector<int>: the list of indices of the reducible points
    * equivalent to point #ik.
    */
-  std::vector<long> getReduciblesFromIrreducible(const long &ik);
+  std::vector<int> getReduciblesFromIrreducible(const int &ik);
  protected:
   // stores the quasiparticle kind
   Particle particle;
@@ -417,15 +417,15 @@ public:
   std::vector<std::complex<double>> eigenvectors;
 
   bool hasEigenvectors = false;
-  long numStates = 0;
-  long numIrrStates;
-  long numIrrPoints;
-  long numPoints;
+  int numStates = 0;
+  int numIrrStates;
+  int numIrrPoints;
+  int numPoints;
   bool hasPoints();
 
   Eigen::VectorXi numBands;
-  long numFullBands;
-  long windowMethod;
+  int numFullBands;
+  int windowMethod;
 
   // index management
   // these are two auxiliary vectors to store indices
@@ -440,14 +440,14 @@ public:
   void buildSymmetries();
 
   // utilities to convert Bloch indices into internal indices
-  long velBloch2Comb(const long &ik, const long &ib1, const long &ib2,
-                     const long &i);
-  long eigBloch2Comb(const long &ik, const long &ibFull, const long &ibRed);
-  long bloch2Comb(const long &k, const long &b);
-  std::tuple<long, long> comb2Bloch(const long &is);
+  int velBloch2Comb(const int &ik, const int &ib1, const int &ib2,
+                     const int &i);
+  int eigBloch2Comb(const int &ik, const int &ibFull, const int &ibRed);
+  int bloch2Comb(const int &k, const int &b);
+  std::tuple<int, int> comb2Bloch(const int &is);
 
-  long bteBloch2Comb(const long &k, const long &b);
-  std::tuple<long, long> bteComb2Bloch(const long &is);
+  int bteBloch2Comb(const int &k, const int &b);
+  std::tuple<int, int> bteComb2Bloch(const int &is);
 
   void buildOnTheFly(Window &window, Points &points, HarmonicHamiltonian &h0,
                      const bool &withEigenvectors = true,

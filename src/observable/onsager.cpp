@@ -106,7 +106,7 @@ void OnsagerCoefficients::calcFromEPA(
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         double temp =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
-        for (long iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
+        for (int iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
 
           if ( scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ) continue;
           double en = energies(iEnergy);
@@ -146,11 +146,11 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
 
   auto points = bandStructure.getPoints();
 
-  for (long is : bandStructure.parallelIrrStateIterator()) {
+  for (int is : bandStructure.parallelIrrStateIterator()) {
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-    long ibte = bandStructure.stateToBte(isIdx).get();
+    int ibte = bandStructure.stateToBte(isIdx).get();
     auto rotations = bandStructure.getRotationsStar(isIdx);
 
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
@@ -240,8 +240,8 @@ void OnsagerCoefficients::calcFromRelaxons(
     VectorBTE fE(statisticsSweep, bandStructure, 3);
     VectorBTE fT(statisticsSweep, bandStructure, 3);
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
-      long is = std::get<0>(tup0);
-      long alfa = std::get<1>(tup0);
+      int is = std::get<0>(tup0);
+      int alfa = std::get<1>(tup0);
       if (eigenvalues(alfa) <= 0.) {
         continue;
       }
@@ -259,8 +259,8 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&fT.data);
 
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
-      long is = std::get<0>(tup0);
-      long alfa = std::get<1>(tup0);
+      int is = std::get<0>(tup0);
+      int alfa = std::get<1>(tup0);
       for (int i : {0, 1, 2}) {
         nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa);
         nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa);
@@ -276,12 +276,12 @@ void OnsagerCoefficients::calcFromRelaxons(
     fE.setZero();
     fT.setZero();
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
-      long iMat1 = std::get<0>(tup0);
-      long alpha = std::get<1>(tup0);
+      int iMat1 = std::get<0>(tup0);
+      int alpha = std::get<1>(tup0);
       auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
       BteIndex ibteIndex = std::get<0>(tup1);
       CartIndex dimIndex = std::get<1>(tup1);
-      long iDim = dimIndex.get();
+      int iDim = dimIndex.get();
       StateIndex isIndex = bandStructure.bteToState(ibteIndex);
 
       auto vel = bandStructure.getGroupVelocity(isIndex);
@@ -303,13 +303,13 @@ void OnsagerCoefficients::calcFromRelaxons(
     // back rotate to Bloch electron coordinates
 
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
-      long iMat1 = std::get<0>(tup0);
-      long alpha = std::get<1>(tup0);
+      int iMat1 = std::get<0>(tup0);
+      int alpha = std::get<1>(tup0);
       auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
       BteIndex ibteIndex = std::get<0>(tup1);
       CartIndex dimIndex = std::get<1>(tup1);
-      long ibte = ibteIndex.get();
-      long iDim = dimIndex.get();
+      int ibte = ibteIndex.get();
+      int iDim = dimIndex.get();
       nE(iCalc, iDim, ibte) += fE(iDim, alpha) * eigenvectors(iMat1, alpha);
       nT(iCalc, iDim, ibte) += fT(iDim, alpha) * eigenvectors(iMat1, alpha);
     }
@@ -494,7 +494,7 @@ void OnsagerCoefficients::outputToJSON(std::string outFileName) {
   std::vector<std::vector<std::vector<double>>> mobilityOut;
   std::vector<std::vector<std::vector<double>>> kappaOut;
   std::vector<std::vector<std::vector<double>>> seebeckOut;
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
 
     // store temperatures
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -606,9 +606,9 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
     Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
     Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
 #pragma omp for nowait
-    for (long is : bandStructure.parallelIrrStateIterator()) {
+    for (int is : bandStructure.parallelIrrStateIterator()) {
       StateIndex isIdx(is);
-      long ibte = bandStructure.stateToBte(isIdx).get();
+      int ibte = bandStructure.stateToBte(isIdx).get();
       auto rotations = bandStructure.getRotationsStar(isIdx);
 
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {

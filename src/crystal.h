@@ -38,7 +38,7 @@ protected:
   double volumeUnitCell;
   int numAtoms;
   int numSpecies;
-  long dimensionality;
+  int dimensionality;
 
   // these vectors/matrices  running over the number of atoms
   Eigen::MatrixXd atomicPositions;      // size (numAtoms,3)
@@ -72,7 +72,7 @@ public:
   Crystal(Context &context, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
           Eigen::VectorXi &atomicSpecies_,
           std::vector<std::string> &speciesNames_,
-          Eigen::VectorXd &speciesMasses_, long &dimensionality_);
+          Eigen::VectorXd &speciesMasses_, int &dimensionality_);
 
   /** Empty constructor.
    */
@@ -109,7 +109,7 @@ public:
    * dimensionality. If 2D, it is ASSUMED that the z-direction is the non
    * periodic direction. If 1D, it's assumed that z is the periodic direction
    */
-  double getVolumeUnitCell(long dimensionality_ = 3);
+  double getVolumeUnitCell(int dimensionality_ = 3);
 
   /** get the symmetry operations of the crystal, in cartesian coordinates.
    * Returns a vector of SymmetryOperation. A SymmetryOperation is a
@@ -158,11 +158,11 @@ public:
 
   /** return the dimensionality of the crystal, i.e. a number from 1 to 3
    */
-  long getDimensionality();
+  int getDimensionality();
 
   /** Return the number of atomic species present in the crystal
    */
-  long getNumSpecies();
+  int getNumSpecies();
 
   /** Build the list of Bravais lattice vectors (real space) that live within
    * the Wigner Seitz zone of a super cell

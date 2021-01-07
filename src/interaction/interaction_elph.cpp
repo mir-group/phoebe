@@ -431,7 +431,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
       // get the start and stop points of elements to be written by this process
-      std::vector<long> workDivs = mpi->divideWork(totElems);
+      std::vector<int> workDivs = mpi->divideWork(totElems);
       size_t localElems = workDivs[1]-workDivs[0];
 
       // Set up buffer to be filled from hdf5

@@ -19,7 +19,7 @@ PathPoints::PathPoints(Crystal &crystal_,
   points.push_back(p0);
 
   // we loop over the segments provided in user input
-  for (long i = 0; i < pathExtrema.dimension(0); i++) {
+  for (int i = 0; i < pathExtrema.dimension(0); i++) {
     // load coordinates of the extrema of the segment
     p0(0) = pathExtrema(i, 0, 0);
     p0(1) = pathExtrema(i, 0, 1);
@@ -30,11 +30,11 @@ PathPoints::PathPoints(Crystal &crystal_,
 
     // delta may not divide the interval exactly
     // so, we find the closest one
-    long nk = abs(long((p1 - p0).norm() / delta));
+    int nk = abs(int((p1 - p0).norm() / delta));
 
     // now we build the points of the segment
     std::vector<Eigen::Vector3d> segmentPoints;
-    for (long j = 0; j <= nk; j++) {
+    for (int j = 0; j <= nk; j++) {
       Eigen::Vector3d thisP;
       thisP(0) = (p1(0) - p0(0)) / nk * j + p0(0);
       thisP(1) = (p1(1) - p0(1)) / nk * j + p0(1);
@@ -64,7 +64,7 @@ PathPoints::PathPoints(Crystal &crystal_,
 
   numPoints = points.size();
   pointsList = Eigen::MatrixXd::Zero(3, numPoints);
-  long i = 0;
+  int i = 0;
   for (auto p : points) {
     pointsList.col(i) = p;
     i += 1;
@@ -88,9 +88,9 @@ PathPoints &PathPoints::operator=(const PathPoints &that) {
   return *this;
 }
 
-Point PathPoints::getPoint(const long &index) { return Point(*this, index); }
+Point PathPoints::getPoint(const int &index) { return Point(*this, index); }
 
-Eigen::Vector3d PathPoints::getPointCoords(const long &index,
+Eigen::Vector3d PathPoints::getPointCoords(const int &index,
                                            const int &basis) {
   if (basis != crystalCoords && basis != cartesianCoords) {
     Error e("Wrong basis for getPoint");
@@ -104,9 +104,9 @@ Eigen::Vector3d PathPoints::getPointCoords(const long &index,
   }
 }
 
-long PathPoints::getIndex(const Eigen::Vector3d &coordinates) {
+int PathPoints::getIndex(const Eigen::Vector3d &coordinates) {
   // in this case there is no order, so we just search through a loop
-  long counter = 0;
+  int counter = 0;
   for (counter = 0; counter < numPoints; counter++) {
     if ((pointsList.col(counter) - coordinates).norm() < 1.0e-8) {
       break;

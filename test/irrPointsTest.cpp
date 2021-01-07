@@ -15,7 +15,7 @@ TEST(IrrPointsTest, Symmetries) {
   speciesNames.push_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   Context context;
   context.setUseSymmetries(true);
@@ -35,11 +35,11 @@ TEST(IrrPointsTest, Symmetries) {
   //-----------------------------------
 
   // I hard code that I expect 8 irreducible points
-  long numIrrPoints = points.irrPointsIterator().size();
+  int numIrrPoints = points.irrPointsIterator().size();
   ASSERT_EQ(numIrrPoints,8);
 
   int numFullPoints = 0;
-  for (long ik : points.irrPointsIterator()) {
+  for (int ik : points.irrPointsIterator()) {
     numFullPoints += points.getRotationsStar(ik).size();
   }
   ASSERT_EQ(numFullPoints,points.getNumPoints());
@@ -48,11 +48,11 @@ TEST(IrrPointsTest, Symmetries) {
   // loop over irreducible points, unfold the star, and check that we can
   // reconstruct the whole list of points of the full grid
   int counter = 0;
-  std::vector<long> allIndices;
-  for (long ikIrr : points.irrPointsIterator()) {
+  std::vector<int> allIndices;
+  for (int ikIrr : points.irrPointsIterator()) {
     auto kIrr = points.getPointCoords(ikIrr, Points::cartesianCoords);
 
-    long ikIrrAsRed = points.asIrreducibleIndex(ikIrr);
+    int ikIrrAsRed = points.asIrreducibleIndex(ikIrr);
     ASSERT_EQ(ikIrrAsRed, counter);
     counter++;
 
@@ -60,11 +60,11 @@ TEST(IrrPointsTest, Symmetries) {
     for ( auto s : rots ) {
       auto kRedCart = s * kIrr; // in cartesian coordinates
       auto kRedCrys = points.cartesianToCrystal(kRedCart);
-      long oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords
+      int oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords
       allIndices.push_back(oldIndex);
 
       auto t = points.getRotationToIrreducible(kRedCart, Points::cartesianCoords);
-      long ik2 = std::get<0>(t);
+      int ik2 = std::get<0>(t);
       ASSERT_EQ(ik2,ikIrr);
 
       Eigen::Matrix3d rot = std::get<1>(t);
