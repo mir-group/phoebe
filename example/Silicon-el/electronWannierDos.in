@@ -6,6 +6,6 @@ dosMaxEnergy = 20. eV
 dosDeltaEnergy = 0.1 eV
 
 begin crystal
-Si 0.00000   0.00000   0.00000
-Si 1.34940   1.34940   1.34940
+Si 0.000000000   0.000000000   0.000000000
+Si 1.349401887   1.349401887   1.349401887
 end crystal
