@@ -13,7 +13,7 @@
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 #include "specific_heat.h"
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
@@ -22,7 +22,7 @@ void PhononTransportApp::run(Context &context) {
 
   // Read the necessary input files
 
-  auto tup = QEParser::parsePhHarmonic(context);
+  auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 

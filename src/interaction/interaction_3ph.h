@@ -54,6 +54,7 @@ class Interaction3Ph {
   Kokkos::View<double *****> D3_k;
   Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
   Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
+  Kokkos::View<double *> weights2_k, weights3_k;
 
   double maxmem = 16.0e9;  // default 16 Gb memory space for computation
 
@@ -94,7 +95,7 @@ class Interaction3Ph {
    * element (triplet) of the Ifc3Tensor.
    */
    Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                   Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3);
+                   Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2, Eigen::VectorXd weights3);
 
   /** Copy constructor
    */

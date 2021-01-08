@@ -11,7 +11,7 @@
 #include "exceptions.h"
 #include "full_points.h"
 #include "mpiHelper.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 #include "utilities.h"
 #include <nlohmann/json.hpp>
 
@@ -31,7 +31,7 @@ void PhononDosApp::run(Context &context) {
   }
 
   // Read the necessary input files
-  auto tup = QEParser::parsePhHarmonic(context);
+  auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -65,7 +65,7 @@ void ElectronWannierDosApp::run(Context &context) {
     std::cout << "Starting electronic (Wannier) DoS calculation" << std::endl;
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicWannier(context);
+  auto tup = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
 
@@ -99,7 +99,7 @@ void ElectronFourierDosApp::run(Context &context) {
     std::cout << "Starting electronic (Fourier) DoS calculation" << std::endl;
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicFourier(context);
+  auto tup = Parser::parseElHarmonicFourier(context);
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
 
@@ -157,6 +157,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   std::vector<double> dos(workFraction, 0.);  // DOS initialized to zero
   #pragma omp parallel for
   for (long i = 0; i < workFraction; i++) {
+    std::cout << i << std::endl;
     dos[i] += tetrahedra.getDOS(energies[i]);
   }
 

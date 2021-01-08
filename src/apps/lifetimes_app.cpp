@@ -8,7 +8,7 @@
 #include "io.h"
 #include "path_points.h"
 #include "ph_scattering.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 
 void ElectronLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
@@ -61,7 +61,7 @@ void ElectronLifetimesApp::run(Context &context) {
 void PhononLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
 
-  auto t2 = QEParser::parsePhHarmonic(context);
+  auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 

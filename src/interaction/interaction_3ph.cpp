@@ -2,7 +2,7 @@
 #include "mpiHelper.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                                 Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3)
+                                 Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2, Eigen::VectorXd weights3)
                                  : crystal_(crystal), dts(10), newdts(3) {
 
   numAtoms = crystal_.getNumAtoms();
@@ -13,9 +13,13 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   // Copy everything to kokkos views
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);
+  Kokkos::realloc(weights2_k, nr2);
+  Kokkos::realloc(weights3_k, nr2);
 
   auto cellPositions2_h = Kokkos::create_mirror_view(cellPositions2_k);
   auto cellPositions3_h = Kokkos::create_mirror_view(cellPositions3_k);
+  auto weights2_h = Kokkos::create_mirror_view(weights2_k);
+  auto weights3_h = Kokkos::create_mirror_view(weights3_k);
   for (int j = 0; j < 3; j++) {
     for (int i = 0; i < nr2; i++) {
       cellPositions2_h(i, j) = cellPositions2(j, i);
@@ -24,8 +28,16 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
       cellPositions3_h(i, j) = cellPositions3(j, i);
     }
   }
+  for (int i = 0; i < nr2; i++) {
+    weights2_h(i) = weights2(i);
+  }
+  for (int i = 0; i < nr3; i++) {
+    weights3_h(i) = weights3(i);
+  }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
+  Kokkos::deep_copy(weights2_k, weights2_h);
+  Kokkos::deep_copy(weights3_k, weights3_h);
 
   Kokkos::realloc(D3_k, numBands, numBands, numBands, nr3, nr2);
   Kokkos::realloc(D3PlusCached_k, numBands, numBands, numBands, nr3);
@@ -62,7 +74,6 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
     : crystal_(that.crystal_), nr2(that.nr2), nr3(that.nr3),
       numAtoms(that.numAtoms), numBands(that.numBands) {
-  std::cout << "copy constructor called\n";
 }
 
 // assignment operator
@@ -75,7 +86,6 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     numBands = that.numBands;
   }
   return *this;
-  std::cout << "assignment operator called\n";
 }
 
 void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
@@ -98,6 +108,8 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   auto D3MinsCached = this->D3MinsCached_k;
   auto cellPositions2 = this->cellPositions2_k;
   auto cellPositions3 = this->cellPositions3_k;
+  auto weights2 = this->weights2_k;
+  auto weights3 = this->weights3_k;
   auto D3 = this->D3_k;
 
   // precompute phases
@@ -108,13 +120,14 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   Kokkos::parallel_for(
       "phase1loop", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
       KOKKOS_LAMBDA(int ir3, int ir2) {
+
         double argP = 0, argM = 0;
         for (int ic = 0; ic < 3; ic++) {
           argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
           argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
         }
-        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP);
-        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM);
+        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP) * weights2(ir2) * weights3(ir3);
+        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM) * weights2(ir2) * weights3(ir3);
       });
   time_point t1 = std::chrono::steady_clock::now();
   dts[0] += t1 - t0;
@@ -155,6 +168,7 @@ Interaction3Ph::getCouplingsSquared(
   int numBands = this->numBands;
   auto cellPositions2 = this->cellPositions2_k;
   auto cellPositions3 = this->cellPositions3_k;
+  auto weights3 = this->weights3_k;
   auto D3 = this->D3_k;
   auto D3PlusCached = this->D3PlusCached_k;
   auto D3MinsCached = this->D3MinsCached_k;
@@ -233,8 +247,8 @@ Interaction3Ph::getCouplingsSquared(
           argP += -q1s(iq1, ic) * cellPositions3(ir3, ic);
           argM += -q1s(iq1, ic) * cellPositions3(ir3, ic);
         }
-        phasePlus(iq1, ir3) = exp(complexI * argP);
-        phaseMins(iq1, ir3) = exp(complexI * argM);
+        phasePlus(iq1, ir3) = exp(complexI * argP) * weights3(ir3);
+        phaseMins(iq1, ir3) = exp(complexI * argM) * weights3(ir3);
       });
   time_point t1 = std::chrono::steady_clock::now();
   dts[2] += t1 - t0;

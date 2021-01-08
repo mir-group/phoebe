@@ -4,7 +4,7 @@
 #include <iomanip>
 #include "eigen.h"
 #include "constants.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 #include "path_points.h"
 #include "mpiHelper.h"
 #include <nlohmann/json.hpp>
@@ -22,7 +22,7 @@ void PhononBandsApp::run(Context &context) {
   }
 
   // Read the necessary input files
-  auto tup = QEParser::parsePhHarmonic(context);
+  auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -49,7 +49,7 @@ void ElectronWannierBandsApp::run(Context &context) {
   }
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicWannier(context);
+  auto tup = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 
@@ -77,7 +77,7 @@ void ElectronFourierBandsApp::run(Context &context) {
   }
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicFourier(context);
+  auto tup = Parser::parseElHarmonicFourier(context);
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 

@@ -58,8 +58,8 @@ private:
    * @param position2: the target of the search algorithm
    * @return idx: the row index of position2 in cellPositions2
    */
-  long findIndexRow(Eigen::MatrixXd &cellPositions2,
-                    Eigen::Vector3d &position2);
+  //static long findIndexRow(Eigen::MatrixXd &cellPositions2,
+   //                 Eigen::Vector3d &position2);
 
   /** This function, used for phonon3py, folds a list of Bravais vectors into
    * the Wigner Seitz zone of a supercell.
@@ -75,7 +75,19 @@ private:
    * reducible copies; a map as a Eigen::VectorXi such that map(wsIndex) maps
    * to the equivalent lattice vector in the input list.
    */
-  std::tuple<Eigen::MatrixXd, Eigen::VectorXi>
-  buildWignerSeitz(const Eigen::MatrixXd &supBravaisVectors, Crystal &crystal,
-                   Eigen::Vector3i grid);
+  //static std::tuple<Eigen::MatrixXd, Eigen::VectorXi>
+  //buildWignerSeitz(const Eigen::MatrixXd &supBravaisVectors, Crystal &crystal,
+  //                 Eigen::Vector3i grid);
+
+  static Eigen::MatrixXd wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid);
+  //static double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
+  Eigen::MatrixXd rws;
+  //Eigen::Tensor<double, 5> wscache;
+  //Eigen::Tensor<double,5> mat3R;
+  //void reorderDynamicalMatrix(Crystal &crystal, Eigen::Vector3i qGrid, Eigen::MatrixXd rws, Eigen::VectorXd weights);
+  //void reorderDynamicalMatrix(Crystal &crystal, Eigen::Vector3i qCoarseGrid,
+  //      Eigen::MatrixXd rws, Eigen::VectorXd weights, Eigen::Tensor<double,5>& mat3R,
+  //      Eigen::MatrixXd cellPositions, std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>> ifc3Tensor, std::vector<int> cellMap);
+
+
 };
