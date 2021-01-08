@@ -49,9 +49,9 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     for (int iq2 : mpi->divideWorkIter(numPoints)) {
       for (int iq1 = 0; iq1 < numPoints; iq1++) {
         Eigen::Vector3d q1Coords =
-            innerPoints.getPointCoords(iq1, Points::crystalCoords);
+            innerPoints.getPointCoordinates(iq1, Points::crystalCoordinates);
         Eigen::Vector3d q2Coords =
-            innerPoints.getPointCoords(iq2, Points::crystalCoords);
+            innerPoints.getPointCoordinates(iq2, Points::crystalCoordinates);
 
         Eigen::Vector3d q3PlusCoords = q1Coords + q2Coords;
         Eigen::Vector3d q3MinsCoords = q1Coords - q2Coords;
@@ -123,11 +123,11 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
 Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
   Eigen::Vector3d q3;
   if (thisCase == casePlus) {
-    q3 = point1.getCoords(Points::cartesianCoords) +
-         point2.getCoords(Points::cartesianCoords);
+    q3 = point1.getCoordinates(Points::cartesianCoordinates) +
+         point2.getCoordinates(Points::cartesianCoordinates);
   } else {
-    q3 = point1.getCoords(Points::cartesianCoords) -
-         point2.getCoords(Points::cartesianCoords);
+    q3 = point1.getCoordinates(Points::cartesianCoordinates) -
+         point2.getCoordinates(Points::cartesianCoordinates);
   }
 
   if (storedAllQ3) {
@@ -237,10 +237,10 @@ void Helper3rdState::prepare(const std::vector<int> q1Indexes,
     int iq1Counter = -1;
     for (int iq1 : q1Indexes) {
       iq1Counter++;
-      Eigen::Vector3d q1 =
-          outerBandStructure.getPoint(iq1).getCoords(Points::cartesianCoords);
-      Eigen::Vector3d q2 =
-          innerBandStructure.getPoint(iq2).getCoords(Points::cartesianCoords);
+      Eigen::Vector3d q1 = outerBandStructure.getPoint(iq1).getCoordinates(
+          Points::cartesianCoordinates);
+      Eigen::Vector3d q2 = innerBandStructure.getPoint(iq2).getCoordinates(
+          Points::cartesianCoordinates);
 
       Eigen::Vector3d q3Plus = q1 + q2;
       Eigen::Vector3d q3Mins = q1 - q2;

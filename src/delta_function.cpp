@@ -166,7 +166,7 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
 
   auto fullPoints = fullBandStructure.getPoints();
   // if the mesh is uniform, each k-point belongs to 6 tetrahedra
-  auto kCoords = fullPoints.getPointCoords(ik, Points::crystalCoords);
+  auto kCoords = fullPoints.getPointCoordinates(ik, Points::crystalCoordinates);
 
   // in this tensor, we store the offset to find the vertices of the
   // tetrahedrons to which the current point belongs to

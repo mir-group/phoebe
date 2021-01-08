@@ -66,13 +66,13 @@ TEST(ABS, Symmetries) {
     if ( count == 0 ) {
       int idx = points.irrPointsIterator()[1];
       EXPECT_EQ(idx,1);
-      Eigen::Vector3d diff = kAbs - points.getPointCoords(idx,Points::cartesianCoords);
+      Eigen::Vector3d diff = kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
       EXPECT_EQ(diff.norm(), 0.);
     }
     if ( count == 1 ) {
       int idx = points.irrPointsIterator()[2];
       EXPECT_EQ(idx,3);
-      Eigen::Vector3d diff = kAbs - points.getPointCoords(idx,Points::cartesianCoords);
+      Eigen::Vector3d diff = kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
       EXPECT_EQ(diff.norm(), 0.);
     }
     count++;
@@ -95,10 +95,11 @@ TEST(ABS, Symmetries) {
 
       Eigen::Vector3d qCrys = abs.getPoints().cartesianToCrystal(q);
       int ikFull = points.getIndex(qCrys);
-      Eigen::Vector3d k1 = points.getPointCoords(ikFull, Points::cartesianCoords);
+      Eigen::Vector3d k1 =
+          points.getPointCoordinates(ikFull, Points::cartesianCoordinates);
 
-      k1 = points.bzToWs(k1, Points::cartesianCoords);
-      q = points.bzToWs(q, Points::cartesianCoords);
+      k1 = points.bzToWs(k1, Points::cartesianCoordinates);
+      q = points.bzToWs(q, Points::cartesianCoordinates);
       auto diff = (k1-q).norm();
       EXPECT_EQ(diff, 0.);
 
@@ -159,8 +160,8 @@ TEST(ABS, Symmetries) {
       Eigen::Vector3d v2 = fbs.getGroupVelocity(isFullIdx);
       Eigen::Vector3d q2 = fbs.getWavevector(ikFullIdx);
 
-      q = points.bzToWs(q,Points::cartesianCoords);
-      q2 = points.bzToWs(q2,Points::cartesianCoords);
+      q = points.bzToWs(q,Points::cartesianCoordinates);
+      q2 = points.bzToWs(q2,Points::cartesianCoordinates);
 
       double diff = (q-q2).squaredNorm();
       EXPECT_NEAR(diff, 0., 1.0e-6);
@@ -197,7 +198,7 @@ TEST(ABS, Symmetries) {
     WavevectorIndex ikIdx(ik);
     Eigen::Vector3d k = abs.getWavevector(ikIdx);
 
-    auto t = abs.getRotationToIrreducible(k, Points::cartesianCoords);
+    auto t = abs.getRotationToIrreducible(k, Points::cartesianCoordinates);
     long ikIrr = std::get<0>(t);
     Eigen::Matrix3d rot = std::get<1>(t);
 
@@ -205,8 +206,8 @@ TEST(ABS, Symmetries) {
     Eigen::Vector3d kIrr = abs.getWavevector(ikIrrIdx);
     Eigen::Vector3d k2 = rot * k;
 
-    k2 = points.bzToWs(k2,Points::cartesianCoords);
-    kIrr = points.bzToWs(kIrr,Points::cartesianCoords);
+    k2 = points.bzToWs(k2,Points::cartesianCoordinates);
+    kIrr = points.bzToWs(kIrr,Points::cartesianCoordinates);
 
     double diff = (k2-kIrr).squaredNorm();
     EXPECT_NEAR(diff, 0., 1.0e-6);

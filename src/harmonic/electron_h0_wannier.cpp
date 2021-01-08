@@ -81,7 +81,7 @@ int ElectronH0Wannier::getNumBands() {
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalize(
         Point &point) {
-    Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
+    Eigen::Vector3d k = point.getCoordinates(Points::cartesianCoordinates);
 
     auto tup = diagonalizeFromCoords(k);
     auto energies = std::get<0>(tup);
@@ -120,7 +120,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFrom
 
 Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocity(
         Point &point) {
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d coords = point.getCoordinates(Points::cartesianCoordinates);
   return diagonalizeVelocityFromCoords(coords);
 }
 
@@ -276,7 +276,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
 
 std::vector<Eigen::MatrixXcd> ElectronH0Wannier::getBerryConnection(
         Point &point) {
-    Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
+    Eigen::Vector3d k = point.getCoordinates(Points::cartesianCoordinates);
 
     // first we diagonalize the hamiltonian
     auto tup = diagonalize(point);

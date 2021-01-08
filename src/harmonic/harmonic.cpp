@@ -24,7 +24,7 @@ HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d &k) {
 
 Eigen::Tensor<std::complex<double>, 3> HarmonicHamiltonian::diagonalizeVelocity(
     Point &point) {
-  Eigen::Vector3d k = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d k = point.getCoordinates(Points::cartesianCoordinates);
   return diagonalizeVelocityFromCoords(k);
 }
 

@@ -599,7 +599,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           int ik1Irr = ik1Index.get();
           int ik2Irr = ik2Index.get();
           for (int ik2 :
-               outerBandStructure.getReduciblesFromIrreducible(ik2Irr)) {
+               outerBandStructure.getReducibleStarFromIrreducible(ik2Irr)) {
             std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
             localPairsPrivate.push_back(xx);
           }
@@ -691,7 +691,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           int iq1Irr = iq1Index.get();
           int iq2Irr = iq2Index.get();
           for (int iq2 :
-              outerBandStructure.getReduciblesFromIrreducible(iq2Irr)) {
+               outerBandStructure.getReducibleStarFromIrreducible(iq2Irr)) {
             std::pair<int, int> xx = std::make_pair(iq1Irr, iq2);
             localPairsPrivate.push_back(xx);
           }

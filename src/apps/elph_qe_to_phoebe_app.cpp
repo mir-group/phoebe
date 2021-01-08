@@ -124,7 +124,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     auto qCoarseMesh = phononH0.getCoarseGrid();
 
     for (int iq = 0; iq < numQPoints; iq++) {
-      Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+      Eigen::Vector3d q =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       if (q.norm() > 1.0e-8) {
 
         Eigen::MatrixXcd ev3(numModes, numModes);
@@ -136,7 +137,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
         for (int ik = 0; ik < numKPoints; ik++) {
           Eigen::Vector3d k =
-              kPoints.getPointCoords(ik, Points::cartesianCoords);
+              kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
 
           // Coordinates and index of k+q point
           Eigen::Vector3d kq = k + q;
@@ -179,9 +180,11 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   gFullTmp.setZero();
 
   for (int iq : mpi->divideWorkIter(numQPoints) ) {
-    Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    Eigen::Vector3d q =
+        qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
     for (int ik = 0; ik < numKPoints; ik++) {
-      Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+      Eigen::Vector3d k =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
 
       // Coordinates and index of k+q point
       Eigen::Vector3d kq = k + q;
@@ -261,7 +264,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     phases.setZero();
 #pragma omp parallel for
     for (int ik : mpi->divideWorkIter(numKPoints)) {
-      Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+      Eigen::Vector3d k =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
         for (int iR=0; iR<numElBravaisVectors; iR++) {
         double arg = k.dot(elBravaisVectors.col(iR));
         phases(ik, iR) = exp(-complexI * arg) / double(numKPoints);
@@ -360,7 +364,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     phases.setZero();
 #pragma omp parallel for
     for (int iq : mpi->divideWorkIter(numQPoints)) {
-      Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+      Eigen::Vector3d q =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
         double arg = q.dot(phBravaisVectors.col(irP));
         phases(irP,iq) = exp(-complexI * arg) / double(numQPoints);
@@ -943,9 +948,11 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   LoopPrint loopPrint("Computing coupling EPA", "q-points", numQPoints);
   for (int iq : mpi->divideWorkIter(numQPoints)) {
     loopPrint.update();
-    Eigen::Vector3d q = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    Eigen::Vector3d q =
+        qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
     for (int ik = 0; ik < numKPoints; ik++) {
-      Eigen::Vector3d k = kPoints.getPointCoords(ik, Points::cartesianCoords);
+      Eigen::Vector3d k =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
 
       // Coordinates and index of k+q point
       Eigen::Vector3d kq = k + q;
@@ -1032,7 +1039,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
 
   // I try the FFT of the energies
   for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
-    auto kCrystal = kPoints.getPointCoords(ik);
+    auto kCrystal = kPoints.getPointCoordinates(ik);
     kCrystal(0) *= kMesh(0);
     kCrystal(1) *= kMesh(1);
     kCrystal(2) *= kMesh(2);
@@ -1059,7 +1066,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
                                              numWannier, numWannier);
   h0R.setZero();
   for (int ik1 = 0; ik1 < kPoints.getNumPoints(); ik1++) {
-    auto k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
+    auto k1C = kPoints.getPointCoordinates(ik1, Points::cartesianCoordinates);
 
     // u has size (numBands, numWannier, numKPoints)
     Eigen::MatrixXcd uK(numBands, numWannier);
@@ -1095,7 +1102,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
 
   for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
     // get U
-    auto k1C = kPoints.getPointCoords(ik, Points::cartesianCoords);
+    auto k1C = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
     auto t3 = electronH0.diagonalizeFromCoords(k1C);
     auto en = std::get<0>(t3);
     auto u = std::get<1>(t3);
@@ -1172,8 +1179,8 @@ void ElPhQeToPhoebeApp::testPhononTransform(
   h0R.setZero();
 
   for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
-    auto qC = qPoints.getPointCoords(iq, Points::cartesianCoords);
-    qC = qPoints.bzToWs(qC, Points::cartesianCoords);
+    auto qC = qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
+    qC = qPoints.bzToWs(qC, Points::cartesianCoordinates);
 
     // u has size (numBands, numWannier, numKPoints)
     Eigen::MatrixXcd uK(numPhBands, numPhBands);
@@ -1246,7 +1253,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
 
   for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
     // get U
-    auto qC = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    auto qC = qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
     auto t = phononH0.diagonalizeFromCoords(qC, false);
     auto en = std::get<0>(t);
     auto u = std::get<0>(t);
@@ -1309,10 +1316,11 @@ void ElPhQeToPhoebeApp::testBackTransform(
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   for (int ik1 = 0; ik1 < numKPoints; ik1++) {
-    Eigen::Vector3d k1C = kPoints.getPointCoords(ik1, Points::cartesianCoords);
+    Eigen::Vector3d k1C =
+        kPoints.getPointCoordinates(ik1, Points::cartesianCoordinates);
     for (int ik2 = 0; ik2 < numKPoints; ik2++) {
       Eigen::Vector3d k2C =
-          kPoints.getPointCoords(ik2, Points::cartesianCoords);
+          kPoints.getPointCoordinates(ik2, Points::cartesianCoordinates);
 
       std::vector<Eigen::Vector3d> k2Cs;
       k2Cs.push_back(k2C);

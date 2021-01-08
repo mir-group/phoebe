@@ -129,7 +129,7 @@ void outputBandsToJSON(FullBandStructure& fullBandStructure, Context& context,
     auto ikIndex = WavevectorIndex(ik);
 
     // store the path coordinates
-    auto coord = pathPoints.getPointCoords(ik);
+    auto coord = pathPoints.getPointCoordinates(ik);
     pathCoords.push_back({coord[0],coord[1],coord[2]});
 
     // check if this point is one of the high sym points,

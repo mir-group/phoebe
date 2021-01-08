@@ -4,10 +4,9 @@
 #include "utilities.h"
 #include <cmath>
 #include <set>
-#include <utility>
 
-const int Points::crystalCoords = 0;
-const int Points::cartesianCoords = 1;
+const int Points::crystalCoordinates = crystalCoords_;
+const int Points::cartesianCoordinates = cartesianCoords_;
 
 // default constructors
 
@@ -132,7 +131,7 @@ void Points::setActiveLayer(const Eigen::VectorXi &filter) {
   pointsList.setZero();
   for (int ikNew = 0; ikNew < numPoints; ikNew++) {
     int ik = filteredToFullIndices(ikNew);
-    Eigen::Vector3d x = getPointCoords(ik, Points::crystalCoords);
+    Eigen::Vector3d x = getPointCoordinates(ik, Points::crystalCoordinates);
     pointsList.col(ikNew) = x;
 
     if (ik > maxIndex)
@@ -195,10 +194,10 @@ Points &Points::operator=(const Points &that) { // assignment operator
 
 Point Points::getPoint(const int &index) { return Point(*this, index); }
 
-// getPointCoords is the tool to find the coordinates of a point
+// getPointCoordinates is the tool to find the coordinates of a point
 
-Eigen::Vector3d Points::getPointCoords(const int &index, const int &basis) {
-  if (basis != crystalCoords && basis != cartesianCoords) {
+Eigen::Vector3d Points::getPointCoordinates(const int &index, const int &basis) {
+  if (basis != crystalCoordinates && basis != cartesianCoordinates) {
     Error("Wrong basis for getPoint");
   }
   Eigen::Vector3d pointCrystal;
@@ -216,7 +215,7 @@ Eigen::Vector3d Points::getPointCoords(const int &index, const int &basis) {
     pointCrystal(1) = double(iky) / (double)mesh(1) + offset(1);
     pointCrystal(2) = double(ikz) / (double)mesh(2) + offset(2);
   }
-  if (basis == crystalCoords) {
+  if (basis == crystalCoordinates) {
     return pointCrystal;
   } else {
     Eigen::Vector3d pointCartesian = crystalToCartesian(pointCrystal);
@@ -232,7 +231,7 @@ int Points::getIndex(const Eigen::Vector3d &point) {
   return ik;
 }
 
-int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates) {
+int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates_) {
 
   if (!explicitlyStored) { // full list is faster
     Eigen::Vector3i p;
@@ -240,7 +239,7 @@ int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates) {
     double diff = 0.;
     for (int i : {0, 1, 2}) {
       // bring the point to integer coordinates
-      double x = (crystalCoordinates(i) - offset(i)) * mesh(i);
+      double x = (crystalCoordinates_(i) - offset(i)) * mesh(i);
       // check that p is indeed a point commensurate to the mesh.
       diff += round(x) - x;
       // fold in Brillouin zone in range [0,mesh-1]
@@ -255,7 +254,7 @@ int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates) {
   } else {
     for (int ikTest = 0; ikTest < numPoints; ikTest++) {
       Eigen::Vector3d kTest = pointsList.col(ikTest);
-      Eigen::Vector3d diff = kTest - crystalCoordinates;
+      Eigen::Vector3d diff = kTest - crystalCoordinates_;
       for (int i : {0, 1, 2}) {
         diff(i) -= std::floor(diff(i) + 1.0e-8);
       }
@@ -282,12 +281,12 @@ Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d &point) {
 Eigen::Vector3d Points::bzToWs(const Eigen::Vector3d &point, const int &basis) {
 
   Eigen::Vector3d pointCrystal = point;
-  if (basis == cartesianCoords) {
+  if (basis == cartesianCoordinates) {
     pointCrystal = cartesianToCrystal(pointCrystal);
   }
 
   // fold to BZ first
-  pointCrystal = foldToBz(pointCrystal, crystalCoords);
+  pointCrystal = foldToBz(pointCrystal, crystalCoordinates);
 
   Eigen::Vector3d pointCart = crystalToCartesian(pointCrystal);
 
@@ -305,7 +304,7 @@ Eigen::Vector3d Points::bzToWs(const Eigen::Vector3d &point, const int &basis) {
   }
 
   Eigen::Vector3d point2 = pointCart + gVectors.col(iws);
-  if (basis == crystalCoords) {
+  if (basis == crystalCoordinates) {
     point2 = cartesianToCrystal(point2);
   }
   return point2;
@@ -313,12 +312,12 @@ Eigen::Vector3d Points::bzToWs(const Eigen::Vector3d &point, const int &basis) {
 
 Eigen::Vector3d Points::foldToBz(const Eigen::Vector3d &point,
                                  const int &basis) {
-  if (basis != crystalCoords && basis != cartesianCoords) {
+  if (basis != crystalCoordinates && basis != cartesianCoordinates) {
     Error("Wrong input to Wigner Seitz folding");
   }
 
   Eigen::Vector3d pointCrystal = point;
-  if (basis == cartesianCoords) {
+  if (basis == cartesianCoordinates) {
     pointCrystal = cartesianToCrystal(pointCrystal);
   }
 
@@ -331,7 +330,7 @@ Eigen::Vector3d Points::foldToBz(const Eigen::Vector3d &point,
   }
 
   Eigen::Vector3d point2 = pointCrystal;
-  if (basis == cartesianCoords) {
+  if (basis == cartesianCoordinates) {
     point2 = crystalToCartesian(point2);
   }
   return point2;
@@ -464,16 +463,16 @@ Point &Point::operator=(const Point &that) {
 
 int Point::getIndex() const { return index; }
 
-Eigen::Vector3d Point::getCoords(const int &basis, const bool &inWignerSeitz) {
-  if ((basis != crystalCoords_) && (basis != cartesianCoords_)) {
+Eigen::Vector3d Point::getCoordinates(const int &basis, const bool &inWignerSeitz) {
+  if ((basis != Points::cartesianCoordinates) && (basis != Points::crystalCoordinates)) {
     Error e("Point getCoordinates: basis must be crystal or cartesian");
   }
 
-  Eigen::Vector3d coords = points.getPointCoords(index, basis);
+  Eigen::Vector3d coordinates = points.getPointCoordinates(index, basis);
   if (inWignerSeitz) {
-    coords = points.bzToWs(coords, basis);
+    coordinates = points.bzToWs(coordinates, basis);
   }
-  return coords;
+  return coordinates;
 }
 
 bool Point::hasUmklapp() {
@@ -488,9 +487,9 @@ Point Point::operator+(Point &b) {
   if (&b.points != &points) {
     Error("Points sum should refer to points of the same mesh");
   }
-  Eigen::Vector3d coordinates = getCoords() + b.getCoords();
+  Eigen::Vector3d coordinates = getCoordinates() + b.getCoordinates();
   int ik = points.getIndex(coordinates);
-  Eigen::Vector3d umklappVector2 = points.getPointCoords(ik) - coordinates;
+  Eigen::Vector3d umklappVector2 = points.getPointCoordinates(ik) - coordinates;
   Point p(points, ik, umklappVector2);
   return p;
 }
@@ -499,9 +498,9 @@ Point Point::operator-(Point &b) {
   if (&b.points != &points) {
     Error("Points sum should refer to points of the same mesh");
   }
-  Eigen::Vector3d coordinates = getCoords() - b.getCoords();
+  Eigen::Vector3d coordinates = getCoordinates() - b.getCoordinates();
   int ik = points.getIndex(coordinates);
-  Eigen::Vector3d umklappVector2 = points.getPointCoords(ik) - coordinates;
+  Eigen::Vector3d umklappVector2 = points.getPointCoordinates(ik) - coordinates;
   Point p(points, ik, umklappVector2);
   return p;
 }
@@ -550,7 +549,7 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
       for (const auto &symmetry : symmetries) {
         Eigen::Matrix3d rot = symmetry.rotation;
         Eigen::Vector3d rotatedPoint =
-            rot * getPointCoords(ik, Points::crystalCoords);
+            rot * getPointCoordinates(ik, Points::crystalCoordinates);
         int ikRot = isPointStored(rotatedPoint);
         if (ikRot >= 0 && equiv(ikRot) == ikRot) {
           if (ikRot >= ik) {
@@ -576,8 +575,7 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
       } else {
         int ikIrr = equiv(ikRed);
 
-//        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
-        Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
+        Eigen::Vector3d kIrr = getPointCoordinates(ikIrr, Points::crystalCoordinates);
 
         for (unsigned int is = 0; is < symmetries.size(); is++) {
           Eigen::Matrix3d rot = rotationMatricesCrystal[is];
@@ -601,13 +599,12 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
       } else {
         int ikIrr = equiv(ikRed);
 
-//        Eigen::Vector3d kRed = getPointCoords(ikRed, Points::crystalCoords);
-        Eigen::Vector3d kIrr = getPointCoords(ikIrr, Points::crystalCoords);
+        Eigen::Vector3d kIrr = getPointCoordinates(ikIrr, Points::crystalCoordinates);
 
-        Eigen::MatrixXd irrVels = (*groupVelocities)[ikIrr];
-        Eigen::MatrixXd redVels = (*groupVelocities)[ikRed];
+        Eigen::MatrixXd irrVelocities = (*groupVelocities)[ikIrr];
+        Eigen::MatrixXd redVelocities = (*groupVelocities)[ikRed];
 
-        if (irrVels.rows() != redVels.rows()) {
+        if (irrVelocities.rows() != redVelocities.rows()) {
           Error("Different number of bands at two equivalent points");
         }
 
@@ -621,11 +618,11 @@ void Points::setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities)
             continue;
           }
 
-          int numBands = irrVels.rows();
+          int numBands = irrVelocities.rows();
           double diff = 0.;
           for (int ib=0; ib<numBands; ib++) {
-            Eigen::Vector3d thisIrrVel = irrVels.row(ib);
-            Eigen::Vector3d thisRedVel = redVels.row(ib);
+            Eigen::Vector3d thisIrrVel = irrVelocities.row(ib);
+            Eigen::Vector3d thisRedVel = redVelocities.row(ib);
             Eigen::Vector3d rotVel = rotationMatricesCartesian[is] * thisIrrVel;
             diff += (rotVel - thisRedVel).squaredNorm();
           }
@@ -739,19 +736,19 @@ int Points::asReducibleIndex(const int &ik) {
 
 std::tuple<int, Eigen::Matrix3d>
 Points::getRotationToIrreducible(const Eigen::Vector3d &x, const int &basis) {
-  Eigen::Vector3d xCryst;
-  if (basis == cartesianCoords) {
-    xCryst = cartesianToCrystal(x);
+  Eigen::Vector3d xCrystal;
+  if (basis == cartesianCoordinates) {
+    xCrystal = cartesianToCrystal(x);
   } else {
-    xCryst = x;
+    xCrystal = x;
   }
   // find the index in the list
-  int ik = getIndex(xCryst);
+  int ik = getIndex(xCrystal);
 
   if (numIrrPoints > 0) { // if irreducible points have been set
     // find rotation such that rotation * qFull = qRed
     Eigen::Matrix3d rot;
-    if (basis == crystalCoords) {
+    if (basis == crystalCoordinates) {
       rot = rotationMatricesCrystal[mapEquivalenceRotationIndex(ik)].inverse();
     } else {
       rot = rotationMatricesCartesian[mapEquivalenceRotationIndex(ik)].inverse();
@@ -787,7 +784,7 @@ std::vector<Eigen::Matrix3d> Points::getRotationsStar(const int &ik) {
   }
 }
 
-std::vector<int> Points::getReduciblesFromIrreducible(const int &ik) {
+std::vector<int> Points::getReducibleStarFromIrreducible(const int &ik) {
   int ikIrr = mapReducibleToIrreducibleList(ik);
   return irreducibleStars[ikIrr];
 }

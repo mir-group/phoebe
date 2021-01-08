@@ -50,7 +50,7 @@ TEST(IrrPointsTest, Symmetries) {
   int counter = 0;
   std::vector<int> allIndices;
   for (int ikIrr : points.irrPointsIterator()) {
-    auto kIrr = points.getPointCoords(ikIrr, Points::cartesianCoords);
+    auto kIrr = points.getPointCoordinates(ikIrr, Points::cartesianCoordinates);
 
     int ikIrrAsRed = points.asIrreducibleIndex(ikIrr);
     ASSERT_EQ(ikIrrAsRed, counter);
@@ -63,7 +63,7 @@ TEST(IrrPointsTest, Symmetries) {
       int oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords
       allIndices.push_back(oldIndex);
 
-      auto t = points.getRotationToIrreducible(kRedCart, Points::cartesianCoords);
+      auto t = points.getRotationToIrreducible(kRedCart, Points::cartesianCoordinates);
       int ik2 = std::get<0>(t);
       ASSERT_EQ(ik2,ikIrr);
 

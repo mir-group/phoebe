@@ -304,14 +304,14 @@ public:
    * rotation*irrPoint = redPoint
    *
    * @param x: point coordinates
-   * @param basis: either Points::crystalCoords or Points::cartesianCoords,
+   * @param basis: either Points::crystalCoordinates or Points::cartesianCoordinates,
    * this will treat x in the appropriate coordinate. Also the returned rotation
    * will be in the corresponding basis.
    * @return <ik,rot>: a tuple with the index of the irreducible point and the
    * rotation matrix connecting the irreducible and reducible point.
    */
   std::tuple<int, Eigen::Matrix3d> getRotationToIrreducible(
-      const Eigen::Vector3d &x, const int &basis = Points::crystalCoords) override;
+      const Eigen::Vector3d &x, const int &basis = Points::crystalCoordinates) override;
 
   /** Utility method to convert an index over Bloch states in the band structure
    * into a Bloch state index usable by VectorBTE.
@@ -326,10 +326,10 @@ public:
    * the Bloch state index in the band structure.
    * Unlike stateToBte, this should always have a solution.
    *
-   * @param ibteIndex: index of the Bloch state in the BTE
+   * @param iBteIndex: index of the Bloch state in the BTE
    * @return StateIndex: the index of the Bloch state in the band structure.
    */
-  StateIndex bteToState(BteIndex &ibteIndex) override;
+  StateIndex bteToState(BteIndex &iBteIndex) override;
 
   /** Iterator over the Bloch states in the band structure, over just the
    * irreducible wavevectors, but isn't distributed over MPI processes.
@@ -366,12 +366,12 @@ public:
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
    *
-   * @param crystalCoords: coordinates of the kpoint in crystal basis
+   * @param crystalCoordinates: coordinates of the point in crystal basis
    * @param suppressError: default false. If false, will throw an error if the
    * point is not found
    * @return ik: the index of the point
    */
-  int getPointIndex(const Eigen::Vector3d &crystalCoords,
+  int getPointIndex(const Eigen::Vector3d &crystalCoordinates,
                      const bool &suppressError = false) override;
 
   /** Method to find the points equivalent to an irreducible point.
@@ -381,7 +381,7 @@ public:
    * @return vector<int>: the list of indices of the reducible points
    * equivalent to point #ik.
    */
-  std::vector<int> getReduciblesFromIrreducible(const int &ik) override;
+  std::vector<int> getReducibleStarFromIrreducible(const int &ik) override;
  protected:
   // stores the quasiparticle kind
   Particle particle;

@@ -38,7 +38,7 @@ public:
    * @param inWignerSeitz: default false, if true, folds point in WS cell.
    * @return coordinates: a 3d vector of coordinates
    */
-  Eigen::Vector3d getCoords(const int &basis = crystalCoords_,
+  Eigen::Vector3d getCoordinates(const int &basis = crystalCoords_,
                             const bool &inWignerSeitz = false);
 
   /** Sum of two wavevectors (this + b)
@@ -172,11 +172,11 @@ public:
   /** Get the coordinates of a wavevector from its index.
    * @param index: the index of the desired wavevector.
    * @param basis: specify the basis to be used for the output coordinates.
-   * Either Points::crystalCoords or Points::cartesianCoords.
+   * Either Points::crystalCoordinates or Points::cartesianCoordinates.
    * @return wavevector: the coordinates of the desired wavevector.
    */
-  Eigen::Vector3d getPointCoords(const int &index,
-                                 const int &basis = crystalCoords);
+  Eigen::Vector3d getPointCoordinates(const int &index,
+                                 const int &basis = crystalCoordinates);
 
   /** Get the wavevector index given the crystal coordinates of a wavevector.
    * @param point: the wavevector in crystal coordinates.
@@ -185,12 +185,12 @@ public:
   int getIndex(const Eigen::Vector3d &point);
 
   // like getIndex, but returns -1 if point not found
-  int isPointStored(const Eigen::Vector3d &crystalCoordinates);
+  int isPointStored(const Eigen::Vector3d &crystalCoordinates_);
 
   // note: constexpr tells the compiler that the class member is
   // available at compilation time
-  static const int crystalCoords;
-  static const int cartesianCoords;
+  static const int crystalCoordinates;
+  static const int cartesianCoordinates;
 
   // given a wavevector of the reducible list in crystal coordinates,
   // finds the integer index ikIrr of the irreducible point in the irreducible
@@ -204,9 +204,9 @@ public:
   int asReducibleIndex(const int &ik);
   std::tuple<int, Eigen::Matrix3d>
   getRotationToIrreducible(const Eigen::Vector3d &x,
-                           const int &basis = cartesianCoords);
+                           const int &basis = cartesianCoordinates);
   std::vector<Eigen::Matrix3d> getRotationsStar(const int &ik);
-  std::vector<int> getReduciblesFromIrreducible(const int &ik);
+  std::vector<int> getReducibleStarFromIrreducible(const int &ik);
 
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);

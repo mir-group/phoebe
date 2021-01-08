@@ -246,7 +246,7 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(StateIndex &is) {
 }
 
 Eigen::Vector3d ActiveBandStructure::getWavevector(WavevectorIndex &ik) {
-  return points.getPointCoords(ik.get(), Points::cartesianCoords);
+  return points.getPointCoordinates(ik.get(), Points::cartesianCoordinates);
 }
 
 void ActiveBandStructure::setEnergies(Point &point,
@@ -678,10 +678,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     // the quasiparticle energies, as they may not be available locally
 
     Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
-    auto t = points_.getRotationToIrreducible(k, Points::cartesianCoords);
+    auto t = points_.getRotationToIrreducible(k, Points::cartesianCoordinates);
     int ikIrr = std::get<0>(t);
     Eigen::Vector3d kIrr =
-        points_.getPointCoords(ikIrr, Points::cartesianCoords);
+        points_.getPointCoordinates(ikIrr, Points::cartesianCoordinates);
     auto t2 = h0.diagonalizeFromCoords(kIrr);
     Eigen::VectorXd theseEnergies = std::get<0>(t2);
 
@@ -934,8 +934,8 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   return BteIndex(iBte);
 }
 
-StateIndex ActiveBandStructure::bteToState(BteIndex &ibteIndex) {
-  auto t = bteComb2Bloch(ibteIndex.get());
+StateIndex ActiveBandStructure::bteToState(BteIndex &iBteIndex) {
+  auto t = bteComb2Bloch(iBteIndex.get());
   int ikBte = std::get<0>(t);
   int ib = std::get<1>(t);
   int ik = points.asReducibleIndex(ikBte);
@@ -949,20 +949,20 @@ ActiveBandStructure::getRotationToIrreducible(const Eigen::Vector3d &x,
   return points.getRotationToIrreducible(x, basis);
 }
 
-int ActiveBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
+int ActiveBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoordinates,
                                        const bool &suppressError) {
-  if (points.isPointStored(crystalCoords) == -1) {
+  if (points.isPointStored(crystalCoordinates) == -1) {
     Error("Point not found in activeBandStructure, something wrong");
   }
 
   if (suppressError) {
-    return points.isPointStored(crystalCoords);
+    return points.isPointStored(crystalCoordinates);
   } else {
-    return points.getIndex(crystalCoords);
+    return points.getIndex(crystalCoordinates);
   }
 }
 
 std::vector<int>
-ActiveBandStructure::getReduciblesFromIrreducible(const int &ik) {
-  return points.getReduciblesFromIrreducible(ik);
+ActiveBandStructure::getReducibleStarFromIrreducible(const int &ik) {
+  return points.getReducibleStarFromIrreducible(ik);
 }

@@ -33,7 +33,7 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
     int numBands = energies.size();
 
     Eigen::Vector3d k = bandStructure.getWavevector(ikIdx);
-    auto t = bandStructure.getRotationToIrreducible(k, Points::cartesianCoords);
+    auto t = bandStructure.getRotationToIrreducible(k, Points::cartesianCoordinates);
     int ikIrr = std::get<0>(t);
 
     // we do the calculation in two steps

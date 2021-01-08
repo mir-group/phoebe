@@ -111,7 +111,7 @@ Particle PhononH0::getParticle() { return particle; }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalize(Point &point) {
-  Eigen::Vector3d q = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d q = point.getCoordinates(Points::cartesianCoordinates);
   bool withMassScaling = true;
   auto tup = diagonalizeFromCoords(q, withMassScaling);
   auto energies = std::get<0>(tup);
@@ -780,7 +780,7 @@ PhononH0::dynDiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
 
 Eigen::Tensor<std::complex<double>, 3>
 PhononH0::diagonalizeVelocity(Point &point) {
-  Eigen::Vector3d coords = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d coords = point.getCoordinates(Points::cartesianCoordinates);
   return diagonalizeVelocityFromCoords(coords);
 }
 

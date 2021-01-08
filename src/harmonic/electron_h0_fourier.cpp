@@ -53,8 +53,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
   numBands = coarseBandStructure.getNumBands();
   cutoff = cutoff_;
   numDataPoints = coarseBandStructure.getNumPoints();
-  refWavevector =
-      coarseBandStructure.getPoint(0).getCoords(Points::cartesianCoords);
+  refWavevector = coarseBandStructure.getPoint(0).getCoordinates(
+      Points::cartesianCoordinates);
 
   // to do the interpolation, we need the lattice vector basis:
   setPositionVectors();
@@ -116,7 +116,8 @@ int ElectronH0Fourier::getNumBands() { return numBands; }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Fourier::diagonalize(
     Point &point) {
-  Eigen::Vector3d coordinates = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d coordinates =
+      point.getCoordinates(Points::cartesianCoordinates);
   auto tup = diagonalizeFromCoords(coordinates);
   auto energies = std::get<0>(tup);
   auto eigenVectors = std::get<1>(tup);
@@ -136,7 +137,8 @@ ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d &wavevector) {
 
 Eigen::Tensor<std::complex<double>, 3> ElectronH0Fourier::diagonalizeVelocity(
     Point &point) {
-  Eigen::Vector3d coordinates = point.getCoords(Points::cartesianCoords);
+  Eigen::Vector3d coordinates =
+      point.getCoordinates(Points::cartesianCoordinates);
   return diagonalizeVelocityFromCoords(coordinates);
 }
 
@@ -345,7 +347,8 @@ Eigen::VectorXcd ElectronH0Fourier::getLagrangeMultipliers(
   for (int iR = 0; iR < numPositionVectors; iR++) {
     for (int i = 0; i < numDataPoints; i++) {
       Eigen::Vector3d iWavevector =
-          coarseBandStructure.getPoint(i).getCoords(Points::cartesianCoords);
+          coarseBandStructure.getPoint(i).getCoordinates(
+              Points::cartesianCoordinates);
       smk(i, iR) = getStarFunction(iWavevector, iR);
     }
   }
@@ -396,7 +399,8 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
     std::complex<double> smk0 = getStarFunction(refWavevector, m);
     for (int i = 1; i < numDataPoints; i++) {
       Eigen::Vector3d wavevector =
-          coarseBandStructure.getPoint(i).getCoords(Points::cartesianCoords);
+          coarseBandStructure.getPoint(i).getCoordinates(
+              Points::cartesianCoordinates);
       coefficients(m) +=
           multipliers(i - 1) * std::conj(getStarFunction(wavevector, m) - smk0);
     }

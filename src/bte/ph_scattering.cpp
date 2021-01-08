@@ -33,7 +33,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     int i = 0;
     for (const auto &atomName : atomsNames) {
       double thisMass = periodicTable.getMass(atomName);
-      // since the phonon eigenvectors are renormalised with sqrt(mass)
+      // since the phonon eigenvectors are renormalized with sqrt(mass)
       // we add a correction factor in the coupling here
       massVariance(i) =
           thisMass * thisMass * periodicTable.getMassVariance(atomName);
@@ -119,7 +119,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   auto particle = outerBandStructure.getParticle();
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  int numCalcs = int(statisticsSweep.getNumCalcs());
+  int numCalculations = int(statisticsSweep.getNumCalcs());
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
@@ -187,7 +187,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     int nq1 = iq1Indexes.size();
 
     auto t = innerBandStructure.getRotationToIrreducible(
-        q2.getCoords(Points::cartesianCoords), Points::cartesianCoords);
+        q2.getCoordinates(Points::cartesianCoordinates), Points::cartesianCoordinates);
     int iq2Irr = std::get<0>(t);
     Eigen::Matrix3d rotation = std::get<1>(t);
     // rotation such that qIrr = R * qRed
@@ -318,17 +318,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               int ind2 = ind2Idx.get();
 
               double deltaPlus;
-              switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):
+              if (smearing->getType()==DeltaFunction::gaussian) {
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
-                break;
-              case (DeltaFunction::adaptiveGaussian): {
+              } else if (smearing->getType()==DeltaFunction::adaptiveGaussian) {
                 Eigen::Vector3d v = v2s.row(ib2) - v3ps.row(ib3);
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
-              } break;
-              default: // tetrahedron
+              } else {
                 deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
-                break;
               }
 
               if (deltaPlus < 0) {
@@ -336,7 +332,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               }
 
               // loop on temperature
-              for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+              for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
                 double bose1 = outerBose(iCalc, 0, ind1);
                 double bose2 = innerBose(iCalc, 0, ind2);
                 double bose3Plus = bose3PlusData(iCalc, ib3);
@@ -392,7 +388,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
                 } else { // case of linewidth construction
                   linewidth->operator()(iCalc, 0, ind1) += ratePlus;
-                  break;
                 }
               }
             }
@@ -426,21 +421,17 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               int ind2 = ind2Idx.get();
 
               double deltaMinus1, deltaMinus2;
-              switch (smearing->getType()) {
-              case (DeltaFunction::gaussian):
+              if (smearing->getType()==DeltaFunction::gaussian) {
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2);
                 deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1);
-                break;
-              case (DeltaFunction::adaptiveGaussian): {
+              } else if (smearing->getType()==DeltaFunction::adaptiveGaussian) {
                 Eigen::Vector3d v = v2s.row(ib2) - v3ms.row(ib3);
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2, v);
                 deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1, v);
-              } break;
-              default: // tetrahedron
+              } else {
                 // Note: here I require inner == outer band structure
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus, is2Idx);
                 deltaMinus2 = smearing->getSmearing(en1 - en3Minus, is2Idx);
-                break;
               }
 
               if (deltaMinus1 < 0. && deltaMinus2 < 0.)
@@ -450,7 +441,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               if (deltaMinus2 < 0.)
                 deltaMinus2 = 0.;
 
-              for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+              for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
                 double bose1 = outerBose(iCalc, 0, ind1);
                 double bose2 = innerBose(iCalc, 0, ind2);
                 double bose3Minus = bose3MinusData(iCalc, ib3);
@@ -508,7 +499,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   }
                 } else { // case of linewidth construction
                   linewidth->operator()(iCalc, 0, ind1) += 0.5 * rateMinus2;
-                  break;
                 }
               }
             }
@@ -532,11 +522,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           innerBandStructure.getPhEigenvectors(iq2Index);
       Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
 
-      auto q2Coords =
-          innerBandStructure.getPoint(iq2).getCoords(Points::cartesianCoords);
+      auto q2Coords = innerBandStructure.getPoint(iq2).getCoordinates(
+          Points::cartesianCoordinates);
 
       auto t = innerBandStructure.getRotationToIrreducible(
-          q2Coords, Points::cartesianCoords);
+          q2Coords, Points::cartesianCoordinates);
       // rotation such that
       int iq2Irr = std::get<0>(t);
       Eigen::Matrix3d rotation = std::get<1>(t);
@@ -579,18 +569,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             }
 
             double deltaIso;
-            switch (smearing->getType()) {
-            case (DeltaFunction::gaussian):
+            if (smearing->getType()==DeltaFunction::gaussian) {
               deltaIso = smearing->getSmearing(en1 - en2);
-              break;
-            case (DeltaFunction::adaptiveGaussian):
+            } else if (smearing->getType()==DeltaFunction::adaptiveGaussian) {
               deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
               deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
               deltaIso *= 0.5;
-              break;
-            default:
+            } else {
               deltaIso = smearing->getSmearing(en1, is2Idx);
-              break;
             }
 
             double termIso = 0.;
@@ -603,7 +589,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             }
             termIso *= pi * 0.5 * norm * en1 * en2 * deltaIso;
 
-            for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+            for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
               double bose1 = outerBose(iCalc, 0, ind1);
               double bose2 = innerBose(iCalc, 0, ind2);
 
@@ -657,7 +643,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
               } else { // case of linewidth construction
                 linewidth->operator()(iCalc, 0, ind1) += rateIso;
-                break;
               }
             }
           }

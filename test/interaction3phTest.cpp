@@ -184,9 +184,9 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto tup3 = phononH0.diagonalize(p3);
   auto energies3 = std::get<0>(tup3);
   auto evm3 = std::get<1>(tup3);
-  auto q1 = p1.getCoords(Points::cartesianCoords);
-  auto q2 = p2.getCoords(Points::cartesianCoords);
-  //  auto q3 = p3.getCoords(Points::cartesianCoords);
+  auto q1 = p1.getCoordinates(Points::cartesianCoordinates);
+  auto q2 = p2.getCoordinates(Points::cartesianCoordinates);
+  //  auto q3 = p3.getCoordinates(Points::cartesianCoordinates);
 
   // note: the reference was generated without the normalization by energies
   // so we set them to one.
@@ -287,12 +287,12 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto p3Mins = bandStructure.getPoint(iq3);
 
   // check that the sum of Point works
-  ASSERT_EQ((p3PlusTest.getCoords(Points::cartesianCoords) -
-             p3Plus.getCoords(Points::cartesianCoords))
+  ASSERT_EQ((p3PlusTest.getCoordinates(Points::cartesianCoordinates) -
+             p3Plus.getCoordinates(Points::cartesianCoordinates))
                 .norm(),
             0.);
-  ASSERT_EQ((p3MinsTest.getCoords(Points::cartesianCoords) -
-             p3Mins.getCoords(Points::cartesianCoords))
+  ASSERT_EQ((p3MinsTest.getCoordinates(Points::cartesianCoordinates) -
+             p3Mins.getCoordinates(Points::cartesianCoordinates))
                 .norm(),
             0.);
 

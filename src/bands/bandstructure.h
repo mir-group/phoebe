@@ -1,5 +1,5 @@
-#ifndef BANDSTRUCTURE_H
-#define BANDSTRUCTURE_H
+#ifndef BAND_STRUCTURE_H
+#define BAND_STRUCTURE_H
 
 #include "exceptions.h"
 #include "particle.h"
@@ -20,7 +20,7 @@ class BaseBandStructure {
    */
   virtual Particle getParticle() = 0;
 
-  /** Returns the wavevectors on which the bandstructure is computed.
+  /** Returns the wavevectors on which the band structure is computed.
    * @return Points: the object representing the Brillouin zone wavevectors.
    */
   virtual Points getPoints() = 0;
@@ -44,12 +44,12 @@ class BaseBandStructure {
    */
   virtual int getNumBands() = 0;
 
-  /** Returns the number of bands. If the bandstructure is active, 
+  /** Returns the number of bands. If the band structure is active,
    * and there are a different number of bands at each wavevector, this function 
    * returns the number of bands at that point. If not, this defaults
    * to the behavior of getNumBands() and just returns the number of bands. 
    * This is necessary for parts of the code where we leave an option to 
-   * swap in different child bandstructure types. 
+   * swap in different child band structure types.
    */
   virtual int getNumBands(WavevectorIndex &ik) = 0;
 
@@ -59,7 +59,7 @@ class BaseBandStructure {
    * no filter.
    */
   virtual int hasWindow() = 0;
-  /** Returns the boolean determining if this bandstructure is distributed
+  /** Returns the boolean determining if this band structure is distributed
    * or not.
    */
   virtual bool getIsDistributed() = 0;
@@ -95,20 +95,20 @@ class BaseBandStructure {
   std::vector<int> parallelStateIterator();
 
   /** Returns the energy of a quasiparticle from its Bloch index
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
    * @return energy: the value of the QP energy for that given Bloch index.
    * Phonon energies are referred to zero, with negative energies being
    * actually complex phonon frequencies. Electronic energies are not saved
    * with any particular reference, and should be used together with the
    * chemical potential computed by StatisticsSweep. By policy, it's in
-   * rydbergs units.
+   * rydberg units.
    */
   virtual const double &getEnergy(StateIndex &is) = 0;
   virtual Eigen::VectorXd getEnergies(WavevectorIndex &ik) = 0;
 
   /** Returns the energy of a quasiparticle from its Bloch index
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
    * @return velocity: a 3d vector with velocity. By policy, we save it in
    * the cartesian basis and in atomic rydberg units.
@@ -123,7 +123,7 @@ class BaseBandStructure {
       WavevectorIndex &ik) = 0;
 
   /** Returns the energy of a quasiparticle from its Bloch index
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param stateIndex: an integer index in range [0,numStates[
    * @return wavevector: a 3d vector with the wavevector in cartesian
    * coordinates in units of Bohr^-1.
@@ -185,7 +185,7 @@ class BaseBandStructure {
    * rotation*irrPoint = redPoint
    *
    * @param x: point coordinates
-   * @param basis: either Points::crystalCoords or Points::cartesianCoords,
+   * @param basis: either Points::crystalCoordinates or Points::cartesianCoordinates,
    * this will treat x in the appropriate coordinate. Also the returned rotation
    * will be in the corresponding basis.
    * @return <ik,rot>: a tuple with the index of the irreducible point and the
@@ -193,31 +193,31 @@ class BaseBandStructure {
    */
   virtual std::tuple<int, Eigen::Matrix3d> getRotationToIrreducible(
       const Eigen::Vector3d &x,
-      const int &basis = Points::crystalCoords) = 0;
+      const int &basis = Points::crystalCoordinates) = 0;
 
-  /** Utility method to convert an index over Bloch states in the bandstructure
+  /** Utility method to convert an index over Bloch states in the band structure
    * into a Bloch state index usable by VectorBTE.
    * If a state is not mapped to the VectorBTE, throws an error.
    *
-   * @param StateIndex: the index of the Bloch state in the bandstructure.
+   * @param StateIndex: the index of the Bloch state in the band structure.
    * @return BteIndex: index of the Bloch state in the BTE
    */
   virtual BteIndex stateToBte(StateIndex &isIndex) = 0;
 
   /** Utility method to convert an index over Bloch states in a VectorBTE into
-   * the Bloch state index in the bandstructure.
+   * the Bloch state index in the band structure.
    * Unlike stateToBte, this should always have a solution.
    *
-   * @param ibteIndex: index of the Bloch state in the BTE
-   * @return StateIndex: the index of the Bloch state in the bandstructure.
+   * @param iBteIndex: index of the Bloch state in the BTE
+   * @return StateIndex: the index of the Bloch state in the band structure.
    */
-  virtual StateIndex bteToState(BteIndex &ibteIndex) = 0;
+  virtual StateIndex bteToState(BteIndex &iBteIndex) = 0;
 
   /** Iterator over the Bloch states in the band structure, over just the
    * irreducible wavevectors, but isn't distributed over MPI processes.
    *
    * @return State-indices: a vector<int> with the indices over Bloch states
-   * stored in the bandstructure
+   * stored in the band structure
    */
   virtual std::vector<int> irrStateIterator() = 0;
 
@@ -225,7 +225,7 @@ class BaseBandStructure {
    * MPI processes, running only over irreducible wavevectors.
    *
    * @return State-indices: a vector<int> with the indices over Bloch states
-   * stored in the bandstructure
+   * stored in the band structure
    */
   virtual std::vector<int> parallelIrrStateIterator() = 0;
 
@@ -248,12 +248,12 @@ class BaseBandStructure {
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
    *
-   * @param crystalCoords: coordinates of the kpoint in crystal basis
+   * @param crystalCoordinates: coordinates of the point in crystal basis
    * @param suppressError: default false. If false, will throw an error if the
    * point is not found
    * @return ik: the index of the point
    */
-  virtual int getPointIndex(const Eigen::Vector3d &crystalCoords,
+  virtual int getPointIndex(const Eigen::Vector3d &crystalCoordinates,
                              const bool &suppressError=false) = 0;
 
   /** Method to find the points equivalent to an irreducible point.
@@ -263,7 +263,7 @@ class BaseBandStructure {
    * @return vector<int>: the list of indices of the reducible points
    * equivalent to point #ik.
    */
-  virtual std::vector<int> getReduciblesFromIrreducible(const int &ik) = 0;
+  virtual std::vector<int> getReducibleStarFromIrreducible(const int &ik) = 0;
 };
 
 class ActiveBandStructure;
@@ -273,18 +273,18 @@ class ActiveBandStructure;
 /** FullBandStructure is the class that stores the energies, velocities and
  * eigenvectors of a quasiparticle computed on a set of wavevectors (as defined
  * by Points() ) in the Brillouin zone.
- * By default, each MPI process holds a full copy of the bandstructure.
- * However, the bandstructure can be distributed over the wavevectors, if so
+ * By default, each MPI process holds a full copy of the band structure.
+ * However, the band structure can be distributed over the wavevectors, if so
  * specified in the constructor.
  *
- * An important note for developers: When using a distributed bandstructure, 
- * looping over numStates of the bandstructure will not work -- you need to 
+ * An important note for developers: When using a distributed band structure,
+ * looping over numStates of the band structure will not work -- you need to
  * loop over the iterator of indices provided by getStateIndices or 
  * getWavevectorIndices. The class will throw errors when nonlocal values are 
- * being requested. All functions in bandstructure are written to take the 
+ * being requested. All functions in band structure are written to take the
  * global wavevector indices associated with the Points object internal to the 
- * bandstructure (because we use the Point class to find wavevector indices in
- * get and set functions of bandstructure).
+ * band structure (because we use the Point class to find wavevector indices in
+ * get and set functions of band structure).
  */
 class FullBandStructure : public BaseBandStructure {
  public:
@@ -293,7 +293,7 @@ class FullBandStructure : public BaseBandStructure {
    * @param particle: a Particle object that contains the type of
    * quasiparticle
    * @param withVelocities: a boolean to decide whether to store velocities
-   * @param withEigenvectors: a boolean to decide whether to store eigenvecs
+   * @param withEigenvectors: a boolean to decide whether to store eigenVectors
    * @param points: the underlying mesh of wavevectors.
    * @param isDistributed: if true, we distribute in memory the
    * storage of quantities, parallelizing over wavevectors (points). By default
@@ -319,7 +319,7 @@ class FullBandStructure : public BaseBandStructure {
    */
   Particle getParticle();
 
-  /** Returns the wavevectors on which the bandstructure is computed.
+  /** Returns the wavevectors on which the band structure is computed.
    * @return Points: the object representing the Brillouin zone wavevectors.
    */
   Points getPoints();
@@ -341,7 +341,7 @@ class FullBandStructure : public BaseBandStructure {
    */
   int getNumBands();
   /** Returns the number of bands, to provide flexibility in cases where
-   * full or activeBandstructure could be used.
+   * full or activeBandStructure could be used.
    * @return numBands: the total number of bands in the bandStructure.
    */
   int getNumBands(WavevectorIndex &ik);
@@ -410,7 +410,7 @@ class FullBandStructure : public BaseBandStructure {
    * actually complex phonon frequencies. Electronic energies are not saved
    * with any particular reference, and should be used together with the
    * chemical potential computed by StatisticsSweep. By policy, it's in
-   * rydbergs units.
+   * rydberg units.
    */
   const double &getEnergy(StateIndex &is);
 
@@ -424,7 +424,7 @@ class FullBandStructure : public BaseBandStructure {
    * actually complex phonon frequencies. Electronic energies are not saved
    * with any particular reference, and should be used together with the
    * chemical potential computed by StatisticsSweep. By policy, it's in
-   * rydbergs units.
+   * rydberg units.
    */
   const double &getEnergy(WavevectorIndex &ik, BandIndex &ib);
 
@@ -437,12 +437,12 @@ class FullBandStructure : public BaseBandStructure {
    * Phonon energies are referred to zero, with negative energies being
    * actually complex phonon frequencies. Electronic energies are not saved
    * with any particular reference, and should be used together with the
-   * chemical potential computed by StatisticsSweep. In rydbergs units.
+   * chemical potential computed by StatisticsSweep. In rydberg units.
    */
   Eigen::VectorXd getEnergies(WavevectorIndex &ik);
 
   /** Returns the group velocity of a quasiparticle from its Bloch index.
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param stateIndex: a StateIndex(is) object where 'is' is an integer index
    * in the range [0,numStates[
    * @return velocity: a 3d vector with velocity. By policy, we save it in
@@ -452,7 +452,7 @@ class FullBandStructure : public BaseBandStructure {
 
   /** Returns the group velocity of a quasiparticle for all bands at a
    * specified wavevector index.
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param wavevectorIndex: a WavevectorIndex(ik) object where 'ik' is an
    * integer index running over the wavevectors in range [0,numPoints-1]
    * @return velocity: a matrix(numBands,3) with the group velocity, in
@@ -462,7 +462,7 @@ class FullBandStructure : public BaseBandStructure {
 
   /** Returns the velocity operator (including off-diagonal matrix elements)
    * of the quasiparticles at the specified wavevector index.
-   * Used for accessing the bandstructure in the BTE.
+   * Used for accessing the band structure in the BTE.
    * @param wavevectorIndex: a WavevectorIndex(ik) object where 'ik' is an
    * integer index running over the wavevectors in range [0,numPoints-1]
    * @return velocity: a tensor (numBands,numBands,3) with the velocity
@@ -476,12 +476,12 @@ class FullBandStructure : public BaseBandStructure {
    * @return eigenvectors: a complex matrix(numBands,numBands) where numBands
    * is the number of Bloch states present at the specified wavevector.
    * Eigenvectors are ordered along columns.
-   * Note that all bandstructure interpolators may give eigenvectors.
+   * Note that all band structure interpolations may give eigenvectors.
    */
   Eigen::MatrixXcd getEigenvectors(WavevectorIndex &ik);
 
   /** Obtain the eigenvectors of the quasiparticles at a specified wavevector.
-   * It's only meaningful for the phonon bandstructure, where eigenvectors
+   * It's only meaningful for the phonon band structure, where eigenvectors
    * are more naturally represented in this shape!
    * @param wavevectorIndex: a WavevectorIndex(ik) object where ik is the
    * integer wavevector index running over [0,numPoints-1].
@@ -576,7 +576,7 @@ class FullBandStructure : public BaseBandStructure {
    * rotation*irrPoint = redPoint
    *
    * @param x: point coordinates
-   * @param basis: either Points::crystalCoords or Points::cartesianCoords,
+   * @param basis: either Points::crystalCoordinates or Points::cartesianCoordinates,
    * this will treat x in the appropriate coordinate. Also the returned rotation
    * will be in the corresponding basis.
    * @return <ik,rot>: a tuple with the index of the irreducible point and the
@@ -584,31 +584,31 @@ class FullBandStructure : public BaseBandStructure {
    */
   std::tuple<int, Eigen::Matrix3d> getRotationToIrreducible(
       const Eigen::Vector3d &x,
-      const int &basis = Points::crystalCoords);
+      const int &basis = Points::crystalCoordinates);
 
-  /** Utility method to convert an index over Bloch states in the bandstructure
+  /** Utility method to convert an index over Bloch states in the band structure
    * into a Bloch state index usable by VectorBTE.
    * If a state is not mapped to the VectorBTE, throws an error.
    *
-   * @param StateIndex: the index of the Bloch state in the bandstructure.
+   * @param StateIndex: the index of the Bloch state in the band structure.
    * @return BteIndex: index of the Bloch state in the BTE
    */
   BteIndex stateToBte(StateIndex &isIndex);
 
   /** Utility method to convert an index over Bloch states in a VectorBTE into
-   * the Bloch state index in the bandstructure.
+   * the Bloch state index in the band structure.
    * Unlike stateToBte, this should always have a solution.
    *
-   * @param ibteIndex: index of the Bloch state in the BTE
-   * @return StateIndex: the index of the Bloch state in the bandstructure.
+   * @param iBteIndex: index of the Bloch state in the BTE
+   * @return StateIndex: the index of the Bloch state in the band structure.
    */
-  StateIndex bteToState(BteIndex &ibteIndex);
+  StateIndex bteToState(BteIndex &iBteIndex);
 
   /** Iterator over the Bloch states in the band structure, over just the
    * irreducible wavevectors, but isn't distributed over MPI processes.
    *
    * @return State-indices: a vector<int> with the indices over Bloch states
-   * stored in the bandstructure
+   * stored in the band structure
    */
   std::vector<int> irrStateIterator();
 
@@ -616,7 +616,7 @@ class FullBandStructure : public BaseBandStructure {
    * MPI processes, running only over irreducible wavevectors.
    *
    * @return State-indices: a vector<int> with the indices over Bloch states
-   * stored in the bandstructure
+   * stored in the band structure
    */
   std::vector<int> parallelIrrStateIterator();
 
@@ -639,13 +639,13 @@ class FullBandStructure : public BaseBandStructure {
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
    *
-   * @param crystalCoords: coordinates of the kpoint in crystal basis
+   * @param crystalCoordinates: coordinates of the point in crystal basis
    * @param suppressError: default false. If false, will throw an error if the
    * point is not found
    * @return ik: the index of the point
    */
-  int getPointIndex(const Eigen::Vector3d &crystalCoords,
-                     const bool &suppressError=false);
+  int getPointIndex(const Eigen::Vector3d &crystalCoordinates,
+                    const bool &suppressError=false);
 
   /** Method to find the points equivalent to an irreducible point.
    *
@@ -654,7 +654,7 @@ class FullBandStructure : public BaseBandStructure {
    * @return vector<int>: the list of indices of the reducible points
    * equivalent to point #ik.
    */
-  std::vector<int> getReduciblesFromIrreducible(const int &ik);
+  std::vector<int> getReducibleStarFromIrreducible(const int &ik);
 protected:
   // stores the quasiparticle kind
   Particle particle;
@@ -679,8 +679,8 @@ protected:
   int numPoints = 0;
   int numLocalPoints = 0;
 
-  // method to find the index of the kpoint, from its crystal coordinates
-  int getIndex(Eigen::Vector3d &pointCoords);
+  // method to find the index of the point, from its crystal coordinates
+  int getIndex(Eigen::Vector3d &pointCoordinates);
 
   // ActiveBandStructure, which restricts the FullBandStructure to a subset
   // of wavevectors, needs low-level access to the raw data (for now)
