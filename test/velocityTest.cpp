@@ -8,8 +8,7 @@ TEST (PhononH0, Velocity) {
   context.setPhD2FileName("../test/data/444_silicon.fc");
   context.setSumRuleD2("simple");
 
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -17,17 +16,17 @@ TEST (PhononH0, Velocity) {
 
   Eigen::Vector3i qMesh;
   qMesh << 40, 40, 40;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
 
   // pick a point close to gamma and get energies/velocities
-  long iq = 1;
+  int iq = 1;
   auto qPoint = points.getPoint(iq);
   auto tup1 = phononH0.diagonalize(qPoint);
   auto energies = std::get<0>(tup1);
   auto v = phononH0.diagonalizeVelocity(qPoint);
 
   // take out the group velocity
-  long numBands = energies.size();
+  int numBands = energies.size();
   Eigen::MatrixXd groupV(3, numBands);
   for (int ib = 0; ib < numBands; ib++) {
     for (int i : {0, 1, 2}) {
@@ -65,7 +64,7 @@ TEST (PhononH0, Velocity) {
   ASSERT_NEAR(err0, 0., 0.04);
   ASSERT_NEAR(err1, 0., 0.04);
   ASSERT_NEAR(err2, 0., 0.04);
-};
+}
 
 
 TEST (WannierH0, Velocity) {
@@ -80,7 +79,7 @@ TEST (WannierH0, Velocity) {
   atomicSpecies(0) = 0;
   atomicSpecies(1) = 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   context.setInputAtomicPositions(atomicPositions);
   context.setInputAtomicSpecies(atomicSpecies);
   context.setInputSpeciesNames(speciesNames);
@@ -119,4 +118,4 @@ TEST (WannierH0, Velocity) {
 
   // we also fix their value in this test
   ASSERT_NEAR(abs(mass1), 686.779, 0.02);
-};
+}

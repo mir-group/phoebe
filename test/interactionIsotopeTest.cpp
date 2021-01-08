@@ -14,8 +14,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   Context context;
   context.setPhD2FileName("../test/data/444_silicon.fc");
   context.setSumRuleD2("simple");
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -24,7 +23,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   // For full BZ mesh in crystal coordinates
   Eigen::Vector3i qMesh;
   qMesh << 8, 8, 8;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
 
   // Number of atoms
   int numAtoms = crystal.getNumAtoms();
@@ -53,7 +52,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   // Convert from Thz to Ry
   WRef.array() /= 32889.83;
 
-  context.setSmearingWidth(0.01); // in rydbergs
+  context.setSmearingWidth(0.01); // in rydberg
   GaussianDeltaFunction smearing(context);
 
   // Eigenvector and angular frequencies at iq
@@ -69,16 +68,16 @@ TEST(InteractionIsotope, Wphisoiq4) {
   for (int iq2 = 0; iq2 < nq; iq2++) { // integrate over
     auto q2 = points.getPoint(iq2);
     // Eigenvector and angular frequencies at jq
-    auto tup = phononH0.diagonalize(q2);
-    auto ens2 = std::get<0>(tup);
-    auto ev2 = std::get<1>(tup);
+    auto tup2 = phononH0.diagonalize(q2);
+    auto ens2 = std::get<0>(tup2);
+    auto ev2 = std::get<1>(tup2);
     // auto vsjq = phononH0.diagonalizeVelocity(jp);
 
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numBands; j++) {
-        auto tup = decompress2Indices(i, numAtoms, 3);
-        auto iat = std::get<0>(tup);
-        auto idim = std::get<1>(tup);
+        auto tup3 = decompress2Indices(i, numAtoms, 3);
+        auto iat = std::get<0>(tup3);
+        auto idim = std::get<1>(tup3);
         evt1(idim, iat, j) = ev1(i, j);
         evt2(idim, iat, j) = ev2(i, j);
       }

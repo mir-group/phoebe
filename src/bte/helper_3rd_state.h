@@ -81,7 +81,7 @@ class Helper3rdState {
   PhononH0 *h0 = nullptr;
 
   std::unique_ptr<BaseBandStructure> bandStructure3;
-  std::unique_ptr<FullPoints> fullPoints3;
+  std::unique_ptr<Points> fullPoints3;
 
   bool storedAllQ3; // if true, q3 falls on a grid and we store the full bands
 

@@ -1,4 +1,4 @@
-#include "full_points.h"
+#include "points.h"
 #include "gtest/gtest.h"
 
 TEST(IrrPointsTest, Symmetries) {
@@ -12,7 +12,7 @@ TEST(IrrPointsTest, Symmetries) {
   Eigen::VectorXi atomicSpecies(2);
   atomicSpecies << 0, 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
   int dimensionality = 3;
@@ -29,7 +29,7 @@ TEST(IrrPointsTest, Symmetries) {
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;
-  FullPoints points(crystal, mesh);
+  Points points(crystal, mesh);
   points.setIrreduciblePoints();
 
   //-----------------------------------
@@ -57,7 +57,7 @@ TEST(IrrPointsTest, Symmetries) {
     counter++;
 
     auto rots = points.getRotationsStar(ikIrr);
-    for ( auto s : rots ) {
+    for ( const auto& s : rots ) {
       auto kRedCart = s * kIrr; // in cartesian coordinates
       auto kRedCrys = points.cartesianToCrystal(kRedCart);
       int oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords

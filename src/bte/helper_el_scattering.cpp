@@ -30,11 +30,11 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     storedAllQ3Case = storedAllQ3Case1;
 
     auto t2 = innerBandStructure.getPoints().getMesh();
-    auto mesh = std::get<0>(t2);
-    auto offset = std::get<1>(t2);
+    auto mesh2 = std::get<0>(t2);
+    auto offset2 = std::get<1>(t2);
 
-    fullPoints3 = std::make_unique<FullPoints>(
-        innerBandStructure.getPoints().getCrystal(), mesh, offset);
+    fullPoints3 = std::make_unique<Points>(
+        innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
     bool withVelocities = true;
     bool withEigenvectors = true;
     FullBandStructure bs = h0.populate(*fullPoints3, withVelocities,
@@ -48,16 +48,16 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     storedAllQ3Case = storedAllQ3Case2;
 
     // in this case, we filtered some wavevectors out of inner and outer
-    // bandstructures. We must find all q3 that conserve momentum
+    // band structures. We must find all q3 that conserve momentum
 
     // first, we build the full grid that the 3rd point would fall into
     auto innerPoints = innerBandStructure.getPoints();
     auto t2 = innerPoints.getMesh();
-    auto mesh = std::get<0>(t2);
-    auto offset = std::get<1>(t2);
+    auto mesh2 = std::get<0>(t2);
+    auto offset2 = std::get<1>(t2);
 
-    fullPoints3 = std::make_unique<FullPoints>(
-        innerBandStructure.getPoints().getCrystal(), mesh, offset);
+    fullPoints3 = std::make_unique<Points>(
+        innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
 
     // now, we loop over the pairs of wavevectors
     std::set<int> listOfIndexes;
@@ -122,8 +122,9 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       i++;
     }
 
-    ActivePoints ap3 = ActivePoints(*fullPoints3, filter);
-    activePoints3 = std::make_unique<ActivePoints>(ap3);
+    Points ap3 = *fullPoints3;
+    ap3.setActiveLayer(filter);
+    activePoints3 = std::make_unique<Points>(ap3);
 
     // build band structure
     bool withEigenvectors = true;

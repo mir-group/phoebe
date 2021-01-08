@@ -64,8 +64,8 @@ class HelperElScattering {
   PhononH0 &h0;
 
   std::unique_ptr<BaseBandStructure> bandStructure3;
-  std::unique_ptr<FullPoints> fullPoints3;
-  std::unique_ptr<ActivePoints> activePoints3;
+  std::unique_ptr<Points> fullPoints3;
+  std::unique_ptr<Points> activePoints3;
 
   bool storedAllQ3; // if true, q3 falls on a grid and we store the full bands
   const int storedAllQ3Case1=1;

@@ -38,10 +38,10 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // first, we build the full grid that the 3rd point would fall into
     auto innerPoints = innerBandStructure.getPoints();
     auto tup = innerPoints.getMesh();
-    auto mesh = std::get<0>(tup);
-    auto offset = std::get<1>(tup);
-    fullPoints3 = std::make_unique<FullPoints>(
-        innerBandStructure.getPoints().getCrystal(), mesh, offset);
+    auto mesh2 = std::get<0>(tup);
+    auto offset2 = std::get<1>(tup);
+    fullPoints3 = std::make_unique<Points>(
+        innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
 
     // now, we loop over the pairs of wavevectors
     std::set<int> listOfIndexes;
@@ -100,7 +100,8 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
       filter(i) = iq;
       i++;
     }
-    ActivePoints activePoints3(*fullPoints3, filter);
+    Points activePoints3 = *fullPoints3;
+    activePoints3.setActiveLayer(filter);
 
     // build band structure
     bool withEigenvectors = true;

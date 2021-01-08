@@ -2,7 +2,7 @@
 #define BANDS_APP_H
 
 #include "app.h"
-#include "path_points.h"
+#include "points.h"
 
 class PhononBandsApp : public App {
 public:
@@ -23,6 +23,6 @@ public:
 };
 
 void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
-                       PathPoints &pathPoints, std::string outFileName);
+                       Points &pathPoints, std::string outFileName);
 
 #endif

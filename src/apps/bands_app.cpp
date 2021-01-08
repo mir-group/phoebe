@@ -5,14 +5,14 @@
 #include "eigen.h"
 #include "constants.h"
 #include "qe_input_parser.h"
-#include "path_points.h"
+#include "points.h"
 #include "mpiHelper.h"
 #include <nlohmann/json.hpp>
 
 // forward declare this helper function, so we can leave the important
 // run functions at the top
 void outputBandsToJSON(FullBandStructure& fullBandStructure,
-     Context& context, PathPoints& pathPoints, std::string outFileName);
+     Context& context, Points& pathPoints, std::string outFileName);
 
 /* --------------------- PhononBandsApp ------------------------------ */
 void PhononBandsApp::run(Context &context) {
@@ -27,8 +27,7 @@ void PhononBandsApp::run(Context &context) {
   auto phononH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  PathPoints pathPoints(crystal, context.getPathExtrema(),
-                        context.getDeltaPath());
+  Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure fullBandStructure =
@@ -54,8 +53,7 @@ void ElectronWannierBandsApp::run(Context &context) {
   auto electronH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  PathPoints pathPoints(crystal, context.getPathExtrema(),
-                        context.getDeltaPath());
+  Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
   bool withEigenvectors = false;
@@ -82,8 +80,7 @@ void ElectronFourierBandsApp::run(Context &context) {
   auto electronH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  PathPoints pathPoints(crystal, context.getPathExtrema(),
-                        context.getDeltaPath());
+  Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
   bool withEigenvectors = false;
@@ -99,9 +96,8 @@ void ElectronFourierBandsApp::run(Context &context) {
 }
 
 /* helper function to output bands to a json file */
-void outputBandsToJSON(FullBandStructure& fullBandStructure,
-                 Context& context, PathPoints& pathPoints,
-                 std::string outFileName) {
+void outputBandsToJSON(FullBandStructure& fullBandStructure, Context& context,
+                       Points& pathPoints, std::string outFileName) {
 
   if (!mpi->mpiHead()) return;
 

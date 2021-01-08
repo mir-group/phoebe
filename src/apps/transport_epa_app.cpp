@@ -38,7 +38,7 @@ void TransportEpaApp::run(Context &context) {
   }
 
   // Read and setup k-point mesh for interpolating band structure
-  FullPoints fullPoints(crystal, context.getKMesh());
+  Points fullPoints(crystal, context.getKMesh());
   bool withVelocities = true;
   bool withEigenvectors = false;
 

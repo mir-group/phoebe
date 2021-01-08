@@ -43,7 +43,7 @@ void ElectronH0Fourier::trimBands(Context &context,
 }
 
 ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_,
-                                     FullPoints coarsePoints_,
+                                     Points coarsePoints_,
                                      FullBandStructure coarseBandStructure_,
                                      double cutoff_)
     : crystal(crystal_),

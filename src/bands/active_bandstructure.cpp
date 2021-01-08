@@ -1,25 +1,21 @@
 #include "active_bandstructure.h"
-
-#include <cstdlib>
-
 #include "bandstructure.h"
 #include "exceptions.h"
 #include "mpiHelper.h"
 #include "window.h"
 
-ActiveBandStructure::ActiveBandStructure(Particle &particle_,
-                                         ActivePoints &activePoints)
-    : particle(particle_), activePoints(activePoints) {}
+ActiveBandStructure::ActiveBandStructure(Particle &particle_, Points &points_)
+    : particle(particle_), points(points_) {}
 
 // copy constructor
 ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure &that)
-    : particle(that.particle), activePoints(that.activePoints),
-      energies(that.energies), velocities(that.velocities),
-      eigenvectors(that.eigenvectors), hasEigenvectors(that.hasEigenvectors),
-      numStates(that.numStates), numIrrStates(that.numIrrStates),
-      numIrrPoints(that.numIrrPoints), numPoints(that.numPoints),
-      numBands(that.numBands), numFullBands(that.numFullBands),
-      windowMethod(that.windowMethod), auxBloch2Comb(that.auxBloch2Comb),
+    : particle(that.particle), points(that.points), energies(that.energies),
+      velocities(that.velocities), eigenvectors(that.eigenvectors),
+      hasEigenvectors(that.hasEigenvectors), numStates(that.numStates),
+      numIrrStates(that.numIrrStates), numIrrPoints(that.numIrrPoints),
+      numPoints(that.numPoints), numBands(that.numBands),
+      numFullBands(that.numFullBands), windowMethod(that.windowMethod),
+      auxBloch2Comb(that.auxBloch2Comb),
       cumulativeKbOffset(that.cumulativeKbOffset),
       bteAuxBloch2Comb(that.bteAuxBloch2Comb),
       bteCumulativeKbOffset(that.bteCumulativeKbOffset),
@@ -29,7 +25,7 @@ ActiveBandStructure &ActiveBandStructure::operator=(
     const ActiveBandStructure &that) { // assignment operator
   if (this != &that) {
     particle = that.particle;
-    activePoints = that.activePoints;
+    points = that.points;
     energies = that.energies;
     velocities = that.velocities;
     eigenvectors = that.eigenvectors;
@@ -50,14 +46,13 @@ ActiveBandStructure &ActiveBandStructure::operator=(
   return *this;
 }
 
-ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
+ActiveBandStructure::ActiveBandStructure(const Points &points_,
                                          HarmonicHamiltonian *h0,
                                          const bool &withEigenvectors,
                                          const bool &withVelocities)
-    : particle(Particle(h0->getParticle().getParticleKind())),
-      activePoints(activePoints_) {
+    : particle(Particle(h0->getParticle().getParticleKind())), points(points_) {
 
-  numPoints = activePoints.getNumPoints();
+  numPoints = points.getNumPoints();
   numFullBands = h0->getNumBands();
   numBands = Eigen::VectorXi::Zero(numPoints);
   for (int ik = 0; ik < numPoints; ik++) {
@@ -76,19 +71,19 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
 
   // now we can loop over the trimmed list of points
   for (int ik : mpi->divideWorkIter(numPoints)) {
-    Point point = activePoints.getPoint(ik);
+    Point point = points.getPoint(ik);
     auto tup = h0->diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
     auto theseEigenvectors = std::get<1>(tup);
-    setEnergies(point, theseEnergies);
+    ActiveBandStructure::setEnergies(point, theseEnergies);
 
     if (withEigenvectors) {
-      setEigenvectors(point, theseEigenvectors);
+      ActiveBandStructure::setEigenvectors(point, theseEigenvectors);
     }
 
     if (withVelocities) {
       auto thisVelocity = h0->diagonalizeVelocity(point);
-      setVelocities(point, thisVelocity);
+      ActiveBandStructure::setVelocities(point, thisVelocity);
     }
   }
   mpi->allReduceSum(&energies);
@@ -98,28 +93,15 @@ ActiveBandStructure::ActiveBandStructure(const ActivePoints &activePoints_,
 
 Particle ActiveBandStructure::getParticle() { return particle; }
 
-bool ActiveBandStructure::hasPoints() { return true; }
-
-Points ActiveBandStructure::getPoints() {
-  if (!hasPoints()) {
-    Error e("ActiveBandStructure hasn't been populated yet");
-  }
-  return activePoints;
-}
+Points ActiveBandStructure::getPoints() { return points; }
 
 Point ActiveBandStructure::getPoint(const int &pointIndex) {
-  if (!hasPoints()) {
-    Error e("ActiveBandStructure hasn't been populated yet");
-  }
-  return activePoints.getPoint(pointIndex);
+  return points.getPoint(pointIndex);
 }
 
 int ActiveBandStructure::getNumPoints(const bool &useFullGrid) {
-  if (!hasPoints()) {
-    Error e("ActiveBandStructure hasn't been populated yet");
-  }
   if (useFullGrid) {
-    return activePoints.getParentPoints().getNumPoints();
+    return points.getNumPoints();
   } else { // default
     return numPoints;
   }
@@ -129,18 +111,13 @@ int ActiveBandStructure::getNumBands() {
   if (windowMethod == Window::nothing) {
     return numFullBands;
   } else {
-    Error e("ActiveBandStructure doesn't have constant number of bands");
+    Error("ActiveBandStructure doesn't have constant number of bands");
     return 0;
   }
 }
 
 int ActiveBandStructure::getNumBands(WavevectorIndex &ik) {
-  if (!hasPoints()) {
-    Error e("ActiveBandStructure hasn't been populated yet");
-    return 0;
-  } else {
-    return numBands(ik.get());
-  }
+  return numBands(ik.get());
 }
 
 int ActiveBandStructure::hasWindow() { return windowMethod; }
@@ -148,7 +125,7 @@ int ActiveBandStructure::hasWindow() { return windowMethod; }
 bool ActiveBandStructure::getIsDistributed() { return false; }
 
 int ActiveBandStructure::getIndex(const WavevectorIndex &ik,
-                                   const BandIndex &ib) {
+                                  const BandIndex &ib) {
   return bloch2Comb(ik.get(), ib.get());
 }
 
@@ -157,8 +134,8 @@ ActiveBandStructure::getIndex(const int &is) {
   auto tup = comb2Bloch(is);
   auto ik = std::get<0>(tup);
   auto ib = std::get<1>(tup);
-  auto ikk = WavevectorIndex(ik);
-  auto ibb = BandIndex(ib);
+  WavevectorIndex ikk(ik);
+  BandIndex ibb(ib);
   return {ikk, ibb};
 }
 
@@ -269,7 +246,7 @@ Eigen::Vector3d ActiveBandStructure::getWavevector(StateIndex &is) {
 }
 
 Eigen::Vector3d ActiveBandStructure::getWavevector(WavevectorIndex &ik) {
-  return activePoints.getPointCoords(ik.get(), Points::cartesianCoords);
+  return points.getPointCoords(ik.get(), Points::cartesianCoords);
 }
 
 void ActiveBandStructure::setEnergies(Point &point,
@@ -315,12 +292,12 @@ void ActiveBandStructure::setVelocities(
 }
 
 int ActiveBandStructure::velBloch2Comb(const int &ik, const int &ib1,
-                                        const int &ib2, const int &i) {
+                                       const int &ib2, const int &i) {
   return cumulativeKbbOffset(ik) + ib1 * numBands(ik) * 3 + ib2 * 3 + i;
 }
 
 int ActiveBandStructure::eigBloch2Comb(const int &ik, const int &ib1,
-                                        const int &ib2) {
+                                       const int &ib2) {
   return cumulativeKbOffset(ik) * numFullBands + ib1 * numBands(ik) + ib2;
 }
 
@@ -366,17 +343,17 @@ void ActiveBandStructure::buildSymmetries() {
   // things to use in presence of symmetries
   {
     std::vector<Eigen::MatrixXd> allVels;
-    for ( int ik = 0; ik<getNumPoints(); ik++ ) {
+    for (int ik = 0; ik < getNumPoints(); ik++) {
       auto ikIdx = WavevectorIndex(ik);
       Eigen::MatrixXd v = getGroupVelocities(ikIdx);
       allVels.push_back(v);
     }
-    activePoints.setIrreduciblePoints(&allVels);
+    points.setIrreduciblePoints(&allVels);
   }
 
-  numIrrPoints = activePoints.irrPointsIterator().size();
+  numIrrPoints = points.irrPointsIterator().size();
   numIrrStates = 0;
-  for (int ik : activePoints.irrPointsIterator()) {
+  for (int ik : points.irrPointsIterator()) {
     numIrrStates += numBands(ik);
   }
 
@@ -384,8 +361,8 @@ void ActiveBandStructure::buildSymmetries() {
   bteCumulativeKbOffset = Eigen::VectorXi::Zero(numIrrPoints);
   int is = 0;
   int ikOld = 0;
-  for (int ik : activePoints.irrPointsIterator()) {
-    int ikIrr = activePoints.asIrreducibleIndex(ik);
+  for (int ik : points.irrPointsIterator()) {
+    int ikIrr = points.asIrreducibleIndex(ik);
     if (ikIrr > 0) { // skip first iteration
       bteCumulativeKbOffset(ikIrr) =
           bteCumulativeKbOffset(ikIrr - 1) + numBands(ikOld);
@@ -401,14 +378,13 @@ void ActiveBandStructure::buildSymmetries() {
 
 std::tuple<ActiveBandStructure, StatisticsSweep>
 ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
-                             Points &points, const bool &withEigenvectors,
+                             Points &points_, const bool &withEigenvectors,
                              const bool &withVelocities,
                              const bool &forceBuildAPP) {
 
   Particle particle = h0.getParticle();
 
-  ActivePoints bogusPoints(points, Eigen::VectorXi::Zero(1));
-  ActiveBandStructure activeBandStructure(particle, bogusPoints);
+  ActiveBandStructure activeBandStructure(particle, points_);
 
   // select a build method based on particle type
   // if it's an electron, we can't build on the fly for any reason.
@@ -417,7 +393,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
   if (particle.isElectron() || forceBuildAPP) {
 
     StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
-        context, points, h0, withEigenvectors, withVelocities);
+        context, points_, h0, withEigenvectors, withVelocities);
     return {activeBandStructure, s};
 
   }
@@ -430,7 +406,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
     Window window(context, particle, temperatureMin, temperatureMax);
 
-    activeBandStructure.buildOnTheFly(window, points, h0, withEigenvectors,
+    activeBandStructure.buildOnTheFly(window, points_, h0, withEigenvectors,
                                       withVelocities);
 
     StatisticsSweep statisticsSweep(context);
@@ -438,7 +414,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
   }
 }
 
-void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
+void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
                                         HarmonicHamiltonian &h0,
                                         const bool &withEigenvectors,
                                         const bool &withVelocities) {
@@ -459,8 +435,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
-  for (int ik : mpi->divideWorkIter(points.getNumPoints())) {
-    Point point = points.getPoint(ik);
+  for (int ik : mpi->divideWorkIter(points_.getNumPoints())) {
+    Point point = points_.getPoint(ik);
     // diagonalize harmonic hamiltonian
     auto tup = h0.diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
@@ -484,7 +460,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
 
-  // take the number of kpoints of each process and fill
+  // take the number of points of each process and fill
   // buffer receiveCounts with these values
   std::vector<int> receiveCounts(mpiSize);
   mpi->allGatherv(&myNumPts, &receiveCounts);
@@ -525,9 +501,9 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
 
   //////////////// Done MPI recollection
 
-  // numBands is a book-keeping of how many bands per kpoint there are
+  // numBands is a book-keeping of how many bands per point there are
   // this isn't a constant number.
-  // on top of that, we look for the size of the arrays containing bandstruc.
+  // Also, we look for the size of the arrays containing band structure.
   numBands = Eigen::VectorXi::Zero(numPoints);
   int numEnStates = 0;
   int numVelStates = 0;
@@ -541,9 +517,9 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
   numStates = numEnStates;
 
   // initialize the raw data buffers of the activeBandStructure
-  ActivePoints activePoints_(points, filter);
-  activePoints = activePoints_;
-  //  activePoints.setIrreduciblePoints();
+  points = points_;
+  points.setActiveLayer(filter);
+
   // construct the mapping from combined indices to Bloch indices
   buildIndices();
 
@@ -561,9 +537,10 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
 /////////////////
 
 // now we can loop over the trimmed list of points
-#pragma omp parallel for
+#pragma omp parallel for default(none)                                         \
+    shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities)
   for (int ik : mpi->divideWorkIter(numPoints)) {
-    Point point = activePoints.getPoint(ik);
+    Point point = points.getPoint(ik);
     auto tup = h0.diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
     auto theseEigenvectors = std::get<1>(tup);
@@ -573,11 +550,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
     auto bandsExtrema = std::get<1>(tup1);
 
     Eigen::VectorXd eigEns(numBands(ik));
-    int ibAct = 0;
-    for (int ibFull = filteredBands(ik, 0); ibFull <= filteredBands(ik, 1);
-         ibFull++) {
-      eigEns(ibAct) = theseEnergies(ibFull);
-      ibAct++;
+    {
+      int ibAct = 0;
+      for (int ibFull = filteredBands(ik, 0); ibFull <= filteredBands(ik, 1);
+           ibFull++) {
+        eigEns(ibAct) = theseEnergies(ibFull);
+        ibAct++;
+      }
     }
     setEnergies(point, eigEns);
 
@@ -603,8 +582,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
       Eigen::Tensor<std::complex<double>, 3> thisVels(numBands(ik),
                                                       numBands(ik), 3);
       int ib1New = 0;
-      for (int ib1Old = filteredBands(ik, 0);
-           ib1Old < filteredBands(ik, 1) + 1; ib1Old++) {
+      for (int ib1Old = filteredBands(ik, 0); ib1Old < filteredBands(ik, 1) + 1;
+           ib1Old++) {
         int ib2New = 0;
         for (int ib2Old = filteredBands(ik, 0);
              ib2Old < filteredBands(ik, 1) + 1; ib2Old++) {
@@ -630,18 +609,18 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points &points,
  * and then filter it
  */
 StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
-    Context &context, Points &points, HarmonicHamiltonian &h0,
+    Context &context, Points points_, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
 
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
   bool tmpIsDistributed_ = true;
-  // for now, we always generate a bandstructure which is distributed
+  // for now, we always generate a band structure which is distributed
   FullBandStructure fullBandStructure =
-      h0.populate(points, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
+      h0.populate(points_, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
 
   // ---------- establish mu and other statistics --------------- //
-  // This will work even if fullbandstructure is distributed
+  // This will work even if fullBandStructure is distributed
   StatisticsSweep statisticsSweep(context, &fullBandStructure);
 
   // find min/max value of temperatures and chemical potentials
@@ -669,17 +648,18 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // ---------- select relevant bands and points  --------------- //
   // if all processes have the same points, divide up the points across
-  // processes. As this bandstructure is already distributed, then we
+  // processes. As this band structure is already distributed, then we
   // can just perform this for the wavevectors belonging to each process's
-  // part of the distributed bandstructure.
+  // part of the distributed band structure.
   //
-  // If we for some reason wanted to revert to an undistribured
-  // fullBandstructure, we would need to replace parallelIter with:
+  // If we for some reason wanted to revert to an un-distributed
+  // fullBandStructure, we would need to replace parallelIter with:
   //     parallelIter = mpi->divideWorkIter(points.getNumPoints());
   // All else will function once the swap is made.
 
-  points.setIrreduciblePoints();
-
+  Points pointsCopy = points_;
+  points = pointsCopy; // first we copy, without the symmetries
+  points_.setIrreduciblePoints();
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
 
@@ -687,19 +667,21 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   for (int ik : parallelIter) {
 
     auto ikIdx = WavevectorIndex(ik);
-//    Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
+    //    Eigen::VectorXd theseEnergies =
+    //    fullBandStructure.getEnergies(ikIndex);
 
     // Note: to respect symmetries, we want to make sure that the bands
     // filtered at point k are the same as the equivalent point.
     // this is slower (setIrreduciblePoints and re-diagonalization) but kind
     // of necessary to be consistent in using symmetries
-    // also, since the bandstructure is distributed, we have to recompute
+    // also, since the band structure is distributed, we have to recompute
     // the quasiparticle energies, as they may not be available locally
 
     Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
-    auto t = points.getRotationToIrreducible(k, Points::cartesianCoords);
+    auto t = points_.getRotationToIrreducible(k, Points::cartesianCoords);
     int ikIrr = std::get<0>(t);
-    Eigen::Vector3d kIrr = points.getPointCoords(ikIrr, Points::cartesianCoords);
+    Eigen::Vector3d kIrr =
+        points_.getPointCoords(ikIrr, Points::cartesianCoords);
     auto t2 = h0.diagonalizeFromCoords(kIrr);
     Eigen::VectorXd theseEnergies = std::get<0>(t2);
 
@@ -725,7 +707,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   int myNumPts = myFilteredPoints.size();
   int mpiSize = mpi->getSize();
 
-  // take the number of kpoints of each process and fill
+  // take the number of points of each process and fill
   // buffer receiveCounts with these values
   std::vector<int> receiveCounts(mpiSize);
   mpi->allGatherv(&myNumPts, &receiveCounts);
@@ -767,9 +749,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   //////////////// Done MPI recollection
 
   // ---------- count numBands and numStates  --------------- //
-  // numBands is a book-keeping of how many bands per kpoint there are
+  // numBands is a book-keeping of how many bands per point there are
   // this isn't a constant number.
-  // on top of that, we look for the size of the arrays containing bandstruc.
+  // Also, we look for the size of the arrays containing band structure.
   numBands = Eigen::VectorXi::Zero(numPoints);
   int numEnStates = 0;
   int numVelStates = 0;
@@ -783,9 +765,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   numStates = numEnStates;
 
   // ---------- initialize internal data buffers --------------- //
-  ActivePoints activePoints_(points, filter);
-  activePoints = activePoints_;
-  //  activePoints.setIrreduciblePoints();
+  points.setActiveLayer(filter);
 
   // construct the mapping from combined indices to Bloch indices
   buildIndices();
@@ -815,20 +795,22 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     // like numBands, filteredBands
     // ika = ikActive
     int ika = i + displacements[mpi->getRank()];
-    Point point = activePoints.getPoint(ika);
+    Point point = points.getPoint(ika);
 
-    // local ik, which corresponds to filteredPoints on this processs
+    // local ik, which corresponds to filteredPoints on this process
     Eigen::VectorXd theseEnergies = fullBandStructure.getEnergies(ikIndex);
     Eigen::MatrixXcd theseEigenvectors =
         fullBandStructure.getEigenvectors(ikIndex);
 
     // copy energies into internal storage
     Eigen::VectorXd eigEns(numBands(ika));
-    int ibAct = 0;
-    for (int ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1);
-         ibFull++) {
-      eigEns(ibAct) = theseEnergies(ibFull);
-      ibAct++;
+    {
+      int ibAct = 0;
+      for (int ibFull = filteredBands(ika, 0); ibFull <= filteredBands(ika, 1);
+           ibFull++) {
+        eigEns(ibAct) = theseEnergies(ibFull);
+        ibAct++;
+      }
     }
     setEnergies(point, eigEns);
 
@@ -856,15 +838,16 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   if (withVelocities) {
 
 // loop over the points available to this process
-#pragma omp parallel for
+#pragma omp parallel for default(none)                                         \
+    shared(myFilteredPoints, h0, displacements, mpi, filteredBands)
     for (unsigned int i = 0; i < myFilteredPoints.size(); i++) {
 
-      // index corresponding to wavevector in activePoints
+      // index corresponding to wavevector in points
       // as well as any array of length numActivePoints,
       // like numBands, filteredBands
       // ika = ikActive
       int ika = i + displacements[mpi->getRank()];
-      Point point = activePoints.getPoint(ika);
+      Point point = points.getPoint(ika);
 
       // thisVelocity is a tensor of dimensions (ib, ib, 3)
       auto thisVelocity = h0.diagonalizeVelocity(point);
@@ -895,7 +878,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
 std::vector<int> ActiveBandStructure::irrStateIterator() {
   std::vector<int> iter;
-  for (int ik : activePoints.irrPointsIterator()) {
+  for (int ik : points.irrPointsIterator()) {
     auto ikIdx = WavevectorIndex(ik);
     for (int ib = 0; ib < numBands(ik); ib++) {
       auto ibIdx = BandIndex(ib);
@@ -918,16 +901,16 @@ std::vector<int> ActiveBandStructure::parallelIrrStateIterator() {
 }
 
 std::vector<int> ActiveBandStructure::irrPointsIterator() {
-  return activePoints.irrPointsIterator();
+  return points.irrPointsIterator();
 }
 
 std::vector<int> ActiveBandStructure::parallelIrrPointsIterator() {
-  return activePoints.parallelIrrPointsIterator();
+  return points.parallelIrrPointsIterator();
 }
 
 std::vector<Eigen::Matrix3d>
 ActiveBandStructure::getRotationsStar(WavevectorIndex &ikIndex) {
-  return activePoints.getRotationsStar(ikIndex.get());
+  return points.getRotationsStar(ikIndex.get());
 }
 
 std::vector<Eigen::Matrix3d>
@@ -943,7 +926,7 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   BandIndex ibIdx = std::get<1>(t);
   // from k from 0 to N_k
   // to k from 0 to N_k_irreducible
-  int ikBte = activePoints.asIrreducibleIndex(ikIdx.get());
+  int ikBte = points.asIrreducibleIndex(ikIdx.get());
   if (ikBte < 0) {
     Error e("stateToBte is used on a reducible point");
   }
@@ -955,7 +938,7 @@ StateIndex ActiveBandStructure::bteToState(BteIndex &ibteIndex) {
   auto t = bteComb2Bloch(ibteIndex.get());
   int ikBte = std::get<0>(t);
   int ib = std::get<1>(t);
-  int ik = activePoints.asReducibleIndex(ikBte);
+  int ik = points.asReducibleIndex(ikBte);
   int iss = getIndex(WavevectorIndex(ik), BandIndex(ib));
   return StateIndex(iss);
 }
@@ -963,23 +946,23 @@ StateIndex ActiveBandStructure::bteToState(BteIndex &ibteIndex) {
 std::tuple<int, Eigen::Matrix3d>
 ActiveBandStructure::getRotationToIrreducible(const Eigen::Vector3d &x,
                                               const int &basis) {
-  return activePoints.getRotationToIrreducible(x, basis);
+  return points.getRotationToIrreducible(x, basis);
 }
 
 int ActiveBandStructure::getPointIndex(const Eigen::Vector3d &crystalCoords,
-                                        const bool &suppressError) {
-  if (activePoints.isPointStored(crystalCoords) == - 1) {
-    std::cout << "this shouldn't happen! L955 abs\n";
+                                       const bool &suppressError) {
+  if (points.isPointStored(crystalCoords) == -1) {
+    Error("Point not found in activeBandStructure, something wrong");
   }
 
   if (suppressError) {
-    return activePoints.isPointStored(crystalCoords);
+    return points.isPointStored(crystalCoords);
   } else {
-    return activePoints.getIndex(crystalCoords);
+    return points.getIndex(crystalCoords);
   }
 }
 
 std::vector<int>
 ActiveBandStructure::getReduciblesFromIrreducible(const int &ik) {
-  return activePoints.getReduciblesFromIrreducible(ik);
+  return points.getReduciblesFromIrreducible(ik);
 }

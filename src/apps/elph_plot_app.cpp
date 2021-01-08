@@ -4,7 +4,7 @@
 #include "el_scattering.h"
 #include "exceptions.h"
 #include "io.h"
-#include "path_points.h"
+#include "points.h"
 #include "qe_input_parser.h"
 
 void ElPhCouplingPlotApp::run(Context &context) {
@@ -27,7 +27,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // create a list of (k,q) pairs, where k(q) is on a path and q(k) is fixed
   if (context.getG2PlotStyle() == "fixedQ") {
 
-    PathPoints kPoints(crystal, context.getPathExtrema(),
+    Points kPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
     for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
       auto thisK = kPoints.getPointCoords(ik, Points::cartesianCoords);
@@ -39,7 +39,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   } else {
 
-    PathPoints qPoints(crystal, context.getPathExtrema(),
+    Points qPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
     for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
       auto thisQ = qPoints.getPointCoords(iq, Points::cartesianCoords);

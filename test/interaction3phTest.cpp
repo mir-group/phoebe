@@ -34,9 +34,9 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
   // Number of atoms
-  long numAtoms = crystal.getNumAtoms();
+  int numAtoms = crystal.getNumAtoms();
   // Number of bands
-  long numBands = phononH0.getNumBands();
+  int numBands = phononH0.getNumBands();
 
   ASSERT_EQ(numBands/3,numAtoms);
 
@@ -83,9 +83,9 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   auto couplingPlus = std::get<0>(tup4)[0];
   auto couplingMins = std::get<1>(tup4)[0];
 
-  for (long i = 0; i < numBands; i++) {
-    for (long j = 0; j < numBands; j++) {
-      for (long k = 0; k < numBands; k++) {
+  for (int i = 0; i < numBands; i++) {
+    for (int j = 0; j < numBands; j++) {
+      for (int k = 0; k < numBands; k++) {
         ASSERT_EQ(couplingPlus(i,j,k),couplingMins(i,j,k));
       }
     }
@@ -99,9 +99,9 @@ TEST(Interaction3Ph, Coupling3Ph000) {
     std::ifstream tfile("../test/data/reference3Ph000");
     double x1, x2;
     int i_, j_, k_;
-    for (long i = 0; i < numBands; i++) {
-      for (long j = 0; j < numBands; j++) {
-        for (long k = 0; k < numBands; k++) {
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numBands; j++) {
+        for (int k = 0; k < numBands; k++) {
           tfile >> i_ >> j_ >> k_ >> x1 >> x2;
           referenceCoupling(i, j, k) = x1;
         }
@@ -154,23 +154,23 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto coupling3Ph = IFC3Parser::parseFromShengBTE(context, crystal);
 
   // Number of atoms
-  long numAtoms = crystal.getNumAtoms();
+  int numAtoms = crystal.getNumAtoms();
   // Number of bands
-  long numBands = 3 * numAtoms;
+  int numBands = 3 * numAtoms;
 
   auto atomicMasses = crystal.getAtomicMasses();
 
   // Form a triplet to test vertex calculator
-  long iq1 = 10;
-  long iq2 = 210;
-  long iq3 = 200;
+  int iq1 = 10;
+  int iq2 = 210;
+  int iq3 = 200;
   auto iq1Index = WavevectorIndex(iq1);
   auto iq2Index = WavevectorIndex(iq2);
   auto iq3Index = WavevectorIndex(iq3);
 
   Eigen::Vector3i qMesh;
   qMesh << 20, 20, 20;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
   auto p1 = points.getPoint(iq1);
   auto p2 = points.getPoint(iq2);
   auto p3 = points.getPoint(iq3);
@@ -223,9 +223,9 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto couplingPlus = std::get<0>(tup4)[0];
   auto couplingMins = std::get<1>(tup4)[0];
 
-//  for (long i = 0; i < numBands; i++) {
-//    for (long j = 0; j < numBands; j++) {
-//      for (long k = 0; k < numBands; k++) {
+//  for (int i = 0; i < numBands; i++) {
+//    for (int j = 0; j < numBands; j++) {
+//      for (int k = 0; k < numBands; k++) {
 //        std::cout << std::setprecision(8);
 //        std::cout << i << " " << j << " " << k << " " << std::setprecision(8) <<
 //                couplingPlus(i, j, k) << " " << couplingMins(i, j, k) << "\n";
@@ -239,9 +239,9 @@ TEST(Interaction3Ph, Coupling3Ph210) {
     std::ifstream tfile("../test/data/reference3Ph210");
     int i_, j_, k_;
     double x1, x2;
-    for (long i = 0; i < numBands; i++) {
-      for (long j = 0; j < numBands; j++) {
-        for (long k = 0; k < numBands; k++) {
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numBands; j++) {
+        for (int k = 0; k < numBands; k++) {
           tfile >> i_ >> j_ >> k_ >> x1 >> x2;
           referenceCoupling(i, j, k) = x1;
         }

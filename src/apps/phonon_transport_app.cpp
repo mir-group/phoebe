@@ -3,7 +3,7 @@
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
-#include "full_points.h"
+#include "points.h"
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "ph_scattering.h"
@@ -24,7 +24,7 @@ void PhononTransportApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
 
-  FullPoints fullPoints(crystal, context.getQMesh());
+  Points fullPoints(crystal, context.getQMesh());
 
   if (mpi->mpiHead()) {
     std::cout << "\nConstructing the band structure" << std::endl;

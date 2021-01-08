@@ -23,7 +23,7 @@ TEST(TetrahedronTest, Normalization) {
   // setup parameters for active bandstructure creation
   Eigen::Vector3i qMesh;
   qMesh << 15, 15, 15;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
   bool withVelocities = false;
   bool withEigenvectors = false;
   auto fullBandStructure = h0.populate(points, withVelocities,

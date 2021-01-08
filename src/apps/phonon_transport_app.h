@@ -1,5 +1,5 @@
-#ifndef PHONONTRANSPORTAPP_H
-#define PHONONTRANSPORTAPP_H
+#ifndef PHONON_TRANSPORT_APP_H
+#define PHONON_TRANSPORT_APP_H
 
 #include "app.h"
 #include <string>

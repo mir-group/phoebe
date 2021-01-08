@@ -27,7 +27,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   Eigen::Vector3i qMesh;
   qMesh << 10, 10, 10;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
 
   bool withVelocities = true;
   bool withEigenvectors = true;

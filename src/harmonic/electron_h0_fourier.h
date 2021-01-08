@@ -6,7 +6,6 @@
 #include "bandstructure.h"
 #include "harmonic.h"
 #include "points.h"
-#include "full_points.h"
 #include "context.h"
 
 /** Class for a Fourier-like interpolation of an electronic band structure.
@@ -29,7 +28,7 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    * of lattice vectors which is of size 2*Grid(i)*cutoff, where i is the
    * direction index and grid(i) is the size of the wavevector coarse grid.
    */
-  ElectronH0Fourier(Crystal &crystal_, FullPoints coarsePoints_,
+  ElectronH0Fourier(Crystal &crystal_, Points coarsePoints_,
                     FullBandStructure coarseBandStructure_, double cutoff);
 
   /** Copy constructor
@@ -90,7 +89,7 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
  protected:
   Crystal &crystal;
   FullBandStructure coarseBandStructure;
-  FullPoints coarsePoints;
+  Points coarsePoints;
   Particle particle;
 
   Eigen::MatrixXcd expansionCoefficients;

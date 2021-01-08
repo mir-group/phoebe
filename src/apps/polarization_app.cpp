@@ -19,7 +19,7 @@ void ElectronPolarizationApp::run(Context &context) {
   auto h0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  FullPoints points(crystal, context.getKMesh());
+  Points points(crystal, context.getKMesh());
   bool withVelocities = false;
   bool withEigenvectors = false;
   FullBandStructure bandStructure =

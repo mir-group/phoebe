@@ -39,8 +39,8 @@ TEST(InteractionElPh, Test1) {
   int numElectrons = std::get<7>(t0);
   int numSpin = std::get<8>(t0);
 
-  FullPoints kPoints(crystal, kMesh);
-  FullPoints qPoints(crystal, qMesh);
+  Points kPoints(crystal, kMesh);
+  Points qPoints(crystal, qMesh);
 
   int numModes = 3 * crystal.getNumAtoms();
 

@@ -1,5 +1,4 @@
 #include "points.h"
-#include "qe_input_parser.h"
 #include "gtest/gtest.h"
 
 TEST(PointsTest, PointsHandling) {
@@ -13,7 +12,7 @@ TEST(PointsTest, PointsHandling) {
   Eigen::VectorXi atomicSpecies(2);
   atomicSpecies << 0, 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
   int dimensionality = 3;
@@ -25,7 +24,7 @@ TEST(PointsTest, PointsHandling) {
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;
-  FullPoints points(crystal, mesh);
+  Points points(crystal, mesh);
 
   //-----------------------------------
   // check mesh is what I set initially
@@ -49,7 +48,7 @@ TEST(PointsTest, PointsHandling) {
   // check point inversion
 
   mesh << 2, 2, 2;
-  points = FullPoints(crystal, mesh);
+  points = Points(crystal, mesh);
   int iq = 7;
   p1 = points.getPoint(iq);
   //	int iqr = points.getIndexInverted(iq);

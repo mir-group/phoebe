@@ -1,9 +1,7 @@
 #include <algorithm> // to use .remove_if
 #include <fstream>
-#include <iomanip> // to declare istringstream
-#include <iostream>
-#include <math.h>   // round()
-#include <stdlib.h> // abs()
+#include <cmath>   // round()
+#include <cstdlib> // abs()
 #include <string>
 #include <vector>
 
@@ -15,7 +13,7 @@
 #include "pugixml.hpp"
 #include "qe_input_parser.h"
 #include "utilities.h"
-#include "full_points.h"
+#include "points.h"
 
 void latgen(const int ibrav, Eigen::VectorXd &celldm,
             Eigen::Matrix3d &unitCell) {
@@ -764,9 +762,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
   }
 
   auto tup = Points::findMesh(irredPoints);
- auto mesh = std::get<0>(tup);
- auto offset = std::get<1>(tup);
-  FullPoints coarsePoints(crystal, mesh, offset);
+  auto mesh = std::get<0>(tup);
+  auto offset = std::get<1>(tup);
+  Points coarsePoints(crystal, mesh, offset);
 
   bool withVelocities = false;
   bool withEigenvectors = false;

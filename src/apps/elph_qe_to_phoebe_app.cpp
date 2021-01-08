@@ -31,8 +31,8 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   int numElectrons = std::get<7>(t0);
   int numSpin = std::get<8>(t0);
 
-  FullPoints kPoints(crystal, kMesh);
-  FullPoints qPoints(crystal, qMesh);
+  Points kPoints(crystal, kMesh);
+  Points qPoints(crystal, qMesh);
 
   int numModes = 3 * crystal.getNumAtoms();
 
@@ -84,7 +84,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     Eigen::Tensor<std::complex<double>, 5> &gFull,
     const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
     const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
-    FullPoints &kPoints, FullPoints &qPoints, Crystal &crystal,
+    Points &kPoints, Points &qPoints, Crystal &crystal,
     PhononH0 &phononH0) {
 
   if (mpi->mpiHead()) {
@@ -411,7 +411,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
 Eigen::Tensor<std::complex<double>, 3>
 ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
-                                         FullPoints &fullPoints) {
+                                         Points &fullPoints) {
   std::string line;
 
   if (wannierPrefix.empty()) {
@@ -609,7 +609,7 @@ std::tuple<Eigen::Tensor<std::complex<double>, 5>,
            Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd>
 ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
                                    const int &numBands, const int &numWannier,
-                                   FullPoints &kPoints, FullPoints &qPoints,
+                                   Points &kPoints, Points &qPoints,
                                    const Eigen::MatrixXd &kGridFull,
                                    const int &numIrrQPoints,
                                    const int &numQEBands,
@@ -853,7 +853,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
 
 
 void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elEnergies,
-                       FullPoints &kPoints, FullPoints &qPoints,
+                       Points &kPoints, Points &qPoints,
                        const int &numElectrons, const int &numSpin,
                        const int &numModes, const int &numIrrQPoints,
                        const int &numQEBands, const Eigen::MatrixXd &energies,
@@ -1357,8 +1357,8 @@ void ElPhQeToPhoebeApp::testBackTransform(
 }
 
 void ElPhQeToPhoebeApp::postProcessingWannier(
-    Context &context, Crystal &crystal, PhononH0 &phononH0, FullPoints &kPoints,
-    FullPoints &qPoints, int numQEBands, int numModes, int numIrrQPoints,
+    Context &context, Crystal &crystal, PhononH0 &phononH0, Points &kPoints,
+    Points &qPoints, int numQEBands, int numModes, int numIrrQPoints,
     int numElectrons, int numSpin, const Eigen::MatrixXd &energies,
     const Eigen::MatrixXd &kGridFull, const Eigen::Vector3i &kMesh,
     const Eigen::Vector3i &qMesh, bool runTests) {

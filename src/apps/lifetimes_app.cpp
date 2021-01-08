@@ -6,7 +6,7 @@
 #include "exceptions.h"
 #include "ifc3_parser.h"
 #include "io.h"
-#include "path_points.h"
+#include "points.h"
 #include "ph_scattering.h"
 #include "qe_input_parser.h"
 
@@ -27,10 +27,10 @@ void ElectronLifetimesApp::run(Context &context) {
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   // set k and q point meshes and paths
-  PathPoints pathKPoints(crystal, context.getPathExtrema(),
-                         context.getDeltaPath());
+  Points pathKPoints(crystal, context.getPathExtrema(),
+                     context.getDeltaPath());
   auto kMesh = context.getKMesh();
-  FullPoints fullKPoints(crystal, kMesh);
+  Points fullKPoints(crystal, kMesh);
 
   //----------------------------------------------------------------------------
 
@@ -69,9 +69,9 @@ void PhononLifetimesApp::run(Context &context) {
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
   // set k and q point meshes and paths
-  PathPoints pathPoints(crystal, context.getPathExtrema(),
-                        context.getDeltaPath());
-  FullPoints fullPoints(crystal, context.getQMesh());
+  Points pathPoints(crystal, context.getPathExtrema(),
+                    context.getDeltaPath());
+  Points fullPoints(crystal, context.getQMesh());
 
   //----------------------------------------------------------------------------
 

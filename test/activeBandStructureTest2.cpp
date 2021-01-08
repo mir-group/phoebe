@@ -4,7 +4,7 @@
 #include <fstream>
 #include <gtest/gtest.h>
 
-/* This test checks that the active bandstructure construction
+/* This test checks that the active band structure construction
  * for a phonon Hamiltonian is generated the same way regardless
  * of if it was made via buildOnTheFly or buildAsPostProcessing.
  *
@@ -30,10 +30,10 @@ TEST(ABS, Symmetries) {
   auto crystal = std::get<0>(tup);
   auto phH0 = std::get<1>(tup);
 
-  // setup parameters for active bandstructure creation
+  // setup parameters for active band structure creation
   Eigen::Vector3i qMesh;
   qMesh << 2,2,2;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
   bool withVelocities = true;
   bool withEigenvectors = true;
 
@@ -90,7 +90,7 @@ TEST(ABS, Symmetries) {
     auto qIrr = abs.getWavevector(ikIdx);
 
     auto rotations = abs.getRotationsStar(ikIdx);
-    for ( auto r : rotations) {
+    for ( const auto& r : rotations) {
       Eigen::Vector3d q = r * qIrr;
 
       Eigen::Vector3d qCrys = abs.getPoints().cartesianToCrystal(q);
@@ -117,23 +117,23 @@ TEST(ABS, Symmetries) {
   }
 
   // Here I check that I can reconstruct the full list of points from
-  // the irreducibles points
+  // the irreducible points
   {
     std::vector<long> allKs;
     for (long ik : abs.irrPointsIterator()) {
       WavevectorIndex ikIdx(ik);
       Eigen::Vector3d kIrr = abs.getWavevector(ikIdx);
       auto rotations = abs.getRotationsStar(ikIdx);
-      for (auto rot : rotations) {
+      for (const auto& rot : rotations) {
         Eigen::Vector3d kRot = rot * kIrr;
         kRot = points.cartesianToCrystal(kRot);
         long ikFull = points.getIndex(kRot);
         allKs.push_back(ikFull);
       }
     }
-    long count = std::distance(allKs.begin(),
+    long count2 = std::distance(allKs.begin(),
                                std::unique(allKs.begin(), allKs.end()));
-    EXPECT_EQ(count, abs.getNumPoints());
+    EXPECT_EQ(count2, abs.getNumPoints());
   }
 
   // here we check that the rotated q-point and velocities are similar
@@ -148,7 +148,7 @@ TEST(ABS, Symmetries) {
     Eigen::Vector3d qIrr = abs.getWavevector(isIdx);
     auto rotations = abs.getRotationsStar(ikIdx);
 
-    for ( Eigen::Matrix3d r : rotations) {
+    for ( const Eigen::Matrix3d& r : rotations) {
       Eigen::Vector3d v = r * vIrr;
       Eigen::Vector3d q = r * qIrr;
 
@@ -166,8 +166,8 @@ TEST(ABS, Symmetries) {
       EXPECT_NEAR(diff, 0., 1.0e-6);
 
       for (int i : {0,1,2}) {
-        double diff = std::abs(v(i) - v2(i))*velocityRyToSi;
-        EXPECT_NEAR(diff, 0., 0.001);
+        double diff2 = std::abs(v(i) - v2(i))*velocityRyToSi;
+        EXPECT_NEAR(diff2, 0., 0.001);
       }
     }
   }
@@ -181,7 +181,7 @@ TEST(ABS, Symmetries) {
       WavevectorIndex ikIdx = std::get<0>(abs.getIndex(isIdx));
       Eigen::Vector3d vIrr = abs.getGroupVelocity(isIdx);
       auto rotations = abs.getRotationsStar(ikIdx);
-      for ( Eigen::Matrix3d r : rotations) {
+      for ( const Eigen::Matrix3d& r : rotations) {
         Eigen::Vector3d v = r * vIrr;
         x += v;
       }

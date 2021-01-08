@@ -5,3 +5,4 @@ dosMinEnergy = -6. eV
 dosMaxEnergy = 20. eV
 dosDeltaEnergy = 0.1 eV
 electronFourierCutoff = 4.
+useSymmetries = true
