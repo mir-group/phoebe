@@ -76,7 +76,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   auto particle = outerBandStructure.getParticle();
 
-  int numCalculations = statisticsSweep.getNumCalcs();
+  int numCalculations = statisticsSweep.getNumCalculations();
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure

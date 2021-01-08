@@ -99,10 +99,10 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
       typesSPG[i] = atomicSpecies(i) + 1;
     }
 
-    double symprec = 1e-5;
+    double symmetryPrecision = 1e-5;
     numSymmetries =
         spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
-                         positionSPG, typesSPG, numAtoms, symprec);
+                         positionSPG, typesSPG, numAtoms, symmetryPrecision);
 
     // need to explicitly deallocate allocated arrays.
     delete[] typesSPG;
@@ -141,15 +141,15 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   // store the symmetries inside the class
   // note: spglib returns rotation and translation in fractional coordinates
 
-  for (int isym = 0; isym < numSymmetries; isym++) {
+  for (int iSymmetry = 0; iSymmetry < numSymmetries; iSymmetry++) {
     Eigen::Vector3d thisTranslation;
-    thisTranslation(0) = translations[isym][0];
-    thisTranslation(1) = translations[isym][1];
-    thisTranslation(2) = translations[isym][2];
+    thisTranslation(0) = translations[iSymmetry][0];
+    thisTranslation(1) = translations[iSymmetry][1];
+    thisTranslation(2) = translations[iSymmetry][2];
     Eigen::Matrix3d thisMatrix;
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        thisMatrix(j, i) = rotations[isym][i][j]; // note the transpose
+        thisMatrix(j, i) = rotations[iSymmetry][i][j]; // note the transpose
       }
     }
 
@@ -225,7 +225,7 @@ const Eigen::Matrix3d &Crystal::getReciprocalUnitCell() {
   return reciprocalUnitCell;
 }
 
-const int &Crystal::getNumAtoms() { return numAtoms; }
+const int &Crystal::getNumAtoms() const { return numAtoms; }
 
 double Crystal::getVolumeUnitCell(int dimensionality_) {
   double volume;
@@ -260,17 +260,17 @@ const std::vector<SymmetryOperation> &Crystal::getSymmetryOperations() {
   return symmetryOperations;
 }
 
-const int &Crystal::getNumSymmetries() { return numSymmetries; }
+const int &Crystal::getNumSymmetries() const { return numSymmetries; }
 
-int Crystal::getDimensionality() { return dimensionality; }
+int Crystal::getDimensionality() const { return dimensionality; }
 
-int Crystal::getNumSpecies() { return numSpecies; }
+int Crystal::getNumSpecies() const { return numSpecies; }
 
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
 Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
-                                 const int &supercellFactor) {
+                                 const int &superCellFactor) {
 
-  int nx = supercellFactor;
+  int nx = superCellFactor;
 
   std::vector<Eigen::Vector3d> tmpVectors;
   std::vector<double> tmpDegeneracies;
@@ -361,10 +361,10 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   double tmp2 = positionDegeneracies(0);
   positionDegeneracies(0) = tmp1;
   positionDegeneracies(originIndex) = tmp2;
-  Eigen::Vector3d tmpv1 = positionVectors.col(originIndex);
-  Eigen::Vector3d tmpv2 = positionVectors.col(0);
-  positionVectors.col(0) = tmpv1;
-  positionVectors.col(originIndex) = tmpv2;
+  Eigen::Vector3d tmpV1 = positionVectors.col(originIndex);
+  Eigen::Vector3d tmpV2 = positionVectors.col(0);
+  positionVectors.col(0) = tmpV1;
+  positionVectors.col(originIndex) = tmpV2;
 
   // check that we found all vectors
   {
@@ -379,7 +379,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
 std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>>
 Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
                                           const Eigen::MatrixXd &shift,
-                                          const int &supercellFactor) {
+                                          const int &superCellFactor) {
 
   // Note: we expect shift to be in cartesian coordinates!
 
@@ -388,14 +388,14 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   }
   int shiftDims = shift.cols();
 
-  int nx = supercellFactor;
+  int nx = superCellFactor;
 
-  int maxVecs = 2 * nx * grid(0) + 1;
-  maxVecs *= 2 * nx * grid(1) + 1;
-  maxVecs *= 2 * nx * grid(2) + 1;
+  int maxVectors = 2 * nx * grid(0) + 1;
+  maxVectors *= 2 * nx * grid(1) + 1;
+  maxVectors *= 2 * nx * grid(2) + 1;
   Eigen::MatrixXd tmpNumPoints(shiftDims, shiftDims);
-  Eigen::Tensor<double, 3> tmpDegeneraciesAll(shiftDims, shiftDims, maxVecs);
-  Eigen::Tensor<double, 4> tmpVectorsAll(shiftDims, shiftDims, maxVecs, 3);
+  Eigen::Tensor<double, 3> tmpDegeneraciesAll(shiftDims, shiftDims, maxVectors);
+  Eigen::Tensor<double, 4> tmpVectorsAll(shiftDims, shiftDims, maxVectors, 3);
 
   // what are we doing:
   // the "n" specifies a grid of lattice vectors, that are (2*(cutoff+1)+1)^3
@@ -403,8 +403,8 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   // equal to the grid of wavevectors would be the bare minimum for the
   // interpolation to work, and wouldn't be enough for anything good.
 
-  for (int idim = 0; idim < shiftDims; idim++) {
-    for (int jdim = 0; jdim < shiftDims; jdim++) {
+  for (int iDim = 0; iDim < shiftDims; iDim++) {
+    for (int jDim = 0; jDim < shiftDims; jDim++) {
       // algorithm as before, except the shift
 
       std::vector<Eigen::Vector3d> tmpVectors;
@@ -430,7 +430,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
                   // distances in cartesian space
                   dist = directUnitCell * dist;
 
-                  dist += shift.col(jdim) - shift.col(idim);
+                  dist += shift.col(jDim) - shift.col(iDim);
 
                   double dist2 = dist.norm();
                   distances.push_back(dist2);
@@ -472,11 +472,11 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
         }
       }
 
-      tmpNumPoints(idim, jdim) = tmpVectors.size();
+      tmpNumPoints(iDim, jDim) = tmpVectors.size();
       for (unsigned int iR = 0; iR < tmpVectors.size(); iR++) {
-        tmpDegeneraciesAll(idim, jdim, iR) = tmpDegeneracies[iR];
+        tmpDegeneraciesAll(iDim, jDim, iR) = tmpDegeneracies[iR];
         for (int i : {0, 1, 2}) {
-          tmpVectorsAll(idim, jdim, iR, i) = tmpVectors[iR](i);
+          tmpVectorsAll(iDim, jDim, iR, i) = tmpVectors[iR](i);
         }
       }
     }
@@ -484,12 +484,12 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
 
   // find the unique set of vectors, so it's a smaller list
   std::vector<Eigen::Vector3d> tmpVectors;
-  for (int idim = 0; idim < shiftDims; idim++) {
-    for (int jdim = 0; jdim < shiftDims; jdim++) {
-      for (int iR = 0; iR < tmpNumPoints(idim, jdim); iR++) {
+  for (int iDim = 0; iDim < shiftDims; iDim++) {
+    for (int jDim = 0; jDim < shiftDims; jDim++) {
+      for (int iR = 0; iR < tmpNumPoints(iDim, jDim); iR++) {
         Eigen::Vector3d x;
         for (int i : {0, 1, 2}) {
-          x(i) = tmpVectorsAll(idim, jdim, iR, i);
+          x(i) = tmpVectorsAll(iDim, jDim, iR, i);
         }
         bool found = false;
         if (tmpVectors.empty())
@@ -511,18 +511,18 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   // save the degeneracies in a smaller tensor
   Eigen::Tensor<double, 3> degeneracies(shiftDims, shiftDims, numVectors);
   degeneracies.setZero(); // important!
-  for (int idim = 0; idim < shiftDims; idim++) {
-    for (int jdim = 0; jdim < shiftDims; jdim++) {
-      for (int iR = 0; iR < tmpNumPoints(idim, jdim); iR++) {
+  for (int iDim = 0; iDim < shiftDims; iDim++) {
+    for (int jDim = 0; jDim < shiftDims; jDim++) {
+      for (int iR = 0; iR < tmpNumPoints(iDim, jDim); iR++) {
         Eigen::Vector3d x;
         for (int i : {0, 1, 2}) {
-          x(i) = tmpVectorsAll(idim, jdim, iR, i);
+          x(i) = tmpVectorsAll(iDim, jDim, iR, i);
         }
-        double deg = tmpDegeneraciesAll(idim, jdim, iR);
+        double deg = tmpDegeneraciesAll(iDim, jDim, iR);
         int iRNew = 0;
         for (const Eigen::Vector3d &y : tmpVectors) {
           if ((x - y).squaredNorm() < 1.0e-6) {
-            degeneracies(idim, jdim, iRNew) = deg;
+            degeneracies(iDim, jDim, iRNew) = deg;
             break;
           }
           iRNew += 1;
@@ -540,13 +540,13 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   }
 
   // check that we found all vectors
-  for (int idim = 0; idim < shiftDims; idim++) {
-    for (int jdim = 0; jdim < shiftDims; jdim++) {
+  for (int iDim = 0; iDim < shiftDims; iDim++) {
+    for (int jDim = 0; jDim < shiftDims; jDim++) {
       double tot = 0.;
 
       for (int iR = 0; iR < numVectors; iR++) {
-        if (degeneracies(idim, jdim, iR) > 0) {
-          tot += degeneracies(idim, jdim, iR);
+        if (degeneracies(iDim, jDim, iR) > 0) {
+          tot += degeneracies(iDim, jDim, iR);
         }
       }
       assert(abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6);

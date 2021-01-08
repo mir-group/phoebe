@@ -33,13 +33,13 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     storedAllQ3Case = storedAllQ3Case2;
 
     // in this case, we filtered some wavevectors out of inner and outer
-    // bandstructures. We must find all q3 that conserve momentum
+    // band structures. We must find all q3 that conserve momentum
 
     // first, we build the full grid that the 3rd point would fall into
     auto innerPoints = innerBandStructure.getPoints();
-    auto tup = innerPoints.getMesh();
-    auto mesh2 = std::get<0>(tup);
-    auto offset2 = std::get<1>(tup);
+    auto tup2 = innerPoints.getMesh();
+    auto mesh2 = std::get<0>(tup2);
+    auto offset2 = std::get<1>(tup2);
     fullPoints3 = std::make_unique<Points>(
         innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
 
@@ -48,19 +48,19 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     int numPoints = innerPoints.getNumPoints();
     for (int iq2 : mpi->divideWorkIter(numPoints)) {
       for (int iq1 = 0; iq1 < numPoints; iq1++) {
-        Eigen::Vector3d q1Coords =
+        Eigen::Vector3d q1Coordinates =
             innerPoints.getPointCoordinates(iq1, Points::crystalCoordinates);
-        Eigen::Vector3d q2Coords =
+        Eigen::Vector3d q2Coordinates =
             innerPoints.getPointCoordinates(iq2, Points::crystalCoordinates);
 
-        Eigen::Vector3d q3PlusCoords = q1Coords + q2Coords;
-        Eigen::Vector3d q3MinsCoords = q1Coords - q2Coords;
+        Eigen::Vector3d q3PlusCoordinates = q1Coordinates + q2Coordinates;
+        Eigen::Vector3d q3MinusCoordinates = q1Coordinates - q2Coordinates;
 
-        int iq3Plus = fullPoints3->getIndex(q3PlusCoords);
-        int iq3Mins = fullPoints3->getIndex(q3MinsCoords);
+        int iq3Plus = fullPoints3->getIndex(q3PlusCoordinates);
+        int iq3Minus = fullPoints3->getIndex(q3MinusCoordinates);
 
         listOfIndexes.insert(iq3Plus);
-        listOfIndexes.insert(iq3Mins);
+        listOfIndexes.insert(iq3Minus);
       }
     }
 
@@ -113,7 +113,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
   }
 }
 
-// auto [eigvals3Mins, nb3Mins, eigvecs3Mins, v3Mins, bose3]
+// auto [energies3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]
 /** This function receives in input the cartesian coordinates of a vector,
  * and returns the harmonic info for that vector.
  * This is to be used for the third wavevector of the 3-phonon scattering.
@@ -140,23 +140,23 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     int iq3;
     int nb3;
     Eigen::VectorXd energies3;
-    Eigen::MatrixXcd eigvecs3;
+    Eigen::MatrixXcd eigenVectors3;
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
-    if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStruc
+    if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStructure
       auto points = innerBandStructure.getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       iq3 = points.getIndex(crystalPoints);
       auto iq3Index = WavevectorIndex(iq3);
       energies3 = innerBandStructure.getEnergies(iq3Index);
-      eigvecs3 = innerBandStructure.getEigenvectors(iq3Index);
+      eigenVectors3 = innerBandStructure.getEigenvectors(iq3Index);
 
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
+      bose3Data = Eigen::MatrixXd(outerBose.numCalculations, nb3);
       for (int ib3 = 0; ib3 < nb3; ib3++) {
         int ind3 =
             outerBandStructure.getIndex(WavevectorIndex(iq3), BandIndex(ib3));
@@ -168,13 +168,13 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       iq3 = points.getIndex(crystalPoints);
       auto iq3Index = WavevectorIndex(iq3);
       energies3 = bandStructure3->getEnergies(iq3Index);
-      eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
+      eigenVectors3 = bandStructure3->getEigenvectors(iq3Index);
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.numCalcs, nb3);
-      for (int iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
+      bose3Data = Eigen::MatrixXd(outerBose.numCalculations, nb3);
+      for (int iCalc = 0; iCalc < outerBose.numCalculations; iCalc++) {
         double temperature =
             outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
@@ -184,7 +184,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       }
     }
 
-    return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
 
   } else {
     // otherwise, q3 doesn't fall into the same grid
@@ -193,7 +193,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     int iq1 = point1.getIndex();
 
     Eigen::VectorXd energies3;
-    Eigen::MatrixXcd eigvecs3;
+    Eigen::MatrixXcd eigenVectors3;
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
@@ -201,36 +201,36 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
 
     if (thisCase == casePlus) {
       energies3 = cachePlusEnergies[iq1Counter];
-      eigvecs3 = cachePlusEigvecs[iq1Counter];
+      eigenVectors3 = cachePlusEigenVectors[iq1Counter];
       v3s = cachePlusVelocity[iq1Counter];
       bose3Data = cachePlusBose[iq1Counter];
     } else {
-      energies3 = cacheMinsEnergies[iq1Counter];
-      eigvecs3 = cacheMinsEigvecs[iq1Counter];
-      v3s = cacheMinsVelocity[iq1Counter];
-      bose3Data = cacheMinsBose[iq1Counter];
+      energies3 = cacheMinusEnergies[iq1Counter];
+      eigenVectors3 = cacheMinusEigenVectors[iq1Counter];
+      v3s = cacheMinusVelocity[iq1Counter];
+      bose3Data = cacheMinusBose[iq1Counter];
     }
 
     int nb3 = energies3.size();
-    return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
   }
 }
 
-void Helper3rdState::prepare(const std::vector<int> q1Indexes,
+void Helper3rdState::prepare(const std::vector<int>& q1Indexes,
                              const int &iq2) {
   if (!storedAllQ3) {
     int numPoints = q1Indexes.size();
     cacheOffset = q1Indexes[0];
 
     cachePlusEnergies.resize(numPoints);
-    cachePlusEigvecs.resize(numPoints);
+    cachePlusEigenVectors.resize(numPoints);
     cachePlusBose.resize(numPoints);
     cachePlusVelocity.resize(numPoints);
 
-    cacheMinsEnergies.resize(numPoints);
-    cacheMinsEigvecs.resize(numPoints);
-    cacheMinsBose.resize(numPoints);
-    cacheMinsVelocity.resize(numPoints);
+    cacheMinusEnergies.resize(numPoints);
+    cacheMinusEigenVectors.resize(numPoints);
+    cacheMinusBose.resize(numPoints);
+    cacheMinusVelocity.resize(numPoints);
 
     Particle particle = h0->getParticle();
 
@@ -243,45 +243,45 @@ void Helper3rdState::prepare(const std::vector<int> q1Indexes,
           Points::cartesianCoordinates);
 
       Eigen::Vector3d q3Plus = q1 + q2;
-      Eigen::Vector3d q3Mins = q1 - q2;
+      Eigen::Vector3d q3Minus = q1 - q2;
 
       auto tup = h0->diagonalizeFromCoords(q3Plus);
       auto energies3Plus = std::get<0>(tup);
-      auto eigvecs3Plus = std::get<1>(tup);
-      auto tup1 = h0->diagonalizeFromCoords(q3Mins);
-      auto energies3Mins = std::get<0>(tup1);
-      auto eigvecs3Mins = std::get<1>(tup1);
+      auto eigenVectors3Plus = std::get<1>(tup);
+      auto tup1 = h0->diagonalizeFromCoords(q3Minus);
+      auto energies3Minus = std::get<0>(tup1);
+      auto eigenVectors3Minus = std::get<1>(tup1);
 
       int nb3Plus = energies3Plus.size();
-      int nb3Mins = energies3Mins.size();
+      int nb3Minus = energies3Minus.size();
 
-      Eigen::MatrixXd bose3DataPlus(outerBose.numCalcs, nb3Plus);
-      Eigen::MatrixXd bose3DataMins(outerBose.numCalcs, nb3Mins);
+      Eigen::MatrixXd bose3DataPlus(outerBose.numCalculations, nb3Plus);
+      Eigen::MatrixXd bose3DataMinus(outerBose.numCalculations, nb3Minus);
       bose3DataPlus.setZero();
-      bose3DataMins.setZero();
+      bose3DataMinus.setZero();
 
-      for (int iCalc = 0; iCalc < outerBose.numCalcs; iCalc++) {
+      for (int iCalc = 0; iCalc < outerBose.numCalculations; iCalc++) {
         double temperature =
             outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
           bose3DataPlus(iCalc, ib3) =
               particle.getPopulation(energies3Plus(ib3), temperature);
         }
-        for (int ib3 = 0; ib3 < nb3Mins; ib3++) {
-          bose3DataMins(iCalc, ib3) =
-              particle.getPopulation(energies3Mins(ib3), temperature);
+        for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
+          bose3DataMinus(iCalc, ib3) =
+              particle.getPopulation(energies3Minus(ib3), temperature);
         }
       }
 
       Eigen::MatrixXd v3sPlus(nb3Plus, 3);
-      Eigen::MatrixXd v3sMins(nb3Mins, 3);
+      Eigen::MatrixXd v3sMinus(nb3Minus, 3);
       v3sPlus.setZero();
-      v3sMins.setZero();
+      v3sMinus.setZero();
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmpPlus =
             h0->diagonalizeVelocityFromCoords(q3Plus);
-        Eigen::Tensor<std::complex<double>, 3> v3sTmpMins =
-            h0->diagonalizeVelocityFromCoords(q3Mins);
+        Eigen::Tensor<std::complex<double>, 3> v3sTmpMinus =
+            h0->diagonalizeVelocityFromCoords(q3Minus);
 
         // we only need the diagonal elements of the velocity operator
         // i.e. the group velocity
@@ -289,25 +289,25 @@ void Helper3rdState::prepare(const std::vector<int> q1Indexes,
           for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
             v3sPlus(ib3, i) = v3sTmpPlus(ib3, ib3, i).real();
           }
-          for (int ib3 = 0; ib3 < nb3Mins; ib3++) {
-            v3sMins(ib3, i) = v3sTmpMins(ib3, ib3, i).real();
+          for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
+            v3sMinus(ib3, i) = v3sTmpMinus(ib3, ib3, i).real();
           }
         }
       }
 
       cachePlusEnergies[iq1Counter] = energies3Plus;
-      cachePlusEigvecs[iq1Counter] = eigvecs3Plus;
+      cachePlusEigenVectors[iq1Counter] = eigenVectors3Plus;
       cachePlusBose[iq1Counter] = bose3DataPlus;
       cachePlusVelocity[iq1Counter] = v3sPlus;
 
-      cacheMinsEnergies[iq1Counter] = energies3Mins;
-      cacheMinsEigvecs[iq1Counter] = eigvecs3Mins;
-      cacheMinsBose[iq1Counter] = bose3DataMins;
-      cacheMinsVelocity[iq1Counter] = v3sMins;
+      cacheMinusEnergies[iq1Counter] = energies3Minus;
+      cacheMinusEigenVectors[iq1Counter] = eigenVectors3Minus;
+      cacheMinusBose[iq1Counter] = bose3DataMinus;
+      cacheMinusVelocity[iq1Counter] = v3sMinus;
     }
   }
 }
 
 const int Helper3rdState::casePlus = 0;
 
-const int Helper3rdState::caseMins = 1;
+const int Helper3rdState::caseMinus = 1;

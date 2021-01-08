@@ -197,7 +197,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   if (particle.isPhonon())
     Error e("Electronic band structure has to be provided");
 
-  int numCalcs = statisticsSweep.getNumCalcs();
+  int numCalcs = statisticsSweep.getNumCalculations();
 
   int numEnergies = energies.size();
   double energyStep = context.getEpaEnergyStep();

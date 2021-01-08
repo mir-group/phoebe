@@ -8,7 +8,7 @@
 #include "eigen.h"
 
 /** Class used to store a "matrix" of data.
- * The class member "data" has size data(numCalcs,numStates), where numCalcs
+ * The class member "data" has size data(numCalculations,numStates), where numCalculations
  * is the number of temperatures/chemical potentials, and numStates is
  * specified in input. Used for the EPA electron transport calculation.
  * It is subclassed to a VectorBTE case when numStates is aligned with the
@@ -66,12 +66,12 @@ class BaseVectorBTE {
    * times the number of chemical potentials) used in the run. Given a
    * calculation index iCalc, the result is an element-wise x(it)*vector(it).
    * @param vector: a double vector to be used in the product, of size
-   * equal to numCalcs.
+   * equal to numCalculations.
    */
   BaseVectorBTE operator*(const Eigen::VectorXd &vector);
 
   /** Computes the product of a BaseVectorBTE with a parallel matrix. Only works
-   * if the number of temperatures/chemical potentials (numCalcs) is equal
+   * if the number of temperatures/chemical potentials (numCalculations) is equal
    * to one. At fixed calculation index iCalc, the result is an matrix-vector
    * multiplication x(it,i)*pMatrix(i,j).
    * @param pMatrix: a parallel distributed double matrix to be used in the
@@ -134,7 +134,7 @@ class BaseVectorBTE {
                            const int iState) const;
 
   /** raw buffer containing the values of the vector
-   *  The matrix has size (numCalcs, numStates), where numCalcs is the number
+   *  The matrix has size (numCalculations, numStates), where numCalculations is the number
    *  of pairs of temperature and chemical potentials, and numStates is the
    *  number of Bloch states used in the Boltzmann equation.
    */
@@ -142,7 +142,7 @@ class BaseVectorBTE {
 
   // we store auxiliary objects and parameters
   StatisticsSweep &statisticsSweep;
-  int numCalcs;
+  int numCalculations;
   int numStates;
   int numChemPots;
   int numTemps;
@@ -157,8 +157,8 @@ class BaseVectorBTE {
    * I should probably create two different classes for these.
    */
   int glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                const CartIndex &idim);
-  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const int &i);
+                const CartIndex &iDim) const;
+  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const int &i) const;
 
   /** List of Bloch states to be excluded from the calculation (i.e. for
    * which vectorBTE values are 0), for example, the acoustic modes at the

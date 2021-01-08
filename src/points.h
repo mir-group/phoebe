@@ -39,7 +39,7 @@ public:
    * @return coordinates: a 3d vector of coordinates
    */
   Eigen::Vector3d getCoordinates(const int &basis = crystalCoords_,
-                            const bool &inWignerSeitz = false);
+                                 const bool &inWignerSeitz = false);
 
   /** Sum of two wavevectors (this + b)
    * The vector is folded in the Wigner Seitz zone with an Umklapp vector.
@@ -176,7 +176,7 @@ public:
    * @return wavevector: the coordinates of the desired wavevector.
    */
   Eigen::Vector3d getPointCoordinates(const int &index,
-                                 const int &basis = crystalCoordinates);
+                                      const int &basis = crystalCoordinates);
 
   /** Get the wavevector index given the crystal coordinates of a wavevector.
    * @param point: the wavevector in crystal coordinates.

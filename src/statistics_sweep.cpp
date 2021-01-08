@@ -26,7 +26,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
 
     if (std::isnan(minTemperature) || std::isnan(maxTemperature) ||
         std::isnan(deltaTemperature)) {
-      Error e("Temperatures haven't been set in user input");
+      Error("Temperatures haven't been set in user input");
     }
 
     int i = 0;
@@ -91,7 +91,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       // in this case we try to compute it from the Fermi-level
       fermiLevel = context.getFermiLevel();
       if (std::isnan(fermiLevel)) {
-        Error e("Must provide either the Fermi level or the number of"
+        Error("Must provide either the Fermi level or the number of"
                 " occupied states");
       }
       occupiedStates = 0.;
@@ -138,7 +138,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       if (std::isnan(minChemicalPotential) ||
           std::isnan(minChemicalPotential) ||
           std::isnan(deltaChemicalPotential)) {
-        Error e("Didn't find chemical potentials or doping in input");
+        Error("Didn't find chemical potentials or doping in input");
       }
       // set up energy grid of chemical potentials between min and max,
       // spaced by dmu
@@ -231,7 +231,7 @@ double StatisticsSweep::fPop(const double &chemPot, const double &temp) {
   // Note that I don`t normalize the integral, which is the same thing I did
   // for computing the particle number
   double fPop_ = 0.;
-#pragma omp parallel for reduction(+ : fPop_)
+#pragma omp parallel for reduction(+ : fPop_) default(none) shared(temp,chemPot)
   for (int i = 0; i < energies.size(); i++) {
     fPop_ += particle.getPopulation(energies(i), temp, chemPot);
   }
@@ -280,12 +280,12 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
 
   // check if starting values are bad
   if (sgn(aY) == sgn(bY)) {
-    Error e("I should revisit the boundary limits for bisection method");
+    Error("I should revisit the boundary limits for bisection method");
   }
 
   for (int iter = 0; iter < maxIter; iter++) {
     if (mpi->mpiHead() && iter == maxIter - 1) {
-      Error e("Max iteration reached in finding mu");
+      Error("Max iteration reached in finding mu");
     }
     // x value is midpoint of prior values
     double cX = (aX + bX) / 2.;
@@ -337,11 +337,11 @@ StatisticsSweep::getCalcStatistics(const TempIndex &iTemp,
   return getCalcStatistics(index);
 }
 
-int StatisticsSweep::getNumCalcs() { return numCalcs; }
+int StatisticsSweep::getNumCalculations() const { return numCalcs; }
 
-int StatisticsSweep::getNumChemicalPotentials() { return nChemPot; }
+int StatisticsSweep::getNumChemicalPotentials() const { return nChemPot; }
 
-int StatisticsSweep::getNumTemperatures() { return nTemp; }
+int StatisticsSweep::getNumTemperatures() const { return nTemp; }
 
 void StatisticsSweep::printInfo() {
   if (!mpi->mpiHead())

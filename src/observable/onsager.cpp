@@ -23,7 +23,7 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
     spinFactor = 2.;
   }
 
-  numCalcs = statisticsSweep.getNumCalcs();
+  numCalcs = statisticsSweep.getNumCalculations();
 
   sigma.resize(numCalcs, dimensionality, dimensionality);
   seebeck.resize(numCalcs, dimensionality, dimensionality);
@@ -153,7 +153,7 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
     int ibte = bandStructure.stateToBte(isIdx).get();
     auto rotations = bandStructure.getRotationsStar(isIdx);
 
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double en = energy - calcStat.chemicalPotential;
 
@@ -611,7 +611,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
       int ibte = bandStructure.stateToBte(isIdx).get();
       auto rotations = bandStructure.getRotationsStar(isIdx);
 
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
         for (Eigen::Matrix3d r : rotations) {
           Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
@@ -637,7 +637,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
       }
     }
 #pragma omp critical
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
       for (int i : {0,1,2}) {
         for (int j : {0,1,2}) {
           tmpLEE(iCalc, i, j) += tmpLEEPrivate(iCalc, i, j);

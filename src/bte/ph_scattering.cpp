@@ -119,7 +119,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   auto particle = outerBandStructure.getParticle();
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  int numCalculations = int(statisticsSweep.getNumCalcs());
+  int numCalculations = int(statisticsSweep.getNumCalculations());
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
@@ -132,7 +132,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     BteIndex iBteIdx(iBte);
     StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
     double energy = outerBandStructure.getEnergy(isIdx);
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
       double temperature = statisticsSweep.getCalcStatistics(iCalc).temperature;
       outerBose(iCalc, 0, iBte) = particle.getPopulation(energy, temperature);
     }
@@ -147,7 +147,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       BteIndex iBteIdx(iBte);
       StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
       double energy = innerBandStructure.getEnergy(isIdx);
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
         innerBose(iCalc, 0, iBte) = particle.getPopulation(energy, temperature);
@@ -235,7 +235,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
-        auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+        auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMinus);
 
         auto state3PlusEnergies = std::get<1>(tup1);
         auto eigvecs3Plus = std::get<3>(tup1);
@@ -276,7 +276,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
-        auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMins);
+        auto tup2 = pointHelper.get(q1, q2, Helper3rdState::caseMinus);
 
         auto state3PlusEnergies = std::get<1>(tup1);
         auto nb3Plus = std::get<2>(tup1);
@@ -672,7 +672,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int ind1 = outerBandStructure.stateToBte(is1Idx).get();
 
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
         double temperature =
             statisticsSweep.getCalcStatistics(iCalc).temperature;
         // n(n+1)

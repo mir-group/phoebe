@@ -4,7 +4,7 @@
 Observable::Observable(Context &context_, StatisticsSweep &statisticsSweep_,
                        Crystal &crystal_)
     : context(context_), statisticsSweep(statisticsSweep_), crystal(crystal_) {
-  numCalcs = statisticsSweep.getNumCalcs();
+  numCalcs = statisticsSweep.getNumCalculations();
   numChemPots = statisticsSweep.getNumChemicalPotentials();
   numTemps = statisticsSweep.getNumTemperatures();
   dimensionality = crystal.getDimensionality();

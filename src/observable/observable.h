@@ -40,8 +40,8 @@ public:
   Observable operator-(const Observable &that);
 
   /** Computes the (Frobenius=Euclidean=L2) norm of the property.
-   * @return Eigen::vectorXd: a vector with the norm, of size numCalcs. Where
-   * numCalcs is the number of different temperatures/chemical potentials.
+   * @return Eigen::vectorXd: a vector with the norm, of size numCalculations. Where
+   * numCalculations is the number of different temperatures/chemical potentials.
    */
   Eigen::VectorXd getNorm();
 

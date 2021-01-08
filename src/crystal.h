@@ -102,7 +102,7 @@ public:
   /** get the number of atoms in the unit cell
    *
    */
-  const int &getNumAtoms();
+  const int &getNumAtoms() const;
 
   /** get the volume of the crystal unit cell in Bohr^3
    * @param dimensionality: returns the volume of the unit cell on a reduced
@@ -123,7 +123,7 @@ public:
    * For the time being, we only retain symmetry operations that don't use a
    * translation.
    */
-  const int &getNumSymmetries();
+  const int &getNumSymmetries() const;
 
   /** get the atomic positions, in cartesian coordinates
    * we return an array of size (numAtoms,3)
@@ -158,18 +158,18 @@ public:
 
   /** return the dimensionality of the crystal, i.e. a number from 1 to 3
    */
-  int getDimensionality();
+  int getDimensionality() const;
 
   /** Return the number of atomic species present in the crystal
    */
-  int getNumSpecies();
+  int getNumSpecies() const;
 
   /** Build the list of Bravais lattice vectors (real space) that live within
    * the Wigner Seitz zone of a super cell
    * which is grid(0) x grid(1) x grid(2) bigger than the unitCell.
    *
    * @param grid: size of the super cell for the WS construction.
-   * @param supercellFactor: in order to do the correct folding of wavevectors,
+   * @param superCellFactor: in order to do the correct folding of wavevectors,
    * we look for wavevectors in a slightly bigger super cell. A factor 2 should
    * be enough, but could be increased if the code fails to find all vectors.
    * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
@@ -178,7 +178,7 @@ public:
    */
   std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
   buildWignerSeitzVectors(const Eigen::Vector3i &grid,
-                          const int &supercellFactor = 2);
+                          const int &superCellFactor = 2);
 
   /** Similar to buildWignerSeitzVectors, we build the list of Bravais lattice
    * vectors (real space) that live within the Wigner Seitz zone of a super cell
@@ -194,7 +194,7 @@ public:
    *
    * @param grid: size of the super cell for the WS construction.
    * @param shift: a shift in cartesian coordinates of shape(3,nDim).
-   * @param supercellFactor: in order to do the correct folding of wavevectors,
+   * @param superCellFactor: in order to do the correct folding of wavevectors,
    * we look for wavevectors in a slightly bigger super cell. A factor 2 should
    * be enough, but could be increased if the code fails to find all vectors.
    * @return: a tuple with bravaisLatticeVectors(3,numVectors) in cartesian
@@ -206,7 +206,7 @@ public:
   std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>>
   buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
                                    const Eigen::MatrixXd &shift,
-                                   const int &supercellFactor = 2);
+                                   const int &superCellFactor = 2);
 };
 
 #endif

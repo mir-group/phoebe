@@ -45,7 +45,7 @@ class StatisticsSweep {
   /** returns the CalcStatistics object containing temperature,
    * chemical potential and temperature, given an index on the number of
    * "calculations" = numTemperature*numChemicalPotentials.
-   * @param index: an integer, ranging in [0,numCalcs[
+   * @param index: an integer, ranging in [0,numCalculations[
    * @return calcStatistics: a struct object with temperature, chemical
    * potential and doping concentration, for this particular index.
    */
@@ -66,15 +66,15 @@ class StatisticsSweep {
   /** Returns the number of "calculations" i.e. the number of temperatures
    * times the number of chemical potentials we will compute.
    */
-  int getNumCalcs();
+  int getNumCalculations() const;
 
   /** Returns for how many chemical potentials we are computing properties.
    */
-  int getNumChemicalPotentials();
+  int getNumChemicalPotentials() const;
 
   /** Returns for how many temperatures we are computing properties.
    */
-  int getNumTemperatures();
+  int getNumTemperatures() const;
 
   /** Prints to screen the information on the temperature, doping and
    * chemical potentials to be computed in the current run.

@@ -43,7 +43,7 @@ bool parseBool(std::string &line) {
     Error e("Couldn't fix boolean value while parsing");
     return false;
   }
-};
+}
 
 /** Parse a string of format "key = value" to return a double value.
  */
@@ -115,39 +115,9 @@ std::vector<double> parseDoubleList(std::string &line) {
   return x;
 }
 
-/** Parse a string of format "key = [value1,value2]" to return a vector double.
- */
-std::vector<int> parseIntList(std::string &line) {
-  std::string delimiter = "[";
-  size_t pos1 = line.find_first_of(delimiter);
-  delimiter = "]";
-  size_t pos2 = line.find_last_of(delimiter);
-
-  if (pos1 == std::string::npos) {
-    Error e("Error in parseDoubleList");
-  }
-  if (pos2 == std::string::npos) {
-    Error e("Error in parseDoubleList");
-  }
-
-  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-
-  std::vector<int> x;
-  delimiter = ",";
-  while ((pos1 = s.find(delimiter)) != std::string::npos) {
-    std::string token = s.substr(0, pos1);
-    x.push_back(std::stoi(token));
-    s.erase(0, pos1 + delimiter.length());
-  }
-  // Must not forget the last element in the list
-  x.push_back(std::stoi(s));
-
-  return x;
-}
-
 /** Parse a string of format "key = value units" to return an integer value.
  */
-int parseint(std::string &line) {
+int parseInt(std::string &line) {
   std::string delimiter = "=";
   size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
@@ -156,17 +126,17 @@ int parseint(std::string &line) {
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
  */
-std::vector<int> parseintList(std::string &line) {
+std::vector<int> parseIntList(std::string &line) {
   std::string delimiter = "[";
   size_t pos1 = line.find_first_of(delimiter);
   delimiter = "]";
   size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseintList");
+    Error e("Error in parseIntList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseintList");
+    Error e("Error in parseIntList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
@@ -244,8 +214,8 @@ std::vector<std::string> parseStringList(std::string &line) {
 
 /** Parse the block of information on the crystal structure.
  * Format:
- * Atom1Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
- * Atom2Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
+ * Atom1Name   cartesianCoordX   cartesianCoordY   cartesianCoordZ
+ * Atom2Name   cartesianCoordX   cartesianCoordY   cartesianCoordZ
  * ...
  * The coordinates must be provided in Angstroms.
  */
@@ -257,7 +227,7 @@ parseCrystal(std::vector<std::string> &lines) {
   std::vector<std::string> speciesNames;
 
   int counter = 0;
-  for (std::string line : lines) {
+  for (const std::string& line : lines) {
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
@@ -273,7 +243,7 @@ parseCrystal(std::vector<std::string> &lines) {
     }
     // find the index of the current element
     int index = 0;
-    for (auto speciesName : speciesNames) {
+    for (const auto& speciesName : speciesNames) {
       if (speciesName == thisElement) {
         break;
       }
@@ -316,7 +286,7 @@ parsePathExtrema(std::vector<std::string> &lines) {
   std::vector<std::string> pathLabels;
 
   int i = 0;
-  for (std::string line : lines) {
+  for (const std::string& line : lines) {
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
@@ -384,9 +354,9 @@ std::vector<std::string> &Context::split(const std::string &s, char delimiter,
 /** Split a string by a char delimiter.
  */
 std::vector<std::string> Context::split(const std::string &s, char delimiter) {
-  std::vector<std::string> elems;
-  split(s, delimiter, elems);
-  return elems;
+  std::vector<std::string> elements;
+  split(s, delimiter, elements);
+  return elements;
 }
 
 /** Checks if the line of the input file contains a key=value statement.
@@ -418,22 +388,23 @@ parseParameterNameValue(const std::string &line) {
 
 void Context::setupFromInput(const std::string &fileName) {
   std::vector<std::string> lines;
-  std::string line;
 
   // open input file and read content
-  std::ifstream infile(fileName);
-  while (std::getline(infile, line)) {
-    std::vector<std::string> tokens = split(line, ';');
-    for (std::string t : tokens) {
-      lines.push_back(t);
+  {
+    std::ifstream infile(fileName);
+    std::string line;
+    while (std::getline(infile, line)) {
+      std::vector<std::string> tokens = split(line, ';');
+      for (const std::string& t : tokens) {
+        lines.push_back(t);
+      }
     }
   }
-  infile.close();
 
   // there are
 
   int lineCounter = 0;
-  for (std::string line : lines) {
+  for (const std::string& line : lines) {
     if (line.empty()) { // nothing to do
       continue;
 
@@ -481,14 +452,14 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "qMesh") {
-        std::vector<int> vecMesh = parseintList(val);
+        std::vector<int> vecMesh = parseIntList(val);
         qMesh(0) = vecMesh[0];
         qMesh(1) = vecMesh[1];
         qMesh(2) = vecMesh[2];
       }
 
       if (parameterName == "kMesh") {
-        std::vector<int> vecMesh = parseintList(val);
+        std::vector<int> vecMesh = parseIntList(val);
         kMesh(0) = vecMesh[0];
         kMesh(1) = vecMesh[1];
         kMesh(2) = vecMesh[2];
@@ -545,11 +516,11 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "maxIterationsBTE") {
-        maxIterationsBTE = parseint(val);
+        maxIterationsBTE = parseInt(val);
       }
 
       if (parameterName == "dimensionality") {
-        dimensionality = parseint(val);
+        dimensionality = parseInt(val);
       }
 
       if (parameterName == "dosMinEnergy") {
@@ -674,7 +645,7 @@ void Context::setupFromInput(const std::string &fileName) {
         epaDeltaEnergy = parseDoubleWithUnits(val);
       }
       if (parameterName == "epaNumBins") {
-        epaNumBins = parseint(val);
+        epaNumBins = parseInt(val);
       }
       if (parameterName == "epaMinEnergy") {
         epaMinEnergy = parseDoubleWithUnits(val);
@@ -689,7 +660,7 @@ void Context::setupFromInput(const std::string &fileName) {
         epaEnergyStep = parseDoubleWithUnits(val);
       }
 
-      // ELPH coupling plot App
+      // EL-PH coupling plot App
 
       if (parameterName == "g2PlotStyle") {
         g2PlotStyle = parseString(val);
@@ -738,9 +709,9 @@ void Context::setupFromInput(const std::string &fileName) {
         inputSpeciesNames = inputSpeciesNames_;
       }
       if (blockName == "point path") {
-        auto tup = parsePathExtrema(value);
-        pathLabels = std::get<0>(tup);
-        pathExtrema = std::get<1>(tup);
+        auto tup2 = parsePathExtrema(value);
+        pathLabels = std::get<0>(tup2);
+        pathExtrema = std::get<1>(tup2);
       }
     }
 
@@ -748,7 +719,7 @@ void Context::setupFromInput(const std::string &fileName) {
 
     lineCounter += 1;
   }
-};
+}
 
 std::string Context::getPhD2FileName() { return phD2FileName; }
 void Context::setPhD2FileName(const std::string &x) { phD2FileName = x; }
@@ -777,15 +748,15 @@ void Context::setQuantumEspressoPrefix(const std::string &x) {
 
 std::string Context::getElPhInterpolation() { return elPhInterpolation; }
 
-double Context::getEpaSmearingEnergy() { return epaSmearingEnergy; }
-double Context::getEpaDeltaEnergy() { return epaDeltaEnergy; }
-double Context::getEpaMinEnergy() { return epaMinEnergy; }
-double Context::getEpaMaxEnergy() { return epaMaxEnergy; }
-int Context::getEpaNumBins() { return epaNumBins; }
-double Context::getEpaEnergyRange() {return epaEnergyRange;}
-double Context::getEpaEnergyStep() {return epaEnergyStep;}
+double Context::getEpaSmearingEnergy() const { return epaSmearingEnergy; }
+double Context::getEpaDeltaEnergy() const { return epaDeltaEnergy; }
+double Context::getEpaMinEnergy() const { return epaMinEnergy; }
+double Context::getEpaMaxEnergy() const { return epaMaxEnergy; }
+int Context::getEpaNumBins() const { return epaNumBins; }
+double Context::getEpaEnergyRange() const {return epaEnergyRange;}
+double Context::getEpaEnergyStep() const {return epaEnergyStep;}
 
-double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
+double Context::getElectronFourierCutoff() const { return electronFourierCutoff; }
 
 std::string Context::getAppName() { return appName; }
 
@@ -802,7 +773,7 @@ void Context::setWindowEnergyLimit(const Eigen::Vector2d &x) {
   windowEnergyLimit = x;
 }
 
-double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
+double Context::getWindowPopulationLimit() const { return windowPopulationLimit; }
 void Context::setWindowPopulationLimit(const double &x) {
   windowPopulationLimit = x;
 }
@@ -819,17 +790,17 @@ void Context::setTemperatures(const Eigen::VectorXd &x) { temperatures = x; }
 
 std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
-double Context::getConvergenceThresholdBTE() { return convergenceThresholdBTE; }
+double Context::getConvergenceThresholdBTE() const { return convergenceThresholdBTE; }
 
-int Context::getMaxIterationsBTE() { return maxIterationsBTE; }
+int Context::getMaxIterationsBTE() const { return maxIterationsBTE; }
 
-int Context::getDimensionality() { return dimensionality; }
+int Context::getDimensionality() const { return dimensionality; }
 
-double Context::getDosMinEnergy() { return dosMinEnergy; }
+double Context::getDosMinEnergy() const { return dosMinEnergy; }
 
-double Context::getDosMaxEnergy() { return dosMaxEnergy; }
+double Context::getDosMaxEnergy() const { return dosMaxEnergy; }
 
-double Context::getDosDeltaEnergy() { return dosDeltaEnergy; }
+double Context::getDosDeltaEnergy() const { return dosDeltaEnergy; }
 
 Eigen::MatrixXd Context::getInputAtomicPositions() {
   return inputAtomicPositions;
@@ -854,58 +825,58 @@ void Context::setInputSpeciesNames(const std::vector<std::string> &x) {
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
-double Context::getDeltaPath() { return deltaPath; }
+double Context::getDeltaPath() const { return deltaPath; }
 
-double Context::getFermiLevel() { return fermiLevel; }
+double Context::getFermiLevel() const { return fermiLevel; }
 
 void Context::setFermiLevel(const double &x) { fermiLevel = x; }
 
-double Context::getNumOccupiedStates() { return numOccupiedStates; }
+double Context::getNumOccupiedStates() const { return numOccupiedStates; }
 
 void Context::setNumOccupiedStates(const double &x) { numOccupiedStates = x; }
 
-bool Context::getHasSpinOrbit() { return hasSpinOrbit; }
+bool Context::getHasSpinOrbit() const { return hasSpinOrbit; }
 
 void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 
-int Context::getSmearingMethod() { return smearingMethod; }
+int Context::getSmearingMethod() const { return smearingMethod; }
 
-double Context::getSmearingWidth() { return smearingWidth; }
+double Context::getSmearingWidth() const { return smearingWidth; }
 void Context::setSmearingWidth(const double &x) { smearingWidth = x; }
 
-double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
+double Context::getConstantRelaxationTime() const { return constantRelaxationTime; }
 
-bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
+bool Context::getScatteringMatrixInMemory() const { return scatteringMatrixInMemory; }
 void Context::setScatteringMatrixInMemory(const bool &x) {
   scatteringMatrixInMemory = x;
 }
 
-bool Context::getUseSymmetries() { return useSymmetries; }
+bool Context::getUseSymmetries() const { return useSymmetries; }
 void Context::setUseSymmetries(const bool &x) {
   useSymmetries = x;
 }
 
 Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 
-bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
+bool Context::getWithIsotopeScattering() const { return withIsotopeScattering; }
 
-double Context::getBoundaryLength() { return boundaryLength; }
+double Context::getBoundaryLength() const { return boundaryLength; }
 
 std::string Context::getEpaFileName() {return epaFileName;}
 
-double Context::getMinChemicalPotential() {return minChemicalPotential;}
+double Context::getMinChemicalPotential() const {return minChemicalPotential;}
 
-double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
+double Context::getMaxChemicalPotential() const {return maxChemicalPotential;}
 
-double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
+double Context::getDeltaChemicalPotential() const {return deltaChemicalPotential;}
 
-double Context::getMinTemperature() {return minTemperature;}
+double Context::getMinTemperature() const {return minTemperature;}
 
-double Context::getMaxTemperature() {return maxTemperature;}
+double Context::getMaxTemperature() const {return maxTemperature;}
 
-double Context::getDeltaTemperature() {return deltaTemperature;}
+double Context::getDeltaTemperature() const {return deltaTemperature;}
 
-double Context::getEFermiRange() {return eFermiRange;}
+double Context::getEFermiRange() const {return eFermiRange;}
 
 std::string Context::getG2PlotStyle() { return g2PlotStyle; }
 void Context::setG2PlotStyle(const std::string &x) { g2PlotStyle = x; }

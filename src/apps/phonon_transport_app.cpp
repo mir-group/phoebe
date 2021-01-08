@@ -116,7 +116,7 @@ void PhononTransportApp::run(Context &context) {
     Error e("Relaxons require matrix kept in memory");
   }
   if (context.getScatteringMatrixInMemory() &&
-      statisticsSweep.getNumCalcs() != 1) {
+      statisticsSweep.getNumCalculations() != 1) {
     Error e("If scattering matrix is kept in memory, only one "
             "temperature/chemical potential is allowed in a run");
   }
@@ -219,7 +219,7 @@ void PhononTransportApp::run(Context &context) {
       VectorBTE gNew = tOld * alpha;
       gNew = gOld - gNew;
 
-      Eigen::MatrixXd beta = // (numCalcs,3)
+      Eigen::MatrixXd beta = // (numCalculations,3)
           (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
       VectorBTE hNew = hOld * beta;
       hNew = -gNew + hNew;

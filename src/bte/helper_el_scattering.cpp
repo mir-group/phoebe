@@ -64,20 +64,19 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     int numPoints = innerBandStructure.getNumPoints();
     for (int ik2 : mpi->divideWorkIter(numPoints)) {
       auto ik2Index = WavevectorIndex(ik2);
-      Eigen::Vector3d k2Coords_ = innerBandStructure.getWavevector(ik2Index);
+      Eigen::Vector3d k2Coordinates_ = innerBandStructure.getWavevector(ik2Index);
 
       auto rotations = innerPoints.getRotationsStar(ik2);
       for ( Eigen::Matrix3d rotation : rotations ) {
-        Eigen::Vector3d k2Coords = rotation * k2Coords_;
-        // Eigen::Vector3d k2Coords = k2Coords_;
+        Eigen::Vector3d k2Coordinates = rotation * k2Coordinates_;
 
         for (int ik1 = 0; ik1 < outerBandStructure.getNumPoints(); ik1++) {
           auto ik1Index = WavevectorIndex(ik1);
-          Eigen::Vector3d k1Coords = outerBandStructure.getWavevector(ik1Index);
+          Eigen::Vector3d k1Coordinates = outerBandStructure.getWavevector(ik1Index);
 
           // k' = k + q : phonon absorption
-          Eigen::Vector3d q3Coords = k2Coords - k1Coords;
-          Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coords);
+          Eigen::Vector3d q3Coordinates = k2Coordinates - k1Coordinates;
+          Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coordinates);
 
           int iq3 = fullPoints3->getIndex(q3Cart);
           listOfIndexes.insert(iq3);
@@ -135,7 +134,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   }
 }
 
-// auto [eigvals3Mins, nb3Mins, eigvecs3Mins, v3Mins, bose3]
+// auto [eigenValues3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]
 /** This function receives in input the cartesian coordinates of a vector,
  * and returns the harmonic info for that vector.
  * This is to be used for the third wavevector of the 3-phonon scattering.
@@ -156,7 +155,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     // so, we must use the points from 3rdBandStructure to get the values
 
     int iq3;
-    if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStruc
+    if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStructure
       Eigen::Vector3d crystalPoints = fullPoints3->cartesianToCrystal(q3);
       iq3 = fullPoints3->getIndex(crystalPoints);
     } else {
@@ -166,22 +165,22 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     auto iq3Index = WavevectorIndex(iq3);
 
     Eigen::VectorXd energies3 = bandStructure3->getEnergies(iq3Index);
-    Eigen::MatrixXcd eigvecs3 = bandStructure3->getEigenvectors(iq3Index);
+    Eigen::MatrixXcd eigenVectors3 = bandStructure3->getEigenvectors(iq3Index);
     Eigen::MatrixXd v3s;
     if (smearingType == DeltaFunction::adaptiveGaussian) {
       v3s = bandStructure3->getGroupVelocities(iq3Index);
     }
     int nb3 = energies3.size();
     auto particle = h0.getParticle();
-    Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalcs(), nb3);
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalculations(), nb3);
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
       double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
       for (int ib3 = 0; ib3 < nb3; ib3++) {
          bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
       }
     }
 
-    return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
 
   } else {
     // otherwise, q3 doesn't fall into the same grid
@@ -191,12 +190,12 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     // we need to find the index over the local cache
     int ik2Counter = ik2 - cacheOffset;
     Eigen::VectorXd energies3 = cacheEnergies[ik2Counter];
-    Eigen::MatrixXcd eigvecs3 = cacheEigvecs[ik2Counter];
+    Eigen::MatrixXcd eigenVectors3 = cacheEigenVectors[ik2Counter];
     Eigen::MatrixXd v3s = cacheVelocity[ik2Counter];
     Eigen::MatrixXd bose3Data = cacheBose[ik2Counter];
     int nb3 = energies3.size();
 
-    return {q3, energies3, nb3, eigvecs3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
   }
 }
 
@@ -205,7 +204,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
   if (!storedAllQ3) {
     int numPoints = k2Indexes.size();
     cacheEnergies.resize(numPoints);
-    cacheEigvecs.resize(numPoints);
+    cacheEigenVectors.resize(numPoints);
     cacheBose.resize(numPoints);
     cacheVelocity.resize(numPoints);
     cacheOffset = k2Indexes[0];
@@ -222,14 +221,14 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
 
       auto t1 = h0.diagonalizeFromCoords(q3);
       auto energies3 = std::get<0>(t1);
-      auto eigvecs3 = std::get<1>(t1);
+      auto eigenVectors3 = std::get<1>(t1);
 
       int nb3 = energies3.size();
 
-      Eigen::MatrixXd bose3Data(statisticsSweep.getNumCalcs(), nb3);
+      Eigen::MatrixXd bose3Data(statisticsSweep.getNumCalculations(), nb3);
       bose3Data.setZero();
 
-      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+      for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
@@ -252,7 +251,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       }
 
       cacheEnergies[ik2Counter] = energies3;
-      cacheEigvecs[ik2Counter] = eigvecs3;
+      cacheEigenVectors[ik2Counter] = eigenVectors3;
       cacheBose[ik2Counter] = bose3Data;
       cacheVelocity[ik2Counter] = v3s;
 

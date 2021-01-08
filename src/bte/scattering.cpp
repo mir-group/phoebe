@@ -37,7 +37,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     // not for linewidths. Although this should be double-checked
   }
 
-  numCalcs = statisticsSweep.getNumCalcs();
+  numCalcs = statisticsSweep.getNumCalculations();
 
   // we want to know the state index of acoustic modes at gamma,
   // so that we can set their populations to zero
@@ -169,7 +169,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
   if (highMemory) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure,
                             inPopulation.dimensionality);
-    // note: we are assuming that ScatteringMatrix has numCalcs = 1
+    // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
     if (context.getUseSymmetries()) {
       for (auto tup : theMatrix.getAllLocalStates()) {
@@ -366,7 +366,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
         BteIndex iBteIdx(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
@@ -403,7 +403,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;

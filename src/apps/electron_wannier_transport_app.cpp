@@ -117,7 +117,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     Error("Relaxons require matrix kept in memory");
   }
   if (context.getScatteringMatrixInMemory() &&
-      statisticsSweep.getNumCalcs() != 1) {
+      statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
             "temperature/chemical potential is allowed in a run");
   }

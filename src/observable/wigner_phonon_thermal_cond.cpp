@@ -10,7 +10,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     : PhononThermalConductivity(context_, statisticsSweep_, crystal_,
                                 bandStructure_),
       smaRelTimes(relaxationTimes) {
-  int numCalcs = statisticsSweep.getNumCalcs();
+  int numCalcs = statisticsSweep.getNumCalculations();
 
   wignerCorrection =
       Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);

@@ -81,7 +81,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
       for (Eigen::Matrix3d rot : rots) {
         auto vel = rot * velIrr;
 
-        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d nRot;
           for (int i : {0,1,2}) {
@@ -104,7 +104,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
     {
       for (int j : {0,1,2}) {
         for (int i : {0,1,2}) {
-          for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+          for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
             tensordxd(iCalc, i, j) += tensorPrivate(iCalc, i, j);
           }
         }
@@ -149,7 +149,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
 
       for (Eigen::Matrix3d rot : rots) {
 
-        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d fRot, afRot;
           for (int i : {0, 1, 2}) {
@@ -170,7 +170,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
 #pragma omp critical
     for (int j = 0; j < dimensionality; j++) {
       for (int i = 0; i < dimensionality; i++) {
-        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
           tmpTensor(iCalc, i, j) += tmpTensorPrivate(iCalc, i, j);
         }
       }
@@ -350,7 +350,7 @@ void PhononThermalConductivity::print() {
   std::cout << "\n";
   std::cout << "Thermal Conductivity (" << units << ")\n";
 
-  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
 
@@ -385,7 +385,7 @@ void PhononThermalConductivity::outputToJSON(std::string outFileName) {
 
   std::vector<double> temps;
   std::vector<std::vector<std::vector<double>>> conds;
-  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
     // store temperatures
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -429,7 +429,7 @@ void PhononThermalConductivity::print(const int &iter) {
   strftime(s, 200, "%F, %T", p);
 
   std::cout << "Iteration: " << iter << " | " << s << "\n";
-  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     std::cout << std::fixed;

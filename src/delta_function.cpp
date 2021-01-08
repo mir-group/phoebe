@@ -26,7 +26,7 @@ DeltaFunction::smearingFactory(Context &context,
   } else if (choice == tetrahedron) {
     return new TetrahedronDeltaFunction(fullBandStructure);
   } else {
-    Error e("Unrecognized smearing choice");
+    Error("Unrecognized smearing choice");
     return nullptr;
   }
 }
@@ -47,7 +47,7 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
                                           StateIndex &is) {
   (void)energy;
   (void)is;
-  Error e("GaussianDeltaFunction::getSmearing2 not implemented");
+  Error("GaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
 
@@ -90,7 +90,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
                                                   StateIndex &is) {
   (void)energy;
   (void)is;
-  Error e("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
+  Error("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
 
@@ -102,10 +102,10 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
   auto grid = std::get<0>(tup);
   auto offset = std::get<1>(tup);
   if (offset.norm() > 0.) {
-    Error e("We didn't implement tetrahedra with offsets", 1);
+    Error("We didn't implement tetrahedra with offsets", 1);
   }
   if (grid(0) < 1 || grid(1) < 1 || grid(2) < 1) {
-    Error e("Tetrahedron method initialized with invalid wavevector grid");
+    Error("Tetrahedron method initialized with invalid wavevector grid");
   }
 
   // shifts of 1 k-point in the grid in crystal coordinates
@@ -166,7 +166,7 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
 
   auto fullPoints = fullBandStructure.getPoints();
   // if the mesh is uniform, each k-point belongs to 6 tetrahedra
-  auto kCoords = fullPoints.getPointCoordinates(ik, Points::crystalCoordinates);
+  auto kCoordinates = fullPoints.getPointCoordinates(ik, Points::crystalCoordinates);
 
   // in this tensor, we store the offset to find the vertices of the
   // tetrahedrons to which the current point belongs to
@@ -177,7 +177,7 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
   Eigen::MatrixXd kVectorsSubCell(8,3);
   for ( int i=0; i<8; i++) {
     Eigen::Vector3d x = subCellShift.row(i);
-    kVectorsSubCell.row(i) = kCoords + x;
+    kVectorsSubCell.row(i) = kCoordinates + x;
   }
 
   Eigen::VectorXi ikSubCellIndices(8);
@@ -264,6 +264,6 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
                                              const Eigen::Vector3d &velocity) {
   (void)energy;
   (void)velocity;
-  Error e("TetrahedronDeltaFunction getSmearing1 not implemented");
+  Error("TetrahedronDeltaFunction getSmearing1 not implemented");
   return 1.;
 }
