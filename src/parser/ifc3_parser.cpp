@@ -10,33 +10,22 @@
 #endif
 
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
+
     auto fileName = context.getPhD3FileName();
 
-    // Open IFC3 file
-    //std::ifstream infile(fileName);
+    // TODO would it be better to add one input variable called 
+    // phononFileType=[phonopy, shengbte, qe, etc] and then have
+    // D3FileName and D2FileName changed to one phononInputDirectory? 
+    // TODO I left out input parsing for qe -- I think we discussed that 
+    // we weren't planning to support this?
 
-    //if (not infile.is_open()) {
-    //    Error e("D3 file not found", 1);
-    //}
-
-    // ShengBTE has a single integer on the first line
-    // QE has more (9). We use this to differentiate the formats
-    // TODO should just add an input variable for this
-    //std::string line;
-    //std::getline(infile, line);
-    //std::istringstream iss(line);
-    //std::string item;
-    //int counter = 0;
-    //while (iss >> item) {
-    //    counter++;
-   // }
-
-    return parseFromPhono3py(context,crystal);
-    //if (counter == 1) {
-    //   return parseFromShengBTE(context, crystal);
-    //} else {
-    //    return parseFromQE(context, crystal);
-    //}
+    // check if this is a phono3py fc3.hdf5 file or a shengbte file
+    if (fileName.find(".hdf5") != std::string::npos) {
+      return parseFromPhono3py(context, crystal);
+    }
+    else {
+      return parseFromShengBTE(context, crystal);
+    }
 }
 
 Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid) {
@@ -331,7 +320,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   std::ifstream infile(directory + "/disp_fc3.yaml");
   std::string line;
   if (not infile.is_open()) {
-      Error e("Phono3py disp_fc3.yaml file not found");
+      Error e("Phono3py disp_fc3.yaml file not " 
+	"found in directory "+directory+".");
   }
 
   // first line will always be natoms in supercell
