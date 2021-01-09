@@ -262,7 +262,7 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
                           auto ind2 = compress2Indeces(nb, j, numAtoms, 3);
                           auto ind3 = compress2Indeces(nc, k, numAtoms, 3);
 
-                          std::cout << "ind 1 2 3 iR2 iR3 " << ind1 << " " << ind2 << " " << ind3 << " " << iR2 << " " << iR3 << " ijk cellMap[na] na nb nc sat2 sat3 " << i << j << k << " " << cellMap[na] << " " << na << " " << nb << " " << nc << " " << sat2 << " " << sat3 << std::endl; 
+                          //std::cout << "ind 1 2 3 iR2 iR3 " << ind1 << " " << ind2 << " " << ind3 << " " << iR2 << " " << iR3 << " ijk cellMap[na] na nb nc sat2 sat3 " << i << j << k << " " << cellMap[na] << " " << na << " " << nb << " " << nc << " " << sat2 << " " << sat3 << std::endl; 
       
                           mat3R(ind1, ind2, ind3, iR2, iR3) += 
                                 ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] * conversion; 
