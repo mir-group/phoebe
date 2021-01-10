@@ -38,12 +38,12 @@ TEST (PhononH0, Velocity) {
   auto v0 = groupV.col(0);
   auto v1 = groupV.col(1);
   auto v2 = groupV.col(2);
-  auto qCoords = qPoint.getCoordinates(Points::cartesianCoordinates);
+  auto qCoordinates = qPoint.getCoordinates(Points::cartesianCoordinates);
 
   // for these three acoustic modes, check velocity is parallel to wavevector
-  ASSERT_NEAR(abs(v0.dot(qCoords)) / qCoords.norm() / v0.norm(), 1., 0.04);
-  ASSERT_NEAR(abs(v1.dot(qCoords)) / qCoords.norm() / v1.norm(), 1., 0.04);
-  ASSERT_NEAR(abs(v2.dot(qCoords)) / qCoords.norm() / v2.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v0.dot(qCoordinates)) / qCoordinates.norm() / v0.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v1.dot(qCoordinates)) / qCoordinates.norm() / v1.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v2.dot(qCoordinates)) / qCoordinates.norm() / v2.norm(), 1., 0.04);
 
   // for silicon, the velocity is around 2200 m/s
   double c1 = abs(v0.minCoeff()) * velocityRyToSi;
@@ -57,9 +57,9 @@ TEST (PhononH0, Velocity) {
   // we can also verify that, for acoustic phonons in silicon close to gamma,
   // the velocity is approximately (energies/q)we can approximate the velocity
 
-  double err0 = abs(energies(0) - v0.dot(qCoords)) / v0.norm();
-  double err1 = abs(energies(1) - v0.dot(qCoords)) / v0.norm();
-  double err2 = abs(energies(2) - v0.dot(qCoords)) / v0.norm();
+  double err0 = abs(energies(0) - v0.dot(qCoordinates)) / v0.norm();
+  double err1 = abs(energies(1) - v0.dot(qCoordinates)) / v0.norm();
+  double err2 = abs(energies(2) - v0.dot(qCoordinates)) / v0.norm();
   // we allow a 4% error, (anisotropies...)
   ASSERT_NEAR(err0, 0., 0.04);
   ASSERT_NEAR(err1, 0., 0.04);

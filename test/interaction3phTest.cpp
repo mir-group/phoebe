@@ -38,7 +38,7 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   // Number of bands
   int numBands = phononH0.getNumBands();
 
-  ASSERT_EQ(numBands/3,numAtoms);
+  ASSERT_EQ(numBands / 3, numAtoms);
 
   Eigen::Vector3d q1, q2, q3;
   q1.setZero();
@@ -86,7 +86,7 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   for (int i = 0; i < numBands; i++) {
     for (int j = 0; j < numBands; j++) {
       for (int k = 0; k < numBands; k++) {
-        ASSERT_EQ(couplingPlus(i,j,k),couplingMins(i,j,k));
+        ASSERT_EQ(couplingPlus(i, j, k), couplingMins(i, j, k));
       }
     }
   }
@@ -223,15 +223,17 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto couplingPlus = std::get<0>(tup4)[0];
   auto couplingMins = std::get<1>(tup4)[0];
 
-//  for (int i = 0; i < numBands; i++) {
-//    for (int j = 0; j < numBands; j++) {
-//      for (int k = 0; k < numBands; k++) {
-//        std::cout << std::setprecision(8);
-//        std::cout << i << " " << j << " " << k << " " << std::setprecision(8) <<
-//                couplingPlus(i, j, k) << " " << couplingMins(i, j, k) << "\n";
-//      }
-//    }
-//  }
+  //  for (int i = 0; i < numBands; i++) {
+  //    for (int j = 0; j < numBands; j++) {
+  //      for (int k = 0; k < numBands; k++) {
+  //        std::cout << std::setprecision(8);
+  //        std::cout << i << " " << j << " " << k << " " <<
+  //        std::setprecision(8) <<
+  //                couplingPlus(i, j, k) << " " << couplingMins(i, j, k) <<
+  //                "\n";
+  //      }
+  //    }
+  //  }
 
   Eigen::Tensor<double, 3> referenceCoupling(numBands, numBands, numBands);
   referenceCoupling.setZero();

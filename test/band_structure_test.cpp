@@ -8,20 +8,19 @@
 
 TEST(FullBandStructureTest, BandStructureStorage) {
   // in this test, we check whether we are storing data inside the
-  // bandstructure object correctly and consistently
+  // band structure object correctly and consistently
 
   Context context;
   context.setPhD2FileName("../test/data/444_silicon.fc");
 
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
   // Number of atoms
-  long numAtoms = crystal.getNumAtoms();
+  int numAtoms = crystal.getNumAtoms();
   // Number of bands
-  long numBands = 3 * numAtoms;
+  int numBands = 3 * numAtoms;
 
   //------------end setup-----------//
 
@@ -34,40 +33,40 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   FullBandStructure bandStructure =
       phononH0.populate(points, withVelocities, withEigenvectors);
 
-  long ik = 7;
+  int ik = 7;
   auto ikIndex = WavevectorIndex(ik);
   Point point = bandStructure.getPoint(ik);
   auto tup1 = phononH0.diagonalize(point);
   auto ensT = std::get<0>(tup1);
-  auto eigvecsT = std::get<1>(tup1);
-  auto velsT = phononH0.diagonalizeVelocity(point);
+  auto eigenVectorsT = std::get<1>(tup1);
+  auto velocitiesT = phononH0.diagonalizeVelocity(point);
 
   auto ens = bandStructure.getEnergies(ikIndex);
-  Eigen::Tensor<std::complex<double>, 3> eigvecs =
+  Eigen::Tensor<std::complex<double>, 3> eigenVectors =
       bandStructure.getPhEigenvectors(ikIndex);
-  auto vels = bandStructure.getVelocities(ikIndex);
+  auto velocities = bandStructure.getVelocities(ikIndex);
 
   // now we check the difference
   double x1 = (ens - ensT).norm();
   ASSERT_EQ(x1, 0.);
 
   std::complex<double> c1 = complexZero;
-  for (long ib1 = 0; ib1 < numBands; ib1++) {
-    for (long ib2 = 0; ib2 < numBands; ib2++) {
-      for (long ic = 0; ic < 3; ic++) {
-        c1 += pow(velsT(ib1, ib2, ic) - vels(ib1, ib2, ic), 2);
+  for (int ib1 = 0; ib1 < numBands; ib1++) {
+    for (int ib2 = 0; ib2 < numBands; ib2++) {
+      for (int ic = 0; ic < 3; ic++) {
+        c1 += pow(velocitiesT(ib1, ib2, ic) - velocities(ib1, ib2, ic), 2);
       }
     }
   }
   ASSERT_EQ(c1, complexZero);
 
   std::complex<double> c2 = complexZero;
-  for (long i = 0; i < numBands; i++) {
-    auto tup = decompress2Indices(i, numAtoms, 3);
-    auto iat = std::get<0>(tup);
-    auto ic = std::get<1>(tup);
-    for (long j = 0; j < numBands; j++) {
-      c2 += pow(eigvecsT(i, j) - eigvecs(ic, iat, j), 2);
+  for (int i = 0; i < numBands; i++) {
+    auto tup2 = decompress2Indices(i, numAtoms, 3);
+    auto iat = std::get<0>(tup2);
+    auto ic = std::get<1>(tup2);
+    for (int j = 0; j < numBands; j++) {
+      c2 += pow(eigenVectorsT(i, j) - eigenVectors(ic, iat, j), 2);
     }
   }
   ASSERT_EQ(c2, complexZero);
@@ -77,36 +76,36 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   auto k = point.getCoordinates(Points::cartesianCoordinates);
   auto tup2 = phononH0.diagonalizeFromCoordinates(k);
   auto ensC = std::get<0>(tup2);
-  auto eigvecsC = std::get<1>(tup2);
+  auto eigenVectorsC = std::get<1>(tup2);
   x1 = (ens - ensC).norm();
   ASSERT_EQ(x1, 0.);
 
-  Eigen::MatrixXcd eigvecsT2 = bandStructure.getEigenvectors(ikIndex);
+  Eigen::MatrixXcd eigenVectorsT2 = bandStructure.getEigenvectors(ikIndex);
   c2 = complexZero;
-  for (long ib1 = 0; ib1 < numBands; ib1++) {
-    for (long ib2 = 0; ib2 < numBands; ib2++) {
-      c2 += pow(eigvecsT2(ib1, ib2) - eigvecsC(ib1, ib2), 2);
+  for (int ib1 = 0; ib1 < numBands; ib1++) {
+    for (int ib2 = 0; ib2 < numBands; ib2++) {
+      c2 += pow(eigenVectorsT2(ib1, ib2) - eigenVectorsC(ib1, ib2), 2);
     }
   }
   ASSERT_EQ(c2, complexZero);
 
   // we check what happens if we set eigenvectors as a matrix
-  Eigen::MatrixXcd eigvecsC2 = bandStructure.getEigenvectors(ikIndex);
+  Eigen::MatrixXcd eigenVectorsC2 = bandStructure.getEigenvectors(ikIndex);
   c2 = complexZero;
-  for (long ib1 = 0; ib1 < numBands; ib1++) {
-    for (long ib2 = 0; ib2 < numBands; ib2++) {
-      c2 += pow(eigvecsC2(ib1, ib2) - eigvecsC(ib1, ib2), 2);
+  for (int ib1 = 0; ib1 < numBands; ib1++) {
+    for (int ib2 = 0; ib2 < numBands; ib2++) {
+      c2 += pow(eigenVectorsC2(ib1, ib2) - eigenVectorsC(ib1, ib2), 2);
     }
   }
   ASSERT_EQ(c2, complexZero);
 
   // make a comparison between tensor and matrix
   c2 = complexZero;
-  for (long iband = 0; iband < numBands; iband++) {
-    for (long iat = 0; iat < numAtoms; iat++) {
-      for (long ipol = 0; ipol < 3; ipol++) {
-        auto ind = compress2Indices(iat, ipol, numAtoms, 3);
-        c2 += pow(eigvecs(ipol, iat, iband) - eigvecsC(ind, iband), 2);
+  for (int iBand = 0; iBand < numBands; iBand++) {
+    for (int iat = 0; iat < numAtoms; iat++) {
+      for (int iPol = 0; iPol < 3; iPol++) {
+        auto ind = compress2Indices(iat, iPol, numAtoms, 3);
+        c2 += pow(eigenVectors(iPol, iat, iBand) - eigenVectorsC(ind, iBand), 2);
       }
     }
   }

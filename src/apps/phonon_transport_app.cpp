@@ -102,7 +102,7 @@ void PhononTransportApp::run(Context &context) {
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
-  for (auto s : solverBTE) {
+  for (const auto& s : solverBTE) {
     if (s.compare("iterative") == 0)
       doIterative = true;
     if (s.compare("variational") == 0)
@@ -113,11 +113,11 @@ void PhononTransportApp::run(Context &context) {
 
   // here we do validation of the input, to check for consistency
   if (doRelaxons && !context.getScatteringMatrixInMemory()) {
-    Error e("Relaxons require matrix kept in memory");
+    Error("Relaxons require matrix kept in memory");
   }
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
-    Error e("If scattering matrix is kept in memory, only one "
+    Error("If scattering matrix is kept in memory, only one "
             "temperature/chemical potential is allowed in a run");
   }
 
@@ -161,7 +161,7 @@ void PhononTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
     phTCond.print();
@@ -246,7 +246,7 @@ void PhononTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
 

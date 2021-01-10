@@ -6,7 +6,7 @@
 /** In this test I check for the implementation of the tetrahedron method.
  * If everything's fine, we expect (\int dos(e) de) = numBands
  * Note: in the test, I find 5.98 instead of 6.
- * It gets better with smaller deltaEnergy and more kpoints (but slower!)
+ * It gets better with smaller deltaEnergy and more points (but slower!)
  */
 TEST(TetrahedronTest, Normalization) {
   // set up a phononH0
@@ -20,7 +20,7 @@ TEST(TetrahedronTest, Normalization) {
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
 
-  // setup parameters for active bandstructure creation
+  // setup parameters for active band structure creation
   Eigen::Vector3i qMesh;
   qMesh << 15, 15, 15;
   Points points(crystal, qMesh);
@@ -35,17 +35,17 @@ TEST(TetrahedronTest, Normalization) {
   double minEnergy = 0.;
   double maxEnergy = 0.1 / energyRyToEv;
   double deltaEnergy = 0.0004 / energyRyToEv;
-  long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  int numEnergies = int((maxEnergy - minEnergy) / deltaEnergy) + 1;
 
   std::vector<double> energies(numEnergies);
-  for (long i = 0; i < numEnergies; i++) {
+  for (int i = 0; i < numEnergies; i++) {
     energies[i] = i * deltaEnergy + minEnergy;
   }
 
   // DOS should integrate to the number of bands
   {
     double x = 0.;
-    for (long i = 0; i < numEnergies; i++) {
+    for (int i = 0; i < numEnergies; i++) {
       x += tetrahedra.getDOS(energies[i]) * deltaEnergy;
     }
     ASSERT_NEAR(x, h0.getNumBands(), 0.02);
@@ -54,7 +54,7 @@ TEST(TetrahedronTest, Normalization) {
   // now we try to use symmetries
   points.setIrreduciblePoints();
   double x = 0.;
-  for (long i = 0; i < numEnergies; i++) {
+  for (int i = 0; i < numEnergies; i++) {
     x += tetrahedra.getDOS(energies[i]) * deltaEnergy;
   }
   ASSERT_NEAR(x,h0.getNumBands(),0.02);

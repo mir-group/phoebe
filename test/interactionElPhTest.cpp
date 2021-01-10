@@ -25,14 +25,12 @@ TEST(InteractionElPh, Test1) {
   auto crystal = std::get<0>(t1);
   auto phononH0 = std::get<1>(t1);
 
-  ElPhQeToPhoebeApp app;
-
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  auto t0 = app.readQEPhoebeHeader(crystal, phoebePrefixQE);
+  auto t0 = ElPhQeToPhoebeApp::readQEPhoebeHeader(crystal, phoebePrefixQE);
   Eigen::Vector3i qMesh = std::get<0>(t0);
   Eigen::Vector3i kMesh = std::get<1>(t0);
-  Eigen::MatrixXd kgridFull = std::get<2>(t0);
-  Eigen::MatrixXd qgridFull = std::get<3>(t0);
+  Eigen::MatrixXd kGridFull = std::get<2>(t0);
+  Eigen::MatrixXd qGridFull = std::get<3>(t0);
   Eigen::MatrixXd energies = std::get<4>(t0);
   int numIrrQPoints = std::get<5>(t0);
   int numQEBands = std::get<6>(t0);
@@ -44,8 +42,8 @@ TEST(InteractionElPh, Test1) {
 
   int numModes = 3 * crystal.getNumAtoms();
 
-  app.postProcessingWannier(
-      context, crystal, phononH0, kPoints, qPoints, numQEBands, numModes,
-      numIrrQPoints, numElectrons, numSpin, energies, kgridFull, kMesh, qMesh,
-      true);
+  ElPhQeToPhoebeApp app;
+  app.postProcessingWannier(context, crystal, phononH0, kPoints, qPoints,
+                            numQEBands, numModes, numIrrQPoints, numElectrons,
+                            numSpin, energies, kGridFull, kMesh, qMesh, true);
 }

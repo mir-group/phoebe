@@ -23,7 +23,7 @@ TEST(IrrPointsTest, Symmetries) {
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 
-  ASSERT_EQ(crystal.getNumSymmetries(),48);
+  ASSERT_EQ(crystal.getNumSymmetries(), 48);
 
   //-----------------
 
@@ -36,13 +36,13 @@ TEST(IrrPointsTest, Symmetries) {
 
   // I hard code that I expect 8 irreducible points
   int numIrrPoints = points.irrPointsIterator().size();
-  ASSERT_EQ(numIrrPoints,8);
+  ASSERT_EQ(numIrrPoints, 8);
 
   int numFullPoints = 0;
   for (int ik : points.irrPointsIterator()) {
     numFullPoints += points.getRotationsStar(ik).size();
   }
-  ASSERT_EQ(numFullPoints,points.getNumPoints());
+  ASSERT_EQ(numFullPoints, points.getNumPoints());
 
   // here I check the symmetries matrices
   // loop over irreducible points, unfold the star, and check that we can
@@ -57,27 +57,29 @@ TEST(IrrPointsTest, Symmetries) {
     counter++;
 
     auto rots = points.getRotationsStar(ikIrr);
-    for ( const auto& s : rots ) {
+    for (const auto &s : rots) {
       auto kRedCart = s * kIrr; // in cartesian coordinates
-      auto kRedCrys = points.cartesianToCrystal(kRedCart);
-      int oldIndex = points.getIndex(kRedCrys); // getIndex needs crystal coords
+      auto kRedCrystal = points.cartesianToCrystal(kRedCart);
+      int oldIndex = points.getIndex(kRedCrystal);
       allIndices.push_back(oldIndex);
 
-      auto t = points.getRotationToIrreducible(kRedCart, Points::cartesianCoordinates);
+      auto t = points.getRotationToIrreducible(kRedCart,
+                                               Points::cartesianCoordinates);
       int ik2 = std::get<0>(t);
-      ASSERT_EQ(ik2,ikIrr);
+      ASSERT_EQ(ik2, ikIrr);
 
       Eigen::Matrix3d rot = std::get<1>(t);
       // this rotation should map the point to the irreducible one
       Eigen::Vector3d kIrr2 = rot * kRedCart;
 
-      ASSERT_NEAR((rot.inverse()-s).squaredNorm(),0.,0.0001);
+      ASSERT_NEAR((rot.inverse() - s).squaredNorm(), 0., 0.0001);
 
       Eigen::Vector3d x1 = points.cartesianToCrystal(kIrr2).transpose();
       Eigen::Vector3d x2 = points.cartesianToCrystal(kIrr).transpose();
-      ASSERT_NEAR((x1-x2).squaredNorm(),0.,0.0001);
+      ASSERT_NEAR((x1 - x2).squaredNorm(), 0., 0.0001);
     }
   }
-  int uniqueCount = std::unique(allIndices.begin(), allIndices.end()) - allIndices.begin();
-  ASSERT_EQ(mesh.prod(),uniqueCount);
+  int uniqueCount =
+      std::unique(allIndices.begin(), allIndices.end()) - allIndices.begin();
+  ASSERT_EQ(mesh.prod(), uniqueCount);
 }

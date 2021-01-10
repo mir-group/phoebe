@@ -1254,7 +1254,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
   for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
     // get U
     auto qC = qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
-    auto t = phononH0.diagonalizeFromCoords(qC, false);
+    auto t = phononH0.diagonalizeFromCoordinates(qC, false);
     auto en = std::get<0>(t);
     auto u = std::get<0>(t);
 

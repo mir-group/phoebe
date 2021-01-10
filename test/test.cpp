@@ -1,4 +1,3 @@
-#include "context.h"
 #include "example.h"
 #include "mpiHelper.h"
 #include "gtest/gtest.h"

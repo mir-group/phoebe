@@ -32,28 +32,29 @@ TEST(ABS, Symmetries) {
 
   // setup parameters for active band structure creation
   Eigen::Vector3i qMesh;
-  qMesh << 2,2,2;
+  qMesh << 2, 2, 2;
   Points points(crystal, qMesh);
   bool withVelocities = true;
   bool withEigenvectors = true;
 
-  FullBandStructure fbs = phH0.populate(points, withVelocities, withEigenvectors);
+  FullBandStructure fbs =
+      phH0.populate(points, withVelocities, withEigenvectors);
 
-  auto bsTup2 = ActiveBandStructure::builder(
-      context, phH0, points, withEigenvectors, withVelocities);
+  auto bsTup2 = ActiveBandStructure::builder(context, phH0, points,
+                                             withEigenvectors, withVelocities);
   ActiveBandStructure abs = std::get<0>(bsTup2);
 
-  std::vector<Eigen::MatrixXd> allVels;
-  for ( long ik = 0; ik<fbs.getNumPoints(); ik++ ) {
+  std::vector<Eigen::MatrixXd> allVelocities;
+  for (long ik = 0; ik < fbs.getNumPoints(); ik++) {
     auto ikIdx = WavevectorIndex(ik);
     Eigen::MatrixXd v = fbs.getGroupVelocities(ikIdx);
-    allVels.push_back(v);
+    allVelocities.push_back(v);
   }
 
-  points.setIrreduciblePoints(&allVels);
+  points.setIrreduciblePoints(&allVelocities);
   // we expect 3 irreducible points out of 8 reducible
-  EXPECT_EQ(points.irrPointsIterator().size(),3);
-  EXPECT_EQ(points.getNumPoints(),8);
+  EXPECT_EQ(points.irrPointsIterator().size(), 3);
+  EXPECT_EQ(points.getNumPoints(), 8);
   // gamma is discarded by abs
   EXPECT_EQ(abs.irrPointsIterator().size(), 2);
 
@@ -63,16 +64,18 @@ TEST(ABS, Symmetries) {
   for (int ik : abs.irrPointsIterator()) {
     auto ikIdx = WavevectorIndex(ik);
     Eigen::Vector3d kAbs = abs.getWavevector(ikIdx);
-    if ( count == 0 ) {
+    if (count == 0) {
       int idx = points.irrPointsIterator()[1];
-      EXPECT_EQ(idx,1);
-      Eigen::Vector3d diff = kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
+      EXPECT_EQ(idx, 1);
+      Eigen::Vector3d diff =
+          kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
       EXPECT_EQ(diff.norm(), 0.);
     }
-    if ( count == 1 ) {
+    if (count == 1) {
       int idx = points.irrPointsIterator()[2];
-      EXPECT_EQ(idx,3);
-      Eigen::Vector3d diff = kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
+      EXPECT_EQ(idx, 3);
+      Eigen::Vector3d diff =
+          kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
       EXPECT_EQ(diff.norm(), 0.);
     }
     count++;
@@ -81,26 +84,26 @@ TEST(ABS, Symmetries) {
   for (int ik : abs.irrPointsIterator()) {
     auto ikIdx = WavevectorIndex(ik);
     auto ens = abs.getEnergies(ikIdx);
-    if ( ik == 0 ) {
+    if (ik == 0) {
       EXPECT_EQ(ens.size(), 4);
-    } else if ( ik == 2 ) {
+    } else if (ik == 2) {
       EXPECT_EQ(ens.size(), 6);
     }
 
     auto qIrr = abs.getWavevector(ikIdx);
 
     auto rotations = abs.getRotationsStar(ikIdx);
-    for ( const auto& r : rotations) {
+    for (const auto &r : rotations) {
       Eigen::Vector3d q = r * qIrr;
 
-      Eigen::Vector3d qCrys = abs.getPoints().cartesianToCrystal(q);
-      int ikFull = points.getIndex(qCrys);
+      Eigen::Vector3d qCrystal = abs.getPoints().cartesianToCrystal(q);
+      int ikFull = points.getIndex(qCrystal);
       Eigen::Vector3d k1 =
           points.getPointCoordinates(ikFull, Points::cartesianCoordinates);
 
       k1 = points.bzToWs(k1, Points::cartesianCoordinates);
       q = points.bzToWs(q, Points::cartesianCoordinates);
-      auto diff = (k1-q).norm();
+      auto diff = (k1 - q).norm();
       EXPECT_EQ(diff, 0.);
 
       WavevectorIndex ikFullIdx(ikFull);
@@ -108,10 +111,10 @@ TEST(ABS, Symmetries) {
       Eigen::VectorXd enFbs = fbs.getEnergies(ikFullIdx);
 
       double diff2 = 0.;
-      for (int i=0; i<enAbs.size(); i++) {
+      for (int i = 0; i < enAbs.size(); i++) {
         // note: I have an ad-hoc assumption on energies in fbs being from
         // 0 to a cutoff band, which is only true in this particular test
-        diff2 += pow(enAbs(i) - enFbs(i),2);
+        diff2 += pow(enAbs(i) - enFbs(i), 2);
       }
       EXPECT_NEAR(diff2, 0., 1.e-12);
     }
@@ -125,21 +128,20 @@ TEST(ABS, Symmetries) {
       WavevectorIndex ikIdx(ik);
       Eigen::Vector3d kIrr = abs.getWavevector(ikIdx);
       auto rotations = abs.getRotationsStar(ikIdx);
-      for (const auto& rot : rotations) {
+      for (const auto &rot : rotations) {
         Eigen::Vector3d kRot = rot * kIrr;
         kRot = points.cartesianToCrystal(kRot);
         long ikFull = points.getIndex(kRot);
         allKs.push_back(ikFull);
       }
     }
-    long count2 = std::distance(allKs.begin(),
-                               std::unique(allKs.begin(), allKs.end()));
+    long count2 =
+        std::distance(allKs.begin(), std::unique(allKs.begin(), allKs.end()));
     EXPECT_EQ(count2, abs.getNumPoints());
   }
 
   // here we check that the rotated q-point and velocities are similar
   // to those of the FullBandStructure without symmetries
-
 
   for (int is : abs.irrStateIterator()) {
     auto isIdx = StateIndex(is);
@@ -149,25 +151,25 @@ TEST(ABS, Symmetries) {
     Eigen::Vector3d qIrr = abs.getWavevector(isIdx);
     auto rotations = abs.getRotationsStar(ikIdx);
 
-    for ( const Eigen::Matrix3d& r : rotations) {
+    for (const Eigen::Matrix3d &r : rotations) {
       Eigen::Vector3d v = r * vIrr;
       Eigen::Vector3d q = r * qIrr;
 
       int ikFull = fbs.getPoints().getIndex(points.cartesianToCrystal(q));
       auto ikFullIdx = WavevectorIndex(ikFull);
 
-      StateIndex isFullIdx(fbs.getIndex(ikFullIdx,ibIdx));
+      StateIndex isFullIdx(fbs.getIndex(ikFullIdx, ibIdx));
       Eigen::Vector3d v2 = fbs.getGroupVelocity(isFullIdx);
       Eigen::Vector3d q2 = fbs.getWavevector(ikFullIdx);
 
-      q = points.bzToWs(q,Points::cartesianCoordinates);
-      q2 = points.bzToWs(q2,Points::cartesianCoordinates);
+      q = points.bzToWs(q, Points::cartesianCoordinates);
+      q2 = points.bzToWs(q2, Points::cartesianCoordinates);
 
-      double diff = (q-q2).squaredNorm();
+      double diff = (q - q2).squaredNorm();
       EXPECT_NEAR(diff, 0., 1.0e-6);
 
-      for (int i : {0,1,2}) {
-        double diff2 = std::abs(v(i) - v2(i))*velocityRyToSi;
+      for (int i : {0, 1, 2}) {
+        double diff2 = std::abs(v(i) - v2(i)) * velocityRyToSi;
         EXPECT_NEAR(diff2, 0., 0.001);
       }
     }
@@ -182,19 +184,19 @@ TEST(ABS, Symmetries) {
       WavevectorIndex ikIdx = std::get<0>(abs.getIndex(isIdx));
       Eigen::Vector3d vIrr = abs.getGroupVelocity(isIdx);
       auto rotations = abs.getRotationsStar(ikIdx);
-      for ( const Eigen::Matrix3d& r : rotations) {
+      for (const Eigen::Matrix3d &r : rotations) {
         Eigen::Vector3d v = r * vIrr;
         x += v;
       }
     }
-    for (int i : {0,1,2}) {
+    for (int i : {0, 1, 2}) {
       EXPECT_NEAR(x(i), 0., 1.0e-3);
     }
   }
 
   // now we test getRotationToIrreducible, which is used in the scattering
   // it's used to map a reducible point to a irreducible one
-  for (long ik = 0; ik<abs.getNumPoints(); ik++) {
+  for (long ik = 0; ik < abs.getNumPoints(); ik++) {
     WavevectorIndex ikIdx(ik);
     Eigen::Vector3d k = abs.getWavevector(ikIdx);
 
@@ -206,11 +208,10 @@ TEST(ABS, Symmetries) {
     Eigen::Vector3d kIrr = abs.getWavevector(ikIrrIdx);
     Eigen::Vector3d k2 = rot * k;
 
-    k2 = points.bzToWs(k2,Points::cartesianCoordinates);
-    kIrr = points.bzToWs(kIrr,Points::cartesianCoordinates);
+    k2 = points.bzToWs(k2, Points::cartesianCoordinates);
+    kIrr = points.bzToWs(kIrr, Points::cartesianCoordinates);
 
-    double diff = (k2-kIrr).squaredNorm();
+    double diff = (k2 - kIrr).squaredNorm();
     EXPECT_NEAR(diff, 0., 1.0e-6);
   }
-
 }

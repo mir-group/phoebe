@@ -1,5 +1,4 @@
 #include "crystal.h"
-#include "qe_input_parser.h"
 #include "gtest/gtest.h"
 
 TEST(Crystal, Test1) {
@@ -15,7 +14,7 @@ TEST(Crystal, Test1) {
   Eigen::VectorXi atomicSpecies(2);
   atomicSpecies << 0, 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
   int dimensionality = 3;

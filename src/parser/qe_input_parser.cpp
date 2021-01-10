@@ -369,8 +369,8 @@ std::vector<std::string> split(const std::string &s, char delimiter) {
   std::istringstream tokenStream(s);
 
   if (delimiter == ' ') {
-    for (std::string s; tokenStream >> s;) {
-      tokens.push_back(s);
+    for (std::string s2; tokenStream >> s2;) {
+      tokens.push_back(s2);
     }
   } else {
     while (std::getline(tokenStream, token, delimiter)) {
@@ -388,7 +388,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   //	in real space.
 
   std::string fileName = context.getPhD2FileName();
-  if (fileName == "") {
+  if (fileName.empty()) {
     Error e("Must provide a D2 file name", 1);
   }
 
@@ -428,8 +428,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
       for (int j = 0; j < 3; j++) {
         directUnitCell(j, i) = std::stod(lineSplit[j]);
       }
-    };
-  };
+    }
+  }
 
   // generate the unit cell vectors (also for ibrav != 0)
   latgen(ibrav, celldm, directUnitCell);
@@ -442,7 +442,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
     lineSplit = split(line, '\'');
     speciesNames.push_back(lineSplit[1]);
     speciesMasses(i) = std::stod(lineSplit[2]); // in rydbergs
-  };
+  }
 
   //  we read the atomic positions
   // in the file, they appear in crystal coordinates
@@ -554,7 +554,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
                            forceConstants, context.getSumRuleD2());
 
   return {crystal, dynamicalMatrix};
-};
+}
 
 bool QEParser::isQuantumEspressoXml(const std::string &fileName) {
   if (fileName.empty()) {
@@ -610,7 +610,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   Eigen::VectorXd speciesMasses(numElements);
   int i = 0;
   for (pugi::xml_node species : atomicSpeciesXML.children("species")) {
-    speciesNames.push_back(species.attribute("name").value());
+    speciesNames.emplace_back(species.attribute("name").value());
     speciesMasses(i) = species.child("mass").text().as_double(); // in amu
     i += 1;
   }
@@ -677,7 +677,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   int numElectrons = bandStructureXML.child("nelec").text().as_int();
   double homo =
       bandStructureXML.child("highestOccupiedLevel").text().as_double();
-  homo *= 2.; // conversion from Hartree to Rydbergs
+  homo *= 2.; // conversion from Hartree to Rydberg
   int numIrredPoints = bandStructureXML.child("nks").text().as_int();
 
   pugi::xml_node startingKPoints = bandStructureXML.child("starting_k_points");
@@ -752,7 +752,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
     i += 1;
   }
 
-  // QE XML energies are in Hartree units. Must convert to rydbergs
+  // QE XML energies are in Hartree units. Must convert to rydberg
   irredEnergies *= 2.;
 
   // Now we do postprocessing
@@ -775,7 +775,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   Eigen::Vector3d pointCoords;
   Eigen::VectorXd thisEnergies(numBands);
   for (int ik = 0; ik < numIrredPoints; ik++) {
-    // note: kpoints in the XML files are not ordered in the same way
+    // note: k-points in the XML files are not ordered in the same way
     // as in the scf.in file
     pointCoords = irredPoints.col(ik);
     thisEnergies = irredEnergies.row(ik);
@@ -794,7 +794,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
                                fourierCutoff);
 
   return {crystal, electronH0};
-};
+}
 
 std::tuple<Crystal, ElectronH0Wannier>
 QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
@@ -802,7 +802,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
   std::string fileName = context.getElectronH0Name();
 
-  if (fileName == "") {
+  if (fileName.empty()) {
     Error e("Must provide the Wannier90 TB file name", 1);
   }
 
@@ -829,7 +829,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
       // unit cell is written in angstrom
       directUnitCell_(j, i) = std::stod(lineSplit[j]) / distanceBohrToAng;
     }
-  };
+  }
 
   // Next, we the number of Wannier functions / bands, after disentanglement
   std::getline(infile, line);
@@ -846,14 +846,16 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     numLines += 1;
   Eigen::VectorXd vectorsDegeneracies(numVectors);
   vectorsDegeneracies.setZero();
-  int j = 0;
-  for (int i = 0; i < numLines; i++) {
-    std::getline(infile, line);
-    lineSplit = split(line, ' ');
-    for (auto x : lineSplit) {
-      int deg = std::stoi(x);
-      vectorsDegeneracies(j) = double(deg);
-      j += 1;
+  {
+    int j = 0;
+    for (int i = 0; i < numLines; i++) {
+      std::getline(infile, line);
+      lineSplit = split(line, ' ');
+      for (const auto& x : lineSplit) {
+        int deg = std::stoi(x);
+        vectorsDegeneracies(j) = double(deg);
+        j += 1;
+      }
     }
   }
 
@@ -945,7 +947,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     Eigen::VectorXd speciesMasses(speciesNames.size());
     PeriodicTable periodicTable;
     int i = 0;
-    for (auto speciesName : speciesNames) {
+    for (const auto& speciesName : speciesNames) {
       speciesMasses[i] = periodicTable.getMass(speciesName);
       i += 1;
     }
@@ -955,4 +957,4 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
     return {crystal, electronH0};
   }
-};
+}
