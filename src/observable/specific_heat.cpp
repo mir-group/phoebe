@@ -10,7 +10,7 @@ SpecificHeat::SpecificHeat(Context &context_, StatisticsSweep &statisticsSweep_,
                            Crystal &crystal_, BaseBandStructure &bandStructure_)
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
-  scalar = Eigen::VectorXd::Zero(numCalcs);
+  scalar = Eigen::VectorXd::Zero(numCalculations);
 }
 
 // copy constructor
@@ -36,13 +36,13 @@ void SpecificHeat::calc() {
     norm /= context.getKMesh().prod();
   }
   scalar.setZero();
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     double chemPot = calcStat.chemicalPotential;
 
     double sum = 0.;
-#pragma omp parallel for reduction(+ : sum)
+#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot)
     for (int is = 0; is < bandStructure.getNumStates(); is++) {
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
@@ -76,7 +76,7 @@ void SpecificHeat::print() {
     std::cout << "Electron specific heat (" << units << ")\n";
   }
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
@@ -109,7 +109,7 @@ void SpecificHeat::outputToJSON(const std::string &outFileName) {
 
   std::vector<double> temps;
   std::vector<double> specificHeat;
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
     // store temperatures
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);

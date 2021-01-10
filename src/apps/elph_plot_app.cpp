@@ -66,17 +66,17 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     // I need to get the eigenvectors at these three wavevectors
 
-    auto t3 = electronH0.diagonalizeFromCoords(k1C);
+    auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
     auto eigenVector1 = std::get<1>(t3);
 
-    auto t4 = electronH0.diagonalizeFromCoords(k2C);
+    auto t4 = electronH0.diagonalizeFromCoordinates(k2C);
     auto eigenVector2 = std::get<1>(t4);
     std::vector<Eigen::MatrixXcd> eigenVectors2;
     eigenVectors2.push_back(eigenVector2);
     std::vector<Eigen::Vector3d> k2Cs;
     k2Cs.push_back(k2C);
 
-    auto t5 = phononH0.diagonalizeFromCoords(q3C);
+    auto t5 = phononH0.diagonalizeFromCoordinates(q3C);
     auto eigenVector3 = std::get<1>(t5);
     std::vector<Eigen::MatrixXcd> eigenVectors3;
     eigenVectors3.push_back(eigenVector3);

@@ -45,13 +45,13 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   q2.setZero();
   q3.setZero();
 
-  auto tup1 = phononH0.diagonalizeFromCoords(q1);
+  auto tup1 = phononH0.diagonalizeFromCoordinates(q1);
   auto energies1 = std::get<0>(tup1);
   auto ev1 = std::get<1>(tup1);
-  auto tup2 = phononH0.diagonalizeFromCoords(q2);
+  auto tup2 = phononH0.diagonalizeFromCoordinates(q2);
   auto energies2 = std::get<0>(tup2);
   auto ev2 = std::get<1>(tup2);
-  auto tup3 = phononH0.diagonalizeFromCoords(q3);
+  auto tup3 = phononH0.diagonalizeFromCoordinates(q3);
   auto energies3 = std::get<0>(tup3);
   auto ev3 = std::get<1>(tup3);
 

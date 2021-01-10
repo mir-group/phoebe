@@ -71,7 +71,7 @@ PhononH0::PhononH0(const PhononH0 &that)
       speciesMasses(that.speciesMasses), atomicPositions(that.atomicPositions),
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
       qCoarseGrid(that.qCoarseGrid), forceConstants(that.forceConstants),
-      wscache(that.wscache), nr1Big(that.nr1Big), nr2Big(that.nr2Big),
+      wsCache(that.wsCache), nr1Big(that.nr1Big), nr2Big(that.nr2Big),
       nr3Big(that.nr3Big), numBravaisVectors(that.numBravaisVectors),
       bravaisVectors(that.bravaisVectors), weights(that.weights),
       mat2R(that.mat2R) {}
@@ -93,7 +93,7 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     bornCharges = that.bornCharges;
     qCoarseGrid = that.qCoarseGrid;
     forceConstants = that.forceConstants;
-    wscache = that.wscache;
+    wsCache = that.wsCache;
     nr1Big = that.nr1Big;
     nr2Big = that.nr2Big;
     nr3Big = that.nr3Big;
@@ -113,20 +113,20 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalize(Point &point) {
   Eigen::Vector3d q = point.getCoordinates(Points::cartesianCoordinates);
   bool withMassScaling = true;
-  auto tup = diagonalizeFromCoords(q, withMassScaling);
+  auto tup = diagonalizeFromCoordinates(q, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
   return {energies, eigenvectors};
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q) {
+PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q) {
   bool withMassScaling = true;
-  return diagonalizeFromCoords(q, withMassScaling);
+  return diagonalizeFromCoordinates(q, withMassScaling);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
+PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
                                 const bool &withMassScaling) {
   // to be executed at every q-point to get phonon frequencies and wavevectors
 
@@ -157,7 +157,7 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
   }
 
   // finally, the non-analytic term from Born charges
-  if (!loto_2d && na_ifc) {
+  if (!loTo2d && na_ifc) {
     Eigen::VectorXd qHat = q;
     if (abs(qHat(0) - round(qHat(0))) <= 1.0e-6 &&
         abs(qHat(1) - round(qHat(1))) <= 1.0e-6 &&
@@ -174,7 +174,7 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
 
   // once everything is ready, here we scale by masses and diagonalize
 
-  auto tup = dynDiag(dyn);
+  auto tup = dynDiagonalize(dyn);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
 
@@ -195,7 +195,7 @@ PhononH0::diagonalizeFromCoords(Eigen::Vector3d &q,
   }
 
   return {energies, eigenvectors};
-};
+}
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
                                      bool &withEigenvectors,
@@ -253,7 +253,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
     rws.col(i) = tmpResult.col(i);
   }
 
-  // now, I also prepare the wscache, which is used to accelerate
+  // now, I also prepare the wsCache, which is used to accelerate
   // the shortRange() calculation
 
   Eigen::Tensor<double, 5> wscache_(2 * nr3Big + 1, 2 * nr2Big + 1,
@@ -304,7 +304,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
     }
   }
   // save as class member
-  wscache = wscache_;
+  wsCache = wscache_;
 }
 
 double PhononH0::wsWeight(const Eigen::VectorXd &r,
@@ -396,7 +396,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     Error e("wrong value for sign", 1);
   }
 
-  if (loto_2d) {
+  if (loTo2d) {
     fac = double(sign) * e2 / volumeUnitCell / reciprocalUnitCell(3, 3);
     reff.setZero();
     for (int i : {0, 1}) {
@@ -425,7 +425,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         g(2) = double(m1) * reciprocalUnitCell(2, 0) + double(m2) * reciprocalUnitCell(2, 1) +
             double(m3) * reciprocalUnitCell(2, 2);
 
-        if (loto_2d) {
+        if (loTo2d) {
           geg = g.squaredNorm();
           r = 0.;
           gp2 = g(0) * g(0) + g(1) * g(1);
@@ -439,7 +439,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         }
 
         if (geg > 0. && geg / alpha / 4. < gmax) {
-          if (loto_2d) {
+          if (loTo2d) {
             facgd =
                 fac * exp(-geg / alpha / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
           } else {
@@ -472,7 +472,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
         g += q;
 
-        if (loto_2d) {
+        if (loTo2d) {
           geg = g.squaredNorm();
           r = 0.;
           gp2 = g(0) * g(0) + g(1) * g(1);
@@ -486,7 +486,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         }
 
         if (geg > 0. && geg / alpha / 4. < gmax) {
-          if (loto_2d) {
+          if (loTo2d) {
             facgd =
                 fac * exp(-geg / alpha / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
           } else {
@@ -626,7 +626,7 @@ void PhononH0::reorderDynamicalMatrix() {
         int n1ForCache = n1 + nr1Big;
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
-            if (wscache(n3ForCache, n2ForCache, n1ForCache, nb, na) > 0.) {
+            if (wsCache(n3ForCache, n2ForCache, n1ForCache, nb, na) > 0.) {
               numBravaisVectors += 1;
             }
           }
@@ -651,7 +651,7 @@ void PhononH0::reorderDynamicalMatrix() {
         int n1ForCache = n1 + nr1Big;
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
-            double weight = wscache(n3ForCache, n2ForCache, n1ForCache, nb, na);
+            double weight = wsCache(n3ForCache, n2ForCache, n1ForCache, nb, na);
             if (weight > 0.) {
               weights(iR) = weight;
 
@@ -665,15 +665,15 @@ void PhononH0::reorderDynamicalMatrix() {
               int m1 = mod((n1 + 1), qCoarseGrid(0));
               if (m1 <= 0) {
                 m1 += qCoarseGrid(0);
-              };
+              }
               int m2 = mod((n2 + 1), qCoarseGrid(1));
               if (m2 <= 0) {
                 m2 += qCoarseGrid(1);
-              };
+              }
               int m3 = mod((n3 + 1), qCoarseGrid(2));
               if (m3 <= 0) {
                 m3 += qCoarseGrid(2);
-              };
+              }
               m1 += -1;
               m2 += -1;
               m3 += -1;
@@ -693,7 +693,7 @@ void PhononH0::reorderDynamicalMatrix() {
     }
   }
 
-  wscache.resize(0, 0, 0, 0, 0);
+  wsCache.resize(0, 0, 0, 0, 0);
   forceConstants.resize(0, 0, 0, 0, 0, 0, 0);
 }
 
@@ -723,7 +723,7 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-PhononH0::dynDiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
+PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   // diagonalise the dynamical matrix
   // On input:  speciesMasses = masses, in amu
   // On output: w2 = energies, z = displacements
@@ -776,28 +776,28 @@ PhononH0::dynDiag(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();
 
   return {energies, eigenvectors};
-};
-
-Eigen::Tensor<std::complex<double>, 3>
-PhononH0::diagonalizeVelocity(Point &point) {
-  Eigen::Vector3d coords = point.getCoordinates(Points::cartesianCoordinates);
-  return diagonalizeVelocityFromCoords(coords);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
-PhononH0::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
+PhononH0::diagonalizeVelocity(Point &point) {
+  Eigen::Vector3d coordinates = point.getCoordinates(Points::cartesianCoordinates);
+  return diagonalizeVelocityFromCoordinates(coordinates);
+}
+
+Eigen::Tensor<std::complex<double>, 3>
+PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
 
   // if we are working at gamma, we set all velocities to zero.
-  if (coords.norm() < 1.0e-6) {
+  if (coordinates.norm() < 1.0e-6) {
     return velocity;
   }
 
   bool withMassScaling = false;
 
   // get the eigenvectors and the energies of the q-point
-  auto tup = diagonalizeFromCoords(coords, withMassScaling);
+  auto tup = diagonalizeFromCoordinates(coordinates, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
 
@@ -807,16 +807,16 @@ PhononH0::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
   double deltaQ = 1.0e-8;
   for (int i = 0; i < 3; i++) {
     // define q+ and q- from finite differences.
-    Eigen::Vector3d qPlus = coords;
-    Eigen::Vector3d qMinus = coords;
+    Eigen::Vector3d qPlus = coordinates;
+    Eigen::Vector3d qMinus = coordinates;
     qPlus(i) += deltaQ;
     qMinus(i) -= deltaQ;
 
     // diagonalize the dynamical matrix at q+ and q-
-    auto tup2 = diagonalizeFromCoords(qPlus, withMassScaling);
+    auto tup2 = diagonalizeFromCoordinates(qPlus, withMassScaling);
     auto enPlus = std::get<0>(tup2);
     auto eigPlus = std::get<1>(tup2);
-    auto tup1 = diagonalizeFromCoords(qMinus, withMassScaling);
+    auto tup1 = diagonalizeFromCoordinates(qMinus, withMassScaling);
     auto enMinus = std::get<0>(tup1);
     auto eigMinus = std::get<1>(tup1);
 

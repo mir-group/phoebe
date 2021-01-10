@@ -118,14 +118,14 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Fourier::diagonalize(
     Point &point) {
   Eigen::Vector3d coordinates =
       point.getCoordinates(Points::cartesianCoordinates);
-  auto tup = diagonalizeFromCoords(coordinates);
+  auto tup = diagonalizeFromCoordinates(coordinates);
   auto energies = std::get<0>(tup);
   auto eigenVectors = std::get<1>(tup);
   return {energies, eigenVectors};
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-ElectronH0Fourier::diagonalizeFromCoords(Eigen::Vector3d &wavevector) {
+ElectronH0Fourier::diagonalizeFromCoordinates(Eigen::Vector3d &wavevector) {
   Eigen::MatrixXcd eigenVectors(1, 1);
   eigenVectors.setZero();
   Eigen::VectorXd energies(numBands);
@@ -139,15 +139,15 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Fourier::diagonalizeVelocity(
     Point &point) {
   Eigen::Vector3d coordinates =
       point.getCoordinates(Points::cartesianCoordinates);
-  return diagonalizeVelocityFromCoords(coordinates);
+  return diagonalizeVelocityFromCoordinates(coordinates);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
-ElectronH0Fourier::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
+ElectronH0Fourier::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
   for (int ib = 0; ib < numBands; ib++) {
-    Eigen::Vector3d v = getGroupVelocityFromCoords(coords, ib);
+    Eigen::Vector3d v = getGroupVelocityFromCoords(coordinates, ib);
     for (int i = 0; i < 3; i++) {
       velocity(ib, ib, i) = v(i);
     }

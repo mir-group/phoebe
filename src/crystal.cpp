@@ -28,19 +28,19 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   volumeUnitCell = calcVolume(directUnitCell);
 
   if (volumeUnitCell <= 0.) {
-    Error e("Unexpected non positive volume");
+    Error("Unexpected non positive volume");
   }
 
   dimensionality = dimensionality_;
 
   if (atomicSpecies_.size() != atomicPositions_.rows()) {
-    Error e("atomic species and positions are not aligned");
+    Error("atomic species and positions are not aligned");
   }
   if (atomicPositions_.cols() != 3) {
-    Error e("atomic positions need three coordinates");
+    Error("atomic positions need three coordinates");
   }
   if ((int)speciesMasses_.size() != (int)speciesNames_.size()) {
-    Error e("species masses and names are not aligned");
+    Error("species masses and names are not aligned");
   }
 
   atomicSpecies = atomicSpecies_;
@@ -109,7 +109,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     delete[] positionSPG;
 
     if (numSymmetries == 0) {
-      Error e("SPGlib failed at recognizing symmetries");
+      Error("SPGlib failed at recognizing symmetries");
     }
 
     if (mpi->mpiHead()) {
@@ -384,7 +384,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   // Note: we expect shift to be in cartesian coordinates!
 
   if (shift.rows() != 3) {
-    Error e("shift should have at least 3 cartesian coordinates");
+    Error("shift should have at least 3 cartesian coordinates");
   }
   int shiftDims = shift.cols();
 

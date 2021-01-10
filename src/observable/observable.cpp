@@ -4,7 +4,7 @@
 Observable::Observable(Context &context_, StatisticsSweep &statisticsSweep_,
                        Crystal &crystal_)
     : context(context_), statisticsSweep(statisticsSweep_), crystal(crystal_) {
-  numCalcs = statisticsSweep.getNumCalculations();
+  numCalculations = statisticsSweep.getNumCalculations();
   numChemPots = statisticsSweep.getNumChemicalPotentials();
   numTemps = statisticsSweep.getNumTemperatures();
   dimensionality = crystal.getDimensionality();
@@ -17,14 +17,14 @@ Observable::Observable(const Observable &that)
   dimensionality = that.dimensionality;
   numChemPots = that.numChemPots;
   numTemps = that.numTemps;
-  numCalcs = that.numCalcs;
+  numCalculations = that.numCalculations;
   scalar = that.scalar;
   vectord = that.vectord;
   tensordxd = that.tensordxd;
   tensordxdxdxd = that.tensordxdxdxd;
 }
 
-// copy assigmnent
+// copy assignment
 Observable &Observable::operator=(const Observable &that) {
   if (this != &that) {
     context = that.context;
@@ -32,7 +32,7 @@ Observable &Observable::operator=(const Observable &that) {
     crystal = that.crystal;
     numChemPots = that.numChemPots;
     numTemps = that.numTemps;
-    numCalcs = that.numCalcs;
+    numCalculations = that.numCalculations;
     scalar = that.scalar;
     vectord = that.vectord;
     tensordxd = that.tensordxd;
@@ -41,11 +41,11 @@ Observable &Observable::operator=(const Observable &that) {
   return *this;
 }
 
-int Observable::glob2Loc(const ChemPotIndex &imu, const TempIndex &it) {
+int Observable::glob2Loc(const ChemPotIndex &imu, const TempIndex &it) const {
   return compress2Indices(imu.get(), it.get(), numChemPots, numTemps);
 }
 
-std::tuple<ChemPotIndex, TempIndex> Observable::loc2Glob(const int &i) {
+std::tuple<ChemPotIndex, TempIndex> Observable::loc2Glob(const int &i) const {
   auto tup = decompress2Indices(i, numChemPots, numTemps);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
@@ -61,17 +61,17 @@ Observable Observable::operator-(const Observable &that) {
 void Observable::baseOperatorMinus(Observable &newObservable,
                                    const Observable &that) {
   if (whichType() == isScalar) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       newObservable.scalar(is) = scalar(is) - that.scalar(is);
     }
   } else if (whichType() == isVector) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         newObservable.vectord(is, i) = vectord(is, i) - that.vectord(is, i);
       }
     }
   } else if (whichType() == is2Tensor) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           newObservable.tensordxd(is, i, j) =
@@ -80,7 +80,7 @@ void Observable::baseOperatorMinus(Observable &newObservable,
       }
     }
   } else if (whichType() == is4Tensor) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {
@@ -99,21 +99,21 @@ void Observable::baseOperatorMinus(Observable &newObservable,
 int Observable::whichType() { return isScalar; }
 
 Eigen::VectorXd Observable::getNorm() {
-  Eigen::VectorXd norm(numCalcs);
+  Eigen::VectorXd norm(numCalculations);
   norm.setZero();
   if (whichType() == isScalar) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       norm(is) = abs(scalar(is));
     }
   } else if (whichType() == isVector) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         norm(is) += vectord(is, i) * vectord(is, i);
       }
       norm(is) = sqrt(norm(is)) / double(dimensionality);
     }
   } else if (whichType() == is2Tensor) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           norm(is) += tensordxd(is, i, j) * tensordxd(is, i, j);
@@ -122,7 +122,7 @@ Eigen::VectorXd Observable::getNorm() {
       norm(is) = sqrt(norm(is)) / double(dimensionality * dimensionality);
     }
   } else if (whichType() == is4Tensor) {
-    for (int is = 0; is < numCalcs; is++) {
+    for (int is = 0; is < numCalculations; is++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {

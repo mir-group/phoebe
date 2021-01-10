@@ -17,7 +17,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> HarmonicHamiltonian::diagonalize(
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d &k) {
+HarmonicHamiltonian::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
   (void)k;
   return {Eigen::VectorXd::Zero(1), Eigen::MatrixXcd::Zero(1, 1)};
 }
@@ -25,12 +25,12 @@ HarmonicHamiltonian::diagonalizeFromCoords(Eigen::Vector3d &k) {
 Eigen::Tensor<std::complex<double>, 3> HarmonicHamiltonian::diagonalizeVelocity(
     Point &point) {
   Eigen::Vector3d k = point.getCoordinates(Points::cartesianCoordinates);
-  return diagonalizeVelocityFromCoords(k);
+  return diagonalizeVelocityFromCoordinates(k);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
-HarmonicHamiltonian::diagonalizeVelocityFromCoords(Eigen::Vector3d &coords) {
-  (void)coords;
+HarmonicHamiltonian::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
+  (void)coordinates;
   Eigen::Tensor<std::complex<double>, 3> c(1, 1, 1);
   c.setZero();
   return c;
@@ -40,7 +40,7 @@ FullBandStructure HarmonicHamiltonian::populate(Points &fullPoints,
                                                 bool &withVelocities,
                                                 bool &withEigenvectors,
                                                 bool isDistributed) {
-  Error e("base populate not implemented");
+  Error("base populate not implemented");
   (void)fullPoints;
   (void)withVelocities;
   (void)withEigenvectors;

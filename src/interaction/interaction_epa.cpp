@@ -40,13 +40,13 @@ InteractionEpa InteractionEpa::parseEpaCoupling(Context &context) {
   // open epa.elph file for reading
   std::ifstream infile(context.getEpaFileName());
   if (!infile) {
-    Error e("epa.elph file not found");
+    Error("epa.elph file not found");
   }
 
   int numElectrons, numSpin;
   infile >> numElectrons >> numSpin;
   if (numSpin != 1) {
-    Error e("Spin not supported in EPA coupling");
+    Error("Spin not supported in EPA coupling");
   }
   context.setNumOccupiedStates(numElectrons);
 

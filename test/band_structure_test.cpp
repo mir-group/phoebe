@@ -75,7 +75,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   // now we check that we get the same eigenvectors in the two different
   // shapes
   auto k = point.getCoordinates(Points::cartesianCoordinates);
-  auto tup2 = phononH0.diagonalizeFromCoords(k);
+  auto tup2 = phononH0.diagonalizeFromCoordinates(k);
   auto ensC = std::get<0>(tup2);
   auto eigvecsC = std::get<1>(tup2);
   x1 = (ens - ensC).norm();

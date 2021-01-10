@@ -10,18 +10,17 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     : PhononThermalConductivity(context_, statisticsSweep_, crystal_,
                                 bandStructure_),
       smaRelTimes(relaxationTimes) {
-  int numCalcs = statisticsSweep.getNumCalculations();
 
   wignerCorrection =
-      Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+      Eigen::Tensor<double, 3>(numCalculations, dimensionality, dimensionality);
   wignerCorrection.setZero();
 
   auto particle = bandStructure.getParticle();
 
   int dimensionality = crystal.getDimensionality();
 
-  Eigen::VectorXd norm(numCalcs);
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  Eigen::VectorXd norm(numCalculations);
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temperature = calcStat.temperature;
     norm(iCalc) = 1. / context.getQMesh().prod() /
@@ -35,9 +34,9 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     auto energies = bandStructure.getEnergies(iqIdx);
     int numBands = energies.size();
 
-    Eigen::MatrixXd bose(numCalcs, numBands);
+    Eigen::MatrixXd bose(numCalculations, numBands);
     for (int ib1 = 0; ib1 < numBands; ib1++) {
-      for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
         double temperature = calcStat.temperature;
         bose(iCalc, ib1) = particle.getPopulation(energies(ib1), temperature);
@@ -56,7 +55,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         int ind1 = bandStructure.stateToBte(is1Idx).get();
         int ind2 = bandStructure.stateToBte(is2Idx).get();
 
-        for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
             for (int ic2 = 0; ic2 < dimensionality; ic2++) {
               double num =
@@ -89,7 +88,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     : PhononThermalConductivity(that), smaRelTimes(that.smaRelTimes),
       wignerCorrection(that.wignerCorrection) {}
 
-// copy assigmnent
+// copy assignment
 WignerPhononThermalConductivity &WignerPhononThermalConductivity::operator=(
     const WignerPhononThermalConductivity &that) {
   PhononThermalConductivity::operator=(that);
@@ -138,7 +137,7 @@ void WignerPhononThermalConductivity::print() {
   std::cout << "\n";
   std::cout << "Wigner Thermal Conductivity (" << units << ")\n";
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
 

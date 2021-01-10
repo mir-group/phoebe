@@ -12,8 +12,9 @@ ElectronViscosity::ElectronViscosity(Context &context_,
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
 
-  tensordxdxdxd = Eigen::Tensor<double, 5>(
-      numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
+  tensordxdxdxd =
+      Eigen::Tensor<double, 5>(numCalculations, dimensionality, dimensionality,
+                               dimensionality, dimensionality);
   tensordxdxdxd.setZero();
 }
 
@@ -41,7 +42,9 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   tensordxdxdxd.setZero();
   auto excludeIndices = tau.excludeIndices;
 
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(bandStructure, tensordxdxdxd, excludeIndices, particle,             \
+           statisticsSweep, tau, norm, spinFactor)
   {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
@@ -53,31 +56,31 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
       Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
 
-      int ibte = bandStructure.stateToBte(isIdx).get();
+      int iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte) !=
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
           excludeIndices.end())
         continue;
 
       auto rots = bandStructure.getRotationsStar(isIdx);
-      for (Eigen::Matrix3d rot : rots) {
+      for (const Eigen::Matrix3d &rot : rots) {
         Eigen::Vector3d vel = rot * velIrr;
         Eigen::Vector3d q = rot * qIrr;
 
-        for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
           auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
           double temperature = calcStat.temperature;
           double chemPot = calcStat.chemicalPotential;
-          double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+          double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
 
           for (int l = 0; l < dimensionality; l++) {
             for (int k = 0; k < dimensionality; k++) {
               for (int j = 0; j < dimensionality; j++) {
                 for (int i = 0; i < dimensionality; i++) {
                   tmpTensor(iCalc, i, j, k, l) +=
-                      q(i) * vel(j) * q(k) * vel(l) * bosep1 *
-                      tau(iCalc, 0, ibte) / temperature * norm;
+                      q(i) * vel(j) * q(k) * vel(l) * boseP1 *
+                      tau(iCalc, 0, iBte) / temperature * norm;
                 }
               }
             }
@@ -90,7 +93,7 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       for (int k = 0; k < dimensionality; k++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int i = 0; i < dimensionality; i++) {
-            for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+            for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
               tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
             }
           }
@@ -100,11 +103,10 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   }
   mpi->allReduceSum(&tensordxdxdxd);
 }
-
 void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                                          ParallelMatrix<double> &eigenvectors) {
-  if (numCalcs > 1) {
-    Error e("Viscosity for relaxons only for 1 temperature");
+  if (numCalculations > 1) {
+    Error("Viscosity for relaxons only for 1 temperature");
   }
 
   // we decide to skip relaxon states
@@ -122,12 +124,12 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   double temp = calcStat.temperature;
   double chemPot = calcStat.chemicalPotential;
 
-  Eigen::Tensor<double,3> fRelaxons(3, 3, bandStructure.getNumStates());
+  Eigen::Tensor<double, 3> fRelaxons(3, 3, bandStructure.getNumStates());
   fRelaxons.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
-    if ( eigenvalues(alpha) <= 0. ) {
+    if (eigenvalues(alpha) <= 0.) {
       continue;
     }
     StateIndex isIdx(is);
@@ -143,7 +145,7 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     }
   }
 
-  Eigen::Tensor<double,3> f(3, 3, bandStructure.getNumStates());
+  Eigen::Tensor<double, 3> f(3, 3, bandStructure.getNumStates());
   f.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
     int is = std::get<0>(tup0);
@@ -170,8 +172,7 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
           for (int l = 0; l < dimensionality; l++) {
             tensordxdxdxd(iCalc, i, j, k, l) +=
                 0.5 * pop * norm *
-                (vec(i) * vel(j) * f(k, l, is) +
-                 vec(i) * vel(l) * f(k, j, is));
+                (vec(i) * vel(j) * f(k, l, is) + vec(i) * vel(l) * f(k, j, is));
           }
         }
       }
@@ -197,13 +198,13 @@ void ElectronViscosity::print() {
   std::cout << "Electron Viscosity (" << units << ")\n";
   std::cout << "i, j, k, eta[i,j,k,1,0], eta[i,j,k,1], eta[i,j,k,2]\n";
 
-  double conversion = pow(hBarSi, 2) // momentum is hbar q
+  double conversion = pow(hBarSi, 2) // momentum is hBar q
                       / pow(distanceRyToSi, dimensionality) // volume conversion
                       * rydbergSi /
                       hBarSi       // conversion time (q^2 v^2 tau = [time])
                       / rydbergSi; // temperature conversion
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
@@ -229,7 +230,7 @@ void ElectronViscosity::print() {
   }
 }
 
-void ElectronViscosity::outputToJSON(std::string outFileName) {
+void ElectronViscosity::outputToJSON(const std::string &outFileName) {
 
   if (mpi->mpiHead()) {
 
@@ -243,17 +244,17 @@ void ElectronViscosity::outputToJSON(std::string outFileName) {
     }
 
     double conversion =
-        pow(hBarSi, 2)                        // momentum is hbar q
+        pow(hBarSi, 2)                        // momentum is hBar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
         * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
         / rydbergSi;         // temperature conversion
 
     std::vector<double> temps;
-    // this vector mess is of shape (iCalcs, irows, icols, k, l)
+    // this vector mess is of shape (iCalculations, iRows, iColumns, k, l)
     std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
         viscosity;
 
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
       // store temperatures
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);

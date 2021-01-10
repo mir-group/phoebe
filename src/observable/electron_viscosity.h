@@ -41,7 +41,7 @@ public:
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string& outFileName);
 
   /** Computes the viscosity from the scattering matrix eigenvectors.
    * Stores it internally.
@@ -54,7 +54,7 @@ public:
                         ParallelMatrix<double> &eigenvectors);
 
 protected:
-  virtual int whichType();
+  int whichType() override;
   BaseBandStructure &bandStructure;
 };
 

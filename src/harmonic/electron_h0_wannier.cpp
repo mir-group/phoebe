@@ -83,7 +83,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalize(
         Point &point) {
     Eigen::Vector3d k = point.getCoordinates(Points::cartesianCoordinates);
 
-    auto tup = diagonalizeFromCoords(k);
+    auto tup = diagonalizeFromCoordinates(k);
     auto energies = std::get<0>(tup);
     auto eigenvectors = std::get<1>(tup);
 
@@ -93,7 +93,7 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalize(
     return {energies, eigenvectors};
 }
 
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFromCoords(
+std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFromCoordinates(
         Eigen::Vector3d &k) {
 
     Eigen::MatrixXcd h0K(numBands, numBands);
@@ -111,9 +111,9 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFrom
         }
     }
 
-    Eigen::SelfAdjointEigenSolver < Eigen::MatrixXcd > eigensolver(h0K);
-    Eigen::VectorXd energies = eigensolver.eigenvalues();
-    Eigen::MatrixXcd eigenvectors = eigensolver.eigenvectors();
+    Eigen::SelfAdjointEigenSolver < Eigen::MatrixXcd > eigenSolver(h0K);
+    Eigen::VectorXd energies = eigenSolver.eigenvalues();
+    Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
 
     return {energies, eigenvectors};
 }
@@ -121,11 +121,11 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> ElectronH0Wannier::diagonalizeFrom
 Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocity(
         Point &point) {
   Eigen::Vector3d coords = point.getCoordinates(Points::cartesianCoordinates);
-  return diagonalizeVelocityFromCoords(coords);
+  return diagonalizeVelocityFromCoordinates(coords);
 }
 
-Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFromCoords(
-        Eigen::Vector3d &coords) {
+Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
+        Eigen::Vector3d &coordinates) {
     double delta = 1.0e-8;
     double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
 
@@ -133,12 +133,12 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     velocity.setZero();
 
     // if we are working at gamma, we set all velocities to zero.
-    if (coords.norm() < 1.0e-6) {
+    if (coordinates.norm() < 1.0e-6) {
         return velocity;
     }
 
     // get the eigenvectors and the energies of the q-point
-    auto tup = diagonalizeFromCoords(coords);
+    auto tup = diagonalizeFromCoordinates(coordinates);
     auto energies = std::get<0>(tup);
     auto eigenvectors = std::get<1>(tup);
 
@@ -147,16 +147,16 @@ Eigen::Tensor<std::complex<double>, 3> ElectronH0Wannier::diagonalizeVelocityFro
     // This works better than doing finite differences on the frequencies.
     for (int i = 0; i < 3; i++) {
         // define q+ and q- from finite differences.
-        Eigen::Vector3d qPlus = coords;
-        Eigen::Vector3d qMinus = coords;
+        Eigen::Vector3d qPlus = coordinates;
+        Eigen::Vector3d qMinus = coordinates;
         qPlus(i) += delta;
         qMinus(i) -= delta;
 
         // diagonalize the dynamical matrix at q+ and q-
-        auto tup2 = diagonalizeFromCoords(qPlus);
+        auto tup2 = diagonalizeFromCoordinates(qPlus);
         auto enPlus = std::get<0>(tup2);
         auto eigPlus = std::get<1>(tup2);
-        auto tup1 = diagonalizeFromCoords(qMinus);
+        auto tup1 = diagonalizeFromCoordinates(qMinus);
         auto enMinus = std::get<0>(tup1);
         auto eigMinus = std::get<1>(tup1);
 

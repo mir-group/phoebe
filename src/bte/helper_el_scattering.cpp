@@ -219,7 +219,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
 
       Eigen::Vector3d q3 = k2 - k1;
 
-      auto t1 = h0.diagonalizeFromCoords(q3);
+      auto t1 = h0.diagonalizeFromCoordinates(q3);
       auto energies3 = std::get<0>(t1);
       auto eigenVectors3 = std::get<1>(t1);
 
@@ -239,7 +239,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       v3s.setZero();
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmp =
-            h0.diagonalizeVelocityFromCoords(q3);
+            h0.diagonalizeVelocityFromCoordinates(q3);
 
         // we only need the diagonal elements of the velocity operator
         // i.e. the group velocity

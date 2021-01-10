@@ -47,7 +47,8 @@ class HarmonicHamiltonian {
    * @return eigenvectors: a complex matrix of size (numBands,numBands) with
    * the eigenvectors, ordered in columns, computed at the input wavevector.
    */
-  virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+  virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+  diagonalizeFromCoordinates(
       Eigen::Vector3d &k);
 
   /** Computes the velocity operator (if possible, otherwise just its
@@ -60,8 +61,9 @@ class HarmonicHamiltonian {
    */
   virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(
       Point &point);
-  virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords);
+  virtual Eigen::Tensor<std::complex<double>, 3>
+  diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates);
 
   /** Method for the construction of the band structure on a grid of
    * of wavevectors of the Brillouin zone. In particular, we save the

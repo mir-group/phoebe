@@ -97,11 +97,11 @@ TEST (WannierH0, Velocity) {
   double deltaK = 0.00025;
   Eigen::Vector3d k2;
   k2 << deltaK, 0., 0.;
-  auto v2 = electronH0.diagonalizeVelocityFromCoords(k2);
+  auto v2 = electronH0.diagonalizeVelocityFromCoordinates(k2);
 
-  auto tup1 = electronH0.diagonalizeFromCoords(k1);
+  auto tup1 = electronH0.diagonalizeFromCoordinates(k1);
   auto ens1 = std::get<0>(tup1);
-  auto tup2 = electronH0.diagonalizeFromCoords(k2);
+  auto tup2 = electronH0.diagonalizeFromCoordinates(k2);
   auto ens2 = std::get<0>(tup2);
 
   // we hard code the index of the top of the valence band

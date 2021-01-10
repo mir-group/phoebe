@@ -682,7 +682,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     int ikIrr = std::get<0>(t);
     Eigen::Vector3d kIrr =
         points_.getPointCoordinates(ikIrr, Points::cartesianCoordinates);
-    auto t2 = h0.diagonalizeFromCoords(kIrr);
+    auto t2 = h0.diagonalizeFromCoordinates(kIrr);
     Eigen::VectorXd theseEnergies = std::get<0>(t2);
 
     // ens is empty if no "relevant" energy is found.

@@ -1103,7 +1103,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
   for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
     // get U
     auto k1C = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
-    auto t3 = electronH0.diagonalizeFromCoords(k1C);
+    auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
     auto en = std::get<0>(t3);
     auto u = std::get<1>(t3);
 
@@ -1339,7 +1339,7 @@ void ElPhQeToPhoebeApp::testBackTransform(
       std::vector<Eigen::MatrixXcd> eigenVectors2;
       eigenVectors2.push_back(eigenVector2);
 
-      auto t = phononH0.diagonalizeFromCoords(q3C);
+      auto t = phononH0.diagonalizeFromCoordinates(q3C);
       auto eigenVector3 = std::get<1>(t);
       std::vector<Eigen::MatrixXcd> eigenVectors3;
       eigenVectors3.push_back(eigenVector3);

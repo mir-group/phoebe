@@ -55,7 +55,7 @@ protected:
   int numChemPots;
   int numTemps;
   int dimensionality = 3;
-  int numCalcs;
+  int numCalculations;
 
   // whichType, to be reimplemented in the subclasses, decides what kind of
   // property must be stored. Returns one of the const int defined below
@@ -75,8 +75,8 @@ protected:
   // (de)combine the indices on chemical potentials and temperature.
   // used to reduce the number of indices of observables stored in memory.
   // We use strong typing to avoid confusing indices.
-  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it);
-  std::tuple<ChemPotIndex, TempIndex> loc2Glob(const int &i);
+  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it) const;
+  std::tuple<ChemPotIndex, TempIndex> loc2Glob(const int &i) const;
 
   // base method for the - operator. It is separated because each subclass
   // should instantiate a dedicated object for the difference.

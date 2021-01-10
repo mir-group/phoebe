@@ -245,10 +245,10 @@ void Helper3rdState::prepare(const std::vector<int>& q1Indexes,
       Eigen::Vector3d q3Plus = q1 + q2;
       Eigen::Vector3d q3Minus = q1 - q2;
 
-      auto tup = h0->diagonalizeFromCoords(q3Plus);
+      auto tup = h0->diagonalizeFromCoordinates(q3Plus);
       auto energies3Plus = std::get<0>(tup);
       auto eigenVectors3Plus = std::get<1>(tup);
-      auto tup1 = h0->diagonalizeFromCoords(q3Minus);
+      auto tup1 = h0->diagonalizeFromCoordinates(q3Minus);
       auto energies3Minus = std::get<0>(tup1);
       auto eigenVectors3Minus = std::get<1>(tup1);
 
@@ -279,9 +279,9 @@ void Helper3rdState::prepare(const std::vector<int>& q1Indexes,
       v3sMinus.setZero();
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmpPlus =
-            h0->diagonalizeVelocityFromCoords(q3Plus);
+            h0->diagonalizeVelocityFromCoordinates(q3Plus);
         Eigen::Tensor<std::complex<double>, 3> v3sTmpMinus =
-            h0->diagonalizeVelocityFromCoords(q3Minus);
+            h0->diagonalizeVelocityFromCoordinates(q3Minus);
 
         // we only need the diagonal elements of the velocity operator
         // i.e. the group velocity

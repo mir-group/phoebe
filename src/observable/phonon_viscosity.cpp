@@ -12,16 +12,15 @@ PhononViscosity::PhononViscosity(Context &context_,
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
 
-  tensordxdxdxd = Eigen::Tensor<double, 5>(
-      numCalcs, dimensionality, dimensionality, dimensionality, dimensionality);
+  tensordxdxdxd = Eigen::Tensor<double, 5>(numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   tensordxdxdxd.setZero();
-};
+}
 
 // copy constructor
 PhononViscosity::PhononViscosity(const PhononViscosity &that)
     : Observable(that), bandStructure(that.bandStructure) {}
 
-// copy assigmnent
+// copy assignment
 PhononViscosity &PhononViscosity::operator=(const PhononViscosity &that) {
   Observable::operator=(that);
   if (this != &that) {
@@ -39,7 +38,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 
   auto excludeIndices = tau.excludeIndices;
 
-#pragma omp parallel
+#pragma omp parallel default(none) shared(tensordxdxdxd,bandStructure,excludeIndices,numCalculations,statisticsSweep,particle,norm,tau)
   {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 
@@ -47,10 +46,10 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
     for (int is : bandStructure.parallelIrrStateIterator()) {
 
       auto isIdx = StateIndex(is);
-      int ibte = bandStructure.stateToBte(isIdx).get();
+      int iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), ibte) !=
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
           excludeIndices.end())
         continue;
 
@@ -59,25 +58,25 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
       auto qIrr = bandStructure.getWavevector(isIdx);
 
       auto rotations = bandStructure.getRotationsStar(isIdx);
-      for (Eigen::Matrix3d rotation : rotations) {
+      for (const Eigen::Matrix3d& rotation : rotations) {
 
         Eigen::Vector3d q = rotation * qIrr;
         Eigen::Vector3d vel = rotation * velIrr;
 
-        for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
           auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
           double temperature = calcStat.temperature;
           double chemPot = calcStat.chemicalPotential;
-          double bosep1 = particle.getPopPopPm1(en, temperature, chemPot);
+          double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
 
           for (int i = 0; i < dimensionality; i++) {
             for (int j = 0; j < dimensionality; j++) {
               for (int k = 0; k < dimensionality; k++) {
                 for (int l = 0; l < dimensionality; l++) {
                   tmpTensor(iCalc, i, j, k, l) +=
-                      q(i) * vel(j) * q(k) * vel(l) * bosep1 *
-                      tau(iCalc, 0, ibte) / temperature * norm;
+                      q(i) * vel(j) * q(k) * vel(l) * boseP1 *
+                      tau(iCalc, 0, iBte) / temperature * norm;
                 }
               }
             }
@@ -86,7 +85,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
       }
     }
 #pragma omp critical
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {
@@ -106,7 +105,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
                                        PhScatteringMatrix &sMatrix,
                                        ParallelMatrix<double> &eigenvectors) {
 
-  if (numCalcs > 1) {
+  if (numCalculations > 1) {
     Error e("Viscosity for relaxons only for 1 temperature");
   }
 
@@ -211,7 +210,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
 
   // Eq. 9, Simoncelli PRX (2019)
   tensordxdxdxd.setZero();
-#pragma omp parallel
+#pragma omp parallel default(none) shared(tensordxdxdxd,bandStructure,dimensionality,eigenvalues,w,A,iCalc)
   {
     Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
 #pragma omp for nowait
@@ -269,7 +268,7 @@ void PhononViscosity::print() {
                       hBarSi       // conversion time (q^2 v^2 tau = [time])
                       / rydbergSi; // temperature conversion
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
@@ -295,7 +294,7 @@ void PhononViscosity::print() {
   }
 }
 
-void PhononViscosity::outputToJSON(std::string outFileName) {
+void PhononViscosity::outputToJSON(const std::string& outFileName) {
 
   if (mpi->mpiHead()) {
 
@@ -309,17 +308,17 @@ void PhononViscosity::outputToJSON(std::string outFileName) {
     }
 
     double conversion =
-        pow(hBarSi, 2)                        // momentum is hbar q
+        pow(hBarSi, 2)                        // momentum is hBar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
         * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
         / rydbergSi;         // temperature conversion
 
     std::vector<double> temps;
-    // this vector mess is of shape (iCalcs, irows, icols, k, l)
+    // this vector mess is of shape (iCalculations, iRows, iColumns, k, l)
     std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
         viscosity;
 
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
       // store temperatures
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);

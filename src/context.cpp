@@ -40,7 +40,7 @@ bool parseBool(std::string &line) {
   } else if (s == "1") {
     return true;
   } else {
-    Error e("Couldn't fix boolean value while parsing");
+    Error("Couldn't fix boolean value while parsing");
     return false;
   }
 }
@@ -94,10 +94,10 @@ std::vector<double> parseDoubleList(std::string &line) {
   size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
@@ -133,10 +133,10 @@ std::vector<int> parseIntList(std::string &line) {
   size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseIntList");
+    Error("Error in parseIntList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseIntList");
+    Error("Error in parseIntList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
@@ -165,12 +165,12 @@ std::string parseString(std::string &line) {
     pos1 = line.find_first_of(delimiter);
     pos2 = line.find_last_of(delimiter);
     if (pos1 == std::string::npos) {
-      Error e("Couldn't solve string parsing");
+      Error("Couldn't solve string parsing");
     }
   }
 
   if (pos1 == pos2) {
-    Error e("Error parsing string from user input");
+    Error("Error parsing string from user input");
   }
   std::string x = line.substr(pos1 + 1, pos2 - pos1 - 1);
   return x;
@@ -189,10 +189,10 @@ std::vector<std::string> parseStringList(std::string &line) {
   size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);

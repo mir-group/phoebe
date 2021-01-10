@@ -59,7 +59,7 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    */
   std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point) override;
 
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
       Eigen::Vector3d &wavevector) override;
 
   /** get the electron velocities (in atomic units) at a single k-point.
@@ -70,8 +70,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    * moment, doesn't have any information on the off-diagonal elements.
    */
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords) override;
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates) override;
 
   /** This method constructs an electron band structure.
    * @param points: the object with the list/mesh of wavevectors
