@@ -136,7 +136,6 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
       } 
     } 
   }
-  std::cout << "numBravaisVectors " <<  numBravaisVectors << std::endl; 
 
   // next, we reorder the dynamical matrix along the bravais lattice vectors
   // similarly to what was done in the harmonic class.
@@ -172,7 +171,7 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
             for (int i : {0, 1, 2}) {
               r2(i) = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) +
                    nr3 * directUnitCell(i, 2);
-              ra2(i) = r2(i) + atomicPositions(na, i) - atomicPositions(nb, i);
+              ra2(i) = r2(i) - atomicPositions(na, i) + atomicPositions(nb, i);
             }
 
             // skip vectors which do not contribute
@@ -200,7 +199,7 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
                     for (int i : {0, 1, 2}) {
                       r3(i) = mr1 * directUnitCell(i, 0) + mr2 * directUnitCell(i, 1) +
                            mr3 * directUnitCell(i, 2);
-                      ra3(i) = r3(i) + atomicPositions(na, i) - atomicPositions(nc, i);
+                      ra3(i) = r3(i) - atomicPositions(na, i) + atomicPositions(nc, i);
                     }
                     // continue only if this vector matters        
                     double weightR3 = wsweight(ra3, rws);
@@ -279,7 +278,6 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
     } // close nb loop
   } // close na loop
 
-  std::cout << " done processing " << std::endl;
   /*for(int i =0; i < numBravaisVectors; i++) { 
     std::cout << "bravaisVectors2 " << i << " w " << weights2(i) << " " << bravaisVectors2(0,i) << " " << bravaisVectors2(1,i) << " " << bravaisVectors2(2,i) << std::endl;
   }
@@ -436,7 +434,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   Eigen::MatrixXd bravaisVectors3 = std::get<2>(tup);
   Eigen::VectorXd weights3 = std::get<3>(tup);
 
-  if(mpi->mpiHead()) std::cout << "Done reading in D3.\n" << std::endl;
+  if(mpi->mpiHead()) std::cout << "Successfully parsed anharmonic phono3py files.\n" << std::endl;
 
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, D3, bravaisVectors2, bravaisVectors3, weights2, weights3);

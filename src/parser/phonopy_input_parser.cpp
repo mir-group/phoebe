@@ -59,18 +59,11 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // open input file
   std::ifstream infile(directory+"/disp_fc2.yaml");
-  bool sameSupercell = false;
-  if(infile.is_open()) {
-    if (mpi->mpiHead()) std::cout << "Running using disp_fc2.yaml." << std::endl;
-  }
-  else {
-    sameSupercell = true;
+  // if there's no disp_fc2 file, use disp_fc3 instead
+  if(!infile.is_open()) {
     infile.clear();
     infile.open(directory+"/disp_fc3.yaml");
-    if(infile.is_open()) {
-      if (mpi->mpiHead()) std::cout << "Running using disp_fc3.yaml." << std::endl;
-    }
-    else {
+    if(!infile.is_open()) {
       Error e("disp_fc2.yaml/disp_fc3.yaml file not found at path " + directory, 1);
     }
   }
@@ -367,7 +360,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   }
   #endif
 
-  std::cout << "Done parsing Phonopy files." << std::endl;
+  if(mpi->mpiHead()) std::cout << "Successfully parsed harmonic phonopy files." << std::endl;
 
   // Now we do postprocessing
   long dimensionality = context.getDimensionality();
