@@ -142,7 +142,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     if(line.find("dim: ") != std::string::npos) {
       std::string temp = line.substr(10,5);
       std::istringstream iss(temp);
-      iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
+      iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
     }
     // pause reading here
     if(line.find("physical_unit:") != std::string::npos) break;
@@ -154,7 +154,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   }
 
   // set number of unit cell atoms
-  int numAtoms = numSupAtoms/(qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[0]);
+  int numAtoms = numSupAtoms/(qCoarseGrid(0)*qCoarseGrid(1)*qCoarseGrid(2));
 
   // read the rest of the file to find atomic positions,
   // lattice vectors, and species
@@ -230,7 +230,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // convert supercell positions to cartesian, in bohr
   for(int i = 0; i<numSupAtoms; i++) {
     Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
-    Eigen::Vector3d temp2 = supLattice * temp; // supLattice already converted to Bohr
+    Eigen::Vector3d temp2 = supLattice.transpose() * temp; // supLattice already converted to Bohr
     supPositions(i,0) = temp2(0);
     supPositions(i,1) = temp2(1);
     supPositions(i,2) = temp2(2);
@@ -239,7 +239,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // convert unit cell positions to cartesian, in bohr
   for(int i = 0; i<numAtoms; i++) {
     Eigen::Vector3d temp(atomicPositions(i,0),atomicPositions(i,1),atomicPositions(i,2));
-    Eigen::Vector3d temp2 =  directUnitCell * temp; // lattice already in Bohr
+    Eigen::Vector3d temp2 =  directUnitCell.transpose() * temp; // lattice already in Bohr
     atomicPositions(i,0) = temp2(0);
     atomicPositions(i,1) = temp2(1);
     atomicPositions(i,2) = temp2(2);
@@ -248,7 +248,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // Determine the list of possible R2, R3 vectors
   // the distances from the unit cell to a supercell
   // nCells here is the number of unit cell copies in the supercell
-  int nCells = qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2];
+  int nCells = qCoarseGrid(0)*qCoarseGrid(1)*qCoarseGrid(2);
   Eigen::MatrixXd cellPositions2(3, nCells);
   cellPositions2.setZero();
   for (int icell = 0; icell < nCells; icell++) {
@@ -259,17 +259,76 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       cellPositions2(2,icell) = supPositions(icell,2) - supPositions(0,2);
   }
 
-  //  Read if hasDielectric
-  //bool hasDielectric = false; // TODO for now, we just say no dielectric
+  // If hasDielectric, look for BORN file
+  // ============================================================
+  // the BORN file contains the dielectric matrix on the first line, 
+  // and the BECs of unique atoms on the following lines
+  bool hasDielectric = false;
   Eigen::Matrix3d dielectricMatrix;
   dielectricMatrix.setZero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 
+  infile.clear();
+  infile.open(directory+"/BORN");
+  if(infile.is_open()) {
+    hasDielectric = true;
+    if(mpi->mpiHead()) std::cout << "Using BORN file found in D2 directory." << std::endl;
+    getline(infile,line); 
+
+    // NOTE need to extract the list of which atoms are listed in this file
+    // from the comment on the first line of the file. Unfortuantely, there is
+    // not a better way to do this.
+    std::string temp = line.substr(line.find("atoms")+5);
+    std::vector<int> becList;
+    std::istringstream iss(temp);
+    int i;
+    while(iss>>i) { becList.push_back(i); }
+
+    int atomType = -1;
+    while(infile) {
+      getline(infile, line);
+      // make sure it's not a comment
+      if(line.find("#") != std::string::npos) continue;
+      // make sure it's not blank
+      if(line.find_first_not_of(' ') == std::string::npos) continue;
+  
+      // the first non-comment line in the file is the dielectric matrix
+      if(atomType == -1) {
+        std::istringstream iss(line);
+        iss >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >> dielectricMatrix(0,2) >>  
+          dielectricMatrix(1,0) >> dielectricMatrix(1,1) >> dielectricMatrix(1,2) >> 
+          dielectricMatrix(2,0) >> dielectricMatrix(2,1) >> dielectricMatrix(2,2);
+        atomType++;
+      }
+      else {
+        int numDupes;
+        if(atomType+1 >= becList.size()){ numDupes = numAtoms - (becList[atomType] - 1); }
+        else{ numDupes = becList[atomType+1] - becList[atomType]; }
+        for(int i = 0; i < numDupes; i++) {
+          std::istringstream iss(line);
+     	  int iat = i + (becList[atomType] - 1);
+	  iss >> bornCharges(iat,0,0) >> bornCharges(iat,0,1) >> bornCharges(iat,0,2) >>  
+             bornCharges(iat,1,0) >> bornCharges(iat,1,1) >> bornCharges(iat,1,2) >> 
+             bornCharges(iat,2,0) >> bornCharges(iat,2,1) >> bornCharges(iat,2,2);
+        }
+        atomType++;
+      }
+    }
+  }
+
+// print BECs
+/*  for(int iat = 0; iat< numAtoms; iat++) {
+	  std::cout << bornCharges(iat,0,0) << " " << bornCharges(iat,0,1) << " " << bornCharges(iat,0,2) << " " <<  
+             bornCharges(iat,1,0) << " " << bornCharges(iat,1,1) << " " << bornCharges(iat,1,2) << " " <<
+             bornCharges(iat,2,0) << " " << bornCharges(iat,2,1) << " " << bornCharges(iat,2,2) << std::endl;
+  }
+*/
+
   // Parse the fc2.hdf5 file and read in the dynamical matrix
   // ==========================================================
   #ifndef HDF5_AVAIL
-    Error e("Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
+  Error e("Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
   #else
 
   // set up buffer to read entire matrix
@@ -316,7 +375,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         // atoms in the supercell, and instead use R
         // to find their index.
 
-        // build the R vector associated with this
+	// build the R vector associated with this
         // cell in the supercell
         Eigen::Vector3d R;
         R = r1 * directUnitCell.row(0) +
@@ -326,7 +385,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         // use the find cell function to determine
         // the index of this cell in the list of
         // R vectors (named cellPositions from above)
-        int ir = findRIndex(cellPositions2, R);
+	int ir = findRIndex(cellPositions2, R);
 
         // loop over the first atoms. Because we consider R1=0,
         // these are only primitive unit cell atoms.

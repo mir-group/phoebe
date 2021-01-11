@@ -309,7 +309,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
   // First, read in the information form disp_fc3.yaml
   int numAtoms = crystal.getNumAtoms();
-  int numBands = numAtoms * 3;
 
   // Open disp_fc3 file, read supercell positions, nSupAtoms
   // TODO we need to supply a path rather than a filename,
@@ -425,8 +424,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   }
 
   // reshape to D3 format
-  Eigen::Tensor<double, 5> D3; //(numBands, numBands, numBands, numBravaisVectors, numBravaisVectors );
-  //D3.setZero();
+  Eigen::Tensor<double, 5> D3;
 
   auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid, rws, D3, cellPositions, ifc3Tensor, cellMap);
   Eigen::MatrixXd bravaisVectors2 = std::get<0>(tup);
@@ -602,9 +600,6 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
           auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
           auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
 
-          //std::cout << " ia1 ia2 ia3 " << ia1 << " " << ia2 << " " << ia3 << " ind1 ind2 ind3 ir2 ir3 " << ind1 << " " << ind2 << " " << ind3 << "  " << ir2 << " " << ir3 << " " << ifc3Tensor(ic3, ic2, ic1, it) << std::endl; 
-          //std::cout << " r3 " << r3(0) << " " << r3(1) << " " << r3(2) << std::endl; 
-          //std::cout << " cellPos3 " << cellPositions3(0,ir3) << " " << cellPositions3(1,ir3) << " " << cellPositions3(2,ir3) << std::endl; 
           D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }
       }
@@ -614,8 +609,6 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
   weights.setZero();
   for (int i = 0; i< cellPositions2.cols(); i++) { 
         weights(i) += 1; 
-        //std::cout << i << " cellPos2 " << cellPositions2(0,i) << " " << cellPositions2(1,i) << " " << cellPositions2(2,i) << std::endl;
-        //std::cout << i << " cellPos3 " << cellPositions3(0,i) << " " << cellPositions3(1,i) << " " << cellPositions3(2,i) << std::endl; 
   }
 
   Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3, weights, weights);
