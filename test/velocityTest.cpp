@@ -8,8 +8,7 @@ TEST (PhononH0, Velocity) {
   context.setPhD2FileName("../test/data/444_silicon.fc");
   context.setSumRuleD2("simple");
 
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -17,17 +16,17 @@ TEST (PhononH0, Velocity) {
 
   Eigen::Vector3i qMesh;
   qMesh << 40, 40, 40;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
 
   // pick a point close to gamma and get energies/velocities
-  long iq = 1;
+  int iq = 1;
   auto qPoint = points.getPoint(iq);
   auto tup1 = phononH0.diagonalize(qPoint);
   auto energies = std::get<0>(tup1);
   auto v = phononH0.diagonalizeVelocity(qPoint);
 
   // take out the group velocity
-  long numBands = energies.size();
+  int numBands = energies.size();
   Eigen::MatrixXd groupV(3, numBands);
   for (int ib = 0; ib < numBands; ib++) {
     for (int i : {0, 1, 2}) {
@@ -39,12 +38,12 @@ TEST (PhononH0, Velocity) {
   auto v0 = groupV.col(0);
   auto v1 = groupV.col(1);
   auto v2 = groupV.col(2);
-  auto qCoords = qPoint.getCoords(Points::cartesianCoords);
+  auto qCoordinates = qPoint.getCoordinates(Points::cartesianCoordinates);
 
   // for these three acoustic modes, check velocity is parallel to wavevector
-  ASSERT_NEAR(abs(v0.dot(qCoords)) / qCoords.norm() / v0.norm(), 1., 0.04);
-  ASSERT_NEAR(abs(v1.dot(qCoords)) / qCoords.norm() / v1.norm(), 1., 0.04);
-  ASSERT_NEAR(abs(v2.dot(qCoords)) / qCoords.norm() / v2.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v0.dot(qCoordinates)) / qCoordinates.norm() / v0.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v1.dot(qCoordinates)) / qCoordinates.norm() / v1.norm(), 1., 0.04);
+  ASSERT_NEAR(abs(v2.dot(qCoordinates)) / qCoordinates.norm() / v2.norm(), 1., 0.04);
 
   // for silicon, the velocity is around 2200 m/s
   double c1 = abs(v0.minCoeff()) * velocityRyToSi;
@@ -58,14 +57,14 @@ TEST (PhononH0, Velocity) {
   // we can also verify that, for acoustic phonons in silicon close to gamma,
   // the velocity is approximately (energies/q)we can approximate the velocity
 
-  double err0 = abs(energies(0) - v0.dot(qCoords)) / v0.norm();
-  double err1 = abs(energies(1) - v0.dot(qCoords)) / v0.norm();
-  double err2 = abs(energies(2) - v0.dot(qCoords)) / v0.norm();
+  double err0 = abs(energies(0) - v0.dot(qCoordinates)) / v0.norm();
+  double err1 = abs(energies(1) - v0.dot(qCoordinates)) / v0.norm();
+  double err2 = abs(energies(2) - v0.dot(qCoordinates)) / v0.norm();
   // we allow a 4% error, (anisotropies...)
   ASSERT_NEAR(err0, 0., 0.04);
   ASSERT_NEAR(err1, 0., 0.04);
   ASSERT_NEAR(err2, 0., 0.04);
-};
+}
 
 
 TEST (WannierH0, Velocity) {
@@ -80,7 +79,7 @@ TEST (WannierH0, Velocity) {
   atomicSpecies(0) = 0;
   atomicSpecies(1) = 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   context.setInputAtomicPositions(atomicPositions);
   context.setInputAtomicSpecies(atomicSpecies);
   context.setInputSpeciesNames(speciesNames);
@@ -98,11 +97,11 @@ TEST (WannierH0, Velocity) {
   double deltaK = 0.00025;
   Eigen::Vector3d k2;
   k2 << deltaK, 0., 0.;
-  auto v2 = electronH0.diagonalizeVelocityFromCoords(k2);
+  auto v2 = electronH0.diagonalizeVelocityFromCoordinates(k2);
 
-  auto tup1 = electronH0.diagonalizeFromCoords(k1);
+  auto tup1 = electronH0.diagonalizeFromCoordinates(k1);
   auto ens1 = std::get<0>(tup1);
-  auto tup2 = electronH0.diagonalizeFromCoords(k2);
+  auto tup2 = electronH0.diagonalizeFromCoordinates(k2);
   auto ens2 = std::get<0>(tup2);
 
   // we hard code the index of the top of the valence band
@@ -119,4 +118,4 @@ TEST (WannierH0, Velocity) {
 
   // we also fix their value in this test
   ASSERT_NEAR(abs(mass1), 686.779, 0.02);
-};
+}

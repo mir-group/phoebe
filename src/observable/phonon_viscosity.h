@@ -41,7 +41,7 @@ public:
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string& outFileName);
 
   /** Computes the viscosity from the scattering matrix eigenvectors.
    * Following Simoncelli PRX 2020. Stores it internally.

@@ -5,8 +5,8 @@
 #include <highfive/H5Easy.hpp>
 #endif
 
-long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
-  long ir2 = -1;
+int findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
+  int ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
     if ((position2 - cellPositions2.col(i)).norm() == 0.) {
       ir2 = i;
@@ -20,10 +20,10 @@ long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
 }
 
 // default constructor
-Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
+Interaction3Ph::Interaction3Ph(Crystal &crystal, int &numTriplets,
                                Eigen::Tensor<double, 4> &ifc3Tensor,
                                Eigen::Tensor<double, 3> &cellPositions,
-                               Eigen::Tensor<long, 2> &displacedAtoms)
+                               Eigen::Tensor<int, 2> &displacedAtoms)
     : crystal_(crystal), dts(10), newdts(3) {
 
   numAtoms = crystal_.getNumAtoms();
@@ -33,7 +33,7 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
   nr3 = 0;
   std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
 
-  for (long it = 0; it < numTriplets; it++) {
+  for (int it = 0; it < numTriplets; it++) {
     // load the position of the 2 atom in the current triplet
     Eigen::Vector3d position2, position3;
     for (int ic : {0, 1, 2}) {
@@ -74,10 +74,10 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
   Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
   D3.setZero();
 
-  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
-    long ia1 = displacedAtoms(it, 0);
-    long ia2 = displacedAtoms(it, 1);
-    long ia3 = displacedAtoms(it, 2);
+  for (int it = 0; it < numTriplets; it++) { // sum over all triplets
+    int ia1 = displacedAtoms(it, 0);
+    int ia2 = displacedAtoms(it, 1);
+    int ia3 = displacedAtoms(it, 2);
 
     Eigen::Vector3d position2, position3;
     for (int ic : {0, 1, 2}) {
@@ -85,8 +85,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
       position3(ic) = cellPositions(it, 1, ic);
     }
 
-    long ir2 = findIndexRow(cellPositions2, position2);
-    long ir3 = findIndexRow(cellPositions3, position3);
+    int ir2 = findIndexRow(cellPositions2, position2);
+    int ir3 = findIndexRow(cellPositions3, position3);
 
     for (int ic1 : {0, 1, 2}) {
       for (int ic2 : {0, 1, 2}) {

@@ -44,7 +44,7 @@ public:
     static std::tuple<Crystal, ElectronH0Wannier> parseElHarmonicWannier(
             Context &context, Crystal *inCrystal=nullptr);
 private:
-    bool isQuantumEspressoXml(const std::string &fileName);
+    static bool isQuantumEspressoXml(const std::string &fileName);
 };
 
 #endif

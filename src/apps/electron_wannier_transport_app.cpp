@@ -27,7 +27,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   // compute the band structure on the fine grid
-  FullPoints fullPoints(crystal, context.getKMesh());
+  Points fullPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
   auto statisticsSweep = std::get<1>(t3);
@@ -114,11 +114,11 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // here we do validation of the input, to check for consistency
   if (doRelaxons && !context.getScatteringMatrixInMemory()) {
-    Error e("Relaxons require matrix kept in memory");
+    Error("Relaxons require matrix kept in memory");
   }
   if (context.getScatteringMatrixInMemory() &&
-      statisticsSweep.getNumCalcs() != 1) {
-    Error e("If scattering matrix is kept in memory, only one "
+      statisticsSweep.getNumCalculations() != 1) {
+    Error("If scattering matrix is kept in memory, only one "
             "temperature/chemical potential is allowed in a run");
   }
 
@@ -195,7 +195,7 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
     transportCoeffs.print();
@@ -336,7 +336,7 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
 
@@ -393,6 +393,6 @@ void ElectronWannierTransportApp::checkRequirements(Context &context) {
 
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
-    Error e("Either chemical potentials or dopings must be set");
+    Error("Either chemical potentials or dopings must be set");
   }
 }

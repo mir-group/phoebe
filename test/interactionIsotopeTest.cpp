@@ -14,8 +14,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   Context context;
   context.setPhD2FileName("../test/data/444_silicon.fc");
   context.setSumRuleD2("simple");
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -24,7 +23,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   // For full BZ mesh in crystal coordinates
   Eigen::Vector3i qMesh;
   qMesh << 8, 8, 8;
-  FullPoints points(crystal, qMesh);
+  Points points(crystal, qMesh);
 
   // Number of atoms
   int numAtoms = crystal.getNumAtoms();
@@ -43,8 +42,8 @@ TEST(InteractionIsotope, Wphisoiq4) {
   energies.setConstant(0.0);
 
   // Test q-point
-  Eigen::VectorXd WIsotopeiq(numBands);
-  WIsotopeiq.setConstant(0.0);
+  Eigen::VectorXd WIsotopeQ(numBands);
+  WIsotopeQ.setConstant(0.0);
 
   // Reference value from ShengBTE with 0.01 Ry fixed Gaussian broadening
   Eigen::VectorXd WRef(numBands);
@@ -53,7 +52,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   // Convert from Thz to Ry
   WRef.array() /= 32889.83;
 
-  context.setSmearingWidth(0.01); // in rydbergs
+  context.setSmearingWidth(0.01); // in rydberg
   GaussianDeltaFunction smearing(context);
 
   // Eigenvector and angular frequencies at iq
@@ -69,18 +68,17 @@ TEST(InteractionIsotope, Wphisoiq4) {
   for (int iq2 = 0; iq2 < nq; iq2++) { // integrate over
     auto q2 = points.getPoint(iq2);
     // Eigenvector and angular frequencies at jq
-    auto tup = phononH0.diagonalize(q2);
-    auto ens2 = std::get<0>(tup);
-    auto ev2 = std::get<1>(tup);
-    // auto vsjq = phononH0.diagonalizeVelocity(jp);
+    auto tup2 = phononH0.diagonalize(q2);
+    auto ens2 = std::get<0>(tup2);
+    auto ev2 = std::get<1>(tup2);
 
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numBands; j++) {
-        auto tup = decompress2Indices(i, numAtoms, 3);
-        auto iat = std::get<0>(tup);
-        auto idim = std::get<1>(tup);
-        evt1(idim, iat, j) = ev1(i, j);
-        evt2(idim, iat, j) = ev2(i, j);
+        auto tup3 = decompress2Indices(i, numAtoms, 3);
+        auto iat = std::get<0>(tup3);
+        auto iDim = std::get<1>(tup3);
+        evt1(iDim, iat, j) = ev1(i, j);
+        evt2(iDim, iat, j) = ev2(i, j);
       }
     }
 
@@ -97,13 +95,13 @@ TEST(InteractionIsotope, Wphisoiq4) {
         for (int p = 0; p < numAtoms; p++) { // sum over atomic basis
           double aux = 0.0;
           // inner product over Cartesian space
-          for (int kdim : {0, 1, 2}) {
+          for (int kDim : {0, 1, 2}) {
             // Recall that the eigenvectors were mass-normalized
-            aux += pow(abs(std::conj(evt1(kdim, p, ib1)) * evt2(kdim, p, ib2)),
+            aux += pow(abs(std::conj(evt1(kDim, p, ib1)) * evt2(kDim, p, ib2)),
                        2) *
                    pow(atomicMasses(p), 2);
           }
-          WIsotopeiq(ib1) += aux * deltaWeight * massVariance(p) * fac;
+          WIsotopeQ(ib1) += aux * deltaWeight * massVariance(p) * fac;
 
         } // p
       }   // jb
@@ -111,7 +109,7 @@ TEST(InteractionIsotope, Wphisoiq4) {
   }       // jq
 
   for (int ib = 0; ib < numBands; ib++) {
-    double relativeError = (WRef(ib) - WIsotopeiq(ib)) / WRef(ib);
+    double relativeError = (WRef(ib) - WIsotopeQ(ib)) / WRef(ib);
     ASSERT_NEAR(relativeError, 0., 0.1);
     // up to 10% error, which may come from several details on how the
     // dynamical matrix is diagonalized

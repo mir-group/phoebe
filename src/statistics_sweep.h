@@ -45,11 +45,11 @@ class StatisticsSweep {
   /** returns the CalcStatistics object containing temperature,
    * chemical potential and temperature, given an index on the number of
    * "calculations" = numTemperature*numChemicalPotentials.
-   * @param index: an integer, ranging in [0,numCalcs[
+   * @param index: an integer, ranging in [0,numCalculations[
    * @return calcStatistics: a struct object with temperature, chemical
    * potential and doping concentration, for this particular index.
    */
-  CalcStatistics getCalcStatistics(const long &index);
+  CalcStatistics getCalcStatistics(const int &index);
 
   /** returns the CalcStatistics object containing temperature,
    * chemical potential and temperature, given indices on temperature and
@@ -66,15 +66,15 @@ class StatisticsSweep {
   /** Returns the number of "calculations" i.e. the number of temperatures
    * times the number of chemical potentials we will compute.
    */
-  long getNumCalcs();
+  int getNumCalculations() const;
 
   /** Returns for how many chemical potentials we are computing properties.
    */
-  long getNumChemicalPotentials();
+  int getNumChemicalPotentials() const;
 
   /** Returns for how many temperatures we are computing properties.
    */
-  long getNumTemperatures();
+  int getNumTemperatures() const;
 
   /** Prints to screen the information on the temperature, doping and
    * chemical potentials to be computed in the current run.
@@ -83,11 +83,11 @@ class StatisticsSweep {
 
  protected:
   Particle particle;
-  long numCalcs = 0;
+  int numCalcs = 0;
   Eigen::MatrixXd infoCalcs;
-  long nTemp = 0;
-  long nChemPot = 0;
-  long nDop = 0;
+  int nTemp = 0;
+  int nChemPot = 0;
+  int nDop = 0;
   bool isDistributed = false;
 
   // note: these three private methods are only meant to be used
@@ -109,9 +109,9 @@ class StatisticsSweep {
   double fPop(const double &chemPot, const double &temp);
 
   // this block is temporary variables for electronic calculations
-  const long maxIter = 100;
-  long numPoints = 0;
-  long numBands = 0;
+  const int maxIter = 100;
+  int numPoints = 0;
+  int numBands = 0;
   Eigen::VectorXd energies;
   double numElectronsDoped = 0.;
   double volume = 0.;

@@ -92,10 +92,10 @@ class Interaction3Ph {
    * @param displacedAtoms: indices of the atoms that are displaced for each
    * element (triplet) of the Ifc3Tensor.
    */
-  Interaction3Ph(Crystal &crystal_, long &numTriplets,
+  Interaction3Ph(Crystal &crystal_, int &numTriplets,
                  Eigen::Tensor<double, 4> &ifc3Tensor,
                  Eigen::Tensor<double, 3> &cellPositions,
-                 Eigen::Tensor<long, 2> &displacedAtoms);
+                 Eigen::Tensor<int, 2> &displacedAtoms);
 
   /** Copy constructor
    */

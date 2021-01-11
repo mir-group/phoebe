@@ -3,7 +3,7 @@
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
-#include "full_points.h"
+#include "points.h"
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "ph_scattering.h"
@@ -24,7 +24,7 @@ void PhononTransportApp::run(Context &context) {
 
   // first we make compute the band structure on the fine grid
 
-  FullPoints fullPoints(crystal, context.getQMesh());
+  Points fullPoints(crystal, context.getQMesh());
 
   if (mpi->mpiHead()) {
     std::cout << "\nConstructing the band structure" << std::endl;
@@ -102,7 +102,7 @@ void PhononTransportApp::run(Context &context) {
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
-  for (auto s : solverBTE) {
+  for (const auto& s : solverBTE) {
     if (s.compare("iterative") == 0)
       doIterative = true;
     if (s.compare("variational") == 0)
@@ -113,11 +113,11 @@ void PhononTransportApp::run(Context &context) {
 
   // here we do validation of the input, to check for consistency
   if (doRelaxons && !context.getScatteringMatrixInMemory()) {
-    Error e("Relaxons require matrix kept in memory");
+    Error("Relaxons require matrix kept in memory");
   }
   if (context.getScatteringMatrixInMemory() &&
-      statisticsSweep.getNumCalcs() != 1) {
-    Error e("If scattering matrix is kept in memory, only one "
+      statisticsSweep.getNumCalculations() != 1) {
+    Error("If scattering matrix is kept in memory, only one "
             "temperature/chemical potential is allowed in a run");
   }
 
@@ -161,7 +161,7 @@ void PhononTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
     phTCond.print();
@@ -219,7 +219,7 @@ void PhononTransportApp::run(Context &context) {
       VectorBTE gNew = tOld * alpha;
       gNew = gOld - gNew;
 
-      Eigen::MatrixXd beta = // (numCalcs,3)
+      Eigen::MatrixXd beta = // (numCalculations,3)
           (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
       VectorBTE hNew = hOld * beta;
       hNew = -gNew + hNew;
@@ -246,7 +246,7 @@ void PhononTransportApp::run(Context &context) {
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
-        Error e("Reached max BTE iterations without convergence");
+        Error("Reached max BTE iterations without convergence");
       }
     }
 

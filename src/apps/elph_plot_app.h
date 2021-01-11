@@ -1,5 +1,5 @@
-#ifndef ELPHPLOTAPP_H
-#define ELPHPLOTAPP_H
+#ifndef EL_PH_PLOT_APP_H
+#define EL_PH_PLOT_APP_H
 
 #include <string>
 #include "app.h"

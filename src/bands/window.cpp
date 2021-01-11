@@ -53,7 +53,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
 
   if (method == population) {
     Eigen::VectorXd popMin(numBands), popMax(numBands);
-    for (long ib = 0; ib < numBands; ib++) {
+    for (int ib = 0; ib < numBands; ib++) {
       popMin(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
                                          chemicalPotentialMin);
       popMax(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
@@ -66,7 +66,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
 
   } else { // no filter
     std::vector<double> filteredEnergies(energies.size());
-    for (long ib = 0; ib < numBands; ib++) {
+    for (int ib = 0; ib < numBands; ib++) {
       filteredEnergies[ib] = ib;
     }
     std::vector<int> bandExtrema(2);
@@ -122,6 +122,6 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
   return {filteredEnergies, bandsExtrema};
 }
 
-long Window::getMethodUsed() {
+int Window::getMethodUsed() {
   return method;
 }

@@ -1,5 +1,5 @@
-#ifndef ELPH_BLOCH_TO_WAN_APP_H
-#define ELPH_BLOCH_TO_WAN_APP_H
+#ifndef EL_PH_BLOCH_TO_WAN_APP_H
+#define EL_PH_BLOCH_TO_WAN_APP_H
 
 #include "app.h"
 #include "electron_h0_wannier.h"
@@ -61,8 +61,8 @@ public:
    * @param runTests: if true (*default False) runs some sanity checks.
    */
   void postProcessingWannier(Context &context, Crystal &crystal,
-                             PhononH0 &phononH0, FullPoints &kPoints,
-                             FullPoints &qPoints, int numQEBands, int numModes,
+                             PhononH0 &phononH0, Points &kPoints,
+                             Points &qPoints, int numQEBands, int numModes,
                              int numIrrQPoints, int numElectrons, int numSpin,
                              const Eigen::MatrixXd &energies,
                              const Eigen::MatrixXd &kGridFull,
@@ -108,7 +108,7 @@ protected:
       Eigen::Tensor<std::complex<double>, 5> &gFull,
       const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
       const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
-      FullPoints &kPoints, FullPoints &qPoints, Crystal &crystal,
+      Points &kPoints, Points &qPoints, Crystal &crystal,
       PhononH0 &phononH0);
 
   /** Returns the rotation that moves the wave-function from the (entangled)
@@ -125,7 +125,7 @@ protected:
    */
   static Eigen::Tensor<std::complex<double>, 3>
   setupRotationMatrices(const std::string &wannierPrefix,
-                        FullPoints &fullPoints);
+                        Points &fullPoints);
 
   /** Reads the electron-phonon coupling computed by QE on a coarse grid.
    *
@@ -158,8 +158,8 @@ protected:
   std::tuple<Eigen::Tensor<std::complex<double>, 5>,
              Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd>
   readGFromQEFile(Context &context, const int &numModes, const int &numBands,
-                  const int &numWannier, FullPoints &kPoints,
-                  FullPoints &qPoints, const Eigen::MatrixXd &kGridFull,
+                  const int &numWannier, Points &kPoints,
+                  Points &qPoints, const Eigen::MatrixXd &kGridFull,
                   const int &numIrrQPoints, const int &numQEBands,
                   const Eigen::MatrixXd &energies);
 
@@ -176,7 +176,7 @@ protected:
   /** Main driver for generating the EPA coupling. UNTESTED!
    */
   void epaPostProcessing(Context &context, Eigen::MatrixXd &elEnergies,
-                         FullPoints &kPoints, FullPoints &qPoints,
+                         Points &kPoints, Points &qPoints,
                          const int &numElectrons, const int &numSpin,
                          const int &numModes, const int &numIrrQPoints,
                          const int &numQEBands, const Eigen::MatrixXd &energies,

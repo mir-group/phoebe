@@ -8,7 +8,7 @@
 #include "eigen.h"
 
 /** Class used to store a "matrix" of data.
- * The class member "data" has size data(numCalcs,numStates), where numCalcs
+ * The class member "data" has size data(numCalculations,numStates), where numCalculations
  * is the number of temperatures/chemical potentials, and numStates is
  * specified in input. Used for the EPA electron transport calculation.
  * It is subclassed to a VectorBTE case when numStates is aligned with the
@@ -26,8 +26,8 @@ class BaseVectorBTE {
    * indices. 1 for scalar quantities like line-widths Gamma(BlochIndices), 3
    * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
-  BaseVectorBTE(StatisticsSweep &statisticsSweep_, const long &numStates_,
-                const long &dimensionality_ = 3);
+  BaseVectorBTE(StatisticsSweep &statisticsSweep_, const int &numStates_,
+                const int &dimensionality_ = 3);
 
   /** Copy constructor
    */
@@ -66,12 +66,12 @@ class BaseVectorBTE {
    * times the number of chemical potentials) used in the run. Given a
    * calculation index iCalc, the result is an element-wise x(it)*vector(it).
    * @param vector: a double vector to be used in the product, of size
-   * equal to numCalcs.
+   * equal to numCalculations.
    */
   BaseVectorBTE operator*(const Eigen::VectorXd &vector);
 
   /** Computes the product of a BaseVectorBTE with a parallel matrix. Only works
-   * if the number of temperatures/chemical potentials (numCalcs) is equal
+   * if the number of temperatures/chemical potentials (numCalculations) is equal
    * to one. At fixed calculation index iCalc, the result is an matrix-vector
    * multiplication x(it,i)*pMatrix(i,j).
    * @param pMatrix: a parallel distributed double matrix to be used in the
@@ -134,7 +134,7 @@ class BaseVectorBTE {
                            const int iState) const;
 
   /** raw buffer containing the values of the vector
-   *  The matrix has size (numCalcs, numStates), where numCalcs is the number
+   *  The matrix has size (numCalculations, numStates), where numCalculations is the number
    *  of pairs of temperature and chemical potentials, and numStates is the
    *  number of Bloch states used in the Boltzmann equation.
    */
@@ -142,11 +142,11 @@ class BaseVectorBTE {
 
   // we store auxiliary objects and parameters
   StatisticsSweep &statisticsSweep;
-  long numCalcs;
-  long numStates;
-  long numChemPots;
-  long numTemps;
-  long dimensionality;
+  int numCalculations;
+  int numStates;
+  int numChemPots;
+  int numTemps;
+  int dimensionality;
 
   /** glob2Loc and loc2Glob compress/decompress the indices on temperature,
    * chemical potential, and cartesian direction into/from a single index.
@@ -156,15 +156,15 @@ class BaseVectorBTE {
    * are cartesian vectors over the Bloch states.
    * I should probably create two different classes for these.
    */
-  long glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                const CartIndex &idim);
-  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const long &i);
+  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+                const CartIndex &iDim) const;
+  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const int &i) const;
 
   /** List of Bloch states to be excluded from the calculation (i.e. for
    * which vectorBTE values are 0), for example, the acoustic modes at the
    * gamma point, whose zero frequencies may cause problems.
    */
-  std::vector<long> excludeIndices;
+  std::vector<int> excludeIndices;
 
  protected:
   /** base class to implement +, -, / and * operations.

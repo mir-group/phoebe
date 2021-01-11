@@ -28,7 +28,7 @@ class Context {
   Eigen::VectorXd temperatures;
   std::vector<std::string> solverBTE;
   double convergenceThresholdBTE = 1e-5;
-  long maxIterationsBTE = 50;
+  int maxIterationsBTE = 50;
 
   bool scatteringMatrixInMemory = true;
   bool useSymmetries = false;
@@ -48,7 +48,7 @@ class Context {
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
   bool hasSpinOrbit = false;
 
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   double dosMinEnergy = std::numeric_limits<double>::quiet_NaN();
   double dosMaxEnergy = std::numeric_limits<double>::quiet_NaN();
@@ -99,7 +99,7 @@ class Context {
 
   static std::vector<std::string> &split(const std::string &s, char delimiter,
                                   std::vector<std::string> &elements);
-  std::vector<std::string> split(const std::string &s, char delimiter);
+  static std::vector<std::string> split(const std::string &s, char delimiter);
 
  public:
   // Methods for the apps of plotting the electron-phonon coupling
@@ -139,11 +139,11 @@ class Context {
   void setQuantumEspressoPrefix(const std::string &x);
   std::string getElPhInterpolation();
 
-  double getEpaSmearingEnergy();
-  double getEpaDeltaEnergy();
-  double getEpaMinEnergy();
-  double getEpaMaxEnergy();
-  int getEpaNumBins();
+  double getEpaSmearingEnergy() const;
+  double getEpaDeltaEnergy() const;
+  double getEpaMinEnergy() const;
+  double getEpaMaxEnergy() const;
+  int getEpaNumBins() const;
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.
@@ -156,7 +156,7 @@ class Context {
    * of the band structure.
    * @return r: the cutoff value.
    */
-  double getElectronFourierCutoff();
+  double getElectronFourierCutoff() const;
 
   /** gets the type of calculation to be run.
    * @return x: the name of the calculation, e.g. "electron-phonon" or
@@ -202,7 +202,7 @@ class Context {
      * 1 by at least this amount.
      * @return x: the <double> value of the population threshold.
      */
-  double getWindowPopulationLimit();
+  double getWindowPopulationLimit() const;
   void setWindowPopulationLimit(const double &x);
 
   /** gets the value of chemical potentials (in Rydberg) to be used in the
@@ -227,17 +227,17 @@ class Context {
 
   std::vector<std::string> getSolverBTE();
 
-  double getConvergenceThresholdBTE();
+  double getConvergenceThresholdBTE() const;
 
-  long getMaxIterationsBTE();
+  int getMaxIterationsBTE() const;
 
-  long getDimensionality();
+  int getDimensionality() const;
 
-  double getDosMinEnergy();
+  double getDosMinEnergy() const;
 
-  double getDosMaxEnergy();
+  double getDosMaxEnergy() const;
 
-  double getDosDeltaEnergy();
+  double getDosDeltaEnergy() const;
 
   // Wannier90 output doesn't contain the crystal information.
   // the user must then supplement it in the input
@@ -256,47 +256,47 @@ class Context {
   Eigen::Tensor<double, 3> getPathExtrema();
   std::vector<std::string> getPathLabels();
 
-  double getDeltaPath();
+  double getDeltaPath() const;
 
-  double getFermiLevel();
+  double getFermiLevel() const;
   void setFermiLevel(const double &x);
 
-  double getNumOccupiedStates();
+  double getNumOccupiedStates() const;
   void setNumOccupiedStates(const double &x);
 
-  bool getHasSpinOrbit();
+  bool getHasSpinOrbit() const;
   void setHasSpinOrbit(const bool &x);
 
-  int getSmearingMethod();
+  int getSmearingMethod() const;
 
-  double getSmearingWidth();
+  double getSmearingWidth() const;
   void setSmearingWidth(const double &x);
 
-  double getConstantRelaxationTime();
+  double getConstantRelaxationTime() const;
 
-  bool getScatteringMatrixInMemory();
+  bool getScatteringMatrixInMemory() const;
   void setScatteringMatrixInMemory(const bool &x);
 
-  bool getUseSymmetries();
+  bool getUseSymmetries() const;
   void setUseSymmetries(const bool &x);
 
-  bool getWithIsotopeScattering();
+  bool getWithIsotopeScattering() const;
 
   Eigen::VectorXd getMassVariance();
 
-  double getBoundaryLength();
+  double getBoundaryLength() const;
 
   // EPA:
   std::string getEpaFileName();
-  double getMinChemicalPotential();
-  double getMaxChemicalPotential();
-  double getDeltaChemicalPotential();
-  double getMinTemperature();
-  double getMaxTemperature();
-  double getDeltaTemperature();
-  double getEpaEnergyRange();
-  double getEpaEnergyStep();
-  double getEFermiRange();
+  double getMinChemicalPotential() const;
+  double getMaxChemicalPotential() const;
+  double getDeltaChemicalPotential() const;
+  double getMinTemperature() const;
+  double getMaxTemperature() const;
+  double getDeltaTemperature() const;
+  double getEpaEnergyRange() const;
+  double getEpaEnergyStep() const;
+  double getEFermiRange() const;
 
   /** Reads the user-provided input file and saves the input parameters
    * @param fileName: path to the input file

@@ -5,7 +5,7 @@
 #include "particle.h"
 #include "points.h"
 
-/** Base class for the Harmonic Hamiltonian.
+/** Virtual base class for Harmonic Hamiltonians.
  * The subclasses of this base class are the objects responsible for storing
  * the DFT harmonic properties computed on a coarse grid, and containing the
  * methods necessary for interpolating (diagonalizing) such harmonic
@@ -13,20 +13,16 @@
  */
 class HarmonicHamiltonian {
  public:
-  /** Default constructor
-   */
-  HarmonicHamiltonian();
-
   /** Returns the total number of phonon branches / electron bands that are
    * available in the interpolator.
    * @return numBands: integer number of bands.
    */
-  virtual long getNumBands();
+  virtual int getNumBands() = 0;
 
   /** Returns the Particle object to distinguish between electrons and phonons
    * @return particle: a Particle object
    */
-  virtual Particle getParticle();
+  virtual Particle getParticle() = 0;
 
   /** Diagonalize the Harmonic Hamiltonian at an arbitrary wavevector
    * @param point: the Point object describing the wavevector.
@@ -36,7 +32,7 @@ class HarmonicHamiltonian {
    * the eigenvectors, ordered in columns, computed at the input wavevector.
    */
   virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(
-      Point &point);
+      Point &point) = 0;
 
   /** Diagonalize the Harmonic Hamiltonian at an arbitrary wavevector.
    * Same as diagonalize(), but the wavevector coordinates are explicitly
@@ -47,8 +43,9 @@ class HarmonicHamiltonian {
    * @return eigenvectors: a complex matrix of size (numBands,numBands) with
    * the eigenvectors, ordered in columns, computed at the input wavevector.
    */
-  virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-      Eigen::Vector3d &k);
+  virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
+  diagonalizeFromCoordinates(
+      Eigen::Vector3d &k) = 0;
 
   /** Computes the velocity operator (if possible, otherwise just its
    * diagonal matrix elements i.e. the group velocity) of the quasiparticle
@@ -59,9 +56,10 @@ class HarmonicHamiltonian {
    * cartesian direction).
    */
   virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(
-      Point &point);
-  virtual Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords);
+      Point &point) = 0;
+  virtual Eigen::Tensor<std::complex<double>, 3>
+  diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates) = 0;
 
   /** Method for the construction of the band structure on a grid of
    * of wavevectors of the Brillouin zone. In particular, we save the
@@ -77,12 +75,7 @@ class HarmonicHamiltonian {
    */
   virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
                                      bool &withEigenvectors,
-                                     bool isDistributed = false);
-
- protected:
-  Particle particle;
-
-  long numBands = 0;
+                                     bool isDistributed = false) = 0;
 };
 
 #endif

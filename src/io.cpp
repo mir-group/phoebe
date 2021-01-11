@@ -76,7 +76,7 @@ void IO::goodbye() {
 }
 
 LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
-                     const long &numSteps_) {
+                     const int &numSteps_) {
   if (!mpi->mpiHead())
     return;
 
@@ -84,7 +84,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
   step = step_;
   numSteps = numSteps_;
 
-  long numRep = 10; // number of intermediate reports
+  int numRep = 10; // number of intermediate reports
   if (numSteps < numRep) {
     reportEvery = 1;
   } else {
@@ -98,7 +98,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
   std::cout << "Started " << task << " with " << numSteps << " " << step
             << "." << std::endl;
 
-  stepDigits = long(log10(numSteps)) + 1; // number of digits in numSteps
+  stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
 
 void LoopPrint::update() {
@@ -135,7 +135,7 @@ void LoopPrint::update() {
     if ((currentStep == 0 || currentStep == 2 || currentStep == numSteps - 1) ||
         (currentStep + 1) % reportEvery == 0) {
 
-      long percentage = double(currentStep + 1) / numSteps * 100.;
+      int percentage = double(currentStep + 1) / numSteps * 100.;
 
       std::cout << s << " | ";
       std::cout << std::setw(3) << percentage << "% | ";

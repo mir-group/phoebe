@@ -27,7 +27,7 @@ public:
    * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
   VectorBTE(StatisticsSweep &statisticsSweep_,
-            BaseBandStructure &bandStructure_, const long &dimensionality_ = 3);
+            BaseBandStructure &bandStructure_, const int &dimensionality_ = 3);
 
   /** Copy constructor
    */
@@ -66,12 +66,12 @@ public:
    * times the number of chemical potentials) used in the run. Given a
    * calculation index iCalc, the result is an element-wise x(it)*vector(it).
    * @param vector: a double vector to be used in the product, of size
-   * equal to numCalcs.
+   * equal to numCalculations.
    */
   VectorBTE operator*(const Eigen::MatrixXd &vector);
 
   /** Computes the product of a VectorBTE with a parallel matrix. Only works
-   * if the number of temperatures/chemical potentials (numCalcs) is equal
+   * if the number of temperatures/chemical potentials (numCalculations) is equal
    * to one. At fixed calculation index iCalc, the result is an matrix-vector
    * multiplication x(it,i)*pMatrix(i,j).
    * @param pMatrix: a parallel distributed double matrix to be used in the

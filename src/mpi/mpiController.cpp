@@ -92,21 +92,21 @@ void MPIcontroller::barrier() const {
 }
 
 // Labor division functions -----------------------------------------
-std::vector<long> MPIcontroller::divideWork(size_t numTasks) {
+std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  std::vector<long> divs(2);
+  std::vector<int> divs(2);
   divs[0] = (numTasks * rank) / size;
   divs[1] = (numTasks * (rank + 1)) / size;
   return divs;
 }
 
-std::vector<long> MPIcontroller::divideWorkIter(size_t numTasks) {
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
   // return a vector of indices for tasks to be completed by thsi process 
   int start = (numTasks * rank) / size;
   int stop = (numTasks * (rank + 1)) / size;
   size_t localSize = stop - start;
-  std::vector<long> divs(localSize);
-  for (long i = start; i < stop; i++) {
+  std::vector<int> divs(localSize);
+  for (int i = start; i < stop; i++) {
     divs[i - start] = i;
   }
   return divs;

@@ -5,7 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
-#include <time.h>
+#include <ctime>
 
 PhononThermalConductivity::PhononThermalConductivity(
     Context &context_, StatisticsSweep &statisticsSweep_, Crystal &crystal_,
@@ -13,7 +13,7 @@ PhononThermalConductivity::PhononThermalConductivity(
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
   tensordxd =
-      Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+      Eigen::Tensor<double, 3>(numCalculations, dimensionality, dimensionality);
   tensordxd.setZero();
 }
 
@@ -54,23 +54,23 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
   tensordxd.setZero();
 
-#pragma omp parallel
+#pragma omp parallel default(none) shared(excludeIndices, n, norm)
   {
     // we do manually the reduction, to avoid custom type declaration
     // which is not always allowed by the compiler e.g. by clang
 
     // first omp parallel for on a private variable
-    Eigen::Tensor<double, 3> tensorPrivate(numCalcs, dimensionality,
+    Eigen::Tensor<double, 3> tensorPrivate(numCalculations, dimensionality,
                                            dimensionality);
     tensorPrivate.setZero();
 
 #pragma omp for nowait
-    for (long is : bandStructure.parallelIrrStateIterator()) {
+    for (int is : bandStructure.parallelIrrStateIterator()) {
       StateIndex isIdx(is);
       double en = bandStructure.getEnergy(isIdx);
       Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
 
-      long iBte = bandStructure.stateToBte(isIdx).get();
+      int iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
       if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
@@ -78,10 +78,10 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
         continue;
 
       auto rots = bandStructure.getRotationsStar(isIdx);
-      for (Eigen::Matrix3d rot : rots) {
+      for (const Eigen::Matrix3d& rot : rots) {
         auto vel = rot * velIrr;
 
-        for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d nRot;
           for (int i : {0,1,2}) {
@@ -104,7 +104,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
     {
       for (int j : {0,1,2}) {
         for (int i : {0,1,2}) {
-          for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+          for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
             tensordxd(iCalc, i, j) += tensorPrivate(iCalc, i, j);
           }
         }
@@ -129,12 +129,13 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
   tensordxd *= tensordxd.constant(2.);
 
   Eigen::Tensor<double, 3> tmpTensor = tensordxd.constant(0.); // retains shape
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(excludeIndices, bandStructure, tmpTensor, norm, af, f)
   {
     Eigen::Tensor<double, 3> tmpTensorPrivate =
         tensordxd.constant(0.); // retains shape
 #pragma omp for nowait
-    for (long is : bandStructure.parallelIrrStateIterator()) {
+    for (int is : bandStructure.parallelIrrStateIterator()) {
 
       // skip the acoustic phonons
       if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
@@ -143,13 +144,13 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
       }
 
       auto isIndex = StateIndex(is);
-      BteIndex ibteIndex = bandStructure.stateToBte(isIndex);
-      long isBte = ibteIndex.get();
+      BteIndex iBteIndex = bandStructure.stateToBte(isIndex);
+      int isBte = iBteIndex.get();
       auto rots = bandStructure.getRotationsStar(isIndex);
 
-      for (Eigen::Matrix3d rot : rots) {
+      for (const Eigen::Matrix3d& rot : rots) {
 
-        for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d fRot, afRot;
           for (int i : {0, 1, 2}) {
@@ -168,9 +169,9 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
       }
     }
 #pragma omp critical
-    for (long j = 0; j < dimensionality; j++) {
-      for (long i = 0; i < dimensionality; i++) {
-        for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+    for (int j = 0; j < dimensionality; j++) {
+      for (int i = 0; i < dimensionality; i++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
           tmpTensor(iCalc, i, j) += tmpTensorPrivate(iCalc, i, j);
         }
       }
@@ -199,19 +200,21 @@ void PhononThermalConductivity::calcFromRelaxons(
     Eigen::VectorXd relPopulation(eigenvalues.size());
     relPopulation.setZero();
 
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(relPopulation, temp, chemPot, scatteringMatrix, eigenvectors,       \
+           eigenvalues, particle)
     {
       Eigen::VectorXd relPopPrivate(eigenvalues.size());
       relPopPrivate.setZero();
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
-        long iMat1 = std::get<0>(tup0);
-        long alpha = std::get<1>(tup0);
+        int iMat1 = std::get<0>(tup0);
+        int alpha = std::get<1>(tup0);
         auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
-        BteIndex ibteIndex = std::get<0>(tup1);
+        BteIndex iBteIndex = std::get<0>(tup1);
         CartIndex dimIndex = std::get<1>(tup1);
-        long iDim = dimIndex.get();
-        StateIndex isIndex = bandStructure.bteToState(ibteIndex);
+        int iDim = dimIndex.get();
+        StateIndex isIndex = bandStructure.bteToState(iBteIndex);
         //
         auto vel = bandStructure.getGroupVelocity(isIndex);
         double en = bandStructure.getEnergy(isIndex);
@@ -224,7 +227,7 @@ void PhononThermalConductivity::calcFromRelaxons(
         }
       }
 #pragma omp critical
-      for (long alpha = 0; alpha < eigenvalues.size(); alpha++) {
+      for (int alpha = 0; alpha < eigenvalues.size(); alpha++) {
         relPopulation(alpha) += relPopPrivate(alpha);
       }
     }
@@ -232,26 +235,28 @@ void PhononThermalConductivity::calcFromRelaxons(
 
     // back rotate to phonon coordinates
 
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(bandStructure, eigenvectors, relPopulation, population,             \
+           scatteringMatrix, iCalc)
     {
       Eigen::MatrixXd popPrivate(3, bandStructure.irrStateIterator().size());
       popPrivate.setZero();
 
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
-        long iMat1 = std::get<0>(tup0);
-        long alpha = std::get<1>(tup0);
+        int iMat1 = std::get<0>(tup0);
+        int alpha = std::get<1>(tup0);
         auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
-        BteIndex ibteIndex = std::get<0>(tup1);
+        BteIndex iBteIndex = std::get<0>(tup1);
         CartIndex dimIndex = std::get<1>(tup1);
-        long ibte = ibteIndex.get();
-        long iDim = dimIndex.get();
-        popPrivate(iDim, ibte) +=
+        int iBte = iBteIndex.get();
+        int iDim = dimIndex.get();
+        popPrivate(iDim, iBte) +=
             eigenvectors(iMat1, alpha) * relPopulation(alpha);
       }
 
 #pragma omp critical
-      for (long is = 0; is < popPrivate.cols(); is++) {
+      for (int is = 0; is < popPrivate.cols(); is++) {
         for (int iDim : {0, 1, 2}) {
           population(iCalc, iDim, is) += popPrivate(iDim, is);
         }
@@ -263,15 +268,16 @@ void PhononThermalConductivity::calcFromRelaxons(
 
     Eigen::MatrixXd relPopulation(eigenvalues.size(), 3);
     relPopulation.setZero();
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(eigenvectors, eigenvalues, temp, chemPot, particle, relPopulation)
     {
       Eigen::MatrixXd relPopPrivate(eigenvalues.size(), 3);
       relPopPrivate.setZero();
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
-        long is = std::get<0>(tup0);
+        int is = std::get<0>(tup0);
         StateIndex isIdx(is);
-        long alpha = std::get<1>(tup0);
+        int alpha = std::get<1>(tup0);
         //
         double en = bandStructure.getEnergy(isIdx);
         if (eigenvalues(alpha) > 0. && en >= 0.) {
@@ -286,7 +292,7 @@ void PhononThermalConductivity::calcFromRelaxons(
         }
       }
 #pragma omp critical
-      for (long alpha = 0; alpha < eigenvalues.size(); alpha++) {
+      for (int alpha = 0; alpha < eigenvalues.size(); alpha++) {
         for (int i : {0, 1, 2}) {
           relPopulation(alpha, i) += relPopPrivate(alpha, i);
         }
@@ -294,21 +300,22 @@ void PhononThermalConductivity::calcFromRelaxons(
     }
     mpi->allReduceSum(&relPopulation);
     // back rotate to phonon coordinates
-#pragma omp parallel
+#pragma omp parallel default(none)                                             \
+    shared(eigenvectors, relPopulation, population, iCalc)
     {
       Eigen::MatrixXd popPrivate(3, bandStructure.getNumStates());
       popPrivate.setZero();
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
-        long is = std::get<0>(tup0);
-        long alpha = std::get<1>(tup0);
+        int is = std::get<0>(tup0);
+        int alpha = std::get<1>(tup0);
         for (int i : {0, 1, 2}) {
           popPrivate(i, is) +=
               eigenvectors(is, alpha) * relPopulation(alpha, i);
         }
       }
 #pragma omp critical
-      for (long is = 0; is < bandStructure.getNumStates(); is++) {
+      for (int is = 0; is < bandStructure.getNumStates(); is++) {
         for (int i : {0, 1, 2}) {
           population(iCalc, i, is) += popPrivate(i, is);
         }
@@ -318,15 +325,15 @@ void PhononThermalConductivity::calcFromRelaxons(
   }
   // put back the rescaling factor
 
-#pragma omp parallel for
-  for (long is : bandStructure.irrStateIterator()) {
+#pragma omp parallel for default(none) shared(population,particle,temp,chemPot,iCalc,bandStructure)
+  for (int is : bandStructure.irrStateIterator()) {
     auto isIdx = StateIndex(is);
     double en = bandStructure.getEnergy(isIdx);
-    long ibte = bandStructure.stateToBte(isIdx).get();
+    int iBte = bandStructure.stateToBte(isIdx).get();
     if (en>0.) {
       double term = particle.getPopPopPm1(en, temp, chemPot);
       for (int iDim : {0, 1, 2}) {
-        population(iCalc, iDim, ibte) *= sqrt(term);
+        population(iCalc, iDim, iBte) *= sqrt(term);
       }
     }
   }
@@ -350,7 +357,7 @@ void PhononThermalConductivity::print() {
   std::cout << "\n";
   std::cout << "Thermal Conductivity (" << units << ")\n";
 
-  for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
 
@@ -358,9 +365,9 @@ void PhononThermalConductivity::print() {
     std::cout.precision(2);
     std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
     std::cout.precision(5);
-    for (long i = 0; i < dimensionality; i++) {
+    for (int i = 0; i < dimensionality; i++) {
       std::cout << "  " << std::scientific;
-      for (long j = 0; j < dimensionality; j++) {
+      for (int j = 0; j < dimensionality; j++) {
         std::cout << " " << std::setw(13) << std::right;
         std::cout << tensordxd(iCalc, i, j) * thConductivityAuToSi;
       }
@@ -370,7 +377,7 @@ void PhononThermalConductivity::print() {
   }
 }
 
-void PhononThermalConductivity::outputToJSON(std::string outFileName) {
+void PhononThermalConductivity::outputToJSON(const std::string& outFileName) {
   if (!mpi->mpiHead())
     return;
 
@@ -384,8 +391,8 @@ void PhononThermalConductivity::outputToJSON(std::string outFileName) {
   }
 
   std::vector<double> temps;
-  std::vector<std::vector<std::vector<double>>> conds;
-  for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  std::vector<std::vector<std::vector<double>>> conductivities;
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
     // store temperatures
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -394,20 +401,20 @@ void PhononThermalConductivity::outputToJSON(std::string outFileName) {
 
     // store conductivity
     std::vector<std::vector<double>> rows;
-    for (long i = 0; i < dimensionality; i++) {
+    for (int i = 0; i < dimensionality; i++) {
       std::vector<double> cols;
-      for (long j = 0; j < dimensionality; j++) {
+      for (int j = 0; j < dimensionality; j++) {
         cols.push_back(tensordxd(iCalc, i, j) * thConductivityAuToSi);
       }
       rows.push_back(cols);
     }
-    conds.push_back(rows);
+    conductivities.push_back(rows);
   }
 
   // output to json
   nlohmann::json output;
   output["temperatures"] = temps;
-  output["thermalConductivity"] = conds;
+  output["thermalConductivity"] = conductivities;
   output["temperatureUnit"] = "K";
   output["thermalConductivityUnit"] = units;
   output["particleType"] = "phonon";
@@ -422,21 +429,21 @@ void PhononThermalConductivity::print(const int &iter) {
 
   // get the time
   time_t currentTime;
-  currentTime = time(NULL);
+  currentTime = time(nullptr);
   // and format the time nicely
   char s[200];
   struct tm *p = localtime(&currentTime);
   strftime(s, 200, "%F, %T", p);
 
   std::cout << "Iteration: " << iter << " | " << s << "\n";
-  for (long iCalc = 0; iCalc < statisticsSweep.getNumCalcs(); iCalc++) {
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     std::cout << std::fixed;
     std::cout.precision(2);
     std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
     std::cout.precision(5);
-    for (long i = 0; i < dimensionality; i++) {
+    for (int i = 0; i < dimensionality; i++) {
       std::cout << std::scientific;
       std::cout << tensordxd(iCalc, i, i) * thConductivityAuToSi << " ";
     }

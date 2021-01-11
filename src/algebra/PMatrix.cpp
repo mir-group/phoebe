@@ -159,7 +159,7 @@ ParallelMatrix<double>::diagonalize() {
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for (long i = 0; i < numRows_; i++) {
+  for (int i = 0; i < numRows_; i++) {
     eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;
@@ -213,7 +213,7 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   }
 
   std::vector<double> eigenvalues_(numRows_);
-  for (long i = 0; i < numRows_; i++) {
+  for (int i = 0; i < numRows_; i++) {
     eigenvalues_[i] = *(eigenvalues + i);
   }
   delete[] eigenvalues;

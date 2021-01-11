@@ -1,5 +1,5 @@
-#ifndef PHONONH0_H
-#define PHONONH0_H
+#ifndef PHONON_H0_H
+#define PHONON_H0_H
 
 #include <cmath>
 
@@ -12,7 +12,7 @@
 #include "points.h"
 
 /** class that computes phonon energies, velocities and eigenvectors.
- * FIrst, it contains the force constants, i.e. the second derivative of the
+ * First, it contains the force constants, i.e. the second derivative of the
  * total energy w.r.t. ionic displacements. Additionally, it has all the
  * infrastructure to Fourier transform this matrix, and diagonalize it to get
  * the harmonic phonon properties.
@@ -42,7 +42,7 @@ class PhononH0 : public HarmonicHamiltonian {
 
   /** Returns the number of phonon bands for the crystal in consideration.
    */
-  long getNumBands() override;
+  int getNumBands() override;
 
   /** Returns the underlying phonon-boson particle.
    */
@@ -58,7 +58,7 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point) override;
 
-  /** Equivalent to diagonalize() computes phonon eigenvals/vecs given the
+  /** Equivalent to diagonalize() computes phonon eigenValues/Vectors given the
    * wavevector, but the wavevector is passed by coordinates.
    * @param q: a 3d eigen vector with the cartesian coordinates of the
    * phonon wavevector.
@@ -68,9 +68,9 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return eigenvectors: the phonon eigenvectors, in matrix form, for this
    * point.
    */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
       Eigen::Vector3d &q, const bool &withMassScaling);
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
       Eigen::Vector3d &q) override;
 
   /** get the phonon velocities (in atomic units) at a single q-point.
@@ -79,8 +79,8 @@ class PhononH0 : public HarmonicHamiltonian {
    * for this state, in atomic units.
    */
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords) override;
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates) override;
 
   /** This method constructs a phonon band structure.
    * @param points: the object with the list/mesh of wavevectors
@@ -104,12 +104,12 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param iPol: polarization index (0,1,2).
    * @return k: index to be used in the phonon eigenvector.
    */
-  long getIndexEigvec(const long &iAt, const long &iPol);
+  int getIndexEigvec(const int &iAt, const int &iPol);
 
   /** same as getIndexEigvec, but as a static member
    * @param nAtoms: the number of atoms in the unit cell
    */
-  static long getIndexEigvec(const long &iAt, const long &iPol, const long &nAtoms);
+  static int getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms);
 
   /** Get the static dielectric constant matrix.
    * @return dielectricMatrix: a 3x3 eigen matrix.
@@ -137,12 +137,12 @@ protected:
   // for the first tests, they can be left at these default values
   // in the future, we might expose them to the user input
   bool na_ifc = false;
-  bool loto_2d = false;
+  bool loTo2d = false;
   bool frozenPhonon = false;
 
   bool hasDielectric;
-  long numAtoms;
-  long numBands;
+  int numAtoms;
+  int numBands;
   Eigen::MatrixXd directUnitCell;
   Eigen::MatrixXd reciprocalUnitCell;
   double volumeUnitCell;
@@ -153,7 +153,7 @@ protected:
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
   Eigen::Tensor<double, 7> forceConstants;
-  Eigen::Tensor<double, 5> wscache;
+  Eigen::Tensor<double, 5> wsCache;
   int nr1Big, nr2Big, nr3Big;
 
   int numBravaisVectors = 0;
@@ -175,7 +175,7 @@ protected:
 
   // These functions treat hte long range corrections
   void longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                     const Eigen::VectorXd &q, const long &sign);
+                     const Eigen::VectorXd &q, const int &sign);
   void nonAnalyticTerm(const Eigen::VectorXd &q,
                        Eigen::Tensor<std::complex<double>, 4> &dyn);
   void nonAnalIFC(const Eigen::VectorXd &q,
@@ -188,15 +188,15 @@ protected:
                       const Eigen::VectorXd &q,
                       Eigen::Tensor<std::complex<double>, 4> &f_of_q);
 
-  /** dynDiag diagonalizes the dynamical matrix and returns eigenvalues and
+  /** dynDiagonalize diagonalizes the dynamical matrix and returns eigenvalues and
    * eigenvectors.
    */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiag(
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiagonalize(
       Eigen::Tensor<std::complex<double>, 4> &dyn);
 
   // methods for sum rule on Born charges
   void sp_zeu(Eigen::Tensor<double, 3> &zeu_u, Eigen::Tensor<double, 3> &zeu_v,
-              double &scal);
+              double &scalar) const;
 };
 
 #endif

@@ -16,7 +16,7 @@ public:
    */
   BulkTDrift(StatisticsSweep &statisticsSweep_,
              BaseBandStructure &bandStructure_,
-             const long &dimensionality_ = 3);
+             const int &dimensionality_ = 3);
 };
 
 /** Object describing the electric-field drift operator of the BTE
@@ -31,7 +31,7 @@ public:
    */
   BulkEDrift(StatisticsSweep &statisticsSweep_,
              BaseBandStructure &bandStructure_,
-             const long &dimensionality_ = 3);
+             const int &dimensionality_ = 3);
 };
 
 /** Object describing the eigenvector with zero-eigenvalue of the symmetrized

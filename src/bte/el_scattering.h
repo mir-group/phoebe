@@ -1,5 +1,5 @@
-#ifndef ELSCATTERING_H
-#define ELSCATTERING_H
+#ifndef EL_SCATTERING_H
+#define EL_SCATTERING_H
 
 #include "electron_h0_wannier.h"
 #include "interaction_elph.h"
@@ -18,10 +18,10 @@ public:
    * @param context_: object with user parameters for this calculation
    * @param statisticsSweep_: object with values for temperature and chemical
    * potential
-   * @param innerBandStructure_: this is the bandstructure used for the
+   * @param innerBandStructure_: this is the band structure used for the
    * integration of lifetimes/scattering rates
-   * @param outerBandStructure_: this is the bandstructure used to define on
-   * which kpoints to compute the lifetimes/scattering rates. For transport
+   * @param outerBandStructure_: this is the band structure used to define on
+   * which points to compute the lifetimes/scattering rates. For transport
    * properties outer=inner, but may differ e.g. when computing lifetimes on a
    * path
    * @param h0: phonon hamiltonian used to compute phonon energies and
@@ -52,9 +52,8 @@ protected:
   double boundaryLength;
   bool doBoundary;
 
-  virtual void builder(VectorBTE *linewidth,
-                       std::vector<VectorBTE> &inPopulations,
-                       std::vector<VectorBTE> &outPopulations);
+  void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
+               std::vector<VectorBTE> &outPopulations) override;
 };
 
 #endif

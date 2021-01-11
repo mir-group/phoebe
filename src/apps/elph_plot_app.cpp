@@ -4,7 +4,7 @@
 #include "el_scattering.h"
 #include "exceptions.h"
 #include "io.h"
-#include "path_points.h"
+#include "points.h"
 #include "qe_input_parser.h"
 
 void ElPhCouplingPlotApp::run(Context &context) {
@@ -27,10 +27,11 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // create a list of (k,q) pairs, where k(q) is on a path and q(k) is fixed
   if (context.getG2PlotStyle() == "fixedQ") {
 
-    PathPoints kPoints(crystal, context.getPathExtrema(),
+    Points kPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
-    for (long ik = 0; ik < kPoints.getNumPoints(); ik++) {
-      auto thisK = kPoints.getPointCoords(ik, Points::cartesianCoords);
+    for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
+      auto thisK =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = thisK;
       thisPair.second = context.getG2PlotFixedPoint();
@@ -39,10 +40,11 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   } else {
 
-    PathPoints qPoints(crystal, context.getPathExtrema(),
+    Points qPoints(crystal, context.getPathExtrema(),
                        context.getDeltaPath());
-    for (long iq = 0; iq < qPoints.getNumPoints(); iq++) {
-      auto thisQ = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
+      auto thisQ =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = context.getG2PlotFixedPoint();
       thisPair.second = thisQ;
@@ -64,17 +66,17 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     // I need to get the eigenvectors at these three wavevectors
 
-    auto t3 = electronH0.diagonalizeFromCoords(k1C);
+    auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
     auto eigenVector1 = std::get<1>(t3);
 
-    auto t4 = electronH0.diagonalizeFromCoords(k2C);
+    auto t4 = electronH0.diagonalizeFromCoordinates(k2C);
     auto eigenVector2 = std::get<1>(t4);
     std::vector<Eigen::MatrixXcd> eigenVectors2;
     eigenVectors2.push_back(eigenVector2);
     std::vector<Eigen::Vector3d> k2Cs;
     k2Cs.push_back(k2C);
 
-    auto t5 = phononH0.diagonalizeFromCoords(q3C);
+    auto t5 = phononH0.diagonalizeFromCoordinates(q3C);
     auto eigenVector3 = std::get<1>(t5);
     std::vector<Eigen::MatrixXcd> eigenVectors3;
     eigenVectors3.push_back(eigenVector3);

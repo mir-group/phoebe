@@ -1,5 +1,4 @@
 #include "points.h"
-#include "qe_input_parser.h"
 #include "gtest/gtest.h"
 
 TEST(PointsTest, PointsHandling) {
@@ -13,10 +12,10 @@ TEST(PointsTest, PointsHandling) {
   Eigen::VectorXi atomicSpecies(2);
   atomicSpecies << 0, 0;
   std::vector<std::string> speciesNames;
-  speciesNames.push_back("Si");
+  speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   Context context;
 
@@ -25,7 +24,7 @@ TEST(PointsTest, PointsHandling) {
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;
-  FullPoints points(crystal, mesh);
+  Points points(crystal, mesh);
 
   //-----------------------------------
   // check mesh is what I set initially
@@ -39,23 +38,23 @@ TEST(PointsTest, PointsHandling) {
 
   auto p1 = points.getPoint(4);
   // find the index of the inverted point
-  long i4 = points.getIndex(-p1.getCoords(Points::crystalCoords));
-  //	long i4 = points.getIndexInverted(4);
+  int i4 = points.getIndex(-p1.getCoordinates(Points::crystalCoordinates));
+  //	int i4 = points.getIndexInverted(4);
   auto p2 = points.getPoint(i4);
   auto p3 = p1 + p2;
-  EXPECT_EQ(p3.getCoords(Points::cartesianCoords).norm(), 0.);
+  EXPECT_EQ(p3.getCoordinates(Points::cartesianCoordinates).norm(), 0.);
 
   //-----------------------
   // check point inversion
 
   mesh << 2, 2, 2;
-  points = FullPoints(crystal, mesh);
-  long iq = 7;
+  points = Points(crystal, mesh);
+  int iq = 7;
   p1 = points.getPoint(iq);
-  //	long iqr = points.getIndexInverted(iq);
-  long iqr = points.getIndex(-p1.getCoords(Points::crystalCoords));
+  //	int iqr = points.getIndexInverted(iq);
+  int iqr = points.getIndex(-p1.getCoordinates(Points::crystalCoordinates));
   p2 = points.getPoint(iqr);
   p3 = p1 + p2;
 
-  EXPECT_EQ(p3.getCoords().norm(), 0.);
+  EXPECT_EQ(p3.getCoordinates().norm(), 0.);
 }

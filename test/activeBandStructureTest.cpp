@@ -1,12 +1,11 @@
 #include "active_bandstructure.h"
 #include "ifc3_parser.h"
-#include "ph_scattering.h"
 #include "points.h"
 #include "qe_input_parser.h"
 #include <fstream>
 #include <gtest/gtest.h>
 
-/* This test checks that the active bandstructure construction
+/* This test checks that the active band structure construction
  * for a phonon Hamiltonian is generated the same way regardless
  * of if it was made via buildOnTheFly or buildAsPostProcessing.
  *
@@ -16,7 +15,7 @@
  */
 TEST(ActiveBandStructureTest, BandStructureStorage) {
 
-  std::vector<Context> testConts;
+  std::vector<Context> testContexts;
 
   // set up a phononH0
   Context context1;
@@ -29,38 +28,39 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
   x3(0) = 300. / temperatureAuToSi;
   context1.setTemperatures(x3);
 
-  testConts.push_back(context1);
+  testContexts.push_back(context1);
 
   Context context2;
   context2.setPhD2FileName("../test/data/444_silicon.fc");
   context2.setWindowType("population");
   context2.setWindowPopulationLimit(0.5e-8);
   context2.setTemperatures(x3);
-  testConts.push_back(context2);
+  testContexts.push_back(context2);
 
-  for (Context context : testConts) {
+  for (Context context : testContexts) {
+    context.setUseSymmetries(true);
 
-    QEParser qeParser;
-    auto tup = qeParser.parsePhHarmonic(context);
+    auto tup = QEParser::parsePhHarmonic(context);
     auto crystal = std::get<0>(tup);
     auto phH0 = std::get<1>(tup);
 
     // Number of atoms
-    long numAtoms = crystal.getNumAtoms();
+    int numAtoms = crystal.getNumAtoms();
 
-    // setup parameters for active bandstructure creation
+    // setup parameters for active band structure creation
     Eigen::Vector3i qMesh;
     qMesh << 10, 10, 10;
-    FullPoints points(crystal, qMesh);
+    Points points(crystal, qMesh);
     bool withVelocities = true;
     bool withEigenvectors = true;
 
-    // create two active bandstructures for phonons, built with different
+    // create two active band structures for phonons, built with different
     // methods
     //  call OTF or APP based on builder(..., forceBuildAsAPP)
     auto bsTup1 = ActiveBandStructure::builder(
         context, phH0, points, withEigenvectors, withVelocities, true);
     ActiveBandStructure absAPP = std::get<0>(bsTup1);
+
     auto bsTup2 = ActiveBandStructure::builder(
         context, phH0, points, withEigenvectors, withVelocities, false);
     ActiveBandStructure absOTF = std::get<0>(bsTup2);
@@ -69,15 +69,15 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     ASSERT_EQ(absOTF.getNumPoints(), absAPP.getNumPoints());
 
     // TEST check that the number of bands are the same
-    long sumBands = 0;
-    for (long point = 0; point < absOTF.getNumPoints(); point++) {
+    int sumBands = 0;
+    for (int point = 0; point < absOTF.getNumPoints(); point++) {
       auto ikTemp = WavevectorIndex(point);
       sumBands += absOTF.getNumBands(ikTemp) - absAPP.getNumBands(ikTemp);
     }
     ASSERT_EQ(sumBands, 0);
 
-    // pick a wavevector to check energies, eigenvectors, vels
-    long ik = 7;
+    // pick a wavevector to check energies, eigenvectors, velocities
+    int ik = 7;
     auto ikIndex = WavevectorIndex(ik);
 
     // grab the points associated with this wavevector
@@ -85,85 +85,89 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     Point pointOTF = absOTF.getPoint(ik);
     // Point pointAPP = absAPP.getPoint(ik);
 
-    // get the number of bands at this kpoint
+    // get the number of bands at this point
     double nbOTF = absOTF.getNumBands(ikIndex);
     double nbAPP = absAPP.getNumBands(ikIndex);
 
     // generate values directly from the hamiltonian
     auto tup1 = phH0.diagonalize(pointOTF);
     auto ensT = std::get<0>(tup1);
-    auto eigvecsT = std::get<1>(tup1);
-    auto velsT = phH0.diagonalizeVelocity(pointOTF);
+    auto eigenVectorsT = std::get<1>(tup1);
+    auto velocitiesT = phH0.diagonalizeVelocity(pointOTF);
 
-    // get the values stored in each active bandstructure
+    // get the values stored in each active band structure
     auto ensOTF = absOTF.getEnergies(ikIndex);
     auto ensAPP = absAPP.getEnergies(ikIndex);
 
-    Eigen::Tensor<std::complex<double>, 3> eigvecsOTF =
+    Eigen::Tensor<std::complex<double>, 3> eigenVectorsOTF =
         absOTF.getPhEigenvectors(ikIndex);
-    Eigen::Tensor<std::complex<double>, 3> eigvecsAPP =
+    Eigen::Tensor<std::complex<double>, 3> eigenVectorsAPP =
         absAPP.getPhEigenvectors(ikIndex);
 
-    auto velsOTF = absOTF.getVelocities(ikIndex);
-    auto velsAPP = absAPP.getVelocities(ikIndex);
+    auto velocitiesOTF = absOTF.getVelocities(ikIndex);
+    auto velocitiesAPP = absAPP.getVelocities(ikIndex);
 
-    // TEST check OTF built bandstructure -----------------------
+    // TEST check OTF built band structure -----------------------
 
     // check the energies
     double otfEns = (ensT - ensOTF).norm();
     ASSERT_EQ(otfEns, 0.);
 
     // check the velocities
-    std::complex<double> otfVels = complexZero;
-    for (long ib1 = 0; ib1 < nbOTF; ib1++) {
-      for (long ib2 = 0; ib2 < nbOTF; ib2++) {
-        for (long ic = 0; ic < 3; ic++) {
-          otfVels += pow(velsT(ib1, ib2, ic) - velsOTF(ib1, ib2, ic), 2);
+    std::complex<double> otfVelocities = complexZero;
+    for (int ib1 = 0; ib1 < nbOTF; ib1++) {
+      for (int ib2 = 0; ib2 < nbOTF; ib2++) {
+        for (int ic = 0; ic < 3; ic++) {
+          otfVelocities +=
+              pow(velocitiesT(ib1, ib2, ic) - velocitiesOTF(ib1, ib2, ic), 2);
         }
       }
     }
-    ASSERT_EQ(otfVels, complexZero);
+    ASSERT_EQ(otfVelocities, complexZero);
 
     // check the eigenvectors
-    std::complex<double> otfEigs = complexZero;
-    for (long i = 0; i < nbOTF; i++) {
-      auto tup = decompress2Indices(i, numAtoms, 3);
-      auto iat = std::get<0>(tup);
-      auto ic = std::get<1>(tup);
-      for (long j = 0; j < nbOTF; j++) {
-        otfEigs += pow(eigvecsT(i, j) - eigvecsOTF(ic, iat, j), 2);
+    std::complex<double> otfEigenVectors = complexZero;
+    for (int i = 0; i < nbOTF; i++) {
+      auto tup2 = decompress2Indices(i, numAtoms, 3);
+      auto iat = std::get<0>(tup2);
+      auto ic = std::get<1>(tup2);
+      for (int j = 0; j < nbOTF; j++) {
+        otfEigenVectors +=
+            pow(eigenVectorsT(i, j) - eigenVectorsOTF(ic, iat, j), 2);
       }
     }
-    ASSERT_EQ(otfEigs, complexZero);
+    ASSERT_EQ(otfEigenVectors, complexZero);
 
-    // TEST check APP built bandstructure -----------------------
+    // TEST check APP built band structure -----------------------
 
     // check the energies
     double appEns = (ensT - ensAPP).norm();
     ASSERT_EQ(appEns, 0.);
 
     // check the velocities
-    std::complex<double> appVels = complexZero;
-    for (long ib1 = 0; ib1 < nbAPP; ib1++) {
-      for (long ib2 = 0; ib2 < nbAPP; ib2++) {
-        for (long ic = 0; ic < 3; ic++) {
-          appVels += pow(velsT(ib1, ib2, ic) - velsAPP(ib1, ib2, ic), 2);
+    std::complex<double> appVelocities = complexZero;
+    for (int ib1 = 0; ib1 < nbAPP; ib1++) {
+      for (int ib2 = 0; ib2 < nbAPP; ib2++) {
+        for (int ic = 0; ic < 3; ic++) {
+          appVelocities +=
+              pow(velocitiesT(ib1, ib2, ic) - velocitiesAPP(ib1, ib2, ic), 2);
         }
       }
     }
-    ASSERT_EQ(appVels, complexZero);
+    ASSERT_EQ(appVelocities, complexZero);
 
     // check the eigenvectors
-    std::complex<double> appEigs = complexZero;
-    for (long i = 0; i < nbAPP; i++) {
-      auto tup = decompress2Indices(i, numAtoms, 3);
-      auto iat = std::get<0>(tup);
-      auto ic = std::get<1>(tup);
-      for (long j = 0; j < nbAPP; j++) {
-        appEigs += pow(eigvecsT(i, j) - eigvecsAPP(ic, iat, j), 2);
+    std::complex<double> appEigenVectors = complexZero;
+    for (int i = 0; i < nbAPP; i++) {
+      auto tup2 = decompress2Indices(i, numAtoms, 3);
+      auto iat = std::get<0>(tup2);
+      auto ic = std::get<1>(tup2);
+      for (int j = 0; j < nbAPP; j++) {
+        appEigenVectors +=
+            pow(eigenVectorsT(i, j) - eigenVectorsAPP(ic, iat, j), 2);
       }
     }
-    ASSERT_EQ(appEigs, complexZero);
+    ASSERT_EQ(appEigenVectors, complexZero);
   }
 }
 
@@ -183,21 +187,20 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   qMesh << 10, 10, 10;
 
   // read the phonon H0
-  QEParser qeParser;
-  auto tup = qeParser.parsePhHarmonic(context);
+  auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phH0 = std::get<1>(tup);
 
   // Number of atoms
-  long numAtoms = crystal.getNumAtoms();
+  int numAtoms = crystal.getNumAtoms();
 
-  // setup parameters for active bandstructure creation
-  FullPoints points(crystal, qMesh);
+  // setup parameters for active band structure creation
+  Points points(crystal, qMesh);
 
   bool withVelocities = true;
   bool withEigenvectors = true;
 
-  // create two active bandstructures for phonons, built with different methods
+  // create two active band structures for phonons, built with different methods
   //  call OTF or APP based on builder(..., forceBuildAsAPP)
   auto bsTup1 = ActiveBandStructure::builder(
       context, phH0, points, withEigenvectors, withVelocities, true);
@@ -208,57 +211,59 @@ TEST(ActiveBandStructureTest, WindowFilter) {
 
   // TEST check that they selected the same number of states
   ASSERT_EQ(absOTF.getNumPoints(), absAPP.getNumPoints());
-  ASSERT_LT(absOTF.getNumPoints(),qMesh(0)*qMesh(1)*qMesh(2));
+  ASSERT_LT(absOTF.getNumPoints(), qMesh(0) * qMesh(1) * qMesh(2));
 
   // TEST check that the number of bands are the same
-  long sumBands = 0;
-  for (long point = 0; point < absOTF.getNumPoints(); point++) {
+  int sumBands = 0;
+  for (int point = 0; point < absOTF.getNumPoints(); point++) {
     auto ikTemp = WavevectorIndex(point);
     sumBands += absOTF.getNumBands(ikTemp) - absAPP.getNumBands(ikTemp);
   }
   ASSERT_EQ(sumBands, 0);
 
-  // pick a wavevector to check energies, eigenvectors, vels
-  long ik = 12;
+  // pick a wavevector to check energies, eigenvectors, velocities
+  int ik = 12;
   auto ikIndex = WavevectorIndex(ik);
   double nb = absOTF.getNumBands(ikIndex);
 
-  // get the values stored in each active bandstructure
+  // get the values stored in each active band structure
   auto ensOTF = absOTF.getEnergies(ikIndex);
   auto ensAPP = absAPP.getEnergies(ikIndex);
 
-  Eigen::Tensor<std::complex<double>, 3> eigvecsOTF =
+  Eigen::Tensor<std::complex<double>, 3> eigenVectorsOTF =
       absOTF.getPhEigenvectors(ikIndex);
-  Eigen::Tensor<std::complex<double>, 3> eigvecsAPP =
+  Eigen::Tensor<std::complex<double>, 3> eigenVectorsAPP =
       absAPP.getPhEigenvectors(ikIndex);
 
-  auto velsOTF = absOTF.getVelocities(ikIndex);
-  auto velsAPP = absAPP.getVelocities(ikIndex);
+  auto velocitiesOTF = absOTF.getVelocities(ikIndex);
+  auto velocitiesAPP = absAPP.getVelocities(ikIndex);
 
   // check the energies
   double ens = (ensOTF - ensAPP).norm();
   ASSERT_EQ(ens, 0.);
 
   // check the velocities
-  std::complex<double> vels = complexZero;
-  for (long ib1 = 0; ib1 < nb; ib1++) {
-    for (long ib2 = 0; ib2 < nb; ib2++) {
-      for (long ic = 0; ic < 3; ic++) {
-        vels += pow(velsOTF(ib1, ib2, ic) - velsAPP(ib1, ib2, ic), 2);
+  std::complex<double> velocities = complexZero;
+  for (int ib1 = 0; ib1 < nb; ib1++) {
+    for (int ib2 = 0; ib2 < nb; ib2++) {
+      for (int ic = 0; ic < 3; ic++) {
+        velocities +=
+            pow(velocitiesOTF(ib1, ib2, ic) - velocitiesAPP(ib1, ib2, ic), 2);
       }
     }
   }
-  ASSERT_EQ(vels, complexZero);
+  ASSERT_EQ(velocities, complexZero);
 
   // check the eigenvectors
-  std::complex<double> eigs = complexZero;
-  for (long i = 0; i < nb; i++) {
-    auto tup = decompress2Indices(i, numAtoms, 3);
-    auto iat = std::get<0>(tup);
-    auto ic = std::get<1>(tup);
-    for (long j = 0; j < nb; j++) {
-      eigs += pow(eigvecsOTF(ic, iat, j) - eigvecsAPP(ic, iat, j), 2);
+  std::complex<double> eigenVectors = complexZero;
+  for (int i = 0; i < nb; i++) {
+    auto tup2 = decompress2Indices(i, numAtoms, 3);
+    auto iat = std::get<0>(tup2);
+    auto ic = std::get<1>(tup2);
+    for (int j = 0; j < nb; j++) {
+      eigenVectors +=
+          pow(eigenVectorsOTF(ic, iat, j) - eigenVectorsAPP(ic, iat, j), 2);
     }
   }
-  ASSERT_EQ(eigs, complexZero);
+  ASSERT_EQ(eigenVectors, complexZero);
 }
