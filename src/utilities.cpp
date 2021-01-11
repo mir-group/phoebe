@@ -1,50 +1,37 @@
-#include <iterator>
-#include <sstream>
-#include <vector>
 #include "utilities.h"
-
-long mod(const long &a, const long &b) {
-    return (a % b + b) % b;
-}
 
 int mod(const int &a, const int &b) {
     return (a % b + b) % b;
 }
 
-bool hasSuffix(const std::string &str, const std::string &suffix) {
-    return str.size() >= suffix.size()
-            && str.compare(str.size() - suffix.size(), suffix.size(), suffix)
-                    == 0;
-}
-
-long compress3Indeces(const long &i1, const long &i2, const long &i3,
-        const long &size1, const long &size2, const long &size3) {
+int compress3Indices(const int &i1, const int &i2, const int &i3,
+        const int &size1, const int &size2, const int &size3) {
     (void) size1;
     return i1 * size2 * size3 + i2 * size3 + i3;
 }
 
-std::tuple<long, long, long> decompress3Indeces(const long &iTot,
-        const long &size1, const long &size2, const long &size3) {
+std::tuple<int, int, int> decompress3Indices(const int &iTot,
+        const int &size1, const int &size2, const int &size3) {
     (void) size1;
-    long i1 = iTot / (size2 * size3);
-    long remainder = iTot - i1 * size2 * size3;
-    long i2 = remainder / size3;
+    int i1 = iTot / (size2 * size3);
+    int remainder = iTot - i1 * size2 * size3;
+    int i2 = remainder / size3;
     remainder -= i2 * size3;
-    long i3 = remainder;
+    int i3 = remainder;
     return {i1,i2,i3};
 }
 
-long compress2Indeces(const long &i1, const long &i2, const long &size1,
-        const long &size2) {
+int compress2Indices(const int &i1, const int &i2, const int &size1,
+        const int &size2) {
     (void) size1;
     return i1 * size2 + i2;
 }
 
-std::tuple<long, long> decompress2Indeces(const long &iTot, const long &size1,
-        const long &size2) {
+std::tuple<int, int> decompress2Indices(const int &iTot, const int &size1,
+        const int &size2) {
     (void) size1;
-    long i1 = iTot / size2;
-    long i2 = iTot - i1 * size2;
+    int i1 = iTot / size2;
+    int i2 = iTot - i1 * size2;
     return {i1,i2};
 }
 

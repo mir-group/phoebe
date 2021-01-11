@@ -48,6 +48,6 @@ void pzheev_(char *, char *, int *, std::complex<double> *, int *, int *, int *,
              double *, std::complex<double> *, int *, int *, int *,
              std::complex<double> *, int *, std::complex<double> *, int *,
              int *);
-};
+}
 
 #endif /* BLACS_H */

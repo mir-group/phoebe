@@ -3,10 +3,8 @@
 #include <algorithm>
 #include <exceptions.h>
 #include <iomanip>
-#include <math.h>
-#include <time.h>
-
-#include <nlohmann/json.hpp>
+#include <cmath>
+#include <ctime>
 
 // Utility to get the command line option from it's name
 char *getCmdOption(char **begin, char **end, const std::string &option) {
@@ -14,12 +12,7 @@ char *getCmdOption(char **begin, char **end, const std::string &option) {
   if (itr != end && ++itr != end) {
     return *itr;
   }
-  return 0;
-}
-
-// utility to check if the command line option exists
-bool cmdOptionExists(char **begin, char **end, const std::string &option) {
-  return std::find(begin, end, option) != end;
+  return nullptr;
 }
 
 IO::IO(int argc, char *argv[]) {
@@ -35,10 +28,10 @@ IO::IO(int argc, char *argv[]) {
     outputFileName = outputFileName_;
     outputFile.open(outputFileName, std::ios::out);
 
-    // Backup streambuffers of  cout
+    // Backup stream buffers of  cout
     std::streambuf* stream_buffer_cout = std::cout.rdbuf();
 
-    // Get the streambuffer of the file
+    // Get the stream buffer of the file
     std::streambuf* stream_buffer_file = outputFile.rdbuf();
 
     // Redirect cout to file
@@ -50,7 +43,7 @@ IO::IO(int argc, char *argv[]) {
     // causes buffer to flush at every call of <<
     std::cout.setf( std::ios_base::unitbuf );
   }
-};
+}
 
 IO::~IO() {
   if (outputFile.is_open()) {
@@ -82,8 +75,8 @@ void IO::goodbye() {
   std::cout << "Exiting program" << std::endl;
 }
 
-LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
-                     const long &numSteps_) {
+LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
+                     const int &numSteps_) {
   if (!mpi->mpiHead())
     return;
 
@@ -91,7 +84,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
   step = step_;
   numSteps = numSteps_;
 
-  long numRep = 10; // number of intermediate reports
+  int numRep = 10; // number of intermediate reports
   if (numSteps < numRep) {
     reportEvery = 1;
   } else {
@@ -105,7 +98,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
   std::cout << "Started " << task << " with " << numSteps << " " << step
             << "." << std::endl;
 
-  stepDigits = long(log10(numSteps)) + 1; // number of digits in numSteps
+  stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
 
 void LoopPrint::update() {
@@ -123,7 +116,7 @@ void LoopPrint::update() {
 
     // format currentTime nicely
     char s[200];
-    time_t curr = time(NULL);
+    time_t curr = time(nullptr);
     struct tm *p = localtime(&curr);
     strftime(s, 200, "%F, %T", p);
 
@@ -142,7 +135,7 @@ void LoopPrint::update() {
     if ((currentStep == 0 || currentStep == 2 || currentStep == numSteps - 1) ||
         (currentStep + 1) % reportEvery == 0) {
 
-      long percentage = double(currentStep + 1) / numSteps * 100.;
+      int percentage = double(currentStep + 1) / numSteps * 100.;
 
       std::cout << s << " | ";
       std::cout << std::setw(3) << percentage << "% | ";

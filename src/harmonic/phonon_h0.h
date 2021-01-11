@@ -1,7 +1,7 @@
-#ifndef PHONONH0_H
-#define PHONONH0_H
+#ifndef PHONON_H0_H
+#define PHONON_H0_H
 
-#include <math.h>
+#include <cmath>
 
 #include "bandstructure.h"
 #include "constants.h"
@@ -12,7 +12,7 @@
 #include "points.h"
 
 /** class that computes phonon energies, velocities and eigenvectors.
- * FIrst, it contains the force constants, i.e. the second derivative of the
+ * First, it contains the force constants, i.e. the second derivative of the
  * total energy w.r.t. ionic displacements. Additionally, it has all the
  * infrastructure to Fourier transform this matrix, and diagonalize it to get
  * the harmonic phonon properties.
@@ -25,7 +25,7 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param bornCharges: real tensor of size (numAtoms,3,3) with the Born
    * effective charges
    * @param forceConstants: a tensor of doubles with the force constants
-   * size is (meshx, meshy, meshz, 3, 3, numAtoms, numAtoms)
+   * size is (meshX, meshY, meshZ, 3, 3, numAtoms, numAtoms)
    */
   PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
            const Eigen::Tensor<double, 3> &bornCharges_,
@@ -42,11 +42,11 @@ class PhononH0 : public HarmonicHamiltonian {
 
   /** Returns the number of phonon bands for the crystal in consideration.
    */
-  long getNumBands();
+  int getNumBands() override;
 
   /** Returns the underlying phonon-boson particle.
    */
-  Particle getParticle();
+  Particle getParticle() override;
 
   /** get the phonon energies (in Ry) at a single q-point.
    * @param q: a point object with the wavevector. Must know the cartesian
@@ -54,11 +54,11 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return tuple(energies, eigenvectors): the energies are a double vector
    * of size (numBands=3*numAtoms). Eigenvectors are a complex tensor of
    * size (3,numAtoms,numBands). The eigenvector is rescaled by the
-   * sqrt(masses) (masses in rydbergs)
+   * sqrt(masses) (masses in rydberg)
    */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point);
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point) override;
 
-  /** Equivalent to diagonalize() computes phonon eigenvals/vecs given the
+  /** Equivalent to diagonalize() computes phonon eigenValues/Vectors given the
    * wavevector, but the wavevector is passed by coordinates.
    * @param q: a 3d eigen vector with the cartesian coordinates of the
    * phonon wavevector.
@@ -68,29 +68,29 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return eigenvectors: the phonon eigenvectors, in matrix form, for this
    * point.
    */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
       Eigen::Vector3d &q, const bool &withMassScaling);
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-      Eigen::Vector3d &q);
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
+      Eigen::Vector3d &q) override;
 
   /** get the phonon velocities (in atomic units) at a single q-point.
    * @param q: a Point object with the wavevector coordinates.
    * @return velocity(numBands,numBands,3): values of the velocity operator
    * for this state, in atomic units.
    */
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point);
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords);
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates) override;
 
-  /** This method constructs a phonon bandstructure.
+  /** This method constructs a phonon band structure.
    * @param points: the object with the list/mesh of wavevectors
    * @param withVelocities: if true, compute the phonon velocity operator.
    * @param withEigenvectors: if true, stores the phonon eigenvectors.
-   * @return FullBandStructure: the bandstructure object containing the
+   * @return FullBandStructure: the band structure object containing the
    * complete phonon band structure.
    */
   FullBandStructure populate(Points &points, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed = false);
+                             bool &withEigenvectors, bool isDistributed = false) override;
 
   /** Returns the size of the q-point coarse grid on which the force constants
    * have been computed.
@@ -98,7 +98,7 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   Eigen::Vector3i getCoarseGrid();
 
-  /** Utility to convert the indexes of atom basis and polarization into
+  /** Utility to convert the indices of atom basis and polarization into
    *  the index that has to be used with the eigenvector in matrix form.
    * @param iAt: atomic basis index.
    * @param iPol: polarization index (0,1,2).
@@ -137,15 +137,14 @@ protected:
   // for the first tests, they can be left at these default values
   // in the future, we might expose them to the user input
   bool na_ifc = false;
-  bool loto_2d = false;
+  bool loTo2d = false;
   bool frozenPhonon = false;
 
   bool hasDielectric;
-  long numAtoms;
-  long numBands;
+  int numAtoms;
+  int numBands;
   Eigen::MatrixXd directUnitCell;
   Eigen::MatrixXd reciprocalUnitCell;
-  double latticeParameter;
   double volumeUnitCell;
   Eigen::MatrixXi atomicSpecies;
   Eigen::VectorXd speciesMasses;
@@ -154,32 +153,50 @@ protected:
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
   Eigen::Tensor<double, 7> forceConstants;
-  Eigen::Tensor<double, 5> wscache;
+  Eigen::Tensor<double, 5> wsCache;
   int nr1Big, nr2Big, nr3Big;
 
-  int numBravaisVectors;
+  int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;
   Eigen::VectorXd weights;
   Eigen::Tensor<double,5> mat2R;
 
   // private methods, used to diagonalize the Dyn matrix
-  void wsinit(const Eigen::MatrixXd &unitCell);
-  double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
+
+  /** In wsInit, starting from the primitive crystal unit cell, we build the
+   * list of bravais lattice vectors used for the phonon Fourier transform.
+   */
+  void wsInit(const Eigen::MatrixXd &unitCell);
+
+  /** wsWeight computes the `weights`, i.e. the number of symmetry-equivalent
+   * Bravais lattice vectors, that are used in the phonon Fourier transform.
+   */
+  static double wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
+
+  // These functions treat hte long range corrections
   void longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                     const Eigen::VectorXd &q, const long sign);
-  void nonAnaliticTerm(const Eigen::VectorXd &q,
+                     const Eigen::VectorXd &q, const int &sign);
+  void nonAnalyticTerm(const Eigen::VectorXd &q,
                        Eigen::Tensor<std::complex<double>, 4> &dyn);
   void nonAnalIFC(const Eigen::VectorXd &q,
                   Eigen::Tensor<std::complex<double>, 4> &f_of_q);
+
+  /** This part computes the slow-range part of the dynamical matrix, which is
+   * the Fourier transform of the force constants.
+   */
   void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                       const Eigen::VectorXd &q,
                       Eigen::Tensor<std::complex<double>, 4> &f_of_q);
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dyndiag(
+
+  /** dynDiagonalize diagonalizes the dynamical matrix and returns eigenvalues and
+   * eigenvectors.
+   */
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiagonalize(
       Eigen::Tensor<std::complex<double>, 4> &dyn);
 
   // methods for sum rule on Born charges
   void sp_zeu(Eigen::Tensor<double, 3> &zeu_u, Eigen::Tensor<double, 3> &zeu_v,
-              double &scal);
+              double &scalar) const;
 };
 
 #endif

@@ -29,9 +29,9 @@ Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 }
 
 Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid) {
-  const long nx = 2;
-  long index = 0;
-  const long nrwsx = 200;
+  const int nx = 2;
+  int index = 0;
+  const int nrwsx = 200;
   Eigen::MatrixXd directUnitCell = crystal.getDirectUnitCell();
 
   Eigen::MatrixXd unitCell(3, 3);
@@ -58,7 +58,7 @@ Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid
       }
     }
   }
-  long nrws = index;
+  int nrws = index;
 
   Eigen::MatrixXd rws(3, nrws);
   for (int i = 0; i < nrws; i++) {
@@ -68,9 +68,9 @@ Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid
 }
 
 double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
-  long nreq = 1;
+  int nreq = 1;
   /// std::cout << "   R  " << r(0) << " " << r(1) << " " << r(2) << std::endl;
-  for (long ir = 0; ir < rws.cols(); ir++) {
+  for (int ir = 0; ir < rws.cols(); ir++) {
     double rrt = r.dot(rws.col(ir));
     double ck = rrt - rws.col(ir).squaredNorm() / 2.;
     if (ck > 1.0e-6) {
@@ -84,15 +84,15 @@ double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
   return x;
 }
 
-long findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
-  long ir2 = -1;
+int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
+  int ir2 = -1;
   for (int i = 0; i < cellPositions.cols(); i++) {
     if ((position - cellPositions.col(i)).norm() < 1.e-12) {
       ir2 = i;
       return ir2;
     }
   }
-  if (ir2 == -1) { Error e("index not found"); }
+  if (ir2 == -1) { Error("index not found"); }
   return ir2;
 }
 
@@ -257,9 +257,9 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
       
                           // compress the cartesian indices and unit cell atom indices 
                           // for the first three indices of D3
-                          auto ind1 = compress2Indeces(na, i, numAtoms, 3);
-                          auto ind2 = compress2Indeces(nb, j, numAtoms, 3);
-                          auto ind3 = compress2Indeces(nc, k, numAtoms, 3);
+                          auto ind1 = compress2Indices(na, i, numAtoms, 3);
+                          auto ind2 = compress2Indices(nb, j, numAtoms, 3);
+                          auto ind3 = compress2Indices(nc, k, numAtoms, 3);
 
                           //std::cout << "ind 1 2 3 iR2 iR3 " << ind1 << " " << ind2 << " " << ind3 << " " << iR2 << " " << iR3 << " ijk cellMap[na] na nb nc sat2 sat3 " << i << j << k << " " << cellMap[na] << " " << na << " " << nb << " " << nc << " " << sat2 << " " << sat3 << std::endl; 
       
@@ -415,7 +415,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // get all possible ws cell vectors
   Eigen::MatrixXd rws = wsinit(crystal,qCoarseGrid);
 
-  for (int is = 0; is < nr; is++) { 
+  for (int is = 0; is < nr; is++) {
       // find all possible vectors R2, R3, which are 
       // position of atomPosSupercell - atomPosUnitCell = R
       cellPositions(0,is) = supPositions(is,0) - supPositions(0,0);
@@ -456,17 +456,17 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
 
   // Number of triplets
   std::getline(infile, line);
-  long numTriplets = std::stoi(line);
+  int numTriplets = std::stoi(line);
 
   // Allocate readables
   Eigen::Tensor<double, 4> ifc3Tensor(3, 3, 3, numTriplets);
   ifc3Tensor.setZero();
   Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
   cellPositions.setZero();
-  Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+  Eigen::Tensor<int, 2> displacedAtoms(numTriplets, 3);
   displacedAtoms.setZero();
 
-  for (long i = 0; i < numTriplets; i++) {      // loop over all triplets
+  for (int i = 0; i < numTriplets; i++) {      // loop over all triplets
 
     // empty line
     std::getline(infile, line);
@@ -496,19 +496,19 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
     std::getline(infile, line);
     std::istringstream iss3(line);
     j = 0;
-    long i0;
+    int i0;
     while (iss3 >> i0) {
       displacedAtoms(i, j) = i0 - 1;
       j++;
     }
 
     // Read the 3x3x3 force constants tensor
-    long i1, i2, i3;
+    int i1, i2, i3;
     double d4;
     double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
-    for (long a : { 0, 1, 2 }) {
-      for (long b : { 0, 1, 2 }) {
-        for (long c : { 0, 1, 2 }) {
+    for (int a : { 0, 1, 2 }) {
+      for (int b : { 0, 1, 2 }) {
+        for (int c : { 0, 1, 2 }) {
           std::getline(infile, line);
           std::istringstream iss4(line);
           while (iss4 >> i1 >> i2 >> i3 >> d4) {
@@ -533,7 +533,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
 
   // TODO can't we simplify this? why are we setting
   // found2 and found3?
-  for (long it = 0; it < numTriplets; it++) {
+  for (int it = 0; it < numTriplets; it++) {
 
     // load the position of the 2 atom in the current triplet
     Eigen::Vector3d position2, position3;
@@ -578,10 +578,10 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
   Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
   D3.setZero();
 
-  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
-    long ia1 = displacedAtoms(it, 0);
-    long ia2 = displacedAtoms(it, 1);
-    long ia3 = displacedAtoms(it, 2);
+  for (int it = 0; it < numTriplets; it++) { // sum over all triplets
+    int ia1 = displacedAtoms(it, 0);
+    int ia2 = displacedAtoms(it, 1);
+    int ia3 = displacedAtoms(it, 2);
 
     Eigen::Vector3d position2, position3;
     for (int ic : {0, 1, 2}) {
@@ -589,16 +589,16 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
       position3(ic) = cellPositions(it, 1, ic);
     }
 
-    long ir2 = findIndexRow(cellPositions2, position2);
-    long ir3 = findIndexRow(cellPositions3, position3);
+    int ir2 = findIndexRow(cellPositions2, position2);
+    int ir3 = findIndexRow(cellPositions3, position3);
 
     for (int ic1 : {0, 1, 2}) {
       for (int ic2 : {0, 1, 2}) {
         for (int ic3 : {0, 1, 2}) {
 
-          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+          auto ind1 = compress2Indices(ia1, ic1, numAtoms, 3);
+          auto ind2 = compress2Indices(ia2, ic2, numAtoms, 3);
+          auto ind3 = compress2Indices(ia3, ic3, numAtoms, 3);
 
           D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }
@@ -630,8 +630,8 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
     Error e("D3 file not found");
   }
 
-  long numAtoms = crystal.getNumAtoms();
-  long numSpecies = crystal.getSpeciesMasses().size();
+  int numAtoms = crystal.getNumAtoms();
+  int numSpecies = crystal.getSpeciesMasses().size();
 
   // The first few lines contain info on the crystal, which we ignore
   std::getline(infile, line);
@@ -647,32 +647,32 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   // read the mesh of triplets
   std::getline(infile, line);
 
-  long numTriplets = 0;
+  int numTriplets = 0;
 
   // in this first loop we count the number of triplets that have
   // non zero derivative. This allows us to decrease the size of the matrix
-  for (long na1 = 0; na1 < numAtoms; na1++) {
-    for (long na2 = 0; na2 < numAtoms; na2++) {
-      for (long na3 = 0; na3 < numAtoms; na3++) {
-        for (long j1 : { 0, 1, 2 }) {
-          for (long j2 : { 0, 1, 2 }) {
-            for (long j3 : { 0, 1, 2 }) {
+  for (int na1 = 0; na1 < numAtoms; na1++) {
+    for (int na2 = 0; na2 < numAtoms; na2++) {
+      for (int na3 = 0; na3 < numAtoms; na3++) {
+        for (int j1 : { 0, 1, 2 }) {
+          for (int j2 : { 0, 1, 2 }) {
+            for (int j3 : { 0, 1, 2 }) {
               // suppress compiler warnings
               (void) j1;
               (void) j2;
               (void) j3;
 
               // read 6 integer which represent cartesian and
-              // atomic basis indeces
+              // atomic basis indices
               std::getline(infile, line);
 
               // read the # of elements in this block
               std::getline(infile, line);
               std::istringstream iss2(line);
-              long nR;
+              int nR;
               iss2 >> nR;
 
-              for (long i = 0; i < nR; i++) {
+              for (int i = 0; i < nR; i++) {
                 std::getline(infile, line);
                 std::istringstream iss3(line);
                 int i1, i2, i3, i4, i5, i6;
@@ -699,7 +699,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   ifc3Tensor.setZero();
   Eigen::Tensor<double, 3> cellPositions(numTriplets, 2, 3);
   cellPositions.setZero();
-  Eigen::Tensor<long, 2> displacedAtoms(numTriplets, 3);
+  Eigen::Tensor<int, 2> displacedAtoms(numTriplets, 3);
   displacedAtoms.setZero();
 
   // Open IFC3 file
@@ -718,26 +718,26 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   // read the mesh of triplets
   std::getline(infile, line);
 
-  long it = 0;
+  int it = 0;
 
-  for (long na1 = 0; na1 < numAtoms; na1++) {
-    for (long na2 = 0; na2 < numAtoms; na2++) {
-      for (long na3 = 0; na3 < numAtoms; na3++) {
-        for (long j1 : { 0, 1, 2 }) {
-          for (long j2 : { 0, 1, 2 }) {
-            for (long j3 : { 0, 1, 2 }) {
+  for (int na1 = 0; na1 < numAtoms; na1++) {
+    for (int na2 = 0; na2 < numAtoms; na2++) {
+      for (int na3 = 0; na3 < numAtoms; na3++) {
+        for (int j1 : { 0, 1, 2 }) {
+          for (int j2 : { 0, 1, 2 }) {
+            for (int j3 : { 0, 1, 2 }) {
 
               // read 6 integer which represent cartesian and
-              // atomic basis indeces
+              // atomic basis indices
               std::getline(infile, line);
 
               // read the # of elements in this block
               std::getline(infile, line);
               std::istringstream iss2(line);
-              long nR;
+              int nR;
               iss2 >> nR;
 
-              for (long i = 0; i < nR; i++) {
+              for (int i = 0; i < nR; i++) {
 
                 std::getline(infile, line);
                 std::istringstream iss3(line);
@@ -780,7 +780,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
 
   // TODO can't we simplify this? why are we setting
   // found2 and found3?
-  for (long it = 0; it < numTriplets; it++) {
+  for (int it = 0; it < numTriplets; it++) {
 
     // load the position of the 2 atom in the current triplet
     Eigen::Vector3d position2, position3;
@@ -823,10 +823,10 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
   D3.setZero();
 
-  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
-    long ia1 = displacedAtoms(it, 0);
-    long ia2 = displacedAtoms(it, 1);
-    long ia3 = displacedAtoms(it, 2);
+  for (int it = 0; it < numTriplets; it++) { // sum over all triplets
+    int ia1 = displacedAtoms(it, 0);
+    int ia2 = displacedAtoms(it, 1);
+    int ia3 = displacedAtoms(it, 2);
 
     Eigen::Vector3d position2, position3;
     for (int ic : {0, 1, 2}) {
@@ -834,16 +834,16 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
       position3(ic) = cellPositions(it, 1, ic);
     }
 
-    long ir2 = findIndexRow(cellPositions2, position2);
-    long ir3 = findIndexRow(cellPositions3, position3);
+    int ir2 = findIndexRow(cellPositions2, position2);
+    int ir3 = findIndexRow(cellPositions3, position3);
 
     for (int ic1 : {0, 1, 2}) {
       for (int ic2 : {0, 1, 2}) {
         for (int ic3 : {0, 1, 2}) {
 
-          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
+          auto ind1 = compress2Indices(ia1, ic1, numAtoms, 3);
+          auto ind2 = compress2Indices(ia2, ic2, numAtoms, 3);
+          auto ind3 = compress2Indices(ia3, ic3, numAtoms, 3);
 
           D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }
@@ -856,4 +856,3 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
 
   return interaction3Ph;
 }
-

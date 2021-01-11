@@ -74,7 +74,7 @@ TEST(MPITest, AllReduceSum) {
   }
   // the vector has only one element different from zero
   mpi->allReduceSum(&x5);
-  // now the vector should contain nranks everywhere
+  // now the vector should contain nRanks everywhere
   for (long i = 0; i < size; i++) {
     for (long j = 0; j < size; j++) {
       for (long k = 0; k < size; k++) {

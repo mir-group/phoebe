@@ -26,15 +26,15 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
 
   Eigen::Tensor<std::complex<double>, 4> fE, fT;
 
-  for (long ik = 0; ik < bandStructure.getNumPoints(); ik++) {
+  for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
     WavevectorIndex ikIdx(ik);
     auto velocities = bandStructure.getVelocities(ikIdx);
     auto energies = bandStructure.getEnergies(ikIdx);
     int numBands = energies.size();
 
     Eigen::Vector3d k = bandStructure.getWavevector(ikIdx);
-    auto t = bandStructure.getRotationToIrreducible(k, Points::cartesianCoords);
-    long ikIrr = std::get<0>(t);
+    auto t = bandStructure.getRotationToIrreducible(k, Points::cartesianCoordinates);
+    int ikIrr = std::get<0>(t);
 
     // we do the calculation in two steps
 
@@ -66,11 +66,11 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
           int is2 = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib2));
           StateIndex is1Idx(is1);
           StateIndex is2Idx(is2);
-          long ibte1 = bandStructure.stateToBte(is1Idx).get();
-          long ibte2 = bandStructure.stateToBte(is2Idx).get();
+          int iBte1 = bandStructure.stateToBte(is1Idx).get();
+          int iBte2 = bandStructure.stateToBte(is2Idx).get();
 
-          std::complex<double> xC = {1. / smaRelTimes(iCalc, 0, ibte1) +
-                                         1. / smaRelTimes(iCalc, 0, ibte2),
+          std::complex<double> xC = {1. / smaRelTimes(iCalc, 0, iBte1) +
+                                         1. / smaRelTimes(iCalc, 0, iBte2),
                                      2. * (energies(ib1) - energies(ib2))};
 
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
@@ -85,7 +85,7 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
     }
 
     //---------------------------------------------------------------------
-    // Step 2: now compute the anticommutator for the transport coefficient
+    // Step 2: now compute the anti-commutator for the transport coefficient
 
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
@@ -126,7 +126,7 @@ WignerElCoefficients::WignerElCoefficients(const WignerElCoefficients &that)
       correctionLEE(that.correctionLEE), correctionLTE(that.correctionLTE),
       correctionLET(that.correctionLET), correctionLTT(that.correctionLTT) {}
 
-// copy assigmnent
+// copy assignment
 WignerElCoefficients &
 WignerElCoefficients::operator=(const WignerElCoefficients &that) {
   OnsagerCoefficients::operator=(that);

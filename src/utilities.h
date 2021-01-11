@@ -9,28 +9,24 @@
 // this works as mod() in fortran or % in python when a and b are positive
 // But the behavior is not the same for negative integers
 // the function below can be used instead
-long mod(const long &a, const long &b);
 int mod(const int &a, const int &b);
-
-// checks if string ends with a suffix
-bool hasSuffix(const std::string &str, const std::string &suffix);
 
 // returns -1 if val<0, 0 if val=0, and 1 if val>0
 template<typename T> int sgn(T &val) {
     return (T(0) < val) - (val < T(0));
 }
 
-long compress3Indeces(const long &i1, const long &i2, const long &i3,
-        const long &size1, const long &size2, const long &size3);
+int compress3Indices(const int &i1, const int &i2, const int &i3,
+        const int &size1, const int &size2, const int &size3);
 
-std::tuple<long, long, long> decompress3Indeces(const long &iTot,
-        const long &size1, const long &size2, const long &size3);
+std::tuple<int, int, int> decompress3Indices(const int &iTot,
+        const int &size1, const int &size2, const int &size3);
 
-long compress2Indeces(const long &i1, const long &i2, const long &size1,
-        const long &size2);
+int compress2Indices(const int &i1, const int &i2, const int &size1,
+        const int &size2);
 
-std::tuple<long, long> decompress2Indeces(const long &iTot, const long &size1,
-        const long &size2);
+std::tuple<int, int> decompress2Indices(const int &iTot, const int &size1,
+        const int &size2);
 
 // A function to allocate a dynamically sized array. It tricks the 
 // compiler into thinking the size is a constant via the const identifier
@@ -64,30 +60,29 @@ private:
 
 /** CartIndex is used to label cartesian directions
  */
-using CartIndex = NamedType<long, struct CartTag>;
+using CartIndex = NamedType<int, struct CartTag>;
 
 /** BteIndex is used to label the Bloch states entering the BTE
  */
-using BteIndex = NamedType<long, struct BteTag>;
+using BteIndex = NamedType<int, struct BteTag>;
 
 /** CalcIndex is used to label the pairs of (chemical potential , temperature)
  * used in transport calculations
  */
-using CalcIndex = NamedType<long, struct CalcTag>;
-using TempIndex = NamedType<long, struct TempTag>;
-using ChemPotIndex = NamedType<long, struct ChemPotTag>;
+using TempIndex = NamedType<int, struct TempTag>;
+using ChemPotIndex = NamedType<int, struct ChemPotTag>;
 
 /** WavevectorIndex is used to label k/q points
  */
-using WavevectorIndex = NamedType<long, struct WavevectorTag>;
+using WavevectorIndex = NamedType<int, struct WavevectorTag>;
 
 /** BandIndex is used to label bands at a given k/q points
  */
-using BandIndex = NamedType<long, struct BandTag>;
+using BandIndex = NamedType<int, struct BandTag>;
 
-/** StateIndex is used to label the Bloch states in the bandstructure.
+/** StateIndex is used to label the Bloch states in the band structure.
  * Not always equal to BteIndex, because some states may be discarded!
  */
-using StateIndex = NamedType<long, struct StateTag>;
+using StateIndex = NamedType<int, struct StateTag>;
 
 #endif

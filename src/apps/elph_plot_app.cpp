@@ -1,17 +1,11 @@
 #include "elph_plot_app.h"
 #include "bandstructure.h"
-#include "constants.h"
 #include "context.h"
-#include "drift.h"
+#include "el_scattering.h"
 #include "exceptions.h"
 #include "io.h"
-#include "observable.h"
-#include "particle.h"
-#include "el_scattering.h"
-#include "onsager.h"
+#include "points.h"
 #include "qe_input_parser.h"
-#include "specific_heat.h"
-#include "path_points.h"
 
 void ElPhCouplingPlotApp::run(Context &context) {
 
@@ -28,14 +22,16 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
-  std::vector<std::pair<Eigen::Vector3d,Eigen::Vector3d>> pointsPath;
+  std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPath;
 
   // create a list of (k,q) pairs, where k(q) is on a path and q(k) is fixed
-  if ( context.getG2PlotStyle() == "fixedQ" ) {
+  if (context.getG2PlotStyle() == "fixedQ") {
 
-    PathPoints kPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
-    for (long ik = 0; ik < kPoints.getNumPoints(); ik++) {
-      auto thisK = kPoints.getPointCoords(ik, Points::cartesianCoords);
+    Points kPoints(crystal, context.getPathExtrema(),
+                       context.getDeltaPath());
+    for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
+      auto thisK =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = thisK;
       thisPair.second = context.getG2PlotFixedPoint();
@@ -44,50 +40,51 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   } else {
 
-    PathPoints qPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
-    for (long iq = 0; iq < qPoints.getNumPoints(); iq++) {
-      auto thisQ = qPoints.getPointCoords(iq, Points::cartesianCoords);
+    Points qPoints(crystal, context.getPathExtrema(),
+                       context.getDeltaPath());
+    for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
+      auto thisQ =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
       thisPair.first = context.getG2PlotFixedPoint();
       thisPair.second = thisQ;
       pointsPath.push_back(thisPair);
     }
-
   }
 
-  std::pair<int,int> g2PlotEl1Bands = context.getG2PlotEl1Bands();
-  std::pair<int,int> g2PlotEl2Bands = context.getG2PlotEl2Bands();
-  std::pair<int,int> g2PlotPhBands = context.getG2PlotPhBands();
+  std::pair<int, int> g2PlotEl1Bands = context.getG2PlotEl1Bands();
+  std::pair<int, int> g2PlotEl2Bands = context.getG2PlotEl2Bands();
+  std::pair<int, int> g2PlotPhBands = context.getG2PlotPhBands();
 
   // Compute the coupling
 
   std::vector<double> allGs;
-  for (auto thisPair : pointsPath) {
+  for (const auto &thisPair : pointsPath) {
     Eigen::Vector3d k1C = thisPair.first;
     Eigen::Vector3d q3C = thisPair.second;
     Eigen::Vector3d k2C = k1C + q3C;
 
     // I need to get the eigenvectors at these three wavevectors
 
-    auto t1 = electronH0.diagonalizeFromCoords(k1C);
-    auto eigvec1 = std::get<1>(t1);
+    auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
+    auto eigenVector1 = std::get<1>(t3);
 
-    auto t2 = electronH0.diagonalizeFromCoords(k2C);
-    auto eigvec2 = std::get<1>(t2);
-    std::vector<Eigen::MatrixXcd> eigvecs2;
-    eigvecs2.push_back(eigvec2);
+    auto t4 = electronH0.diagonalizeFromCoordinates(k2C);
+    auto eigenVector2 = std::get<1>(t4);
+    std::vector<Eigen::MatrixXcd> eigenVectors2;
+    eigenVectors2.push_back(eigenVector2);
     std::vector<Eigen::Vector3d> k2Cs;
     k2Cs.push_back(k2C);
 
-    auto t3 = phononH0.diagonalizeFromCoords(q3C);
-    auto eigvec3 = std::get<1>(t3);
-    std::vector<Eigen::MatrixXcd> eigvecs3;
-    eigvecs3.push_back(eigvec3);
+    auto t5 = phononH0.diagonalizeFromCoordinates(q3C);
+    auto eigenVector3 = std::get<1>(t5);
+    std::vector<Eigen::MatrixXcd> eigenVectors3;
+    eigenVectors3.push_back(eigenVector3);
     std::vector<Eigen::Vector3d> q3Cs;
     q3Cs.push_back(q3C);
 
-    couplingElPh.calcCouplingSquared(eigvec1, eigvecs2, eigvecs3, k1C, k2Cs,
-                                     q3Cs);
+    couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3,
+                                     k1C, k2Cs, q3Cs);
     auto coupling = couplingElPh.getCouplingSquared(0);
 
     double sum1 = 0.;
@@ -106,14 +103,13 @@ void ElPhCouplingPlotApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::ofstream outfile("./g2_coupling_plot.dat");
     int i = 0;
-    for ( auto x : allGs ) {
+    for (auto x : allGs) {
       outfile << i << "\t" << x << "\n";
       i += 1;
     }
   }
 
-
-  if ( mpi->mpiHead()) {
+  if (mpi->mpiHead()) {
     std::cout << "\n";
     std::cout << std::string(80, '-') << "\n";
     std::cout << "\n";

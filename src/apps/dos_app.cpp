@@ -7,9 +7,7 @@
 
 #include "constants.h"
 #include "delta_function.h"
-#include "electron_h0_fourier.h"
-#include "exceptions.h"
-#include "full_points.h"
+#include "points.h"
 #include "mpiHelper.h"
 #include "parser.h"
 #include "utilities.h"
@@ -21,7 +19,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
         Context& context, FullBandStructure& fullBandStructure);
 
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-        Particle& particle, Context& context, std::string outFileName);
+        Particle& particle, Context& context, const std::string &outFileName);
 
 /* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
@@ -36,7 +34,7 @@ void PhononDosApp::run(Context &context) {
   auto phononH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  FullPoints fullPoints(crystal, context.getQMesh());
+  Points fullPoints(crystal, context.getQMesh());
   fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
@@ -70,7 +68,7 @@ void ElectronWannierDosApp::run(Context &context) {
   auto h0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  FullPoints fullPoints(crystal, context.getKMesh());
+  Points fullPoints(crystal, context.getKMesh());
   fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
@@ -104,7 +102,7 @@ void ElectronFourierDosApp::run(Context &context) {
   auto h0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-  FullPoints fullPoints(crystal, context.getKMesh());
+  Points fullPoints(crystal, context.getKMesh());
   fullPoints.setIrreduciblePoints();
   bool withVelocities = false;
   bool withEigenvectors = false;
@@ -138,7 +136,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   double minEnergy = context.getDosMinEnergy();
   double maxEnergy = context.getDosMaxEnergy();
   double deltaEnergy = context.getDosDeltaEnergy();
-  long numEnergies = (maxEnergy - minEnergy) / deltaEnergy + 1;
+  int numEnergies = int((maxEnergy - minEnergy) / deltaEnergy) + 1;
 
   // create instructions about how to divide up the work
   auto divs = mpi->divideWork(numEnergies);
@@ -148,16 +146,15 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   int workFraction = stop - start;
 
   std::vector<double> energies(workFraction);
-  #pragma omp parallel for
-  for (long i = start; i < stop; i++) {
-    energies[i - start] = i * deltaEnergy + minEnergy;
+#pragma omp parallel for default(none) shared(start,stop,energies,minEnergy,deltaEnergy)
+  for (int i = start; i < stop; i++) {
+    energies[i - start] = double(i) * deltaEnergy + minEnergy;
   }
 
   // Calculate phonon density of states (DOS) [1/Ry]
   std::vector<double> dos(workFraction, 0.);  // DOS initialized to zero
-  #pragma omp parallel for
-  for (long i = 0; i < workFraction; i++) {
-    std::cout << i << std::endl;
+#pragma omp parallel for default(none) shared(workFraction,tetrahedra,dos,energies)
+  for (int i = 0; i < workFraction; i++) {
     dos[i] += tetrahedra.getDOS(energies[i]);
   }
 
@@ -179,7 +176,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
  * helper function to output dos to a json file
  */
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-          Particle& particle, Context& context, std::string outFileName) {
+          Particle& particle, Context& context, const std::string &outFileName) {
 
   if ( !mpi->mpiHead()) return;
 

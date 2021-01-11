@@ -9,7 +9,6 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   numBands = numAtoms * 3;
   nr2 = cellPositions2.cols();
   nr3 = cellPositions3.cols();
-
   // Copy everything to kokkos views
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);

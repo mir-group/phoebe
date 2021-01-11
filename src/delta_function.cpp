@@ -26,7 +26,7 @@ DeltaFunction::smearingFactory(Context &context,
   } else if (choice == tetrahedron) {
     return new TetrahedronDeltaFunction(fullBandStructure);
   } else {
-    Error e("Unrecognized smearing choice");
+    Error("Unrecognized smearing choice");
     return nullptr;
   }
 }
@@ -47,7 +47,7 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
                                           StateIndex &is) {
   (void)energy;
   (void)is;
-  Error e("GaussianDeltaFunction::getSmearing2 not implemented");
+  Error("GaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
 
@@ -90,7 +90,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
                                                   StateIndex &is) {
   (void)energy;
   (void)is;
-  Error e("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
+  Error("AdaptiveGaussianDeltaFunction::getSmearing2 not implemented");
   return 1.;
 }
 
@@ -102,13 +102,13 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
   auto grid = std::get<0>(tup);
   auto offset = std::get<1>(tup);
   if (offset.norm() > 0.) {
-    Error e("We didnt' implement tetrahedra with offsets", 1);
+    Error("We didn't implement tetrahedra with offsets", 1);
   }
   if (grid(0) < 1 || grid(1) < 1 || grid(2) < 1) {
-    Error e("Tetrahedron method initialized with invalid wavevector grid");
+    Error("Tetrahedron method initialized with invalid wavevector grid");
   }
 
-  // shifts of 1 kpoint in the grid in crystal coordinates
+  // shifts of 1 k-point in the grid in crystal coordinates
   Eigen::Vector3d deltaGrid;
   for (int i : {0,1,2}) {
     deltaGrid(i) = 1. / grid(i);
@@ -120,23 +120,23 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
   // multiplying this by the vector Delta k of the grid, we can reconstruct
   // all the points of the tetrahedron.
 
-  subcellShift.resize(8,3);
-  subcellShift.row(0) << 0., 0., 0.;
-  subcellShift.row(1) << 1., 0., 0.;
-  subcellShift.row(2) << 0., 1., 0.;
-  subcellShift.row(3) << 1., 1., 0.;
-  subcellShift.row(4) << 0., 0., 1.;
-  subcellShift.row(5) << 1., 0., 1.;
-  subcellShift.row(6) << 0., 1., 1.;
-  subcellShift.row(7) << 1., 1., 1.;
+  subCellShift.resize(8,3);
+  subCellShift.row(0) << 0., 0., 0.;
+  subCellShift.row(1) << 1., 0., 0.;
+  subCellShift.row(2) << 0., 1., 0.;
+  subCellShift.row(3) << 1., 1., 0.;
+  subCellShift.row(4) << 0., 0., 1.;
+  subCellShift.row(5) << 1., 0., 1.;
+  subCellShift.row(6) << 0., 1., 1.;
+  subCellShift.row(7) << 1., 1., 1.;
   for ( int i=0; i<8; i++) {
     for (int j :  {0,1,2}) {
-      subcellShift(i, j) *= deltaGrid(j);
+      subCellShift(i, j) *= deltaGrid(j);
     }
   }
 
   // list of quadruplets identifying the vertices of the tetrahedra.
-  // each number corresponds to the one number corresponds to the (interal) coordinate
+  // each number corresponds to the one number corresponds to the (integer) coordinate
   vertices.resize(6,4);
   vertices.row(0) << 0, 1, 2, 5;
   vertices.row(1) << 0, 2, 4, 5;
@@ -149,24 +149,24 @@ TetrahedronDeltaFunction::TetrahedronDeltaFunction(
 double TetrahedronDeltaFunction::getDOS(const double &energy) {
   // initialize tetrahedron weight
   double weight = 0.;
-  for (long is : fullBandStructure.irrStateIterator()) {
+  for (int is : fullBandStructure.irrStateIterator()) {
     auto isIndex = StateIndex(is);
-    long degeneracy = fullBandStructure.getRotationsStar(isIndex).size();
+    double degeneracy = double(fullBandStructure.getRotationsStar(isIndex).size());
     weight += getSmearing(energy, isIndex) * degeneracy;
   }
-  weight /= fullBandStructure.getNumPoints(true);
+  weight /= double(fullBandStructure.getNumPoints(true));
   return weight;
 }
 
 double TetrahedronDeltaFunction::getSmearing(const double &energy,
                                              StateIndex &is) {
   auto t = fullBandStructure.getIndex(is);
-  long ik = std::get<0>(t).get();
+  int ik = std::get<0>(t).get();
   auto ibIndex = std::get<1>(t);
 
   auto fullPoints = fullBandStructure.getPoints();
-  // if the mesh is uniform, each kpoint belongs to 6 tetrahedra
-  auto kCoords = fullPoints.getPointCoords(ik, Points::crystalCoords);
+  // if the mesh is uniform, each k-point belongs to 6 tetrahedra
+  auto kCoordinates = fullPoints.getPointCoordinates(ik, Points::crystalCoordinates);
 
   // in this tensor, we store the offset to find the vertices of the
   // tetrahedrons to which the current point belongs to
@@ -174,21 +174,21 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
   // multiplying this by the vector Delta k of the grid, we can reconstruct
   // all the points of the tetrahedron.
 
-  Eigen::MatrixXd kVectorsSubcell(8,3);
+  Eigen::MatrixXd kVectorsSubCell(8,3);
   for ( int i=0; i<8; i++) {
-    Eigen::Vector3d x = subcellShift.row(i);
-    kVectorsSubcell.row(i) = kCoords + x;
+    Eigen::Vector3d x = subCellShift.row(i);
+    kVectorsSubCell.row(i) = kCoordinates + x;
   }
 
-  Eigen::VectorXi ikSubcellIndices(8);
-  ikSubcellIndices(0) = ik;
+  Eigen::VectorXi ikSubCellIndices(8);
+  ikSubCellIndices(0) = ik;
   for ( int i=1; i<8; i++) {
-    ikSubcellIndices(i) = fullPoints.getIndex(kVectorsSubcell.row(i));
+    ikSubCellIndices(i) = fullPoints.getIndex(kVectorsSubCell.row(i));
   }
 
   Eigen::VectorXd energies(8);
   for ( int i=1; i<8; i++) {
-    long is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubcellIndices(i)),ibIndex);
+    int is1 = fullBandStructure.getIndex(WavevectorIndex(ikSubCellIndices(i)),ibIndex);
     StateIndex is1Idx(is1);
     energies(i) = fullBandStructure.getEnergy(is1Idx);
   }
@@ -203,45 +203,45 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
     tmp[2] = energies(vertices(iTetra,2));
     tmp[3] = energies(vertices(iTetra,3));
     std::sort(tmp.begin(), tmp.end());
-    double e1 = tmp[0];
-    double e2 = tmp[1];
-    double e3 = tmp[2];
-    double e4 = tmp[3];
+    double ee1 = tmp[0];
+    double ee2 = tmp[1];
+    double ee3 = tmp[2];
+    double ee4 = tmp[3];
 
     // We follow Eq. B6 of Lambin and Vigneron PRB 29 3430 (1984)
 
     double cnE = 0.;
-    if (e1 <= energy && energy <= e2) {
-      if ( e2==e1 || e3==e1 || e4==e1 ) {
+    if (ee1 <= energy && energy <= ee2) {
+      if ( ee2==ee1 || ee3==ee1 || ee4==ee1 ) {
         cnE = 0.;
       } else {
-        cnE = 3. * (energy-e1)*(energy-e1) / (e2-e1) / (e3-e1) / (e4-e1);
+        cnE = 3. * (energy-ee1)*(energy-ee1) / (ee2-ee1) / (ee3-ee1) / (ee4-ee1);
       }
-    } else if (e2 <= energy && energy <= e3) {
+    } else if (ee2 <= energy && energy <= ee3) {
 
       cnE = 0.;
-      if ( e4==e2 || e3==e2 || e3==e1 ) {
+      if ( ee4==ee2 || ee3==ee2 || ee3==ee1 ) {
         cnE += 0.;
       } else {
-        cnE += (e3-energy)*(energy-e2) / (e4-e2) / (e3-e2) / (e3-e1);
+        cnE += (ee3-energy)*(energy-ee2) / (ee4-ee2) / (ee3-ee2) / (ee3-ee1);
       }
-      if ( e4==e1 || e4==e2 || e3==e1 ) {
+      if ( ee4==ee1 || ee4==ee2 || ee3==ee1 ) {
         cnE += 0.;
       } else {
-        cnE += (e4-energy)*(energy-e1) / (e4-e1) / (e4-e2) / (e3-e1);
+        cnE += (ee4-energy)*(energy-ee1) / (ee4-ee1) / (ee4-ee2) / (ee3-ee1);
       }
       cnE *= 3.;
 
-    } else if (e3 <= energy && energy <= e4) {
-      if ( e4==e1 || e4==e2 || e4==e3 ) {
+    } else if (ee3 <= energy && energy <= ee4) {
+      if ( ee4==ee1 || ee4==ee2 || ee4==ee3 ) {
         cnE = 0.;
       } else {
-        cnE = 3. * (e4-energy)*(e4-energy) / (e4-e1) / (e4-e2) / (e4-e3);
+        cnE = 3. * (ee4-energy)*(ee4-energy) / (ee4-ee1) / (ee4-ee2) / (ee4-ee3);
       }
     }
 
     // exception
-    if ((e1 == e2) && (e1 == e3) && (e1 == e4) & (energy == e1)) {
+    if ((ee1 == ee2) && (ee1 == ee3) && (ee1 == ee4) & (energy == ee1)) {
       cnE = 0.25;
     }
 
@@ -264,6 +264,6 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
                                              const Eigen::Vector3d &velocity) {
   (void)energy;
   (void)velocity;
-  Error e("TetrahedronDeltaFunction getSmearing1 not implemented");
+  Error("TetrahedronDeltaFunction getSmearing1 not implemented");
   return 1.;
 }

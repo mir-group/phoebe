@@ -13,7 +13,7 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
-#include <math.h>
+#include <cmath>
 
 void TransportEpaApp::run(Context &context) {
   // parse QE-xml file
@@ -29,21 +29,21 @@ void TransportEpaApp::run(Context &context) {
   double energyStep = context.getEpaEnergyStep();
   // in principle, we should add 1 to account for ends of energy interval
   // i will not do that, because will work with the centers of energy steps
-  long numEnergies = long((maxEnergy - minEnergy) / energyStep);
+  int numEnergies = int((maxEnergy - minEnergy) / energyStep);
   // energies at the centers of energy steps
   Eigen::VectorXd energies(numEnergies);
-  for (long i = 0; i < numEnergies; ++i) {
+  for (int i = 0; i < numEnergies; ++i) {
     // add 0.5 to be in the middle of the energy step
-    energies(i) = (i + 0.5) * energyStep + minEnergy;
+    energies(i) = (double(i) + 0.5) * energyStep + minEnergy;
   }
 
-  // Read and setup k-point mesh for interpolating bandstructure
-  FullPoints fullPoints(crystal, context.getKMesh());
+  // Read and setup k-point mesh for interpolating band structure
+  Points fullPoints(crystal, context.getKMesh());
   bool withVelocities = true;
   bool withEigenvectors = false;
 
   if (mpi->mpiHead()) {
-    std::cout << "\nBuilding electronic bandstructure" << std::endl;
+    std::cout << "\nBuilding electronic band structure" << std::endl;
   }
 
   electronH0.trimBands(context, minEnergy, maxEnergy);
@@ -121,7 +121,7 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
     const Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons) {
 
   int numEnergies = energies.size();
-  long numStates = bandStructure.getNumStates();
+  int numStates = bandStructure.getNumStates();
   int numPoints = bandStructure.getNumPoints(true);
   int dim = context.getDimensionality();
 
@@ -140,9 +140,9 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
     privateVel.setZero();
 
 #pragma omp for nowait
-    for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
+    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
       loopPrint.update();
-      for (long iState = 0; iState != numStates; ++iState) {
+      for (int iState = 0; iState != numStates; ++iState) {
         StateIndex isIdx(iState);
         double deltaFunction =
             tetrahedrons.getSmearing(energies(iEnergy), isIdx);
@@ -150,13 +150,13 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
         for (int j = 0; j < dim; ++j) {
           for (int i = 0; i < dim; ++i) {
             privateVel(i, j, iEnergy) +=
-                velocity(i) * velocity(j) * deltaFunction / numPoints;
+                velocity(i) * velocity(j) * deltaFunction / double(numPoints);
           }
         }
       }
     }
 #pragma omp critical
-    for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
+    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
       for (int j = 0; j < dim; ++j) {
         for (int i = 0; i < dim; ++i) {
           energyProjVelocity(i, j, iEnergy) += privateVel(i, j, iEnergy);
@@ -174,7 +174,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     FullBandStructure &fullBandStructure, Eigen::VectorXd &energies,
     TetrahedronDeltaFunction &tetrahedrons) {
 
-  long numStates = fullBandStructure.getNumStates();
+  int numStates = fullBandStructure.getNumStates();
 
   /*If constant relaxation time is specified in input, we don't need to
   calculate EPA lifetimes*/
@@ -195,11 +195,11 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   auto phParticle = Particle(Particle::phonon);
 
   if (particle.isPhonon())
-    Error e("Electronic bandstructure has to be provided");
+    Error e("Electronic band structure has to be provided");
 
-  long numCalcs = statisticsSweep.getNumCalcs();
+  int numCalcs = statisticsSweep.getNumCalculations();
 
-  long numEnergies = energies.size();
+  int numEnergies = energies.size();
   double energyStep = context.getEpaEnergyStep();
 
   // calculate the density of states at the energies in energies vector
@@ -209,7 +209,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
                          mpi->divideWorkIter(numEnergies).size());
     dos.setZero();
 #pragma omp parallel for
-    for (long i : mpi->divideWorkIter(numEnergies)) {
+    for (int i : mpi->divideWorkIter(numEnergies)) {
       loopPrint1.update();
       dos(i) = tetrahedrons.getDOS(energies(i));
     }
@@ -252,10 +252,10 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     privateRates.setZero();
 
 #pragma omp for nowait
-    for (long iEnergy : mpi->divideWorkIter(numEnergies)) {
+    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
       loopPrint.update();
 
-      for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
+      for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         double chemPot =
             statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
@@ -264,8 +264,8 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
         for (int iPhFreq = 0; iPhFreq < numPhEnergies; ++iPhFreq) {
 
           // Avoid some index out of bound errors
-          if (iEnergy + phJump(iPhFreq) + 1 >= numEnergies ||
-              iEnergy - phJump(iPhFreq) - 1 < 0) {
+          if (double(iEnergy) + phJump(iPhFreq) + 1. >= double(numEnergies) ||
+              double(iEnergy) - phJump(iPhFreq) - 1. < 0.) {
             continue;
           }
 
@@ -321,8 +321,8 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
 #pragma omp critical
     {
-      for (long iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
-        for (long iCalc = 0; iCalc < numCalcs; ++iCalc) {
+      for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
+        for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
           epaRate.data(iCalc, iEnergy) += privateRates(iCalc, iEnergy);
         }
       }

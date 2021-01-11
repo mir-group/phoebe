@@ -52,7 +52,7 @@ public:
   /** Outputs the quantity to a json file.
   * @param outFileName: string representing the name of the json file
   */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string& outFileName);
 
   void calcTransportCoefficients();
 

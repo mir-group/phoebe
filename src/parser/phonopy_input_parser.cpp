@@ -14,14 +14,14 @@
 #include "periodic_table.h"
 #include "phonopy_input_parser.h"
 #include "utilities.h"
-#include "full_points.h"
+#include "points.h"
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
 #endif
 
-long findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
-  long ir2 = -1;
+int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
+  int ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
     if ((position2 - cellPositions2.col(i)).norm() < 1.e-12) {
       ir2 = i;
@@ -422,7 +422,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   if(mpi->mpiHead()) std::cout << "Successfully parsed harmonic phonopy files." << std::endl;
 
   // Now we do postprocessing
-  long dimensionality = context.getDimensionality();
+  int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 

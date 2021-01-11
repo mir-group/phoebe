@@ -8,8 +8,8 @@
  */
 class ElectronWannierTransportApp: public App {
 public:
-  void run(Context &context);
-  void checkRequirements(Context &context);
+  void run(Context &context) override;
+  void checkRequirements(Context &context) override;
 };
 
 #endif

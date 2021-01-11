@@ -4,6 +4,11 @@
 #include "context.h"
 #include "eigen.h"
 
+/** Class used to store and access the values of the electron-phonon coupling
+ * at the EPA level of theory.
+ *
+ * The EPA average has been already performed elsewhere (in ElPhQeToPhoebeApp)
+ */
 class InteractionEpa {
 
 private:
@@ -12,21 +17,47 @@ private:
   Eigen::Tensor<double, 3> elPhMatAverage;
 
 public:
-  // default constructor
-  InteractionEpa(Eigen::VectorXd &elEnergies_,
-                 Eigen::VectorXd &phEnergies_,
+  /** default constructor.
+   *
+   * @param elEnergies_ : histogram of electronic energy values on top of which
+   * the electron-phonon coupling has been averaged.
+   * @param phEnergies_ : histogram of phononic energy values on top of which
+   * the electron-phonon coupling has been averaged.
+   * @param elPhMatAverage_: tensor with the EPA averaged values.
+   */
+  InteractionEpa(Eigen::VectorXd &elEnergies_, Eigen::VectorXd &phEnergies_,
                  Eigen::Tensor<double, 3> &elPhMatAverage_);
 
-  // copy constructor
+  /** copy constructor
+   */
   InteractionEpa(const InteractionEpa &that);
 
-  // assignment operator overload
+  /** Copy assignment
+   */
   InteractionEpa &operator=(const InteractionEpa &that);
 
+  /** get the values of phonon energies used to compute the EPA coupling.
+   */
   Eigen::VectorXd getPhEnergies();
-  Eigen::VectorXd getElEnergies();
-  double getCoupling(const int&i,const int&j,const int&k);
 
+  /** get the values of electron energies used to compute the EPA coupling.
+   */
+  Eigen::VectorXd getElEnergies();
+
+  /** Get the values of the EPA coupling
+   *
+   * @param i: electron index of the energy bin for the initial electron state
+   * @param j: electron index of the energy bin for the final electron state
+   * @param k: phonon index of the energy bin
+   * @return EPA approximation for |g|^2
+   */
+  double getCoupling(const int &i, const int &j, const int &k);
+
+  /** Function used to parse the EPA values from file
+   *
+   * @param context: object with user-defined parameters.
+   * @return InteractionEPA: the instance of the class with the EPA coupling
+   */
   static InteractionEpa parseEpaCoupling(Context &context);
 };
 

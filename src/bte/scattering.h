@@ -16,7 +16,7 @@ public:
    * @param statisticsSweep: object controlling the loops over temperature
    * and chemical potential.
    * @param innerBandStructure: bandStructure object. This is the mesh used
-   * to integrate the anharmonic properties for each state of outerBandStruc.
+   * to integrate the anharmonic properties for each state of outerBandStructure.
    * For transport calculation, this object is typically equal to
    * outerBandStructure. Might differ when outerBS is on a path of points.
    * @param outerBandStructure: bandStructure object. The anharmonic
@@ -83,9 +83,9 @@ public:
    */
   VectorBTE getLinewidths();
 
-  /** Converts the scttering matrix from the form A to the symmetrized Omega.
+  /** Converts the scattering matrix from the form A to the symmetrised Omega.
    * A acts on the canonical phonon population f, while Omega acts on the
-   * symmetrized phonon population \tilde{n}.
+   * symmetrised phonon population \tilde{n}.
    * Note: for phonons, n = bose(bose+1)f , with bose being the
    * bose--einstein distribution, while n = sqrt(bose(bose+1)) tilde(n).
    * Only works if the matrix is kept in memory and after setup() has been
@@ -107,7 +107,7 @@ public:
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
    */
-  void outputToJSON(std::string outFileName);
+  void outputToJSON(const std::string &outFileName);
 
   /** Function to combine a BTE index and a cartesian index into one index of
    * the scattering matrix. If no symmetries are used, the output is equal to
@@ -122,7 +122,7 @@ public:
    * index on cartesian directions, and BteIndex an index on the Bloch states
    * entering the Boltzmann equation.
    */
-  long getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
+  int getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex);
 
   /** Function to split a scattering matrix index (on rows/columns of S) into
    * a BTE index and a cartesian index. If no symmetries are used, the output
@@ -138,7 +138,7 @@ public:
    * index on cartesian directions, and BteIndex an index on the Bloch states
    * entering the Boltzmann equation.
    */
-  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const long &iMat);
+  std::tuple<BteIndex, CartIndex> getSMatrixIndex(const int &iMat);
 
  protected:
   Context &context;
@@ -165,9 +165,9 @@ public:
   // the scattering matrix, initialized if highMemory==true
   ParallelMatrix<double> theMatrix;
 
-  long numStates; // number of Bloch states (i.e. the size of theMatrix)
-  long numPoints; // number of wavevectors
-  long numCalcs;  // number of "Calculations", i.e. number of temperatures and
+  int numStates; // number of Bloch states (i.e. the size of theMatrix)
+  int numPoints; // number of wavevectors
+  int numCalcs;  // number of "Calculations", i.e. number of temperatures and
   // chemical potentials on which we compute scattering.
   int dimensionality_;
 
@@ -175,7 +175,7 @@ public:
   // at gamma, which have zero frequencies and thus have several non-analytic
   // behaviors (e.g. Bose--Einstein population=infinity). We set to zero
   // terms related to these states.
-  std::vector<long> excludeIndeces;
+  std::vector<int> excludeIndices;
 
   /** Method that actually computes the scattering matrix.
    * Pure virtual function: needs an implementation in every subclass.
@@ -185,7 +185,7 @@ public:
    * 2) if matrix.size > 0 and linewidth is passed, builder computes the
    * quasiparticle linewidths and the scattering matrix. Memory intensive!
    * 3) if matrix.size()==0, linewidth is not passed, but we pass in+out
-   * populations, we compute outPopulation = scattMatrix * inPopulation.
+   * populations, we compute outPopulation = scatteringMatrix * inPopulation.
    * This doesn't require to store the matrix in memory.
    */
   virtual void builder(VectorBTE *linewidth,
@@ -213,7 +213,7 @@ public:
    * owned by an MPI process. Otherwise, we trivially parallelize over the outer
    * loop on points.
    */
-  std::vector<std::tuple<std::vector<long>, long>>
+  std::vector<std::tuple<std::vector<int>, int>>
   getIteratorWavevectorPairs(const int &switchCase,
                              const bool &rowMajor = false);
 };
