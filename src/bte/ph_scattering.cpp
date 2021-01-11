@@ -33,7 +33,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     int i = 0;
     for (const auto &atomName : atomsNames) {
       double thisMass = periodicTable.getMass(atomName);
-      // since the phonon eigenvectors are renormalized with sqrt(mass)
+      // since the phonon eigenvectors are normalized with sqrt(mass)
       // we add a correction factor in the coupling here
       massVariance(i) =
           thisMass * thisMass * periodicTable.getMassVariance(atomName);
@@ -191,6 +191,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         q2Point.getCoordinates(Points::cartesianCoordinates),
         Points::cartesianCoordinates);
     int iq2Irr = std::get<0>(t);
+    WavevectorIndex iq2IrrIndex(iq2Irr);
     Eigen::Matrix3d rotation = std::get<1>(t);
     // rotation such that qIrr = R * qRed
 
@@ -220,6 +221,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       std::vector<int> nb3Plus_v(batch_size);
       std::vector<int> nb3Minus_v(batch_size);
 
+      std::vector<Eigen::VectorXd> energies3Plus_v(batch_size);
+      std::vector<Eigen::MatrixXd> v3sPlus_v(batch_size);
+      std::vector<Eigen::MatrixXd> bose3PlusData_v(batch_size);
+      std::vector<Eigen::VectorXd> energies3Minus_v(batch_size);
+      std::vector<Eigen::MatrixXd> v3sMinus_v(batch_size);
+      std::vector<Eigen::MatrixXd> bose3MinusData_v(batch_size);
+
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
@@ -241,12 +249,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         auto energies3Plus = std::get<1>(tup1);
         auto ev3Plus = std::get<3>(tup1);
-        auto v3ps = std::get<4>(tup1);
+        auto v3sPlus = std::get<4>(tup1);
         auto bose3PlusData = std::get<5>(tup1);
 
         auto energies3Minus = std::get<1>(tup2);
         auto ev3Minus = std::get<3>(tup2);
-        auto v3ms = std::get<4>(tup2);
+        auto v3sMinus = std::get<4>(tup2);
         auto bose3MinusData = std::get<5>(tup2);
 
         q1_v[iq1Batch] = outerBandStructure.getWavevector(iq1Index);
@@ -256,12 +264,19 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         ev1_v[iq1Batch] = outerBandStructure.getEigenvectors(iq1Index);
         ev3Plus_v[iq1Batch] = ev3Plus;
         ev3Minus_v[iq1Batch] = ev3Minus;
+
+        energies3Plus_v[iq1Batch] = energies3Plus;
+        v3sPlus_v[iq1Batch] = v3sPlus;
+        bose3PlusData_v[iq1Batch] = bose3PlusData;
+        energies3Minus_v[iq1Batch] = energies3Minus;
+        v3sMinus_v[iq1Batch] = v3sMinus;
+        bose3MinusData_v[iq1Batch] = bose3MinusData;
       }
 
       // calculate batch of couplings
       auto tuple1 = coupling3Ph->getCouplingsSquared(
-          q1_v, q2, ev1_v, ev2, ev3Plus_v, ev3Minus_v, nb1_v, nb2,
-          nb3Plus_v, nb3Minus_v);
+          q1_v, q2, ev1_v, ev2, ev3Plus_v, ev3Minus_v, nb1_v, nb2, nb3Plus_v,
+          nb3Minus_v);
       auto couplingPlus_v = std::get<0>(tuple1);
       auto couplingMinus_v = std::get<1>(tuple1);
 
@@ -271,25 +286,19 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         WavevectorIndex iq1Index(iq1);
         auto couplingPlus = couplingPlus_v[iq1Batch];
         auto couplingMinus = couplingMinus_v[iq1Batch];
-        Point q1Point = outerBandStructure.getPoint(iq1);
-        Eigen::VectorXd energies1 =
-            outerBandStructure.getEnergies(iq1Index);
+        Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
         int nb1 = energies1.size();
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
-        auto tup1 = pointHelper.get(q1Point, q2Point, Helper3rdState::casePlus);
-        auto tup2 =
-            pointHelper.get(q1Point, q2Point, Helper3rdState::caseMinus);
-
-        auto energies3Plus = std::get<1>(tup1);
+        auto energies3Plus = energies3Plus_v[iq1Batch];
         auto nb3Plus = energies3Plus.size();
-        auto v3sPlus = std::get<4>(tup1);
-        auto bose3PlusData = std::get<5>(tup1);
+        auto v3sPlus = v3sPlus_v[iq1Batch];
+        auto bose3PlusData = bose3PlusData_v[iq1Batch];
 
-        auto energies3Minus = std::get<1>(tup2);
+        auto energies3Minus = energies3Minus_v[iq1Batch];
         auto nb3Minus = energies3Minus.size();
-        auto v3sMinus = std::get<4>(tup2);
-        auto bose3MinusData = std::get<5>(tup2);
+        auto v3sMinus = v3sMinus_v[iq1Batch];
+        auto bose3MinusData = bose3MinusData_v[iq1Batch];
 
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -306,7 +315,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
               int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
               int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-              int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+              int is2Irr = innerBandStructure.getIndex(iq2IrrIndex,
                                                        BandIndex(ib2));
               StateIndex is1Idx(is1);
               StateIndex is2Idx(is2);
@@ -408,7 +417,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
               int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
               int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-              int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+              int is2Irr = innerBandStructure.getIndex(iq2IrrIndex,
                                                        BandIndex(ib2));
               StateIndex is1Idx(is1);
               StateIndex is2Idx(is2);
@@ -521,11 +530,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           innerBandStructure.getPhEigenvectors(iq2Index);
       Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
 
-      auto q2Coords = innerBandStructure.getPoint(iq2).getCoordinates(
+      auto q2 = innerBandStructure.getPoint(iq2).getCoordinates(
           Points::cartesianCoordinates);
 
       auto t = innerBandStructure.getRotationToIrreducible(
-          q2Coords, Points::cartesianCoordinates);
+          q2, Points::cartesianCoordinates);
       // rotation such that
       int iq2Irr = std::get<0>(t);
       Eigen::Matrix3d rotation = std::get<1>(t);
