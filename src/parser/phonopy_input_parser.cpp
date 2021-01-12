@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iomanip> // to declare istringstream
 #include <iostream>
-#include <math.h>   // round()
+#include <cmath>   // round()
 #include <stdlib.h> // abs()
 #include <string>
 #include <vector>
@@ -23,38 +23,38 @@
 int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
   int ir2 = -1;
   for (int i = 0; i < cellPositions2.cols(); i++) {
-    if ((position2 - cellPositions2.col(i)).norm() < 1.e-12) {
+    if ((position2 - cellPositions2.col(i)).squaredNorm() < 1.e-6) {
       ir2 = i;
       return ir2;
     }
   }
   if (ir2 == -1) {
-    Error e("index not found");
+    Error("index not found");
   }
   return ir2;
 }
 
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
-  // Here we read the real space dynmat of interatomic force constants
+  // Here read the real space dynamical matrix of inter-atomic force constants
 
   // This should be the directory containing all phonopy D2 files.
   // It should include fc2.hdf5, disp_fc2/3.yaml,and phono3py_disp.yaml
   std::string directory = context.getPhD2FileName();
   std::string line;
-  if (directory == "") {
-    Error e("Must provide a path to a directory containing fc2.hdf5, \n"
+  if (directory.empty()) {
+    Error("Must provide a path to a directory containing fc2.hdf5, \n"
         "phono3py_disp.yaml, and either disp_fc3.yaml (if p3py force constants \n"
-        "were generated with same dim for fc2 and fc3 supercells) \n"
-        "or disp_fc2.yaml (if supercell dims were different).", 1);
+        "were generated with same dim for fc2 and fc3 super cells) \n"
+        "or disp_fc2.yaml (if super cell dims were different).");
   }
 
   // Read disp_fc2.yaml or disp_fc3.yaml file
   // ====================================================
-  // which has the fc2 supercell regardless of whether or not forces
-  // were generated with different fc2 vs fc3 supercells, or if both
-  // supercells were the same, from disp_fc3.yaml.
-  // If both used the same supercell, disp_fc2.yaml will not have been
+  // which has the fc2 superCell regardless of whether or not forces
+  // were generated with different fc2 vs fc3 superCells, or if both
+  // superCells were the same, from disp_fc3.yaml.
+  // If both used the same superCell, disp_fc2.yaml will not have been
   // created.
 
   // open input file
@@ -64,15 +64,15 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     infile.clear();
     infile.open(directory+"/disp_fc3.yaml");
     if(!infile.is_open()) {
-      Error e("disp_fc2.yaml/disp_fc3.yaml file not found at path " + directory, 1);
+      Error("disp_fc2.yaml/disp_fc3.yaml file not found at path " + directory);
     }
   }
 
-  // first line of disp.yaml will be natoms in supercell
+  // first line of disp.yaml will be numAtoms in superCell
   std::getline(infile, line);
   int numSupAtoms = std::stoi(line.substr(line.find(" ") ,line.back()));
 
-  // read the rest of the file to get supercell positions
+  // read the rest of the file to get superCell positions
   Eigen::MatrixXd supPositions(numSupAtoms, 3);
   Eigen::MatrixXd supLattice(3, 3);
   int ilatt = 3;
@@ -111,7 +111,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // ===================================================
   // Read in unit cell crystal information from phono3py_disp.yaml
   // This file is created at the start of a phono3py run, and contains
-  // information specifying if fc2 has the same supercell dims as fc3
+  // information specifying if fc2 has the same superCell dims as fc3
 
   // open input file
   infile.clear();
@@ -119,7 +119,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // open input file
   if (not infile.is_open()) {
-    Error e("phono3py_disp.yaml file not found in " + directory, 1);
+    Error("phono3py_disp.yaml file not found in " + directory);
   }
 
   // read in the dimension information.
@@ -130,7 +130,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     getline(infile, line);
 
     // In the case where force constants where generated with different
-    // supercells for fc2 and fc3, the label we need is dim_fc2.
+    // superCells for fc2 and fc3, the label we need is dim_fc2.
     // Otherwise, if both are the same, it's just dim.
     if(line.find("dim_fc2: ") != std::string::npos) {
       std::string temp = line.substr(line.find("\"")+1, line.find("\"\n")-3);
@@ -281,9 +281,13 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     // not a better way to do this.
     std::string temp = line.substr(line.find("atoms")+5);
     std::vector<int> becList;
-    std::istringstream iss(temp);
-    int i;
-    while(iss>>i) { becList.push_back(i); }
+    {
+      std::istringstream iss(temp);
+      int i;
+      while (iss >> i) {
+        becList.push_back(i);
+      }
+    }
 
     int atomType = -1;
     while(infile) {
@@ -295,8 +299,8 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   
       // the first non-comment line in the file is the dielectric matrix
       if(atomType == -1) {
-        std::istringstream iss(line);
-        iss >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >> dielectricMatrix(0,2) >>  
+        std::istringstream iss2(line);
+        iss2 >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >> dielectricMatrix(0,2) >>
           dielectricMatrix(1,0) >> dielectricMatrix(1,1) >> dielectricMatrix(1,2) >> 
           dielectricMatrix(2,0) >> dielectricMatrix(2,1) >> dielectricMatrix(2,2);
         atomType++;
@@ -433,4 +437,4 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
                            forceConstants, context.getSumRuleD2());
 
   return {crystal, dynamicalMatrix};
-};
+}
