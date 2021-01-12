@@ -423,6 +423,9 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // Now we do postprocessing
   int dimensionality = context.getDimensionality();
+  // must transpose the lattice vectors before passing to crystal,
+  // as crystal uses a different format than phonopy does.
+  directUnitCell.transposeInPlace();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 
