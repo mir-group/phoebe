@@ -157,11 +157,10 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
   int iR2 = -1; int iR3 = -1;
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
 
-  // TODO this is not efficient, redo it
-    // TODO there is almost certainly a more favorable way to order these
-    // loops or perform something like the wscache in harmonic/phonon_h0
-    // TODO there's likely a way to easily avoid findIndexRow
-    // TODO likely a way to avoid recalculating wsweight every time
+  // TODO there is almost certainly a more favorable way to order these
+  // loops or perform something like the wscache in harmonic/phonon_h0
+  // TODO there's likely a way to easily avoid findIndexRow
+  // TODO likely a way to avoid recalculating wsweight every time
 
   // loop over all possible indices for the first vector
   for (int nr3 = -nr3Big; nr3 < nr3Big; nr3++) {
@@ -187,11 +186,11 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
             iR2 +=1; // if selected increment the R2 index
 
             // the iR3 index should start based on how many R3 Bravais
-      // vectors we covered in the earlier loops over na.
-      // The vector startBVForAtom holds the starting
-      // points in iR3 for each atom (minus 1 for zero based
-      // indexing)
-      iR3 = startBVForAtom(na) -1;
+            // vectors we covered in the earlier loops over na.
+            // The vector startBVForAtom holds the starting
+            // points in iR3 for each atom (minus 1 for zero based
+            // indexing)
+            iR3 = startBVForAtom(na) -1;
 
             // loop over atoms involved in R3 vector
             for (int nc = 0; nc < numAtoms; nc++) {
@@ -218,8 +217,6 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
                     weights3(iR3) = weightR3;
                     bravaisVectors2.col(iR2) = r2;
                     bravaisVectors3.col(iR3) = r3;
-                    //std::cout << "chosen r3 weight " << iR3 << " " << weightR3 << " " << r3(0) << " " << r3(1) << " " << r3(2) << std::endl;
-                    //std::cout << "chosen r2 weight "<< iR2 << " " << weightR2 << " " << r2(0) << " " << r2(1) << " " << r2(2) << std::endl;
 
                     // calculate the positive quadrant equivalents
                     int m1 = mod((nr1 + 1), qCoarseGrid(0));
@@ -254,10 +251,7 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
                     int sat2 = cellMap[nb] + ir2;
                     int sat3 = cellMap[nc] + ir3;
 
-                    //std::cout << "pos r3 ir3 sat2 "<< iR3 << " "  <<  ir3 << " " << sat2 << " " << rp3(0) << " " << rp3(1) << " " << rp3(2) << std::endl;
-                    //std::cout << "pos r2 ir2 sat3 "<< iR2 << " "  <<  ir2 << " " << sat3 << " " <<  rp2(0) << " " << rp2(1) << " " << rp2(2) << std::endl;
-
-        // loop over the cartesian directions
+                    // loop over the cartesian directions
                     for (int i : {0, 1, 2}) {
                       for (int j : {0, 1, 2}) {
                         for (int k : {0, 1, 2}) {
@@ -268,10 +262,9 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
                           auto ind2 = compress2Indices(nb, j, numAtoms, 3);
                           auto ind3 = compress2Indices(nc, k, numAtoms, 3);
 
-                          //std::cout << "ind 1 2 3 iR2 iR3 " << ind1 << " " << ind2 << " " << ind3 << " " << iR2 << " " << iR3 << " ijk cellMap[na] na nb nc sat2 sat3 " << i << j << k << " " << cellMap[na] << " " << na << " " << nb << " " << nc << " " << sat2 << " " << sat3 << std::endl;
-
                           mat3R(ind1, ind2, ind3, iR2, iR3) +=
                                 ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] * conversion;
+
                         } // close cartesian loops
                       }
                     }
@@ -319,7 +312,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   std::string line;
   if (not infile.is_open()) {
       Error e("Phono3py disp_fc3.yaml file not "
-  "found in directory "+directory+".");
+        "found in directory "+directory+".");
   }
 
   // first line will always be natoms in supercell
