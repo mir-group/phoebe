@@ -45,7 +45,7 @@ void SpecificHeat::calc() {
     double chemPot = calcStat.chemicalPotential;
 
     double sum = 0.;
-#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot)
+#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,ryToCmm1)
     for (int is = 0; is < bandStructure.getNumStates(); is++) {
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
