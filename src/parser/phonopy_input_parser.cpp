@@ -306,28 +306,20 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         atomType++;
       }
       else {
-        int numDupes;
+        int numDupes; // number of atoms duplicate to the current index in terms of BEC
         if(atomType+1 >= becList.size()){ numDupes = numAtoms - (becList[atomType] - 1); }
         else{ numDupes = becList[atomType+1] - becList[atomType]; }
         for(int i = 0; i < numDupes; i++) {
           std::istringstream iss(line);
-     	  int iat = i + (becList[atomType] - 1);
-	  iss >> bornCharges(iat,0,0) >> bornCharges(iat,0,1) >> bornCharges(iat,0,2) >>  
-             bornCharges(iat,1,0) >> bornCharges(iat,1,1) >> bornCharges(iat,1,2) >> 
-             bornCharges(iat,2,0) >> bornCharges(iat,2,1) >> bornCharges(iat,2,2);
+          int iat = i + (becList[atomType] - 1);
+          iss >> bornCharges(iat,0,0) >> bornCharges(iat,0,1) >> bornCharges(iat,0,2) >>
+              bornCharges(iat,1,0) >> bornCharges(iat,1,1) >> bornCharges(iat,1,2) >>
+              bornCharges(iat,2,0) >> bornCharges(iat,2,1) >> bornCharges(iat,2,2);
         }
         atomType++;
       }
     }
   }
-
-// print BECs
-/*  for(int iat = 0; iat< numAtoms; iat++) {
-	  std::cout << bornCharges(iat,0,0) << " " << bornCharges(iat,0,1) << " " << bornCharges(iat,0,2) << " " <<  
-             bornCharges(iat,1,0) << " " << bornCharges(iat,1,1) << " " << bornCharges(iat,1,2) << " " <<
-             bornCharges(iat,2,0) << " " << bornCharges(iat,2,1) << " " << bornCharges(iat,2,2) << std::endl;
-  }
-*/
 
   // Parse the fc2.hdf5 file and read in the dynamical matrix
   // ==========================================================
@@ -379,7 +371,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         // atoms in the supercell, and instead use R
         // to find their index.
 
-	// build the R vector associated with this
+        // build the R vector associated with this
         // cell in the supercell
         Eigen::Vector3d R;
         R = r1 * directUnitCell.row(0) +
@@ -389,21 +381,25 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         // use the find cell function to determine
         // the index of this cell in the list of
         // R vectors (named cellPositions from above)
-	int ir = findRIndex(cellPositions2, R);
+        int ir = findRIndex(cellPositions2, R);
 
         // loop over the first atoms. Because we consider R1=0,
         // these are only primitive unit cell atoms.
         for (int iat = 0; iat < numAtoms; iat++) {
           for (int jat = 0; jat < numAtoms; jat++) {
 
-            // Need to convert jat to supercell index
+            // Need to convert to supercell indices.
             // Atoms in supercell are ordered so that there is a
             // unit cell atom followed by numUnitcell-in-supercell-#-of-atoms,
             // which are representations of the unit cell atom in other cells
             // we find this by using cellMap to tell us where the
             // first atom of this type is, then adding ir, which tells us
             // which cell it's in.
-            int jsat = cellMap[jat] + ir;
+            //
+            // We must put an offset of iR onto the first index, because
+            // the format in phono3py is D(R',R=0)
+            int isat = cellMap[iat] + ir;
+            int jsat = cellMap[jat];
 
             // loop over cartesian directions
             for (int ic : {0,1,2}) {
@@ -412,7 +408,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
                 // here, cellMap tells us the position of this
                 // unit cell atom in the supercell of phonopy
                 forceConstants(ic, jc, r1, r2, r3, iat, jat) =
-                      ifc2[cellMap[iat]][jsat][ic][jc] * conversion;
+                      ifc2[isat][jsat][ic][jc] * conversion;
 
               }
             }
@@ -430,6 +426,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // must transpose the lattice vectors before passing to crystal,
   // as crystal uses a different format than phonopy does.
   directUnitCell.transposeInPlace();
+
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
 
