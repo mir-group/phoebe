@@ -618,11 +618,11 @@ void PhononH0::reorderDynamicalMatrix() {
   // first, we compute the total number of bravais lattice vectors
 
   numBravaisVectors = 0;
-  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+  for (int n3 = -nr3Big; n3 <= nr3Big; n3++) {
     int n3ForCache = n3 + nr3Big;
-    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+    for (int n2 = -nr2Big; n2 <= nr2Big; n2++) {
       int n2ForCache = n2 + nr2Big;
-      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+      for (int n1 = -nr1Big; n1 <= nr1Big; n1++) {
         int n1ForCache = n1 + nr1Big;
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
@@ -643,11 +643,11 @@ void PhononH0::reorderDynamicalMatrix() {
   mat2R.setZero();
 
   int iR = 0;
-  for (int n3 = -nr3Big; n3 < nr3Big; n3++) {
+  for (int n3 = -nr3Big; n3 <= nr3Big; n3++) {
     int n3ForCache = n3 + nr3Big;
-    for (int n2 = -nr2Big; n2 < nr2Big; n2++) {
+    for (int n2 = -nr2Big; n2 <= nr2Big; n2++) {
       int n2ForCache = n2 + nr2Big;
-      for (int n1 = -nr1Big; n1 < nr1Big; n1++) {
+      for (int n1 = -nr1Big; n1 <= nr1Big; n1++) {
         int n1ForCache = n1 + nr1Big;
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
@@ -684,7 +684,6 @@ void PhononH0::reorderDynamicalMatrix() {
                       forceConstants(i, j, m1, m2, m3, na, nb);
                 }
               }
-
               iR += 1;
             }
           }
