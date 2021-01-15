@@ -397,7 +397,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       // the factor popTerm could be = 0!
       auto particle = outerBandStructure.getParticle();
       if (particle.isElectron()) {
-        Error e("Attempting to use a numerically unstable quantity");
+        Error("Attempting to use a numerically unstable quantity");
       }
       for (int iBte = 0; iBte < numStates; iBte++) {
         auto iBteIdx = BteIndex(iBte);
@@ -409,7 +409,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          linewidths(iCalc, 0, iBte) /= popTerm;
+          linewidths(iCalc, 0, iBte) *= popTerm;
         }
       }
       return linewidths;
