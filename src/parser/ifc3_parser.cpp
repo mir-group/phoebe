@@ -11,29 +11,31 @@
 
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 
-    auto fileName = context.getPhD3FileName();
-
-    // TODO would it be better to add one input variable called
-    // phononFileType=[phonopy, shengbte, qe, etc] and then have
-    // D3FileName and D2FileName changed to one phononInputDirectory?
-    // TODO I left out input parsing for qe -- I think we discussed that
-    // we weren't planning to support this?
-
-    // check if this is a phono3py fc3.hdf5 file or a shengbte file
-    if (fileName.find(".hdf5") != std::string::npos) {
-      return parseFromPhono3py(context, crystal);
+  // check if this is a phonopy file is set in input
+  if (context.getPhonopyDispFileName() != "") {
+    if(mpi->mpiHead()) {
+      std::cout << "Using anharmonic force "
+        "constants from phono3py." << std::endl;
     }
-    else {
-      return parseFromShengBTE(context, crystal);
+    return parseFromPhono3py(context, crystal);
+  }
+  else {
+    if(mpi->mpiHead()) {
+      std::cout << "Using anharmonic force "
+        "constants from ShengBTE." << std::endl;
     }
+    return parseFromShengBTE(context, crystal);
+  }
 }
 
+/* this function is used by phono3py parser, and
+ * constructs a list of vectors which are in the first WS
+ * supercell of the phonon supercell */
 Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid) {
   const int nx = 2;
   int index = 0;
   const int nrwsx = 200;
   Eigen::MatrixXd directUnitCell = crystal.getDirectUnitCell();
-  //directUnitCell.transposeInPlace();
 
   Eigen::MatrixXd unitCell(3, 3);
   unitCell.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
@@ -47,9 +49,10 @@ Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid
       for (int kr = -nx; kr <= nx; kr++) {
         for (int i : {0,1,2}) {
           tmpResult(i, index) =
-              unitCell(i, 0) * ir + unitCell(i, 1) * jr + unitCell(i, 2) * kr;
+              unitCell(i, 0) * ir +
+              unitCell(i, 1) * jr +
+              unitCell(i, 2) * kr;
         }
-
         if (tmpResult.col(index).squaredNorm() > 1.0e-6) {
           index += 1;
         }
@@ -68,7 +71,10 @@ Eigen::MatrixXd IFC3Parser::wsinit(Crystal &crystal, Eigen::Vector3i qCoarseGrid
   return rws;
 }
 
-double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
+/* given the list of all vectors in the WS supercell (rws),
+ * determine the weight of a particular vector, r */
+double wsweight(const Eigen::VectorXd &r,
+                const Eigen::MatrixXd &rws) {
   int nreq = 1;
   for (int ir = 0; ir < rws.cols(); ir++) {
     double rrt = r.dot(rws.col(ir));
@@ -84,7 +90,9 @@ double wsweight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
   return x;
 }
 
-int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
+/* find the index of a particular vector in cellPositions */
+int findIndexRow(Eigen::MatrixXd &cellPositions,
+                Eigen::Vector3d &position) {
   int ir2 = -1;
   for (int i = 0; i < cellPositions.cols(); i++) {
     if ((position - cellPositions.col(i)).norm() < 1.e-12) {
@@ -157,10 +165,9 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd> r
   int iR2 = -1; int iR3 = -1;
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
 
-  // TODO there is almost certainly a more favorable way to order these
-  // loops or perform something like the wscache in harmonic/phonon_h0
-  // TODO there's likely a way to easily avoid findIndexRow
-  // TODO likely a way to avoid recalculating wsweight every time
+  // Note: it may be possible to make these loops faster.
+  // It is likely possible to avoid using findIndexRow,
+  // and there could be a faster order of loops.
 
   // loop over all possible indices for the first vector
   for (int nr3 = -nr3Big; nr3 < nr3Big; nr3++) {
@@ -305,15 +312,20 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   int numAtoms = crystal.getNumAtoms();
 
   // Open disp_fc3 file, read supercell positions, nSupAtoms
-  // TODO we need to supply a path rather than a filename,
-  // since in this case there's two files...
-  auto directory = context.getPhD2FileName();
-  std::ifstream infile(directory + "/disp_fc3.yaml");
+  // ==========================================================
+  auto fileName = context.getDispFCFileName();
+  std::ifstream infile(fileName);
   std::string line;
-  if (not infile.is_open()) {
-      Error e("Phono3py disp_fc3.yaml file not "
-        "found in directory "+directory+".");
+
+  if(fileName == "") {
+    Error e("Phono3py required file dispFCFileName "
+      "(disp_fc3.yaml) not specified in input file.");
   }
+  if (not infile.is_open()) {
+    Error e("Phono3py required file dispFCFileName "
+      "(disp_fc3.yaml) not found at " + fileName + ".");
+  }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   // first line will always be natoms in supercell
   std::getline(infile, line);
@@ -356,7 +368,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
 
   // convert positions to cartesian, in bohr
   for(int i = 0; i<ipos; i++) {
-    Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
+    Eigen::Vector3d temp(supPositions(i,0),
+                    supPositions(i,1),supPositions(i,2));
     Eigen::Vector3d temp2 = lattice.transpose() * temp;
     supPositions(i,0) = temp2(0);
     supPositions(i,1) = temp2(1);
@@ -364,8 +377,14 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   }
 
   // Open the hdf5 file containing the IFC3s
-  auto fileName = context.getPhD3FileName();
-  if(fileName == "") fileName = directory + "fc3.hdf5";
+  // ===================================================
+  fileName = context.getPhD3FileName();
+  if(fileName == "") {
+    Error e("Phono3py phD3FileName (fc3.hdf5) file not "
+      "specified in input file.");
+  }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
+
   HighFive::File file(fileName, HighFive::File::ReadOnly);
 
   // Set up hdf5 datasets
@@ -373,21 +392,33 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
 
   // set up buffer to read entire matrix
-  // have to use this monstrosity because the phono3py data is shaped as a
-  // 6 dimensional array, and eigen tensor is not supported by highFive
-  std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>> ifc3Tensor;
+  // have to use this monstrosity because the
+  // phono3py data is shaped as a 6 dimensional array,
+  // and eigen tensor is not supported by highFive
+  std::vector<std::vector<
+      std::vector<std::vector<
+      std::vector<std::vector<double>>>>>> ifc3Tensor;
   std::vector<int> cellMap;
 
   // read in the ifc3 data
   difc3.read(ifc3Tensor);
   dcellMap.read(cellMap);
 
-  // Read dimension of supercell from phono3py_disp file --------------------------------------
-  infile.open(directory+"/phono3py_disp.yaml");
+  // Read dimension of supercell from phono3py_disp file
+  // ====================================================
+  fileName = context.getPhonopyDispFileName();
+  infile.open(fileName);
 
-  if (not infile.is_open()) {
-    Error e("phono3py_disp.yaml file not found in " + directory, 1);
+  if(fileName == "") {
+    Error e("Phono3py required file phonopyDispFileName "
+         "(phono3py_disp.yaml) not specified in input file.");
   }
+  if (not infile.is_open()) {
+    Error e("Phono3py required file phonopyDispFileName "
+         "phono3py_disp.yaml) file not found "
+         "at " + fileName);
+  }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   // read in the dimension information.
   Eigen::Vector3i qCoarseGrid;
@@ -409,27 +440,32 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context, Crystal &crystal)
   // get all possible ws cell vectors
   Eigen::MatrixXd rws = wsinit(crystal,qCoarseGrid);
 
+  // find all possible vectors R2, R3, which are
+  // position of atomPosSupercell - atomPosUnitCell = R
   for (int is = 0; is < nr; is++) {
-      // find all possible vectors R2, R3, which are
-      // position of atomPosSupercell - atomPosUnitCell = R
-      cellPositions(0,is) = supPositions(is,0) - supPositions(0,0);
-      cellPositions(1,is) = supPositions(is,1) - supPositions(0,1);
-      cellPositions(2,is) = supPositions(is,2) - supPositions(0,2);
+    cellPositions(0,is) = supPositions(is,0) - supPositions(0,0);
+    cellPositions(1,is) = supPositions(is,1) - supPositions(0,1);
+    cellPositions(2,is) = supPositions(is,2) - supPositions(0,2);
   }
 
   // reshape to D3 format
   Eigen::Tensor<double, 5> D3;
 
-  auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid, rws, D3, cellPositions, ifc3Tensor, cellMap);
+  auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid,
+                  rws, D3, cellPositions, ifc3Tensor, cellMap);
   Eigen::MatrixXd bravaisVectors2 = std::get<0>(tup);
   Eigen::VectorXd weights2 = std::get<1>(tup);
   Eigen::MatrixXd bravaisVectors3 = std::get<2>(tup);
   Eigen::VectorXd weights3 = std::get<3>(tup);
 
-  if(mpi->mpiHead()) std::cout << "Successfully parsed anharmonic phono3py files.\n" << std::endl;
+  if(mpi->mpiHead()) {
+    std::cout << "Successfully parsed anharmonic "
+            "phono3py files.\n" << std::endl;
+  }
 
   // Create interaction3Ph object
-  Interaction3Ph interaction3Ph(crystal, D3, bravaisVectors2, bravaisVectors3, weights2, weights3);
+  Interaction3Ph interaction3Ph(crystal, D3,
+         bravaisVectors2, bravaisVectors3, weights2, weights3);
 
   return interaction3Ph;
 
@@ -447,6 +483,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context, Crystal &crystal)
   if (not infile.is_open()) {
       Error e("D3 file not found");
   }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   // Number of triplets
   std::getline(infile, line);
@@ -623,6 +660,7 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   if (not infile.is_open()) {
     Error e("D3 file not found");
   }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   int numAtoms = crystal.getNumAtoms();
   int numSpecies = crystal.getSpeciesMasses().size();
@@ -772,8 +810,6 @@ Interaction3Ph IFC3Parser::parseFromQE(Context &context, Crystal &crystal) {
   int nr3 = 0;
   std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
 
-  // TODO can't we simplify this? why are we setting
-  // found2 and found3?
   for (int it = 0; it < numTriplets; it++) {
 
     // load the position of the 2 atom in the current triplet

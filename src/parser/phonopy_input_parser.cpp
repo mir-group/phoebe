@@ -37,36 +37,36 @@ int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // Here read the real space dynamical matrix of inter-atomic force constants
-
-  // This should be the directory containing all phonopy D2 files.
-  // It should include fc2.hdf5, disp_fc2/3.yaml,and phono3py_disp.yaml
-  std::string directory = context.getPhD2FileName();
-  std::string line;
-  if (directory.empty()) {
-    Error("Must provide a path to a directory containing fc2.hdf5, \n"
-        "phono3py_disp.yaml, and either disp_fc3.yaml (if p3py force constants \n"
-        "were generated with same dim for fc2 and fc3 super cells) \n"
-        "or disp_fc2.yaml (if super cell dims were different).");
+  if(mpi->mpiHead()) {
+    std::cout << "Using harmonic force constants from phonopy." << std::endl;
   }
 
   // Read disp_fc2.yaml or disp_fc3.yaml file
   // ====================================================
-  // which has the fc2 superCell regardless of whether or not forces
-  // were generated with different fc2 vs fc3 superCells, or if both
-  // superCells were the same, from disp_fc3.yaml.
-  // If both used the same superCell, disp_fc2.yaml will not have been
-  // created.
+  // If disp_fc2 is supplied, it has the fc2 superCell.
+  // If both superCells were the same, both are written to disp_fc3.yaml,
+  // and disp_fc2.yaml will not have been created.
 
   // open input file
-  std::ifstream infile(directory+"/disp_fc2.yaml");
+  auto fileName = context.getDispFC2FileName();
+  std::ifstream infile(fileName);
+  std::string line;
+
   // if there's no disp_fc2 file, use disp_fc3 instead
-  if(!infile.is_open()) {
+  if(fileName == "") {
+    fileName = context.getDispFCFileName();
+    if(fileName == "") {
+      Error e("Phonopy required file dispFCFileName "
+        "(disp_fc3.yaml/disp_fc2.yaml) file not specified in input file.");
+    }
     infile.clear();
-    infile.open(directory+"/disp_fc3.yaml");
+    infile.open(fileName);
     if(!infile.is_open()) {
-      Error("disp_fc2.yaml/disp_fc3.yaml file not found at path " + directory);
+      Error("Phonopy required file dispFCFileName (disp_fc3.yaml/disp_fc2.yaml) "
+                "not found at " + fileName);
     }
   }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   // first line of disp.yaml will be numAtoms in superCell
   std::getline(infile, line);
@@ -106,6 +106,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
   }
   infile.close();
+  infile.clear();
 
   // Read phono3py_disp.yaml file
   // ===================================================
@@ -114,13 +115,18 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // information specifying if fc2 has the same superCell dims as fc3
 
   // open input file
-  infile.clear();
-  infile.open(directory+"/phono3py_disp.yaml");
+  fileName = context.getPhonopyDispFileName();
+  infile.open(fileName);
 
-  // open input file
-  if (not infile.is_open()) {
-    Error("phono3py_disp.yaml file not found in " + directory);
+  if(fileName == "") {
+    Error e("Phonopy required file phonopyDispFileName (phono3py_disp.yaml) "
+          "file not specified in input file.");
   }
+  if (not infile.is_open()) {
+    Error("Phonopy required file phonopyDispFileName (phono3py_disp.yaml) "
+           "not found at " + fileName);
+  }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
 
   // read in the dimension information.
   // we have to do this first, because we need to use this info
@@ -168,9 +174,10 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   ilatt = 3;
   ipos = 0;
-  // TODO watchout, this is reading the primitive cell from phono3py.
+  // Note: watchout, this is reading the primitive cell from phono3py.
   // we might want to read in the unit cell, which could be different
   // because of some conversions they do internally.
+  // So far all cases I've seen list them as the same cell.
   // Unit cell is also written to this fine in the same way as read
   // below.
   while(infile) {
@@ -185,7 +192,8 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         speciesNames.push_back(temp);
       }
       // save the atom number of this species
-      atomicSpecies(ipos) = std::find(speciesNames.begin(), speciesNames.end(), temp) - speciesNames.begin();
+      atomicSpecies(ipos) = std::find(speciesNames.begin(),
+                      speciesNames.end(), temp) - speciesNames.begin();
     }
     // if this is a cell position, save it
     if(line.find("coordinates: ") != std::string::npos) {
@@ -227,10 +235,10 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     count++;
   }
 
-  // convert supercell positions to cartesian, in bohr
+  // convert supercell positions to cartesian, in bohr (supLattice in bohr)
   for(int i = 0; i<numSupAtoms; i++) {
     Eigen::Vector3d temp(supPositions(i,0),supPositions(i,1),supPositions(i,2));
-    Eigen::Vector3d temp2 = supLattice.transpose() * temp; // supLattice already converted to Bohr
+    Eigen::Vector3d temp2 = supLattice.transpose() * temp;
     supPositions(i,0) = temp2(0);
     supPositions(i,1) = temp2(1);
     supPositions(i,2) = temp2(2);
@@ -261,7 +269,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // If hasDielectric, look for BORN file
   // ============================================================
-  // the BORN file contains the dielectric matrix on the first line, 
+  // the BORN file contains the dielectric matrix on the first line,
   // and the BECs of unique atoms on the following lines
   bool hasDielectric = false;
   Eigen::Matrix3d dielectricMatrix;
@@ -269,12 +277,15 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 
+  // the below code will parse the BORN file, for now we leave it commented out
+
+  /*
   infile.clear();
   infile.open(directory+"/BORN");
   if(infile.is_open()) {
     hasDielectric = true;
     if(mpi->mpiHead()) std::cout << "Using BORN file found in D2 directory." << std::endl;
-    getline(infile,line); 
+    getline(infile,line);
 
     // NOTE need to extract the list of which atoms are listed in this file
     // from the comment on the first line of the file. Unfortuantely, there is
@@ -296,12 +307,12 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       if(line.find("#") != std::string::npos) continue;
       // make sure it's not blank
       if(line.find_first_not_of(' ') == std::string::npos) continue;
-  
+
       // the first non-comment line in the file is the dielectric matrix
       if(atomType == -1) {
         std::istringstream iss2(line);
         iss2 >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >> dielectricMatrix(0,2) >>
-          dielectricMatrix(1,0) >> dielectricMatrix(1,1) >> dielectricMatrix(1,2) >> 
+          dielectricMatrix(1,0) >> dielectricMatrix(1,1) >> dielectricMatrix(1,2) >>
           dielectricMatrix(2,0) >> dielectricMatrix(2,1) >> dielectricMatrix(2,2);
         atomType++;
       }
@@ -320,6 +331,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       }
     }
   }
+  */
 
   // Parse the fc2.hdf5 file and read in the dynamical matrix
   // ==========================================================
@@ -333,9 +345,16 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
   std::vector<int> cellMap;
 
+  fileName = context.getPhD2FileName();
+  if(fileName == "") {
+    Error e("Phonopy required file phD2FileName (fc2.hdf5) file not "
+      "specified in input file.");
+  }
+  if(mpi->mpiHead()) std::cout << "Reading in " + fileName + "." << std::endl;
+
   try {
     // Open the hdf5 file
-    HighFive::File file(directory+"/fc2.hdf5", HighFive::File::ReadOnly);
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
 
     // Set up hdf5 datasets
     HighFive::DataSet difc2 = file.getDataSet("/force_constants");
@@ -346,7 +365,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     dcellMap.read(cellMap);
   }
   catch(std::exception& error) {
-    Error e("Issue reading fc2.hdf5 file. Make sure it exists in " + directory +
+    Error e("Issue reading fc2.hdf5 file. Make sure it exists at " + fileName +
         "\n and is not open by some other persisting processes.");
   }
 
@@ -419,7 +438,9 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   }
   #endif
 
-  if(mpi->mpiHead()) std::cout << "Successfully parsed harmonic phonopy files." << std::endl;
+  if(mpi->mpiHead()) {
+    std::cout << "Successfully parsed harmonic phonopy files.\n" << std::endl;
+  }
 
   // Now we do postprocessing
   int dimensionality = context.getDimensionality();

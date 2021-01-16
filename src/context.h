@@ -16,6 +16,10 @@ class Context {
  private:
   std::string phD2FileName;
   std::string phD3FileName;
+  std::string phonopyDispFileName;
+  std::string dispFCFileName;
+  std::string dispFC2FileName;
+
   std::string electronH0Name;
   std::string wannier90Prefix;
   std::string quantumEspressoPrefix;
@@ -129,6 +133,15 @@ class Context {
 
   std::string getPhD3FileName();
   void setPhD3FileName(const std::string &x);
+
+  std::string getPhonopyDispFileName();
+  void setPhonopyDispFileName(const std::string &x);
+
+  std::string getDispFCFileName();
+  void setDispFCFileName(const std::string &x);
+
+  std::string getDispFC2FileName();
+  void setDispFC2FileName(const std::string &x);
 
   std::string getEpwFileName();
   void setEpwFileName(const std::string &x);
