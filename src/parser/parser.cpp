@@ -1,12 +1,11 @@
 #include "parser.h"
 
 std::tuple<Crystal, PhononH0> Parser::parsePhHarmonic(Context &context) {
-  std::string fileName = context.getPhD2FileName();
-  // TODO -- this feels like a problem waiting to happen. For example, 
-  // what if someone named some part of their filepath ".fc"?
 
-  // check if this is a qe fc file
-  if (fileName.find(".fc") != std::string::npos) {
+  std::string fileName = context.getPhonopyDispFileName();
+
+  // check if this file is set -- if it is, we read from phonopy
+  if (fileName == "") {
     return QEParser::parsePhHarmonic(context);
   }
   else {
