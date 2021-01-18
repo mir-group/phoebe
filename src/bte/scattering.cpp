@@ -381,7 +381,6 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
   }
 }
 
-// to compute the RTA, get the single mode relaxation times
 VectorBTE ScatteringMatrix::getLinewidths() {
   if (constantRTA) {
     double crt = context.getConstantRelaxationTime();
@@ -393,6 +392,11 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     VectorBTE linewidths = internalDiagonal;
     linewidths.excludeIndices = excludeIndices;
     if (isMatrixOmega) {
+      VectorBTE linewidths = internalDiagonal;
+      linewidths.excludeIndices = excludeIndices;
+      return linewidths;
+    }
+    else { // A_nu,nu = N(1+-N) / tau
       // Important note: don't use this for fermions, or you can get rubbish!
       // the factor popTerm could be = 0!
       auto particle = outerBandStructure.getParticle();
@@ -409,12 +413,10 @@ VectorBTE ScatteringMatrix::getLinewidths() {
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          linewidths(iCalc, 0, iBte) *= popTerm;
+          linewidths(iCalc, 0, iBte) = internalDiagonal(iCalc, 0, iBte)/popTerm;
         }
       }
-      return linewidths;
-
-    } else { // A_nu,nu = N(1+-N) / tau
+      linewidths.excludeIndices = excludeIndices;
       return linewidths;
     }
   }
