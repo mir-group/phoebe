@@ -430,14 +430,17 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   VectorBTE times = getSingleModeTimes();
   VectorBTE tmpLinewidths = getLinewidths();
 
-  std::string energyUnit;
   std::string particleType;
-  double energyConversion;
   auto particle = outerBandStructure.getParticle();
-  energyConversion = energyRyToEv;
-  energyUnit = "eV";
+  double energyConversion = energyRyToEv;
+  std::string energyUnit = "eV";
+  double energyToTime = timeRyToFs;
   if (particle.isPhonon()) {
     particleType = "phonon";
+    // in the case of phonons, we need an extra factor of
+    // two pi, likely because of a conversion from
+    // ordinal to angular frequency
+    energyToTime /= twoPi;
   } else {
     particleType = "electron";
   }
@@ -482,7 +485,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
         bandsE.push_back(ene * energyConversion);
         int iBte = int(outerBandStructure.stateToBte(isIdx).get());
         double tau = times(iCalc, 0, iBte); // only zero dim is meaningful
-        bandsT.push_back(tau * timeRyToFs);
+        bandsT.push_back(tau * energyToTime);
         double linewidth =
             tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
         bandsL.push_back(linewidth * energyRyToEv);
