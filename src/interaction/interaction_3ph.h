@@ -1,5 +1,5 @@
-#ifndef PHINTERACTION_H
-#define PHINTERACTION_H
+#ifndef PH_INTERACTION_H
+#define PH_INTERACTION_H
 
 #include <Kokkos_Core.hpp>
 #include <chrono>
@@ -41,13 +41,13 @@
  * advantage of the crystal periodicity to set the phases of R1 to zero, so that
  * a 6-dimensional Fourier transform is enough (and avoid a 9D FT).
  *
- * Use the environmental variable MAXMEM to set the amount of VRAM in gigabyes
+ * Use the environmental variable MAXMEM to set the amount of VRAM in gigabytes
  * available on the GPU/node (depending on the Kokkos installation).
  * Set to any value the environmental variable PROFILE to enable a more
  * detailed profiling of loops inside this class.
  */
 class Interaction3Ph {
- private:
+private:
   Crystal &crystal_;
 
   // variables to be saved on the GPU
@@ -56,7 +56,7 @@ class Interaction3Ph {
   Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
   Kokkos::View<double *> weights2_k, weights3_k;
 
-  double maxmem = 16.0e9;  // default 16 Gb memory space for computation
+  double maxmem = 16.0e9; // default 16 Gb memory space for computation
 
   // dimensions
   int nr2, nr3, numAtoms, numBands;
@@ -71,31 +71,34 @@ class Interaction3Ph {
            1e9;
   };
 
- public:
-
-  // TODO change this to reflect p3py changes
+public:
   /** Default constructor.
-   * This method mostly reshapes the input into something more manageable and
-   * moves data to the GPU if necessary.
+   * This method mostly moves data to the GPU if necessary.
    *
    * @param crystal: crystal object
-   * @param ifc3Tensor: tensor with the third-derivative anharmonic force
-   * constants in a format similar to that of ShengBTE (may be changed in the
-   * future), which is provided by the parser function. This content is
-   * processed in the constructor and reshaped into something more convenient
-   * for execution. In input is shaped as (3*numAtoms,3*numAtoms,3*numAtoms,
-   * numtriplets), where numTriplets is an index over the triplets of atoms
-   * displaced to compute the 3rd derivative, and the first three indices run
-   * over 3 cartesian coordinates and the atomic basis, indicating which atoms
-   * have been moved to compute the tensor element. Values stored are the value
-   * of energy change upon such displacements of triplets, in Rydbergs.
-   * @param cellPositions: Bravais lattice vectors associated to each element
-   * (triplet) of the ifc3tensor.
-   * @param displacedAtoms: indices of the atoms that are displaced for each
-   * element (triplet) of the Ifc3Tensor.
+   * @param D3: is a 5-dimensional real tensor with the third-derivative
+   * anharmonic force constants. In details, it contains the tensor
+   * D3(i,j,k,0,R',R"), where R are Bravais lattice vectors, and i, j, k are
+   * indices running over both the Cartesian directions and the basis of atoms
+   * in the primitive unit cell. See the theory section for a longer
+   * description. The dimensions are
+   * (3*numAtoms,3*numAtom,3*numAtom,numBravais,numBravais), where numBravais
+   * must be consistent with the cellPositions chosen below.
+   * @param cellPositions2: Bravais lattice vectors associated to each element
+   * in the 4th index of D3 tensor.
+   * @param cellPositions3: Bravais lattice vectors associated to each element
+   * in the 5th index of D3 tensor.
+   * @param weights2: weight of the Bravais lattice vector, i.e. a counter of
+   * the degeneracy of symmetry-equivalent Bravais lattice vectors in
+   * cellPositions2. Set to unity (e.g. in ShengBTE) if this is not used.
+   * @param weights3: weight of the Bravais lattice vector, i.e. a counter of
+   * the degeneracy of symmetry-equivalent Bravais lattice vectors in
+   * cellPositions3. Set to unity (e.g. in ShengBTE) if this is not used.
    */
-   Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                   Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2, Eigen::VectorXd weights3);
+  Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
+                 Eigen::MatrixXd &cellPositions2,
+                 Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2,
+                 Eigen::VectorXd weights3);
 
   /** Copy constructor
    */
@@ -125,13 +128,15 @@ class Interaction3Ph {
    */
   std::tuple<std::vector<Eigen::Tensor<double, 3>>,
              std::vector<Eigen::Tensor<double, 3>>>
-  getCouplingsSquared(const std::vector<Eigen::Vector3d> &q1s_e, const Eigen::Vector3d &q2_e,
+  getCouplingsSquared(const std::vector<Eigen::Vector3d> &q1s_e,
+                      const Eigen::Vector3d &q2_e,
                       const std::vector<Eigen::MatrixXcd> &ev1s_e,
                       const Eigen::MatrixXcd &ev2_e,
                       const std::vector<Eigen::MatrixXcd> &ev3Pluss_e,
                       const std::vector<Eigen::MatrixXcd> &ev3Minss_e,
                       const std::vector<int> &nb1s_e, const int nb2,
-                      const std::vector<int> &nb3Pluss_e, std::vector<int> &nb3Minss_e);
+                      const std::vector<int> &nb3Pluss_e,
+                      std::vector<int> &nb3Minss_e);
 
   /** Computes a partial Fourier transform over the q2/R2 variables.
    * @param q2_e: values of the q2 cartesian coordinates over which the Fourier

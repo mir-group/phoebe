@@ -54,7 +54,7 @@ Eigen::MatrixXd IFC3Parser::wsInit(Crystal &crystal,
           index += 1;
         }
         if (index > nrwsx) {
-          Error e("WSInit > nrwsx", 1);
+          Error("WSInit > nrwsx");
         }
       }
     }
@@ -346,11 +346,11 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   std::string line;
 
   if (fileName.empty()) {
-    Error e("Phono3py required file dispFCFileName "
+    Error("Phono3py required file dispFCFileName "
             "(disp_fc3.yaml) not specified in input file.");
   }
   if (not infile.is_open()) {
-    Error e("Phono3py required file dispFCFileName "
+    Error("Phono3py required file dispFCFileName "
             "(disp_fc3.yaml) not found at " +
             fileName + ".");
   }
@@ -411,7 +411,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // ===================================================
   fileName = context.getPhD3FileName();
   if (fileName.empty()) {
-    Error e("Phono3py phD3FileName (fc3.hdf5) file not "
+    Error("Phono3py phD3FileName (fc3.hdf5) file not "
             "specified in input file.");
   }
   if (mpi->mpiHead())
@@ -442,14 +442,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   infile.open(fileName);
 
   if (fileName.empty()) {
-    Error e("Phono3py required file phonopyDispFileName "
+    Error("Phono3py required file phonopyDispFileName "
             "(phono3py_disp.yaml) not specified in input file.");
   }
   if (not infile.is_open()) {
-    Error e("Phono3py required file phonopyDispFileName "
-            "phono3py_disp.yaml) file not found "
-            "at " +
-            fileName);
+    Error("Phono3py required file phonopyDispFileName "
+            "phono3py_disp.yaml) file not found at " + fileName);
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -517,7 +515,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   std::string line;
 
   if (not infile.is_open()) {
-    Error e("D3 file not found");
+    Error("D3 file not found");
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
