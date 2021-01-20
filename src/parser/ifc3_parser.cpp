@@ -3,6 +3,7 @@
 #include "eigen.h"
 #include "mpiHelper.h"
 #include <iostream>
+#include <fstream> // it may be used
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
