@@ -51,6 +51,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
 Vector0::Vector0(StatisticsSweep &statisticsSweep_,
                  BaseBandStructure &bandStructure_, SpecificHeat &specificHeat)
     : VectorBTE(statisticsSweep_, bandStructure_, 1) {
+
   Particle particle = bandStructure.getParticle();
 #pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle,specificHeat)
   for (int is : bandStructure.parallelIrrStateIterator()) {
@@ -62,11 +63,10 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
       double temp = calcStat.temperature;
       double chemPot = calcStat.chemicalPotential;
       double dnde = particle.getDnde(energy, temp, chemPot);
-      // note dnde = n(n+1)/T  (for bosons)
+      // note dn/de = n(n+1)/T  (for bosons)
       auto c = specificHeat.get(iCalc);
       double x = -dnde / temp / c;
       operator()(iCalc, 0, iBte) = std::sqrt(x) * energy;
-      // we use std::sqrt because we overwrote sqrt() in the base class
     }
   }
   mpi->allReduceSum(&data);

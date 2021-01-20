@@ -422,6 +422,18 @@ void Context::setupFromInput(const std::string &fileName) {
         phD3FileName = parseString(val);
       }
 
+      if (parameterName == "phonopyDispFileName") {
+        phonopyDispFileName = parseString(val);
+      }
+
+      if (parameterName == "dispFCFileName") {
+        dispFCFileName = parseString(val);
+      }
+
+      if (parameterName == "dispFC2FileName") {
+        dispFC2FileName = parseString(val);
+      }
+
       if (parameterName == "sumRuleD2") {
         sumRuleD2 = parseString(val);
       }
@@ -726,6 +738,15 @@ void Context::setPhD2FileName(const std::string &x) { phD2FileName = x; }
 
 std::string Context::getPhD3FileName() { return phD3FileName; }
 void Context::setPhD3FileName(const std::string &x) { phD3FileName = x; }
+
+std::string Context::getPhonopyDispFileName() { return phonopyDispFileName; }
+void Context::setPhonopyDispFileName(const std::string &x) { phonopyDispFileName = x; }
+
+std::string Context::getDispFCFileName() { return dispFCFileName; }
+void Context::setDispFCFileName(const std::string &x) { dispFCFileName = x; }
+
+std::string Context::getDispFC2FileName() { return dispFC2FileName; }
+void Context::setDispFC2FileName(const std::string &x) { dispFC2FileName = x; }
 
 std::string Context::getSumRuleD2() { return sumRuleD2; }
 void Context::setSumRuleD2(const std::string &x) { sumRuleD2 = x; }

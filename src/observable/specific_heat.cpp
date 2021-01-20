@@ -27,8 +27,10 @@ SpecificHeat &SpecificHeat::operator=(const SpecificHeat &that) {
 }
 
 void SpecificHeat::calc() {
+
   auto particle = bandStructure.getParticle();
   double norm = 1. / crystal.getVolumeUnitCell(dimensionality);
+
   if (particle.isPhonon()) {
     norm /= context.getQMesh().prod();
   }
@@ -36,16 +38,23 @@ void SpecificHeat::calc() {
     norm /= context.getKMesh().prod();
   }
   scalar.setZero();
+
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     double chemPot = calcStat.chemicalPotential;
 
     double sum = 0.;
-#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot)
+#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,ryToCmm1)
     for (int is = 0; is < bandStructure.getNumStates(); is++) {
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
+
+      // exclude acoustic phonons, cutoff at 0.1 cm^-1
+      if (en < 0.1 / ryToCmm1 && particle.isPhonon()) {
+        continue;
+      }
+
       auto dndt = particle.getDndt(en, temp, chemPot);
       auto rs = bandStructure.getRotationsStar(isIdx);
       sum += dndt * en * norm * rs.size();

@@ -79,7 +79,21 @@ public:
   VectorBTE getSingleModeTimes();
 
   /** Call to obtain the single-particle linewidths.
-   * @return tau: a VectorBTE object storing the linewidths
+   *
+   * Note that the definition of linewidths is slightly different between
+   * electrons and phonons. For phonons, linewidths satisfy the relation
+   * Gamma * Tau = hBar (in atomic units, Gamma * Tau = 1). This Tau is the
+   * same Tau that enters the Boltzmann equation, and Gamma/Tau are related to
+   * the scattering operator as
+   * A_{ii} = n_i(n_i+1) / tau_i = n_i(n_i+1) * Gamma_i
+   *
+   * For electrons, we are using a modified definition
+   * A_{ii} = f_i(1-f_i) / tau_i = Gamma_i
+   * where Gamma_i is the imaginary part of the self-energy, and Tau is the
+   * transport relaxation time that enters the transport equations, and satisfy
+   * the relation Gamma_i * Tau_i = f_i * (1-f_i)
+   *
+   * @return linewidths: a VectorBTE object storing the linewidths
    */
   VectorBTE getLinewidths();
 

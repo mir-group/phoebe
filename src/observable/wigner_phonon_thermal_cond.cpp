@@ -16,7 +16,6 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
   wignerCorrection.setZero();
 
   auto particle = bandStructure.getParticle();
-
   int dimensionality = crystal.getDimensionality();
 
   Eigen::VectorXd norm(numCalculations);
@@ -34,15 +33,23 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
     auto energies = bandStructure.getEnergies(iqIdx);
     int numBands = energies.size();
 
+    // calculate bose factors
     Eigen::MatrixXd bose(numCalculations, numBands);
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
         double temperature = calcStat.temperature;
         bose(iCalc, ib1) = particle.getPopulation(energies(ib1), temperature);
+        // exclude acoustic phonons, cutoff at 0.1 cm^-1
+        // setting this to zero here causes acoustic ph
+        // contribution below to evaluate to zero
+        if (energies(ib1) < 0.1 / ryToCmm1) {
+          bose(iCalc, ib1) = 0.0;
+        }
       }
     }
 
+    // calculate wigner correction
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         if (ib1 == ib2)
@@ -58,6 +65,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
         for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {
             for (int ic2 = 0; ic2 < dimensionality; ic2++) {
+
               double num =
                   energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
                   energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
@@ -66,8 +74,8 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                       .real();
               double den = 4. * pow(energies(ib1) - energies(ib2), 2) +
                            pow(1. / smaRelTimes(iCalc, 0, ind1) +
-                                   1. / smaRelTimes(iCalc, 0, ind2),
-                               2);
+                                   1. / smaRelTimes(iCalc, 0, ind2), 2);
+
               wignerCorrection(iCalc, ic1, ic2) +=
                   (energies(ib1) + energies(ib2)) * vel * num / den *
                   (1. / smaRelTimes(iCalc, 0, ind1) +
@@ -122,6 +130,7 @@ void WignerPhononThermalConductivity::calcFromRelaxons(
 }
 
 void WignerPhononThermalConductivity::print() {
+
   if (!mpi->mpiHead())
     return; // debugging now
 

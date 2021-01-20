@@ -106,7 +106,7 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
                                        ParallelMatrix<double> &eigenvectors) {
 
   if (numCalculations > 1) {
-    Error e("Viscosity for relaxons only for 1 temperature");
+    Error("Viscosity for relaxons only for 1 temperature");
   }
 
   double volume = crystal.getVolumeUnitCell(dimensionality);
@@ -262,8 +262,9 @@ void PhononViscosity::print() {
   std::cout << "Thermal Viscosity (" << units << ")\n";
   std::cout << "i, j, k, eta[i,j,k,0], eta[i,j,k,1], eta[i,j,k,2]\n";
 
-  double conversion = pow(hBarSi, 2) // momentum is hbar q
+  double conversion = pow(hBarSi, 2) // momentum is hBar q
                       / pow(distanceRyToSi, dimensionality) // volume conversion
+                      / twoPi // because angular frequencies
                       * rydbergSi /
                       hBarSi       // conversion time (q^2 v^2 tau = [time])
                       / rydbergSi; // temperature conversion
@@ -310,6 +311,7 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
     double conversion =
         pow(hBarSi, 2)                        // momentum is hBar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
+        / twoPi // because angular frequencies
         * rydbergSi / hBarSi // conversion time (q^2 v^2 tau = [time])
         / rydbergSi;         // temperature conversion
 

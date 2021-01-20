@@ -1,16 +1,18 @@
-#ifndef QE_PARSER_H
-#define QE_PARSER_H
+#ifndef PARSER_H
+#define PARSER_H
 
 #include "context.h"
 #include "electron_h0_fourier.h"
 #include "electron_h0_wannier.h"
 #include "phonon_h0.h"
+#include "phonopy_input_parser.h"
+#include "qe_input_parser.h"
 #include <string>
 
-/** Class used to parse the raw data from quantum Espresso / Wannier90
- * TODO: consider moving these methods to the harmonic classes.
+/** Class used to make decisions about which parser to call
+ * depending on which options were provided as input.
  */
-class QEParser {
+class Parser {
 public:
   /** parsing of force constants.
    * @param context: the object containing the user input.

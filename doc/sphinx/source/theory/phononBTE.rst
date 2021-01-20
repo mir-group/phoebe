@@ -70,9 +70,6 @@ The non-dimensional quantity :math:`X_{\boldsymbol{q} j}` is defined by
 
 with :math:`z^{s \alpha}_{\boldsymbol{q}j} ` being the orthogonal phonon eigenmodes normalized on the unit cell and :math:`M_s` the atomic masses.
 This expression of X can be used to transform the output of a density-functional code, i.e. the matrix of energy derivatives in real space :math:`\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` to the Fourier space.
-The matrix is actually a periodic function, so it can be possible to neglect one of the Bravais lattice vector indices of such a tensor.
-Note that, Quantum Espresso provides the matrix :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` while frozen phonon codes such as phonopy and related use :math:`\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{0} s''\alpha'')`, i.e. set a different bravais lattice vector to zero.
-Phoebe uses the latter convention at the time being.
 
 The rate of the elastic scattering with isotopic impurities has the form:
 
@@ -134,6 +131,28 @@ and subsequently the thermal conductivity will be evaluated as:
 
 with :math:`\lambda= 1 /(N_0\Omega k_B T^2)`.
  
+
+
+Interpolation of the 3-phonon coupling
+--------------------------------------
+
+In general, we expect an ab-initio code to provide 
+This expression of X can be used to transform the output of a density-functional code, i.e. the matrix of energy derivatives in real space :math:`\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` to the Fourier space.
+The matrix is actually a periodic function, so it can be possible to neglect one of the Bravais lattice vector indices of such a tensor.
+Note that Quantum Espresso provides the matrix :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')`.
+Codes like phono3py instead provide the complete matrix, and we select the subset :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` that we will later use.
+
+The Fourier transform is as following:
+
+.. math::
+   V^{(3)}(\boldsymbol{q}s\alpha,\boldsymbol{q}'s'\alpha',\boldsymbol{q}''s''\alpha'')
+   =
+   \sum_{\boldsymbol{R}_l, \boldsymbol{R}_{l'}}
+   \mathcal{E}(\boldsymbol{R}_{l} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',0 s''\alpha'')
+
+where it's worth noting that the sum over Bravais lattice vectors is done over the Bravais lattice vectors :math:`\boldsymbol{R}_l` such that :math:`\boldsymbol{R}_l` belongs to the Wigner Seitz zone of the super cell, in which the anharmonic force constants have been computed.
+The coupling is further manipulating by multiplying the above quantity with phonon eigenvectors.
+
 
 RTA solution of the phonon BTE
 ------------------------------

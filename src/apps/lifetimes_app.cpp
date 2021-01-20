@@ -8,16 +8,16 @@
 #include "io.h"
 #include "points.h"
 #include "ph_scattering.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 
 void ElectronLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
 
-  auto t2 = QEParser::parsePhHarmonic(context);
+  auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 
-  auto t1 = QEParser::parseElHarmonicWannier(context, &crystal);
+  auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
@@ -61,7 +61,7 @@ void ElectronLifetimesApp::run(Context &context) {
 void PhononLifetimesApp::run(Context &context) {
   context.setScatteringMatrixInMemory(false);
 
-  auto t2 = QEParser::parsePhHarmonic(context);
+  auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 
@@ -111,7 +111,7 @@ void ElectronLifetimesApp::checkRequirements(Context &context) {
   }
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
-    Error e("Either chemical potentials or dopings must be set");
+    Error("Either chemical potentials or dopings must be set");
   }
 }
 

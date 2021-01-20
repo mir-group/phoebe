@@ -32,8 +32,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
 
   if ( // innerBandStructure != outerBandStructure &&
-      smearing->getType() == smearing->tetrahedron) {
-    Error e("Tetrahedron smearing for transport untested and thus blocked");
+      smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Tetrahedron smearing for transport untested and thus blocked");
     // not for linewidths. Although this should be double-checked
   }
 
@@ -101,12 +101,12 @@ void ScatteringMatrix::setup() {
     if (numCalcs > 1) {
       // note: one could write code around this
       // but the methods are very memory intensive for production runs
-      Error e("High memory BTE methods can only work with one "
+      Error("High memory BTE methods can only work with one "
               "temperature and/or chemical potential in a single run");
     }
     int matSize;
     if (context.getUseSymmetries()) {
-      matSize = int(3*numStates);
+      matSize = int(3 * numStates);
     } else {
       matSize = int(numStates);
     }
@@ -134,7 +134,8 @@ VectorBTE ScatteringMatrix::diagonal() {
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   VectorBTE outPopulation = dot(inPopulation);
-#pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3) default(none)                             \
+    shared(outPopulation, internalDiagonal, inPopulation, numCalcs, numStates)
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     for (int iDim : {0, 1, 2}) {
       for (int iBte = 0; iBte < numStates; iBte++) {
@@ -151,7 +152,9 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   std::vector<VectorBTE> outPopulations = dot(inPopulations);
   for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-#pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3) default(none)                             \
+    shared(numCalcs, numStates, outPopulations, internalDiagonal,              \
+           inPopulations, iVec)
     for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
       for (int iDim : {0, 1, 2}) {
         for (int iBte = 0; iBte < numStates; iBte++) {
@@ -236,11 +239,11 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
 // set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
 void ScatteringMatrix::a2Omega() {
   if (!highMemory) {
-    Error e("a2Omega only works if the matrix is stored in memory");
+    Error("a2Omega only works if the matrix is stored in memory");
   }
 
   if (theMatrix.rows() == 0) {
-    Error e("The scattering matrix hasn't been built yet");
+    Error("The scattering matrix hasn't been built yet");
   }
 
   if (isMatrixOmega) { // it's already with the scaling of omega
@@ -300,7 +303,7 @@ void ScatteringMatrix::a2Omega() {
 }
 
 // add a flag to remember if we have A or Omega
-//void ScatteringMatrix::omega2A() {
+// void ScatteringMatrix::omega2A() {
 //  if (!highMemory) {
 //    Error e("a2Omega only works if the matrix is stored in memory");
 //  }
@@ -381,7 +384,6 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
   }
 }
 
-// to compute the RTA, get the single mode relaxation times
 VectorBTE ScatteringMatrix::getLinewidths() {
   if (constantRTA) {
     double crt = context.getConstantRelaxationTime();
@@ -392,31 +394,42 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   } else {
     VectorBTE linewidths = internalDiagonal;
     linewidths.excludeIndices = excludeIndices;
+    auto particle = outerBandStructure.getParticle();
+
     if (isMatrixOmega) {
-      // Important note: don't use this for fermions, or you can get rubbish!
-      // the factor popTerm could be = 0!
-      auto particle = outerBandStructure.getParticle();
       if (particle.isElectron()) {
-        Error e("Attempting to use a numerically unstable quantity");
-      }
-      for (int iBte = 0; iBte < numStates; iBte++) {
-        auto iBteIdx = BteIndex(iBte);
-        StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
-        double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
-          auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
-          double temp = calcStatistics.temperature;
-          double chemPot = calcStatistics.chemicalPotential;
-          // n(n+1) for bosons, n(1-n) for fermions
-          double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          linewidths(iCalc, 0, iBte) /= popTerm;
-        }
+        // for electrons, one should never work with Omega!
+        // the factor popTerm could be = 0!
+        Error("Attempting to use a numerically unstable quantity");
       }
       return linewidths;
 
-    } else { // A_nu,nu = N(1+-N) / tau
-      return linewidths;
+    } else {
+      // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
+      if (particle.isElectron()) {
+        return linewidths;
+      } else { // phonon case
+        for (int iBte = 0; iBte < numStates; iBte++) {
+          auto iBteIdx = BteIndex(iBte);
+          StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
+          double en = outerBandStructure.getEnergy(isIdx);
+          for (int iCalc = 0; iCalc < internalDiagonal.numCalculations;
+               iCalc++) {
+            auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+            double temp = calcStatistics.temperature;
+            double chemPot = calcStatistics.chemicalPotential;
+            // n(n+1) for bosons, n(1-n) for fermions
+            double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+            linewidths(iCalc, 0, iBte) =
+                internalDiagonal(iCalc, 0, iBte) / popTerm;
+          }
+        }
+        linewidths.excludeIndices = excludeIndices;
+        return linewidths;
+      }
     }
+
+
   }
 }
 
@@ -428,14 +441,17 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   VectorBTE times = getSingleModeTimes();
   VectorBTE tmpLinewidths = getLinewidths();
 
-  std::string energyUnit;
   std::string particleType;
-  double energyConversion;
   auto particle = outerBandStructure.getParticle();
-  energyConversion = energyRyToEv;
-  energyUnit = "eV";
+  double energyConversion = energyRyToEv;
+  std::string energyUnit = "eV";
+  double energyToTime = timeRyToFs;
   if (particle.isPhonon()) {
     particleType = "phonon";
+    // in the case of phonons, we need an extra factor of
+    // two pi, likely because of a conversion from
+    // ordinal to angular frequency
+    energyToTime /= twoPi;
   } else {
     particleType = "electron";
   }
@@ -480,7 +496,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
         bandsE.push_back(ene * energyConversion);
         int iBte = int(outerBandStructure.stateToBte(isIdx).get());
         double tau = times(iCalc, 0, iBte); // only zero dim is meaningful
-        bandsT.push_back(tau * timeRyToFs);
+        bandsT.push_back(tau * energyToTime);
         double linewidth =
             tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
         bandsL.push_back(linewidth * energyRyToEv);
@@ -504,13 +520,13 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   }
 
   auto points = outerBandStructure.getPoints();
-  std::vector<std::vector<double>> meshCoords;
+  std::vector<std::vector<double>> meshCoordinates;
   for (int ik : outerBandStructure.irrPointsIterator()) {
     // save the wavevectors
     auto ikIndex = WavevectorIndex(ik);
     auto coord =
         points.cartesianToCrystal(outerBandStructure.getWavevector(ikIndex));
-    meshCoords.push_back({coord[0], coord[1], coord[2]});
+    meshCoordinates.push_back({coord[0], coord[1], coord[2]});
   }
 
   // output to json
@@ -526,7 +542,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   output["velocityUnit"] = "m/s";
   output["energies"] = energies;
   output["energyUnit"] = energyUnit;
-  output["wavevectorCoordinates"] = meshCoords;
+  output["wavevectorCoordinates"] = meshCoordinates;
   output["coordsType"] = "lattice";
   output["particleType"] = particleType;
   std::ofstream o(outFileName);
@@ -534,7 +550,8 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
-std::tuple<Eigen::VectorXd, ParallelMatrix<double>> ScatteringMatrix::diagonalize() {
+std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
+ScatteringMatrix::diagonalize() {
   //    std::vector<double> eigenvalues;
   //    ParallelMatrix<double> eigenvectors;
   auto tup = theMatrix.diagonalize();
@@ -558,7 +575,8 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
     if (switchCase == 1 || switchCase == 2) { // case for linewidth construction
       // here I parallelize over ik1
       // which is the outer loop on q-points
-      std::vector<int> k1Iterator = outerBandStructure.parallelIrrPointsIterator();
+      std::vector<int> k1Iterator =
+          outerBandStructure.parallelIrrPointsIterator();
 
       // I don't parallelize the inner band structure, the inner loop
       std::vector<int> k2Iterator(innerBandStructure.getNumPoints());
@@ -577,7 +595,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // here we operate assuming innerBandStructure=outerBandStructure
       // list in form [[0,0],[1,0],[2,0],...]
       std::set<std::pair<int, int>> localPairs;
-#pragma omp parallel
+#pragma omp parallel default(none) shared(localPairs, theMatrix)
       {
         std::vector<std::pair<int, int>> localPairsPrivate;
         // first unpack Bloch Index and get all wavevector pairs
@@ -589,7 +607,8 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto tup2 = getSMatrixIndex(iMat2);
           BteIndex iBte1 = std::get<0>(tup1);
           BteIndex iBte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to band structure index
+          // map the index on the irreducible points of BTE to band structure
+          // index
           StateIndex is1 = outerBandStructure.bteToState(iBte1);
           StateIndex is2 = outerBandStructure.bteToState(iBte2);
           auto tuple1 = outerBandStructure.getIndex(is1);
@@ -613,7 +632,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // find set of q1
       // this because we have duplicates with different band indices.
       std::set<int> q1IndexesSet;
-      for (std::pair<int,int> p : localPairs) {
+      for (std::pair<int, int> p : localPairs) {
         auto iq1 = p.first;
         q1IndexesSet.insert(iq1);
       }
@@ -626,13 +645,13 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       }
 
       std::vector<std::tuple<std::vector<int>, int>> pairIterator;
-      for ( int iq1 : q1Indexes) {
+      for (int iq1 : q1Indexes) {
         std::vector<int> x;
-        auto y = std::make_tuple(x,iq1);
+        auto y = std::make_tuple(x, iq1);
         pairIterator.push_back(y);
       }
 
-      for (std::pair<int,int> p : localPairs) {
+      for (std::pair<int, int> p : localPairs) {
         int iq1 = p.first;
         int iq2 = p.second;
 
@@ -642,11 +661,10 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq2);
         } else {
-          Error e("iq1 not found, not supposed to happen");
+          Error("iq1 not found, not supposed to happen");
         }
       }
       return pairIterator;
-
     }
 
   } else { // case for ph_scattering
@@ -669,7 +687,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
     } else { // case for constructing A matrix
 
       std::set<std::pair<int, int>> localPairs;
-#pragma omp parallel
+#pragma omp parallel default(none) shared(theMatrix, localPairs)
       {
         std::vector<std::pair<int, int>> localPairsPrivate;
         // first unpack Bloch Index and get all wavevector pairs
@@ -681,7 +699,8 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto tup2 = getSMatrixIndex(iMat2);
           BteIndex iBte1 = std::get<0>(tup1);
           BteIndex iBte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to band structure index
+          // map the index on the irreducible points of BTE to band structure
+          // index
           StateIndex is1 = outerBandStructure.bteToState(iBte1);
           StateIndex is2 = outerBandStructure.bteToState(iBte2);
           auto tuple1 = outerBandStructure.getIndex(is1);
@@ -717,13 +736,13 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       }
 
       std::vector<std::tuple<std::vector<int>, int>> pairIterator;
-      for ( int iq2 : q2Indexes) {
+      for (int iq2 : q2Indexes) {
         std::vector<int> x;
-        auto y = std::make_tuple(x,iq2);
+        auto y = std::make_tuple(x, iq2);
         pairIterator.push_back(y);
       }
 
-      for (std::pair<int,int> p : localPairs) {
+      for (std::pair<int, int> p : localPairs) {
         int iq1 = p.first;
         int iq2 = p.second;
 
@@ -733,7 +752,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq1);
         } else {
-          Error e("iq2 not found, not supposed to happen");
+          Error("iq2 not found, not supposed to happen");
         }
       }
       return pairIterator;
@@ -742,7 +761,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 }
 
 int ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex,
-                                       CartIndex &cartIndex) {
+                                      CartIndex &cartIndex) {
   if (context.getUseSymmetries()) {
     int is = bteIndex.get();
     int alpha = cartIndex.get();

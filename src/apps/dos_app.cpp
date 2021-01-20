@@ -9,7 +9,7 @@
 #include "delta_function.h"
 #include "points.h"
 #include "mpiHelper.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 #include "utilities.h"
 #include <nlohmann/json.hpp>
 
@@ -29,7 +29,7 @@ void PhononDosApp::run(Context &context) {
   }
 
   // Read the necessary input files
-  auto tup = QEParser::parsePhHarmonic(context);
+  auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
@@ -63,7 +63,7 @@ void ElectronWannierDosApp::run(Context &context) {
     std::cout << "Starting electronic (Wannier) DoS calculation" << std::endl;
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicWannier(context);
+  auto tup = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
 
@@ -97,7 +97,7 @@ void ElectronFourierDosApp::run(Context &context) {
     std::cout << "Starting electronic (Fourier) DoS calculation" << std::endl;
 
   // Read the necessary input files
-  auto tup = QEParser::parseElHarmonicFourier(context);
+  auto tup = Parser::parseElHarmonicFourier(context);
   auto crystal = std::get<0>(tup);
   auto h0 = std::get<1>(tup);
 
