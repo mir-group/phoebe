@@ -2,7 +2,7 @@
 #include "ifc3_parser.h"
 #include "ph_scattering.h"
 #include "points.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 #include "gtest/gtest.h"
 #include <fstream>
 
@@ -334,4 +334,126 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   }
   ASSERT_NEAR(x1, 0., 1.0e-40);
   ASSERT_NEAR(x2, 0., 1.0e-40);
+}
+
+TEST(Interaction3Ph, Coupling3Ph000_p3py) {
+  // here we test the 3-ph matrix element (squared)
+  // against results produced by phono3py.
+  // in particular, we compute the couplings at q1=0, q2=0, q3=0
+
+  // Note: Eigenvectors are complex: they can get a phase
+  //       the phase doesn't change the coupling
+  // Note: Eigenvectors can be degenerate! Hence, it's not straightforward to
+  //       compare the coupling with ShengBTE or other codes, since the
+  //       coupling at fixed mode indices might be different. However, the
+  //       SUM of the coupling matrix elements within a degenerate subspace
+  //       is the correct invariant quantity to be compared.
+  // In this test, specifically, we use the three-fold degenerate modes at
+  // gamma, and we compare the sum of the interaction within the optical
+  // manifold
+
+  Context context;
+  context.setPhD2FileName("../test/data/phono3py/fc2.hdf5");
+  context.setPhD3FileName("../test/data/phono3py/fc3.hdf5");
+  context.setPhonopyDispFileName("../test/data/phono3py/phono3py_disp.yaml");
+  context.setDispFCFileName("../test/data/phono3py/disp_fc3.yaml");
+  context.setSumRuleD2("simple");
+
+  auto tup = Parser::parsePhHarmonic(context);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
+
+  auto coupling3Ph = IFC3Parser::parse(context, crystal);
+
+  // Number of atoms
+  int numAtoms = crystal.getNumAtoms();
+  // Number of bands
+  int numBands = phononH0.getNumBands();
+
+  ASSERT_EQ(numBands / 3, numAtoms);
+
+  Eigen::Vector3d q1, q2, q3;
+  q1.setZero();
+  q2.setZero();
+  q3.setZero();
+
+  auto tup1 = phononH0.diagonalizeFromCoordinates(q1);
+  auto energies1 = std::get<0>(tup1);
+  auto ev1 = std::get<1>(tup1);
+  auto tup2 = phononH0.diagonalizeFromCoordinates(q2);
+  auto energies2 = std::get<0>(tup2);
+  auto ev2 = std::get<1>(tup2);
+  auto tup3 = phononH0.diagonalizeFromCoordinates(q3);
+  auto energies3 = std::get<0>(tup3);
+  auto ev3 = std::get<1>(tup3);
+
+  std::vector<Eigen::Vector3d> q1s_e(1);
+  Eigen::Vector3d q2_e;
+  std::vector<Eigen::MatrixXcd> ev1s_e(1);
+  Eigen::MatrixXcd ev2_e;
+  std::vector<Eigen::MatrixXcd> ev3Pluss_e(1);
+  std::vector<Eigen::MatrixXcd> ev3Minss_e(1);
+  std::vector<int> nb1s_e(1);
+  int nb2 = energies2.size();
+  std::vector<int> nb3Pluss_e(1);
+  std::vector<int> nb3Minss_e(1);
+
+  q1s_e[0] = q1;
+  nb1s_e[0] = energies1.size();
+  nb3Pluss_e[0] = energies3.size();
+  nb3Minss_e[0] = energies3.size();
+  ev1s_e[0] = ev1;
+  ev3Pluss_e[0] = ev3;
+  ev3Minss_e[0] = ev3;
+  ev2_e = ev2;
+  q2_e = q2;
+
+  coupling3Ph.cacheD3(q2_e);
+  auto tup4 = coupling3Ph.getCouplingsSquared(q1s_e, q2_e, ev1s_e, ev2_e,
+                                              ev3Pluss_e, ev3Minss_e, nb1s_e,
+                                              nb2, nb3Pluss_e, nb3Minss_e);
+  auto couplingPlus = std::get<0>(tup4)[0];
+  auto couplingMins = std::get<1>(tup4)[0];
+
+  for (int i = 0; i < numBands; i++) {
+    for (int j = 0; j < numBands; j++) {
+      for (int k = 0; k < numBands; k++) {
+        ASSERT_EQ(couplingPlus(i, j, k), couplingMins(i, j, k));
+        std::cout << i << " " << j << " " << k << " " << couplingPlus(i, j, k) << std::endl;
+      }
+    }
+  }
+
+  // we load reference data
+  Eigen::Tensor<double, 3> referenceCoupling(numBands, numBands, numBands);
+  referenceCoupling.setZero();
+  {
+    std::ifstream tfile("../test/data/reference3Ph000_p3py");
+    double x1, x2;
+    int i_, j_, k_;
+    for (int i = 0; i < numBands; i++) {
+      for (int j = 0; j < numBands; j++) {
+        for (int k = 0; k < numBands; k++) {
+          tfile >> i_ >> j_ >> k_ >> x1;
+          referenceCoupling(i, j, k) = x1;
+        }
+      }
+    }
+  }
+
+  // note that one cannot check for exact equality, due to state degeneracies
+  double x1, x2;
+  x1 = 0.;
+  x2 = 0.;
+  for (int i = 3; i < numBands; i++) {
+    for (int j = 3; j < numBands; j++) {
+      for (int k = 3; k < numBands; k++) {
+        x2 += couplingPlus(i, j, k);
+        x1 += referenceCoupling(i, j, k);
+      }
+    }
+  }
+  double relativeError = abs((x1 - x2) / x1);
+
+  ASSERT_NEAR(relativeError, 0., 1.0e-4);
 }
