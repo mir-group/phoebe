@@ -5,7 +5,7 @@ std::tuple<Crystal, PhononH0> Parser::parsePhHarmonic(Context &context) {
   std::string fileName = context.getPhonopyDispFileName();
 
   // check if this file is set -- if it is, we read from phonopy
-  if (fileName == "") {
+  if (fileName.empty()) {
     return QEParser::parsePhHarmonic(context);
   }
   else {
