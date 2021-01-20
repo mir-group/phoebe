@@ -5,15 +5,15 @@
 #include "exceptions.h"
 #include "io.h"
 #include "points.h"
-#include "qe_input_parser.h"
+#include "parser.h"
 
 void ElPhCouplingPlotApp::run(Context &context) {
 
-  auto t2 = QEParser::parsePhHarmonic(context);
+  auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 
-  auto t1 = QEParser::parseElHarmonicWannier(context, &crystal);
+  auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
