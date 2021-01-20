@@ -144,7 +144,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
     // from n, we get f, such that n = bose(bose+1)f
-    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE lineWidths = scatteringMatrix.diagonal();
     VectorBTE fERTA = driftE / lineWidths;
     VectorBTE fTRTA = driftT / lineWidths;
     VectorBTE fEOld = fERTA;
@@ -222,7 +222,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto thCondOld = thCond;
 
     // set the initial guess to the RTA solution
-    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE lineWidths = scatteringMatrix.diagonal();
     VectorBTE fENew = driftE / lineWidths;
     VectorBTE fTNew = driftT / lineWidths;
 

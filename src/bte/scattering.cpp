@@ -33,7 +33,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   if ( // innerBandStructure != outerBandStructure &&
       smearing->getType() == DeltaFunction::tetrahedron) {
-    Error e("Tetrahedron smearing for transport untested and thus blocked");
+    Error("Tetrahedron smearing for transport untested and thus blocked");
     // not for linewidths. Although this should be double-checked
   }
 
@@ -101,7 +101,7 @@ void ScatteringMatrix::setup() {
     if (numCalcs > 1) {
       // note: one could write code around this
       // but the methods are very memory intensive for production runs
-      Error e("High memory BTE methods can only work with one "
+      Error("High memory BTE methods can only work with one "
               "temperature and/or chemical potential in a single run");
     }
     int matSize;
@@ -239,11 +239,11 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
 // set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
 void ScatteringMatrix::a2Omega() {
   if (!highMemory) {
-    Error e("a2Omega only works if the matrix is stored in memory");
+    Error("a2Omega only works if the matrix is stored in memory");
   }
 
   if (theMatrix.rows() == 0) {
-    Error e("The scattering matrix hasn't been built yet");
+    Error("The scattering matrix hasn't been built yet");
   }
 
   if (isMatrixOmega) { // it's already with the scaling of omega
@@ -394,34 +394,42 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   } else {
     VectorBTE linewidths = internalDiagonal;
     linewidths.excludeIndices = excludeIndices;
+    auto particle = outerBandStructure.getParticle();
+
     if (isMatrixOmega) {
-      VectorBTE linewidths2 = internalDiagonal;
-      linewidths2.excludeIndices = excludeIndices;
-      return linewidths2;
-    } else { // A_nu,nu = N(1+-N) / tau
-      // Important note: don't use this for fermions, or you can get rubbish!
-      // the factor popTerm could be = 0!
-      auto particle = outerBandStructure.getParticle();
       if (particle.isElectron()) {
+        // for electrons, one should never work with Omega!
+        // the factor popTerm could be = 0!
         Error("Attempting to use a numerically unstable quantity");
       }
-      for (int iBte = 0; iBte < numStates; iBte++) {
-        auto iBteIdx = BteIndex(iBte);
-        StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
-        double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
-          auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
-          double temp = calcStatistics.temperature;
-          double chemPot = calcStatistics.chemicalPotential;
-          // n(n+1) for bosons, n(1-n) for fermions
-          double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          linewidths(iCalc, 0, iBte) =
-              internalDiagonal(iCalc, 0, iBte) / popTerm;
-        }
-      }
-      linewidths.excludeIndices = excludeIndices;
       return linewidths;
+
+    } else {
+      // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
+      if (particle.isElectron()) {
+        return linewidths;
+      } else { // phonon case
+        for (int iBte = 0; iBte < numStates; iBte++) {
+          auto iBteIdx = BteIndex(iBte);
+          StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
+          double en = outerBandStructure.getEnergy(isIdx);
+          for (int iCalc = 0; iCalc < internalDiagonal.numCalculations;
+               iCalc++) {
+            auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+            double temp = calcStatistics.temperature;
+            double chemPot = calcStatistics.chemicalPotential;
+            // n(n+1) for bosons, n(1-n) for fermions
+            double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+            linewidths(iCalc, 0, iBte) =
+                internalDiagonal(iCalc, 0, iBte) / popTerm;
+          }
+        }
+        linewidths.excludeIndices = excludeIndices;
+        return linewidths;
+      }
     }
+
+
   }
 }
 
@@ -653,7 +661,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq2);
         } else {
-          Error e("iq1 not found, not supposed to happen");
+          Error("iq1 not found, not supposed to happen");
         }
       }
       return pairIterator;
@@ -744,7 +752,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq1);
         } else {
-          Error e("iq2 not found, not supposed to happen");
+          Error("iq2 not found, not supposed to happen");
         }
       }
       return pairIterator;
