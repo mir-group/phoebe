@@ -1,5 +1,5 @@
-#ifndef QEPARSER_H
-#define QEPARSER_H
+#ifndef QE_PARSER_H
+#define QE_PARSER_H
 
 #include <string>
 #include "phonon_h0.h"
@@ -22,10 +22,10 @@ public:
 
     /** parsing of electronic band structure for Fourier interpolation.
      * This class parses the XML file of Quantum ESPRESSO, which should contain
-     * the bandstructure computed on a uniform grid of k-points.
+     * the band structure computed on a uniform grid of k-points.
      * @param context: the object containing the user input.
      * @return Crystal: the object describing the crystal structure
-     * @return ElectronH0Fourier: the object containing the bandstructure on
+     * @return ElectronH0Fourier: the object containing the band structure on
      * the coarse grid of points, with all the infrastructure necessary to
      * interpolate it on finer grids of k-points.
      */
@@ -43,8 +43,6 @@ public:
      */
     static std::tuple<Crystal, ElectronH0Wannier> parseElHarmonicWannier(
             Context &context, Crystal *inCrystal=nullptr);
-private:
-    static bool isQuantumEspressoXml(const std::string &fileName);
 };
 
 #endif
