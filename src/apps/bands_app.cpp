@@ -111,7 +111,8 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   std::vector<double> tempEns;
   std::vector<std::vector<double>> pathCoordinates;
   auto particle = fullBandStructure.getParticle();
-  double energyConversion = energyRyToEv;
+  // mev for phonons
+  double energyConversion = particle.isPhonon() ? 1000*energyRyToEv : energyRyToEv;
   int numBands = fullBandStructure.getNumBands();
 
   // determine path extrema to output to json
@@ -180,7 +181,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["numBands"] = numBands;
   output["energies"] = outEnergies;
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
-  output["energyUnit"] = "eV";
+  output["energyUnit"] = particle.isPhonon() ? "meV" : "eV";
   output["coordsType"] = "lattice";
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu

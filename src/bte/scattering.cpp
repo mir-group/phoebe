@@ -452,6 +452,8 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     // two pi, likely because of a conversion from
     // ordinal to angular frequency
     energyToTime /= twoPi;
+    energyUnit = "meV";
+    energyConversion *= 1000;
   } else {
     particleType = "electron";
   }
