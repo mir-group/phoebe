@@ -12,15 +12,11 @@
 #include <mpi.h>
 #endif
 
-//TODO is there a way we could write all the MPI function wrappers
-// to have take dataOut as an optional argument? This would reduce
-// code duplication.
-
-// TODO we may need to make this take an optional parameter for length of data from each 
-// process, because while it will often correspond to work division as in 
-// divideWorkIter, this may not always be the case. In the case where it does 
-// take this parameter, we should use the division provided.
-// When it's not provided, we should fall back on this default.
+/* NOTE: When using this object make sure to use the divideWork
+functions to set up the initial division of tasks --
+functions here (see gather) operate under the
+assumption that they will gather using the same distribution of
+ labor as divideWork provides.*/
 
 /** Class for handling the MPI library usage inside of phoebe.
  */
@@ -129,7 +125,7 @@ class MPIcontroller {
   /** Wrapper for MPI_Allgatherv which collects data from different ranks
    * (with the possibility of a different number of elements from each
    * process) and combines it into one buffer, which is also broadcast
-   * to all processes. 
+   * to all processes.
    * @param dataIn: pointer to sent data from each rank, with length
    *       of the number of points belonging to this rank.
    * @param dataOut: pointer to output buffer, allocated only by the
@@ -140,7 +136,7 @@ class MPIcontroller {
 
   /** Wrapper for MPI_Allgather which collects data from different ranks
    * and combines it into one buffer, which is also broadcast
-   * to all processes. 
+   * to all processes.
    * @param dataIn: pointer to sent data from each rank, with length
    *       of the number of points belonging to this rank.
    * @param dataOut: pointer to output buffer, allocated only by the
@@ -494,6 +490,7 @@ void MPIcontroller::gather(T* dataIn, V* dataOut) const {
   #endif
 }
 
+
 template <typename T, typename V>
 void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   using namespace mpiContainer;
@@ -517,7 +514,7 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
     errorReport(errCode);
   }
   #else
-  pointerSwap(dataIn, dataOut);  
+  pointerSwap(dataIn, dataOut);
   #endif
 }
 
