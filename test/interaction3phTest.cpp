@@ -419,7 +419,6 @@ TEST(Interaction3Ph, Coupling3Ph000_p3py) {
     for (int j = 0; j < numBands; j++) {
       for (int k = 0; k < numBands; k++) {
         ASSERT_EQ(couplingPlus(i, j, k), couplingMins(i, j, k));
-        std::cout << i << " " << j << " " << k << " " << couplingPlus(i, j, k) << std::endl;
       }
     }
   }
