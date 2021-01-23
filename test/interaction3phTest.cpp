@@ -428,7 +428,7 @@ TEST(Interaction3Ph, Coupling3Ph000_p3py) {
   Eigen::Tensor<double, 3> referenceCoupling(numBands, numBands, numBands);
   referenceCoupling.setZero();
   {
-    std::ifstream tfile("../test/data/reference3Ph000_p3py");
+    std::ifstream tfile("../test/data/phono3py/reference3Ph000_p3py");
     double x1, x2;
     int i_, j_, k_;
     for (int i = 0; i < numBands; i++) {

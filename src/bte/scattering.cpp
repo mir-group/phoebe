@@ -501,7 +501,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
         bandsT.push_back(tau * energyToTime);
         double linewidth =
             tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
-        bandsL.push_back(linewidth * energyRyToEv);
+        bandsL.push_back(linewidth * energyConversion);
 
         std::vector<double> iDimsV;
         // loop over dimensions
