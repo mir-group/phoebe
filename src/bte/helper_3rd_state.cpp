@@ -13,6 +13,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
       outerBandStructure(outerBandStructure_), outerBose(outerBose_),
       statisticsSweep(statisticsSweep_), smearingType(smearingType_), h0(h0_) {
 
+  numCalculations = statisticsSweep.getNumCalculations();
   storedAllQ3 = false;
   // three conditions must be met to avoid recomputing q3
   // 1 - q1 and q2 mesh must be the same
@@ -155,11 +156,14 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
         v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.rows(), nb3);
+      bose3Data = Eigen::MatrixXd(numCalculations, nb3);
       for (int ib3 = 0; ib3 < nb3; ib3++) {
-        int ind3 =
+        int is3 =
             outerBandStructure.getIndex(WavevectorIndex(iq3), BandIndex(ib3));
-        bose3Data.col(ib3) = outerBose.col(ind3);
+        StateIndex is3Idx(is3);
+        BteIndex iBte1Idx = outerBandStructure.stateToBte(is3Idx);
+        int iBte3 = iBte1Idx.get();
+        bose3Data.col(ib3) = outerBose.col(iBte3);
       }
     } else {
       auto points = bandStructure3->getPoints();
@@ -172,13 +176,14 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
         v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.rows(), nb3);
-      for (int iCalc = 0; iCalc < outerBose.rows(); iCalc++) {
-        double temperature =
-            statisticsSweep.getCalcStatistics(iCalc).temperature;
+      bose3Data = Eigen::MatrixXd(numCalculations, nb3);
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStatistics.temperature;
+        double chemPot = calcStatistics.chemicalPotential;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) =
-              h0->getParticle().getPopulation(energies3(ib3), temperature);
+              h0->getParticle().getPopulation(energies3(ib3), temp, chemPot);
         }
       }
     }
@@ -254,12 +259,12 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
       int nb3Plus = energies3Plus.size();
       int nb3Minus = energies3Minus.size();
 
-      Eigen::MatrixXd bose3DataPlus(outerBose.rows(), nb3Plus);
-      Eigen::MatrixXd bose3DataMinus(outerBose.rows(), nb3Minus);
+      Eigen::MatrixXd bose3DataPlus(numCalculations, nb3Plus);
+      Eigen::MatrixXd bose3DataMinus(numCalculations, nb3Minus);
       bose3DataPlus.setZero();
       bose3DataMinus.setZero();
 
-      for (int iCalc = 0; iCalc < outerBose.rows(); iCalc++) {
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         for (int ib3 = 0; ib3 < nb3Plus; ib3++) {

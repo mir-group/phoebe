@@ -91,6 +91,7 @@ class Helper3rdState {
   const int storedAllQ3Case2=2;
   int storedAllQ3Case;
   int cacheOffset = 0;
+  int numCalculations;
 
   std::vector<Eigen::VectorXd> cachePlusEnergies, cacheMinusEnergies;
   std::vector<Eigen::MatrixXcd> cachePlusEigenVectors, cacheMinusEigenVectors;
