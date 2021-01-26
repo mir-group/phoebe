@@ -1,18 +1,17 @@
 #include "helper_3rd_state.h"
-#include <set>
 #include "constants.h"
-#include "mpiHelper.h"
 #include "delta_function.h"
+#include "mpiHelper.h"
+#include <set>
 
 Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
-                               VectorBTE &outerBose_, const int &smearingType_,
-                               PhononH0 *h0_)
+                               Eigen::MatrixXd &outerBose_,
+                               StatisticsSweep &statisticsSweep_,
+                               const int &smearingType_, PhononH0 *h0_)
     : innerBandStructure(innerBandStructure_),
-      outerBandStructure(outerBandStructure_),
-      outerBose(outerBose_),
-      smearingType(smearingType_),
-      h0(h0_) {
+      outerBandStructure(outerBandStructure_), outerBose(outerBose_),
+      statisticsSweep(statisticsSweep_), smearingType(smearingType_), h0(h0_) {
 
   storedAllQ3 = false;
   // three conditions must be met to avoid recomputing q3
@@ -68,18 +67,18 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     localCounts[mpi->getRank()] = listOfIndexes.size();
     mpi->allReduceSum(&localCounts);
     int totalCounts = 0;
-    for ( int iRank=0; iRank<mpi->getSize(); iRank++ ) {
+    for (int iRank = 0; iRank < mpi->getSize(); iRank++) {
       totalCounts += localCounts[iRank];
     }
 
     // these are the offset to be used for MPI gather
-    std::vector<int> displacements(mpi->getSize(),0);
+    std::vector<int> displacements(mpi->getSize(), 0);
     for (int i = 1; i < mpi->getSize(); i++) {
-      displacements[i] = displacements[i - 1] + localCounts[i-1];
+      displacements[i] = displacements[i - 1] + localCounts[i - 1];
     }
 
-    std::vector<int> globalListOfIndexes(totalCounts,0);
-    int i=0;
+    std::vector<int> globalListOfIndexes(totalCounts, 0);
+    int i = 0;
     for (auto it : listOfIndexes) {
       int index = i + displacements[mpi->getRank()];
       i++; // after computing index!
@@ -89,7 +88,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
 
     // now we must avoid duplicates between different MPI processes
     std::set<int> setOfIndexes;
-    for ( auto x : globalListOfIndexes ) {
+    for (auto x : globalListOfIndexes) {
       setOfIndexes.insert(x);
     }
 
@@ -144,7 +143,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     Eigen::MatrixXd v3s;
     Eigen::MatrixXd bose3Data;
 
-    if (storedAllQ3Case == storedAllQ3Case1) {  // we use innerBandStructure
+    if (storedAllQ3Case == storedAllQ3Case1) { // we use innerBandStructure
       auto points = innerBandStructure.getPoints();
       Eigen::Vector3d crystalPoints = points.cartesianToCrystal(q3);
       iq3 = points.getIndex(crystalPoints);
@@ -156,11 +155,11 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
         v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.numCalculations, nb3);
+      bose3Data = Eigen::MatrixXd(outerBose.rows(), nb3);
       for (int ib3 = 0; ib3 < nb3; ib3++) {
         int ind3 =
             outerBandStructure.getIndex(WavevectorIndex(iq3), BandIndex(ib3));
-        bose3Data.col(ib3) = outerBose.data.col(ind3);
+        bose3Data.col(ib3) = outerBose.col(ind3);
       }
     } else {
       auto points = bandStructure3->getPoints();
@@ -173,13 +172,13 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
         v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = energies3.size();
-      bose3Data = Eigen::MatrixXd(outerBose.numCalculations, nb3);
-      for (int iCalc = 0; iCalc < outerBose.numCalculations; iCalc++) {
+      bose3Data = Eigen::MatrixXd(outerBose.rows(), nb3);
+      for (int iCalc = 0; iCalc < outerBose.rows(); iCalc++) {
         double temperature =
-            outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
+            statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
-          bose3Data(iCalc, ib3) = h0->getParticle().getPopulation(
-              energies3(ib3), temperature);
+          bose3Data(iCalc, ib3) =
+              h0->getParticle().getPopulation(energies3(ib3), temperature);
         }
       }
     }
@@ -216,7 +215,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
   }
 }
 
-void Helper3rdState::prepare(const std::vector<int>& q1Indexes,
+void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
                              const int &iq2) {
   if (!storedAllQ3) {
     int numPoints = q1Indexes.size();
@@ -255,21 +254,21 @@ void Helper3rdState::prepare(const std::vector<int>& q1Indexes,
       int nb3Plus = energies3Plus.size();
       int nb3Minus = energies3Minus.size();
 
-      Eigen::MatrixXd bose3DataPlus(outerBose.numCalculations, nb3Plus);
-      Eigen::MatrixXd bose3DataMinus(outerBose.numCalculations, nb3Minus);
+      Eigen::MatrixXd bose3DataPlus(outerBose.rows(), nb3Plus);
+      Eigen::MatrixXd bose3DataMinus(outerBose.rows(), nb3Minus);
       bose3DataPlus.setZero();
       bose3DataMinus.setZero();
 
-      for (int iCalc = 0; iCalc < outerBose.numCalculations; iCalc++) {
-        double temperature =
-            outerBose.statisticsSweep.getCalcStatistics(iCalc).temperature;
+      for (int iCalc = 0; iCalc < outerBose.rows(); iCalc++) {
+        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+        double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
           bose3DataPlus(iCalc, ib3) =
-              particle.getPopulation(energies3Plus(ib3), temperature);
+              particle.getPopulation(energies3Plus(ib3), temp, chemPot);
         }
         for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
           bose3DataMinus(iCalc, ib3) =
-              particle.getPopulation(energies3Minus(ib3), temperature);
+              particle.getPopulation(energies3Minus(ib3), temp, chemPot);
         }
       }
 
