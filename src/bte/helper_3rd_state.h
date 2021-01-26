@@ -41,7 +41,8 @@ class Helper3rdState {
    */
   Helper3rdState(BaseBandStructure &innerBandStructure_,
                  BaseBandStructure &outerBandStructure_,
-                 VectorBTE &outerBose_,
+                 Eigen::MatrixXd &outerBose_,
+                 StatisticsSweep &statisticsSweep_,
                  const int &smearingType_,
                  PhononH0 *h0_ = nullptr);
 
@@ -76,7 +77,8 @@ class Helper3rdState {
  private:
   BaseBandStructure &innerBandStructure;
   BaseBandStructure &outerBandStructure;
-  VectorBTE &outerBose;
+  Eigen::MatrixXd &outerBose;
+  StatisticsSweep &statisticsSweep;
   int smearingType;
   PhononH0 *h0 = nullptr;
 
@@ -89,6 +91,7 @@ class Helper3rdState {
   const int storedAllQ3Case2=2;
   int storedAllQ3Case;
   int cacheOffset = 0;
+  int numCalculations;
 
   std::vector<Eigen::VectorXd> cachePlusEnergies, cacheMinusEnergies;
   std::vector<Eigen::MatrixXcd> cachePlusEigenVectors, cacheMinusEigenVectors;

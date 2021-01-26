@@ -465,17 +465,14 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   //  Read if hasDielectric
   std::getline(infile, line);
   line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
-  bool hasDielectric;
+  bool hasDielectric = false;
   if (line == "T") {
     hasDielectric = true;
-  } else {
-    hasDielectric = false;
   }
 
   //	if there are the dielectric info, we can read dielectric matrix
   //	and the Born charges
-  Eigen::Matrix3d dielectricMatrix;
-  dielectricMatrix.setZero();
+  Eigen::Matrix3d dielectricMatrix = Eigen::Matrix3d::Zero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 

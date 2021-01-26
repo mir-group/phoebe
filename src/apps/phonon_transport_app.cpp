@@ -301,5 +301,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
-  throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+  if (context.getSmearingMethod()==DeltaFunction::gaussian) {
+    throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+  }
 }

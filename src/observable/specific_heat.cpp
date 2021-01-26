@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
+#include "io.h"
 
 SpecificHeat::SpecificHeat(Context &context_, StatisticsSweep &statisticsSweep_,
                            Crystal &crystal_, BaseBandStructure &bandStructure_)
@@ -46,7 +47,7 @@ void SpecificHeat::calc() {
 
     double sum = 0.;
 #pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,ryToCmm1)
-    for (int is = 0; is < bandStructure.getNumStates(); is++) {
+    for (int is : bandStructure.irrStateIterator()) {
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
 
@@ -56,8 +57,9 @@ void SpecificHeat::calc() {
       }
 
       auto dndt = particle.getDndt(en, temp, chemPot);
-      auto rs = bandStructure.getRotationsStar(isIdx);
-      sum += dndt * en * norm * rs.size();
+      auto rots = bandStructure.getRotationsStar(isIdx);
+
+      sum += dndt * en * norm * rots.size();
     }
     scalar(iCalc) = sum;
   }
