@@ -19,12 +19,6 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
-  if (dielectricMatrix.sum() > 0.) {
-    hasDielectric = true;
-  } else {
-    hasDielectric = false;
-  }
-
   directUnitCell = crystal.getDirectUnitCell();
   reciprocalUnitCell = crystal.getReciprocalUnitCell();
   volumeUnitCell = crystal.getVolumeUnitCell();
@@ -32,6 +26,10 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   speciesMasses = crystal.getSpeciesMasses();
   atomicPositions = crystal.getAtomicPositions();
   dielectricMatrix = dielectricMatrix_;
+
+  if (dielectricMatrix.sum() > 0.) {
+    hasDielectric = true; // defaulted to false in *.h file
+  }
 
   Eigen::VectorXi qCoarseGrid_(3);
   qCoarseGrid_(0) = forceConstants.dimension(2);
@@ -63,7 +61,11 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
 // copy constructor
 PhononH0::PhononH0(const PhononH0 &that)
-    : particle(that.particle), hasDielectric(that.hasDielectric),
+    : particle(that.particle),
+      na_ifc(that.na_ifc),
+      loTo2d(that.loTo2d),
+      frozenPhonon(that.frozenPhonon),
+      hasDielectric(that.hasDielectric),
       numAtoms(that.numAtoms), numBands(that.numBands),
       directUnitCell(that.directUnitCell),
       reciprocalUnitCell(that.reciprocalUnitCell),
@@ -80,6 +82,9 @@ PhononH0::PhononH0(const PhononH0 &that)
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
   if (this != &that) {
     particle = that.particle;
+    na_ifc = that.na_ifc;
+    loTo2d = that.loTo2d;
+    frozenPhonon = that.frozenPhonon;
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
@@ -447,7 +452,7 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
           }
 
           for (int na = 0; na < numAtoms; na++) {
-            for (int i = 0; i < 3; i++) {
+            for (int i : {0, 1, 2}) {
               zag(i) = g(0) * bornCharges(na, 0, i) +
                        g(1) * bornCharges(na, 1, i) +
                        g(2) * bornCharges(na, 2, i);
@@ -462,8 +467,8 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
               }
             }
 
-            for (int i = 0; i < 3; i++) {
-              for (int j = 0; j < 3; j++) {
+            for (int i : {0, 1, 2}) {
+              for (int j : {0, 1, 2}) {
                 dyn(i, j, na, na) += -facgd * zag(i) * fnat(j);
               }
             }
@@ -494,13 +499,13 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
           }
 
           for (int nb = 0; nb < numAtoms; nb++) {
-            for (int i = 0; i < 3; i++) {
+            for (int i : {0, 1, 2}) {
               zbg(i) = g(0) * bornCharges(nb, 0, i) +
                        g(1) * bornCharges(nb, 1, i) +
                        g(2) * bornCharges(nb, 2, i);
             }
             for (int na = 0; na < numAtoms; na++) {
-              for (int i = 0; i < 3; i++) {
+              for (int i : {0, 1, 2}) {
                 zag(i) = g(0) * bornCharges(na, 0, i) +
                          g(1) * bornCharges(na, 1, i) +
                          g(2) * bornCharges(na, 2, i);
@@ -508,8 +513,8 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
               arg = (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
               phase = {cos(arg), sin(arg)};
               facg = facgd * phase;
-              for (int i = 0; i < 3; i++) {
-                for (int j = 0; j < 3; j++) {
+              for (int i : {0, 1, 2}) {
+                for (int j : {0, 1, 2}) {
                   dyn(i, j, na, nb) += facg * zag(i) * zbg(j);
                 }
               }
@@ -804,7 +809,7 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   // value of the derivative of the dynamical matrix.
   // This works better than doing finite differences on the frequencies.
   double deltaQ = 1.0e-8;
-  for (int i = 0; i < 3; i++) {
+  for (int i : {0, 1, 2}) {
     // define q+ and q- from finite differences.
     Eigen::Vector3d qPlus = coordinates;
     Eigen::Vector3d qMinus = coordinates;
@@ -870,7 +875,7 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     if (sizeSubspace > 1) {
       Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
       // we have to repeat for every direction
-      for (int iCart = 0; iCart < 3; iCart++) {
+      for (int iCart : {0, 1, 2}) {
         // take the velocity matrix of the degenerate subspace
         for (int i = 0; i < sizeSubspace; i++) {
           for (int j = 0; j < sizeSubspace; j++) {

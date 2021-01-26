@@ -150,7 +150,7 @@ int ActiveBandStructure::getNumStates() { return numStates; }
 const double &ActiveBandStructure::getEnergy(StateIndex &is) {
   int stateIndex = is.get();
   if (energies.size() == 0) {
-    Error e("ActiveBandStructure energies haven't been populated");
+    Error("ActiveBandStructure energies haven't been populated");
   }
   return energies[stateIndex];
 }
@@ -169,7 +169,7 @@ Eigen::VectorXd ActiveBandStructure::getEnergies(WavevectorIndex &ik) {
 Eigen::Vector3d ActiveBandStructure::getGroupVelocity(StateIndex &is) {
   int stateIndex = is.get();
   if (velocities.size() == 0) {
-    Error e("ActiveBandStructure velocities haven't been populated");
+    Error("ActiveBandStructure velocities haven't been populated");
   }
   auto tup = comb2Bloch(stateIndex);
   auto ik = std::get<0>(tup);
@@ -929,7 +929,7 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   // to k from 0 to N_k_irreducible
   int ikBte = points.asIrreducibleIndex(ikIdx.get());
   if (ikBte < 0) {
-    Error e("stateToBte is used on a reducible point");
+    Error("stateToBte is used on a reducible point");
   }
   int iBte = bteBloch2Comb(ikBte, ibIdx.get());
   return BteIndex(iBte);

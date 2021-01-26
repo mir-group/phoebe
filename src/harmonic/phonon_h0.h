@@ -140,7 +140,7 @@ protected:
   bool loTo2d = false;
   bool frozenPhonon = false;
 
-  bool hasDielectric;
+  bool hasDielectric = false;
   int numAtoms;
   int numBands;
   Eigen::MatrixXd directUnitCell;
