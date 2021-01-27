@@ -384,26 +384,26 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
       for (l = 0; l < m; l++) {
         scalar = 0.;
-        for (int r : {0, 1}) {
-          int n1 = ind_v(l, r, 0) - 1;
-          int n2 = ind_v(l, r, 1) - 1;
-          int n3 = ind_v(l, r, 2) - 1;
-          int i = ind_v(l, r, 3) - 1;
-          int j = ind_v(l, r, 4) - 1;
-          int na = ind_v(l, r, 5) - 1;
-          int nb = ind_v(l, r, 6) - 1;
-          scalar += w(n1, n2, n3, i, j, na, nb) * v(l, r);
+        for (int rr : {0, 1}) {
+          int n1 = ind_v(l, rr, 0) - 1;
+          int n2 = ind_v(l, rr, 1) - 1;
+          int n3 = ind_v(l, rr, 2) - 1;
+          int i = ind_v(l, rr, 3) - 1;
+          int j = ind_v(l, rr, 4) - 1;
+          int na = ind_v(l, rr, 5) - 1;
+          int nb = ind_v(l, rr, 6) - 1;
+          scalar += w(n1, n2, n3, i, j, na, nb) * v(l, rr);
         }
 
-        for (int r : {0, 1}) {
-          int n1 = ind_v(l, r, 0) - 1;
-          int n2 = ind_v(l, r, 1) - 1;
-          int n3 = ind_v(l, r, 2) - 1;
-          int i = ind_v(l, r, 3) - 1;
-          int j = ind_v(l, r, 4) - 1;
-          int na = ind_v(l, r, 5) - 1;
-          int nb = ind_v(l, r, 6) - 1;
-          w(n1, n2, n3, i, j, na, nb) -= scalar * v(l, r);
+        for (int rr : {0, 1}) {
+          int n1 = ind_v(l, rr, 0) - 1;
+          int n2 = ind_v(l, rr, 1) - 1;
+          int n3 = ind_v(l, rr, 2) - 1;
+          int i = ind_v(l, rr, 3) - 1;
+          int j = ind_v(l, rr, 4) - 1;
+          int na = ind_v(l, rr, 5) - 1;
+          int nb = ind_v(l, rr, 6) - 1;
+          w(n1, n2, n3, i, j, na, nb) -= scalar * v(l, rr);
         }
       }
 
