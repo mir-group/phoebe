@@ -537,7 +537,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
   output["linewidths"] = outLinewidths;
-  output["linewidthsUnit"] = "eV";
+  output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;
   output["relaxationTimeUnit"] = "fs";
   output["velocities"] = velocities;
