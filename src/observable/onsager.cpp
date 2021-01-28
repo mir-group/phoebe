@@ -173,8 +173,8 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
             LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
-            LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
-            LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
+            LTE(iCalc, i, j) += thisNT(i) * vel(j) * norm;
+            LET(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
             LTT(iCalc, i, j) += thisNT(i) * vel(j) * en * norm;
           }
         }
@@ -210,8 +210,7 @@ void OnsagerCoefficients::calcTransportCoefficients() {
     Eigen::MatrixXd thisSeebeck = -(thisLEE.inverse()) * thisLET;
     // k = L_tt - L_TE L_EE^-1 L_ET
     Eigen::MatrixXd thisKappa = thisLTE * (thisLEE.inverse());
-    thisKappa = thisLTT - thisKappa * thisLET;
-
+    thisKappa = - (thisLTT - thisKappa * thisLET);
     double doping = abs(statisticsSweep.getCalcStatistics(iCalc).doping);
     doping *= pow(distanceBohrToCm, dimensionality); // from cm^-3 to bohr^-3
     for (int i = 0; i < dimensionality; i++) {
@@ -348,7 +347,7 @@ void OnsagerCoefficients::print() {
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
   std::string unitsMobility = "cm^2 / V / s";
 
-  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  double convSeebeck = thermopowerAuToSi * 1e6;
   std::string unitsSeebeck = "muV / K";
 
   std::cout << "\n";

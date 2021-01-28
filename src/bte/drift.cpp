@@ -41,7 +41,9 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
       auto temp = calcStat.temperature;
       double x = particle.getDnde(energy, temp, chemPot);
       for (int i : {0, 1, 2}) {
-        operator()(iCalc, i, iBte) = - x * vel(i);
+        // note: this is tuned for electrons
+        // EDrift = e v dn/de
+        operator()(iCalc, i, iBte) = x * vel(i);
       }
     }
   }

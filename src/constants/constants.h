@@ -23,7 +23,7 @@ const double epsilon8 = 1.e-8;
 // Physical constants
 //
 const double speedLightSi = 299792458;
-const double electronSi = 1.602176487e-19;
+const double electronSi = 1.602176487e-19; // electron charge in Coulomb
 const double hPlanckSi = 6.62607015e-34;
 const double hBarSi = hPlanckSi / twoPi;
 const double electronVoltSi = 1.6021766208e-19;
@@ -70,6 +70,6 @@ const double viscosityAuToSi =
     rydbergSi / hPlanckSi * twoPi * bohrRadiusSi * bohrRadiusSi;
 const double elConductivityAuToSi = electronSi * electronSi / hBarSi / bohrRadiusSi;
 const double mobilityAuToSi = electronSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
-const double thermopowerAuToSi = - kBoltzmannRy / electronSi * rydbergSi;
+const double thermopowerAuToSi = kBoltzmannRy / electronSi * rydbergSi;
 
 #endif

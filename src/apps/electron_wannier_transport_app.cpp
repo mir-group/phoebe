@@ -43,7 +43,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
-  scatteringMatrix.setup();
+//  scatteringMatrix.setup();
   scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
@@ -62,8 +62,9 @@ void ElectronWannierTransportApp::run(Context &context) {
   BulkEDrift driftE(statisticsSweep, bandStructure, dimensionality);
   BulkTDrift driftT(statisticsSweep, bandStructure, dimensionality);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-  VectorBTE nERTA = driftE * relaxationTimes;
-  VectorBTE nTRTA = driftT * relaxationTimes;
+  relaxationTimes.setConst(10. / timeRyToFs * twoPi);
+  VectorBTE nERTA = - driftE * relaxationTimes;
+  VectorBTE nTRTA = - driftT * relaxationTimes;
 
   // compute the electrical conductivity
   OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
@@ -145,8 +146,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     // from n, we get f, such that n = bose(bose+1)f
     VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fERTA = driftE / lineWidths;
-    VectorBTE fTRTA = driftT / lineWidths;
+    VectorBTE fERTA = - driftE / lineWidths;
+    VectorBTE fTRTA = - driftT / lineWidths;
     VectorBTE fEOld = fERTA;
     VectorBTE fTOld = fTRTA;
 
@@ -223,8 +224,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     // set the initial guess to the RTA solution
     VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fENew = driftE / lineWidths;
-    VectorBTE fTNew = driftT / lineWidths;
+    VectorBTE fENew = - driftE / lineWidths;
+    VectorBTE fTNew = - driftT / lineWidths;
 
     VectorBTE preconditioning = lineWidths.sqrt();
 
