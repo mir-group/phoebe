@@ -66,7 +66,8 @@ TEST (PhononH0, Velocity) {
   ASSERT_NEAR(err2, 0., 0.04);
 }
 
-
+/** Here I estimate the mass at the top of the valence band of silicon
+ */
 TEST (WannierH0, Velocity) {
   Context context;
   context.setElectronH0Name("../test/data/666_si_tb.dat");
@@ -118,4 +119,61 @@ TEST (WannierH0, Velocity) {
 
   // we also fix their value in this test
   ASSERT_NEAR(abs(mass1), 686.779, 0.02);
+}
+
+/** Here I check the velocity of the WannierH0 class by comparing it with the
+ * velocity estimated by finite differences in the electronic energy.
+ */
+TEST (WannierH0, Velocity2) {
+  Context context;
+  context.setElectronH0Name("../test/data/666_si_tb.dat");
+
+  // setup crystal input
+  Eigen::MatrixXd atomicPositions(2,3);
+  atomicPositions.row(0) << 0., 0., 0.;
+  atomicPositions.row(1) << 1.34940, 1.34940, 1.34940;
+  Eigen::VectorXi atomicSpecies(2);
+  atomicSpecies(0) = 0;
+  atomicSpecies(1) = 0;
+  std::vector<std::string> speciesNames;
+  speciesNames.emplace_back("Si");
+  context.setInputAtomicPositions(atomicPositions);
+  context.setInputAtomicSpecies(atomicSpecies);
+  context.setInputSpeciesNames(speciesNames);
+
+  // read electron hamiltonian
+  auto tup = QEParser::parseElHarmonicWannier(context);
+  auto crystal = std::get<0>(tup);
+  auto electronH0 = std::get<1>(tup);
+
+  // pick a k-point
+  Eigen::Vector3d k1;
+  k1 << 0.1, 0.2, 0.3;
+
+  // compute velocity analytically at k1
+  auto v1 = electronH0.diagonalizeVelocityFromCoordinates(k1);
+
+  for (int iCart : {0, 1, 2}) {
+
+    double deltaK = 0.0001;
+
+    Eigen::Vector3d k1PlusDelta;
+    k1PlusDelta = k1;
+    k1PlusDelta(iCart) += deltaK;
+
+    auto tup1 = electronH0.diagonalizeFromCoordinates(k1);
+    auto ens1 = std::get<0>(tup1);
+    auto tup2 = electronH0.diagonalizeFromCoordinates(k1PlusDelta);
+    auto ens2 = std::get<0>(tup2);
+
+    // we hard code the index of the top of the valence band
+    int ib = 0;
+
+    double x = (ens2(ib) - ens1(ib)) / deltaK;
+
+    double error = ( x - v1(ib, ib, iCart).real() ) / v1(ib, ib, iCart).real();
+
+    ASSERT_NEAR(error, 0., 0.001);
+
+  }
 }
