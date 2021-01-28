@@ -186,31 +186,6 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   mpi->allReduceSum(&LET);
   mpi->allReduceSum(&LTT);
   calcTransportCoefficients();
-
-  {
-    double s1 = 0.;
-    double s2 = 0.;
-
-    int iCalc = 0;
-    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-    double chemPot = calcStat.chemicalPotential;
-    double temp = calcStat.temperature;
-
-    auto particle = bandStructure.getParticle();
-
-    for ( int is : bandStructure.parallelStateIterator()) {
-      StateIndex isIdx(is);
-      double energy = bandStructure.getEnergy(isIdx);
-      Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
-
-      double pop = particle.getPopPopPm1(energy, temp, chemPot);
-
-      s1 += norm * (energy-chemPot) * vel(0) * vel(0) * pop / temp / temp;
-      s2 += norm * vel(0) * vel(0) * pop / temp;
-    }
-
-    std::cout << - s1 / s2 * 1e6 * thermopowerAuToSi << " ------------\n";
-  }
 }
 
 void OnsagerCoefficients::calcTransportCoefficients() {

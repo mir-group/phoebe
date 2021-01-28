@@ -18,26 +18,11 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
   numStates = outerBandStructure.irrStateIterator().size();
   numPoints = outerBandStructure.irrPointsIterator().size();
-
-  double constantRelaxationTime = context.getConstantRelaxationTime();
-  if (constantRelaxationTime > 0.) {
-    constantRTA = true;
-    return;
-  }
+  numCalcs = statisticsSweep.getNumCalculations();
 
   dimensionality_ = int(context.getDimensionality());
 
   highMemory = context.getScatteringMatrixInMemory();
-
-  smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
-
-  if ( // innerBandStructure != outerBandStructure &&
-      smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron smearing for transport untested and thus blocked");
-    // not for linewidths. Although this should be double-checked
-  }
-
-  numCalcs = statisticsSweep.getNumCalculations();
 
   // we want to know the state index of acoustic modes at gamma,
   // so that we can set their populations to zero
@@ -50,6 +35,19 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
         excludeIndices.push_back(iBte);
       }
     }
+  }
+
+  double constantRelaxationTime = context.getConstantRelaxationTime();
+  if (constantRelaxationTime > 0.) {
+    constantRTA = true;
+    return;
+  }
+
+  smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+  if ( // innerBandStructure != outerBandStructure &&
+      smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Tetrahedron smearing for transport untested and thus blocked");
+    // not for linewidths. Although this should be double-checked
   }
 }
 

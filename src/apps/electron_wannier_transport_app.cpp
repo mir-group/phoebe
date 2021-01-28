@@ -24,9 +24,15 @@ void ElectronWannierTransportApp::run(Context &context) {
   // load the 3phonon coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
-  auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+  InteractionElPhWan couplingElPh(crystal);
+  if (std::isnan(context.getConstantRelaxationTime()) ) {
+    couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+  }
 
   // compute the band structure on the fine grid
+  if (mpi->mpiHead()) {
+    std::cout << "\nComputing electronic band structure." << std::endl;
+  }
   Points fullPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
@@ -43,7 +49,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
-//  scatteringMatrix.setup();
+  scatteringMatrix.setup();
   scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
@@ -62,7 +68,6 @@ void ElectronWannierTransportApp::run(Context &context) {
   BulkEDrift driftE(statisticsSweep, bandStructure, dimensionality);
   BulkTDrift driftT(statisticsSweep, bandStructure, dimensionality);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-  relaxationTimes.setConst(10. / timeRyToFs * twoPi);
   VectorBTE nERTA = - driftE * relaxationTimes;
   VectorBTE nTRTA = - driftT * relaxationTimes;
 

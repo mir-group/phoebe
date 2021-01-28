@@ -39,6 +39,8 @@ InteractionElPhWan::InteractionElPhWan(
   }
 }
 
+InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
+
 // copy constructor
 InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
     : crystal(that.crystal), phononH0(that.phononH0),
