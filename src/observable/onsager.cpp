@@ -173,8 +173,8 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
         for (int i : {0,1,2}) {
           for (int j : {0,1,2}) {
             LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
-            LTE(iCalc, i, j) += thisNT(i) * vel(j) * norm;
-            LET(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
+            LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
+            LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
             LTT(iCalc, i, j) += thisNT(i) * vel(j) * en * norm;
           }
         }
@@ -186,6 +186,31 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   mpi->allReduceSum(&LET);
   mpi->allReduceSum(&LTT);
   calcTransportCoefficients();
+
+  {
+    double s1 = 0.;
+    double s2 = 0.;
+
+    int iCalc = 0;
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double chemPot = calcStat.chemicalPotential;
+    double temp = calcStat.temperature;
+
+    auto particle = bandStructure.getParticle();
+
+    for ( int is : bandStructure.parallelStateIterator()) {
+      StateIndex isIdx(is);
+      double energy = bandStructure.getEnergy(isIdx);
+      Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
+
+      double pop = particle.getPopPopPm1(energy, temp, chemPot);
+
+      s1 += norm * (energy-chemPot) * vel(0) * vel(0) * pop / temp / temp;
+      s2 += norm * vel(0) * vel(0) * pop / temp;
+    }
+
+    std::cout << - s1 / s2 * 1e6 * thermopowerAuToSi << " ------------\n";
+  }
 }
 
 void OnsagerCoefficients::calcTransportCoefficients() {
@@ -208,6 +233,12 @@ void OnsagerCoefficients::calcTransportCoefficients() {
 
     // seebeck = - matmul(L_EE_inv, L_ET)
     Eigen::MatrixXd thisSeebeck = -(thisLEE.inverse()) * thisLET;
+    // note: in the unit conversion, I have to consider that S, proportional
+    // to 1/e, gets a negative sign coming from the negative electron charge
+    // Note that below, the correction on kappa is always positive (L_TE L_ET
+    // carries a factor e^2)
+    thisSeebeck *= -1;
+
     // k = L_tt - L_TE L_EE^-1 L_ET
     Eigen::MatrixXd thisKappa = thisLTE * (thisLEE.inverse());
     thisKappa = - (thisLTT - thisKappa * thisLET);
