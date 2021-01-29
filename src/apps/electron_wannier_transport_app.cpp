@@ -25,7 +25,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
   InteractionElPhWan couplingElPh(crystal);
-  if (std::isnan(context.getConstantRelaxationTime()) ) {
+  if (std::isnan(context.getConstantRelaxationTime())) {
     couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
   }
 
@@ -68,8 +68,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   BulkEDrift driftE(statisticsSweep, bandStructure, dimensionality);
   BulkTDrift driftT(statisticsSweep, bandStructure, dimensionality);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-  VectorBTE nERTA = - driftE * relaxationTimes;
-  VectorBTE nTRTA = - driftT * relaxationTimes;
+  VectorBTE nERTA = -driftE * relaxationTimes;
+  VectorBTE nTRTA = -driftT * relaxationTimes;
 
   // compute the electrical conductivity
   OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
@@ -102,7 +102,12 @@ void ElectronWannierTransportApp::run(Context &context) {
     std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
   }
 
+  if (!std::isnan(context.getConstantRelaxationTime())) {
+    return; // if we used the constant RTA, we can't solve the BTE exactly
+  }
+
   //---------------------------------------------------------------------------
+  // start section on exact BTE solvers
 
   std::vector<std::string> solverBTE = context.getSolverBTE();
 
@@ -125,7 +130,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
-            "temperature/chemical potential is allowed in a run");
+          "temperature/chemical potential is allowed in a run");
   }
 
   mpi->barrier();
@@ -151,8 +156,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     // from n, we get f, such that n = bose(bose+1)f
     VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fERTA = - driftE / lineWidths;
-    VectorBTE fTRTA = - driftT / lineWidths;
+    VectorBTE fERTA = -driftE / lineWidths;
+    VectorBTE fTRTA = -driftT / lineWidths;
     VectorBTE fEOld = fERTA;
     VectorBTE fTOld = fTRTA;
 
@@ -229,8 +234,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     // set the initial guess to the RTA solution
     VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fENew = - driftE / lineWidths;
-    VectorBTE fTNew = - driftT / lineWidths;
+    VectorBTE fENew = -driftE / lineWidths;
+    VectorBTE fTNew = -driftT / lineWidths;
 
     VectorBTE preconditioning = lineWidths.sqrt();
 
@@ -294,9 +299,11 @@ void ElectronWannierTransportApp::run(Context &context) {
 
       std::vector<VectorBTE> inVectors;
       inVectors.push_back(fENew);
-      inVectors.push_back(hENew); // note: at next step hNew is hOld -> gives tOld
+      inVectors.push_back(
+          hENew); // note: at next step hNew is hOld -> gives tOld
       inVectors.push_back(fTNew);
-      inVectors.push_back(hTNew); // note: at next step hNew is hOld -> gives tOld
+      inVectors.push_back(
+          hTNew); // note: at next step hNew is hOld -> gives tOld
       auto outVectors = scatteringMatrix.dot(inVectors);
       tEOld = outVectors[1];
       tTOld = outVectors[3];
@@ -390,11 +397,19 @@ void ElectronWannierTransportApp::run(Context &context) {
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
-  throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
-  throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
-  if (context.getSmearingMethod() == DeltaFunction::gaussian) {
-    throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+
+  if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
+    throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
+    throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
+    if (context.getSmearingMethod() == DeltaFunction::gaussian) {
+      throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+    }
+  } else {
+    if (std::isnan(context.getNumOccupiedStates()) &&
+        std::isnan(context.getFermiLevel())) {
+      Error("For constant tau calculations, you must provide either the number of occupied Kohn-Sham states in the valence band or the Fermi level at T=0K");
+    }
   }
 
   if (context.getDopings().size() == 0 &&
