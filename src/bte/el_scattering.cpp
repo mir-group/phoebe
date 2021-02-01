@@ -207,7 +207,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       WavevectorIndex ik2Idx(ik2);
       WavevectorIndex ik2IrrIdx(ik2Irr);
 
-//#pragma omp parallel for
       for (int ib1 = 0; ib1 < nb1; ib1++) {
         double en1 = state1Energies(ib1);
         for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -236,7 +235,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
             } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-              // Eigen::Vector3d smear = v1s.row(ib1s) - v2s.row(ib2);
               Eigen::Vector3d smear = v3s.row(ib3);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
@@ -260,12 +258,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               double rate =
                   coupling(ib1, ib2, ib3) *
                   ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) *
-                  norm * pow(twoPi, 4) / en3;
+                  norm * pi / en3;
 
               double rateOffDiagonal = coupling(ib1, ib2, ib3) *
                                    (fermi1 * (1. - fermi2) * bose3 * delta1 +
                                     fermi2 * (1. - fermi1) * bose3 * delta2) *
-                                   norm * pow(twoPi, 4) / en3;
+                                   norm * pi / en3;
 
               if (switchCase == 0) {
 
