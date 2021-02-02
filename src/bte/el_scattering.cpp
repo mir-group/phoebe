@@ -24,6 +24,8 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
     }
   }
 
+  isMatrixOmega = true;
+
   highMemory = context.getScatteringMatrixInMemory();
 }
 
@@ -337,17 +339,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
            particle, outPopulations, inPopulations, linewidth, switchCase)
     for (int is1 : outerBandStructure.irrStateIterator()) {
       StateIndex is1Idx(is1);
-      double energy = outerBandStructure.getEnergy(is1Idx);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int ind1 = outerBandStructure.stateToBte(is1Idx).get();
+      double rate = vel.squaredNorm() / boundaryLength;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        // n(n+1)
-        double termPop = particle.getPopPopPm1(energy, temp, chemPot);
-        double rate = vel.squaredNorm() / boundaryLength * termPop;
 
         if (switchCase == 0) { // case of matrix construction
           linewidth->operator()(iCalc, 0, ind1) += rate;

@@ -395,38 +395,32 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     auto particle = outerBandStructure.getParticle();
 
     if (isMatrixOmega) {
-      if (particle.isElectron()) {
-        // for electrons, one should never work with Omega!
-        // the factor popTerm could be = 0!
-        Error("Attempting to use a numerically unstable quantity");
-      }
       return linewidths;
 
     } else {
       // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
       if (particle.isElectron()) {
-        return linewidths;
-      } else { // phonon case
-        for (int iBte = 0; iBte < numStates; iBte++) {
-          auto iBteIdx = BteIndex(iBte);
-          StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
-          double en = outerBandStructure.getEnergy(isIdx);
-          for (int iCalc = 0; iCalc < internalDiagonal.numCalculations;
-               iCalc++) {
-            auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
-            double temp = calcStatistics.temperature;
-            double chemPot = calcStatistics.chemicalPotential;
-            // n(n+1) for bosons, n(1-n) for fermions
-            double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-            linewidths(iCalc, 0, iBte) =
-                internalDiagonal(iCalc, 0, iBte) / popTerm;
-          }
-        }
-        linewidths.excludeIndices = excludeIndices;
-        return linewidths;
+        Error("Attempting to use a numerically unstable quantity");
+        // popTerm could be = 0
       }
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        auto iBteIdx = BteIndex(iBte);
+        StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
+        double en = outerBandStructure.getEnergy(isIdx);
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations;
+             iCalc++) {
+          auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+          double temp = calcStatistics.temperature;
+          double chemPot = calcStatistics.chemicalPotential;
+          // n(n+1) for bosons, n(1-n) for fermions
+          double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+          linewidths(iCalc, 0, iBte) =
+              internalDiagonal(iCalc, 0, iBte) / popTerm;
+        }
+      }
+      linewidths.excludeIndices = excludeIndices;
+      return linewidths;
     }
-
 
   }
 }
