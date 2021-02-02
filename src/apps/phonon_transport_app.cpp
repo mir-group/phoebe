@@ -3,13 +3,13 @@
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
-#include "points.h"
 #include "ifc3_parser.h"
 #include "observable.h"
+#include "parser.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
-#include "parser.h"
+#include "points.h"
 #include "specific_heat.h"
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
@@ -49,7 +49,8 @@ void PhononTransportApp::run(Context &context) {
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n" << std::string(80, '-') << "\n\n"
+    std::cout << "\n"
+              << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
@@ -102,7 +103,7 @@ void PhononTransportApp::run(Context &context) {
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
-  for (const auto& s : solverBTE) {
+  for (const auto &s : solverBTE) {
     if (s.compare("iterative") == 0)
       doIterative = true;
     if (s.compare("variational") == 0)
@@ -118,7 +119,7 @@ void PhononTransportApp::run(Context &context) {
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
-            "temperature/chemical potential is allowed in a run");
+          "temperature/chemical potential is allowed in a run");
   }
 
   mpi->barrier();
@@ -185,15 +186,15 @@ void PhononTransportApp::run(Context &context) {
     PhononThermalConductivity phTCondOld = phTCond;
 
     // load the conjugate gradient rescaling factor
-    VectorBTE sMatrixDiagonalSqrt = scatteringMatrix.diagonal().sqrt();
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
+    VectorBTE preconditioning = sMatrixDiagonal.sqrt();
 
     // set the initial guess to the RTA solution
     VectorBTE fNew = popRTA;
     // from n, we get f, such that n = bose(bose+1)f
     fNew.population2Canonical();
     // CG rescaling
-    fNew = fNew * sMatrixDiagonalSqrt; // CG scaling
+    fNew = fNew * preconditioning; // CG scaling
 
     // save the population of the previous step
     VectorBTE fOld = fNew;
@@ -201,12 +202,17 @@ void PhononTransportApp::run(Context &context) {
     // do the conjugate gradient method for thermal conductivity.
     //		auto gOld = scatteringMatrix.dot(fNew) - fOld;
     auto gOld = scatteringMatrix.dot(fNew);
-    gOld = gOld / sMatrixDiagonal; // CG scaling
-    gOld = gOld - fOld;
+    {
+      auto tmp = fNew * sMatrixDiagonal;
+      gOld = gOld - tmp + fNew ;
+    }
     auto hOld = -gOld;
 
     auto tOld = scatteringMatrix.dot(hOld);
-    tOld = tOld / sMatrixDiagonal; // CG scaling
+    {
+      auto tmp = hOld * sMatrixDiagonal;
+      tOld = tOld - tmp + hOld;
+    }
 
     double threshold = context.getConvergenceThresholdBTE();
 
@@ -225,18 +231,21 @@ void PhononTransportApp::run(Context &context) {
       hNew = -gNew + hNew;
 
       std::vector<VectorBTE> inVectors;
-      inVectors.push_back(fNew);
-      inVectors.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
-      std::vector<VectorBTE> outVectors = scatteringMatrix.dot(inVectors);
-      tOld = outVectors[1];
-      tOld = tOld / sMatrixDiagonal; // CG scaling
+      {
+        inVectors.push_back(fNew);
+        inVectors.push_back(hNew); // at next step hNew is hOld -> gives tOld
+        std::vector<VectorBTE> outVectors = scatteringMatrix.dot(inVectors);
+        auto aF = -fNew * sMatrixDiagonal + fNew + outVectors[0];
+        tOld = -hNew * sMatrixDiagonal + hNew + outVectors[1];
 
-      phTCond.calcVariational(outVectors[0], fNew, sMatrixDiagonalSqrt);
-      phTCond.print(iter);
+        phTCond.calcVariational(aF, fNew, preconditioning);
+        phTCond.print(iter);
+      }
 
       // decide whether to exit or run the next iteration
       auto diff = phTCond - phTCondOld;
       if (diff.getNorm().maxCoeff() < threshold) {
+        fNew = fNew / preconditioning;
         break;
       } else {
         phTCondOld = phTCond;
@@ -301,7 +310,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
-  if (context.getSmearingMethod()==DeltaFunction::gaussian) {
+  if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
 }
