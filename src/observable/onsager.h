@@ -31,14 +31,6 @@ public:
    */
   void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
 
-  /** Compute the thermal conductivity from canonical phonon populations
-   * where the "canonical" population f is defined as n = bose(bose+1)f
-   * where "bose" is the Bose-Einstein population.
-   * Iterative schemes are probably computing this canonical population.
-   * @param f: canonical phonon population.
-   */
-  void calcFromCanonicalPopulation(VectorBTE &fE, VectorBTE &fT);
-
   /** Prints to screen the thermal conductivity at various temperatures
    * in a a nicely formatted way.
    */

@@ -150,31 +150,27 @@ void ElectronWannierTransportApp::run(Context &context) {
     Eigen::Tensor<double, 3> elCondOld = elCond;
     Eigen::Tensor<double, 3> thCondOld = thCond;
 
-    VectorBTE fENext(statisticsSweep, bandStructure, dimensionality);
-    VectorBTE fTNext(statisticsSweep, bandStructure, dimensionality);
-    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
+    VectorBTE nENext(statisticsSweep, bandStructure, dimensionality);
+    VectorBTE nTNext(statisticsSweep, bandStructure, dimensionality);
 
-    // from n, we get f, such that n = bose(bose+1)f
-    VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fERTA = -driftE / lineWidths;
-    VectorBTE fTRTA = -driftT / lineWidths;
-    VectorBTE fEOld = fERTA;
-    VectorBTE fTOld = fTRTA;
+    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE nEOld = nERTA;
+    VectorBTE nTOld = nTRTA;
 
     auto threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
-      std::vector<VectorBTE> fIn;
-      fIn.push_back(fEOld);
-      fIn.push_back(fTOld);
-      auto fOut = scatteringMatrix.offDiagonalDot(fIn);
-      fENext = fOut[0] / sMatrixDiagonal;
-      fTNext = fOut[1] / sMatrixDiagonal;
-      fENext = fERTA - fENext;
-      fTNext = fTRTA - fTNext;
+      std::vector<VectorBTE> nIn;
+      nIn.push_back(nEOld);
+      nIn.push_back(nTOld);
+      auto nOut = scatteringMatrix.offDiagonalDot(nIn);
+      nENext = nOut[0] / lineWidths;
+      nTNext = nOut[1] / lineWidths;
+      nENext = nERTA - nENext;
+      nTNext = nTRTA - nTNext;
 
-      transportCoeffs.calcFromCanonicalPopulation(fENext, fTNext);
+      transportCoeffs.calcFromPopulation(nENext, nTNext);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();
@@ -201,8 +197,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       } else {
         elCondOld = elCond;
         thCondOld = thCond;
-        fEOld = fENext;
-        fTOld = fTNext;
+        nEOld = nENext;
+        nTOld = nTNext;
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
@@ -233,85 +229,72 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto thCondOld = thCond;
 
     // set the initial guess to the RTA solution
-    VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fENew = -driftE / lineWidths;
-    VectorBTE fTNew = -driftT / lineWidths;
-
-    VectorBTE preconditioning = lineWidths.sqrt();
+    VectorBTE preconditioning2 = scatteringMatrix.getLinewidths();
+    VectorBTE preconditioning = preconditioning2.sqrt();
 
     // CG rescaling
-    fENew = fENew * preconditioning;
-    fTNew = fTNew * preconditioning;
-
+    VectorBTE xNewE = nERTA * preconditioning;
+    VectorBTE xNewT = nTRTA * preconditioning;
     // save the population of the previous step
-    VectorBTE fEOld = fENew;
-    VectorBTE fTOld = fTNew;
+    VectorBTE xE = xNewE;
+    VectorBTE xT = xNewT;
 
-    // do the conjugate gradient method for transport coefficients
-    std::vector<VectorBTE> fIn;
-    fIn.push_back(fENew);
-    fIn.push_back(fTNew);
-    auto gOld = scatteringMatrix.offDiagonalDot(fIn);
-    VectorBTE gEOld = gOld[0] / lineWidths; // CG scaling
-    VectorBTE gTOld = gOld[1] / lineWidths; // CG scaling
-    gEOld = gEOld - fEOld;
-    gTOld = gTOld - fTOld;
-    VectorBTE hEOld = -gEOld;
-    VectorBTE hTOld = -gTOld;
+    VectorBTE bE = driftE;
+    VectorBTE bT = driftT;
 
-    std::vector<VectorBTE> tIn;
-    tIn.push_back(hEOld);
-    tIn.push_back(hTOld);
-    auto tOut = scatteringMatrix.dot(tIn);
-    VectorBTE tEOld = tOut[0];
-    VectorBTE tTOld = tOut[1];
-    tEOld = tEOld / lineWidths; // CG scaling
-    tTOld = tTOld / lineWidths; // CG scaling
+    std::vector<VectorBTE> inVec;
+    inVec.push_back(xE);
+    inVec.push_back(xT);
+    std::vector<VectorBTE> w0s = scatteringMatrix.dot(inVec);
+    VectorBTE w0E_ = xE * preconditioning2;
+    VectorBTE w0E = w0s[0] - w0E_ + xE;
+    VectorBTE w0T_ = xT * preconditioning2;
+    VectorBTE w0T = w0s[1] - w0T_ + xT;
+
+    VectorBTE rE = bE / preconditioning - w0E;
+    VectorBTE rT = bT / preconditioning - w0T;
+
+    VectorBTE dE = rE;
+    VectorBTE dT = rT;
 
     double threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
+      // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
-      Eigen::MatrixXd alphaE =
-          (gEOld.dot(hEOld)).array() / (hEOld.dot(tEOld)).array();
-      Eigen::MatrixXd alphaT =
-          (gTOld.dot(hTOld)).array() / (hTOld.dot(tTOld)).array();
+      std::vector<VectorBTE> inW;
+      inW.push_back(dE);
+      inW.push_back(dT);
+      std::vector<VectorBTE> outW = scatteringMatrix.dot(inW);
+      VectorBTE wE_ = dE * preconditioning2;
+      VectorBTE wT_ = dT * preconditioning2;
+      VectorBTE wE = outW[0] - wE_ + dE;
+      VectorBTE wT = outW[1] - wT_ + dT;
 
-      fENew = hEOld * alphaE;
-      fTNew = hTOld * alphaT;
-      fENew = fEOld - fENew;
-      fTNew = fTOld - fTNew;
+      Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
+      Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
 
-      VectorBTE gENew = tEOld * alphaE;
-      VectorBTE gTNew = tTOld * alphaT;
-      gENew = gEOld - gENew;
-      gTNew = gTOld - gTNew;
+      xNewE = dE * alphaE + xE;
+      xNewE = dT * alphaT + xT;
 
-      Eigen::MatrixXd betaE =
-          (gENew.dot(gENew)).array() / (gEOld.dot(gEOld)).array();
-      Eigen::MatrixXd betaT =
-          (gTNew.dot(gTNew)).array() / (gTOld.dot(gTOld)).array();
-      VectorBTE hENew = hEOld * betaE;
-      VectorBTE hTNew = hTOld * betaT;
-      hENew = -gENew + hENew;
-      hTNew = -gTNew + hTNew;
+      VectorBTE tmpE = wE * alphaE;
+      VectorBTE tmpT = wT * alphaT;
+      VectorBTE rNewE = rE - tmpE;
+      VectorBTE rNewT = rT - tmpT;
 
-      std::vector<VectorBTE> inVectors;
-      inVectors.push_back(fENew);
-      inVectors.push_back(
-          hENew); // note: at next step hNew is hOld -> gives tOld
-      inVectors.push_back(fTNew);
-      inVectors.push_back(
-          hTNew); // note: at next step hNew is hOld -> gives tOld
-      auto outVectors = scatteringMatrix.dot(inVectors);
-      tEOld = outVectors[1];
-      tTOld = outVectors[3];
-      tEOld = tEOld / lineWidths; // CG scaling
-      tTOld = tTOld / lineWidths; // CG scaling
+      Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
+      Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
 
-      transportCoeffs.calcVariational(outVectors[0], outVectors[2], fENew,
-                                      fTNew, preconditioning);
+      VectorBTE dNewE = dE * betaE + rNewE;
+      VectorBTE dNewT = dT * betaT + rNewT;
+
+      std::vector<VectorBTE> inF;
+      inF.push_back(xNewE);
+      inF.push_back(xNewT);
+      auto outF = scatteringMatrix.dot(inF);
+
+      transportCoeffs.calcVariational(outF[0], outF[1], xNewE, xNewT, preconditioning);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();
@@ -319,33 +302,35 @@ void ElectronWannierTransportApp::run(Context &context) {
       // decide whether to exit or run the next iteration
       Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
       Eigen::Tensor<double, 3> diffT = ((thCond - thCondOld) / thCondOld).abs();
-      double dE = 10000.;
-      double dT = 10000.;
+      double deltaE = 10000.;
+      double deltaT = 10000.;
       for (int i = 0; i < diffE.dimension(0); i++) {
         for (int j = 0; j < diffE.dimension(0); j++) {
           for (int k = 0; k < diffE.dimension(0); k++) {
-            if (diffE(i, j, k) < dE)
-              dE = diffE(i, j, k);
-            if (diffT(i, j, k) < dT)
-              dT = diffT(i, j, k);
+            if (diffE(i, j, k) < deltaE) {
+              deltaE = diffE(i, j, k);
+            }
+            if (diffT(i, j, k) < deltaT) {
+              deltaT = diffT(i, j, k);
+            }
           }
         }
       }
-      if ((dE < threshold) && (dT < threshold)) {
+      if ((deltaE < threshold) && (deltaT < threshold)) {
         // this because calcVariational computes LTT and LEE
-        fENew = fENew / preconditioning;
-        fTNew = fTNew / preconditioning;
-        transportCoeffs.calcFromCanonicalPopulation(fENew, fTNew);
+        xNewE = xNewE / preconditioning;
+        xNewT = xNewT / preconditioning;
+        transportCoeffs.calcFromPopulation(xNewE, xNewT);
         break;
       } else {
         elCondOld = elCond;
         thCondOld = thCond;
-        fEOld = fENew;
-        fTOld = fTNew;
-        gEOld = gENew;
-        gTOld = gTNew;
-        hEOld = hENew;
-        hTOld = hTNew;
+        xE = xNewE;
+        xT = xNewT;
+        rE = rNewE;
+        rT = rNewT;
+        dE = dNewE;
+        dT = dNewT;
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
@@ -408,7 +393,9 @@ void ElectronWannierTransportApp::checkRequirements(Context &context) {
   } else {
     if (std::isnan(context.getNumOccupiedStates()) &&
         std::isnan(context.getFermiLevel())) {
-      Error("For constant tau calculations, you must provide either the number of occupied Kohn-Sham states in the valence band or the Fermi level at T=0K");
+      Error("For constant tau calculations, you must provide either the number "
+            "of occupied Kohn-Sham states in the valence band or the Fermi "
+            "level at T=0K");
     }
   }
 
