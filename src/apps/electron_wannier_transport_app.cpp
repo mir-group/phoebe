@@ -229,7 +229,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     auto thCondOld = thCond;
 
     // set the initial guess to the RTA solution
-    VectorBTE preconditioning2 = scatteringMatrix.getLinewidths();
+    VectorBTE preconditioning2 = scatteringMatrix.diagonal();
     VectorBTE preconditioning = preconditioning2.sqrt();
 
     // CG rescaling
@@ -293,8 +293,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       inF.push_back(xNewE);
       inF.push_back(xNewT);
       auto outF = scatteringMatrix.dot(inF);
-
-      transportCoeffs.calcVariational(outF[0], outF[1], xNewE, xNewT, preconditioning);
+      transportCoeffs.calcVariational(outF[0], outF[1], xNewE, xNewT,
+                                      preconditioning);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();
