@@ -194,16 +194,17 @@ void PhononTransportApp::run(Context &context) {
     // from n, we get f, such that n = bose(bose+1)f
     fRTA.population2Canonical();
     // CG rescaling
+    fRTA = fRTA * preconditioning;
 
     // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
     auto b = drift;
 
     VectorBTE w0 = scatteringMatrix.dot(fRTA);
-
-    VectorBTE r = b - w0;
+    VectorBTE w0_ = fRTA * preconditioning2;
+    w0 = w0 - w0_ + fRTA;
+    VectorBTE r = b / preconditioning - w0;
     VectorBTE d = r;
-
     VectorBTE f = fRTA;
 
     double threshold = context.getConvergenceThresholdBTE();
@@ -211,6 +212,8 @@ void PhononTransportApp::run(Context &context) {
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
       VectorBTE w = scatteringMatrix.dot(d);
+      auto w_ = d * preconditioning2;
+      w = w - w_ + d;
 
       // size of alpha: (numCalculations,3)
       Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();

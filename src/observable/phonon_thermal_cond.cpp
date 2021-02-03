@@ -118,7 +118,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &scalingCG) {
-  VectorBTE fUnscaled = f;
+  VectorBTE fUnscaled = f / scalingCG;
   calcFromCanonicalPopulation(fUnscaled);
 
   double norm = 1. / context.getQMesh().prod() /
@@ -144,7 +144,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
         continue;
       }
 
-      auto isIndex = StateIndex(is);
+      StateIndex isIndex(is);
       BteIndex iBteIndex = bandStructure.stateToBte(isIndex);
       int isBte = iBteIndex.get();
       auto rots = bandStructure.getRotationsStar(isIndex);
