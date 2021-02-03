@@ -3,7 +3,7 @@ appName = "electronWannierTransport"
 electronH0Name = "qe/gan_tb.dat",
 phD2FileName = "qe/gan.fc",
 sumRuleD2 = "simple"
-epwFileName = "qespresso/phoebe.dat"
+elphFileName = "qespresso/phoebe.dat"
 
 kMesh = [5,5,5]
 temperatures = [300.]

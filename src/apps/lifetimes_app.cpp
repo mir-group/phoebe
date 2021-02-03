@@ -102,7 +102,7 @@ void ElectronLifetimesApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getPhD2FileName(), "phD2FileName");
   throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
-  throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
+  throwErrorIfUnset(context.getElphFileName(), "elphFileName");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");

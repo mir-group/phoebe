@@ -384,7 +384,7 @@ void ElectronWannierTransportApp::run(Context &context) {
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
-  throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
+  throwErrorIfUnset(context.getElphFileName(), "elphFileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
