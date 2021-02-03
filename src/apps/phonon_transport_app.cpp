@@ -186,72 +186,58 @@ void PhononTransportApp::run(Context &context) {
     PhononThermalConductivity phTCondOld = phTCond;
 
     // load the conjugate gradient rescaling factor
-    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
-    VectorBTE preconditioning = sMatrixDiagonal.sqrt();
+    VectorBTE preconditioning2 = scatteringMatrix.diagonal();
+    VectorBTE preconditioning = preconditioning2.sqrt();
 
     // set the initial guess to the RTA solution
-    VectorBTE fNew = popRTA;
+    VectorBTE fRTA = popRTA;
     // from n, we get f, such that n = bose(bose+1)f
-    fNew.population2Canonical();
+    fRTA.population2Canonical();
     // CG rescaling
-    fNew = fNew * preconditioning; // CG scaling
 
-    // save the population of the previous step
-    VectorBTE fOld = fNew;
+    // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
-    // do the conjugate gradient method for thermal conductivity.
-    //		auto gOld = scatteringMatrix.dot(fNew) - fOld;
-    auto gOld = scatteringMatrix.dot(fNew);
-    {
-      auto tmp = fNew * sMatrixDiagonal;
-      gOld = gOld - tmp + fNew ;
-    }
-    auto hOld = -gOld;
+    auto b = drift;
 
-    auto tOld = scatteringMatrix.dot(hOld);
-    {
-      auto tmp = hOld * sMatrixDiagonal;
-      tOld = tOld - tmp + hOld;
-    }
+    VectorBTE w0 = scatteringMatrix.dot(fRTA);
+
+    VectorBTE r = b - w0;
+    VectorBTE d = r;
+
+    VectorBTE f = fRTA;
 
     double threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
-      // execute CG step, as in
 
-      Eigen::MatrixXd alpha = (gOld.dot(hOld)).array() / hOld.dot(tOld).array();
-      fNew = hOld * alpha;
-      fNew = fOld - fNew;
-      VectorBTE gNew = tOld * alpha;
-      gNew = gOld - gNew;
+      VectorBTE w = scatteringMatrix.dot(d);
 
-      Eigen::MatrixXd beta = // (numCalculations,3)
-          (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
-      VectorBTE hNew = hOld * beta;
-      hNew = -gNew + hNew;
+      // size of alpha: (numCalculations,3)
+      Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
 
-      std::vector<VectorBTE> inVectors;
-      {
-        inVectors.push_back(fNew);
-        inVectors.push_back(hNew); // at next step hNew is hOld -> gives tOld
-        std::vector<VectorBTE> outVectors = scatteringMatrix.dot(inVectors);
-        auto aF = -fNew * sMatrixDiagonal + fNew + outVectors[0];
-        tOld = -hNew * sMatrixDiagonal + hNew + outVectors[1];
+      VectorBTE fNew = d * alpha + f;
 
-        phTCond.calcVariational(aF, fNew, preconditioning);
-        phTCond.print(iter);
-      }
+      VectorBTE tmp = w * alpha;
+      VectorBTE rNew = r - tmp;
+
+      Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
+
+      VectorBTE dNew = d * beta + rNew;
+
+      // compute thermal conductivity
+      auto aF = scatteringMatrix.dot(fNew);
+      phTCond.calcVariational(aF, fNew, preconditioning);
+      phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
       auto diff = phTCond - phTCondOld;
       if (diff.getNorm().maxCoeff() < threshold) {
-        fNew = fNew / preconditioning;
         break;
       } else {
         phTCondOld = phTCond;
-        fOld = fNew;
-        gOld = gNew;
-        hOld = hNew;
+        f = fNew;
+        r = rNew;
+        d = dNew;
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {

@@ -118,7 +118,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &scalingCG) {
-  VectorBTE fUnscaled = f / scalingCG;
+  VectorBTE fUnscaled = f;
   calcFromCanonicalPopulation(fUnscaled);
 
   double norm = 1. / context.getQMesh().prod() /
