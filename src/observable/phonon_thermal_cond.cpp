@@ -118,7 +118,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
                                                 VectorBTE &scalingCG) {
-  VectorBTE fUnscaled = f / scalingCG;
+  VectorBTE fUnscaled = f;// / scalingCG;
   calcFromCanonicalPopulation(fUnscaled);
 
   double norm = 1. / context.getQMesh().prod() /
@@ -183,6 +183,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     }
   }
   mpi->allReduceSum(&tmpTensor);
+//std::cout << tmpTensor(0,0,0) << " " << tensordxd(0,0,0)/2. << " -\n";
   tensordxd -= tmpTensor;
 }
 

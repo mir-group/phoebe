@@ -333,8 +333,6 @@ void ElectronWannierTransportApp::runVariationalMethod(
   bE = bE / preconditioning;
   bT = bT / preconditioning;
 
-  VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-
   // populations, initial guess
   VectorBTE zNewE = bE;
   VectorBTE zNewT = bT;
@@ -342,7 +340,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
   VectorBTE zT = zNewT;
 
   // Compute E^-1 A E^-1 z
-  // since the preconditioner E is diagonal,
+  // since the preconditioning E is diagonal,
   // we can avoid explicitly making the matrix-matrix multiplications
   // and correct the diagonal contributions. Similar things will happen below
   std::vector<VectorBTE> inVec;
@@ -402,6 +400,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
 
     // now we update the guess of transport coefficients
     // first though, we add the factors n(1-n) that we removed from the CG
+    // we need to do this because we didn't remove this factor from sMatrix
     VectorBTE z2E = zNewE;
     VectorBTE z2T = zNewT;
     for (int is : bandStructure.parallelIrrStateIterator()) {

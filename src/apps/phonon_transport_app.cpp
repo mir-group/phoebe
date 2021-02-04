@@ -189,46 +189,53 @@ void PhononTransportApp::run(Context &context) {
     VectorBTE preconditioning2 = scatteringMatrix.diagonal();
     VectorBTE preconditioning = preconditioning2.sqrt();
 
-    // set the initial guess to the RTA solution
-    VectorBTE fRTA = popRTA;
-    // from n, we get f, such that n = bose(bose+1)f
-    fRTA.population2Canonical();
-    // CG rescaling
-    fRTA = fRTA * preconditioning;
+    // initialize b
+    VectorBTE b = drift;// / preconditioning;
 
-    // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
+    VectorBTE f = b * phononRelTimes;
+    f.population2Canonical();
+    VectorBTE fNew = f;
 
-    auto b = drift;
+    VectorBTE w0 = scatteringMatrix.dot(f);
+//    VectorBTE w0_ = f * preconditioning2;
+//    w0 = w0 - w0_ + f;
 
-    VectorBTE w0 = scatteringMatrix.dot(fRTA);
-    VectorBTE w0_ = fRTA * preconditioning2;
-    w0 = w0 - w0_ + fRTA;
-    VectorBTE r = b / preconditioning - w0;
+    VectorBTE r = b - w0;
+
     VectorBTE d = r;
-    VectorBTE f = fRTA;
 
     double threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+      // execute CG step, as in
+      // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
+      // compute w = E^-1 A E^-1 d
       VectorBTE w = scatteringMatrix.dot(d);
-      auto w_ = d * preconditioning2;
-      w = w - w_ + d;
+//      auto w_ = d * preconditioning2;
+//      w = w - w_ + d;
 
+      // amount of descent along the search direction
       // size of alpha: (numCalculations,3)
       Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
 
+      // new guess of population
       VectorBTE fNew = d * alpha + f;
 
+      // new estimate of residual
       VectorBTE tmp = w * alpha;
       VectorBTE rNew = r - tmp;
 
+      // amount of correction for the search direction
       Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
 
+      // new search direction
       VectorBTE dNew = d * beta + rNew;
 
       // compute thermal conductivity
       auto aF = scatteringMatrix.dot(fNew);
+//      auto aF_ = fNew * preconditioning2;
+//      aF = aF - aF_ + fNew;
       phTCond.calcVariational(aF, fNew, preconditioning);
       phTCond.print(iter);
 
