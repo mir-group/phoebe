@@ -127,6 +127,14 @@ void OnsagerCoefficients::calcFromEPA(
   calcTransportCoefficients();
 }
 
+void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE, VectorBTE &fT) {
+  VectorBTE nE = fE;
+  VectorBTE nT = fT;
+  nE.canonical2Population(); // n = bose (bose+1) f
+  nT.canonical2Population(); // n = bose (bose+1) f
+  calcFromPopulation(nE, nT);
+}
+
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
@@ -247,7 +255,7 @@ void OnsagerCoefficients::calcFromRelaxons(
       for (int i : {0, 1, 2}) {
         fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
                               eigenvectors(is, alfa) / eigenvalues(alfa);
-        fT(iCalc, i, alfa) += particle.getDndt(en, temp, chemPot) * vel(i) *
+        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot) * vel(i) *
                               eigenvectors(is, alfa) / eigenvalues(alfa);
       }
     }
@@ -291,7 +299,7 @@ void OnsagerCoefficients::calcFromRelaxons(
       fE(iDim, alpha) +=
           -dnde * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
       fT(iDim, alpha) +=
-          dndt * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+          -dndt * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
     }
     mpi->allReduceSum(&fT);
     mpi->allReduceSum(&fE);
@@ -577,22 +585,21 @@ Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
 
 void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
+                                          VectorBTE &nE, VectorBTE &nT,
                                           VectorBTE &scalingCG) {
-  auto fEUnscaled = fE / scalingCG;
-  auto fTUnscaled = fT / scalingCG;
+  auto nEUnscaled = nE;// / scalingCG;
+  auto nTUnscaled = nT;// / scalingCG;
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
-  calcFromPopulation(fEUnscaled, fTUnscaled);
+  calcFromCanonicalPopulation(nEUnscaled, nTUnscaled);
 
   double norm = 1. / crystal.getVolumeUnitCell(dimensionality)
       / context.getKMesh().prod();
   auto excludeIndices = fE.excludeIndices;
 
-  sigma = LEE;
-  kappa = - LTT;
-  sigma *= sigma.constant(2.);
-  kappa *= kappa.constant(2.);
+  sigma = 2 * LEE;
+  kappa = - 2 * LTT;
 
   Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
   Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
@@ -601,8 +608,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   {
     Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
     Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
-
-    auto particle = bandStructure.getParticle();
 
 #pragma omp for nowait
     for (int is : bandStructure.parallelIrrStateIterator()) {
@@ -616,14 +621,10 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
       int iBte = bandStructure.stateToBte(isIdx).get();
       auto rotations = bandStructure.getRotationsStar(isIdx);
 
-      double energy = bandStructure.getEnergy(isIdx);
-
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
         auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double pop = particle.getPopPopPm1(energy, temp, chemPot);
 
         for (Eigen::Matrix3d r : rotations) {
           Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
@@ -641,8 +642,8 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
 
           for (int i : {0, 1, 2}) {
             for (int j : {0, 1, 2}) {
-              tmpLEEPrivate(iCalc, i, j) += thisFE(i) * thisAFE(j) * norm * temp / pop;
-              tmpLTTPrivate(iCalc, i, j) += thisFT(i) * thisAFT(j) * norm * temp * temp / pop;
+              tmpLEEPrivate(iCalc, i, j) += thisFE(i) * thisAFE(j) * norm * temp;
+              tmpLTTPrivate(iCalc, i, j) += thisFT(i) * thisAFT(j) * norm * temp * temp;
             }
           }
         }
@@ -660,8 +661,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   }
   mpi->allReduceSum(&tmpLEE);
   mpi->allReduceSum(&tmpLTT);
-  std::cout << tmpLEE(0,0,0) << " " << sigma(0,0,0)/2. << "!!\n";
-  std::cout << tmpLTT(0,0,0) << " " << kappa(0,0,0)/2. << "!!\n";
-  sigma += tmpLEE;
-  kappa += tmpLTT;
+  sigma -= 2*tmpLEE;
+  kappa += 2*tmpLTT;
 }

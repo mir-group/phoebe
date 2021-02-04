@@ -31,9 +31,11 @@ public:
    */
   void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
 
-  /** Prints to screen the thermal conductivity at various temperatures
-   * in a a nicely formatted way.
-   */
+  void calcFromCanonicalPopulation(VectorBTE &fE, VectorBTE &fT);
+
+    /** Prints to screen the thermal conductivity at various temperatures
+     * in a a nicely formatted way.
+     */
   void print();
 
   /** Short format for printing the electrical conductivity. To be used
@@ -55,7 +57,9 @@ public:
                         ElScatteringMatrix &scatteringMatrix);
 
   void calcVariational(VectorBTE &afE, VectorBTE &afT,
-                       VectorBTE &fE, VectorBTE &fT, VectorBTE &scalingCG);
+                       VectorBTE &fE, VectorBTE &fT,
+                       VectorBTE &nE, VectorBTE &nT,
+                       VectorBTE &scalingCG);
 
   Eigen::Tensor<double,3> getElectricalConductivity();
   Eigen::Tensor<double,3> getThermalConductivity();
