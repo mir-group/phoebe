@@ -12,6 +12,8 @@ public:
   void run(Context &context) override;
   void checkRequirements(Context &context) override;
 private:
+  /** Method for running the variational solver of the electron BTE
+   */
   void runVariationalMethod(Context &context,
                             Crystal &crystal,
                             StatisticsSweep &statisticsSweep,

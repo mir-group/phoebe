@@ -280,6 +280,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
     Context &context, Crystal &crystal, StatisticsSweep &statisticsSweep,
     ActiveBandStructure &bandStructure, ElScatteringMatrix &scatteringMatrix) {
 
+  // here we implement a conjugate gradient solution to Az = b
+
   if (mpi->mpiHead()) {
     std::cout << "Starting variational BTE solver\n";
     std::cout << std::endl;
@@ -288,7 +290,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
   OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
                                       context);
 
-  // initialize the (old) transport coefficients
+  // initialize the transport coefficients
+  // to check how these change during iterations
   Eigen::Tensor<double, 3> elCond = transportCoeffs.getElectricalConductivity();
   Eigen::Tensor<double, 3> thCond = transportCoeffs.getThermalConductivity();
   auto elCondOld = elCond;
@@ -296,14 +299,19 @@ void ElectronWannierTransportApp::runVariationalMethod(
 
   // set the initial guess to the RTA solution
   VectorBTE preconditioning2 = scatteringMatrix.diagonal();
-  VectorBTE preconditioning = scatteringMatrix.getSingleModeTimes().sqrt();
+  VectorBTE preconditioning = preconditioning2.sqrt();
   // nota che devo riguardare questo preconditioner
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
+  // initialize b
+  // Note: we solve Az=b not with z as electron population, but as canonical
+  // population, i.e. with z being f = f0 + f0 (1-f0) z
+  // where f0 is the Fermi-Dirac distribution
+  // so, here we compute b without the factor n(1-n)
+  // note also, we cannot do divisions by n(1-n) because it could be zero
   VectorBTE bE(statisticsSweep, bandStructure, 3);
   VectorBTE bT(statisticsSweep, bandStructure, 3);
-
   Particle particle = bandStructure.getParticle();
   for (int is : bandStructure.parallelIrrStateIterator()) {
     StateIndex isIdx(is);
@@ -321,29 +329,36 @@ void ElectronWannierTransportApp::runVariationalMethod(
     }
   }
 
+  // apply CG preconditioning
+  bE = bE / preconditioning;
+  bT = bT / preconditioning;
+
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
 
-  // CG rescaling
-  VectorBTE zNewE = bE * relaxationTimes; //* preconditioning;
-  VectorBTE zNewT = bT * relaxationTimes; // * preconditioning;
-  // save the population of the previous step
+  // populations, initial guess
+  VectorBTE zNewE = bE;
+  VectorBTE zNewT = bT;
   VectorBTE zE = zNewE;
   VectorBTE zT = zNewT;
 
+  // Compute E^-1 A E^-1 z
+  // since the preconditioner E is diagonal,
+  // we can avoid explicitly making the matrix-matrix multiplications
+  // and correct the diagonal contributions. Similar things will happen below
   std::vector<VectorBTE> inVec;
   inVec.push_back(zE);
   inVec.push_back(zT);
   std::vector<VectorBTE> w0s = scatteringMatrix.dot(inVec);
-  //    VectorBTE w0E_ = zE * preconditioning2;
-  //    VectorBTE w0T_ = zT * preconditioning2;
-  VectorBTE w0E = w0s[0]; //- w0E_ + xE;
-  VectorBTE w0T = w0s[1]; // - w0T_ + xT;
+  VectorBTE w0E_ = zE * preconditioning2;
+  VectorBTE w0T_ = zT * preconditioning2;
+  VectorBTE w0E = w0s[0] - w0E_ + zE;
+  VectorBTE w0T = w0s[1] - w0T_ + zT;
 
-  //    VectorBTE rE = bE * preconditioning - w0E;
-  //    VectorBTE rT = bT * preconditioning - w0T;
+  // residual
   VectorBTE rE = bE - w0E;
   VectorBTE rT = bT - w0T;
 
+  // search direction
   VectorBTE dE = rE;
   VectorBTE dT = rT;
 
@@ -353,34 +368,42 @@ void ElectronWannierTransportApp::runVariationalMethod(
     // execute CG step, as in
     // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
+    // compute w = E^-1 A E^-1 d
     std::vector<VectorBTE> inW;
     inW.push_back(dE);
     inW.push_back(dT);
     std::vector<VectorBTE> outW = scatteringMatrix.dot(inW);
-    //      VectorBTE wE_ = dE * preconditioning2;
-    //      VectorBTE wT_ = dT * preconditioning2;
-    VectorBTE wE = outW[0]; // - wE_ + dE;
-    VectorBTE wT = outW[1]; // - wT_ + dT;
+    VectorBTE wE_ = dE * preconditioning2;
+    VectorBTE wT_ = dT * preconditioning2;
+    VectorBTE wE = outW[0] - wE_ + dE;
+    VectorBTE wT = outW[1] - wT_ + dT;
 
+    // amount of descent along the search direction
     Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
     Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
 
+    // new guess of population
     zNewE = dE * alphaE + zE;
     zNewT = dT * alphaT + zT;
 
+    // new estimate of residual
     VectorBTE tmpE = wE * alphaE;
     VectorBTE tmpT = wT * alphaT;
     VectorBTE rNewE = rE - tmpE;
     VectorBTE rNewT = rT - tmpT;
 
+    // amount of correction for the search direction
     Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
     Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
 
+    // new search direction
     VectorBTE dNewE = dE * betaE + rNewE;
     VectorBTE dNewT = dT * betaT + rNewT;
 
-    VectorBTE z2E = zNewE;// * sqrtPopulation;
-    VectorBTE z2T = zNewT;// * sqrtPopulation;
+    // now we update the guess of transport coefficients
+    // first though, we add the factors n(1-n) that we removed from the CG
+    VectorBTE z2E = zNewE;
+    VectorBTE z2T = zNewT;
     for (int is : bandStructure.parallelIrrStateIterator()) {
       StateIndex isIdx(is);
       double energy = bandStructure.getEnergy(isIdx);
@@ -396,12 +419,18 @@ void ElectronWannierTransportApp::runVariationalMethod(
         }
       }
     }
+    // now we compute the product E^-1 A E^-1 f, where f is the population
+    // that is already preconditionerd
     std::vector<VectorBTE> inF;
     inF.push_back(z2E);
     inF.push_back(z2T);
     auto outF = scatteringMatrix.dot(inF);
-    transportCoeffs.calcVariational(outF[0], outF[1], z2E, z2T,
-                                    zNewE, zNewT, preconditioning);
+    VectorBTE ttE_ = z2E * preconditioning2;
+    VectorBTE ttT_ = z2T * preconditioning2;
+    VectorBTE az2E = outF[0] - ttE_ + z2E;
+    VectorBTE az2T = outF[1] - ttT_ + z2T;
+    transportCoeffs.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
+                                    preconditioning);
     transportCoeffs.print(iter);
     elCond = transportCoeffs.getElectricalConductivity();
     thCond = transportCoeffs.getThermalConductivity();
@@ -424,9 +453,10 @@ void ElectronWannierTransportApp::runVariationalMethod(
       }
     }
     if ((deltaE < threshold) && (deltaT < threshold)) {
-      // this because calcVariational computes LTT and LEE
-      zNewE = zNewE ; // / preconditioning;
-      zNewT = zNewT; // / preconditioning;
+      // remove the preconditioning from the population
+      zNewE = zNewE / preconditioning;
+      zNewT = zNewT / preconditioning;
+      // recompute our final guess for transport coefficients
       transportCoeffs.calcFromCanonicalPopulation(zNewE, zNewT);
       break;
     } else {

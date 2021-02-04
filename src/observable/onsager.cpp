@@ -127,7 +127,8 @@ void OnsagerCoefficients::calcFromEPA(
   calcTransportCoefficients();
 }
 
-void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE, VectorBTE &fT) {
+void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
+                                                      VectorBTE &fT) {
   VectorBTE nE = fE;
   VectorBTE nT = fT;
   nE.canonical2Population(); // n = bose (bose+1) f
@@ -587,24 +588,25 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
                                           VectorBTE &nE, VectorBTE &nT,
                                           VectorBTE &scalingCG) {
-  auto nEUnscaled = nE;// / scalingCG;
-  auto nTUnscaled = nT;// / scalingCG;
+  auto nEUnscaled = nE / scalingCG;
+  auto nTUnscaled = nT / scalingCG;
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
   calcFromCanonicalPopulation(nEUnscaled, nTUnscaled);
 
-  double norm = 1. / crystal.getVolumeUnitCell(dimensionality)
-      / context.getKMesh().prod();
+  double norm = 1. / crystal.getVolumeUnitCell(dimensionality) /
+                context.getKMesh().prod();
   auto excludeIndices = fE.excludeIndices;
 
   sigma = 2 * LEE;
-  kappa = - 2 * LTT;
+  kappa = -2 * LTT;
 
   Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
   Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
-#pragma omp parallel default(none) shared(bandStructure, statisticsSweep, fE,  \
-                                          afE, fT, afT, tmpLEE, tmpLTT, norm, numCalculations, excludeIndices)
+#pragma omp parallel default(none)                                             \
+    shared(bandStructure, statisticsSweep, fE, afE, fT, afT, tmpLEE, tmpLTT,   \
+           norm, numCalculations, excludeIndices)
   {
     Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
     Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
@@ -642,8 +644,10 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
 
           for (int i : {0, 1, 2}) {
             for (int j : {0, 1, 2}) {
-              tmpLEEPrivate(iCalc, i, j) += thisFE(i) * thisAFE(j) * norm * temp;
-              tmpLTTPrivate(iCalc, i, j) += thisFT(i) * thisAFT(j) * norm * temp * temp;
+              tmpLEEPrivate(iCalc, i, j) +=
+                  thisFE(i) * thisAFE(j) * norm * temp;
+              tmpLTTPrivate(iCalc, i, j) +=
+                  thisFT(i) * thisAFT(j) * norm * temp * temp;
             }
           }
         }
@@ -661,6 +665,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   }
   mpi->allReduceSum(&tmpLEE);
   mpi->allReduceSum(&tmpLTT);
-  sigma -= 2*tmpLEE;
-  kappa += 2*tmpLTT;
+  sigma -= 2 * tmpLEE;
+  kappa += 2 * tmpLTT;
 }
