@@ -59,7 +59,7 @@ void SpecificHeat::calc() {
       auto dndt = particle.getDndt(en, temp, chemPot);
       auto rots = bandStructure.getRotationsStar(isIdx);
 
-      sum += dndt * en * norm * rots.size();
+      sum += abs(dndt) * abs(en-chemPot) * norm * rots.size();
     }
     scalar(iCalc) = sum;
   }

@@ -89,6 +89,13 @@ public:
       const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
       PhononH0 *phononH0_ = nullptr);
 
+  /** Almost empty constructor.
+   * Used to fake the existence of a coupling with the constant relaxation time
+   * approximation.
+   * @param crystal_: a Crystal object
+   */
+  InteractionElPhWan(Crystal &crystal_);
+
   /** Copy constructor
    */
   InteractionElPhWan(const InteractionElPhWan &that);

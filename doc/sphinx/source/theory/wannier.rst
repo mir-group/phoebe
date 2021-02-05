@@ -371,7 +371,7 @@ where :math:`\bar{f}_{\lambda}` is the Fermi--Dirac distribution function and we
 The linearized electronic BTE can be written as
 
 .. math::
-   - e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
+   e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
      - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda'}
 
 where the first term describes the diffusion due to an externally applied electric field :math:`\boldsymbol{E}`, the second  the diffusion due to a temperature gradient, and the third term is the linearized scattering operator.
@@ -468,7 +468,7 @@ At this simple level of theory, we define the electron lifetime as:
 Next, we approximate the scattering matrix as diagonal, so that the BTE becomes:
 
 .. math::
-   - e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
+   e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
      - \frac{\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{ \tau_{\lambda} } \delta f_{\lambda}
 
 
@@ -478,7 +478,7 @@ Solving separately the response to the electric field and the thermal gradient, 
    \delta^i f^E_{\lambda} = - e v^i_{\lambda} \frac{1}{k_B T} \tau_{\lambda}
 
 .. math::
-   \delta^i f^T_{\lambda} = v^i_{\lambda} \frac{\epsilon_{\lambda}}{k_B T^2} \tau_{\lambda}
+   \delta^i f^T_{\lambda} = - v^i_{\lambda} \frac{(\epsilon_{\lambda}-\mu)}{k_B T^2} \tau_{\lambda}
 
 
 
@@ -505,7 +505,7 @@ The BTE consists in two linear algebra problems:
 where
 
 .. math::
-   m^{i}_{\lambda} = - e v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon}
+   m^{i}_{\lambda} = e v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon}
 
 .. math::
    n^{i}_{\lambda} = v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial T}
@@ -582,7 +582,7 @@ where :math:`\theta` are eigenvectors, :math:`\alpha` are eigenvalue indices, an
 We first build the auxiliary quantities:
 
 .. math::
-   \delta^i f^E_{\alpha} = - \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
+   \delta^i f^E_{\alpha} = \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
 
 .. math::
    \delta^i f^T_{\alpha} = \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial T} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
@@ -611,7 +611,7 @@ The Wigner transport equation is
    \frac{i}{\hbar} \Big[ \mathcal{E}(\boldsymbol{k}) + \boldsymbol{D}(\boldsymbol{k})\cdot\boldsymbol{E} , f(\boldsymbol{x},\boldsymbol{k},t) \Big]_{bb'}
    +
    \frac{1}{2} \Big\{ \boldsymbol{v}(\boldsymbol{k}) , \cdot \frac{\partial f(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{x}} \Big \}_{bb'} \\\\
-   &-
+   &+
    e \boldsymbol{E} \cdot \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{k}}
    =
    -\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll} 
