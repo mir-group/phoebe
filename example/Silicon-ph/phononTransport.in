@@ -10,7 +10,7 @@ temperatures = [300.]
 smearingMethod = "gaussian"
 smearingWidth = 10. cmm1
 
-solverBTE = ["variational","relaxons"]
+solverBTE = ["iterative", "variational","relaxons"]
 scatteringMatrixInMemory = true
 
 boundaryLength = 1. mum
