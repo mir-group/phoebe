@@ -328,6 +328,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
       }
     }
   }
+  mpi->allReduceSum(&bE.data);
+  mpi->allReduceSum(&bT.data);
 
   // apply CG preconditioning
   bE = bE / preconditioning;
