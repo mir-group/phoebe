@@ -117,24 +117,24 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 }
 
 void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
-                                                VectorBTE &scalingCG) {
-  VectorBTE fUnscaled = f;// / scalingCG;
-  calcFromCanonicalPopulation(fUnscaled);
-
+                                                VectorBTE &b) {
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
   auto excludeIndices = f.excludeIndices;
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
-  tensordxd *= tensordxd.constant(2.);
+  tensordxd.setConstant(0.);
 
-  Eigen::Tensor<double, 3> tmpTensor = tensordxd.constant(0.);
+  Eigen::Tensor<double, 3> y1 = tensordxd.constant(0.);
+  Eigen::Tensor<double, 3> y2 = tensordxd.constant(0.);
 #pragma omp parallel default(none) shared(                                     \
-    excludeIndices, bandStructure, tmpTensor, norm, af, f, numCalculations)
+    excludeIndices, bandStructure, y1, y2, norm, af, f, b, numCalculations)
   {
-    Eigen::Tensor<double, 3> tmpTensorPrivate(numCalculations, 3, 3);
-    tmpTensorPrivate.setConstant(0.);
+    Eigen::Tensor<double, 3> x1(numCalculations, 3, 3);
+    Eigen::Tensor<double, 3> x2(numCalculations, 3, 3);
+    x1.setConstant(0.);
+    x2.setConstant(0.);
 #pragma omp for nowait
     for (int is : bandStructure.parallelIrrStateIterator()) {
 
@@ -157,17 +157,20 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
           double temp = calcStat.temperature;
           double norm2 = norm * temp * temp;
 
-          Eigen::Vector3d fRot, afRot;
+          Eigen::Vector3d fRot, afRot, bRot;
           for (int i : {0, 1, 2}) {
             fRot(i) = f(iCalc, i, isBte);
             afRot(i) = af(iCalc, i, isBte);
+            bRot(i) = b(iCalc, i, isBte);
           }
           fRot = rot * fRot;
           afRot = rot * afRot;
+          bRot = rot * bRot;
 
           for (int i : {0, 1, 2}) {
             for (int j : {0, 1, 2}) {
-              tmpTensorPrivate(iCalc, i, j) += fRot(i) * afRot(j) * norm2;
+              x1(iCalc, i, j) += fRot(i) * afRot(j) * norm2;
+              x2(iCalc, i, j) += fRot(i) * bRot(j) * norm2;
             }
           }
         }
@@ -177,14 +180,16 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     for (int j = 0; j < dimensionality; j++) {
       for (int i = 0; i < dimensionality; i++) {
         for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-          tmpTensor(iCalc, i, j) += tmpTensorPrivate(iCalc, i, j);
+          y1(iCalc, i, j) += x1(iCalc, i, j);
+          y2(iCalc, i, j) += x2(iCalc, i, j);
         }
       }
     }
   }
-  mpi->allReduceSum(&tmpTensor);
-//std::cout << tmpTensor(0,0,0) << " " << tensordxd(0,0,0)/2. << " -\n";
-  tensordxd -= tmpTensor;
+  mpi->allReduceSum(&y1);
+  mpi->allReduceSum(&y2);
+
+  tensordxd = 2 * y2 - y1;
 }
 
 void PhononThermalConductivity::calcFromRelaxons(

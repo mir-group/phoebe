@@ -124,6 +124,12 @@ void PhononTransportApp::run(Context &context) {
 
   mpi->barrier();
 
+  // reinforce the condition that the scattering matrix is symmetric
+  // A -> ( A^T + A ) / 2
+  if (doIterative || doRelaxons || doVariational) {
+    scatteringMatrix.symmetrize();
+  }
+
   if (doIterative) {
 
     if (mpi->mpiHead()) {
@@ -190,19 +196,24 @@ void PhononTransportApp::run(Context &context) {
     VectorBTE preconditioning = preconditioning2.sqrt();
 
     // initialize b
-    VectorBTE b = drift;// / preconditioning;
+    VectorBTE b = drift; // / preconditioning;
 
-    VectorBTE f = b * phononRelTimes;
+    // initialize first population guess (the RTA solution)
+    VectorBTE f = popRTA;
     f.population2Canonical();
+
+    //  f = f * preconditioning;
+    //  b = b / preconditioning;
+
     VectorBTE fNew = f;
 
+    // residual
     VectorBTE w0 = scatteringMatrix.dot(f);
-//    VectorBTE w0_ = f * preconditioning2;
-//    w0 = w0 - w0_ + f;
-
+    //  VectorBTE w0 = scatteringMatrix.offDiagonalDot(f) + f;
     VectorBTE r = b - w0;
 
-    VectorBTE d = r;
+    // search direction
+    VectorBTE d = b - w0;
 
     double threshold = context.getConvergenceThresholdBTE();
 
@@ -212,8 +223,7 @@ void PhononTransportApp::run(Context &context) {
 
       // compute w = E^-1 A E^-1 d
       VectorBTE w = scatteringMatrix.dot(d);
-//      auto w_ = d * preconditioning2;
-//      w = w - w_ + d;
+      //  VectorBTE w = scatteringMatrix.offDiagonalDot(d) + d;
 
       // amount of descent along the search direction
       // size of alpha: (numCalculations,3)
@@ -234,9 +244,8 @@ void PhononTransportApp::run(Context &context) {
 
       // compute thermal conductivity
       auto aF = scatteringMatrix.dot(fNew);
-//      auto aF_ = fNew * preconditioning2;
-//      aF = aF - aF_ + fNew;
-      phTCond.calcVariational(aF, fNew, preconditioning);
+      //  auto aF = scatteringMatrix.offDiagonalDot(fNew) + fNew;
+      phTCond.calcVariational(aF, f, b);
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
