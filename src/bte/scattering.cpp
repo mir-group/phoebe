@@ -842,7 +842,6 @@ void ScatteringMatrix::symmetrize() {
       std::vector<int> index2(thisSize, 0);
       std::vector<int> index3(thisSize, 0);
       std::vector<int> index4(thisSize, 0);
-      std::vector<double> values(thisSize, 0.);
 
       if (iRank == mpi->getRank()) {
         int i = 0;
@@ -864,14 +863,10 @@ void ScatteringMatrix::symmetrize() {
             jMat2 = iMat2;
           }
 
-          double x1 = theMatrix(iMat1, iMat2);
-          double x2 = theMatrix(jMat2, jMat1);
-
           index1[i] = iMat1;
           index2[i] = iMat2;
           index3[i] = jMat2;
           index4[i] = jMat1;
-          values[i] = (x1 + x2) * 0.5;
 
           i++;
         }
@@ -881,6 +876,12 @@ void ScatteringMatrix::symmetrize() {
       mpi->allReduceSum(&index2);
       mpi->allReduceSum(&index3);
       mpi->allReduceSum(&index4);
+
+      std::vector<double> values(thisSize, 0.);
+      for (int i = 0; i < thisSize; i++) {
+        values[i] = (theMatrix(index1[i], index2[i]) +
+                     theMatrix(index3[i], index4[i])) * 0.5;
+      }
       mpi->allReduceSum(&values);
 
       for (int i = 0; i < thisSize; i++) {
