@@ -154,6 +154,10 @@ public:
    */
   std::tuple<BteIndex, CartIndex> getSMatrixIndex(const int &iMat);
 
+  /** Reinforce the condition that the matrix is symmetric
+   */
+  void symmetrize();
+
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;

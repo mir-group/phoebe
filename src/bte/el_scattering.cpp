@@ -24,6 +24,8 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
     }
   }
 
+  isMatrixOmega = true;
+
   highMemory = context.getScatteringMatrixInMemory();
 }
 
@@ -207,7 +209,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       WavevectorIndex ik2Idx(ik2);
       WavevectorIndex ik2IrrIdx(ik2Irr);
 
-//#pragma omp parallel for
       for (int ib1 = 0; ib1 < nb1; ib1++) {
         double en1 = state1Energies(ib1);
         for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -236,7 +237,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
             } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-              // Eigen::Vector3d smear = v1s.row(ib1s) - v2s.row(ib2);
               Eigen::Vector3d smear = v3s.row(ib3);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
@@ -260,12 +260,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               double rate =
                   coupling(ib1, ib2, ib3) *
                   ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) *
-                  norm * pow(twoPi, 4) / en3;
+                  norm * pi / en3;
 
               double rateOffDiagonal = coupling(ib1, ib2, ib3) *
                                    (fermi1 * (1. - fermi2) * bose3 * delta1 +
                                     fermi2 * (1. - fermi1) * bose3 * delta2) *
-                                   norm * pow(twoPi, 4) / en3;
+                                   norm * pi / en3;
 
               if (switchCase == 0) {
 
@@ -339,17 +339,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
            particle, outPopulations, inPopulations, linewidth, switchCase)
     for (int is1 : outerBandStructure.irrStateIterator()) {
       StateIndex is1Idx(is1);
-      double energy = outerBandStructure.getEnergy(is1Idx);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int ind1 = outerBandStructure.stateToBte(is1Idx).get();
+      double rate = vel.squaredNorm() / boundaryLength;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        // n(n+1)
-        double termPop = particle.getPopPopPm1(energy, temp, chemPot);
-        double rate = vel.squaredNorm() / boundaryLength * termPop;
 
         if (switchCase == 0) { // case of matrix construction
           linewidth->operator()(iCalc, 0, ind1) += rate;

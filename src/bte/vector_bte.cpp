@@ -45,6 +45,12 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   Eigen::MatrixXd result(statisticsSweep.getNumCalculations(),3);
   result.setZero();
   for (int is : bandStructure.parallelIrrStateIterator()) {
+
+    if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
+        excludeIndices.end()) {
+      continue;
+    }
+
     auto isIndex = StateIndex(is);
     BteIndex iBteIdx = bandStructure.stateToBte(isIndex);
     auto rotationsStar = bandStructure.getRotationsStar(isIndex);
