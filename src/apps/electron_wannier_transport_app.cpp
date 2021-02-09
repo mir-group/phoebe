@@ -24,9 +24,15 @@ void ElectronWannierTransportApp::run(Context &context) {
   // load the 3phonon coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
-  auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+  InteractionElPhWan couplingElPh(crystal);
+  if (std::isnan(context.getConstantRelaxationTime())) {
+    couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+  }
 
   // compute the band structure on the fine grid
+  if (mpi->mpiHead()) {
+    std::cout << "\nComputing electronic band structure." << std::endl;
+  }
   Points fullPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
@@ -62,8 +68,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   BulkEDrift driftE(statisticsSweep, bandStructure, dimensionality);
   BulkTDrift driftT(statisticsSweep, bandStructure, dimensionality);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-  VectorBTE nERTA = driftE * relaxationTimes;
-  VectorBTE nTRTA = driftT * relaxationTimes;
+  VectorBTE nERTA = -driftE * relaxationTimes;
+  VectorBTE nTRTA = -driftT * relaxationTimes;
 
   // compute the electrical conductivity
   OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
@@ -96,7 +102,12 @@ void ElectronWannierTransportApp::run(Context &context) {
     std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
   }
 
+  if (!std::isnan(context.getConstantRelaxationTime())) {
+    return; // if we used the constant RTA, we can't solve the BTE exactly
+  }
+
   //---------------------------------------------------------------------------
+  // start section on exact BTE solvers
 
   std::vector<std::string> solverBTE = context.getSolverBTE();
 
@@ -119,7 +130,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
-            "temperature/chemical potential is allowed in a run");
+          "temperature/chemical potential is allowed in a run");
   }
 
   mpi->barrier();
@@ -139,31 +150,27 @@ void ElectronWannierTransportApp::run(Context &context) {
     Eigen::Tensor<double, 3> elCondOld = elCond;
     Eigen::Tensor<double, 3> thCondOld = thCond;
 
-    VectorBTE fENext(statisticsSweep, bandStructure, dimensionality);
-    VectorBTE fTNext(statisticsSweep, bandStructure, dimensionality);
-    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
+    VectorBTE nENext(statisticsSweep, bandStructure, dimensionality);
+    VectorBTE nTNext(statisticsSweep, bandStructure, dimensionality);
 
-    // from n, we get f, such that n = bose(bose+1)f
-    VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fERTA = driftE / lineWidths;
-    VectorBTE fTRTA = driftT / lineWidths;
-    VectorBTE fEOld = fERTA;
-    VectorBTE fTOld = fTRTA;
+    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE nEOld = nERTA;
+    VectorBTE nTOld = nTRTA;
 
     auto threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
-      std::vector<VectorBTE> fIn;
-      fIn.push_back(fEOld);
-      fIn.push_back(fTOld);
-      auto fOut = scatteringMatrix.offDiagonalDot(fIn);
-      fENext = fOut[0] / sMatrixDiagonal;
-      fTNext = fOut[1] / sMatrixDiagonal;
-      fENext = fERTA - fENext;
-      fTNext = fTRTA - fTNext;
+      std::vector<VectorBTE> nIn;
+      nIn.push_back(nEOld);
+      nIn.push_back(nTOld);
+      auto nOut = scatteringMatrix.offDiagonalDot(nIn);
+      nENext = nOut[0] / lineWidths;
+      nTNext = nOut[1] / lineWidths;
+      nENext = nERTA - nENext;
+      nTNext = nTRTA - nTNext;
 
-      transportCoeffs.calcFromCanonicalPopulation(fENext, fTNext);
+      transportCoeffs.calcFromPopulation(nENext, nTNext);
       transportCoeffs.print(iter);
       elCond = transportCoeffs.getElectricalConductivity();
       thCond = transportCoeffs.getThermalConductivity();
@@ -190,8 +197,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       } else {
         elCondOld = elCond;
         thCondOld = thCond;
-        fEOld = fENext;
-        fTOld = fTNext;
+        nEOld = nENext;
+        nTOld = nTNext;
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
@@ -208,146 +215,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   }
 
   if (doVariational) {
-    if (mpi->mpiHead()) {
-      std::cout << "Starting variational BTE solver\n";
-      std::cout << std::endl;
-    }
-
-    // initialize the (old) transport coefficients
-    OnsagerCoefficients transportCoeffsOld = transportCoeffs;
-    Eigen::Tensor<double, 3> elCond =
-        transportCoeffs.getElectricalConductivity();
-    Eigen::Tensor<double, 3> thCond = transportCoeffs.getThermalConductivity();
-    auto elCondOld = elCond;
-    auto thCondOld = thCond;
-
-    // set the initial guess to the RTA solution
-    VectorBTE lineWidths = scatteringMatrix.diagonal();
-    VectorBTE fENew = driftE / lineWidths;
-    VectorBTE fTNew = driftT / lineWidths;
-
-    VectorBTE preconditioning = lineWidths.sqrt();
-
-    // CG rescaling
-    fENew = fENew * preconditioning;
-    fTNew = fTNew * preconditioning;
-
-    // save the population of the previous step
-    VectorBTE fEOld = fENew;
-    VectorBTE fTOld = fTNew;
-
-    // do the conjugate gradient method for transport coefficients
-    std::vector<VectorBTE> fIn;
-    fIn.push_back(fENew);
-    fIn.push_back(fTNew);
-    auto gOld = scatteringMatrix.offDiagonalDot(fIn);
-    VectorBTE gEOld = gOld[0] / lineWidths; // CG scaling
-    VectorBTE gTOld = gOld[1] / lineWidths; // CG scaling
-    gEOld = gEOld - fEOld;
-    gTOld = gTOld - fTOld;
-    VectorBTE hEOld = -gEOld;
-    VectorBTE hTOld = -gTOld;
-
-    std::vector<VectorBTE> tIn;
-    tIn.push_back(hEOld);
-    tIn.push_back(hTOld);
-    auto tOut = scatteringMatrix.dot(tIn);
-    VectorBTE tEOld = tOut[0];
-    VectorBTE tTOld = tOut[1];
-    tEOld = tEOld / lineWidths; // CG scaling
-    tTOld = tTOld / lineWidths; // CG scaling
-
-    double threshold = context.getConvergenceThresholdBTE();
-
-    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
-      // execute CG step, as in
-
-      Eigen::MatrixXd alphaE =
-          (gEOld.dot(hEOld)).array() / (hEOld.dot(tEOld)).array();
-      Eigen::MatrixXd alphaT =
-          (gTOld.dot(hTOld)).array() / (hTOld.dot(tTOld)).array();
-
-      fENew = hEOld * alphaE;
-      fTNew = hTOld * alphaT;
-      fENew = fEOld - fENew;
-      fTNew = fTOld - fTNew;
-
-      VectorBTE gENew = tEOld * alphaE;
-      VectorBTE gTNew = tTOld * alphaT;
-      gENew = gEOld - gENew;
-      gTNew = gTOld - gTNew;
-
-      Eigen::MatrixXd betaE =
-          (gENew.dot(gENew)).array() / (gEOld.dot(gEOld)).array();
-      Eigen::MatrixXd betaT =
-          (gTNew.dot(gTNew)).array() / (gTOld.dot(gTOld)).array();
-      VectorBTE hENew = hEOld * betaE;
-      VectorBTE hTNew = hTOld * betaT;
-      hENew = -gENew + hENew;
-      hTNew = -gTNew + hTNew;
-
-      std::vector<VectorBTE> inVectors;
-      inVectors.push_back(fENew);
-      inVectors.push_back(hENew); // note: at next step hNew is hOld -> gives tOld
-      inVectors.push_back(fTNew);
-      inVectors.push_back(hTNew); // note: at next step hNew is hOld -> gives tOld
-      auto outVectors = scatteringMatrix.dot(inVectors);
-      tEOld = outVectors[1];
-      tTOld = outVectors[3];
-      tEOld = tEOld / lineWidths; // CG scaling
-      tTOld = tTOld / lineWidths; // CG scaling
-
-      transportCoeffs.calcVariational(outVectors[0], outVectors[2], fENew,
-                                      fTNew, preconditioning);
-      transportCoeffs.print(iter);
-      elCond = transportCoeffs.getElectricalConductivity();
-      thCond = transportCoeffs.getThermalConductivity();
-
-      // decide whether to exit or run the next iteration
-      Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
-      Eigen::Tensor<double, 3> diffT = ((thCond - thCondOld) / thCondOld).abs();
-      double dE = 10000.;
-      double dT = 10000.;
-      for (int i = 0; i < diffE.dimension(0); i++) {
-        for (int j = 0; j < diffE.dimension(0); j++) {
-          for (int k = 0; k < diffE.dimension(0); k++) {
-            if (diffE(i, j, k) < dE)
-              dE = diffE(i, j, k);
-            if (diffT(i, j, k) < dT)
-              dT = diffT(i, j, k);
-          }
-        }
-      }
-      if ((dE < threshold) && (dT < threshold)) {
-        // this because calcVariational computes LTT and LEE
-        fENew = fENew / preconditioning;
-        fTNew = fTNew / preconditioning;
-        transportCoeffs.calcFromCanonicalPopulation(fENew, fTNew);
-        break;
-      } else {
-        elCondOld = elCond;
-        thCondOld = thCond;
-        fEOld = fENew;
-        fTOld = fTNew;
-        gEOld = gENew;
-        gTOld = gTNew;
-        hEOld = hENew;
-        hTOld = hTNew;
-      }
-
-      if (iter == context.getMaxIterationsBTE() - 1) {
-        Error("Reached max BTE iterations without convergence");
-      }
-    }
-
-    // nice formatting of the transport properties at the last step
-    transportCoeffs.print();
-    transportCoeffs.outputToJSON("variational_onsager_coefficients.json");
-
-    if (mpi->mpiHead()) {
-      std::cout << "Finished variational BTE solver\n\n";
-      std::cout << std::string(80, '-') << "\n" << std::endl;
-    }
+    runVariationalMethod(context, crystal, statisticsSweep, bandStructure,
+                         scatteringMatrix);
   }
 
   if (doRelaxons) {
@@ -384,15 +253,235 @@ void ElectronWannierTransportApp::run(Context &context) {
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
-  throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
-  throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
-  if (context.getSmearingMethod() == DeltaFunction::gaussian) {
-    throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+
+  if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
+    throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
+    throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
+    if (context.getSmearingMethod() == DeltaFunction::gaussian) {
+      throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
+    }
+  } else {
+    if (std::isnan(context.getNumOccupiedStates()) &&
+        std::isnan(context.getFermiLevel())) {
+      Error("For constant tau calculations, you must provide either the number "
+            "of occupied Kohn-Sham states in the valence band or the Fermi "
+            "level at T=0K");
+    }
   }
 
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
     Error("Either chemical potentials or dopings must be set");
+  }
+}
+
+void ElectronWannierTransportApp::runVariationalMethod(
+    Context &context, Crystal &crystal, StatisticsSweep &statisticsSweep,
+    ActiveBandStructure &bandStructure, ElScatteringMatrix &scatteringMatrix) {
+
+  // here we implement a conjugate gradient solution to Az = b
+
+  if (mpi->mpiHead()) {
+    std::cout << "Starting variational BTE solver\n";
+    std::cout << std::endl;
+  }
+
+  OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
+                                      context);
+
+  // initialize the transport coefficients
+  // to check how these change during iterations
+  Eigen::Tensor<double, 3> elCond = transportCoeffs.getElectricalConductivity();
+  Eigen::Tensor<double, 3> thCond = transportCoeffs.getThermalConductivity();
+  auto elCondOld = elCond;
+  auto thCondOld = thCond;
+
+  // set the initial guess to the RTA solution
+  VectorBTE preconditioning2 = scatteringMatrix.diagonal();
+  VectorBTE preconditioning = preconditioning2.sqrt();
+  // nota che devo riguardare questo preconditioner
+
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  // initialize b
+  // Note: we solve Az=b not with z as electron population, but as canonical
+  // population, i.e. with z being f = f0 + f0 (1-f0) z
+  // where f0 is the Fermi-Dirac distribution
+  // so, here we compute b without the factor n(1-n)
+  // note also, we cannot do divisions by n(1-n) because it could be zero
+  VectorBTE bE(statisticsSweep, bandStructure, 3);
+  VectorBTE bT(statisticsSweep, bandStructure, 3);
+  Particle particle = bandStructure.getParticle();
+  for (int is : bandStructure.parallelIrrStateIterator()) {
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
+    int iBte = bandStructure.stateToBte(isIdx).get();
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      auto chemPot = calcStat.chemicalPotential;
+      auto temp = calcStat.temperature;
+      for (int i : {0, 1, 2}) {
+        bE(iCalc, i, iBte) = vel(i) / temp;
+        bT(iCalc, i, iBte) = -vel(i) * (energy - chemPot) / temp / temp;
+      }
+    }
+  }
+  mpi->allReduceSum(&bE.data);
+  mpi->allReduceSum(&bT.data);
+
+  // apply CG preconditioning
+  bE = bE / preconditioning;
+  bT = bT / preconditioning;
+
+  // populations, initial guess
+  VectorBTE zNewE = bE;
+  VectorBTE zNewT = bT;
+  VectorBTE zE = zNewE;
+  VectorBTE zT = zNewT;
+
+  // Compute E^-1 A E^-1 z
+  // since the preconditioning E is diagonal,
+  // we can avoid explicitly making the matrix-matrix multiplications
+  // and correct the diagonal contributions. Similar things will happen below
+  std::vector<VectorBTE> inVec;
+  inVec.push_back(zE);
+  inVec.push_back(zT);
+  std::vector<VectorBTE> w0s = scatteringMatrix.dot(inVec);
+  VectorBTE w0E_ = zE * preconditioning2;
+  VectorBTE w0T_ = zT * preconditioning2;
+  VectorBTE w0E = w0s[0] - w0E_ + zE;
+  VectorBTE w0T = w0s[1] - w0T_ + zT;
+
+  // residual
+  VectorBTE rE = bE - w0E;
+  VectorBTE rT = bT - w0T;
+
+  // search direction
+  VectorBTE dE = rE;
+  VectorBTE dT = rT;
+
+  double threshold = context.getConvergenceThresholdBTE();
+
+  for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    // execute CG step, as in
+    // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
+
+    // compute w = E^-1 A E^-1 d
+    std::vector<VectorBTE> inW;
+    inW.push_back(dE);
+    inW.push_back(dT);
+    std::vector<VectorBTE> outW = scatteringMatrix.dot(inW);
+    VectorBTE wE_ = dE * preconditioning2;
+    VectorBTE wT_ = dT * preconditioning2;
+    VectorBTE wE = outW[0] - wE_ + dE;
+    VectorBTE wT = outW[1] - wT_ + dT;
+
+    // amount of descent along the search direction
+    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
+    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
+
+    // new guess of population
+    zNewE = dE * alphaE + zE;
+    zNewT = dT * alphaT + zT;
+
+    // new estimate of residual
+    VectorBTE tmpE = wE * alphaE;
+    VectorBTE tmpT = wT * alphaT;
+    VectorBTE rNewE = rE - tmpE;
+    VectorBTE rNewT = rT - tmpT;
+
+    // amount of correction for the search direction
+    Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
+    Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
+
+    // new search direction
+    VectorBTE dNewE = dE * betaE + rNewE;
+    VectorBTE dNewT = dT * betaT + rNewT;
+
+    // now we update the guess of transport coefficients
+    // first though, we add the factors n(1-n) that we removed from the CG
+    // we need to do this because we didn't remove this factor from sMatrix
+    VectorBTE z2E = zNewE;
+    VectorBTE z2T = zNewT;
+    for (int is : bandStructure.parallelIrrStateIterator()) {
+      StateIndex isIdx(is);
+      double energy = bandStructure.getEnergy(isIdx);
+      int iBte = bandStructure.stateToBte(isIdx).get();
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        auto chemPot = calcStat.chemicalPotential;
+        auto temp = calcStat.temperature;
+        double pop = sqrt(particle.getPopPopPm1(energy, temp, chemPot));
+        for (int i : {0, 1, 2}) {
+          z2E(iCalc, i, iBte) *= pop;
+          z2T(iCalc, i, iBte) *= pop;
+        }
+      }
+    }
+    // now we compute the product E^-1 A E^-1 f, where f is the population
+    // that is already preconditionerd
+    std::vector<VectorBTE> inF;
+    inF.push_back(z2E);
+    inF.push_back(z2T);
+    auto outF = scatteringMatrix.dot(inF);
+    VectorBTE ttE_ = z2E * preconditioning2;
+    VectorBTE ttT_ = z2T * preconditioning2;
+    VectorBTE az2E = outF[0] - ttE_ + z2E;
+    VectorBTE az2T = outF[1] - ttT_ + z2T;
+    transportCoeffs.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
+                                    preconditioning);
+    transportCoeffs.print(iter);
+    elCond = transportCoeffs.getElectricalConductivity();
+    thCond = transportCoeffs.getThermalConductivity();
+
+    // decide whether to exit or run the next iteration
+    Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
+    Eigen::Tensor<double, 3> diffT = ((thCond - thCondOld) / thCondOld).abs();
+    double deltaE = 10000.;
+    double deltaT = 10000.;
+    for (int i = 0; i < diffE.dimension(0); i++) {
+      for (int j = 0; j < diffE.dimension(0); j++) {
+        for (int k = 0; k < diffE.dimension(0); k++) {
+          if (diffE(i, j, k) < deltaE) {
+            deltaE = diffE(i, j, k);
+          }
+          if (diffT(i, j, k) < deltaT) {
+            deltaT = diffT(i, j, k);
+          }
+        }
+      }
+    }
+    if ((deltaE < threshold) && (deltaT < threshold)) {
+      // remove the preconditioning from the population
+      zNewE = zNewE / preconditioning;
+      zNewT = zNewT / preconditioning;
+      // recompute our final guess for transport coefficients
+      transportCoeffs.calcFromCanonicalPopulation(zNewE, zNewT);
+      break;
+    } else {
+      elCondOld = elCond;
+      thCondOld = thCond;
+      zE = zNewE;
+      zT = zNewT;
+      rE = rNewE;
+      rT = rNewT;
+      dE = dNewE;
+      dT = dNewT;
+    }
+
+    if (iter == context.getMaxIterationsBTE() - 1) {
+      Error("Reached max BTE iterations without convergence");
+    }
+  }
+
+  // nice formatting of the transport properties at the last step
+  transportCoeffs.print();
+  transportCoeffs.outputToJSON("variational_onsager_coefficients.json");
+
+  if (mpi->mpiHead()) {
+    std::cout << "Finished variational BTE solver\n\n";
+    std::cout << std::string(80, '-') << "\n" << std::endl;
   }
 }

@@ -27,8 +27,9 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
                   temperature / 2.;
   }
 
-  for (int iq = 0; iq < bandStructure.getNumPoints(); iq++) {
-    auto iqIdx = WavevectorIndex(iq);
+  for (int iq : bandStructure.parallelIrrPointsIterator()) {
+    WavevectorIndex iqIdx(iq);
+
     auto velocities = bandStructure.getVelocities(iqIdx);
     auto energies = bandStructure.getEnergies(iqIdx);
     int numBands = energies.size();
@@ -49,38 +50,59 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
       }
     }
 
-    // calculate wigner correction
-    for (int ib1 = 0; ib1 < numBands; ib1++) {
-      for (int ib2 = 0; ib2 < numBands; ib2++) {
-        if (ib1 == ib2)
-          continue;
+    BandIndex ibIdx(0);
+    int is = bandStructure.getIndex(iqIdx, ibIdx);
+    StateIndex isIdx(is);
+    auto rots = bandStructure.getRotationsStar(isIdx);
 
-        int is1 = bandStructure.getIndex(iqIdx, BandIndex(ib1));
-        int is2 = bandStructure.getIndex(iqIdx, BandIndex(ib2));
-        auto is1Idx = StateIndex(is1);
-        auto is2Idx = StateIndex(is2);
-        int ind1 = bandStructure.stateToBte(is1Idx).get();
-        int ind2 = bandStructure.stateToBte(is2Idx).get();
+    // apply rotation to velocity
+    for (const Eigen::Matrix3d &rot : rots) {
 
-        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-          for (int ic1 = 0; ic1 < dimensionality; ic1++) {
-            for (int ic2 = 0; ic2 < dimensionality; ic2++) {
+      Eigen::Tensor<std::complex<double>, 3> velRot = velocities.constant(0.);
+      for (int ib1 = 0; ib1 < numBands; ib1++) {
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              velRot(ib1, ib2, i) += rot(i, j) * velocities(ib1, ib2, j);
+            }
+          }
+        }
+      }
 
-              double num =
-                  energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
-                  energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
-              double vel =
-                  (velocities(ib1, ib2, ic1) * velocities(ib2, ib1, ic2))
-                      .real();
-              double den = 4. * pow(energies(ib1) - energies(ib2), 2) +
-                           pow(1. / smaRelTimes(iCalc, 0, ind1) +
-                                   1. / smaRelTimes(iCalc, 0, ind2), 2);
+      // calculate wigner correction
+      for (int ib1 = 0; ib1 < numBands; ib1++) {
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+          if (ib1 == ib2) {
+            continue;
+          }
 
-              wignerCorrection(iCalc, ic1, ic2) +=
-                  (energies(ib1) + energies(ib2)) * vel * num / den *
-                  (1. / smaRelTimes(iCalc, 0, ind1) +
-                   1. / smaRelTimes(iCalc, 0, ind2)) *
-                  norm(iCalc);
+          int is1 = bandStructure.getIndex(iqIdx, BandIndex(ib1));
+          int is2 = bandStructure.getIndex(iqIdx, BandIndex(ib2));
+          auto is1Idx = StateIndex(is1);
+          auto is2Idx = StateIndex(is2);
+          int iBte1 = bandStructure.stateToBte(is1Idx).get();
+          int iBte2 = bandStructure.stateToBte(is2Idx).get();
+
+          for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+            for (int ic1 = 0; ic1 < dimensionality; ic1++) {
+              for (int ic2 = 0; ic2 < dimensionality; ic2++) {
+
+                double num =
+                    energies(ib1) * bose(iCalc, ib1) * (bose(iCalc, ib1) + 1.) +
+                    energies(ib2) * bose(iCalc, ib2) * (bose(iCalc, ib2) + 1.);
+                double vel =
+                    (velRot(ib1, ib2, ic1) * velRot(ib2, ib1, ic2)).real();
+                double den = 4. * pow(energies(ib1) - energies(ib2), 2) +
+                             pow(1. / smaRelTimes(iCalc, 0, iBte1) +
+                                     1. / smaRelTimes(iCalc, 0, iBte2),
+                                 2);
+
+                wignerCorrection(iCalc, ic1, ic2) +=
+                    (energies(ib1) + energies(ib2)) * vel * num / den *
+                    (1. / smaRelTimes(iCalc, 0, iBte1) +
+                     1. / smaRelTimes(iCalc, 0, iBte2)) *
+                    norm(iCalc);
+              }
             }
           }
         }

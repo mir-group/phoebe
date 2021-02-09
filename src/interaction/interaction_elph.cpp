@@ -39,6 +39,8 @@ InteractionElPhWan::InteractionElPhWan(
   }
 }
 
+InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
+
 // copy constructor
 InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
     : crystal(that.crystal), phononH0(that.phononH0),
@@ -216,7 +218,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   if (mpi->mpiHead()) {
     std::ifstream infile(fileName);
     if (not infile.is_open()) {
-      Error e("ElPh file not found");
+      Error("ElPh file not found");
     }
 
     // Read the bravais lattice vectors info for q mesh.
@@ -304,7 +306,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   mpi->bcast(&numPhBravaisVectors);
 
   if (numSpin == 2) {
-    Error e("Spin is not currently supported");
+    Error("Spin is not currently supported");
   }
   context.setNumOccupiedStates(numElectrons);
 
@@ -395,7 +397,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&numPhBravaisVectors);
 
     if (numSpin == 2) {
-      Error e("Spin is not currently supported");
+      Error("Spin is not currently supported");
     }
     context.setNumOccupiedStates(numElectrons);
 
@@ -477,7 +479,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
 }
   catch(std::exception& error) {
-    Error e("Issue reading elph Wannier represenation from hdf5.");
+    Error("Issue reading elph Wannier represenation from hdf5.");
   }
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,

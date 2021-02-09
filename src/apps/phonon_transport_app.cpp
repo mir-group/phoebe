@@ -3,13 +3,13 @@
 #include "context.h"
 #include "drift.h"
 #include "exceptions.h"
-#include "points.h"
 #include "ifc3_parser.h"
 #include "observable.h"
+#include "parser.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
-#include "parser.h"
+#include "points.h"
 #include "specific_heat.h"
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
@@ -49,7 +49,8 @@ void PhononTransportApp::run(Context &context) {
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n" << std::string(80, '-') << "\n\n"
+    std::cout << "\n"
+              << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
@@ -102,7 +103,7 @@ void PhononTransportApp::run(Context &context) {
   bool doIterative = false;
   bool doVariational = false;
   bool doRelaxons = false;
-  for (const auto& s : solverBTE) {
+  for (const auto &s : solverBTE) {
     if (s.compare("iterative") == 0)
       doIterative = true;
     if (s.compare("variational") == 0)
@@ -118,10 +119,16 @@ void PhononTransportApp::run(Context &context) {
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
-            "temperature/chemical potential is allowed in a run");
+          "temperature/chemical potential is allowed in a run");
   }
 
   mpi->barrier();
+
+  // reinforce the condition that the scattering matrix is symmetric
+  // A -> ( A^T + A ) / 2
+  if (doIterative || doRelaxons || doVariational) {
+    scatteringMatrix.symmetrize();
+  }
 
   if (doIterative) {
 
@@ -185,53 +192,60 @@ void PhononTransportApp::run(Context &context) {
     PhononThermalConductivity phTCondOld = phTCond;
 
     // load the conjugate gradient rescaling factor
-    VectorBTE sMatrixDiagonalSqrt = scatteringMatrix.diagonal().sqrt();
-    VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
+    VectorBTE preconditioning2 = scatteringMatrix.diagonal();
+    VectorBTE preconditioning = preconditioning2.sqrt();
 
-    // set the initial guess to the RTA solution
-    VectorBTE fNew = popRTA;
-    // from n, we get f, such that n = bose(bose+1)f
-    fNew.population2Canonical();
-    // CG rescaling
-    fNew = fNew * sMatrixDiagonalSqrt; // CG scaling
+    // initialize b
+    VectorBTE b = drift; // / preconditioning;
 
-    // save the population of the previous step
-    VectorBTE fOld = fNew;
+    // initialize first population guess (the RTA solution)
+    VectorBTE f = popRTA;
+    f.population2Canonical();
 
-    // do the conjugate gradient method for thermal conductivity.
-    //		auto gOld = scatteringMatrix.dot(fNew) - fOld;
-    auto gOld = scatteringMatrix.dot(fNew);
-    gOld = gOld / sMatrixDiagonal; // CG scaling
-    gOld = gOld - fOld;
-    auto hOld = -gOld;
+    //  f = f * preconditioning;
+    //  b = b / preconditioning;
 
-    auto tOld = scatteringMatrix.dot(hOld);
-    tOld = tOld / sMatrixDiagonal; // CG scaling
+    VectorBTE fNew = f;
+
+    // residual
+    VectorBTE w0 = scatteringMatrix.dot(f);
+    //  VectorBTE w0 = scatteringMatrix.offDiagonalDot(f) + f;
+    VectorBTE r = b - w0;
+
+    // search direction
+    VectorBTE d = b - w0;
 
     double threshold = context.getConvergenceThresholdBTE();
 
     for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
       // execute CG step, as in
+      // https://www.cs.cmu.edu/~quake-papers/painless-conjugate-gradient.pdf
 
-      Eigen::MatrixXd alpha = (gOld.dot(hOld)).array() / hOld.dot(tOld).array();
-      fNew = hOld * alpha;
-      fNew = fOld - fNew;
-      VectorBTE gNew = tOld * alpha;
-      gNew = gOld - gNew;
+      // compute w = E^-1 A E^-1 d
+      VectorBTE w = scatteringMatrix.dot(d);
+      //  VectorBTE w = scatteringMatrix.offDiagonalDot(d) + d;
 
-      Eigen::MatrixXd beta = // (numCalculations,3)
-          (gNew.dot(gNew)).array() / (gOld.dot(gOld)).array();
-      VectorBTE hNew = hOld * beta;
-      hNew = -gNew + hNew;
+      // amount of descent along the search direction
+      // size of alpha: (numCalculations,3)
+      Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
 
-      std::vector<VectorBTE> inVectors;
-      inVectors.push_back(fNew);
-      inVectors.push_back(hNew); // note: at next step hNew is hOld -> gives tOld
-      std::vector<VectorBTE> outVectors = scatteringMatrix.dot(inVectors);
-      tOld = outVectors[1];
-      tOld = tOld / sMatrixDiagonal; // CG scaling
+      // new guess of population
+      VectorBTE fNew = d * alpha + f;
 
-      phTCond.calcVariational(outVectors[0], fNew, sMatrixDiagonalSqrt);
+      // new estimate of residual
+      VectorBTE tmp = w * alpha;
+      VectorBTE rNew = r - tmp;
+
+      // amount of correction for the search direction
+      Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
+
+      // new search direction
+      VectorBTE dNew = d * beta + rNew;
+
+      // compute thermal conductivity
+      auto aF = scatteringMatrix.dot(fNew);
+      //  auto aF = scatteringMatrix.offDiagonalDot(fNew) + fNew;
+      phTCond.calcVariational(aF, f, b);
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
@@ -240,9 +254,9 @@ void PhononTransportApp::run(Context &context) {
         break;
       } else {
         phTCondOld = phTCond;
-        fOld = fNew;
-        gOld = gNew;
-        hOld = hNew;
+        f = fNew;
+        r = rNew;
+        d = dNew;
       }
 
       if (iter == context.getMaxIterationsBTE() - 1) {
@@ -301,7 +315,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
-  if (context.getSmearingMethod()==DeltaFunction::gaussian) {
+  if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
 }

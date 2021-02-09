@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
-
+#include <iomanip>
 #include "bandstructure.h"
 #include "constants.h"
 #include "context.h"
@@ -81,8 +81,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
       energies(is) = fullBandStructure->getEnergy(isk, isb);
     }
 
-    numPoints =
-        fullBandStructure->getNumPoints(true); // full # of points in grid
+    // full # of points in grid
+    numPoints = fullBandStructure->getNumPoints(true);
 
     // determine ground state properties
     // i.e. we define the number of filled bands and the fermi energy
@@ -92,7 +92,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       fermiLevel = context.getFermiLevel();
       if (std::isnan(fermiLevel)) {
         Error("Must provide either the Fermi level or the number of"
-                " occupied states");
+              " occupied states");
       }
       occupiedStates = 0.;
       for (int i = 0; i < energies.size(); i++) {
@@ -261,7 +261,6 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
   numElectronsDoped =
       occupiedStates - doping * volume * pow(distanceBohrToCm, 3) / spinFactor;
   // bisection method: I need to find the root of N - \int fermi dirac = 0
-
   // initial guess
   double chemicalPotential = fermiLevel;
 
@@ -325,8 +324,8 @@ double StatisticsSweep::findDopingFromChemicalPotential(
 CalcStatistics StatisticsSweep::getCalcStatistics(const int &index) {
   CalcStatistics sc = {};
   sc.temperature = infoCalcs(index, 0);
-  sc.chemicalPotential = infoCalcs(index, 1);  // chemical potential
-  sc.doping = infoCalcs(index, 2); // doping
+  sc.chemicalPotential = infoCalcs(index, 1); // chemical potential
+  sc.doping = infoCalcs(index, 2);            // doping
   return sc;
 }
 

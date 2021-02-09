@@ -73,10 +73,10 @@ double parseDoubleWithUnits(std::string &line) {
     x /= ryToCmm1;
   }
   if (patternInString(line, "ps")) {
-    x /= timeRyToFs * 1.0e-3;
+    x /= timeRyToFs * 1.0e-3 / twoPi;
   }
   if (patternInString(line, "fs")) {
-    x /= timeRyToFs;
+    x /= timeRyToFs / twoPi;
   }
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
