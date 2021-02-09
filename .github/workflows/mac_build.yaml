@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          brew install gcc open-mpi openblas lapack hdf5 scalapack
+          brew install gcc open-mpi hdf5 scalapack
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -22,8 +22,9 @@ jobs:
       - name: Configure
         run: |
           mkdir ${BUILD_DIR}
-          which gfortran
           cd ${BUILD_DIR}
+          export FC=/usr/local/Cellar/gcc/10.2.0_3/bin/gfortran
+          #export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3
           cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON
       - name: Build
         run: |
