@@ -241,6 +241,10 @@ Input variables:
   
 * :ref:`beginEndPointPath`
 
+* :ref:`phonopyDispFileName`
+
+* :ref:`dispFCFileName`
+
 
 Sample input file::
 
@@ -356,6 +360,10 @@ Input variables:
   
 * :ref:`dosDeltaEnergy`
 
+* :ref:`phonopyDispFileName`
+
+* :ref:`dispFCFileName`
+
 Sample input file::
 
   phD2FileName = "qespresso/silicon.fc",
@@ -459,6 +467,11 @@ Input variables:
   
 * :ref:`beginEndPointPath`
 
+* :ref:`phonopyDispFileName`
+
+* :ref:`dispFCFileName`
+
+
 Sample input file::
 
   phD2FileName = "qespresso/silicon.fc",
@@ -559,7 +572,7 @@ Variable descriptions
 appName
 ^^^^^^^
 
-* This parameter, which must always be present, identifies which App (functionality) you want to run. Allowed values are:
+* This parameter, which must always be present, identifies which app (functionality) you want to run. Allowed values are:
   
   * "phononTransport": app to solve the phonon BTE and compute phonon transport properties.
     
@@ -575,7 +588,7 @@ appName
     
   * "electronWannierDos": app to compute the electron density of states with Wannier interpolation.
     
-  * "electronFourierDos": app to compute the electron Density of States with Fouerier interpolation.
+  * "electronFourierDos": app to compute the electron Density of States with Fourier interpolation.
   
   * "phononBands": app to compute the phonon bands on a path.
     
@@ -593,7 +606,7 @@ appName
 phD2FileName
 ^^^^^^^^^^^^
 
-* Path to the file with harmonic force constants. File format supported is Quantum-ESPRESSO output of q2r.x.
+* Path to the file with harmonic force constants. File format supported is Quantum-ESPRESSO output of q2r.x (prefix.fc) or output of phono3py (fc2.hdf5).
 
 * *string*
   
@@ -605,12 +618,29 @@ phD2FileName
 phD3FileName
 ^^^^^^^^^^^^
 
-* Path to the file with anharmonic 3rd order force constants.
+* Path to the file with anharmonic 3rd order force constants. File format supported is ShengBTE (FORCE_CONSTANTS_3RD) or phono3py (fc3.hdf5).
   
 * *string*
   
 * Required
 
+.. _phonopyDispFileName:
+
+phonopyDispFileName
+^^^^^^^^^^^^^^^^^^^
+
+* Path to the phono3py_disp.yaml file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named phonopy_disp.yaml).
+
+* *string*
+
+* Required if running with phono3py force constants.
+
+.. _dispFCFileName:
+
+dispFCFileName
+^^^^^^^^^^^^^^
+
+* Path to the disp_fc3.yaml file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named disp.yaml.
 
 .. _sumRuleD2:
 
