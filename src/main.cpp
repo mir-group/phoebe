@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
   }
 
   // exiting program
-  IO::goodbye();
+  IO::goodbye(context);
 
   // here close parallel environment
   // make sure all processes finish before printing end info

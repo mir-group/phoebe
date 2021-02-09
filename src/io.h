@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include "context.h"
 
 /** class used to parse Phoebe command line arguments, and to redirect output
  * from std::cout to output-File
@@ -39,7 +40,7 @@ public:
 
   /** Prints a closing message
    */
-  static void goodbye();
+  static void goodbye(Context &context);
 };
 
 /** Class used to time loops, and provide the user with a report on a loop

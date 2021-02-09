@@ -69,10 +69,60 @@ void IO::welcome() {
   std::cout << welcomeMsg << std::endl;
 }
 
-void IO::goodbye() {
-  if (!mpi->mpiHead())
-    return;
-  std::cout << "Exiting program" << std::endl;
+void IO::goodbye(Context &context) {
+  if (!mpi->mpiHead()) return;
+  std::cout << "Exiting program.\n" << std::endl;
+
+
+  // print out citations related to this run ----------------
+  std::cout << "Consider citing the following references " 
+        << "in relation to this calculation:\n" << std::endl;
+
+  // Phoebe citation
+  std::cout << "Phoebe: a code package we wrote."
+        << " Dummy Journal 9000. (2021).\n\n" << std::endl;
+ 
+  std::vector<std::string> solvers = context.getSolverBTE();
+  // Relaxons solver
+  if (std::find(solvers.begin(), solvers.end(), "relaxons") != solvers.end()) {
+    std::cout << "  For the use of the relaxons BTE solver:" << std:endl;
+    std::cout << \t"A. Cepellotti and N. Marzari.\n" << 
+        "\tThermal transport in crystals as a kinetic theory of relaxons.\n" << 
+        "\tPhysical Review X 6, no. 4 (2016): 041013.\n\n" << std::endl;
+  }
+  // iterative solver
+  if (std::find(solvers.begin(), solvers.end(), "iterative") != solvers.end()) { 
+    std::cout << "  For the use of the iterative BTE solver:" << std:endl;
+    std::cout << "\tM. Omini and A. Sparavigna. \n" << 
+        "\tAn iterative approach to the phonon Boltzmann equation in the theory of thermal conductivity.\n" <<  
+        "\tPhysica B: Condensed Matter 212, no. 2 (1995): 101-112.\n\n" << std::endl;
+  }
+  // variational solver
+  if (std::find(solvers.begin(), solvers.end(), "variational") != solvers.end()) {
+    std::cout << "  For the use of the variational BTE solver:" << std:endl;
+    std::cout << "\tG. Fugallo, M. Lazzeri, L. Paulatto, and F. Mauri.\n" << 
+        "\tAb initio variational approach for evaluating lattice thermal conductivity.\n" << 
+        "\tPhysical Review B 88, no. 4 (2013): 045430.\n\n" << std::endl; 
+  }
+  // electron-phonon wannier interpolation
+  if(context.getElphFileName != "") {
+    std::cout << "  For electron-phonon Wannier interpolation:" << std:endl;
+    std::cout << "\tF. Giustino, M.L. Cohen, and S.G. Louie.\n" << 
+        "\tElectron-phonon interaction using Wannier functions.\n" << 
+        "\tPhysical Review B 76, no. 16 (2007): 165108.\n\n" << std:endl; 
+  }
+  // wigner transport
+  if(context.getAppName() == "phononTransport" 
+        || context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the Wigner transport equations:" << std:endl;
+    std::cout << "\tM. Simoncelli, N. Marzari, and F. Mauri.\n" << 
+        "\tUnified theory of thermal transport in crystals and glasses.\n" << 
+        "\tNature Physics, 15(8), (2019). pp.809-813.\n\n" << std::endl;
+    std::cout << "\tA. Cepellotti and B. Kozinsky.\n" << 
+        "\tAb-initio electronic transport in narrow gap semiconductors using the Wigner distribution.\n" <<
+        "\tarXiv preprint arXiv:2004.07358\n\n" << std::endl; 
+  } 
+
 }
 
 LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
