@@ -35,7 +35,7 @@ In particular, rather than working with the full phonon dispersion, we average t
    \to
    \bar{\omega}_{\nu}
 
-So that we have \f$ 3 N_{atoms} \f$ modes per crystal.
+So that we have :math:`3 N_{atoms}` modes per crystal.
 Similarly, the make an energy binning on the electron-phonon coupling strength, as
 
 .. math::
