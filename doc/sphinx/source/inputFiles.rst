@@ -64,6 +64,9 @@ Input variables:
   
 * :ref:`useSymmetries`
 
+* :ref:`phonopyDispFileName`
+
+* :ref:`dispFCFileName`
 
 Sample input file::
 
