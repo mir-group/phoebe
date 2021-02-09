@@ -258,8 +258,8 @@ Step 5: Phoebe, phonon transport
 The typical input file looks like this::
 
   appName = "phononTransport"
-  phD2FileName = "./qespresso/silicon.fc",
-  phD3FileName = "./qespresso/silicon.fc3"
+  phD2FileName = "./qe-phonons/silicon.fc",
+  phD3FileName = "./qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
   sumRuleD2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
@@ -273,7 +273,7 @@ Let's go through this parameters one by one:
   
 * :ref:`phD2FileName` must point to the `flfrc` file produced by `q2r.x`
   
-* :ref:`phD2FileName` must point to the file of third derivatives
+* :ref:`phD3FileName` must point to the file of third derivatives
   
 * :ref:`sumRuleD2` allows us to re-enforce the translational-invariance of force constants, that is broken by numerical errors. After imposing this sum rule, acoustic phonon frequencies to go to zero at the gamma point.
   
