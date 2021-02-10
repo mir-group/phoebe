@@ -32,7 +32,7 @@ jobs:
           export LIBRARY_PATH="/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/:/usr/local/gfortran/lib/"
           echo $LD_LIBRARY_PATH
           echo $DYLD_LIBRARY_PATH
-          which gfortran
+          ls /usr/local/gfortran/
 
           cmake .. -DOMP_AVAIL=OFF -DKokkos_ENABLE_OPENMP=OFF -DMPI_AVAIL=ON -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib}  -DCMAKE_CXX_FLAGS=${hdf5include}
       - name: Build
