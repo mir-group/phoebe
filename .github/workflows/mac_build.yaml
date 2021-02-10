@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install gcc open-mpi scalapack
-          brew install hdf5 --build-from-source --with-mpi
+          brew install hdf5
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -25,8 +25,11 @@ jobs:
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
           export FC=/usr/local/Cellar/gcc/10.2.0_3/bin/gfortran
+          export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/g++
+          hdf5lib="-L/usr/local/Cellar/hdf5/1.12.0_1/lib/"
+          hdf5include="-I/usr/local/Cellar/hdf5/1.12.0_1/include/"
           #export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3
-          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=OFF
+          cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON
       - name: Build
         run: |
           cd ${BUILD_DIR}
