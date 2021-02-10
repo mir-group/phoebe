@@ -25,12 +25,12 @@ jobs:
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
           export FC=/usr/local/Cellar/gcc/10.2.0_3/bin/gfortran
-          export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/gcc-10
-          export CXX=/usr/local/Cellar/gcc/10.2.0_3/bin/g++-10
-          hdf5lib="-L/usr/local/Cellar/hdf5/1.12.0_1/lib/"
+          #export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/gcc-10
+          #export CXX=/usr/local/Cellar/gcc/10.2.0_3/bin/g++-10
+          hdf5lib="-L/usr/local/Cellar/hdf5/1.12.0_1/lib/:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/"
           hdf5include="-I/usr/local/Cellar/hdf5/1.12.0_1/include/"
-          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/:/usr/local/gfortran/lib/"
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/:/usr/local/gfortran/lib/"
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/"
+          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/"
           export LIBRARY_PATH="/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/:/usr/local/gfortran/lib/"
           echo $LD_LIBRARY_PATH
           echo $DYLD_LIBRARY_PATH
