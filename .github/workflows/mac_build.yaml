@@ -24,14 +24,12 @@ jobs:
         run: |
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
-          #export FC=/usr/local/bin/gfortran
           export FC=/usr/local/Cellar/gcc/10.2.0_3/bin/gfortran
-          #export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/gcc-10
-          #export CXX=/usr/local/Cellar/gcc/10.2.0_3/bin/g++-10
           hdf5lib="-L/usr/local/Cellar/hdf5/1.12.0_1/lib/"
           hdf5include="-I/usr/local/Cellar/hdf5/1.12.0_1/include/"
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/
           export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/
+          echo `ls /usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/`
           cmake .. -DOMP_AVAIL=${{ matrix.omp }} -DKokkos_ENABLE_OPENMP=${{ matrix.omp }} -DMPI_AVAIL=${{ matrix.mpi }} -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib} -DCMAKE_CXX_FLAGS=${hdf5include}
       - name: Build
         run: |
