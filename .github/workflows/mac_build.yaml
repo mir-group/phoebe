@@ -25,7 +25,8 @@ jobs:
           mkdir ${BUILD_DIR}
           cd ${BUILD_DIR}
           export FC=/usr/local/Cellar/gcc/10.2.0_3/bin/gfortran
-          export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/g++-10
+          export CC=/usr/local/Cellar/gcc/10.2.0_3/bin/gcc-10
+          export CXX=/usr/local/Cellar/gcc/10.2.0_3/bin/g++-10
           hdf5lib="-L/usr/local/Cellar/hdf5/1.12.0_1/lib/"
           hdf5include="-I/usr/local/Cellar/hdf5/1.12.0_1/include/"
           #export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/10.2.0_3
