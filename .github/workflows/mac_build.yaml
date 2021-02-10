@@ -14,7 +14,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          brew install gcc open-mpi hdf5 scalapack
+          brew install gcc open-mpi scalapack
+          brew install hdf5 --mpi=yes
       - name: Checkout
         uses: actions/checkout@v2
         with:
