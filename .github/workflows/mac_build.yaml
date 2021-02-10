@@ -33,7 +33,7 @@ jobs:
           echo $LD_LIBRARY_PATH
           echo $DYLD_LIBRARY_PATH
 
-          cmake .. -DOMP_AVAIL=OFF -DKokkos_ENABLE_OPENMP=OFF -DMPI_AVAIL=ON -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib} -DCMAKE_LIBRARY_PATH=-L/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/ -DCMAKE_CXX_FLAGS=${hdf5include}
+          cmake .. -DOMP_AVAIL=OFF -DKokkos_ENABLE_OPENMP=OFF -DMPI_AVAIL=ON -DHDF5_AVAIL=ON -DHDF5_SERIAL=ON -DCMAKE_CXX_STANDARD_LIBRARIES=${hdf5lib} -DCMAKE_STANDARD_LIBRARIES=-L/usr/local/Cellar/gcc/10.2.0_3/lib/gcc/10/ -DCMAKE_CXX_FLAGS=${hdf5include}
       - name: Build
         run: |
           cd ${BUILD_DIR}
