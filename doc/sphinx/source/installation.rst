@@ -143,12 +143,12 @@ Tested on Ubuntu 20.04.
 MacOs
 ^^^^^
 
-* We have experienced troubles linking the SCALAPACK library, especially when linking it together with the libgfortran library. If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH::
+* We have experienced troubles linking the SCALAPACK library, especially when linking it together with the libgfortran library. If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH or LIBRARY_PATH as follows::
 
-  export LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libgfortran/
+  export LIBRARY_PATH=$LIBRARY_PATH:/path/to/libgfortran/
 
 In particular, if you are using a version of gcc installed using homebrew, you might need to link the `Cellar` copy of libgfortran. As an example working for gcc v9.3.0_1 is::
 
-  export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/)
+  export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/)
 
 * Additonally, there exists an issue when building with the Apple clang compiler and the Eigen library, specifically when Eigen is built using OpenMP with a c++ std>11. We recommend either building without OMP (cmake -DOMP_AVAIL=OFF ../), or using a different compiler.
