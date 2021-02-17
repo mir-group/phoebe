@@ -12,7 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("INPUT",
                         help="Name of the JSON file with band structure")
     args = parser.parse_args()
-    
+
     # load in the json output
     jfileName = args.INPUT
     with open(jfileName) as jfile:
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     except KeyError:
         raise KeyError("highSymLabels not found. "
                        "Are you using the correct input json file?")
-        
+
     points = np.array(data['wavevectorIndices'])
     numBands = data['numBands']
     energies = np.array(data['energies'])
@@ -47,27 +47,17 @@ if __name__ == "__main__":
         pathTicks = np.delete(pathTicks, tk)
         pathTicks[tk:] -= 1
         energies = np.delete(energies, en, 0)
-    
+
     # plot some vertical lines at high sym points
     plt.figure(figsize=(5.5,5))
     for i in pathTicks:
         plt.axvline(i, color='grey')
 
-    # if fermiLevel as set in the input file,
-    # we can also read it in and plot it
-    if('fermiLevel' in data):
-        mu = data['fermiLevel']
-        plt.axhline(0, color='grey', ls='--')
-        energyLabel = r'E-E$_F$ [' + data['energyUnit'] +']'
-    # if it wasn't set, we won't subtract
-    # anything from the band energies
-    else:
-        mu = 0
-        energyLabel = r'Energy [' + data['energyUnit'] +']'
+    energyLabel = r'Energy [' + data['energyUnit'] +']'
 
     # plot the bands
     for i in range(numBands):
-        plt.plot(points, energies[:,i] - mu, lw=2, color='royalblue')
+        plt.plot(points, energies[:,i], lw=2, color='royalblue')
 
     # plot aesthetics
     plt.xticks(pathTicks,pathLabels,fontsize=12)
@@ -81,6 +71,6 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     plotFileName = os.path.splitext(jfileName)[0] + ".pdf"
-    
+
     plt.savefig(plotFileName)
     plt.show(block=False)

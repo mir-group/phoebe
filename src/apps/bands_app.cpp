@@ -185,9 +185,9 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["coordsType"] = "lattice";
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
-  if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
-    output["fermiLevel"] = context.getFermiLevel() * energyConversion;
-  }
+  //if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
+  //  output["fermiLevel"] = context.getFermiLevel() * energyConversion;
+  //}
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
