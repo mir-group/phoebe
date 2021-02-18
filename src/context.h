@@ -315,6 +315,11 @@ class Context {
    * @param fileName: path to the input file
    */
   void setupFromInput(const std::string &fileName);
+
+  /** Prints the user-provided input variables to output, including default values.
+   * @param fileName: path to the input file, just to print where input came from.
+   */
+  void printInputSummary(const std::string &fileName);
 };
 
 #endif
