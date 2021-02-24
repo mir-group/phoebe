@@ -3,7 +3,7 @@ appName = "electronLifetimes"
 phD2FileName = "qe-elph/silicon.fc",
 sumRuleD2 = "simple"
 electronH0Name = "qe-elph/si_tb.dat",
-epwFileName = "qe-elph/silicon.phoebe.elph.hdf5"
+elphFileName = "qe-elph/silicon.phoebe.elph.hdf5"
 
 kMesh = [5,5,5]
 temperatures = [600.]

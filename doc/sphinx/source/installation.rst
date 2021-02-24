@@ -14,15 +14,15 @@ Prerequisites
 The installation requires the following packages pre-installed:
 
 * CMake (a recent version);
-  
+
 * a C++ compiler with C++14 support. We regularly test with GCC, but Intel and Clang should work too;
-  
+
 * MPI (although the code can compile without);
-  
+
 * Optional: OpenMP;
-  
+
 * Optional: CUDA (for GPU acceleration);
-  
+
 * Internet connection, to download external libraries.
 
 
@@ -49,16 +49,16 @@ CMake will inspect the paths found in the environmental variable `LD_LIBRARY_PAT
 HDF5 build
 ^^^^^^^^^^
 
-Phoebe can make use of HDF5 through the HighFive library to write the electron-phonon matrix elements in the elPhQeToPhoebe app, 
-as well as any app which reads in and uses these matrix elements. 
-This is highly recommended, as it speeds up what can be time consuming IO, and also significantly reduces file sizes. 
-When built using cmake with the flag `-DHDF5_AVAIL=ON`, Phoebe will be built with HDF5. If MPI is also present, 
-Phoebe will be built to perform HDF5 operations in parallel. 
+Phoebe can make use of HDF5 through the HighFive library to write the electron-phonon matrix elements in the elPhQeToPhoebe app,
+as well as any app which reads in and uses these matrix elements.
+This is highly recommended, as it speeds up what can be time consuming IO, and also significantly reduces file sizes.
+When built using cmake with the flag `-DHDF5_AVAIL=ON`, Phoebe will be built with HDF5. If MPI is also present,
+Phoebe will be built to perform HDF5 operations in parallel.
 
-If, for some reason, a user has MPI present, but has built a copy of HDF5 which does not link to MPI and therefore cannot 
+If, for some reason, a user has MPI present, but has built a copy of HDF5 which does not link to MPI and therefore cannot
 perform parallel read/write operations, they must build Phoebe using the -DHDF5_SERIAL=ON cmake option to force serial HDF5 operations.
 
-Note: When building on Ubuntu, one may need to specify the location of hdf5 to cmake. This can be done, for example, when using 
+Note: When building on Ubuntu, one may need to specify the location of hdf5 to cmake. This can be done, for example, when using
 libhdf5-openmpi-dev::
 
   cmake .. -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"
@@ -80,7 +80,7 @@ OpenMP + CUDA build
 ^^^^^^^^^^^^^^^^^^^
 
 ::
-   
+
   git submodule update --init
   mkdir build
   cd build
@@ -105,11 +105,11 @@ Compiling the documentation
 In order to compile the documentation, you need to have installed on your machine:
 
 * doxygen
-  
+
 * graphviz
-  
+
 * pdflatex (to render equations)
-  
+
 Typically for Unix machines, these packages are commonly found on package managers (apt, pacman, brew, ...).
 
 Then type::
@@ -133,7 +133,7 @@ To install (without GPU support)::
   git submodule update --init
   mkdir build
   cd build
-  cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"`
+  cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"
   make -j$(nproc)
   make doc
 
@@ -143,12 +143,12 @@ Tested on Ubuntu 20.04.
 MacOs
 ^^^^^
 
-We have experienced troubles linking the SCALAPACK library, especially when linking it together with the libgfortran library.
-If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH::
+* We have experienced troubles linking the SCALAPACK library, especially when linking it together with the libgfortran library. If libgfortran is not found, try adding it specifically to LD_LIBRARY_PATH or LIBRARY_PATH as follows::
 
-  export LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/libgfortran/
+  export LIBRARY_PATH=$LIBRARY_PATH:/path/to/libgfortran/
 
 In particular, if you are using a version of gcc installed using homebrew, you might need to link the `Cellar` copy of libgfortran. As an example working for gcc v9.3.0_1 is::
 
-  export LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/) 
+  export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/)
 
+* Additonally, there exists an issue when building with the Apple clang compiler and the Eigen library, specifically when Eigen is built using OpenMP with a c++ std>11. We recommend either building without OMP (cmake -DOMP_AVAIL=OFF ../), or using a different compiler.

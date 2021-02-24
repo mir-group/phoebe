@@ -401,6 +401,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   if (not infile.is_open()) {
     Error("Dynamical matrix file not found");
   }
+  if (mpi->mpiHead())
+    std::cout << "Reading in " + fileName + "." << std::endl;
 
   //  First line contains iBravais, celldm and other variables
 
@@ -539,8 +541,9 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
     Error("qCoarseGrid smaller than zero");
   }
-
-  //	Now, let's try to diagonalize some points, and start debugging at q=0
+  if (mpi->mpiHead()) {
+    std::cout << "Successfully parsed harmonic QE files.\n" << std::endl;
+  }
 
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleD2());

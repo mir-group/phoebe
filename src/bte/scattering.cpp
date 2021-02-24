@@ -495,6 +495,8 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     // two pi, likely because of a conversion from
     // ordinal to angular frequency
     energyToTime /= twoPi;
+    energyUnit = "meV";
+    energyConversion *= 1000;
   } else {
     particleType = "electron";
   }
@@ -542,7 +544,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
         bandsT.push_back(tau * energyToTime);
         double linewidth =
             tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
-        bandsL.push_back(linewidth * energyRyToEv);
+        bandsL.push_back(linewidth * energyConversion);
 
         std::vector<double> iDimsV;
         // loop over dimensions
@@ -578,7 +580,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
   output["linewidths"] = outLinewidths;
-  output["linewidthsUnit"] = "eV";
+  output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;
   output["relaxationTimeUnit"] = "fs";
   output["velocities"] = velocities;

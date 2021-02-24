@@ -256,7 +256,7 @@ void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
 
   if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
-    throwErrorIfUnset(context.getEpwFileName(), "epwFileName");
+    throwErrorIfUnset(context.getElphFileName(), "elphFileName");
     throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
     if (context.getSmearingMethod() == DeltaFunction::gaussian) {
       throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");

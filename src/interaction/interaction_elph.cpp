@@ -206,7 +206,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
                                              PhononH0 *phononH0_) {
 
-  std::string fileName = context.getEpwFileName(); // TODO this isn't epw anymore, is it?
+  std::string fileName = context.getElphFileName();
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
@@ -340,7 +340,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
                                              PhononH0 *phononH0_) {
 
-  std::string fileName = context.getEpwFileName(); // TODO this isn't epw anymore, is it?
+  std::string fileName = context.getElphFileName();
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;

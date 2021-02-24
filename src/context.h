@@ -74,7 +74,7 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
-  std::string epwFileName;
+  std::string elphFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
@@ -143,8 +143,8 @@ class Context {
   std::string getDispFC2FileName();
   void setDispFC2FileName(const std::string &x);
 
-  std::string getEpwFileName();
-  void setEpwFileName(const std::string &x);
+  std::string getElphFileName();
+  void setElphFileName(const std::string &x);
 
   std::string getWannier90Prefix();
   void setWannier90Prefix(const std::string &x);
@@ -315,6 +315,11 @@ class Context {
    * @param fileName: path to the input file
    */
   void setupFromInput(const std::string &fileName);
+
+  /** Prints the user-provided input variables to output, including default values.
+   * @param fileName: path to the input file, just to print where input came from.
+   */
+  void printInputSummary(const std::string &fileName);
 };
 
 #endif

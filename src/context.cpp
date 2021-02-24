@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -401,8 +402,6 @@ void Context::setupFromInput(const std::string &fileName) {
     }
   }
 
-  // there are
-
   int lineCounter = 0;
   for (const std::string& line : lines) {
     if (line.empty()) { // nothing to do
@@ -454,8 +453,8 @@ void Context::setupFromInput(const std::string &fileName) {
         elPhInterpolation = parseString(val);
       }
 
-      if (parameterName == "epwFileName") {
-        setEpwFileName(parseString(val));
+      if (parameterName == "elphFileName") {
+        setElphFileName(parseString(val));
       }
 
       if (parameterName == "electronFourierCutoff") {
@@ -703,8 +702,6 @@ void Context::setupFromInput(const std::string &fileName) {
         g2PlotPhBands.second = x[1];
       }
 
-      //////////////////////////////////////////
-
     } else { // it might be a block, or its content
 
       auto tup = parseBlockNameValue(lines, lineCounter);
@@ -726,10 +723,212 @@ void Context::setupFromInput(const std::string &fileName) {
         pathExtrema = std::get<1>(tup2);
       }
     }
-
-    ///////////////////////////////////////////////
-
     lineCounter += 1;
+  }
+}
+// helper functions for printInputSummary
+template <typename T>
+void printVector(std::string varName, std::vector<T> vec) {
+  std::cout << varName << " = ";
+  for (auto i : vec) std::cout << " " << i;
+  std::cout << std::endl;
+}
+void printVectorXd(std::string varName, Eigen::VectorXd vec, std::string unit="") {
+  std::cout << varName << " =";
+  for (int i = 0; i < vec.size(); i++)
+    std::cout << " " << vec(i);
+  std::cout << " (" << unit << ")" << std::endl;
+}
+
+void Context::printInputSummary(const std::string &fileName) {
+
+  std::cout << std::endl;
+  std::cout << "Input read from file: " << fileName << std::endl;
+  std::cout << "---------------------------------------------" << std::endl;
+  std::cout << std::boolalpha;  // make booleans write as true/false
+
+  std::cout << "appName = " << appName << std::endl;
+
+  // crystal structure parameters -------------------
+  std::cout << "useSymmetries = " << useSymmetries << std::endl;
+  std::cout << "dimensionality = " << dimensionality << std::endl;
+  // TODO these only apply in the Wannier case.
+  // For now, instead, we output crystal information.
+  //for (int i = 0; i < inputAtomicPositions.cols(); i++) {
+  //  std::cout << inputSpeciesNames << " " <<  inputAtomicSpecies(i) <<
+  //      " " << inputAtomicPositions(0,i) << " " << inputAtomicPositions(1,i)
+  //      << " " << inputAtomicPositions(2,i) << std::endl;
+  // }
+  std::cout << std::endl;
+
+  // phonon parameters -------------------------------
+  if(appName.find("honon") != std::string::npos) {
+    std::cout << "phD2FileName = " << phD2FileName << std::endl;
+    std::cout << "sumRuleD2 = " << sumRuleD2 << std::endl;
+    if(appName == "phononLifetimes" || appName == "phononTransport") {
+      std::cout << "phD3FileName = " << phD3FileName << std::endl;
+    }
+    if(phonopyDispFileName != "") {
+      std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
+      std::cout << "dispFCFileName = " << dispFCFileName << std::endl;
+      std::cout << "dispFC2FileName = " << dispFC2FileName << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  // electron and eph parameters
+  if(appName.find("lectron") != std::string::npos || appName.find("elPh") != std::string::npos) {
+    std::cout << "electronH0Name = " << electronH0Name << std::endl;
+    std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+    if(appName.find("elPh") != std::string::npos || appName == "electronLifetimes" ||
+        appName == "electronWannierTransport") {
+      if(elPhInterpolation != "") std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
+      std::cout << "elphFileName = " << elphFileName << std::endl;
+      if(wannier90Prefix != "") std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
+      if(quantumEspressoPrefix != "") std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  // Transport parameters ---------------------------
+  if(appName.find("Transport") != std::string::npos ||
+        appName.find("Lifetimes") != std::string::npos) {
+
+    std::cout << "solverBTE = RTA";
+    for (auto i : solverBTE) std::cout << ", " << i;
+    std::cout << std::endl;
+
+    if(appName.find("honon") != std::string::npos || appName.find("elPh") != std::string::npos)
+        std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2) << std::endl;
+    if(appName.find("lectron") != std::string::npos || appName.find("elPh") != std::string::npos)
+      std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+
+    if(!std::isnan(constantRelaxationTime))
+        std::cout << "constantRelaxationTime = " << constantRelaxationTime*timeRyToFs << " fs" << std::endl;
+    std::cout << "smearingMethod = ";
+    if(smearingMethod == 0) std::cout << "gaussian" << std::endl;
+    else if(smearingMethod == 1) std::cout << "adaptiveGaussian" << std::endl;
+    else if(smearingMethod == 2) std::cout << "tetrahedron" << std::endl;
+    else{ std::cout << "none" << std::endl; }
+    if(!std::isnan(smearingWidth))
+      std::cout << "smearingWidth = " << smearingWidth*energyRyToEv << " eV" << std::endl;
+
+    std::cout << "convergenceThresholdBTE = " << convergenceThresholdBTE << std::endl;
+    std::cout << "maxIterationsBTE = " << maxIterationsBTE << std::endl;
+    std::cout << "scatteringMatrixInMemory = " << scatteringMatrixInMemory << std::endl;
+
+    std::cout << "windowType = " << windowType << std::endl;
+    if(!std::isnan(windowEnergyLimit[0])) {
+      std::cout << "windowEnergyLimit = " << windowEnergyLimit(0)*energyRyToEv <<
+        " " << windowEnergyLimit(1)*energyRyToEv << " eV" << std::endl;
+    }
+    if(!std::isnan(windowPopulationLimit)) {
+        std::cout << "windowPopulationLimit = " << windowPopulationLimit << std::endl;
+    }
+
+    printVectorXd("temperatures", temperatures*temperatureAuToSi,"K");
+    if(!std::isnan(minTemperature)) std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if(!std::isnan(maxTemperature)) std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if(!std::isnan(deltaTemperature)) std::cout << "deltaTemperature = " << deltaTemperature << "K" << std::endl;
+
+    if(appName.find("lectron") != std::string::npos) {
+      if(dopings.size() != 0) printVectorXd("dopings", dopings, "cm^-3");
+      if(chemicalPotentials.size() != 0) printVectorXd("chemicalPotentials", chemicalPotentials*energyRyToEv, "eV");
+      if(!std::isnan(minChemicalPotential))
+        std::cout << "minChemicalPotential = " << minChemicalPotential*energyRyToEv << " eV" << std::endl;
+      if(!std::isnan(maxChemicalPotential))
+        std::cout << "maxChemicalPotential = " << maxChemicalPotential*energyRyToEv << " eV" << std::endl;
+      if(!std::isnan(deltaChemicalPotential))
+        std::cout << "deltaChemicalPotential = " << deltaChemicalPotential*energyRyToEv << " eV" << std::endl;
+      if(!std::isnan(eFermiRange))
+        std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
+      if(!std::isnan(fermiLevel))
+        std::cout << "fermiLevel = " << fermiLevel*energyRyToEv << std::endl;
+      if(!std::isnan(numOccupiedStates))
+        std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
+    }
+    if(appName.find("honon") != std::string::npos) {
+      std::cout << "withIsotopeScattering = " << withIsotopeScattering << std::endl;
+      if(massVariance.size() != 0) printVectorXd("massVariance", massVariance, "amu");
+      if(!std::isnan(boundaryLength))
+        std::cout << "boundaryLength = " << boundaryLength*distanceBohrToMum << " mum" << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // dos variables ---------------------------------------
+  if(appName.find("Dos") != std::string::npos) {
+    std::cout << "dosMinEnergy = " << dosMinEnergy*energyRyToEv << " eV" << std::endl;
+    std::cout << "dosMaxEnergy = " << dosMaxEnergy*energyRyToEv << " eV" << std::endl;
+    std::cout << "dosDeltaEnergy = " << dosDeltaEnergy*energyRyToEv << " eV" << std::endl;
+    if(appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // band structure variables ----------------------------
+  if(appName.find("Bands") != std::string::npos) {
+    const auto& dim = pathExtrema.dimensions();
+    std::cout << "deltaPath = " << deltaPath << " 1/Bohr" << std::endl;
+    std::cout << "Band Path:" << std::endl;
+    std::cout << std::setprecision(4) << std::fixed;
+    int count = 0;
+    for(int i = 0; i < dim[0]; i++) {
+      std::cout << pathLabels[count] << " " << pathExtrema(i,0,0) << " " <<
+        pathExtrema(i,0,1) << " " << pathExtrema(i,0,2) << "  ";
+      std::cout << pathLabels[count+1] << " " << pathExtrema(i,1,0) << " " <<
+        pathExtrema(i,1,1) << " " << pathExtrema(i,1,2) << std::endl;
+      count++;
+    }
+    if(appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // epa variables  ----------------------------------------
+  if(appName == "transportEpa") {
+    std::cout << "epaFileName = " << epaFileName << std::endl;
+    std::cout << "electronH0Name = " << electronH0Name << std::endl;
+    std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+    if(!std::isnan(epaEnergyRange))
+      std::cout << "epaEnergyRange = " << epaEnergyRange*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaEnergyStep))
+    std::cout << "epaEnergyStep = " << epaEnergyStep*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMinEnergy))
+      std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMaxEnergy))
+      std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaNumBins))
+      std::cout << "epaNumBins = " << epaNumBins << std::endl;
+    if(!std::isnan(epaSmearingEnergy))
+      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaDeltaEnergy))
+      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(electronFourierCutoff))
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+
+    printVectorXd("temperatures", temperatures*temperatureAuToSi,"K");
+    if(!std::isnan(minTemperature)) std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if(!std::isnan(maxTemperature)) std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if(!std::isnan(deltaTemperature)) std::cout << "deltaTemperature = " << deltaTemperature << "K" << std::endl;
+    if(dopings.size() != 0) printVectorXd("dopings", dopings, "cm^-3");
+    if(chemicalPotentials.size() != 0) printVectorXd("chemicalPotentials", chemicalPotentials*energyRyToEv, "eV");
+    if(!std::isnan(minChemicalPotential))
+      std::cout << "minChemicalPotential = " << minChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(maxChemicalPotential))
+      std::cout << "maxChemicalPotential = " << maxChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(deltaChemicalPotential))
+      std::cout << "deltaChemicalPotential = " << deltaChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(eFermiRange))
+      std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
+    if(!std::isnan(fermiLevel))
+      std::cout << "fermiLevel = " << fermiLevel*energyRyToEv << std::endl;
+    if(!std::isnan(numOccupiedStates))
+      std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
+    std::cout << "---------------------------------------------\n" << std::endl;
   }
 }
 
@@ -751,8 +950,8 @@ void Context::setDispFC2FileName(const std::string &x) { dispFC2FileName = x; }
 std::string Context::getSumRuleD2() { return sumRuleD2; }
 void Context::setSumRuleD2(const std::string &x) { sumRuleD2 = x; }
 
-std::string Context::getEpwFileName() { return epwFileName; }
-void Context::setEpwFileName(const std::string &x) { epwFileName = x; }
+std::string Context::getElphFileName() { return elphFileName; }
+void Context::setElphFileName(const std::string &x) { elphFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
