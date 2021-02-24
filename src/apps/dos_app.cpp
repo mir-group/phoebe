@@ -195,11 +195,6 @@ void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
   output["energyUnit"] = particle.isPhonon() ? "meV" : "eV";
   output["dosUnit"] = particle.isPhonon() ? "1/meV" : "1/eV";
-  // if the user supplied mu, we will output that as well
-  // if not, we don't include mu
-  if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
-    output["fermiLevel"] = context.getFermiLevel()*energyConversion;
-  }
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
