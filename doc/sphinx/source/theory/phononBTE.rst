@@ -1,17 +1,17 @@
 Phonon BTE
 ==========
 
-We follow the theory of the reference available at this link (https://arxiv.org/abs/1212.0470). 
-Here we report the most relevant points of the manuscript. 
+We follow the theory of the reference available at this link (https://arxiv.org/abs/1212.0470).
+Here we report the most relevant points of the manuscript.
 
 When a gradient of temperature :math:`\nabla T` is established in a system, a subsequent heat flux will start propagating in the medium.
 Without loss of generality we assume the gradient of temperature to be along the direction :math:`x`.
 The flux of heat, collinear to the temperature gradient, can be written in terms of phonon energies :math:`\hbar\omega_{\boldsymbol{q}j}`, phonon group velocities :math:`v_{q j}` in the :math:`x` direction, and the perturbed phonon population :math:`n_{q j}`
- 
+
 .. math::
    \frac{1}{N_0 \Omega} \sum_{q j} \hbar \omega_{q j} \boldsymbol{v}_{\boldsymbol{q} j} n_{\boldsymbol{q} j} = - k \frac{\partial T}{ \partial \boldsymbol{x}}
 
-On the l.h.s :math:`\omega_{\boldsymbol{q}j }` is the angular frequency of the phonon mode with vector :math:`\boldsymbol{q}` and branch index :math:`j`, :math:`\Omega` is the volume of the unit cell and the sum runs over a uniform mesh of :math:`N_0 \boldsymbol{q}` points. 
+On the l.h.s :math:`\omega_{\boldsymbol{q}j }` is the angular frequency of the phonon mode with vector :math:`\boldsymbol{q}` and branch index :math:`j`, :math:`\Omega` is the volume of the unit cell and the sum runs over a uniform mesh of :math:`N_0 \boldsymbol{q}` points.
 On the r.h.s. :math:`k` is the diagonal component of the thermal conductivity in the temperature-gradient direction, with :math:`\alpha` and :math:`\beta` the Cartesian indeces.
 Knowledge of the perturbed phonon population allows heat flux and subsequently thermal conductivity to be evaluated.
 Unlike phonon scattering by defects, impurities and boundaries, anharmonic scattering represents an intrinsic resistive process and in high quality samples, at room temperature, it dominates the behaviour of lattice thermal conductivity balancing the perturbation due to the gradient of temperature.
@@ -24,9 +24,9 @@ with the first term indicating the phonon diffusion due to the temperature gradi
 This equation has to be solved self consistently.
 In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population :math:`\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T ` where `\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}`; while for the scattering term it can be expanded about its equilibrium value in terms of a first order perturbation :math:`f^{\mathrm{EX}}`:
 
-.. math::  
+.. math::
    n_{\boldsymbol{q} j} \simeq \bar{n}_{\boldsymbol{q} j}+\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) \frac{\partial T}{\partial \boldsymbol{x}}\cdot f^{\mathrm{EX}}_{\boldsymbol{q} j}
- 
+
 The linearized BTE can then be written in the following form:
 
 .. math::
@@ -37,7 +37,7 @@ The linearized BTE can then be written in the following form:
 
 where the sum on :math:`\boldsymbol{q}'` and :math:`\boldsymbol{q}"` is performed in the Brillouin Zone.
 The :math:`\mathrm{EX}` superscript of the first order perturbation :math:`f^{\mathrm{EX}}` denotes the exact solution of the BTE, to be distinguished from the approximated solutions that we will discuss later.
-In this last equation the anharmonic scattering processes as well as the scattering with the isotopic impurities and the border effect are considered. 
+In this last equation the anharmonic scattering processes as well as the scattering with the isotopic impurities and the border effect are considered.
 More specifically :math:`P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\boldsymbol{q}'' j''}` is the scattering rate at the equilibrium  of a process where a phonon mode :math:`\boldsymbol{q} j` scatters by absorbing another mode :math:`\boldsymbol{q}' j'` to generate a third phonon mode :math:`\boldsymbol{q}'' j''`.
 While :math:`P^{\boldsymbol{q}' j',\boldsymbol{q}'' j''}_{\boldsymbol{q} j}` is the scattering rate at the equilibrium of a process where a phonon mode :math:`\boldsymbol{q}j` decays in two modes :math:`\boldsymbol{q}'j'` and :math:`\boldsymbol{q}''j''`.
 
@@ -51,7 +51,7 @@ The two scattering rates have the forms:
 
 .. math::
    P^{\boldsymbol{q}' j',\boldsymbol{q}'' j''}_{\boldsymbol{q} j} = \frac{2 \pi}{N_0 \hbar^2 } \sum_{\boldsymbol{G}}
-   |V^{(3)}(\boldsymbol{q} j,-\boldsymbol{q}' j',-\boldsymbol{q}'' j'')|^2 
+   |V^{(3)}(\boldsymbol{q} j,-\boldsymbol{q}' j',-\boldsymbol{q}'' j'')|^2
    \bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q}' j'}+1)(\bar{n}_{\boldsymbol{q}'' j''}+1)\delta_{\boldsymbol{q}-\boldsymbol{q}' -\boldsymbol{q}'', \boldsymbol{G}}
    \delta(\hbar \omega_{\boldsymbol{q} j}-\hbar \omega_{\boldsymbol{q}' j'}-\hbar \omega_{\boldsymbol{q}'' j''} )
 
@@ -74,7 +74,7 @@ This expression of X can be used to transform the output of a density-functional
 The rate of the elastic scattering with isotopic impurities has the form:
 
 .. math::
-   P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} = \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}  
+   P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} = \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}
    \left[ \bar{n}_{\boldsymbol{q} j} \bar{n}_{\boldsymbol{q}' j'} + \frac{\bar{n}_{\boldsymbol{q} j} + \bar{n}_{\boldsymbol{q}' j'}} {2} \right ]
    \sum_{s} g^{s}_{2}   |  \sum_{\alpha} z^{s \alpha^*}_{\boldsymbol{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} |^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
 
@@ -82,13 +82,13 @@ where :math:`g^s_2 = \frac{(M_s - \langle  M_s\rangle)^2}{ \langle M_s \rangle^2
 In presence of two isotopes :math:`M_s` and :math:`M_{s'}` it can be written in terms of the concentration :math:`\epsilon` and mass change :math:`\Delta M_s= M_{s'} - M_s` :
 
 .. math::
-   g^s_2=  \epsilon(1-\epsilon)  \frac{ | \Delta M_s |}{ \langle M_s \rangle} 
+   g^s_2=  \epsilon(1-\epsilon)  \frac{ | \Delta M_s |}{ \langle M_s \rangle}
 
 with :math:`\langle M_s \rangle = M_s + \epsilon \Delta M_s`.
 Eventually, in a system of finite size, :math:`P_{q j}^{\mathrm{be}}` describes the reflection of a phonon from the border:
 
 .. math::
-   P_{\boldsymbol{q} j}^{\mathrm{be}} = \frac{v_{\boldsymbol{q} j}}{L}\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) 
+   P_{\boldsymbol{q} j}^{\mathrm{be}} = \frac{v_{\boldsymbol{q} j}}{L}\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1)
 
 where :math:`L` is the Casimir length of the sample.
 The border scattering is treated in the relaxation time approximation and it results in a process in which a phonon from a specific state(:math:`\boldsymbol{q} j`) is reemitted from the surface contributing only to the equilibrium distribution.
@@ -102,7 +102,7 @@ The BTE of Eq. \ref{BTE2} can be written as  a linear system in matrix form:
 with the vector :math:`b_{\nu'} =-v_{\nu'}\hbar \omega_{\nu'} \bar{n}_{\nu'}(\bar{n}_{\nu'}+1)` and the matrix
 
 .. math::
-   A_{\nu,\nu'} = [{\sum_{\nu'',\nu'''}} (P^{\nu''}_{\nu,\nu'''} + \frac{ P_{\nu''',\nu''}^{\nu}}{2} ) + \sum_{\nu''} P^{\mathrm{isot}}_{\nu,\nu''} + P^{\mathrm{be}}_{\nu} ] \delta_{\nu,\nu'} - {\sum_{\nu''}} (  P^{\nu'}_{\nu,\nu''} -P^{\nu''}_{\nu,\nu'}+ P_{\nu',\nu''}^{\nu}  ) + P^{\mathrm{isot}}_{\nu,\nu'} 
+   A_{\nu,\nu'} = [{\sum_{\nu'',\nu'''}} (P^{\nu''}_{\nu,\nu'''} + \frac{ P_{\nu''',\nu''}^{\nu}}{2} ) + \sum_{\nu''} P^{\mathrm{isot}}_{\nu,\nu''} + P^{\mathrm{be}}_{\nu} ] \delta_{\nu,\nu'} - {\sum_{\nu''}} (  P^{\nu'}_{\nu,\nu''} -P^{\nu''}_{\nu,\nu'}+ P_{\nu',\nu''}^{\nu}  ) + P^{\mathrm{isot}}_{\nu,\nu'}
 
 where we have used :math:`P^{\nu', \nu''}_{\nu}=P_{\nu', \nu''}^{\nu}` from the detailed balance condition :math:`\bar{n}_{\nu}(\bar{n}_{\nu'}+1)(\bar{n}_{\nu''}+1) = (\bar{n}_{\nu}+1)\bar{n}_{\nu'}\bar{n}_{\nu''}` (valid under the assumption :math:`\hbar \omega = \hbar \omega' + \hbar \omega''`).
 In this form the matrix is symmetric and positive semi-definite and it can be decomposed in :math:`\boldsymbol{A} = \boldsymbol{A}^{\mathrm{out}} +\boldsymbol{A}^{\mathrm{in}}`,
@@ -111,8 +111,8 @@ where
 .. math::
    A^{\mathrm{out}}_{\nu,\nu'} = \frac{\bar{n}_{\nu}(\bar{n}_{\nu} +1)} {\tau^{\mathrm{T}}_{\nu}}\delta_{\nu,\nu'}
 
-.. math::   
-   A^{\mathrm{in}}_{\nu,\nu'} =  -  \sum_{\nu''} \left(  P^{\nu'}_{\nu,\nu''} -P^{\nu''}_{\nu,\nu'}+ P_{\nu',\nu''}^{\nu} \right )    + P^{\mathrm{isot}}_{\nu,\nu'} 
+.. math::
+   A^{\mathrm{in}}_{\nu,\nu'} =  -  \sum_{\nu''} \left(  P^{\nu'}_{\nu,\nu''} -P^{\nu''}_{\nu,\nu'}+ P_{\nu',\nu''}^{\nu} \right )    + P^{\mathrm{isot}}_{\nu,\nu'}
 
 with :math:`\tau^{\mathrm{T}}_{\nu}` being the phonon relaxation time.
 The :math:`\boldsymbol{A}^{\mathrm{out}}` diagonal matrix describes the depopulation of phonon states due to the scattering mechanisms while the :math:`\boldsymbol{A}^{\mathrm{in}}` matrix describes their repopulation due to the incoming scattered phonons.
@@ -130,13 +130,13 @@ and subsequently the thermal conductivity will be evaluated as:
    \omega_{\nu} \bar{n}_{\nu}(\bar{n}_{\nu}+1) f_{\nu}^{\mathrm{EX}}
 
 with :math:`\lambda= 1 /(N_0\Omega k_B T^2)`.
- 
+
 
 
 Interpolation of the 3-phonon coupling
 --------------------------------------
 
-In general, we expect an ab-initio code to provide 
+In general, we expect an ab-initio code to provide
 This expression of X can be used to transform the output of a density-functional code, i.e. the matrix of energy derivatives in real space :math:`\mathcal{E}(\boldsymbol{R}_l s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` to the Fourier space.
 The matrix is actually a periodic function, so it can be possible to neglect one of the Bravais lattice vector indices of such a tensor.
 Note that Quantum Espresso provides the matrix :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')`.
@@ -163,7 +163,7 @@ In the relaxation time approximation (RTA), we set :math:`\boldsymbol{A}^{\mathr
    {\boldsymbol f}^{\mathrm{SMA}} =\frac{1}{ \boldsymbol{A}^{\mathrm{out}}}  {\boldsymbol b}
 
 Inverting :math:`\boldsymbol{A}^{\mathrm{out}}` is trivial due to its diagonal form.
-The lattice thermal conductivity in RTA is then 
+The lattice thermal conductivity in RTA is then
 
 .. math::
    k^{\mathrm{RTA}}=\lambda \boldsymbol{b} \cdot \boldsymbol{f}^{\mathrm{SMA}}=\frac{\hbar^2}{N_0\Omega k_B T^2}\sum_{\nu}v^2_{\nu} \omega^2_{\nu} \bar{n}_{\nu}(\bar{n}_{\nu}+1)\tau^{\mathrm{T}}_{\nu}.
@@ -173,7 +173,7 @@ The lattice thermal conductivity in RTA is then
 Iterative solution of the phonon BTE - Omini-Sparavigna method
 --------------------------------------------------------------
 
-Note: generally, we recommend the variational method over this. 
+Note: generally, we recommend the variational method over this.
 
 An exact solution of the BTE that does not imply either storing or the explicit inversion of matrix :math:`\boldsymbol{A}` has been proposed by Omini and Sparavigna by converging with respect to the iteration :math:`i` the following:
 
@@ -187,7 +187,7 @@ Once the convergence is obtained the thermal conductivity is evaluated by:
 .. math::
    k^{\mathrm{NV}}(\boldsymbol{f}_i)=\lambda \boldsymbol{b}\cdot \boldsymbol{f}_{i}
 
-From a mathematical point of views the OS iterative procedure 
+From a mathematical point of views the OS iterative procedure
 can be written as a geometric series:
 
 .. math::
@@ -207,11 +207,11 @@ for a generic vector :math:`\boldsymbol{f}`.
 Since :math:`\boldsymbol{A}` is positive the stationary point is the global and single minimum of this functional.
 One can then define a variational conductivity functional:
 
-.. math:: 
+.. math::
    k^\mathrm{V}(\boldsymbol{f}) = - 2 \lambda \mathcal{F}({\boldsymbol f})
 
 that has the property :math:`k^\mathrm{V}(\boldsymbol{f}^{\mathrm{EX}})=k` while any other value of :math:`k^{\mathrm{V}}(\boldsymbol{f})`  underestimates :math:`k`.
-In other words, finding the minimum of the quadratic form is equivalent to maximizing the thermal conductivity functional. 
+In other words, finding the minimum of the quadratic form is equivalent to maximizing the thermal conductivity functional.
 As a consequence an error :math:`\delta \boldsymbol{f}= \boldsymbol{f} - \boldsymbol{f}^{\mathrm{EX}}`  results in an error in conductivity, linear in :math:`\delta \boldsymbol{f}` when using the non-variational estimator, and quadratic in the variational form.
 
 Here we solve the BTE on a grid (as in OS procedure) by using the conjugate gradient method, to obtain the exact solution of the BTE equation.
@@ -227,7 +227,7 @@ and then, with respect to this new variable, minimize the quadratic form :math:`
 .. math::
    \tilde{\mathcal{F}}( \tilde{\boldsymbol{f}}) =\frac{1}{2} \tilde{\boldsymbol{f}}\cdot \tilde{\boldsymbol{A}} \tilde{\boldsymbol{f}}- \tilde{\boldsymbol{ b}}\cdot\tilde{\boldsymbol {f}}
 
-and  
+and
 
 .. math::
    \tilde{{\boldsymbol A}} =\frac{1}{ \sqrt{{\boldsymbol A^{\mathrm{out}}}}} {\boldsymbol A}\frac{1}{ \sqrt{{\boldsymbol A^{\mathrm{out}}}}}
@@ -252,12 +252,12 @@ recurrence:
 
 .. math::
    {\boldsymbol f}_{i+1} = {\boldsymbol f}_{i} - \frac{\boldsymbol {g}_{i} \cdot {\boldsymbol{h}_{i}} } {\boldsymbol{h}_{i} \cdot \boldsymbol{t}_i } \boldsymbol{h}_{i}
-  
+
 .. math::
    \boldsymbol{g}_{i+1} = \boldsymbol{g}_{i}-\frac{\boldsymbol {g}_{i} \cdot {\boldsymbol{h}_{i}} } {\boldsymbol{h}_{i} \cdot \boldsymbol{t}_i }\boldsymbol{t}_i
 
 .. math::
-   \boldsymbol{h}_{i+1} = -\boldsymbol{g}_{i+1} + \frac{\boldsymbol{g}_{i+1} \cdot \boldsymbol{g}_{i+1}}{{\boldsymbol{g}_{i}} \cdot {\boldsymbol{g}_{i}} }  {\boldsymbol h}_{i} 
+   \boldsymbol{h}_{i+1} = -\boldsymbol{g}_{i+1} + \frac{\boldsymbol{g}_{i+1} \cdot \boldsymbol{g}_{i+1}}{{\boldsymbol{g}_{i}} \cdot {\boldsymbol{g}_{i}} }  {\boldsymbol h}_{i}
 
 where :math:`\boldsymbol{h}_i` is the search direction and :math:`\boldsymbol{t}_i` is an auxiliary vector.
 Notice that each iteration requires only one application of the matrix :math:`\boldsymbol{A}` on the vector :math:`\boldsymbol{h}_i` as in the OS method.
@@ -321,7 +321,7 @@ The delta function for the energy conservation can be replaced by a Gaussian
 
 where :math:`\sigma` is a constant decided by user input.
 It is important to note that when the delta function is substituted with a Gaussian the detailed balance condition is only valid under approximation.
-The definition used above guarantees that the scattering matrix is symmetric and non-negative. 
+The definition used above guarantees that the scattering matrix is symmetric and non-negative.
 
 Another method is the adaptive-gaussian smearing scheme(https://link.aps.org/doi/10.1103/PhysRevB.75.195121).
 Specifically, we want to approximate a dirac-delta function of the form:
@@ -335,7 +335,7 @@ Specifically, we build it as:
 .. math::
    \sigma = \frac{1}{\sqrt{12}} \sqrt{ \sum_{\beta} (\sum_{\alpha} (v_2-v_3) \frac{M_{\alpha \beta}}{N_{\beta}}  )^2 }
 
-where :math:`M` is a matrix comprised of the primitive cell lattice vectors (each column is a lattice vector) ,:math:`v_2` and :math:`v_3` are phonon group velocities, and :math:`N_{\beta}` is the number of wavevectors sampled along direction :math:`\beta`.
+where :math:`M` is a matrix comprised of the primitive cell lattice vectors (each column is a lattice vector), :math:`v_2` and :math:`v_3` are phonon group velocities, and :math:`N_{\beta}` is the number of wavevectors sampled along direction :math:`\beta`.
 Note that the adaptive scheme may be critical in the case where the velocity sum to zero: in that case, we skip the scattering event, unless we have an exact energy conservation taking place.
 
 
@@ -350,7 +350,7 @@ The theory is fully described in the Reference available at this link (https://w
 In extreme synthesis, the thermal conductivity is estimated as:
 
 .. math::
-   k_{\alpha\beta} = k^{BTE}_{\alpha\beta} +  \frac{k_BT^2}{\Omega N_k} \sum_{\boldsymbol{q}} \sum_{s\neq s'} \frac{\omega_{\boldsymbol{q}j}+\omega_{\boldsymbol{q}j'}}{2}   V_{jj'}^{\alpha}(\boldsymbol{q}) V_{j'j}^{\beta}(\boldsymbol{q}) \frac{ ( \frac{\partial n_{\boldsymbol{q}j}}{\partial T} + \frac{\partial n_{\boldsymbol{q}j'}}{\partial T})(\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'}) }{4(\omega_{\boldsymbol{q}j}-\omega_{\boldsymbol{q}j'})^2 + (\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'})^2} 
+   k_{\alpha\beta} = k^{BTE}_{\alpha\beta} +  \frac{k_BT^2}{\Omega N_k} \sum_{\boldsymbol{q}} \sum_{s\neq s'} \frac{\omega_{\boldsymbol{q}j}+\omega_{\boldsymbol{q}j'}}{2}   V_{jj'}^{\alpha}(\boldsymbol{q}) V_{j'j}^{\beta}(\boldsymbol{q}) \frac{ ( \frac{\partial n_{\boldsymbol{q}j}}{\partial T} + \frac{\partial n_{\boldsymbol{q}j'}}{\partial T})(\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'}) }{4(\omega_{\boldsymbol{q}j}-\omega_{\boldsymbol{q}j'})^2 + (\Gamma_{\boldsymbol{q}j}+\Gamma_{\boldsymbol{q}j'})^2}
 
 
 where :math:`k^{BTE}_{\alpha\beta}` is the thermal conductivity estimated by the Boltzmann transport equation discussed above, and :math:`\Gamma_{\boldsymbol{q}j} = \frac{1}{\tau_{\boldsymbol{q}j}}` is the phonon linewidth, i.e. a diagonal element of the scattering matrix.
@@ -401,7 +401,7 @@ Using the eigenvectors of the scattering matrix, we expand the phonon population
 We find the solution as:
 
 .. math::
-   f^{kl}_{\alpha} = - \tau_{\alpha} \sum_{\nu} \theta_{\nu\alpha} \frac{\boldsymbol{v}^l_{\nu}}{\sqrt{\bar{n}_{\nu}(\bar{n}_{\nu}+1)}} \frac{\partial n^{D}_{\nu}}{\partial u^k} 
+   f^{kl}_{\alpha} = - \tau_{\alpha} \sum_{\nu} \theta_{\nu\alpha} \frac{\boldsymbol{v}^l_{\nu}}{\sqrt{\bar{n}_{\nu}(\bar{n}_{\nu}+1)}} \frac{\partial n^{D}_{\nu}}{\partial u^k}
 
 which can be used to reconstruct the phonon population response.
 Finally, the viscosity tensor is symmetrized, finding the thermal viscosity:
@@ -443,7 +443,7 @@ By default, we make use of symmetries.
 Some comments:
 
 * Advantage: for a system with a lot of symmetries, the matrix :math:`A^{ij}_{\nu^*\nu'^*}` is generally smaller than :math:`A_{\nu\nu'}`, and thus calculations will be much faster.
-  
+
 * Disadvantage 1: we cannot compute viscosity beyond the RTA using symmetries. To do so, one must disable symmetries.
 
 * Disadvantage 2: note that the symmetric matrix gains two indices on cartesian coordinates. As a result, in the limit case that there are no symmetries in the system (only the identity), the matrix :math:`A^{ij}_{\nu^*\nu'^*}` will still be computed on the same number of wavevectors of  :math:`A_{\nu\nu'}`, but occupies 3x3 times more memory without adding any information. Therefore, for low-symmetry systems, consider disabling symmetries.
