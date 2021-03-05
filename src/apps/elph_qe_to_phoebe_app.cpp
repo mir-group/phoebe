@@ -602,6 +602,10 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     }
   }
 
+  if (possibleValues == 0) {
+    offset = 0;
+  }
+
   if (offset == -1) {
     Error("Bands offset not found");
   }
