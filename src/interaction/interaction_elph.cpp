@@ -601,7 +601,6 @@ void InteractionElPhWan::calcCouplingSquared(
     }
 
     if (usePolarCorrection && q3C.norm() > 1.0e-8) {
-      std::cout << "Using polar\n";
       gFinal += getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
     }
 

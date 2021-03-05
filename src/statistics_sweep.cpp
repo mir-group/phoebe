@@ -136,7 +136,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       double deltaChemicalPotential = context.getDeltaChemicalPotential();
 
       if (std::isnan(minChemicalPotential) ||
-          std::isnan(minChemicalPotential) ||
+          std::isnan(maxChemicalPotential) ||
           std::isnan(deltaChemicalPotential)) {
         Error("Didn't find chemical potentials or doping in input");
       }
