@@ -111,6 +111,14 @@ void ScatteringMatrix::setup() {
     }
     theMatrix = ParallelMatrix<double>(matSize, matSize);
 
+    // print an estimate of the scattering matrix memory requirement
+    if(mpi->mpiHead()) {
+      std::cout << "You're storing the scattering matrix in memory.\n" <<
+        "This will require approximately " << 16*matSize*matSize/std::pow(1024,3) <<
+        " GB.\nRunning with " << mpi->getSize() << " processes, that's " <<
+        16*matSize*matSize/(std::pow(1024,3)*mpi->getSize()) << " GB per process." << std::endl;
+    }
+
     // calc matrix and linewidth.
     builder(&internalDiagonal, emptyVector, emptyVector);
   } else {
