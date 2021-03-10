@@ -39,19 +39,23 @@ MPIcontroller::MPIcontroller() {
 }
 
 void MPIcontroller::finalize() const {
+  if(mpiHead()) {
+    // print date and time of run
+    auto timenow = std::chrono::system_clock::to_time_t(
+          std::chrono::system_clock::now());
+    std::cout << "Finished on " << ctime(&timenow);
+  }
 #ifdef MPI_AVAIL
   barrier();
   if (mpiHead()) {
-    fprintf(stdout, "Final time: %3f\n s", MPI_Wtime() - startTime);
+    fprintf(stdout, "Run time: %3f s\n", MPI_Wtime() - startTime);
   }
   MPI_Finalize();
 #else
-  std::cout << "Final time: "
+  std::cout << "Run time: "
             << std::chrono::duration_cast<std::chrono::microseconds>(
-                   std::chrono::steady_clock::now() - startTime)
-                       .count() *
-                   1e-6
-            << " s" << std::endl;
+               std::chrono::steady_clock::now() - startTime)
+                  .count() * 1e-6 << " s" << std::endl;
 #endif
 }
 
