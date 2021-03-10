@@ -42,7 +42,7 @@ void MPIcontroller::finalize() const {
 #ifdef MPI_AVAIL
   barrier();
   if (mpiHead()) {
-    fprintf(stdout, "Final time: %3f\n ", MPI_Wtime() - startTime);
+    fprintf(stdout, "Final time: %3f\n s", MPI_Wtime() - startTime);
   }
   MPI_Finalize();
 #else
@@ -51,7 +51,7 @@ void MPIcontroller::finalize() const {
                    std::chrono::steady_clock::now() - startTime)
                        .count() *
                    1e-6
-            << " secs" << std::endl;
+            << " s" << std::endl;
 #endif
 }
 
@@ -101,7 +101,7 @@ std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
 }
 
 std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
-  // return a vector of indices for tasks to be completed by thsi process 
+  // return a vector of indices for tasks to be completed by thsi process
   int start = (numTasks * rank) / size;
   int stop = (numTasks * (rank + 1)) / size;
   size_t localSize = stop - start;
