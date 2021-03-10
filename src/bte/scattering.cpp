@@ -488,13 +488,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   auto particle = outerBandStructure.getParticle();
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
-  double energyToTime = timeRyToFs;
+  // we need an extra factor of two pi, likely because of unit conversion
+  // (perhaps h vs hbar)
+  double energyToTime = timeRyToFs/twoPi;
   if (particle.isPhonon()) {
     particleType = "phonon";
-    // in the case of phonons, we need an extra factor of
-    // two pi, likely because of a conversion from
-    // ordinal to angular frequency
-    energyToTime /= twoPi;
     energyUnit = "meV";
     energyConversion *= 1000;
   } else {
