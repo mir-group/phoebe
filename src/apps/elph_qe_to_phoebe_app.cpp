@@ -254,6 +254,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Electronic Fourier Transform" << std::endl;
   }
+
   // Fourier transform on the electronic coordinates
   Eigen::Tensor<std::complex<double>, 5> gMixed(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
@@ -274,7 +275,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     mpi->allReduceSum(&phases);
 
     for (int iq : mpi->divideWorkIter(numQPoints)) {
-#pragma omp parallel
+#pragma omp parallel default(none) shared(iq, gFullTmp, phases, numElBravaisVectors, numKPoints, numModes, numWannier, gMixed)
       {
         Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
         tmp.setZero();
@@ -310,6 +311,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Phonon rotation" << std::endl;
   }
+
   Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gWannierTmp.setZero();
@@ -355,6 +357,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Phonon Fourier Transform" << std::endl;
   }
+
   Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
                                                   numModes, numPhBravaisVectors,
                                                   numElBravaisVectors);
