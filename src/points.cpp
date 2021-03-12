@@ -548,8 +548,9 @@ void Points::setIrreduciblePoints(
     if (equiv(ik) == ik) {
       // check if there are equivalent k-point to this in the list
       // (excepted those previously found to be equivalent to another)
-      // check both k and -k
-      std::vector<int> possibleRotations;
+
+      std::set<int> thisStar;
+
       for (const auto &symmetry : symmetries) {
         Eigen::Matrix3d rot = symmetry.rotation;
         Eigen::Vector3d rotatedPoint =
@@ -558,6 +559,7 @@ void Points::setIrreduciblePoints(
         if (ikRot >= 0 && equiv(ikRot) == ikRot) {
           if (ikRot >= ik) {
             equiv(ikRot) = ik;
+            thisStar.insert(ikRot);
           } else {
             if (equiv(ikRot) != ik || ikRot < ik) {
               Error("Error in finding irreducible points");
@@ -565,6 +567,11 @@ void Points::setIrreduciblePoints(
           }
         }
       }
+
+      std::vector<int> tmp;
+      std::copy(thisStar.begin(), thisStar.end(), std::back_inserter(tmp));
+      std::sort(tmp.begin(), tmp.end());
+      irreducibleStars.push_back(tmp); // here we save the equivalent star
     }
   }
 
@@ -666,8 +673,8 @@ void Points::setIrreduciblePoints(
 
   // this allows us to map (ikRed in fullPoints) -> (ikIrr in the irrPoints)
   // basically the inverse of mapIrrToRedList
-  mapReducibleToIrreducibleList = Eigen::VectorXi(numPoints);
-  for (int ik = 0; ik < numPoints; ik++) {
+  mapReducibleToIrreducibleList = Eigen::VectorXi::Zero(numPoints);
+  for (int ik : mpi->divideWorkIter(numPoints)) {
     int ikIrr = equiv(ik); // map to the irreducible in fullPoints
     int ikIrr2 = -1;
     for (int i = 0; i < numIrrPoints; i++) {
@@ -677,21 +684,11 @@ void Points::setIrreduciblePoints(
       }
     }
     if (ikIrr2 == -1) {
-      Error e("Failed building irreducible points mapRedToIrrList");
+      Error("Failed building irreducible points mapRedToIrrList");
     }
     mapReducibleToIrreducibleList(ik) = ikIrr2;
   }
-
-  for (int ikIrr = 0; ikIrr < numIrrPoints; ikIrr++) {
-    std::vector<int> thisStar;
-    int ikIrrFull = mapIrreducibleToReducibleList(ikIrr);
-    for (int ik = 0; ik < numPoints; ik++) {
-      if (equiv(ik) == ikIrrFull) {
-        thisStar.push_back(ik);
-      }
-    }
-    irreducibleStars.push_back(thisStar);
-  }
+  mpi->allReduceSum(&mapReducibleToIrreducibleList);
 }
 
 std::vector<int> Points::irrPointsIterator() {
