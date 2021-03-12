@@ -367,7 +367,7 @@ Let's see the input file for computing electronic transport properties::
   phD2FileName = "silicon.fc"
   sumRuleD2 = "crystal"
   electronH0Name = "si_tb.dat",
-  epwFileName = "silicon.phoebe.elph.dat"
+  elphFileName = "silicon.phoebe.elph.dat"
 
   kMesh = [15,15,15]
   temperatures = [300.]
@@ -390,7 +390,7 @@ There is a number of parameters here:
   
 * :ref:`electronH0Name` points to the `si_tb.dat` file created by Wannier90, which contains the electron Hamiltonian in the Wannier representation.
   
-* :ref:`epwFileName` is the path to the file created at step 7 by elPhQeToPhoebe.
+* :ref:`elphFileName` is the path to the file created at step 7 by elPhQeToPhoebe.
   
 * :ref:`kMesh` is the grid used to integrate the Brillouin zone.
 

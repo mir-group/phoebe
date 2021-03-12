@@ -258,8 +258,8 @@ Step 5: Phoebe, phonon transport
 The typical input file looks like this::
 
   appName = "phononTransport"
-  phD2FileName = "./qespresso/silicon.fc",
-  phD3FileName = "./qespresso/silicon.fc3"
+  phD2FileName = "./qe-phonons/silicon.fc",
+  phD3FileName = "./qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
   sumRuleD2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
@@ -273,7 +273,7 @@ Let's go through this parameters one by one:
   
 * :ref:`phD2FileName` must point to the `flfrc` file produced by `q2r.x`
   
-* :ref:`phD2FileName` must point to the file of third derivatives
+* :ref:`phD3FileName` must point to the file of third derivatives
   
 * :ref:`sumRuleD2` allows us to re-enforce the translational-invariance of force constants, that is broken by numerical errors. After imposing this sum rule, acoustic phonon frequencies to go to zero at the gamma point.
   
@@ -355,15 +355,13 @@ If false, we only compute the action of the scattering matrix, without ever stor
 
 There is no `best` choice here, rather, you should decide what's best for your case and decide which tradeoff works best for you.
 
-* Option 1: :ref:`scatteringMatrixInMemory` = true. The scattering matrix occupies :math:`16 (3 N_{atoms} N_{q-points})^2 / 1024^3` Gygabytes, if no window is used. This number can be pretty large (even Terabytes), and you should make sure that your HPC allocation has enough memory for storing this large matrix. Given the size, we only allow you to run the code with a single temperature.
+* Option 1: :ref:`scatteringMatrixInMemory` = true. The scattering matrix occupies :math:`16 (3 N_{atoms} N_{q-points})^2 / 1024^3` Gigabytes, if no window is used. This number can be pretty large (even Terabytes), and you should make sure that your HPC allocation has enough memory for storing this large matrix. Given the size, we only allow you to run the code with a single temperature.
 
-  In exchange, iterative or variational solvers of the BTE are extremely cheap, and the cost of your simulation is basically the cost of constructing the scattering matrix. Moreover, you get access to the :ref:`solverBTE` = "relaxons" type of BTE solver.
-
+  In exchange, iterative or variational solvers of the BTE are extremely cheap, and the cost of your simulation is basically the cost of constructing the scattering matrix. Moreover, this allows you to run :ref:`solverBTE` = "relaxons" type of BTE solver.
 
 * Option 2: :ref:`scatteringMatrixInMemory` = false. The memory footprint is much lighter (the square root of before), so that the same calculation can be run on fewer CPUs. You can compute the thermal conductivity for multiple temperatures in the same run. The calculation of properties within the relaxation time approximation is as expensive as above (if this is what you care about, definitely use less memory).
 
-In exchange, iterative or variational BTE solvers are much slower.
-In fact, at each iteration you need to recompute the scattering matrix.
+  In exchange, iterative or variational BTE solvers are much slower. In fact, at each iteration you need to recompute the scattering matrix.
 The cost of the calculation therefore grows linearly with the number of iterations of the iterative solver (which may be significant).
 You also cannot diagonalize the scattering matrix with :ref:`solverBTE` = "relaxons".
 

@@ -118,9 +118,6 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   } else { // if we disable symmetries, and just use the identity
 
-    if (mpi->mpiHead()) {
-      std::cout << "Disabling symmetries\n";
-    }
     numSymmetries = 1;
     for ( int i : {0,1,2}) {
       for ( int j : {0,1,2}) {

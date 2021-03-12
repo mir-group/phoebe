@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
   // Read user input file
   Context context; // instantiate class container of the user input
   context.setupFromInput(io.getInputFileName()); // read the user input
+  if(mpi->mpiHead()) context.printInputSummary(io.getInputFileName());
 
   // decide which app to use
   std::unique_ptr<App> app = App::loadApp(context.getAppName());
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
   }
 
   // exiting program
-  IO::goodbye();
+  IO::goodbye(context);
 
   // here close parallel environment
   // make sure all processes finish before printing end info

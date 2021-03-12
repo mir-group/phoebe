@@ -598,8 +598,6 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   int nr3 = 0;
   std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
 
-  // TODO can't we simplify this? why are we setting
-  // found2 and found3?
   for (int it = 0; it < numTriplets; it++) {
 
     // load the position of the 2 atom in the current triplet
@@ -681,5 +679,10 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3,
                                 weights, weights);
 
+  if (mpi->mpiHead()) {
+    std::cout << "Successfully parsed anharmonic "
+                 "ShengBTE files.\n"
+              << std::endl;
+  }
   return interaction3Ph;
 }
