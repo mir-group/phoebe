@@ -12,7 +12,7 @@ The flux of heat, collinear to the temperature gradient, can be written in terms
    \frac{1}{N_0 \Omega} \sum_{q j} \hbar \omega_{q j} \boldsymbol{v}_{\boldsymbol{q} j} n_{\boldsymbol{q} j} = - k \frac{\partial T}{ \partial \boldsymbol{x}}
 
 On the l.h.s :math:`\omega_{\boldsymbol{q}j }` is the angular frequency of the phonon mode with vector :math:`\boldsymbol{q}` and branch index :math:`j`, :math:`\Omega` is the volume of the unit cell and the sum runs over a uniform mesh of :math:`N_0 \boldsymbol{q}` points.
-On the r.h.s. :math:`k` is the diagonal component of the thermal conductivity in the temperature-gradient direction, with :math:`\alpha` and :math:`\beta` the Cartesian indeces.
+On the r.h.s. :math:`k` is the diagonal component of the thermal conductivity in the temperature-gradient direction, with :math:`\alpha` and :math:`\beta` the Cartesian indices.
 Knowledge of the perturbed phonon population allows heat flux and subsequently thermal conductivity to be evaluated.
 Unlike phonon scattering by defects, impurities and boundaries, anharmonic scattering represents an intrinsic resistive process and in high quality samples, at room temperature, it dominates the behaviour of lattice thermal conductivity balancing the perturbation due to the gradient of temperature.
 The balance equation, namely the Boltzmann Transport Equation (BTE), formulated in 1929 by Peierls is:
