@@ -89,19 +89,19 @@ A detailed description of all this parameters can be found on Quantum ESPRESSO's
 The most important parameters to be tweaked and modified in a research project are
 
 * `nbnd`: the number of Kohn-Sham (bands) states to be computed.
-  
+
   .. note::
      It's important that this parameter is consistent with Wannier90 # of bands.
 
 * `K_POINTS`: parameter controlling the integration mesh of wavevectors in the Brillouin zone. Phonon properties should be converged against this mesh (more wavevectors is better). Tip: `ph.x` calculations are faster when the k-mesh is gamma-centered.
-  
+
 * `ecutwfc`: parameter controlling the number of G-vectors used in the plane-wave expansion of the wavefunction. Phonon frequencies should be checked against this value.
-  
+
 * `conv_thr` this parameter controls total energy convergence. Note that a poorly converged conv_thr may result in poorly converged phonon properties.
-  
+
 * `prefix`: prefix of some output files. Make sure to use a consistent value of prefix throughout your calculations.
-  
-* `outdir`: name of the scratch folder. Must be used consistently throughout thre run, so to point to the correct files.
+
+* `outdir`: name of the scratch folder. Must be used consistently throughout the run, so to point to the correct files.
 
 This list is obviously not complete, and for your research project you may need to use more functionalities of QE's `pw.x`.
 
@@ -184,7 +184,7 @@ The input file `q2r.in` is minimal::
    flfrc='silicon.fc'
  /
 
-where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants. 
+where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants.
 
 In the working folder `./example/Silicon/qespresso` run the command::
 
@@ -204,7 +204,7 @@ To this aim, we first need to compute the electronic band structure on a full gr
 You can check that the `nscf.in` file is essentially identical to the `scf.in` file, except that we
 
 * Modified the parameter `calculation = "bands"`, meaning that we will use the charge density computed at step 2 to recompute the wavefunctions.
-  
+
 * Instead of using the keyword `K_POINTS automatic, 6 6 6 0 0 0`, we explicitly write the coordinates of all \f$6^3\f$ k-points.
 
 To run it, type::
@@ -238,7 +238,7 @@ Finally, the actual wannierization::
 
 The input file of pw2wannier90 is pretty minimal::
 
- &inputpp 
+ &inputpp
    outdir = './out'
    prefix = 'silicon'
    seedname = 'si'
@@ -250,16 +250,16 @@ The input file of Wannier90 is a bit more involved::
   write_tb = true
   write_u_matrices = true
 
-  num_bands         = 12       
+  num_bands         = 12
   num_wann          = 8
   dis_win_max       = 17.d0
   dis_froz_max      = 6.4d0
   dis_num_iter      = 120
   dis_mix_ratio     = 1.d0
-  
+
   num_iter          = 500
   num_print_cycles  = 50
-  
+
   begin unit_cell_cart
   bohr
   -5.1000 0.0000 5.1000
@@ -268,16 +268,16 @@ The input file of Wannier90 is a bit more involved::
   end unit_cell_cart
 
   begin atoms_frac
-  Si   0.00  0.00   0.00 
+  Si   0.00  0.00   0.00
   Si   0.25  0.25   0.25
   End atoms_frac
-  
-  begin projections     
-  Si : sp3 
+
+  begin projections
+  Si : sp3
   end projections
-  
+
   mp_grid = 6 6 6
-  
+
   begin kpoints
     0.00000000  0.00000000  0.00000000
     ...
@@ -325,18 +325,18 @@ To do this, let's have a look at the input file `qeToPhoebeWannier.in`::
 
 There are a few parameters to comment:
 
-* :ref:`appName` = `"elPhQeToPhoebe"`: 
+* :ref:`appName` = `"elPhQeToPhoebe"`:
   here we select the app to postprocess the electron-phonon coupling created by QE.
 
 * :ref:`elPhInterpolation` = `"wannier"`:
   here, we select the postprocessing method that transforms the electron-phonon coupling to the Wannier representation.
-  
+
 * :ref:`phD2FileName` = `"silicon.fc"`
 
 * :ref:`electronH0Name` = `"si_tb.dat"` : this parameter, in the form of `{wannier90seedname}_tb.day` should locate the file created by Wannier90 thanks to the flag `write_tb`. Additionally, there should be present a file called `si_tb_dis.dat` if Wannier90 has disentangled bands.
-  
+
 * :ref:`wannier90Prefix` = `"si"` : should match the `seedname` value of Wannier90, and it is used to locate various `./si.*` files.
-  
+
 * :ref:`quantumEspressoPrefix` = `"silicon"` : this parameter is used to locate and read the files `./silicon.phoebe.*.dat` that have been created by `ph.x`.
 
 
@@ -372,7 +372,7 @@ Let's see the input file for computing electronic transport properties::
   kMesh = [15,15,15]
   temperatures = [300.]
   dopings = [1.e21]
-  
+
   smearingMethod = "gaussian"
   smearingWidth = 0.5 eV
   windowType = "population"
@@ -383,30 +383,30 @@ Let's see the input file for computing electronic transport properties::
 There is a number of parameters here:
 
 * :ref:`appName` = `"electronWannierTransport"` : selects the app for computing electronic transport properties with Wannier interpolation.
-  
+
 * :ref:`phD2FileName`: must point to the file `flfrc` created by `q2r.x`, containing the interatomic force constants.
-  
+
 * :ref:`sumRUleD2`: impose translational invariance on the force constants, so that acoustic phonon frequencies go to zero at the Gamma point.
-  
+
 * :ref:`electronH0Name` points to the `si_tb.dat` file created by Wannier90, which contains the electron Hamiltonian in the Wannier representation.
-  
+
 * :ref:`elphFileName` is the path to the file created at step 7 by elPhQeToPhoebe.
-  
+
 * :ref:`kMesh` is the grid used to integrate the Brillouin zone.
 
-  .. note:: 
+  .. note::
      Results must be converged with respect to the `kMesh`
 
 * :ref:`temperatures` in Kelvin, at which we will compute results
-  
+
 * :ref:`dopings` in cm:sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
-  
+
 * :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter @ref smearingWidth should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
-  
+
 * :ref:`windowType` reduces the number of electronic states to those close to the chemical potential. More precisely, selects the electronic states such that :math:`\frac{\partial n}{\partial T} < \delta` and :math:`\frac{\partial n}{\partial \epsilon} < \delta`, where :math:`\delta` is set by :ref:`windowPopulationLimit`. This makes the calculation much faster, as one typically needs just few states close to the chemical potential.
 
 * :ref:`scatteringMatrixInMemory` sets the scattering matrix to be kept in memory, speeding up calculations but costing more memory usage.
-  
+
 * :ref:`solverBTE` selects a number of solvers for the linearized BTE (i.e. solutions beyond the relaxation time approximation, which is always computed)
 
 To run the code, we can simply do::
@@ -427,18 +427,18 @@ If you process results with Python, JSON files can be thought as dictionary that
       resultsDict = json.load(f)
 
 There are several JSON saving all the output, such as the electronic band structure, the electronic lifetimes/linewidths, and the transport properties.
- 
+
 The main output file shows results as well as providing a report of the calculation progress.
 The calculation progresses in this way:
 
 * We start by parsing all input files.
-  
+
 * the electronic band structure is computed, and filtered with the window, if needed. In this step, we also compute the Fermi level, chemical potentials and doping concentrations.
-  
+
 * compute the scattering matrix, which is the most time-consuming step.
-  
+
 * Solve the BTE at the relaxation time approximation level, and compute the set of electronic transport coefficients (electrical conductivity, mobility, electronic thermal conductivity and Seebeck coefficient).
-  
+
 <li> Solve the Wigner transport equation at the relaxation time approximation level, and output the transport coefficients.
 
 * Compute the electronic viscosity at the relaxation time approximation level.
@@ -468,11 +468,11 @@ The sections on parallelization discussed for the phonon transport app apply to 
 Here, for simplicity, we are not discussing the convergence tests that need to be done. For a research project on a new untested material, you should make sure to:
 
 * Make sure that phonon frequencies are converged with respect to k-point sampling, q-point sampling and wavefunction cutoff.
-  
+
 * Test the convergence of the Wannier90 bandstructure with respect to the k-point sampling.
-  
+
 * Test the convergence of the electronic transport with respect to ab-initio results, in particular with respect to the k/q-point sampling.
-  
+
 * Check the convergence of the electronic transport results with respect to the parameters @ref kMesh and, if applicable, the @ref smearingWidth.
 
 

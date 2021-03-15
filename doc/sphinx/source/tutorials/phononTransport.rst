@@ -51,14 +51,14 @@ A detailed description of all this parameters can be found on Quantum ESPRESSO's
 The most important parameters to be tweaked and modified in a research project are
 
 * `K_POINTS`: parameter controlling the integration mesh of wavevectors in the Brillouin zone. Phonon properties should be converged against this mesh (more wavevectors is better). Tip: `ph.x` calculations are faster when the k-mesh is gamma-centered.
-  
+
 * `ecutwfc`: parameter controlling the number of G-vectors used in the plane-wave expansion of the wavefunction. Phonon frequencies should be checked against this value.
-  
+
 * `conv_thr` </li> this parameter controls total energy convergence. Note that a poorly converged conv_thr may result in poorly converged phonon properties.
-  
+
 * `prefix`: prefix of some output files. Make sure to use a consistent value of prefix throughout your calculations.
-  
-* `outdir`: name of the scratch folder. Must be used consistently throughout thre run, so to point to the correct files.
+
+* `outdir`: name of the scratch folder. Must be used consistently throughout the run, so to point to the correct files.
 
 This list is obviously not complete, and for your research project you may need to use more functionalities of QE's `pw.x`.
 
@@ -127,7 +127,7 @@ The input file `q2r.in` is minimal::
    flfrc='silicon.fc'
  /
 
-where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants. 
+where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants.
 
 In the working folder `./example/Silicon/qespresso` run the command::
 
@@ -145,9 +145,9 @@ In this section, we want to use a finite-displacement approach to computing the 
 To this aim, we will be using Quantum ESPRESSO to compute energies/forces, and thirdorder.py to generate a pattern of displacements in a supercell of the crystal.
 
 * Download thirdorder.py from here http://www.shengbte.org/downloads
-  
+
 * Untar the file and cd into the `./thirdorder` directory that has been just created
-  
+
 * Modify the source code in the following way.
   Modify line 559 of file thirdorder_core.c, from `#include "spglib/spglib.h"` to `#include "spglib.h"`.
   In file setup.py, set line 10 as `INCLUDE_DIRS = ["/your/path/to/phoebe/build/spglib_src/src"]` and line 13 as `LIBRARY_DIRS = ["/your/path/to/phoebe/build/spglib_build"]`.
@@ -190,17 +190,17 @@ To this aim, we will be using Quantum ESPRESSO to compute energies/forces, and t
   As you can notice, the file is the same as `scf.in`, but we modified a few things:
 
    * we set `tstress` and `tprnfor` to true.
-     
+
    * we removed `celldm` (and you should remove `alat`, if used)
-     
+
    * we set `ibrav=0`
-     
+
    * we set a tag in place of the number of atoms `nat`.
-     
+
    * Removed Cell and Coordinates cards and replaced them with tags
-     
+
    * Modified the k-points, as the k-point density should decrease like the size of the supercell we will set up. In this case, we initially set a k-point mesh of 4x4x4 points, but we will set up a supercell of size 4x4x4 and thus the new supercell k-point mesh is 1x1x1.
-   
+
 
 
 .. note::
@@ -217,15 +217,15 @@ To this aim, we will be using Quantum ESPRESSO to compute energies/forces, and t
   Next, you can see the script takes 7 parameters.
 
      * First, the QE input for the unit cell.
-       
+
      * Next, `sow` means we generate the supercells
-       
+
      * 4 4 4 is the three parameters indicating the 4x4x4 supercell size
-       
+
      * -3 indicates that we only include interactions up to the third nearest neighbor.
-       
+
      * Finally, we pass the path to the supercell template discussed above
-    
+
   This script will create a lot of input files, potentially, up to the cube of the number of atoms in the supercell, therefore choose an appropriate number of nearest neighbors (by converging the thermal conductivity)!
 
 * Now, it's time to run all of these supercell calculations!
@@ -270,22 +270,22 @@ The typical input file looks like this::
 Let's go through this parameters one by one:
 
 * :ref:`appName` = `"phononTransport"` triggers the calculation of phonon transport properties
-  
+
 * :ref:`phD2FileName` must point to the `flfrc` file produced by `q2r.x`
-  
+
 * :ref:`phD3FileName` must point to the file of third derivatives
-  
+
 * :ref:`sumRuleD2` allows us to re-enforce the translational-invariance of force constants, that is broken by numerical errors. After imposing this sum rule, acoustic phonon frequencies to go to zero at the gamma point.
-  
+
 * :ref:`qMesh` is the size of the grid of wavevectors used to integrate the Brillouin zone. Note that the value used here is very unconverged, so that the example can finish in a short amount of time.
-  
+
   .. note::
      Results must be converged against values of `qMesh`!
 
 * :ref:`temperatures` sets the temperature in Kelvin
-  
+
 * :ref:`smearingMethod` sets the algorithm to approximate the Dirac-delta conserving energy. Using the "adaptiveGaussian" scheme is particular convenient as the width of the gaussian is automatically adjusted. With "gaussian" scheme instead, you should converge the @ref smearingWidth parameter together with the :ref:`qMesh`.
-  
+
 * :ref:`solverBTE` Selects the algorithm to solve the linearized Boltzmann equation. If not specified, we only compute results within the relaxation time approximation. Here, we are using the variational solver to find the solution to the BTE.
 
 With this input, we can compute the phonon contribution to thermal conductivity of silicon.
@@ -307,9 +307,9 @@ Output
 Here is what the code is doing:
 
 * parsing input files
-  
+
 * Computing the phonon band structure (energies, eigenvectors and velocities)
-  
+
 * Computes the scattering matrix (this takes place whenever you see a block like this one::
 
     Started computing scattering matrix with 64 q-points.
@@ -321,16 +321,16 @@ Here is what the code is doing:
     Elapsed time: 0.81 s.
 
   where, for your convenience, we try to estimate the time to completion.
-  
+
 * Thermal conductivity, BTE theory, estimated within the relaxation time approximation.
-  
+
 * Wigner Thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation.
-  
+
 * Thermal viscosity tensor within the relaxation time approximation.
-  
+
 * Lattice contribution to specific heat (at constant volume)
-  
-* Optional: if you selected an exact solver, you will see additional output, which includes the thermal conductivity obtained by solving the full linearized BTE (including off-diagonal matrix elements of the scattering operator). 
+
+* Optional: if you selected an exact solver, you will see additional output, which includes the thermal conductivity obtained by solving the full linearized BTE (including off-diagonal matrix elements of the scattering operator).
 
 * Optional: if you use the relaxon solver, you will also see the thermal viscosity obtained by solving the BTE exactly.
 
@@ -338,8 +338,8 @@ Note also that the code write results in a variety of JSON files, for ease of us
 If, for example, you use Python for result postprocessing, you can load them as::
 
   import json
-  with open("rta_phonon_thermal_cond.json") as f:  
-    a=json.load(f) 
+  with open("rta_phonon_thermal_cond.json") as f:
+    a=json.load(f)
 
 After this lines, the JSON is loaded in the variable `a` as a dictionary and is ready to be postprocessed.
 
