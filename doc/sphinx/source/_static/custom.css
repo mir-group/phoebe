@@ -1,0 +1,80 @@
+/*@import 'theme.css'; */      /* for the Read the Docs theme */
+
+/* dark purple: #01118a;
+
+/* this changes the main area background block */
+/*.wy-nav-content {
+    background-color:#404040;
+}*/
+
+/* LINK COLORS ---------------------- */
+/* link colors in general*/
+a:link {
+    color:#5e4aff;
+}
+/* keep clicked link colors the same */
+a:visited {
+    color:#5e4aff;
+}
+/* link colors when moused over */
+a:hover {
+    color:#ec8aff;
+}
+
+/* SIDEBAR CHANGES ------------------ */
+/* link colors in sidebar */
+.wy-menu-vertical a {
+    color:#d9d9d9;
+    font-weight:700;
+}
+/* right sidebar color */
+.wy-body-for-nav {
+    background: #343131;
+}
+/* change sidebar header color*/
+.wy-side-nav-search, .wy-nav-top {
+    background:#5e4aff;
+}
+/* change sidebar logo size */
+.wy-side-nav-search .wy-dropdown > a img.logo,
+.wy-side-nav-search > a img.logo {
+    max-width:90%;
+}
+/* change contents label in the sidebar */
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color:#ffffff;
+    font-size:100%;
+    font-weight:800;
+    padding-left:1em;
+}
+/* change font in sidebar */
+.wy-side-nav-search .wy-dropdown > a, .wy-side-nav-search > a {
+    font-size:150%;
+}
+
+
+/* NOTE COLORS --------------------- */
+/* note heading color */
+.rst-content .note .admonition-title {
+    background:#5e4aff;
+}
+/* note body color */
+.rst-content .note {
+    background:#f1efff;
+}
+
+/* quoted code in code example color */
+.highlight .s2, .highlight .s1 {
+    color:#01118a;
+}
+
+/* change contents label in the sidebar */
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color:#ffffff;
+    font-size:100%;
+    font-weight:800;
+    padding-left:1em;
+}
+.wy-side-nav-search .wy-dropdown > a, .wy-side-nav-search > a {
+    font-size:150%;
+}
