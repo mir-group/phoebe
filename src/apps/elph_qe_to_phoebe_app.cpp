@@ -1423,7 +1423,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
   #ifdef HDF5_AVAIL
-  std::string outFileName = "./" +  phoebePrefixQE + ".phoebe.elph.hdf5";
+  std::string outFileName = phoebePrefixQE + ".phoebe.elph.hdf5";
   // if the hdf5 file is there already, we want to delete it. Occasionally
   // these files seem to get stuck open when a process dies while writing to them,
   // (even if a python script dies) and then they can't be overwritten properly.
