@@ -467,7 +467,7 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
-
+  crystal.print();
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleD2());
 
