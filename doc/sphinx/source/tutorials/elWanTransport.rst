@@ -11,7 +11,7 @@ Additionally, we will use Wannier90 to compute the maximally localized Wannier f
 The algorithms are described in the Theory section of this manual, and we assume a basic familiarity with Quantum ESPRESSO (see tutorials on phonons on Quantum ESPRESSO's website https://www.quantum-espresso.org/resources/tutorials , and a working knowledge of Wannier90 (although you should still be able to follow this tutorial).
 
 
-Step 1: patch Quantum ESPRESSO
+Step 1: Patch Quantum ESPRESSO
 ------------------------------
 
 As we discussed in the @ref thCOMPILEPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
@@ -49,7 +49,7 @@ where again you should probably customize the installation parameters.
 
 
 
-Step 2: Pw
+Step 2: pw
 ----------
 
 First, we need to compute the total energy of the silicon crystal unit cell.
@@ -172,7 +172,7 @@ These files contain the values of the electron-phonon coupling that will be used
 
 
 
-Step 4: Q2r
+Step 4: q2r
 -----------
 
 The code ph.x has created the `silicon.dyn*` files, which contain the dynamical matrix at every irreducible q-point.
@@ -196,7 +196,7 @@ If the code run successfully, you should see a new file `silicon.fc`.
 
 
 
-Step 5: Nscf
+Step 5: nscf
 ------------
 
 We are now moving over to the wannierization of the electronic band structure.
