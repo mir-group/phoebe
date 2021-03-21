@@ -14,7 +14,7 @@ The algorithms are described in the Theory section of this manual, and we assume
 Step 1: patch Quantum ESPRESSO
 ------------------------------
 
-As we discussed in the @ref thCOMPELPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
+As we discussed in the @ref thCOMPILEPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
 This will require to compile Quantum ESPRESSO. We provide two options.
 
 * Patch a copy of QE.
@@ -205,7 +205,7 @@ You can check that the `nscf.in` file is essentially identical to the `scf.in` f
 
 * Modified the parameter `calculation = "bands"`, meaning that we will use the charge density computed at step 2 to recompute the wavefunctions.
 
-* Instead of using the keyword `K_POINTS automatic, 6 6 6 0 0 0`, we explicitly write the coordinates of all \f$6^3\f$ k-points.
+* Instead of using the keyword `K_POINTS automatic, 6 6 6 0 0 0`, we explicitly write the coordinates of all :math:`6^3` k-points.
 
 To run it, type::
 
@@ -294,7 +294,7 @@ Part of this input is just a copy and paste of information coming from the file 
      write_tb = true
      write_u_matrices = true
 
-   With these, you will write to file the Hamiltonian in the Wannier representation and the rotation matrices \f$ U \f$ that are needed by phoebe.
+   With these, you will write to file the Hamiltonian in the Wannier representation and the rotation matrices :math:`U` that are needed by phoebe.
 
 The variable `num_bands` should match the value of `nbnd` set in `scf.in` and `nscf.in`.
 
@@ -399,7 +399,7 @@ There is a number of parameters here:
 
 * :ref:`temperatures` in Kelvin, at which we will compute results
 
-* :ref:`dopings` in cm:sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
+* :ref:`dopings` in :math:`cm^{-3}` at which we will compute results. This is only meaningful for semiconductors.
 
 * :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter @ref smearingWidth should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
 
