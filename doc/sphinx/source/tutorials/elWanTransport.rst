@@ -14,7 +14,7 @@ The algorithms are described in the Theory section of this manual, and we assume
 Step 1: Patch Quantum ESPRESSO
 ------------------------------
 
-As we discussed in the @ref thCOMPILEPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
+As we discussed in the :ref: `thCOMPILEPHQE` page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
 This will require to compile Quantum ESPRESSO. We provide two options.
 
 * Patch a copy of QE.
@@ -401,7 +401,7 @@ There is a number of parameters here:
 
 * :ref:`dopings` in :math:`cm^{-3}` at which we will compute results. This is only meaningful for semiconductors.
 
-* :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter @ref smearingWidth should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
+* :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter :ref: `smearingWidth` should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
 
 * :ref:`windowType` reduces the number of electronic states to those close to the chemical potential. More precisely, selects the electronic states such that :math:`\frac{\partial n}{\partial T} < \delta` and :math:`\frac{\partial n}{\partial \epsilon} < \delta`, where :math:`\delta` is set by :ref:`windowPopulationLimit`. This makes the calculation much faster, as one typically needs just few states close to the chemical potential.
 
@@ -473,7 +473,7 @@ Here, for simplicity, we are not discussing the convergence tests that need to b
 
 * Test the convergence of the electronic transport with respect to ab-initio results, in particular with respect to the k/q-point sampling.
 
-* Check the convergence of the electronic transport results with respect to the parameters @ref kMesh and, if applicable, the @ref smearingWidth.
+* Check the convergence of the electronic transport results with respect to the parameters :ref: `kMesh` and, if applicable, the :ref: `smearingWidth`.
 
 
 

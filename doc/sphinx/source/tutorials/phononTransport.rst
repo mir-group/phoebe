@@ -6,7 +6,7 @@ Synopsis
 
 In this tutorial, we want to compute the lattice thermal conductivity of Silicon.
 We will use Quantum ESPRESSO as the code that provides DFT parameters.
-As described in the @ref Theory section of this manual, we need Quantum ESPRESSO to compute the phonon dynamical matrix and the third derivative of the total energy with respect to ionic displacements.
+As described in the :ref:`Theory` section of this manual, we need Quantum ESPRESSO to compute the phonon dynamical matrix and the third derivative of the total energy with respect to ionic displacements.
 
 Note that we assume the reader to be familiar with Quantum ESPRESSO.
 Several tutorials can be found on Quantum ESPRESSO's website https://www.quantum-espresso.org/resources/tutorials , which cover more complicated DFT calculations than that described here.
@@ -284,7 +284,7 @@ Let's go through this parameters one by one:
 
 * :ref:`temperatures` sets the temperature in Kelvin
 
-* :ref:`smearingMethod` sets the algorithm to approximate the Dirac-delta conserving energy. Using the "adaptiveGaussian" scheme is particular convenient as the width of the gaussian is automatically adjusted. With "gaussian" scheme instead, you should converge the @ref smearingWidth parameter together with the :ref:`qMesh`.
+* :ref:`smearingMethod` sets the algorithm to approximate the Dirac-delta conserving energy. Using the "adaptiveGaussian" scheme is particular convenient as the width of the gaussian is automatically adjusted. With "gaussian" scheme instead, you should converge the :ref: `smearingWidth` parameter together with the :ref:`qMesh`.
 
 * :ref:`solverBTE` Selects the algorithm to solve the linearized Boltzmann equation. If not specified, we only compute results within the relaxation time approximation. Here, we are using the variational solver to find the solution to the BTE.
 
