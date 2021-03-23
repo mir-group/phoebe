@@ -113,10 +113,12 @@ void ScatteringMatrix::setup() {
 
     // print an estimate of the scattering matrix memory requirement
     if(mpi->mpiHead()) {
+      // this is a workaround to avoid overflow errors. Formula is matsize^2 * 16 bytes/ (1024)^3 bytes/gb
+      double temp = matSize/1024.0;
+      double memSize = 16*temp*temp/(1024.0);
       std::cout << "You're storing the scattering matrix in memory.\n" <<
-        "This will require approximately " << 16*matSize*matSize/std::pow(1024,3) <<
-        " GB.\nRunning with " << mpi->getSize() << " processes, that's " <<
-        16*matSize*matSize/(std::pow(1024,3)*mpi->getSize()) << " GB per process." << std::endl;
+        "This will require approximately " << memSize << " GB.\nRunning with " <<
+        mpi->getSize() << " processes, that's " << memSize/(mpi->getSize()) << " GB per process." << std::endl;
     }
 
     // calc matrix and linewidth.
