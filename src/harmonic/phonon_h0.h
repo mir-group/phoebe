@@ -104,7 +104,7 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param iPol: polarization index (0,1,2).
    * @return k: index to be used in the phonon eigenvector.
    */
-  int getIndexEigvec(const int &iAt, const int &iPol);
+  int getIndexEigvec(const int &iAt, const int &iPol) const;
 
   /** same as getIndexEigvec, but as a static member
    * @param nAtoms: the number of atoms in the unit cell
@@ -132,13 +132,6 @@ protected:
   void reorderDynamicalMatrix();
 
   Particle particle;
-
-  // these 3 variables might be used for extending future functionalities.
-  // for the first tests, they can be left at these default values
-  // in the future, we might expose them to the user input
-  bool na_ifc = false;
-  bool loTo2d = false;
-  bool frozenPhonon = false;
 
   bool hasDielectric = false;
   int numAtoms;
@@ -185,8 +178,7 @@ protected:
    * the Fourier transform of the force constants.
    */
   void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                      const Eigen::VectorXd &q,
-                      Eigen::Tensor<std::complex<double>, 4> &f_of_q);
+                      const Eigen::VectorXd &q);
 
   /** dynDiagonalize diagonalizes the dynamical matrix and returns eigenvalues and
    * eigenvectors.

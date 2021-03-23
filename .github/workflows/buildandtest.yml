@@ -15,7 +15,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-dev libhdf5-openmpi-dev libscalapack-openmpi-dev python3-pip
+          sudo apt-get update
+          sudo apt install -y libopenblas-dev liblapack-dev libhdf5-dev libhdf5-openmpi-dev libscalapack-openmpi-dev python3-pip -o Acquire::Retries=3 --fix-missing
           pip3 install numpy
       - name: Checkout
         uses: actions/checkout@v2
