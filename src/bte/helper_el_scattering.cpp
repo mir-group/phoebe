@@ -23,6 +23,10 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   auto offset = std::get<1>(t1);
   storedAllQ3 = false;
 
+  if (mpi->mpiHead()) {
+    std::cout << "Computing phonon band structure." << std::endl;
+  }
+
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
 

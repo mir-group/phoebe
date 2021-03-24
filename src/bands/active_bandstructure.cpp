@@ -66,17 +66,16 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
 
   windowMethod = Window::nothing;
-
   buildIndices();
 
   // now we can loop over the trimmed list of points
+#pragma omp parallel for default(none) shared(mpi, numPoints, h0, points, withEigenvectors, withVelocities)
   for (int ik : mpi->divideWorkIter(numPoints)) {
     Point point = points.getPoint(ik);
     auto tup = h0->diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
     auto theseEigenvectors = std::get<1>(tup);
     ActiveBandStructure::setEnergies(point, theseEnergies);
-
     if (withEigenvectors) {
       ActiveBandStructure::setEigenvectors(point, theseEigenvectors);
     }
@@ -660,6 +659,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   Points pointsCopy = points_;
   points = pointsCopy; // first we copy, without the symmetries
   points_.setIrreduciblePoints();
+
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
 

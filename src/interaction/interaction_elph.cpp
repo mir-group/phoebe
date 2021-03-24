@@ -348,6 +348,15 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
 
+  // check for existence of file
+  {
+    std::ifstream infile(fileName);
+    if (not infile.is_open()) {
+      Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
+              "not found at " + fileName + " .");
+    }
+  }
+
   try {
     // Use MPI head only to read in the small data structures
     // then distribute them below this
@@ -592,7 +601,6 @@ void InteractionElPhWan::calcCouplingSquared(
     }
 
     if (usePolarCorrection && q3C.norm() > 1.0e-8) {
-      std::cout << "Using polar\n";
       gFinal += getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
     }
 
