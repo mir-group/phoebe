@@ -612,8 +612,20 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
 
 std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
 ScatteringMatrix::diagonalize() {
-  //    std::vector<double> eigenvalues;
-  //    ParallelMatrix<double> eigenvectors;
+
+  // user info about memory
+  {
+    memoryUsage();
+    double x = 2 * pow(theMatrix.rows(),2) / pow(1024., 3) * 64.;
+    // 2 because one is for eigenvectors, another is the copy of the matrix
+    std::cout << std::setprecision(4);
+    if (mpi->mpiHead()) {
+      std::cout << "About to allocate " << x
+                << " (GB) for the scattering matrix diagonalization.\n"
+                << std::endl;
+    }
+  }
+
   auto tup = theMatrix.diagonalize();
   auto eigenvalues = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
