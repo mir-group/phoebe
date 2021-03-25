@@ -2,8 +2,8 @@
 #include "constants.h"
 #include "eigen.h"
 #include "mpiHelper.h"
-#include <iostream>
 #include <fstream> // it may be used
+#include <iostream>
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -104,7 +104,7 @@ int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
 
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd>
 reorderDynamicalMatrix(
-    Crystal &crystal, Eigen::Vector3i qCoarseGrid, const Eigen::MatrixXd& rws,
+    Crystal &crystal, Eigen::Vector3i qCoarseGrid, const Eigen::MatrixXd &rws,
     Eigen::Tensor<double, 5> &mat3R, Eigen::MatrixXd cellPositions,
     std::vector<
         std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>>
@@ -348,12 +348,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   if (fileName.empty()) {
     Error("Phono3py required file dispFCFileName "
-            "(disp_fc3.yaml) not specified in input file.");
+          "(disp_fc3.yaml) not specified in input file.");
   }
   if (not infile.is_open()) {
     Error("Phono3py required file dispFCFileName "
-            "(disp_fc3.yaml) not found at " +
-            fileName + ".");
+          "(disp_fc3.yaml) not found at " +
+          fileName + ".");
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -384,11 +384,13 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       // convert from angstrom to bohr
       std::string temp = line.substr(5, 62); // just the elements
       int idx1 = temp.find(',');
-      lattice(iLattice, 0) = std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
+      lattice(iLattice, 0) =
+          std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
       int idx2 = temp.find(',', idx1 + 1);
       lattice(iLattice, 1) =
           std::stod(temp.substr(idx1 + 1, idx2)) / distanceBohrToAng;
-      lattice(iLattice, 2) = std::stod(temp.substr(idx2 + 1)) / distanceBohrToAng;
+      lattice(iLattice, 2) =
+          std::stod(temp.substr(idx2 + 1)) / distanceBohrToAng;
       iLattice++;
     }
     if (line.find("lattice:") != std::string::npos) {
@@ -413,7 +415,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   fileName = context.getPhD3FileName();
   if (fileName.empty()) {
     Error("Phono3py phD3FileName (fc3.hdf5) file not "
-            "specified in input file.");
+          "specified in input file.");
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -423,6 +425,16 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // Set up hdf5 datasets
   HighFive::DataSet difc3 = file.getDataSet("/fc3");
   HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
+
+  // user info about memory
+  {
+    double x = pow(iPos * 3, 3) / pow(1024., 3) * 64.;
+    if (mpi->mpiHead()) {
+      std::cout << "Allocating " << x
+                << " (GB) (per MPI process) for the 3-ph coupling matrix.\n"
+                << std::endl;
+    }
+  }
 
   // set up buffer to read entire matrix
   // have to use this monstrosity because the
@@ -444,11 +456,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   if (fileName.empty()) {
     Error("Phono3py required file phonopyDispFileName "
-            "(phono3py_disp.yaml) not specified in input file.");
+          "(phono3py_disp.yaml) not specified in input file.");
   }
   if (not infile.is_open()) {
     Error("Phono3py required file phonopyDispFileName "
-            "phono3py_disp.yaml) file not found at " + fileName);
+          "phono3py_disp.yaml) file not found at " +
+          fileName);
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -524,6 +537,16 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   // Number of triplets
   std::getline(infile, line);
   int numTriplets = std::stoi(line);
+
+  // user info about memory
+  {
+    double x = 27 * numTriplets / pow(1024., 3) * 64.;
+    if (mpi->mpiHead()) {
+      std::cout << "Allocating " << x
+                << " (GB) (per MPI process) for the 3-ph coupling matrix.\n"
+                << std::endl;
+    }
+  }
 
   // Allocate quantities to be read
   Eigen::Tensor<double, 4> ifc3Tensor(3, 3, 3, numTriplets);

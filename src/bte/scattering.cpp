@@ -96,6 +96,9 @@ void ScatteringMatrix::setup() {
 
   std::vector<VectorBTE> emptyVector;
 
+  // user info about memory
+  memoryUsage();
+
   if (highMemory) {
     if (numCalcs > 1) {
       // note: one could write code around this
@@ -109,6 +112,16 @@ void ScatteringMatrix::setup() {
     } else {
       matSize = int(numStates);
     }
+
+    // user info about memory
+    {
+      double x = pow(matSize,2) / pow(1024.,3) * 64.;
+      if ( mpi->mpiHead()) {
+        std::cout << "Allocating " << x
+                  << " (GB) for the scattering matrix.\n" << std::endl;
+      }
+    }
+
     theMatrix = ParallelMatrix<double>(matSize, matSize);
 
     // calc matrix and linewidth.
@@ -130,6 +143,7 @@ VectorBTE ScatteringMatrix::diagonal() {
   }
 }
 
+/**
 //VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
 //  // outPopulation = outPopulation - internalDiagonal * inPopulation;
 //  VectorBTE outPopulation = dot(inPopulation);
@@ -145,6 +159,7 @@ VectorBTE ScatteringMatrix::diagonal() {
 //  }
 //  return outPopulation;
 //}
+**/
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   if (highMemory) {
