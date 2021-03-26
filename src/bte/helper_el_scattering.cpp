@@ -41,7 +41,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     fullPoints3 = std::make_unique<Points>(
         innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
     if (mpi->mpiHead()) { // print info on memory
-      double x = h0.getNumBands() * fullPoints3->getNumPoints() * 64. / pow(1024,3);
+      double x = h0.getNumBands() * fullPoints3->getNumPoints();
+      x *= sizeof(x) / pow(1024,3);
       std::cout << std::setprecision(4);
       std::cout << "Allocating " << x << " GB (per MPI process)." << std::endl;
     }
@@ -136,7 +137,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     activePoints3 = std::make_unique<Points>(ap3);
 
     if (mpi->mpiHead()) {
-      double x = h0.getNumBands() * activePoints3->getNumPoints() * 64. / pow(1024,3);
+      double x = h0.getNumBands() * activePoints3->getNumPoints();
+      x *= sizeof(x) / pow(1024,3);
       std::cout << std::setprecision(4);
       std::cout << "Allocating " << x << " GB (per MPI process)." << std::endl;
     }

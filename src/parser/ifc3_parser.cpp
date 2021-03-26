@@ -428,7 +428,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   // user info about memory
   {
-    double x = pow(iPos * 3, 3) / pow(1024., 3) * 64.;
+    double rx;
+    double x = pow(iPos * 3, 3) / pow(1024., 3) * sizeof(rx);
     if (mpi->mpiHead()) {
       std::cout << "Allocating " << x
                 << " (GB) (per MPI process) for the 3-ph coupling matrix.\n"
@@ -540,7 +541,8 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
 
   // user info about memory
   {
-    double x = 27 * numTriplets / pow(1024., 3) * 64.;
+    double rx;
+    double x = 27 * numTriplets / pow(1024., 3) * sizeof(rx);
     if (mpi->mpiHead()) {
       std::cout << "Allocating " << x
                 << " (GB) (per MPI process) for the 3-ph coupling matrix.\n"

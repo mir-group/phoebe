@@ -266,8 +266,9 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 
     // user info about memory
     {
+      std::complex<double> cx;
       double x = numElBands * numElBands * numPhBands * numPhBravaisVectors *
-                 numElBravaisVectors / pow(1024., 3) * 128.;
+                 numElBravaisVectors / pow(1024., 3) * sizeof(cx);
       std::cout << "Allocating " << x
                 << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
                 << std::endl;
@@ -442,7 +443,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
     // user info about memory
     {
-      double x = totElems / pow(1024., 3) * 128.;
+      std::complex<double> cx;
+      double x = totElems / pow(1024., 3) * sizeof(cx);
       if (mpi->mpiHead()) {
         std::cout << "Allocating " << x
                   << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
