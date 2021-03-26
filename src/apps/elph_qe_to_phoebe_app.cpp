@@ -644,9 +644,9 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
   int numQPoints = qPoints.getNumPoints();
 
   if ( mpi->mpiHead() ) {
-    std::cout << numBands << " " << numModes << " " << numKPoints << " " << numQPoints << "\n";
-    double x = numBands * numBands * numModes * numKPoints * numQPoints;
-    x *= 128. / pow(1024.,3) * 2.;
+    double x = pow(numWannier,2) * numModes * numKPoints * numQPoints;
+    std::complex<double> xx;
+    x *= sizeof(xx) / pow(1024.,3);
     // the last 2 is because we will later work with 2 copies of g
     std::cout << "The app will now allocate " << x
               << " (GB) of memory per MPI process\n" << std::endl;
