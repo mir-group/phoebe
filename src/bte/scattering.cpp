@@ -610,6 +610,61 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
+void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
+                                      const Eigen::VectorXd &eigenvalues) {
+  if (!mpi->mpiHead()) {
+    return;
+  }
+
+  Eigen::VectorXd times = 1. / eigenvalues.array();
+
+  std::string particleType;
+  auto particle = outerBandStructure.getParticle();
+  if (particle.isPhonon()) {
+    particleType = "phonon";
+  } else {
+    particleType = "electron";
+  }
+
+  double energyToTime = timeRyToFs / twoPi;
+  double energyConversion = energyRyToEv;
+
+  std::string energyUnit = "eV";
+
+  // need to store as a vector format with dimensions
+  // iCalc, ik. ib, iDim (where iState is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
+  std::vector<std::vector<double>> outTimes;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    std::vector<double> thisTime;
+    for (auto x : times) {
+      thisTime.push_back(x * energyToTime);
+    }
+    outTimes.push_back(thisTime);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
 std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
 ScatteringMatrix::diagonalize() {
 
