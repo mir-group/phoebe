@@ -642,6 +642,16 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
 
   int numKPoints = kPoints.getNumPoints();
   int numQPoints = qPoints.getNumPoints();
+
+  if ( mpi->mpiHead() ) {
+    double x = pow(numWannier,2) * numModes * numKPoints * numQPoints;
+    std::complex<double> xx;
+    x *= sizeof(xx) / pow(1024.,3);
+    // the last 2 is because we will later work with 2 copies of g
+    std::cout << "The app will now allocate " << x
+              << " (GB) of memory per MPI process\n" << std::endl;
+  }
+
   Eigen::Tensor<std::complex<double>, 5> g_full(numBands, numBands, numModes,
                                                 numKPoints, numQPoints);
   Eigen::Tensor<std::complex<double>, 3> phEigenvectors(numModes, numModes,

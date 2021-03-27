@@ -290,7 +290,8 @@ void PhononTransportApp::run(Context &context) {
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
     // output relaxation times
-    scatteringMatrix.outputToJSON("relaxons_relaxation_times.json");
+    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json",
+                                    eigenvalues);
 
     if (!context.getUseSymmetries()) {
       Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
