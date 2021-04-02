@@ -695,7 +695,8 @@ ScatteringMatrix::diagonalize() {
   // user info about memory
   {
     memoryUsage();
-    double x = 2 * pow(theMatrix.rows(),2) / pow(1024., 3) * 64.;
+    double xx;
+    double x = 2 * pow(theMatrix.rows(),2) / pow(1024., 3) * sizeof(xx);
     // 2 because one is for eigenvectors, another is the copy of the matrix
     std::cout << std::setprecision(4);
     if (mpi->mpiHead()) {
