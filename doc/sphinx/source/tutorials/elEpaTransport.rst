@@ -96,15 +96,15 @@ The most important parameters to be tweaked and modified in a research project a
      It's important that this parameter is consistent with Wannier90 # of bands.
 
 * `K_POINTS`: parameter controlling the integration mesh of wavevectors in the Brillouin zone. Phonon properties should be converged against this mesh (more wavevectors is better). Tip: `ph.x` calculations are faster when the k-mesh is gamma-centered.
-  
+
 * `ecutwfc`: parameter controlling the number of G-vectors used in the plane-wave expansion of the wavefunction. Phonon frequencies should be checked against this value.
-  
+
 * `conv_thr` this parameter controls total energy convergence. Note that a poorly converged conv_thr may result in poorly converged phonon properties.
-  
+
 * `prefix`: prefix of some output files. Make sure to use a consistent value of prefix throughout your calculations.
-  
+
 * `outdir`: name of the scratch folder. Must be used consistently throughout thre run, so to point to the correct files.
-  
+
 This list is obviously not complete, and for your research project you may need to use more functionalities of QE's `pw.x`.
 
 Simply run it as::
@@ -181,7 +181,7 @@ The input file `q2r.in` is minimal::
    flfrc='silicon.fc'
  /
 
-where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants. 
+where the first variable must match the path to the dynamical matrices set earlier in `ph.x`, and `flfrc` is the output file with the force constants.
 
 In the working folder `./example/Silicon/qespresso` run the command::
 
@@ -215,7 +215,7 @@ To do this, let's have a look at the input file `qeToPhoebeWannier.in`::
 
 There are a few parameters to comment:
 
-1. :ref:`appName` = `"elPhQeToPhoebe"`: 
+1. :ref:`appName` = `"elPhQeToPhoebe"`:
 here we select the app to postprocess the electron-phonon coupling created by QE.
 
 2. :ref:`elPhInterpolation` = `"epa"`:
@@ -230,11 +230,11 @@ here, we select the postprocessing method that transforms the electron-phonon co
 6. :ref:`electronFourierCutoff` = 4: this is a parameter used to control the Fourier interpolation of the electronic band structure. In this case, 4 implies that we will use all Bravais lattice vectors over a supercell of 4x4x4 times larger than the input unit cell.
 
 7. :ref:`epaMinEnergy`
-   
+
 8. :ref:`epaMaxEnergy`
-   
+
 9. :ref:`epaNumBins`: these last three parameters identify the values of energy (from min to max with numBins values) over which the electron-phonon coupling will be averaged.
-   
+
 10. :ref:`epaSmearingEnergy`: is the width of the gaussian that is used in the averaging procedure.
 
 The last 4 parameters are free parameters of the EPA calculation and should be adjusted by the user in any new material.
@@ -281,21 +281,21 @@ Let's see the input file for computing electronic transport properties::
 The parameters used here are:
 
 * :ref:`appName` = `"transportEPA"`: selects the app for computing electronic transport properties with EPA.
-  
+
 * :ref:`electronH0Name` points to the Quantum-ESPRESSO `*.xml` file created by `pw.x`, which contains the electronic single-particle energies.
-  
+
 * :ref:`epaFileName` is the path to the file created at the previous step with `elPhQeToPhoebe`.
 
 * :ref:`electronFourierCutoff`: as done above, this value controls the quality of the Fourier interpolation of the band structure, and, here, is set to interpolate using the Bravais lattice vector of a 4x4x4 supercell.
-  
+
 * :ref:`epaEnergyStep` is the energy interval used to integrate the transport coefficients, i.e. lifetimes will be computed every `epaEnergyStep` energies.
-  
+
 * :ref:`epaEnergyRange`: lifetimes will be computed for all energies in proximity of the chemical potential, i.e. for all energies such that :math:`|\epsilon-\mu|<\text{epaEnergyRange}`.
 
 * :ref:`kMesh` is the grid used to integrate the Brillouin zone for obtaining the density of states.
-  
+
 * :ref:`temperatures` in Kelvin, at which we will compute results
-  
+
 * :ref:`dopings` in cm:sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
 
 
@@ -307,7 +307,7 @@ To run the code, we can simply do::
 
 Note that the most time-consuming step of this calculation typically is the calculation of the density of states.
 However, this is still way faster than a Wannier-based transport technique.
- 
+
 The transport coefficients will be print to the output file alongside with information on the chemical potential/doping and temperature used.
 Additionally, the information on transport coefficients can be found in a JSON file, much easier to be parsed and plot for example with a python script provided in `./phoebe/scripts/plotScripts`.
 
@@ -320,12 +320,12 @@ Here again we don't discuss the necessary convergence tests that need to be done
 For that, you should make sure to test the convergence of:
 
 * test that phonon frequencies are converged with respect to k-point sampling, q-point sampling and wavefunction cutoff.
-  
+
 * Test the convergence of the electronic bandstructure with respect to the k-point sampling, the `ecutwfc` (and `ecutrho`) parameters of `pw.x` and the interpolating cutoff `electronFourierCutoff`.
-  
+
 * Test the convergence of the electronic transport with respect to ab-initio results, in particular with respect to the k/q-point sampling.
-  
+
 * Check the convergence of the electronic transport results with respect to the energy bins used in the EPA approximation
-  
+
 * test the convergence of the density of states w.r.t. the `kMesh` parameter.
 

@@ -11,10 +11,10 @@ Additionally, we will use Wannier90 to compute the maximally localized Wannier f
 The algorithms are described in the Theory section of this manual, and we assume a basic familiarity with Quantum ESPRESSO (see tutorials on phonons on Quantum ESPRESSO's website https://www.quantum-espresso.org/resources/tutorials , and a working knowledge of Wannier90 (although you should still be able to follow this tutorial).
 
 
-Step 1: patch Quantum ESPRESSO
+Step 1: Patch Quantum ESPRESSO
 ------------------------------
 
-As we discussed in the @ref thCOMPELPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
+As we discussed in the :ref: `thCOMPILEPHQE` page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
 This will require to compile Quantum ESPRESSO. We provide two options.
 
 * Patch a copy of QE.
@@ -49,7 +49,7 @@ where again you should probably customize the installation parameters.
 
 
 
-Step 2: Pw
+Step 2: pw
 ----------
 
 First, we need to compute the total energy of the silicon crystal unit cell.
@@ -172,7 +172,7 @@ These files contain the values of the electron-phonon coupling that will be used
 
 
 
-Step 4: Q2r
+Step 4: q2r
 -----------
 
 The code ph.x has created the `silicon.dyn*` files, which contain the dynamical matrix at every irreducible q-point.
@@ -196,7 +196,7 @@ If the code run successfully, you should see a new file `silicon.fc`.
 
 
 
-Step 5: Nscf
+Step 5: nscf
 ------------
 
 We are now moving over to the wannierization of the electronic band structure.
@@ -205,7 +205,7 @@ You can check that the `nscf.in` file is essentially identical to the `scf.in` f
 
 * Modified the parameter `calculation = "bands"`, meaning that we will use the charge density computed at step 2 to recompute the wavefunctions.
 
-* Instead of using the keyword `K_POINTS automatic, 6 6 6 0 0 0`, we explicitly write the coordinates of all \f$6^3\f$ k-points.
+* Instead of using the keyword `K_POINTS automatic, 6 6 6 0 0 0`, we explicitly write the coordinates of all :math:`6^3` k-points.
 
 To run it, type::
 
@@ -294,7 +294,7 @@ Part of this input is just a copy and paste of information coming from the file 
      write_tb = true
      write_u_matrices = true
 
-   With these, you will write to file the Hamiltonian in the Wannier representation and the rotation matrices \f$ U \f$ that are needed by phoebe.
+   With these, you will write to file the Hamiltonian in the Wannier representation and the rotation matrices :math:`U` that are needed by phoebe.
 
 The variable `num_bands` should match the value of `nbnd` set in `scf.in` and `nscf.in`.
 
@@ -399,9 +399,9 @@ There is a number of parameters here:
 
 * :ref:`temperatures` in Kelvin, at which we will compute results
 
-* :ref:`dopings` in cm:sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
+* :ref:`dopings` in :math:`cm^{-3}` at which we will compute results. This is only meaningful for semiconductors.
 
-* :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter @ref smearingWidth should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
+* :ref:`smearingMethod` and :ref:`smearingWidth` sets the algorithm to approximate the Dirac-delta conserving energy. Here we are using the "gaussian" scheme, and the parameter :ref: `smearingWidth` should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically.
 
 * :ref:`windowType` reduces the number of electronic states to those close to the chemical potential. More precisely, selects the electronic states such that :math:`\frac{\partial n}{\partial T} < \delta` and :math:`\frac{\partial n}{\partial \epsilon} < \delta`, where :math:`\delta` is set by :ref:`windowPopulationLimit`. This makes the calculation much faster, as one typically needs just few states close to the chemical potential.
 
@@ -473,7 +473,7 @@ Here, for simplicity, we are not discussing the convergence tests that need to b
 
 * Test the convergence of the electronic transport with respect to ab-initio results, in particular with respect to the k/q-point sampling.
 
-* Check the convergence of the electronic transport results with respect to the parameters @ref kMesh and, if applicable, the @ref smearingWidth.
+* Check the convergence of the electronic transport results with respect to the parameters :ref: `kMesh` and, if applicable, the :ref: `smearingWidth`.
 
 
 
