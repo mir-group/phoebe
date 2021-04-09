@@ -4,7 +4,7 @@ Installing Phoebe
 Download
 --------
 
-The code is available (free of charge with an open-source MIT license) at its [github page](https://github.com/mir-group/phoebe).
+The code is available (free of charge with an open-source MIT license) at its `github page <https://github.com/mir-group/phoebe)>`__.
 If checking out from the GitHub repository, make sure to use the master branch for production. The developer's branch, while we will attempt to keep it in working condition, is not recommended for public usage.
 
 
