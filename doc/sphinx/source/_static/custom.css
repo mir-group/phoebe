@@ -1,57 +1,68 @@
 /*@import 'theme.css'; */      /* for the Read the Docs theme */
 
-/* dark purple: #01118a;
-
+/* MAIN BODY AREA ------------------------- */
 /* this changes the main area background block */
 /*.wy-nav-content {
-    background-color:#404040;
+    background-color:#363636;
 }*/
+/* changes main area font colors */ /*
+body h1, h2, h3, h4, p, li, ul {
+    color:#ffffff;
+}*/
+/* increase the max with of main area,
+ * which is narrow in default read the docs */
+.wy-nav-content {
+    max-width: 1200px;
+}
+/* right side background color */
+.wy-body-for-nav {
+    background:#17101F;
+}
 
 /* LINK COLORS ---------------------- */
 /* link colors in general*/
 a:link {
-    color:#5e4aff;
+    color:#4825D0;
 }
 /* keep clicked link colors the same */
 a:visited {
-    color:#5e4aff;
+    color:#4825D0;
 }
 /* link colors when moused over */
 a:hover {
-    color:#ec8aff;
+    color:#D4ACFF;
 }
 
-/* SIDEBAR CHANGES ------------------ */
+/* SIDEBAR  ------------------------- */
 /* link colors in sidebar */
 .wy-menu-vertical a {
     color:#d9d9d9;
     font-weight:700;
 }
-/* right sidebar color */
-.wy-body-for-nav {
-    background: #343131;
+/* the color of the dropdown menu area */
+.wy-menu-vertical, .wy-nav-side {
+    background:#17101F;
 }
 /* change sidebar header color*/
 .wy-side-nav-search, .wy-nav-top {
-    background:#5e4aff;
+    background:#17101F;
 }
 /* change sidebar logo size */
 .wy-side-nav-search .wy-dropdown > a img.logo,
 .wy-side-nav-search > a img.logo {
     max-width:90%;
 }
-/* change contents label in the sidebar */
+/* change "contents" label in the sidebar */
 .wy-menu-vertical header, .wy-menu-vertical p.caption {
     color:#ffffff;
     font-size:100%;
     font-weight:800;
     padding-left:1em;
 }
-/* change font in sidebar */
-.wy-side-nav-search .wy-dropdown > a, .wy-side-nav-search > a {
-    font-size:150%;
+/* change sidebar menu fonts */
+.wy-menu-vertical a {
+    font-size:95%;
 }
-
 
 /* NOTE COLORS --------------------- */
 /* note heading color */
@@ -60,21 +71,25 @@ a:hover {
 }
 /* note body color */
 .rst-content .note {
-    background:#f1efff;
+    background:#f4f2ff;
 }
 
+/* WARNING COLORS --------------------- */
+/* note heading color */
+.rst-content .warning .admonition-title {
+    background:#5e4aff; /*#82e0cb;*/
+}
+/* note body color */
+.rst-content .warning {
+    background:#f4f2ff; /*#daf6ef;*/
+}
+
+/* FONT COLORS FOR CODE BLOCKS --------- */
 /* quoted code in code example color */
 .highlight .s2, .highlight .s1 {
-    color:#01118a;
+    color:#000000; /* these come out red if not set to black */
+}
+.highlight .c1 {
+    color:#5e4aff;
 }
 
-/* change contents label in the sidebar */
-.wy-menu-vertical header, .wy-menu-vertical p.caption {
-    color:#ffffff;
-    font-size:100%;
-    font-weight:800;
-    padding-left:1em;
-}
-.wy-side-nav-search .wy-dropdown > a, .wy-side-nav-search > a {
-    font-size:150%;
-}

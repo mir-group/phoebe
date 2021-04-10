@@ -63,7 +63,7 @@ subprocess.call('cp -r ../../doxygen/html ./doxygen', shell=True)
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static','doxygen']
 
-html_logo = '_static/logo_alt.png'
+html_logo = '_static/light-logo.png'
 html_theme_options = {
     'logo_only': True,
     'display_version': False,
