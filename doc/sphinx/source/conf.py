@@ -64,6 +64,7 @@ subprocess.call('cp -r ../../doxygen/html ./doxygen', shell=True)
 html_static_path = ['_static','doxygen']
 
 html_logo = '_static/light-logo.png'
+html_favicon = '_static/icon.png'
 html_theme_options = {
     'logo_only': True,
     'display_version': False,
