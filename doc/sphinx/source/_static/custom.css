@@ -93,3 +93,8 @@ a:hover {
     color:#5e4aff;
 }
 
+/* INLINE CODE COLOR */
+.rst-content code.literal {
+    color:#02ba9d;
+    font-weight:600;
+}
