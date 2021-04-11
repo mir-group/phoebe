@@ -33,8 +33,10 @@ Basic build
 
 To install Phoebe, type::
 
+  # clone the git repository, including the Kokkos submodule
   git clone --recurse-submodules https://github.com/mir-group/phoebe.git
   cd phoebe
+  # build the code
   mkdir build
   cd build
   cmake ..
