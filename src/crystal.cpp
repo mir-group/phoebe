@@ -99,7 +99,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
       typesSPG[i] = atomicSpecies(i) + 1;
     }
 
-    double symmetryPrecision = 1e-5;
+    double symmetryPrecision = 1e-4;
     numSymmetries =
         spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
                          positionSPG, typesSPG, numAtoms, symmetryPrecision);

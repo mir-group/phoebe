@@ -85,4 +85,12 @@ using BandIndex = NamedType<int, struct BandTag>;
  */
 using StateIndex = NamedType<int, struct StateTag>;
 
+/** Function to obtain an estimate of virtual memory used so far.
+ *
+ * @return [vm_usage,resident_set]: tuple with
+ * 1) memory used by the OS in MB
+ * 2) memory used by phoebe in MB
+ */
+std::tuple<double, double> memoryUsage();
+
 #endif

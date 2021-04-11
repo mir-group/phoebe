@@ -235,6 +235,8 @@ void ElectronWannierTransportApp::run(Context &context) {
                                      scatteringMatrix);
     transportCoeffs.print();
     transportCoeffs.outputToJSON("relaxons_onsager_coefficients.json");
+    scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json",
+                                    eigenvalues);
 
     if (!context.getUseSymmetries()) {
       Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);

@@ -366,14 +366,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                            linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                           }
                           theMatrix(iMat1, iMat2) += rotation(i, j) * ratePlus;
                         }
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     theMatrix(iBte1, iBte2) += ratePlus;
                   }
 
@@ -396,12 +396,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       outPopulations[iInput](iCalc, i, iBte1) +=
                           ratePlus * inPopRot(i);
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          ratePlus * inPopulations[iInput](iCalc, i, iBte1);
+                          0.5 * ratePlus * inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
 
                 } else { // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                 }
               }
             }
@@ -478,7 +478,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) +=
-                                0.5 * rateMinus2;
+                                0.5 * (rateMinus1 + rateMinus2);
                           }
                           theMatrix(iMat1, iMat2) -=
                               rotation(i, j) * (rateMinus1 + rateMinus2);
@@ -486,7 +486,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * rateMinus2;
+                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
                     theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
                   }
 
@@ -506,12 +506,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       outPopulations[iInput](iCalc, i, iBte1) -=
                           (rateMinus1 + rateMinus2) * inPopRot(i);
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          0.5 * rateMinus2 *
+                          0.5 * (rateMinus1 + rateMinus2) *
                           inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
                 } else { // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * rateMinus2;
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
                 }
               }
             }

@@ -12,8 +12,7 @@ InteractionElPhWan::InteractionElPhWan(
     const Eigen::MatrixXd &elBravaisVectors_,
     const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
     const Eigen::MatrixXd &phBravaisVectors_,
-    const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
-    PhononH0 *phononH0_)
+    const Eigen::VectorXd &phBravaisVectorsDegeneracies_, PhononH0 *phononH0_)
     : crystal(crystal_), phononH0(phononH0_) {
 
   couplingWannier = couplingWannier_;
@@ -178,9 +177,9 @@ InteractionElPhWan::getPolarCorrectionStatic(
 // Forward declare these helper functions, as it reads nicely to have
 // the general parse function first
 InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
-                                             PhononH0 *phononH0_);
+                             PhononH0 *phononH0_);
 InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
-                                             PhononH0 *phononH0_);
+                               PhononH0 *phononH0_);
 
 // General parse function
 InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
@@ -189,11 +188,11 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
     std::cout << "\n";
     std::cout << "Started parsing of el-ph interaction." << std::endl;
   }
-  #ifdef HDF5_AVAIL
-    auto output = parseHDF5(context, crystal, phononH0_);
-  #else
-    auto output = parseNoHDF5(context, crystal, phononH0_);
-  #endif
+#ifdef HDF5_AVAIL
+  auto output = parseHDF5(context, crystal, phononH0_);
+#else
+  auto output = parseNoHDF5(context, crystal, phononH0_);
+#endif
 
   if (mpi->mpiHead()) {
     std::cout << "Finished parsing of el-ph interaction." << std::endl;
@@ -204,7 +203,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
 // specific parse function for the case where there is no
 // HDF5 available
 InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
-                                             PhononH0 *phononH0_) {
+                               PhononH0 *phononH0_) {
 
   std::string fileName = context.getElphFileName();
 
@@ -264,8 +263,19 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
     // Read real space matrix elements for el-ph coupling
     int tmpI;
     infile >> numElBands >> tmpI >> numPhBands >> tmpI >> tmpI;
+
+    // user info about memory
+    {
+      std::complex<double> cx;
+      double x = numElBands * numElBands * numPhBands * numPhBravaisVectors *
+                 numElBravaisVectors / pow(1024., 3) * sizeof(cx);
+      std::cout << "Allocating " << x
+                << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
+                << std::endl;
+    }
+
     couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                           numPhBravaisVectors, numElBravaisVectors);
+                            numPhBravaisVectors, numElBravaisVectors);
     couplingWannier_.setZero();
     double re, im;
     for (int i5 = 0; i5 < numElBravaisVectors; i5++) {
@@ -338,7 +348,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 #ifdef HDF5_AVAIL
 // specific parse function for the case where parallel HDF5 is available
 InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
-                                             PhononH0 *phononH0_) {
+                             PhononH0 *phononH0_) {
 
   std::string fileName = context.getElphFileName();
 
@@ -348,10 +358,20 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
 
+  // check for existence of file
+  {
+    std::ifstream infile(fileName);
+    if (not infile.is_open()) {
+      Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
+            "not found at " +
+            fileName + " .");
+    }
+  }
+
   try {
     // Use MPI head only to read in the small data structures
     // then distribute them below this
-    if(mpi->mpiHead()) {
+    if (mpi->mpiHead()) {
       // need to open the files differently if MPI is available or not
       // NOTE: do not remove the braces inside this if -- the file must
       // go out of scope, so that it can be reopened for parallel
@@ -385,7 +405,6 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
         dphDegeneracies.read(phBravaisVectorsDegeneracies_);
         delDegeneracies.read(elBravaisVectorsDegeneracies_);
-
       }
     }
     // bcast to all MPI processes
@@ -407,7 +426,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       elBravaisVectors_.resize(3, numElBravaisVectors);
       elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
       couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                            numElBravaisVectors, numPhBravaisVectors);
+                              numElBravaisVectors, numPhBravaisVectors);
       phBravaisVectors_.setZero();
       phBravaisVectorsDegeneracies_.setZero();
       elBravaisVectors_.setZero();
@@ -419,66 +438,80 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&phBravaisVectorsDegeneracies_);
 
     // Define the eph matrix element containers
-    size_t totElems = numElBands * numElBands * numPhBands
-        * numPhBravaisVectors * numElBravaisVectors;
+    size_t totElems = numElBands * numElBands * numPhBands *
+                      numPhBravaisVectors * numElBravaisVectors;
+
+    // user info about memory
+    {
+      std::complex<double> cx;
+      double x = totElems / pow(1024., 3) * sizeof(cx);
+      if (mpi->mpiHead()) {
+        std::cout << "Allocating " << x
+                  << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
+                  << std::endl;
+      }
+    }
+
     couplingWannier_.resize(numElBands, numElBands, numPhBands,
-        numPhBravaisVectors, numElBravaisVectors);
+                            numPhBravaisVectors, numElBravaisVectors);
     couplingWannier_.setZero();
 
-    // Regular parallel read
-    #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
+// Regular parallel read
+#if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
 
-      // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
-      HighFive::File file(fileName,  HighFive::File::ReadOnly,
-         HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+    // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
+    HighFive::File file(
+        fileName, HighFive::File::ReadOnly,
+        HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-      // get the start and stop points of elements to be written by this process
-      std::vector<int> workDivs = mpi->divideWork(totElems);
-      size_t localElems = workDivs[1]-workDivs[0];
+    // get the start and stop points of elements to be written by this process
+    std::vector<int> workDivs = mpi->divideWork(totElems);
+    size_t localElems = workDivs[1] - workDivs[0];
 
-      // Set up buffer to be filled from hdf5
-      std::vector<std::complex<double>> gWanSlice(localElems);
-      // Set up buffer to receive full matrix data
-      std::vector<std::complex<double>> gWanFlat(totElems);
+    // Set up buffer to be filled from hdf5
+    std::vector<std::complex<double>> gWanSlice(localElems);
+    // Set up buffer to receive full matrix data
+    std::vector<std::complex<double>> gWanFlat(totElems);
+
+    // Set up dataset for gWannier
+    HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+    // Read in the elements for this process
+    dgWannier.select({0, size_t(workDivs[0])}, {1, localElems}).read(gWanSlice);
+
+    // Gather the elements read in by each process
+    mpi->allGatherv(&gWanSlice, &gWanFlat);
+
+    // Map the flattened matrix back to tensor structure
+    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(
+        gWanFlat.data(), numElBands, numElBands, numPhBands,
+        numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_ = gWanTemp;
+
+#else
+    // Reopen serial version, either because MPI does not exist
+    // or because we forced HDF5 to run in serial.
+
+    // Set up buffer to receive full matrix data
+    std::vector<std::complex<double>> gWanFlat(totElems);
+
+    if (mpi->mpiHead()) {
+      HighFive::File file(fileName, HighFive::File::ReadOnly);
 
       // Set up dataset for gWannier
       HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
       // Read in the elements for this process
-      dgWannier.select({0, size_t(workDivs[0])}, {1, localElems}).read(gWanSlice);
+      dgWannier.read(gWanFlat);
+    }
+    mpi->bcast(&gWanFlat);
 
-      // Gather the elements read in by each process
-      mpi->allGatherv(&gWanSlice,&gWanFlat);
+    // Map the flattened matrix back to tensor structure
+    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(
+        gWanFlat.data(), numElBands, numElBands, numPhBands,
+        numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_ = gWanTemp;
+#endif
 
-      // Map the flattened matrix back to tensor structure
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(),
-          numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
-      couplingWannier_ = gWanTemp;
-
-    #else
-      // Reopen serial version, either because MPI does not exist
-      // or because we forced HDF5 to run in serial.
-
-      // Set up buffer to receive full matrix data
-      std::vector<std::complex<double>> gWanFlat(totElems);
-
-      if(mpi->mpiHead()) {
-        HighFive::File file(fileName,  HighFive::File::ReadOnly);
-
-        // Set up dataset for gWannier
-        HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
-        // Read in the elements for this process
-        dgWannier.read(gWanFlat);
-      }
-      mpi->bcast(&gWanFlat);
-
-      // Map the flattened matrix back to tensor structure
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(gWanFlat.data(),
-          numElBands, numElBands, numPhBands, numPhBravaisVectors, numElBravaisVectors);
-      couplingWannier_ = gWanTemp;
-    #endif
-
-}
-  catch(std::exception& error) {
+  } catch (std::exception &error) {
     Error("Issue reading elph Wannier represenation from hdf5.");
   }
 
@@ -486,15 +519,13 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
                             phBravaisVectorsDegeneracies_, phononH0_);
   return output;
-
 }
 #endif
 
 void InteractionElPhWan::calcCouplingSquared(
     const Eigen::MatrixXcd &eigvec1,
     const std::vector<Eigen::MatrixXcd> &eigvecs2,
-    const std::vector<Eigen::MatrixXcd> &eigvecs3,
-    const Eigen::Vector3d &k1C,
+    const std::vector<Eigen::MatrixXcd> &eigvecs3, const Eigen::Vector3d &k1C,
     const std::vector<Eigen::Vector3d> &k2Cs,
     const std::vector<Eigen::Vector3d> &q3Cs) {
   (void)k2Cs;
@@ -592,7 +623,6 @@ void InteractionElPhWan::calcCouplingSquared(
     }
 
     if (usePolarCorrection && q3C.norm() > 1.0e-8) {
-      std::cout << "Using polar\n";
       gFinal += getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
     }
 

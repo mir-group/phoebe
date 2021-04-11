@@ -62,9 +62,6 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 // copy constructor
 PhononH0::PhononH0(const PhononH0 &that)
     : particle(that.particle),
-      na_ifc(that.na_ifc),
-      loTo2d(that.loTo2d),
-      frozenPhonon(that.frozenPhonon),
       hasDielectric(that.hasDielectric),
       numAtoms(that.numAtoms), numBands(that.numBands),
       directUnitCell(that.directUnitCell),
@@ -82,9 +79,6 @@ PhononH0::PhononH0(const PhononH0 &that)
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
   if (this != &that) {
     particle = that.particle;
-    na_ifc = that.na_ifc;
-    loTo2d = that.loTo2d;
-    frozenPhonon = that.frozenPhonon;
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
@@ -138,43 +132,13 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
   Eigen::Tensor<std::complex<double>, 4> dyn(3, 3, numAtoms, numAtoms);
   dyn.setZero();
 
-  Eigen::Tensor<std::complex<double>, 4> f_of_q(3, 3, numAtoms, numAtoms);
-  f_of_q.setZero();
-
-  // for now, this part is not executed
-  if (na_ifc) {
-    double qq = q.norm(); // q is the q-point coordinate
-    if (abs(qq) < 1.0e-8) {
-      qq = 1.;
-    }
-
-    Eigen::VectorXd qHat = q / qq;
-    nonAnalIFC(qHat, f_of_q);
-  }
-
   // first, the short range term, which is just a Fourier transform
-  shortRangeTerm(dyn, q, f_of_q);
+  shortRangeTerm(dyn, q);
 
   // then the long range term, which uses some convergence
   // tricks by X. Gonze et al.
-  if (hasDielectric && !na_ifc) {
+  if (hasDielectric) {
     longRangeTerm(dyn, q, +1.);
-  }
-
-  // finally, the non-analytic term from Born charges
-  if (!loTo2d && na_ifc) {
-    Eigen::VectorXd qHat = q;
-    if (abs(qHat(0) - round(qHat(0))) <= 1.0e-6 &&
-        abs(qHat(1) - round(qHat(1))) <= 1.0e-6 &&
-        abs(qHat(2) - round(qHat(2))) <= 1.0e-6) {
-      // q = 0 : we need the direction q => 0 for the non-analytic part
-
-      double qq = qHat.norm();
-      if (qq != 0.) {
-        qHat /= qq;
-      }
-      nonAnalyticTerm(qHat, dyn);
-    }
   }
 
   // once everything is ready, here we scale by masses and diagonalize
@@ -246,7 +210,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
           index += 1;
         }
         if (index > nrwsx) {
-          Error e("WSInit > nrwsx", 1);
+          Error("WSInit > nrwsx");
         }
       }
     }
@@ -284,13 +248,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
               r_ws(i) = double(n1) * directUnitCell(i, 0)
                       + double(n2) * directUnitCell(i, 1)
                       + double(n3) * directUnitCell(i, 2);
-              if (frozenPhonon) {
-                r_ws(i) =
-                    r_ws(i) + atomicPositions(nb, i) - atomicPositions(na, i);
-              } else {
-                r_ws(i) =
-                    r_ws(i) + atomicPositions(na, i) - atomicPositions(nb, i);
-              }
+              r_ws(i) += atomicPositions(na, i) - atomicPositions(nb, i);
             }
 
             double x = wsWeight(r_ws, rws);
@@ -302,9 +260,8 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
 
       if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) >
           1.0e-8) {
-        std::cout << total_weight << " "
-                  << qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2) << "\n";
-        Error e("wrong total_weight");
+        std::cout << total_weight << " " << qCoarseGrid.prod() << "\n";
+        Error("wrong total_weight");
       }
     }
   }
@@ -368,10 +325,9 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   int nr1x, nr2x, nr3x;
   Eigen::VectorXd zag(3), zbg(3), zcg(3), fnat(3);
   Eigen::MatrixXd reff(2, 2);
-  double fac, facgd, arg, gp2;
+  double fac, facgd, arg;
   std::complex<double> facg;
 
-  double r = 0.;
   double gmax = 14.;
   double alpha = 1.;
   double geg = gmax * alpha * 4.;
@@ -398,25 +354,10 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   }
 
   if (abs(double(sign)) != 1.) {
-    Error e("wrong value for sign", 1);
+    Error("wrong value for sign");
   }
 
-  if (loTo2d) {
-    fac = double(sign) * e2 / volumeUnitCell / reciprocalUnitCell(3, 3);
-    reff.setZero();
-    for (int i : {0, 1}) {
-      for (int j : {0, 1}) {
-        reff(i, j) = dielectricMatrix(i, j) * 0.5 /
-                     reciprocalUnitCell(3, 3); // (eps)*c/2
-      }
-    }
-    for (int i : {0, 1}) {
-      reff(i, i) = reff(i, i) - 0.5 / reciprocalUnitCell(3, 3);
-      // (-1)*c/2
-    }
-  } else {
-    fac = double(sign) * e2 * fourPi / volumeUnitCell;
-  }
+  fac = double(sign) * e2 * fourPi / volumeUnitCell;
 
   Eigen::VectorXd g(3);
   std::complex<double> phase;
@@ -430,26 +371,10 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         g(2) = double(m1) * reciprocalUnitCell(2, 0) + double(m2) * reciprocalUnitCell(2, 1) +
             double(m3) * reciprocalUnitCell(2, 2);
 
-        if (loTo2d) {
-          geg = g.squaredNorm();
-          r = 0.;
-          gp2 = g(0) * g(0) + g(1) * g(1);
-          if (gp2 > 1.0e-8) {
-            r = g(0) * reff(0, 0) * g(0) + g(0) * reff(0, 1) * g(1) +
-                g(1) * reff(1, 0) * g(0) + g(1) * reff(1, 1) * g(1);
-            r = r / gp2;
-          }
-        } else {
-          geg = (g.transpose() * dielectricMatrix * g).value();
-        }
+        geg = (g.transpose() * dielectricMatrix * g).value();
 
         if (geg > 0. && geg / alpha / 4. < gmax) {
-          if (loTo2d) {
-            facgd =
-                fac * exp(-geg / alpha / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
-          } else {
-            facgd = fac * exp(-geg / alpha / 4.) / geg;
-          }
+          facgd = fac * exp(-geg / alpha / 4.) / geg;
 
           for (int na = 0; na < numAtoms; na++) {
             for (int i : {0, 1, 2}) {
@@ -477,26 +402,10 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
         g += q;
 
-        if (loTo2d) {
-          geg = g.squaredNorm();
-          r = 0.;
-          gp2 = g(0) * g(0) + g(1) * g(1);
-          if (gp2 > 1.0e-8) {
-            r = g(0) * reff(0, 0) * g(0) + g(0) * reff(0, 1) * g(1) +
-                g(1) * reff(1, 0) * g(0) + g(1) * reff(1, 1) * g(1);
-            r = r / gp2;
-          }
-        } else {
-          geg = (g.transpose() * dielectricMatrix * g).value();
-        }
+        geg = (g.transpose() * dielectricMatrix * g).value();
 
         if (geg > 0. && geg / alpha / 4. < gmax) {
-          if (loTo2d) {
-            facgd =
-                fac * exp(-geg / alpha / 4.) / sqrt(geg) / (1. + r * sqrt(geg));
-          } else {
-            facgd = fac * exp(-geg / alpha / 4.) / geg;
-          }
+          facgd = fac * exp(-geg / alpha / 4.) / geg;
 
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int i : {0, 1, 2}) {
@@ -520,97 +429,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
               }
             }
           }
-        }
-      }
-    }
-  }
-}
-
-void PhononH0::nonAnalyticTerm(const Eigen::VectorXd &q,
-                               Eigen::Tensor<std::complex<double>, 4> &dyn) {
-  // add the nonAnalytical term with macroscopic electric fields
-  // numAtoms: number of atoms in the cell (in the super-cell in the case
-  //       of a dyn.mat. constructed in the mass approximation)
-  // atomicSpecies(na): atom in the original cell corresponding to
-  //                atom na in the super-cell
-  // dyn(3,3,numAtoms,numAtoms) ! dynamical matrix
-  // q(3), & ! polarization vector
-  // dielectricMatrix(3,3),              & ! dielectric constant tensor
-  // bornCharges(3,3,numAtoms),        & ! effective charges tensor
-  // volumeUnitCell                      ! unit cell volume
-
-  double qeq = (q.transpose() * dielectricMatrix * q).value();
-  if (qeq < 1.e-8) {
-    Warning w("A direction for q was not specified: "
-              "TO-LO splitting will be absent");
-    return;
-  }
-
-  Eigen::VectorXd zag(3), zbg(3);
-
-  int iType, jType;
-
-  for (int it = 0; it < numAtoms; it++) {
-    iType = atomicSpecies(it);
-    for (int jt = 0; jt < numAtoms; jt++) {
-      jType = atomicSpecies(jt);
-
-      for (int i : {0, 1, 2}) {
-        zag(i) = q(0) * bornCharges(iType, 0, i) +
-                 q(1) * bornCharges(iType, 1, i) +
-                 q(2) * bornCharges(iType, 2, i);
-        zbg(i) = q(0) * bornCharges(jType, 0, i) +
-                 q(1) * bornCharges(jType, 1, i) +
-                 q(2) * bornCharges(jType, 2, i);
-      }
-
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
-          dyn(i, j, it, jt) +=
-              fourPi * e2 * zag(i) * zbg(j) / qeq / volumeUnitCell;
-        }
-      }
-    }
-  }
-}
-
-void PhononH0::nonAnalIFC(const Eigen::VectorXd &q,
-                          Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
-  //     add the non-analytical term with macroscopic electric fields
-  // q(3) : polarization vector
-
-  Eigen::VectorXd zag(3), zbg(3); // eff. charges  times g-vector
-
-  if (q.squaredNorm() == 0.) {
-    return;
-  }
-
-  double qeq = q.transpose() * dielectricMatrix * q;
-
-  if (qeq < 1.0e-8) {
-    return;
-  }
-
-  int na_blk, nb_blk;
-
-  double factor = fourPi * e2 / qeq / volumeUnitCell /
-                  (qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2));
-
-  for (int na = 0; na < numAtoms; na++) {
-    na_blk = atomicSpecies(na);
-    for (int nb = 0; nb < numAtoms; nb++) {
-      nb_blk = atomicSpecies(nb);
-      for (int i : {0, 1, 2}) {
-        zag(i) = q(0) * bornCharges(na_blk, 0, i) +
-                 q(1) * bornCharges(na_blk, 1, i) +
-                 q(2) * bornCharges(na_blk, 2, i);
-        zbg(i) = q(0) * bornCharges(nb_blk, 0, i) +
-                 q(1) * bornCharges(nb_blk, 1, i) +
-                 q(2) * bornCharges(nb_blk, 2, i);
-      }
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
-          f_of_q(i, j, na, nb) = factor * zag(i) * zbg(j);
         }
       }
     }
@@ -702,23 +520,23 @@ void PhononH0::reorderDynamicalMatrix() {
 }
 
 void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                              const Eigen::VectorXd &q,
-                              Eigen::Tensor<std::complex<double>, 4> &f_of_q) {
+                              const Eigen::VectorXd &q) {
   // calculates the dynamical matrix at q from the (short-range part of the)
   // force constants21, by doing the Fourier transform of the force constants
 
+  std::vector<std::complex<double>> phases(numBravaisVectors);
   for (int iR = 0; iR < numBravaisVectors; iR++) {
-    double weight = weights(iR);
     Eigen::Vector3d r = bravaisVectors.col(iR);
     double arg = q.dot(r);
-    std::complex<double> phase = {cos(arg), -sin(arg)};
+    phases[iR] = exp(-complexI*arg); // {cos(arg), -sin(arg)};
+  }
+
+  for (int iR = 0; iR < numBravaisVectors; iR++) {
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
         for (int j : {0, 1, 2}) {
           for (int i : {0, 1, 2}) {
-            dyn(i, j, na, nb) +=
-                (mat2R(i, j, na, nb, iR) + f_of_q(i, j, na, nb)) *
-                phase * weight;
+            dyn(i, j, na, nb) += mat2R(i, j, na, nb, iR) * phases[iR] * weights(iR);
           }
         }
       }
@@ -735,10 +553,10 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   // fill the two-indices dynamical matrix
 
   Eigen::MatrixXcd dyn2Tmp(numBands, numBands);
-  for (int iat = 0; iat < numAtoms; iat++) {
-    for (int jat = 0; jat < numAtoms; jat++) {
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
+  for (int jat = 0; jat < numAtoms; jat++) {
+    for (int iat = 0; iat < numAtoms; iat++) {
+      for (int j : {0, 1, 2}) {
+        for (int i : {0, 1, 2}) {
           dyn2Tmp(iat * 3 + i, jat * 3 + j) = dyn(i, j, iat, jat);
         }
       }
@@ -753,12 +571,12 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
 
   //  divide by the square root of masses
 
-  for (int iat = 0; iat < numAtoms; iat++) {
-    int iType = atomicSpecies(iat);
-    for (int jat = 0; jat < numAtoms; jat++) {
-      int jType = atomicSpecies(jat);
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
+  for (int jat = 0; jat < numAtoms; jat++) {
+    int jType = atomicSpecies(jat);
+    for (int j : {0, 1, 2}) {
+      for (int iat = 0; iat < numAtoms; iat++) {
+        int iType = atomicSpecies(iat);
+        for (int i : {0, 1, 2}) {
           dyn2(iat * 3 + i, jat * 3 + j) /=
               sqrt(speciesMasses(iType) * speciesMasses(jType));
         }
@@ -849,8 +667,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     // now we rotate in the basis of the eigenvectors at q.
     der = eigenvectors.adjoint() * der * eigenvectors;
 
-    for (int ib1 = 0; ib1 < numBands; ib1++) {
-      for (int ib2 = 0; ib2 < numBands; ib2++) {
+    for (int ib2 = 0; ib2 < numBands; ib2++) {
+      for (int ib1 = 0; ib1 < numBands; ib1++) {
         velocity(ib1, ib2, i) = der(ib1, ib2);
       }
     }
@@ -877,8 +695,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
       // we have to repeat for every direction
       for (int iCart : {0, 1, 2}) {
         // take the velocity matrix of the degenerate subspace
-        for (int i = 0; i < sizeSubspace; i++) {
-          for (int j = 0; j < sizeSubspace; j++) {
+        for (int j = 0; j < sizeSubspace; j++) {
+          for (int i = 0; i < sizeSubspace; i++) {
             subMat(i, j) = velocity(ib + i, ib + j, iCart);
           }
         }
@@ -898,8 +716,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
         subMat = 0.5 * (subMat + subMat.adjoint());
 
         // substitute back
-        for (int i = 0; i < sizeSubspace; i++) {
-          for (int j = 0; j < sizeSubspace; j++) {
+        for (int j = 0; j < sizeSubspace; j++) {
+          for (int i = 0; i < sizeSubspace; i++) {
             velocity(ib + i, ib + j, iCart) = subMat(i, j);
           }
         }
@@ -918,7 +736,7 @@ Eigen::Matrix3d PhononH0::getDielectricMatrix() { return dielectricMatrix; }
 
 Eigen::Tensor<double, 3> PhononH0::getBornCharges() { return bornCharges; }
 
-int PhononH0::getIndexEigvec(const int &iAt, const int &iPol) {
+int PhononH0::getIndexEigvec(const int &iAt, const int &iPol) const {
   return compress2Indices(iAt, iPol, numAtoms, 3);
 }
 

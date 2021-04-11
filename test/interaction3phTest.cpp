@@ -428,7 +428,7 @@ TEST(Interaction3Ph, Coupling3Ph000_p3py) {
   referenceCoupling.setZero();
   {
     std::ifstream tfile("../test/data/phono3py/reference3Ph000_p3py");
-    double x1, x2;
+    double x1;
     int i_, j_, k_;
     for (int i = 0; i < numBands; i++) {
       for (int j = 0; j < numBands; j++) {

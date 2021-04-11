@@ -158,6 +158,8 @@ public:
    */
   void symmetrize();
 
+  void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
+
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;

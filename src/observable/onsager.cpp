@@ -161,11 +161,11 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
         Eigen::Vector3d thisNE = Eigen::Vector3d::Zero();
         Eigen::Vector3d thisNT = Eigen::Vector3d::Zero();
         for (int i : {0, 1, 2}) {
-          for (int j : {0, 1, 2}) {
-            thisNE(i) += r(i, j) * nE(iCalc, j, iBte);
-            thisNT(i) += r(i, j) * nT(iCalc, j, iBte);
-          }
+          thisNE(i) += nE(iCalc, i, iBte);
+          thisNT(i) += nT(iCalc, i, iBte);
         }
+        thisNE = r * thisNE;
+        thisNT = r * thisNT;
         Eigen::Vector3d vel = r * velIrr;
 
         for (int i : {0, 1, 2}) {

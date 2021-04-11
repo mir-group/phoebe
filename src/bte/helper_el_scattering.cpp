@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include "delta_function.h"
+#include <iomanip>
 
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
@@ -23,6 +24,10 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   auto offset = std::get<1>(t1);
   storedAllQ3 = false;
 
+  if (mpi->mpiHead()) {
+    std::cout << "Computing phonon band structure." << std::endl;
+  }
+
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
 
@@ -35,6 +40,12 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
     fullPoints3 = std::make_unique<Points>(
         innerBandStructure.getPoints().getCrystal(), mesh2, offset2);
+    if (mpi->mpiHead()) { // print info on memory
+      double x = h0.getNumBands() * fullPoints3->getNumPoints();
+      x *= sizeof(x) / pow(1024,3);
+      std::cout << std::setprecision(4);
+      std::cout << "Allocating " << x << " GB (per MPI process)." << std::endl;
+    }
     bool withVelocities = true;
     bool withEigenvectors = true;
     FullBandStructure bs = h0.populate(*fullPoints3, withVelocities,
@@ -124,6 +135,13 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     Points ap3 = *fullPoints3;
     ap3.setActiveLayer(filter);
     activePoints3 = std::make_unique<Points>(ap3);
+
+    if (mpi->mpiHead()) {
+      double x = h0.getNumBands() * activePoints3->getNumPoints();
+      x *= sizeof(x) / pow(1024,3);
+      std::cout << std::setprecision(4);
+      std::cout << "Allocating " << x << " GB (per MPI process)." << std::endl;
+    }
 
     // build band structure
     bool withEigenvectors = true;

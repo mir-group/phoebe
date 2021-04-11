@@ -60,7 +60,7 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   std::string x = context.getElPhInterpolation();
   throwErrorIfUnset(x, "elPhInterpolation");
   if (std::find(choices.begin(), choices.end(), x) == choices.end()) {
-    Error e("The elPhInterpolation value has not been recognized.");
+    Error("The elPhInterpolation value has not been recognized.");
   }
 
   if (x == "wannier") {
@@ -205,7 +205,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       Eigen::MatrixXcd uKDagger(numWannier, numBands);
       uKDagger = uK.adjoint();
 
-#pragma omp parallel
+#pragma omp parallel default(none) shared(numModes, numWannier, numBands,  uKq, gFull, gFullTmp, ik, iq, uKDagger)
       {
         Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
                                                    numModes);
@@ -215,8 +215,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           for (int i = 0; i < numWannier; i++) {
             for (int j = 0; j < numBands; j++) {
               for (int l = 0; l < numBands; l++) {
-                // ukq has size(numWannier,numBands)
-                // gFull has size numBands,numBands,...
+                // ukq has size(numWannier, numBands)
+                // gFull has size numBands, numBands, ...
                 tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
               }
             }
@@ -254,6 +254,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Electronic Fourier Transform" << std::endl;
   }
+
   // Fourier transform on the electronic coordinates
   Eigen::Tensor<std::complex<double>, 5> gMixed(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
@@ -262,7 +263,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   {
     Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
     phases.setZero();
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, mpi, complexI)
     for (int ik : mpi->divideWorkIter(numKPoints)) {
       Eigen::Vector3d k =
           kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -274,7 +275,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     mpi->allReduceSum(&phases);
 
     for (int iq : mpi->divideWorkIter(numQPoints)) {
-#pragma omp parallel
+#pragma omp parallel default(none) shared(iq, gFullTmp, phases, numElBravaisVectors, numKPoints, numModes, numWannier, gMixed)
       {
         Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
         tmp.setZero();
@@ -310,6 +311,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Phonon rotation" << std::endl;
   }
+
   Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
       numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
   gWannierTmp.setZero();
@@ -336,7 +338,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     for (int iq : mpi->divideWorkIter(numQPoints)) {
       for (int nu = 0; nu < numModes; nu++) {
         for (int nu2 = 0; nu2 < numModes; nu2++) {
-#pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3) default(none) shared(numElBravaisVectors, numWannier, gMixed, uQM1s, iq, nu, nu2, gWannierTmp)
           for (int irE = 0; irE < numElBravaisVectors; irE++) {
             for (int i = 0; i < numWannier; i++) {
               for (int j = 0; j < numWannier; j++) {
@@ -355,6 +357,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   if (mpi->mpiHead()) {
     std::cout << "Phonon Fourier Transform" << std::endl;
   }
+
   Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
                                                   numModes, numPhBravaisVectors,
                                                   numElBravaisVectors);
@@ -362,7 +365,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   {
     Eigen::MatrixXcd phases(numPhBravaisVectors,numQPoints);
     phases.setZero();
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(mpi, numQPoints, numPhBravaisVectors, complexI, phases, qPoints, phBravaisVectors)
     for (int iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::Vector3d q =
           qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
@@ -374,7 +377,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     mpi->allReduceSum(&phases);
 
     for (int irE : mpi->divideWorkIter(numElBravaisVectors)) {
-#pragma omp parallel
+#pragma omp parallel default(none) shared(numQPoints, numPhBravaisVectors, numModes, numWannier, phases, gWannier, irE, gWannierTmp)
       {
         Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
         tmp.setZero();
@@ -420,7 +423,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
   std::string line;
 
   if (wannierPrefix.empty()) {
-    Error e("Must provide an input H0 file name");
+    Error("Must provide an input H0 file name");
   }
 
   std::string fileName = wannierPrefix + "_u.mat";
@@ -428,7 +431,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
   // open input file
   std::ifstream infile(fileName);
   if (not infile.is_open()) {
-    Error e("U-matrix file not found");
+    Error("U-matrix file not found");
   }
 
   // Title line
@@ -557,7 +560,7 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     double kx, ky, kz;
     infile >> kx >> ky >> kz;
     if (kx * kx + ky * ky + kz * kz > 1.0e-5) {
-      Error e("Expecting first coarse grid k-point in Wannier90 to be gamma");
+      Error("Expecting first coarse grid k-point in Wannier90 to be gamma");
     }
   }
 
@@ -583,13 +586,13 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
 
   // we find the offset by comparing the energy differences
   // the offset which minimizes energy differences is the chosen one
-  int possibleValues = numFull - numBandsWannier + 1;
+  int possibleValues = numFull - numBandsWannier;
   Eigen::VectorXd difference(possibleValues);
   difference.setZero();
   for (int i = 0; i < possibleValues; i++) {
     for (int ib = 0; ib < numBandsWannier; ib++) {
       difference(i) =
-          pow(energiesQEAtZero(ib) - energiesWannierAtZero[ib + i], 2);
+          pow(energiesQEAtZero(ib+i) - energiesWannierAtZero[ib], 2);
     }
   }
 
@@ -597,13 +600,17 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
   int offset = -1;
   for (int i = 0; i < possibleValues; i++) {
     if (difference(i) == difference.minCoeff()) {
-      offset = i;
+      offset = i+1;
       break;
     }
   }
 
+  if (possibleValues == 0) {
+    offset = 0;
+  }
+
   if (offset == -1) {
-    Error e("Bands offset not found");
+    Error("Bands offset not found");
   }
 
   return offset;
@@ -635,6 +642,16 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
 
   int numKPoints = kPoints.getNumPoints();
   int numQPoints = qPoints.getNumPoints();
+
+  if ( mpi->mpiHead() ) {
+    double x = pow(numWannier,2) * numModes * numKPoints * numQPoints;
+    std::complex<double> xx;
+    x *= sizeof(xx) / pow(1024.,3);
+    // the last 2 is because we will later work with 2 copies of g
+    std::cout << "The app will now allocate " << x
+              << " (GB) of memory per MPI process\n" << std::endl;
+  }
+
   Eigen::Tensor<std::complex<double>, 5> g_full(numBands, numBands, numModes,
                                                 numKPoints, numQPoints);
   Eigen::Tensor<std::complex<double>, 3> phEigenvectors(numModes, numModes,
@@ -648,7 +665,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
   if (mpi->mpiHead()) {
 
     Eigen::VectorXi ikMap(numKPoints);
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(numKPoints, kGridFull, kPoints, ikMap)
     for (int ikOld = 0; ikOld < numKPoints; ikOld++) {
       Eigen::Vector3d kOld = kGridFull.col(ikOld);
       int ikNew = kPoints.getIndex(kOld);
@@ -657,7 +674,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
 
     std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(numIrrQPoints, phoebePrefixQE, g_full, phEnergies, phEigenvectors, numModes, numKPoints, ikMap, bandsOffset, numWannier, qPoints, numQEBands)
     for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
       std::stringstream ss;
       ss << std::setw(4) << std::setfill('0') << iqIrr + 1;
@@ -786,14 +803,13 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   std::ifstream infile(fileName);
   std::string line;
   if (not infile.is_open()) {
-    Error e("QE el-ph file not found");
+    Error("QE el-ph file not found");
   }
   std::getline(infile, line); // first line is a title
 
   infile >> numQEBands >> numElectrons >> numSpin;
   infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
       kMesh(2);
-
   infile >> bogusD >> numAtoms; // lattice parameter and numAtoms
 
   // unit cell
@@ -891,7 +907,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   double minEnergy = context.getEpaMinEnergy();
   double maxEnergy = context.getEpaMaxEnergy();
   if ( maxEnergy < minEnergy ) {
-    Error e("Problems in setting the EPA energy ranges");
+    Error("Problems in setting the EPA energy ranges");
   }
 
   double deltaEnergy = context.getEpaDeltaEnergy();
@@ -904,7 +920,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   }
 
   Eigen::VectorXd epaEnergies(numEpaEnergies);
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(numEpaEnergies, epaEnergies, deltaEnergy, minEnergy)
   for (int i = 0; i < numEpaEnergies; i++) {
     epaEnergies[i] = i * deltaEnergy + minEnergy;
   }
@@ -917,7 +933,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   int numQPoints = gFull.dimension(4);
 
   Eigen::Tensor<double, 3> gaussian(numEpaEnergies, numBands, numKPoints);
-#pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3) default(none) shared(numBands,numKPoints, numEpaEnergies, elEnergies, epaEnergies, smearing2, gaussian)
   for (int ib1 = 0; ib1 < numBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
@@ -959,7 +975,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
       Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
       int ikq = int(kPoints.getIndex(kqCrystal));
 
- #pragma omp parallel for collapse(3)
+ #pragma omp parallel for collapse(3) default(none) shared(numEpaEnergies, numModes, numBands, gaussian, g2Full, phEnergies, g2Epa, ik, ikq, iq)
       for (int j = 0; j < numEpaEnergies; j++) {
         for (int i = 0; i < numEpaEnergies; i++) {
           for (int nu = 0; nu < numModes; nu++) {
@@ -995,7 +1011,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
     std::string outFileName = phoebePrefixQE + ".phoebe.epa.dat";
     std::ofstream outfile(outFileName);
     if (not outfile.is_open()) {
-      Error e("Output file couldn't be opened");
+      Error("Output file couldn't be opened");
     }
     outfile << numElectrons << " " << numSpin << "\n";
     outfile << phAvgEnergies.size() << "\n";
@@ -1045,7 +1061,7 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
     kCrystal(2) *= kMesh(2);
 
     int ikOld =
-        kCrystal[0] * kMesh(2) * kMesh(1) + kCrystal[1] * kMesh(2) + kCrystal[2];
+        int(kCrystal[0] * kMesh(2) * kMesh(1) + kCrystal[1] * kMesh(2) + kCrystal[2]);
     {
       std::string eigFileName = wannierPrefix + ".eig";
       std::ifstream eigenFile(eigFileName);
@@ -1400,6 +1416,21 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
 
   //----------------------------------------------------------------------------
+  // figure out the number of occupied Wannier states
+
+  int bandsOffset = computeOffset(energies, wannierPrefix);
+  // Note: Quantum-ESPRESSO defines numElectrons as the number of occupied
+  // states in the valence manifold (it doesn't tell us about core electrons,
+  // which we probably can only infer from the atomic numbers)
+  if (numSpin == 2) {
+    Error("Spin is not currently supported");
+  }
+  // the factor 2 is the spin degeneracy factor. Change if spin support added
+  int numFilledWannier = numElectrons - bandsOffset * 2;
+  // note how we only allow numFilledWannier to be an integer
+  // it can be an even or odd number, so be careful if dividing it by 2
+
+  //----------------------------------------------------------------------------
 
   // Find the lattice vectors for the Fourier transforms
 
@@ -1486,9 +1517,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       // write out the number of electrons and the spin
-      HighFive::DataSet dnElectrons = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numElectrons));
+      HighFive::DataSet dnElectrons = file.createDataSet<int>("/numElectrons", HighFive::DataSpace::From(numFilledWannier));
       HighFive::DataSet dnSpin = file.createDataSet<int>("/numSpin", HighFive::DataSpace::From(numSpin));
-      dnElectrons.write(numElectrons);
+      dnElectrons.write(numFilledWannier); // # of occupied wannier functions
       dnSpin.write(numSpin);
 
       HighFive::DataSet dnElBands = file.createDataSet<int>("/numElBands", HighFive::DataSpace::From(numWannier));
@@ -1516,7 +1547,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     }
   }
   catch(std::exception& error) {
-    Error e("Issue writing elph Wannier representation to hdf5.");
+    Error("Issue writing elph Wannier representation to hdf5.");
   }
 
   #else // need a non-hdf5 write option
@@ -1525,9 +1556,9 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
     std::ofstream outfile(outFileName);
     if (not outfile.is_open()) {
-      Error e("Output file couldn't be opened");
+      Error("Output file couldn't be opened");
     }
-    outfile << numElectrons << " " << numSpin << "\n";
+    outfile << numFilledWannier << " " << numSpin << "\n";
     outfile << kMesh << "\n";
     outfile << qMesh << "\n";
     outfile << phBravaisVectors.rows() << " " << phBravaisVectors.cols()
