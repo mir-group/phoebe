@@ -33,22 +33,24 @@ Basic build
 
 To install Phoebe, type::
 
-  git submodule update --init
+  git clone --recurse-submodules https://github.com/mir-group/phoebe.git
+  cd phoebe
   mkdir build
   cd build
   cmake ..
   make -j $(nproc)
 
-where you should substitute ``nproc`` with the number of cores available for parallel compilation. This will create the executable ``phoebe`` in the ``build`` directory.
+where you should substitute ``nproc`` with the number of cores available for parallel compilation. This will create the executable ``phoebe`` in the ``build`` directory. This will build a copy of Phoebe with the default CMake options -- it assumes MPI, OMP, and parallel HDF5 are available (``-DMPI_AVAIL=ON -DOMP_AVAIL=ON -DHDF5_AVAIL=ON``).
 
 CMake will inspect the paths found in the environmental variable ``LD_LIBRARY_PATH`` to verify the existence of an installed copy of the ScaLAPACK library and link it. If not found, the installation will download and compile a copy of ScaLAPACK.
 
 HDF5 build
 ^^^^^^^^^^
 
-Phoebe can make use of HDF5 through the `HighFive <https://github.com/BlueBrain/HighFive>`__ library to read and write the electron-phonon matrix elements. This is highly recommended, as it speeds up what can be time consuming I/O, and also significantly reduces file sizes.
+Phoebe can make use of HDF5 through the `HighFive <https://github.com/BlueBrain/HighFive>`__ library to read and write the electron-phonon matrix elements.
+**This is highly recommended**, as it speeds up what can be time consuming I/O, and also significantly reduces file sizes.
 When built using CMake with the flag ``-DHDF5_AVAIL=ON``, Phoebe will be built with HDF5. If MPI is also present,
-Phoebe will be built to perform HDF5 operations in parallel.
+Phoebe will be built to perform HDF5 operations in parallel. The default behavior is to build for parallel HDF5 operations, with ``-DHDF5_AVAIL=ON`` and ``-DMPI_AVAIL=ON`` both being default CMake flags.
 
 If, for some reason, a user has MPI present, but has built a copy of serial HDF5, which does not link to MPI and therefore cannot
 perform parallel read/write operations, they must build Phoebe using the ``-DHDF5_SERIAL=ON`` CMake option to force serial HDF5 operations.
@@ -61,31 +63,41 @@ perform parallel read/write operations, they must build Phoebe using the ``-DHDF
 
 OpenMP build
 ^^^^^^^^^^^^
-
+Use flags ``DOMP_AVAIL`` and ``DKokkos_ENABLE_OPENMP`` to toggle OpenMP functionally, with the first flag controlling typical OMP use, and the second applying to OMP functionality provided through Kokkos. The default is ``DOMP_AVAIL=ON`` and ``DKokkos_ENABLE_OPENMP=OFF``.
 ::
 
-  git submodule update --init
-  mkdir build
-  cd build
+  # CMake flags to enable OMP
   cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON
   make -j$(nproc)
 
+Kokkos build (For GPU use)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Phoebe utilizes Kokkos to generate either OpenMP or CUDA code to accelerate parts of the code.
+Currently, this can be used to accelerate the calculation of phonon-phonon or electron-phonon scattering rates (the phononTransport and electronWannierTransport apps):
 
-Kokkos Build (For GPU use)
-^^^^^^^^^^^^^^^^^^^
+To build for use with Kokkos on GPUs, specify the flags to enable CUDA and OpenMP functionality. In the case where one wants to utilize GPUs::
 
-Replace VOLTA70 (e.g. for V100s GPUs) with the arch of your GPU. Phoebe utilizes Kokkos to generate either OpenMP or CUDA code to accelerate parts of the code. To build for use with Kokkos, specify the flags to enable CUDA and OpenMP functionality.
-Phoebe accepts all the CMake arguments of Kokkos, which can improve performance.
-For example, you should specify ``-DKokkos_ARCH_KNL=ON`` when building for
-Knight's Landing nodes. Additionally, replace VOLTA70 (e.g. for V100s GPUs) as shown below with the arch of your GPU.
-
-::
-
-  git submodule update --init
-  mkdir build
-  cd build
+  # CMake flags to build Kokkos with CUDA for GPU architectures
   cmake .. -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON -DOMP_AVAIL=ON
   make -j$(nproc)
+
+Additionally, replace VOLTA70 (e.g. for V100s GPUs) as shown with the arch of your GPU.
+
+To build with Kokkos using OpenMP instead of GPUs (recommended if you don't have GPU architecture), use the OpenMP build described above::
+
+  # CMake flags to build Kokkos with OMP for CPU architectures
+  cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON
+  make -j$(nproc)
+
+Phoebe also accepts all the CMake arguments of Kokkos, which can improve performance.
+For example, to attain better performance, you could specify ``-DKokkos_ARCH_KNL=ON`` in the above line when building for Knight's Landing nodes.
+
+.. note::
+
+   A Kokkos build compiled for GPUs won't necessarily work on CPU architecture,
+   though apps which do not use Kokkos (all but phononTransport and
+   electronWannierTransport) will of course still work on CPU regardless.
+   It may be useful to build two copies of Phoebe if you want to occasionally use either kind of architecture for phonon-phonon/electron-phonon scattering calculations.
 
 Compiling the documentation
 ---------------------------
