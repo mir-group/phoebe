@@ -114,7 +114,10 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   }
 
   if (usePolarCorrection) {
-    std::cout << "Polar correction\n";
+    if (mpi->mpiHead()) {
+      std::cout << "Polar correction" << std::endl;
+    }
+
     // we need to subtract the polar correction
     // this contribution will be reinstated during the interpolation
     auto volume = crystal.getVolumeUnitCell();
