@@ -27,7 +27,7 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['thermalConductivity'])
             k2 = numpy.array(data2['thermalConductivity'])
             diff = ((k1-k2)**2).sum()
-            if diff > 0.1:
+            if diff > 0.15:
                 print(diff)
                 print(filename)
                 sys.exit(1)
