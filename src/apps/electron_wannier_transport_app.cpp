@@ -21,7 +21,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  // load the 3phonon coupling
+  // load the elph coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
   InteractionElPhWan couplingElPh(crystal);
