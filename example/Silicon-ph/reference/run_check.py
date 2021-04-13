@@ -63,8 +63,6 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['dos'])
             k2 = numpy.array(data2['dos'])
             diff = ((k1-k2)**2).sum()
-            print(k1.sum())
-            print(k2.sum())
             if diff > 0.1:
                 print(diff)
                 print(filename)
