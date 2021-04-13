@@ -26,3 +26,5 @@ BASE*
 *.epa.k
 *FORCE_CONSTANTS_3RD
 *thirdorder_espresso.py
+CRASH
+*hdf5
