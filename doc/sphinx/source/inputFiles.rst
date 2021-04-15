@@ -34,13 +34,13 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 
 * :ref:`quantumEspressoPrefix`
 
-* :ref: `epaMinEnergy`
+* :ref:`epaMinEnergy`
 
-* :ref: `epaMaxEnergy`
+* :ref:`epaMaxEnergy`
 
-* :ref: `epaNumBins`
+* :ref:`epaNumBins`
 
-* :ref: `epaSmearingEnergy`
+* :ref:`epaSmearingEnergy`
 
 .. raw:: html
 
@@ -251,7 +251,7 @@ Electron BTE Solver
 
 -------------------------------------
 
-EPA Transport Calculation
+EPA Transport
 -----------------------------------
 
 **Functionality:** Build and solve the electronic Boltzmann Transport Equation (BTE) using Wannier interpolation. Output quantites are electrical conductivity, electronic thermal conductivity, Seebeck coefficient, electron viscosity, and electronic lifetimes as a function of bin energy.
@@ -742,27 +742,29 @@ appName
 * **Required:** yes
 
 **Possible values:**
-  * "elPhQeToPhoebe": app to convert electron-phonon coupling from QE to Phoebe format (must be run before running any electron transport).
+  * **"elPhQeToPhoebe":** app to convert electron-phonon coupling from QE to Phoebe format (must be run before running any electron transport).
 
-  * "phononTransport": app to solve the phonon BTE and compute phonon transport properties.
+  * **"phononTransport":** app to solve the phonon BTE and compute phonon transport properties.
 
-  * "electronWannierTransport": app to solve the electron BTE and compute electron transport properties.
+  * **"electronWannierTransport":** app to solve the electron BTE and compute electron transport properties.
 
-  * "phononLifetimes": app to compute the phonon lifetimes on a given Brillouin zone path.
+  * **"transportEPA":** app to solve the electron BTE and compute the electron transport properties using the EPA approximation.
 
-  * "electronLifetimes": app to compute the electron lifetimes on a given Brillouin zone path.
+  * **"phononLifetimes":** app to compute the phonon lifetimes on a given Brillouin zone path.
 
-  * "phononDos": app to compute the phonon density of states.
+  * **"electronLifetimes":** app to compute the electron lifetimes on a given Brillouin zone path.
 
-  * "phononBands": app to compute the phonon bands on a Brillouin zone path.
+  * **"phononDos":** app to compute the phonon density of states.
 
-  * "electronWannierDos": app to compute the electron density of states with Wannier interpolation.
+  * **"phononBands":** app to compute the phonon bands on a Brillouin zone path.
 
-  * "electronFourierDos": app to compute the electron density of states with Fourier interpolation.
+  * **"electronWannierDos":** app to compute the electron density of states with Wannier interpolation.
 
-  * "electronWannierBands": app to compute the electron bands with Wannier interpolation on a Brillouin zone path.
+  * **"electronFourierDos":** app to compute the electron density of states with Fourier interpolation.
 
-  * "electronFourierBands": app to compute the electron bands with Fourier interpolation on a Brillouin zone path.
+  * **"electronWannierBands":** app to compute the electron bands with Wannier interpolation on a Brillouin zone path.
+
+  * **"electronFourierBands":** app to compute the electron bands with Fourier interpolation on a Brillouin zone path.
 
 
 .. _phD2FileName:
@@ -782,7 +784,7 @@ phD2FileName
 phD3FileName
 ^^^^^^^^^^^^
 
-* **Description:** Path to a file containing anharmonic (3rd order) force constants. File formats supported are: ShengBTE (FORCE_CONSTANTS_3RD) or phono3py (fc3.hdf5).
+* **Description:** Path to a file containing anharmonic (3rd order) force constants. File formats supported are: ShengBTE (``FORCE_CONSTANTS_3RD``) or phono3py (``fc3.hdf5``).
 
 * **Format:** *string*
 
