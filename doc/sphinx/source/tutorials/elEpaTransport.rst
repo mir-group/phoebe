@@ -11,32 +11,7 @@ We will use Quantum ESPRESSO to compute the ab-initio electron-phonon coupling o
 Step 1: Patch Quantum ESPRESSO
 ------------------------------
 We need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
-To do this, we must compile a new copy of Quantum ESPRESSO. There are two ways to do this:
-
-.. raw:: html
-
-  <h3>Patch a copy of QE</h3>
-
-Suppose you have a copy of QE installed at ``/oldpath/qe-6.5``.
-Then let's make a copy of that source code (so we don't overwrite your old QE executables) and patch it::
-
-  cd /oldpath
-  cp -r qe-6.6 patched-quantum-espresso
-  cd patched-quantum-espresso
-  make clean
-  patch -p1 < /path/to/phoebe/utilities/patch-qe-6.6.txt
-  ./configure MPIF90=mpif90 --with-scalapack=yes
-  make pw pp ph w90
-
-where you should modify the file paths and ``./configure`` arguments for QE to match your system.
-If compilation fails, you should consult the QE `installation page <https://www.quantum-espresso.org/Doc/user_guide/node7.html>`__.
-
-.. note::
-   If you have a different version of QE, you can try to use the patch anyway. Note, however, it was written to work for QE-6.5 and QE-6.6, but was not tested for use on other versions. Let us know if you run into problems.
-
-.. raw:: html
-
-  <h3>Install a pre-patched version of QE</h3>
+To do this, we must compile a new copy of Quantum ESPRESSO.
 
 From an installation folder of your choice, type::
 
@@ -48,7 +23,9 @@ From an installation folder of your choice, type::
     ./configure MPIF90=mpif90 --with-scalapack=yes
     make pw pp ph w90
 
-where again you should probably customize the installation parameters to match your system.
+where you should modify the file paths and ``./configure`` arguments for QE to match your system.
+If compilation fails, you should consult the QE `installation page <https://www.quantum-espresso.org/Doc/user_guide/node7.html>`__.
+
 
 Step 2: Run pw.x
 -----------------
@@ -188,7 +165,7 @@ Now that we have generated all the necessary input files, we can get started wit
 In this section, we read all the information from the files created above and use them to prepare the electron-phonon coupling for the transport calculation.
 
 In the case of an EPA calculation, this means transforming the electron-phonon coupling to the proper representation.
-To do this, let's have a look at the input file `qeToPhoebeEPA.in`::
+To do this, let's have a look at the input file ``qeToPhoebeEPA.in``::
 
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "epa"
@@ -205,24 +182,24 @@ To do this, let's have a look at the input file `qeToPhoebeEPA.in`::
 
 The parameters in this input file are as follows:
 
-1. **:ref:`appName` = `"elPhQeToPhoebe"**: here, we select the app to post-process the electron-phonon coupling created by QE.
+1. :ref:`appName` = `"elPhQeToPhoebe"`: here, we select the app to post-process the electron-phonon coupling created by QE.
 
-2. **:ref:`elPhInterpolation` = `"epa"`**: this selects the post-processing method. In this case, we choose the mode which transforms the electron-phonon coupling to the EPA representation.
+2. :ref:`elPhInterpolation` = `"epa"`: this selects the post-processing method. In this case, we choose the mode which transforms the electron-phonon coupling to the EPA representation.
 
-3. **:ref:`phD2FileName` = `"silicon.fc"`**: this chooses the path to the phonon dynamical matrix.
+3. :ref:`phD2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
 
-4. **:ref:`electronH0Name` = `"si_tb.dat"`**: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
+4. :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
 
-5. **:ref:`quantumEspressoPrefix` = `"silicon"`**: this parameter is used to locate and read the files ``./silicon.phoebe.*.dat`` that have been created by ``ph.x``. You should set it to the ``prefix`` variable you chose when running QE in earlier steps.
+5. :ref:`quantumEspressoPrefix` = `"silicon"`: this parameter is used to locate and read the files ``./silicon.phoebe.*.dat`` that have been created by ``ph.x``. You should set it to the ``prefix`` variable you chose when running QE in earlier steps.
 
-6. **:ref:`electronFourierCutoff` = 4:** this is a parameter used to control the Fourier interpolation of the electronic band structure. In this case, 4 implies that we will use all Bravais lattice vectors over a supercell of 4x4x4 times larger than the input unit cell.
+6. :ref:`electronFourierCutoff` = 4: this is a parameter used to control the Fourier interpolation of the electronic band structure. In this case, 4 implies that we will use all Bravais lattice vectors over a supercell of 4x4x4 times larger than the input unit cell.
 
-7. **:ref:`epaMinEnergy`, :ref:`epaMaxEnergy`, :ref:`epaNumBins`:** these last three parameters identify the values of energy (from min to max with numBins values) over which the electron-phonon coupling will be averaged.
+7. :ref:`epaMinEnergy`, :ref:`epaMaxEnergy`, :ref:`epaNumBins`: these last three parameters identify the values of energy (from min to max with numBins values) over which the electron-phonon coupling will be averaged.
 
-8. **:ref:`epaSmearingEnergy`:** is the Gaussian width used in the moving least squares averaging procedure.
+8. :ref:`epaSmearingEnergy`: is the Gaussian width used in the moving least squares averaging procedure.
 
 The last 4 parameters are parameters which will determine the quality of the EPA calculation, and should be adjusted by the user for a production calculation.
-Obviously, energies should cover the area around the Fermi level or HOMO and LUMO (which can be found in the output of ``pw.x``),
+Energies should cover the area around the Fermi level or HOMO and LUMO (which can be found in the output of ``pw.x``),
 and the value of ``epaSmearingEnergy`` should be comparable to the size of the energy bin for the el-ph coupling.
 As a suggestion, we also tend to find that not many energy bins are needed for this averaging procedure, as the el-ph coupling tends to be slowly varying with energy.
 
@@ -260,23 +237,23 @@ Below is an example input file for computing electronic transport properties::
 
 The parameters used here are:
 
-* **:ref:`appName` = `"transportEPA"`:** selects the app for computing electronic transport properties with EPA.
+* :ref:`appName` = `"transportEPA"`: selects the app for computing electronic transport properties with EPA.
 
-* **:ref:`electronH0Name`:** points to the Quantum-ESPRESSO ``*.xml`` file created by ``pw.x``, which contains the electronic single-particle energies.
+* :ref:`electronH0Name`: points to the Quantum-ESPRESSO ``*.xml`` file created by ``pw.x``, which contains the electronic single-particle energies.
 
-* **:ref:`epaFileName`:** is the path to the file created at the previous step with ``elPhQeToPhoebe``.
+* :ref:`epaFileName`: is the path to the file created at the previous step with ``elPhQeToPhoebe``.
 
-* **:ref:`electronFourierCutoff`:** as done above, this value controls the quality of the Fourier interpolation of the band structure, and, here, is set to interpolate using the Bravais lattice vector of a 4x4x4 supercell.
+* :ref:`electronFourierCutoff`: as done above, this value controls the quality of the Fourier interpolation of the band structure, and, here, is set to interpolate using the Bravais lattice vector of a 4x4x4 supercell.
 
-* **:ref:`epaEnergyStep`:** is the energy interval used to integrate the transport coefficients, i.e. lifetimes will be computed every ``epaEnergyStep`` energies.
+* :ref:`epaEnergyStep`: is the energy interval used to integrate the transport coefficients, i.e. lifetimes will be computed every ``epaEnergyStep`` energies.
 
-* **:ref:`epaEnergyRange`:** lifetimes will be computed for all energies in proximity of the chemical potential, i.e. for all energies such that :math:`|\epsilon-\mu|<\text{epaEnergyRange}`.
+* :ref:`epaEnergyRange`: lifetimes will be computed for all energies in proximity of the chemical potential, i.e. for all energies such that :math:`|\epsilon-\mu|<\text{epaEnergyRange}`.
 
-* **:ref:`kMesh`:** is the grid used to integrate the Brillouin zone for obtaining the density of states.
+* :ref:`kMesh`: is the grid used to integrate the Brillouin zone for obtaining the density of states.
 
-* **:ref:`temperatures`** a list of temperatures in Kelvin for which we will compute transport properties.
+* :ref:`temperatures` a list of temperatures in Kelvin for which we will compute transport properties.
 
-* **:ref:`dopings`:** in cm:sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
+* :ref:`dopings`: in cm :sup:`-3` at which we will compute results. This is only meaningful for semiconductors.
 
 
 To run the code, we can simply do::
@@ -289,12 +266,12 @@ Note that the most time-consuming step of this calculation typically is the calc
 However, this is still dramatically faster than a Wannier-based transport technique.
 
 The transport coefficients will print to the output file alongside with information on the chemical potential/doping and temperature used.
-Additionally, the information on transport coefficients can be found in a JSON file, which is easier to parsed and plot, as in the python script provided in `./phoebe/scripts/plotScripts`, and described in :ref:`postprocessing`.
+Additionally, the information on transport coefficients can be found in a JSON file, which is easier to parsed and plot, as in the python script provided in ``./phoebe/scripts/plotScripts``, and described in :ref:`postprocessing`.
 
 Convergence Checklist
 ----------------------
 
-Here, again we don't discuss the convergence tests that need to be done for a production/publication quality research project.
+In this tutorial, we show a demo calculation, which is certainly unconverged. We don't discuss the convergence tests that need to be done for a production/publication quality research project.
 For that, you should make sure to test the convergence of:
 
 * Check that the phonon frequencies are converged with respect to k-point sampling, q-point sampling and wavefunction cutoff.
@@ -305,5 +282,5 @@ For that, you should make sure to test the convergence of:
 
 * Check the convergence of the electronic transport results with respect to the energy bins used in the EPA approximation
 
-* Test the convergence of the density of states w.r.t. the `kMesh` parameter.
+* Test the convergence of the density of states w.r.t. the ``kMesh`` parameter.
 
