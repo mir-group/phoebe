@@ -34,19 +34,47 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 
 * :ref:`quantumEspressoPrefix`
 
+* :ref: `epaMinEnergy`
+
+* :ref: `epaMaxEnergy`
+
+* :ref: `epaNumBins`
+
+* :ref: `epaSmearingEnergy`
 
 .. raw:: html
 
-  <h3>Sample input file</h3>
+  <h3>Sample input file (Wannier interpolation)</h3>
 
 ::
 
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "wannier"
+
   phD2FileName = "./silicon.fc"
   electronH0Name = "./si_tb.dat",
   wannier90Prefix = "si"
   quantumEspressoPrefix = "silicon"
+
+.. raw:: html
+
+  <h3>Sample input file (EPA)</h3>
+
+::
+
+  appName = "elPhQeToPhoebe"
+  elPhInterpolation = "epa"
+
+  phD2FileName = "./silicon.fc"
+  electronH0Name = "./out/silicon.xml",
+  quantumEspressoPrefix = "silicon"
+
+  electronFourierCutoff = 4.
+  epaMinEnergy = -4. eV
+  epaMaxEnergy = 10. eV
+  epaNumBins = 10
+  epaSmearingEnergy = 0.05 eV
+
 
 -----------------------------------
 
@@ -220,6 +248,56 @@ Electron BTE Solver
   smearingWidth = 0.5 eV
   windowType = "population"
 
+
+-------------------------------------
+
+EPA Transport Calculation
+-----------------------------------
+
+**Functionality:** Build and solve the electronic Boltzmann Transport Equation (BTE) using Wannier interpolation. Output quantites are electrical conductivity, electronic thermal conductivity, Seebeck coefficient, electron viscosity, and electronic lifetimes as a function of bin energy.
+
+.. raw:: html
+
+  <h3>Input variables</h3>
+
+
+:ref:`appName` = "transportEPA"
+
+* :ref:`electronH0Name`
+
+* :ref:`epaFileName`
+
+* :ref:`electronFourierCutoff`
+
+* :ref:`epaEnergyStep`
+
+* :ref:`epaEnergyRange`
+
+* :ref:`kMesh`
+
+* :ref:`temperatures`
+
+* :ref:`dopings`
+
+
+.. raw:: html
+
+  <h3>Sample input file</h3>
+
+::
+
+  appName = "transportEpa"
+
+  electronH0Name = "./out/silicon.xml",
+  epaFileName = "./silicon.phoebe.epa.dat"
+
+  electronFourierCutoff = 4.
+  epaEnergyStep = 0.01 eV
+  epaEnergyRange = 3.0 eV
+
+  kMesh = [10,10,10]
+  temperatures = [300.]
+  dopings = [1.0e21]
 
 -----------------------------------
 
@@ -774,7 +852,7 @@ kMesh
 temperatures
 ^^^^^^^^^^^^
 
-* **Description:** List with the values of temperatures to be used in the calculation. If scatteringMatrixInMemory=true, only one value of temperature is allowed.
+* **Description:** List with the values of temperatures (in Kelvin) to be used in the calculation. If scatteringMatrixInMemory=true, only one value of temperature is allowed.
 
 * **Format:** *list of doubles*
 
@@ -1078,7 +1156,6 @@ chemicalPotentials
 
 * **Format:** *list of doubles*
 
-
 * **Required:** yes (unless `minChemicalPotential, maxChemicalPotential, deltaChemicalPotential` variables are present, or :ref:`dopings` are specified).
 
 
@@ -1092,6 +1169,90 @@ elphFileName
 * **Format:** *string*
 
 * **Required:** yes (for electron transport and lifetime apps)
+
+
+.. _epaMinEnergy:
+
+epaMinEnergy
+^^^^^^^^^^^^
+
+* **Description:** Specifies the minimum the energy bin value over which the electron-phonon coupling will be averaged for the EPA approximation post-processing in the ``elPhQeToPhoebe`` app.
+
+* **Format:** *double*
+
+* **Required:** yes (for EPA ``elPhQeToPhoebe`` runs)
+
+
+.. _epaMaxEnergy:
+
+epaMaxEnergy
+^^^^^^^^^^^^
+
+* **Description:** Specifies the maximum the energy bin value over which the electron-phonon coupling will be averaged for the EPA approximation post-processing in the ``elPhQeToPhoebe`` app.
+
+* **Format:** *double*
+
+* **Required:** yes (for EPA ``elPhQeToPhoebe`` runs)
+
+
+.. _epaNumBins:
+
+epaNumBins
+^^^^^^^^^^^
+
+* **Description:** The number of energy bins, ranging from :ref:`epaMinEnergy` to :ref:`epaMaxEnergy` used to average the electron-phonon matrix elements for EPA calculations in the ``elPhQeToPhoebe`` app.
+
+* **Format:** *int*
+
+* **Required:** yes (for EPA ``elPhQeToPhoebe`` runs)
+
+
+.. _epaSmearingEnergy:
+
+epaSmearingEnergy
+^^^^^^^^^^^^^^^^^
+
+* **Description:** Specifies the Gaussian width used in the moving least squares averaging procedure used to average the electron-phonon matrix elements for an EPA calculation.
+
+* **Format:** *double*
+
+* **Required:** yes (for EPA ``elPhQeToPhoebe`` runs)
+
+
+.. _epaFileName:
+
+epaFileName
+^^^^^^^^^^^
+
+* **Description:** This is the path to the file ``*.phoebe.epa.dat``, which is created by ``elPhQeToPhoebe``.
+
+* **Format:** *string*
+
+* **Required:** yes (for EPA transport app)
+
+
+.. _epaEnergyStep:
+
+epaEnergyStep
+^^^^^^^^^^^^^
+
+* **Description:** The energy interval used to integrate the transport coefficients, i.e. lifetimes will be computed every ``epaEnergyStep`` energies.
+
+* **Format:** *double*
+
+* **Required:** yes (for EPA transport app)
+
+
+.. _epaEnergyRange:
+
+epaEnergyRange
+^^^^^^^^^^^^^^
+
+* **Description:** EPA lifetimes will be computed for all energies in proximity of the chemical potential, i.e. for all energies such that :math:`|\epsilon-\mu|<\text{epaEnergyRange}`. This variable specifies that range.
+
+* **Format:** *double*
+
+* **Required:** yes (for EPA transport app)
 
 
 .. _deltaPath:
@@ -1209,7 +1370,7 @@ deltaChemicalPotential
 minTemperature
 ^^^^^^^^^^^^^^
 
-* **Description:** To be used together with :ref:`maxTemperature` and :ref:`deltaTemperature`, sets the code to compute observables at temperatures between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
+* **Description:** To be used together with :ref:`maxTemperature` and :ref:`deltaTemperature`, sets the code to compute observables at temperatures (in Kelvin) between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
 
 * **Format:** *double*
 
@@ -1221,7 +1382,7 @@ minTemperature
 maxTemperature
 ^^^^^^^^^^^^^^
 
-* **Description:** To be used together with :ref:`minTemperature` and :ref:`deltaTemperature`, sets the code to compute observables at temperatures between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
+* **Description:** To be used together with :ref:`minTemperature` and :ref:`deltaTemperature`, sets the code to compute observables at temperatures (in Kelvin) between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
 
 * **Format:** *double*
 
@@ -1233,7 +1394,7 @@ maxTemperature
 deltaTemperature
 ^^^^^^^^^^^^^^^^
 
-* **Description:** To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
+* **Description:** To be used together with minTemperature and maxTemperature, sets the code to compute observables at temperatures (in Kelvin) between :ref:`minTemperature` and :ref:`maxTemperature` in steps of :ref:`deltaTemperature`.
 
 * **Format:** *double*
 
