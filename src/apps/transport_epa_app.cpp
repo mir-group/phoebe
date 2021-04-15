@@ -13,7 +13,9 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
+#include <nlohmann/json.hpp>
 #include <cmath>
+#include <vector>
 
 void TransportEpaApp::run(Context &context) {
   // parse QE-xml file
@@ -69,6 +71,8 @@ void TransportEpaApp::run(Context &context) {
   // Calculate EPA scattering rates
   BaseVectorBTE scatteringRates = getScatteringRates(
       context, statisticsSweep, bandStructure, energies, tetrahedrons);
+  outputToJSON("epa_relaxation_times.json", scatteringRates,
+                  statisticsSweep, numEnergies, energies);
 
   //--------------------------------
   // calc EPA velocities
@@ -333,3 +337,69 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   return epaRate;
 }
+
+/* helper function to output scattering rates at each energy to JSON */
+void TransportEpaApp::outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
+                StatisticsSweep &statisticsSweep, int &numEnergies,
+                Eigen::VectorXd &energiesEPA) {
+
+  if (!mpi->mpiHead())
+    return;
+
+  std::string particleType = "electron";
+  double energyConversion = energyRyToEv;
+  std::string energyUnit = "eV";
+  double energyToTime = timeRyToFs;
+
+  // need to store as a vector format with dimensions
+  // iCalc, ik. ib, iDim (where iState is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
+  std::vector<std::vector<double>> outTimes;
+  std::vector<std::vector<double>> outLinewidths;
+  std::vector<std::vector<double>> energies;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    // containers to hold data in std vectors
+    std::vector<double> tempT;
+    std::vector<double> tempL;
+    std::vector<double> tempE;
+    // loop over energy values on which the calculation was done
+    for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
+
+      double ene = energiesEPA(iEnergy);
+      double tau = 1./scatteringRates.data(iCalc, iEnergy);
+      double linewidth = 1./tau;
+      tempE.push_back(ene * energyConversion);
+      tempT.push_back(tau * energyToTime);
+      tempL.push_back(linewidth * energyConversion);
+    }
+    outTimes.push_back(tempT);
+    outLinewidths.push_back(tempL);
+    energies.push_back(tempE);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["linewidths"] = outLinewidths;
+  output["linewidthsUnit"] = energyUnit;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["energies"] = energies;
+  output["energyUnit"] = energyUnit;
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+

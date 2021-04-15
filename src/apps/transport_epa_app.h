@@ -46,6 +46,12 @@ private:
                                    FullBandStructure &fullBandStructure,
                                    Eigen::VectorXd &energies,
                                    TetrahedronDeltaFunction &tetrahedrons);
+
+  /* helper function to output scattering rates as a function of energy*/
+  void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
+                StatisticsSweep &statisticsSweep, int &numEnergies,
+                Eigen::VectorXd &energiesEPA);
+
 };
 
 #endif
