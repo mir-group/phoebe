@@ -1,9 +1,11 @@
+.. _theoryEPA:
+
 Electron-phonon averaging (EPA)
 ===============================
 
 Something
 
-In phoebe, we implemented the electron-phonon average method discuss in ref. https://doi.org/10.1016/j.mtphys.2018.07.001.
+In Phoebe, we implemented the electron-phonon average method discuss in ref. https://doi.org/10.1016/j.mtphys.2018.07.001.
 The purpose of this method is to have a fast tool for the computation of electronic transport coefficients limited by electron-phonon scattering.
 The benefits of this methodology are that EPA:
 1. avoids Wannierization: while accurate, finding Wannier functions is tricky and is not yet fully automatizable; and
@@ -22,12 +24,12 @@ In such case, the electronic lifetimes due to the electron-phonon scattering are
    \bigg[ \big(n(\omega_{\boldsymbol{q}\nu},T) + f(\epsilon_{\boldsymbol{k}+\boldsymbol{q}m},\mu,T)\big) \delta(\epsilon_{\boldsymbol{k}n} + \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}+\boldsymbol{q}m})  \\
    + \big(n(\omega_{\boldsymbol{q}\nu},T) + 1 - f(\epsilon_{\boldsymbol{k}+\boldsymbol{q}m},\mu,T)\big) \delta(\epsilon_{\boldsymbol{k}n} - \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}+\boldsymbol{q}m}) \bigg]
 
-     
+
 While accurate, this expression is still too expensive for some purposes.
 
 
 The main idea of EPA is to replace integrals over the Brillouin zone with some averaged quantities.
-In particular, rather than working with the full phonon dispersion, we average the frquencies of each phonon mode: 
+In particular, rather than working with the full phonon dispersion, we average the frquencies of each phonon mode:
 
 .. math::
 
@@ -57,7 +59,7 @@ In this approach, the electron-phonon is approximated as a weighted sum of the e
 where
 
 .. math::
-   
+
    W = \sum_{mn\boldsymbol{k}\boldsymbol{q}} w_{mn\boldsymbol{k}\boldsymbol{q}}
 
 and the weights :math:`w` are found by minimizing
@@ -104,9 +106,9 @@ Furthermore, we note that the density of states is integrated using the tetrahed
 In terms of computational parameters (besides temperature and doping concentration) the EPA requires tuning a few parameters, namely
 
 1. the size of the coarse k/q grid used in an ab-initio code to compute the coupling;
-   
+
 2. the energy bins used to approximate the electron-phonon coupling (which are set when converting data from Quantum ESPRESSO to Phoebe),
-   
+
 3. the energy bins used to integrate lifetimes (typically, one should use a better energy sampling than the one for the coupling)
-   
+
 4. the grid of wavevectors, used to average velocities and density of states.

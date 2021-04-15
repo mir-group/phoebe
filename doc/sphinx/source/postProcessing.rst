@@ -1,3 +1,5 @@
+.. _postprocessing:
+
 Results postprocessing
 ======================
 
