@@ -4,8 +4,11 @@ Electron-Phonon Averaged (EPA) Transport Tutorial
 Synopsis
 --------
 
-In this tutorial, we will compute the electrical conductivity and other electronic transport properties of silicon.
-We will use Quantum ESPRESSO to compute the ab-initio electron-phonon coupling on a coarse grid, convert the output to an input for Phoebe, and then perform the electron-phonon averaged (EPA) approximation to inexpensively calculate electronic transport properties as detailed in `j.mtphys.2018.07.001 <https://doi.org/10.1016/j.mtphys.2018.07.001>`__, which is covered in the :ref:`theoryEPA` section of the theory documentation.
+In this tutorial, we will compute the electrical conductivity and other electronic transport properties of silicon using the electron-phonon averaged approximation (EPA).
+
+We will use Quantum ESPRESSO to compute the ab-initio electron-phonon coupling on a coarse grid, convert the output to an input for Phoebe, and then perform the EPA approximation to inexpensively calculate electronic transport properties as detailed in `j.mtphys.2018.07.001 <https://doi.org/10.1016/j.mtphys.2018.07.001>`__, which is covered in the :ref:`theoryEPA` section of the theory documentation.
+
+We assume a basic knowledge of Quantum ESPRESSO (see tutorials on phonon calculations on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/resources/tutorials>`__).
 
 
 Step 1: Patch Quantum ESPRESSO
@@ -90,8 +93,9 @@ after substituting the suitable path to the ``pw.x`` executable.
 .. note::
    The patched QE used for Phoebe only supports the keyword ``K_POINTS automatic``.
 
-Step 3: Phonons and electron-phonon couping
--------------------------------------------
+
+Step 3: Phonons and electron-phonon coupling
+--------------------------------------------
 
 Next, we use the ``ph.x`` executable from our patched QE to run a phonon calculation, during which the electron-phonon matrix elements on a coarse mesh are computed. The input file ``ph.in`` is as follows::
 
@@ -272,7 +276,8 @@ Convergence Checklist
 ----------------------
 
 In this tutorial, we show a demo calculation, which is certainly unconverged. We don't discuss the convergence tests that need to be done for a production/publication quality research project.
-For that, you should make sure to test the convergence of:
+
+**You should make sure to test the convergence of:**
 
 * Check that the phonon frequencies are converged with respect to k-point sampling, q-point sampling and wavefunction cutoff.
 
