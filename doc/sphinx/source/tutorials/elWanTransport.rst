@@ -334,8 +334,8 @@ After the code completes, you should see an output file called ``silicon.phoebe.
 
 
 
-Step 8: Electronic Transport with Wannier interpolation
--------------------------------------------------------
+Step 8: Electronic Transport from Wannier interpolation
+--------------------------------------------------------
 
 After all this work, it's time to run Phoebe and compute the transport properties.
 The input file for computing electronic transport properties::
@@ -386,7 +386,7 @@ The notable parameters in this input file are:
 
 To run the code, we can simply do::
 
-  export OMP_num_THREADS=4
+  export OMP_NUM_THREADS=4
   /path/to/phoebe/build/phoebe -in electronWannierTransport.in -out ewt.out
 
   .. note::
@@ -423,18 +423,9 @@ The calculation progresses in this way:
 
   <h4>JSON Output Files</h4>
 
-JSON files can be thoughtof as dictionaries. If you process results with Python, for example::
-
-  import json
-
-  # open and parse the file
-  with open("the_json_file_name.json","r") as f:
-      resultsDict = json.load(f)
-
-  # print the keys of the dictionary to see what the file contains
-  print(resultsDict)
-
 There are several JSON files containing all the output, such as the electronic band structure, the electronic lifetimes/linewidths on the selected :ref:`kMesh`, and the transport properties. They also contain information which specifies that this output is for electrons, as well as the units associated which each kind of output. It's worth opening and printing the keys from each JSON file to see the information in each file.
+
+You can learn more about how to post-process these files at :ref:`postprocessing`.
 
 **Files which are always output for this calculation:**
 
@@ -451,22 +442,11 @@ There are several JSON files containing all the output, such as the electronic b
 
 To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page.
 
-Parallelization
-----------------
-
-The sections on parallelization discussed for the phonon transport app apply to the electronic transport app as well.
-
-.. note::
-   TLDR: :ref:`scatteringMatrixInMemory` = true speeds up calculations but requires a lot of memory (if the code fails the memory allocation, you need to request more HPC resources).
-   Running with ``useSymmetries = true`` can help to mitigate the issue.
-
-   To parallelize your calculation for cases where memory is an issue, set the number of MPI processes equal to the number of nodes, and set the number of OMP threads equal to the number of cores in the node. This will allow each process to use all the memory on a node, while still getting parallel performace benefit from the OMP threads. If applicable, the number of GPUs should match the number of MPI processes.
-
 
 Convergence Checklist
 ----------------------
 
-In this tutorial, we show a demo calculation, which is certainly unconverged. We don't discuss the convergence tests that need to be done for a production/publication quality research project.
+In this tutorial we show a demo calculation, which is certainly unconverged. We don't discuss the convergence tests that need to be done for a production/publication quality research project.
 
 **You should make sure to test the convergence of:**
 
@@ -479,4 +459,16 @@ In this tutorial, we show a demo calculation, which is certainly unconverged. We
 * Test the convergence of the electronic transport coefficients with respect to ab-initio results, in particular with respect to the k/q-point sampling in the DFT calculation.
 
 * Check the convergence of the electronic transport results with respect to the parameters :ref: `kMesh` and, if applicable, the :ref: `smearingWidth`.
+
+
+Parallelization
+----------------
+
+The sections on parallelization discussed for the phonon transport app apply to the electronic transport app as well.
+
+.. note::
+   TLDR: :ref:`scatteringMatrixInMemory` = true speeds up calculations but requires a lot of memory (if the code fails the memory allocation, you need to request more HPC resources).
+   Running with ``useSymmetries = true`` can help to mitigate the issue.
+
+   To parallelize your calculation for cases where memory is an issue, set the number of MPI processes equal to the number of nodes, and set the number of OMP threads equal to the number of cores in the node. This will allow each process to use all the memory on a node, while still getting parallel performace benefit from the OMP threads. If applicable, the number of GPUs should match the number of MPI processes.
 

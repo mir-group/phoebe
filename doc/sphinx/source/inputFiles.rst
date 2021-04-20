@@ -772,7 +772,7 @@ appName
 phD2FileName
 ^^^^^^^^^^^^
 
-* **Description:** Path to a file containing harmonic force constants. File formats supported are: Quantum-ESPRESSO output of ``q2r.x`` (``prefix.fc``) or phono3py output (``fc2.hdf5``).
+* **Description:** Path to a file containing harmonic force constants. File formats supported are: Quantum-ESPRESSO output of ``q2r.x`` (``prefix.fc``) or phono3py output (``fc2.hdf5``). Additionally, when using phono3py, it must The first input needs to be a path to the directory containing the other necessary phono3py files (``fc2.hdf5``, ``phono3py_disp.yaml``, and ``disp*.yaml``).
 
 * **Format:** *string*
 

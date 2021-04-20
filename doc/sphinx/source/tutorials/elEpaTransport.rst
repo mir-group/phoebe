@@ -186,21 +186,21 @@ To do this, let's have a look at the input file ``qeToPhoebeEPA.in``::
 
 The parameters in this input file are as follows:
 
-1. :ref:`appName` = `"elPhQeToPhoebe"`: here, we select the app to post-process the electron-phonon coupling created by QE.
+* :ref:`appName` = `"elPhQeToPhoebe"`: here, we select the app to post-process the electron-phonon coupling created by QE.
 
-2. :ref:`elPhInterpolation` = `"epa"`: this selects the post-processing method. In this case, we choose the mode which transforms the electron-phonon coupling to the EPA representation.
+* :ref:`elPhInterpolation` = `"epa"`: this selects the post-processing method. In this case, we choose the mode which transforms the electron-phonon coupling to the EPA representation.
 
-3. :ref:`phD2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
+* :ref:`phD2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
 
-4. :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
+* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
 
-5. :ref:`quantumEspressoPrefix` = `"silicon"`: this parameter is used to locate and read the files ``./silicon.phoebe.*.dat`` that have been created by ``ph.x``. You should set it to the ``prefix`` variable you chose when running QE in earlier steps.
+* :ref:`quantumEspressoPrefix` = `"silicon"`: this parameter is used to locate and read the files ``./silicon.phoebe.*.dat`` that have been created by ``ph.x``. You should set it to the ``prefix`` variable you chose when running QE in earlier steps.
 
-6. :ref:`electronFourierCutoff` = 4: this is a parameter used to control the Fourier interpolation of the electronic band structure. In this case, 4 implies that we will use all Bravais lattice vectors over a supercell of 4x4x4 times larger than the input unit cell.
+* :ref:`electronFourierCutoff` = 4: this is a parameter used to control the Fourier interpolation of the electronic band structure. In this case, 4 implies that we will use all Bravais lattice vectors over a supercell of 4x4x4 times larger than the input unit cell.
 
-7. :ref:`epaMinEnergy`, :ref:`epaMaxEnergy`, :ref:`epaNumBins`: these last three parameters identify the values of energy (from min to max with numBins values) over which the electron-phonon coupling will be averaged.
+* :ref:`epaMinEnergy`, :ref:`epaMaxEnergy`, :ref:`epaNumBins`: these last three parameters identify the values of energy (from min to max with numBins values) over which the electron-phonon coupling will be averaged.
 
-8. :ref:`epaSmearingEnergy`: is the Gaussian width used in the moving least squares averaging procedure.
+* :ref:`epaSmearingEnergy`: is the Gaussian width used in the moving least squares averaging procedure.
 
 The last 4 parameters are parameters which will determine the quality of the EPA calculation, and should be adjusted by the user for a production calculation.
 Energies should cover the area around the Fermi level or HOMO and LUMO (which can be found in the output of ``pw.x``),
