@@ -13,6 +13,14 @@
 void ElectronPolarizationApp::run(Context &context) {
   std::cout << "Starting electron polarization calculation" << std::endl;
 
+  std::cout << context.getHasSpinOrbit() << "!!!!!\n";
+
+  double spinFactor = 2.;
+  if (context.getHasSpinOrbit()) {
+    spinFactor = 1.;
+  }
+  Warning("Make sure to set HasSpinOrbit=true if used in the DFT code");
+
   // Read the necessary input files
   auto tup = QEParser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(tup);
@@ -47,7 +55,7 @@ void ElectronPolarizationApp::run(Context &context) {
 
   // before moving on, we need to fix the chemical potential
   StatisticsSweep statisticsSweep(context, &bandStructure);
-  auto numCalculations = statisticsSweep.getNumCalculations();
+  int numCalculations = statisticsSweep.getNumCalculations();
 
   // now we can compute the polarization
 
@@ -72,25 +80,45 @@ void ElectronPolarizationApp::run(Context &context) {
     }
   }
 
-  double volume = crystal.getVolumeUnitCell();
   polarization.array() /= context.getKMesh().prod();
+  polarization.array() *= spinFactor;
 
   // now we add the ionic term
 
   PeriodicTable periodicTable;
   Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
   std::vector<std::string> atomicNames = crystal.getAtomicNames();
-  auto numAtoms = crystal.getNumAtoms();
-  for (int ia = 0; ia < numAtoms; ia++) {
-    Eigen::Vector3d position = atomicPositions.row(ia);
-    auto charge = periodicTable.getIonicCharge(atomicNames[ia]);
-    for (int i = 0; i < 3; i++) {
+
+  if (context.getCoreElectrons().size() != crystal.getNumSpecies()) {
+    Error("Number of core electrons different from number of species");
+  }
+
+  for (int i = 0; i < crystal.getNumAtoms(); i++) {
+    Eigen::Vector3d position = atomicPositions.row(i);
+    int charge = periodicTable.getIonicCharge(atomicNames[i]);
+
+    // note: I must subtract the electrons that have not been Wannierized
+    // including the core electrons. This info could be retrieved from the
+    // pseudo-potential file and from the input of Wannier90
+    int iSpec = crystal.getAtomicSpecies()(i);
+    int numCoreElectrons = context.getCoreElectrons()(iSpec);
+    charge -= numCoreElectrons;
+
+    if ( numCoreElectrons<0 ) {
+      Error("Must pass the number of core electrons for each atom");
+    }
+
+    for (int j : {0, 1, 2}) {
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        polarization(iCalc, i) += charge * position(i);
+        polarization(iCalc, j) += charge * position(j);
       }
     }
   }
+
+  double volume = crystal.getVolumeUnitCell();
   polarization.array() /= volume;
+
+  double conversionPolarization = electronSi / pow(bohrRadiusSi,2);
 
   // Save results to file
   std::ofstream outfile("./polarization.dat");
@@ -99,13 +127,10 @@ void ElectronPolarizationApp::run(Context &context) {
              "polarization[x,y,z] (a.u.)\n";
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto sc = statisticsSweep.getCalcStatistics(iCalc);
-    auto temp = sc.temperature;
-    auto chemPot = sc.chemicalPotential;
-    auto doping = sc.doping;
-    outfile << chemPot * energyRyToEv << "\t" << doping;
-    outfile << "\t" << temp * temperatureAuToSi;
-    for (int i = 0; i < 3; i++) {
-      outfile << "\t" << polarization(iCalc, i);
+    outfile << sc.chemicalPotential * energyRyToEv << "\t" << sc.doping
+            << "\t" << sc.temperature * temperatureAuToSi;
+    for (int i : {0, 1, 2}) {
+      outfile << "\t" << polarization(iCalc, i) * conversionPolarization;
     }
     outfile << "\n";
   }

@@ -1463,7 +1463,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   // (even if a python script dies) and then they can't be overwritten properly.
   std::remove(&outFileName[0]);
 
-  if (mpi->getSize()==1) {
+  if (mpi->getSize()<4) {
     // Note: this HDF5 had already been reported and being worked on.
     // It's beyond the purpose of Phoebe's project.
     Warning("HDF5 with 1 MPI process may crash (due to a "
