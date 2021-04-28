@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <cmath>
 #include <ctime>
+#include <fstream>
 
 // Utility to get the command line option from it's name
 char *getCmdOption(char **begin, char **end, const std::string &option) {
@@ -19,7 +20,14 @@ IO::IO(int argc, char *argv[]) {
   char *inputFileName_ = getCmdOption(argv, argv + argc, "-in");
   char *outputFileName_ = getCmdOption(argv, argv + argc, "-out");
   if (inputFileName_ == nullptr) {
-    Error e("Must provide an input file name on command line", 1);
+    Error("Must provide an input file name on command line");
+  }
+
+  { // check input file existence
+    std::ifstream f(inputFileName_);
+    if (not f.good()) {
+      Error("Input file not found");
+    }
   }
 
   inputFileName = inputFileName_;
@@ -105,7 +113,7 @@ void IO::goodbye(Context &context) {
         "\tPhysical Review B 88, no. 4 (2013): 045430.\n" << std::endl;
   }
   // electron-phonon wannier interpolation
-  if(context.getElphFileName() != "") {
+  if(!context.getElphFileName().empty()) {
     std::cout << "  For electron-phonon Wannier interpolation:" << std::endl;
     std::cout << "\tF. Giustino, M.L. Cohen, and S.G. Louie.\n" <<
     //    "\tElectron-phonon interaction using Wannier functions.\n" <<

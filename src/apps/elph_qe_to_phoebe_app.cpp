@@ -114,7 +114,10 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   }
 
   if (usePolarCorrection) {
-    std::cout << "Polar correction\n";
+    if (mpi->mpiHead()) {
+      std::cout << "Polar correction" << std::endl;
+    }
+
     // we need to subtract the polar correction
     // this contribution will be reinstated during the interpolation
     auto volume = crystal.getVolumeUnitCell();
@@ -1459,6 +1462,14 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   // these files seem to get stuck open when a process dies while writing to them,
   // (even if a python script dies) and then they can't be overwritten properly.
   std::remove(&outFileName[0]);
+
+  if (mpi->getSize()==1) {
+    // Note: this HDF5 had already been reported and being worked on.
+    // It's beyond the purpose of Phoebe's project.
+    Warning("HDF5 with 1 MPI process may crash (due to a "
+            "library's bug),\nuse more MPI processes if that happens");
+  }
+
   try {
     // need to open the files differently if MPI is available or not
     // NOTE: do not remove the braces inside this if -- the file must
