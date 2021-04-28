@@ -145,7 +145,10 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
 #pragma omp for nowait
     for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
-      loopPrint.update();
+      #pragma omp critical
+      {
+      loopPrint.update(); // loop print not omp thread safe
+      }
       for (int iState = 0; iState != numStates; ++iState) {
         StateIndex isIdx(iState);
         double deltaFunction =
@@ -254,11 +257,13 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   {
     Eigen::MatrixXd privateRates(numCalcs, numEnergies);
     privateRates.setZero();
-
+// could put nowait back
 #pragma omp for nowait
     for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
-      loopPrint.update();
-
+      #pragma omp critical
+      {
+      loopPrint.update(); // loop print not omp thread safe
+      }
       for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         double chemPot =
