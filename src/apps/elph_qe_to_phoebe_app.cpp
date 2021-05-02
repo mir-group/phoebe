@@ -631,7 +631,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
                                    const Eigen::MatrixXd &energies) {
 
   if (mpi->mpiHead()) {
-    std::cout << "Start reading el-ph coupling from file" << std::endl;
+    std::cout << "\nStart reading el-ph coupling from file." << std::endl;
   }
 
   std::string interpolation = context.getElPhInterpolation();
@@ -652,7 +652,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     x *= sizeof(xx) / pow(1024.,3);
     // the last 2 is because we will later work with 2 copies of g
     std::cout << "The app will now allocate " << x
-              << " (GB) of memory per MPI process\n" << std::endl;
+              << " (GB) of memory per MPI process." << std::endl;
   }
 
   Eigen::Tensor<std::complex<double>, 5> g_full(numBands, numBands, numModes,
@@ -771,7 +771,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
       }
     }
 
-    std::cout << "Done reading el-ph coupling from file\n" << std::endl;
+    std::cout << "Done reading el-ph coupling from file.\n" << std::endl;
   }
 
   mpi->bcast(&g_full);
@@ -1009,7 +1009,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
   }
 
   if (mpi->mpiHead()) {
-    std::cout << "\nStart writing g to file" << std::endl;
+    std::cout << "\nStart writing el-ph coupling to file." << std::endl;
     std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
     std::string outFileName = phoebePrefixQE + ".phoebe.epa.dat";
     std::ofstream outfile(outFileName);
@@ -1028,7 +1028,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(Context &context, Eigen::MatrixXd &elE
         }
       }
     }
-    std::cout << "Done writing g to file\n" << std::endl;
+    std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
   }
 }
 
@@ -1453,7 +1453,8 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   // Dump el-ph in Wannier representation to file
 
-  if(mpi->mpiHead()) std::cout << "Start writing g to file" << std::endl;
+  if(mpi->mpiHead())
+    std::cout << "\nStart writing el-ph coupling to file." << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
   #ifdef HDF5_AVAIL
@@ -1603,7 +1604,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     }
   #endif
 
-  if(mpi->mpiHead()) std::cout << "Done writing g to file\n" << std::endl;
+  if(mpi->mpiHead()) std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
 
   if (runTests) {
     testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors, uMatrices,
