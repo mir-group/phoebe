@@ -572,6 +572,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (not result) {
     Error("Error parsing XML file");
   }
+  if(mpi->mpiHead())
+    std::cout << "Reading in " << fileName << "." << std::endl;
 
   pugi::xml_node output = doc.child("qes:espresso").child("output");
 
@@ -762,6 +764,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // if the user didn't set the Fermi level, we do it here.
   if (std::isnan(context.getFermiLevel()))
     context.setFermiLevel(homo);
+
+  if(mpi->mpiHead())
+    std::cout << "Done reading in " << fileName << "." << std::endl;
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
