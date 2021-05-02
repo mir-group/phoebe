@@ -220,7 +220,10 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
     #pragma omp parallel for
     for (int i : mpi->divideWorkIter(numEnergies)) {
-      loopPrint1.update();
+      #pragma omp critical
+      {
+      loopPrint1.update(); // loop print not omp thread safe
+      }
       dos(i) = tetrahedrons.getDOS(energies(i));
     }
     mpi->allReduceSum(&dos);
@@ -296,6 +299,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
           int intBinPos = int(std::round((energies(iEnergy) - minElphEnergy) / binSize));
           int iAbsInt = int(std::round( (energies(iEnergy) + phEnergies(iPhFreq) - minElphEnergy) / binSize));
           int iEmisInt = int(std::round((energies(iEnergy) - phEnergies(iPhFreq) - minElphEnergy) / binSize));
+
           // check and fold within bounds:
           foldWithinBounds(intBinPos, numElphBins);
           foldWithinBounds(iAbsInt, numElphBins);
@@ -315,7 +319,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
       }
     }
     // TODO do we need this
-    privateRates = (twoPi/spinFactor) * privateRates/crystal.getVolumeUnitCell(crystal.getDimensionality());
+    privateRates = (twoPi/spinFactor) * privateRates/double(fullBandStructure.getNumPoints(true)) * crystal.getVolumeUnitCell(crystal.getDimensionality());
 
     // TODO again seems like unnecessary copying
     #pragma omp critical
