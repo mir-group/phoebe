@@ -162,6 +162,8 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, fullPoints, isDistributed);
 
+  LoopPrint loopPrint("populating electronic bandstructure", "bands", numBands);
+
   for (auto ik : fullBandStructure.getWavevectorIndices()) {
     Point point = fullBandStructure.getPoint(ik);
     auto tup = diagonalize(point);
@@ -172,6 +174,7 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
       fullBandStructure.setVelocities(point, velocities);
     }
   }
+  loopPrint.close();
   return fullBandStructure;
 }
 
@@ -237,8 +240,12 @@ void ElectronH0Fourier::setPositionVectors() {
   // equal to the grid of wavevectors would be the bare minimum for the
   // interpolation to work, and wouldn't be enough for anything good.
 
+  LoopPrint loopPrint("Fourier supercell position vector search",
+        "as first cell dimension", searchSize0 * grid(0) * 2);
+
   // now, we loop over the vectors of super cell A.
   for (int n0 = -searchSize0 * grid(0); n0 <= searchSize0 * grid(0); n0++) {
+    loopPrint.update();
     for (int n1 = -searchSize1 * grid(1); n1 <= searchSize1 * grid(1); n1++) {
       for (int n2 = -searchSize2 * grid(2); n2 <= searchSize2 * grid(2);
            n2++) {
@@ -294,6 +301,7 @@ void ElectronH0Fourier::setPositionVectors() {
       }
     }
   }
+  loopPrint.close();
 
   // now we store the list of these lattice vectors in the class members
   numPositionVectors = tmpNumPoints;

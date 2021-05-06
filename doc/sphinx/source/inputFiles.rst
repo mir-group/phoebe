@@ -945,7 +945,7 @@ windowPopulationLimit
 
 * **Format:** *double*
 
-* **Required:** yes (if :ref:`windowType` = "population")
+* **Required:** no (optional if :ref:`windowType` = "population")
 
 
 .. _maxIterationsBTE:

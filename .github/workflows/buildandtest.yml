@@ -58,7 +58,7 @@ jobs:
       - name: Run epa example without MPI
         working-directory: example/Silicon-epa
         run: |
-          ../../${BUILD_DIR}/phoebe -in qe2Epa.in
+          ../../${BUILD_DIR}/phoebe -in qeToPhoebeEPA.in
           ../../${BUILD_DIR}/phoebe -in epaTransport.in
           ../../${BUILD_DIR}/phoebe -in electronFourierBands.in
           ../../${BUILD_DIR}/phoebe -in electronFourierDos.in

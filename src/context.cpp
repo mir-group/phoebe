@@ -780,6 +780,18 @@ void Context::printInputSummary(const std::string &fileName) {
       if(wannier90Prefix != "") std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
       if(quantumEspressoPrefix != "") std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix << std::endl;
     }
+    if(appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
+      if(!std::isnan(epaMinEnergy))
+       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaMaxEnergy))
+        std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaNumBins))
+        std::cout << "epaNumBins = " << epaNumBins << std::endl;
+      if(!std::isnan(epaSmearingEnergy))
+        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(electronFourierCutoff))
+        std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
     std::cout << std::endl;
   }
   // Qetophoebe doesn't write a nice line after printing
@@ -898,8 +910,6 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
     if(!std::isnan(epaMaxEnergy))
       std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaNumBins))
-      std::cout << "epaNumBins = " << epaNumBins << std::endl;
     if(!std::isnan(epaSmearingEnergy))
       std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
     if(!std::isnan(epaDeltaEnergy))

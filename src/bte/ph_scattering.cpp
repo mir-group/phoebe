@@ -674,9 +674,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   loopPrint.close();
 
   // Add boundary scattering
-
   if (doBoundary) {
-#pragma omp parallel for default(none)                                         \
+  #pragma omp parallel for default(none)                                         \
     shared(inPopulations, outPopulations, innerBose, particle, linewidth,      \
            switchCase, numCalculations)
     for (int is1 : outerBandStructure.irrStateIterator()) { // in serial!
@@ -760,12 +759,48 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 0) { // case of matrix construction
     int iCalc = 0;
     if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
+
         BteIndex iBteIdx(iBte);
+
+        // this gets us the state index of the qpoint
+        // on the irreducible zone wedge
+        auto is = outerBandStructure.bteToState(iBteIdx);
+
+        // getRotationsStar gives list of rotations + index of rotations
+        // corresponding to a given irreducible qpoint
+        auto rotationsList = outerBandStructure.getRotationsStar(is);
+
+        // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
-          CartIndex iCart(i);
-          int iMat1 = getSMatrixIndex(iBteIdx, iCart);
-          theMatrix(iMat1, iMat1) = linewidth->operator()(iCalc, 0, iBte);
+          for (int j : {0, 1, 2}) {
+            CartIndex iCart(i);
+            CartIndex jCart(j);
+            int iMati = getSMatrixIndex(iBteIdx, iCart);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            if (theMatrix.indicesAreLocal(iMati, iMatj)) {
+              theMatrix(iMati, iMatj) = 0;
+            }
+          }
+        }
+
+        // sum over rotations related to irreducible star
+        for(auto rotation : rotationsList) {
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              CartIndex iCart(i);
+              CartIndex jCart(j);
+              // we want to set the diagonal as linewidth,
+              // so iBteIdx is the same, but i.j change
+              int iMati = getSMatrixIndex(iBteIdx, iCart);
+              int iMatj = getSMatrixIndex(iBteIdx, jCart);
+              if (theMatrix.indicesAreLocal(iMati, iMatj)) {
+                theMatrix(iMati, iMatj) += rotation(i,j) * linewidth->operator()(iCalc, 0, iBte);
+              }
+            }
+          }
         }
       }
     } else {

@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
+#include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -114,25 +115,14 @@ void ScatteringMatrix::setup() {
     }
 
     // user info about memory
-    {
-      double x = pow(matSize,2) / pow(1024.,3) * 64.;
-      if ( mpi->mpiHead()) {
+    if ( mpi->mpiHead()) {
+      double x = pow(matSize,2) / pow(1024.,3) * sizeof(double);
         std::cout << "Allocating " << x
-                  << " (GB) for the scattering matrix.\n" << std::endl;
-      }
+                  << " GB (" << x/(mpi->getSize()) <<
+                " GB per process) for the scattering matrix.\n" << std::endl;
     }
 
     theMatrix = ParallelMatrix<double>(matSize, matSize);
-
-    // print an estimate of the scattering matrix memory requirement
-    if(mpi->mpiHead()) {
-      // this is a workaround to avoid overflow errors. Formula is matsize^2 * 16 bytes/ (1024)^3 bytes/gb
-      double temp = matSize/1024.0;
-      double memSize = 16*temp*temp/(1024.0);
-      std::cout << "You're storing the scattering matrix in memory.\n" <<
-        "This will require approximately " << memSize << " GB.\nRunning with " <<
-        mpi->getSize() << " processes, that's " << memSize/(mpi->getSize()) << " GB per process." << std::endl;
-    }
 
     // calc matrix and linewidth.
     builder(&internalDiagonal, emptyVector, emptyVector);
