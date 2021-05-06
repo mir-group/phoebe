@@ -84,11 +84,11 @@ The most important parameters, which should be tweaked and modified in a researc
 
 This list is obviously not complete, and for your research project you may need to use more functionalities from QE's ``pw.x``.
 
-Simply run it as::
+This is a quick calculation, but if there are a few cores available, you could parallelize it as::
 
-    /path/to/patched-quantum-espresso/bin/pw.x -in scf.in > scf.out
+    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in nscf.in > nscf.out
 
-after substituting the suitable path to the ``pw.x`` executable.
+where here we have acted as if we have 4 cores. Be sure to substitute in the suitable path to the ``pw.x`` executable.
 
 .. note::
    The patched QE used for Phoebe only supports the keyword ``K_POINTS automatic``.
@@ -155,14 +155,57 @@ The input file ``q2r.in`` is minimal::
 
 where the first variable must match the path to the dynamical matrices set earlier in ``ph.x``, and ``flfrc`` is the output file with the force constants.
 
-In the working folder ``./example/Silicon-epa/qe-elph``` run the command::
+In the working folder ``./example/Silicon-epa/qe-elph`` run the command::
 
     /path/to/patched-quantum-espresso/bin/q2r.x -in q2r.in > q2r.out
 
 If the code run successfully, you should see a new file ``silicon.fc``.
 
 
-Step 5: QE to Phoebe conversion
+Step 5: Run nscf
+-----------------
+
+Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an nscf run to calculate the electronic properties on the k-point mesh. We do so using the input file in the ``Silicon-epa`` example folder:: 
+
+  &control
+    calculation = "nscf"
+    restart_mode = "from_scratch"
+    prefix = "silicon"
+    pseudo_dir = "../../pseudoPotentials/"
+    outdir = "./out"
+  /
+  &system
+    ibrav = 2
+    celldm(1) = 10.2
+    nat = 2
+    ntyp = 1
+    ecutwfc = 30.
+    nbnd = 12
+  /
+  &electrons
+    conv_thr = 1.0d-10
+  /
+  ATOMIC_SPECIES
+    Si  28.086  Si.pz-vbc.UPF
+  ATOMIC_POSITIONS alat
+    Si 0.00 0.00 0.00
+    Si 0.25 0.25 0.25
+  K_POINTS crystal
+  216
+    0.00000000  0.00000000  0.00000000  4.629630e-03 
+    0.00000000  0.00000000  0.16666667  4.629630e-03 
+    ...
+
+where the k-points list will continue for all 216 points. To generate this k-point list, one could use the ``kmesh.pl`` utility from Wannier90 (in the directory ``q-e/wannier90-3.0.0/utility/kmesh.pl``, used as ``kmesh.pl nk1 nk2 nk3``, with the output appended to the end of ``nscf.in``).
+
+We run this as we did the ``pw.x`` step:: 
+
+    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in nscf.in > nscf.out
+
+where again this could be parallelized using ``mpi`` and ``npool``. 
+
+
+Step 6: QE to Phoebe conversion
 -------------------------------
 
 Now that we have generated all the necessary input files, we can get started with Phoebe.
@@ -220,7 +263,7 @@ For this reason, we recommend to limit/avoid use of MPI parallelization and use 
 After the code completes, you should see an output file called ``silicon.phoebe.epa.dat``.
 
 
-Step 6: EPA Electronic Transport
+Step 7: EPA Electronic Transport
 --------------------------------
 
 Finally, you reached the last step, and now we can see some transport properties!
@@ -269,8 +312,35 @@ To run the code, we can simply do::
 Note that the most time-consuming step of this calculation typically is the calculation of the density of states.
 However, this is still dramatically faster than a Wannier-based transport technique.
 
-The transport coefficients will print to the output file alongside with information on the chemical potential/doping and temperature used.
-Additionally, the information on transport coefficients can be found in a JSON file, which is easier to parsed and plot, as in the python script provided in ``./phoebe/scripts/plotScripts``, and described in :ref:`postprocessing`.
+Output
+------
+
+As usual, there are two kinds of output: the standard output file (in the line above, it's ``epaTransport.out``) and the JSON files containing more extensive transport and lifetime values.
+
+.. raw:: html
+
+  <h4>Standard Output File</h4>
+
+This file shows results as well as a report of the calculation progress. The transport coefficients will print to the standard output file alongside with information on the chemical potential/doping and temperature used.
+
+.. raw:: html
+
+  <h4>JSON Output Files</h4>
+
+There are several JSON files containing all the output, including the transport properties. They also contain information about the dos and electron bandstrucutre, as well as the units associated which each kind of output. It's worth opening and printing the keys from each JSON file to see the information in each file.
+
+You can learn more about how to post-process these files at :ref:`postprocessing`.
+
+**Files which are always output for this calculation:**
+
+* ``electron_bands.json``: contains the electron band energies used in the calculation.
+
+* ``electron_dos.json``: contains the electron density of states used in the calculation.
+
+* ``epa_onsager_coefficients.json``: contains the electronic transport coefficients from EPA.
+
+* ``epa_relaxation_times.json``: contains the EPA relaxation times at each energy bin value.
+
 
 Convergence Checklist
 ----------------------
