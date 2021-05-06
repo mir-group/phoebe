@@ -759,13 +759,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 0) { // case of matrix construction
     int iCalc = 0;
     if (context.getUseSymmetries()) {
-      // numStates is defined in scattering.cpp as # of irrPoints
+      // numStates is defined in scattering.cpp as # of irrStates
       // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
 
         BteIndex iBteIdx(iBte);
 
-        // this gets us the qpoint on the irreducible zone wedge
+        // this gets us the state index of the qpoint
+        // on the irreducible zone wedge
         auto is = outerBandStructure.bteToState(iBteIdx);
 
         // getRotationsStar gives list of rotations + index of rotations
@@ -796,7 +797,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               int iMati = getSMatrixIndex(iBteIdx, iCart);
               int iMatj = getSMatrixIndex(iBteIdx, jCart);
               if (theMatrix.indicesAreLocal(iMati, iMatj)) {
-                theMatrix(iMati, iMatj) += rotation(j,i) * linewidth->operator()(iCalc, 0, iBte);
+                theMatrix(iMati, iMatj) += rotation(i,j) * linewidth->operator()(iCalc, 0, iBte);
               }
             }
           }
