@@ -91,21 +91,21 @@ You should now have a number of ``disp.*.in`` files, with the QE input files tha
     mpirun -np 1 pw.x -in disp-$i.in > disp-$i.out
   done
 
-Take care to modify these lines to parallelize QE as best you can. If you want to run each displacement calculation as an independent job, as would be sensible for a full scale calculation, you must modify this script to copy the displacement files into unique directories
+Take care to modify these lines to parallelize QE as best you can. If you want to run each displacement calculation as an independent job, as would be sensible for a full scale calculation, you must modify this script to copy the displacement files into unique directories, and run from within them. Otherwise, simultaneous jobs might overwrite one another.
+
 After all these calculations have run, you will have all the files needed for the next step.
 
 
 Step 3: Construct Force Constant Matrices
 ------------------------------------------
 
-Once all calculations are finished, collect the force constants from them using a line like::
+Once all calculations are finished, collect the force constants from them using a line like the following, where ``disp-{00001..nCalculations}.out`` is a list of all the output files generated in Step 2::
 
-  phono3py --<DFT-package-name> --cf3 disp-{00001..nCalculations}/<output-file-name>
+  phono3py --<DFT-package-name> --cf3 disp-{00001..nCalculations}.out
 
 This creates a file named ``FORCES_FC3``, which contains the force constants. To use this information as an input to Phoebe, run the following line to compress this information into two DFT-package independent hdf5 files, ``fc2.hdf5`` and ``fc3.hdf5``, which contain the second and third order force constants, respectively::
 
   phono3py --<DFT-package-name> --dim="2 2 2" -c <input-file-name> --sym-fc
-
 
 Before proceeding, you should check the quality of the calculation. First, make sure the harmonic phonon bands look appropriate using phono3py. In the directory with the force constants file, make a file named ``band.conf`` which should contain at a minimum the high symmetry band path in crystal coordinates (with other optional settings `here <https://phonopy.github.io/phonopy/setting-tags.html#band-structure-related-tags>`_). For silicon, a simple example would be::
 
@@ -179,7 +179,7 @@ Let's go through these parameters:
 With this input, we can compute the phonon contribution to thermal conductivity of silicon. We run this calculation using Phoebe::
 
   export OMP_NUM_THREADS=4
-  mpirun -np 1 /path/to/phoebe/build/phoebe -in phononTransport.in -out phTransport.out
+  mpirun -np 1 /path/to/phoebe/build/phoebe -in phononTransport.in > phTransport.out
 
 .. note::
    By default, isotopic scattering at natural abundances is included in the scattering matrix. To disable or modify it, check the parameters :ref:`withIsotopeScattering` and :ref:`massVariance`.
@@ -270,7 +270,7 @@ In this tutorial we show a demo calculation, which is unconverged for the sake o
 
 * Test the convergence of the phonon transport coefficients with respect to the size of the phonon supercell used in the anharmonic force constant calculation.
 
-* Check the convergence of the phonon transport results with respect to the parameters :ref: `qMesh` and, if using the fixed-width Gaussian smearing method, the :ref: `smearingWidth` parameter.
+* Check the convergence of the phonon transport results with respect to the parameters :ref:`qMesh` and, if using the fixed-width Gaussian smearing method, the :ref:`smearingWidth` parameter.
 
 
 
