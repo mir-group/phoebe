@@ -527,19 +527,40 @@ Phonon Bands
 
 .. raw:: html
 
-  <h3>Sample input file</h3>
+  <h3>Sample input file (Quantum ESPRESSO)</h3>
 
 ::
 
-  phD2FileName = "qespresso/silicon.fc",
-  sumRuleD2 = "simple"
   appName = "phononBands"
+  sumRuleD2 = "simple"
+
   begin point path
    L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
    G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
    X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000
    K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
   end point path
+
+.. raw:: html
+
+  <h3>Sample input file (phono3py)</h3>
+
+::
+
+  appName = "phononBands"
+  phD2FileName = "fc2.hdf5" 
+  dispFCFileName = "disp_fc3.yaml"
+  phonopyDispFileName = "phono3py_disp.yaml"
+  sumRuleD2 = "simple"
+
+  begin point path
+   G 0.000 0.000 0.000  X 0.000 0.500 0.500    
+   X 0.000 0.500 0.500  W 0.250 0.750 0.500    
+   W 0.250 0.750 0.500  L 0.500 0.500 0.500  
+   L 0.500 0.500 0.500  G 0.000 0.000 0.000  
+   G 0.000 0.000 0.000  K 0.375 0.750 0.375
+  end point path 
+
 
 -----------------------------------
 
@@ -772,11 +793,11 @@ appName
 phD2FileName
 ^^^^^^^^^^^^
 
-* **Description:** Path to a file containing harmonic force constants. File formats supported are: Quantum-ESPRESSO output of ``q2r.x`` (``prefix.fc``) or phono3py output (``fc2.hdf5``). Additionally, when using phono3py, it must The first input needs to be a path to the directory containing the other necessary phono3py files (``fc2.hdf5``, ``phono3py_disp.yaml``, and ``disp*.yaml``).
+* **Description:** Path to a file containing harmonic force constants. File formats supported are: Quantum-ESPRESSO output of ``q2r.x`` (``prefix.fc``) or phono3py output (``fc2.hdf5``).
 
 * **Format:** *string*
 
-* **Required:** yes (for all phonon apps)
+* **Required:** yes (for all phonon and electron-phonon apps)
 
 
 .. _phD3FileName:
@@ -795,7 +816,7 @@ phD3FileName
 phonopyDispFileName
 ^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Path to the phono3py_disp.yaml file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named phonopy_disp.yaml).
+* **Description:** Path to the ``phono3py_disp.yaml`` file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named ``phonopy_disp.yaml``).
 
 * **Format:** *string*
 
