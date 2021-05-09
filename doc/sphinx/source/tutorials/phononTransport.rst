@@ -6,7 +6,7 @@ Phonon Transport Tutorial
 Synopsis
 --------
 
-In this tutorial, we will use Phoebe to compute the lattice thermal conductivity of silicon. Here, we use Quantum ESPRESSO for the calculation of interatomic force constants. However, in practice, `any DFT package that works with Phono3py <https://phonopy.github.io/phono3py/interfaces.html>`__ could be used. 
+In this tutorial, we will use Phoebe to compute the lattice thermal conductivity of silicon. Here, we use Quantum ESPRESSO for the calculation of interatomic force constants. However, in practice, `any DFT package that works with Phono3py <https://phonopy.github.io/phono3py/interfaces.html>`__ could be used.
 
 As described in the :ref:`Theory` section of this manual, we need Quantum ESPRESSO to compute the phonon dynamical matrix and the third derivative of the total energy with respect to ionic displacements (aka the anharmonic or third-order force constants.) In this case, it shouldn't matter which version of QE you use, and it's not necessary to use a patched copy of QE.
 
@@ -37,7 +37,7 @@ If for any reason this doesn't work, refer to the phono3py documentation linked 
 Step 2: Calculation of Force Constants
 ---------------------------------------
 
-The procedure to calculate the force constants with phono3py differs slightly depending on which DFT package you want to use. The procedures for interfacing with different calculators are available `here <https://phonopy.github.io/phono3py/interfaces.html#>`_. 
+The procedure to calculate the force constants with phono3py differs slightly depending on which DFT package you want to use. The procedures for interfacing with different calculators are available `here <https://phonopy.github.io/phono3py/interfaces.html#>`_.
 
 However, the procedure to follow is similar in all cases. Below, ``<input-file-name>`` should be a ``POSCAR`` in the VASP case or a ``pw.x`` style ``pw.in`` file in the QE case. ``<DFT-package-name>`` will be ``qe`` for Quantum Espresso. The package name input flag is not necessary for VASP, which is used by default (though ``--vasp`` will work). For other codes, look at the examples in the above link for input file and package flag information.
 
@@ -49,7 +49,7 @@ The primitive cell will be written in VASP format in a file named ``Punitcell.in
 
 .. note::
 
-  A full-scale anharmonic force constant calculation can be expensive! Before running a real anharmonic calculation, we recommend checking the quality of your phonon dispersion using phonopy. See below for :ref:`harmonic_p3py`. 
+  A full-scale anharmonic force constant calculation can be expensive! Before running a real anharmonic calculation, we recommend checking the quality of your phonon dispersion using phonopy. See below for :ref:`harmonic_p3py`.
 
 Now, we generate the displaced supercells (of the specified dimensions, here 2x2x2) using the command::
 
@@ -105,7 +105,7 @@ Once all calculations are finished, collect the force constants from them using 
 
 This creates a file named ``FORCES_FC3``, which contains the force constants. To use this information as an input to Phoebe, run the following line to compress this information into two DFT-package independent hdf5 files, ``fc2.hdf5`` and ``fc3.hdf5``, which contain the second and third order force constants, respectively::
 
-  phono3py --<DFT-package-name> --dim="2 2 2" -c <input-file-name> --sym-fc
+  phono3py --dim="2 2 2" -c <input-file-name> --sym-fc
 
 Before proceeding, you should check the quality of the calculation. First, make sure the harmonic phonon bands look appropriate using phono3py. In the directory with the force constants file, make a file named ``band.conf`` which should contain at a minimum the high symmetry band path in crystal coordinates (with other optional settings `here <https://phonopy.github.io/phonopy/setting-tags.html#band-structure-related-tags>`_). For silicon, a simple example would be::
 
@@ -120,7 +120,7 @@ Then, run the following lines and check the output plot, named ``band.pdf``::
   # convert the force files to phonopy format
   phono3py --cfs
   # make a dispersion plot
-  phonopy --<DFT-package-name> -p -s band.conf -c <input-file-name>     
+  phonopy --<DFT-package-name> -p -s band.conf -c <input-file-name>
 
 .. note::
   You should make sure this disperson is converged with respect to DFT parameters (energy cutoff, kpoint mesh, etc) and also with respect to the dimension of the supercell provided to phono3py. It is also recommend you check the convergence of the final calculated transport properties with respect to supercell size.
@@ -129,11 +129,11 @@ Then, run the following lines and check the output plot, named ``band.pdf``::
 Step 4: Calculate Lattice Thermal Conductivity
 ------------------------------------------------
 
-If this dispersion looks good, we are now ready to move on to phonon transport calculations using Phoebe. 
+If this dispersion looks good, we are now ready to move on to phonon transport calculations using Phoebe.
 
 There are four files output by phono3py which we will need: ``fc3.hdf5``, ``fc2.hdf5``, ``phono3py_disp.yaml``, and ``disp_fc3.yaml`` (in the event that you ran phono3py with different dimensions on the harmonic and anharmonic force constants, there will be a fifth file, ``disp_fc2.yaml`` as well). These contain all the information we need to go forward, and can be copied into a new directory to run Phoebe if desired.
 
-Any of the phonon related apps can be run with these files, including the phononBands, phononDos, and lifetime apps. We describe here the use of the transport app here, but the input for other apps will be similar. 
+Any of the phonon related apps can be run with these files, including the phononBands, phononDos, and lifetime apps. We describe here the use of the transport app here, but the input for other apps will be similar.
 
 Now, we are ready to use Phoebe to calculate the lattice thermal conductivity. The Phoebe input file will look something like::
 
@@ -279,7 +279,7 @@ Parallelization
 
 For this calculation, the bottleneck is typically the construction of the scattering matrix (or the evaluation of a scattering matrix-vector product). If you are not familiar with parallelization techniques, you should read up on `OpenMP <https://en.wikipedia.org/wiki/OpenMP>`__ and `MPI <https://en.wikipedia.org/wiki/Message_Passing_Interface>`__.
 
-Phoebe takes advantage of three different parallelization schemes for the phonon transport calculation. 
+Phoebe takes advantage of three different parallelization schemes for the phonon transport calculation.
 
 * **MPI parallelization.** We distinguish two cases. If we want to compute the action of matrix :math:`\sum_{k'b'} A_{k,k',b,b'} f_{k'b'}`, we MPI-distribute over rows of wavevectors to achieve the best performance. If we want to store the matrix in memory, we parallelize over pairs of wavevectors using the ScaLAPACK layout. This distributes the scattering matrix in memory, reducing the required memory per process, and also speeds up operations on the matrix.
 
