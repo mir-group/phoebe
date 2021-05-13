@@ -366,14 +366,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                            linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                           }
                           theMatrix(iMat1, iMat2) += rotation(i, j) * ratePlus;
                         }
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     theMatrix(iBte1, iBte2) += ratePlus;
                   }
 
@@ -396,12 +396,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       outPopulations[iInput](iCalc, i, iBte1) +=
                           ratePlus * inPopRot(i);
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          ratePlus * inPopulations[iInput](iCalc, i, iBte1);
+                          0.5 * ratePlus * inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
 
                 } else { // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, iBte1) += ratePlus;
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                 }
               }
             }
@@ -478,7 +478,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) +=
-                                0.5 * rateMinus2;
+                                0.5 * (rateMinus1 + rateMinus2);
                           }
                           theMatrix(iMat1, iMat2) -=
                               rotation(i, j) * (rateMinus1 + rateMinus2);
@@ -486,7 +486,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * rateMinus2;
+                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
                     theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
                   }
 
@@ -506,12 +506,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       outPopulations[iInput](iCalc, i, iBte1) -=
                           (rateMinus1 + rateMinus2) * inPopRot(i);
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          0.5 * rateMinus2 *
+                          0.5 * (rateMinus1 + rateMinus2) *
                           inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
                 } else { // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * rateMinus2;
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
                 }
               }
             }
@@ -674,9 +674,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   loopPrint.close();
 
   // Add boundary scattering
-
   if (doBoundary) {
-#pragma omp parallel for default(none)                                         \
+  #pragma omp parallel for default(none)                                         \
     shared(inPopulations, outPopulations, innerBose, particle, linewidth,      \
            switchCase, numCalculations)
     for (int is1 : outerBandStructure.irrStateIterator()) { // in serial!
@@ -760,12 +759,48 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 0) { // case of matrix construction
     int iCalc = 0;
     if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
+
         BteIndex iBteIdx(iBte);
+
+        // this gets us the state index of the qpoint
+        // on the irreducible zone wedge
+        auto is = outerBandStructure.bteToState(iBteIdx);
+
+        // getRotationsStar gives list of rotations + index of rotations
+        // corresponding to a given irreducible qpoint
+        auto rotationsList = outerBandStructure.getRotationsStar(is);
+
+        // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
-          CartIndex iCart(i);
-          int iMat1 = getSMatrixIndex(iBteIdx, iCart);
-          theMatrix(iMat1, iMat1) = linewidth->operator()(iCalc, 0, iBte);
+          for (int j : {0, 1, 2}) {
+            CartIndex iCart(i);
+            CartIndex jCart(j);
+            int iMati = getSMatrixIndex(iBteIdx, iCart);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            if (theMatrix.indicesAreLocal(iMati, iMatj)) {
+              theMatrix(iMati, iMatj) = 0;
+            }
+          }
+        }
+
+        // sum over rotations related to irreducible star
+        for(auto rotation : rotationsList) {
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              CartIndex iCart(i);
+              CartIndex jCart(j);
+              // we want to set the diagonal as linewidth,
+              // so iBteIdx is the same, but i.j change
+              int iMati = getSMatrixIndex(iBteIdx, iCart);
+              int iMatj = getSMatrixIndex(iBteIdx, jCart);
+              if (theMatrix.indicesAreLocal(iMati, iMatj)) {
+                theMatrix(iMati, iMatj) += rotation(i,j) * linewidth->operator()(iCalc, 0, iBte);
+              }
+            }
+          }
         }
       }
     } else {

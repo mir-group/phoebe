@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
+#include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -96,6 +97,9 @@ void ScatteringMatrix::setup() {
 
   std::vector<VectorBTE> emptyVector;
 
+  // user info about memory
+  memoryUsage();
+
   if (highMemory) {
     if (numCalcs > 1) {
       // note: one could write code around this
@@ -109,6 +113,15 @@ void ScatteringMatrix::setup() {
     } else {
       matSize = int(numStates);
     }
+
+    // user info about memory
+    if ( mpi->mpiHead()) {
+      double x = pow(matSize,2) / pow(1024.,3) * sizeof(double);
+        std::cout << "Allocating " << x
+                  << " GB (" << x/(mpi->getSize()) <<
+                " GB per process) for the scattering matrix.\n" << std::endl;
+    }
+
     theMatrix = ParallelMatrix<double>(matSize, matSize);
 
     // calc matrix and linewidth.
@@ -130,6 +143,7 @@ VectorBTE ScatteringMatrix::diagonal() {
   }
 }
 
+/**
 //VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
 //  // outPopulation = outPopulation - internalDiagonal * inPopulation;
 //  VectorBTE outPopulation = dot(inPopulation);
@@ -145,6 +159,7 @@ VectorBTE ScatteringMatrix::diagonal() {
 //  }
 //  return outPopulation;
 //}
+**/
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   if (highMemory) {
@@ -231,6 +246,14 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
         auto t2 = getSMatrixIndex(iMat2);
         int iBte1 = std::get<0>(t1).get();
         int iBte2 = std::get<0>(t2).get();
+
+        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
+            excludeIndices.end())
+          continue;
+        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) !=
+            excludeIndices.end())
+          continue;
+
         int i = std::get<1>(t1).get();
         int j = std::get<1>(t2).get();
         outPopulation(0, i, iBte1) +=
@@ -240,6 +263,14 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
       for (auto tup : theMatrix.getAllLocalStates()) {
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
+
+        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
+            excludeIndices.end())
+          continue;
+        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) !=
+            excludeIndices.end())
+          continue;
+
         for (int i : {0, 1, 2}) {
           outPopulation(0, i, iBte1) +=
               theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
@@ -488,13 +519,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   auto particle = outerBandStructure.getParticle();
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
-  double energyToTime = timeRyToFs;
+  // we need an extra factor of two pi, likely because of unit conversion
+  // (perhaps h vs hbar)
+  double energyToTime = timeRyToFs/twoPi;
   if (particle.isPhonon()) {
     particleType = "phonon";
-    // in the case of phonons, we need an extra factor of
-    // two pi, likely because of a conversion from
-    // ordinal to angular frequency
-    energyToTime /= twoPi;
     energyUnit = "meV";
     energyConversion *= 1000;
   } else {
@@ -595,10 +624,78 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
+void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
+                                      const Eigen::VectorXd &eigenvalues) {
+  if (!mpi->mpiHead()) {
+    return;
+  }
+
+  Eigen::VectorXd times = 1. / eigenvalues.array();
+
+  std::string particleType;
+  auto particle = outerBandStructure.getParticle();
+  if (particle.isPhonon()) {
+    particleType = "phonon";
+  } else {
+    particleType = "electron";
+  }
+
+  double energyToTime = timeRyToFs / twoPi;
+  double energyConversion = energyRyToEv;
+
+  std::string energyUnit = "eV";
+
+  // need to store as a vector format with dimensions
+  // iCalc, ik. ib, iDim (where iState is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
+  std::vector<std::vector<double>> outTimes;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    std::vector<double> thisTime;
+    for (auto x : times) {
+      thisTime.push_back(x * energyToTime);
+    }
+    outTimes.push_back(thisTime);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
 std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
 ScatteringMatrix::diagonalize() {
-  //    std::vector<double> eigenvalues;
-  //    ParallelMatrix<double> eigenvectors;
+
+  // user info about memory
+  {
+    memoryUsage();
+    double xx;
+    double x = 2 * pow(theMatrix.rows(),2) / pow(1024., 3) * sizeof(xx);
+    // 2 because one is for eigenvectors, another is the copy of the matrix
+    std::cout << std::setprecision(4);
+    if (mpi->mpiHead()) {
+      std::cout << "About to allocate " << x
+                << " (GB) for the scattering matrix diagonalization.\n"
+                << std::endl;
+    }
+  }
+
   auto tup = theMatrix.diagonalize();
   auto eigenvalues = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);

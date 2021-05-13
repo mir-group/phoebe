@@ -752,13 +752,6 @@ void Context::printInputSummary(const std::string &fileName) {
   // crystal structure parameters -------------------
   std::cout << "useSymmetries = " << useSymmetries << std::endl;
   std::cout << "dimensionality = " << dimensionality << std::endl;
-  // TODO these only apply in the Wannier case.
-  // For now, instead, we output crystal information.
-  //for (int i = 0; i < inputAtomicPositions.cols(); i++) {
-  //  std::cout << inputSpeciesNames << " " <<  inputAtomicSpecies(i) <<
-  //      " " << inputAtomicPositions(0,i) << " " << inputAtomicPositions(1,i)
-  //      << " " << inputAtomicPositions(2,i) << std::endl;
-  // }
   std::cout << std::endl;
 
   // phonon parameters -------------------------------
@@ -787,7 +780,23 @@ void Context::printInputSummary(const std::string &fileName) {
       if(wannier90Prefix != "") std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
       if(quantumEspressoPrefix != "") std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix << std::endl;
     }
+    if(appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
+      if(!std::isnan(epaMinEnergy))
+       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaMaxEnergy))
+        std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaNumBins))
+        std::cout << "epaNumBins = " << epaNumBins << std::endl;
+      if(!std::isnan(epaSmearingEnergy))
+        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(electronFourierCutoff))
+        std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
     std::cout << std::endl;
+  }
+  // Qetophoebe doesn't write a nice line after printing
+  if(appName.find("elPhQeToPhoebe") != std::string::npos) {
+    std::cout << "---------------------------------------------\n" << std::endl;
   }
 
   // Transport parameters ---------------------------
@@ -901,8 +910,6 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
     if(!std::isnan(epaMaxEnergy))
       std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaNumBins))
-      std::cout << "epaNumBins = " << epaNumBins << std::endl;
     if(!std::isnan(epaSmearingEnergy))
       std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
     if(!std::isnan(epaDeltaEnergy))

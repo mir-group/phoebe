@@ -142,7 +142,7 @@ where the number of disentangled bands :math:`b'` is smaller than the number of 
 Therefore, we rotate the electron-phonon coupling from the Bloch to Wannier space using the entangled number of bands.
 Wannier90 prints the two different :math:`U` matrices, and one can just multiply them to get the transformation matrix.
 
-As a further minor detail, remember that some bands (like deep core bands) may be excluded from the Wannierization procedure (through the keyword exclude-indeces), so that there may be an offset in the band index of U and g.
+As a further minor detail, remember that some bands (like deep core bands) may be excluded from the Wannierization procedure (through the keyword exclude-indices), so that there may be an offset in the band index of U and g.
 
 
 
@@ -210,25 +210,25 @@ The algorithm to fix the gauge in Quantum ESPRESSO goes as follows:
   and fix the gauge of non-degenerate eigenvectors by setting c(G=0) to be real and positive.
   For degenerate eigenvalues, set c(G=0)>0 only for the first band of the degenerate subspace.
   Save the wavefunction and its G-vectors (the arrays `evc`, `g_vectors`, and the mapping `igk_k`).
-  
+
 * During a ph.x calculation, or a nscf calculation before Wannier90, the codes ask to
   diagonalize the Hamiltonian at a point k (or k+q) that is commensurate with the grid of points
   used in the scf calculation.
   Given a point k, do:
-  
+
   * find the irreducible point :math:`k^*` that is symmetry-equivalent to the current point.
     If not found, block the code (the user has either messed symmetries or used wrong k/q meshes).
     Find also the symmetry operation S such that :math:`R k = k^* + K`,
     where :math:`K` is an Umklapp vector.
-    
+
   * Read the wavefunction at :math:`k^*`.
-    
+
   * Build `gmap`, a map between indices of two arrays of G-vectors such that
     :math:`G[i] = (R^{-1}G+K)[gmap(i)]`. This will help us apply the roto-translational symmetry.
-	  
+
   * Compute the roto-translated wavefunction :math:`\psi_{Rk} = \psi_{k^*+K}`
     using the relations on the plane-wave coefficients described above.
-  
+
 This would be enough, if the wavefunctions were exact.
 Unfortunately, this procedure doesn't allow us to reconstruct the complete wavefunction.
 In fact, the wavefunctions are typically expanded over a set of G-vectors such that :math:`|k+G|^2<E_{cut}`.
@@ -239,28 +239,28 @@ We bypass this problem in this way.
 Let :math:`\big| \psi^{QE} \big>` be the wavefunction computed by QE at point k and :math:`\big| \psi^{rot} \big>` the wavefunction we computed using the roto-translation of the irreducible point.
 
 * Using the relation
-  
+
 .. math::
    \big| \psi^{rot} \big>
    =
    \sum_{QE} \big< \psi^{rot} \big| \psi^{QE} \big>^* \big| \psi^{QE} \big>
    =
    U \big| \psi^{QE} \big>
-  
+
 to define a unitary matrix :math:`U`.
-  
+
 * On paper, :math:`U` should be unitary, i.e. :math:`U U^{\dagger} = 1`.
   But for the same problems of completeness of G-sphere, we have :math:`U U^{\dagger} = 1-\Delta`.
   With some manipulations,
-  
+
 .. math::
    1 = U U^{\dagger} + \Delta = U U^{\dagger} + U U^{\dagger} \Delta U U^{\dagger}
    = U ( 1 + U^{\dagger} \Delta U ) U^{\dagger}
    = U L L^{\dagger} U^{\dagger}
-     
+
 where :math:`L` comes from the Cholesky decomposition of
   :math:`( 1 + U^{\dagger} \Delta U ) = LL^{\dagger}`.
-	
+
 * Redefine :math:`\tilde{U} = UL` (this matrix is unitary by construction).
   Finally, the wavefunction at the point k is :math:`\tilde{U} \big| \psi^{QE} \big>`
 
@@ -318,7 +318,7 @@ Note two things: if the wavefunction doesn't rotate with the symmetries of the c
 
 Additionally, the translational invariance allows us to use the symmetry
 
-.. math:: 
+.. math::
    g(\boldsymbol{k},\boldsymbol{q}) = g(\boldsymbol{k}+\boldsymbol{G},\boldsymbol{q}+\boldsymbol{G}') \;,
 
 
@@ -364,7 +364,7 @@ Let :math:`f_{\nu}` be the out-of-equilibrium electron occupation number, where 
 First, we rewrite the occupation number as:
 
 .. math::
-   f_{\lambda} = \bar{f}_{\lambda} + \bar{f}_{\lambda}(1-\bar{f}_{\lambda}) \delta f_{\lambda} 
+   f_{\lambda} = \bar{f}_{\lambda} + \bar{f}_{\lambda}(1-\bar{f}_{\lambda}) \delta f_{\lambda}
 
 where :math:`\bar{f}_{\lambda}` is the Fermi--Dirac distribution function and we introduced :math:`\delta f_{\lambda}` as the canonical distribution function.
 
@@ -382,7 +382,7 @@ The scattering matrix :math:`A_{\lambda,\lambda'}` can be computed as
    A_{\boldsymbol{k}b,\boldsymbol{k}'b'} =& \frac{1}{V N_k} \sum_{s, \boldsymbol{q}}
    2 \pi
    |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2
-   \times 
+   \times
    \bigg[
    \bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}'b'}) \bar{n}_{\boldsymbol{q}\nu}
    \delta(\epsilon_{\boldsymbol{k}b} + \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'}) \\\\
@@ -414,7 +414,7 @@ Onsager coefficients
 We make the hypothesis that the response is linear in the external fields:
 
 .. math::
-   \delta f_{\lambda} = \sum_{i} \delta^i f^E_{\lambda} E_i + \delta^i f^T_{\lambda} \nabla_i T 
+   \delta f_{\lambda} = \sum_{i} \delta^i f^E_{\lambda} E_i + \delta^i f^T_{\lambda} \nabla_i T
 
 
 After computing the out-of-equilibrium population, the charge and heat flux density can be computed as:
@@ -489,7 +489,7 @@ Iterative solution to the electron BTE - Omini Sparavigna method
 This is an adaptation of the Omini-Sparavigna method to electrons.
 
 .. note::
-   Generally, we recommend the variational method over this. 
+   Generally, we recommend the variational method over this.
 
 To better understand this method, please have a look first at the phonon counterpart @ref thPHITER.
 
@@ -614,7 +614,7 @@ The Wigner transport equation is
    &+
    e \boldsymbol{E} \cdot \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{k}}
    =
-   -\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll} 
+   -\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll}
 
 where :math:`f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)` is the Wigner distribution function, :math:`{ \cdot,\cdot }` indicates an anticommutator, :math:`[ \cdot,\cdot ]` indicates a commutator, :math:`v_{bb'}(\boldsymbol{k})` is the velocity operator, and we defined the matrix :math:`\mathcal{E}(\boldsymbol{k})_{bb'} = \delta_{bb'} \epsilon_{\boldsymbol{k}b}` and :math:`\mathcal{D}(\boldsymbol{k})_{bb'} = (1-\delta_{bb'}) d_{\boldsymbol{k}bb'}` is a matrix of electronic dipoles.
 The electronic dipole can be computed as:
@@ -628,7 +628,7 @@ The electronic dipole can be computed as:
 The scattering operator acts on the diagonal Wigner distribution as the BTE scattering operator, instead it acts on the off-diagonal components with a decay term:
 
 .. math::
-   \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll} 
+   \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll}
    =
    (1-\delta_{bb'}) \frac{\Gamma_{b}(\boldsymbol{k}) + \Gamma_{b'}(\boldsymbol{k})}{2} f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)
    +
@@ -644,24 +644,24 @@ The off-diagonal part of the Wigner distribution function can be solved easily w
 The transport coefficients are defined as:
 
 .. math::
-   L_{EE}^{ij} = 
+   L_{EE}^{ij} =
    \frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
 
 .. math::
-   L_{ET}^{ij} = 
+   L_{ET}^{ij} =
    \frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\}_{bb}
 
 .. math::
-   L_{TE}^{ij} = 
-   \frac{g_s}{V N_k} 
-   \sum_{\boldsymbol{k}b} 
+   L_{TE}^{ij} =
+   \frac{g_s}{V N_k}
+   \sum_{\boldsymbol{k}b}
    \big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
    \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
 
 .. math::
-   L_{TT}^{ij} = 
-   \frac{g_s}{V N_k} 
-   \sum_{\boldsymbol{k}b} 
+   L_{TT}^{ij} =
+   \frac{g_s}{V N_k}
+   \sum_{\boldsymbol{k}b}
    \big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
    \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\} _{bb}
 

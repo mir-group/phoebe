@@ -193,7 +193,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     getline(infile, line);
 
     // if this line has a species, save it
-    if (line.find("symbol: ") != std::string::npos) {
+    if (line.find(" symbol: ") != std::string::npos) {
       std::string temp =
           line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
       // remove any trailing whitespaces
@@ -467,7 +467,7 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
-
+  crystal.print();
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleD2());
 

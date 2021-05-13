@@ -5,7 +5,7 @@ Particle statistics
 -------------------
 
 Equations available in class Particle.
-The Fermi--Dirac distribution (for electrons) for a Bloch state (:math:`\boldsymbol{k}`, :math:`b`) (:math:`\boldsymbol{k}`, :math:`b` are Bloch indeces) is
+The Fermi--Dirac distribution (for electrons) for a Bloch state (:math:`\boldsymbol{k}`, :math:`b`) (:math:`\boldsymbol{k}`, :math:`b` are Bloch indices) is
 
 .. math::
    f_{\boldsymbol{k},b} = \frac{1}{e^{(\frac{\epsilon_{\boldsymbol{k},b}-\mu}{k_BT})}+1}
@@ -18,16 +18,16 @@ The Bose--Einstein distribution (for phonons) is:
 A computationally stable way to evaluate derivatives is:
 
 .. math::
-   \frac{\partial n_{\boldsymbol{k},b}}{\partial T} = \frac{\epsilon_{\boldsymbol{k},b}}{4k_BT^2} \sinh( \frac{\epsilon_{\boldsymbol{k},b}}{2T} ) 
+   \frac{\partial n_{\boldsymbol{k},b}}{\partial T} = \frac{\epsilon_{\boldsymbol{k},b}}{4k_BT^2} \sinh( \frac{\epsilon_{\boldsymbol{k},b}}{2T} )
 
 .. math::
-   \frac{\partial f_{\boldsymbol{k},b}}{\partial T} = \frac{\epsilon_{\boldsymbol{k},b}-\mu}{4k_BT^2} \cosh( \frac{\epsilon_{\boldsymbol{k},b}-\mu}{2T} ) 
+   \frac{\partial f_{\boldsymbol{k},b}}{\partial T} = \frac{\epsilon_{\boldsymbol{k},b}-\mu}{4k_BT^2} \cosh( \frac{\epsilon_{\boldsymbol{k},b}-\mu}{2T} )
 
 .. math::
-   \frac{\partial n_{\boldsymbol{k},b}}{\partial \epsilon} = - \frac{1}{4k_BT} \sinh( \frac{\epsilon_{\boldsymbol{k},b}}{2T} ) 
+   \frac{\partial n_{\boldsymbol{k},b}}{\partial \epsilon} = - \frac{1}{4k_BT} \sinh( \frac{\epsilon_{\boldsymbol{k},b}}{2T} )
 
 .. math::
-   \frac{\partial f_{\boldsymbol{k},b}}{\partial \epsilon} = - \frac{1}{4k_BT} \cosh( \frac{\epsilon_{\boldsymbol{k},b}-\mu}{2T} ) 
+   \frac{\partial f_{\boldsymbol{k},b}}{\partial \epsilon} = - \frac{1}{4k_BT} \cosh( \frac{\epsilon_{\boldsymbol{k},b}-\mu}{2T} )
 
 
 Specific heat

@@ -5,18 +5,18 @@
 #include "SMatrix.h"
 
 /** Container class which wraps an underlying serial or parallel matrix
- * 
+ *
  * The class hierarchy is set up using this container rather than an inheritance
- * structure with specific intent. These objects cannot be set up using 
+ * structure with specific intent. These objects cannot be set up using
  * an abstract Matrix parent class because because cpp does not allow for
- * virtual operators, as it's not possible to overload something like 
- * +=, for which the virtual base class function would have to return 
- * an instance of the abstract base class (not possible), and which 
+ * virtual operators, as it's not possible to overload something like
+ * +=, for which the virtual base class function would have to return
+ * an instance of the abstract base class (not possible), and which
  * cannot be overloaded with a covariant return type by the child classes.
- * c++ does this intentionally -- otherwise, it would be possible to 
- * write things like SMatrix + PMatrix in the code! 
- * Similar issues with () and the assignment operator make a inheritance 
- * structure impractical.   
+ * c++ does this intentionally -- otherwise, it would be possible to
+ * write things like SMatrix + PMatrix in the code!
+ * Similar issues with () and the assignment operator make a inheritance
+ * structure impractical.
  *
  */
 template <typename T>
@@ -84,14 +84,14 @@ class Matrix {
   int rows() const;
   /** Return local number of rows */
   int localRows() const;
-  /** Find global number of columns
-   */
+  /** Find global number of columns */
   int cols() const;
   /** Return local number of rows */
   int localCols() const;
-  /** Find global number of matrix elements
-   */
+  /** Find global number of matrix elements*/
   int size() const;
+  /** Return the size of the matrix in GB */
+  double getMemory() const;
 
   /** Get and set operator
    */
@@ -272,6 +272,15 @@ int Matrix<T>::size() const {
 }
 
 /* ------------- get-set operations -------------- */
+template <typename T>
+double Matrix<T>::getMemory() const{
+  // this is done in parts to avoid overflow;
+  // size in GB is size of type*rows()*cols()/(1024)^3
+  double temp = sizeof(T)*rows()/1024;
+  temp = temp*cols()/1024;
+  return temp/(1024);
+}
+
 template <typename T>
 T& Matrix<T>::operator()(const int &row, const int &col) {
   if(isDistributed) return (*pmat)(row,col);

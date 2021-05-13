@@ -39,13 +39,21 @@ private:
    * computed
    * @param tetrahedrons: a tetrahedronDeltaFunction object that will be used to
    * integrate the Dirac-delta for energy conservation.
+   * @param crystal: the crystal used in the calcuation, to divide by volume
    * @return a BaseVectorBTE object containing the electron lifetimes.
    */
   static BaseVectorBTE getScatteringRates(Context &context,
                                    StatisticsSweep &statisticsSweep,
                                    FullBandStructure &fullBandStructure,
                                    Eigen::VectorXd &energies,
-                                   TetrahedronDeltaFunction &tetrahedrons);
+                                   TetrahedronDeltaFunction &tetrahedrons,
+                                   Crystal &crystal);
+
+  /* helper function to output scattering rates as a function of energy*/
+  void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
+                StatisticsSweep &statisticsSweep, int &numEnergies,
+                Eigen::VectorXd &energiesEPA);
+
 };
 
 #endif

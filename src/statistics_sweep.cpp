@@ -264,9 +264,33 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
   // initial guess
   double chemicalPotential = fermiLevel;
 
+  // Corner cases
+  // if numElectronsDoped > numBands, it's a non-valid doping
+  if (numElectronsDoped > float(numBands)) {
+    Error("The number of occupied states is larger than the "
+          "bands present in the Hamiltonian");
+  }
+  if (numElectronsDoped < 0.) {
+    Error("The number of occupied states is negative");
+  }
+
+  // if we are looking for the fermi level at T=0 and n=0, we have a corner case
+  // when we have completely empty bands or completely full bands.
+  if (doping==0. && temperature == 0.) { // case of computing fermi level
+    if (numElectronsDoped == 0.) {
+      fermiLevel = energies.minCoeff();
+    } else if (numElectronsDoped == float(numBands)) {
+      fermiLevel = energies.maxCoeff();
+    }
+    chemicalPotential = fermiLevel;
+    return chemicalPotential;
+  }
+
   // I choose the following (generous) boundaries
-  double aX = energies.minCoeff();
-  double bX = energies.maxCoeff();
+  double aX = energies.minCoeff() - 1.;
+  double bX = energies.maxCoeff() + 1.;
+  // note: +-1 Ry = 13 eV should work for most dopings and temperatures,
+  // even in corner cases
 
   // if energies are distributed, each process needs to have the global
   // minimum and maximum of the energies
