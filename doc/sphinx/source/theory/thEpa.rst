@@ -3,8 +3,6 @@
 Electron-phonon averaging (EPA)
 ===============================
 
-Something
-
 In Phoebe, we implemented the electron-phonon average method discuss in ref. https://doi.org/10.1016/j.mtphys.2018.07.001.
 The purpose of this method is to have a fast tool for the computation of electronic transport coefficients limited by electron-phonon scattering.
 The benefits of this methodology are that EPA:
