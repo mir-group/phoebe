@@ -15,27 +15,9 @@ Step 1: patch Quantum ESPRESSO
 ------------------------------
 
 As we discussed in the @ref thCOMPELPHQE page, we need to use a custom modification of Quantum ESPRESSO (which we modified to impose the symmetric properties of the wavefunction).
-This will require to compile Quantum ESPRESSO. We provide two options.
+This will require to compile Quantum ESPRESSO.
 
-* Patch a copy of QE.
-  Suppose you have a copy of QE installed at `/oldpath/qe-6.5`.
-  Then let's make a copy of that source code (so we don't overwrite your old QE executables) and patch it::
-
-    cd /oldpath
-    cp -r qe-6.6 patched-quantum-espresso
-    cd patched-quantum-espresso
-    make clean
-    patch -p1 < /path/to/phoebe/utilities/patch-qe-6.6.txt
-    ./configure MPIF90=mpif90 --with-scalapack=yes
-    make pw pp ph w90
-
-  where you should modify the file paths to match your installations and you should use the suitable installation parameters for QE that work on your computer.
-  If compilation fails, you should consult the QE installation page https://www.quantum-espresso.org/Doc/user_guide/node7.html.
-
-  .. note::
-     If you have a different version of QE, you may try to use that patch anyway. We tested it to work for QE-6.5 and QE-6.6. Let us know if you run into problems.
-
-* Alternatively, download our patched version and install it. From an installation folder of your choice, type::
+Download our patched version of Quantum ESPRESSO and install it. From an installation folder of your choice, type::
 
     git clone https://github.com/mir-group/phoebe-quantum-espresso.git
     cd phoebe-quantum-espresso
@@ -43,7 +25,7 @@ This will require to compile Quantum ESPRESSO. We provide two options.
     ./configure MPIF90=mpif90 --with-scalapack=yes
     make pw pp ph w90
 
-where again you should probably customize the installation parameters.
+Note that you will likely need to modify the `configure` line with the installation parameters suitable for your computer: check the Quantum ESPRESSO documentation for how to install it.
 
 
 
