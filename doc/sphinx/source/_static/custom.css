@@ -1,0 +1,100 @@
+/*@import 'theme.css'; */      /* for the Read the Docs theme */
+
+/* MAIN BODY AREA ------------------------- */
+/* this changes the main area background block */
+/*.wy-nav-content {
+    background-color:#363636;
+}*/
+/* changes main area font colors */ /*
+body h1, h2, h3, h4, p, li, ul {
+    color:#ffffff;
+}*/
+/* increase the max with of main area,
+ * which is narrow in default read the docs */
+.wy-nav-content {
+    max-width: 1200px;
+}
+/* right side background color */
+.wy-body-for-nav {
+    background:#17101F;
+}
+
+/* LINK COLORS ---------------------- */
+/* link colors in general*/
+a:link {
+    color:#4825D0;
+}
+/* keep clicked link colors the same */
+a:visited {
+    color:#4825D0;
+}
+/* link colors when moused over */
+a:hover {
+    color:#D4ACFF;
+}
+
+/* SIDEBAR  ------------------------- */
+/* link colors in sidebar */
+.wy-menu-vertical a {
+    color:#d9d9d9;
+    font-weight:700;
+}
+/* the color of the dropdown menu area */
+.wy-menu-vertical, .wy-nav-side {
+    background:#17101F;
+}
+/* change sidebar header color*/
+.wy-side-nav-search, .wy-nav-top {
+    background:#17101F;
+}
+/* change sidebar logo size */
+.wy-side-nav-search .wy-dropdown > a img.logo,
+.wy-side-nav-search > a img.logo {
+    max-width:90%;
+}
+/* change "contents" label in the sidebar */
+.wy-menu-vertical header, .wy-menu-vertical p.caption {
+    color:#ffffff;
+    font-size:100%;
+    font-weight:800;
+    padding-left:1em;
+}
+/* change sidebar menu fonts */
+.wy-menu-vertical a {
+    font-size:95%;
+}
+
+/* NOTE COLORS --------------------- */
+/* note heading color */
+.rst-content .note .admonition-title {
+    background:#5e4aff;
+}
+/* note body color */
+.rst-content .note {
+    background:#f4f2ff;
+}
+
+/* WARNING COLORS --------------------- */
+/* note heading color */
+.rst-content .warning .admonition-title {
+    background:#5e4aff; /*#82e0cb;*/
+}
+/* note body color */
+.rst-content .warning {
+    background:#f4f2ff; /*#daf6ef;*/
+}
+
+/* FONT COLORS FOR CODE BLOCKS --------- */
+/* quoted code in code example color */
+.highlight .s2, .highlight .s1 {
+    color:#000000; /* these come out red if not set to black */
+}
+.highlight .c1 {
+    color:#5e4aff;
+}
+
+/* INLINE CODE COLOR */
+.rst-content code.literal {
+    color:#01a289; /*#02ba9d;*/
+    font-weight:600;
+}

@@ -45,10 +45,10 @@ class BaseBandStructure {
   virtual int getNumBands() = 0;
 
   /** Returns the number of bands. If the band structure is active,
-   * and there are a different number of bands at each wavevector, this function 
+   * and there are a different number of bands at each wavevector, this function
    * returns the number of bands at that point. If not, this defaults
-   * to the behavior of getNumBands() and just returns the number of bands. 
-   * This is necessary for parts of the code where we leave an option to 
+   * to the behavior of getNumBands() and just returns the number of bands.
+   * This is necessary for parts of the code where we leave an option to
    * swap in different child band structure types.
    */
   virtual int getNumBands(WavevectorIndex &ik) = 0;
@@ -279,10 +279,10 @@ class ActiveBandStructure;
  *
  * An important note for developers: When using a distributed band structure,
  * looping over numStates of the band structure will not work -- you need to
- * loop over the iterator of indices provided by getStateIndices or 
- * getWavevectorIndices. The class will throw errors when nonlocal values are 
+ * loop over the iterator of indices provided by getStateIndices or
+ * getWavevectorIndices. The class will throw errors when nonlocal values are
  * being requested. All functions in band structure are written to take the
- * global wavevector indices associated with the Points object internal to the 
+ * global wavevector indices associated with the Points object internal to the
  * band structure (because we use the Point class to find wavevector indices in
  * get and set functions of band structure).
  */

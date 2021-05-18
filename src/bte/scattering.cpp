@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
+#include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -114,12 +115,11 @@ void ScatteringMatrix::setup() {
     }
 
     // user info about memory
-    {
-      double x = pow(matSize,2) / pow(1024.,3) * 64.;
-      if ( mpi->mpiHead()) {
+    if ( mpi->mpiHead()) {
+      double x = pow(matSize,2) / pow(1024.,3) * sizeof(double);
         std::cout << "Allocating " << x
-                  << " (GB) for the scattering matrix.\n" << std::endl;
-      }
+                  << " GB (" << x/(mpi->getSize()) <<
+                " GB per process) for the scattering matrix.\n" << std::endl;
     }
 
     theMatrix = ParallelMatrix<double>(matSize, matSize);
@@ -519,13 +519,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   auto particle = outerBandStructure.getParticle();
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
-  double energyToTime = timeRyToFs;
+  // we need an extra factor of two pi, likely because of unit conversion
+  // (perhaps h vs hbar)
+  double energyToTime = timeRyToFs/twoPi;
   if (particle.isPhonon()) {
     particleType = "phonon";
-    // in the case of phonons, we need an extra factor of
-    // two pi, likely because of a conversion from
-    // ordinal to angular frequency
-    energyToTime /= twoPi;
     energyUnit = "meV";
     energyConversion *= 1000;
   } else {

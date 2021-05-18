@@ -537,6 +537,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
+  crystal.print();
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
     Error("qCoarseGrid smaller than zero");
@@ -571,6 +572,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (not result) {
     Error("Error parsing XML file");
   }
+  if(mpi->mpiHead())
+    std::cout << "Reading in " << fileName << "." << std::endl;
 
   pugi::xml_node output = doc.child("qes:espresso").child("output");
 
@@ -664,6 +667,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                   speciesNames, speciesMasses, dimensionality);
+  crystal.print();
 
   // initialize reciprocal lattice cell
   // I need this to convert kPoints from cartesian to crystal coordinates
@@ -760,6 +764,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // if the user didn't set the Fermi level, we do it here.
   if (std::isnan(context.getFermiLevel()))
     context.setFermiLevel(homo);
+
+  if(mpi->mpiHead())
+    std::cout << "Done reading in " << fileName << "." << std::endl;
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
@@ -926,7 +933,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
 
     Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                     speciesNames, speciesMasses, dimensionality);
-
+    crystal.print();
     return {crystal, electronH0};
   }
 }

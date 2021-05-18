@@ -244,7 +244,7 @@ Eigen::Tensor<std::complex<double>, 3> FullBandStructure::getVelocities(
 Eigen::MatrixXcd FullBandStructure::getEigenvectors(WavevectorIndex &ik) {
   int ikk = ik.get();
   if (!eigenvectors.indicesAreLocal(0,ikk)) {
-    Error("Cannot access a non-local velocity.");
+    Error("Cannot access a non-local eigenvector.");
   }
 
   Eigen::MatrixXcd eigenVectors_(numBands, numBands);

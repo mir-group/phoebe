@@ -149,7 +149,6 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
         thisMatrix(j, i) = rotations[iSymmetry][i][j]; // note the transpose
       }
     }
-
     SymmetryOperation s = {thisMatrix, thisTranslation};
     symmetryOperations.push_back(s);
   }
@@ -201,6 +200,28 @@ Crystal &Crystal::operator=(const Crystal &obj) {
     numSymmetries = obj.numSymmetries;
   }
   return *this;
+}
+
+void Crystal::print() {
+  if(!mpi->mpiHead()) return;
+  // print the lattice vectors
+  std::cout << "\nDirect lattice vectors (ang)" << std::endl;
+  for(int i = 0; i<3; i++) {
+    fprintf(stdout,"  %.8f  %.8f  %.8f\n",
+        directUnitCell(i,0)*distanceBohrToAng,
+        directUnitCell(i,1)*distanceBohrToAng,
+        directUnitCell(i,2)*distanceBohrToAng);
+  }
+  // print the atomic positions
+  std::cout << "Atomic Positions (Cartesian, ang)" << std::endl;
+  for(int i = 0; i<numAtoms; i++) {
+    char buffer[100];
+    sprintf(buffer," %.8f  %.8f  %.8f\n", atomicPositions(i,0)*distanceBohrToAng,
+        atomicPositions(i,1)*distanceBohrToAng,
+        atomicPositions(i,2)*distanceBohrToAng);
+    std::cout << "  " << speciesNames[atomicSpecies[i]] << buffer;
+  }
+  std::cout << std::endl;
 }
 
 Eigen::Matrix3d

@@ -765,13 +765,6 @@ void Context::printInputSummary(const std::string &fileName) {
   // crystal structure parameters -------------------
   std::cout << "useSymmetries = " << useSymmetries << std::endl;
   std::cout << "dimensionality = " << dimensionality << std::endl;
-  // TODO these only apply in the Wannier case.
-  // For now, instead, we output crystal information.
-  // for (int i = 0; i < inputAtomicPositions.cols(); i++) {
-  //  std::cout << inputSpeciesNames << " " <<  inputAtomicSpecies(i) <<
-  //      " " << inputAtomicPositions(0,i) << " " << inputAtomicPositions(1,i)
-  //      << " " << inputAtomicPositions(2,i) << std::endl;
-  // }
   std::cout << std::endl;
 
   // phonon parameters -------------------------------
@@ -806,7 +799,23 @@ void Context::printInputSummary(const std::string &fileName) {
         std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
                   << std::endl;
     }
+    if(appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
+      if(!std::isnan(epaMinEnergy))
+       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaMaxEnergy))
+        std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaNumBins))
+        std::cout << "epaNumBins = " << epaNumBins << std::endl;
+      if(!std::isnan(epaSmearingEnergy))
+        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(electronFourierCutoff))
+        std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
     std::cout << std::endl;
+  }
+  // Qetophoebe doesn't write a nice line after printing
+  if(appName.find("elPhQeToPhoebe") != std::string::npos) {
+    std::cout << "---------------------------------------------\n" << std::endl;
   }
 
   // Transport parameters ---------------------------
@@ -947,55 +956,35 @@ void Context::printInputSummary(const std::string &fileName) {
     std::cout << "epaFileName = " << epaFileName << std::endl;
     std::cout << "electronH0Name = " << electronH0Name << std::endl;
     std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
-    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
-              << std::endl;
-    if (!std::isnan(epaEnergyRange))
-      std::cout << "epaEnergyRange = " << epaEnergyRange * energyRyToEv << " eV"
-                << std::endl;
-    if (!std::isnan(epaEnergyStep))
-      std::cout << "epaEnergyStep = " << epaEnergyStep * energyRyToEv << " eV"
-                << std::endl;
-    if (!std::isnan(epaMinEnergy))
-      std::cout << "epaMinEnergy = " << epaMinEnergy * energyRyToEv << " eV"
-                << std::endl;
-    if (!std::isnan(epaMaxEnergy))
-      std::cout << "epaMaxEnergy = " << epaMaxEnergy * energyRyToEv << " eV"
-                << std::endl;
-    if (!std::isnan(epaNumBins))
-      std::cout << "epaNumBins = " << epaNumBins << std::endl;
-    if (!std::isnan(epaSmearingEnergy))
-      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy * energyRyToEv
-                << " eV" << std::endl;
-    if (!std::isnan(epaDeltaEnergy))
-      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy * energyRyToEv << " eV"
-                << std::endl;
-    if (!std::isnan(electronFourierCutoff))
-      std::cout << "electronFourierCutoff = " << electronFourierCutoff
-                << std::endl;
+    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+    if(!std::isnan(epaEnergyRange))
+      std::cout << "epaEnergyRange = " << epaEnergyRange*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaEnergyStep))
+    std::cout << "epaEnergyStep = " << epaEnergyStep*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMinEnergy))
+      std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMaxEnergy))
+      std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaSmearingEnergy))
+      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaDeltaEnergy))
+      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(electronFourierCutoff))
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
 
-    printVectorXd("temperatures", temperatures * temperatureAuToSi, "K");
-    if (!std::isnan(minTemperature))
-      std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
-    if (!std::isnan(maxTemperature))
-      std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
-    if (!std::isnan(deltaTemperature))
-      std::cout << "deltaTemperature = " << deltaTemperature << "K"
-                << std::endl;
-    if (dopings.size() != 0)
-      printVectorXd("dopings", dopings, "cm^-3");
-    if (chemicalPotentials.size() != 0)
-      printVectorXd("chemicalPotentials", chemicalPotentials * energyRyToEv,
-                    "eV");
-    if (!std::isnan(minChemicalPotential))
-      std::cout << "minChemicalPotential = "
-                << minChemicalPotential * energyRyToEv << " eV" << std::endl;
-    if (!std::isnan(maxChemicalPotential))
-      std::cout << "maxChemicalPotential = "
-                << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
-    if (!std::isnan(deltaChemicalPotential))
-      std::cout << "deltaChemicalPotential = "
-                << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
-    if (!std::isnan(eFermiRange))
+    printVectorXd("temperatures", temperatures*temperatureAuToSi,"K");
+    if(!std::isnan(minTemperature)) std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if(!std::isnan(maxTemperature)) std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if(!std::isnan(deltaTemperature)) std::cout << "deltaTemperature = " << deltaTemperature << "K" << std::endl;
+    if(dopings.size() != 0) printVectorXd("dopings", dopings, "cm^-3");
+    if(chemicalPotentials.size() != 0) printVectorXd("chemicalPotentials", chemicalPotentials*energyRyToEv, "eV");
+    if(!std::isnan(minChemicalPotential))
+      std::cout << "minChemicalPotential = " << minChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(maxChemicalPotential))
+      std::cout << "maxChemicalPotential = " << maxChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(deltaChemicalPotential))
+      std::cout << "deltaChemicalPotential = " << deltaChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(eFermiRange))
       std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
     if (!std::isnan(fermiLevel))
       std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;

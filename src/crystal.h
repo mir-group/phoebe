@@ -86,6 +86,9 @@ public:
    */
   Crystal &operator=(const Crystal &obj);
 
+  /** Print the crystal information */
+  void print();
+
   //  Setter and getter for all the variables above
 
   /** Returns the crystal unit cell in real space, in Bohr.

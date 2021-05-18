@@ -13,9 +13,12 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
+#include <nlohmann/json.hpp>
 #include <cmath>
+#include <vector>
 
 void TransportEpaApp::run(Context &context) {
+
   // parse QE-xml file
   auto t1 = QEParser::parseElHarmonicFourier(context);
   auto crystal = std::get<0>(t1);
@@ -23,10 +26,10 @@ void TransportEpaApp::run(Context &context) {
 
   //--------------------------------
   // Setup energy grid
-
   double minEnergy = context.getFermiLevel() - context.getEpaEnergyRange();
   double maxEnergy = context.getFermiLevel() + context.getEpaEnergyRange();
   double energyStep = context.getEpaEnergyStep();
+
   // in principle, we should add 1 to account for ends of energy interval
   // i will not do that, because will work with the centers of energy steps
   int numEnergies = int((maxEnergy - minEnergy) / energyStep);
@@ -46,11 +49,12 @@ void TransportEpaApp::run(Context &context) {
     std::cout << "\nBuilding electronic band structure" << std::endl;
   }
 
+  // filter to only the bands relevant to transport
   electronH0.trimBands(context, minEnergy, maxEnergy);
 
   // Fourier interpolation of the electronic band structure
-  FullBandStructure bandStructure =
-      electronH0.populate(fullPoints, withVelocities, withEigenvectors);
+  FullBandStructure bandStructure = electronH0.populate(fullPoints, withVelocities, withEigenvectors);
+
   // set temperatures, chemical potentials and carrier concentrations
   StatisticsSweep statisticsSweep(context, &bandStructure);
 
@@ -68,24 +72,22 @@ void TransportEpaApp::run(Context &context) {
   //--------------------------------
   // Calculate EPA scattering rates
   BaseVectorBTE scatteringRates = getScatteringRates(
-      context, statisticsSweep, bandStructure, energies, tetrahedrons);
+        context, statisticsSweep, bandStructure,
+        energies, tetrahedrons, crystal);
+  outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep, numEnergies, energies);
 
   //--------------------------------
   // calc EPA velocities
-  auto energyProjVelocity =
-      calcEnergyProjVelocity(context, bandStructure, energies, tetrahedrons);
+  auto energyProjVelocity = calcEnergyProjVelocity(context, bandStructure, energies, tetrahedrons);
 
   //--------------------------------
   // compute transport coefficients
   if (mpi->mpiHead()) {
     std::cout << "\nComputing transport coefficients" << std::endl;
   }
-  OnsagerCoefficients transCoeffs(statisticsSweep, crystal, bandStructure,
-                                  context);
 
-  transCoeffs.calcFromEPA(scatteringRates, energyProjVelocity, energies,
-                          energyStep, particle);
-
+  OnsagerCoefficients transCoeffs(statisticsSweep, crystal, bandStructure,context);
+  transCoeffs.calcFromEPA(scatteringRates, energyProjVelocity, energies, energyStep, particle);
   transCoeffs.calcTransportCoefficients();
   transCoeffs.print();
   transCoeffs.outputToJSON("epa_onsager_coefficients.json");
@@ -107,6 +109,7 @@ void TransportEpaApp::checkRequirements(Context &context) {
   }
 }
 
+// TODO what is this function doing
 void foldWithinBounds(int &idx, const int &numBins) {
   if (idx < 0) {
     idx = 0;
@@ -134,28 +137,33 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
   LoopPrint loopPrint("calculating energy projected velocity",
                       "energies", mpi->divideWorkIter(numEnergies).size());
-#pragma omp parallel
+  #pragma omp parallel
   {
     Eigen::Tensor<double, 3> privateVel(dim, dim, numEnergies);
     privateVel.setZero();
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
-      loopPrint.update();
+      #pragma omp critical
+      {
+      loopPrint.update(); // loop print not omp thread safe
+      }
       for (int iState = 0; iState != numStates; ++iState) {
         StateIndex isIdx(iState);
-        double deltaFunction =
-            tetrahedrons.getSmearing(energies(iEnergy), isIdx);
+        double deltaFunction = tetrahedrons.getSmearing(energies(iEnergy), isIdx);
         Eigen::Vector3d velocity = bandStructure.getGroupVelocity(isIdx);
         for (int j = 0; j < dim; ++j) {
           for (int i = 0; i < dim; ++i) {
-            privateVel(i, j, iEnergy) +=
-                velocity(i) * velocity(j) * deltaFunction / double(numPoints);
+            // TODO is this correctly doing outer product -- NO it's for sure not! it's taking the product of
+            // specific elements, when this is actually a cross product!
+            // TODO is tetrahedron delta function doing it's job
+            privateVel(i, j, iEnergy) += velocity(i) * velocity(j) * deltaFunction / double(numPoints);
           }
         }
       }
     }
-#pragma omp critical
+    // TODO why are we copying here
+    #pragma omp critical
     for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
       for (int j = 0; j < dim; ++j) {
         for (int i = 0; i < dim; ++i) {
@@ -172,7 +180,7 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 BaseVectorBTE TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
     FullBandStructure &fullBandStructure, Eigen::VectorXd &energies,
-    TetrahedronDeltaFunction &tetrahedrons) {
+    TetrahedronDeltaFunction &tetrahedrons, Crystal &crystal) {
 
   int numStates = fullBandStructure.getNumStates();
 
@@ -191,6 +199,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     spinFactor = 1;
   }
 
+  // TODO this seems strangely redundant -- just ask the bands which aprticle we have
   auto particle = Particle(Particle::electron);
   auto phParticle = Particle(Particle::phonon);
 
@@ -198,19 +207,23 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     Error e("Electronic band structure has to be provided");
 
   int numCalcs = statisticsSweep.getNumCalculations();
-
   int numEnergies = energies.size();
   double energyStep = context.getEpaEnergyStep();
 
   // calculate the density of states at the energies in energies vector
   Eigen::VectorXd dos(numEnergies);
+  // TODO why is this in a special block?
   {
     LoopPrint loopPrint1("calculating DoS", "energies",
                          mpi->divideWorkIter(numEnergies).size());
     dos.setZero();
-#pragma omp parallel for
+
+    #pragma omp parallel for
     for (int i : mpi->divideWorkIter(numEnergies)) {
-      loopPrint1.update();
+      #pragma omp critical
+      {
+      loopPrint1.update(); // loop print not omp thread safe
+      }
       dos(i) = tetrahedrons.getDOS(energies(i));
     }
     mpi->allReduceSum(&dos);
@@ -219,14 +232,12 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   // get vector containing averaged phonon frequencies per mode
   InteractionEpa couplingEpa = InteractionEpa::parseEpaCoupling(context);
-
   Eigen::VectorXd phEnergies = couplingEpa.getPhEnergies();
   int numPhEnergies = phEnergies.size();
 
-  // phJump describes how bin-jumps the electron does after scattering
-  // as a double
+  // phJump, a double, describes # of bin-jumps the electron does after scattering
   Eigen::VectorXd phJump(numPhEnergies);
-#pragma omp parallel for
+  #pragma omp parallel for
   for (auto i = 0; i != phEnergies.size(); ++i) {
     phJump(i) = phEnergies(i) / energyStep;
   }
@@ -244,24 +255,26 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
 
-  // loop over temperatures and chemical potentials
-  // loop over energies
-#pragma omp parallel
+  // loop over temperatures and chemical potentials, then loop over energies
+  #pragma omp parallel
   {
     Eigen::MatrixXd privateRates(numCalcs, numEnergies);
     privateRates.setZero();
 
-#pragma omp for nowait
+    #pragma omp for nowait
     for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
-      loopPrint.update();
+      #pragma omp critical
+      {
+      loopPrint.update(); // loop print not omp thread safe
+      }
 
-      for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+      // get statistics
+      for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-        double chemPot =
-            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+        double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
 
         // loop over phonon frequencies
-        for (int iPhFreq = 0; iPhFreq < numPhEnergies; ++iPhFreq) {
+        for (int iPhFreq = 0; iPhFreq < numPhEnergies; iPhFreq++) {
 
           // Avoid some index out of bound errors
           if (double(iEnergy) + phJump(iPhFreq) + 1. >= double(numEnergies) ||
@@ -271,30 +284,22 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
           // population of phonons, electron after emission/absorption
           double nBose = phParticle.getPopulation(phEnergies(iPhFreq), temp);
-          double nFermiAbsorption = particle.getPopulation(
-              energies[iEnergy] + phEnergies(iPhFreq), temp, chemPot);
-          double nFermiEmission = particle.getPopulation(
-              energies[iEnergy] - phEnergies(iPhFreq), temp, chemPot);
+          double nFermiAbsorption = particle.getPopulation(energies[iEnergy] + phEnergies(iPhFreq), temp, chemPot);
+          double nFermiEmission = particle.getPopulation(energies[iEnergy] - phEnergies(iPhFreq), temp, chemPot);
 
           // compute the dos for electron in the final state for the two
           // scatterings mechanisms
           // Note: we do a linear interpolation
           int iJump = (int)phJump(iPhFreq);
           double iInterp = phJump(iPhFreq) - (double)iJump;
-          double dosAbsorption = dos(iEnergy + iJump) * (1. - iInterp) +
-                                 dos(iEnergy + iJump + 1) * iInterp;
-          double dosEmission = dos(iEnergy - iJump - 1) * iInterp +
-                               dos(iEnergy - iJump) * (1. - iInterp);
+          double dosAbsorption = dos(iEnergy + iJump) * (1. - iInterp) + dos(iEnergy + iJump + 1) * iInterp;
+          double dosEmission = dos(iEnergy - iJump - 1) * iInterp + dos(iEnergy - iJump) * (1. - iInterp);
 
           // find index of the energy in the bins of the elph energies
-          int intBinPos =
-              int(std::round((energies(iEnergy) - minElphEnergy) / binSize));
-          int iAbsInt = int(std::round(
-              (energies(iEnergy) + phEnergies(iPhFreq) - minElphEnergy) /
-              binSize));
-          int iEmisInt = int(std::round(
-              (energies(iEnergy) - phEnergies(iPhFreq) - minElphEnergy) /
-              binSize));
+          int intBinPos = int(std::round((energies(iEnergy) - minElphEnergy) / binSize));
+          int iAbsInt = int(std::round( (energies(iEnergy) + phEnergies(iPhFreq) - minElphEnergy) / binSize));
+          int iEmisInt = int(std::round((energies(iEnergy) - phEnergies(iPhFreq) - minElphEnergy) / binSize));
+
           // check and fold within bounds:
           foldWithinBounds(intBinPos, numElphBins);
           foldWithinBounds(iAbsInt, numElphBins);
@@ -302,24 +307,22 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
           //------------------------------------
           // estimate strength of el-ph coupling |g|^2
-
-          double gAbsorption =
-              couplingEpa.getCoupling(iPhFreq, iAbsInt, intBinPos);
-          double gEmission =
-              couplingEpa.getCoupling(iPhFreq, iEmisInt, intBinPos);
+          double gAbsorption = couplingEpa.getCoupling(iPhFreq, iAbsInt, intBinPos);
+          double gEmission = couplingEpa.getCoupling(iPhFreq, iEmisInt, intBinPos);
 
           //-----------------------------
           // finally, the scattering rate
-
-          privateRates(iCalc, iEnergy) +=
-              twoPi / spinFactor * gAbsorption * (nBose + nFermiAbsorption) *
-                  dosAbsorption +
-              gEmission * (nBose + 1 - nFermiEmission) * dosEmission;
+          // TODO the coupling is squared already here, right?
+          privateRates(iCalc, iEnergy) += gAbsorption * (nBose + nFermiAbsorption) *
+                  dosAbsorption + gEmission * (nBose + 1 - nFermiEmission) * dosEmission;
         }
       }
     }
+    // TODO do we need this
+    privateRates = (twoPi/spinFactor) * privateRates/double(fullBandStructure.getNumPoints(true)) * crystal.getVolumeUnitCell(crystal.getDimensionality());
 
-#pragma omp critical
+    // TODO again seems like unnecessary copying
+    #pragma omp critical
     {
       for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
         for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
@@ -333,3 +336,69 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   return epaRate;
 }
+
+/* helper function to output scattering rates at each energy to JSON */
+void TransportEpaApp::outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
+                StatisticsSweep &statisticsSweep, int &numEnergies,
+                Eigen::VectorXd &energiesEPA) {
+
+  if (!mpi->mpiHead())
+    return;
+
+  std::string particleType = "electron";
+  double energyConversion = energyRyToEv;
+  std::string energyUnit = "eV";
+  double energyToTime = timeRyToFs;
+
+  // need to store as a vector format with dimensions
+  // iCalc, ik. ib, iDim (where iState is unfolded into
+  // ik, ib) for the velocities and lifetimes, no dim for energies
+  std::vector<std::vector<double>> outTimes;
+  std::vector<std::vector<double>> outLinewidths;
+  std::vector<std::vector<double>> energies;
+  std::vector<double> temps;
+  std::vector<double> chemPots;
+
+  for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+    auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStatistics.temperature;
+    double chemPot = calcStatistics.chemicalPotential;
+    temps.push_back(temp * temperatureAuToSi);
+    chemPots.push_back(chemPot * energyConversion);
+
+    // containers to hold data in std vectors
+    std::vector<double> tempT;
+    std::vector<double> tempL;
+    std::vector<double> tempE;
+    // loop over energy values on which the calculation was done
+    for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
+
+      double ene = energiesEPA(iEnergy);
+      double tau = 1./scatteringRates.data(iCalc, iEnergy);
+      double linewidth = 1./tau;
+      tempE.push_back(ene * energyConversion);
+      tempT.push_back(tau * energyToTime);
+      tempL.push_back(linewidth * energyConversion);
+    }
+    outTimes.push_back(tempT);
+    outLinewidths.push_back(tempL);
+    energies.push_back(tempE);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["chemicalPotentials"] = chemPots;
+  output["linewidths"] = outLinewidths;
+  output["linewidthsUnit"] = energyUnit;
+  output["relaxationTimes"] = outTimes;
+  output["relaxationTimeUnit"] = "fs";
+  output["energies"] = energies;
+  output["energyUnit"] = energyUnit;
+  output["particleType"] = particleType;
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
