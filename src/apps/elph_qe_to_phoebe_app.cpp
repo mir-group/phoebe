@@ -99,6 +99,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   int numPhBravaisVectors = phBravaisVectors.cols();
   int numWannier = uMatrices.dimension(1);
 
+
   std::array<Eigen::Index, 5> zeros;
   for (auto &s : zeros) {
     s = 0;
@@ -402,7 +403,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           for (int nu = 0; nu < numModes; nu++) {
             for (int i = 0; i < numWannier; i++) {
               for (int j = 0; j < numWannier; j++) {
-                gWannier(j, i, nu, irP, irE) += tmp(i, j, nu, irP);
+                gWannier(i, j, nu, irP, irE) += tmp(i, j, nu, irP);
               }
             }
           }
@@ -742,6 +743,13 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
         }
       }
       infileQ.close();
+
+      // Note: the tensor read from file contains
+      // g_full(ib1, ib2, nu, ik, iq)
+      // = < k+q,ib1 |  dV_{q,nu}  |  k,ib2  >
+      // where k and q run over the full mesh.
+      // ikMap takes care of the fact that k-points in QE have a different
+      // order then phoebe.
 
       // reorder the q/k indices
       for (int iqStar = 0; iqStar < nqStar; iqStar++) {
@@ -1464,7 +1472,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   // (even if a python script dies) and then they can't be overwritten properly.
   std::remove(&outFileName[0]);
 
-  if (mpi->getSize()==1) {
+  if (mpi->getSize()<4) {
     // Note: this HDF5 had already been reported and being worked on.
     // It's beyond the purpose of Phoebe's project.
     Warning("HDF5 with 1 MPI process may crash (due to a "

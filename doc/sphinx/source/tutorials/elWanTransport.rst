@@ -38,9 +38,20 @@ Step 2: Run pw.x
 Again, we need to compute the total energy of the silicon unit cell.
 This calculation will create the ground state charge density and wavefunctions that are needed for later. This very similar to the second step of the EPA tutorial.
 
+<<<<<<< HEAD
+.. note::
+   Very important! In this step, we are fixing the gauge of the wavefunction.
+   It is imperative that this `scf` calculation is only done once at the beginning and is never repeated aftwerwards.
+   If you run another `scf` calculation between step 3 and 6, you may alter the gauge of the wavefunction and thus ruin the interpolation of the electron-phonon coupling.
+
+To run, go to the folder `./example/Silicon-el/qespresso` in the phoebe repository.
+The file `scf.in` is the input file for the `pw.x` executable.
+The input for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal, is::
+=======
 To run this calculation, go to the folder ``./example/Silicon_el/qe-elph`` in the Phoebe repository.
 The file ``scf.in`` is the input file for the ``pw.x`` executable.
 The contents of the ``scf.in`` file for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal is shown below ::
+>>>>>>> 0e0dea18d419709c3b257fcc8ede1fbddd53f618
 
  &control
    calculation = "scf"

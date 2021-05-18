@@ -30,6 +30,7 @@ where you should modify the file paths and ``./configure`` arguments for QE to m
 If compilation fails, you should consult the QE `installation page <https://www.quantum-espresso.org/Doc/user_guide/node7.html>`__.
 
 
+
 Step 2: Run pw.x
 -----------------
 

@@ -105,7 +105,10 @@ class Context {
                                   std::vector<std::string> &elements);
   static std::vector<std::string> split(const std::string &s, char delimiter);
 
- public:
+  // variable used for the polarization
+  Eigen::VectorXi numCoreElectrons;
+
+public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
   void setG2PlotStyle(const std::string &x);
@@ -320,6 +323,9 @@ class Context {
    * @param fileName: path to the input file, just to print where input came from.
    */
   void printInputSummary(const std::string &fileName);
+
+  Eigen::VectorXi getCoreElectrons();
+  void setCoreElectrons(const Eigen::VectorXi &x);
 };
 
 #endif
