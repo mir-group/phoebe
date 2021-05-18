@@ -115,7 +115,7 @@ InteractionElPhWan::getPolarCorrectionStatic(
 
   // overlap = <U^+_{b2 k+q}|U_{b1 k}>
   //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
-  Eigen::MatrixXcd overlap = ev2.adjoint() * ev1;
+  Eigen::MatrixXcd overlap = ev2.adjoint() * ev1; // matrix size (nb2,nb1)
   overlap = overlap.transpose(); // matrix size (nb1,nb2)
 
   // auxiliary terms
@@ -288,18 +288,6 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
               // and the second is on the bands of k. Here I invert them
               // similarly, in qe2Phoebe I inverted the order of R_el and R_ph
               couplingWannier_(i1, i2, i3, i4, i5) = {re, im};
-            }
-          }
-        }
-      }
-    }
-    double x = 0.;
-    for (int irE = 0; irE < numElBravaisVectors; irE++) {
-      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-        for (int i = 0; i < numElBands; i++) {
-          for (int j = 0; j < numElBands; j++) {
-            for (int nu = 0; nu < numPhBands; nu++) {
-              x += std::norm(couplingWannier_(i, j, nu, irP, irE));
             }
           }
         }
@@ -550,15 +538,17 @@ void InteractionElPhWan::calcCouplingSquared(
         for (int iw1 = 0; iw1 < numWannier; iw1++) {
           for (int iw2 = 0; iw2 < numWannier; iw2++) {
             for (int nu = 0; nu < numPhBands; nu++) {
-              g1(iw1, iw2, nu, irP) +=
-                  couplingWannier(iw1, iw2, nu, irP, irE) * phase;
+              // important note: the first index iw2 runs over the k+q transform
+              // while iw1 runs over k
+              g1(iw2, iw1, nu, irP) +=
+                  couplingWannier(iw2, iw1, nu, irP, irE) * phase;
             }
           }
         }
       }
     }
 
-    elPhCached.resize(nb1, numWannier, numPhBands, numPhBravaisVectors);
+    elPhCached.resize(numWannier, nb1, numPhBands, numPhBravaisVectors);
     elPhCached.setZero();
 
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -566,8 +556,8 @@ void InteractionElPhWan::calcCouplingSquared(
         for (int iw1 = 0; iw1 < numWannier; iw1++) {
           for (int iw2 = 0; iw2 < numWannier; iw2++) {
             for (int ib1 = 0; ib1 < nb1; ib1++) {
-              elPhCached(ib1, iw2, nu, irP) +=
-                  g1(iw1, iw2, nu, irP) * eigvec1(iw1, ib1);
+              elPhCached(iw2, ib1, nu, irP) +=
+                  g1(iw2, iw1, nu, irP) * eigvec1(iw1, ib1);
             }
           }
         }
@@ -582,7 +572,7 @@ void InteractionElPhWan::calcCouplingSquared(
     int nb2 = eigvec2.cols();
     Eigen::MatrixXcd eigvec3 = eigvecs3[ik];
 
-    Eigen::Tensor<std::complex<double>, 3> g3(nb1, numWannier, numPhBands);
+    Eigen::Tensor<std::complex<double>, 3> g3(numWannier, nb1, numPhBands);
     g3.setZero();
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q3C.dot(phBravaisVectors.col(irP));
@@ -591,7 +581,7 @@ void InteractionElPhWan::calcCouplingSquared(
       for (int ib1 = 0; ib1 < nb1; ib1++) {
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           for (int nu = 0; nu < numPhBands; nu++) {
-            g3(ib1, iw2, nu) += phase * elPhCached(ib1, iw2, nu, irP);
+            g3(iw2, ib1, nu) += phase * elPhCached(iw2, ib1, nu, irP);
           }
         }
       }
@@ -603,7 +593,7 @@ void InteractionElPhWan::calcCouplingSquared(
       for (int nu2 = 0; nu2 < numPhBands; nu2++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            g4(ib1, iw2, nu2) += g3(ib1, iw2, nu) * eigvec3(nu, nu2);
+            g4(iw2, ib1, nu2) += g3(iw2, ib1, nu) * eigvec3(nu, nu2);
           }
         }
       }
@@ -616,7 +606,7 @@ void InteractionElPhWan::calcCouplingSquared(
       for (int ib1 = 0; ib1 < nb1; ib1++) {
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           for (int ib2 = 0; ib2 < nb2; ib2++) {
-            gFinal(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * g4(ib1, iw2, nu);
+            gFinal(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * g4(iw2, ib1, nu);
           }
         }
       }
@@ -628,8 +618,8 @@ void InteractionElPhWan::calcCouplingSquared(
 
     Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
     for (int nu = 0; nu < numPhBands; nu++) {
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (int ib2 = 0; ib2 < nb2; ib2++) {
+      for (int ib2 = 0; ib2 < nb2; ib2++) {
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
           coupling(ib1, ib2, nu) = std::norm(gFinal(ib1, ib2, nu));
         }
       }
