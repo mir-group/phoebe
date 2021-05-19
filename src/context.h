@@ -38,7 +38,7 @@ class Context {
   bool useSymmetries = false;
 
   std::string windowType = "nothing";
-  Eigen::Vector2d windowEnergyLimit;
+  Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
   double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::VectorXd dopings;
