@@ -306,29 +306,30 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto bose3MinusData = bose3MinusData_v[iq1Batch];
 
         for (int ib1 = 0; ib1 < nb1; ib1++) {
+          double en1 = energies1(ib1);
+          int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
+          StateIndex is1Idx(is1);
+          BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
+          int iBte1 = iBte1Idx.get();
+
           for (int ib2 = 0; ib2 < nb2; ib2++) {
+            double en2 = energies2(ib2);
+            int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
+            int is2Irr =
+                innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
+            StateIndex is2Idx(is2);
+            StateIndex is2IrrIdx(is2Irr);
+            BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
+            int iBte2 = iBte2Idx.get();
+
             for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
 
-              double en1 = energies1(ib1);
-              double en2 = energies2(ib2);
               double en3Plus = energies3Plus(ib3);
               if (en1 < energyCutoff || en2 < energyCutoff ||
                   en3Plus < energyCutoff) {
                 continue;
               }
               double enProd = en1 * en2 * en3Plus;
-
-              int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
-              int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-              int is2Irr =
-                  innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
-              StateIndex is1Idx(is1);
-              StateIndex is2Idx(is2);
-              StateIndex is2IrrIdx(is2Irr);
-              BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
-              BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-              int iBte1 = iBte1Idx.get();
-              int iBte2 = iBte2Idx.get();
 
               double deltaPlus;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -407,27 +408,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 }
               }
             }
-          }
-        }
-
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          double en1 = energies1(ib1);
-          int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
-          StateIndex is1Idx(is1);
-          BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
-          int iBte1 = iBte1Idx.get();
-
-          for (int ib2 = 0; ib2 < nb2; ib2++) {
-            int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-            int is2Irr =
-                innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
-            StateIndex is2Idx(is2);
-            StateIndex is2IrrIdx(is2Irr);
-            BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-            int iBte2 = iBte2Idx.get();
 
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
-              double en2 = energies2(ib2);
               double en3Minus = energies3Minus(ib3);
               if (en1 < energyCutoff || en2 < energyCutoff ||
                   en3Minus < energyCutoff) {
