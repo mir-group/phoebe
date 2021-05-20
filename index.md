@@ -120,32 +120,32 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 <div class="container">
   <div class="mySlides">
     <div class="numbertext">1 / 6</div>
-    <img src="pictures/home/1.png" style="width:100%">
+    <img src="pictures/home/wigner.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">2 / 6</div>
-    <img src="pictures/home/2.png" style="width:100%">
+    <img src="pictures/home/relaxon.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">3 / 6</div>
-    <img src="pictures/home/3.png" style="width:100%">
+    <img src="pictures/home/3.png" style="max-height:500px; width:100%; margin-left:auto; margin-right:auto; display: block">
   </div>
     
   <div class="mySlides">
     <div class="numbertext">4 / 6</div>
-    <img src="pictures/home/4.png" style="width:100%">
+    <img src="pictures/home/silicon_linewidths.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">5 / 6</div>
-    <img src="pictures/home/5.png" style="width:100%">
+    <img src="pictures/home/5.png" style="max-height:500px; max-height:500px; margin-left:auto; margin-right:auto; display: block">
   </div>
     
   <div class="mySlides">
     <div class="numbertext">6 / 6</div>
-    <img src="pictures/home/6.jpg" style="width:100%">
+    <img src="pictures/home/6.jpg" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
   </div>
     
   <a class="prev" style="text-decoration: none" onclick="plusSlides(-1)">❮</a>
@@ -157,22 +157,22 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 
   <div class="row">
     <div class="column">
-      <img class="demo cursor" src="pictures/home/1.png" style="width:100%" onclick="currentSlide(1)" alt="Electronic conductivity limited by electron-phonon scattering">
+      <img class="demo cursor" src="pictures/home/wigner.png" style="max-height:120px" onclick="currentSlide(1)" alt="Electron-phonon limited conductivity with the Wigner transport equation">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/2.png" style="width:100%" onclick="currentSlide(2)" alt="Thermal conductivity with phonon-phonon scattering">
+      <img class="demo cursor" src="pictures/home/relaxon.png" style="max-height:120px" onclick="currentSlide(2)" alt="Phonon thermal conductivity with relaxon solver">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/3.png" style="width:100%" onclick="currentSlide(3)" alt="Electron and phonon viscosity">
+      <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(3)" alt="Electron and phonon viscosity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/4.png" style="width:100%" onclick="currentSlide(4)" alt="Band Structure and density of states calculations">
+      <img class="demo cursor" src="pictures/home/silicon_linewidths.png" style="max-height:120px" onclick="currentSlide(4)" alt="Electronic linewidths vs energy">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/5.png" style="width:100%" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
+      <img class="demo cursor" src="pictures/home/5.png" style="max-height:120px" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
     </div>    
     <div class="column">
-      <img class="demo cursor" src="pictures/home/6.jpg" style="width:100%" onclick="currentSlide(6)" alt="Support for ab-initio data from Quantum ESPRESSO">
+      <img class="demo cursor" src="pictures/home/6.jpg" style="max-height:120px" onclick="currentSlide(6)" alt="Support for ab-initio data from Quantum ESPRESSO">
     </div>
   </div>
 </div>
@@ -191,15 +191,13 @@ In details:
 
 <li style="margin: 0 0 10px 0;"> Phonon thermal conductivity with 3-phonon scattering;</li>
 
-<li style="margin: 0 0 10px 0;"> Calculation of electron and phonon band structure;</li>
+<li style="margin: 0 0 10px 0;"> Hydrodynamic transport properties of electrons and phonons;</li>
 
 <li style="margin: 0 0 10px 0;"> Calculation of electron and phonon linewidths or relaxation times;</li>
 
-<li style="margin: 0 0 10px 0;"> Calculation of the electron or phonon density of states.</li>
-
 </ul>
 
-and more to come...
+and more...
 
 
 
