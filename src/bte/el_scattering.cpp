@@ -341,9 +341,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future
   if (switchCase == 2) {
-    int numKPoints = outerBandStructure.getNumPoints();
-
-    for (int ik = 0; ik < numKPoints; ik++) {
+    for (int ik : outerBandStructure.irrPointsIterator()) {
       WavevectorIndex ikIdx(ik);
       Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
       int numBands = en.size();
@@ -360,10 +358,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
           BandIndex ibIdx(ib2);
           int is = outerBandStructure.getIndex(ikIdx, ibIdx);
+          StateIndex isIdx(is);
+          BteIndex ind1Idx = innerBandStructure.stateToBte(isIdx);
+          int iBte1 = ind1Idx.get();
 
           if (abs(ekk2 - ekk) < 1.0e-6) {
             n++;
-            tmp2 = tmp2 + linewidth->data(0, is);
+            tmp2 = tmp2 + linewidth->data(0, iBte1);
           }
         }
         linewidthTmp(ib1) = tmp2 / float(n);
@@ -372,7 +373,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       for (int ib1 = 0; ib1 < numBands; ib1++) {
         BandIndex ibIdx(ib1);
         int is = outerBandStructure.getIndex(ikIdx, ibIdx);
-        linewidth->data(0, is) = linewidthTmp(ib1);
+        StateIndex isIdx(is);
+        BteIndex ind1Idx = innerBandStructure.stateToBte(isIdx);
+        int iBte1 = ind1Idx.get();
+        linewidth->data(0, iBte1) = linewidthTmp(ib1);
       }
     }
   }
@@ -420,10 +424,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
-        // this gets us the state index of the qpoint
-        // on the irreducible zone wedge
-        auto is = outerBandStructure.bteToState(iBteIdx);
-
         // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
           CartIndex iCart(i);
