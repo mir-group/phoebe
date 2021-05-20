@@ -340,7 +340,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future
-  if (false) {
+  if (switchCase == 2) {
     int numKPoints = outerBandStructure.getNumPoints();
 
     for (int ik = 0; ik < numKPoints; ik++) {
