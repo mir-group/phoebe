@@ -34,7 +34,7 @@ if __name__ == "__main__":
     nbands = energies.shape[2]
     mu = np.array(data['chemicalPotentials'])
     T = np.array(data['temperatures'])
-
+    particleType = data['particleType']
 
     # Could also load in group velocities, or wavevectors
     #vels = np.array(data['velocities'])         # dimensions: (iCalc, ik, ib, dim)
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     plt.ylabel(r'$\tau_{' + data['particleType'] + '}$ [' +
                data['relaxationTimeUnit'] + ']',fontsize=12)
 
-    plt.xlim(0,None)
+    if (particleType == "phonon"):
+        plt.xlim(0,None)
 
     # Find limits of the y axis
     flattenedTau = tau.flatten()
