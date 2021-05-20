@@ -535,9 +535,9 @@ void InteractionElPhWan::calcCouplingSquared(
       std::complex<double> phase =
           exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-        for (int iw1 = 0; iw1 < numWannier; iw1++) {
-          for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            for (int nu = 0; nu < numPhBands; nu++) {
+        for (int nu = 0; nu < numPhBands; nu++) {
+          for (int iw1 = 0; iw1 < numWannier; iw1++) {
+            for (int iw2 = 0; iw2 < numWannier; iw2++) {
               // important note: the first index iw2 runs over the k+q transform
               // while iw1 runs over k
               g1(iw2, iw1, nu, irP) +=
@@ -554,8 +554,8 @@ void InteractionElPhWan::calcCouplingSquared(
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       for (int nu = 0; nu < numPhBands; nu++) {
         for (int iw1 = 0; iw1 < numWannier; iw1++) {
-          for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            for (int ib1 = 0; ib1 < nb1; ib1++) {
+          for (int ib1 = 0; ib1 < nb1; ib1++) {
+            for (int iw2 = 0; iw2 < numWannier; iw2++) {
               elPhCached(iw2, ib1, nu, irP) +=
                   g1(iw2, iw1, nu, irP) * eigvec1(iw1, ib1);
             }
@@ -578,9 +578,9 @@ void InteractionElPhWan::calcCouplingSquared(
       double arg = q3C.dot(phBravaisVectors.col(irP));
       std::complex<double> phase =
           exp(complexI * arg) / double(phBravaisVectorsDegeneracies(irP));
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
+      for (int nu = 0; nu < numPhBands; nu++) {
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
+          for (int iw2 = 0; iw2 < numWannier; iw2++) {
             g3(iw2, ib1, nu) += phase * elPhCached(iw2, ib1, nu, irP);
           }
         }
@@ -603,9 +603,9 @@ void InteractionElPhWan::calcCouplingSquared(
     Eigen::Tensor<std::complex<double>, 3> gFinal(nb1, nb2, numPhBands);
     gFinal.setZero();
     for (int nu = 0; nu < numPhBands; nu++) {
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
-        for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          for (int ib2 = 0; ib2 < nb2; ib2++) {
+      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          for (int ib1 = 0; ib1 < nb1; ib1++) {
             gFinal(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * g4(iw2, ib1, nu);
           }
         }
