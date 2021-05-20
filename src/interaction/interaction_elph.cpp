@@ -530,10 +530,14 @@ void InteractionElPhWan::calcCouplingSquared(
     Eigen::Tensor<std::complex<double>, 4> g1(numWannier, numWannier,
                                               numPhBands, numPhBravaisVectors);
     g1.setZero();
+
+    std::vector<std::complex<double>> phases(numElBravaisVectors);
     for (int irE = 0; irE < numElBravaisVectors; irE++) {
       double arg = k1C.dot(elBravaisVectors.col(irE));
-      std::complex<double> phase =
+      phases[irE] =
           exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
+    }
+    for (int irE = 0; irE < numElBravaisVectors; irE++) {
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
         for (int nu = 0; nu < numPhBands; nu++) {
           for (int iw1 = 0; iw1 < numWannier; iw1++) {
@@ -541,7 +545,7 @@ void InteractionElPhWan::calcCouplingSquared(
               // important note: the first index iw2 runs over the k+q transform
               // while iw1 runs over k
               g1(iw2, iw1, nu, irP) +=
-                  couplingWannier(iw2, iw1, nu, irP, irE) * phase;
+                  couplingWannier(iw2, iw1, nu, irP, irE) * phases[irE];
             }
           }
         }
@@ -574,14 +578,17 @@ void InteractionElPhWan::calcCouplingSquared(
 
     Eigen::Tensor<std::complex<double>, 3> g3(numWannier, nb1, numPhBands);
     g3.setZero();
+    std::vector<std::complex<double>> phases(numPhBravaisVectors);
     for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       double arg = q3C.dot(phBravaisVectors.col(irP));
-      std::complex<double> phase =
+      phases[irP] =
           exp(complexI * arg) / double(phBravaisVectorsDegeneracies(irP));
+    }
+    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
       for (int nu = 0; nu < numPhBands; nu++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            g3(iw2, ib1, nu) += phase * elPhCached(iw2, ib1, nu, irP);
+            g3(iw2, ib1, nu) += phases[irP] * elPhCached(iw2, ib1, nu, irP);
           }
         }
       }
@@ -600,13 +607,13 @@ void InteractionElPhWan::calcCouplingSquared(
     }
 
     auto eigvec2Dagger = eigvec2.adjoint();
-    Eigen::Tensor<std::complex<double>, 3> gFinal(nb1, nb2, numPhBands);
+    Eigen::Tensor<std::complex<double>, 3> gFinal(nb2, nb1, numPhBands);
     gFinal.setZero();
     for (int nu = 0; nu < numPhBands; nu++) {
-      for (int iw2 = 0; iw2 < numWannier; iw2++) {
-        for (int ib2 = 0; ib2 < nb2; ib2++) {
-          for (int ib1 = 0; ib1 < nb1; ib1++) {
-            gFinal(ib1, ib2, nu) += eigvec2Dagger(ib2, iw2) * g4(iw2, ib1, nu);
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int iw2 = 0; iw2 < numWannier; iw2++) {
+          for (int ib2 = 0; ib2 < nb2; ib2++) {
+            gFinal(ib2, ib1, nu) += eigvec2Dagger(ib2, iw2) * g4(iw2, ib1, nu);
           }
         }
       }
@@ -620,7 +627,9 @@ void InteractionElPhWan::calcCouplingSquared(
     for (int nu = 0; nu < numPhBands; nu++) {
       for (int ib2 = 0; ib2 < nb2; ib2++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
-          coupling(ib1, ib2, nu) = std::norm(gFinal(ib1, ib2, nu));
+          // notice the flip of 1 and 2 indices is intentional
+          // coupling is |<k+q,ib2 | dV_nu | k,ib1>|^2
+          coupling(ib1, ib2, nu) = std::norm(gFinal(ib2, ib1, nu));
         }
       }
     }
