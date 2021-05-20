@@ -587,7 +587,7 @@ void InteractionElPhWan::calcCouplingSquared(
       }
     }
 
-    Eigen::Tensor<std::complex<double>, 3> g4(nb1, numWannier, numPhBands);
+    Eigen::Tensor<std::complex<double>, 3> g4(numWannier, nb1, numPhBands);
     g4.setZero();
     for (int nu = 0; nu < numPhBands; nu++) {
       for (int nu2 = 0; nu2 < numPhBands; nu2++) {
