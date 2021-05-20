@@ -16,7 +16,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                        outerBandStructure_),
       coupling3Ph(coupling3Ph_), h0(h0_) {
   if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
-    Error e("PhScatteringMatrix needs h0 for incommensurate grids");
+    Error("PhScatteringMatrix needs h0 for incommensurate grids");
   }
 
   // setup here the isotopic scattering
@@ -45,7 +45,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     if (userMassVariance.size() > 0) {
       massVariance = userMassVariance;
       if (massVariance.size() != numAtoms) {
-        Error e("user mass variance should be set for each atom");
+        Error("user mass variance should be set for each atom");
         // i.e. for each atom in the unit cell (not each species)
       }
     }
@@ -110,11 +110,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
              inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error e("builder3Ph found a non-supported case");
+    Error("builder3Ph found a non-supported case");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
-    Error e("The linewidths shouldn't have dimensionality");
+    Error("The linewidths shouldn't have dimensionality");
   }
 
   auto particle = outerBandStructure.getParticle();
@@ -306,29 +306,30 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto bose3MinusData = bose3MinusData_v[iq1Batch];
 
         for (int ib1 = 0; ib1 < nb1; ib1++) {
+          double en1 = energies1(ib1);
+          int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
+          StateIndex is1Idx(is1);
+          BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
+          int iBte1 = iBte1Idx.get();
+
           for (int ib2 = 0; ib2 < nb2; ib2++) {
+            double en2 = energies2(ib2);
+            int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
+            int is2Irr =
+                innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
+            StateIndex is2Idx(is2);
+            StateIndex is2IrrIdx(is2Irr);
+            BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
+            int iBte2 = iBte2Idx.get();
+
             for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
 
-              double en1 = energies1(ib1);
-              double en2 = energies2(ib2);
               double en3Plus = energies3Plus(ib3);
               if (en1 < energyCutoff || en2 < energyCutoff ||
                   en3Plus < energyCutoff) {
                 continue;
               }
               double enProd = en1 * en2 * en3Plus;
-
-              int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
-              int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-              int is2Irr =
-                  innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
-              StateIndex is1Idx(is1);
-              StateIndex is2Idx(is2);
-              StateIndex is2IrrIdx(is2Irr);
-              BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
-              BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-              int iBte1 = iBte1Idx.get();
-              int iBte2 = iBte2Idx.get();
 
               double deltaPlus;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -393,8 +394,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
 
                     for (int i : {0, 1, 2}) {
-                      outPopulations[iInput](iCalc, i, iBte1) +=
-                          ratePlus * inPopRot(i);
+                      if ( iBte1 != iBte2 ) {
+                        outPopulations[iInput](iCalc, i, iBte1) +=
+                            ratePlus * inPopRot(i);
+                      }
                       outPopulations[iInput](iCalc, i, iBte1) +=
                           0.5 * ratePlus * inPopulations[iInput](iCalc, i, iBte1);
                     }
@@ -405,32 +408,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 }
               }
             }
-          }
-        }
 
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          for (int ib2 = 0; ib2 < nb2; ib2++) {
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
-              double en1 = energies1(ib1);
-              double en2 = energies2(ib2);
               double en3Minus = energies3Minus(ib3);
               if (en1 < energyCutoff || en2 < energyCutoff ||
                   en3Minus < energyCutoff) {
                 continue;
               }
               double enProd = en1 * en2 * en3Minus;
-
-              int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
-              int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-              int is2Irr =
-                  innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
-              StateIndex is1Idx(is1);
-              StateIndex is2Idx(is2);
-              StateIndex is2IrrIdx(is2Irr);
-              BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
-              BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-              int iBte1 = iBte1Idx.get();
-              int iBte2 = iBte2Idx.get();
 
               double deltaMinus1, deltaMinus2;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -503,8 +488,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
 
                     for (int i : {0, 1, 2}) {
-                      outPopulations[iInput](iCalc, i, iBte1) -=
-                          (rateMinus1 + rateMinus2) * inPopRot(i);
+                      // off-diagonal term
+                      if ( iBte1 != iBte2 ) { // avoid double counting terms
+                        outPopulations[iInput](iCalc, i, iBte1) -=
+                            (rateMinus1 + rateMinus2) * inPopRot(i);
+                      }
+                      // diagonal term
                       outPopulations[iInput](iCalc, i, iBte1) +=
                           0.5 * (rateMinus1 + rateMinus2) *
                           inPopulations[iInput](iCalc, i, iBte1);
@@ -610,13 +599,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
               if (switchCase == 0) { // case of matrix construction
                 if (context.getUseSymmetries()) {
+                  BteIndex iBte1Idx(iBte1);
+                  BteIndex iBte2Idx(iBte2);
                   for (int i : {0, 1, 2}) {
+                    CartIndex iIndex(i);
+                    int iMat1 = getSMatrixIndex(iBte1Idx, iIndex);
                     for (int j : {0, 1, 2}) {
-                      BteIndex iBte1Idx(iBte1);
-                      BteIndex iBte2Idx(iBte2);
-                      CartIndex iIndex(i);
                       CartIndex jIndex(j);
-                      int iMat1 = getSMatrixIndex(iBte1Idx, iIndex);
                       int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                       if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                         if (i == 0 && j == 0) {
@@ -646,8 +635,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                   for (int i = 0; i < dimensionality_; i++) {
-                    outPopulations[iInput](iCalc, i, iBte1) +=
-                        rateIso * inPopRot(i);
+                    if ( iBte1 != iBte2 ) {
+                      outPopulations[iInput](iCalc, i, iBte1) +=
+                          rateIso * inPopRot(i);
+                    }
                     outPopulations[iInput](iCalc, i, iBte1) +=
                         rateIso * inPopulations[iInput](iCalc, i, iBte1);
                   }
@@ -769,38 +760,16 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         // on the irreducible zone wedge
         auto is = outerBandStructure.bteToState(iBteIdx);
 
-        // getRotationsStar gives list of rotations + index of rotations
-        // corresponding to a given irreducible qpoint
-        auto rotationsList = outerBandStructure.getRotationsStar(is);
-
         // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
+          CartIndex iCart(i);
+          int iMati = getSMatrixIndex(iBteIdx, iCart);
           for (int j : {0, 1, 2}) {
-            CartIndex iCart(i);
             CartIndex jCart(j);
-            int iMati = getSMatrixIndex(iBteIdx, iCart);
             int iMatj = getSMatrixIndex(iBteIdx, jCart);
-            if (theMatrix.indicesAreLocal(iMati, iMatj)) {
-              theMatrix(iMati, iMatj) = 0;
-            }
+            theMatrix(iMati, iMatj) = 0.;
           }
-        }
-
-        // sum over rotations related to irreducible star
-        for(auto rotation : rotationsList) {
-          for (int i : {0, 1, 2}) {
-            for (int j : {0, 1, 2}) {
-              CartIndex iCart(i);
-              CartIndex jCart(j);
-              // we want to set the diagonal as linewidth,
-              // so iBteIdx is the same, but i.j change
-              int iMati = getSMatrixIndex(iBteIdx, iCart);
-              int iMatj = getSMatrixIndex(iBteIdx, jCart);
-              if (theMatrix.indicesAreLocal(iMati, iMatj)) {
-                theMatrix(iMati, iMatj) += rotation(i,j) * linewidth->operator()(iCalc, 0, iBte);
-              }
-            }
-          }
+          theMatrix(iMati, iMati) += linewidth->operator()(iCalc, 0, iBte);
         }
       }
     } else {

@@ -34,7 +34,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
   }
 
   if ((sr != "simple") && (sr != "crystal")) {
-    Error e("invalid Acoustic Sum Rule", 1);
+    Error("invalid Acoustic Sum Rule");
   }
 
   if (mpi->mpiHead()) {

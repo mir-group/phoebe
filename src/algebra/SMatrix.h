@@ -117,7 +117,7 @@ class SerialMatrix {
    */
   SerialMatrix<T> operator+=(const SerialMatrix<T>& m1) {
     if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
-      Error e("Cannot add matrices of different sizes.");
+      Error("Cannot add matrices of different sizes.");
     }
     for (int s = 0; s < size(); s++) mat[s] += m1.mat[s];
     return *this;
@@ -127,7 +127,7 @@ class SerialMatrix {
    */
   SerialMatrix<T> operator-=(const SerialMatrix<T>& m1) {
     if(numRows_ != m1.rows() || numCols_ != m1.cols()) {
-      Error e("Cannot subtract matrices of different sizes.");
+      Error("Cannot subtract matrices of different sizes.");
     }
     for (int s = 0; s < size(); s++) mat[s] -= m1.mat[s];
     return *this;
@@ -269,7 +269,7 @@ int SerialMatrix<T>::size() const {
 template <typename T>
 T& SerialMatrix<T>::operator()(const int &row, const int &col) {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
-    Error e("Attempted to reference a matrix element out of bounds.");
+    Error("Attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
 }
@@ -277,7 +277,7 @@ T& SerialMatrix<T>::operator()(const int &row, const int &col) {
 template <typename T>
 const T& SerialMatrix<T>::operator()(const int &row, const int &col) const {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
-    Error e("Attempted to reference a matrix element out of bounds.");
+    Error("Attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
 }
@@ -293,7 +293,7 @@ template <typename T>
 std::tuple<int, int> SerialMatrix<T>::local2Global(const int& k) {
   // we convert this combined local index k into row / col indices
   // k = j * nRows + i
-  if(numRows_ == 0) Error e("attempted to div by zero in l2g");
+  if(numRows_ == 0) Error("attempted to div by zero in l2g");
   int j = k / numRows_;
   int i = k - j * numRows_;
   return {i, j};
@@ -329,7 +329,7 @@ SerialMatrix<T> SerialMatrix<T>::operator-() const {
 template <typename T>
 void SerialMatrix<T>::eye() {
   if(numRows_ != numCols_) {
-    Error e("Cannot build an identity matrix with non-square matrix");
+    Error("Cannot build an identity matrix with non-square matrix");
   }
   for (int row = 0; row < numRows_; row++) (*this)(row, row) = (T)1.0;
 }

@@ -860,7 +860,7 @@ void Context::printInputSummary(const std::string &fileName) {
               << std::endl;
 
     std::cout << "windowType = " << windowType << std::endl;
-    if (!std::isnan(windowEnergyLimit[0])) {
+    if (windowEnergyLimit(0)!=0 || windowEnergyLimit(1)!=0) {
       std::cout << "windowEnergyLimit = " << windowEnergyLimit(0) * energyRyToEv
                 << " " << windowEnergyLimit(1) * energyRyToEv << " eV"
                 << std::endl;

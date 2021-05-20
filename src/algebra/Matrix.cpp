@@ -73,7 +73,7 @@ double Matrix<double>::norm() {
 template <>
 double Matrix<std::complex<double>>::norm() {
   if(isDistributed) {
-    Error e(" No implemented specialization of PMatrix::complex<double>.norm()");
+    Error(" No implemented specialization of PMatrix::complex<double>.norm()");
     return 0;
   }
   else{ return mat->norm(); }

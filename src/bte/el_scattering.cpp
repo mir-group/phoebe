@@ -211,10 +211,22 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       int nb2 = state2Energies.size();
       int nb3 = state3Energies.size();
 
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
-        double en1 = state1Energies(ib1);
-        for (int ib2 = 0; ib2 < nb2; ib2++) {
-          double en2 = state2Energies(ib2);
+      for (int ib2 = 0; ib2 < nb2; ib2++) {
+        double en2 = state2Energies(ib2);
+        int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
+        int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
+        StateIndex is2Idx(is2);
+        StateIndex is2IrrIdx(is2Irr);
+        BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
+        int iBte2 = ind2Idx.get();
+
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
+          double en1 = state1Energies(ib1);
+          int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
+          StateIndex is1Idx(is1);
+          BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
+          int iBte1 = ind1Idx.get();
+
           for (int ib3 = 0; ib3 < nb3; ib3++) {
             double en3 = state3Energies(ib3);
 
@@ -222,17 +234,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             if (en3 < phononCutoff) {
               continue;
             }
-
-            int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
-            int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
-            int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
-            StateIndex is1Idx(is1);
-            StateIndex is2Idx(is2);
-            StateIndex is2IrrIdx(is2Irr);
-            BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
-            BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-            int iBte1 = ind1Idx.get();
-            int iBte2 = ind2Idx.get();
 
             double delta1, delta2;
             if (smearing->getType() == DeltaFunction::gaussian) {
@@ -273,10 +274,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
                 if (withSymmetries) {
                   for (int i : {0, 1, 2}) {
+                    CartIndex iIndex(i);
+                    int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                     for (int j : {0, 1, 2}) {
-                      CartIndex iIndex(i);
                       CartIndex jIndex(j);
-                      int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
                       int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
                       if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                         if (i == 0 && j == 0) {
@@ -308,8 +309,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                   for (int i : {0, 1, 2}) {
-                    outPopulations[iVec](iCalc, i, iBte1) +=
-                        rateOffDiagonal * inPopRot(i);
+                    if (iBte1 != iBte2) {
+                      outPopulations[iVec](iCalc, i, iBte1) +=
+                          rateOffDiagonal * inPopRot(i);
+                    }
                     outPopulations[iVec](iCalc, i, iBte1) +=
                         rate * inPopulations[iVec](iCalc, i, iBte1);
                   }
@@ -413,12 +416,24 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 0) { // case of matrix construction
     int iCalc = 0;
     if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
-        auto iBteIdx = BteIndex(iBte);
+        BteIndex iBteIdx(iBte);
+        // this gets us the state index of the qpoint
+        // on the irreducible zone wedge
+        auto is = outerBandStructure.bteToState(iBteIdx);
+
+        // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
-          auto iCart = CartIndex(i);
-          int iMat1 = getSMatrixIndex(iBteIdx, iCart);
-          theMatrix(iMat1, iMat1) = linewidth->operator()(iCalc, 0, iBte);
+          CartIndex iCart(i);
+          int iMati = getSMatrixIndex(iBteIdx, iCart);
+          for (int j : {0, 1, 2}) {
+            CartIndex jCart(j);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            theMatrix(iMati, iMatj) = 0.;
+          }
+          theMatrix(iMati, iMati) += linewidth->operator()(iCalc, 0, iBte);
         }
       }
     } else {

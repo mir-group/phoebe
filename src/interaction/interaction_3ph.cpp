@@ -468,7 +468,7 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
               << ", availmem = " << availmem / 1e9
               << ", maxusage = " << maxusage / 1e9
               << ", numBatches = " << numBatches << "\n";
-    Error e("Insufficient memory!");
+    Error("Insufficient memory!");
   }
   return numBatches;
 }

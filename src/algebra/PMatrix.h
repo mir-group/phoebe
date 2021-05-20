@@ -280,7 +280,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext_, &lddA, &info);
   if (info != 0) {
-    Error e("Something wrong calling descinit", info);
+    Error("Something wrong calling descinit", info);
   }
 }
 
@@ -390,7 +390,7 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
 
   // kill the code if we asked for more blas rows/cols than there are procs
   if (mpi->getSize() < numBlasRows * numBlasCols) {
-     Error e("initBlacs requested too many MPI processes.");
+     Error("initBlacs requested too many MPI processes.");
   }
 
   // Cases for a blacs grid where we specified rows, cols, both,
@@ -414,7 +414,7 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
     // Throw an error if we tried to set up a square proc grid with
     // a non-square number of processors
     if (mpi->getSize() > numBlasRows_ * numBlasCols_) {
-      Error e("Phoebe needs a square number of MPI processes");
+      Error("Phoebe needs a square number of MPI processes");
     }
   }
 
@@ -599,7 +599,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator/=(const T& that) {
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) {
   if(numRows_ != that.rows() || numCols_ != that.cols()) {
-    Error e("Cannot adds matrices of different sizes.");
+    Error("Cannot adds matrices of different sizes.");
   }
   for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) += *(that.mat + i);
@@ -610,7 +610,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator+=(const ParallelMatrix<T>& that) 
 template <typename T>
 ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) {
   if(numRows_ != that.rows() || numCols_ != that.cols()) {
-    Error e("Cannot subtract matrices of different sizes.");
+    Error("Cannot subtract matrices of different sizes.");
   }
   for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) -= *(that.mat + i);
@@ -621,7 +621,7 @@ ParallelMatrix<T>& ParallelMatrix<T>::operator-=(const ParallelMatrix<T>& that) 
 template <typename T>
 void ParallelMatrix<T>::eye() {
   if (numRows_ != numCols_) {
-    Error e("Cannot build an identity matrix with non-square matrix");
+    Error("Cannot build an identity matrix with non-square matrix");
   }
   for (int i = 0; i < numLocalElements_; i++) {
     *(mat + i) = 0.;

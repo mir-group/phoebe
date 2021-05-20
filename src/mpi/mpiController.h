@@ -242,6 +242,12 @@ namespace mpiContainer {
                 static inline size_t getSize(Eigen::Tensor<T, 5>* data) { return data->size(); }
                 static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
         };
+        // Container for Eigen::Tensor<T, 4>
+        template <typename T> struct containerType<Eigen::Tensor<T, 4>> {
+          static inline T* getAddress(Eigen::Tensor<T, 4>* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Tensor<T, 4>* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
         // Container for Eigen::Tensor<T, 3>
         template <typename T> struct containerType<Eigen::Tensor<T, 3>> {
                 static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }

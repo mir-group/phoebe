@@ -21,7 +21,7 @@ Window::Window(Context &context, Particle &particle_,
   } else if (inMethod == "nothing") {
     method = nothing;
   } else {
-    Error e("Unrecognized method called in Window()", 1);
+    Error("Unrecognized method called in Window()");
   }
 
   if (method == population) {
@@ -37,10 +37,10 @@ Window::Window(Context &context, Particle &particle_,
     minEnergy = context.getWindowEnergyLimit().minCoeff();
     maxEnergy = context.getWindowEnergyLimit().maxCoeff();
     if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
-      Error e("You must set min and max energies for your energy window!"); 
+      Error("You must set min and max energies for your energy window!");
     }
     else if(minEnergy == maxEnergy) {
-      Error e("Your min and max window energies cannot be the same."); 
+      Error("Your min and max window energies cannot be the same.");
     }
   }
 }

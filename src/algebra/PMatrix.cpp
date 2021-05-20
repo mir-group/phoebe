@@ -13,7 +13,7 @@ ParallelMatrix<double> ParallelMatrix<double>::prod(
     const char& trans2) {
 
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+    Error("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
   auto result = that;
   result.zeros();
@@ -58,7 +58,7 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
   ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
                                               numBlocksRows_, numBlocksCols_);
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+    Error("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
   int m;
   if (trans1 == transN) {
@@ -97,10 +97,10 @@ template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
 ParallelMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Cannot diagonalize non-square matrix");
+    Error("Cannot diagonalize non-square matrix");
   }
   if ( numBlasRows_ != numBlasCols_ ) {
-    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
+    Error("Cannot diagonalize via scalapack with a non-square process grid!");
   }
 
   double *eigenvalues;
@@ -140,7 +140,7 @@ ParallelMatrix<double>::diagonalize() {
           eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork, &info);
 
   if (info != 0) {
-    Error e("PDSYEV failed", info);
+    Error("PDSYEV failed", info);
   }
 
   std::vector<double> eigenvalues_(numRows_);
@@ -158,10 +158,10 @@ template <>
 std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
 ParallelMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Can not diagonalize non-square matrix");
+    Error("Can not diagonalize non-square matrix");
   }
   if ( numBlasRows_ != numBlasCols_ ) {
-    Error e("Cannot diagonalize via scalapack with a non-square process grid!");
+    Error("Cannot diagonalize via scalapack with a non-square process grid!");
   }
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
@@ -194,7 +194,7 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
           rwork, &lrwork, &info);
 
   if (info != 0) {
-    Error e("PZHEEV failed", info);
+    Error("PZHEEV failed", info);
   }
 
   std::vector<double> eigenvalues_(numRows_);

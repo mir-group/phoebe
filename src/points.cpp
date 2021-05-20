@@ -467,7 +467,7 @@ Eigen::Vector3d Point::getCoordinates(const int &basis,
                                       const bool &inWignerSeitz) {
   if ((basis != Points::cartesianCoordinates) &&
       (basis != Points::crystalCoordinates)) {
-    Error e("Point getCoordinates: basis must be crystal or cartesian");
+    Error("Point getCoordinates: basis must be crystal or cartesian");
   }
 
   Eigen::Vector3d coordinates = points.getPointCoordinates(index, basis);
