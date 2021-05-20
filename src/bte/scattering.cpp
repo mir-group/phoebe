@@ -385,11 +385,11 @@ void ScatteringMatrix::a2Omega() {
 // add a flag to remember if we have A or Omega
 // void ScatteringMatrix::omega2A() {
 //  if (!highMemory) {
-//    Error e("a2Omega only works if the matrix is stored in memory");
+//    Error("a2Omega only works if the matrix is stored in memory");
 //  }
 //
 //  if (theMatrix.rows() == 0) {
-//    Error e("The scattering matrix hasn't been built yet");
+//    Error("The scattering matrix hasn't been built yet");
 //  }
 //
 //  if (!isMatrixOmega) { // it's already with the scaling of A

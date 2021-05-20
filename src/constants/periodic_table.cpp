@@ -8,7 +8,7 @@ int PeriodicTable::findElementByStr(const std::string &speciesName) {
             return element.atomicNumber - 1;
         }
     }
-    Error e("Couldn't find element in periodic table");
+    Error("Couldn't find element in periodic table");
     return -1;
 }
 

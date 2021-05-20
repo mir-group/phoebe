@@ -37,7 +37,7 @@ VectorBTE &VectorBTE::operator=(const VectorBTE &that) {
 // product operator overload
 Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   if (that.numCalculations != numCalculations || that.numStates != numStates) {
-    Error e("The 2 VectorBTE must be aligned for dot() to work.");
+    Error("The 2 VectorBTE must be aligned for dot() to work.");
   }
   if (that.dimensionality != 3 ) {
     Error("VectorBTE dot is implemented for 3D vectors only");
@@ -88,7 +88,7 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
     } else if (operatorType == operatorDiff) {
       newPopulation.data << this->data.array() - that.data.array();
     } else {
-      Error e("Operator type for VectorBTE not recognized");
+      Error("Operator type for VectorBTE not recognized");
     }
 
   } else if (that.dimensionality == 1) {
@@ -112,11 +112,11 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
         newPopulation.data.row(iCalc) =
             this->data.row(iCalc).array() - that.data.row(i2).array();
       } else {
-        Error e("Operator type for VectorBTE not recognized");
+        Error("Operator type for VectorBTE not recognized");
       }
     }
   } else {
-    Error e("VectorBTE can't handle dimensionality for this case");
+    Error("VectorBTE can't handle dimensionality for this case");
   }
   for (const int &iBte : excludeIndices) {
     newPopulation.data.col(iBte).setZero();
@@ -142,7 +142,7 @@ VectorBTE VectorBTE::operator*(const double &scalar) {
 VectorBTE VectorBTE::operator*(const Eigen::MatrixXd &vector) {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   if (vector.rows() != statisticsSweep.getNumCalculations() || vector.cols() != 3) {
-    Error e("VectorBTE * unexpected alignment with MatrixXd");
+    Error("VectorBTE * unexpected alignment with MatrixXd");
   }
   for (int iBte=0; iBte<numStates; iBte++) {
     for (int i : {0, 1, 2}) {
@@ -159,10 +159,10 @@ VectorBTE VectorBTE::operator*(ParallelMatrix<double> &matrix) {
 
   if (numCalculations != dimensionality) {
     // you'd need to keep in memory a lot of matrices.
-    Error e("We didn't implement VectorBTE * matrix for numCalculations > 1");
+    Error("We didn't implement VectorBTE * matrix for numCalculations > 1");
   }
   if (matrix.rows() != numStates) {
-    Error e("VectorBTE and Matrix not aligned");
+    Error("VectorBTE and Matrix not aligned");
   }
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data.setZero();
@@ -231,7 +231,7 @@ void VectorBTE::canonical2Population() {
 void VectorBTE::population2Canonical() {
   auto particle = bandStructure.getParticle();
   if (particle.isFermi()) {
-    Error e("Possible divergence in population2Canonical");
+    Error("Possible divergence in population2Canonical");
   }
   for (int iBte = 0; iBte < numStates; iBte++) {
     BteIndex iBteIdx = BteIndex(iBte);

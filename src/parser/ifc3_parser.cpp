@@ -319,7 +319,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
                                              Crystal &crystal) {
 
 #ifndef HDF5_AVAIL
-  Error e(
+  Error(
       "Phono3py HDF5 output cannot be read if Phoebe is not built with HDF5.");
   // return void;
 #else

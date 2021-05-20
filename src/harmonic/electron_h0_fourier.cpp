@@ -221,7 +221,7 @@ void ElectronH0Fourier::setPositionVectors() {
   int searchSize2 = int(cutoff);
   // cutoff is an integer
   if (cutoff < 1.) {
-    Error e("Fourier cutoff is too small: set it >=1");
+    Error("Fourier cutoff is too small: set it >=1");
   }
 
   // distDim is the size of the

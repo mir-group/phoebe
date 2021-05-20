@@ -105,7 +105,7 @@ void TransportEpaApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
-    Error e("Either chemical potentials or dopings must be set");
+    Error("Either chemical potentials or dopings must be set");
   }
 }
 
@@ -204,7 +204,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   auto phParticle = Particle(Particle::phonon);
 
   if (particle.isPhonon())
-    Error e("Electronic band structure has to be provided");
+    Error("Electronic band structure has to be provided");
 
   int numCalcs = statisticsSweep.getNumCalculations();
   int numEnergies = energies.size();

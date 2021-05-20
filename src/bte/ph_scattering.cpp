@@ -16,7 +16,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                        outerBandStructure_),
       coupling3Ph(coupling3Ph_), h0(h0_) {
   if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
-    Error e("PhScatteringMatrix needs h0 for incommensurate grids");
+    Error("PhScatteringMatrix needs h0 for incommensurate grids");
   }
 
   // setup here the isotopic scattering
@@ -45,7 +45,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     if (userMassVariance.size() > 0) {
       massVariance = userMassVariance;
       if (massVariance.size() != numAtoms) {
-        Error e("user mass variance should be set for each atom");
+        Error("user mass variance should be set for each atom");
         // i.e. for each atom in the unit cell (not each species)
       }
     }
@@ -110,11 +110,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
              inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error e("builder3Ph found a non-supported case");
+    Error("builder3Ph found a non-supported case");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
-    Error e("The linewidths shouldn't have dimensionality");
+    Error("The linewidths shouldn't have dimensionality");
   }
 
   auto particle = outerBandStructure.getParticle();
