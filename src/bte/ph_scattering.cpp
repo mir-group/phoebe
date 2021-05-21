@@ -753,13 +753,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       // numStates is defined in scattering.cpp as # of irrStates
       // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
-
         BteIndex iBteIdx(iBte);
-
-        // this gets us the state index of the qpoint
-        // on the irreducible zone wedge
-        auto is = outerBandStructure.bteToState(iBteIdx);
-
         // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
           CartIndex iCart(i);
