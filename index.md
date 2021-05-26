@@ -159,16 +159,16 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
   <div class="row">
     <div class="column">
-      <img class="demo cursor" src="pictures/home/colorPhdisp.png" style="max-height:120px" onclick="currentSlide(4)" alt="Phonon linewidths projected onto dispersion of silicon">
+      <img class="demo cursor" src="pictures/home/colorPhdisp.png" style="max-height:120px" onclick="currentSlide(1)" alt="Phonon linewidths projected onto dispersion of silicon">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/wigner.png" style="max-height:120px" onclick="currentSlide(1)" alt="Electron-phonon limited conductivity with the Wigner transport equation">
+      <img class="demo cursor" src="pictures/home/wigner.png" style="max-height:120px" onclick="currentSlide(2)" alt="Electron-phonon limited conductivity with the Wigner transport equation">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/relaxon.png" style="max-height:120px" onclick="currentSlide(2)" alt="Phonon thermal conductivity with relaxon solver">
+      <img class="demo cursor" src="pictures/home/relaxon.png" style="max-height:120px" onclick="currentSlide(3)" alt="Phonon thermal conductivity with relaxon solver">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(3)" alt="Electron and phonon viscosity">
+      <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(4)" alt="Electron and phonon viscosity">
     </div>
     <div class="column">
       <img class="demo cursor" src="pictures/home/5.png" style="max-height:120px" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
