@@ -116,7 +116,7 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 </p>
 
 <p style="text-align:center;">
-It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelism, memory-distributed computing via ScaLAPACK, and GPU accelerated computing of scattering rates.
+It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelism, memory-distributed computing via ScaLAPACK, and GPU accelerated calculation of scattering rates.
 </p>
 
 <div class="container">
