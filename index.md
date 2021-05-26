@@ -110,44 +110,46 @@ img {
 </style>
 </head>
 
-<h1> Ab-initio transport </h1>
-<h2> Simple and fast </h2>
+<h1> Ab-initio transport, simple and fast.</h1>
+<p style="text-align:center;">
+Phoebe is an open-source code for the ab-initio computation of electron and phonon transport properties of crystalline materials.
+</p>
 
-Phoebe is an open-source code for the ab-initio computation of electron and phonon transport properties of crystals using HPC computers.
-
-### Current functionalities
+<p style="text-align:center;">
+It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelism, memory-distributed computing via ScaLAPACK, and GPU accelerated computing of scattering rates.
+</p>
 
 <div class="container">
   <div class="mySlides">
     <div class="numbertext">1 / 6</div>
-    <img src="pictures/home/wigner.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/colorPhdisp.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">2 / 6</div>
-    <img src="pictures/home/relaxon.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/wigner.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">3 / 6</div>
-    <img src="pictures/home/3.png" style="max-height:500px; width:100%; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/relaxon.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
-    
+
   <div class="mySlides">
     <div class="numbertext">4 / 6</div>
-    <img src="pictures/home/silicon_linewidths.png" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/3.png" style="max-height:450px; width:100%; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">5 / 6</div>
-    <img src="pictures/home/5.png" style="max-height:500px; max-height:500px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/5.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
-    
+
   <div class="mySlides">
     <div class="numbertext">6 / 6</div>
-    <img src="pictures/home/6.jpg" style="max-height:500px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/6.jpg" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
-    
+
   <a class="prev" style="text-decoration: none" onclick="plusSlides(-1)">❮</a>
   <a class="next" style="text-decoration: none" onclick="plusSlides(1)">❯</a>
 
@@ -156,6 +158,9 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
   </div>
 
   <div class="row">
+    <div class="column">
+      <img class="demo cursor" src="pictures/home/colorPhdisp.png" style="max-height:120px" onclick="currentSlide(4)" alt="Phonon linewidths projected onto dispersion of silicon">
+    </div>
     <div class="column">
       <img class="demo cursor" src="pictures/home/wigner.png" style="max-height:120px" onclick="currentSlide(1)" alt="Electron-phonon limited conductivity with the Wigner transport equation">
     </div>
@@ -166,11 +171,8 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
       <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(3)" alt="Electron and phonon viscosity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/silicon_linewidths.png" style="max-height:120px" onclick="currentSlide(4)" alt="Electronic linewidths vs energy">
-    </div>
-    <div class="column">
       <img class="demo cursor" src="pictures/home/5.png" style="max-height:120px" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
-    </div>    
+    </div>
     <div class="column">
       <img class="demo cursor" src="pictures/home/6.jpg" style="max-height:120px" onclick="currentSlide(6)" alt="Support for ab-initio data from Quantum ESPRESSO">
     </div>
@@ -179,7 +181,7 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 
 <br>
 
-In details:
+### Current functionalities:
 
 <ul style="padding-left:20px;">
 
@@ -198,7 +200,6 @@ In details:
 </ul>
 
 and more...
-
 
 
 <script>
