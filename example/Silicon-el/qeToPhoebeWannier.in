@@ -1,0 +1,9 @@
+appName = "elPhQeToPhoebe"
+
+elPhInterpolation = "wannier"
+
+phD2FileName = "qe-elph/silicon.fc"
+electronH0Name = "qe-elph/si_tb.dat"
+
+wannier90Prefix = "qe-elph/si"
+quantumEspressoPrefix = "qe-elph/silicon"

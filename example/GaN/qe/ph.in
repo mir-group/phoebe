@@ -1,0 +1,13 @@
+phonons of GaN
+&inputph
+  tr2_ph = 1.0d-12
+  prefix = "gan"
+  ldisp = .true.
+  nq1 = 6
+  nq2 = 6
+  nq3 = 4
+  outdir = "./out"
+  fildyn = "gan.dyn"
+  fildvscf = "silicon.dvscf"
+  electron_phonon = "epa"
+/

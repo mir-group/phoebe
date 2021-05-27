@@ -21,7 +21,7 @@ Window::Window(Context &context, Particle &particle_,
   } else if (inMethod == "nothing") {
     method = nothing;
   } else {
-    Error e("Unrecognized method called in Window()", 1);
+    Error("Unrecognized method called in Window()");
   }
 
   if (method == population) {
@@ -36,34 +36,37 @@ Window::Window(Context &context, Particle &particle_,
   } else if (method == energy) {
     minEnergy = context.getWindowEnergyLimit().minCoeff();
     maxEnergy = context.getWindowEnergyLimit().maxCoeff();
+    if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
+      Error("You must set min and max energies for your energy window!");
+    }
+    else if(minEnergy == maxEnergy) {
+      Error("Your min and max window energies cannot be the same.");
+    }
   }
 }
 
 std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     Eigen::VectorXd &energies) {
 
+  // no matter the method, we must set numBands
+  numBands = energies.size();
+
   if (method == population) {
-    numBands = energies.size();
     Eigen::VectorXd popMin(numBands), popMax(numBands);
-    for (long ib = 0; ib < numBands; ib++) {
+    for (int ib = 0; ib < numBands; ib++) {
       popMin(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
                                          chemicalPotentialMin);
       popMax(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
                                          chemicalPotentialMax);
     }
-    auto tup = internalPopWindow(energies, popMin, popMax);
-    auto filteredEnergies = std::get<0>(tup);
-    auto bandExtrema = std::get<1>(tup);
-    return {filteredEnergies, bandExtrema};
+    return internalPopWindow(energies, popMin, popMax);
+
   } else if (method == energy) {
-    auto tup = internalEnWindow(energies);
-    auto filteredEnergies = std::get<0>(tup);
-    auto bandExtrema = std::get<1>(tup);
-    return {filteredEnergies, bandExtrema};
+    return internalEnWindow(energies);
+
   } else { // no filter
-    numBands = energies.size();
     std::vector<double> filteredEnergies(energies.size());
-    for (long ib = 0; ib < numBands; ib++) {
+    for (int ib = 0; ib < numBands; ib++) {
       filteredEnergies[ib] = ib;
     }
     std::vector<int> bandExtrema(2);
@@ -79,7 +82,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
 
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema;
-  std::vector<int> bandsIndeces;
+  std::vector<int> bandsIndices;
 
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
@@ -87,13 +90,13 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
     if ((abs(popMin(ib)) > populationThreshold) ||
         (abs(popMax(ib)) > populationThreshold)) {
       filteredEnergies.push_back(thisEnergy);
-      bandsIndeces.push_back(ib);
+      bandsIndices.push_back(ib);
     }
   }
-  if (bandsIndeces.size() > 0) {
-    bandsExtrema.push_back(bandsIndeces[0]);
-    bandsExtrema.push_back(bandsIndeces[bandsIndeces.size() - 1]);
-  }
+  if (bandsIndices.size() > 0) {
+    bandsExtrema.push_back(bandsIndices[0]);
+    bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
@@ -101,22 +104,24 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
     const Eigen::VectorXd &energies) {
 
   std::vector<double> filteredEnergies;
-  std::vector<int> bandsExtrema(2);
-  std::vector<int> bandsIndeces;
-
+  std::vector<int> bandsExtrema;
+  std::vector<int> bandsIndices;
   double thisEnergy;
   for (int ib = 0; ib < numBands; ib++) {
     thisEnergy = energies(ib);
     if (thisEnergy < maxEnergy && thisEnergy > minEnergy) {
       filteredEnergies.push_back(thisEnergy);
-      bandsIndeces.push_back(ib);
+      bandsIndices.push_back(ib);
     }
   }
-  bandsExtrema.push_back(bandsIndeces[0]);
-  bandsExtrema.back();
+  // set the band extrema
+  if (bandsIndices.size() > 0) {
+    bandsExtrema.push_back(bandsIndices[0]);
+    bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
+  } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
-long Window::getMethodUsed() {
+int Window::getMethodUsed() {
   return method;
 }

@@ -1,0 +1,4 @@
+&input
+  fildyn = "gan.dyn"
+  flfrc = "gan.fc"
+/

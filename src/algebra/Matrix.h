@@ -5,26 +5,26 @@
 #include "SMatrix.h"
 
 /** Container class which wraps an underlying serial or parallel matrix
- * 
- * The class hierarcy is set up using this container rather than an inheritance
- * structure with specific intent. These objects cannot be set up using 
+ *
+ * The class hierarchy is set up using this container rather than an inheritance
+ * structure with specific intent. These objects cannot be set up using
  * an abstract Matrix parent class because because cpp does not allow for
- * virtual operators, as it's not possible to overload something like 
- * +=, for which the virtual base class function would have to return 
- * an instance of the abstract base class (not possible), and which 
+ * virtual operators, as it's not possible to overload something like
+ * +=, for which the virtual base class function would have to return
+ * an instance of the abstract base class (not possible), and which
  * cannot be overloaded with a covariant return type by the child classes.
- * c++ does this intentionally -- otherwise, it would be possible to 
- * write things like SMatrix + PMatrix in the code! 
- * Similar issues with () and the assignment operator make a inheritance 
- * structure impractical.   
+ * c++ does this intentionally -- otherwise, it would be possible to
+ * write things like SMatrix + PMatrix in the code!
+ * Similar issues with () and the assignment operator make a inheritance
+ * structure impractical.
  *
  */
 template <typename T>
 class Matrix {
 
   /// Index from a 1D array to a position in a 2D array (matrix)
-  long global2Local(const long& row, const long& col);
-  std::tuple<long, long> local2Global(const long& k);
+  int global2Local(const int& row, const int& col);
+  std::tuple<int, int> local2Global(const int& k);
 
  /** Boolean variable which tells us if the underlying matrix is parallel
  * will be defaulted to false if no value is provided in constructor
@@ -33,11 +33,13 @@ class Matrix {
 
  /** Underlying ParallelMatrix instantiated only if isDistributed = true
  */
- ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
+ ParallelMatrix<T>* pmat = nullptr;
+//  ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
  */
- SerialMatrix<T>* mat = new SerialMatrix<T>();
+ SerialMatrix<T>* mat = nullptr;
+//  SerialMatrix<T>* mat = new SerialMatrix<T>();
 
  public:
   /** Default Matrix constructor.
@@ -70,34 +72,34 @@ class Matrix {
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
    */
-  std::vector<std::tuple<long, long>> getAllLocalStates();
+  std::vector<std::tuple<int, int>> getAllLocalStates();
 
   /** Returns true if the global indices (row,col) identify a matrix element
    * stored by the MPI process.
    */
-  bool indecesAreLocal(const int& row, const int& col);
+  bool indicesAreLocal(const int& row, const int& col);
 
   /** Find global number of rows
    */
-  long rows() const;
+  int rows() const;
   /** Return local number of rows */
-  long localRows() const;
-  /** Find global number of columns
-   */
-  long cols() const;
+  int localRows() const;
+  /** Find global number of columns */
+  int cols() const;
   /** Return local number of rows */
-  long localCols() const;
-  /** Find global number of matrix elements
-   */
-  long size() const;
+  int localCols() const;
+  /** Find global number of matrix elements*/
+  int size() const;
+  /** Return the size of the matrix in GB */
+  double getMemory() const;
 
   /** Get and set operator
    */
-  T& operator()(const int row, const int col);
+  T& operator()(const int &row, const int &col);
 
   /** Const get and set operator
    */
-  const T& operator()(const int row, const int col) const;
+  const T& operator()(const int &row, const int &col) const;
 
   /** Matrix-matrix multiplication.
    * Computes result = trans1(*this) * trans2(that)
@@ -196,7 +198,8 @@ Matrix<T>::Matrix(const int& numRows, const int& numCols,
 template <typename T>
 Matrix<T>::Matrix() {
   isDistributed = false;
-  pmat = new ParallelMatrix<T>();
+  if (pmat!=nullptr) delete pmat;
+  if (mat!=nullptr) delete mat;
   mat = new SerialMatrix<T>();
 }
 
@@ -220,10 +223,12 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
     isDistributed = that.isDistributed;
     // call SMatrix or PMatrix copy constructor
     if(isDistributed) {
-      (*pmat) = (*that.pmat);
+      if (pmat!=nullptr) delete pmat;
+      pmat = new ParallelMatrix<T>(*that.pmat);
     }
     else {
-      (*mat) = (*that.mat);
+      if (mat!=nullptr) delete mat;
+      mat = new SerialMatrix<T>(*that.mat);
     }
   }
   return *this;
@@ -232,70 +237,83 @@ Matrix<T>& Matrix<T>::operator=(const Matrix<T>& that) {
 // destructor
 template <typename T>
 Matrix<T>::~Matrix() {
-  if(isDistributed) delete pmat;
-  else delete mat;
+  if (pmat!=nullptr) {
+    delete pmat;
+  }
+  if (mat!=nullptr) {
+    delete mat;
+  }
 }
 
 /* ------------- Very basic operations -------------- */
 template <typename T>
-long Matrix<T>::rows() const {
+int Matrix<T>::rows() const {
   if(isDistributed) return pmat->rows();
   else{ return mat->rows(); }
 }
 template <typename T>
-long Matrix<T>::localRows() const {
+int Matrix<T>::localRows() const {
   if(isDistributed) return pmat->localRows();
   else{ return mat->rows(); }
 }
-template <typename T> long Matrix<T>::cols() const {
+template <typename T> int Matrix<T>::cols() const {
   if(isDistributed) return pmat->cols();
   else{ return mat->cols(); }
 }
 template <typename T>
-long Matrix<T>::localCols() const {
+int Matrix<T>::localCols() const {
   if(isDistributed) return pmat->localCols();
   else{ return mat->cols(); }
 }
 template <typename T>
-long Matrix<T>::size() const {
+int Matrix<T>::size() const {
   if(isDistributed) return pmat->size();
   else{ return mat->size(); }
 }
 
 /* ------------- get-set operations -------------- */
 template <typename T>
-T& Matrix<T>::operator()(const int row, const int col) {
+double Matrix<T>::getMemory() const{
+  // this is done in parts to avoid overflow;
+  // size in GB is size of type*rows()*cols()/(1024)^3
+  double temp = sizeof(T)*rows()/1024;
+  temp = temp*cols()/1024;
+  return temp/(1024);
+}
+
+template <typename T>
+T& Matrix<T>::operator()(const int &row, const int &col) {
   if(isDistributed) return (*pmat)(row,col);
   else { return (*mat)(row,col); }
 }
 
 template <typename T>
-const T& Matrix<T>::operator()(const int row, const int col) const {
+const T& Matrix<T>::operator()(const int &row, const int &col) const {
   if(isDistributed) return (*pmat)(row,col);
   else{ return (*mat)(row,col); }
 }
 
 template <typename T>
-bool Matrix<T>::indecesAreLocal(const int& row, const int& col) {
-  if(isDistributed) return pmat->indecesAreLocal(row,col);
+bool Matrix<T>::indicesAreLocal(const int& row, const int& col) {
+  if(isDistributed) return pmat->indicesAreLocal(row,col);
   else{ return true; }
 }
 
 template <typename T>
-std::tuple<long, long> Matrix<T>::local2Global(const long& k) {
+std::tuple<int, int> Matrix<T>::local2Global(const int& k) {
   if(isDistributed) return pmat->local2Global(k);
   else{ return mat->local2Global(k); }
 }
 
 // Indexing to set up the matrix in col major format
 template <typename T>
-long Matrix<T>::global2Local(const long& row, const long& col) {
+int Matrix<T>::global2Local(const int& row, const int& col) {
   if(isDistributed) return pmat->global2Local(row,col);
   else{ return mat->global2Local(row,col); }
 }
 
 template <typename T>
-std::vector<std::tuple<long, long>> Matrix<T>::getAllLocalStates() {
+std::vector<std::tuple<int, int>> Matrix<T>::getAllLocalStates() {
   if(isDistributed) return pmat->getAllLocalStates();
   else{ return mat->getAllLocalStates(); }
 }
@@ -310,7 +328,7 @@ Matrix<T> Matrix<T>::operator-() const {
   return c;
 }
 
-// Sets the matrix to the idenity matrix
+// Sets the matrix to the identity matrix
 template <typename T>
 void Matrix<T>::eye() {
   if(isDistributed) pmat->eye();

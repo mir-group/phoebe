@@ -6,7 +6,7 @@ SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
     const SerialMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+    Error("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
   SerialMatrix<std::complex<double>> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
@@ -22,7 +22,7 @@ template <>
 SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that,
                                     const char& trans1, const char& trans2) {
   if(cols() != that.rows()) {
-    Error e("Cannot multiply matrices for which lhs.cols != rhs.rows.");
+    Error("Cannot multiply matrices for which lhs.cols != rhs.rows.");
   }
   SerialMatrix<double> ret(rows(), that.cols());  // newly sized matrix
   // throw away variables
@@ -38,7 +38,7 @@ template <>
 std::tuple<std::vector<double>, SerialMatrix<std::complex<double>>>
 SerialMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Can not diagonalize non-square matrix");
+    Error("Can not diagonalize non-square matrix");
   }
   std::vector<double> eigvals(numRows_);
   SerialMatrix<std::complex<double>> eigvecs(numRows_, numCols_);
@@ -59,7 +59,7 @@ SerialMatrix<std::complex<double>>::diagonalize() {
          &rwork[0], &info);
 
   if (info != 0) {
-    Error e("ZHEEV failed in SMatrix.", info);
+    Error("ZHEEV failed in SMatrix.", info);
   }
   return {eigvals, eigvecs};
 }
@@ -68,7 +68,7 @@ SerialMatrix<std::complex<double>>::diagonalize() {
 template <>
 std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diagonalize() {
   if (numRows_ != numCols_) {
-    Error e("Can not diagonalize non-square matrix");
+    Error("Can not diagonalize non-square matrix");
   }
   std::vector<double> eigvals(numRows_);
   SerialMatrix<double> eigvecs = *this;
@@ -84,7 +84,7 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
          &lwork, &info);
 
   if (info != 0) {
-    Error e("DSYEV failed in SMatrix.", info);
+    Error("DSYEV failed in SMatrix.", info);
   }
   return {eigvals, eigvecs};
 }

@@ -1,0 +1,18 @@
+appName = "phononTransport"
+
+phD2FileName = "qe-phonons/silicon.fc"
+sumRuleD2 = "simple"
+phD3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
+
+qMesh = [6,6,6]
+temperatures = [300.]
+
+smearingMethod = "gaussian"
+smearingWidth = 10. cmm1
+
+solverBTE = ["iterative", "variational","relaxons"]
+scatteringMatrixInMemory = true
+
+boundaryLength = 1. mum
+
+windowType = "population"

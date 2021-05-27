@@ -5,10 +5,18 @@
 #include <complex>
 #include <vector>
 #include "eigen.h"
+#include <tuple>
+#include "exceptions.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
 #endif
+
+/* NOTE: When using this object make sure to use the divideWork
+functions to set up the initial division of tasks --
+functions here (see gather) operate under the
+assumption that they will gather using the same distribution of
+ labor as divideWork provides.*/
 
 /** Class for handling the MPI library usage inside of phoebe.
  */
@@ -19,6 +27,9 @@ class MPIcontroller {
   int size = 0;  // number of MPI processses
   int rank;
   const int mpiHeadId = 0;
+
+  // helper function used internally
+  std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
 
   #ifdef MPI_AVAIL
     double startTime;  // the time for the entire mpi operation
@@ -91,17 +102,48 @@ class MPIcontroller {
   void allReduceMin(T* dataIn) const;
 
   /** Wrapper for MPI_Gatherv which collects data from different ranks
+   * (with the possibility of a different number of elements from each
+   * process) and combines it into one buffer.
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
+  template <typename T, typename V>
+  void gatherv(T* dataIn, V* dataOut) const;
+
+  /** Wrapper for MPI_Gather which collects data from different ranks
    * and combines it into one buffer.
    * @param dataIn: pointer to sent data from each rank, with length
    *       of the number of points belonging to this rank.
    * @param dataOut: pointer to output buffer, allocated only by the
    *       head rank, of length to contain all data from all processes.
    */
-  template <typename T>
-  void gatherv(T* dataIn, T* dataOut) const;
+  template <typename T, typename V>
+  void gather(T* dataIn, V* dataOut) const;
 
-  template <typename T>
-  void gather(T* dataIn, T* dataOut) const;
+  /** Wrapper for MPI_Allgatherv which collects data from different ranks
+   * (with the possibility of a different number of elements from each
+   * process) and combines it into one buffer, which is also broadcast
+   * to all processes.
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
+  template <typename T, typename V>
+  void allGatherv(T* dataIn, V* dataOut) const;
+
+  /** Wrapper for MPI_Allgather which collects data from different ranks
+   * and combines it into one buffer, which is also broadcast
+   * to all processes.
+   * @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   * @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   */
+  template <typename T, typename V>
+  void allGather(T* dataIn, V* dataOut) const;
 
   // point to point functions -----------------------------------
   // template<typename T> void send(T&& data) const;
@@ -200,6 +242,12 @@ namespace mpiContainer {
                 static inline size_t getSize(Eigen::Tensor<T, 5>* data) { return data->size(); }
                 static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
         };
+        // Container for Eigen::Tensor<T, 4>
+        template <typename T> struct containerType<Eigen::Tensor<T, 4>> {
+          static inline T* getAddress(Eigen::Tensor<T, 4>* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Tensor<T, 4>* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
+        };
         // Container for Eigen::Tensor<T, 3>
         template <typename T> struct containerType<Eigen::Tensor<T, 3>> {
                 static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }
@@ -214,9 +262,21 @@ namespace mpiContainer {
         };
         // Container for Eigen::VectorXi
         template <> struct containerType<Eigen::VectorXi> {
-                static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
-                static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+          static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
+          static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
+        // Container for Eigen::Vector3i
+        template <> struct containerType<Eigen::Vector3i> {
+          static inline int* getAddress(Eigen::Vector3i* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Vector3i* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
+        // Container for Eigen::VectorXcd
+        template <> struct containerType<Eigen::VectorXcd> {
+          static inline std::complex<double>* getAddress(Eigen::VectorXcd* data) { return data->data(); }
+          static inline size_t getSize(Eigen::VectorXcd* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<std::complex<double>>::getMPItype();}
         };
 
 #endif
@@ -376,77 +436,110 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
   #endif
 }
 
+/* ---------- gather function wrappers ------------- */
+
 template <typename T>
-void MPIcontroller::gatherv(T* dataIn, T* dataOut) const {
+void pointerSwap(T* dataIn, std::vector<T>* dataOut) {
+  std::fill(dataOut->begin(), dataOut->end(), *dataIn);
+}
+
+template <typename T> // this is implemented only for std::vector
+void pointerSwap(T* dataIn, T* dataOut) {
+  for (unsigned int i=0;i<dataIn->size();i++) {
+    (*dataOut)[i] = (*dataIn)[i];
+  }
+}
+
+template <typename T, typename V>
+void MPIcontroller::gatherv(T* dataIn, V* dataOut) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
-  int numTasks = containerType<T>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
+
+  // calculate the number of elements coming from each process
+  // this will correspond to the save division of elements
+  // as divideWorkIter provides.
+  int numTasks = containerType<V>::getSize(dataOut);
+  auto tup = workDivHelper(numTasks);
+  std::vector<int> workDivs = std::get<0>(tup);
+  std::vector<int> workDivisionHeads = std::get<1>(tup);
 
   errCode = MPI_Gatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      workDivs.data(), workDivisionHeads.data(), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      workDivs.data(), workDivisionHeads.data(), containerType<V>::getMPItype(),
       mpiHeadId, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // in serial, we just switch pointers.
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
   #endif
 }
 
-template <typename T>
-void MPIcontroller::gather(T * dataIn, T * dataOut) const {
+template <typename T, typename V>
+void MPIcontroller::gather(T* dataIn, V* dataOut) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
-  int numTasks = containerType<T>::getSize(dataOut);
-  std::vector<int> workDivs(size);
-  // start points for each rank's work
-  std::vector<int> workDivisionHeads(size);
-  std::vector<int> workDivisionTails(size);
-  // Recreate work division instructions
-  for (int i = 0; i < size; i++) {
-    workDivisionHeads[i] = (numTasks * i) / size;
-    workDivisionTails[i] = (numTasks * (i+1)) / size;
-  }
-  /** Note: it is important to compute workDivs as the subtraction of two
-   * other variables. Some compilers (e.g. gcc 9.3.0 on Ubuntu) may optimize
-   * the calculation of workDivs setting it to workDivs[i]=numTasks/size ,
-   * which doesn't work when the division has a remainder.
-   */
-  for (int i = 0; i < size; i++) {
-    workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
-  }
 
   errCode = MPI_Gather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
-      containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-      containerType<T>::getSize(dataIn), containerType<T>::getMPItype(),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
       mpiHeadId, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
   #else
-  dataOut = dataIn;  // just switch the pointers in serial case
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
+  #endif
+}
+
+
+template <typename T, typename V>
+void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  int errCode;
+
+  // calculate the number of elements coming from each process
+  // this will correspond to the save division of elements
+  // as divideWorkIter provides.
+  int numTasks = containerType<V>::getSize(dataOut);
+  auto tup = workDivHelper(numTasks);
+  std::vector<int> workDivs = std::get<0>(tup);
+  std::vector<int> workDivisionHeads = std::get<1>(tup);
+
+  errCode = MPI_Allgatherv(
+      containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      workDivs.data(), workDivisionHeads.data(), containerType<V>::getMPItype(),
+      MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #else
+  pointerSwap(dataIn, dataOut);
+  #endif
+}
+
+template <typename T, typename V>
+void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
+    using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  int errCode;
+
+  errCode = MPI_Allgather(
+      containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+      containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
+      containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
+      MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #else
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
   #endif
 }
 

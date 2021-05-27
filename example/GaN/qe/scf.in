@@ -1,0 +1,35 @@
+&control
+  calculation = 'scf'
+  prefix='gan',
+  pseudo_dir = '../../pseudoPotentials/',
+  outdir='./out'
+  verbosity = 'high'
+/
+&system
+  ibrav = 0,
+  nat = 4,
+  ntyp = 2,
+  ecutwfc = 40.,
+  nbnd = 20
+/
+&electrons
+  conv_thr =  1.0d-14
+/
+&ions
+/
+&cell
+/
+ATOMIC_SPECIES
+  Ga  69.723  Ga.upf
+   N  14.0067  N.upf
+CELL_PARAMETERS bohr
+   5.952943805   0.000000000   0.000000000
+  -2.976471904   5.155400564   0.000000000
+   0.000000000   0.000000000   9.700662066
+ATOMIC_POSITIONS crystal
+Ga  0.66666666   0.33333333   0.499226000
+Ga  0.33333333   0.66666666   0.999226000
+N   0.33333333   0.66666666   0.375774000
+N   0.66666666   0.33333333   0.875774000
+K_POINTS automatic
+  6 6 4 0 0 0

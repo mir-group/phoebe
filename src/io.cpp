@@ -3,8 +3,9 @@
 #include <algorithm>
 #include <exceptions.h>
 #include <iomanip>
-#include <math.h>
-#include <time.h>
+#include <cmath>
+#include <ctime>
+#include <fstream>
 
 // Utility to get the command line option from it's name
 char *getCmdOption(char **begin, char **end, const std::string &option) {
@@ -12,19 +13,21 @@ char *getCmdOption(char **begin, char **end, const std::string &option) {
   if (itr != end && ++itr != end) {
     return *itr;
   }
-  return 0;
-}
-
-// utility to check if the command line option exists
-bool cmdOptionExists(char **begin, char **end, const std::string &option) {
-  return std::find(begin, end, option) != end;
+  return nullptr;
 }
 
 IO::IO(int argc, char *argv[]) {
   char *inputFileName_ = getCmdOption(argv, argv + argc, "-in");
   char *outputFileName_ = getCmdOption(argv, argv + argc, "-out");
   if (inputFileName_ == nullptr) {
-    Error e("Must provide an input file name on command line", 1);
+    Error("Must provide an input file name on command line");
+  }
+
+  { // check input file existence
+    std::ifstream f(inputFileName_);
+    if (not f.good()) {
+      Error("Input file not found");
+    }
   }
 
   inputFileName = inputFileName_;
@@ -33,10 +36,10 @@ IO::IO(int argc, char *argv[]) {
     outputFileName = outputFileName_;
     outputFile.open(outputFileName, std::ios::out);
 
-    // Backup streambuffers of  cout
+    // Backup stream buffers of  cout
     std::streambuf* stream_buffer_cout = std::cout.rdbuf();
 
-    // Get the streambuffer of the file
+    // Get the stream buffer of the file
     std::streambuf* stream_buffer_file = outputFile.rdbuf();
 
     // Redirect cout to file
@@ -48,7 +51,7 @@ IO::IO(int argc, char *argv[]) {
     // causes buffer to flush at every call of <<
     std::cout.setf( std::ios_base::unitbuf );
   }
-};
+}
 
 IO::~IO() {
   if (outputFile.is_open()) {
@@ -74,14 +77,89 @@ void IO::welcome() {
   std::cout << welcomeMsg << std::endl;
 }
 
-void IO::goodbye() {
-  if (!mpi->mpiHead())
-    return;
-  std::cout << "Exiting program" << std::endl;
+void IO::goodbye(Context &context) {
+  if (!mpi->mpiHead()) return;
+  std::cout << "Exiting program.\n" << std::endl;
+
+
+  // print out citations related to this run ----------------
+  std::cout << "Consider citing the following references "
+        << "in relation to this calculation:\n" << std::endl;
+
+  // Phoebe citation
+  std::cout << "\tPhoebe Manuscript. Coming soon to arxiv. (2021).\n" << std::endl;
+
+  std::vector<std::string> solvers = context.getSolverBTE();
+  // Relaxons solver
+  if (std::find(solvers.begin(), solvers.end(), "relaxons") != solvers.end()) {
+    std::cout << "  For the use of the relaxons BTE solver:" << std::endl;
+    std::cout << "\tA. Cepellotti and N. Marzari.\n" <<
+    //    "\tThermal transport in crystals as a kinetic theory of relaxons.\n" <<
+        "\tPhysical Review X 6, no. 4 (2016): 041013.\n" << std::endl;
+  }
+  // iterative solver
+  if (std::find(solvers.begin(), solvers.end(), "iterative") != solvers.end()) {
+    std::cout << "  For the use of the iterative BTE solver:" << std::endl;
+    std::cout << "\tM. Omini and A. Sparavigna. \n" <<
+    //    "\tAn iterative approach to the phonon Boltzmann " <<
+    //   "equation in the theory of thermal conductivity.\n" <<
+        "\tPhysica B: Condensed Matter 212, no. 2 (1995): 101-112.\n" << std::endl;
+  }
+  // variational solver
+  if (std::find(solvers.begin(), solvers.end(), "variational") != solvers.end()) {
+    std::cout << "  For the use of the variational BTE solver:" << std::endl;
+    std::cout << "\tG. Fugallo, M. Lazzeri, L. Paulatto, and F. Mauri.\n" <<
+    //    "\tAb initio variational approach for evaluating lattice thermal conductivity.\n" <<
+        "\tPhysical Review B 88, no. 4 (2013): 045430.\n" << std::endl;
+  }
+  // electron-phonon wannier interpolation
+  if(!context.getElphFileName().empty()) {
+    std::cout << "  For electron-phonon Wannier interpolation:" << std::endl;
+    std::cout << "\tF. Giustino, M.L. Cohen, and S.G. Louie.\n" <<
+    //    "\tElectron-phonon interaction using Wannier functions.\n" <<
+        "\tPhysical Review B 76, no. 16 (2007): 165108.\n" << std::endl;
+  }
+  // wigner transport
+  if(context.getAppName() == "phononTransport"
+        || context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the Wigner transport equations:" << std::endl;
+    std::cout << "\tM. Simoncelli, N. Marzari, and F. Mauri.\n" <<
+    //    "\tUnified theory of thermal transport in crystals and glasses.\n" <<
+        "\tNature Physics, 15(8), (2019). pp.809-813.\n" << std::endl;
+    std::cout << "\tA. Cepellotti and B. Kozinsky.\n" <<
+    //    "\tInterband tunneling effects on materials transport properties using the first principles Wigner distribution.\n" <<
+        "\tMaterials Today Physics 19, 100412 (2021).\n" << std::endl;
+  }
+  // EPA
+  if(context.getElPhInterpolation() == "epa" || context.getAppName() == "transportEpa") {
+    std::cout << "  For the use of the EPA method:" << std::endl;
+    std::cout << "\tS.Bang, J.Kim, D.Wee, G.Samsonidze, and B.Kozinsky.\n" <<
+    //    "\tEstimation of electron-phonon coupling via moving least squares averaging: " <<
+    //    "\ta method for fast-screening potential thermoelectric materials.\n" <<
+        "\tAdvanced Functional Materials 29, no. 44 (2019): 1905044.\n" << std::endl;
+  }
+  // Wannier functions in general
+  if(context.getAppName() == "electronWannierBands" ||
+        context.getAppName() == "electronWannierDos" ||
+        context.getAppName() == "electronLifetimes" ||
+        context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the use of Wannier functions and interpolation:" << std::endl;
+    std::cout << "\tN. Marzari, A.A. Mostofi, J.R. Yates, I. Souza, and D. Vanderbilt.\n" <<
+    //    "\tMaximally localized Wannier functions: Theory and applications.\n" <<
+        "\tReviews of Modern Physics 84, no. 4 (2012): 1419.\n" << std::endl;
+  }
+
+  if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
+    std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
+    std::cout << "\tL. Chaput.\n" <<
+              //    "\tDirect Solution to the Linearized Phonon Boltzmann Equation.\n" <<
+              "\tPhysical Review Letters 110, 265506 (2013).\n" << std::endl;
+  }
+
 }
 
-LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
-                     const long &numSteps_) {
+LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
+                     const int &numSteps_) {
   if (!mpi->mpiHead())
     return;
 
@@ -89,7 +167,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
   step = step_;
   numSteps = numSteps_;
 
-  long numRep = 10; // number of intermediate reports
+  int numRep = 10; // number of intermediate reports
   if (numSteps < numRep) {
     reportEvery = 1;
   } else {
@@ -103,7 +181,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string step_,
   std::cout << "Started " << task << " with " << numSteps << " " << step
             << "." << std::endl;
 
-  stepDigits = long(log10(numSteps)) + 1; // number of digits in numSteps
+  stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
 
 void LoopPrint::update() {
@@ -121,7 +199,7 @@ void LoopPrint::update() {
 
     // format currentTime nicely
     char s[200];
-    time_t curr = time(NULL);
+    time_t curr = time(nullptr);
     struct tm *p = localtime(&curr);
     strftime(s, 200, "%F, %T", p);
 
@@ -140,7 +218,7 @@ void LoopPrint::update() {
     if ((currentStep == 0 || currentStep == 2 || currentStep == numSteps - 1) ||
         (currentStep + 1) % reportEvery == 0) {
 
-      long percentage = double(currentStep + 1) / numSteps * 100.;
+      int percentage = double(currentStep + 1) / numSteps * 100.;
 
       std::cout << s << " | ";
       std::cout << std::setw(3) << percentage << "% | ";
@@ -148,7 +226,7 @@ void LoopPrint::update() {
                 << std::setw(stepDigits) << " / " << numSteps;
       if (currentStep > 2) {
         std::cout << " | remaining: " << std::setw(8) << std::setprecision(2)
-                  << std::scientific << timeLeft << std::fixed << " s." 
+                  << std::scientific << timeLeft << std::fixed << " s."
 		  << std::endl;
       } else {
         std::cout << std::endl;

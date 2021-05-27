@@ -14,22 +14,31 @@
  */
 class Context {
  private:
-  std::string phD2FileName = "";
-  std::string phD3FileName = "";
-  std::string electronH0Name = "";
-  std::string appName = "";
-  std::string sumRuleD2 = "";
+  std::string phD2FileName;
+  std::string phD3FileName;
+  std::string phonopyDispFileName;
+  std::string dispFCFileName;
+  std::string dispFC2FileName;
+
+  std::string electronH0Name;
+  std::string wannier90Prefix;
+  std::string quantumEspressoPrefix;
+  std::string elPhInterpolation;
+
+  std::string appName;
+  std::string sumRuleD2;
   int smearingMethod = -1;
   double smearingWidth = std::numeric_limits<double>::quiet_NaN();
   Eigen::VectorXd temperatures;
   std::vector<std::string> solverBTE;
   double convergenceThresholdBTE = 1e-5;
-  long maxIterationsBTE = 50;
+  int maxIterationsBTE = 50;
 
   bool scatteringMatrixInMemory = true;
+  bool useSymmetries = false;
 
   std::string windowType = "nothing";
-  Eigen::Vector2d windowEnergyLimit;
+  Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
   double windowPopulationLimit = std::numeric_limits<double>::quiet_NaN();
 
   Eigen::VectorXd dopings;
@@ -43,7 +52,7 @@ class Context {
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
   bool hasSpinOrbit = false;
 
-  long dimensionality = 3;
+  int dimensionality = 3;
 
   double dosMinEnergy = std::numeric_limits<double>::quiet_NaN();
   double dosMaxEnergy = std::numeric_limits<double>::quiet_NaN();
@@ -54,62 +63,116 @@ class Context {
   std::vector<std::string> inputSpeciesNames;
 
   Eigen::Tensor<double, 3> pathExtrema;
+  std::vector<std::string> pathLabels;
   double deltaPath = 0.05;
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
-  bool withIsotopeScattering = true;  // add isotopes in phonon scatt matrix
+  bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
   Eigen::VectorXd massVariance;       // mass variance for isotope scattering
 
-  // add RTA boundary scattering in phonon scatt matrix
+  // add RTA boundary scattering in phonon scattering matrix
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
-  std::string epwFileName = "";
+  std::string elphFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double minTemperature = std::numeric_limits<double>::quiet_NaN();
   double maxTemperature = std::numeric_limits<double>::quiet_NaN();
   double deltaTemperature = std::numeric_limits<double>::quiet_NaN();
-  double energyRange = std::numeric_limits<double>::quiet_NaN();
-  double energyStep = std::numeric_limits<double>::quiet_NaN();
   double eFermiRange = std::numeric_limits<double>::quiet_NaN();
+
+  std::string epaFileName;
+  double epaEnergyRange = std::numeric_limits<double>::quiet_NaN();
+  double epaEnergyStep = std::numeric_limits<double>::quiet_NaN();
+  double epaMinEnergy = std::numeric_limits<double>::quiet_NaN();
+  double epaMaxEnergy = std::numeric_limits<double>::quiet_NaN();
+  int epaNumBins;
+  double epaSmearingEnergy = std::numeric_limits<double>::quiet_NaN();
+  double epaDeltaEnergy = std::numeric_limits<double>::quiet_NaN();
+
+  // plot of el-ph coupling
+  std::string g2PlotStyle;
+  Eigen::Vector3d g2PlotFixedPoint;
+  std::pair<int,int> g2PlotEl1Bands;
+  std::pair<int,int> g2PlotEl2Bands;
+  std::pair<int,int> g2PlotPhBands;
 
   // utilities for parsing
 
-  std::vector<std::string> &split(const std::string &s, char delim,
-                                  std::vector<std::string> &elems);
-  std::vector<std::string> split(const std::string &s, char delim);
-//  bool lineHasParameter(const std::string &line);
-//  std::string parseParameterName(const std::string &line);
+  static std::vector<std::string> &split(const std::string &s, char delimiter,
+                                  std::vector<std::string> &elements);
+  static std::vector<std::string> split(const std::string &s, char delimiter);
+
+  // variable used for the polarization
+  Eigen::VectorXi numCoreElectrons;
+
+public:
+  // Methods for the apps of plotting the electron-phonon coupling
+  std::string getG2PlotStyle();
+  void setG2PlotStyle(const std::string &x);
+
+  Eigen::Vector3d getG2PlotFixedPoint();
+  void setG2PlotFixedPoint(const Eigen::Vector3d &x);
+
+  std::pair<int,int> getG2PlotEl1Bands();
+  void setG2PlotEl1Bands(const std::pair<int,int> &x);
+
+  std::pair<int,int> getG2PlotEl2Bands();
+  void setG2PlotEl2Bands(const std::pair<int,int> &x);
+
+  std::pair<int,int> getG2PlotPhBands();
+  void setG2PlotPhBands(const std::pair<int,int> &x);
 
   //  Setter and getter for all the variables above
- public:
+
   /** gets the name of the file containing the lattice force constants.
    * For Quantum Espresso, this is the path to the file produced by q2r.
    * @return x: the file path.
    */
   std::string getPhD2FileName();
-  void setPhD2FileName(const std::string x);
+  void setPhD2FileName(const std::string &x);
 
   std::string getPhD3FileName();
-  void setPhD3FileName(const std::string x);
+  void setPhD3FileName(const std::string &x);
 
-  std::string getEpwFileName();
-  void setEpwFileName(const std::string x);
+  std::string getPhonopyDispFileName();
+  void setPhonopyDispFileName(const std::string &x);
+
+  std::string getDispFCFileName();
+  void setDispFCFileName(const std::string &x);
+
+  std::string getDispFC2FileName();
+  void setDispFC2FileName(const std::string &x);
+
+  std::string getElphFileName();
+  void setElphFileName(const std::string &x);
+
+  std::string getWannier90Prefix();
+  void setWannier90Prefix(const std::string &x);
+  std::string getQuantumEspressoPrefix();
+  void setQuantumEspressoPrefix(const std::string &x);
+  std::string getElPhInterpolation();
+
+  double getEpaSmearingEnergy() const;
+  double getEpaDeltaEnergy() const;
+  double getEpaMinEnergy() const;
+  double getEpaMaxEnergy() const;
+  int getEpaNumBins() const;
 
   /** gets the name of the file containing the electronic band structure.
    * For Quantum Espresso, this is the path to the XML file.
    * @return path: the file path.
    */
   std::string getElectronH0Name();
-  void setElectronH0Name(const std::string x);
+  void setElectronH0Name(const std::string &x);
 
   /** gets the value of the cutoff to be used for the Fourier interpolation
    * of the band structure.
    * @return r: the cutoff value.
    */
-  double getElectronFourierCutoff();
+  double getElectronFourierCutoff() const;
 
   /** gets the type of calculation to be run.
    * @return x: the name of the calculation, e.g. "electron-phonon" or
@@ -121,7 +184,7 @@ class Context {
    * @return x: the name of the sum rule, i.e. "simple" or "crystal".
    */
   std::string getSumRuleD2();
-  void setSumRuleD2(const std::string x);
+  void setSumRuleD2(const std::string &x);
 
   /** gets the mesh of points for harmonic phonon properties.
    * @return path: an array with 3 integers representing the q-point mesh.
@@ -140,6 +203,7 @@ class Context {
    * or "population"
    */
   std::string getWindowType();
+  void setWindowType(const std::string &x);
 
   /** gets the values of energy limits to be used with a window on energies.
    * @return x: a vector of 2 doubles representing the minimum and maximum
@@ -147,44 +211,49 @@ class Context {
    */
   Eigen::Vector2d getWindowEnergyLimit();
 
-  /** gets the value of population above which a state is considered active.
-   * i.e. the state will be used if its occupation number deviates from 0 or
-   * 1 by at least this amount.
-   * @return x: the <double> value of the population threshold.
-   */
-  double getWindowPopulationLimit();
+  void setWindowEnergyLimit(const Eigen::Vector2d &x);
 
-  /** gets the value of chemical potentials (in Rydbergs) to be used in the
+    /** gets the value of population above which a state is considered active.
+     * i.e. the state will be used if its occupation number deviates from 0 or
+     * 1 by at least this amount.
+     * @return x: the <double> value of the population threshold.
+     */
+  double getWindowPopulationLimit() const;
+  void setWindowPopulationLimit(const double &x);
+
+  /** gets the value of chemical potentials (in Rydberg) to be used in the
    * calculation of transport properties
    * @return x: the vector of values for chemical potentials
    */
   Eigen::VectorXd getChemicalPotentials();
 
-  /** gets the value of chemical potentials (in Rydbergs) to be used in the
+  /** gets the value of chemical potentials (in Rydberg) to be used in the
    * calculation of transport properties
    * @return x: the vector of values for chemical potentials
    */
   Eigen::VectorXd getDopings();
+  void setDopings(const Eigen::VectorXd &x);
 
-  /** gets the value of temperatures (in Rydbergs) to be used in the
+  /** gets the value of temperatures (in Rydberg) to be used in the
    * calculation of transport properties
    * @return x: the vector of values for temperatures
    */
   Eigen::VectorXd getTemperatures();
+  void setTemperatures(const Eigen::VectorXd &x);
 
   std::vector<std::string> getSolverBTE();
 
-  double getConvergenceThresholdBTE();
+  double getConvergenceThresholdBTE() const;
 
-  long getMaxIterationsBTE();
+  int getMaxIterationsBTE() const;
 
-  long getDimensionality();
+  int getDimensionality() const;
 
-  double getDosMinEnergy();
+  double getDosMinEnergy() const;
 
-  double getDosMaxEnergy();
+  double getDosMaxEnergy() const;
 
-  double getDosDeltaEnergy();
+  double getDosDeltaEnergy() const;
 
   // Wannier90 output doesn't contain the crystal information.
   // the user must then supplement it in the input
@@ -196,52 +265,67 @@ class Context {
 
   std::vector<std::string> getInputSpeciesNames();
 
-  void setInputAtomicPositions(const Eigen::MatrixXd x);
-  void setInputAtomicSpecies(const Eigen::VectorXi x);
-  void setInputSpeciesNames(const std::vector<std::string> x);
+  void setInputAtomicPositions(const Eigen::MatrixXd &x);
+  void setInputAtomicSpecies(const Eigen::VectorXi &x);
+  void setInputSpeciesNames(const std::vector<std::string> &x);
 
   Eigen::Tensor<double, 3> getPathExtrema();
+  std::vector<std::string> getPathLabels();
 
-  double getDeltaPath();
+  double getDeltaPath() const;
 
-  double getFermiLevel();
+  double getFermiLevel() const;
   void setFermiLevel(const double &x);
 
-  double getNumOccupiedStates();
+  double getNumOccupiedStates() const;
   void setNumOccupiedStates(const double &x);
 
-  bool getHasSpinOrbit();
+  bool getHasSpinOrbit() const;
   void setHasSpinOrbit(const bool &x);
 
-  int getSmearingMethod();
+  int getSmearingMethod() const;
 
-  double getSmearingWidth();
-  void setSmearingWidth(const double x);
+  double getSmearingWidth() const;
+  void setSmearingWidth(const double &x);
 
-  double getConstantRelaxationTime();
+  double getConstantRelaxationTime() const;
 
-  bool getScatteringMatrixInMemory();
+  bool getScatteringMatrixInMemory() const;
+  void setScatteringMatrixInMemory(const bool &x);
 
-  bool getWithIsotopeScattering();
+  bool getUseSymmetries() const;
+  void setUseSymmetries(const bool &x);
+
+  bool getWithIsotopeScattering() const;
 
   Eigen::VectorXd getMassVariance();
 
-  double getBoundaryLength();
+  double getBoundaryLength() const;
 
-  double getMinChemicalPotential();
-  double getMaxChemicalPotential();
-  double getDeltaChemicalPotential();
-  double getMinTemperature();
-  double getMaxTemperature();
-  double getDeltaTemperature();
-  double getEnergyRange();
-  double getEnergyStep();
-  double getEFermiRange();
+  // EPA:
+  std::string getEpaFileName();
+  double getMinChemicalPotential() const;
+  double getMaxChemicalPotential() const;
+  double getDeltaChemicalPotential() const;
+  double getMinTemperature() const;
+  double getMaxTemperature() const;
+  double getDeltaTemperature() const;
+  double getEpaEnergyRange() const;
+  double getEpaEnergyStep() const;
+  double getEFermiRange() const;
 
   /** Reads the user-provided input file and saves the input parameters
    * @param fileName: path to the input file
    */
-  void setupFromInput(std::string fileName);
+  void setupFromInput(const std::string &fileName);
+
+  /** Prints the user-provided input variables to output, including default values.
+   * @param fileName: path to the input file, just to print where input came from.
+   */
+  void printInputSummary(const std::string &fileName);
+
+  Eigen::VectorXi getCoreElectrons();
+  void setCoreElectrons(const Eigen::VectorXi &x);
 };
 
 #endif

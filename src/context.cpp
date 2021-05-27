@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iostream>
+#include <iomanip>
 #include <iterator>
 #include <string>
 #include <vector>
@@ -22,9 +22,9 @@ bool patternInString(const std::string &s, const std::string &pattern) {
 
 /** Parse a string of format "key = value" to return a boolean value.
  */
-bool parseBool(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+bool parseBool(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string s = line.substr(pos + 1);
 
   std::transform(s.begin(), s.end(), s.begin(), ::tolower);
@@ -41,30 +41,30 @@ bool parseBool(std::string line) {
   } else if (s == "1") {
     return true;
   } else {
-    Error e("Couldn't fix boolean value while parsing");
+    Error("Couldn't fix boolean value while parsing");
     return false;
   }
-};
+}
 
 /** Parse a string of format "key = value" to return a double value.
  */
-double parseDouble(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+double parseDouble(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
-  return std::stod(value);  // convert to double
-};
+  return std::stod(value); // convert to double
+}
 
 /** Parse a string of format "key = value units" to return a double value
  * converted in rydberg atomic units.
  */
-double parseDoubleWithUnits(std::string line) {
+double parseDoubleWithUnits(std::string &line) {
   double x;
 
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
-  x = std::stod(value);  // convert to double
+  x = std::stod(value); // convert to double
 
   // now check the units and convert
   if (patternInString(line, "eV")) {
@@ -74,161 +74,161 @@ double parseDoubleWithUnits(std::string line) {
     x /= ryToCmm1;
   }
   if (patternInString(line, "ps")) {
-    x /= timeRyToFs * 1.0e-3;
+    x /= timeRyToFs * 1.0e-3 / twoPi;
   }
   if (patternInString(line, "fs")) {
-    x /= timeRyToFs;
+    x /= timeRyToFs / twoPi;
   }
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
   }
 
   return x;
-};
+}
 
 /** Parse a string of format "key = [value1,value2]" to return a vector double.
  */
-std::vector<double> parseDoubleList(std::string line) {
-  std::string delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+std::vector<double> parseDoubleList(std::string &line) {
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
 
   std::vector<double> x;
-  delimeter = ",";
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  delimiter = ",";
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     x.push_back(std::stod(token));
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   x.push_back(std::stod(s));
 
   return x;
-};
+}
 
 /** Parse a string of format "key = value units" to return an integer value.
  */
-long parseLong(std::string line) {
-  std::string delimeter = "=";
-  size_t pos = line.find(delimeter);
+int parseInt(std::string &line) {
+  std::string delimiter = "=";
+  size_t pos = line.find(delimiter);
   std::string value = line.substr(pos + 1);
-  return std::stoi(value);  // convert to integer
-};
+  return std::stoi(value); // convert to integer
+}
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of ints.
  */
-std::vector<long> parseLongList(std::string line) {
-  std::string delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+std::vector<int> parseIntList(std::string &line) {
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseLongList");
+    Error("Error in parseIntList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseLongList");
+    Error("Error in parseIntList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-  delimeter = ",";
-  std::vector<long> x;
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  delimiter = ",";
+  std::vector<int> x;
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
-    x.push_back(std::stoi(token));  // convert to integer
-    s.erase(0, pos1 + delimeter.length());
+    x.push_back(std::stoi(token)); // convert to integer
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   x.push_back(std::stoi(s));
 
   return x;
-};
+}
 
 /** Parse a string of format "key = value" to return a string value.
  */
-std::string parseString(std::string line) {
-  std::string delimeter = "'";
-  size_t pos1 = line.find_first_of(delimeter);
-  size_t pos2 = line.find_last_of(delimeter);
+std::string parseString(std::string &line) {
+  std::string delimiter = "'";
+  size_t pos1 = line.find_first_of(delimiter);
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    delimeter = "\"";
-    pos1 = line.find_first_of(delimeter);
-    pos2 = line.find_last_of(delimeter);
+    delimiter = "\"";
+    pos1 = line.find_first_of(delimiter);
+    pos2 = line.find_last_of(delimiter);
     if (pos1 == std::string::npos) {
-      Error e("Couldn't solve string parsing");
+      Error("Couldn't solve string parsing");
     }
   }
 
   if (pos1 == pos2) {
-    Error e("Error parsing string from user input");
+    Error("Error parsing string from user input");
   }
   std::string x = line.substr(pos1 + 1, pos2 - pos1 - 1);
   return x;
-};
+}
 
 /** Parse a string of format "key = [val1,val2]" to return a vector of strings.
  */
-std::vector<std::string> parseStringList(std::string line) {
+std::vector<std::string> parseStringList(std::string &line) {
   // remove empty spaces
   line.erase(std::remove(line.begin(), line.end(), ' '), line.end());
 
-  std::string delimeter;
-  delimeter = "[";
-  size_t pos1 = line.find_first_of(delimeter);
-  delimeter = "]";
-  size_t pos2 = line.find_last_of(delimeter);
+  std::string delimiter;
+  delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
 
   if (pos1 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
   if (pos2 == std::string::npos) {
-    Error e("Error in parseDoubleList");
+    Error("Error in parseDoubleList");
   }
 
   std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
-  delimeter = ",";
+  delimiter = ",";
   std::vector<std::string> x;
-  while ((pos1 = s.find(delimeter)) != std::string::npos) {
+  while ((pos1 = s.find(delimiter)) != std::string::npos) {
     std::string token = s.substr(0, pos1);
     // we also remove the " symbols
     token.erase(std::remove(token.begin(), token.end(), '"'), token.end());
     x.push_back(token);
-    s.erase(0, pos1 + delimeter.length());
+    s.erase(0, pos1 + delimiter.length());
   }
   // Must not forget the last element in the list
   s.erase(std::remove(s.begin(), s.end(), '"'), s.end());
   x.push_back(s);
 
   return x;
-};
+}
 
 /** Parse the block of information on the crystal structure.
  * Format:
- * Atom1Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
- * Atom2Name   cartesianCoordx   cartesianCoordy   cartesianCoordz
+ * Atom1Name   cartesianCoordX   cartesianCoordY   cartesianCoordZ
+ * Atom2Name   cartesianCoordX   cartesianCoordY   cartesianCoordZ
  * ...
  * The coordinates must be provided in Angstroms.
  */
 std::tuple<Eigen::MatrixXd, Eigen::VectorXi, std::vector<std::string>>
 parseCrystal(std::vector<std::string> &lines) {
-  long numAtoms = lines.size();
+  int numAtoms = lines.size();
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
   std::vector<std::string> speciesNames;
 
   int counter = 0;
-  for (std::string line : lines) {
+  for (const std::string &line : lines) {
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
@@ -243,8 +243,8 @@ parseCrystal(std::vector<std::string> &lines) {
       speciesNames.push_back(thisElement);
     }
     // find the index of the current element
-    long index = 0;
-    for (auto speciesName : speciesNames) {
+    int index = 0;
+    for (const auto &speciesName : speciesNames) {
       if (speciesName == thisElement) {
         break;
       }
@@ -278,18 +278,24 @@ parseCrystal(std::vector<std::string> &lines) {
  * The code will pad the segments with equidistant points, as specified by the
  * parameter deltaPath (the distance between points).
  */
-Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
-  long numSegments = lines.size();
+std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
+parsePathExtrema(std::vector<std::string> &lines) {
+
+  int numSegments = lines.size();
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
   pathExtrema.setZero();
+  std::vector<std::string> pathLabels;
 
-  long i = 0;
-  for (std::string line : lines) {
+  int i = 0;
+  for (const std::string &line : lines) {
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
     std::istream_iterator<std::string> end;
     std::vector<std::string> splitLine(begin, end);
+
+    pathLabels.push_back(splitLine[0]);
+    pathLabels.push_back(splitLine[4]);
 
     pathExtrema(i, 0, 0) = std::stod(splitLine[1]);
     pathExtrema(i, 0, 1) = std::stod(splitLine[2]);
@@ -301,8 +307,7 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
 
     i++;
   }
-
-  return pathExtrema;
+  return {pathLabels, pathExtrema};
 }
 
 /** Parse an input block (e.g. for crystal or points path).
@@ -311,12 +316,13 @@ Eigen::Tensor<double, 3> parsePathExtrema(std::vector<std::string> &lines) {
  * Otherwise, returns the block name (i.e. what's named after "begin")
  * and the lines inside the block.
  */
-std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
-    const std::vector<std::string> &lines, const int &lineCounter) {
+std::tuple<std::string, std::vector<std::string>>
+parseBlockNameValue(const std::vector<std::string> &lines,
+                    const int &lineCounter) {
   std::string line;
   line = lines[lineCounter];
   if (!patternInString(line, "begin")) {
-    std::string empty1 = "";
+    std::string empty1;
     std::vector<std::string> empty2;
     return {empty1, empty2};
   } else {
@@ -326,7 +332,7 @@ std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
     std::vector<std::string> val;
     for (int unsigned i = lineCounter + 1; i < lines.size(); i++) {
       if (patternInString(lines[i], "end")) {
-          break;
+        break;
       }
       val.push_back(lines[i]);
     }
@@ -334,24 +340,24 @@ std::tuple<std::string, std::vector<std::string>> parseBlockNameValue(
   }
 }
 
-std::vector<std::string> &Context::split(const std::string &s, char delim,
-                                         std::vector<std::string> &elems) {
+std::vector<std::string> &Context::split(const std::string &s, char delimiter,
+                                         std::vector<std::string> &elements) {
   std::stringstream ss(s);
   std::string item;
-  while (std::getline(ss, item, delim)) {
+  while (std::getline(ss, item, delimiter)) {
     if (item.length() > 0) {
-      elems.push_back(item);
+      elements.push_back(item);
     }
   }
-  return elems;
+  return elements;
 }
 
-/** Split a string by a char delimeter.
+/** Split a string by a char delimiter.
  */
-std::vector<std::string> Context::split(const std::string &s, char delim) {
-  std::vector<std::string> elems;
-  split(s, delim, elems);
-  return elems;
+std::vector<std::string> Context::split(const std::string &s, char delimiter) {
+  std::vector<std::string> elements;
+  split(s, delimiter, elements);
+  return elements;
 }
 
 /** Checks if the line of the input file contains a key=value statement.
@@ -368,11 +374,11 @@ bool lineHasParameter(const std::string &line) {
  * string containing "value". "value" could contain a string, a list or other
  * things to be further parsed.
  */
-std::tuple<std::string, std::string> parseParameterNameValue(
-    const std::string &line) {
+std::tuple<std::string, std::string>
+parseParameterNameValue(const std::string &line) {
   // we assume that there is "=" in the string
   std::string sep = "=";
-  size_t position = line.find(sep);  // unsigned integer
+  size_t position = line.find(sep); // unsigned integer
   std::string s = line.substr(0, position);
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
 
@@ -381,25 +387,24 @@ std::tuple<std::string, std::string> parseParameterNameValue(
   return {s, val};
 }
 
-void Context::setupFromInput(std::string fileName) {
+void Context::setupFromInput(const std::string &fileName) {
   std::vector<std::string> lines;
-  std::string line;
 
   // open input file and read content
-  std::ifstream infile(fileName);
-  while (std::getline(infile, line)) {
-    std::vector<std::string> tokens = split(line, ';');
-    for (std::string t : tokens) {
-      lines.push_back(t);
+  {
+    std::ifstream infile(fileName);
+    std::string line;
+    while (std::getline(infile, line)) {
+      std::vector<std::string> tokens = split(line, ';');
+      for (const std::string &t : tokens) {
+        lines.push_back(t);
+      }
     }
   }
-  infile.close();
-
-  // there are
 
   int lineCounter = 0;
-  for (std::string line : lines) {
-    if (line.empty()) {  // nothing to do
+  for (const std::string &line : lines) {
+    if (line.empty()) { // nothing to do
       continue;
 
       // line with pair (key,value)
@@ -416,6 +421,18 @@ void Context::setupFromInput(std::string fileName) {
         phD3FileName = parseString(val);
       }
 
+      if (parameterName == "phonopyDispFileName") {
+        phonopyDispFileName = parseString(val);
+      }
+
+      if (parameterName == "dispFCFileName") {
+        dispFCFileName = parseString(val);
+      }
+
+      if (parameterName == "dispFC2FileName") {
+        dispFC2FileName = parseString(val);
+      }
+
       if (parameterName == "sumRuleD2") {
         sumRuleD2 = parseString(val);
       }
@@ -424,8 +441,20 @@ void Context::setupFromInput(std::string fileName) {
         electronH0Name = parseString(val);
       }
 
-      if (parameterName == "epwFileName") {
-        setEpwFileName(parseString(val));
+      if (parameterName == "wannier90Prefix") {
+        wannier90Prefix = parseString(val);
+      }
+
+      if (parameterName == "quantumEspressoPrefix") {
+        quantumEspressoPrefix = parseString(val);
+      }
+
+      if (parameterName == "elPhInterpolation") {
+        elPhInterpolation = parseString(val);
+      }
+
+      if (parameterName == "elphFileName") {
+        setElphFileName(parseString(val));
       }
 
       if (parameterName == "electronFourierCutoff") {
@@ -434,14 +463,14 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "qMesh") {
-        std::vector<long> vecMesh = parseLongList(val);
+        std::vector<int> vecMesh = parseIntList(val);
         qMesh(0) = vecMesh[0];
         qMesh(1) = vecMesh[1];
         qMesh(2) = vecMesh[2];
       }
 
       if (parameterName == "kMesh") {
-        std::vector<long> vecMesh = parseLongList(val);
+        std::vector<int> vecMesh = parseIntList(val);
         kMesh(0) = vecMesh[0];
         kMesh(1) = vecMesh[1];
         kMesh(2) = vecMesh[2];
@@ -453,8 +482,8 @@ void Context::setupFromInput(std::string fileName) {
 
       if (parameterName == "windowEnergyLimit") {
         std::vector<double> winLim = parseDoubleList(val);
-        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]);
-        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]);
+        windowEnergyLimit[0] = std::min(winLim[0], winLim[1]) / energyRyToEv;
+        windowEnergyLimit[1] = std::max(winLim[0], winLim[1]) / energyRyToEv;
       }
 
       if (parameterName == "windowPopulationLimit") {
@@ -464,7 +493,7 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "chemicalPotentials") {
         std::vector<double> x = parseDoubleList(val);
         chemicalPotentials = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           chemicalPotentials(i) = x[i] / energyRyToEv;
         }
       }
@@ -472,7 +501,7 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "dopings") {
         std::vector<double> x = parseDoubleList(val);
         dopings = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           dopings(i) = x[i];
         }
       }
@@ -480,7 +509,7 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "temperatures") {
         std::vector<double> x = parseDoubleList(val);
         temperatures = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           temperatures(i) = x[i] / temperatureAuToSi;
         }
       }
@@ -498,11 +527,11 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "maxIterationsBTE") {
-        maxIterationsBTE = parseLong(val);
+        maxIterationsBTE = parseInt(val);
       }
 
       if (parameterName == "dimensionality") {
-        dimensionality = parseLong(val);
+        dimensionality = parseInt(val);
       }
 
       if (parameterName == "dosMinEnergy") {
@@ -522,7 +551,7 @@ void Context::setupFromInput(std::string fileName) {
       }
 
       if (parameterName == "fermiLevel") {
-        fermiLevel = parseDouble(val) / energyRyToEv;  // to Ry
+        fermiLevel = parseDoubleWithUnits(val);
       }
 
       if (parameterName == "hasSpinOrbit") {
@@ -536,13 +565,14 @@ void Context::setupFromInput(std::string fileName) {
         // for Fourier: the number of occupied bands
         // remember to NOT count the spin degeneracy
         double x = parseDouble(val);
-        if (!hasSpinOrbit) x *= 2;
+        if (!hasSpinOrbit)
+          x *= 2;
         numOccupiedStates = x;
       }
 
       if (parameterName == "smearingMethod") {
         std::string x_ = parseString(val);
-        //TODO: this is hardcoded, should be fixed how we validate input
+        // TODO: this is hardcoded, should be fixed how we validate input
         if (x_ == "gaussian") {
           smearingMethod = 0;
         } else if (x_ == "adaptiveGaussian") {
@@ -566,6 +596,10 @@ void Context::setupFromInput(std::string fileName) {
         scatteringMatrixInMemory = parseBool(val);
       }
 
+      if (parameterName == "useSymmetries") {
+        useSymmetries = parseBool(val);
+      }
+
       if (parameterName == "withIsotopeScattering") {
         withIsotopeScattering = parseBool(val);
       }
@@ -573,13 +607,18 @@ void Context::setupFromInput(std::string fileName) {
       if (parameterName == "massVariance") {
         std::vector<double> x = parseDoubleList(val);
         massVariance = Eigen::VectorXd::Zero(x.size());
-        for (long unsigned i = 0; i < x.size(); i++) {
+        for (int unsigned i = 0; i < x.size(); i++) {
           massVariance(i) = x[i];
         }
       }
 
       if (parameterName == "boundaryLength") {
         boundaryLength = parseDoubleWithUnits(val);
+      }
+
+      // EPA
+      if (parameterName == "epaFileName") {
+        epaFileName = parseString(val);
       }
 
       if (parameterName == "minChemicalPotential") {
@@ -606,21 +645,75 @@ void Context::setupFromInput(std::string fileName) {
         deltaTemperature = parseDouble(val) / temperatureAuToSi;
       }
 
-      if (parameterName == "energyRange") {
-        energyRange = parseDoubleWithUnits(val);
-      }
-
-      if (parameterName == "energyStep") {
-        energyStep = parseDoubleWithUnits(val);
-      }
-
       if (parameterName == "eFermiRange") {
         eFermiRange = parseDoubleWithUnits(val);
       }
 
-      //////////////////////////////////////////
+      if (parameterName == "epaSmearingEnergy") {
+        epaSmearingEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaDeltaEnergy") {
+        epaDeltaEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaNumBins") {
+        epaNumBins = parseInt(val);
+      }
+      if (parameterName == "epaMinEnergy") {
+        epaMinEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaMaxEnergy") {
+        epaMaxEnergy = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyRange") {
+        epaEnergyRange = parseDoubleWithUnits(val);
+      }
+      if (parameterName == "epaEnergyStep") {
+        epaEnergyStep = parseDoubleWithUnits(val);
+      }
 
-    } else {  // it might be a block, or its content
+      // EL-PH coupling plot App
+
+      if (parameterName == "g2PlotStyle") {
+        g2PlotStyle = parseString(val);
+      }
+
+      if (parameterName == "g2FixedPoint") {
+        std::vector<double> x = parseDoubleList(val);
+        for (auto i : {0, 1, 2}) {
+          g2PlotFixedPoint(i) = x[i];
+        }
+      }
+
+      if (parameterName == "g2PlotBandEl1") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl1Bands.first = x[0];
+        g2PlotEl1Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandEl2") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotEl2Bands.first = x[0];
+        g2PlotEl2Bands.second = x[1];
+      }
+
+      if (parameterName == "g2PlotBandPh") {
+        std::vector<int> x = parseIntList(val);
+        g2PlotPhBands.first = x[0];
+        g2PlotPhBands.second = x[1];
+      }
+
+      // Polarization
+
+      if (parameterName == "numCoreElectrons") {
+        std::vector<int> x = parseIntList(val);
+        Eigen::VectorXi xx(x.size());
+        for (unsigned int i=0; i<x.size(); i++) {
+          xx(i) = x[i];
+        }
+        setCoreElectrons(xx);
+      }
+
+    } else { // it might be a block, or its content
 
       auto tup = parseBlockNameValue(lines, lineCounter);
       auto blockName = std::get<0>(tup);
@@ -636,33 +729,320 @@ void Context::setupFromInput(std::string fileName) {
         inputSpeciesNames = inputSpeciesNames_;
       }
       if (blockName == "point path") {
-        pathExtrema = parsePathExtrema(value);
+        auto tup2 = parsePathExtrema(value);
+        pathLabels = std::get<0>(tup2);
+        pathExtrema = std::get<1>(tup2);
       }
     }
-
-    ///////////////////////////////////////////////
-
     lineCounter += 1;
   }
-};
+}
+// helper functions for printInputSummary
+template <typename T>
+void printVector(std::string varName, std::vector<T> vec) {
+  std::cout << varName << " = ";
+  for (auto i : vec)
+    std::cout << " " << i;
+  std::cout << std::endl;
+}
+void printVectorXd(std::string varName, Eigen::VectorXd vec,
+                   std::string unit = "") {
+  std::cout << varName << " =";
+  for (int i = 0; i < vec.size(); i++)
+    std::cout << " " << vec(i);
+  std::cout << " (" << unit << ")" << std::endl;
+}
+
+void Context::printInputSummary(const std::string &fileName) {
+
+  std::cout << std::endl;
+  std::cout << "Input read from file: " << fileName << std::endl;
+  std::cout << "---------------------------------------------" << std::endl;
+  std::cout << std::boolalpha; // make booleans write as true/false
+
+  std::cout << "appName = " << appName << std::endl;
+
+  // crystal structure parameters -------------------
+  std::cout << "useSymmetries = " << useSymmetries << std::endl;
+  std::cout << "dimensionality = " << dimensionality << std::endl;
+  std::cout << std::endl;
+
+  // phonon parameters -------------------------------
+  if (appName.find("honon") != std::string::npos) {
+    std::cout << "phD2FileName = " << phD2FileName << std::endl;
+    std::cout << "sumRuleD2 = " << sumRuleD2 << std::endl;
+    if (appName == "phononLifetimes" || appName == "phononTransport") {
+      std::cout << "phD3FileName = " << phD3FileName << std::endl;
+    }
+    if (phonopyDispFileName != "") {
+      std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
+      std::cout << "dispFCFileName = " << dispFCFileName << std::endl;
+      std::cout << "dispFC2FileName = " << dispFC2FileName << std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  // electron and eph parameters
+  if (appName.find("lectron") != std::string::npos ||
+      appName.find("elPh") != std::string::npos) {
+    std::cout << "electronH0Name = " << electronH0Name << std::endl;
+    std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+    if (appName.find("elPh") != std::string::npos ||
+        appName == "electronLifetimes" ||
+        appName == "electronWannierTransport") {
+      if (elPhInterpolation != "")
+        std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
+      std::cout << "elphFileName = " << elphFileName << std::endl;
+      if (wannier90Prefix != "")
+        std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
+      if (quantumEspressoPrefix != "")
+        std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
+                  << std::endl;
+    }
+    if(appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
+      if(!std::isnan(epaMinEnergy))
+       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaMaxEnergy))
+        std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(epaNumBins))
+        std::cout << "epaNumBins = " << epaNumBins << std::endl;
+      if(!std::isnan(epaSmearingEnergy))
+        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+      if(!std::isnan(electronFourierCutoff))
+        std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    }
+    std::cout << std::endl;
+  }
+  // Qetophoebe doesn't write a nice line after printing
+  if(appName.find("elPhQeToPhoebe") != std::string::npos) {
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // Transport parameters ---------------------------
+  if (appName.find("Transport") != std::string::npos ||
+      appName.find("Lifetimes") != std::string::npos) {
+
+    std::cout << "solverBTE = RTA";
+    for (auto i : solverBTE)
+      std::cout << ", " << i;
+    std::cout << std::endl;
+
+    if (appName.find("honon") != std::string::npos ||
+        appName.find("elPh") != std::string::npos)
+      std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
+                << std::endl;
+    if (appName.find("lectron") != std::string::npos ||
+        appName.find("elPh") != std::string::npos)
+      std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
+                << std::endl;
+
+    if (!std::isnan(constantRelaxationTime))
+      std::cout << "constantRelaxationTime = "
+                << constantRelaxationTime * timeRyToFs << " fs" << std::endl;
+    std::cout << "smearingMethod = ";
+    if (smearingMethod == 0)
+      std::cout << "gaussian" << std::endl;
+    else if (smearingMethod == 1)
+      std::cout << "adaptiveGaussian" << std::endl;
+    else if (smearingMethod == 2)
+      std::cout << "tetrahedron" << std::endl;
+    else {
+      std::cout << "none" << std::endl;
+    }
+    if (!std::isnan(smearingWidth))
+      std::cout << "smearingWidth = " << smearingWidth * energyRyToEv << " eV"
+                << std::endl;
+
+    std::cout << "convergenceThresholdBTE = " << convergenceThresholdBTE
+              << std::endl;
+    std::cout << "maxIterationsBTE = " << maxIterationsBTE << std::endl;
+    std::cout << "scatteringMatrixInMemory = " << scatteringMatrixInMemory
+              << std::endl;
+
+    std::cout << "windowType = " << windowType << std::endl;
+    if (windowEnergyLimit(0)!=0 || windowEnergyLimit(1)!=0) {
+      std::cout << "windowEnergyLimit = " << windowEnergyLimit(0) * energyRyToEv
+                << " " << windowEnergyLimit(1) * energyRyToEv << " eV"
+                << std::endl;
+    }
+    if (!std::isnan(windowPopulationLimit)) {
+      std::cout << "windowPopulationLimit = " << windowPopulationLimit
+                << std::endl;
+    }
+
+    printVectorXd("temperatures", temperatures * temperatureAuToSi, "K");
+    if (!std::isnan(minTemperature))
+      std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if (!std::isnan(maxTemperature))
+      std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if (!std::isnan(deltaTemperature))
+      std::cout << "deltaTemperature = " << deltaTemperature << "K"
+                << std::endl;
+
+    if (appName.find("lectron") != std::string::npos) {
+      if (dopings.size() != 0)
+        printVectorXd("dopings", dopings, "cm^-3");
+      if (chemicalPotentials.size() != 0)
+        printVectorXd("chemicalPotentials", chemicalPotentials * energyRyToEv,
+                      "eV");
+      if (!std::isnan(minChemicalPotential))
+        std::cout << "minChemicalPotential = "
+                  << minChemicalPotential * energyRyToEv << " eV" << std::endl;
+      if (!std::isnan(maxChemicalPotential))
+        std::cout << "maxChemicalPotential = "
+                  << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
+      if (!std::isnan(deltaChemicalPotential))
+        std::cout << "deltaChemicalPotential = "
+                  << deltaChemicalPotential * energyRyToEv << " eV"
+                  << std::endl;
+      if (!std::isnan(eFermiRange))
+        std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
+      if (!std::isnan(fermiLevel))
+        std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;
+      if (!std::isnan(numOccupiedStates))
+        std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
+    }
+    if (appName.find("honon") != std::string::npos) {
+      std::cout << "withIsotopeScattering = " << withIsotopeScattering
+                << std::endl;
+      if (massVariance.size() != 0)
+        printVectorXd("massVariance", massVariance, "amu");
+      if (!std::isnan(boundaryLength))
+        std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
+                  << " mum" << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // dos variables ---------------------------------------
+  if (appName.find("Dos") != std::string::npos) {
+    std::cout << "dosMinEnergy = " << dosMinEnergy * energyRyToEv << " eV"
+              << std::endl;
+    std::cout << "dosMaxEnergy = " << dosMaxEnergy * energyRyToEv << " eV"
+              << std::endl;
+    std::cout << "dosDeltaEnergy = " << dosDeltaEnergy * energyRyToEv << " eV"
+              << std::endl;
+    if (appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // band structure variables ----------------------------
+  if (appName.find("Bands") != std::string::npos) {
+    const auto &dim = pathExtrema.dimensions();
+    std::cout << "deltaPath = " << deltaPath << " 1/Bohr" << std::endl;
+    std::cout << "Band Path:" << std::endl;
+    std::cout << std::setprecision(4) << std::fixed;
+    int count = 0;
+    for (int i = 0; i < dim[0]; i++) {
+      std::cout << pathLabels[count] << " " << pathExtrema(i, 0, 0) << " "
+                << pathExtrema(i, 0, 1) << " " << pathExtrema(i, 0, 2) << "  ";
+      std::cout << pathLabels[count + 1] << " " << pathExtrema(i, 1, 0) << " "
+                << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
+                << std::endl;
+      count++;
+    }
+    if (appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                << std::endl;
+    }
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+
+  // epa variables  ----------------------------------------
+  if (appName == "transportEpa") {
+    std::cout << "epaFileName = " << epaFileName << std::endl;
+    std::cout << "electronH0Name = " << electronH0Name << std::endl;
+    std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+    if(!std::isnan(epaEnergyRange))
+      std::cout << "epaEnergyRange = " << epaEnergyRange*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaEnergyStep))
+    std::cout << "epaEnergyStep = " << epaEnergyStep*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMinEnergy))
+      std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaMaxEnergy))
+      std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaSmearingEnergy))
+      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
+    if(!std::isnan(epaDeltaEnergy))
+      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(electronFourierCutoff))
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+
+    printVectorXd("temperatures", temperatures*temperatureAuToSi,"K");
+    if(!std::isnan(minTemperature)) std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if(!std::isnan(maxTemperature)) std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if(!std::isnan(deltaTemperature)) std::cout << "deltaTemperature = " << deltaTemperature << "K" << std::endl;
+    if(dopings.size() != 0) printVectorXd("dopings", dopings, "cm^-3");
+    if(chemicalPotentials.size() != 0) printVectorXd("chemicalPotentials", chemicalPotentials*energyRyToEv, "eV");
+    if(!std::isnan(minChemicalPotential))
+      std::cout << "minChemicalPotential = " << minChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(maxChemicalPotential))
+      std::cout << "maxChemicalPotential = " << maxChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(deltaChemicalPotential))
+      std::cout << "deltaChemicalPotential = " << deltaChemicalPotential*energyRyToEv << " eV" << std::endl;
+    if(!std::isnan(eFermiRange))
+      std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
+    if (!std::isnan(fermiLevel))
+      std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;
+    if (!std::isnan(numOccupiedStates))
+      std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
+    std::cout << "---------------------------------------------\n" << std::endl;
+  }
+}
 
 std::string Context::getPhD2FileName() { return phD2FileName; }
-void Context::setPhD2FileName(const std::string x) { phD2FileName = x; }
+void Context::setPhD2FileName(const std::string &x) { phD2FileName = x; }
 
 std::string Context::getPhD3FileName() { return phD3FileName; }
-void Context::setPhD3FileName(const std::string x) { phD3FileName = x; }
+void Context::setPhD3FileName(const std::string &x) { phD3FileName = x; }
+
+std::string Context::getPhonopyDispFileName() { return phonopyDispFileName; }
+void Context::setPhonopyDispFileName(const std::string &x) {
+  phonopyDispFileName = x;
+}
+
+std::string Context::getDispFCFileName() { return dispFCFileName; }
+void Context::setDispFCFileName(const std::string &x) { dispFCFileName = x; }
+
+std::string Context::getDispFC2FileName() { return dispFC2FileName; }
+void Context::setDispFC2FileName(const std::string &x) { dispFC2FileName = x; }
 
 std::string Context::getSumRuleD2() { return sumRuleD2; }
-void Context::setSumRuleD2(const std::string x) { sumRuleD2 = x; }
+void Context::setSumRuleD2(const std::string &x) { sumRuleD2 = x; }
 
-std::string Context::getEpwFileName() { return epwFileName; }
-void Context::setEpwFileName(const std::string x) { epwFileName = x; }
+std::string Context::getElphFileName() { return elphFileName; }
+void Context::setElphFileName(const std::string &x) { elphFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
-void Context::setElectronH0Name(const std::string x) { electronH0Name = x; }
+void Context::setElectronH0Name(const std::string &x) { electronH0Name = x; }
 
-double Context::getElectronFourierCutoff() { return electronFourierCutoff; }
+std::string Context::getWannier90Prefix() { return wannier90Prefix; }
+void Context::setWannier90Prefix(const std::string &x) { wannier90Prefix = x; }
+std::string Context::getQuantumEspressoPrefix() {
+  return quantumEspressoPrefix;
+}
+void Context::setQuantumEspressoPrefix(const std::string &x) {
+  quantumEspressoPrefix = x;
+}
+
+std::string Context::getElPhInterpolation() { return elPhInterpolation; }
+
+double Context::getEpaSmearingEnergy() const { return epaSmearingEnergy; }
+double Context::getEpaDeltaEnergy() const { return epaDeltaEnergy; }
+double Context::getEpaMinEnergy() const { return epaMinEnergy; }
+double Context::getEpaMaxEnergy() const { return epaMaxEnergy; }
+int Context::getEpaNumBins() const { return epaNumBins; }
+double Context::getEpaEnergyRange() const { return epaEnergyRange; }
+double Context::getEpaEnergyStep() const { return epaEnergyStep; }
+
+double Context::getElectronFourierCutoff() const {
+  return electronFourierCutoff;
+}
 
 std::string Context::getAppName() { return appName; }
 
@@ -671,30 +1051,46 @@ Eigen::Vector3i Context::getQMesh() { return qMesh; }
 Eigen::Vector3i Context::getKMesh() { return kMesh; }
 
 std::string Context::getWindowType() { return windowType; }
+void Context::setWindowType(const std::string &x) { windowType = x; }
 
 Eigen::Vector2d Context::getWindowEnergyLimit() { return windowEnergyLimit; }
 
-double Context::getWindowPopulationLimit() { return windowPopulationLimit; }
+void Context::setWindowEnergyLimit(const Eigen::Vector2d &x) {
+  windowEnergyLimit = x;
+}
+
+double Context::getWindowPopulationLimit() const {
+  return windowPopulationLimit;
+}
+void Context::setWindowPopulationLimit(const double &x) {
+  windowPopulationLimit = x;
+}
 
 Eigen::VectorXd Context::getChemicalPotentials() { return chemicalPotentials; }
 
 Eigen::VectorXd Context::getDopings() { return dopings; }
 
+void Context::setDopings(const Eigen::VectorXd &x) { dopings = x; }
+
 Eigen::VectorXd Context::getTemperatures() { return temperatures; }
+
+void Context::setTemperatures(const Eigen::VectorXd &x) { temperatures = x; }
 
 std::vector<std::string> Context::getSolverBTE() { return solverBTE; }
 
-double Context::getConvergenceThresholdBTE() { return convergenceThresholdBTE; }
+double Context::getConvergenceThresholdBTE() const {
+  return convergenceThresholdBTE;
+}
 
-long Context::getMaxIterationsBTE() { return maxIterationsBTE; }
+int Context::getMaxIterationsBTE() const { return maxIterationsBTE; }
 
-long Context::getDimensionality() { return dimensionality; }
+int Context::getDimensionality() const { return dimensionality; }
 
-double Context::getDosMinEnergy() { return dosMinEnergy; }
+double Context::getDosMinEnergy() const { return dosMinEnergy; }
 
-double Context::getDosMaxEnergy() { return dosMaxEnergy; }
+double Context::getDosMaxEnergy() const { return dosMaxEnergy; }
 
-double Context::getDosDeltaEnergy() { return dosDeltaEnergy; }
+double Context::getDosDeltaEnergy() const { return dosDeltaEnergy; }
 
 Eigen::MatrixXd Context::getInputAtomicPositions() {
   return inputAtomicPositions;
@@ -706,61 +1102,106 @@ std::vector<std::string> Context::getInputSpeciesNames() {
   return inputSpeciesNames;
 }
 
-void Context::setInputAtomicPositions(const Eigen::MatrixXd x) {
+void Context::setInputAtomicPositions(const Eigen::MatrixXd &x) {
   inputAtomicPositions = x;
 }
-void Context::setInputAtomicSpecies(const Eigen::VectorXi x) {
+void Context::setInputAtomicSpecies(const Eigen::VectorXi &x) {
   inputAtomicSpecies = x;
 }
-void Context::setInputSpeciesNames(const std::vector<std::string> x) {
+void Context::setInputSpeciesNames(const std::vector<std::string> &x) {
   inputSpeciesNames = x;
 }
 
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
+std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
-double Context::getDeltaPath() { return deltaPath; }
+double Context::getDeltaPath() const { return deltaPath; }
 
-double Context::getFermiLevel() { return fermiLevel; }
+double Context::getFermiLevel() const { return fermiLevel; }
 
 void Context::setFermiLevel(const double &x) { fermiLevel = x; }
 
-double Context::getNumOccupiedStates() { return numOccupiedStates; }
+double Context::getNumOccupiedStates() const { return numOccupiedStates; }
 
 void Context::setNumOccupiedStates(const double &x) { numOccupiedStates = x; }
 
-bool Context::getHasSpinOrbit() { return hasSpinOrbit; }
+bool Context::getHasSpinOrbit() const { return hasSpinOrbit; }
 
 void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 
-int Context::getSmearingMethod() { return smearingMethod; }
+int Context::getSmearingMethod() const { return smearingMethod; }
 
-double Context::getSmearingWidth() { return smearingWidth; }
-void Context::setSmearingWidth(const double x) { smearingWidth = x; }
+double Context::getSmearingWidth() const { return smearingWidth; }
+void Context::setSmearingWidth(const double &x) { smearingWidth = x; }
 
-double Context::getConstantRelaxationTime() { return constantRelaxationTime; }
+double Context::getConstantRelaxationTime() const {
+  return constantRelaxationTime;
+}
 
-bool Context::getScatteringMatrixInMemory() { return scatteringMatrixInMemory; }
+bool Context::getScatteringMatrixInMemory() const {
+  return scatteringMatrixInMemory;
+}
+void Context::setScatteringMatrixInMemory(const bool &x) {
+  scatteringMatrixInMemory = x;
+}
+
+bool Context::getUseSymmetries() const { return useSymmetries; }
+void Context::setUseSymmetries(const bool &x) { useSymmetries = x; }
 
 Eigen::VectorXd Context::getMassVariance() { return massVariance; }
 
-bool Context::getWithIsotopeScattering() { return withIsotopeScattering; }
+bool Context::getWithIsotopeScattering() const { return withIsotopeScattering; }
 
-double Context::getBoundaryLength() { return boundaryLength; }
+double Context::getBoundaryLength() const { return boundaryLength; }
 
-double Context::getMinChemicalPotential() {return minChemicalPotential;}
+std::string Context::getEpaFileName() { return epaFileName; }
 
-double Context::getMaxChemicalPotential() {return maxChemicalPotential;}
+double Context::getMinChemicalPotential() const { return minChemicalPotential; }
 
-double Context::getDeltaChemicalPotential() {return deltaChemicalPotential;}
+double Context::getMaxChemicalPotential() const { return maxChemicalPotential; }
 
-double Context::getMinTemperature() {return minTemperature;}
+double Context::getDeltaChemicalPotential() const {
+  return deltaChemicalPotential;
+}
 
-double Context::getMaxTemperature() {return maxTemperature;}
+double Context::getMinTemperature() const { return minTemperature; }
 
-double Context::getDeltaTemperature() {return deltaTemperature;}
+double Context::getMaxTemperature() const { return maxTemperature; }
 
-double Context::getEnergyRange() {return energyRange;}
+double Context::getDeltaTemperature() const { return deltaTemperature; }
 
-double Context::getEnergyStep() {return energyStep;}
+double Context::getEFermiRange() const { return eFermiRange; }
 
-double Context::getEFermiRange() {return eFermiRange;}
+std::string Context::getG2PlotStyle() { return g2PlotStyle; }
+void Context::setG2PlotStyle(const std::string &x) { g2PlotStyle = x; }
+
+Eigen::Vector3d Context::getG2PlotFixedPoint() { return g2PlotFixedPoint; }
+void Context::setG2PlotFixedPoint(const Eigen::Vector3d &x) {
+  g2PlotFixedPoint = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl1Bands() { return g2PlotEl1Bands; }
+void Context::setG2PlotEl1Bands(const std::pair<int, int> &x) {
+  g2PlotEl1Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotEl2Bands() { return g2PlotEl2Bands; }
+void Context::setG2PlotEl2Bands(const std::pair<int, int> &x) {
+  g2PlotEl2Bands = x;
+}
+
+std::pair<int, int> Context::getG2PlotPhBands() { return g2PlotPhBands; }
+void Context::setG2PlotPhBands(const std::pair<int, int> &x) {
+  g2PlotPhBands = x;
+}
+
+Eigen::VectorXi Context::getCoreElectrons() { return numCoreElectrons; }
+
+void Context::setCoreElectrons(const Eigen::VectorXi &x) {
+  for (unsigned int i=0; i<x.size(); i++) {
+    if (x(i)<0) {
+      Error("Found negative number of core electrons");
+    }
+  }
+  numCoreElectrons = x;
+}

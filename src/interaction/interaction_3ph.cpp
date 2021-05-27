@@ -1,110 +1,24 @@
 #include "interaction_3ph.h"
 #include "mpiHelper.h"
 
-long findIndexRow(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
-  long ir2 = -1;
-  for (int i = 0; i < cellPositions2.cols(); i++) {
-    if ((position2 - cellPositions2.col(i)).norm() == 0.) {
-      ir2 = i;
-      return ir2;
-    }
-  }
-  if (ir2 == -1) {
-    Error e("index not found");
-  }
-  return ir2;
-}
-
-// default constructor
-Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
-                               Eigen::Tensor<double, 4> &ifc3Tensor,
-                               Eigen::Tensor<double, 3> &cellPositions,
-                               Eigen::Tensor<long, 2> &displacedAtoms)
-    : crystal_(crystal){
+Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
+                                 Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2, Eigen::VectorXd weights3)
+                                 : crystal_(crystal){
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
-
-  nr2 = 0;
-  nr3 = 0;
-  std::vector<Eigen::Vector3d> tmpCellPositions2, tmpCellPositions3;
-
-  for (long it = 0; it < numTriplets; it++) {
-    // load the position of the 2 atom in the current triplet
-    Eigen::Vector3d position2, position3;
-    for (int ic : {0, 1, 2}) {
-      position2(ic) = cellPositions(it, 0, ic);
-      position3(ic) = cellPositions(it, 1, ic);
-    }
-    // now check if this element is in the list.
-    bool found2 = false;
-    if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
-                  position2) != tmpCellPositions2.end()) {
-      found2 = true;
-    }
-    bool found3 = false;
-    if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
-                  position3) != tmpCellPositions3.end()) {
-      found3 = true;
-    }
-
-    if (!found2) {
-      tmpCellPositions2.push_back(position2);
-      nr2++;
-    }
-    if (!found3) {
-      tmpCellPositions3.push_back(position3);
-      nr3++;
-    }
-  }
-
-  Eigen::MatrixXd cellPositions2(3, nr2);
-  Eigen::MatrixXd cellPositions3(3, nr3);
-  for (int i = 0; i < nr2; i++) {
-    cellPositions2.col(i) = tmpCellPositions2[i];
-  }
-  for (int i = 0; i < nr3; i++) {
-    cellPositions3.col(i) = tmpCellPositions3[i];
-  }
-
-  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
-  D3.setZero();
-
-  for (long it = 0; it < numTriplets; it++) { // sum over all triplets
-    long ia1 = displacedAtoms(it, 0);
-    long ia2 = displacedAtoms(it, 1);
-    long ia3 = displacedAtoms(it, 2);
-
-    Eigen::Vector3d position2, position3;
-    for (int ic : {0, 1, 2}) {
-      position2(ic) = cellPositions(it, 0, ic);
-      position3(ic) = cellPositions(it, 1, ic);
-    }
-
-    long ir2 = findIndexRow(cellPositions2, position2);
-    long ir3 = findIndexRow(cellPositions3, position3);
-
-    for (int ic1 : {0, 1, 2}) {
-      for (int ic2 : {0, 1, 2}) {
-        for (int ic3 : {0, 1, 2}) {
-
-          auto ind1 = compress2Indeces(ia1, ic1, numAtoms, 3);
-          auto ind2 = compress2Indeces(ia2, ic2, numAtoms, 3);
-          auto ind3 = compress2Indeces(ia3, ic3, numAtoms, 3);
-
-          D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
-        }
-      }
-    }
-  }
-
+  nr2 = cellPositions2.cols();
+  nr3 = cellPositions3.cols();
   // Copy everything to kokkos views
-
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);
+  Kokkos::realloc(weights2_k, nr2);
+  Kokkos::realloc(weights3_k, nr2);
 
   auto cellPositions2_h = Kokkos::create_mirror_view(cellPositions2_k);
   auto cellPositions3_h = Kokkos::create_mirror_view(cellPositions3_k);
+  auto weights2_h = Kokkos::create_mirror_view(weights2_k);
+  auto weights3_h = Kokkos::create_mirror_view(weights3_k);
   for (int j = 0; j < 3; j++) {
     for (int i = 0; i < nr2; i++) {
       cellPositions2_h(i, j) = cellPositions2(j, i);
@@ -113,8 +27,16 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
       cellPositions3_h(i, j) = cellPositions3(j, i);
     }
   }
+  for (int i = 0; i < nr2; i++) {
+    weights2_h(i) = weights2(i);
+  }
+  for (int i = 0; i < nr3; i++) {
+    weights3_h(i) = weights3(i);
+  }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
+  Kokkos::deep_copy(weights2_k, weights2_h);
+  Kokkos::deep_copy(weights3_k, weights3_h);
 
   Kokkos::realloc(D3_k, numBands, numBands, numBands, nr3, nr2);
   Kokkos::realloc(D3PlusCached_k, numBands, numBands, numBands, nr3);
@@ -151,7 +73,6 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, long &numTriplets,
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
     : crystal_(that.crystal_), nr2(that.nr2), nr3(that.nr3),
       numAtoms(that.numAtoms), numBands(that.numBands) {
-  std::cout << "copy constructor called\n";
 }
 
 // assignment operator
@@ -164,7 +85,6 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     numBands = that.numBands;
   }
   return *this;
-  std::cout << "assignment operator called\n";
 }
 
 void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
@@ -187,6 +107,8 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   auto D3MinsCached = this->D3MinsCached_k;
   auto cellPositions2 = this->cellPositions2_k;
   auto cellPositions3 = this->cellPositions3_k;
+  auto weights2 = this->weights2_k;
+  auto weights3 = this->weights3_k;
   auto D3 = this->D3_k;
 
   // precompute phases
@@ -196,13 +118,14 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   Kokkos::parallel_for(
       "phase1loop", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
       KOKKOS_LAMBDA(int ir3, int ir2) {
+
         double argP = 0, argM = 0;
         for (int ic = 0; ic < 3; ic++) {
           argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
           argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
         }
-        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP);
-        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM);
+        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP) * weights2(ir2) * weights3(ir3);
+        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM) * weights2(ir2) * weights3(ir3);
       });
 
   // create cached D3
@@ -239,6 +162,7 @@ Interaction3Ph::getCouplingsSquared(
   int numBands = this->numBands;
   auto cellPositions2 = this->cellPositions2_k;
   auto cellPositions3 = this->cellPositions3_k;
+  auto weights3 = this->weights3_k;
   auto D3 = this->D3_k;
   auto D3PlusCached = this->D3PlusCached_k;
   auto D3MinsCached = this->D3MinsCached_k;
@@ -317,8 +241,8 @@ Interaction3Ph::getCouplingsSquared(
           argP += -q1s(iq1, ic) * cellPositions3(ir3, ic);
           argM += -q1s(iq1, ic) * cellPositions3(ir3, ic);
         }
-        phasePlus(iq1, ir3) = exp(complexI * argP);
-        phaseMins(iq1, ir3) = exp(complexI * argM);
+        phasePlus(iq1, ir3) = exp(complexI * argP) * weights3(ir3);
+        phaseMins(iq1, ir3) = exp(complexI * argM) * weights3(ir3);
       });
 
   Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
@@ -501,7 +425,7 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
               << ", availmem = " << availmem / 1e9
               << ", maxusage = " << maxusage / 1e9
               << ", numBatches = " << numBatches << "\n";
-    Error e("Insufficient memory!");
+    Error("Insufficient memory!");
   }
   return numBatches;
 }

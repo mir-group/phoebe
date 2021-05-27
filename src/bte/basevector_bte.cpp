@@ -1,68 +1,72 @@
-#include "constants.h"
 #include "vector_bte.h"
 
 // default constructor
 BaseVectorBTE::BaseVectorBTE(StatisticsSweep &statisticsSweep_,
-                             const long &numStates_,
-                             const long &dimensionality_)
+                             const int &numStates_,
+                             const int &dimensionality_)
     : statisticsSweep(statisticsSweep_) {
   if (dimensionality_ <= 0) {
-    Error e("BaseVectorBTE doesn't accept <=0 dimensions");
+    Error("BaseVectorBTE doesn't accept <=0 dimensions");
   }
   if (numStates_ <= 0) {
-    Error e("BaseVectorBTE doesn't accept <=0 number of states");
+    Error("BaseVectorBTE doesn't accept <=0 number of states");
     numStates = 0;
   }
 
   dimensionality = dimensionality_;
   numStates = numStates_;
 
-  numCalcs = statisticsSweep.getNumCalcs();
-  numCalcs *= dimensionality;
+  numCalculations = statisticsSweep.getNumCalculations();
+  numCalculations *= dimensionality;
 
   numChemPots = statisticsSweep.getNumChemicalPotentials();
   numTemps = statisticsSweep.getNumTemperatures();
-
-  data = Eigen::MatrixXd::Zero(numCalcs, numStates);
+  data.resize(numCalculations, numStates);
+  data.setZero();
 }
 
 // copy constructor
 BaseVectorBTE::BaseVectorBTE(const BaseVectorBTE &that)
     : statisticsSweep(that.statisticsSweep) {
-  numCalcs = that.numCalcs;
+  numCalculations = that.numCalculations;
   numStates = that.numStates;
   numChemPots = that.numChemPots;
   numTemps = that.numTemps;
   dimensionality = that.dimensionality;
   data = that.data;
-  excludeIndeces = that.excludeIndeces;
+  excludeIndices = that.excludeIndices;
 }
 
 // copy assignment
 BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
   if (this != &that) {
     statisticsSweep = that.statisticsSweep;
-    numCalcs = that.numCalcs;
+    numCalculations = that.numCalculations;
     numStates = that.numStates;
     numChemPots = that.numChemPots;
     numTemps = that.numTemps;
     dimensionality = that.dimensionality;
     data = that.data;
-    excludeIndeces = that.excludeIndeces;
+    excludeIndices = that.excludeIndices;
   }
   return *this;
 }
 
 // product operator overload
-Eigen::VectorXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
-  if (that.numCalcs != numCalcs || that.numStates != numStates) {
-    Error e("The 2 BaseVectorBTE must be aligned for dot() to work.");
+Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
+  if (that.numCalculations != numCalculations || that.numStates != numStates) {
+    Error("The 2 BaseVectorBTE must be aligned for dot() to work.");
   }
-  Eigen::VectorXd result(numCalcs);
+  if (that.dimensionality != 3 ) {
+    Error("VectorBTE dot is implemented for 3D vectors only");
+  }
+  Eigen::VectorXd result(numCalculations,3);
   result.setZero();
-  for (long is : mpi->divideWorkIter(numStates)) {
-    for (long i = 0; i < numCalcs; i++) {
-      result(i) += this->data(i, is) * that.data(i, is);
+  for (int is : mpi->divideWorkIter(numStates)) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      for (int i : {0,1,2}) {
+        result(iCalc, i) += operator()(iCalc, i, is) * that(iCalc, i, is);
+      }
     }
   }
   mpi->allReduceSum(&result);
@@ -83,15 +87,15 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
     } else if (operatorType == operatorDiff) {
       newPopulation.data << this->data.array() - that.data.array();
     } else {
-      Error e("Operator type for BaseVectorBTE not recognized");
+      Error("Operator type for BaseVectorBTE not recognized");
     }
 
   } else if (that.dimensionality == 1) {
-    for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
       auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, DimIndex(0));
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =
@@ -106,13 +110,13 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
         newPopulation.data.row(iCalc) =
             this->data.row(iCalc).array() - that.data.row(i2).array();
       } else {
-        Error e("Operator type for BaseVectorBTE not recognized");
+        Error("Operator type for BaseVectorBTE not recognized");
       }
     }
   } else {
-    Error e("BaseVectorBTE can't handle dimensionality for this case");
+    Error("BaseVectorBTE can't handle dimensionality for this case");
   }
-  for (auto is : excludeIndeces) {
+  for (auto is : excludeIndices) {
     newPopulation.data.col(is).setZero();
   }
   return newPopulation;
@@ -126,7 +130,7 @@ BaseVectorBTE BaseVectorBTE::operator*(BaseVectorBTE &that) {
 // product operator overload
 BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
   BaseVectorBTE newPopulation = *this;
-  for (long i = 0; i < numCalcs; i++) {
+  for (int i = 0; i < numCalculations; i++) {
     newPopulation.data.row(i) = this->data.row(i) * scalar;
   }
   return newPopulation;
@@ -135,7 +139,7 @@ BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
 // product operator overload
 BaseVectorBTE BaseVectorBTE::operator*(const Eigen::VectorXd &vector) {
   BaseVectorBTE newPopulation = *this;
-  for (long i = 0; i < numCalcs; i++) {
+  for (int i = 0; i < numCalculations; i++) {
     newPopulation.data.row(i) = this->data.row(i) * vector(i);
   }
   return newPopulation;
@@ -143,16 +147,16 @@ BaseVectorBTE BaseVectorBTE::operator*(const Eigen::VectorXd &vector) {
 
 // product operator overload
 BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
-  if (numCalcs != dimensionality) {
+  if (numCalculations != dimensionality) {
     // I mean, you'd need to keep in memory a lot of matrices.
-    Error e("We didn't implement BaseVectorBTE * matrix for numCalcs > 1");
+    Error("We didn't implement BaseVectorBTE * matrix for numCalculations > 1");
   }
   if (matrix.rows() != numStates) {
-    Error e("BaseVectorBTE and Matrix not aligned");
+    Error("BaseVectorBTE and Matrix not aligned");
   }
   BaseVectorBTE newPopulation = *this;
   newPopulation.data.setZero();
-  for (long iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     for (auto tup : matrix.getAllLocalStates()) {
       auto i = std::get<0>(tup);
       auto j = std::get<1>(tup);
@@ -201,20 +205,20 @@ void BaseVectorBTE::setConst(const double &constant) {
   data.setConstant(constant);
 }
 
-long BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
-                             const DimIndex &idim) {
-  long i = compress3Indeces(imu.get(), it.get(), idim.get(), numChemPots,
+int BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+                             const CartIndex &iDim) const {
+  int i = compress3Indices(imu.get(), it.get(), iDim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
-std::tuple<ChemPotIndex, TempIndex, DimIndex> BaseVectorBTE::loc2Glob(
-    const long &i) {
-  auto tup = decompress3Indeces(i, numChemPots, numTemps, dimensionality);
+std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
+    const int &i) const {
+  auto tup = decompress3Indices(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
-  auto idim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), DimIndex(idim)};
+  auto iDim = std::get<2>(tup);
+  return {ChemPotIndex(imu), TempIndex(it), CartIndex(iDim)};
 }
 
 // get/set operator

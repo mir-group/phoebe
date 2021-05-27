@@ -1,7 +1,7 @@
-#ifndef WANNIERH0_H
-#define WANNIERH0_H
+#ifndef WANNIER_H0_H
+#define WANNIER_H0_H
 
-#include <math.h>
+#include <cmath>
 
 #include "bandstructure.h"
 #include "constants.h"
@@ -32,12 +32,12 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
 
   /** Method to return that the underlying is that of an electronic Fermion.
    */
-  Particle getParticle();
+  Particle getParticle() override;
 
   /** get the total number of bands.
    * This is a constant for all wavevectors.
    */
-  long getNumBands();
+  int getNumBands() override;
 
   /** get the electronic energies (in Ry) at a single k-point.
    * Energies don't have any reference value, and must be used in connection
@@ -49,29 +49,29 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * complex unitary transformation matrix U, connecting the Wannier gauge
    * with the Bloch gauge.
    */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point);
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalize(Point &point) override;
 
-  virtual std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoords(
-      Eigen::Vector3d &k);
+  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
+      Eigen::Vector3d &k) override;
 
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.
    * @return velocity(numBands,numBands,3): values of the velocity operator
    * for this state, in atomic units.
    */
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point);
-  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoords(
-      Eigen::Vector3d &coords);
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
+  Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
+      Eigen::Vector3d &coordinates) override;
 
-  /** This method constructs an electron bandstructure.
+  /** This method constructs an electron band structure.
    * @param points: the object with the list/mesh of wavevectors
    * @param withVelocities: if true, compute the electron velocity operator.
    * @param withEigenvectors: if true, stores the Wannier eigenvectors.
-   * @return FullBandStructure: the bandstructure object containing the
+   * @return FullBandStructure: the band structure object containing the
    * complete electronic band structure.
    */
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed=false);
+                             bool &withEigenvectors, bool isDistributed=false) override;
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.
@@ -87,7 +87,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   // list of lattice vectors, used for the Fourier transform from real
   // to reciprocal space
   Eigen::Matrix<double, 3, Eigen::Dynamic> bravaisVectors;
-  // cound the vector degeneracies, to use symmetries
+  // count the vector degeneracies, to use symmetries
   Eigen::VectorXd vectorsDegeneracies;
   Eigen::Matrix3d directUnitCell;
   // hamiltonian matrix in real space <0m|H|nR>
@@ -95,8 +95,8 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   // position matrix elements <0m|r|nR>
   Eigen::Tensor<std::complex<double>, 4> rMatrix;
 
-  long numBands;
-  long numVectors;
+  int numBands;
+  int numVectors;
 };
 
 #endif

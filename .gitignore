@@ -1,6 +1,9 @@
 # Build folders
 *build*/
 
+# Output files
+*.json
+
 # Prerequisites
 *.d
 
@@ -50,6 +53,18 @@
 *cmake_install.cmake
 CMakeDoxy*
 Makefile
+CMakeLists.txt.orig
+CTestTestfile.cmake
+
+eigen_dep-prefix/
+epa_test/
+example/Silicon/log
+googletest/
+pugixml_dep-prefix/
+runTests*_include.cmake
+scalapack_dep-prefix/
+spglib_dep-prefix/
+runTests[1]_include.cmake
 
 runTests
 tags
@@ -57,3 +72,5 @@ tags
 
 # Clion IDE
 .idea
+
+*zip

@@ -10,7 +10,7 @@ Particle::Particle(int kind_) {
     statistics = fermi;
     kind = electron;
   } else {
-    Error e("Wrong initialization of Particle", 1);
+    Error("Wrong initialization of Particle", 1);
   }
 }
 
@@ -29,7 +29,7 @@ Particle &Particle::operator=(const Particle &obj) {
   return *this;
 }
 
-bool Particle::isFermi() {
+bool Particle::isFermi() const {
   if (statistics == fermi) {
     return true;
   } else {
@@ -37,7 +37,7 @@ bool Particle::isFermi() {
   }
 }
 
-bool Particle::isBose() {
+bool Particle::isBose() const {
   if (statistics == bose) {
     return true;
   } else {
@@ -45,7 +45,7 @@ bool Particle::isBose() {
   }
 }
 
-bool Particle::isElectron() {
+bool Particle::isElectron() const {
   if (kind == electron) {
     return true;
   } else {
@@ -53,7 +53,7 @@ bool Particle::isElectron() {
   }
 }
 
-bool Particle::isPhonon() {
+bool Particle::isPhonon() const {
   if (kind == phonon) {
     return true;
   } else {
@@ -62,7 +62,7 @@ bool Particle::isPhonon() {
 }
 
 double Particle::getPopulation(const double &energy, const double &temperature,
-                               const double &chemicalPotential) {
+                               const double &chemicalPotential) const {
   double population = 0.;
 
   if (temperature <= 0.) {
@@ -96,7 +96,7 @@ double Particle::getPopulation(const double &energy, const double &temperature,
 }
 
 double Particle::getDndt(const double &energy, const double &temperature,
-                         const double &chemicalPotential) {
+                         const double &chemicalPotential) const {
   double x = getPopPopPm1(energy, temperature, chemicalPotential);
   double y = energy - chemicalPotential;
   double dndt = x * y / temperature / temperature;
@@ -104,23 +104,23 @@ double Particle::getDndt(const double &energy, const double &temperature,
 }
 
 double Particle::getDnde(const double &energy, const double &temperature,
-                         const double &chemicalPotential) {
+                         const double &chemicalPotential) const {
   double x = getPopPopPm1(energy, temperature, chemicalPotential);
   double dnde = -x / temperature;
   return dnde;
 }
 
 double Particle::getPopPopPm1(const double &energy, const double &temperature,
-                              const double &chemicalPotential) {
+                              const double &chemicalPotential) const {
   double x = energy - chemicalPotential;
   double arg = x / 2. / temperature;
   if (statistics == bose) {
-    x = sinh(arg);  // numerically more stable than n(n+1)
+    x = sinh(arg); // numerically more stable than n(n+1)
   } else {
-    x = cosh(arg);  // numerically more stable than f(1-f)
+    x = cosh(arg); // numerically more stable than f(1-f)
   }
   x = 0.25 / x / x;
   return x;
 }
 
-int Particle::getParticleKind() { return kind; }
+int Particle::getParticleKind() const { return kind; }

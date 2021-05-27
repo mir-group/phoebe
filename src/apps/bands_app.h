@@ -1,24 +1,28 @@
-#ifndef BANDSAPP_H
-#define BANDSAPP_H
+#ifndef BANDS_APP_H
+#define BANDS_APP_H
 
 #include "app.h"
+#include "points.h"
 
-class PhononBandsApp: public App {
+class PhononBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context) override;
+  void checkRequirements(Context &context) override;
 };
 
-class ElectronWannierBandsApp: public App {
+class ElectronWannierBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context) override;
+  void checkRequirements(Context &context) override;
 };
 
-class ElectronFourierBandsApp: public App {
+class ElectronFourierBandsApp : public App {
 public:
-    void run(Context &context);
-    void checkRequirements(Context &context);
+  void run(Context &context) override;
+  void checkRequirements(Context &context) override;
 };
+
+void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
+                       Points &pathPoints, std::string outFileName);
 
 #endif

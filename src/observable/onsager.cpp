@@ -1,9 +1,11 @@
 #include "onsager.h"
-
-#include <iomanip>
-
 #include "constants.h"
+#include "io.h"
 #include "mpiHelper.h"
+#include "particle.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
                                          Crystal &crystal_,
@@ -21,20 +23,20 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
     spinFactor = 2.;
   }
 
-  numCalcs = statisticsSweep.getNumCalcs();
+  numCalcs = statisticsSweep.getNumCalculations();
 
-  sigma = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  seebeck = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  kappa = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  mobility = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  sigma.resize(numCalcs, dimensionality, dimensionality);
+  seebeck.resize(numCalcs, dimensionality, dimensionality);
+  kappa.resize(numCalcs, dimensionality, dimensionality);
+  mobility.resize(numCalcs, dimensionality, dimensionality);
   sigma.setZero();
   seebeck.setZero();
   kappa.setZero();
   mobility.setZero();
-  LEE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LTE = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LET = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
-  LTT = Eigen::Tensor<double, 3>(numCalcs, dimensionality, dimensionality);
+  LEE.resize(numCalcs, dimensionality, dimensionality);
+  LTE.resize(numCalcs, dimensionality, dimensionality);
+  LET.resize(numCalcs, dimensionality, dimensionality);
+  LTT.resize(numCalcs, dimensionality, dimensionality);
   LEE.setZero();
   LTE.setZero();
   LET.setZero();
@@ -50,7 +52,7 @@ OnsagerCoefficients::OnsagerCoefficients(const OnsagerCoefficients &that)
       kappa(that.kappa), mobility(that.mobility), LEE(that.LEE), LET(that.LET),
       LTE(that.LTE), LTT(that.LTT) {}
 
-// copy assigmnent
+// copy assignment
 OnsagerCoefficients &
 OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
   if (this != &that) {
@@ -73,6 +75,58 @@ OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
   return *this;
 }
 
+void OnsagerCoefficients::calcFromEPA(
+    BaseVectorBTE &scatteringRates,
+    Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies,
+    double &energyStep, Particle &particle) {
+
+  double factor = spinFactor / pow(twoPi, dimensionality) /
+                  (crystal.getVolumeUnitCell(dimensionality));
+
+  LEE.setZero();
+  LET.setZero();
+  LTE.setZero();
+  LTT.setZero();
+
+#pragma omp parallel for collapse(3) default(none) shared(                     \
+    numCalcs, dimensionality, statisticsSweep, scatteringRates, particle,      \
+    energyProjVelocity, LEE, LET, LTE, LTT, energyStep, factor, energies)
+  for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+    for (int iBeta = 0; iBeta < dimensionality; ++iBeta) {
+      for (int iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
+        double chemPot =
+            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+        for (int iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
+
+          if (scatteringRates.data(iCalc, iEnergy) <= 1.0e-10)
+            continue;
+          double en = energies(iEnergy);
+          double pop = particle.getPopPopPm1(en, temp, chemPot);
+          if (pop <= 1.0e-20)
+            continue;
+
+          double transportDistFunc =
+              energyProjVelocity(iAlpha, iBeta, iEnergy) *
+              (1. / scatteringRates.data(iCalc, iEnergy));
+
+          LEE(iCalc, iAlpha, iBeta) +=
+              factor * transportDistFunc * pop * energyStep / temp;
+          LET(iCalc, iAlpha, iBeta) +=
+              factor * transportDistFunc * pop * energyStep / temp;
+          LTE(iCalc, iAlpha, iBeta) += factor * transportDistFunc * pop *
+                                       (en - chemPot) * energyStep / temp /
+                                       temp;
+          LTT(iCalc, iAlpha, iBeta) += factor * transportDistFunc * pop *
+                                       pow(en - chemPot, 2) * energyStep /
+                                       temp / temp / temp;
+        }
+      }
+    }
+  }
+  calcTransportCoefficients();
+}
+
 void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
                                                       VectorBTE &fT) {
   VectorBTE nE = fE;
@@ -82,50 +136,44 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
-void OnsagerCoefficients::calcFromEPA() {}
-
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
-  double norm = spinFactor / bandStructure.getNumPoints(true) /
+  double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
-
   LEE.setZero();
   LET.setZero();
   LTE.setZero();
   LTT.setZero();
 
-  for (long is : bandStructure.parallelStateIterator()) {
-    double energy = bandStructure.getEnergy(is);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(is);
+  auto points = bandStructure.getPoints();
 
-    auto t = bandStructure.getIndex(is);
-    auto ik = std::get<0>(t).get();
+  for (int is : bandStructure.parallelIrrStateIterator()) {
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+    int iBte = bandStructure.stateToBte(isIdx).get();
+    auto rotations = bandStructure.getRotationsStar(isIdx);
 
-    auto rotations = bandStructure.getPoints().getRotationsStar(ik);
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double en = energy - calcStat.chemicalPotential;
 
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-      double chemicalPotential =
-          statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-      double en = energy - chemicalPotential;
-
-      for (Eigen::Matrix3d rotation : rotations) {
-        Eigen::Vector3d thisNE, thisNT, thisVel;
-        thisNE.setZero();
-        thisNT.setZero();
-        thisVel.setZero();
-        for (long i = 0; i < dimensionality; i++) {
-          for (long j = 0; j < dimensionality; j++) {
-            thisNE(i) += rotation(i, j) * nE(iCalc, j, is);
-            thisNT(i) += rotation(i, j) * nT(iCalc, j, is);
-            thisVel(i) += rotation(i, j) * vel(j);
-          }
+      for (Eigen::Matrix3d r : rotations) {
+        Eigen::Vector3d thisNE = Eigen::Vector3d::Zero();
+        Eigen::Vector3d thisNT = Eigen::Vector3d::Zero();
+        for (int i : {0, 1, 2}) {
+          thisNE(i) += nE(iCalc, i, iBte);
+          thisNT(i) += nT(iCalc, i, iBte);
         }
+        thisNE = r * thisNE;
+        thisNT = r * thisNT;
+        Eigen::Vector3d vel = r * velIrr;
 
-        for (int i = 0; i < dimensionality; i++) {
-          for (int j = 0; j < dimensionality; j++) {
-            LEE(iCalc, i, j) += thisNE(i) * thisVel(j) * norm;
-            LET(iCalc, i, j) += thisNT(i) * thisVel(j) * norm;
-            LTE(iCalc, i, j) += thisNE(i) * thisVel(j) * en * norm;
-            LTT(iCalc, i, j) += thisNT(i) * thisVel(j) * en * norm;
+        for (int i : {0, 1, 2}) {
+          for (int j : {0, 1, 2}) {
+            LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
+            LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
+            LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
+            LTT(iCalc, i, j) += thisNT(i) * vel(j) * en * norm;
           }
         }
       }
@@ -158,17 +206,22 @@ void OnsagerCoefficients::calcTransportCoefficients() {
 
     // seebeck = - matmul(L_EE_inv, L_ET)
     Eigen::MatrixXd thisSeebeck = -(thisLEE.inverse()) * thisLET;
+    // note: in the unit conversion, I have to consider that S, proportional
+    // to 1/e, gets a negative sign coming from the negative electron charge
+    // Note that below, the correction on kappa is always positive (L_TE L_ET
+    // carries a factor e^2)
+    thisSeebeck *= -1;
+
     // k = L_tt - L_TE L_EE^-1 L_ET
     Eigen::MatrixXd thisKappa = thisLTE * (thisLEE.inverse());
-    thisKappa = thisLTT - thisKappa * thisLET;
-
+    thisKappa = -(thisLTT - thisKappa * thisLET);
     double doping = abs(statisticsSweep.getCalcStatistics(iCalc).doping);
     doping *= pow(distanceBohrToCm, dimensionality); // from cm^-3 to bohr^-3
     for (int i = 0; i < dimensionality; i++) {
       for (int j = 0; j < dimensionality; j++) {
         seebeck(iCalc, i, j) = thisSeebeck(i, j);
         kappa(iCalc, i, j) = thisKappa(i, j);
-        if ( doping > 0. ) {
+        if (doping > 0.) {
           mobility(iCalc, i, j) /= doping;
         }
       }
@@ -176,9 +229,104 @@ void OnsagerCoefficients::calcTransportCoefficients() {
   }
 }
 
+void OnsagerCoefficients::calcFromRelaxons(
+    Eigen::VectorXd &eigenvalues, ParallelMatrix<double> &eigenvectors,
+    ElScatteringMatrix &scatteringMatrix) {
+  int iCalc = 0;
+  double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+  double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+  auto particle = bandStructure.getParticle();
+
+  VectorBTE nE(statisticsSweep, bandStructure, 3);
+  VectorBTE nT(statisticsSweep, bandStructure, 3);
+
+  if (!context.getUseSymmetries()) {
+
+    VectorBTE fE(statisticsSweep, bandStructure, 3);
+    VectorBTE fT(statisticsSweep, bandStructure, 3);
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      int is = std::get<0>(tup0);
+      int alfa = std::get<1>(tup0);
+      if (eigenvalues(alfa) <= 0.) {
+        continue;
+      }
+      auto isIndex = StateIndex(is);
+      double en = bandStructure.getEnergy(isIndex);
+      auto vel = bandStructure.getGroupVelocity(isIndex);
+      for (int i : {0, 1, 2}) {
+        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
+                              eigenvectors(is, alfa) / eigenvalues(alfa);
+        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot) * vel(i) *
+                              eigenvectors(is, alfa) / eigenvalues(alfa);
+      }
+    }
+    mpi->allReduceSum(&fE.data);
+    mpi->allReduceSum(&fT.data);
+
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      int is = std::get<0>(tup0);
+      int alfa = std::get<1>(tup0);
+      for (int i : {0, 1, 2}) {
+        nE(iCalc, i, is) += fE(iCalc, i, alfa) * eigenvectors(is, alfa);
+        nT(iCalc, i, is) += fT(iCalc, i, alfa) * eigenvectors(is, alfa);
+      }
+    }
+    mpi->allReduceSum(&nE.data);
+    mpi->allReduceSum(&nT.data);
+
+  } else { // with symmetries
+
+    Eigen::MatrixXd fE(3, eigenvectors.cols());
+    Eigen::MatrixXd fT(3, eigenvectors.cols());
+    fE.setZero();
+    fT.setZero();
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      int iMat1 = std::get<0>(tup0);
+      int alpha = std::get<1>(tup0);
+      auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
+      BteIndex iBteIndex = std::get<0>(tup1);
+      CartIndex dimIndex = std::get<1>(tup1);
+      int iDim = dimIndex.get();
+      StateIndex isIndex = bandStructure.bteToState(iBteIndex);
+
+      auto vel = bandStructure.getGroupVelocity(isIndex);
+      double en = bandStructure.getEnergy(isIndex);
+      double dndt = particle.getDndt(en, temp, chemPot);
+      double dnde = particle.getDnde(en, temp, chemPot);
+
+      if (eigenvalues(alpha) <= 0.) {
+        continue;
+      }
+      fE(iDim, alpha) +=
+          -dnde * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+      fT(iDim, alpha) +=
+          -dndt * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+    }
+    mpi->allReduceSum(&fT);
+    mpi->allReduceSum(&fE);
+
+    // back rotate to Bloch electron coordinates
+
+    for (auto tup0 : eigenvectors.getAllLocalStates()) {
+      int iMat1 = std::get<0>(tup0);
+      int alpha = std::get<1>(tup0);
+      auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
+      BteIndex iBteIndex = std::get<0>(tup1);
+      CartIndex dimIndex = std::get<1>(tup1);
+      int iBte = iBteIndex.get();
+      int iDim = dimIndex.get();
+      nE(iCalc, iDim, iBte) += fE(iDim, alpha) * eigenvectors(iMat1, alpha);
+      nT(iCalc, iDim, iBte) += fT(iDim, alpha) * eigenvectors(iMat1, alpha);
+    }
+    mpi->allReduceSum(&nE.data);
+    mpi->allReduceSum(&nT.data);
+  }
+  calcFromPopulation(nE, nT);
+}
+
 void OnsagerCoefficients::print() {
   if (!mpi->mpiHead())
-    return; // debugging now
+    return;
 
   std::string unitsSigma, unitsKappa;
   double convSigma, convKappa;
@@ -200,9 +348,9 @@ void OnsagerCoefficients::print() {
   }
 
   double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
-  std::string unitsMobility = "cm^2 / V s";
+  std::string unitsMobility = "cm^2 / V / s";
 
-  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  double convSeebeck = thermopowerAuToSi * 1e6;
   std::string unitsSeebeck = "muV / K";
 
   std::cout << "\n";
@@ -238,7 +386,7 @@ void OnsagerCoefficients::print() {
 
     // Note: in metals, one has conductivity without doping
     // and the mobility = sigma / doping-density is ill-defined
-    if ( abs(doping) > 0. ) {
+    if (abs(doping) > 0.) {
       std::cout << "Carrier mobility (" << unitsMobility << ")\n";
       std::cout.precision(5);
       for (int i = 0; i < dimensionality; i++) {
@@ -284,7 +432,7 @@ void OnsagerCoefficients::print(const int &iter) {
 
   // get the time
   time_t currentTime;
-  currentTime = time(NULL);
+  currentTime = time(nullptr);
   // and format the time nicely
   char s[200];
   struct tm *p = localtime(&currentTime);
@@ -296,13 +444,227 @@ void OnsagerCoefficients::print(const int &iter) {
     double temp = calcStat.temperature;
     std::cout << std::fixed;
     std::cout.precision(2);
-    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout << "T = " << temp * temperatureAuToSi << ", sigma = ";
     std::cout.precision(5);
     for (int i = 0; i < dimensionality; i++) {
       std::cout << std::scientific;
       std::cout << sigma(iCalc, i, i) * elConductivityAuToSi << " ";
     }
     std::cout << "\n";
+    std::cout << std::fixed;
+    std::cout.precision(2);
+    std::cout << "T = " << temp * temperatureAuToSi << ", k = ";
+    std::cout.precision(5);
+    for (int i = 0; i < dimensionality; i++) {
+      std::cout << std::scientific;
+      std::cout << kappa(iCalc, i, i) * thConductivityAuToSi << " ";
+    }
+    std::cout << "\n";
   }
   std::cout << std::endl;
+}
+
+void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
+  if (!mpi->mpiHead())
+    return;
+
+  std::string unitsSigma, unitsKappa;
+  double convSigma, convKappa;
+  if (dimensionality == 1) {
+    unitsSigma = "S m";
+    unitsKappa = "W m / K";
+    convSigma = elConductivityAuToSi * rydbergSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi * rydbergSi;
+  } else if (dimensionality == 2) {
+    unitsSigma = "S";
+    unitsKappa = "W / K";
+    convSigma = elConductivityAuToSi * rydbergSi;
+    convKappa = thConductivityAuToSi * rydbergSi;
+  } else {
+    unitsSigma = "S / m";
+    unitsKappa = "W / m / K";
+    convSigma = elConductivityAuToSi;
+    convKappa = thConductivityAuToSi;
+  }
+
+  double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
+  std::string unitsMobility = "cm^2 / V / s";
+
+  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  std::string unitsSeebeck = "muV / K";
+
+  std::vector<double> temps, dopings, chemPots;
+  std::vector<std::vector<std::vector<double>>> sigmaOut;
+  std::vector<std::vector<std::vector<double>>> mobilityOut;
+  std::vector<std::vector<std::vector<double>>> kappaOut;
+  std::vector<std::vector<std::vector<double>>> seebeckOut;
+  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+
+    // store temperatures
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    temps.push_back(temp * temperatureAuToSi);
+    double doping = calcStat.doping;
+    dopings.push_back(doping); // output in (cm^-3)
+    double chemPot = calcStat.chemicalPotential;
+    chemPots.push_back(chemPot * energyRyToEv); // output in eV
+
+    // store the electrical conductivity for output
+    std::vector<std::vector<double>> rows;
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(sigma(iCalc, i, j) * convSigma);
+      }
+      rows.push_back(cols);
+    }
+    sigmaOut.push_back(rows);
+
+    // store the carrier mobility for output
+    // Note: in metals, one has conductivity without doping
+    // and the mobility = sigma / doping-density is ill-defined
+    if (abs(doping) > 0.) {
+      rows.clear();
+      for (int i = 0; i < dimensionality; i++) {
+        std::vector<double> cols;
+        for (int j = 0; j < dimensionality; j++) {
+          cols.push_back(mobility(iCalc, i, j) * convMobility);
+        }
+        rows.push_back(cols);
+      }
+      mobilityOut.push_back(rows);
+    }
+
+    // store thermal conductivity for output
+    rows.clear();
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(kappa(iCalc, i, j) * convKappa);
+      }
+      rows.push_back(cols);
+    }
+    kappaOut.push_back(rows);
+
+    // store seebeck coefficient for output
+    rows.clear();
+    for (int i = 0; i < dimensionality; i++) {
+      std::vector<double> cols;
+      for (int j = 0; j < dimensionality; j++) {
+        cols.push_back(seebeck(iCalc, i, j) * convSeebeck);
+      }
+      rows.push_back(cols);
+    }
+    seebeckOut.push_back(rows);
+  }
+
+  // output to json
+  nlohmann::json output;
+  output["temperatures"] = temps;
+  output["temperatureUnit"] = "K";
+  output["electricalConductivity"] = sigmaOut;
+  output["electricalConductivityUnit"] = unitsSigma;
+  output["mobility"] = mobilityOut;
+  output["mobilityUnit"] = unitsMobility;
+  output["electronicThermalConductivity"] = kappaOut;
+  output["electronicThermalConductivityUnit"] = unitsKappa;
+  output["seebeckCoefficient"] = seebeckOut;
+  output["seebeckCoefficientUnit"] = unitsSeebeck;
+  output["particleType"] = "electron";
+  std::ofstream o(outFileName);
+  o << std::setw(3) << output << std::endl;
+  o.close();
+}
+
+Eigen::Tensor<double, 3> OnsagerCoefficients::getElectricalConductivity() {
+  return sigma;
+}
+
+Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
+  return kappa;
+}
+
+void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
+                                          VectorBTE &fE, VectorBTE &fT,
+                                          VectorBTE &nE, VectorBTE &nT,
+                                          VectorBTE &scalingCG) {
+  auto nEUnscaled = nE / scalingCG;
+  auto nTUnscaled = nT / scalingCG;
+
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  calcFromCanonicalPopulation(nEUnscaled, nTUnscaled);
+
+  double norm = 1. / crystal.getVolumeUnitCell(dimensionality) /
+                context.getKMesh().prod();
+  auto excludeIndices = fE.excludeIndices;
+
+  sigma = 2 * LEE;
+  kappa = -2 * LTT;
+
+  Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
+#pragma omp parallel default(none)                                             \
+    shared(bandStructure, statisticsSweep, fE, afE, fT, afT, tmpLEE, tmpLTT,   \
+           norm, numCalculations, excludeIndices)
+  {
+    Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
+    Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
+
+#pragma omp for nowait
+    for (int is : bandStructure.parallelIrrStateIterator()) {
+
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
+          excludeIndices.end()) {
+        continue;
+      }
+
+      StateIndex isIdx(is);
+      int iBte = bandStructure.stateToBte(isIdx).get();
+      auto rotations = bandStructure.getRotationsStar(isIdx);
+
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStat.temperature;
+
+        for (Eigen::Matrix3d r : rotations) {
+          Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisAFE = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisFT = Eigen::Vector3d::Zero();
+          Eigen::Vector3d thisAFT = Eigen::Vector3d::Zero();
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              thisFE(i) += r(i, j) * fE(iCalc, j, iBte);
+              thisAFE(i) += r(i, j) * afE(iCalc, j, iBte);
+              thisFT(i) += r(i, j) * fT(iCalc, j, iBte);
+              thisAFT(i) += r(i, j) * afT(iCalc, j, iBte);
+            }
+          }
+
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              tmpLEEPrivate(iCalc, i, j) +=
+                  thisFE(i) * thisAFE(j) * norm * temp;
+              tmpLTTPrivate(iCalc, i, j) +=
+                  thisFT(i) * thisAFT(j) * norm * temp * temp;
+            }
+          }
+        }
+      }
+    }
+#pragma omp critical
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      for (int i : {0, 1, 2}) {
+        for (int j : {0, 1, 2}) {
+          tmpLEE(iCalc, i, j) += tmpLEEPrivate(iCalc, i, j);
+          tmpLTT(iCalc, i, j) += tmpLTTPrivate(iCalc, i, j);
+        }
+      }
+    }
+  }
+  mpi->allReduceSum(&tmpLEE);
+  mpi->allReduceSum(&tmpLTT);
+  sigma -= 2 * tmpLEE;
+  kappa += 2 * tmpLTT;
 }
