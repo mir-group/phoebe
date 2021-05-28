@@ -283,16 +283,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                         if (i == 0 && j == 0) {
                           linewidth->operator()(iCalc, 0, iBte1) += rate;
                         }
-                        theMatrix(iMat1, iMat2) +=
-                            rotation(i, j) * rateOffDiagonal;
+                        if (is1 != is2Irr) {
+                          theMatrix(iMat1, iMat2) +=
+                              rotation.inverse()(i, j) * rateOffDiagonal;
+                        }
                       }
                     }
                   }
                 } else {
                   if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                     linewidth->operator()(iCalc, 0, iBte1) += rate;
-                    theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
+                  theMatrix(iBte1, iBte2) += rateOffDiagonal;
                 }
               } else if (switchCase == 1) {
                 // case of matrix-vector multiplication
@@ -305,11 +307,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   for (int i : {0, 1, 2}) {
                     for (int j : {0, 1, 2}) {
                       inPopRot(i) +=
-                          rotation(i, j) * inPopulations[iVec](iCalc, j, iBte2);
+                          rotation.inverse()(i, j)
+                          * inPopulations[iVec](iCalc, j, iBte2);
                     }
                   }
                   for (int i : {0, 1, 2}) {
-                    if (iBte1 != iBte2) {
+                    if (is1 != is2Irr) {
                       outPopulations[iVec](iCalc, i, iBte1) +=
                           rateOffDiagonal * inPopRot(i);
                     }
