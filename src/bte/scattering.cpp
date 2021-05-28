@@ -163,8 +163,7 @@ VectorBTE ScatteringMatrix::diagonal() {
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   if (highMemory) {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
     if (context.getUseSymmetries()) {
@@ -234,8 +233,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
 
 VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
   if (highMemory) {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
     if (context.getUseSymmetries()) {
@@ -281,8 +279,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     mpi->allReduceSum(&outPopulation.data);
     return outPopulation;
   } else {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     outPopulation.data.setZero();
     std::vector<VectorBTE> outPopulations;
     std::vector<VectorBTE> inPopulations;
@@ -298,8 +295,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
   if (highMemory) {
     std::vector<VectorBTE> outPopulations;
     for (auto inPopulation : inPopulations) {
-      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                              inPopulation.dimensionality);
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulation = dot(inPopulation);
       outPopulations.push_back(outPopulation);
     }
@@ -307,8 +303,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
   } else {
     std::vector<VectorBTE> outPopulations;
     for (auto &inPopulation : inPopulations) {
-      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                              inPopulation.dimensionality);
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulations.push_back(outPopulation);
     }
     builder(nullptr, inPopulations, outPopulations);
@@ -949,14 +944,18 @@ void ScatteringMatrix::symmetrize() {
           int iMat2 = std::get<1>(tup);
           int jMat1, jMat2;
           if (context.getUseSymmetries()) {
+            Error("Symmetrization of the scattering matrix with symmetries"
+                  " is not verified");
+            // The matrix may not be symmetric
+
             auto t1 = getSMatrixIndex(iMat1);
             auto t2 = getSMatrixIndex(iMat2);
             BteIndex iBte1 = std::get<0>(t1);
             BteIndex iBte2 = std::get<0>(t2);
             CartIndex ii = std::get<1>(t1);
             CartIndex jj = std::get<1>(t2);
-            jMat1 = getSMatrixIndex(iBte1, jj);
-            jMat2 = getSMatrixIndex(iBte2, ii);
+            jMat1 = getSMatrixIndex(iBte1, ii);
+            jMat2 = getSMatrixIndex(iBte2, jj);
           } else {
             jMat1 = iMat1;
             jMat2 = iMat2;

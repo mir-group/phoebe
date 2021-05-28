@@ -197,14 +197,13 @@ void PhononThermalConductivity::calcFromRelaxons(
     ParallelMatrix<double> &eigenvectors, PhScatteringMatrix &scatteringMatrix,
     const Eigen::VectorXd &eigenvalues) {
 
-  int dimensionality = context.getDimensionality();
   auto particle = bandStructure.getParticle();
 
   int iCalc = 0;
-  double temp = statisticsSweep.getCalcStatistics(0).temperature;
-  double chemPot = statisticsSweep.getCalcStatistics(0).chemicalPotential;
+  double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+  double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
 
-  VectorBTE population(statisticsSweep, bandStructure, dimensionality);
+  VectorBTE population(statisticsSweep, bandStructure, 3);
 
   if (context.getUseSymmetries()) {
 
@@ -222,16 +221,16 @@ void PhononThermalConductivity::calcFromRelaxons(
         int iMat1 = std::get<0>(tup0);
         int alpha = std::get<1>(tup0);
         auto tup1 = scatteringMatrix.getSMatrixIndex(iMat1);
-        BteIndex iBteIndex = std::get<0>(tup1);
-        CartIndex dimIndex = std::get<1>(tup1);
-        int iDim = dimIndex.get();
-        StateIndex isIndex = bandStructure.bteToState(iBteIndex);
+        BteIndex iBteIdx = std::get<0>(tup1);
+        CartIndex dimIdx = std::get<1>(tup1);
+        StateIndex isIdx = bandStructure.bteToState(iBteIdx);
+        int iDim = dimIdx.get();
         //
-        auto vel = bandStructure.getGroupVelocity(isIndex);
-        double en = bandStructure.getEnergy(isIndex);
+        auto vel = bandStructure.getGroupVelocity(isIdx);
+        double en = bandStructure.getEnergy(isIdx);
         double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
         double dndt = particle.getDndt(en, temp, chemPot);
-        if (eigenvalues(alpha) > 0.) {
+        if (eigenvalues(alpha) > 0. && en > 0.) {
           relPopPrivate(alpha) += dndt / term * vel(iDim) *
                                   eigenvectors(iMat1, alpha) /
                                   eigenvalues(alpha);
@@ -287,11 +286,11 @@ void PhononThermalConductivity::calcFromRelaxons(
 #pragma omp for nowait
       for (auto tup0 : eigenvectors.getAllLocalStates()) {
         int is = std::get<0>(tup0);
+
         StateIndex isIdx(is);
         int alpha = std::get<1>(tup0);
-        //
         double en = bandStructure.getEnergy(isIdx);
-        if (eigenvalues(alpha) > 0. && en >= 0.) {
+        if (eigenvalues(alpha) > 0. && en > 0.) {
           auto vel = bandStructure.getGroupVelocity(isIdx);
           double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
           double dndt = particle.getDndt(en, temp, chemPot);
