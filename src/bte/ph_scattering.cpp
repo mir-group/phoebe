@@ -386,7 +386,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                      linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    }
                     theMatrix(iBte1, iBte2) += ratePlus;
                   }
 
@@ -486,8 +488,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) +=
-                        0.5 * (rateMinus1 + rateMinus2);
+                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                      linewidth->operator()(iCalc, 0, iBte1) +=
+                          0.5 * (rateMinus1 + rateMinus2);
+                    }
                     theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
                   }
 
@@ -646,7 +650,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                 } else {
-                  linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                  if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                    linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                  }
                   theMatrix(iBte1, iBte2) += rateIso;
                 }
 
