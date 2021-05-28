@@ -5,6 +5,7 @@
 #include "utilities.h"
 #include "eigen.h"
 #include "mpi/mpiHelper.h"
+#include <iomanip>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -206,20 +207,22 @@ void Crystal::print() {
   if(!mpi->mpiHead()) return;
   // print the lattice vectors
   std::cout << "\nDirect lattice vectors (ang)" << std::endl;
+  std::cout << "       a1     |     a2     |    a3" << std::endl;
   for(int i = 0; i<3; i++) {
-    fprintf(stdout,"  %.8f  %.8f  %.8f\n",
-        directUnitCell(i,0)*distanceBohrToAng,
-        directUnitCell(i,1)*distanceBohrToAng,
-        directUnitCell(i,2)*distanceBohrToAng);
+    std::cout << std::fixed << std::setprecision(8);
+    std::cout << std::setw(13) << directUnitCell(i,0)*distanceBohrToAng;
+    std::cout << std::setw(13) << directUnitCell(i,1)*distanceBohrToAng;
+    std::cout << std::setw(13) << directUnitCell(i,2)*distanceBohrToAng;
+    std::cout << "\n";
   }
   // print the atomic positions
   std::cout << "Atomic Positions (Cartesian, ang)" << std::endl;
   for(int i = 0; i<numAtoms; i++) {
-    char buffer[100];
-    sprintf(buffer," %.8f  %.8f  %.8f\n", atomicPositions(i,0)*distanceBohrToAng,
-        atomicPositions(i,1)*distanceBohrToAng,
-        atomicPositions(i,2)*distanceBohrToAng);
-    std::cout << "  " << speciesNames[atomicSpecies[i]] << buffer;
+    std::cout << std::setw(3) << speciesNames[atomicSpecies[i]];
+    std::cout << std::setw(13) << atomicPositions(i,0)*distanceBohrToAng;
+    std::cout << std::setw(13) << atomicPositions(i,1)*distanceBohrToAng;
+    std::cout << std::setw(13) << atomicPositions(i,2)*distanceBohrToAng;
+    std::cout << "\n";
   }
   std::cout << std::endl;
 }
