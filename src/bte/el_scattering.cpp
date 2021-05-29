@@ -203,6 +203,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       WavevectorIndex ik2IrrIdx(ik2Irr);
 
       Eigen::VectorXd state2Energies = allState2Energies[ik2Counter];
+      Eigen::MatrixXd v2s = allV2s[ik2Counter];
 
       Eigen::MatrixXd bose3Data = allBose3Data[ik2Counter];
       Eigen::MatrixXd v3s = allV3s[ik2Counter];
@@ -240,7 +241,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
             } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-              Eigen::Vector3d smear = v3s.row(ib3);
+              // Eigen::Vector3d smear = v3s.row(ib3);
+              Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib1);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
             } else {
@@ -339,7 +341,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   }
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
-
 
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future
