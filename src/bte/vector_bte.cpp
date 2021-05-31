@@ -53,15 +53,16 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
 
     auto isIndex = StateIndex(is);
     BteIndex iBteIdx = bandStructure.stateToBte(isIndex);
+    int iBte = iBteIdx.get();
     auto rotationsStar = bandStructure.getRotationsStar(isIndex);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
-      for (Eigen::Matrix3d rot : rotationsStar) {
+      for (const Eigen::Matrix3d &rot : rotationsStar) {
         Eigen::Vector3d x = Eigen::Vector3d::Zero();
         Eigen::Vector3d y = Eigen::Vector3d::Zero();
         for (int i : {0,1,2}) {
           for (int j : {0, 1, 2}) {
-            x(i) += rot(i,j) * operator()(iCalc, j, iBteIdx.get());
-            y(i) += rot(i,j) * that(iCalc, j, iBteIdx.get());
+            x(i) += rot(i,j) * operator()(iCalc, j, iBte);
+            y(i) += rot(i,j) * that(iCalc, j, iBte);
           }
         }
         for (int i : {0,1,2}) {
