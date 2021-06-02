@@ -302,7 +302,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
     return outPopulations;
   } else {
     std::vector<VectorBTE> outPopulations;
-    for (auto &inPopulation : inPopulations) {
+    for (unsigned int i=0; i<inPopulations.size(); i++) {
       VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulations.push_back(outPopulation);
     }
