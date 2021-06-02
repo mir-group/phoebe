@@ -384,13 +384,15 @@ void StatisticsSweep::printInfo() {
     double chemPot = infoCalcs(iCalc, 1);
     double doping = infoCalcs(iCalc, 2);
 
+    std::cout << std::fixed << std::setprecision(6);
     std::cout << "iCalc = " << iCalc << ", T = " << temp * temperatureAuToSi
               << " (K)";
     if (particle.isPhonon()) {
       std::cout << "\n";
     } else {
       std::cout << ", mu = " << chemPot * energyRyToEv << " (eV)"
-                << ", n = " << doping << " (cm^-3)" << std::endl;
+                << ", n = " << std::scientific
+                << doping << " (cm^-3)" << std::endl;
     }
   }
   std::cout << std::endl;

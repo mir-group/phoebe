@@ -163,8 +163,7 @@ VectorBTE ScatteringMatrix::diagonal() {
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   if (highMemory) {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
     if (context.getUseSymmetries()) {
@@ -234,8 +233,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
 
 VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
   if (highMemory) {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
     if (context.getUseSymmetries()) {
@@ -281,8 +279,7 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     mpi->allReduceSum(&outPopulation.data);
     return outPopulation;
   } else {
-    VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                            inPopulation.dimensionality);
+    VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     outPopulation.data.setZero();
     std::vector<VectorBTE> outPopulations;
     std::vector<VectorBTE> inPopulations;
@@ -298,17 +295,15 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
   if (highMemory) {
     std::vector<VectorBTE> outPopulations;
     for (auto inPopulation : inPopulations) {
-      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                              inPopulation.dimensionality);
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulation = dot(inPopulation);
       outPopulations.push_back(outPopulation);
     }
     return outPopulations;
   } else {
     std::vector<VectorBTE> outPopulations;
-    for (auto &inPopulation : inPopulations) {
-      VectorBTE outPopulation(statisticsSweep, outerBandStructure,
-                              inPopulation.dimensionality);
+    for (unsigned int i=0; i<inPopulations.size(); i++) {
+      VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulations.push_back(outPopulation);
     }
     builder(nullptr, inPopulations, outPopulations);
@@ -949,14 +944,18 @@ void ScatteringMatrix::symmetrize() {
           int iMat2 = std::get<1>(tup);
           int jMat1, jMat2;
           if (context.getUseSymmetries()) {
+            Error("Symmetrization of the scattering matrix with symmetries"
+                  " is not verified");
+            // The matrix may not be symmetric
+
             auto t1 = getSMatrixIndex(iMat1);
             auto t2 = getSMatrixIndex(iMat2);
             BteIndex iBte1 = std::get<0>(t1);
             BteIndex iBte2 = std::get<0>(t2);
             CartIndex ii = std::get<1>(t1);
             CartIndex jj = std::get<1>(t2);
-            jMat1 = getSMatrixIndex(iBte1, jj);
-            jMat2 = getSMatrixIndex(iBte2, ii);
+            jMat1 = getSMatrixIndex(iBte1, ii);
+            jMat2 = getSMatrixIndex(iBte2, jj);
           } else {
             jMat1 = iMat1;
             jMat2 = iMat2;
@@ -989,5 +988,46 @@ void ScatteringMatrix::symmetrize() {
       }
     }
     theMatrix = newMatrix;
+  }
+}
+
+void ScatteringMatrix::degeneracyAveragingLinewidths(VectorBTE *linewidth) {
+  for (int ik : outerBandStructure.irrPointsIterator()) {
+    WavevectorIndex ikIdx(ik);
+    Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
+    int numBands = en.size();
+
+    Eigen::VectorXd linewidthTmp(numBands);
+    linewidthTmp.setZero();
+
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      double ekk = en(ib1);
+      int n = 0;
+      double tmp2 = 0.;
+      for (int ib2 = 0; ib2 < numBands; ib2++) {
+        double ekk2 = en(ib2);
+
+        BandIndex ibIdx(ib2);
+        int is = outerBandStructure.getIndex(ikIdx, ibIdx);
+        StateIndex isIdx(is);
+        BteIndex ind1Idx = outerBandStructure.stateToBte(isIdx);
+        int iBte1 = ind1Idx.get();
+
+        if (abs(ekk2 - ekk) < 1.0e-6) {
+          n++;
+          tmp2 = tmp2 + linewidth->data(0, iBte1);
+        }
+      }
+      linewidthTmp(ib1) = tmp2 / float(n);
+    }
+
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      BandIndex ibIdx(ib1);
+      int is = outerBandStructure.getIndex(ikIdx, ibIdx);
+      StateIndex isIdx(is);
+      BteIndex ind1Idx = outerBandStructure.stateToBte(isIdx);
+      int iBte1 = ind1Idx.get();
+      linewidth->data(0, iBte1) = linewidthTmp(ib1);
+    }
   }
 }
