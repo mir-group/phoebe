@@ -706,6 +706,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
+  // Average over degenerate eigenstates.
+  // we turn it off for now and leave the code if needed in the future
+  if (switchCase == 2) {
+    degeneracyAveragingLinewidths(linewidth);
+  }
+
   // Add boundary scattering
   if (doBoundary) {
 #pragma omp parallel for default(none)                                         \
