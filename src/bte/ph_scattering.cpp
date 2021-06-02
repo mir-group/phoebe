@@ -333,11 +333,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
 
               double en3Plus = energies3Plus(ib3);
-              if (en1 < energyCutoff || en2 < energyCutoff ||
-                  en3Plus < energyCutoff) {
+              double enProd = en1 * en2 * en3Plus;
+              if (enProd < energyCutoff) {
+                // Note: don't split this if with three conditions on energies
+                // such as (en3Plus < energyCutoff || en1 < energyCutoff ||
+                // en2 < energyCutoff)
+                // This can cause spikes in the lifetimes.in examples!
                 continue;
               }
-              double enProd = en1 * en2 * en3Plus;
 
               double deltaPlus;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -350,7 +353,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
               }
 
-              if (deltaPlus < 0) {
+              if (deltaPlus <= 0.) {
                 continue;
               }
 
@@ -362,8 +365,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
                 // Calculate transition probability W+
                 double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                                  couplingPlus(ib1, ib2, ib3) * deltaPlus *
-                                  norm / enProd;
+                    couplingPlus(ib1, ib2, ib3) * deltaPlus *
+                    norm / enProd;
 
                 if (switchCase == 0) { // case of matrix construction
                   if (context.getUseSymmetries()) {
@@ -425,11 +428,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
               double en3Minus = energies3Minus(ib3);
-              if (en1 < energyCutoff || en2 < energyCutoff ||
-                  en3Minus < energyCutoff) {
+              double enProd = en1 * en2 * en3Minus;
+              if (enProd < energyCutoff) {
+                // Note: don't split this if with three conditions on energies
+                // such as (en3Minus < energyCutoff || en1 < energyCutoff ||
+                // en2 < energyCutoff)
+                // This can cause spikes in the lifetimes.in examples!
                 continue;
               }
-              double enProd = en1 * en2 * en3Minus;
 
               double deltaMinus1, deltaMinus2;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -446,7 +452,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaMinus2 = smearing->getSmearing(en1 - en3Minus, is2Idx);
               }
 
-              if (deltaMinus1 < 0. && deltaMinus2 < 0.)
+              if (deltaMinus1 <= 0. && deltaMinus2 <= 0.)
                 continue;
               if (deltaMinus1 < 0.)
                 deltaMinus1 = 0.;
