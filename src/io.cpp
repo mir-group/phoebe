@@ -149,6 +149,19 @@ void IO::goodbye(Context &context) {
         "\tReviews of Modern Physics 84, no. 4 (2012): 1419.\n" << std::endl;
   }
 
+  // Electron-phonon from ab-initio
+  if(context.getAppName() == "electronWannierBands" ||
+      context.getAppName() == "electronWannierDos" ||
+      context.getAppName() == "electronLifetimes" ||
+      context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the use of ab-initio electron-phonon coupling:" << std::endl;
+    std::cout << "\tS. Piscanec, M. Lazzeri, Francesco Mauri, A. C. Ferrari, and J. Robertson.\n" <<
+              //    "\tKohn Anomalies and Electron-Phonon Interactions in Graphite.\n" <<
+              "\tPhysical Review Letters 93, 185503 (2004)\n" << std::endl;
+    // At least, I think it's this one. Subroutine elphel() in QE was
+    // written by F. Mauri, but it's unclear when and for what article
+  }
+
   if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
     std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
     std::cout << "\tL. Chaput.\n" <<

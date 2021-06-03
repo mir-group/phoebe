@@ -302,7 +302,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
     return outPopulations;
   } else {
     std::vector<VectorBTE> outPopulations;
-    for (auto &inPopulation : inPopulations) {
+    for (unsigned int i=0; i<inPopulations.size(); i++) {
       VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulations.push_back(outPopulation);
     }
@@ -988,5 +988,46 @@ void ScatteringMatrix::symmetrize() {
       }
     }
     theMatrix = newMatrix;
+  }
+}
+
+void ScatteringMatrix::degeneracyAveragingLinewidths(VectorBTE *linewidth) {
+  for (int ik : outerBandStructure.irrPointsIterator()) {
+    WavevectorIndex ikIdx(ik);
+    Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
+    int numBands = en.size();
+
+    Eigen::VectorXd linewidthTmp(numBands);
+    linewidthTmp.setZero();
+
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      double ekk = en(ib1);
+      int n = 0;
+      double tmp2 = 0.;
+      for (int ib2 = 0; ib2 < numBands; ib2++) {
+        double ekk2 = en(ib2);
+
+        BandIndex ibIdx(ib2);
+        int is = outerBandStructure.getIndex(ikIdx, ibIdx);
+        StateIndex isIdx(is);
+        BteIndex ind1Idx = outerBandStructure.stateToBte(isIdx);
+        int iBte1 = ind1Idx.get();
+
+        if (abs(ekk2 - ekk) < 1.0e-6) {
+          n++;
+          tmp2 = tmp2 + linewidth->data(0, iBte1);
+        }
+      }
+      linewidthTmp(ib1) = tmp2 / float(n);
+    }
+
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      BandIndex ibIdx(ib1);
+      int is = outerBandStructure.getIndex(ikIdx, ibIdx);
+      StateIndex isIdx(is);
+      BteIndex ind1Idx = outerBandStructure.stateToBte(isIdx);
+      int iBte1 = ind1Idx.get();
+      linewidth->data(0, iBte1) = linewidthTmp(ib1);
+    }
   }
 }

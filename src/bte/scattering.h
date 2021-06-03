@@ -236,6 +236,19 @@ public:
   std::vector<std::tuple<std::vector<int>, int>>
   getIteratorWavevectorPairs(const int &switchCase,
                              const bool &rowMajor = false);
+
+  /** Performs an average of the linewidths over degenerate states.
+   * This is necessary since the coupling |V_3| is not averaged over different
+   * states, and hence introduces differences between degenerate states.
+   * Note: don't use this function when computing the scattering matrix, but
+   * only for computing lifetimes or the RTA approximation. If one wants to do
+   * something similar when computing the full scattering matrix (in memory)
+   * one should either average the coupling or somehow average rows and columns
+   * of the scattering matrix.
+   * @param linewidth: a pointer (the one passed to builder()) containing the
+   * linewidths to be averaged.
+   */
+  void degeneracyAveragingLinewidths(VectorBTE *linewidth);
 };
 
 #endif
