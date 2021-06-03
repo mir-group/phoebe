@@ -322,12 +322,6 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   // very rough estimate: geg/4/alpha > gmax = 14
   // (exp (-14) = 10^-6)
 
-  int nr1x, nr2x, nr3x;
-  Eigen::VectorXd zag(3), zbg(3), zcg(3), fnat(3);
-  Eigen::MatrixXd reff(2, 2);
-  double fac, facgd, arg;
-  std::complex<double> facg;
-
   double gmax = 14.;
   double alpha = 1.;
   double geg = gmax * alpha * 4.;
@@ -337,19 +331,16 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   // and nr2=1, then the G-vectors run along nr3 only.
   // (useful if system is in vacuum, e.g. 1D or 2D)
 
-  if (qCoarseGrid(0) == 1) {
-    nr1x = 0;
-  } else {
+  int nr1x = 0;
+  if (qCoarseGrid(0) > 1) {
     nr1x = (int)(sqrt(geg) / reciprocalUnitCell.col(0).norm()) + 1;
   }
-  if (qCoarseGrid(1) == 1) {
-    nr2x = 0;
-  } else {
+  int nr2x = 0;
+  if (qCoarseGrid(1) > 1) {
     nr2x = (int)(sqrt(geg) / reciprocalUnitCell.col(1).norm()) + 1;
   }
-  if (qCoarseGrid(2) == 1) {
-    nr3x = 0;
-  } else {
+  int nr3x = 0;
+  if (qCoarseGrid(2) > 1) {
     nr3x = (int)(sqrt(geg) / reciprocalUnitCell.col(2).norm()) + 1;
   }
 
@@ -357,13 +348,12 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     Error("wrong value for sign");
   }
 
-  fac = double(sign) * e2 * fourPi / volumeUnitCell;
+  double norm = double(sign) * e2 * fourPi / volumeUnitCell;
 
-  Eigen::VectorXd g(3);
-  std::complex<double> phase;
   for (int m1 = -nr1x; m1 <= nr1x; m1++) {
     for (int m2 = -nr2x; m2 <= nr2x; m2++) {
       for (int m3 = -nr3x; m3 <= nr3x; m3++) {
+        Eigen::Vector3d g;
         g(0) = double(m1) * reciprocalUnitCell(0, 0) + double(m2) * reciprocalUnitCell(0, 1) +
             double(m3) * reciprocalUnitCell(0, 2);
         g(1) = double(m1) * reciprocalUnitCell(1, 0) + double(m2) * reciprocalUnitCell(1, 1) +
@@ -373,28 +363,33 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
         geg = (g.transpose() * dielectricMatrix * g).value();
 
-        if (geg > 0. && geg / alpha / 4. < gmax) {
-          facgd = fac * exp(-geg / alpha / 4.) / geg;
+        if (geg > 0. && geg < 4. * gmax) {
+          double normG = norm * exp(-geg * 0.25) / geg;
+//        if (geg > 0. && geg / alpha / 4. < gmax) {
+//          double facgd = fac * exp(-geg / alpha / 4.) / geg;
 
+          Eigen::MatrixXd gZ(3,numAtoms);
           for (int na = 0; na < numAtoms; na++) {
             for (int i : {0, 1, 2}) {
-              zag(i) = g(0) * bornCharges(na, 0, i) +
+              gZ(i,na) = g(0) * bornCharges(na, 0, i) +
                        g(1) * bornCharges(na, 1, i) +
                        g(2) * bornCharges(na, 2, i);
+            }
+          }
+
+          for (int na = 0; na < numAtoms; na++) {
+            Eigen::Vector3d fnat = Eigen::Vector3d::Zero();
+            for (int i : {0, 1, 2}) {
               fnat(i) = 0.;
               for (int nb = 0; nb < numAtoms; nb++) {
-                arg =
+                double arg =
                     (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
-                zcg(i) = g(0) * bornCharges(nb, 0, i) +
-                         g(1) * bornCharges(nb, 1, i) +
-                         g(2) * bornCharges(nb, 2, i);
-                fnat(i) += zcg(i) * cos(arg);
+                fnat(i) += gZ(i,nb) * cos(arg);
               }
             }
-
-            for (int i : {0, 1, 2}) {
-              for (int j : {0, 1, 2}) {
-                dyn(i, j, na, na) += -facgd * zag(i) * fnat(j);
+            for (int j : {0, 1, 2}) {
+              for (int i : {0, 1, 2}) {
+                dyn(i, j, na, na) += - normG * gZ(i,na) * fnat(j);
               }
             }
           }
@@ -404,27 +399,27 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
         geg = (g.transpose() * dielectricMatrix * g).value();
 
-        if (geg > 0. && geg / alpha / 4. < gmax) {
-          facgd = fac * exp(-geg / alpha / 4.) / geg;
+        if (geg > 0. && geg < 4. * gmax) {
+          double normG = norm * exp(-geg * 0.25) / geg;
+//        if (geg > 0. && geg / alpha / 4. < gmax) {
+//          double normG = norm * exp(-geg / alpha / 4.) / geg;
 
+          Eigen::MatrixXd gqZ(3,numAtoms);
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int i : {0, 1, 2}) {
-              zbg(i) = g(0) * bornCharges(nb, 0, i) +
+              gqZ(i,nb) = g(0) * bornCharges(nb, 0, i) +
                        g(1) * bornCharges(nb, 1, i) +
                        g(2) * bornCharges(nb, 2, i);
             }
+          }
+
+          for (int nb = 0; nb < numAtoms; nb++) {
             for (int na = 0; na < numAtoms; na++) {
-              for (int i : {0, 1, 2}) {
-                zag(i) = g(0) * bornCharges(na, 0, i) +
-                         g(1) * bornCharges(na, 1, i) +
-                         g(2) * bornCharges(na, 2, i);
-              }
-              arg = (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
-              phase = {cos(arg), sin(arg)};
-              facg = facgd * phase;
-              for (int i : {0, 1, 2}) {
-                for (int j : {0, 1, 2}) {
-                  dyn(i, j, na, nb) += facg * zag(i) * zbg(j);
+              double arg = (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
+              std::complex<double> phase = {cos(arg), sin(arg)};
+              for (int j : {0, 1, 2}) {
+                for (int i : {0, 1, 2}) {
+                  dyn(i, j, na, nb) += normG * phase * gqZ(i,na) * gqZ(j,nb);
                 }
               }
             }

@@ -203,6 +203,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       WavevectorIndex ik2IrrIdx(ik2Irr);
 
       Eigen::VectorXd state2Energies = allState2Energies[ik2Counter];
+      Eigen::MatrixXd v2s = allV2s[ik2Counter];
 
       Eigen::MatrixXd bose3Data = allBose3Data[ik2Counter];
       Eigen::MatrixXd v3s = allV3s[ik2Counter];
@@ -240,7 +241,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               delta1 = smearing->getSmearing(en1 - en2 + en3);
               delta2 = smearing->getSmearing(en1 - en2 - en3);
             } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-              Eigen::Vector3d smear = v3s.row(ib3);
+              // Eigen::Vector3d smear = v3s.row(ib3);
+              Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib1);
               delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
               delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
             } else {
@@ -283,16 +285,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                         if (i == 0 && j == 0) {
                           linewidth->operator()(iCalc, 0, iBte1) += rate;
                         }
-                        theMatrix(iMat1, iMat2) +=
-                            rotation(i, j) * rateOffDiagonal;
+                        if (is1 != is2Irr) {
+                          theMatrix(iMat1, iMat2) +=
+                              rotation.inverse()(i, j) * rateOffDiagonal;
+                        }
                       }
                     }
                   }
                 } else {
                   if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                     linewidth->operator()(iCalc, 0, iBte1) += rate;
-                    theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
+                  theMatrix(iBte1, iBte2) += rateOffDiagonal;
                 }
               } else if (switchCase == 1) {
                 // case of matrix-vector multiplication
@@ -305,11 +309,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   for (int i : {0, 1, 2}) {
                     for (int j : {0, 1, 2}) {
                       inPopRot(i) +=
-                          rotation(i, j) * inPopulations[iVec](iCalc, j, iBte2);
+                          rotation.inverse()(i, j)
+                          * inPopulations[iVec](iCalc, j, iBte2);
                     }
                   }
                   for (int i : {0, 1, 2}) {
-                    if (iBte1 != iBte2) {
+                    if (is1 != is2Irr) {
                       outPopulations[iVec](iCalc, i, iBte1) +=
                           rateOffDiagonal * inPopRot(i);
                     }
@@ -337,44 +342,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
-
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future
-  if (false) {
-    int numKPoints = outerBandStructure.getNumPoints();
-
-    for (int ik = 0; ik < numKPoints; ik++) {
-      WavevectorIndex ikIdx(ik);
-      Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
-      int numBands = en.size();
-
-      Eigen::VectorXd linewidthTmp(numBands);
-      linewidthTmp.setZero();
-
-      for (int ib1 = 0; ib1 < numBands; ib1++) {
-        double ekk = en(ib1);
-        int n = 0;
-        double tmp2 = 0.;
-        for (int ib2 = 0; ib2 < numBands; ib2++) {
-          double ekk2 = en(ib2);
-
-          BandIndex ibIdx(ib2);
-          int is = outerBandStructure.getIndex(ikIdx, ibIdx);
-
-          if (abs(ekk2 - ekk) < 1.0e-6) {
-            n++;
-            tmp2 = tmp2 + linewidth->data(0, is);
-          }
-        }
-        linewidthTmp(ib1) = tmp2 / float(n);
-      }
-
-      for (int ib1 = 0; ib1 < numBands; ib1++) {
-        BandIndex ibIdx(ib1);
-        int is = outerBandStructure.getIndex(ikIdx, ibIdx);
-        linewidth->data(0, is) = linewidthTmp(ib1);
-      }
-    }
+  if (switchCase == 2) {
+    degeneracyAveragingLinewidths(linewidth);
   }
 
   // Add boundary scattering
@@ -420,10 +391,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
-        // this gets us the state index of the qpoint
-        // on the irreducible zone wedge
-        auto is = outerBandStructure.bteToState(iBteIdx);
-
         // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
           CartIndex iCart(i);

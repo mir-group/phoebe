@@ -78,7 +78,8 @@ if __name__ == "__main__":
         except KeyError:
             raise KeyError("relaxation times not found."
                            "Are you using the correct input json file?")
-        
+
+    particleType = data['particleType']
         
     if len(np.array(data['relaxationTimes']).shape) == 3:
         energies, tau, linewidths = noWindow(data,jfileName,calcIndex)
@@ -105,7 +106,8 @@ if __name__ == "__main__":
         plt.ylabel(r'$\{}_{{'.format(name) + data['particleType'] + '}$' +
                    units, fontsize=12)
 
-        plt.xlim(0,None)
+        if (particleType=="phonon"):
+            plt.xlim(0,None)
 
         # Find limits of the y axis
         zeroIndex = np.argwhere(y<=0.)

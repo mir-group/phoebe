@@ -132,8 +132,30 @@ void ElectronWannierTransportApp::run(Context &context) {
     Error("If scattering matrix is kept in memory, only one "
           "temperature/chemical potential is allowed in a run");
   }
+  if (doRelaxons && context.getUseSymmetries()) {
+    Error("Relaxon solver only works without symmetries");
+    // Note: this is a problem of the theory I suppose
+    // because the scattering matrix may not be anymore symmetric
+    // or may require some modifications to make it work
+    // that we didn't have yet thought of
+  }
+  if (doVariational && context.getUseSymmetries()) {
+    Error("Variational solver only works without symmetries");
+    // Note: this is a problem of the theory I suppose
+    // because the scattering matrix may not be anymore symmetric
+    // or may require some modifications to make it work
+    // that we didn't yet think of
+  }
 
-  mpi->barrier();
+  if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
+    if (doVariational || doRelaxons || doIterative) {
+      // reinforce the condition that the scattering matrix is symmetric
+      // A -> ( A^T + A ) / 2
+      // this helps removing negative eigenvalues which may appear due to noise
+      scatteringMatrix.symmetrize();
+      // it may not be necessary, so it's commented out
+    }
+  }
 
   if (doIterative) {
 
@@ -150,8 +172,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     Eigen::Tensor<double, 3> elCondOld = elCond;
     Eigen::Tensor<double, 3> thCondOld = thCond;
 
-    VectorBTE nENext(statisticsSweep, bandStructure, dimensionality);
-    VectorBTE nTNext(statisticsSweep, bandStructure, dimensionality);
+    VectorBTE nENext(statisticsSweep, bandStructure, 3);
+    VectorBTE nTNext(statisticsSweep, bandStructure, 3);
 
     VectorBTE lineWidths = scatteringMatrix.getLinewidths();
     VectorBTE nEOld = nERTA;

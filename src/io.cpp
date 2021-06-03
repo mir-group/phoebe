@@ -127,9 +127,8 @@ void IO::goodbye(Context &context) {
     //    "\tUnified theory of thermal transport in crystals and glasses.\n" <<
         "\tNature Physics, 15(8), (2019). pp.809-813.\n" << std::endl;
     std::cout << "\tA. Cepellotti and B. Kozinsky.\n" <<
-    //    "\tAb-initio electronic transport in narrow gap " <<
-    //    "semiconductors using the Wigner distribution.\n" <<
-        "\t(2020). arXiv preprint arXiv:2004.07358\n" << std::endl;
+    //    "\tInterband tunneling effects on materials transport properties using the first principles Wigner distribution.\n" <<
+        "\tMaterials Today Physics 19, 100412 (2021).\n" << std::endl;
   }
   // EPA
   if(context.getElPhInterpolation() == "epa" || context.getAppName() == "transportEpa") {
@@ -149,6 +148,27 @@ void IO::goodbye(Context &context) {
     //    "\tMaximally localized Wannier functions: Theory and applications.\n" <<
         "\tReviews of Modern Physics 84, no. 4 (2012): 1419.\n" << std::endl;
   }
+
+  // Electron-phonon from ab-initio
+  if(context.getAppName() == "electronWannierBands" ||
+      context.getAppName() == "electronWannierDos" ||
+      context.getAppName() == "electronLifetimes" ||
+      context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the use of ab-initio electron-phonon coupling:" << std::endl;
+    std::cout << "\tS. Piscanec, M. Lazzeri, Francesco Mauri, A. C. Ferrari, and J. Robertson.\n" <<
+              //    "\tKohn Anomalies and Electron-Phonon Interactions in Graphite.\n" <<
+              "\tPhysical Review Letters 93, 185503 (2004)\n" << std::endl;
+    // At least, I think it's this one. Subroutine elphel() in QE was
+    // written by F. Mauri, but it's unclear when and for what article
+  }
+
+  if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
+    std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
+    std::cout << "\tL. Chaput.\n" <<
+              //    "\tDirect Solution to the Linearized Phonon Boltzmann Equation.\n" <<
+              "\tPhysical Review Letters 110, 265506 (2013).\n" << std::endl;
+  }
+
 }
 
 LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
