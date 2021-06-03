@@ -1,0 +1,9 @@
+appName = "elPhQeToPhoebe"
+
+elPhInterpolation = "wannier"
+
+phD2FileName = "qe/gan.fc"
+electronH0Name = "qe/gan_tb.dat"
+
+wannier90Prefix = "qe/gan"
+quantumEspressoPrefix = "qe/gan"
