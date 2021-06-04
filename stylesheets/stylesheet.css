@@ -226,7 +226,9 @@ a {
   border-top: solid 1px #eff0f1; }
 
 .site-footer-owner {
-  display: block;
+  display:inline;
+  text-align:center;
+  vertical-align:middle;
   font-weight: bold; }
 
 .site-footer-credits {

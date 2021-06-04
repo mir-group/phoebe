@@ -23,9 +23,9 @@
     <!-- Topbar menu -->
     <link rel="stylesheet" type="text/css" href="stylesheets/topbar.css" media="screen">
   </head>
-  
+
   <body>
-    
+
     <!-- topbar taken from https://webdesign.tutsplus.com/tutorials/how-to-build-a-responsive-navigation-bar-with-flexbox--cms-33535 -->
     <nav>
       <ul class="menu">
@@ -51,20 +51,20 @@
       <a href="https://github.com/mir-group/phoebe/zipball/master" class="btn">Download .zip</a>
       <a href="https://github.com/mir-group/phoebe/tarball/master" class="btn">Download .tar.gz</a>
     </section>
-    
+
     <section class="main-content">
-      
+
       {{ content }}
 
-      <footer class="site-footer">
-        <span class="site-footer-owner">
-	  <a href="https://github.com/mir-group/phoebe">Phoebe</a>
-	  is maintained by the
-	  <a href="https://bkoz.seas.harvard.edu/">MIR group @ Harvard</a>,
-	  follow us 
-	  <a href="https://twitter.com/materials_intel?lang=en" class="twitter-follow-button" data-show-count="false">@Materials_Intel</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
-	</span>
-      </footer>
+    <footer class="site-footer">
+      <span class="site-footer-owner">
+        <a href="https://github.com/mir-group/phoebe">Phoebe</a> is maintained by the
+	      <a href="https://bkoz.seas.harvard.edu/">MIR group @ Harvard.</a>
+        <!--, follow us <a href="https://twitter.com/materials_intel?lang=en" class="twitter-follow-button" data-show-count="false">@Materials_Intel</a><script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script> -->
+        <img src="pictures/logos/MIR-logo.png" alt="MIR group" height="52 px" style="padding:0px; margin-left:22px; margin-right:15px">
+        <img src="pictures/logos/H_SEAS_logo_1color.png" height="60px" style="padding:0px; margin-right:10px">
+      </span>
+    </footer>
 
     </section>
 
@@ -73,7 +73,7 @@
       const toggle = document.querySelector(".toggle");
       const menu = document.querySelector(".menu");
       const items = document.querySelectorAll(".item");
- 
+
       /* Toggle mobile menu */
       function toggleMenu() {
         if (menu.classList.contains("active")) {
@@ -115,6 +115,6 @@
       }
       document.addEventListener("click", closeSubmenu, false);
     </script>
-        
-  </body>      
+
+  </body>
 </html>
