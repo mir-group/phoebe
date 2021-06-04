@@ -60,15 +60,12 @@ public:
    * @param qMesh: mesh of q-points used by QE.
    * @param runTests: if true (*default False) runs some sanity checks.
    */
-  void postProcessingWannier(Context &context, Crystal &crystal,
-                             PhononH0 &phononH0, Points &kPoints,
-                             Points &qPoints, int numQEBands, int numModes,
-                             int numIrrQPoints, int numElectrons, int numSpin,
-                             const Eigen::MatrixXd &energies,
-                             const Eigen::MatrixXd &kGridFull,
-                             const Eigen::Vector3i &kMesh,
-                             const Eigen::Vector3i &qMesh,
-                             bool runTests = false);
+  void postProcessingWannier(
+      Context &context, Crystal &crystal, PhononH0 &phononH0, Points &kPoints,
+      Points &qPoints, int numQEBands, int numModes, int numIrrQPoints,
+      int numElectrons, int numSpin, const Eigen::MatrixXd &energies,
+      const Eigen::MatrixXd &kGridFull, const Eigen::Vector3i &kMesh,
+      const Eigen::Vector3i &qMesh, bool runTests = false);
 
 protected:
   /** Transform the electron-phonon coupling computed by QE
@@ -108,8 +105,7 @@ protected:
       Eigen::Tensor<std::complex<double>, 5> &gFull,
       const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
       const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
-      Points &kPoints, Points &qPoints, Crystal &crystal,
-      PhononH0 &phononH0);
+      Points &kPoints, Points &qPoints, Crystal &crystal, PhononH0 &phononH0);
 
   /** Returns the rotation that moves the wave-function from the (entangled)
    * Bloch representation to the disentangled Wannier representation
@@ -124,8 +120,7 @@ protected:
    * numBands > numWannier due to the disentanglement. See Wannier90 docs.
    */
   static Eigen::Tensor<std::complex<double>, 3>
-  setupRotationMatrices(const std::string &wannierPrefix,
-                        Points &fullPoints);
+  setupRotationMatrices(const std::string &wannierPrefix, Points &fullPoints);
 
   /** Reads the electron-phonon coupling computed by QE on a coarse grid.
    *
@@ -158,10 +153,16 @@ protected:
   std::tuple<Eigen::Tensor<std::complex<double>, 5>,
              Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd>
   readGFromQEFile(Context &context, const int &numModes, const int &numBands,
-                  const int &numWannier, Points &kPoints,
-                  Points &qPoints, const Eigen::MatrixXd &kGridFull,
-                  const int &numIrrQPoints, const int &numQEBands,
-                  const Eigen::MatrixXd &energies);
+                  const int &numWannier, Points &kPoints, Points &qPoints,
+                  const Eigen::MatrixXd &kGridFull, const int &numIrrQPoints,
+                  const int &numQEBands, const Eigen::MatrixXd &energies);
+
+  std::tuple<Eigen::Tensor<std::complex<double>, 5>,
+             Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd,
+             Eigen::MatrixXd>
+  readChunkGFromQE(const int &iqIrr, Context &context, Points &kPoints,
+                   const int &numModes, const int &numQEBands,
+                   const Eigen::VectorXi &ikMap);
 
   /** This method compares the energies computed by qe2wannier90
    * and the energies of quantum espresso pw.x, to compute the offset between
@@ -179,7 +180,7 @@ protected:
                          Points &kPoints, Points &qPoints,
                          const int &numElectrons, const int &numSpin,
                          const int &numModes, const int &numIrrQPoints,
-                         const int &numQEBands, const Eigen::MatrixXd &energies,
+                         const int &numQEBands,
                          const Eigen::MatrixXd &kGridFull);
 
   /** Test that the transform Wannier To Bloch of the electronic Hamiltonian

@@ -45,7 +45,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
   } else { // EPA
 
     epaPostProcessing(context, energies, kPoints, qPoints, numElectrons,
-                      numSpin, numModes, numIrrQPoints, numQEBands, energies,
+                      numSpin, numModes, numIrrQPoints, numQEBands,
                       kGridFull);
   }
 }
@@ -76,6 +76,104 @@ void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
       throwErrorIfUnset(context.getEpaDeltaEnergy(), "epaDeltaEnergy");
     }
   }
+}
+
+// read g, which is written to file on all k, q points
+std::tuple<Eigen::Tensor<std::complex<double>, 5>,
+           Eigen::Tensor<std::complex<double>, 3>, Eigen::MatrixXd,
+           Eigen::MatrixXd>
+ElPhQeToPhoebeApp::readChunkGFromQE(const int& iqIrr, Context &context,
+                                    Points &kPoints,
+                                    const int &numModes,
+                                    const int &numQEBands,
+                                    const Eigen::VectorXi &ikMap) {
+
+  int numKPoints = kPoints.getNumPoints();
+
+  // first, find the number of reducible q points in this file
+  int nqStar;
+  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+  std::stringstream ss;
+  ss << std::setw(4) << std::setfill('0') << iqIrr + 1;
+  std::string numString = ss.str();
+  std::string fileName = phoebePrefixQE + ".phoebe." + numString + ".dat";
+
+  std::ifstream infileQ(fileName);
+  infileQ >> nqStar;
+
+  // allocate read quantities
+  Eigen::Tensor<std::complex<double>, 5> gStar(numQEBands, numQEBands, numModes,
+                                               numKPoints, nqStar);
+  Eigen::Tensor<std::complex<double>, 3> phononEigenvectorsStar(numModes, numModes,
+                                                                nqStar);
+  Eigen::MatrixXd phononEnergiesStar(numModes, nqStar);
+  Eigen::MatrixXd qStar(3, nqStar);
+
+  gStar.setZero();
+  phononEigenvectorsStar.setZero();
+  phononEnergiesStar.setZero();
+  qStar.setZero();
+
+  // now, we start reading everything else
+
+  for (int iq = 0; iq < nqStar; iq++) {
+    Eigen::Vector3d thisQ; // in crystal coordinates
+    infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
+    for (int i : {0,1,2}) {
+      qStar(i,iq) = thisQ(i);
+    }
+  }
+
+  for (int iq = 0; iq < nqStar; iq++) {
+    Eigen::Vector3d thisQ; // in same as above, in cartesian coordinates
+    infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
+  }
+
+  Eigen::VectorXd phononEnergies(numModes);
+  for (int nu = 0; nu < numModes; nu++) {
+    infileQ >> phononEnergies(nu);
+  }
+  for (int iqStar = 0; iqStar<nqStar; iqStar++) {
+    phononEnergiesStar.col(iqStar) = phononEnergies;
+  }
+
+  for (int iq = 0; iq < nqStar; iq++) {
+    for (int j = 0; j < numModes; j++) {
+      for (int i = 0; i < numModes; i++) {
+        // Note, in Fortran I was writing:
+        // do jj = 1,nModes
+        //   do k = 1,nat
+        //     do i_cart = 1,3
+        // This has to be aligned with what done by PhononH0
+        double re, im;
+        infileQ >> re >> im;
+        phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
+      }
+    }
+  }
+
+  // read empty line
+  std::string line;
+  std::getline(infileQ, line);
+
+  // read the g-coupling
+  for (int iq = 0; iq < nqStar; iq++) {
+    for (int nu = 0; nu < numModes; nu++) {
+      for (int ik = 0; ik < numKPoints; ik++) {
+        for (int ib2 = 0; ib2 < numQEBands; ib2++) {
+          for (int ib1 = 0; ib1 < numQEBands; ib1++) {
+            double re, im;
+            infileQ >> re >> im;
+            gStar(ib1, ib2, nu, ikMap(ik), iq) = {re, im};
+            // note: ikMap maps the index of k-point in the order of QE,
+            // to the index of k-point in the order of Phoebe
+          }
+        }
+      }
+    }
+  }
+
+  return {gStar, phononEigenvectorsStar, phononEnergiesStar, qStar};
 }
 
 // read g, which is written to file on all k, q points
