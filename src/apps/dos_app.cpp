@@ -19,7 +19,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
         Context& context, FullBandStructure& fullBandStructure);
 
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-        Particle& particle, Context& context, const std::string &outFileName);
+        Particle& particle, const std::string &outFileName);
 
 /* ------------------- PhononDoSApp --------------------*/
 // Compute the DOS with the tetrahedron method
@@ -49,7 +49,7 @@ void PhononDosApp::run(Context &context) {
 
   // save dos to an output file
   // arguments are: energies, dos, particleType, context outFileName
-  outputDOSToJSON(energies, dos, particle, context, "phonon_dos.json");
+  outputDOSToJSON(energies, dos, particle, "phonon_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Phonon DoS computed." << std::endl;
@@ -83,7 +83,7 @@ void ElectronWannierDosApp::run(Context &context) {
 
   // save dos to an output file
   // arguments are: energies, dos, particleType, context outFileName
-  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
+  outputDOSToJSON(energies, dos, particle, "electron_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Wannier) DoS computed" << std::endl;
@@ -117,7 +117,7 @@ void ElectronFourierDosApp::run(Context &context) {
 
   // save dos to an output file
   // arguments are: energies, dos, particleType, context outFileName
-  outputDOSToJSON(energies, dos, particle, context, "electron_dos.json");
+  outputDOSToJSON(energies, dos, particle, "electron_dos.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Electronic (Fourier) DoS computed" << std::endl;
@@ -176,7 +176,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
  * helper function to output dos to a json file
  */
 void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
-          Particle& particle, Context& context, const std::string &outFileName) {
+          Particle& particle, const std::string &outFileName) {
 
   if ( !mpi->mpiHead()) return;
 
