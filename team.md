@@ -14,8 +14,6 @@ filename: team
 
 <h2>Meet The Team</h2>
 
-
-
 <div class="row">
   <div class="column">
     <div class="card">
@@ -24,7 +22,7 @@ filename: team
         <h2>Andrea Cepellotti</h2>
         <p class="title">Research Associate</p>
         <p>
-          <a style="text-decoration:none" href="https://www.linkedin.com/in/andrea-cepellotti">  
+          <a style="text-decoration:none" href="https://www.linkedin.com/in/andrea-cepellotti">
           <i class="fa fa-linkedin-square fa_custom"></i>
           </a>
           <a style="text-decoration:none" href="mailto:acepellotti@g.harvard.edu">
