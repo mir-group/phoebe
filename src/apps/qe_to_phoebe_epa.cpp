@@ -86,7 +86,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   LoopPrint loopPrint("Computing coupling EPA", "irreducible q-points",
                       mpi->divideWorkIter(numIrrQPoints).size());
   for (int iqIrr : mpi->divideWorkIter(numIrrQPoints)) {
-    loopPrint.update();
+    loopPrint.update(false);
 
     // read coupling from file
     auto t2 =
