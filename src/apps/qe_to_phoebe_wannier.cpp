@@ -63,10 +63,17 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
     std::cout << "Polar correction" << std::endl;
   }
 
-  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
-                                                  numModes, numPhBravaisVectors,
-                                                  numElBravaisVectors);
-  gWannier.setZero();
+//  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
+//                                                  numModes, numPhBravaisVectors,
+//                                                  numElBravaisVectors);
+//  gWannier.setZero();
+
+  ParallelMatrix<double> aux(numElBravaisVectors,1, mpi->getSize(), 1);
+  Eigen::Tensor<std::complex<double>, 5> gWannierPara(numWannier, numWannier,
+                                                      numModes,
+                                                      numPhBravaisVectors,
+                                                      aux.localRows());
+  gWannierPara.setZero();
 
   LoopPrint loopPrint("Wannier transform of coupling",
                       "irreducible q-points",
@@ -343,29 +350,30 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
       }
 
       for (int irE=0; irE<numElBravaisVectors; irE++) {
-#pragma omp parallel default(none) shared(numQStar, numQPoints, numPhBravaisVectors, numModes, numWannier, phases, gWannier, irE, gWannierTmp)
-        {
-          Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
-          tmp.setZero();
-#pragma omp for nowait
-          for (int iq = 0; iq < numQStar; iq++) {
-            for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-              for (int nu = 0; nu < numModes; nu++) {
-                for (int j = 0; j < numWannier; j++) {
-                  for (int i = 0; i < numWannier; i++) {
-                    tmp(i, j, nu, irP) +=
-                        phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
-                  }
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
+        tmp.setZero();
+#pragma omp parallel for collapse(4) default(none) shared(numQStar, numPhBravaisVectors, phases, numModes, numWannier, gWannierTmp, tmp, irE)
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int i = 0; i < numWannier; i++) {
+                for (int iq = 0; iq < numQStar; iq++) {
+                  tmp(i, j, nu, irP) +=
+                      phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
                 }
               }
             }
           }
-#pragma omp critical
+        }
+        mpi->allReduceSum(&tmp);
+
+        if ( aux.indicesAreLocal(irE,0)) { // is local
+          int irELocal = aux.global2Local(irE,0);
           for (int irP = 0; irP < numPhBravaisVectors; irP++) {
             for (int nu = 0; nu < numModes; nu++) {
-              for (int i = 0; i < numWannier; i++) {
-                for (int j = 0; j < numWannier; j++) {
-                  gWannier(i, j, nu, irP, irE) += tmp(i, j, nu, irP);
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  gWannierPara(i, j, nu, irP, irELocal) += tmp(i, j, nu, irP);
                 }
               }
             }
@@ -374,8 +382,29 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
       }
     }
   }
-  mpi->allReduceSum(&gWannier);
   loopPrint.close();
+
+  // put results back in common tensor
+  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
+                                                  numModes, numPhBravaisVectors,
+                                                  numElBravaisVectors);
+  gWannier.setZero();
+  for (int irE=0; irE<numElBravaisVectors; irE++) {
+    if ( aux.indicesAreLocal(irE,0)) { // is local
+      int irELocal = aux.global2Local(irE,0);
+      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              gWannier(i, j, nu, irP, irE) +=
+                  gWannierPara(i, j, nu, irP, irELocal);
+            }
+          }
+        }
+      }
+    }
+  }
+  mpi->allReduceSum(&gWannier);
 
   if (mpi->mpiHead()) {
     std::cout << "Done Wannier-transform of g\n" << std::endl;
