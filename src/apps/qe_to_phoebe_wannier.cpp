@@ -13,6 +13,364 @@
 #include <highfive/H5Easy.hpp>
 #endif
 
+
+Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficient(
+    Context &context,
+    const Eigen::MatrixXd &energies,
+    const Eigen::MatrixXd &kGridFull,
+    const int &numIrrQPoints,
+    const int &numQEBands,
+    const Eigen::MatrixXd &elBravaisVectors,
+    const Eigen::MatrixXd &phBravaisVectors,
+    const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+    Points &kPoints, Points &qPoints, Crystal &crystal,
+    PhononH0 &phononH0) {
+
+  int numModes = crystal.getNumAtoms() * 3;
+  int numBands = uMatrices.dimension(0);
+  int numWannier = uMatrices.dimension(1);
+
+  auto t5 =
+      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
+                      kGridFull, numIrrQPoints, numQEBands, energies);
+  auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
+  auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
+  auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
+
+  if (mpi->mpiHead()) {
+    std::cout << "Start Wannier-transform of g" << std::endl;
+  }
+
+//  int numBands = gFull.dimension(0); // # of entangled bands
+//  int numModes = gFull.dimension(2);
+  int numKPoints = gFull.dimension(3);
+  int numQPoints = gFull.dimension(4);
+  int numElBravaisVectors = elBravaisVectors.cols();
+  int numPhBravaisVectors = phBravaisVectors.cols();
+//  int numWannier = uMatrices.dimension(1);
+
+
+  std::array<Eigen::Index, 5> zeros;
+  for (auto &s : zeros) {
+    s = 0;
+  }
+
+  bool usePolarCorrection = false;
+  Eigen::Matrix3d dielectricMatrix = phononH0.getDielectricMatrix();
+  if (dielectricMatrix.squaredNorm() > 1.0e-10) { // i.e. if dielectricMatrix
+    // wasn't computed
+    if (crystal.getNumSpecies() > 1) {   // otherwise polar correction = 0
+      usePolarCorrection = true;
+    }
+  }
+
+  if (usePolarCorrection) {
+    if (mpi->mpiHead()) {
+      std::cout << "Polar correction" << std::endl;
+    }
+
+    // we need to subtract the polar correction
+    // this contribution will be reinstated during the interpolation
+    auto volume = crystal.getVolumeUnitCell();
+    auto reciprocalUnitCell = crystal.getReciprocalUnitCell();
+    auto bornCharges = phononH0.getBornCharges();
+    auto atomicPositions = crystal.getAtomicPositions();
+    auto qCoarseMesh = phononH0.getCoarseGrid();
+
+    for (int iq = 0; iq < numQPoints; iq++) {
+      Eigen::Vector3d q =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
+      if (q.norm() > 1.0e-8) {
+
+        Eigen::MatrixXcd ev3(numModes, numModes);
+        for (int j = 0; j < numModes; j++) {
+          for (int i = 0; i < numModes; i++) {
+            ev3(i, j) = phEigenvectors(i, j, iq);
+          }
+        }
+
+        for (int ik = 0; ik < numKPoints; ik++) {
+          Eigen::Vector3d k =
+              kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
+
+          // Coordinates and index of k+q point
+          Eigen::Vector3d kq = k + q;
+          Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
+          int ikq = kPoints.getIndex(kqCrystal);
+
+          // gather eigenvectors
+          Eigen::MatrixXcd ev1(numBands, numWannier);
+          Eigen::MatrixXcd ev2(numBands, numWannier);
+          for (int j = 0; j < numBands; j++) {
+            for (int i = 0; i < numBands; i++) {
+              ev1(i, j) = uMatrices(i, j, ik);
+              ev2(i, j) = uMatrices(i, j, ikq);
+            }
+          }
+          // ev1 = ev1.adjoint();
+          ev2 = ev2.adjoint();
+
+          auto v = InteractionElPhWan::getPolarCorrectionStatic(
+              q, ev1, ev2, ev3, volume, reciprocalUnitCell, dielectricMatrix,
+              bornCharges, atomicPositions, qCoarseMesh);
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int j = 0; j < numBands; j++) {
+              for (int i = 0; i < numBands; i++) {
+                gFull(i, j, nu, ik, iq) -= v(i, j, nu);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (mpi->mpiHead()) {
+    std::cout << "Wannier rotation" << std::endl;
+  }
+
+  Eigen::Tensor<std::complex<double>, 5> gFullTmp(
+      numWannier, numWannier, numModes, numKPoints, numQPoints);
+  gFullTmp.setZero();
+
+  for (int iq : mpi->divideWorkIter(numQPoints) ) {
+    Eigen::Vector3d q =
+        qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
+    for (int ik = 0; ik < numKPoints; ik++) {
+      Eigen::Vector3d k =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
+
+      // Coordinates and index of k+q point
+      Eigen::Vector3d kq = k + q;
+      Eigen::Vector3d kqCrystal = kPoints.cartesianToCrystal(kq);
+      int ikq = kPoints.getIndex(kqCrystal);
+
+      // First we transform from the Bloch to Wannier Gauge
+
+      // u has size (numBands, numWannier, numKPoints)
+      Eigen::MatrixXcd uK(numBands, numWannier);
+      Eigen::MatrixXcd uKq(numBands, numWannier);
+      for (int i = 0; i < numBands; i++) {
+        for (int j = 0; j < numWannier; j++) {
+          uK(i, j) = uMatrices(i, j, ik);
+          uKq(i, j) = uMatrices(i, j, ikq);
+        }
+      }
+      Eigen::MatrixXcd uKDagger(numWannier, numBands);
+      uKDagger = uK.adjoint();
+
+#pragma omp parallel default(none) shared(numModes, numWannier, numBands,  uKq, gFull, gFullTmp, ik, iq, uKDagger)
+      {
+        Eigen::Tensor<std::complex<double>, 3> tmp(numWannier, numBands,
+                                                   numModes);
+        tmp.setZero();
+#pragma omp for nowait collapse(4)
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numBands; j++) {
+              for (int l = 0; l < numBands; l++) {
+                // ukq has size(numWannier, numBands)
+                // gFull has size numBands, numBands, ...
+                tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
+              }
+            }
+          }
+        }
+        Eigen::Tensor<std::complex<double>, 3> tmp2(numWannier, numWannier,
+                                                    numModes);
+        tmp2.setZero();
+#pragma omp for nowait collapse(4)
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int l = 0; l < numBands; l++) {
+                tmp2(i, j, nu) += tmp(i, l, nu) * uKDagger(j, l);
+              }
+            }
+          }
+        }
+
+#pragma omp critical
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int i = 0; i < numWannier; i++) {
+            for (int j = 0; j < numWannier; j++) {
+              gFullTmp(i, j, nu, ik, iq) += tmp2(i, j, nu);
+            }
+          }
+        }
+
+      }
+    } // ik
+  }   // iq
+  mpi->allReduceSum(&gFullTmp);
+  gFull.reshape(zeros);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Electronic Fourier Transform" << std::endl;
+  }
+
+  // Fourier transform on the electronic coordinates
+  Eigen::Tensor<std::complex<double>, 5> gMixed(
+      numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
+  gMixed.setZero();
+
+  {
+    Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
+    phases.setZero();
+#pragma omp parallel for default(none) shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, mpi, complexI)
+    for (int ik : mpi->divideWorkIter(numKPoints)) {
+      Eigen::Vector3d k =
+          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
+      for (int iR=0; iR<numElBravaisVectors; iR++) {
+        double arg = k.dot(elBravaisVectors.col(iR));
+        phases(ik, iR) = exp(-complexI * arg) / double(numKPoints);
+      }
+    }
+    mpi->allReduceSum(&phases);
+
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+#pragma omp parallel default(none) shared(iq, gFullTmp, phases, numElBravaisVectors, numKPoints, numModes, numWannier, gMixed)
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numElBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, iR) +=
+                      gFullTmp(i, j, nu, ik, iq) * phases(ik, iR);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int iR = 0; iR < numElBravaisVectors; iR++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int j = 0; j < numWannier; j++) {
+              for (int i = 0; i < numWannier; i++) {
+                gMixed(i, j, nu, iR, iq) += tmp(i, j, nu, iR);
+              }
+            }
+          }
+        }
+      }
+    } // iq
+    mpi->allReduceSum(&gMixed);
+  }
+  gFullTmp.reshape(zeros);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Phonon rotation" << std::endl;
+  }
+
+  Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
+      numWannier, numWannier, numModes, numElBravaisVectors, numQPoints);
+  gWannierTmp.setZero();
+  {
+    Eigen::Tensor<std::complex<double>,3> uQM1s(numModes, numModes, numQPoints);
+    uQM1s.setZero();
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+      Eigen::MatrixXcd uQ(numModes, numModes);
+      for (int nu2 = 0; nu2 < numModes; nu2++) {
+        for (int nu = 0; nu < numModes; nu++) {
+          uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
+        }
+      }
+      auto uQM1 = uQ.inverse();
+      for (int nu2 = 0; nu2 < numModes; nu2++) {
+        for (int nu = 0; nu < numModes; nu++) {
+          uQM1s(nu, nu2, iq) = uQM1(nu, nu2);
+        }
+      }
+      // this isn't equal to the adjoint, due to mass renormalization
+      // should be parallelized with OMP already
+    }
+    mpi->allReduceSum(&uQM1s);
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+      for (int nu = 0; nu < numModes; nu++) {
+        for (int nu2 = 0; nu2 < numModes; nu2++) {
+#pragma omp parallel for collapse(3) default(none) shared(numElBravaisVectors, numWannier, gMixed, uQM1s, iq, nu, nu2, gWannierTmp)
+          for (int irE = 0; irE < numElBravaisVectors; irE++) {
+            for (int i = 0; i < numWannier; i++) {
+              for (int j = 0; j < numWannier; j++) {
+                gWannierTmp(i, j, nu, irE, iq) +=
+                    gMixed(i, j, nu2, irE, iq) * uQM1s(nu2, nu, iq);
+              }
+            }
+          }
+        }
+      }
+    }
+    mpi->allReduceSum(&gWannierTmp);
+  }
+  gMixed.reshape(zeros);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Phonon Fourier Transform" << std::endl;
+  }
+
+  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
+                                                  numModes, numPhBravaisVectors,
+                                                  numElBravaisVectors);
+  gWannier.setZero();
+  {
+    Eigen::MatrixXcd phases(numPhBravaisVectors,numQPoints);
+    phases.setZero();
+#pragma omp parallel for default(none) shared(mpi, numQPoints, numPhBravaisVectors, complexI, phases, qPoints, phBravaisVectors)
+    for (int iq : mpi->divideWorkIter(numQPoints)) {
+      Eigen::Vector3d q =
+          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
+      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+        double arg = q.dot(phBravaisVectors.col(irP));
+        phases(irP,iq) = exp(-complexI * arg) / double(numQPoints);
+      }
+    }
+    mpi->allReduceSum(&phases);
+
+    for (int irE : mpi->divideWorkIter(numElBravaisVectors)) {
+#pragma omp parallel default(none) shared(numQPoints, numPhBravaisVectors, numModes, numWannier, phases, gWannier, irE, gWannierTmp)
+      {
+        Eigen::Tensor<std::complex<double>,4> tmp(numWannier,numWannier,numModes,numPhBravaisVectors);
+        tmp.setZero();
+#pragma omp for nowait
+        for (int iq = 0; iq < numQPoints; iq++) {
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  tmp(i, j, nu, irP) +=
+                      phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+                }
+              }
+            }
+          }
+        }
+#pragma omp critical
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numModes; nu++) {
+            for (int i = 0; i < numWannier; i++) {
+              for (int j = 0; j < numWannier; j++) {
+                gWannier(i, j, nu, irP, irE) += tmp(i, j, nu, irP);
+              }
+            }
+          }
+        }
+      }
+    }
+    mpi->allReduceSum(&gWannier);
+  }
+  gWannierTmp.reshape(zeros);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Done Wannier-transform of g\n" << std::endl;
+  }
+
+  return gWannier;
+}
+
 Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     const Eigen::MatrixXd &elBravaisVectors,
     const Eigen::MatrixXd &phBravaisVectors,
@@ -932,16 +1290,6 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
 
   //----------------------------------------------------------------------------
-
-  // read coupling from file
-  auto t5 =
-      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
-                      kGridFull, numIrrQPoints, numQEBands, energies);
-  auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
-  auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
-  auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
-
-  //----------------------------------------------------------------------------
   // figure out the number of occupied Wannier states
 
   int bandsOffset = computeOffset(energies, wannierPrefix);
@@ -968,9 +1316,24 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   Eigen::MatrixXd phBravaisVectors = std::get<0>(t4);
   Eigen::VectorXd phDegeneracies = std::get<1>(t4);
 
+  //----------------------------------------------------------------------------
+
+  // read coupling from file
+//  auto t5 =
+//      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
+//                      kGridFull, numIrrQPoints, numQEBands, energies);
+//  auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
+//  auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
+//  auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
+//
+//  Eigen::Tensor<std::complex<double>, 5> gWannier =
+//      blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
+//                     phEigenvectors, kPoints, qPoints, crystal, phononH0);
+
   Eigen::Tensor<std::complex<double>, 5> gWannier =
-      blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
-                     phEigenvectors, kPoints, qPoints, crystal, phononH0);
+      BlochToWannierEfficient(context, energies, kGridFull, numIrrQPoints,
+                              numQEBands, elBravaisVectors, phBravaisVectors,
+                              uMatrices, kPoints, qPoints, crystal, phononH0);
 
   //--------------------------------------------------------------------------
 
@@ -1130,6 +1493,14 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   if(mpi->mpiHead()) std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
 
   if (runTests) {
+    auto t6 =
+    readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
+                    kGridFull, numIrrQPoints, numQEBands, energies);
+    auto gFull = std::get<0>(t6);          // (nBands,nBands,nModes,numK,numQ)
+    auto phEigenvectors = std::get<1>(t6); // (numModes,numModes,numQPoints)
+    auto phEnergies = std::get<2>(t6);     // (numModes,numQPoints)
+
+
     testElectronicTransform(kPoints, wannierPrefix, elBravaisVectors, uMatrices,
                             elDegeneracies, electronH0);
 

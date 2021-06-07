@@ -107,6 +107,18 @@ protected:
       const Eigen::Tensor<std::complex<double>, 3> &phEigenvectors,
       Points &kPoints, Points &qPoints, Crystal &crystal, PhononH0 &phononH0);
 
+  Eigen::Tensor<std::complex<double>, 5> BlochToWannierEfficient(
+      Context &context,
+      const Eigen::MatrixXd &energies,
+      const Eigen::MatrixXd &kGridFull,
+      const int &numIrrQPoints,
+      const int &numQEBands,
+      const Eigen::MatrixXd &elBravaisVectors,
+      const Eigen::MatrixXd &phBravaisVectors,
+      const Eigen::Tensor<std::complex<double>, 3> &uMatrices,
+      Points &kPoints, Points &qPoints, Crystal &crystal,
+      PhononH0 &phononH0);
+
   /** Returns the rotation that moves the wave-function from the (entangled)
    * Bloch representation to the disentangled Wannier representation
    *

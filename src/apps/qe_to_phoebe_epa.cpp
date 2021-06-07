@@ -105,8 +105,8 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
       phAvgEnergies(nu) += phEnergies.row(nu).sum() / double(qMesh.prod());
     }
 
-    assert(numQEBands == gFull.dimension(0));
-    assert(numModes == gFull.dimension(2));
+    assert(numQEBands == gStar.dimension(0));
+    assert(numModes == gStar.dimension(2));
 
     for (int ik=0; ik<numKPoints; ik++) {
       Eigen::Vector3d kCrystal = kPoints.getPointCoordinates(ik, Points::crystalCoordinates);
