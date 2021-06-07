@@ -68,7 +68,11 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
                                                   numElBravaisVectors);
   gWannier.setZero();
 
+  LoopPrint loopPrint("Wannier transform of coupling",
+                      "irreducible q-points",
+                      mpi->divideWorkIter(numIrrQPoints).size());
   for (int iqIrr : mpi->divideWorkIter(numIrrQPoints)) {
+    loopPrint.update(false);
   // for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
 //    std::cout << iqIrr << "\n";
 
@@ -101,11 +105,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
     }
     gStarTmp.resize(zeros);
     int numQStar = qStar.cols();
-
-//
-//    if (mpi->mpiHead()) {
-//      std::cout << "Start Wannier-transform of g" << std::endl;
-//    }
 
     if (usePolarCorrection) {
       // we need to subtract the polar correction
@@ -162,10 +161,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
           }
         }
       }
-    }
-
-    if (mpi->mpiHead()) {
-      std::cout << "Wannier rotation" << std::endl;
     }
 
     Eigen::Tensor<std::complex<double>, 5> gFullTmp(
@@ -243,10 +238,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
     }   // iq
     gStar.reshape(zeros);
 
-    if (mpi->mpiHead()) {
-      std::cout << "Electronic Fourier Transform" << std::endl;
-    }
-
     // Fourier transform on the electronic coordinates
     Eigen::Tensor<std::complex<double>, 5> gMixed(
         numWannier, numWannier, numModes, numElBravaisVectors, numQStar);
@@ -298,10 +289,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
     }
     gFullTmp.reshape(zeros);
 
-    if (mpi->mpiHead()) {
-      std::cout << "Phonon rotation" << std::endl;
-    }
-
     Eigen::Tensor<std::complex<double>, 5> gWannierTmp(
         numWannier, numWannier, numModes, numElBravaisVectors, numQStar);
     gWannierTmp.setZero();
@@ -341,10 +328,6 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
       }
     }
     gMixed.reshape(zeros);
-
-    if (mpi->mpiHead()) {
-      std::cout << "Phonon Fourier Transform" << std::endl;
-    }
 
     {
       Eigen::MatrixXcd phases(numPhBravaisVectors,numQStar);
@@ -391,8 +374,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
       }
     }
   }
-
   mpi->allReduceSum(&gWannier);
+  loopPrint.close();
 
   if (mpi->mpiHead()) {
     std::cout << "Done Wannier-transform of g\n" << std::endl;
