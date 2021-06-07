@@ -212,13 +212,13 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
               << " (GB) of memory per MPI process." << std::endl;
   }
 
-  Eigen::Tensor<std::complex<double>, 5> g_full(numBands, numBands, numModes,
+  Eigen::Tensor<std::complex<double>, 5> gFull(numBands, numBands, numModes,
                                                 numKPoints, numQPoints);
   Eigen::Tensor<std::complex<double>, 3> phEigenvectors(numModes, numModes,
                                                         numQPoints);
   Eigen::MatrixXd phEnergies(numModes, numQPoints);
 
-  g_full.setZero();
+  gFull.setZero();
   phEigenvectors.setZero();
   phEnergies.setZero();
 
@@ -234,90 +234,34 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
 
     std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
-#pragma omp parallel for default(none) shared(numIrrQPoints, phoebePrefixQE, g_full, phEnergies, phEigenvectors, numModes, numKPoints, ikMap, bandsOffset, numWannier, qPoints, numQEBands)
+#pragma omp parallel for default(none) shared(context, kPoints, numIrrQPoints, phoebePrefixQE, gFull, phEnergies, phEigenvectors, numModes, numKPoints, ikMap, bandsOffset, numWannier, qPoints, numQEBands)
     for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
-      std::stringstream ss;
-      ss << std::setw(4) << std::setfill('0') << iqIrr + 1;
-      std::string numString = ss.str();
-      std::string fileName = phoebePrefixQE + ".phoebe." + numString + ".dat";
-      std::ifstream infileQ(fileName);
 
-      std::string line;
-
-      int nqStar; // number of reducible q points in this file
-      infileQ >> nqStar;
-      std::vector<Eigen::Vector3d> qStar;
-      for (int iq = 0; iq < nqStar; iq++) {
-        Eigen::Vector3d thisQ; // in crystal coordinates
-        infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
-        qStar.push_back(thisQ);
-      }
-
-      for (int iq = 0; iq < nqStar; iq++) {
-        Eigen::Vector3d thisQ; // in same as above, in cartesian coordinates
-        infileQ >> thisQ(0) >> thisQ(1) >> thisQ(2);
-      }
-
-      Eigen::VectorXd phononEnergies(numModes);
-      for (int nu = 0; nu < numModes; nu++) {
-        infileQ >> phononEnergies(nu);
-      }
-
-      Eigen::Tensor<std::complex<double>, 3> phononEigenvectorsStar(
-          numModes, numModes, nqStar);
-      for (int iq = 0; iq < nqStar; iq++) {
-        for (int j = 0; j < numModes; j++) {
-          for (int i = 0; i < numModes; i++) {
-            // Note, in Fortran I was writing:
-            // do jj = 1,nModes
-            //   do k = 1,nat
-            //     do i_cart = 1,3
-            // This has to be aligned with what done by PhononH0
-            double re, im;
-            infileQ >> re >> im;
-            phononEigenvectorsStar(i, j, iq) = {re, im}; // j is the eig index
-          }
-        }
-      }
-      std::getline(infileQ, line); // empty line
-
-      // read the g-coupling
-      Eigen::Tensor<std::complex<double>, 5> thisG(
-          numQEBands, numQEBands, numModes, numKPoints, nqStar);
-      thisG.setZero();
-      for (int iq = 0; iq < nqStar; iq++) {
-        for (int nu = 0; nu < numModes; nu++) {
-          for (int ik = 0; ik < numKPoints; ik++) {
-            for (int ib2 = 0; ib2 < numQEBands; ib2++) {
-              for (int ib1 = 0; ib1 < numQEBands; ib1++) {
-                double re, im;
-                infileQ >> re >> im;
-                thisG(ib1, ib2, nu, ik, iq) = {re, im};
-              }
-            }
-          }
-        }
-      }
-      infileQ.close();
+      auto t = readChunkGFromQE(iqIrr, context, kPoints, numModes, numQEBands,
+                                ikMap);
+      auto gStar = std::get<0>(t);
+      auto phononEigenvectorsStar = std::get<1>(t);
+      auto phononEnergiesStar = std::get<2>(t);
+      auto qStar = std::get<3>(t);
 
       // Note: the tensor read from file contains
-      // g_full(ib1, ib2, nu, ik, iq)
+      // gFull(ib1, ib2, nu, ik, iq)
       // = < k+q,ib1 |  dV_{q,nu}  |  k,ib2  >
       // where k and q run over the full mesh.
       // ikMap takes care of the fact that k-points in QE have a different
       // order then phoebe.
 
       // reorder the q/k indices
-      for (int iqStar = 0; iqStar < nqStar; iqStar++) {
-        Eigen::Vector3d qVec = qStar[iqStar];
+      for (int iqStar = 0; iqStar < qStar.cols(); iqStar++) {
+        Eigen::Vector3d qVec = qStar.col(iqStar);
         int iqFull = qPoints.getIndex(qVec);
 
         for (int nu = 0; nu < numModes; nu++) {
           for (int ik = 0; ik < numKPoints; ik++) {
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
-                g_full(ib1, ib2, nu, ikMap(ik), iqFull) =
-                    thisG(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
+                gFull(ib1, ib2, nu, ik, iqFull) =
+                    gStar(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
               }
             }
           }
@@ -330,7 +274,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
         }
 
         for (int i = 0; i < numModes; i++) {
-          phEnergies(i, iqFull) = phononEnergies(i);
+          phEnergies(i, iqFull) = phononEnergiesStar(i);
         }
       }
     }
@@ -338,11 +282,11 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
     std::cout << "Done reading el-ph coupling from file.\n" << std::endl;
   }
 
-  mpi->bcast(&g_full);
+  mpi->bcast(&gFull);
   mpi->bcast(&phEigenvectors);
   mpi->bcast(&phEnergies);
 
-  return {g_full, phEigenvectors, phEnergies};
+  return {gFull, phEigenvectors, phEnergies};
 }
 
 std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
