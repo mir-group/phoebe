@@ -29,26 +29,81 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::BlochToWannierEfficien
   int numModes = crystal.getNumAtoms() * 3;
   int numBands = uMatrices.dimension(0);
   int numWannier = uMatrices.dimension(1);
+  int numKPoints = kPoints.getNumPoints();
+  int numQPoints = qPoints.getNumPoints();
+  int numElBravaisVectors = elBravaisVectors.cols();
+  int numPhBravaisVectors = phBravaisVectors.cols();
 
-  auto t5 =
-      readGFromQEFile(context, numModes, numBands, numWannier, kPoints, qPoints,
-                      kGridFull, numIrrQPoints, numQEBands, energies);
-  auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
-  auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
-  auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
+  std::string wannierPrefix = context.getWannier90Prefix();
+  int bandsOffset = computeOffset(energies, wannierPrefix);
+
+  Eigen::Tensor<std::complex<double>, 5> gFull(numBands, numBands, numModes,
+                                               numKPoints, numQPoints);
+  Eigen::Tensor<std::complex<double>, 3> phEigenvectors(numModes, numModes,
+                                                        numQPoints);
+  gFull.setZero();
+  phEigenvectors.setZero();
+
+  Eigen::VectorXi ikMap(numKPoints);
+#pragma omp parallel for default(none) shared(numKPoints, kGridFull, kPoints, ikMap)
+  for (int ikOld = 0; ikOld < numKPoints; ikOld++) {
+    Eigen::Vector3d kOld = kGridFull.col(ikOld);
+    int ikNew = kPoints.getIndex(kOld);
+    ikMap(ikOld) = ikNew;
+  }
+  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+
+  if (mpi->mpiHead()) {
+    for (int iqIrr = 0; iqIrr < numIrrQPoints; iqIrr++) {
+      auto t = readChunkGFromQE(iqIrr, context, kPoints, numModes, numQEBands,
+                                ikMap);
+      auto gStar = std::get<0>(t);
+      auto phononEigenvectorsStar = std::get<1>(t);
+      auto qStar = std::get<3>(t);
+
+      // Note: the tensor read from file contains
+      // gFull(ib1, ib2, nu, ik, iq)
+      // = < k+q,ib1 |  dV_{q,nu}  |  k,ib2  >
+      // where k and q run over the full mesh.
+      // ikMap takes care of the fact that k-points in QE have a different
+      // order then phoebe.
+
+      // reorder the q/k indices
+      for (int iqStar = 0; iqStar < qStar.cols(); iqStar++) {
+        Eigen::Vector3d qVec = qStar.col(iqStar);
+        int iqFull = qPoints.getIndex(qVec);
+
+        for (int nu = 0; nu < numModes; nu++) {
+          for (int ik = 0; ik < numKPoints; ik++) {
+            for (int ib2 = 0; ib2 < numWannier; ib2++) {
+              for (int ib1 = 0; ib1 < numWannier; ib1++) {
+                gFull(ib1, ib2, nu, ik, iqFull) =
+                    gStar(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
+              }
+            }
+          }
+        }
+
+        for (int j = 0; j < numModes; j++) {
+          for (int i = 0; i < numModes; i++) {
+            phEigenvectors(i, j, iqFull) = phononEigenvectorsStar(i, j, iqStar);
+          }
+        }
+      }
+    }
+  }
+  mpi->bcast(&phEigenvectors);
+  mpi->bcast(&gFull);
+
+
+
+
+
+
 
   if (mpi->mpiHead()) {
     std::cout << "Start Wannier-transform of g" << std::endl;
   }
-
-//  int numBands = gFull.dimension(0); // # of entangled bands
-//  int numModes = gFull.dimension(2);
-  int numKPoints = gFull.dimension(3);
-  int numQPoints = gFull.dimension(4);
-  int numElBravaisVectors = elBravaisVectors.cols();
-  int numPhBravaisVectors = phBravaisVectors.cols();
-//  int numWannier = uMatrices.dimension(1);
-
 
   std::array<Eigen::Index, 5> zeros;
   for (auto &s : zeros) {
