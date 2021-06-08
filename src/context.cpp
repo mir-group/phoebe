@@ -558,6 +558,10 @@ void Context::setupFromInput(const std::string &fileName) {
         hasSpinOrbit = parseBool(val);
       }
 
+      if (parameterName == "distributedElPhCoupling") {
+        distributedElPhCoupling = parseBool(val);
+      }
+
       if (parameterName == "numOccupiedStates") {
         // note: numOccupiedStates refers to the number of states that are
         // occupied
@@ -1204,4 +1208,12 @@ void Context::setCoreElectrons(const Eigen::VectorXi &x) {
     }
   }
   numCoreElectrons = x;
+}
+
+bool Context::getDistributedElPhCoupling() {
+  return distributedElPhCoupling;
+}
+
+void Context::setDistributedElPhCoupling(const bool &x) {
+  distributedElPhCoupling = x;
 }

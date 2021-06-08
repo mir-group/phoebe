@@ -1383,7 +1383,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   //----------------------------------------------------------------------------
 
   Eigen::Tensor<std::complex<double>, 5> gWannier;
-  if (false) {
+  if (context.getDistributedElPhCoupling()) {
     // read coupling from file
     auto t5 = readGFromQEFile(context, numModes, numBands, numWannier, kPoints,
                               qPoints, kGridFull, numIrrQPoints, numQEBands,
