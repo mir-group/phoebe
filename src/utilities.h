@@ -3,6 +3,7 @@
 
 #include <tuple>
 #include <string>
+#include <vector>
 
 // returns the remainder of the division between two integers.
 // Note: c++ defines the % operator such that: (a/b)*b + a%b == a    (for b!=0)
@@ -92,5 +93,33 @@ using StateIndex = NamedType<int, struct StateTag>;
  * 2) memory used by phoebe in MB
  */
 std::tuple<double, double> memoryUsage();
+
+/** splitVector is a utility that splits a std::vector<> into chunks with
+ * specified size.
+ *
+ * @param v: input vector to be splitted
+ * @param chunkSize: (max) size of the chunk obtained after splitting
+ * @return std::vector<std::vector<T>>: a vector of chunks (vectors), containing
+ * the splitted copy of the input.
+ */
+template<typename Vector>
+std::vector<Vector> splitVector(const Vector& v, unsigned chunkSize) {
+  using Iterator = typename Vector::const_iterator;
+  std::vector<Vector> vectorChunks;
+  Iterator it = v.cbegin();
+  const Iterator end = v.cend();
+
+  while (it != end) {
+    Vector v;
+    std::back_insert_iterator<Vector> inserter(v);
+    const auto num_to_copy = std::min(static_cast<unsigned>(
+                                          std::distance(it, end)), chunkSize);
+    std::copy(it, it + num_to_copy, inserter);
+    vectorChunks.push_back(std::move(v));
+    std::advance(it, num_to_copy);
+  }
+
+  return vectorChunks;
+}
 
 #endif
