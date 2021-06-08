@@ -1502,13 +1502,14 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
                         numModes * numPhBravaisVectors;
         numElements = aux.getAllLocalRows().size() * pow(numWannier, 2) *
                              numModes * numPhBravaisVectors;
-        Eigen::VectorXcd gwanSlice = gwan;
+        gwanSlice = gwan;
       } else {
         // here we slice the gwan tensor (it's not distributed)
 
         // get the start and stop points of elements to be written by this process
         std::vector<int> workDivs = mpi->divideWork(gwan.size());
-        size_t numElements = workDivs[1] - workDivs[0];
+        offset = workDivs[0];
+        numElements = workDivs[1] - workDivs[0];
         gwanSlice = gwan(Eigen::seq(workDivs[0], workDivs[1]));
       }
 
