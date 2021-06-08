@@ -218,15 +218,7 @@ protected:
                                 ElectronH0Wannier &electronH0, Crystal &crystal,
                                 Eigen::Tensor<std::complex<double>, 5> &gFull);
 
-  void writeWannierCouplingSerial(
-      Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
-      const int &numFilledWannier, const int &numSpin, const int &numModes,
-      const int &numWannier, const Eigen::VectorXd &phDegeneracies,
-      const Eigen::VectorXd &elDegeneracies,
-      const Eigen::MatrixXd &phBravaisVectors,
-      const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
-      const Eigen::Vector3i &kMesh);
-  void writeWannierCouplingPara(
+  void writeWannierCoupling(
       Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
       const int &numFilledWannier, const int &numSpin, const int &numModes,
       const int &numWannier, const Eigen::VectorXd &phDegeneracies,

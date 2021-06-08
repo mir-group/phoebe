@@ -393,27 +393,28 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
   }
   loopPrint.close();
 
-//  // put results back in common tensor
-//  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
-//                                                  numModes, numPhBravaisVectors,
-//                                                  numElBravaisVectors);
-//  gWannier.setZero();
-//  for (int irE = 0; irE < numElBravaisVectors; irE++) {
-//    if (aux.indicesAreLocal(irE, 0)) { // is local
-//      int irELocal = aux.global2Local(irE, 0);
-//      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-//        for (int nu = 0; nu < numModes; nu++) {
-//          for (int i = 0; i < numWannier; i++) {
-//            for (int j = 0; j < numWannier; j++) {
-//              gWannier(i, j, nu, irP, irE) +=
-//                  gWannierPara(i, j, nu, irP, irELocal);
-//            }
-//          }
-//        }
-//      }
-//    }
-//  }
-//  mpi->allReduceSum(&gWannier);
+  //  // put results back in common tensor
+  //  Eigen::Tensor<std::complex<double>, 5> gWannier(numWannier, numWannier,
+  //                                                  numModes,
+  //                                                  numPhBravaisVectors,
+  //                                                  numElBravaisVectors);
+  //  gWannier.setZero();
+  //  for (int irE = 0; irE < numElBravaisVectors; irE++) {
+  //    if (aux.indicesAreLocal(irE, 0)) { // is local
+  //      int irELocal = aux.global2Local(irE, 0);
+  //      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+  //        for (int nu = 0; nu < numModes; nu++) {
+  //          for (int i = 0; i < numWannier; i++) {
+  //            for (int j = 0; j < numWannier; j++) {
+  //              gWannier(i, j, nu, irP, irE) +=
+  //                  gWannierPara(i, j, nu, irP, irELocal);
+  //            }
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
+  //  mpi->allReduceSum(&gWannier);
 
   if (mpi->mpiHead()) {
     std::cout << "Done Wannier-transform of g\n" << std::endl;
@@ -1381,37 +1382,29 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
 
   //----------------------------------------------------------------------------
 
+  Eigen::Tensor<std::complex<double>, 5> gWannier;
   if (false) {
-  // read coupling from file
-    auto t5 =
-        readGFromQEFile(context, numModes, numBands, numWannier, kPoints,
-        qPoints,
-                        kGridFull, numIrrQPoints, numQEBands, energies);
+    // read coupling from file
+    auto t5 = readGFromQEFile(context, numModes, numBands, numWannier, kPoints,
+                              qPoints, kGridFull, numIrrQPoints, numQEBands,
+                              energies);
     auto gFull = std::get<0>(t5);          // (nBands,nBands,nModes,numK,numQ)
     auto phEigenvectors = std::get<1>(t5); // (numModes,numModes,numQPoints)
     auto phEnergies = std::get<2>(t5);     // (numModes,numQPoints)
-
-    Eigen::Tensor<std::complex<double>, 5> gWannier =
+    gWannier =
         blochToWannier(elBravaisVectors, phBravaisVectors, gFull, uMatrices,
                        phEigenvectors, kPoints, qPoints, crystal, phononH0);
-
-    // Dump el-ph in Wannier representation to file
-    writeWannierCouplingSerial(context, gWannier, numFilledWannier, numSpin,
-                               numModes, numWannier, phDegeneracies,
-                               elDegeneracies, phBravaisVectors, elBravaisVectors,
-                               qMesh, kMesh);
   } else {
-    Eigen::Tensor<std::complex<double>, 5> gWannier =
+    gWannier =
         BlochToWannierEfficient(context, energies, kGridFull, numIrrQPoints,
                                 numQEBands, elBravaisVectors, phBravaisVectors,
                                 uMatrices, kPoints, qPoints, crystal, phononH0);
-    writeWannierCouplingPara(context, gWannier, numFilledWannier, numSpin,
-                             numModes, numWannier, phDegeneracies,
-                             elDegeneracies, phBravaisVectors, elBravaisVectors,
-                             qMesh, kMesh);
   }
-  //--------------------------------------------------------------------------
+  writeWannierCoupling(context, gWannier, numFilledWannier, numSpin, numModes,
+                       numWannier, phDegeneracies, elDegeneracies,
+                       phBravaisVectors, elBravaisVectors, qMesh, kMesh);
 
+  //--------------------------------------------------------------------------
 
   if (runTests) {
     auto t6 = readGFromQEFile(context, numModes, numBands, numWannier, kPoints,
@@ -1432,7 +1425,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   }
 }
 
-void ElPhQeToPhoebeApp::writeWannierCouplingSerial(
+void ElPhQeToPhoebeApp::writeWannierCoupling(
     Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
     const int &numFilledWannier, const int &numSpin, const int &numModes,
     const int &numWannier, const Eigen::VectorXd &phDegeneracies,
@@ -1443,6 +1436,18 @@ void ElPhQeToPhoebeApp::writeWannierCouplingSerial(
   if (mpi->mpiHead())
     std::cout << "\nStart writing el-ph coupling to file." << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+
+  int numPhBravaisVectors = phDegeneracies.size();
+  int numElBravaisVectors = elDegeneracies.size();
+
+  bool matrixDistributed;
+  if (gWannier.dimension(4) != numElBravaisVectors) {
+    matrixDistributed = true;
+  } else {
+    matrixDistributed = false;
+  }
+
+  ParallelMatrix<double> aux(elDegeneracies.size(), 1, mpi->getSize(), 1);
 
 #ifdef HDF5_AVAIL
   std::string outFileName = phoebePrefixQE + ".phoebe.elph.hdf5";
@@ -1475,33 +1480,75 @@ void ElPhQeToPhoebeApp::writeWannierCouplingSerial(
       Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
           gWannier.data(), gWannier.size());
 
+      // note: gwan is distributed
+      unsigned int globalSize = numWannier * numWannier * numModes *
+                                numPhBravaisVectors * numElBravaisVectors;
+
       // Create the data-space to write gWannier to
       std::vector<size_t> dims(2);
       dims[0] = 1;
-      dims[1] = size_t(gwan.size());
+      dims[1] = size_t(globalSize);
       HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
           "/gWannier", HighFive::DataSpace(dims));
 
-      // get the start and stop points of elements to be written by this process
-      std::vector<int> workDivs = mpi->divideWork(gwan.size());
-      size_t numElements = workDivs[1] - workDivs[0];
+      Eigen::VectorXcd gwanSlice;
+      size_t offset, numElements;
+      if (matrixDistributed) {
+        // here, no need to slice the gwan tensor (it's already distributed)
+        // but we have to compute the right offsets to file.
 
-      // We want to write only this part of the vector from this process
-      Eigen::VectorXcd gwanSlice = gwan(Eigen::seq(workDivs[0], workDivs[1]));
+        // start point and the number of elements to be written by this process
+        offset = aux.getAllLocalRows()[0] * pow(numWannier, 2) *
+                        numModes * numPhBravaisVectors;
+        numElements = aux.getAllLocalRows().size() * pow(numWannier, 2) *
+                             numModes * numPhBravaisVectors;
+        Eigen::VectorXcd gwanSlice = gwan;
+      } else {
+        // here we slice the gwan tensor (it's not distributed)
+
+        // get the start and stop points of elements to be written by this process
+        std::vector<int> workDivs = mpi->divideWork(gwan.size());
+        size_t numElements = workDivs[1] - workDivs[0];
+        gwanSlice = gwan(Eigen::seq(workDivs[0], workDivs[1]));
+      }
 
       // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0,
       // col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgwannier.select({0, size_t(workDivs[0])}, {1, numElements})
-          .write(gwanSlice);
+      dgwannier.select({0, offset}, {1, numElements}).write(gwanSlice);
     }
 #else
     { // do not remove these braces, see above note.
+      // case where mpi exists, but HDF5 was built serially
 
-      if (mpi->mpiHead()) { // this is here for the case where mpi exists,
-                            // but HDF5 was built serially
+      if (matrixDistributed) {
+        // so, in this case, we must reduce the tensor before writing it
+        Eigen::Tensor<std::complex<double>, 5> gWannierRed(
+            numWannier, numWannier, numModes, numPhBravaisVectors,
+            numElBravaisVectors);
+        gWannierRed.setZero();
+        for (int irE = 0; irE < numElBravaisVectors; irE++) {
+          if (aux.indicesAreLocal(irE, 0)) { // is local
+            int irELocal = aux.global2Local(irE, 0);
+            for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+              for (int nu = 0; nu < numModes; nu++) {
+                for (int i = 0; i < numWannier; i++) {
+                  for (int j = 0; j < numWannier; j++) {
+                    gWannierRed(i, j, nu, irP, irE) +=
+                        gWannier(i, j, nu, irP, irELocal);
+                  }
+                }
+              }
+            }
+          }
+        }
+        mpi->allReduceSum(&gWannierRed);
+        gWannier = gWannierRed;
+      }
+
+      if (mpi->mpiHead()) {
         // open the hdf5 file
         HighFive::File file(outFileName, HighFive::File::Overwrite);
 
@@ -1590,226 +1637,19 @@ void ElPhQeToPhoebeApp::writeWannierCouplingSerial(
 
   outfile << std::setprecision(16);
   int numPhBands = gWannier.dimension(2);
-  for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
-    for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
-      for (int i3 = 0; i3 < numPhBands; i3++) {
-        for (int i2 = 0; i2 < numWannier; i2++) {
-          for (int i1 = 0; i1 < numWannier; i1++) {
-            outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5).real()
-                    << " " << std::setw(22)
-                    << gWannier(i1, i2, i3, i4, i5).imag() << "\n";
-          }
-        }
-      }
-    }
-  }
-#endif
-
-  if (mpi->mpiHead())
-    std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
-}
-
-void ElPhQeToPhoebeApp::writeWannierCouplingPara(
-    Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
-    const int &numFilledWannier, const int &numSpin, const int &numModes,
-    const int &numWannier, const Eigen::VectorXd &phDegeneracies,
-    const Eigen::VectorXd &elDegeneracies,
-    const Eigen::MatrixXd &phBravaisVectors,
-    const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
-    const Eigen::Vector3i &kMesh) {
-  if (mpi->mpiHead())
-    std::cout << "\nStart writing el-ph coupling to file." << std::endl;
-  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-
-  int numPhBravaisVectors = phDegeneracies.size();
-  int numElBravaisVectors = elDegeneracies.size();
-
-  ParallelMatrix<double> aux(elDegeneracies.size(), 1, mpi->getSize(), 1);
-
-#ifdef HDF5_AVAIL
-  std::string outFileName = phoebePrefixQE + ".phoebe.elph.hdf5";
-  // if the hdf5 file is there already, we want to delete it. Occasionally
-  // these files seem to get stuck open when a process dies while writing to
-  // them, (even if a python script dies) and then they can't be overwritten
-  // properly.
-  std::remove(&outFileName[0]);
-
-  if (mpi->getSize() < 4) {
-    // Note: this HDF5 had already been reported and being worked on.
-    // It's beyond the purpose of Phoebe's project.
-    Warning("HDF5 with 1 MPI process may crash (due to a "
-            "library's bug),\nuse more MPI processes if that happens");
-  }
-
-  try {
-    // need to open the files differently if MPI is available or not
-    // NOTE: do not remove the braces inside this if -- the file must
-    // go out of scope, so that it can be reopened/written by head for the
-    // small quantities as in the next block.
-#if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
-    {
-      // open the hdf5 file
-      HighFive::File file(
-          outFileName, HighFive::File::Overwrite,
-          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
-
-      // flatten the tensor (tensor is not supported) and create the data set
-      Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-          gWannier.data(), gWannier.size());
-
-      // note: gwan is distributed
-      unsigned int globalSize = numWannier * numWannier * numModes
-            * numPhBravaisVectors * numElBravaisVectors;
-
-      // Create the data-space to write gWannier to
-      std::vector<size_t> dims(2);
-      dims[0] = 1;
-      dims[1] = size_t(globalSize);
-      HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
-          "/gWannier", HighFive::DataSpace(dims));
-      mpi->barrier();
-
-      // get the start and stop points of elements to be written by this process
-      size_t offset = aux.getAllLocalRows()[0] * pow(numWannier,2)
-          * numModes * numPhBravaisVectors;
-      size_t numElements = aux.getAllLocalRows().size() * pow(numWannier,2)
-          * numModes * numPhBravaisVectors;
-
-      // Each process writes to hdf5
-      // The format is ((startRow,startCol),(numRows,numCols)).write(data)
-      // Because it's a vector (1 row) all processes write to row=0,
-      // col=startPoint
-      // with nRows = 1, nCols = number of items this process will write.
-      dgwannier.select({0, offset}, {1, numElements})
-          .write(gwan);
-    }
-#else
-    { // do not remove these braces, see above note.
-      // case where mpi exists, but HDF5 was built serially
-
-      // so, in this case, we must reduce the tensor before writing it
-      Eigen::Tensor<std::complex<double>, 5> gWannierRed(numWannier, numWannier,
-                                                numModes, numPhBravaisVectors,
-                                                numElBravaisVectors);
-      gWannierRed.setZero();
-      for (int irE = 0; irE < numElBravaisVectors; irE++) {
-        if (aux.indicesAreLocal(irE, 0)) { // is local
-          int irELocal = aux.global2Local(irE, 0);
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int nu = 0; nu < numModes; nu++) {
-              for (int i = 0; i < numWannier; i++) {
-                for (int j = 0; j < numWannier; j++) {
-                  gWannierRed(i, j, nu, irP, irE) +=
-                      gWannier(i, j, nu, irP, irELocal);
-                }
-              }
-            }
-          }
-        }
-      }
-      mpi->allReduceSum(&gWannierRed);
-
-      if (mpi->mpiHead()) {
-        // open the hdf5 file
-        HighFive::File file(outFileName, HighFive::File::Overwrite);
-
-        // flatten the tensor (tensor is not supported) and create the data set
-        Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-            gWannierRed.data(), gWannierRed.size());
-        HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
-            "/gWannier", HighFive::DataSpace::From(gwan));
-
-        // write to hdf5
-        dgwannier.write(gwan);
-      }
-    }
-#endif
-
-    // we write the small quantities only with MPI head
-    if (mpi->mpiHead()) {
-
-      HighFive::File file(outFileName, HighFive::File::ReadWrite);
-
-      // write out the number of electrons and the spin
-      HighFive::DataSet dnElectrons = file.createDataSet<int>(
-          "/numElectrons", HighFive::DataSpace::From(numFilledWannier));
-      HighFive::DataSet dnSpin = file.createDataSet<int>(
-          "/numSpin", HighFive::DataSpace::From(numSpin));
-      dnElectrons.write(numFilledWannier); // # of occupied wannier functions
-      dnSpin.write(numSpin);
-
-      HighFive::DataSet dnElBands = file.createDataSet<int>(
-          "/numElBands", HighFive::DataSpace::From(numWannier));
-      HighFive::DataSet dnModes = file.createDataSet<int>(
-          "/numPhModes", HighFive::DataSpace::From(numModes));
-      dnElBands.write(numWannier);
-      dnModes.write(numModes);
-
-      // write out the kMesh and qMesh
-      HighFive::DataSet dkMesh =
-          file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
-      HighFive::DataSet dqMesh =
-          file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
-      dkMesh.write(kMesh);
-      dqMesh.write(qMesh);
-
-      // write bravais lattice vectors
-      HighFive::DataSet dPhBravais = file.createDataSet<double>(
-          "/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
-      HighFive::DataSet dElBravais = file.createDataSet<double>(
-          "/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
-      dPhBravais.write(phBravaisVectors);
-      dElBravais.write(elBravaisVectors);
-
-      // write electron and phonon degeneracies
-      HighFive::DataSet dPhDegeneracies = file.createDataSet<double>(
-          "/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
-      HighFive::DataSet dElDegeneracies = file.createDataSet<double>(
-          "/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
-      dPhDegeneracies.write(phDegeneracies);
-      dElDegeneracies.write(elDegeneracies);
-    }
-  } catch (std::exception &error) {
-    Error("Issue writing elph Wannier representation to hdf5.");
-  }
-
-#else // need a non-hdf5 write option
-
-  std::string outFileName = "./" + phoebePrefixQE + ".phoebe.elph.dat";
-
-  std::ofstream outfile(outFileName);
-  if (not outfile.is_open()) {
-    Error("Output file couldn't be opened");
-  }
-  outfile << numFilledWannier << " " << numSpin << "\n";
-  outfile << kMesh << "\n";
-  outfile << qMesh << "\n";
-  outfile << phBravaisVectors.rows() << " " << phBravaisVectors.cols() << "\n";
-  outfile << phBravaisVectors << "\n";
-  outfile << phDegeneracies << "\n";
-  outfile << elBravaisVectors.rows() << " " << elBravaisVectors.cols() << "\n";
-  outfile << elBravaisVectors << "\n";
-  outfile << elDegeneracies << "\n";
-  outfile << "\n";
-  for (auto x : gWannier.dimensions()) {
-    outfile << x << " ";
-  }
-  outfile << "\n";
-
-  outfile << std::setprecision(16);
-  int numPhBands = gWannier.dimension(2);
 
   for (int iRank = 0; iRank < mpi->getSize(); iRank++) {
 
     for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
-      int i5Local = aux.global2Local(i5,0);
+      int i5Local = aux.global2Local(i5, 0);
       if (i5Local >= 0) {
         for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
           for (int i3 = 0; i3 < numPhBands; i3++) {
             for (int i2 = 0; i2 < numWannier; i2++) {
               for (int i1 = 0; i1 < numWannier; i1++) {
-                outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5Local).real()
-                        << " " << std::setw(22)
+                outfile << std::setw(22)
+                        << gWannier(i1, i2, i3, i4, i5Local).real() << " "
+                        << std::setw(22)
                         << gWannier(i1, i2, i3, i4, i5Local).imag() << "\n";
               }
             }
@@ -1819,7 +1659,7 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
       mpi->barrier();
     }
   }
-  #endif
+#endif
 
   if (mpi->mpiHead()) {
     std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
