@@ -1659,7 +1659,7 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
 
       // note: gwan is distributed
       unsigned int globalSize = numWannier * numWannier * numModes
-            * phDegeneracies.size() * elDegeneracies.size();
+            * numPhBravaisVectors * numElBravaisVectors;
 
       // Create the data-space to write gWannier to
       std::vector<size_t> dims(2);
@@ -1671,9 +1671,9 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
 
       // get the start and stop points of elements to be written by this process
       size_t offset = aux.getAllLocalRows()[0] * pow(numWannier,2)
-          * numModes * phDegeneracies.size();
+          * numModes * numPhBravaisVectors;
       size_t numElements = aux.getAllLocalRows().size() * pow(numWannier,2)
-          * numModes * phDegeneracies.size();
+          * numModes * numPhBravaisVectors;
 
       // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
@@ -1691,7 +1691,7 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
       Eigen::Tensor<std::complex<double>, 5> gWannierRed(numWannier, numWannier,
                                                 numModes, numPhBravaisVectors,
                                                 numElBravaisVectors);
-      gWannier.setZero();
+      gWannierRed.setZero();
       for (int irE = 0; irE < numElBravaisVectors; irE++) {
         if (aux.indicesAreLocal(irE, 0)) { // is local
           int irELocal = aux.global2Local(irE, 0);
@@ -1707,7 +1707,7 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
           }
         }
       }
-      mpi->allReduceSum(&gWannier);
+      mpi->allReduceSum(&gWannierRed);
 
       if (mpi->mpiHead()) {
         // open the hdf5 file
