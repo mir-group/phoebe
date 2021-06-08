@@ -649,7 +649,9 @@ QEParser::parseElHarmonicFourier(Context &context) {
   bool nonCollinear = bandStructureXML.child("noncolin").text().as_bool();
   bool spinOrbit = bandStructureXML.child("spinorbit").text().as_bool();
   int numBands = bandStructureXML.child("nbnd").text().as_int();
-  int numElectrons = bandStructureXML.child("nelec").text().as_int();
+  // note: nelec is written as double in the XML file!
+  int numElectrons = int(bandStructureXML.child("nelec").text().as_double());
+
   double homo =
       bandStructureXML.child("highestOccupiedLevel").text().as_double();
   homo *= 2.; // conversion from Hartree to Rydberg
