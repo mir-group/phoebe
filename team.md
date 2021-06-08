@@ -24,9 +24,9 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
   <div class="column">
     <div class="card">
       <img src="pictures/andrea.jpg" alt="Andrea" style="width:100%">
-      <div class="container">
+      <div class="container"  style="padding-bottom:0em">
         <h2>Andrea Cepellotti</h2>
-        <p class="title">Research Associate</p>
+        <p class="title"  style="margin:0">Research Associate</p><em>Harvard University</em>
         <p>
           <a style="text-decoration:none" href="https://www.linkedin.com/in/andrea-cepellotti">
           <i class="fa fa-linkedin-square fa_custom"></i>
@@ -45,9 +45,10 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
   <div class="column">
     <div class="card">
       <img src="pictures/jcoulter.png" alt="Jenny" style="width:100%">
-      <div class="container">
+      <div class="container" style="padding-bottom:1em">
         <h2>Jenny Coulter</h2>
-        <p class="title">Ph.D. student</p>
+        <p class="title"  style="margin:0"> Ph.D. student</p>
+        <em>Harvard University</em>
       </div>
     </div>
   </div>
@@ -55,9 +56,9 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
   <div class="column">
     <div class="card">
       <img src="pictures/anders.jpg" alt="Anders" style="width:100%">
-      <div class="container">
+      <div class="container" style="padding-bottom:1em">
         <h2>Anders Johansson</h2>
-        <p class="title">Ph.D. student</p>
+        <p class="title"  style="margin:0">Ph.D. student</p><em>Harvard University</em>
       </div>
     </div>
   </div>
@@ -65,9 +66,9 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
   <div class="column">
     <div class="card">
       <img src="pictures/natalya.jpg" alt="Natalya" style="width:100%">
-      <div class="container">
+      <div class="container" style="padding-bottom:1em">
         <h2>Natalya Fedorova</h2>
-        <p class="title">Luxembourg Institute of Science and Technology</p>
+        <p class="title" style="margin:0">Junior R&T Associate</p><em>Luxembourg Institute of Science and Technology</em>
       </div>
     </div>
   </div>
@@ -75,9 +76,9 @@ visit <a href="https://bkoz.seas.harvard.edu/">our website</a> to learn more abo
   <div class="column">
     <div class="card">
       <img src="pictures/kozinsky.jpg" alt="Boris" style="width:100%">
-      <div class="container">
+      <div class="container"  style="padding-bottom:1em">
         <h2>Boris Kozinsky</h2>
-        <p class="title">Principal Investigator</p>
+        <p class="title" style="margin:0">Associate Professor</p><em>Harvard University</em>
       </div>
     </div>
   </div>
