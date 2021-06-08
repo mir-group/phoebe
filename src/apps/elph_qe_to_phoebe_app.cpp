@@ -7,10 +7,6 @@
 #include <sstream>
 #include <string>
 
-#ifdef HDF5_AVAIL
-#include <highfive/H5Easy.hpp>
-#endif
-
 void ElPhQeToPhoebeApp::run(Context &context) {
   (void)context;
   // actually, we only need the crystal

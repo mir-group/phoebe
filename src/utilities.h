@@ -97,10 +97,10 @@ std::tuple<double, double> memoryUsage();
 /** splitVector is a utility that splits a std::vector<> into chunks with
  * specified size.
  *
- * @param v: input vector to be splitted
+ * @param v: input vector to be split
  * @param chunkSize: (max) size of the chunk obtained after splitting
  * @return std::vector<std::vector<T>>: a vector of chunks (vectors), containing
- * the splitted copy of the input.
+ * the split copy of the input.
  */
 template<typename Vector>
 std::vector<Vector> splitVector(const Vector& v, unsigned chunkSize) {
@@ -110,12 +110,12 @@ std::vector<Vector> splitVector(const Vector& v, unsigned chunkSize) {
   const Iterator end = v.cend();
 
   while (it != end) {
-    Vector v;
-    std::back_insert_iterator<Vector> inserter(v);
+    Vector v2;
+    std::back_insert_iterator<Vector> inserter(v2);
     const auto num_to_copy = std::min(static_cast<unsigned>(
                                           std::distance(it, end)), chunkSize);
     std::copy(it, it + num_to_copy, inserter);
-    vectorChunks.push_back(std::move(v));
+    vectorChunks.push_back(std::move(v2));
     std::advance(it, num_to_copy);
   }
 

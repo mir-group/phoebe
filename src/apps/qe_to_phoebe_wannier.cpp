@@ -5,7 +5,6 @@
 #include "io.h"
 #include "qe_input_parser.h"
 #include <exception>
-#include <iomanip>
 #include <sstream>
 #include <string>
 #include "utilities.h"
@@ -1508,9 +1507,9 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         // but we have to compute the right offsets to file.
 
         // start point and the number of elements to be written by this process
-        offset = aux.getAllLocalRows()[0] * pow(numWannier, 2) *
+        offset = aux.getAllLocalRows()[0] * numWannier * numWannier *
                         numModes * numPhBravaisVectors;
-        numElements = aux.getAllLocalRows().size() * pow(numWannier, 2) *
+        numElements = aux.getAllLocalRows().size() * numWannier * numWannier *
                              numModes * numPhBravaisVectors;
         gwanSlice = gwan;
       } else {
