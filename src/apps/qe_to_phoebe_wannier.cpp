@@ -1589,7 +1589,7 @@ void ElPhQeToPhoebeApp::writeWannierCouplingSerial(
   outfile << "\n";
 
   outfile << std::setprecision(16);
-  int numPhBands = 3 * crystal.getNumAtoms();
+  int numPhBands = gWannier.dimension(2);
   for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
     for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
       for (int i3 = 0; i3 < numPhBands; i3++) {
@@ -1620,6 +1620,9 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
   if (mpi->mpiHead())
     std::cout << "\nStart writing el-ph coupling to file." << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+
+  int numPhBravaisVectors = phDegeneracies.size();
+  int numElBravaisVectors = elDegeneracies.size();
 
   ParallelMatrix<double> aux(elDegeneracies.size(), 1, mpi->getSize(), 1);
 
@@ -1794,29 +1797,31 @@ void ElPhQeToPhoebeApp::writeWannierCouplingPara(
   outfile << "\n";
 
   outfile << std::setprecision(16);
-  int numPhBands = 3 * crystal.getNumAtoms();
+  int numPhBands = gWannier.dimension(2);
 
   for (int iRank = 0; iRank < mpi->getSize(); iRank++) {
 
-  for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
-    i5Local = aux.global2Local(i5,0);
-    if (i5Local >= 0) {
-      for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
-        for (int i3 = 0; i3 < numPhBands; i3++) {
-          for (int i2 = 0; i2 < numWannier; i2++) {
-            for (int i1 = 0; i1 < numWannier; i1++) {
-              outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5Local).real()
-                      << " " << std::setw(22)
-                      << gWannier(i1, i2, i3, i4, i5Local).imag() << "\n";
+    for (int i5 = 0; i5 < elDegeneracies.size(); i5++) {
+      int i5Local = aux.global2Local(i5,0);
+      if (i5Local >= 0) {
+        for (int i4 = 0; i4 < phDegeneracies.size(); i4++) {
+          for (int i3 = 0; i3 < numPhBands; i3++) {
+            for (int i2 = 0; i2 < numWannier; i2++) {
+              for (int i1 = 0; i1 < numWannier; i1++) {
+                outfile << std::setw(22) << gWannier(i1, i2, i3, i4, i5Local).real()
+                        << " " << std::setw(22)
+                        << gWannier(i1, i2, i3, i4, i5Local).imag() << "\n";
+              }
             }
           }
         }
       }
+      mpi->barrier();
     }
-    mpi->barrier();
   }
-#endif
+  #endif
 
-  if (mpi->mpiHead())
+  if (mpi->mpiHead()) {
     std::cout << "Done writing el-ph coupling to file.\n" << std::endl;
+  }
 }

@@ -1,13 +1,11 @@
 #include "elph_qe_to_phoebe_app.h"
 #include "bandstructure.h"
 #include "eigen.h"
-#include "interaction_elph.h"
 #include "io.h"
 #include "qe_input_parser.h"
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <exception>
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
