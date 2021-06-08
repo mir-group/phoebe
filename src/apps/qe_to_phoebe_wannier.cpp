@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include "utilities.h"
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -67,7 +68,6 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
   Eigen::Tensor<std::complex<double>, 5> gWannierPara(
       numWannier, numWannier, numModes, numPhBravaisVectors, aux.localRows());
   gWannierPara.setZero();
-
 
   // decide the number of loops over IrrQPoints
   // note: in every loop, there is a call to mpi->allReduceSum()
@@ -372,21 +372,32 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
 
     } // if iqIrr != -1
 
-    Eigen::Tensor<std::complex<double>, 4> tmp(
-        numWannier, numWannier, numModes, numPhBravaisVectors);
-    for (int irE = 0; irE < numElBravaisVectors; irE++) {
+//    Eigen::Tensor<std::complex<double>, 5> tmp;
+
+    // Create a vector with the indices from 0, 1, ..., numElBravaisVectors-1
+    std::vector<int> v(numElBravaisVectors);
+    std::iota(std::begin(v), std::end(v), 0);
+    // split it into chunks
+    int chunkSize = numElBravaisVectors / mpi->getSize();
+    auto chunks = splitVector(v, chunkSize);
+
+    for ( std::vector<int> chunk : chunks ) {
+      Eigen::Tensor<std::complex<double>, 5> tmp(
+          numWannier, numWannier, numModes, numPhBravaisVectors, int(chunk.size()));
       tmp.setZero();
+
       if (iqIrr >= 0) { // if the MPI process actually is computing something
+        for (int irE : chunk) {
 #pragma omp parallel for collapse(4) default(none)                             \
-    shared(numPhBravaisVectors, phPhases, numModes, numWannier,        \
-           gWannierTmp, tmp, irE)
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numModes; nu++) {
-            for (int j = 0; j < numWannier; j++) {
-              for (int i = 0; i < numWannier; i++) {
-                for (int iq = 0; iq < phPhases.cols(); iq++) {
-                  tmp(i, j, nu, irP) +=
-                      phPhases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+    shared(numPhBravaisVectors, phPhases, numModes, numWannier, gWannierTmp, tmp, irE, chunk)
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  for (int iq = 0; iq < phPhases.cols(); iq++) {
+                    tmp(i, j, nu, irP, irE-chunk[0]) +=
+                        phPhases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+                  }
                 }
               }
             }
@@ -397,13 +408,15 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
       // now, all MPI receives `tmp`
       mpi->allReduceSum(&tmp);
 
-      if (aux.indicesAreLocal(irE, 0)) { // is local
-        int irELocal = aux.global2Local(irE, 0);
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numModes; nu++) {
-            for (int j = 0; j < numWannier; j++) {
-              for (int i = 0; i < numWannier; i++) {
-                gWannierPara(i, j, nu, irP, irELocal) += tmp(i, j, nu, irP);
+      for (int irE : chunk) {
+        if (aux.indicesAreLocal(irE, 0)) { // is local
+          int irELocal = aux.global2Local(irE, 0);
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int j = 0; j < numWannier; j++) {
+                for (int i = 0; i < numWannier; i++) {
+                  gWannierPara(i, j, nu, irP, irELocal) += tmp(i, j, nu, irP, irE-chunk[0]);
+                }
               }
             }
           }
