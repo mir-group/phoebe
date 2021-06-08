@@ -119,7 +119,7 @@ Phoebe is an open-source code for the ab-initio computation of electron and phon
 It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelism, memory-distributed computing via ScaLAPACK, and GPU accelerated calculation of scattering rates.
 </p>
 
-<div class="container">
+<div class="container" style="margin-top:2em;">
   <div class="mySlides">
     <div class="numbertext">1 / 6</div>
     <img src="pictures/home/colorPhdisp.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
@@ -181,26 +181,28 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
 <br>
 
-### Current functionalities:
+<h2 style="text-align:left; padding-bottom:0.5em; border-bottom:solid"> Current functionalities</h2>
 
-<ul style="padding-left:20px;">
-
-<li style="margin: 0 0 10px 0;"> Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient);</li>
-
-<li style="margin: 0 0 10px 0;"> Electron-phonon scattering with Wannier interpolation;</li>
-
-<li style="margin: 0 0 10px 0;"> Electron-phonon scattering within the EPA approximation;</li>
-
-<li style="margin: 0 0 10px 0;"> Phonon thermal conductivity with 3-phonon scattering;</li>
-
-<li style="margin: 0 0 10px 0;"> Hydrodynamic transport properties of electrons and phonons;</li>
-
-<li style="margin: 0 0 10px 0;"> Calculation of electron and phonon linewidths or relaxation times;</li>
-
-</ul>
-
-and more...
-
+<h3 style="margin:1em 0 1em 0;">Electronic Transport</h3>
+  <ul style="padding-left:2em;">
+    <li style="margin: 0 0 0.5em 0;"> Electron-phonon scattering by Wannier interpolation</li>
+    <li style="margin: 0 0 0.5em 0;"> Electron-phonon scattering within the electron-phonon averaged (EPA) approximation</li>
+    <li style="margin: 0 0 0.5em 0;"> Polar correction and boundary scattering contributions to transport</li>
+    <li style="margin: 0 0 0em 0;"> Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient)</li>
+  </ul>
+<h3 style="margin:1em 0 1em 0;">Phonon Transport</h3>
+  <ul style="padding-left:2em;">
+    <li style="margin: 0 0 0.5em 0;"> 3-phonon scattering from thirdOrder.py/ShengBTE or Phono3py force constants </li>
+    <li style="margin: 0 0 0.5em 0;"> Boundary and isotope scattering contributions to transport</li>
+    <li style="margin: 0 0 0em 0;"> Phonon (lattice) thermal conductivity</li>
+  </ul>
+<h3 style="margin:1em 0 1em 0;">And more...</h3>
+  <ul style="padding-left:2em;">
+    <li style="margin: 0 0 0.5em 0;"> BTE solutions by RTA, iterative, variational, and relaxons solvers</li>
+    <li style="margin: 0 0 0.5em 0;"> Calculation of electron and phonon linewidths or relaxation times on a path</li>
+    <li style="margin: 0 0 0.5em 0;"> Wigner transport equation correction for electrons and phonons (Zener tunneling contribution to electron transport)</li>
+    <li style="margin: 0 0 0.5em 0;"> Hydrodynamic transport properties (viscosity) for electrons and phonons</li>
+  </ul>
 
 <script>
 var slideIndex = 1;
