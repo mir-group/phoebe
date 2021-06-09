@@ -108,8 +108,9 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     assert(numQEBands == gStar.dimension(0));
     assert(numModes == gStar.dimension(2));
 
-    for (int ik=0; ik<numKPoints; ik++) {
-      Eigen::Vector3d kCrystal = kPoints.getPointCoordinates(ik, Points::crystalCoordinates);
+    for (int ik = 0; ik < numKPoints; ik++) {
+      Eigen::Vector3d kCrystal =
+          kPoints.getPointCoordinates(ik, Points::crystalCoordinates);
 
       for (int iqStar = 0; iqStar < numQStar; iqStar++) {
         Eigen::Vector3d qCrystal = qStar.col(iqStar);
@@ -124,16 +125,13 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
         for (int j = 0; j < numEpaEnergies; j++) {
           for (int i = 0; i < numEpaEnergies; i++) {
             for (int nu = 0; nu < numModes; nu++) {
-
-              if (phEnergies(nu, iqStar) <= phononCutoff)
+              if (phEnergies(nu, iqStar) <= phononCutoff) {
                 continue;
-
+              }
               for (int ib2 = 0; ib2 < numQEBands; ib2++) {
                 for (int ib1 = 0; ib1 < numQEBands; ib1++) {
-
                   double gaussianX =
                       gaussian(i, ib2, ik) * gaussian(j, ib1, ikq);
-
                   g2Epa(nu, i, j) +=
                       std::norm(gStar(ib1, ib2, nu, ik, iqStar)) * gaussianX *
                       0.5 / phEnergies(nu, iqStar);
@@ -152,6 +150,15 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   mpi->allReduceSum(&phAvgEnergies);
   loopPrint.close();
 
+  int numQPoints = std::get<0>(qPoints.getMesh()).prod();
+  for (int j = 0; j < numEpaEnergies; j++) {
+    for (int i = 0; i < numEpaEnergies; i++) {
+      for (int nu = 0; nu < numModes; nu++) {
+        g2Epa(nu, i, j) /= numKPoints * numQPoints;
+      }
+    }
+  }
+
   if (mpi->mpiHead()) {
     std::cout << "\nStart writing el-ph coupling to file." << std::endl;
     std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
@@ -166,7 +173,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     outfile << numEpaEnergies << "\n";
     outfile << epaEnergies.transpose() << "\n";
     for (auto i = 0; i < numModes; ++i) {
-      for (auto j = 0; j < numEpaEnergies; ++j) { // k index
+      for (auto j = 0; j < numEpaEnergies; ++j) {   // k index
         for (auto k = 0; k < numEpaEnergies; ++k) { // k+q index
           outfile << g2Epa(i, j, k) << "\n";
         }
