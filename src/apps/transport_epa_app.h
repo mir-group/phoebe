@@ -44,7 +44,6 @@ private:
    */
   static BaseVectorBTE getScatteringRates(Context &context,
                                    StatisticsSweep &statisticsSweep,
-                                   FullBandStructure &fullBandStructure,
                                    Eigen::VectorXd &energies,
                                    TetrahedronDeltaFunction &tetrahedrons,
                                    Crystal &crystal);

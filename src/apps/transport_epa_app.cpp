@@ -72,7 +72,7 @@ void TransportEpaApp::run(Context &context) {
   //--------------------------------
   // Calculate EPA scattering rates
   BaseVectorBTE scatteringRates = getScatteringRates(
-      context, statisticsSweep, bandStructure, energies, tetrahedrons, crystal);
+      context, statisticsSweep, energies, tetrahedrons, crystal);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
                numEnergies, energies);
 
@@ -130,42 +130,20 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
   LoopPrint loopPrint("calculating energy projected velocity", "energies",
                       mpi->divideWorkIter(numEnergies).size());
-#pragma omp parallel default(none)                                             \
+#pragma omp parallel for default(none)                                         \
     shared(mpi, energyProjVelocity, dim, numEnergies, numStates,               \
            bandStructure, tetrahedrons, numPoints, loopPrint, energies)
-  {
-    Eigen::Tensor<double, 3> privateVel(dim, dim, numEnergies);
-    privateVel.setZero();
-
-#pragma omp for nowait
-    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
+  for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
-      {
-        loopPrint.update(); // loop print not omp thread safe
-      }
-      for (int iState = 0; iState != numStates; ++iState) {
-        StateIndex isIdx(iState);
-        double deltaFunction =
-            tetrahedrons.getSmearing(energies(iEnergy), isIdx);
-        Eigen::Vector3d velocity = bandStructure.getGroupVelocity(isIdx);
-        for (int j = 0; j < dim; ++j) {
-          for (int i = 0; i < dim; ++i) {
-            // TODO is this correctly doing outer product -- NO it's for sure
-            // not! it's taking the product of specific elements, when this is
-            // actually a cross product!
-            // TODO is tetrahedron delta function doing it's job
-            privateVel(i, j, iEnergy) +=
-                velocity(i) * velocity(j) * deltaFunction / double(numPoints);
-          }
-        }
-      }
-    }
-// TODO why are we copying here
-#pragma omp critical
-    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
+    { loopPrint.update(); } // loop print not omp thread safe
+    for (int iState = 0; iState < numStates; ++iState) {
+      StateIndex isIdx(iState);
+      double deltaFunction = tetrahedrons.getSmearing(energies(iEnergy), isIdx);
+      Eigen::Vector3d velocity = bandStructure.getGroupVelocity(isIdx);
       for (int j = 0; j < dim; ++j) {
         for (int i = 0; i < dim; ++i) {
-          energyProjVelocity(i, j, iEnergy) += privateVel(i, j, iEnergy);
+          energyProjVelocity(i, j, iEnergy) +=
+              velocity(i) * velocity(j) * deltaFunction / double(numPoints);
         }
       }
     }
@@ -177,7 +155,7 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
 BaseVectorBTE TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
-    FullBandStructure &fullBandStructure, Eigen::VectorXd &energies,
+    Eigen::VectorXd &energies,
     TetrahedronDeltaFunction &tetrahedrons, Crystal &crystal) {
 
   int numEnergies = energies.size();
