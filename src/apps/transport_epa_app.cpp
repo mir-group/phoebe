@@ -13,7 +13,6 @@
 #include "statistics_sweep.h"
 #include "utilities.h"
 #include "vector_bte.h"
-#include <cmath>
 #include <nlohmann/json.hpp>
 #include <vector>
 
@@ -113,16 +112,6 @@ void TransportEpaApp::checkRequirements(Context &context) {
   }
 }
 
-// TODO what is this function doing
-void foldWithinBounds(int &idx, const int &numBins) {
-  if (idx < 0) {
-    idx = 0;
-  }
-  if (idx > numBins) {
-    idx = numBins - 1;
-  }
-}
-
 Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
     Context &context, FullBandStructure &bandStructure,
     const Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons) {
@@ -191,33 +180,25 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     FullBandStructure &fullBandStructure, Eigen::VectorXd &energies,
     TetrahedronDeltaFunction &tetrahedrons, Crystal &crystal) {
 
-  int numStates = fullBandStructure.getNumStates();
+  int numEnergies = energies.size();
 
   /*If constant relaxation time is specified in input, we don't need to
   calculate EPA lifetimes*/
   double constantRelaxationTime = context.getConstantRelaxationTime();
   if (constantRelaxationTime > 0.) {
-    BaseVectorBTE crtRate(statisticsSweep, numStates, 1);
+    BaseVectorBTE crtRate(statisticsSweep, numEnergies, 1);
     crtRate.setConst(1. / constantRelaxationTime);
     return crtRate;
   }
 
-  auto hasSpinOrbit = context.getHasSpinOrbit();
   int spinFactor = 2;
-  if (hasSpinOrbit) {
+  if (context.getHasSpinOrbit()) {
     spinFactor = 1;
   }
 
-  // TODO this seems strangely redundant -- just ask the bands which aprticle we
-  // have
   auto particle = Particle(Particle::electron);
-  auto phParticle = Particle(Particle::phonon);
 
-  if (particle.isPhonon())
-    Error("Electronic band structure has to be provided");
-
-  int numCalcs = statisticsSweep.getNumCalculations();
-  int numEnergies = energies.size();
+  int numCalculations = statisticsSweep.getNumCalculations();
   double energyStep = context.getEpaEnergyStep();
 
   // calculate the density of states at the energies in energies vector
@@ -231,9 +212,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
     shared(numEnergies, loopPrint1, dos, tetrahedrons, energies, mpi)
     for (int i : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
-      {
-        loopPrint1.update(); // loop print not omp thread safe
-      }
+      { loopPrint1.update(); } // loop print not omp thread safe
       dos(i) = tetrahedrons.getDOS(energies(i));
     }
     mpi->allReduceSum(&dos);
@@ -242,121 +221,93 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
   // get vector containing averaged phonon frequencies per mode
   InteractionEpa couplingEpa = InteractionEpa::parseEpaCoupling(context);
+
   Eigen::VectorXd phEnergies = couplingEpa.getPhEnergies();
-  int numPhEnergies = phEnergies.size();
+  int numModes = phEnergies.size();
 
-  // phJump, a double, describes # of bin-jumps the electron does after
-  // scattering
-  Eigen::VectorXd phJump(numPhEnergies);
-#pragma omp parallel for
-  for (auto i = 0; i != phEnergies.size(); ++i) {
-    phJump(i) = phEnergies(i) / energyStep;
+  // precompute bose-einstein populations
+  Eigen::MatrixXd bose(numModes, numCalculations);
+  {
+    auto phParticle = Particle(Particle::phonon);
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+      double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
+      for (int iPhFreq = 0; iPhFreq < numModes; iPhFreq++) {
+        bose(iPhFreq, iCalc) =
+            phParticle.getPopulation(phEnergies(iPhFreq), temp);
+      }
+    }
   }
 
-  Eigen::VectorXd elphEnergies = couplingEpa.getElEnergies();
-  double minElphEnergy = elphEnergies(0);
-  int numElphBins = elphEnergies.size();
-  double binSize = 1.;
-  if (numElphBins > 1) {
-    binSize = elphEnergies(1) - elphEnergies(0);
-  }
-
-  LoopPrint loopPrint("calculation of EPA scattering rates", "energies",
+  LoopPrint loopPrint("calculation of EPA scattering rates", "phonon modes",
                       mpi->divideWorkIter(numEnergies).size());
 
   BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
 
-// loop over temperatures and chemical potentials, then loop over energies
-#pragma omp parallel default(none)                                             \
-    shared(mpi, loopPrint, statisticsSweep, numCalcs, numPhEnergies, phJump,   \
-           phParticle, particle, energies, phEnergies, numEnergies, dos,       \
-           binSize, minElphEnergy, numElphBins, couplingEpa, twoPi, fullBandStructure, spinFactor, crystal, epaRate)
-  {
-    Eigen::MatrixXd privateRates(numCalcs, numEnergies);
-    privateRates.setZero();
+  double norm = twoPi / spinFactor *
+                crystal.getVolumeUnitCell(crystal.getDimensionality());
 
-#pragma omp for nowait
-    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
+#pragma omp parallel for default(none)                                         \
+    shared(norm, mpi, numEnergies, numCalculations, statisticsSweep, epaRate,  \
+           couplingEpa, bose, loopPrint, dos, particle, energies, phEnergies,  \
+           numModes, energyStep)
+  for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
+
 #pragma omp critical
-      {
-        loopPrint.update(); // loop print not omp thread safe
+    { loopPrint.update(); }
+
+    // loop over phonon frequencies
+    for (int iPhFreq = 0; iPhFreq < numModes; iPhFreq++) {
+
+      // note: phEnergies(iPhFreq)/energyStep =
+      // # of bin-jumps the electron does after scattering
+
+      // compute the dos for electron in the final state for the two
+      // scatterings mechanisms, and do a linear interpolation
+      int iJump = int(phEnergies(iPhFreq) / energyStep);
+      double iInterp = phEnergies(iPhFreq) / energyStep - double(iJump);
+      int largeIndex = iEnergy + iJump + 1;
+      int smallIndex = iEnergy - iJump - 1;
+      double dosEmission = 0.;
+      double dosAbsorption = 0.;
+      // Avoid some index out of bound errors
+      if (smallIndex >= 0) {
+        dosEmission =
+            dos(smallIndex) * iInterp + dos(iEnergy - iJump) * (1. - iInterp);
+      }
+      if (largeIndex < dos.size()) {
+        dosAbsorption =
+            dos(iEnergy + iJump) * (1. - iInterp) + dos(largeIndex) * iInterp;
       }
 
-      // get statistics
-      for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-        double chemPot =
-            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+      //------------------------------------
+      // estimate strength of el-ph coupling |g|^2
+      double en = energies(iEnergy);
+      double enP = energies(iEnergy) + phEnergies(iPhFreq);
+      double enM = energies(iEnergy) - phEnergies(iPhFreq);
+      double gAbsorption = couplingEpa.getCoupling(iPhFreq, en, enP);
+      double gEmission = couplingEpa.getCoupling(iPhFreq, en, enM);
 
-        // loop over phonon frequencies
-        for (int iPhFreq = 0; iPhFreq < numPhEnergies; iPhFreq++) {
+      // population of phonons, electron after emission/absorption
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStat.temperature;
+        double chemPot = calcStat.chemicalPotential;
 
-          // Avoid some index out of bound errors
-          if (double(iEnergy) + phJump(iPhFreq) + 1. >= double(numEnergies) ||
-              double(iEnergy) - phJump(iPhFreq) - 1. < 0.) {
-            continue;
-          }
+        double nFermiAbsorption = particle.getPopulation(
+            energies[iEnergy] + phEnergies(iPhFreq), temp, chemPot);
+        double nFermiEmission = particle.getPopulation(
+            energies[iEnergy] - phEnergies(iPhFreq), temp, chemPot);
 
-          // population of phonons, electron after emission/absorption
-          double nBose = phParticle.getPopulation(phEnergies(iPhFreq), temp);
-          double nFermiAbsorption = particle.getPopulation(
-              energies[iEnergy] + phEnergies(iPhFreq), temp, chemPot);
-          double nFermiEmission = particle.getPopulation(
-              energies[iEnergy] - phEnergies(iPhFreq), temp, chemPot);
+        //-----------------------------
+        // now the scattering rate
+        // Note that g (the coupling) is already squared
 
-          // compute the dos for electron in the final state for the two
-          // scatterings mechanisms
-          // Note: we do a linear interpolation
-          int iJump = (int)phJump(iPhFreq);
-          double iInterp = phJump(iPhFreq) - (double)iJump;
-          double dosAbsorption = dos(iEnergy + iJump) * (1. - iInterp) +
-                                 dos(iEnergy + iJump + 1) * iInterp;
-          double dosEmission = dos(iEnergy - iJump - 1) * iInterp +
-                               dos(iEnergy - iJump) * (1. - iInterp);
+        double rate = gAbsorption * (bose(iPhFreq, iCalc) + nFermiAbsorption) *
+                          dosAbsorption +
+                      gEmission * (bose(iPhFreq, iCalc) + 1 - nFermiEmission) *
+                          dosEmission;
 
-          // find index of the energy in the bins of the elph energies
-          int intBinPos =
-              int(std::round((energies(iEnergy) - minElphEnergy) / binSize));
-          int iAbsInt = int(std::round(
-              (energies(iEnergy) + phEnergies(iPhFreq) - minElphEnergy) /
-              binSize));
-          int iEmisInt = int(std::round(
-              (energies(iEnergy) - phEnergies(iPhFreq) - minElphEnergy) /
-              binSize));
-
-          // check and fold within bounds:
-          foldWithinBounds(intBinPos, numElphBins);
-          foldWithinBounds(iAbsInt, numElphBins);
-          foldWithinBounds(iEmisInt, numElphBins);
-
-          //------------------------------------
-          // estimate strength of el-ph coupling |g|^2
-          double gAbsorption =
-              couplingEpa.getCoupling(iPhFreq, iAbsInt, intBinPos);
-          double gEmission =
-              couplingEpa.getCoupling(iPhFreq, iEmisInt, intBinPos);
-
-          //-----------------------------
-          // finally, the scattering rate
-          // TODO the coupling is squared already here, right?
-          privateRates(iCalc, iEnergy) +=
-              gAbsorption * (nBose + nFermiAbsorption) * dosAbsorption +
-              gEmission * (nBose + 1 - nFermiEmission) * dosEmission;
-        }
-      }
-    }
-    // TODO do we need this
-    privateRates = (twoPi / spinFactor) * privateRates /
-                   double(fullBandStructure.getNumPoints(true)) *
-                   crystal.getVolumeUnitCell(crystal.getDimensionality());
-
-// TODO again seems like unnecessary copying
-#pragma omp critical
-    {
-      for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
-        for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
-          epaRate.data(iCalc, iEnergy) += privateRates(iCalc, iEnergy);
-        }
+        epaRate.data(iCalc, iEnergy) += norm * rate;
       }
     }
   }

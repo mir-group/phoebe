@@ -132,7 +132,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
                 for (int ib1 = 0; ib1 < numQEBands; ib1++) {
 
                   double gaussianX =
-                      gaussian(i, ib1, ik) * gaussian(j, ib2, ikq);
+                      gaussian(i, ib2, ik) * gaussian(j, ib1, ikq);
 
                   g2Epa(nu, i, j) +=
                       std::norm(gStar(ib1, ib2, nu, ik, iqStar)) * gaussianX *
@@ -166,8 +166,8 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     outfile << numEpaEnergies << "\n";
     outfile << epaEnergies.transpose() << "\n";
     for (auto i = 0; i < numModes; ++i) {
-      for (auto j = 0; j < numEpaEnergies; ++j) {
-        for (auto k = 0; k < numEpaEnergies; ++k) {
+      for (auto j = 0; j < numEpaEnergies; ++j) { // k index
+        for (auto k = 0; k < numEpaEnergies; ++k) { // k+q index
           outfile << g2Epa(i, j, k) << "\n";
         }
       }

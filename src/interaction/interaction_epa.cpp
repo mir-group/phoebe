@@ -1,6 +1,7 @@
 #include "interaction_epa.h"
 #include "exceptions.h"
 #include <fstream>
+#include <algorithm>
 
 // default constructor
 InteractionEpa::InteractionEpa(Eigen::VectorXd &elEnergies_,
@@ -8,15 +9,20 @@ InteractionEpa::InteractionEpa(Eigen::VectorXd &elEnergies_,
                                Eigen::Tensor<double, 3> &elPhMatAverage_)
     : elEnergies(elEnergies_), phEnergies(phEnergies_),
       elPhMatAverage(elPhMatAverage_) {
-  assert(elPhMatAverage.dimension(1)==elPhMatAverage.dimension(2));
-  assert(elPhMatAverage.dimension(1)==elEnergies.size());
-  assert(elPhMatAverage.dimension(0)==phEnergies.size());
+  assert(elPhMatAverage.dimension(1) == elPhMatAverage.dimension(2));
+  assert(elPhMatAverage.dimension(1) == elEnergies.size());
+  assert(elPhMatAverage.dimension(0) == phEnergies.size());
+
+  binSize = 1.;
+  if (elEnergies.size() > 1) {
+    binSize = elEnergies(1) - elEnergies(0);
+  }
 }
 
 // copy constructor
 InteractionEpa::InteractionEpa(const InteractionEpa &that)
     : elEnergies(that.elEnergies), phEnergies(that.phEnergies),
-      elPhMatAverage(that.elPhMatAverage) {}
+      elPhMatAverage(that.elPhMatAverage), binSize(that.binSize) {}
 
 // overload the assignment operator
 InteractionEpa &InteractionEpa::operator=(const InteractionEpa &that) {
@@ -24,6 +30,7 @@ InteractionEpa &InteractionEpa::operator=(const InteractionEpa &that) {
     elEnergies = that.elEnergies;
     phEnergies = that.phEnergies;
     elPhMatAverage = that.elPhMatAverage;
+    binSize = that.binSize;
   }
   return *this;
 }
@@ -32,8 +39,18 @@ Eigen::VectorXd InteractionEpa::getElEnergies() { return elEnergies; }
 
 Eigen::VectorXd InteractionEpa::getPhEnergies() { return phEnergies; }
 
-double InteractionEpa::getCoupling(const int&i,const int&j,const int&k) {
-  return elPhMatAverage(i,j,k);
+double InteractionEpa::getCoupling(const int &nu, const double &enI, const double &enF) {
+  // find index of the energy in the bins of the elph energies
+  int j = int(std::round((enI - elEnergies(0)) / binSize));
+  int k = int(std::round((enF - elEnergies(0)) / binSize));
+
+  // check and fold indices within bounds:
+  j = std::min(int(elEnergies.size())-1,j);
+  k = std::min(int(elEnergies.size())-1,k);
+  j = std::max(0,j);
+  k = std::max(0,k);
+
+  return elPhMatAverage(nu, j, k);
 }
 
 InteractionEpa InteractionEpa::parseEpaCoupling(Context &context) {

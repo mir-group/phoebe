@@ -42,8 +42,8 @@ void ElectronH0Fourier::trimBands(Context &context, const double &minEn,
   context.setNumOccupiedStates(n);
 }
 
-ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_, Points coarsePoints_,
-                                     FullBandStructure coarseBandStructure_,
+ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_, const Points& coarsePoints_,
+                                     const FullBandStructure& coarseBandStructure_,
                                      double cutoff_)
     : crystal(crystal_), coarseBandStructure(coarseBandStructure_),
       coarsePoints(coarsePoints_), particle(Particle::electron) {
@@ -58,7 +58,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_, Points coarsePoints_,
   // now we look for the expansion coefficients that interpolates the bands
   // note that setPositionVectors must stay above this call
 
-  LoopPrint loopPrint("setting up Fourier interpolation", "bands", numBands);
+  LoopPrint loopPrint("setting up Fourier interpolation", "bands",
+                      mpi->divideWorkIter(numBands).size());
 
   expansionCoefficients.resize(numBands, numPositionVectors);
   expansionCoefficients.setZero();
@@ -158,7 +159,7 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
-  LoopPrint loopPrint("populating electronic bandstructure", "bands", numBands);
+  LoopPrint loopPrint("populating electronic band structure", "bands", numBands);
 
   for (auto ik : fullBandStructure.getWavevectorIndices()) {
     Point point = fullBandStructure.getPoint(ik);
@@ -175,7 +176,7 @@ FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
 }
 
 double
-ElectronH0Fourier::getRoughnessFunction(const Eigen::Vector3d &position) {
+ElectronH0Fourier::getRoughnessFunction(const Eigen::Vector3d &position) const {
   double norm = position.norm();
   return pow(1. - coefficient1 * norm / minDistance, 2) +
          coefficient2 * pow(norm / minDistance, 6);
@@ -238,7 +239,7 @@ void ElectronH0Fourier::setPositionVectors() {
   // equal to the grid of wavevectors would be the bare minimum for the
   // interpolation to work, and wouldn't be enough for anything good.
 
-  LoopPrint loopPrint("Fourier supercell position vector search",
+  LoopPrint loopPrint("Fourier super cell position vector search",
                       "as first cell dimension", searchSize0 * grid(0) * 2);
 
   // now, we loop over the vectors of super cell A.
