@@ -516,7 +516,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::string energyUnit = "eV";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
-  double energyToTime = timeRyToFs/twoPi;
+  double energyToTime = timeRyToFs;
   if (particle.isPhonon()) {
     particleType = "phonon";
     energyUnit = "meV";
@@ -635,7 +635,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
     particleType = "electron";
   }
 
-  double energyToTime = timeRyToFs / twoPi;
+  double energyToTime = timeRyToFs;
   double energyConversion = energyRyToEv;
 
   std::string energyUnit = "eV";
