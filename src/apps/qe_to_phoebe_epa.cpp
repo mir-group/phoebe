@@ -59,6 +59,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   for (int ib1 = 0; ib1 < numQEBands; ib1++) {
     for (int ik = 0; ik < numKPoints; ik++) {
       for (int i = 0; i < numEpaEnergies; i++) {
+        // note: the old EPA was using the bin center
         double arg = pow(elEnergies(ib1, ik) - epaEnergies(i), 2) / smearing2;
         gaussian(i, ib1, ik) = exp(-arg);
       }
@@ -81,6 +82,9 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   }
 
   double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
+
+  Eigen::MatrixXd normalization(numEpaEnergies, numEpaEnergies);
+  normalization.setZero();
 
   // loop over all irreducible q-points written to file
   LoopPrint loopPrint("Computing coupling EPA", "irreducible q-points",
@@ -121,17 +125,20 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
 
 #pragma omp parallel for collapse(3) default(none)                             \
     shared(numEpaEnergies, numModes, numQEBands, gaussian, gStar, phEnergies,  \
-           g2Epa, ik, ikq, iqStar, phononCutoff)
+           g2Epa, ik, ikq, iqStar, phononCutoff, normalization)
         for (int j = 0; j < numEpaEnergies; j++) {
           for (int i = 0; i < numEpaEnergies; i++) {
-            for (int nu = 0; nu < numModes; nu++) {
-              if (phEnergies(nu, iqStar) <= phononCutoff) {
-                continue;
-              }
-              for (int ib2 = 0; ib2 < numQEBands; ib2++) {
-                for (int ib1 = 0; ib1 < numQEBands; ib1++) {
-                  double gaussianX =
-                      gaussian(i, ib2, ik) * gaussian(j, ib1, ikq);
+            for (int ib2 = 0; ib2 < numQEBands; ib2++) {
+              for (int ib1 = 0; ib1 < numQEBands; ib1++) {
+                double gaussianX =
+                    gaussian(i, ib2, ik) * gaussian(j, ib1, ikq);
+
+                normalization(i,j) += gaussianX;
+
+                for (int nu = 0; nu < numModes; nu++) {
+                  if (phEnergies(nu, iqStar) <= phononCutoff) {
+                    continue;
+                  }
                   g2Epa(nu, i, j) +=
                       std::norm(gStar(ib1, ib2, nu, ik, iqStar)) * gaussianX *
                       0.5 / phEnergies(nu, iqStar);
@@ -150,11 +157,20 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   mpi->allReduceSum(&phAvgEnergies);
   loopPrint.close();
 
-  int numQPoints = std::get<0>(qPoints.getMesh()).prod();
+//  int numQPoints = std::get<0>(qPoints.getMesh()).prod();
+//  for (int j = 0; j < numEpaEnergies; j++) {
+//    for (int i = 0; i < numEpaEnergies; i++) {
+//      for (int nu = 0; nu < numModes; nu++) {
+//        g2Epa(nu, i, j) /= numKPoints * numQPoints;
+//      }
+//    }
+//  }
   for (int j = 0; j < numEpaEnergies; j++) {
     for (int i = 0; i < numEpaEnergies; i++) {
-      for (int nu = 0; nu < numModes; nu++) {
-        g2Epa(nu, i, j) /= numKPoints * numQPoints;
+      if (normalization(i,j) > 1.0e-12) {
+        for (int nu = 0; nu < numModes; nu++) {
+          g2Epa(nu, i, j) /= normalization(i, j);
+        }
       }
     }
   }
