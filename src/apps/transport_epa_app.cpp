@@ -41,8 +41,6 @@ void TransportEpaApp::run(Context &context) {
 
   // Read and setup k-point mesh for interpolating band structure
   Points fullPoints(crystal, context.getKMesh());
-  bool withVelocities = true;
-  bool withEigenvectors = false;
 
   if (mpi->mpiHead()) {
     std::cout << "\nBuilding electronic band structure" << std::endl;
@@ -52,13 +50,13 @@ void TransportEpaApp::run(Context &context) {
   electronH0.trimBands(context, minEnergy, maxEnergy);
 
   // Fourier interpolation of the electronic band structure
+  bool withVelocities = true;
+  bool withEigenvectors = false;
   FullBandStructure bandStructure =
       electronH0.populate(fullPoints, withVelocities, withEigenvectors);
 
   // set temperatures, chemical potentials and carrier concentrations
   StatisticsSweep statisticsSweep(context, &bandStructure);
-
-  Particle particle = bandStructure.getParticle();
 
   if (mpi->mpiHead()) {
     std::cout << "\nStarting EPA with " << numEnergies << " energies and "
@@ -87,13 +85,12 @@ void TransportEpaApp::run(Context &context) {
     std::cout << "\nComputing transport coefficients" << std::endl;
   }
 
-  OnsagerCoefficients transCoeffs(statisticsSweep, crystal, bandStructure,
-                                  context);
-  transCoeffs.calcFromEPA(scatteringRates, energyProjVelocity, energies,
-                          energyStep, particle);
-  transCoeffs.calcTransportCoefficients();
-  transCoeffs.print();
-  transCoeffs.outputToJSON("epa_onsager_coefficients.json");
+  OnsagerCoefficients transCoefficients(statisticsSweep, crystal, bandStructure,
+                                        context);
+  transCoefficients.calcFromEPA(scatteringRates, energyProjVelocity, energies);
+  transCoefficients.calcTransportCoefficients();
+  transCoefficients.print();
+  transCoefficients.outputToJSON("epa_onsager_coefficients.json");
 }
 
 void TransportEpaApp::checkRequirements(Context &context) {
@@ -155,8 +152,8 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
 
 BaseVectorBTE TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
-    Eigen::VectorXd &energies,
-    TetrahedronDeltaFunction &tetrahedrons, Crystal &crystal) {
+    Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons,
+    Crystal &crystal) {
 
   int numEnergies = energies.size();
 
