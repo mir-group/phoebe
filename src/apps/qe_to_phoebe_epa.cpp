@@ -155,6 +155,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   }
   mpi->allReduceSum(&g2Epa);
   mpi->allReduceSum(&phAvgEnergies);
+  mpi->allReduceSum(&normalization);
   loopPrint.close();
 
 //  int numQPoints = std::get<0>(qPoints.getMesh()).prod();
