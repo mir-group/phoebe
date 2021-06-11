@@ -144,7 +144,7 @@ ElectronH0Fourier::diagonalizeVelocityFromCoordinates(
   velocity.setZero();
   for (int ib = 0; ib < numBands; ib++) {
     Eigen::Vector3d v = getGroupVelocityFromCoords(coordinates, ib);
-    for (int i = 0; i < 3; i++) {
+    for (int i : {0, 1, 2}) {
       velocity(ib, ib, i) = v(i);
     }
   }
@@ -239,7 +239,7 @@ void ElectronH0Fourier::setPositionVectors() {
   // equal to the grid of wavevectors would be the bare minimum for the
   // interpolation to work, and wouldn't be enough for anything good.
 
-  LoopPrint loopPrint("Fourier super cell position vector search",
+  LoopPrint loopPrint("Fourier super cell vector search",
                       "as first cell dimension", searchSize0 * grid(0) * 2);
 
   // now, we loop over the vectors of super cell A.

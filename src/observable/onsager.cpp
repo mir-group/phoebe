@@ -80,8 +80,9 @@ void OnsagerCoefficients::calcFromEPA(
     Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies) {
 
   Particle particle(Particle::electron);
-  double energyStep = energies(1) - energies(0);
   double factor = spinFactor / pow(twoPi, dimensionality);
+
+  double energyStep = energies(1) - energies(0);
 
   LEE.setZero();
   LET.setZero();
@@ -96,10 +97,6 @@ void OnsagerCoefficients::calcFromEPA(
 
           double pop = particle.getPopPopPm1(energies(iEnergy), temp, chemPot);
           double en = energies(iEnergy) - chemPot;
-          if (scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ||
-              pop <= 1.0e-20) {
-            continue;
-          }
 
           double term =
               energyProjVelocity(iAlpha, iBeta, iEnergy) /

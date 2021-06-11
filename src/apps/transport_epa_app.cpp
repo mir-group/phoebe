@@ -46,7 +46,6 @@ void TransportEpaApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::cout << "\nBuilding electronic band structure" << std::endl;
   }
-std::cout << crystal.getVolumeUnitCell() << "!!!\n";
 
   // filter to only the bands relevant to transport
   electronH0.trimBands(context, minEnergy, maxEnergy);
@@ -61,7 +60,7 @@ std::cout << crystal.getVolumeUnitCell() << "!!!\n";
   StatisticsSweep statisticsSweep(context, &bandStructure);
 
   if (mpi->mpiHead()) {
-    std::cout << "\nStarting EPA with " << numEnergies << " energies and "
+    std::cout << "Starting EPA with " << numEnergies << " energies and "
               << bandStructure.getNumStates() << " states" << std::endl;
   }
 
@@ -129,6 +128,62 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
   auto crystal = bandStructure.getPoints().getCrystal();
   int dim = context.getDimensionality();
   double norm = pow(twoPi, dim) / crystal.getVolumeUnitCell(dim) / numPoints;
+
+//  {
+//    StatisticsSweep statisticsSweep(context, &bandStructure);
+//
+//    double sigma = 0.;
+//    double tau = context.getConstantRelaxationTime() * twoPi;
+//    double temp = statisticsSweep.getCalcStatistics(0).temperature;
+//    double chemPot = statisticsSweep.getCalcStatistics(0).chemicalPotential;
+//    int numKPoints = bandStructure.getNumPoints(true);
+//    Particle particle(Particle::electron);
+//
+//    double energyStep = energies(1) - energies(0);
+//
+//#pragma omp parallel for reduction(+:sigma) default(none) shared(tetrahedrons, tau, crystal, particle, mpi, numEnergies, energies, bandStructure, numKPoints, temp, chemPot, energyStep)
+//    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
+//      double en = energies[iEnergy];
+//
+//      for (int iState : bandStructure.irrStateIterator()) {
+//        StateIndex isIdx(iState);
+//        auto rotations = bandStructure.getRotationsStar(isIdx);
+//        Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+////        double stateEn = bandStructure.getEnergy(isIdx);
+//        double delta = tetrahedrons.getSmearing(en, isIdx);
+//
+//        double pop = particle.getPopPopPm1(en, temp, chemPot);
+//
+//        for (const Eigen::Matrix3d &r : rotations) {
+//          Eigen::Vector3d velocity = r * velIrr;
+//          sigma += tau * pow(velocity(0), 2) / temp * pop * 2. / numKPoints /
+//                   crystal.getVolumeUnitCell() * delta * energyStep;
+//        }
+//      }
+//    }
+//    mpi->allReduceSum(&sigma);
+//    std::cout << sigma * elConductivityAuToSi << " Conductivity Mixed\n";
+//
+//    sigma = 0.;
+//    // this gives 6.1 e+4
+//    for (int iState : bandStructure.irrStateIterator()) {
+//      StateIndex isIdx(iState);
+//      auto rotations = bandStructure.getRotationsStar(isIdx);
+//      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+//
+//      double en = bandStructure.getEnergy(isIdx);
+//
+//      double pop = particle.getPopPopPm1(en, temp, chemPot);
+//
+//      for (const Eigen::Matrix3d &r : rotations) {
+//        Eigen::Vector3d velocity = r * velIrr;
+//        sigma += tau * pow(velocity(0),2) / temp * pop * 2.
+//            / numKPoints / crystal.getVolumeUnitCell();
+//      }
+//    }
+//
+//    std::cout << sigma * elConductivityAuToSi << " Conductivity Bloch\n";
+//  }
 
   LoopPrint loopPrint("calculating energy projected velocity", "states",
                       numEnergies);
