@@ -41,10 +41,12 @@ void TransportEpaApp::run(Context &context) {
 
   // Read and setup k-point mesh for interpolating band structure
   Points fullPoints(crystal, context.getKMesh());
+  fullPoints.setIrreduciblePoints();
 
   if (mpi->mpiHead()) {
     std::cout << "\nBuilding electronic band structure" << std::endl;
   }
+std::cout << crystal.getVolumeUnitCell() << "!!!\n";
 
   // filter to only the bands relevant to transport
   electronH0.trimBands(context, minEnergy, maxEnergy);
@@ -110,37 +112,44 @@ void TransportEpaApp::checkRequirements(Context &context) {
 }
 
 Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
-    Context &context, FullBandStructure &bandStructure,
-    const Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons) {
+    Context &context,
+    FullBandStructure &bandStructure, const Eigen::VectorXd &energies,
+    TetrahedronDeltaFunction &tetrahedrons) {
 
   int numEnergies = energies.size();
-  int numStates = bandStructure.getNumStates();
-  int numPoints = bandStructure.getNumPoints(true);
-  int dim = context.getDimensionality();
+  int numPoints = std::get<0>(bandStructure.getPoints().getMesh()).prod();
 
-  Eigen::Tensor<double, 3> energyProjVelocity(dim, dim, numEnergies);
+  Eigen::Tensor<double, 3> energyProjVelocity(3, 3, numEnergies);
   energyProjVelocity.setZero();
 
   if (mpi->mpiHead()) {
     std::cout << "\nCalculating energy projected velocity tensor" << std::endl;
   }
 
-  LoopPrint loopPrint("calculating energy projected velocity", "energies",
-                      mpi->divideWorkIter(numEnergies).size());
+  auto crystal = bandStructure.getPoints().getCrystal();
+  int dim = context.getDimensionality();
+  double norm = pow(twoPi, dim) / crystal.getVolumeUnitCell(dim) / numPoints;
+
+  LoopPrint loopPrint("calculating energy projected velocity", "states",
+                      numEnergies);
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, energyProjVelocity, dim, numEnergies, numStates,               \
-           bandStructure, tetrahedrons, numPoints, loopPrint, energies)
+    shared(bandStructure, loopPrint, numEnergies, tetrahedrons, energies,      \
+           energyProjVelocity, mpi, norm)
   for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
-    { loopPrint.update(); } // loop print not omp thread safe
-    for (int iState = 0; iState < numStates; ++iState) {
+    {  loopPrint.update(); }
+    for (int iState : bandStructure.irrStateIterator()) {
       StateIndex isIdx(iState);
+      auto rotations = bandStructure.getRotationsStar(isIdx);
+      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
       double deltaFunction = tetrahedrons.getSmearing(energies(iEnergy), isIdx);
-      Eigen::Vector3d velocity = bandStructure.getGroupVelocity(isIdx);
-      for (int j = 0; j < dim; ++j) {
-        for (int i = 0; i < dim; ++i) {
-          energyProjVelocity(i, j, iEnergy) +=
-              velocity(i) * velocity(j) * deltaFunction / double(numPoints);
+      for (const Eigen::Matrix3d &r : rotations) {
+        Eigen::Vector3d velocity = r * velIrr;
+        for (int j : {0, 1, 2}) {
+          for (int i : {0, 1, 2}) {
+            energyProjVelocity(i, j, iEnergy) +=
+                velocity(i) * velocity(j) * deltaFunction * norm;
+          }
         }
       }
     }
@@ -162,7 +171,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   double constantRelaxationTime = context.getConstantRelaxationTime();
   if (constantRelaxationTime > 0.) {
     BaseVectorBTE crtRate(statisticsSweep, numEnergies, 1);
-    crtRate.setConst(1. / constantRelaxationTime);
+    crtRate.setConst(1. / twoPi / constantRelaxationTime);
     return crtRate;
   }
 

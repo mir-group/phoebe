@@ -25,7 +25,8 @@ private:
  * (3,3,numEnergies)
  */
   Eigen::Tensor<double, 3> static calcEnergyProjVelocity(
-      Context &context, FullBandStructure &bandStructure,
+      Context &context,
+      FullBandStructure &bandStructure,
       const Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons);
 
   /** This method computes the electron lifetimes at the EPA level.
