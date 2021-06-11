@@ -51,7 +51,7 @@ private:
   /* helper function to output scattering rates as a function of energy*/
   static void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
                 StatisticsSweep &statisticsSweep, int &numEnergies,
-                Eigen::VectorXd &energiesEPA);
+                Eigen::VectorXd &energiesEPA, int dimensionality);
 
 };
 
