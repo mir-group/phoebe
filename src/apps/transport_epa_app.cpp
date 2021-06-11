@@ -72,7 +72,7 @@ void TransportEpaApp::run(Context &context) {
   BaseVectorBTE scatteringRates = getScatteringRates(
       context, statisticsSweep, energies, tetrahedrons, crystal);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
-               numEnergies, energies);
+               numEnergies, energies, context.getDimensionality());
 
   //--------------------------------
   // calc EPA velocities
@@ -297,7 +297,8 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
                                    BaseVectorBTE &scatteringRates,
                                    StatisticsSweep &statisticsSweep,
                                    int &numEnergies,
-                                   Eigen::VectorXd &energiesEPA) {
+                                   Eigen::VectorXd &energiesEPA,
+                                   int dimensionality) {
 
   if (!mpi->mpiHead())
     return;
@@ -315,13 +316,16 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   std::vector<std::vector<double>> energies;
   std::vector<double> temps;
   std::vector<double> chemPots;
+  std::vector<double> dopings;
 
   for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
+    double doping = calcStatistics.doping;
     temps.push_back(temp * temperatureAuToSi);
     chemPots.push_back(chemPot * energyConversion);
+    dopings.push_back(doping);
 
     // containers to hold data in std vectors
     std::vector<double> tempT;
@@ -347,6 +351,9 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
+  output["chemicalPotentialUnit"] = "eV";
+  output["dopings"] = dopings;
+  output["dopingUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
   output["linewidths"] = outLinewidths;
   output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;

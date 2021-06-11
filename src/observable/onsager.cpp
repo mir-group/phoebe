@@ -551,6 +551,10 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
   nlohmann::json output;
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
+  output["dopings"] = dopings;
+  output["dopingUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
+  output["chemicalPotentials"] = chemPots;
+  output["chemicalPotentialUnit"] = "eV";
   output["electricalConductivity"] = sigmaOut;
   output["electricalConductivityUnit"] = unitsSigma;
   output["mobility"] = mobilityOut;
