@@ -143,24 +143,6 @@ VectorBTE ScatteringMatrix::diagonal() {
   }
 }
 
-/**
-//VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
-//  // outPopulation = outPopulation - internalDiagonal * inPopulation;
-//  VectorBTE outPopulation = dot(inPopulation);
-//#pragma omp parallel for collapse(3) default(none)                             \
-//    shared(outPopulation, internalDiagonal, inPopulation, numCalcs, numStates)
-//  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-//    for (int iDim : {0, 1, 2}) {
-//      for (int iBte = 0; iBte < numStates; iBte++) {
-//        outPopulation(iCalc, iDim, iBte) -=
-//            internalDiagonal(iCalc, 0, iBte) * inPopulation(iCalc, iDim, iBte);
-//      }
-//    }
-//  }
-//  return outPopulation;
-//}
-**/
-
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   if (highMemory) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
