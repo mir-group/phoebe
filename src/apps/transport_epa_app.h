@@ -44,15 +44,14 @@ private:
    */
   static BaseVectorBTE getScatteringRates(Context &context,
                                    StatisticsSweep &statisticsSweep,
-                                   FullBandStructure &fullBandStructure,
                                    Eigen::VectorXd &energies,
                                    TetrahedronDeltaFunction &tetrahedrons,
                                    Crystal &crystal);
 
   /* helper function to output scattering rates as a function of energy*/
-  void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
+  static void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
                 StatisticsSweep &statisticsSweep, int &numEnergies,
-                Eigen::VectorXd &energiesEPA);
+                Eigen::VectorXd &energiesEPA, int dimensionality);
 
 };
 

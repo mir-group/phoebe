@@ -74,10 +74,10 @@ double parseDoubleWithUnits(std::string &line) {
     x /= ryToCmm1;
   }
   if (patternInString(line, "ps")) {
-    x /= timeRyToFs * 1.0e-3 / twoPi;
+    x /= timeRyToFs * 1.0e-3;
   }
   if (patternInString(line, "fs")) {
-    x /= timeRyToFs / twoPi;
+    x /= timeRyToFs;
   }
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
@@ -556,6 +556,10 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "hasSpinOrbit") {
         hasSpinOrbit = parseBool(val);
+      }
+
+      if (parameterName == "distributedElPhCoupling") {
+        distributedElPhCoupling = parseBool(val);
       }
 
       if (parameterName == "numOccupiedStates") {
@@ -1204,4 +1208,12 @@ void Context::setCoreElectrons(const Eigen::VectorXi &x) {
     }
   }
   numCoreElectrons = x;
+}
+
+bool Context::getDistributedElPhCoupling() {
+  return distributedElPhCoupling;
+}
+
+void Context::setDistributedElPhCoupling(const bool &x) {
+  distributedElPhCoupling = x;
 }

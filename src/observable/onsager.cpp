@@ -77,49 +77,38 @@ OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
 
 void OnsagerCoefficients::calcFromEPA(
     BaseVectorBTE &scatteringRates,
-    Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies,
-    double &energyStep, Particle &particle) {
+    Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies) {
 
-  double factor = spinFactor / pow(twoPi, dimensionality) /
-                  (crystal.getVolumeUnitCell(dimensionality));
+  Particle particle(Particle::electron);
+  double energyStep = energies(1) - energies(0);
+  double factor = spinFactor / pow(twoPi, dimensionality);
 
   LEE.setZero();
   LET.setZero();
   LTE.setZero();
   LTT.setZero();
-
-#pragma omp parallel for collapse(3) default(none) shared(                     \
-    numCalcs, dimensionality, statisticsSweep, scatteringRates, particle,      \
-    energyProjVelocity, LEE, LET, LTE, LTT, energyStep, factor, energies)
   for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+    double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+    double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
     for (int iBeta = 0; iBeta < dimensionality; ++iBeta) {
       for (int iAlpha = 0; iAlpha < dimensionality; ++iAlpha) {
-        double chemPot =
-            statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-        double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
         for (int iEnergy = 0; iEnergy < energies.size(); ++iEnergy) {
 
-          if (scatteringRates.data(iCalc, iEnergy) <= 1.0e-10)
+          double pop = particle.getPopPopPm1(energies(iEnergy), temp, chemPot);
+          double en = energies(iEnergy) - chemPot;
+          if (scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ||
+              pop <= 1.0e-20) {
             continue;
-          double en = energies(iEnergy);
-          double pop = particle.getPopPopPm1(en, temp, chemPot);
-          if (pop <= 1.0e-20)
-            continue;
+          }
 
-          double transportDistFunc =
-              energyProjVelocity(iAlpha, iBeta, iEnergy) *
-              (1. / scatteringRates.data(iCalc, iEnergy));
+          double term =
+              energyProjVelocity(iAlpha, iBeta, iEnergy) /
+              scatteringRates.data(iCalc, iEnergy) * factor * pop * energyStep;
 
-          LEE(iCalc, iAlpha, iBeta) +=
-              factor * transportDistFunc * pop * energyStep / temp;
-          LET(iCalc, iAlpha, iBeta) +=
-              factor * transportDistFunc * pop * energyStep / temp;
-          LTE(iCalc, iAlpha, iBeta) += factor * transportDistFunc * pop *
-                                       (en - chemPot) * energyStep / temp /
-                                       temp;
-          LTT(iCalc, iAlpha, iBeta) += factor * transportDistFunc * pop *
-                                       pow(en - chemPot, 2) * energyStep /
-                                       temp / temp / temp;
+          LEE(iCalc, iAlpha, iBeta) += term / temp;
+          LET(iCalc, iAlpha, iBeta) -= term * en / pow(temp, 2);
+          LTE(iCalc, iAlpha, iBeta) -= term * en / temp;
+          LTT(iCalc, iAlpha, iBeta) -= term * pow(en, 2) / pow(temp, 2);
         }
       }
     }
@@ -562,6 +551,10 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
   nlohmann::json output;
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
+  output["dopings"] = dopings;
+  output["dopingUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
+  output["chemicalPotentials"] = chemPots;
+  output["chemicalPotentialUnit"] = "eV";
   output["electricalConductivity"] = sigmaOut;
   output["electricalConductivityUnit"] = unitsSigma;
   output["mobility"] = mobilityOut;

@@ -335,9 +335,11 @@ To execute the code::
 and wait until completion.
 
 Note that this calculation can be memory intensive.
-For this reason, we recommend to limit/avoid use of MPI parallelization and use a large number of OMP threads (if you compiled the code with OpenMP. OpenMP is useful, because it allows multiple threads to work on a problem while sharing the memory on a node.)
+For this reason, we recommend to limit/avoid use of MPI parallelization and use a large number of OMP threads (if you compiled the code with OpenMP. OpenMP is useful, because it allows multiple threads to work on a problem while sharing the memory on a node).
+For some large calculations, the electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
+If this is the case (e.g. if some segmentation faults appear), you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
-After the code completes, you should see an output file called ``silicon.phoebe.elph.dat``.
+After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support.
 
 
 

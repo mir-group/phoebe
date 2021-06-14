@@ -66,7 +66,7 @@ public:
    * If it's called a different number of times, the screen report will be
    * made incorrectly.
    */
-  void update();
+  void update(const bool &withTimeEstimate=true);
 
   /** Close loopInfo and print summary of loop execution time.
    */

@@ -42,6 +42,8 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 
 * :ref:`epaSmearingEnergy`
 
+* :ref:`distributedElPhCoupling`
+
 .. raw:: html
 
   <h3>Sample input file (Wannier interpolation)</h3>
@@ -931,6 +933,20 @@ scatteringMatrixInMemory
 
 * **Default:** `true`
 
+
+.. _distributedElPhCoupling:
+
+distributedElPhCoupling
+^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes, helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used).
+
+* **Format:** *bool*
+
+* **Required:** no
+
+* **Default:** `false`
+  
 
 .. _windowType:
 
