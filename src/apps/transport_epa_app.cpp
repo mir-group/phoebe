@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "context.h"
 #include "delta_function.h"
+#include "drift.h"
 #include "eigen.h"
 #include "exceptions.h"
 #include "interaction_epa.h"
@@ -15,7 +16,6 @@
 #include "vector_bte.h"
 #include <nlohmann/json.hpp>
 #include <vector>
-#include "drift.h"
 
 void TransportEpaApp::run(Context &context) {
 
@@ -66,19 +66,15 @@ void TransportEpaApp::run(Context &context) {
   }
 
   //--------------------------------
-  // set up tetrahedron method
-  TetrahedronDeltaFunction tetrahedrons(bandStructure);
-
-  //--------------------------------
   // calc EPA velocities
-  auto t2 = calcEnergyProjVelocity(context, bandStructure, energies, tetrahedrons);
-  Eigen::Tensor<double,3> energyProjVelocity = std::get<0>(t2);
+  auto t2 = calcEnergyProjVelocity(context, bandStructure, energies);
+  Eigen::Tensor<double, 3> energyProjVelocity = std::get<0>(t2);
   Eigen::VectorXd dos = std::get<1>(t2);
 
   //--------------------------------
   // Calculate EPA scattering rates
-  BaseVectorBTE scatteringRates = getScatteringRates(
-      context, statisticsSweep, energies, crystal, dos);
+  BaseVectorBTE scatteringRates =
+      getScatteringRates(context, statisticsSweep, energies, crystal, dos);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
                numEnergies, energies);
 
@@ -112,10 +108,14 @@ void TransportEpaApp::checkRequirements(Context &context) {
   }
 }
 
-std::tuple<Eigen::Tensor<double, 3>,Eigen::VectorXd> TransportEpaApp::calcEnergyProjVelocity(
-    Context &context,
-    FullBandStructure &bandStructure, const Eigen::VectorXd &energies,
-    TetrahedronDeltaFunction &tetrahedrons) {
+std::tuple<Eigen::Tensor<double, 3>, Eigen::VectorXd>
+TransportEpaApp::calcEnergyProjVelocity(Context &context,
+                                        FullBandStructure &bandStructure,
+                                        const Eigen::VectorXd &energies) {
+
+  //--------------------------------
+  // set up tetrahedron method
+  TetrahedronDeltaFunction tetrahedrons(bandStructure);
 
   int numEnergies = int(energies.size());
   int numPoints = std::get<0>(bandStructure.getPoints().getMesh()).prod();
@@ -140,7 +140,7 @@ std::tuple<Eigen::Tensor<double, 3>,Eigen::VectorXd> TransportEpaApp::calcEnergy
            energyProjVelocity, mpi, norm, numPoints, dos)
   for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
-    {  loopPrint.update(); }
+    { loopPrint.update(); }
     for (int iState : bandStructure.irrStateIterator()) {
       StateIndex isIdx(iState);
       auto rotations = bandStructure.getRotationsStar(isIdx);
@@ -170,8 +170,7 @@ std::tuple<Eigen::Tensor<double, 3>,Eigen::VectorXd> TransportEpaApp::calcEnergy
 
 BaseVectorBTE TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
-    const Eigen::VectorXd &energies,
-    Crystal &crystal,
+    const Eigen::VectorXd &energies, Crystal &crystal,
     const Eigen::VectorXd &dos) {
 
   int numEnergies = int(energies.size());
