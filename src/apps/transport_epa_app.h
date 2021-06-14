@@ -18,13 +18,12 @@ private:
    * @param context: object with the user-defined input parameters
    * @param statisticsSweep: object with values of temperature and chemical
    * potential
-   * @param fullBandStructure: object with the electronic band structure on a
-   * full grid of wavevectors
    * @param energies: list of energies at which the EPA lifetimes will be
    * computed
-   * @param tetrahedrons: a tetrahedronDeltaFunction object that will be used to
-   * integrate the Dirac-delta for energy conservation.
-   * @param crystal: the crystal used in the calculation, to divide by volume
+   * @param crystal: the crystal used in the calculation, for integrals
+   * normalization by volume
+   * @param dos: an Eigen::VectorXd containing the density of states computed on
+   * the vector of energies
    * @return a BaseVectorBTE object containing the electron lifetimes.
    */
   static BaseVectorBTE getScatteringRates(Context &context,
@@ -39,8 +38,6 @@ private:
    * @param context: object with the user-defined input parameters
    * @param bandStructure: object with the electronic band structure
    * @param energies: list of energies used to integrate transport properties.
-   * @param tetrahedrons: a tetrahedronDeltaFunction object that will be used to
-   * integrate the density of states.
    * @return tuple(0) tensor of velocities: an Eigen::Tensor of dimensions
    * (3,3,numEnergies)
    * @return tuple(1) density of states, aligned with energies
@@ -54,9 +51,16 @@ private:
                                                          &energies);
 
   /* helper function to output scattering rates as a function of energy*/
+  /** Helper function to output scattering rates as a function of energy
+   *
+   * @param outFileName: name of output JSON file.
+   * @param scatteringRates: vector of scattering rates computed at the energies stored in energiesEPA
+   * @param statisticsSweep: StatisticsSweep object containing info on temperature and chemical potential
+   * @param energiesEPA: array with the values of energies used in the EPA calculation
+   */
   static void outputToJSON(const std::string &outFileName,
                            BaseVectorBTE &scatteringRates,
-                           StatisticsSweep &statisticsSweep, int &numEnergies,
+                           StatisticsSweep &statisticsSweep,
                            Eigen::VectorXd &energiesEPA);
 };
 

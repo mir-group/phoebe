@@ -75,7 +75,7 @@ void TransportEpaApp::run(Context &context) {
   BaseVectorBTE scatteringRates =
       getScatteringRates(context, statisticsSweep, energies, crystal, dos);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
-               numEnergies, energies);
+               energies);
 
   //--------------------------------
   // compute transport coefficients
@@ -296,11 +296,11 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 void TransportEpaApp::outputToJSON(const std::string &outFileName,
                                    BaseVectorBTE &scatteringRates,
                                    StatisticsSweep &statisticsSweep,
-                                   int &numEnergies,
                                    Eigen::VectorXd &energiesEPA) {
 
-  if (!mpi->mpiHead())
+  if (!mpi->mpiHead()) {
     return;
+  }
 
   std::string particleType = "electron";
   double energyConversion = energyRyToEv;
@@ -315,6 +315,8 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   std::vector<std::vector<double>> energies;
   std::vector<double> temps;
   std::vector<double> chemPots;
+
+  auto numEnergies = int(energiesEPA.size());
 
   for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
