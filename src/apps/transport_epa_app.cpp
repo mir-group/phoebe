@@ -75,7 +75,7 @@ void TransportEpaApp::run(Context &context) {
   BaseVectorBTE scatteringRates =
       getScatteringRates(context, statisticsSweep, energies, crystal, dos);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
-               energies);
+               energies, context);
 
   //--------------------------------
   // compute transport coefficients
@@ -296,7 +296,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 void TransportEpaApp::outputToJSON(const std::string &outFileName,
                                    BaseVectorBTE &scatteringRates,
                                    StatisticsSweep &statisticsSweep,
-                                   Eigen::VectorXd &energiesEPA) {
+                                   Eigen::VectorXd &energiesEPA, Context &context) {
 
   if (!mpi->mpiHead()) {
     return;
@@ -307,6 +307,8 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   std::string energyUnit = "eV";
   double energyToTime = timeRyToFs;
 
+  int dimensionality = context.getDimensionality();
+
   // need to store as a vector format with dimensions
   // iCalc, ik. ib, iDim (where iState is unfolded into
   // ik, ib) for the velocities and lifetimes, no dim for energies
@@ -315,6 +317,7 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   std::vector<std::vector<double>> energies;
   std::vector<double> temps;
   std::vector<double> chemPots;
+  std::vector<double> dopings;
 
   auto numEnergies = int(energiesEPA.size());
 
@@ -322,8 +325,10 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
+    double doping = calcStatistics.doping;
     temps.push_back(temp * temperatureAuToSi);
     chemPots.push_back(chemPot * energyConversion);
+    dopings.push_back(doping);
 
     // containers to hold data in std vectors
     std::vector<double> tempT;
@@ -349,6 +354,9 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
+  output["chemicalPotentialUnit"] = "eV";
+  output["dopingConcentrations"] = dopings;
+  output["dopingConcentrationUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
   output["linewidths"] = outLinewidths;
   output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;

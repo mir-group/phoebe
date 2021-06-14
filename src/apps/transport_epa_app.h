@@ -50,18 +50,18 @@ private:
                                                      const Eigen::VectorXd
                                                          &energies);
 
-  /* helper function to output scattering rates as a function of energy*/
   /** Helper function to output scattering rates as a function of energy
    *
    * @param outFileName: name of output JSON file.
    * @param scatteringRates: vector of scattering rates computed at the energies stored in energiesEPA
    * @param statisticsSweep: StatisticsSweep object containing info on temperature and chemical potential
    * @param energiesEPA: array with the values of energies used in the EPA calculation
+   * @param context: object with input and global parameters.
    */
   static void outputToJSON(const std::string &outFileName,
                            BaseVectorBTE &scatteringRates,
                            StatisticsSweep &statisticsSweep,
-                           Eigen::VectorXd &energiesEPA);
+                           Eigen::VectorXd &energiesEPA, Context &context);
 };
 
 #endif

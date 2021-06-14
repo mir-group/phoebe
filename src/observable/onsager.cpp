@@ -552,9 +552,9 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["dopingConcentrations"] = dopings;
-  output["dopingConcentrationsUnit"] = "cm^-3";
+  output["dopingConcentrationUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
   output["chemicalPotentials"] = chemPots;
-  output["energyUnit"] = "eV";
+  output["chemicalPotentialUnit"] = "eV";
   output["electricalConductivity"] = sigmaOut;
   output["electricalConductivityUnit"] = unitsSigma;
   output["mobility"] = mobilityOut;
