@@ -24,7 +24,7 @@ private:
    * computed
    * @param tetrahedrons: a tetrahedronDeltaFunction object that will be used to
    * integrate the Dirac-delta for energy conservation.
-   * @param crystal: the crystal used in the calcuation, to divide by volume
+   * @param crystal: the crystal used in the calculation, to divide by volume
    * @return a BaseVectorBTE object containing the electron lifetimes.
    */
   static BaseVectorBTE getScatteringRates(Context &context,

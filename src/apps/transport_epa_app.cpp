@@ -3,7 +3,6 @@
 #include "constants.h"
 #include "context.h"
 #include "delta_function.h"
-#include "drift.h"
 #include "eigen.h"
 #include "exceptions.h"
 #include "interaction_epa.h"
@@ -130,6 +129,7 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   auto crystal = bandStructure.getPoints().getCrystal();
   int dim = context.getDimensionality();
   double norm = pow(twoPi, dim) / crystal.getVolumeUnitCell(dim) / numPoints;
+  double normDos = 1. / crystal.getVolumeUnitCell(dim) / numPoints;
 
   Eigen::VectorXd dos(numEnergies);
 
@@ -137,7 +137,7 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
                       numEnergies);
 #pragma omp parallel for default(none)                                         \
     shared(bandStructure, loopPrint, numEnergies, tetrahedrons, energies,      \
-           energyProjVelocity, mpi, norm, numPoints, dos)
+           energyProjVelocity, mpi, norm, normDos, dos)
   for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
     { loopPrint.update(); }
@@ -148,8 +148,8 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
       double deltaFunction = tetrahedrons.getSmearing(energies(iEnergy), isIdx);
 
       // integrate DOS
-      double degeneracy = double(rotations.size());
-      dos(iEnergy) += deltaFunction * degeneracy / numPoints;
+      auto degeneracy = double(rotations.size());
+      dos(iEnergy) += deltaFunction * degeneracy * normDos;
 
       for (const Eigen::Matrix3d &r : rotations) {
         Eigen::Vector3d velocity = r * velIrr;
