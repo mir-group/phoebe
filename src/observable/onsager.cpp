@@ -81,7 +81,6 @@ void OnsagerCoefficients::calcFromEPA(
 
   Particle particle(Particle::electron);
   double factor = spinFactor / pow(twoPi, dimensionality);
-
   double energyStep = energies(1) - energies(0);
 
   LEE.setZero();
@@ -97,6 +96,10 @@ void OnsagerCoefficients::calcFromEPA(
 
           double pop = particle.getPopPopPm1(energies(iEnergy), temp, chemPot);
           double en = energies(iEnergy) - chemPot;
+          if (scatteringRates.data(iCalc, iEnergy) <= 1.0e-10 ||
+              pop <= 1.0e-20) {
+            continue;
+          }
 
           double term =
               energyProjVelocity(iAlpha, iBeta, iEnergy) /
@@ -473,10 +476,10 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
     convKappa = thConductivityAuToSi;
   }
 
-  double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
+  double convMobility = mobilityAuToSi * pow(100.,2); // from m^2/Vs to cm^2/Vs
   std::string unitsMobility = "cm^2 / V / s";
 
-  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  double convSeebeck = thermopowerAuToSi * 1.0e6;
   std::string unitsSeebeck = "muV / K";
 
   std::vector<double> temps, dopings, chemPots;
