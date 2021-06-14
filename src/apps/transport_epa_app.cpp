@@ -180,7 +180,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   double constantRelaxationTime = context.getConstantRelaxationTime();
   if (constantRelaxationTime > 0.) {
     BaseVectorBTE crtRate(statisticsSweep, numEnergies, 1);
-    crtRate.setConst(1. / constantRelaxationTime);
+    crtRate.setConst(twoPi / constantRelaxationTime);
     return crtRate;
   }
 
@@ -305,7 +305,7 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
   std::string particleType = "electron";
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
-  double energyToTime = timeRyToFs;
+  double energyToTime = energyRyToFs;
 
   int dimensionality = context.getDimensionality();
 
@@ -336,7 +336,6 @@ void TransportEpaApp::outputToJSON(const std::string &outFileName,
     std::vector<double> tempE;
     // loop over energy values on which the calculation was done
     for (int iEnergy = 0; iEnergy < numEnergies; ++iEnergy) {
-
       double ene = energiesEPA(iEnergy);
       double tau = 1. / scatteringRates.data(iCalc, iEnergy);
       double linewidth = 1. / tau;

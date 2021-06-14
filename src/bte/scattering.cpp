@@ -39,8 +39,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     }
   }
 
-  double constantRelaxationTime = context.getConstantRelaxationTime();
-  if (constantRelaxationTime > 0.) {
+  if (context.getConstantRelaxationTime() > 0.) {
     constantRTA = true;
     return;
   }
@@ -134,9 +133,8 @@ void ScatteringMatrix::setup() {
 
 VectorBTE ScatteringMatrix::diagonal() {
   if (constantRTA) {
-    double crt = context.getConstantRelaxationTime();
     VectorBTE diagonal(statisticsSweep, outerBandStructure, 1);
-    diagonal.setConst(1. / crt);
+    diagonal.setConst(twoPi / context.getConstantRelaxationTime());
     return diagonal;
   } else {
     return internalDiagonal;
@@ -411,9 +409,8 @@ void ScatteringMatrix::a2Omega() {
 // to compute the RTA, get the single mode relaxation times
 VectorBTE ScatteringMatrix::getSingleModeTimes() {
   if (constantRTA) {
-    double crt = context.getConstantRelaxationTime();
     VectorBTE times(statisticsSweep, outerBandStructure, 1);
-    times.setConst(crt);
+    times.setConst(context.getConstantRelaxationTime() / twoPi);
     times.excludeIndices = excludeIndices;
     return times;
   } else {
@@ -445,9 +442,8 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 
 VectorBTE ScatteringMatrix::getLinewidths() {
   if (constantRTA) {
-    double crt = context.getConstantRelaxationTime();
     VectorBTE linewidths(statisticsSweep, outerBandStructure, 1);
-    linewidths.setConst(1. / crt);
+    linewidths.setConst(twoPi / context.getConstantRelaxationTime());
     linewidths.excludeIndices = excludeIndices;
     return linewidths;
   } else {
@@ -498,7 +494,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::string energyUnit = "eV";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
-  double energyToTime = timeRyToFs;
+  double energyToTime = energyRyToFs;
   if (particle.isPhonon()) {
     particleType = "phonon";
     energyUnit = "meV";
@@ -626,7 +622,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
     particleType = "electron";
   }
 
-  double energyToTime = timeRyToFs;
+  double energyToTime = energyRyToFs;
   double energyConversion = energyRyToEv;
 
   std::string energyUnit = "eV";
