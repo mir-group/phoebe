@@ -15,6 +15,7 @@
 #include "vector_bte.h"
 #include <nlohmann/json.hpp>
 #include <vector>
+#include "drift.h"
 
 void TransportEpaApp::run(Context &context) {
 
@@ -69,16 +70,17 @@ void TransportEpaApp::run(Context &context) {
   TetrahedronDeltaFunction tetrahedrons(bandStructure);
 
   //--------------------------------
-  // Calculate EPA scattering rates
-  BaseVectorBTE scatteringRates = getScatteringRates(
-      context, statisticsSweep, energies, tetrahedrons, crystal);
-  outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
-               numEnergies, energies);
+  // calc EPA velocities
+  auto t2 = calcEnergyProjVelocity(context, bandStructure, energies, tetrahedrons);
+  Eigen::Tensor<double,3> energyProjVelocity = std::get<0>(t2);
+  Eigen::VectorXd dos = std::get<1>(t2);
 
   //--------------------------------
-  // calc EPA velocities
-  auto energyProjVelocity =
-      calcEnergyProjVelocity(context, bandStructure, energies, tetrahedrons);
+  // Calculate EPA scattering rates
+  BaseVectorBTE scatteringRates = getScatteringRates(
+      context, statisticsSweep, energies, crystal, dos);
+  outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
+               numEnergies, energies);
 
   //--------------------------------
   // compute transport coefficients
@@ -106,16 +108,16 @@ void TransportEpaApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
-    Error("Either chemical potentials or dopings must be set");
+    Error("Either chemical potentials or doping must be set");
   }
 }
 
-Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
+std::tuple<Eigen::Tensor<double, 3>,Eigen::VectorXd> TransportEpaApp::calcEnergyProjVelocity(
     Context &context,
     FullBandStructure &bandStructure, const Eigen::VectorXd &energies,
     TetrahedronDeltaFunction &tetrahedrons) {
 
-  int numEnergies = energies.size();
+  int numEnergies = int(energies.size());
   int numPoints = std::get<0>(bandStructure.getPoints().getMesh()).prod();
 
   Eigen::Tensor<double, 3> energyProjVelocity(3, 3, numEnergies);
@@ -129,67 +131,13 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
   int dim = context.getDimensionality();
   double norm = pow(twoPi, dim) / crystal.getVolumeUnitCell(dim) / numPoints;
 
-//  {
-//    StatisticsSweep statisticsSweep(context, &bandStructure);
-//
-//    double sigma = 0.;
-//    double tau = context.getConstantRelaxationTime() * twoPi;
-//    double temp = statisticsSweep.getCalcStatistics(0).temperature;
-//    double chemPot = statisticsSweep.getCalcStatistics(0).chemicalPotential;
-//    int numKPoints = bandStructure.getNumPoints(true);
-//    Particle particle(Particle::electron);
-//
-//    double energyStep = energies(1) - energies(0);
-//
-//#pragma omp parallel for reduction(+:sigma) default(none) shared(tetrahedrons, tau, crystal, particle, mpi, numEnergies, energies, bandStructure, numKPoints, temp, chemPot, energyStep)
-//    for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
-//      double en = energies[iEnergy];
-//
-//      for (int iState : bandStructure.irrStateIterator()) {
-//        StateIndex isIdx(iState);
-//        auto rotations = bandStructure.getRotationsStar(isIdx);
-//        Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-////        double stateEn = bandStructure.getEnergy(isIdx);
-//        double delta = tetrahedrons.getSmearing(en, isIdx);
-//
-//        double pop = particle.getPopPopPm1(en, temp, chemPot);
-//
-//        for (const Eigen::Matrix3d &r : rotations) {
-//          Eigen::Vector3d velocity = r * velIrr;
-//          sigma += tau * pow(velocity(0), 2) / temp * pop * 2. / numKPoints /
-//                   crystal.getVolumeUnitCell() * delta * energyStep;
-//        }
-//      }
-//    }
-//    mpi->allReduceSum(&sigma);
-//    std::cout << sigma * elConductivityAuToSi << " Conductivity Mixed\n";
-//
-//    sigma = 0.;
-//    // this gives 6.1 e+4
-//    for (int iState : bandStructure.irrStateIterator()) {
-//      StateIndex isIdx(iState);
-//      auto rotations = bandStructure.getRotationsStar(isIdx);
-//      Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-//
-//      double en = bandStructure.getEnergy(isIdx);
-//
-//      double pop = particle.getPopPopPm1(en, temp, chemPot);
-//
-//      for (const Eigen::Matrix3d &r : rotations) {
-//        Eigen::Vector3d velocity = r * velIrr;
-//        sigma += tau * pow(velocity(0),2) / temp * pop * 2.
-//            / numKPoints / crystal.getVolumeUnitCell();
-//      }
-//    }
-//
-//    std::cout << sigma * elConductivityAuToSi << " Conductivity Bloch\n";
-//  }
+  Eigen::VectorXd dos(numEnergies);
 
   LoopPrint loopPrint("calculating energy projected velocity", "states",
                       numEnergies);
 #pragma omp parallel for default(none)                                         \
     shared(bandStructure, loopPrint, numEnergies, tetrahedrons, energies,      \
-           energyProjVelocity, mpi, norm)
+           energyProjVelocity, mpi, norm, numPoints, dos)
   for (int iEnergy : mpi->divideWorkIter(numEnergies)) {
 #pragma omp critical
     {  loopPrint.update(); }
@@ -198,6 +146,11 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
       auto rotations = bandStructure.getRotationsStar(isIdx);
       Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
       double deltaFunction = tetrahedrons.getSmearing(energies(iEnergy), isIdx);
+
+      // integrate DOS
+      double degeneracy = double(rotations.size());
+      dos(iEnergy) += deltaFunction * degeneracy / numPoints;
+
       for (const Eigen::Matrix3d &r : rotations) {
         Eigen::Vector3d velocity = r * velIrr;
         for (int j : {0, 1, 2}) {
@@ -210,23 +163,25 @@ Eigen::Tensor<double, 3> TransportEpaApp::calcEnergyProjVelocity(
     }
   }
   mpi->allReduceSum(&energyProjVelocity);
+  mpi->allReduceSum(&dos);
   loopPrint.close();
-  return energyProjVelocity;
+  return {energyProjVelocity, dos};
 }
 
 BaseVectorBTE TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
-    Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons,
-    Crystal &crystal) {
+    const Eigen::VectorXd &energies,
+    Crystal &crystal,
+    const Eigen::VectorXd &dos) {
 
-  int numEnergies = energies.size();
+  int numEnergies = int(energies.size());
 
   /*If constant relaxation time is specified in input, we don't need to
   calculate EPA lifetimes*/
   double constantRelaxationTime = context.getConstantRelaxationTime();
   if (constantRelaxationTime > 0.) {
     BaseVectorBTE crtRate(statisticsSweep, numEnergies, 1);
-    crtRate.setConst(1. / twoPi / constantRelaxationTime);
+    crtRate.setConst(1. / constantRelaxationTime);
     return crtRate;
   }
 
@@ -240,29 +195,11 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   int numCalculations = statisticsSweep.getNumCalculations();
   double energyStep = context.getEpaEnergyStep();
 
-  // calculate the density of states at the energies in energies vector
-  Eigen::VectorXd dos(numEnergies);
-  {
-    LoopPrint loopPrint1("calculating DoS", "energies",
-                         mpi->divideWorkIter(numEnergies).size());
-    dos.setZero();
-
-#pragma omp parallel for default(none)                                         \
-    shared(numEnergies, loopPrint1, dos, tetrahedrons, energies, mpi)
-    for (int i : mpi->divideWorkIter(numEnergies)) {
-#pragma omp critical
-      { loopPrint1.update(); } // loop print not omp thread safe
-      dos(i) = tetrahedrons.getDOS(energies(i));
-    }
-    mpi->allReduceSum(&dos);
-    loopPrint1.close();
-  }
-
   // get vector containing averaged phonon frequencies per mode
   InteractionEpa couplingEpa = InteractionEpa::parseEpaCoupling(context);
 
   Eigen::VectorXd phEnergies = couplingEpa.getPhEnergies();
-  int numModes = phEnergies.size();
+  int numModes = int(phEnergies.size());
 
   // precompute bose-einstein populations
   Eigen::MatrixXd bose(numModes, numCalculations);
@@ -278,7 +215,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   }
 
   LoopPrint loopPrint("calculation of EPA scattering rates", "phonon modes",
-                      mpi->divideWorkIter(numEnergies).size());
+                      int(mpi->divideWorkIter(numEnergies).size()));
 
   BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
 

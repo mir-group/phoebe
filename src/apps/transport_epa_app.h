@@ -21,10 +21,11 @@ private:
  * @param energies: list of energies used to integrate transport properties.
  * @param tetrahedrons: a tetrahedronDeltaFunction object that will be used to
  * integrate the density of states.
- * @return tensor of velocities: an Eigen::Tensor of dimensions
+ * @return tuple(0) tensor of velocities: an Eigen::Tensor of dimensions
  * (3,3,numEnergies)
+ * @return tuple(1) density of states, aligned with energies
  */
-  Eigen::Tensor<double, 3> static calcEnergyProjVelocity(
+  std::tuple<Eigen::Tensor<double, 3>,Eigen::VectorXd> static calcEnergyProjVelocity(
       Context &context,
       FullBandStructure &bandStructure,
       const Eigen::VectorXd &energies, TetrahedronDeltaFunction &tetrahedrons);
@@ -45,9 +46,9 @@ private:
    */
   static BaseVectorBTE getScatteringRates(Context &context,
                                    StatisticsSweep &statisticsSweep,
-                                   Eigen::VectorXd &energies,
-                                   TetrahedronDeltaFunction &tetrahedrons,
-                                   Crystal &crystal);
+                                   const Eigen::VectorXd &energies,
+                                   Crystal &crystal,
+                                   const Eigen::VectorXd &dos);
 
   /* helper function to output scattering rates as a function of energy*/
   static void outputToJSON(const std::string &outFileName, BaseVectorBTE &scatteringRates,
