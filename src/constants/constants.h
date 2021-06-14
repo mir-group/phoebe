@@ -48,7 +48,7 @@ const double distanceAngToSi = 1.0e-10;
 const double distanceRyToSi = bohrRadiusSi;
 const double distanceBohrToCm = bohrRadiusSi * 100.;
 const double distanceBohrToMum = bohrRadiusSi * 1000000.;
-const double timeRyToFs = timeRy * 1e15 * twoPi * twoPi;
+const double timeRyToFs = timeRy * 1e15; // * twoPi * twoPi;
 const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
 const double distanceBohrToAng = bohrRadiusSi / distanceAngToSi;
 const double massAmuToRy = amuSi / electronMassSi / 2.;
@@ -67,8 +67,7 @@ const double velocityRyToSi = distanceRyToSi * rydbergSi / hBarSi;
 //
 const double thConductivityAuToSi =
     kBoltzmannSi * rydbergSi / bohrRadiusSi / hBarSi;
-const double viscosityAuToSi =
-    rydbergSi / hPlanckSi * twoPi * bohrRadiusSi * bohrRadiusSi;
+const double viscosityAuToSi = rydbergSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
 const double elConductivityAuToSi = electronSi * electronSi / hBarSi / bohrRadiusSi;
 const double mobilityAuToSi = electronSi / hBarSi * bohrRadiusSi * bohrRadiusSi;
 const double thermopowerAuToSi = kBoltzmannRy / electronSi * rydbergSi;
