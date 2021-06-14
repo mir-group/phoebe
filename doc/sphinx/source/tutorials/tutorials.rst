@@ -1,7 +1,7 @@
 Tutorials
 =========
 
-In this section, you can find a number of tutorials to run the different functionalities of Phoebe.
+In this section, you can find tutorials demonstrating how to run the different functionalities of Phoebe.
 
 We assume a basic familiarity with Quantum ESPRESSO (see tutorials on phonons on Quantum ESPRESSO's `website <https://www.quantum-espresso.org/resources/tutorials>`__, and a working knowledge of Wannier90, although you should still be able to follow this tutorial.
 
@@ -13,4 +13,5 @@ We assume a basic familiarity with Quantum ESPRESSO (see tutorials on phonons on
    elWanTransport
    phononTransport
    shengBTE
+   lifetimes
 

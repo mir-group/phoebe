@@ -1,3 +1,5 @@
+.. _elWanTransport:
+
 Electron Wannier Transport Tutorial
 ===================================
 
