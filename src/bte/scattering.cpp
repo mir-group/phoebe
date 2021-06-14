@@ -2,9 +2,9 @@
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
-#include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <numeric> // std::iota
 #include <set>
@@ -105,7 +105,7 @@ void ScatteringMatrix::setup() {
       // note: one could write code around this
       // but the methods are very memory intensive for production runs
       Error("High memory BTE methods can only work with one "
-              "temperature and/or chemical potential in a single run");
+            "temperature and/or chemical potential in a single run");
     }
     int matSize;
     if (context.getUseSymmetries()) {
@@ -115,11 +115,11 @@ void ScatteringMatrix::setup() {
     }
 
     // user info about memory
-    if ( mpi->mpiHead()) {
-      double x = pow(matSize,2) / pow(1024.,3) * sizeof(double);
-        std::cout << "Allocating " << x
-                  << " GB (" << x/(mpi->getSize()) <<
-                " GB per process) for the scattering matrix.\n" << std::endl;
+    if (mpi->mpiHead()) {
+      double x = pow(matSize, 2) / pow(1024., 3) * sizeof(double);
+      std::cout << "Allocating " << x << " GB (" << x / (mpi->getSize())
+                << " GB per process) for the scattering matrix.\n"
+                << std::endl;
     }
 
     theMatrix = ParallelMatrix<double>(matSize, matSize);
@@ -156,7 +156,8 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
         auto t2 = getSMatrixIndex(iMat2);
         int iBte1 = std::get<0>(t1).get();
         int iBte2 = std::get<0>(t2).get();
-        if ( iBte1 == iBte2 ) continue;
+        if (iBte1 == iBte2)
+          continue;
         int i = std::get<1>(t1).get();
         int j = std::get<1>(t2).get();
         outPopulation(0, i, iBte1) +=
@@ -166,7 +167,8 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
       for (auto tup : theMatrix.getAllLocalStates()) {
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
-        if ( iBte1 == iBte2 ) continue;
+        if (iBte1 == iBte2)
+          continue;
         for (int i : {0, 1, 2}) {
           outPopulation(0, i, iBte1) +=
               theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
@@ -284,7 +286,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
     return outPopulations;
   } else {
     std::vector<VectorBTE> outPopulations;
-    for (unsigned int i=0; i<inPopulations.size(); i++) {
+    for (unsigned int i = 0; i < inPopulations.size(); i++) {
       VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
       outPopulations.push_back(outPopulation);
     }
@@ -466,8 +468,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations;
-             iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
@@ -480,7 +481,6 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       linewidths.excludeIndices = excludeIndices;
       return linewidths;
     }
-
   }
 }
 
@@ -516,13 +516,16 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::vector<std::vector<std::vector<double>>> energies;
   std::vector<double> temps;
   std::vector<double> chemPots;
+  std::vector<double> dopings;
 
   for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
+    double doping = calcStatistics.doping;
     temps.push_back(temp * temperatureAuToSi);
     chemPots.push_back(chemPot * energyConversion);
+    dopings.push_back(doping);
 
     std::vector<std::vector<double>> wavevectorsT;
     std::vector<std::vector<double>> wavevectorsL;
@@ -585,6 +588,12 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
   output["chemicalPotentials"] = chemPots;
+  output["chemicalPotentialUnit"] = "eV";
+  if (particle.isElectron()) {
+    output["dopingConcentrations"] = dopings;
+    output["dopingConcentrationUnit"] =
+        "cm$^{-" + std::to_string(context.getDimensionality()) + "}$";
+  }
   output["linewidths"] = outLinewidths;
   output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;
@@ -663,7 +672,7 @@ ScatteringMatrix::diagonalize() {
   {
     memoryUsage();
     double xx;
-    double x = 2 * pow(theMatrix.rows(),2) / pow(1024., 3) * sizeof(xx);
+    double x = 2 * pow(theMatrix.rows(), 2) / pow(1024., 3) * sizeof(xx);
     // 2 because one is for eigenvectors, another is the copy of the matrix
     std::cout << std::setprecision(4);
     if (mpi->mpiHead()) {
@@ -960,7 +969,8 @@ void ScatteringMatrix::symmetrize() {
       std::vector<double> values(thisSize, 0.);
       for (int i = 0; i < thisSize; i++) {
         values[i] = (theMatrix(index1[i], index2[i]) +
-                     theMatrix(index3[i], index4[i])) * 0.5;
+                     theMatrix(index3[i], index4[i])) *
+                    0.5;
       }
       mpi->allReduceSum(&values);
 
