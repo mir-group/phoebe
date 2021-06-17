@@ -40,6 +40,7 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
                                           const Eigen::Vector3d &velocity) {
   (void)velocity;
   double x = energy * inverseWidth;
+  if ( x > 6. ) return 0.; // the error is < 2e-16, and prevents underflow
   return prefactor * exp(-x * x);
 }
 
@@ -82,6 +83,7 @@ AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
   if (abs(energy) > 2. * sigma)
     return 0.;
   double x = energy / sigma;
+  if ( x > 6. ) return 0.; // the error is < 2e-16, and prevents underflow
   // note: the factor ERF_2 corrects for the cutoff at 2*sigma
   return exp(-x * x) / sqrtPi / sigma / erf2;
 }
