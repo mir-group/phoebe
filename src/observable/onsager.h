@@ -7,6 +7,7 @@
 #include "el_scattering.h"
 #include "statistics_sweep.h"
 #include "vector_bte.h"
+#include "vector_epa.h"
 
 /** Class to compute the electronic transport coefficients.
  */
@@ -55,7 +56,7 @@ public:
 
   void calcTransportCoefficients();
 
-  void calcFromEPA(BaseVectorBTE &scatteringRates,
+  void calcFromEPA(VectorEPA &scatteringRates,
                    Eigen::Tensor<double, 3> &energyProjVelocity,
                    Eigen::VectorXd &energies);
 

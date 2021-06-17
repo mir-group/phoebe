@@ -1,7 +1,7 @@
-#include "vector_bte.h"
+#include "vector_epa.h"
 
 // default constructor
-BaseVectorBTE::BaseVectorBTE(StatisticsSweep &statisticsSweep_,
+VectorEPA::VectorEPA(StatisticsSweep &statisticsSweep_,
                              const int &numStates_,
                              const int &dimensionality_)
     : statisticsSweep(statisticsSweep_) {
@@ -26,7 +26,7 @@ BaseVectorBTE::BaseVectorBTE(StatisticsSweep &statisticsSweep_,
 }
 
 // copy constructor
-BaseVectorBTE::BaseVectorBTE(const BaseVectorBTE &that)
+VectorEPA::VectorEPA(const VectorEPA &that)
     : statisticsSweep(that.statisticsSweep) {
   numCalculations = that.numCalculations;
   numStates = that.numStates;
@@ -38,7 +38,7 @@ BaseVectorBTE::BaseVectorBTE(const BaseVectorBTE &that)
 }
 
 // copy assignment
-BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
+VectorEPA &VectorEPA::operator=(const VectorEPA &that) {
   if (this != &that) {
     statisticsSweep = that.statisticsSweep;
     numCalculations = that.numCalculations;
@@ -53,7 +53,7 @@ BaseVectorBTE &BaseVectorBTE::operator=(const BaseVectorBTE &that) {
 }
 
 // product operator overload
-Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
+Eigen::MatrixXd VectorEPA::dot(const VectorEPA &that) {
   if (that.numCalculations != numCalculations || that.numStates != numStates) {
     Error("The 2 BaseVectorBTE must be aligned for dot() to work.");
   }
@@ -73,9 +73,9 @@ Eigen::MatrixXd BaseVectorBTE::dot(const BaseVectorBTE &that) {
   return result;
 }
 
-BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
+VectorEPA VectorEPA::baseOperator(VectorEPA &that,
                                           const int &operatorType) {
-  BaseVectorBTE newPopulation = *this;
+  VectorEPA newPopulation = *this;
 
   if (dimensionality == that.dimensionality) {
     if (operatorType == operatorSums) {
@@ -123,13 +123,13 @@ BaseVectorBTE BaseVectorBTE::baseOperator(BaseVectorBTE &that,
 }
 
 // product operator overload
-BaseVectorBTE BaseVectorBTE::operator*(BaseVectorBTE &that) {
+VectorEPA VectorEPA::operator*(VectorEPA &that) {
   return baseOperator(that, operatorProd);
 }
 
 // product operator overload
-BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
-  BaseVectorBTE newPopulation = *this;
+VectorEPA VectorEPA::operator*(const double &scalar) {
+  VectorEPA newPopulation = *this;
   for (int i = 0; i < numCalculations; i++) {
     newPopulation.data.row(i) = this->data.row(i) * scalar;
   }
@@ -137,8 +137,8 @@ BaseVectorBTE BaseVectorBTE::operator*(const double &scalar) {
 }
 
 // product operator overload
-BaseVectorBTE BaseVectorBTE::operator*(const Eigen::VectorXd &vector) {
-  BaseVectorBTE newPopulation = *this;
+VectorEPA VectorEPA::operator*(const Eigen::VectorXd &vector) {
+  VectorEPA newPopulation = *this;
   for (int i = 0; i < numCalculations; i++) {
     newPopulation.data.row(i) = this->data.row(i) * vector(i);
   }
@@ -146,7 +146,7 @@ BaseVectorBTE BaseVectorBTE::operator*(const Eigen::VectorXd &vector) {
 }
 
 // product operator overload
-BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
+VectorEPA VectorEPA::operator*(ParallelMatrix<double> &matrix) {
   if (numCalculations != dimensionality) {
     // I mean, you'd need to keep in memory a lot of matrices.
     Error("We didn't implement BaseVectorBTE * matrix for numCalculations > 1");
@@ -154,7 +154,7 @@ BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
   if (matrix.rows() != numStates) {
     Error("BaseVectorBTE and Matrix not aligned");
   }
-  BaseVectorBTE newPopulation = *this;
+  VectorEPA newPopulation = *this;
   newPopulation.data.setZero();
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     for (auto tup : matrix.getAllLocalStates()) {
@@ -168,51 +168,52 @@ BaseVectorBTE BaseVectorBTE::operator*(ParallelMatrix<double> &matrix) {
 }
 
 // sum operator overload
-BaseVectorBTE BaseVectorBTE::operator+(BaseVectorBTE &that) {
+VectorEPA VectorEPA::operator+(VectorEPA &that) {
   return baseOperator(that, operatorSums);
 }
 
 // product operator overload
-BaseVectorBTE BaseVectorBTE::operator-(BaseVectorBTE &that) {
+VectorEPA VectorEPA::operator-(VectorEPA &that) {
   return baseOperator(that, operatorDiff);
 }
 
 // inversion operator overload
-BaseVectorBTE BaseVectorBTE::operator-() {
-  BaseVectorBTE newPopulation = *this;
+VectorEPA VectorEPA::operator-() {
+  VectorEPA newPopulation = *this;
   newPopulation.data = -this->data;
   return newPopulation;
 }
 
 // division operator overload
-BaseVectorBTE BaseVectorBTE::operator/(BaseVectorBTE &that) {
+VectorEPA VectorEPA::operator/(VectorEPA &that) {
   return baseOperator(that, operatorDivs);
 }
 
-BaseVectorBTE BaseVectorBTE::sqrt() {
-  BaseVectorBTE newPopulation = *this;
+VectorEPA VectorEPA::sqrt() {
+  VectorEPA newPopulation = *this;
   newPopulation.data << this->data.array().sqrt();
   return newPopulation;
 }
 
-BaseVectorBTE BaseVectorBTE::reciprocal() {
-  BaseVectorBTE newPopulation = *this;
+VectorEPA VectorEPA::reciprocal() {
+  VectorEPA newPopulation = *this;
   newPopulation.data << 1. / this->data.array();
   return newPopulation;
 }
 
-void BaseVectorBTE::setConst(const double &constant) {
+void VectorEPA::setConst(const double &constant) {
   data.setConstant(constant);
 }
 
-int BaseVectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+int VectorEPA::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
                              const CartIndex &iDim) const {
   int i = compress3Indices(imu.get(), it.get(), iDim.get(), numChemPots,
                             numTemps, dimensionality);
   return i;
 }
 
-std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
+std::tuple<ChemPotIndex, TempIndex, CartIndex>
+VectorEPA::loc2Glob(
     const int &i) const {
   auto tup = decompress3Indices(i, numChemPots, numTemps, dimensionality);
   auto imu = std::get<0>(tup);
@@ -222,13 +223,13 @@ std::tuple<ChemPotIndex, TempIndex, CartIndex> BaseVectorBTE::loc2Glob(
 }
 
 // get/set operator
-double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+double &VectorEPA::operator()(const int iCalc, const int iDim,
                                   const int iState) {
   return data(iCalc * dimensionality + iDim, iState);
 }
 
 // const get/set operator
-const double &BaseVectorBTE::operator()(const int iCalc, const int iDim,
+const double &VectorEPA::operator()(const int iCalc, const int iDim,
                                         const int iState) const {
   return data(iCalc * dimensionality + iDim, iState);
 }

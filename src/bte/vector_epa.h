@@ -1,5 +1,5 @@
-#ifndef BASE_VECTOR_BTE_H
-#define BASE_VECTOR_BTE_H
+#ifndef VECTOR_EPA_H
+#define VECTOR_EPA_H
 
 #include "Matrix.h"
 #include "PMatrix.h"
@@ -14,7 +14,7 @@
  * It is subclassed to a VectorBTE case when numStates is aligned with the
  * Bloch states of the band structure class.
  */
-class BaseVectorBTE {
+class VectorEPA {
  public:
   /** Constructor method, initializes raw buffer data and saves helper
    * variables.
@@ -26,16 +26,16 @@ class BaseVectorBTE {
    * indices. 1 for scalar quantities like line-widths Gamma(BlochIndices), 3
    * for vector quantities like phonon populations f(blochIndices,cartesian).
    */
-  BaseVectorBTE(StatisticsSweep &statisticsSweep_, const int &numStates_,
+   VectorEPA(StatisticsSweep &statisticsSweep_, const int &numStates_,
                 const int &dimensionality_ = 3);
 
   /** Copy constructor
    */
-  BaseVectorBTE(const BaseVectorBTE &that);
+   VectorEPA(const VectorEPA &that);
 
   /** Copy assignment operator
    */
-  BaseVectorBTE &operator=(const BaseVectorBTE &that);
+   VectorEPA &operator=(const VectorEPA &that);
 
   /** Computes the scalar product between two BaseVectorBTE objects.
    * The scalar product of x and y, is defined such as
@@ -43,7 +43,7 @@ class BaseVectorBTE {
    * states, and iCalc is an index over temperatures and chemical potentials.
    * @param that: the second vector used in the scalar product
    */
-  virtual Eigen::MatrixXd dot(const BaseVectorBTE &that);
+  virtual Eigen::MatrixXd dot(const VectorEPA &that);
 
   /** element wise product between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute
@@ -52,14 +52,14 @@ class BaseVectorBTE {
    * has the dimensionality of x.
    * @param that: the second BaseVectorBTE object y, such that result = *this*y
    */
-  BaseVectorBTE operator*(BaseVectorBTE &that);
+  VectorEPA operator*(VectorEPA &that);
 
   /** Computes the product of a BaseVectorBTE with a scalar, i.e. all elements
    * of vectorBTE x -> x * scalar.
    * @param scalar: a double with the constant factor to be used in the
    * element-wise multiplication.
    */
-  BaseVectorBTE operator*(const double &scalar);
+  VectorEPA operator*(const double &scalar);
 
   /** Computes the product of a BaseVectorBTE with a vector. The vector has
    * size equal to the number of calculations (i.e. number of temperatures
@@ -68,7 +68,7 @@ class BaseVectorBTE {
    * @param vector: a double vector to be used in the product, of size
    * equal to numCalculations.
    */
-  BaseVectorBTE operator*(const Eigen::VectorXd &vector);
+  VectorEPA operator*(const Eigen::VectorXd &vector);
 
   /** Computes the product of a BaseVectorBTE with a parallel matrix. Only works
    * if the number of temperatures/chemical potentials (numCalculations) is equal
@@ -77,7 +77,7 @@ class BaseVectorBTE {
    * @param pMatrix: a parallel distributed double matrix to be used in the
    * product, of size equal to numStates x numStates.
    */
-  BaseVectorBTE operator*(ParallelMatrix<double> &matrix);
+  VectorEPA operator*(ParallelMatrix<double> &matrix);
 
   /** element wise sum between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute
@@ -86,7 +86,7 @@ class BaseVectorBTE {
    * has the dimensionality of x.
    * @param that: the second BaseVectorBTE object y, such that result = *this+y
    */
-  BaseVectorBTE operator+(BaseVectorBTE &that);
+  VectorEPA operator+(VectorEPA &that);
 
   /** element wise difference between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute
@@ -95,11 +95,11 @@ class BaseVectorBTE {
    * has the dimensionality of x.
    * @param that: the second BaseVectorBTE object y, such that result = *this-y
    */
-  BaseVectorBTE operator-(BaseVectorBTE &that);
+  VectorEPA operator-(VectorEPA &that);
 
   /** Invert the sign of the BaseVectorBTE content i.e. x -> -x
    */
-  BaseVectorBTE operator-();
+  VectorEPA operator-();
 
   /** element wise division between two BaseVectorBTE objects x and y.
    * If the dimensionality of the two objects is the same, we compute
@@ -108,16 +108,16 @@ class BaseVectorBTE {
    * has the dimensionality of x.
    * @param that: the second BaseVectorBTE object y, such that result = *this/y
    */
-  BaseVectorBTE operator/(BaseVectorBTE &that);
+  VectorEPA operator/(VectorEPA &that);
 
   /** Replace the content of BaseVectorBTE with its square root
    * (element-wise x -> sqrt(x) ).
    */
-  BaseVectorBTE sqrt();
+  VectorEPA sqrt();
   /** Replace the content of BaseVectorBTE with its reciprocal
    * (element-wise x -> 1/x).
    */
-  BaseVectorBTE reciprocal();
+  VectorEPA reciprocal();
 
   /** Set the whole content (raw buffer) of BaseVectorBTE to a scalar value.
    * @param constant: the value to be used in the set.
@@ -171,7 +171,7 @@ class BaseVectorBTE {
    * It's split separately so that subclasses can create the correct output
    * class, and also because operations are rather similar.
    */
-  BaseVectorBTE baseOperator(BaseVectorBTE &that, const int &operatorType);
+   VectorEPA baseOperator(VectorEPA &that, const int &operatorType);
   const int operatorSums = 0;
   const int operatorDivs = 1;
   const int operatorProd = 2;

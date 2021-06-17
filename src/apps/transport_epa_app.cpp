@@ -72,7 +72,7 @@ void TransportEpaApp::run(Context &context) {
 
   //--------------------------------
   // Calculate EPA scattering rates
-  BaseVectorBTE scatteringRates =
+  VectorEPA scatteringRates =
       getScatteringRates(context, statisticsSweep, energies, crystal, dos);
   outputToJSON("epa_relaxation_times.json", scatteringRates, statisticsSweep,
                energies, context);
@@ -168,7 +168,7 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   return {energyProjVelocity, dos};
 }
 
-BaseVectorBTE TransportEpaApp::getScatteringRates(
+VectorEPA TransportEpaApp::getScatteringRates(
     Context &context, StatisticsSweep &statisticsSweep,
     const Eigen::VectorXd &energies, Crystal &crystal,
     const Eigen::VectorXd &dos) {
@@ -179,7 +179,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   calculate EPA lifetimes*/
   double constantRelaxationTime = context.getConstantRelaxationTime();
   if (constantRelaxationTime > 0.) {
-    BaseVectorBTE crtRate(statisticsSweep, numEnergies, 1);
+    VectorEPA crtRate(statisticsSweep, numEnergies, 1);
     crtRate.setConst(twoPi / constantRelaxationTime);
     return crtRate;
   }
@@ -216,7 +216,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
   LoopPrint loopPrint("calculation of EPA scattering rates", "phonon modes",
                       int(mpi->divideWorkIter(numEnergies).size()));
 
-  BaseVectorBTE epaRate(statisticsSweep, numEnergies, 1);
+  VectorEPA epaRate(statisticsSweep, numEnergies, 1);
 
   double norm = twoPi / spinFactor *
                 crystal.getVolumeUnitCell(crystal.getDimensionality());
@@ -294,7 +294,7 @@ BaseVectorBTE TransportEpaApp::getScatteringRates(
 
 /* helper function to output scattering rates at each energy to JSON */
 void TransportEpaApp::outputToJSON(const std::string &outFileName,
-                                   BaseVectorBTE &scatteringRates,
+                                   VectorEPA &scatteringRates,
                                    StatisticsSweep &statisticsSweep,
                                    Eigen::VectorXd &energiesEPA, Context &context) {
 
