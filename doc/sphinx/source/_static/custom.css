@@ -41,11 +41,11 @@ a:hover {
 }
 /* the color of the dropdown menu area */
 .wy-menu-vertical, .wy-nav-side {
-    background:#17101F;
+    background:#131516;
 }
 /* change sidebar header color*/
 .wy-side-nav-search, .wy-nav-top {
-    background:#17101F;
+    background:#131516; /*#17101F;*/
 }
 /* change sidebar logo size */
 .wy-side-nav-search .wy-dropdown > a img.logo,
@@ -95,6 +95,6 @@ a:hover {
 
 /* INLINE CODE COLOR */
 .rst-content code.literal {
-    color:#01a289; /*#02ba9d;*/
+    color:#00b6b8; /*#01a289;*/ /*#02ba9d;*/
     font-weight:600;
 }
