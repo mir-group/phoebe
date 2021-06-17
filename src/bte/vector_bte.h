@@ -4,7 +4,6 @@
 #include "Matrix.h"
 #include "PMatrix.h"
 #include "active_bandstructure.h"
-#include "basevector_bte.h"
 #include "context.h"
 #include "eigen.h"
 
@@ -14,7 +13,7 @@
  * Can be used to store both scalar quantities (linewidths) or vectors
  * (like velocities).
  */
-class VectorBTE : public BaseVectorBTE {
+class VectorBTE {
 public:
   /** Constructor method, initializes raw buffer data and saves helper
    * variables.
@@ -36,6 +35,15 @@ public:
   /** Copy assignment operator
    */
   VectorBTE &operator=(const VectorBTE &that);
+
+  /** Get and set operator
+   */
+  double &operator()(const int iCalc, const int iDim, const int iState);
+
+  /** Const get and set operator
+   */
+  const double &operator()(const int iCalc, const int iDim,
+                           const int iState) const;
 
   /** Computes the scalar product between two VectorBTE objects.
    * The scalar product of x and y, is defined such as
@@ -129,7 +137,44 @@ public:
    */
   void population2Canonical();
 
-  // protected:
+  /** raw buffer containing the values of the vector
+ *  The matrix has size (numCalculations, numStates), where numCalculations is the number
+ *  of pairs of temperature and chemical potentials, and numStates is the
+ *  number of Bloch states used in the Boltzmann equation.
+ */
+  Eigen::MatrixXd data;
+
+  /** glob2Loc and loc2Glob compress/decompress the indices on temperature,
+   * chemical potential, and cartesian direction into/from a single index.
+   * TODO: these indices, and how they are used elsewhere, is rather messy
+   * That's because we have to work both with quantities such as line-widths,
+   * which are a scalar over the Bloch states, and phonon populations, which
+   * are cartesian vectors over the Bloch states.
+   * I should probably create two different classes for these.
+   */
+  int glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+               const CartIndex &iDim) const;
+  std::tuple<ChemPotIndex, TempIndex, CartIndex> loc2Glob(const int &i) const;
+
+  /** List of Bloch states to be excluded from the calculation (i.e. for
+   * which vectorBTE values are 0), for example, the acoustic modes at the
+   * gamma point, whose zero frequencies may cause problems.
+   */
+  std::vector<int> excludeIndices;
+  int dimensionality;
+
+  /** Set the whole content (raw buffer) of BaseVectorBTE to a scalar value.
+   * @param constant: the value to be used in the set.
+   */
+  void setConst(const double &constant);
+
+ protected:
+  // we store auxiliary objects and parameters
+  StatisticsSweep &statisticsSweep;
+  int numCalculations;
+  int numStates;
+  int numChemPots;
+  int numTemps;
 
   // we store auxiliary objects and parameters
   BaseBandStructure &bandStructure;

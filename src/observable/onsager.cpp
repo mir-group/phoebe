@@ -76,7 +76,7 @@ OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
 }
 
 void OnsagerCoefficients::calcFromEPA(
-    BaseVectorBTE &scatteringRates,
+    VectorEPA &scatteringRates,
     Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies) {
 
   Particle particle(Particle::electron);

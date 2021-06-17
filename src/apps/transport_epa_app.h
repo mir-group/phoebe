@@ -2,8 +2,8 @@
 #define EPA_TRANSPORT_APP_H
 
 #include "app.h"
-#include "basevector_bte.h"
 #include "delta_function.h"
+#include "vector_epa.h"
 
 /** App for computing the electron transport properties with the EPA theory
  */
@@ -26,7 +26,7 @@ private:
    * the vector of energies
    * @return a BaseVectorBTE object containing the electron lifetimes.
    */
-  static BaseVectorBTE getScatteringRates(Context &context,
+  static VectorEPA getScatteringRates(Context &context,
                                           StatisticsSweep &statisticsSweep,
                                           const Eigen::VectorXd &energies,
                                           Crystal &crystal,
@@ -59,7 +59,7 @@ private:
    * @param context: object with input and global parameters.
    */
   static void outputToJSON(const std::string &outFileName,
-                           BaseVectorBTE &scatteringRates,
+                           VectorEPA &scatteringRates,
                            StatisticsSweep &statisticsSweep,
                            Eigen::VectorXd &energiesEPA, Context &context);
 };
