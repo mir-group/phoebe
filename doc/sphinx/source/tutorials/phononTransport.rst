@@ -280,7 +280,9 @@ In this tutorial we show a demo calculation, which is unconverged for the sake o
 Parallelization
 ----------------
 
-For this calculation, the bottleneck is typically the construction of the scattering matrix (or the evaluation of a scattering matrix-vector product). If you are not familiar with parallelization techniques, you should read up on `OpenMP <https://en.wikipedia.org/wiki/OpenMP>`__ and `MPI <https://en.wikipedia.org/wiki/Message_Passing_Interface>`__.
+As mentioned above, for the ``qeToPhoebe`` calculation, the primary method of parallelization is over OMP threads, as this calculation can be memory intensive, and OMP helps to alleviate this. For this reason, we've written the code to be sped up when using more OMP threads.
+
+For the transport Phoebe calculation, the bottleneck is typically the construction of the scattering matrix (or the evaluation of a scattering matrix-vector product). If you are not familiar with parallelization techniques, you should read up on `OpenMP <https://en.wikipedia.org/wiki/OpenMP>`__ and `MPI <https://en.wikipedia.org/wiki/Message_Passing_Interface>`__.
 
 Phoebe takes advantage of three different parallelization schemes for the phonon transport calculation.
 

@@ -319,7 +319,7 @@ The key parameters used in this calculation are:
 
 * :ref:`phD2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
 
-* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of `{wannier90seedname}_tb.dat`` should point to the file created by Wannier90 due to the ``write_tb = true`` flag. If Wannier90 has disentangled bands, there should also be a file called``si_tb_dis.dat`` in this directory.
+* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of `{wannier90seedname}_tb.dat`` should point to the file created by Wannier90 due to the ``write_tb = true`` flag. If Wannier90 has disentangled bands, there should also be a file called ``si_tb_dis.dat`` in this directory.
 
 * :ref:`wannier90Prefix` = `"si"`: should match the ``seedname`` value of Wannier90, and it is used to locate various ``./si.*`` files.
 
@@ -467,7 +467,7 @@ In this tutorial we show a demo calculation, which is certainly unconverged. We 
 
 * Test the convergence of the electronic transport coefficients with respect to ab-initio results, in particular with respect to the k/q-point sampling in the DFT calculation.
 
-* Check the convergence of the electronic transport results with respect to the parameters :ref: `kMesh` and, if applicable, the :ref: `smearingWidth`.
+* Check the convergence of the electronic transport results with respect to the parameters :ref:`kMesh` and, if applicable, the :ref:`smearingWidth`.
 
 
 Parallelization
