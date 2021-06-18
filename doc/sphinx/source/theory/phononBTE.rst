@@ -427,12 +427,13 @@ The BTE too can be restricted to the irreducible wedge.
 
 Hence, one can work with the same techniques detailed above, provided that we work with an enlarged matrix :math:`A^{ij}_{\nu^*\nu'^*}`.
 
-By default, we make use of symmetries.
-Some comments:
+**Some comments:**
 
 * Advantage: for a system with a lot of symmetries, the matrix :math:`A^{ij}_{\nu^*\nu'^*}` is generally smaller than :math:`A_{\nu\nu'}`, and thus calculations will be much faster.
 
 * Disadvantage 1: we cannot compute viscosity beyond the RTA using symmetries. To do so, one must disable symmetries.
 
 * Disadvantage 2: note that the symmetric matrix gains two Cartesian coordinate indices. As a result, in the limiting case of no symmetries in the system (only the identity), the matrix :math:`A^{ij}_{\nu^*\nu'^*}` will still be computed on the same number of wavevectors of  :math:`A_{\nu\nu'}`, but occupies 3x3 times more memory without adding any information. Therefore, for low-symmetry systems, consider disabling symmetries.
+
+* Disadvantage 3: The symmetries of the BTE are so far not applicable to the variational and relaxons solveres. This is not so much a problem with implementaiton, but instead is because of a need for a derivation of symmetries for these cases. 
 
