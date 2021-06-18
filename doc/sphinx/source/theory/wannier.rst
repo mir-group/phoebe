@@ -6,7 +6,7 @@ Wannier interpolation of band structure
 
 A good review of the Wannier function formalism can be found at this link (https://arxiv.org/abs/1112.5411).
 
-We assume that a third-party code has provided us with the single-particle hamiltonian in the wannier representation:
+We assume that a third-party code has provided us with the single-particle Hamiltonian in the Wannier representation:
 
 .. math::
    \langle \boldsymbol{0}n | H | \boldsymbol{R} m \rangle
@@ -18,19 +18,19 @@ A Wannier function is here denoted by the ket:
    | \boldsymbol{R} m \rangle
 
 
-The Wannier interpolation requires first to transform to reciprocal space:
+The Wannier interpolation procedure requires us to transform from the real-space Wannier representation to reciprocal space (as well as the reverse transform),
 
 .. math::
    H_{\boldsymbol{k},nm}^W = \sum_{\boldsymbol{R}} e^{i \boldsymbol{k} \cdot \boldsymbol{R}} \langle \boldsymbol{0}n | H | \boldsymbol{R} m \rangle
 
-This sum is typically speeded-up summing over irreducible lattice vectors:
+This sum is typically performed over irreducible lattice vectors:
 
 .. math::
    H_{\boldsymbol{k},nm}^W = \sum_{\boldsymbol{R}_{irr}} \frac{e^{i \boldsymbol{k} \cdot \boldsymbol{R}_{irr}} }{ d_{\boldsymbol{R}_{irr}}} \langle \boldsymbol{0} n | H | \boldsymbol{R} m \rangle
 
 where :math:`d_{\boldsymbol{R}_{irr}}` is the degree of degeneracy of the irreducible bravais lattice vector :math:`\boldsymbol{R}_{irr}`.
 
-This matrix is not diagonal, as we are working, typically, in the maximally localized wannier function gauge.
+This matrix is not diagonal, as we are working, typically, in the maximally-localized Wannier function gauge.
 We thus diagonalize the matrix to pass to the Bloch representation:
 
 .. math::
@@ -38,7 +38,7 @@ We thus diagonalize the matrix to pass to the Bloch representation:
 
 Therefore finding the interpolated electronic energies at a generic :math:`\boldsymbol{k}` point.
 
-The velocity operator is computed with the Hellman-Feynman theorem, e.g. along the x direction as:
+The velocity operator is computed with the Hellmann-Feynman theorem, e.g. along the x direction as:
 
 .. math::
    v^x_{\boldsymbol{k}bb'} = [U_{\boldsymbol{k}}^\dagger \frac{H_{\boldsymbol{k}+\boldsymbol{\delta}_x}^W-H_{\boldsymbol{k}-\boldsymbol{\delta}_x}^W}{2 \delta_x} U_{\boldsymbol{k}}]_{bb'}
@@ -66,7 +66,7 @@ What we need to interpolate instead is:
    g_{b'b,\nu} (\boldsymbol{k},\boldsymbol{q}) = \big<b'\boldsymbol{k}+\boldsymbol{q} \big| \partial_{\boldsymbol{q}\nu}V \big| b\boldsymbol{k} \big>
 
 
-First recall the relation between the wavefunction in Wannier and Bloch representation.
+First, recall the relation between the wavefunctions in Wannier and Bloch representations,
 
 .. math::
    \big|m\boldsymbol{R}_e\big> = \sum_{b\boldsymbol{k}} e^{-i\boldsymbol{k}\cdot\boldsymbol{R}_e} U_{mb,\boldsymbol{k}} \big|b\boldsymbol{k}\big>
@@ -131,7 +131,7 @@ It is thus necessary that :math:`\boldsymbol{k}+\boldsymbol{q}` falls on the sam
 To be precise, note that we use two different sets of :math:`U` matrices.
 When interpolating from the Wannier to the Bloch space, we use the U matrices computed at an arbitrary grid of points obtained by diagonalizing the Hamiltonian matrix in the Wannier space.
 When first transforming from the Bloch space (the coupling with an ab-initio code) to the Wannier space, we use the :math:`U` matrices computed by Wannier90.
-This is necessary, because the coupling :math:`g` is a complex function, and we must rotate it using the same wavefunction gauge used to build the maximally localized wannier functions.
+This is necessary, because the coupling :math:`g` is a complex function, and we must rotate it using the same wavefunction gauge used to build the maximally-localized Wannier functions.
 Moreover, Wannier90 may use the disentanglement procedure.
 In that case, the Bloch to Wannier transformation is:
 
@@ -162,7 +162,7 @@ Note also that the diagonalization may not have a strategy to fix the phase of t
 We thus patch the Quantum ESPRESSO code to fix a gauge of the wavefunction.
 Additionally, we want to make sure that the wavefunction satisfies rotational symmetries, as this will help us reduce the number of calculations of the electron-phonon coupling at the DFT level.
 
-In a plane-wave code, the wavefunction is expanded in a plane wave basis set as
+In a plane-wave code, the wavefunction is expanded in a plane-wave basis set as
 
 .. math::
    \psi_{\boldsymbol{k}} = \sum_{\boldsymbol{G}} c(\boldsymbol{G}) e^{i\boldsymbol{k}\cdot\boldsymbol{G}+i\boldsymbol{k}\cdot\boldsymbol{r}}
@@ -354,314 +354,3 @@ If :math:`S` is a symmetry operation of the crystal, the phonon eigenvector rota
 
 where :math:`R_{at}` is the atomic position of an atom in the unit cell.
 Furthermore, :math:`K` is the atomic basis index of the atom on which the atom :math:`k` is transformed into upon the symmetry operation (since atoms of the same species are indistinguishable, they can be rotated into a different basis index, provided it's the same atomic species).
-
-
-
-Electron BTE
-------------
-
-Let :math:`f_{\nu}` be the out-of-equilibrium electron occupation number, where :math:`\nu = (\boldsymbol{k},b)` labels both electronic wavevectors and band index (i.e. the single-particle Bloch numbers).
-First, we rewrite the occupation number as:
-
-.. math::
-   f_{\lambda} = \bar{f}_{\lambda} + \bar{f}_{\lambda}(1-\bar{f}_{\lambda}) \delta f_{\lambda}
-
-where :math:`\bar{f}_{\lambda}` is the Fermi--Dirac distribution function and we introduced :math:`\delta f_{\lambda}` as the canonical distribution function.
-
-The linearized electronic BTE can be written as
-
-.. math::
-   e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
-     - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda'}
-
-where the first term describes the diffusion due to an externally applied electric field :math:`\boldsymbol{E}`, the second  the diffusion due to a temperature gradient, and the third term is the linearized scattering operator.
-
-The scattering matrix :math:`A_{\lambda,\lambda'}` can be computed as
-
-.. math::
-   A_{\boldsymbol{k}b,\boldsymbol{k}'b'} =& \frac{1}{V N_k} \sum_{s, \boldsymbol{q}}
-   2 \pi
-   |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2
-   \times
-   \bigg[
-   \bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}'b'}) \bar{n}_{\boldsymbol{q}\nu}
-   \delta(\epsilon_{\boldsymbol{k}b} + \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'}) \\\\
-   &+
-   \bar{f}_{\boldsymbol{k}'b'}(1-\bar{f}_{\boldsymbol{k}b}) \bar{n}_{\boldsymbol{q}\nu}
-   \delta(\epsilon_{\boldsymbol{k}b} - \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'})
-   \bigg]
-   \delta(\boldsymbol{k}-\boldsymbol{k}'+\boldsymbol{q})
-
-This quantity can be computed knowing all the interpolation techniques on phonon energies, electronic energies and the electron-phonon coupling.
-Please note that, for convenience, here we use a coupling defined as
-
-.. math::
-   g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')
-   =
-   g_{b'b\nu}(\boldsymbol{k},\boldsymbol{q})
-
-where the latter can be interpolated as described above.
-The Dirac-delta conserving momentum is enforced exactly, since we are using points on a uniform grid centered at gamma.
-The Dirac-delta conserving energy is instead with a Gaussian function, as described in the section @ref thSMEARING for the phonon BTE.
-
-
-
-
-
-Onsager coefficients
---------------------
-
-We make the hypothesis that the response is linear in the external fields:
-
-.. math::
-   \delta f_{\lambda} = \sum_{i} \delta^i f^E_{\lambda} E_i + \delta^i f^T_{\lambda} \nabla_i T
-
-
-After computing the out-of-equilibrium population, the charge and heat flux density can be computed as:
-
-.. math::
-   \boldsymbol{J} = \frac{e g_s}{V N_k} \sum_{\lambda} \boldsymbol{v}_{\lambda} f_{\lambda}
-
-and
-
-.. math::
-   \boldsymbol{Q} = \frac{g_s}{V N_k} \sum_{\lambda} (\epsilon_{\lambda}-\mu) \boldsymbol{v}_{\lambda} f_{\lambda}
-
-where :math:`g_s` is the spin degeneracy.
-
-Thanks to the decomposition, we can write
-
-.. math::
-   \boldsymbol{J} = L_{EE} \boldsymbol{E} + L_{ET} \boldsymbol{\nabla} T
-
-.. math::
-   \boldsymbol{Q} = L_{TE} \boldsymbol{E} + L_{TT} \boldsymbol{\nabla} T
-
-
-The electrical conductivity :math:`\sigma`, the thermal conductivity :math:`k`, the Seebeck coefficient :math:`S` and the mobility :math:`\mu` are:
-
-.. math::
-   \sigma = L_{EE}
-
-.. math::
-   k = L_{TT} - L_{TE} L_{EE}^{-1} L_{ET}
-
-.. math::
-   S = - L_{EE}^{-1} L_{ET}
-
-.. math::
-   \mu = \frac{\sigma}{d}
-
-where :math:`d` is the carriers' doping concentration.
-
-
-
-
-Electron transport in relaxation time approximation
----------------------------------------------------
-
-At this simple level of theory, we define the electron lifetime as:
-
-.. math::
-   A_{ \boldsymbol{k}b,\boldsymbol{k}b } = \frac{\bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}b})}{ \tau_{\boldsymbol{k}b} }
-
-Next, we approximate the scattering matrix as diagonal, so that the BTE becomes:
-
-.. math::
-   e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
-     - \frac{\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{ \tau_{\lambda} } \delta f_{\lambda}
-
-
-Solving separately the response to the electric field and the thermal gradient, we find
-
-.. math::
-   \delta^i f^E_{\lambda} = - e v^i_{\lambda} \frac{1}{k_B T} \tau_{\lambda}
-
-.. math::
-   \delta^i f^T_{\lambda} = - v^i_{\lambda} \frac{(\epsilon_{\lambda}-\mu)}{k_B T^2} \tau_{\lambda}
-
-
-
-
-Iterative solution to the electron BTE - Omini Sparavigna method
-----------------------------------------------------------------
-
-This is an adaptation of the Omini-Sparavigna method to electrons.
-
-.. note::
-   Generally, we recommend the variational method over this.
-
-To better understand this method, please have a look first at the phonon counterpart @ref thPHITER.
-
-The BTE consists in two linear algebra problems:
-
-.. math::
-   m^{i}_{\lambda} = - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda}^E
-
-
-.. math::
-   n^{i}_{\lambda} = - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda}^T
-
-where
-
-.. math::
-   m^{i}_{\lambda} = e v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon}
-
-.. math::
-   n^{i}_{\lambda} = v_{\lambda}^i \frac{\partial \bar{f}_{\lambda}}{\partial T}
-
-The iterative scheme consists in solving iteratively this two independent linear algebra problems with geometric series:
-
-.. math::
-   \delta^i f^E_{K} = \sum_{K} \left(-\frac{1}{\boldsymbol{A}^{\mathrm{out}}}  \boldsymbol{A}^{\mathrm{in}}\right)^{K} \frac{1}{\boldsymbol{A}^{\mathrm{out}}} \:  m^i
-
-and
-
-.. math::
-   \delta^i f^T_K = \sum_{K} \left(-\frac{1}{\boldsymbol{A}^{\mathrm{out}}}  \boldsymbol{A}^{\mathrm{in}}\right)^{K} \frac{1}{\boldsymbol{A}^{\mathrm{out}}} \:  n^i
-
-where :math:`K` is an iteration index, :math:`A^{in}` is the off-diagonal part of the scattering matrix, and :math:`A^{out}` is the diagonal part of the scattering matrix.
-Note that, like any geometric series, this algorithm may not converge.
-In the code, the two problems are solved together, as we compute the action on the two different vectors at the same time.
-
-
-
-
-
-
-Variational solution to the electron BTE
-----------------------------------------
-
-As seen above, the electron solvers to the BTE are identical to the phonon case.
-The only difference is that we need to solve two problems simultaneously, one for the electric field response and one for the response to the thermal gradient.
-
-For the variational method, we can define the variational thermal conductivity, in closed-circuit conditions, as:
-
-.. math::
-   k^\mathrm{V}(\delta f^T) = - 2 \mathcal{T}({\delta f^T})
-
-where
-
-.. math::
-   \mathcal{T}(\delta f^T) = \frac{1}{2} \sum_{\lambda \lambda'} {\delta f^T_{\lambda}} \cdot{\boldsymbol A_{\lambda\lambda'}} {\delta f^T_{\lambda'}} - \sum_{\lambda} {\boldsymbol n_{\lambda}} \cdot {\delta f^T_{\lambda}}
-
-The variational electrical conductivity is defined similarly as:
-
-.. math::
-   \sigma^\mathrm{V}(\delta f^E) = 2 \mathcal{E}({\delta f^E})
-
-where
-
-.. math::
-   \mathcal{E}(\delta f^E) = \frac{1}{2} \sum_{\lambda \lambda'} {\delta f^E_{\lambda}} \cdot{\boldsymbol A_{\lambda\lambda'}} {\delta f^E_{\lambda'}} - \sum_{\lambda} {\boldsymbol m_{\lambda}} \cdot {\delta f^E_{\lambda}}
-
-
-
-These two functionals are the minimization targets of a conjugate gradient method.
-Knowing this, the variational method is exactly the same as the phonon case described in section @ref thPHITER, with the proper substitution of the vector `b` with either :math:`m` or :math:`n`.
-
-As in the case of the Omini-Sparavigna method, we solve the two equations (response to electric field and thermal gradient) at the same time, as it allows us to minimize the number of times the scattering matrix is evaluated (the most expensive step).
-
-
-
-
-
-
-
-
-Relaxons solution to the electronic BTE
----------------------------------------
-
-In this scheme, we use an algebraic solution to the BTE, solving the equation in the eigenvector basis.
-We first diagonalize the scattering matrix:
-
-.. math::
-   \frac{1}{N_k} \sum_{\lambda'} A_{\lambda\lambda'} \theta_{\lambda'\alpha} = \frac{1}{\tau_{\alpha}} \theta_{\lambda\alpha}
-
-where :math:`\theta` are eigenvectors, :math:`\alpha` are eigenvalue indices, and :math:`\frac{1}{\tau_{\alpha}}` are eigenvalues.
-We first build the auxiliary quantities:
-
-.. math::
-   \delta^i f^E_{\alpha} = \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
-
-.. math::
-   \delta^i f^T_{\alpha} = \sum_{\lambda} \frac{\partial \bar{f}_{\lambda}}{\partial T} v_{\lambda}^i  \theta_{\lambda \alpha} \tau_{\alpha}
-
-From these, we can compute the solutions of the BTE as:
-
-.. math::
-   \delta f^E_{\lambda} = \frac{1}{N_k V} \sum_{\alpha} f^E_{\alpha} \theta_{\lambda \alpha}
-
-.. math::
-   \delta f^T_{\lambda} = \frac{1}{N_k V} \sum_{\alpha} f^T_{\alpha} \theta_{\lambda \alpha}
-
-
-
-
-
-
-Wigner correction to the BTE
-----------------------------
-
-The Wigner transport equation is
-
-.. math::
-   \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t}
-   &+
-   \frac{i}{\hbar} \Big[ \mathcal{E}(\boldsymbol{k}) + \boldsymbol{D}(\boldsymbol{k})\cdot\boldsymbol{E} , f(\boldsymbol{x},\boldsymbol{k},t) \Big]_{bb'}
-   +
-   \frac{1}{2} \Big\{ \boldsymbol{v}(\boldsymbol{k}) , \cdot \frac{\partial f(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{x}} \Big \}_{bb'} \\\\
-   &+
-   e \boldsymbol{E} \cdot \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial \boldsymbol{k}}
-   =
-   -\frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll}
-
-where :math:`f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)` is the Wigner distribution function, :math:`{ \cdot,\cdot }` indicates an anticommutator, :math:`[ \cdot,\cdot ]` indicates a commutator, :math:`v_{bb'}(\boldsymbol{k})` is the velocity operator, and we defined the matrix :math:`\mathcal{E}(\boldsymbol{k})_{bb'} = \delta_{bb'} \epsilon_{\boldsymbol{k}b}` and :math:`\mathcal{D}(\boldsymbol{k})_{bb'} = (1-\delta_{bb'}) d_{\boldsymbol{k}bb'}` is a matrix of electronic dipoles.
-The electronic dipole can be computed as:
-
-.. math::
-   \boldsymbol{d}_{\boldsymbol{k},bb'}
-   =
-   - i e \frac{\boldsymbol{v}_{bb'}(\boldsymbol{k})}{\epsilon_{b}(\boldsymbol{k})-\epsilon_{b'}(\boldsymbol{k})}  , \quad \text{for }b \neq b'
-
-
-The scattering operator acts on the diagonal Wigner distribution as the BTE scattering operator, instead it acts on the off-diagonal components with a decay term:
-
-.. math::
-   \frac{\partial f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)}{\partial t} \bigg|_{coll}
-   =
-   (1-\delta_{bb'}) \frac{\Gamma_{b}(\boldsymbol{k}) + \Gamma_{b'}(\boldsymbol{k})}{2} f_{bb'}(\boldsymbol{x},\boldsymbol{k},t)
-   +
-   \delta_{bb'} \frac{1}{V}
-   \sum_{\boldsymbol{k}'b'} A_{\boldsymbol{k}b,\boldsymbol{k}'b'} f_{b'b'}(\boldsymbol{x},\boldsymbol{k}',t)
-
-where :math:`\Gamma_b(\boldsymbol{k}) = \frac{2\pi}{\tau_{\boldsymbol{k}b}}` are the electronic linewidths.
-
-To solve the Wigner transport equation, just like we did for the BTE, we assume linear response and separate the response to electric field and thermal gradient :math:`f = f^E E + f^T \nabla T`.
-The diagonal part of the Wigner transport equation is exactly equal to the BTE, and can be solved using one of solvers described above.
-The off-diagonal part of the Wigner distribution function can be solved easily with a little algebraic manipulation.
-
-The transport coefficients are defined as:
-
-.. math::
-   L_{EE}^{ij} =
-   \frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
-
-.. math::
-   L_{ET}^{ij} =
-   \frac{e g_s}{V N_k} \sum_{\boldsymbol{k}b} \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\}_{bb}
-
-.. math::
-   L_{TE}^{ij} =
-   \frac{g_s}{V N_k}
-   \sum_{\boldsymbol{k}b}
-   \big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
-   \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{E_j}(\boldsymbol{k}) \Big\}_{bb}
-
-.. math::
-   L_{TT}^{ij} =
-   \frac{g_s}{V N_k}
-   \sum_{\boldsymbol{k}b}
-   \big( \epsilon_{b}(\boldsymbol{k})-\mu \big)
-   \frac{1}{2} \Big\{ v^i(\boldsymbol{k}) , f^{T_j}(\boldsymbol{k}) \Big\} _{bb}
-
