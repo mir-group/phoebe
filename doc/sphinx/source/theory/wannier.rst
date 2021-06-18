@@ -1,5 +1,5 @@
-Wannier interpolation methods
-=============================
+Additional Computational Details
+=================================
 
 Wannier interpolation of band structure
 ---------------------------------------
