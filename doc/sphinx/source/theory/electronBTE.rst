@@ -116,21 +116,21 @@ RTA Solution
 At this simple level of theory, we define the electron lifetime as:
 
 .. math::
-   A_{ \boldsymbol{k}b,\boldsymbol{k}b } = \frac{\bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}b})}{ \tau_{\boldsymbol{k}b} }
+   A_{ \boldsymbol{k}b,\boldsymbol{k}b } = \frac{1}{ \tau_{\boldsymbol{k}b} }
 
 Next, we approximate the scattering matrix as diagonal, so that the BTE becomes:
 
 .. math::
    e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
-     - \frac{\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{ \tau_{\lambda} } \delta f_{\lambda}
+     - \frac{1}{ \tau_{\lambda} } \delta f_{\lambda}
 
 Solving separately for the response to the electric field and the thermal gradient, we find,
 
 .. math::
-   \delta^i f^E_{\lambda} = - e v^i_{\lambda} \frac{1}{k_B T} \tau_{\lambda}
+   \delta^i f^E_{\lambda} = - e v^i_{\lambda} \frac{\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{k_B T} \tau_{\lambda}
 
 .. math::
-   \delta^i f^T_{\lambda} = - v^i_{\lambda} \frac{(\epsilon_{\lambda}-\mu)}{k_B T^2} \tau_{\lambda}
+   \delta^i f^T_{\lambda} = - v^i_{\lambda} \frac{(\epsilon_{\lambda}-\mu)\bar{f}_{\lambda}(1-\bar{f}_{\lambda})}{k_B T^2} \tau_{\lambda}
 
 
 
