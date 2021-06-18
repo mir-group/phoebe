@@ -1,16 +1,17 @@
 .. _theoryEPA:
 
-Electron-phonon averaging (EPA)
-===============================
+Electron-Phonon Averaged (EPA) Method
+======================================
 
-In Phoebe, we implemented the electron-phonon average method discuss in ref. https://doi.org/10.1016/j.mtphys.2018.07.001.
-The purpose of this method is to have a fast tool for the computation of electronic transport coefficients limited by electron-phonon scattering.
-The benefits of this methodology are that EPA:
-1. avoids Wannierization: while accurate, finding Wannier functions is tricky and is not yet fully automatizable; and
-2. gives priority to speed rather than accuracy, allowing a bigger computational throughput.
+In Phoebe, we implemented the electron-phonon averaged (EPA) approximation discussed in ref. https://doi.org/10.1016/j.mtphys.2018.07.001.
+The purpose of this method is to have an efficient tool for the computation of electronic transport coefficients limited by electron-phonon scattering.
 
-We only consider transport coefficients within the relaxation time approximation.
-In such case, the electronic lifetimes due to the electron-phonon scattering are:
+The benefits of the EPA methodoloy are:
+   * it avoids Wannierization: while accurate, finding Wannier functions is tricky and is not yet fully automatizable.
+   * it gives priority to speed rather than accuracy, allowing a bigger computational throughput.
+
+When working with EPA, we only consider transport coefficients within the relaxation time approximation.
+Using the RTA for the full electron-phonon Wannier case, the electronic lifetimes due to electron-phonon scattering are:
 
 .. math::
 
@@ -23,11 +24,10 @@ In such case, the electronic lifetimes due to the electron-phonon scattering are
    + \big(n(\omega_{\boldsymbol{q}\nu},T) + 1 - f(\epsilon_{\boldsymbol{k}+\boldsymbol{q}m},\mu,T)\big) \delta(\epsilon_{\boldsymbol{k}n} - \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}+\boldsymbol{q}m}) \bigg]
 
 
-While accurate, this expression is still too expensive for some purposes.
+While accurate, this expression is still too expensive for some purposes, and the Brillouin zone integration requires Wannier interpolation to converge effectively. 
 
-
-The main idea of EPA is to replace integrals over the Brillouin zone with some averaged quantities.
-In particular, rather than working with the full phonon dispersion, we average the frquencies of each phonon mode:
+The main idea of EPA is to replace these integrals over the Brillouin zone with some averaged quantities.
+First, rather than working with the full phonon dispersion, we average the frquencies of each phonon mode,
 
 .. math::
 
@@ -36,7 +36,8 @@ In particular, rather than working with the full phonon dispersion, we average t
    \bar{\omega}_{\nu}
 
 So that we have :math:`3 N_{atoms}` modes per crystal.
-Similarly, the make an energy binning on the electron-phonon coupling strength, as
+
+Similarly, the method averages the electron-phonon coupling strength on a set of energy intervals (refered to as bins) as,
 
 .. math::
 
@@ -44,9 +45,9 @@ Similarly, the make an energy binning on the electron-phonon coupling strength, 
    \to
    g^2_{\nu} (\epsilon_{\boldsymbol{k}n}, \epsilon_{\boldsymbol{k}+\boldsymbol{q}m})
 
-There can be various ways of doing this averaging procedure on :math:`g`.
-In Phoebe, we implemented a gaussian quadrature procedure.
-In this approach, the electron-phonon is approximated as a weighted sum of the electron-phonon coupling computed from an ab-initio code:
+There are multiple ways to perform this averaging procedure for :math:`g`.
+In Phoebe, we implemented the Gaussian quadrature procedure, which is referred to as a "moving least squares averaging" or EPA-MLS, in the original work.
+In this approach, the averaged electron-phonon coupling for each bin is approximated as a weighted sum of the electron-phonon coupling computed directly by a first principles code, 
 
 .. math::
    g^2_{\nu} (\epsilon_1,\epsilon_2)
@@ -66,7 +67,7 @@ and the weights :math:`w` are found by minimizing
    \sum_{mn} \int d\boldsymbol{q} d\boldsymbol{k} ( g^2_{\nu} (\epsilon_1,\epsilon_2) - |g_{mn\nu}(\boldsymbol{k},\boldsymbol{q})|^2 )^2
    \exp\bigg( -\frac{(\epsilon_{\boldsymbol{k}n}-\epsilon_1)^2+(\epsilon_{\boldsymbol{k}+\boldsymbol{q}m}-\epsilon_2)^2}{2\sigma^2_{gauss}} \bigg)
 
-After the electron-phonon coupling is approximated in this way, the electron lifetimes can be integrated as:
+After the electron-phonon coupling is approximated in this averaging procedure, the electron lifetimes can be calculated as,
 
 .. math::
    \tau^{-1}(\epsilon,\mu,T)
@@ -97,26 +98,30 @@ For example, the electrical conductivity is:
    \sigma_{\alpha\beta}(\mu,T) = K_{\alpha\beta}^{(0)}
 
 Note that, in order to compute the velocity term, we still need a form of interpolation of the electronic band structure.
-In order to keep the spirit of avoiding the Wannierization procedure, we use the @ref thFourierElectrons.
+In order to keep the spirit of avoiding the Wannierization procedure, we use Fourier interpolation (see more below).
+
+.. note: 
+
+   You may need many k-points in your DFT scf calculation to get a good Fourier interpolation of the electron energies. If your calculation isn't turning out well, we recommend you follow the :ref:`bands` tutorial to check the quality of the Fourier interpolation explicitly. 
 
 Furthermore, we note that the density of states is integrated using the tetrahedron method.
 
-In terms of computational parameters (besides temperature and doping concentration) the EPA requires tuning a few parameters, namely
+In terms of computational parameters (besides temperature and doping concentration) the EPA method can be sensitive to a few input variables, namely,
 
-1. the size of the coarse k/q grid used in an ab-initio code to compute the coupling;
+1. The size of the coarse k/q grid used when computing the ab-initio electron-phonon coupling.
 
-2. the energy bins used to approximate the electron-phonon coupling (which are set when converting data from Quantum ESPRESSO to Phoebe),
+2. The energy bins used to average the electron-phonon coupling (which are set when converting data from Quantum ESPRESSO to Phoebe).
 
-3. the energy bins used to integrate lifetimes (typically, one should use a better energy sampling than the one for the coupling)
+3. The energy bins used to integrate lifetimes (typically, one should use a better energy sampling than the one for the coupling).
 
-4. the grid of wavevectors, used to average velocities and density of states.
+4. The density of the mesh of wavevectors used to average velocities and calculate density of states.
 
 
 Electronic Fourier interpolation
 ----------------------------------
 
 We implemented the Fourier interpolation of the band structure (also used in Boltztrap v1).  
-The method is well described [in this reference] (https://link.aps.org/doi/10.1103/PhysRevB.38.2721).
+The method is well described https://link.aps.org/doi/10.1103/PhysRevB.38.2721.
 Note that the algorithm described below works for a single band (so it must be repeated for every distinct band we want to interpolate).
 
 Let's suppose to have :math:`N` data points, i.e. an energy :math:`\epsilon(\boldsymbol{k}_i)`, specified over a (coarse) mesh of kpoints :math:`\boldsymbol{k}_i`, with :math:`i=0,\dots,N-1`.
