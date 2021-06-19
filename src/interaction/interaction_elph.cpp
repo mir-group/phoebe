@@ -270,7 +270,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
       double x = numElBands * numElBands * numPhBands * numPhBravaisVectors *
                  numElBravaisVectors / pow(1024., 3) * sizeof(cx);
       std::cout << "Allocating " << x
-                << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
+                << " (GB) (per MPI process) for the el-ph coupling matrix."
                 << std::endl;
     }
 
@@ -435,7 +435,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       double x = totElems / pow(1024., 3) * sizeof(cx);
       if (mpi->mpiHead()) {
         std::cout << "Allocating " << x
-                  << " (GB) (per MPI process) for the el-ph coupling matrix.\n"
+                  << " (GB) (per MPI process) for the el-ph coupling matrix."
                   << std::endl;
       }
     }

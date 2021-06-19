@@ -453,7 +453,6 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
       }
     }
   }
-#endif
 
   if (mpi->mpiHead()) {
     std::cout << "Successfully parsed harmonic phonopy files.\n" << std::endl;
@@ -472,4 +471,5 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
                            forceConstants, context.getSumRuleD2());
 
   return {crystal, dynamicalMatrix};
+#endif
 }

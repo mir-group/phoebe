@@ -26,10 +26,11 @@ class SerialMatrix {
   T* mat = nullptr;  // pointer to the internal array structure.
 
   /// Index from a 1D array to a position in a 2D array (matrix)
-  int global2Local(const int& row, const int& col);
   std::tuple<int, int> local2Global(const int& k);
 
  public:
+  int global2Local(const int& row, const int& col);
+
   /** Indicates that the matrix A is not modified: transN(A) = A
    */
   static const char transN = 'N';

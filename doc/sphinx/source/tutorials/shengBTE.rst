@@ -128,13 +128,13 @@ Step 4: Calculate Anharmonic Force Constants
 In this section, we want to use a finite-displacement approach to compute the matrix of third derivatives of the total energy with respect to ionic displacements.
 To calculate these third-order force constants, we will use Quantum ESPRESSO to compute energies/forces, and a script provided by ShengBTE called ``thirdorder.py`` to generate a pattern of displacements on a supercell of the original silicon crystal. We then use QE to calculate the forces associated with these displacement patterns.
 
-* Download ``thirdorder.py`` from `the ShengBTE website <http://www.shengbte.org/>`.downloads
+* Download ``thirdorder.py`` from `the ShengBTE website <http://www.shengbte.org/downloads>`__
 
 * Untar the file, and cd into the ``./thirdorder`` directory that has been just created
 
 * Modify the source code in the following way:
   
-  * Modify line 559 of file ``thirdorder_core.c``, from `#include "spglib/spglib.h"` to `#include "spglib.h"`.
+  * Modify line 559 of file ``thirdorder_core.c``, from ``#include "spglib/spglib.h"`` to ``#include "spglib.h"``.
   * In file ``setup.py``, set line 10 as ``INCLUDE_DIRS = ["/your/path/to/phoebe/build/spglib_src/src"]`` and line 13 as ``LIBRARY_DIRS = ["/your/path/to/phoebe/build/spglib_build"]``.
 
 * After making these modifications, open a terminal in the ``./thirdorder`` directory and type::
@@ -211,7 +211,7 @@ To calculate these third-order force constants, we will use Quantum ESPRESSO to 
 
   This script will create a lot of input files, potentially up to the cube of the number of atoms in the supercell. Therefore, choose an appropriate number of nearest neighbors (and make sure to converge the thermal conductivity against this parameter).
 
-* Now, it's time to run all of these supercell calculations!
+* It's time to run all of these supercell calculations!
   You can do this by typing in the terminal::
 
     for f in DISP.supercell_template.in.*; do

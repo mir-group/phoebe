@@ -197,7 +197,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
   stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
 
-void LoopPrint::update() {
+void LoopPrint::update(const bool &withTimeEstimate) {
   // Update prediction info for current task.
   if (!mpi->mpiHead())
     return;
@@ -237,7 +237,7 @@ void LoopPrint::update() {
       std::cout << std::setw(3) << percentage << "% | ";
       std::cout << std::setw(stepDigits) << currentStep + 1
                 << std::setw(stepDigits) << " / " << numSteps;
-      if (currentStep > 2) {
+      if (currentStep > 2 && withTimeEstimate) {
         std::cout << " | remaining: " << std::setw(8) << std::setprecision(2)
                   << std::scientific << timeLeft << std::fixed << " s."
 		  << std::endl;

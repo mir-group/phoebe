@@ -15,6 +15,7 @@ private:
   Eigen::VectorXd elEnergies;
   Eigen::VectorXd phEnergies;
   Eigen::Tensor<double, 3> elPhMatAverage;
+  double binSize;
 
 public:
   /** default constructor.
@@ -46,12 +47,12 @@ public:
 
   /** Get the values of the EPA coupling
    *
-   * @param i: electron index of the energy bin for the initial electron state
-   * @param j: electron index of the energy bin for the final electron state
-   * @param k: phonon index of the energy bin
+   * @param nu: phonon mode index
+   * @param enI: energy of initial state
+   * @param enF: energy of final state (k+q)
    * @return EPA approximation for |g|^2
    */
-  double getCoupling(const int &i, const int &j, const int &k);
+  double getCoupling(const int &nu, const double &enI, const double &enF);
 
   /** Function used to parse the EPA values from file
    *

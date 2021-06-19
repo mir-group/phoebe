@@ -6,10 +6,9 @@ This section contains a summary of the equations and brief description of the th
 .. toctree::
    :maxdepth: 2
 
-   thEpa
    statistics
-   fourierInterpolation
-   dynamicalMatrix
    phononBTE
+   electronBTE
+   thEpa
    wannier
 

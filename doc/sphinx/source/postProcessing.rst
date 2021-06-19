@@ -11,11 +11,12 @@ The majority of output files produced by Phoebe will be in the JSON format. JSON
   import json
 
   # open and parse the file
-  with open("the_json_file_name.json","r") as f:
-      resultsDict = json.load(f)
+  f = open("epa_relaxation_times.json","r")
+  resultsDict = json.load(f)
 
   # print the keys of the dictionary to see what the file contains
-  print(resultsDict)
+  for key, value in resultsDict.items():
+    print(key)
 
 This opens a JSON file and prints the keys to the dictionary. The keys indicate which data sets are available in a particular JSON file. We store transport/lifetime data, particle type, band energies, dos, as well as output units in these files.
 

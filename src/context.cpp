@@ -74,10 +74,10 @@ double parseDoubleWithUnits(std::string &line) {
     x /= ryToCmm1;
   }
   if (patternInString(line, "ps")) {
-    x /= timeRyToFs * 1.0e-3 / twoPi;
+    x /= timeAuToFs * 1.0e-3;
   }
   if (patternInString(line, "fs")) {
-    x /= timeRyToFs / twoPi;
+    x /= timeAuToFs;
   }
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
@@ -558,6 +558,10 @@ void Context::setupFromInput(const std::string &fileName) {
         hasSpinOrbit = parseBool(val);
       }
 
+      if (parameterName == "distributedElPhCoupling") {
+        distributedElPhCoupling = parseBool(val);
+      }
+
       if (parameterName == "numOccupiedStates") {
         // note: numOccupiedStates refers to the number of states that are
         // occupied
@@ -838,7 +842,7 @@ void Context::printInputSummary(const std::string &fileName) {
 
     if (!std::isnan(constantRelaxationTime))
       std::cout << "constantRelaxationTime = "
-                << constantRelaxationTime * timeRyToFs << " fs" << std::endl;
+                << constantRelaxationTime * timeAuToFs << " fs" << std::endl;
     std::cout << "smearingMethod = ";
     if (smearingMethod == 0)
       std::cout << "gaussian" << std::endl;
@@ -1204,4 +1208,12 @@ void Context::setCoreElectrons(const Eigen::VectorXi &x) {
     }
   }
   numCoreElectrons = x;
+}
+
+bool Context::getDistributedElPhCoupling() {
+  return distributedElPhCoupling;
+}
+
+void Context::setDistributedElPhCoupling(const bool &x) {
+  distributedElPhCoupling = x;
 }

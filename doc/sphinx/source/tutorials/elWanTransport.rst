@@ -1,15 +1,17 @@
+.. _elWanTransport:
+
 Electron Wannier Transport Tutorial
 ===================================
 
 Synopsis
 --------
 
-In this tutorial, we will compute the electrical conductivity and other electronic transport properties of silicon using the Wannier interpolation method. 
+In this tutorial, we will compute the electrical conductivity and other electronic transport properties of silicon using the Wannier interpolation method.
 
 First, we will use Quantum ESPRESSO to compute the ab-initio electron-phonon coupling on a coarse grid.
 Then, we will use Wannier90 to compute the maximally localized Wannier functions, which we need to interpolate the electronic band structure and the electron-phonon matrix elements to a fine mesh. Steps 1-4 are quite similar to the equivalent steps from the previous tutorial.
 
-The algorithms are described in the :ref:`theory` section of this manual. Again, we assume a basic familiarity with Quantum ESPRESSO (see phonon tutorials on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/resources/tutorials>`__), and a working knowledge of Wannier90, although you should still be able to follow this tutorial. 
+The algorithms are described in the :ref:`theory` section of this manual. Again, we assume a basic familiarity with Quantum ESPRESSO (see phonon tutorials on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/resources/tutorials>`__), and a working knowledge of Wannier90, although you should still be able to follow this tutorial.
 
 
 Step 1: Patch Quantum ESPRESSO
@@ -38,20 +40,14 @@ Step 2: Run pw.x
 Again, we need to compute the total energy of the silicon unit cell.
 This calculation will create the ground state charge density and wavefunctions that are needed for later. This very similar to the second step of the EPA tutorial.
 
-<<<<<<< HEAD
 .. note::
    Very important! In this step, we are fixing the gauge of the wavefunction.
    It is imperative that this `scf` calculation is only done once at the beginning and is never repeated aftwerwards.
    If you run another `scf` calculation between step 3 and 6, you may alter the gauge of the wavefunction and thus ruin the interpolation of the electron-phonon coupling.
 
-To run, go to the folder `./example/Silicon-el/qespresso` in the phoebe repository.
-The file `scf.in` is the input file for the `pw.x` executable.
-The input for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal, is::
-=======
 To run this calculation, go to the folder ``./example/Silicon_el/qe-elph`` in the Phoebe repository.
 The file ``scf.in`` is the input file for the ``pw.x`` executable.
 The contents of the ``scf.in`` file for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal is shown below ::
->>>>>>> 0e0dea18d419709c3b257fcc8ede1fbddd53f618
 
  &control
    calculation = "scf"
@@ -78,7 +74,7 @@ The contents of the ``scf.in`` file for a total energy DFT calculation of Quantu
    Si 0.00 0.00 0.00
    Si 0.25 0.25 0.25
  K_POINTS automatic
- 6 6 6 0 0 0 
+ 6 6 6 0 0 0
 
 A detailed description of these parameters can be found on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/Doc/INPUT_PW.html>`__.
 The most important parameters, which should be tweaked and modified in a research project are:
@@ -135,7 +131,7 @@ Also, it's important that ``prefix`` and ``outdir`` are the same as those used i
 Use a good value of ``tr2_ph`` (smaller is better, but harder to converge), which (indirectly) checks the convergence of phonon frequencies.
 
 
-In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag still results in the 
+In the input file, we set the flag ``electron_phonon = "epa"``. Even though we are not doing an EPA calculation, this flag still results in the
 This will trigger the calculation of the electron-phonon coupling matrix elements which are used by Phoebe.
 
 Run the code as::
@@ -183,7 +179,7 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 
 
 
-Step 5: Run nscf 
+Step 5: Run nscf
 -----------------
 
 We now start the process of Wannierizing the electronic band structure.
@@ -232,7 +228,7 @@ The input file used above to run Wannier90 is a bit more involved::
 
 	bands_plot        = true
 
-	num_bands         = 12       
+	num_bands         = 12
 	num_wann          = 8
 	dis_win_max       = 17.d0
 	dis_froz_max      = 6.4d0
@@ -250,18 +246,18 @@ The input file used above to run Wannier90 is a bit more involved::
 	end unit_cell_cart
 
 	begin atoms_frac
-	Si   0.00  0.00   0.00 
+	Si   0.00  0.00   0.00
 	Si   0.25  0.25   0.25
 	End atoms_frac
-	    
-	begin projections     
-	Si : sp3 
-	end projections       
-	    
+
+	begin projections
+	Si : sp3
+	end projections
+
 	begin kpoint_path
 	L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
 	G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-	X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+	X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000
 	K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
 	end kpoint_path
 
@@ -288,7 +284,7 @@ The k-point list at the end of the calculation is the same list used in the nscf
 
 The variable ``num_bands`` should match the value of ``nbnd`` set in ``scf.in`` and ``nscf.in``.
 
-The variable ``num_wann`` is the number of Wannier functions that are used in the calculation. You should aim to Wannierize bands up to and slightly above the chemical potential. Additionally, as many loops in a transport calculation run over nBands, you also don't want to Wannierize an unnecessary number of bands. 
+The variable ``num_wann`` is the number of Wannier functions that are used in the calculation. You should aim to Wannierize bands up to and slightly above the chemical potential. Additionally, as many loops in a transport calculation run over nBands, you also don't want to Wannierize an unnecessary number of bands.
 
 In this input file, we provide the Wannierization disentanglement parameters and the orbital projections (the orbitals which are used as a starting guess for the Wannier orbitals).
 The meaning of these quantities is described in the `Wannier90 documentation <http://www.wannier.org/support>`__.
@@ -323,7 +319,7 @@ The key parameters used in this calculation are:
 
 * :ref:`phD2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
 
-* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of `{wannier90seedname}_tb.dat`` should point to the file created by Wannier90 due to the ``write_tb = true`` flag. If Wannier90 has disentangled bands, there should also be a file called``si_tb_dis.dat`` in this directory.
+* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of `{wannier90seedname}_tb.dat`` should point to the file created by Wannier90 due to the ``write_tb = true`` flag. If Wannier90 has disentangled bands, there should also be a file called ``si_tb_dis.dat`` in this directory.
 
 * :ref:`wannier90Prefix` = `"si"`: should match the ``seedname`` value of Wannier90, and it is used to locate various ``./si.*`` files.
 
@@ -339,9 +335,11 @@ To execute the code::
 and wait until completion.
 
 Note that this calculation can be memory intensive.
-For this reason, we recommend to limit/avoid use of MPI parallelization and use a large number of OMP threads (if you compiled the code with OpenMP. OpenMP is useful, because it allows multiple threads to work on a problem while sharing the memory on a node.)
+For this reason, we recommend to limit/avoid use of MPI parallelization and use a large number of OMP threads (if you compiled the code with OpenMP. OpenMP is useful, because it allows multiple threads to work on a problem while sharing the memory on a node).
+For some large calculations, the electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
+If this is the case (e.g. if some segmentation faults appear), you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
-After the code completes, you should see an output file called ``silicon.phoebe.elph.dat``.
+After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support.
 
 
 
@@ -441,7 +439,7 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 **Files which are always output for this calculation:**
 
 * ``el_specific_heat.json``: contains the electronic specific heat.
-* ``rta_wigner_coefficients.json``: contains the Wigner transport coefficients. 
+* ``rta_wigner_coefficients.json``: contains the Wigner transport coefficients.
 
 **As well as a few which are output for specific solvers:**
 
@@ -469,7 +467,7 @@ In this tutorial we show a demo calculation, which is certainly unconverged. We 
 
 * Test the convergence of the electronic transport coefficients with respect to ab-initio results, in particular with respect to the k/q-point sampling in the DFT calculation.
 
-* Check the convergence of the electronic transport results with respect to the parameters :ref: `kMesh` and, if applicable, the :ref: `smearingWidth`.
+* Check the convergence of the electronic transport results with respect to the parameters :ref:`kMesh` and, if applicable, the :ref:`smearingWidth`.
 
 
 Parallelization
