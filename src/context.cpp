@@ -74,10 +74,10 @@ double parseDoubleWithUnits(std::string &line) {
     x /= ryToCmm1;
   }
   if (patternInString(line, "ps")) {
-    x /= timeRyToFs * 1.0e-3;
+    x /= timeAuToFs * 1.0e-3;
   }
   if (patternInString(line, "fs")) {
-    x /= timeRyToFs;
+    x /= timeAuToFs;
   }
   if (patternInString(line, "mum")) {
     x /= distanceBohrToMum;
@@ -842,7 +842,7 @@ void Context::printInputSummary(const std::string &fileName) {
 
     if (!std::isnan(constantRelaxationTime))
       std::cout << "constantRelaxationTime = "
-                << constantRelaxationTime * timeRyToFs << " fs" << std::endl;
+                << constantRelaxationTime * timeAuToFs << " fs" << std::endl;
     std::cout << "smearingMethod = ";
     if (smearingMethod == 0)
       std::cout << "gaussian" << std::endl;

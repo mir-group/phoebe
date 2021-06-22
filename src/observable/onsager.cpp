@@ -76,12 +76,12 @@ OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
 }
 
 void OnsagerCoefficients::calcFromEPA(
-    BaseVectorBTE &scatteringRates,
+    VectorEPA &scatteringRates,
     Eigen::Tensor<double, 3> &energyProjVelocity, Eigen::VectorXd &energies) {
 
   Particle particle(Particle::electron);
-  double energyStep = energies(1) - energies(0);
   double factor = spinFactor / pow(twoPi, dimensionality);
+  double energyStep = energies(1) - energies(0);
 
   LEE.setZero();
   LET.setZero();
@@ -101,9 +101,9 @@ void OnsagerCoefficients::calcFromEPA(
             continue;
           }
 
-          double term =
-              energyProjVelocity(iAlpha, iBeta, iEnergy) /
-              scatteringRates.data(iCalc, iEnergy) * factor * pop * energyStep;
+          double term = energyProjVelocity(iAlpha, iBeta, iEnergy) /
+                        scatteringRates.data(iCalc, iEnergy) * factor * pop *
+                        energyStep;
 
           LEE(iCalc, iAlpha, iBeta) += term / temp;
           LET(iCalc, iAlpha, iBeta) -= term * en / pow(temp, 2);
@@ -476,10 +476,10 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
     convKappa = thConductivityAuToSi;
   }
 
-  double convMobility = mobilityAuToSi * 100 * 100; // from m^2/Vs to cm^2/Vs
+  double convMobility = mobilityAuToSi * pow(100., 2); // from m^2/Vs to cm^2/Vs
   std::string unitsMobility = "cm^2 / V / s";
 
-  double convSeebeck = thermopowerAuToSi * 10.0e6;
+  double convSeebeck = thermopowerAuToSi * 1.0e6;
   std::string unitsSeebeck = "muV / K";
 
   std::vector<double> temps, dopings, chemPots;
@@ -551,8 +551,8 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
   nlohmann::json output;
   output["temperatures"] = temps;
   output["temperatureUnit"] = "K";
-  output["dopings"] = dopings;
-  output["dopingUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
+  output["dopingConcentrations"] = dopings;
+  output["dopingConcentrationUnit"] = "cm$^{-" + std::to_string(dimensionality) + "}$";
   output["chemicalPotentials"] = chemPots;
   output["chemicalPotentialUnit"] = "eV";
   output["electricalConductivity"] = sigmaOut;

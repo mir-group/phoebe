@@ -57,7 +57,7 @@ if __name__ == "__main__":
     if xaxis == "T":
         x = np.array(data['temperatures'])
     else:
-        x = np.array(data['dopings'])
+        x = np.array(data['dopingConcentrations'])
 
     for coefficient in coefficients:
         # unpack the json file
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         if xaxis == "T":
             plt.xlabel('Temperature [' + data['temperatureUnit'] + ']',fontsize=12)
         else:
-            plt.xlabel('n [' + data['dopingUnit'] + ']',fontsize=12)
+            plt.xlabel('n [' + data['dopingConcentrationUnit'] + ']',fontsize=12)
         plt.ylabel(symbol + units,fontsize=12)
         plt.ylim(None, np.max(y[:,i1,i2])*1.1)
         plt.xlim(None, np.max(x)*1.1)

@@ -66,8 +66,6 @@ if __name__ == "__main__":
     plt.ylim(None, None)
     plt.xlim(points[0],points[-1])
 
-    plt.axhline(0, color='grey', ls='-')
-
     plt.tight_layout()
 
     plotFileName = os.path.splitext(jfileName)[0] + ".pdf"
