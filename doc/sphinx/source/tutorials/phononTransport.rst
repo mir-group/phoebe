@@ -106,7 +106,7 @@ Once all calculations are finished, collect the force constants from them using 
 
 This creates a file named ``FORCES_FC3``, which contains the force constants. To use this information as an input to Phoebe, run the following line to compress this information into two DFT-package independent hdf5 files, ``fc2.hdf5`` and ``fc3.hdf5``, which contain the second and third order force constants, respectively::
 
-  phono3py --dim="2 2 2" -c <input-file-name> --sym-fc
+  phono3py --<DFT-package-name> --dim="2 2 2" -c <input-file-name> --sym-fc
 
 Before proceeding, you should check the quality of the calculation. First, make sure the harmonic phonon bands look appropriate using phono3py. In the directory with the force constants file, make a file named ``band.conf`` which should contain at a minimum the high symmetry band path in crystal coordinates (with other optional settings `here <https://phonopy.github.io/phonopy/setting-tags.html#band-structure-related-tags>`_). For silicon, a simple example would be::
 
