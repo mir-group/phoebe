@@ -18,8 +18,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
-  numStates = outerBandStructure.irrStateIterator().size();
-  numPoints = outerBandStructure.irrPointsIterator().size();
+  numStates = int(outerBandStructure.irrStateIterator().size());
+  numPoints = int(outerBandStructure.irrPointsIterator().size());
   numCalcs = statisticsSweep.getNumCalculations();
 
   dimensionality_ = int(context.getDimensionality());
@@ -915,7 +915,7 @@ void ScatteringMatrix::symmetrize() {
     for (int iRank = 0; iRank < mpi->getSize(); iRank++) {
       int thisSize = 0;
       if (iRank == mpi->getRank()) {
-        thisSize = theMatrix.getAllLocalStates().size();
+        thisSize = int(theMatrix.getAllLocalStates().size());
       }
       mpi->allReduceSum(&thisSize);
 
@@ -983,7 +983,7 @@ void ScatteringMatrix::degeneracyAveragingLinewidths(VectorBTE *linewidth) {
   for (int ik : outerBandStructure.irrPointsIterator()) {
     WavevectorIndex ikIdx(ik);
     Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
-    int numBands = en.size();
+    auto numBands = int(en.size());
 
     Eigen::VectorXd linewidthTmp(numBands);
     linewidthTmp.setZero();
