@@ -112,8 +112,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
   double getRoughnessFunction(const Eigen::Vector3d &position) const;
   const double coefficient1 = 0.75;  // 3/4
   const double coefficient2 = 0.75;
-  double getEnergyFromCoords(Eigen::Vector3d &wavevector, int &bandIndex);
-  Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d &wavevector,
+  double getEnergyFromCoordinates(Eigen::Vector3d &wavevector, int &bandIndex);
+  Eigen::Vector3d getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
                                              int &bandIndex);
 };
 

@@ -5,7 +5,6 @@
 #include "el_scattering.h"
 #include "electron_viscosity.h"
 #include "exceptions.h"
-#include "io.h"
 #include "observable.h"
 #include "onsager.h"
 #include "parser.h"
@@ -72,18 +71,18 @@ void ElectronWannierTransportApp::run(Context &context) {
   VectorBTE nTRTA = -driftT * relaxationTimes;
 
   // compute the electrical conductivity
-  OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
-                                      context);
-  transportCoeffs.calcFromPopulation(nERTA, nTRTA);
-  transportCoeffs.print();
-  transportCoeffs.outputToJSON("rta_onsager_coefficients.json");
+  OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
+                                            bandStructure, context);
+  transportCoefficients.calcFromPopulation(nERTA, nTRTA);
+  transportCoefficients.print();
+  transportCoefficients.outputToJSON("rta_onsager_coefficients.json");
 
   // compute the Wigner transport coefficients
-  WignerElCoefficients wignerCoeffs(statisticsSweep, crystal, bandStructure,
-                                    context, relaxationTimes);
-  wignerCoeffs.calcFromPopulation(nERTA, nTRTA);
-  wignerCoeffs.print();
-  wignerCoeffs.outputToJSON("rta_wigner_coefficients.json");
+  WignerElCoefficients wignerCoefficients(
+      statisticsSweep, crystal, bandStructure, context, relaxationTimes);
+  wignerCoefficients.calcFromPopulation(nERTA, nTRTA);
+  wignerCoefficients.print();
+  wignerCoefficients.outputToJSON("rta_wigner_coefficients.json");
 
   // compute the electron viscosity
   ElectronViscosity elViscosity(context, statisticsSweep, crystal,
@@ -163,12 +162,10 @@ void ElectronWannierTransportApp::run(Context &context) {
       std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
     }
 
-    // initialize the (old) transport coefficients
-    OnsagerCoefficients transportCoeffsOld = transportCoeffs;
-
     Eigen::Tensor<double, 3> elCond =
-        transportCoeffs.getElectricalConductivity();
-    Eigen::Tensor<double, 3> thCond = transportCoeffs.getThermalConductivity();
+        transportCoefficients.getElectricalConductivity();
+    Eigen::Tensor<double, 3> thCond =
+        transportCoefficients.getThermalConductivity();
     Eigen::Tensor<double, 3> elCondOld = elCond;
     Eigen::Tensor<double, 3> thCondOld = thCond;
 
@@ -192,10 +189,10 @@ void ElectronWannierTransportApp::run(Context &context) {
       nENext = nERTA - nENext;
       nTNext = nTRTA - nTNext;
 
-      transportCoeffs.calcFromPopulation(nENext, nTNext);
-      transportCoeffs.print(iter);
-      elCond = transportCoeffs.getElectricalConductivity();
-      thCond = transportCoeffs.getThermalConductivity();
+      transportCoefficients.calcFromPopulation(nENext, nTNext);
+      transportCoefficients.print(iter);
+      elCond = transportCoefficients.getElectricalConductivity();
+      thCond = transportCoefficients.getThermalConductivity();
 
       // this exit condition must be improved
       // different temperatures might converge differently
@@ -227,8 +224,8 @@ void ElectronWannierTransportApp::run(Context &context) {
         Error("Reached max BTE iterations without convergence");
       }
     }
-    transportCoeffs.print();
-    transportCoeffs.outputToJSON("omini_onsager_coefficients.json");
+    transportCoefficients.print();
+    transportCoefficients.outputToJSON("omini_onsager_coefficients.json");
 
     if (mpi->mpiHead()) {
       std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
@@ -253,12 +250,11 @@ void ElectronWannierTransportApp::run(Context &context) {
     ParallelMatrix<double> eigenvectors = std::get<1>(tup);
     // EV such that Omega = V D V^-1
 
-    transportCoeffs.calcFromRelaxons(eigenvalues, eigenvectors,
-                                     scatteringMatrix);
-    transportCoeffs.print();
-    transportCoeffs.outputToJSON("relaxons_onsager_coefficients.json");
-    scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json",
-                                    eigenvalues);
+    transportCoefficients.calcFromRelaxons(eigenvalues, eigenvectors,
+                                           scatteringMatrix);
+    transportCoefficients.print();
+    transportCoefficients.outputToJSON("relaxons_onsager_coefficients.json");
+    scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
       Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);
@@ -311,20 +307,21 @@ void ElectronWannierTransportApp::runVariationalMethod(
     std::cout << std::endl;
   }
 
-  OnsagerCoefficients transportCoeffs(statisticsSweep, crystal, bandStructure,
-                                      context);
+  OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
+                                            bandStructure, context);
 
   // initialize the transport coefficients
   // to check how these change during iterations
-  Eigen::Tensor<double, 3> elCond = transportCoeffs.getElectricalConductivity();
-  Eigen::Tensor<double, 3> thCond = transportCoeffs.getThermalConductivity();
+  Eigen::Tensor<double, 3> elCond =
+      transportCoefficients.getElectricalConductivity();
+  Eigen::Tensor<double, 3> thCond =
+      transportCoefficients.getThermalConductivity();
   auto elCondOld = elCond;
   auto thCondOld = thCond;
 
   // set the initial guess to the RTA solution
   VectorBTE preconditioning2 = scatteringMatrix.diagonal();
   VectorBTE preconditioning = preconditioning2.sqrt();
-  // nota che devo riguardare questo preconditioner
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
@@ -445,7 +442,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
       }
     }
     // now we compute the product E^-1 A E^-1 f, where f is the population
-    // that is already preconditionerd
+    // that is already preconditioned
     std::vector<VectorBTE> inF;
     inF.push_back(z2E);
     inF.push_back(z2T);
@@ -454,11 +451,11 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE ttT_ = z2T * preconditioning2;
     VectorBTE az2E = outF[0] - ttE_ + z2E;
     VectorBTE az2T = outF[1] - ttT_ + z2T;
-    transportCoeffs.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
-                                    preconditioning);
-    transportCoeffs.print(iter);
-    elCond = transportCoeffs.getElectricalConductivity();
-    thCond = transportCoeffs.getThermalConductivity();
+    transportCoefficients.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
+                                          preconditioning);
+    transportCoefficients.print(iter);
+    elCond = transportCoefficients.getElectricalConductivity();
+    thCond = transportCoefficients.getThermalConductivity();
 
     // decide whether to exit or run the next iteration
     Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
@@ -482,7 +479,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
       zNewE = zNewE / preconditioning;
       zNewT = zNewT / preconditioning;
       // recompute our final guess for transport coefficients
-      transportCoeffs.calcFromCanonicalPopulation(zNewE, zNewT);
+      transportCoefficients.calcFromCanonicalPopulation(zNewE, zNewT);
       break;
     } else {
       elCondOld = elCond;
@@ -501,8 +498,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
   }
 
   // nice formatting of the transport properties at the last step
-  transportCoeffs.print();
-  transportCoeffs.outputToJSON("variational_onsager_coefficients.json");
+  transportCoefficients.print();
+  transportCoefficients.outputToJSON("variational_onsager_coefficients.json");
 
   if (mpi->mpiHead()) {
     std::cout << "Finished variational BTE solver\n\n";

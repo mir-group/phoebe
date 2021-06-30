@@ -1,6 +1,6 @@
 #include "Matrix.h"
 
-// Explict specialization of BLAS matrix-matrix mult for Matrix<complex<double>>
+// Explict specialization of BLAS matrix-matrix product for Matrix<complex<double>>
 template <>
 Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
     const Matrix<std::complex<double>>& that, const char& trans1,
@@ -11,7 +11,7 @@ Matrix<std::complex<double>> Matrix<std::complex<double>>::prod(
   return c;
 }
 
-// Explicit specializiation of BLAS matrix-matrix mult for Matrix<double>
+// Explicit specialization of BLAS matrix-matrix product for Matrix<double>
 template <>
 Matrix<double> Matrix<double>::prod(const Matrix<double>& that,
                                     const char& trans1, const char& trans2) {
@@ -26,40 +26,40 @@ template <>
 std::tuple<std::vector<double>, Matrix<std::complex<double>>>
 Matrix<std::complex<double>>::diagonalize() {
 
-  std::vector<double> eigvals;
-  Matrix<std::complex<double>> eigvecs(*this);
+  std::vector<double> eigenvalues;
+  Matrix<std::complex<double>> eigenvectors(*this);
 
   if(isDistributed) {
     auto tup = pmat->diagonalize();
-    eigvals = std::get<0>(tup);
-    eigvecs.pmat = &(std::get<1>(tup));
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.pmat = &(std::get<1>(tup));
   }
   else{
     auto tup = mat->diagonalize();
-    eigvals = std::get<0>(tup);
-    eigvecs.mat = &(std::get<1>(tup));
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.mat = &(std::get<1>(tup));
   }
-  return {eigvals,eigvecs};
+  return {eigenvalues, eigenvectors};
 }
 
 // Diagonalize for real double symmetric matrix
 template <>
 std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 
-  std::vector<double> eigvals;
-  Matrix<double> eigvecs(*this);
+  std::vector<double> eigenvalues;
+  Matrix<double> eigenvectors(*this);
 
   if(isDistributed) {
     auto tup = pmat->diagonalize();
-    eigvals = std::get<0>(tup);
-    eigvecs.pmat = &(std::get<1>(tup)); // returns a pmat, need the pointer to it
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.pmat = &(std::get<1>(tup)); // returns a pMat, need the pointer to it
   }
   else{
     auto tup = mat->diagonalize();
-    eigvals = std::get<0>(tup);
-    eigvecs.mat = &(std::get<1>(tup));
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.mat = &(std::get<1>(tup));
   }
-  return {eigvals,eigvecs};
+  return {eigenvalues, eigenvectors};
 }
 
 // Explicit specialization of norm for doubles

@@ -16,10 +16,6 @@ const std::complex<double> complexZero = {0., 0.}; /* NOLINT */
 const std::complex<double> complexOne = {1., 0.}; /* NOLINT */
 const std::complex<double> complexI = {0., 1.}; /* NOLINT */
 //
-// small numbers
-//
-const double epsilon8 = 1.e-8;
-//
 // Physical constants
 //
 const double speedLightSi = 299792458;

@@ -49,7 +49,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     Eigen::VectorXd &energies) {
 
   // no matter the method, we must set numBands
-  numBands = energies.size();
+  numBands = int(energies.size());
 
   if (method == population) {
     Eigen::VectorXd popMin(numBands), popMax(numBands);
@@ -78,7 +78,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
 
 std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
     const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
-    const Eigen::VectorXd &popMax) {
+    const Eigen::VectorXd &popMax) const {
 
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema;
@@ -93,7 +93,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
       bandsIndices.push_back(ib);
     }
   }
-  if (bandsIndices.size() > 0) {
+  if (!bandsIndices.empty()) {
     bandsExtrema.push_back(bandsIndices[0]);
     bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
@@ -101,7 +101,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
 }
 
 std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
-    const Eigen::VectorXd &energies) {
+    const Eigen::VectorXd &energies) const {
 
   std::vector<double> filteredEnergies;
   std::vector<int> bandsExtrema;
@@ -115,13 +115,13 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
     }
   }
   // set the band extrema
-  if (bandsIndices.size() > 0) {
+  if (!bandsIndices.empty()) {
     bandsExtrema.push_back(bandsIndices[0]);
     bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
   return {filteredEnergies, bandsExtrema};
 }
 
-int Window::getMethodUsed() {
+int Window::getMethodUsed() const {
   return method;
 }

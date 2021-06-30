@@ -1,5 +1,5 @@
-#ifndef PHONONVISCOSITY_H
-#define PHONONVISCOSITY_H
+#ifndef PHONON_VISCOSITY_H
+#define PHONON_VISCOSITY_H
 
 #include "drift.h"
 #include "observable.h"
@@ -55,7 +55,7 @@ public:
                         ParallelMatrix<double> &eigenvectors);
 
 protected:
-  virtual int whichType();
+  int whichType() override;
   BaseBandStructure &bandStructure;
 };
 

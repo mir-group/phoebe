@@ -12,12 +12,10 @@ As described in the :ref:`Theory` section of this manual, we need Quantum ESPRES
 
 Though we again assume the user is familiar with QE, several tutorials can be found on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/resources/tutorials>`__, which cover the DFT aspects of the calculation in more detail.
 
-Additionally, though we show below how to do this calculation with phono3py, Phoebe is also capable of taking anharmonic force constants from ShengBTE used with QE. See below for this usage.
+Though we show below how to do this calculation with phono3py, Phoebe is also capable of taking anharmonic force constants from ShengBTE used with QE, as generated from the `thirdorder python script <https://www.shengbte.org/development>`_ associated with ShengBTE. We support the use of thirdorder.py with QE only, for the time being. See :ref:`shengbte` for details.
 
 .. note::
-  Support of phono3py is only available if Phoebe is built using `hdf5`.
-
-Alternatively, we also support anharmonic force constants generated from the `thirdorder python script <https://www.shengbte.org/development>`_ associated with ShengBTE. We support the use of thirdorder.py with QE only, for the time being. See :ref:`shengbte`.
+  Support of phono3py is only available if Phoebe is built using `hdf5`. It's needed for this tutorial.
 
 Step 1: Phono3py Installation
 -----------------------------
