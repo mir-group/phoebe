@@ -279,14 +279,14 @@ void VectorBTE::population2Canonical() {
 
 
 // get/set operator
-double &VectorBTE::operator()(const int iCalc, const int iDim,
-                              const int iState) {
+double &VectorBTE::operator()(const int &iCalc, const int &iDim,
+                              const int &iState) {
   return data(iCalc * dimensionality + iDim, iState);
 }
 
 // const get/set operator
-const double &VectorBTE::operator()(const int iCalc, const int iDim,
-                                    const int iState) const {
+const double &VectorBTE::operator()(const int &iCalc, const int &iDim,
+                                    const int &iState) const {
   return data(iCalc * dimensionality + iDim, iState);
 }
 

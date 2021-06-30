@@ -18,7 +18,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
                         : false) {
 
   Eigen::VectorXd temperatures = context.getTemperatures();
-  nTemp = temperatures.size();
+  nTemp = int(temperatures.size());
   if (nTemp == 0) {
     double minTemperature = context.getMinTemperature();
     double maxTemperature = context.getMaxTemperature();
@@ -36,17 +36,17 @@ StatisticsSweep::StatisticsSweep(Context &context,
       minTemperature += deltaTemperature;
       ++i;
     }
-    nTemp = temperatures.size();
+    nTemp = int(temperatures.size());
   }
 
   if (particle.isPhonon()) {
     nDop = 1;
     nChemPot = 1;
-    numCalcs = nTemp * std::max(nChemPot, nDop);
-    infoCalcs = Eigen::MatrixXd::Zero(numCalcs, 3);
+    numCalculations = nTemp * std::max(nChemPot, nDop);
+    infoCalculations = Eigen::MatrixXd::Zero(numCalculations, 3);
     for (int it = 0; it < nTemp; it++) {
       double temp = temperatures(it);
-      infoCalcs(it, 0) = temp;
+      infoCalculations(it, 0) = temp;
       // note: the other two columns are set to zero above
     }
 
@@ -125,8 +125,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
     Eigen::VectorXd dopings = context.getDopings();
     Eigen::VectorXd chemicalPotentials = context.getChemicalPotentials();
 
-    nChemPot = chemicalPotentials.size();
-    nDop = dopings.size();
+    nChemPot = int(chemicalPotentials.size());
+    nDop = int(dopings.size());
 
     // if chemical potentials and dopings are not supplied,
     // check for a min/max mu and dmu energy spacing in the input file
@@ -149,7 +149,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
         minChemicalPotential += deltaChemicalPotential;
         ++i;
       }
-      nChemPot = chemicalPotentials.size();
+      nChemPot = int(chemicalPotentials.size());
     }
 
     // now have two cases:
@@ -196,8 +196,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
     // clean memory
     energies = Eigen::VectorXd::Zero(1);
     // save potentials and dopings
-    infoCalcs = calcTable;
-    numCalcs = calcTable.rows();
+    infoCalculations = calcTable;
+    numCalculations = int(calcTable.rows());
   }
 
   printInfo();
@@ -206,8 +206,8 @@ StatisticsSweep::StatisticsSweep(Context &context,
 // copy constructor
 StatisticsSweep::StatisticsSweep(const StatisticsSweep &that)
     : particle(that.particle) {
-  numCalcs = that.numCalcs;
-  infoCalcs = that.infoCalcs;
+  numCalculations = that.numCalculations;
+  infoCalculations = that.infoCalculations;
   nTemp = that.nTemp;
   nChemPot = that.nChemPot;
   nDop = that.nDop;
@@ -217,8 +217,8 @@ StatisticsSweep::StatisticsSweep(const StatisticsSweep &that)
 StatisticsSweep &StatisticsSweep::operator=(const StatisticsSweep &that) {
   if (this != &that) {
     particle = that.particle;
-    numCalcs = that.numCalcs;
-    infoCalcs = that.infoCalcs;
+    numCalculations = that.numCalculations;
+    infoCalculations = that.infoCalculations;
     nTemp = that.nTemp;
     nChemPot = that.nChemPot;
     nDop = that.nDop;
@@ -347,9 +347,9 @@ double StatisticsSweep::findDopingFromChemicalPotential(
 
 CalcStatistics StatisticsSweep::getCalcStatistics(const int &index) {
   CalcStatistics sc = {};
-  sc.temperature = infoCalcs(index, 0);
-  sc.chemicalPotential = infoCalcs(index, 1); // chemical potential
-  sc.doping = infoCalcs(index, 2);            // doping
+  sc.temperature = infoCalculations(index, 0);
+  sc.chemicalPotential = infoCalculations(index, 1); // chemical potential
+  sc.doping = infoCalculations(index, 2);            // doping
   return sc;
 }
 
@@ -360,7 +360,7 @@ StatisticsSweep::getCalcStatistics(const TempIndex &iTemp,
   return getCalcStatistics(index);
 }
 
-int StatisticsSweep::getNumCalculations() const { return numCalcs; }
+int StatisticsSweep::getNumCalculations() const { return numCalculations; }
 
 int StatisticsSweep::getNumChemicalPotentials() const { return nChemPot; }
 
@@ -379,10 +379,10 @@ void StatisticsSweep::printInfo() {
 
   std::cout << "Index, temperature, chemical potential, doping concentration\n";
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
-    double temp = infoCalcs(iCalc, 0);
-    double chemPot = infoCalcs(iCalc, 1);
-    double doping = infoCalcs(iCalc, 2);
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+    double temp = infoCalculations(iCalc, 0);
+    double chemPot = infoCalculations(iCalc, 1);
+    double doping = infoCalculations(iCalc, 2);
 
     std::cout << std::fixed << std::setprecision(6);
     std::cout << "iCalc = " << iCalc << ", T = " << temp * temperatureAuToSi

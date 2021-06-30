@@ -44,18 +44,18 @@ public:
 
 protected:
 
-  void throwErrorIfUnset(const std::string &x, const std::string &name);
-  void throwErrorIfUnset(const std::vector<std::string> &x,
+  static void throwErrorIfUnset(const std::string &x, const std::string &name);
+  static void throwErrorIfUnset(const std::vector<std::string> &x,
                          const std::string &name);
-  void throwErrorIfUnset(const double &x, const std::string &name);
-  void throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name);
-  void throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name);
-  void throwErrorIfUnset(const Eigen::VectorXd &x, const std::string &name);
-  void throwErrorIfUnset(const Eigen::MatrixXd &x, const std::string &name);
-  void throwErrorIfUnset(const Eigen::Tensor<double, 3> &x,
+  static void throwErrorIfUnset(const double &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::VectorXd &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::MatrixXd &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::Tensor<double, 3> &x,
                          const std::string &name);
 
-  void throwWarningIfUnset(const std::string &x, const std::string &name);
+  static void throwWarningIfUnset(const std::string &x, const std::string &name);
 };
 
 #endif

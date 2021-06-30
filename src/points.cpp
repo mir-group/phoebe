@@ -5,8 +5,8 @@
 #include <cmath>
 #include <set>
 
-const int Points::crystalCoordinates = crystalCoords_;
-const int Points::cartesianCoordinates = cartesianCoords_;
+const int Points::crystalCoordinates = crystalCoordinates_;
+const int Points::cartesianCoordinates = cartesianCoordinates_;
 
 // default constructors
 
@@ -102,7 +102,7 @@ Points::Points(Crystal &crystal_, const Eigen::Tensor<double, 3> &pathExtrema,
     }
   }
 
-  numPoints = points.size();
+  numPoints = int(points.size());
   pointsList = Eigen::MatrixXd::Zero(3, numPoints);
   int i = 0;
   for (const auto &p : points) {
@@ -122,7 +122,7 @@ void Points::setActiveLayer(const Eigen::VectorXi &filter) {
   // which we want to include in the ActivePoints class
   filteredToFullIndices = filter;
 
-  numPoints = filteredToFullIndices.size();
+  numPoints = int(filteredToFullIndices.size());
 
   int maxIndex = 0;
 
@@ -232,7 +232,7 @@ int Points::getIndex(const Eigen::Vector3d &point) {
   return ik;
 }
 
-int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates_) {
+int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
 
   if (!explicitlyStored) { // full list is faster
     Eigen::Vector3i p;
@@ -240,7 +240,7 @@ int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates_) {
     double diff = 0.;
     for (int i : {0, 1, 2}) {
       // bring the point to integer coordinates
-      double x = (crystalCoordinates_(i) - offset(i)) * mesh(i);
+      double x = (crystCoordinates_(i) - offset(i)) * mesh(i);
       // check that p is indeed a point commensurate to the mesh.
       diff += round(x) - x;
       // fold in Brillouin zone in range [0,mesh-1]
@@ -255,7 +255,7 @@ int Points::isPointStored(const Eigen::Vector3d &crystalCoordinates_) {
   } else {
     for (int ikTest = 0; ikTest < numPoints; ikTest++) {
       Eigen::Vector3d kTest = pointsList.col(ikTest);
-      Eigen::Vector3d diff = kTest - crystalCoordinates_;
+      Eigen::Vector3d diff = kTest - crystCoordinates_;
       for (int i : {0, 1, 2}) {
         diff(i) -= std::floor(diff(i) + 1.0e-8);
       }
@@ -385,7 +385,7 @@ Points::findMesh(const Eigen::Matrix<double, 3, Eigen::Dynamic> &testPoints) {
   Eigen::Vector3d offset_(3);
   offset_.setZero();
 
-  int numTestPoints = testPoints.cols();
+  auto numTestPoints = int(testPoints.cols());
   for (int iCart = 0; iCart < 3; iCart++) {
     std::set<double> s; // note that sets are ordered
     for (int i = 0; i < numTestPoints; i++) {
@@ -443,7 +443,7 @@ Points::findMesh(const Eigen::Matrix<double, 3, Eigen::Dynamic> &testPoints) {
 
 ////////////////////////////////////////////////////////////////
 
-Point::Point(Points &points_, int index_, Eigen::Vector3d umklappVector_)
+Point::Point(Points &points_, const int &index_, const Eigen::Vector3d &umklappVector_)
     : umklappVector(umklappVector_), index(index_), points(points_) {}
 
 // copy constructor
@@ -594,7 +594,7 @@ void Points::setIrreduciblePoints(
           Eigen::Vector3d rotatedPoint = rot * kIrr;
           int ikRot = isPointStored(rotatedPoint);
           if (ikRot == ikRed) {
-            mapEquivalenceRotationIndex(ikRed) = is;
+            mapEquivalenceRotationIndex(ikRed) = int(is);
             break;
           }
         }
@@ -631,7 +631,7 @@ void Points::setIrreduciblePoints(
             continue;
           }
 
-          int numBands = irrVelocities.rows();
+          auto numBands = int(irrVelocities.rows());
           double diff = 0.;
           for (int ib = 0; ib < numBands; ib++) {
             Eigen::Vector3d thisIrrVel = irrVelocities.row(ib);
@@ -639,11 +639,11 @@ void Points::setIrreduciblePoints(
             Eigen::Vector3d rotVel = rotationMatricesCartesian[is] * thisIrrVel;
             diff += (rotVel - thisRedVel).squaredNorm();
           }
-          isSelects.push_back(is);
+          isSelects.push_back(int(is));
           diffs.push_back(diff);
         }
 
-        int minElementIndex =
+        auto minElementIndex =
             std::min_element(diffs.begin(), diffs.end()) - diffs.begin();
 
         mapEquivalenceRotationIndex(ikRed) = isSelects[minElementIndex];

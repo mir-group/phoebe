@@ -1,5 +1,5 @@
-#ifndef WIGNERELECTRON_H
-#define WIGNERELECTRON_H
+#ifndef WIGNER_ELECTRON_H
+#define WIGNER_ELECTRON_H
 
 #include "onsager.h"
 
@@ -39,12 +39,12 @@ class WignerElCoefficients : public OnsagerCoefficients {
    * @param n: the phonon population out-of-equilibrium. Note that this
    * method uses the absolute value of phonon populations n.
    */
-  virtual void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
+  void calcFromPopulation(VectorBTE &nE, VectorBTE &nT) override;
 
   /** Prints to screen the thermal conductivity at various temperatures
    * in a a nicely formatted way.
    */
-  void print();
+  void print() override;
 
  protected:
   VectorBTE &smaRelTimes;

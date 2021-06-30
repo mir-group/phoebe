@@ -32,7 +32,7 @@ WignerPhononThermalConductivity::WignerPhononThermalConductivity(
 
     auto velocities = bandStructure.getVelocities(iqIdx);
     auto energies = bandStructure.getEnergies(iqIdx);
-    int numBands = energies.size();
+    auto numBands = int(energies.size());
 
     // calculate bose factors
     Eigen::MatrixXd bose(numCalculations, numBands);

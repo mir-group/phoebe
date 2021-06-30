@@ -65,7 +65,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     }
 
     std::vector<int> localCounts(mpi->getSize(), 0);
-    localCounts[mpi->getRank()] = listOfIndexes.size();
+    localCounts[mpi->getRank()] = int(listOfIndexes.size());
     mpi->allReduceSum(&localCounts);
     int totalCounts = 0;
     for (int iRank = 0; iRank < mpi->getSize(); iRank++) {
@@ -155,7 +155,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
-      nb3 = energies3.size();
+      nb3 = int(energies3.size());
       bose3Data = Eigen::MatrixXd(numCalculations, nb3);
       for (int ib3 = 0; ib3 < nb3; ib3++) {
         int is3 =
@@ -175,7 +175,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
-      nb3 = energies3.size();
+      nb3 = int(energies3.size());
       bose3Data = Eigen::MatrixXd(numCalculations, nb3);
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
@@ -215,7 +215,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       bose3Data = cacheMinusBose[iq1Counter];
     }
 
-    int nb3 = energies3.size();
+    int nb3 = int(energies3.size());
     return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
   }
 }
@@ -223,7 +223,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
 void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
                              const int &iq2) {
   if (!storedAllQ3) {
-    int numPoints = q1Indexes.size();
+    auto numPoints = int(q1Indexes.size());
     cacheOffset = q1Indexes[0];
 
     cachePlusEnergies.resize(numPoints);
@@ -256,8 +256,8 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
       auto energies3Minus = std::get<0>(tup1);
       auto eigenVectors3Minus = std::get<1>(tup1);
 
-      int nb3Plus = energies3Plus.size();
-      int nb3Minus = energies3Minus.size();
+      int nb3Plus = int(energies3Plus.size());
+      int nb3Minus = int(energies3Minus.size());
 
       Eigen::MatrixXd bose3DataPlus(numCalculations, nb3Plus);
       Eigen::MatrixXd bose3DataMinus(numCalculations, nb3Minus);

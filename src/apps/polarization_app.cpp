@@ -97,9 +97,10 @@ void ElectronPolarizationApp::run(Context &context) {
     Eigen::Vector3d position = atomicPositions.row(i);
     int charge = periodicTable.getIonicCharge(atomicNames[i]);
 
-    // note: I must subtract the electrons that have not been Wannierized
-    // including the core electrons. This info could be retrieved from the
-    // pseudo-potential file and from the input of Wannier90
+    // note: I must subtract the electrons that have not been used for the
+    // construction of Wannier functions, e.g. including the core electrons.
+    // This info could be retrieved from the pseudo-potential file and from the
+    // input of Wannier90
     int iSpec = crystal.getAtomicSpecies()(i);
     int numCoreElectrons = context.getCoreElectrons()(iSpec);
     charge -= numCoreElectrons;

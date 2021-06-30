@@ -20,7 +20,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
   numStates = int(outerBandStructure.irrStateIterator().size());
   numPoints = int(outerBandStructure.irrPointsIterator().size());
-  numCalcs = statisticsSweep.getNumCalculations();
+  numCalculations = statisticsSweep.getNumCalculations();
 
   dimensionality_ = int(context.getDimensionality());
 
@@ -62,7 +62,7 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
       constantRTA(that.constantRTA), highMemory(that.highMemory),
       internalDiagonal(that.internalDiagonal), theMatrix(that.theMatrix),
       numStates(that.numStates), numPoints(that.numPoints),
-      numCalcs(that.numCalcs), dimensionality_(that.dimensionality_),
+      numCalculations(that.numCalculations), dimensionality_(that.dimensionality_),
       excludeIndices(that.excludeIndices) {}
 
 // assignment operator
@@ -79,7 +79,7 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     theMatrix = that.theMatrix;
     numStates = that.numStates;
     numPoints = that.numPoints;
-    numCalcs = that.numCalcs;
+    numCalculations = that.numCalculations;
     excludeIndices = that.excludeIndices;
     dimensionality_ = that.dimensionality_;
   }
@@ -100,7 +100,7 @@ void ScatteringMatrix::setup() {
   memoryUsage();
 
   if (highMemory) {
-    if (numCalcs > 1) {
+    if (numCalculations > 1) {
       // note: one could write code around this
       // but the methods are very memory intensive for production runs
       Error("High memory BTE methods can only work with one "
@@ -179,8 +179,8 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
   } else {
     VectorBTE outPopulation = dot(inPopulation);
 #pragma omp parallel for collapse(3) default(none)                             \
-    shared(outPopulation, internalDiagonal, inPopulation, numCalcs, numStates)
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    shared(outPopulation, internalDiagonal, inPopulation, numCalculations, numStates)
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int iDim : {0, 1, 2}) {
         for (int iBte = 0; iBte < numStates; iBte++) {
           outPopulation(iCalc, iDim, iBte) -= internalDiagonal(iCalc, 0, iBte) *
@@ -198,9 +198,9 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
   std::vector<VectorBTE> outPopulations = dot(inPopulations);
   for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
 #pragma omp parallel for collapse(3) default(none)                             \
-    shared(numCalcs, numStates, outPopulations, internalDiagonal,              \
+    shared(numCalculations, numStates, outPopulations, internalDiagonal,              \
            inPopulations, iVec)
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int iDim : {0, 1, 2}) {
         for (int iBte = 0; iBte < numStates; iBte++) {
           outPopulations[iVec](iCalc, iDim, iBte) -=
@@ -514,7 +514,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::vector<double> chemPots;
   std::vector<double> dopings;
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
@@ -634,7 +634,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
   std::vector<double> temps;
   std::vector<double> chemPots;
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStatistics.temperature;
     double chemPot = calcStatistics.chemicalPotential;
@@ -781,7 +781,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 
         auto idx = std::find(q1Indexes.begin(), q1Indexes.end(), iq1);
         if (idx != q1Indexes.end()) {
-          int i = idx - q1Indexes.begin();
+          auto i = idx - q1Indexes.begin();
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq2);
         } else {
@@ -872,7 +872,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
 
         auto idx = std::find(q2Indexes.begin(), q2Indexes.end(), iq2);
         if (idx != q2Indexes.end()) {
-          int i = idx - q2Indexes.begin();
+          auto i = idx - q2Indexes.begin();
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq1);
         } else {

@@ -222,7 +222,7 @@ std::vector<std::string> parseStringList(std::string &line) {
  */
 std::tuple<Eigen::MatrixXd, Eigen::VectorXi, std::vector<std::string>>
 parseCrystal(std::vector<std::string> &lines) {
-  int numAtoms = lines.size();
+  auto numAtoms = int(lines.size());
   Eigen::MatrixXd atomicPositions(numAtoms, 3);
   Eigen::VectorXi atomicSpecies(numAtoms);
   std::vector<std::string> speciesNames;
@@ -281,7 +281,7 @@ parseCrystal(std::vector<std::string> &lines) {
 std::tuple<std::vector<std::string>, Eigen::Tensor<double, 3>>
 parsePathExtrema(std::vector<std::string> &lines) {
 
-  int numSegments = lines.size();
+  auto numSegments = int(lines.size());
   Eigen::Tensor<double, 3> pathExtrema(numSegments, 2, 3);
   pathExtrema.setZero();
   std::vector<std::string> pathLabels;
@@ -492,7 +492,7 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "chemicalPotentials") {
         std::vector<double> x = parseDoubleList(val);
-        chemicalPotentials = Eigen::VectorXd::Zero(x.size());
+        chemicalPotentials = Eigen::VectorXd::Zero(int(x.size()));
         for (int unsigned i = 0; i < x.size(); i++) {
           chemicalPotentials(i) = x[i] / energyRyToEv;
         }
@@ -500,7 +500,7 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "dopings") {
         std::vector<double> x = parseDoubleList(val);
-        dopings = Eigen::VectorXd::Zero(x.size());
+        dopings = Eigen::VectorXd::Zero(int(x.size()));
         for (int unsigned i = 0; i < x.size(); i++) {
           dopings(i) = x[i];
         }
@@ -508,7 +508,7 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "temperatures") {
         std::vector<double> x = parseDoubleList(val);
-        temperatures = Eigen::VectorXd::Zero(x.size());
+        temperatures = Eigen::VectorXd::Zero(int(x.size()));
         for (int unsigned i = 0; i < x.size(); i++) {
           temperatures(i) = x[i] / temperatureAuToSi;
         }
@@ -610,7 +610,7 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "massVariance") {
         std::vector<double> x = parseDoubleList(val);
-        massVariance = Eigen::VectorXd::Zero(x.size());
+        massVariance = Eigen::VectorXd::Zero(int(x.size()));
         for (int unsigned i = 0; i < x.size(); i++) {
           massVariance(i) = x[i];
         }
@@ -711,7 +711,7 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "numCoreElectrons") {
         std::vector<int> x = parseIntList(val);
         Eigen::VectorXi xx(x.size());
-        for (unsigned int i=0; i<x.size(); i++) {
+        for (unsigned int i = 0; i < x.size(); i++) {
           xx(i) = x[i];
         }
         setCoreElectrons(xx);
@@ -743,14 +743,15 @@ void Context::setupFromInput(const std::string &fileName) {
 }
 // helper functions for printInputSummary
 template <typename T>
-void printVector(std::string varName, std::vector<T> vec) {
+void printVector(const std::string& varName, std::vector<T> vec) {
   std::cout << varName << " = ";
   for (auto i : vec)
     std::cout << " " << i;
   std::cout << std::endl;
 }
-void printVectorXd(std::string varName, Eigen::VectorXd vec,
-                   std::string unit = "") {
+
+void printVectorXd(const std::string& varName, Eigen::VectorXd vec,
+                   const std::string& unit = "") {
   std::cout << varName << " =";
   for (int i = 0; i < vec.size(); i++)
     std::cout << " " << vec(i);
@@ -778,7 +779,7 @@ void Context::printInputSummary(const std::string &fileName) {
     if (appName == "phononLifetimes" || appName == "phononTransport") {
       std::cout << "phD3FileName = " << phD3FileName << std::endl;
     }
-    if (phonopyDispFileName != "") {
+    if (!phonopyDispFileName.empty()) {
       std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
       std::cout << "dispFCFileName = " << dispFCFileName << std::endl;
       std::cout << "dispFC2FileName = " << dispFC2FileName << std::endl;
@@ -794,31 +795,36 @@ void Context::printInputSummary(const std::string &fileName) {
     if (appName.find("elPh") != std::string::npos ||
         appName == "electronLifetimes" ||
         appName == "electronWannierTransport") {
-      if (elPhInterpolation != "")
+      if (!elPhInterpolation.empty())
         std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
       std::cout << "elphFileName = " << elphFileName << std::endl;
-      if (wannier90Prefix != "")
+      if (!wannier90Prefix.empty())
         std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
-      if (quantumEspressoPrefix != "")
+      if (!quantumEspressoPrefix.empty())
         std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
                   << std::endl;
     }
-    if(appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
-      if(!std::isnan(epaMinEnergy))
-       std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
-      if(!std::isnan(epaMaxEnergy))
-        std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
-      if(!std::isnan(epaNumBins))
+    if (appName.find("elPh") != std::string::npos &&
+        elPhInterpolation == "epa") {
+      if (!std::isnan(epaMinEnergy))
+        std::cout << "epaMinEnergy = " << epaMinEnergy * energyRyToEv << " eV"
+                  << std::endl;
+      if (!std::isnan(epaMaxEnergy))
+        std::cout << "epaMaxEnergy = " << epaMaxEnergy * energyRyToEv << " eV"
+                  << std::endl;
+      if (!std::isnan(epaNumBins))
         std::cout << "epaNumBins = " << epaNumBins << std::endl;
-      if(!std::isnan(epaSmearingEnergy))
-        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
-      if(!std::isnan(electronFourierCutoff))
-        std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+      if (!std::isnan(epaSmearingEnergy))
+        std::cout << "epaSmearingEnergy = " << epaSmearingEnergy * energyRyToEv
+                  << " eV" << std::endl;
+      if (!std::isnan(electronFourierCutoff))
+        std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                  << std::endl;
     }
     std::cout << std::endl;
   }
   // Qetophoebe doesn't write a nice line after printing
-  if(appName.find("elPhQeToPhoebe") != std::string::npos) {
+  if (appName.find("elPhQeToPhoebe") != std::string::npos) {
     std::cout << "---------------------------------------------\n" << std::endl;
   }
 
@@ -827,7 +833,7 @@ void Context::printInputSummary(const std::string &fileName) {
       appName.find("Lifetimes") != std::string::npos) {
 
     std::cout << "solverBTE = RTA";
-    for (auto i : solverBTE)
+    for (const auto& i : solverBTE)
       std::cout << ", " << i;
     std::cout << std::endl;
 
@@ -864,7 +870,7 @@ void Context::printInputSummary(const std::string &fileName) {
               << std::endl;
 
     std::cout << "windowType = " << windowType << std::endl;
-    if (windowEnergyLimit(0)!=0 || windowEnergyLimit(1)!=0) {
+    if (windowEnergyLimit(0) != 0 || windowEnergyLimit(1) != 0) {
       std::cout << "windowEnergyLimit = " << windowEnergyLimit(0) * energyRyToEv
                 << " " << windowEnergyLimit(1) * energyRyToEv << " eV"
                 << std::endl;
@@ -960,35 +966,53 @@ void Context::printInputSummary(const std::string &fileName) {
     std::cout << "epaFileName = " << epaFileName << std::endl;
     std::cout << "electronH0Name = " << electronH0Name << std::endl;
     std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
-    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
-    if(!std::isnan(epaEnergyRange))
-      std::cout << "epaEnergyRange = " << epaEnergyRange*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaEnergyStep))
-    std::cout << "epaEnergyStep = " << epaEnergyStep*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaMinEnergy))
-      std::cout << "epaMinEnergy = " << epaMinEnergy*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaMaxEnergy))
-      std::cout << "epaMaxEnergy = " << epaMaxEnergy*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaSmearingEnergy))
-      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy*energyRyToEv << " eV"  << std::endl;
-    if(!std::isnan(epaDeltaEnergy))
-      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy*energyRyToEv << " eV" << std::endl;
-    if(!std::isnan(electronFourierCutoff))
-      std::cout << "electronFourierCutoff = " << electronFourierCutoff << std::endl;
+    std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
+              << std::endl;
+    if (!std::isnan(epaEnergyRange))
+      std::cout << "epaEnergyRange = " << epaEnergyRange * energyRyToEv << " eV"
+                << std::endl;
+    if (!std::isnan(epaEnergyStep))
+      std::cout << "epaEnergyStep = " << epaEnergyStep * energyRyToEv << " eV"
+                << std::endl;
+    if (!std::isnan(epaMinEnergy))
+      std::cout << "epaMinEnergy = " << epaMinEnergy * energyRyToEv << " eV"
+                << std::endl;
+    if (!std::isnan(epaMaxEnergy))
+      std::cout << "epaMaxEnergy = " << epaMaxEnergy * energyRyToEv << " eV"
+                << std::endl;
+    if (!std::isnan(epaSmearingEnergy))
+      std::cout << "epaSmearingEnergy = " << epaSmearingEnergy * energyRyToEv
+                << " eV" << std::endl;
+    if (!std::isnan(epaDeltaEnergy))
+      std::cout << "epaDeltaEnergy = " << epaDeltaEnergy * energyRyToEv << " eV"
+                << std::endl;
+    if (!std::isnan(electronFourierCutoff))
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                << std::endl;
 
-    printVectorXd("temperatures", temperatures*temperatureAuToSi,"K");
-    if(!std::isnan(minTemperature)) std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
-    if(!std::isnan(maxTemperature)) std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
-    if(!std::isnan(deltaTemperature)) std::cout << "deltaTemperature = " << deltaTemperature << "K" << std::endl;
-    if(dopings.size() != 0) printVectorXd("dopings", dopings, "cm^-3");
-    if(chemicalPotentials.size() != 0) printVectorXd("chemicalPotentials", chemicalPotentials*energyRyToEv, "eV");
-    if(!std::isnan(minChemicalPotential))
-      std::cout << "minChemicalPotential = " << minChemicalPotential*energyRyToEv << " eV" << std::endl;
-    if(!std::isnan(maxChemicalPotential))
-      std::cout << "maxChemicalPotential = " << maxChemicalPotential*energyRyToEv << " eV" << std::endl;
-    if(!std::isnan(deltaChemicalPotential))
-      std::cout << "deltaChemicalPotential = " << deltaChemicalPotential*energyRyToEv << " eV" << std::endl;
-    if(!std::isnan(eFermiRange))
+    printVectorXd("temperatures", temperatures * temperatureAuToSi, "K");
+    if (!std::isnan(minTemperature))
+      std::cout << "minTemperature = " << minTemperature << "K" << std::endl;
+    if (!std::isnan(maxTemperature))
+      std::cout << "maxTemperature = " << maxTemperature << "K" << std::endl;
+    if (!std::isnan(deltaTemperature))
+      std::cout << "deltaTemperature = " << deltaTemperature << "K"
+                << std::endl;
+    if (dopings.size() != 0)
+      printVectorXd("dopings", dopings, "cm^-3");
+    if (chemicalPotentials.size() != 0)
+      printVectorXd("chemicalPotentials", chemicalPotentials * energyRyToEv,
+                    "eV");
+    if (!std::isnan(minChemicalPotential))
+      std::cout << "minChemicalPotential = "
+                << minChemicalPotential * energyRyToEv << " eV" << std::endl;
+    if (!std::isnan(maxChemicalPotential))
+      std::cout << "maxChemicalPotential = "
+                << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
+    if (!std::isnan(deltaChemicalPotential))
+      std::cout << "deltaChemicalPotential = "
+                << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
+    if (!std::isnan(eFermiRange))
       std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
     if (!std::isnan(fermiLevel))
       std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;
@@ -1202,15 +1226,15 @@ void Context::setG2PlotPhBands(const std::pair<int, int> &x) {
 Eigen::VectorXi Context::getCoreElectrons() { return numCoreElectrons; }
 
 void Context::setCoreElectrons(const Eigen::VectorXi &x) {
-  for (unsigned int i=0; i<x.size(); i++) {
-    if (x(i)<0) {
+  for (unsigned int i = 0; i < x.size(); i++) {
+    if (x(i) < 0) {
       Error("Found negative number of core electrons");
     }
   }
   numCoreElectrons = x;
 }
 
-bool Context::getDistributedElPhCoupling() {
+bool Context::getDistributedElPhCoupling() const {
   return distributedElPhCoupling;
 }
 

@@ -148,7 +148,7 @@ int ActiveBandStructure::getNumStates() { return numStates; }
 
 const double &ActiveBandStructure::getEnergy(StateIndex &is) {
   int stateIndex = is.get();
-  if (energies.size() == 0) {
+  if (energies.empty()) {
     Error("ActiveBandStructure energies haven't been populated");
   }
   return energies[stateIndex];
@@ -167,7 +167,7 @@ Eigen::VectorXd ActiveBandStructure::getEnergies(WavevectorIndex &ik) {
 
 Eigen::Vector3d ActiveBandStructure::getGroupVelocity(StateIndex &is) {
   int stateIndex = is.get();
-  if (velocities.size() == 0) {
+  if (velocities.empty()) {
     Error("ActiveBandStructure velocities haven't been populated");
   }
   auto tup = comb2Bloch(stateIndex);
@@ -350,7 +350,7 @@ void ActiveBandStructure::buildSymmetries() {
     points.setIrreduciblePoints(&allVelocities);
   }
 
-  numIrrPoints = points.irrPointsIterator().size();
+  numIrrPoints = int(points.irrPointsIterator().size());
   numIrrStates = 0;
   for (int ik : points.irrPointsIterator()) {
     numIrrStates += numBands(ik);
@@ -452,11 +452,11 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
       myFilteredPoints.push_back(ik);
       myFilteredBands.push_back(bandsExtrema);
     }
-    numFullBands = theseEnergies.size();
+    numFullBands = int(theseEnergies.size());
   }
 
   // now, we let each MPI process now how many points each process has found
-  int myNumPts = myFilteredPoints.size();
+  int myNumPts = int(myFilteredPoints.size());
   int mpiSize = mpi->getSize();
 
   // take the number of points of each process and fill
@@ -698,13 +698,13 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       myFilteredPoints.push_back(ik);
       myFilteredBands.push_back(bandsExtrema);
     }
-    numFullBands = theseEnergies.size();
+    numFullBands = int(theseEnergies.size());
   }
 
   // ---------- collect indices of relevant states  --------------- //
   // now that we've counted up the selected points and their
   // indices on each process, we need to reduce
-  int myNumPts = myFilteredPoints.size();
+  int myNumPts = int(myFilteredPoints.size());
   int mpiSize = mpi->getSize();
 
   // take the number of points of each process and fill

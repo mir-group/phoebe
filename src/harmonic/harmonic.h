@@ -5,7 +5,7 @@
 #include "particle.h"
 #include "points.h"
 
-/** Virtual base class for Harmonic Hamiltonians.
+/** Virtual base class for Harmonic Hamiltonian.
  * The subclasses of this base class are the objects responsible for storing
  * the DFT harmonic properties computed on a coarse grid, and containing the
  * methods necessary for interpolating (diagonalizing) such harmonic

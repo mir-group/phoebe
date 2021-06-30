@@ -223,13 +223,13 @@ VectorEPA::loc2Glob(
 }
 
 // get/set operator
-double &VectorEPA::operator()(const int iCalc, const int iDim,
-                                  const int iState) {
+double &VectorEPA::operator()(const int &iCalc, const int &iDim,
+                                  const int &iState) {
   return data(iCalc * dimensionality + iDim, iState);
 }
 
 // const get/set operator
-const double &VectorEPA::operator()(const int iCalc, const int iDim,
-                                        const int iState) const {
+const double &VectorEPA::operator()(const int &iCalc, const int &iDim,
+                                        const int &iState) const {
   return data(iCalc * dimensionality + iDim, iState);
 }

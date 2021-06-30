@@ -7,10 +7,6 @@
 #include <sstream>
 #include <string>
 
-#ifdef HDF5_AVAIL
-#include <highfive/H5Easy.hpp>
-#endif
-
 void ElPhQeToPhoebeApp::epaPostProcessing(
     Context &context, Eigen::MatrixXd &elEnergies, Points &kPoints,
     Points &qPoints, const int &numElectrons, const int &numSpin,
@@ -88,7 +84,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
 
   // loop over all irreducible q-points written to file
   LoopPrint loopPrint("Computing coupling EPA", "irreducible q-points",
-                      mpi->divideWorkIter(numIrrQPoints).size());
+                      int(mpi->divideWorkIter(numIrrQPoints).size()));
   for (int iqIrr : mpi->divideWorkIter(numIrrQPoints)) {
     loopPrint.update(false);
 
@@ -99,7 +95,7 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
     // crystal coordinates of the points in the current qPoint star
     Eigen::MatrixXd qStar = std::get<3>(t2);
 
-    int numQStar = qStar.cols();
+    int numQStar = int(qStar.cols());
 
     // phonon frequency averaging
     Eigen::MatrixXd phEnergies = std::get<2>(t2); // (numModes, numQPoints)
