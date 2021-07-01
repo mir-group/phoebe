@@ -12,6 +12,8 @@ Tutorials, documentation of functionality and underlying theory can be found at:
   * [Homepage](https://mir-group.github.io/phoebe/)
   * [Tutorials/Documentation](https://phoebe.readthedocs.io/en/develop/introduction.html)
 
+For further questions or issues, please post on the discussions page for the git repo.
+
 -------------------------
 ### Current functionalities
 #### Electronic Transport
