@@ -264,6 +264,7 @@ Interaction3Ph::getCouplingsSquared(
   Kokkos::realloc(phasePlus, 0, 0);
   Kokkos::realloc(phaseMins, 0, 0);
 
+
   Kokkos::View<Kokkos::complex<double> ****> tmp1Plus("t1p", nq1, maxnb1,
                                                       numBands, numBands),
       tmp1Mins("t1m", nq1, maxnb1, numBands, numBands);

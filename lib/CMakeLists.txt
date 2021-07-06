@@ -45,7 +45,7 @@ ExternalProject_Add(pugixml_dep
 ExternalProject_Add(eigen_dep
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG 5328c9be4356cc3d7ab2e359acb1e9ebeeeea631
+    GIT_TAG master
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ""
@@ -62,7 +62,7 @@ if(HDF5_AVAIL)
   endif()
   ExternalProject_Add(highfive_dep
       SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/highfive_src
-      GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+      GIT_REPOSITORY https://github.com/anjohan/HighFive# https://github.com/BlueBrain/HighFive.git
       UPDATE_COMMAND ""
       CMAKE_ARGS
           -DCMAKE_BUILD_TYPE=Release

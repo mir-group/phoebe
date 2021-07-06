@@ -720,7 +720,7 @@ std::vector<int> Points::parallelIrrPointsIterator() {
 
 int Points::asIrreducibleIndex(const int &ik) {
   if (numIrrPoints > 0) { // we set the irreducible points
-    assert(ik < numPoints && ik > 0);
+    assert(ik < numPoints && ik >= 0);
     return mapReducibleToIrreducibleList(ik);
   } else { // no symmetries set, only the identity symmetry exists
     return ik;
@@ -729,7 +729,7 @@ int Points::asIrreducibleIndex(const int &ik) {
 
 int Points::asReducibleIndex(const int &ik) {
   if (numIrrPoints > 0) { // we set the irreducible points
-    assert(ik < numIrrPoints && ik > 0);
+    assert(ik < numIrrPoints && ik >= 0);
     return mapIrreducibleToReducibleList(ik);
   } else { // no symmetries set, only the identity symmetry exists
     return ik;

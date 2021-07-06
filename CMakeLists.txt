@@ -23,7 +23,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
 endif()
 
 ############ OPTIONS ################
-# these can be toggled in a build script by 
+# these can be toggled in a build script by
 # supplying arguments to cmake like cmake -DHDF5_AVAIL=OFF ../
 option(MPI_AVAIL "Build with MPI wrappers" ON)
 option(OMP_AVAIL "Build with OMP" ON)
@@ -172,7 +172,7 @@ IF (BUILD_DOC)
 
 	IF (NOT SPHINX_FOUND)
 	  message("Documentation needs also sphinx")
-	else()		
+	else()
 	  add_custom_target(
 	    doc
 	    COMMAND make html

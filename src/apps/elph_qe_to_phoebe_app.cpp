@@ -1504,14 +1504,16 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
       size_t numElements = workDivs[1]-workDivs[0];
 
       // We want to write only this part of the vector from this process
-      Eigen::VectorXcd gwanSlice = gwan(Eigen::seq(workDivs[0],workDivs[1]));
+      //Eigen::VectorXcd gwanSlice = gwan(Eigen::seq(workDivs[0],workDivs[1]));
 
       // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0,
       // col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgwannier.select({0, size_t(workDivs[0])}, {1, numElements}).write(gwanSlice);
+      //dgwannier.select({0, size_t(workDivs[0])}, {1, numElements}).write(gwanSlice);
+      dgwannier.select({0, size_t(workDivs[0])}, {1, numElements}).write_raw(&gwan(workDivs[0]));
+
     }
     #else
     { // do not remove these braces, see above note.
