@@ -149,6 +149,19 @@ void IO::goodbye(Context &context) {
         "\tReviews of Modern Physics 84, no. 4 (2012): 1419.\n" << std::endl;
   }
 
+  // Electron-phonon from ab-initio
+  if(context.getAppName() == "electronWannierBands" ||
+      context.getAppName() == "electronWannierDos" ||
+      context.getAppName() == "electronLifetimes" ||
+      context.getAppName() == "electronWannierTransport") {
+    std::cout << "  For the use of ab-initio electron-phonon coupling:" << std::endl;
+    std::cout << "\tS. Piscanec, M. Lazzeri, Francesco Mauri, A. C. Ferrari, and J. Robertson.\n" <<
+              //    "\tKohn Anomalies and Electron-Phonon Interactions in Graphite.\n" <<
+              "\tPhysical Review Letters 93, 185503 (2004)\n" << std::endl;
+    // At least, I think it's this one. Subroutine elphel() in QE was
+    // written by F. Mauri, but it's unclear when and for what article
+  }
+
   if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
     std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
     std::cout << "\tL. Chaput.\n" <<
@@ -184,7 +197,7 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
   stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
 
-void LoopPrint::update() {
+void LoopPrint::update(const bool &withTimeEstimate) {
   // Update prediction info for current task.
   if (!mpi->mpiHead())
     return;
@@ -224,7 +237,7 @@ void LoopPrint::update() {
       std::cout << std::setw(3) << percentage << "% | ";
       std::cout << std::setw(stepDigits) << currentStep + 1
                 << std::setw(stepDigits) << " / " << numSteps;
-      if (currentStep > 2) {
+      if (currentStep > 2 && withTimeEstimate) {
         std::cout << " | remaining: " << std::setw(8) << std::setprecision(2)
                   << std::scientific << timeLeft << std::fixed << " s."
 		  << std::endl;

@@ -116,18 +116,34 @@ void PhononTransportApp::run(Context &context) {
   if (doRelaxons && !context.getScatteringMatrixInMemory()) {
     Error("Relaxons require matrix kept in memory");
   }
+  if (doRelaxons && context.getUseSymmetries()) {
+    Error("Relaxon solver only works without symmetries");
+    // Note: this is a problem of the theory I suppose
+    // because the scattering matrix may not be anymore symmetric
+    // or may require some modifications to make it work
+    // that we didn't have yet thought of
+  }
+  if (doVariational && context.getUseSymmetries()) {
+    Error("Variational solver only works without symmetries");
+    // Note: this is a problem of the theory I suppose
+    // because the scattering matrix may not be anymore symmetric
+    // or may require some modifications to make it work
+    // that we didn't yet think of
+  }
   if (context.getScatteringMatrixInMemory() &&
       statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
           "temperature/chemical potential is allowed in a run");
   }
 
-  mpi->barrier();
-
-  // reinforce the condition that the scattering matrix is symmetric
-  // A -> ( A^T + A ) / 2
-  if (doIterative || doRelaxons || doVariational) {
-    scatteringMatrix.symmetrize();
+  if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
+    if (doVariational || doRelaxons || doIterative) {
+      // reinforce the condition that the scattering matrix is symmetric
+      // A -> ( A^T + A ) / 2
+      // this helps removing negative eigenvalues which may appear due to noise
+      scatteringMatrix.symmetrize();
+      // it may not be necessary, so it's commented out
+    }
   }
 
   if (doIterative) {
@@ -139,7 +155,7 @@ void PhononTransportApp::run(Context &context) {
     // initialize the (old) thermal conductivity
     PhononThermalConductivity phTCondOld = phTCond;
 
-    VectorBTE fNext(statisticsSweep, bandStructure, dimensionality);
+    VectorBTE fNext(statisticsSweep, bandStructure, 3);
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
     // from n, we get f, such that n = bose(bose+1)f
@@ -204,8 +220,6 @@ void PhononTransportApp::run(Context &context) {
 
     //  f = f * preconditioning;
     //  b = b / preconditioning;
-
-    VectorBTE fNew = f;
 
     // residual
     VectorBTE w0 = scatteringMatrix.dot(f);
@@ -278,7 +292,9 @@ void PhononTransportApp::run(Context &context) {
     if (mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
+
     scatteringMatrix.a2Omega();
+
     auto tup2 = scatteringMatrix.diagonalize();
     auto eigenvalues = std::get<0>(tup2);
     auto eigenvectors = std::get<1>(tup2);

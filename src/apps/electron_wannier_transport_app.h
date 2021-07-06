@@ -1,5 +1,5 @@
-#ifndef EWTRANSPORTAPP_H
-#define EWTRANSPORTAPP_H
+#ifndef EW_TRANSPORT_APP_H
+#define EW_TRANSPORT_APP_H
 
 #include <string>
 #include "app.h"
@@ -14,7 +14,7 @@ public:
 private:
   /** Method for running the variational solver of the electron BTE
    */
-  void runVariationalMethod(Context &context,
+  static void runVariationalMethod(Context &context,
                             Crystal &crystal,
                             StatisticsSweep &statisticsSweep,
                             ActiveBandStructure &bandStructure,

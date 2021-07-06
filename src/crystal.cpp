@@ -5,6 +5,7 @@
 #include "utilities.h"
 #include "eigen.h"
 #include "mpi/mpiHelper.h"
+#include <iomanip>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -48,8 +49,8 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   speciesMasses = speciesMasses_;
   speciesNames = speciesNames_;
 
-  numAtoms = atomicPositions.rows();
-  numSpecies = speciesNames.size();
+  numAtoms = int(atomicPositions.rows());
+  numSpecies = int(speciesNames.size());
 
   Eigen::VectorXd atomicMasses_(numAtoms);
   std::vector<std::string> atomicNames_(numAtoms);
@@ -206,20 +207,22 @@ void Crystal::print() {
   if(!mpi->mpiHead()) return;
   // print the lattice vectors
   std::cout << "\nDirect lattice vectors (ang)" << std::endl;
+  std::cout << "       a1     |     a2     |    a3" << std::endl;
   for(int i = 0; i<3; i++) {
-    fprintf(stdout,"  %.8f  %.8f  %.8f\n",
-        directUnitCell(i,0)*distanceBohrToAng,
-        directUnitCell(i,1)*distanceBohrToAng,
-        directUnitCell(i,2)*distanceBohrToAng);
+    std::cout << std::fixed << std::setprecision(8);
+    std::cout << std::setw(13) << directUnitCell(i,0)*distanceBohrToAng;
+    std::cout << std::setw(13) << directUnitCell(i,1)*distanceBohrToAng;
+    std::cout << std::setw(13) << directUnitCell(i,2)*distanceBohrToAng;
+    std::cout << "\n";
   }
   // print the atomic positions
   std::cout << "Atomic Positions (Cartesian, ang)" << std::endl;
   for(int i = 0; i<numAtoms; i++) {
-    char buffer[100];
-    sprintf(buffer," %.8f  %.8f  %.8f\n", atomicPositions(i,0)*distanceBohrToAng,
-        atomicPositions(i,1)*distanceBohrToAng,
-        atomicPositions(i,2)*distanceBohrToAng);
-    std::cout << "  " << speciesNames[atomicSpecies[i]] << buffer;
+    std::cout << std::setw(3) << speciesNames[atomicSpecies[i]];
+    std::cout << std::setw(13) << atomicPositions(i,0)*distanceBohrToAng;
+    std::cout << std::setw(13) << atomicPositions(i,1)*distanceBohrToAng;
+    std::cout << std::setw(13) << atomicPositions(i,2)*distanceBohrToAng;
+    std::cout << "\n";
   }
   std::cout << std::endl;
 }
@@ -230,7 +233,7 @@ Crystal::calcReciprocalCell(const Eigen::Matrix3d &directUnitCell) {
   return reciprocalCell;
 }
 
-void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
+void Crystal::setDirectUnitCell(const Eigen::Matrix3d &directUnitCell_) {
   directUnitCell = directUnitCell_;
   reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 }
@@ -358,7 +361,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   }
 
   // now we store the list of these lattice vectors in the class members
-  int numPositionVectors = tmpVectors.size();
+  auto numPositionVectors = int(tmpVectors.size());
   Eigen::VectorXd positionDegeneracies(numPositionVectors);
   Eigen::MatrixXd positionVectors(3, numPositionVectors);
   int originIndex = -1; // to look for R=0 vector
@@ -404,7 +407,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   if (shift.rows() != 3) {
     Error("shift should have at least 3 cartesian coordinates");
   }
-  int shiftDims = shift.cols();
+  auto shiftDims = int(shift.cols());
 
   int nx = superCellFactor;
 
@@ -490,7 +493,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
         }
       }
 
-      tmpNumPoints(iDim, jDim) = tmpVectors.size();
+      tmpNumPoints(iDim, jDim) = int(tmpVectors.size());
       for (unsigned int iR = 0; iR < tmpVectors.size(); iR++) {
         tmpDegeneraciesAll(iDim, jDim, iR) = tmpDegeneracies[iR];
         for (int i : {0, 1, 2}) {
@@ -524,7 +527,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
       }
     }
   }
-  int numVectors = tmpVectors.size();
+  int numVectors = int(tmpVectors.size());
 
   // save the degeneracies in a smaller tensor
   Eigen::Tensor<double, 3> degeneracies(shiftDims, shiftDims, numVectors);

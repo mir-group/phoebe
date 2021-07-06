@@ -10,10 +10,10 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
     : OnsagerCoefficients(statisticsSweep_, crystal_, bandStructure_, context_),
       smaRelTimes(relaxationTimes) {
 
-  correctionLEE.resize(numCalcs, dimensionality, dimensionality);
-  correctionLTE.resize(numCalcs, dimensionality, dimensionality);
-  correctionLET.resize(numCalcs, dimensionality, dimensionality);
-  correctionLTT.resize(numCalcs, dimensionality, dimensionality);
+  correctionLEE.resize(numCalculations, dimensionality, dimensionality);
+  correctionLTE.resize(numCalculations, dimensionality, dimensionality);
+  correctionLET.resize(numCalculations, dimensionality, dimensionality);
+  correctionLTT.resize(numCalculations, dimensionality, dimensionality);
   correctionLEE.setZero();
   correctionLTE.setZero();
   correctionLET.setZero();
@@ -41,12 +41,12 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
     //-----------------------------------------------------------------------
     // Step 1: compute the off-diagonal population term (at given wavevector)
 
-    fE.resize(numBands, numBands, dimensionality, numCalcs);
-    fT.resize(numBands, numBands, dimensionality, numCalcs);
+    fE.resize(numBands, numBands, dimensionality, numCalculations);
+    fT.resize(numBands, numBands, dimensionality, numCalculations);
     fE.setZero();
     fT.setZero();
 
-    for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double chemPot = calcStat.chemicalPotential;
       double temp = calcStat.temperature;
@@ -91,7 +91,7 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         if (ib1 == ib2)
           continue;
-        for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
           double chemicalPotential =
               statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
           for (int ic1 = 0; ic1 < dimensionality; ic1++) {

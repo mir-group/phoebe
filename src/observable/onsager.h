@@ -4,9 +4,10 @@
 #include "bandstructure.h"
 #include "context.h"
 #include "crystal.h"
+#include "el_scattering.h"
 #include "statistics_sweep.h"
 #include "vector_bte.h"
-#include "el_scattering.h"
+#include "vector_epa.h"
 
 /** Class to compute the electronic transport coefficients.
  */
@@ -28,7 +29,7 @@ public:
   /** Compute the transport coefficients from the electron populations
    * @param n: the electron population out-of-equilibrium.
    */
-  void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
+  virtual void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
 
   /** Compute the transport coefficients from the canonical electron populations
    * where the canonical population f is related to the population n as
@@ -38,10 +39,10 @@ public:
    */
   void calcFromCanonicalPopulation(VectorBTE &fE, VectorBTE &fT);
 
-    /** Prints to screen the thermal conductivity at various temperatures
-     * in a a nicely formatted way.
-     */
-  void print();
+  /** Prints to screen the thermal conductivity at various temperatures
+   * in a a nicely formatted way.
+   */
+  virtual void print();
 
   /** Short format for printing the electrical conductivity. To be used
    * for quickly evaluate the convergence of an iterative BTE solver.
@@ -49,25 +50,26 @@ public:
   void print(const int &iter);
 
   /** Outputs the quantity to a json file.
-  * @param outFileName: string representing the name of the json file
-  */
-  void outputToJSON(const std::string& outFileName);
+   * @param outFileName: string representing the name of the json file
+   */
+  void outputToJSON(const std::string &outFileName);
 
   void calcTransportCoefficients();
 
-  void calcFromEPA(BaseVectorBTE &scatteringRates, Eigen::Tensor<double,3> &energyProjVelocity, Eigen::VectorXd &energies, double &energyStep, Particle &particle);
+  void calcFromEPA(VectorEPA &scatteringRates,
+                   Eigen::Tensor<double, 3> &energyProjVelocity,
+                   Eigen::VectorXd &energies);
 
   void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors,
                         ElScatteringMatrix &scatteringMatrix);
 
-  void calcVariational(VectorBTE &afE, VectorBTE &afT,
-                       VectorBTE &fE, VectorBTE &fT,
-                       VectorBTE &nE, VectorBTE &nT,
+  void calcVariational(VectorBTE &afE, VectorBTE &afT, VectorBTE &fE,
+                       VectorBTE &fT, VectorBTE &nE, VectorBTE &nT,
                        VectorBTE &scalingCG);
 
-  Eigen::Tensor<double,3> getElectricalConductivity();
-  Eigen::Tensor<double,3> getThermalConductivity();
+  Eigen::Tensor<double, 3> getElectricalConductivity();
+  Eigen::Tensor<double, 3> getThermalConductivity();
 
 protected:
   StatisticsSweep &statisticsSweep;
@@ -77,7 +79,7 @@ protected:
 
   int dimensionality;
   double spinFactor;
-  int numCalcs;
+  int numCalculations;
 
   Eigen::Tensor<double, 3> sigma, seebeck, kappa, mobility;
   Eigen::Tensor<double, 3> LEE, LET, LTE, LTT;

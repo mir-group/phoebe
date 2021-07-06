@@ -108,6 +108,8 @@ class Context {
   // variable used for the polarization
   Eigen::VectorXi numCoreElectrons;
 
+  bool distributedElPhCoupling = false; // MPI parallelize the el-ph coupling
+  // currently only support parallelization of the qe2Phoebe app
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
@@ -326,6 +328,9 @@ public:
 
   Eigen::VectorXi getCoreElectrons();
   void setCoreElectrons(const Eigen::VectorXi &x);
+
+  bool getDistributedElPhCoupling() const;
+  void setDistributedElPhCoupling(const bool &x);
 };
 
 #endif

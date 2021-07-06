@@ -111,7 +111,7 @@ ParallelMatrix<double>::diagonalize() {
                                       numBlocksRows_,numBlocksCols_);
 
   char jobz = 'V';  // also eigenvectors
-  char uplo = 'U';  // upper triangolar
+  char uplo = 'U';  // upper triangular
   int ia = 1;       // row index from which we diagonalize
   int ja = 1;       // row index from which we diagonalize
 
@@ -185,7 +185,7 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   rwork = new std::complex<double>[lrwork];
 
   char jobz = 'V';  // also eigenvectors
-  char uplo = 'U';  // upper triangolar
+  char uplo = 'U';  // upper triangular
   int ia = 1;       // row index from which we diagonalize
   int ja = 1;       // row index from which we diagonalize
   int info = 0;

@@ -356,7 +356,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
           fileName + ".");
   }
   if (mpi->mpiHead())
-    std::cout << "Reading in " + fileName + "." << std::endl;
+    std::cout << "Reading in " + fileName << std::endl;
 
   // first line will always be numAtoms in superCell
   std::getline(infile, line);

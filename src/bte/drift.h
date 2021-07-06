@@ -11,7 +11,7 @@ public:
   /** Default constructor
    *
    * @param statisticsSweep_: object with temperatures and chemical potentials
-   * @param bandStructure_: object with the bandstructure
+   * @param bandStructure_: object with the band structure
    * @param dimensionality_: dimensionality of space (should be 3)
    */
   BulkTDrift(StatisticsSweep &statisticsSweep_,
@@ -26,7 +26,7 @@ public:
   /** Default constructor
    *
    * @param statisticsSweep_: object with temperatures and chemical potentials
-   * @param bandStructure_: object with the bandstructure
+   * @param bandStructure_: object with the band structure
    * @param dimensionality_: dimensionality of space (should be 3)
    */
   BulkEDrift(StatisticsSweep &statisticsSweep_,
@@ -43,7 +43,7 @@ public:
   /** Default constructor
    *
    * @param statisticsSweep_: object with temperatures and chemical potentials
-   * @param bandStructure_: object with the bandstructure
+   * @param bandStructure_: object with the band structure
    * @param specificHeat: object with the values of specific heat
    */
   Vector0(StatisticsSweep &statisticsSweep_, BaseBandStructure &bandStructure_,

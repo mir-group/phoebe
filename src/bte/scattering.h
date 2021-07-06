@@ -53,9 +53,9 @@ public:
    */
   VectorBTE diagonal();
 
-  /** Computes the product A*f - diag(A)*f
-   * where A is the scattering matrix, f is the vector of quasiparticle
-   * populations, and diag(A) is the diagonal of the matrix.
+  /** Computes the product A*f - diagonal(A)*f
+   * where A is the scattering matrix and f is the vector of quasiparticle
+   * populations.
    */
   VectorBTE offDiagonalDot(VectorBTE &inPopulation);
   std::vector<VectorBTE> offDiagonalDot(std::vector<VectorBTE> &inPopulations);
@@ -67,11 +67,11 @@ public:
   VectorBTE dot(VectorBTE &inPopulation);
   std::vector<VectorBTE> dot(std::vector<VectorBTE> &inPopulations);
 
-  /** Computes the product A*B, where A is the scattering matrix, and
-   * B is an Eigen::MatrixXd. This can be used to compute products of the
-   * scattering matrix with other vectors.
-   */
-  ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
+//  /** Computes the product A*B, where A is the scattering matrix, and
+//   * B is an Eigen::MatrixXd. This can be used to compute products of the
+//   * scattering matrix with other vectors.
+//   */
+//  ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
 
   /** Call to obtain the single-particle relaxation times of the system.s
    * @return tau: a VectorBTE object storing the relaxation times
@@ -187,7 +187,7 @@ public:
 
   int numStates; // number of Bloch states (i.e. the size of theMatrix)
   int numPoints; // number of wavevectors
-  int numCalcs;  // number of "Calculations", i.e. number of temperatures and
+  int numCalculations;  // number of "Calculations", i.e. number of temperatures and
   // chemical potentials on which we compute scattering.
   int dimensionality_;
 
@@ -236,6 +236,19 @@ public:
   std::vector<std::tuple<std::vector<int>, int>>
   getIteratorWavevectorPairs(const int &switchCase,
                              const bool &rowMajor = false);
+
+  /** Performs an average of the linewidths over degenerate states.
+   * This is necessary since the coupling |V_3| is not averaged over different
+   * states, and hence introduces differences between degenerate states.
+   * Note: don't use this function when computing the scattering matrix, but
+   * only for computing lifetimes or the RTA approximation. If one wants to do
+   * something similar when computing the full scattering matrix (in memory)
+   * one should either average the coupling or somehow average rows and columns
+   * of the scattering matrix.
+   * @param linewidth: a pointer (the one passed to builder()) containing the
+   * linewidths to be averaged.
+   */
+  void degeneracyAveragingLinewidths(VectorBTE *linewidth);
 };
 
 #endif

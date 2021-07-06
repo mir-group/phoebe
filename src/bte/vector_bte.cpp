@@ -5,9 +5,22 @@
 VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &bandStructure_,
                      const int &dimensionality_)
-    : BaseVectorBTE(statisticsSweep_,
-                    bandStructure_.irrStateIterator().size(), dimensionality_),
-      bandStructure(bandStructure_) {
+    : statisticsSweep(statisticsSweep_), bandStructure(bandStructure_) {
+
+  if (dimensionality_ <= 0) {
+    Error("BaseVectorBTE doesn't accept <=0 dimensions");
+  }
+
+  dimensionality = dimensionality_;
+  numStates = int(bandStructure.irrStateIterator().size());
+
+  numCalculations = statisticsSweep.getNumCalculations();
+  numCalculations *= dimensionality;
+
+  numChemPots = statisticsSweep.getNumChemicalPotentials();
+  numTemps = statisticsSweep.getNumTemperatures();
+  data.resize(numCalculations, numStates);
+  data.setZero();
 
   if (bandStructure.getParticle().isPhonon()) {
     for (int is : bandStructure.irrStateIterator()) {
@@ -22,14 +35,29 @@ VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
 }
 
 // copy constructor
-VectorBTE::VectorBTE(const VectorBTE &that)
-    : BaseVectorBTE(that), bandStructure(that.bandStructure) {}
+VectorBTE::VectorBTE(const VectorBTE &that) : statisticsSweep(that.statisticsSweep),
+                                              bandStructure(that.bandStructure) {
+  numCalculations = that.numCalculations;
+  numStates = that.numStates;
+  numChemPots = that.numChemPots;
+  numTemps = that.numTemps;
+  dimensionality = that.dimensionality;
+  data = that.data;
+  excludeIndices = that.excludeIndices;
+}
 
 // copy assignment
 VectorBTE &VectorBTE::operator=(const VectorBTE &that) {
-  BaseVectorBTE::operator=(that);
   if (this != &that) {
+    statisticsSweep = that.statisticsSweep;
     bandStructure = that.bandStructure;
+    numCalculations = that.numCalculations;
+    numStates = that.numStates;
+    numChemPots = that.numChemPots;
+    numTemps = that.numTemps;
+    dimensionality = that.dimensionality;
+    data = that.data;
+    excludeIndices = that.excludeIndices;
   }
   return *this;
 }
@@ -53,15 +81,16 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
 
     auto isIndex = StateIndex(is);
     BteIndex iBteIdx = bandStructure.stateToBte(isIndex);
+    int iBte = iBteIdx.get();
     auto rotationsStar = bandStructure.getRotationsStar(isIndex);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
-      for (Eigen::Matrix3d rot : rotationsStar) {
+      for (const Eigen::Matrix3d &rot : rotationsStar) {
         Eigen::Vector3d x = Eigen::Vector3d::Zero();
         Eigen::Vector3d y = Eigen::Vector3d::Zero();
         for (int i : {0,1,2}) {
           for (int j : {0, 1, 2}) {
-            x(i) += rot(i,j) * operator()(iCalc, j, iBteIdx.get());
-            y(i) += rot(i,j) * that(iCalc, j, iBteIdx.get());
+            x(i) += rot(i,j) * operator()(iCalc, j, iBte);
+            y(i) += rot(i,j) * that(iCalc, j, iBte);
           }
         }
         for (int i : {0,1,2}) {
@@ -246,4 +275,38 @@ void VectorBTE::population2Canonical() {
       }
     }
   }
+}
+
+
+// get/set operator
+double &VectorBTE::operator()(const int &iCalc, const int &iDim,
+                              const int &iState) {
+  return data(iCalc * dimensionality + iDim, iState);
+}
+
+// const get/set operator
+const double &VectorBTE::operator()(const int &iCalc, const int &iDim,
+                                    const int &iState) const {
+  return data(iCalc * dimensionality + iDim, iState);
+}
+
+int VectorBTE::glob2Loc(const ChemPotIndex &imu, const TempIndex &it,
+                        const CartIndex &iDim) const {
+  int i = compress3Indices(imu.get(), it.get(), iDim.get(), numChemPots,
+                           numTemps, dimensionality);
+  return i;
+}
+
+std::tuple<ChemPotIndex, TempIndex, CartIndex>
+VectorBTE::loc2Glob(
+    const int &i) const {
+  auto tup = decompress3Indices(i, numChemPots, numTemps, dimensionality);
+  auto imu = std::get<0>(tup);
+  auto it = std::get<1>(tup);
+  auto iDim = std::get<2>(tup);
+  return {ChemPotIndex(imu), TempIndex(it), CartIndex(iDim)};
+}
+
+void VectorBTE::setConst(const double &constant) {
+  data.setConstant(constant);
 }

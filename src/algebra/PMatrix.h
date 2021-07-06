@@ -1,5 +1,5 @@
-#ifndef PMATRIX_H
-#define PMATRIX_H
+#ifndef P_MATRIX_H
+#define P_MATRIX_H
 
 #include <tuple>
 #include <vector>
@@ -66,6 +66,7 @@ class ParallelMatrix {
   std::tuple<int, int> local2Global(const int& k) const;
   std::tuple<int, int> local2Global(const int& i, const int& j) const;
 
+ public:
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
    * with value ranging from  0 to numLocalElements_-1.
@@ -73,7 +74,6 @@ class ParallelMatrix {
    */
   int global2Local(const int& row, const int& col) const;
 
- public:
   static const char transN = 'N';  // no transpose nor adjoint
   static const char transT = 'T';  // transpose
   static const char transC = 'C';  // adjoint (for complex numbers)

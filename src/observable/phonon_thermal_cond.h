@@ -61,7 +61,7 @@ public:
    * @param scalingCG: the conjugate gradient preconditioning, which in detail
    * is the sqrt of the diagonal elements of the scattering matrix A.
    */
-  void calcVariational(VectorBTE &af, VectorBTE &f, VectorBTE &scalingCG);
+  virtual void calcVariational(VectorBTE &af, VectorBTE &f, VectorBTE &scalingCG);
 
   /** Compute the thermal conductivity using the relaxon method
    * i.e. Eq. 13 of Phys.Rev.X 6, 041013 (2016)
@@ -70,7 +70,7 @@ public:
    * @param relaxationTimes: the reciprocal of the scattering matrix
    * eigenvalues (from eq.7), i.e. the relaxation times of the system.
    */
-  void calcFromRelaxons(Context &context, StatisticsSweep &statisticsSweep,
+  virtual void calcFromRelaxons(Context &context, StatisticsSweep &statisticsSweep,
                         ParallelMatrix<double> &eigenvectors,
                         PhScatteringMatrix &scatteringMatrix,
                         const Eigen::VectorXd &eigenvalues);
@@ -78,7 +78,7 @@ public:
   /** Prints to screen the thermal conductivity at various temperatures
    * in a a nicely formatted way.
    */
-  void print();
+  virtual void print();
 
   /** Outputs the quantity to a json file.
    * @param outFileName: string representing the name of the json file
@@ -93,7 +93,7 @@ public:
   void print(const int &iter);
 
 protected:
-  virtual int whichType();
+  int whichType() override;
   BaseBandStructure &bandStructure;
 };
 

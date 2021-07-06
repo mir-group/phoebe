@@ -99,6 +99,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   const double energyCutoff = 0.001 / ryToCmm1; // discard states with small
   // energies (smaller than 0.001 cm^-1
 
+  // auxiliary variable for deciding how to apply low energy cutoff
+  bool outerEqualInnerMesh = false; // case of lifetimes on a path
+  if (&innerBandStructure == &outerBandStructure) {
+    // case of transport calculation
+    outerEqualInnerMesh = true;
+  }
+
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() &&
       outPopulations.empty()) {
@@ -126,7 +133,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   double norm = 1. / context.getQMesh().prod();
 
   // precompute Bose populations
-  int numOuterIrrStates = outerBandStructure.irrStateIterator().size();
+  auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerBose(numCalculations, numOuterIrrStates);
   outerBose.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -144,7 +151,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
   mpi->allReduceSum(&outerBose);
 
-  int numInnerIrrStates = innerBandStructure.irrStateIterator().size();
+  auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerBose(numCalculations, numInnerIrrStates);
   innerBose.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -168,7 +175,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
                              statisticsSweep, smearing->getType(), h0);
   LoopPrint loopPrint("computing scattering matrix", "q-points",
-                      qPairIterator.size());
+                      int(qPairIterator.size()));
 
   /** Very important: the code must be executed with a loop over q2 outside
    * and a loop over q1 inside. This is because the 3-ph coupling must compute
@@ -185,12 +192,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
     Point q2Point = innerBandStructure.getPoint(iq2);
     Eigen::VectorXd energies2 = innerBandStructure.getEnergies(iq2Index);
-    int nb2 = energies2.size();
+    auto nb2 = int(energies2.size());
     Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
     Eigen::Vector3d q2 = innerBandStructure.getWavevector(iq2Index);
     Eigen::MatrixXcd ev2 = innerBandStructure.getEigenvectors(iq2Index);
 
-    int nq1 = iq1Indexes.size();
+    auto nq1 = int(iq1Indexes.size());
 
     auto t = innerBandStructure.getRotationToIrreducible(
         q2Point.getCoordinates(Points::cartesianCoordinates),
@@ -245,7 +252,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         Point q1Point = outerBandStructure.getPoint(iq1);
         Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
-        int nb1 = energies1.size();
+        auto nb1 = int(energies1.size());
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1Point, q2Point, Helper3rdState::casePlus);
@@ -264,8 +271,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         q1_v[iq1Batch] = outerBandStructure.getWavevector(iq1Index);
         nb1_v[iq1Batch] = nb1;
-        nb3Plus_v[iq1Batch] = energies3Plus.size();
-        nb3Minus_v[iq1Batch] = energies3Minus.size();
+        nb3Plus_v[iq1Batch] = int(energies3Plus.size());
+        nb3Minus_v[iq1Batch] = int(energies3Minus.size());
         ev1_v[iq1Batch] = outerBandStructure.getEigenvectors(iq1Index);
         ev3Plus_v[iq1Batch] = ev3Plus;
         ev3Minus_v[iq1Batch] = ev3Minus;
@@ -292,7 +299,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto couplingPlus = couplingPlus_v[iq1Batch];
         auto couplingMinus = couplingMinus_v[iq1Batch];
         Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
-        int nb1 = energies1.size();
+        auto nb1 = int(energies1.size());
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto energies3Plus = energies3Plus_v[iq1Batch];
@@ -312,6 +319,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
           int iBte1 = iBte1Idx.get();
 
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
+              excludeIndices.end())
+            continue;
+
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = energies2(ib2);
             int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
@@ -322,14 +333,37 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
             int iBte2 = iBte2Idx.get();
 
+            if (std::find(excludeIndices.begin(), excludeIndices.end(),
+                          iBte2) != excludeIndices.end())
+              continue;
+
             for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
 
               double en3Plus = energies3Plus(ib3);
-              if (en1 < energyCutoff || en2 < energyCutoff ||
-                  en3Plus < energyCutoff) {
-                continue;
-              }
               double enProd = en1 * en2 * en3Plus;
+
+              // block description:
+              // we have two cases;
+              // 1) if we are doing transport calculations,
+              //    we apply the cutoff cutting away low energy phonons
+              //    with the cutoff imposed on each of the three energies
+              // 2) however, when computing lifetimes e.g. on a path, we impose
+              //    the criterion on the product of the three energies.
+              //    This is done to avoid large spikes in lifetimes along a path
+              //    which can appear when the q' mesh has a very small offset
+              //    that integrates very differently from q' mesh with large
+              //    offset. Note anyway that the difference between the two
+              //    criteria should disappear when huge q-meshes are used
+              if (outerEqualInnerMesh) {
+                if (en1 < energyCutoff || en2 < energyCutoff ||
+                    en3Plus < energyCutoff) {
+                  continue;
+                }
+              } else {
+                if (enProd < energyCutoff) {
+                  continue;
+                }
+              }
 
               double deltaPlus;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -342,7 +376,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
               }
 
-              if (deltaPlus < 0) {
+              if (deltaPlus <= 0.) {
                 continue;
               }
 
@@ -354,8 +388,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
                 // Calculate transition probability W+
                 double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                                  couplingPlus(ib1, ib2, ib3) * deltaPlus *
-                                  norm / enProd;
+                    couplingPlus(ib1, ib2, ib3) * deltaPlus *
+                    norm / enProd;
 
                 if (switchCase == 0) { // case of matrix construction
                   if (context.getUseSymmetries()) {
@@ -367,14 +401,20 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                            linewidth->operator()(iCalc, 0, iBte1) +=
+                                0.5 * ratePlus;
                           }
-                          theMatrix(iMat1, iMat2) += rotation(i, j) * ratePlus;
+                          if (is1 != is2Irr) {
+                            theMatrix(iMat1, iMat2) +=
+                                rotation.inverse()(i, j) * ratePlus;
+                          }
                         }
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                      linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    }
                     theMatrix(iBte1, iBte2) += ratePlus;
                   }
 
@@ -388,18 +428,18 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     inPopRot.setZero();
                     for (int i : {0, 1, 2}) {
                       for (int j : {0, 1, 2}) {
-                        inPopRot(i) += rotation(i, j) *
+                        inPopRot(i) += rotation.inverse()(i, j) *
                                        inPopulations[iInput](iCalc, j, iBte2);
                       }
                     }
-
                     for (int i : {0, 1, 2}) {
-                      if ( iBte1 != iBte2 ) {
+                      if (is1 != is2Irr) {
                         outPopulations[iInput](iCalc, i, iBte1) +=
                             ratePlus * inPopRot(i);
                       }
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          0.5 * ratePlus * inPopulations[iInput](iCalc, i, iBte1);
+                          0.5 * ratePlus *
+                          inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
 
@@ -411,11 +451,30 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
               double en3Minus = energies3Minus(ib3);
-              if (en1 < energyCutoff || en2 < energyCutoff ||
-                  en3Minus < energyCutoff) {
-                continue;
-              }
               double enProd = en1 * en2 * en3Minus;
+
+              // block description:
+              // we have two cases;
+              // 1) if we are doing transport calculations,
+              //    we apply the cutoff cutting away low energy phonons
+              //    with the cutoff imposed on each of the three energies.
+              // 2) however, when computing lifetimes e.g. on a path, we impose
+              //    the criterion on the product of the three energies.
+              //    This is done to avoid large spikes in lifetimes along a path
+              //    which can appear when the q' mesh has a very small offset
+              //    that integrates very differently from q' mesh with large
+              //    offset. Note anyway that the difference between the two
+              //    criteria should disappear when huge q-meshes are used
+              if (outerEqualInnerMesh) {
+                if (en1 < energyCutoff || en2 < energyCutoff ||
+                    en3Minus < energyCutoff) {
+                  continue;
+                }
+              } else {
+                if (enProd < energyCutoff) {
+                  continue;
+                }
+              }
 
               double deltaMinus1, deltaMinus2;
               if (smearing->getType() == DeltaFunction::gaussian) {
@@ -432,7 +491,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 deltaMinus2 = smearing->getSmearing(en1 - en3Minus, is2Idx);
               }
 
-              if (deltaMinus1 < 0. && deltaMinus2 < 0.)
+              if (deltaMinus1 <= 0. && deltaMinus2 <= 0.)
                 continue;
               if (deltaMinus1 < 0.)
                 deltaMinus1 = 0.;
@@ -465,13 +524,19 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                             linewidth->operator()(iCalc, 0, iBte1) +=
                                 0.5 * (rateMinus1 + rateMinus2);
                           }
-                          theMatrix(iMat1, iMat2) -=
-                              rotation(i, j) * (rateMinus1 + rateMinus2);
+                          if (is1 != is2Irr) {
+                            theMatrix(iMat1, iMat2) -=
+                                rotation.inverse()(i, j) *
+                                (rateMinus1 + rateMinus2);
+                          }
                         }
                       }
                     }
                   } else {
-                    linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
+                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                      linewidth->operator()(iCalc, 0, iBte1) +=
+                          0.5 * (rateMinus1 + rateMinus2);
+                    }
                     theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
                   }
 
@@ -482,14 +547,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     inPopRot.setZero();
                     for (int i : {0, 1, 2}) {
                       for (int j : {0, 1, 2}) {
-                        inPopRot(i) += rotation(i, j) *
+                        inPopRot(i) += rotation.inverse()(i, j) *
                                        inPopulations[iInput](iCalc, j, iBte2);
                       }
                     }
 
                     for (int i : {0, 1, 2}) {
                       // off-diagonal term
-                      if ( iBte1 != iBte2 ) { // avoid double counting terms
+                      if (is1 != is2Irr) { // avoid double counting terms
                         outPopulations[iInput](iCalc, i, iBte1) -=
                             (rateMinus1 + rateMinus2) * inPopRot(i);
                       }
@@ -500,7 +565,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     }
                   }
                 } else { // case of linewidth construction
-                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1+rateMinus2);
+                  linewidth->operator()(iCalc, 0, iBte1) +=
+                      0.5 * (rateMinus1 + rateMinus2);
                 }
               }
             }
@@ -512,14 +578,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // Isotope scattering
   if (doIsotopes) {
-    // for (auto [iq1, iq2] : qPairIterator) {
     for (auto tup : qPairIterator) {
       auto iq1Indexes = std::get<0>(tup);
       int iq2 = std::get<1>(tup);
 
       WavevectorIndex iq2Index(iq2);
       Eigen::VectorXd state2Energies = innerBandStructure.getEnergies(iq2Index);
-      int nb2 = state2Energies.size();
+      auto nb2 = int(state2Energies.size());
       Eigen::Tensor<std::complex<double>, 3> ev2 =
           innerBandStructure.getPhEigenvectors(iq2Index);
       Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
@@ -542,7 +607,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         Eigen::VectorXd state1Energies =
             outerBandStructure.getEnergies(iq1Index);
-        int nb1 = state1Energies.size();
+        auto nb1 = int(state1Energies.size());
         Eigen::Tensor<std::complex<double>, 3> ev1 =
             outerBandStructure.getPhEigenvectors(iq1Index);
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
@@ -554,16 +619,27 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           StateIndex is1Idx(is1);
           int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
 
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
+              excludeIndices.end())
+            continue;
+
           if (en1 < energyCutoff) {
             continue;
           }
 
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = state2Energies(ib2);
-            int is2 = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+            int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
+                                                     BandIndex(ib2));
+            int is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
                                                   BandIndex(ib2));
+            StateIndex is2IrrIdx(is2Irr);
             StateIndex is2Idx(is2);
-            int iBte2 = innerBandStructure.stateToBte(is2Idx).get();
+            int iBte2 = innerBandStructure.stateToBte(is2IrrIdx).get();
+
+            if (std::find(excludeIndices.begin(), excludeIndices.end(),
+                          iBte2) != excludeIndices.end())
+              continue;
 
             if (en2 < energyCutoff) {
               continue;
@@ -611,12 +687,17 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                         if (i == 0 && j == 0) {
                           linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                         }
-                        theMatrix(iMat1, iMat2) += rotation(i, j) * rateIso;
+                        if (is1 != is2Irr) {
+                          theMatrix(iMat1, iMat2) +=
+                              rotation.inverse()(i, j) * rateIso;
+                        }
                       }
                     }
                   }
                 } else {
-                  linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                  if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                    linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                  }
                   theMatrix(iBte1, iBte2) += rateIso;
                 }
 
@@ -628,14 +709,14 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   // here we rotate the populations from the irreducible point
                   Eigen::Vector3d inPopRot;
                   inPopRot.setZero();
-                  for (int i = 0; i < dimensionality_; i++) {
-                    for (int j = 0; j < dimensionality_; j++) {
-                      inPopRot(i) += rotation(i, j) *
+                  for (int i : {0, 1, 2}) {
+                    for (int j : {0, 1, 2}) {
+                      inPopRot(i) += rotation.inverse()(i, j) *
                                      inPopulations[iInput](iCalc, j, iBte2);
                     }
                   }
-                  for (int i = 0; i < dimensionality_; i++) {
-                    if ( iBte1 != iBte2 ) {
+                  for (int i : {0, 1, 2}) {
+                    if (is1 != is2Irr) {
                       outPopulations[iInput](iCalc, i, iBte1) +=
                           rateIso * inPopRot(i);
                     }
@@ -655,8 +736,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   if (switchCase == 1) {
-    for (unsigned int i = 0; i < outPopulations.size(); i++) {
-      mpi->allReduceSum(&outPopulations[i].data);
+    for (auto & outPopulation : outPopulations) {
+      mpi->allReduceSum(&outPopulation.data);
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
@@ -664,9 +745,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
+  // Average over degenerate eigenstates.
+  // we turn it off for now and leave the code if needed in the future
+  if (switchCase == 2) {
+    degeneracyAveragingLinewidths(linewidth);
+  }
+
   // Add boundary scattering
   if (doBoundary) {
-  #pragma omp parallel for default(none)                                         \
+#pragma omp parallel for default(none)                                         \
     shared(inPopulations, outPopulations, innerBose, particle, linewidth,      \
            switchCase, numCalculations)
     for (int is1 : outerBandStructure.irrStateIterator()) { // in serial!
@@ -674,6 +761,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       double energy = outerBandStructure.getEnergy(is1Idx);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
+
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
+          excludeIndices.end())
+        continue;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         double temperature =
@@ -733,8 +824,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
     for (auto iBte1 : excludeIndices) {
-      for (unsigned int i = 0; i < outPopulations.size(); i++) {
-        outPopulations[i].data.col(iBte1).setZero();
+      for (auto & outPopulation : outPopulations) {
+        outPopulation.data.col(iBte1).setZero();
       }
     }
 
@@ -753,13 +844,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       // numStates is defined in scattering.cpp as # of irrStates
       // from the outer band structure
       for (int iBte = 0; iBte < numStates; iBte++) {
-
         BteIndex iBteIdx(iBte);
-
-        // this gets us the state index of the qpoint
-        // on the irreducible zone wedge
-        auto is = outerBandStructure.bteToState(iBteIdx);
-
         // zero the diagonal of the matrix
         for (int i : {0, 1, 2}) {
           CartIndex iCart(i);

@@ -28,8 +28,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
    * of lattice vectors which is of size 2*Grid(i)*cutoff, where i is the
    * direction index and grid(i) is the size of the wavevector coarse grid.
    */
-  ElectronH0Fourier(Crystal &crystal_, Points coarsePoints_,
-                    FullBandStructure coarseBandStructure_, double cutoff);
+  ElectronH0Fourier(Crystal &crystal_, const Points& coarsePoints_,
+                    const FullBandStructure& coarseBandStructure_, double cutoff);
 
   /** Copy constructor
    */
@@ -109,11 +109,11 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
   std::complex<double> getStarFunction(Eigen::Vector3d &wavevector, int &iR);
   Eigen::Vector3cd getDerivativeStarFunction(Eigen::Vector3d &wavevector,
                                              int &iR);
-  double getRoughnessFunction(const Eigen::Vector3d &position);
+  double getRoughnessFunction(const Eigen::Vector3d &position) const;
   const double coefficient1 = 0.75;  // 3/4
   const double coefficient2 = 0.75;
-  double getEnergyFromCoords(Eigen::Vector3d &wavevector, int &bandIndex);
-  Eigen::Vector3d getGroupVelocityFromCoords(Eigen::Vector3d &wavevector,
+  double getEnergyFromCoordinates(Eigen::Vector3d &wavevector, int &bandIndex);
+  Eigen::Vector3d getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
                                              int &bandIndex);
 };
 

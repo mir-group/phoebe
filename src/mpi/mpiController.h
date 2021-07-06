@@ -1,5 +1,5 @@
-#ifndef MPICONTROLLER_H
-#define MPICONTROLLER_H
+#ifndef MPI_CONTROLLER_H
+#define MPI_CONTROLLER_H
 
 #include <chrono>
 #include <complex>
@@ -278,6 +278,13 @@ namespace mpiContainer {
           static inline size_t getSize(Eigen::VectorXcd* data) { return data->size(); }
           static inline MPI_Datatype getMPItype() { return containerType<std::complex<double>>::getMPItype();}
         };
+        // Container for Eigen::VectorXd
+        template <> struct containerType<Eigen::VectorXd> {
+          static inline double* getAddress(Eigen::VectorXd* data) { return data->data(); }
+          static inline size_t getSize(Eigen::VectorXd* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype();}
+        };
+
 
 #endif
 }  // namespace mpiContainer

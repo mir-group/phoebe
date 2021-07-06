@@ -36,8 +36,8 @@ ElectronH0Wannier::ElectronH0Wannier(
     Error("WannierH0(): rMatrix should be a vector");
   }
 
-  numBands = h0R.dimension(1);
-  numVectors = vectorsDegeneracies.size();
+  numBands = int(h0R.dimension(1));
+  numVectors = int(vectorsDegeneracies.size());
 }
 
 // copy constructor
@@ -115,8 +115,8 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
 
 Eigen::Tensor<std::complex<double>, 3>
 ElectronH0Wannier::diagonalizeVelocity(Point &point) {
-  Eigen::Vector3d coords = point.getCoordinates(Points::cartesianCoordinates);
-  return diagonalizeVelocityFromCoordinates(coords);
+  Eigen::Vector3d coordinates = point.getCoordinates(Points::cartesianCoordinates);
+  return diagonalizeVelocityFromCoordinates(coordinates);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -221,12 +221,12 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
         subMat = 0.5 * (subMat + subMat.adjoint());
 
         // diagonalize the subMatrix
-        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigensolver(subMat);
-        Eigen::MatrixXcd newEigvecs = eigensolver.eigenvectors();
+        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
+        const Eigen::MatrixXcd&newEigenvectors = eigenSolver.eigenvectors();
 
         // rotate the original matrix in the new basis
         // that diagonalizes the subspace.
-        subMat = newEigvecs.adjoint() * subMat * newEigvecs;
+        subMat = newEigenvectors.adjoint() * subMat * newEigenvectors;
 
         // reinforce hermiticity
         subMat = 0.5 * (subMat + subMat.adjoint());
@@ -279,7 +279,7 @@ ElectronH0Wannier::getBerryConnection(Point &point) {
   // first we diagonalize the hamiltonian
   auto tup = diagonalize(point);
   // auto ens = std::get<0>(tup);
-  auto eigvecs = std::get<1>(tup);
+  auto eigenvectors = std::get<1>(tup);
 
   // note: the eigenvector matrix is the unitary transformation matrix U
   // from the Bloch to the Wannier gauge.
@@ -305,7 +305,7 @@ ElectronH0Wannier::getBerryConnection(Point &point) {
     }
 
     Eigen::MatrixXcd berryConnection(numBands, numBands);
-    berryConnection = eigvecs.adjoint() * berryConnectionW * eigvecs;
+    berryConnection = eigenvectors.adjoint() * berryConnectionW * eigenvectors;
     bc.push_back(berryConnection);
   }
   return bc;

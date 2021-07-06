@@ -6,7 +6,6 @@
 #include "elph_plot_app.h"
 #include "elph_qe_to_phoebe_app.h"
 #include "exceptions.h"
-#include "io.h"
 #include "lifetimes_app.h"
 #include "phonon_transport_app.h"
 #include "polarization_app.h"
@@ -87,7 +86,7 @@ void App::throwErrorIfUnset(const std::string &x, const std::string &name) {
 
 void App::throwErrorIfUnset(const std::vector<std::string> &x,
                             const std::string &name) {
-  if (x.size() == 0) {
+  if (x.empty()) {
     Error("Input variable " + name + " hasn't been found in input");
   }
 }
