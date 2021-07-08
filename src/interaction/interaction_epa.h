@@ -22,7 +22,7 @@ public:
    *
    * @param elEnergies_ : histogram of electronic energy values on top of which
    * the electron-phonon coupling has been averaged.
-   * @param phEnergies_ : histogram of phononic energy values on top of which
+   * @param phEnergies_ : histogram of phonon energy values on top of which
    * the electron-phonon coupling has been averaged.
    * @param elPhMatAverage_: tensor with the EPA averaged values.
    */

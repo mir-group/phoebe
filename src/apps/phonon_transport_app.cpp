@@ -221,8 +221,6 @@ void PhononTransportApp::run(Context &context) {
     //  f = f * preconditioning;
     //  b = b / preconditioning;
 
-    VectorBTE fNew = f;
-
     // residual
     VectorBTE w0 = scatteringMatrix.dot(f);
     //  VectorBTE w0 = scatteringMatrix.offDiagonalDot(f) + f;

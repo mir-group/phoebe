@@ -23,12 +23,12 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
     Points &qPoints, Crystal &crystal, PhononH0 &phononH0) {
 
   int numModes = crystal.getNumAtoms() * 3;
-  int numBands = uMatrices.dimension(0);
-  int numWannier = uMatrices.dimension(1);
+  int numBands = int(uMatrices.dimension(0));
+  int numWannier = int(uMatrices.dimension(1));
   int numKPoints = kPoints.getNumPoints();
   int numQPoints = qPoints.getNumPoints();
-  int numElBravaisVectors = elBravaisVectors.cols();
-  int numPhBravaisVectors = phBravaisVectors.cols();
+  int numElBravaisVectors = int(elBravaisVectors.cols());
+  int numPhBravaisVectors = int(phBravaisVectors.cols());
 
   std::string wannierPrefix = context.getWannier90Prefix();
   int bandsOffset = computeOffset(energies, wannierPrefix);
@@ -73,7 +73,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
   // therefore, we must make sure that every process enters the loop,
   // even if it doesn't need to read a file.
   // (e.g. analyzing 4 irrQPoints with 3 MPI processes has load imbalance)
-  int localIrrPoints = mpi->divideWorkIter(numIrrQPoints).size();
+  auto localIrrPoints = int(mpi->divideWorkIter(numIrrQPoints).size());
   int loopSize = localIrrPoints;
   mpi->allReduceMax(&loopSize);
   std::vector<int> pointsIterator = mpi->divideWorkIter(numIrrQPoints);
@@ -123,7 +123,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
         }
       }
       gStarTmp.resize(zeros);
-      int numQStar = qStar.cols();
+      int numQStar = int(qStar.cols());
 
       if (usePolarCorrection) {
         // we need to subtract the polar correction
@@ -444,13 +444,13 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     std::cout << "Start Wannier-transform of g" << std::endl;
   }
 
-  int numBands = gFull.dimension(0); // # of entangled bands
-  int numModes = gFull.dimension(2);
-  int numKPoints = gFull.dimension(3);
-  int numQPoints = gFull.dimension(4);
-  int numElBravaisVectors = elBravaisVectors.cols();
-  int numPhBravaisVectors = phBravaisVectors.cols();
-  int numWannier = uMatrices.dimension(1);
+  int numBands = int(gFull.dimension(0)); // # of entangled bands
+  int numModes = int(gFull.dimension(2));
+  int numKPoints = int(gFull.dimension(3));
+  int numQPoints = int(gFull.dimension(4));
+  int numElBravaisVectors = int(elBravaisVectors.cols());
+  int numPhBravaisVectors = int(phBravaisVectors.cols());
+  int numWannier = int(uMatrices.dimension(1));
 
   std::array<Eigen::Index, 5> zeros;
   for (auto &s : zeros) {
@@ -949,8 +949,8 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     }
   }
 
-  int numBandsWannier = energiesWannierAtZero.size();
-  int numFull = energiesQEAtZero.size();
+  int numBandsWannier = int(energiesWannierAtZero.size());
+  int numFull = int(energiesQEAtZero.size());
 
   // we find the offset by comparing the energy differences
   // the offset which minimizes energy differences is the chosen one
@@ -998,8 +998,8 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
    * Phases of rotation matrices in the back-FT will be random.
    */
 
-  int numBands = uMatrices.dimension(0);
-  int numWannier = uMatrices.dimension(1);
+  int numBands = int(uMatrices.dimension(0));
+  int numWannier = int(uMatrices.dimension(1));
   assert(numBands >= numWannier);
 
   Eigen::MatrixXd blochEnergies(numBands, kPoints.getNumPoints());
@@ -1118,7 +1118,7 @@ void ElPhQeToPhoebeApp::testPhononTransform(
   // Bloch To Wannier transform
 
   auto atomicPositions = crystal.getAtomicPositions();
-  int numAtoms = atomicPositions.rows();
+  int numAtoms = int(atomicPositions.rows());
   auto atomicMasses = crystal.getAtomicMasses();
 
   // test mass normalization as expected
@@ -1359,7 +1359,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
   // uMatrices has size (numBands, numWannier, numKPoints)
   uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
-  int numBands = uMatrices.dimension(0);        // number of entangled bands
+  auto numBands = int(uMatrices.dimension(0));        // number of entangled bands
   assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
 
   //----------------------------------------------------------------------------
@@ -1446,8 +1446,8 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     std::cout << "\nStart writing el-ph coupling to file." << std::endl;
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
-  int numPhBravaisVectors = phDegeneracies.size();
-  int numElBravaisVectors = elDegeneracies.size();
+  int numPhBravaisVectors = int(phDegeneracies.size());
+  int numElBravaisVectors = int(elDegeneracies.size());
 
   bool matrixDistributed;
   if (gWannier.dimension(4) != numElBravaisVectors) {
@@ -1456,7 +1456,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     matrixDistributed = false;
   }
 
-  ParallelMatrix<double> aux(elDegeneracies.size(), 1, mpi->getSize(), 1);
+  ParallelMatrix<double> aux(int(elDegeneracies.size()), 1, mpi->getSize(), 1);
 
 #ifdef HDF5_AVAIL
   std::string outFileName = phoebePrefixQE + ".phoebe.elph.hdf5";
@@ -1513,7 +1513,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
                              numModes * numPhBravaisVectors;
         gwanSlice = gwan;
       } else {
-        // here we slice the gwan tensor (it's not distributed)
+        // here we slice the gWannier tensor (it's not distributed)
 
         // get the start and stop points of elements to be written by this process
         std::vector<int> workDivs = mpi->divideWork(gwan.size());

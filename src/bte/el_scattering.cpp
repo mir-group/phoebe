@@ -84,7 +84,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   double norm = 1. / context.getKMesh().prod();
 
   // precompute Fermi-Dirac populations
-  int numOuterIrrStates = outerBandStructure.irrStateIterator().size();
+  auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerFermi(numCalculations, numOuterIrrStates);
   outerFermi.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -103,7 +103,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   }
   mpi->allReduceSum(&outerFermi);
 
-  int numInnerIrrStates = innerBandStructure.irrStateIterator().size();
+  auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerFermi(numCalculations, numInnerIrrStates);
   innerFermi.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -140,7 +140,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
   LoopPrint loopPrint("computing scattering matrix", "k-points",
-                      kPairIterator.size());
+                      int(kPairIterator.size()));
 
   for (auto t1 : kPairIterator) {
     loopPrint.update();
@@ -150,12 +150,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
     Eigen::Vector3d k1C = outerBandStructure.getWavevector(ik1Idx);
     Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(ik1Idx);
-    int nb1 = state1Energies.size();
+    auto nb1 = int(state1Energies.size());
     Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(ik1Idx);
     Eigen::MatrixXcd eigenVector1 = outerBandStructure.getEigenvectors(ik1Idx);
 
     pointHelper.prepare(k1C, ik2Indexes);
-    int nk2 = ik2Indexes.size();
+    auto nk2 = int(ik2Indexes.size());
     std::vector<Eigen::Vector3d> allQ3C(nk2);
     std::vector<Eigen::VectorXd> allStates3Energies(nk2);
     std::vector<int> allNb3(nk2);
@@ -211,8 +211,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Eigen::MatrixXd v3s = allV3s[ik2Counter];
       Eigen::VectorXd state3Energies = allStates3Energies[ik2Counter];
 
-      int nb2 = state2Energies.size();
-      int nb3 = state3Energies.size();
+      auto nb2 = int(state2Energies.size());
+      auto nb3 = int(state3Energies.size());
 
       for (int ib2 = 0; ib2 < nb2; ib2++) {
         double en2 = state2Energies(ib2);

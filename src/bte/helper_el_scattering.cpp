@@ -78,7 +78,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       Eigen::Vector3d k2Coordinates_ = innerBandStructure.getWavevector(ik2Index);
 
       auto rotations = innerPoints.getRotationsStar(ik2);
-      for ( Eigen::Matrix3d rotation : rotations ) {
+      for ( const Eigen::Matrix3d& rotation : rotations ) {
         Eigen::Vector3d k2Coordinates = rotation * k2Coordinates_;
 
         for (int ik1 = 0; ik1 < outerBandStructure.getNumPoints(); ik1++) {
@@ -96,7 +96,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     }
 
     std::vector<int> localCounts(mpi->getSize(), 0);
-    localCounts[mpi->getRank()] = listOfIndexes.size();
+    localCounts[mpi->getRank()] = int(listOfIndexes.size());
     mpi->allReduceSum(&localCounts);
     int totalCounts = 0;
     for ( int iRank=0; iRank<mpi->getSize(); iRank++ ) {
@@ -188,7 +188,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     if (smearingType == DeltaFunction::adaptiveGaussian) {
       v3s = bandStructure3->getGroupVelocities(iq3Index);
     }
-    int nb3 = energies3.size();
+    int nb3 = int(energies3.size());
     auto particle = h0.getParticle();
     Eigen::MatrixXd bose3Data = Eigen::MatrixXd(statisticsSweep.getNumCalculations(), nb3);
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
@@ -211,16 +211,16 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::MatrixXcd eigenVectors3 = cacheEigenVectors[ik2Counter];
     Eigen::MatrixXd v3s = cacheVelocity[ik2Counter];
     Eigen::MatrixXd bose3Data = cacheBose[ik2Counter];
-    int nb3 = energies3.size();
+    int nb3 = int(energies3.size());
 
     return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
   }
 }
 
 void HelperElScattering::prepare(const Eigen::Vector3d &k1,
-                                 const std::vector<int> k2Indexes) {
+                                 const std::vector<int>& k2Indexes) {
   if (!storedAllQ3) {
-    int numPoints = k2Indexes.size();
+    int numPoints = int(k2Indexes.size());
     cacheEnergies.resize(numPoints);
     cacheEigenVectors.resize(numPoints);
     cacheBose.resize(numPoints);
@@ -241,7 +241,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
       auto energies3 = std::get<0>(t1);
       auto eigenVectors3 = std::get<1>(t1);
 
-      int nb3 = energies3.size();
+      int nb3 = int(energies3.size());
 
       Eigen::MatrixXd bose3Data(statisticsSweep.getNumCalculations(), nb3);
       bose3Data.setZero();

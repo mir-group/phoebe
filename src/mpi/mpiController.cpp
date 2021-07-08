@@ -12,7 +12,7 @@ MPIcontroller::MPIcontroller() {
 
 #ifdef MPI_AVAIL
   // start the MPI environment
-  int errCode = MPI_Init(NULL, NULL);
+  int errCode = MPI_Init(nullptr, nullptr);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }

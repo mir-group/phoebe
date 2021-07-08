@@ -23,7 +23,7 @@ protected:
 
   /** Internal utility to set the crystal unit cell and the reciprocal cell
    */
-  void setDirectUnitCell(Eigen::Matrix3d directUnitCell_);
+  void setDirectUnitCell(const Eigen::Matrix3d &directUnitCell_);
 
   /** These are the internal quantities used to store
    * - lattice vectors

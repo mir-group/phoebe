@@ -67,7 +67,7 @@ class Window {
    * @return method: an integer equal to either Window::nothing,
    * Window::population, or Window::energy.
    */
-  int getMethodUsed();
+  int getMethodUsed() const;
  private:
   /** particle stores whether we are working with electrons or phonons
    */
@@ -85,15 +85,15 @@ class Window {
 
   /** temp variable to facilitate code writing
    */
-  int numBands;
+  int numBands = 0;
 
   // internal method to apply the window on population
   std::tuple<std::vector<double>, std::vector<int>> internalPopWindow(
       const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
-      const Eigen::VectorXd &popMax);
+      const Eigen::VectorXd &popMax) const;
   // internal method to apply the window on energy
   std::tuple<std::vector<double>, std::vector<int>> internalEnWindow(
-      const Eigen::VectorXd &energies);
+      const Eigen::VectorXd &energies) const;
 };
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef SMATRIX_H
-#define SMATRIX_H
+#ifndef S_MATRIX_H
+#define S_MATRIX_H
 
 #include <tuple>
 #include <vector>
@@ -366,4 +366,4 @@ T SerialMatrix<T>::dot(const SerialMatrix<T>& that) {
   return scalar;
 }
 
-#endif  // MATRIX_H
+#endif  // S_MATRIX_H

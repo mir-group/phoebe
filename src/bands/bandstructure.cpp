@@ -153,7 +153,7 @@ std::vector<std::tuple<WavevectorIndex,BandIndex>> FullBandStructure::getStateIn
   return indices;
 }
 
-std::vector<int> FullBandStructure::getBandIndices() {
+std::vector<int> FullBandStructure::getBandIndices() const {
   std::vector<int> bandsList;
   for(int ib = 0; ib < numBands; ib++) {
       bandsList.push_back(ib);

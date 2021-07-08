@@ -59,7 +59,7 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_, const Points& coarsePoin
   // note that setPositionVectors must stay above this call
 
   LoopPrint loopPrint("setting up Fourier interpolation", "bands",
-                      mpi->divideWorkIter(numBands).size());
+                      int(mpi->divideWorkIter(numBands).size()));
 
   expansionCoefficients.resize(numBands, numPositionVectors);
   expansionCoefficients.setZero();
@@ -125,7 +125,7 @@ ElectronH0Fourier::diagonalizeFromCoordinates(Eigen::Vector3d &wavevector) {
   eigenVectors.setZero();
   Eigen::VectorXd energies(numBands);
   for (int ib = 0; ib < numBands; ib++) {
-    energies(ib) = getEnergyFromCoords(wavevector, ib);
+    energies(ib) = getEnergyFromCoordinates(wavevector, ib);
   }
   return {energies, eigenVectors};
 }
@@ -143,7 +143,7 @@ ElectronH0Fourier::diagonalizeVelocityFromCoordinates(
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
   for (int ib = 0; ib < numBands; ib++) {
-    Eigen::Vector3d v = getGroupVelocityFromCoords(coordinates, ib);
+    Eigen::Vector3d v = getGroupVelocityFromCoordinates(coordinates, ib);
     for (int i : {0, 1, 2}) {
       velocity(ib, ib, i) = v(i);
     }
@@ -421,7 +421,7 @@ Eigen::VectorXcd ElectronH0Fourier::getCoefficients(Eigen::VectorXd energies) {
   return coefficients;
 }
 
-double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d &wavevector,
+double ElectronH0Fourier::getEnergyFromCoordinates(Eigen::Vector3d &wavevector,
                                               int &bandIndex) {
   double energy = 0.;
   for (int m = 0; m < numPositionVectors; m++) {
@@ -433,7 +433,7 @@ double ElectronH0Fourier::getEnergyFromCoords(Eigen::Vector3d &wavevector,
 }
 
 Eigen::Vector3d
-ElectronH0Fourier::getGroupVelocityFromCoords(Eigen::Vector3d &wavevector,
+ElectronH0Fourier::getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
                                               int &bandIndex) {
   Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
   for (int m = 0; m < numPositionVectors; m++) {
