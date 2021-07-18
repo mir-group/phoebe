@@ -65,6 +65,14 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
           fileName);
     }
   }
+  // if there was an fc2 file, make sure it opened correctly
+  if (!infile.is_open()) {
+    Error(
+        "Phonopy disp_fc2.yaml file specified at " + fileName +
+        " not found.");
+   }
+
+
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
 
