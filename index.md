@@ -111,7 +111,7 @@ img {
 </head>
 
 <h1> Ab-initio transport, simple and fast.</h1>
-<p style="text-align:center;">
+<p style="text-align:center">
 Phoebe is an open-source code for the ab-initio computation of electron and phonon transport properties of crystalline materials.
 </p>
 
@@ -142,12 +142,12 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
   <div class="mySlides">
     <div class="numbertext">5 / 6</div>
-    <img src="pictures/home/5.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/gan_rta_ph_relaxation_times.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">6 / 6</div>
-    <img src="pictures/home/6.jpg" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/gan-thermal-conductivity.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <a class="prev" style="text-decoration: none" onclick="plusSlides(-1)">❮</a>
@@ -171,10 +171,10 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
       <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(4)" alt="Electron and phonon viscosity">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/5.png" style="max-height:120px" onclick="currentSlide(5)" alt="GPU acceleration with Kokkos">
+      <img class="demo cursor" src="pictures/home/gan_rta_ph_relaxation_times.png" style="max-height:120px" onclick="currentSlide(5)" alt="RTA phonon lifetimes of GaN, where colors from blue to green represent different phonon branches of increasing energy.">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/6.jpg" style="max-height:120px" onclick="currentSlide(6)" alt="Support for ab-initio data from Quantum ESPRESSO">
+      <img class="demo cursor" src="pictures/home/gan-thermal-conductivity.png" style="max-height:120px" onclick="currentSlide(6)" alt="Lattice thermal conductivity of GaN along the a crystal axis, using the RTA and iterative BTE solvers.">
     </div>
   </div>
 </div>
