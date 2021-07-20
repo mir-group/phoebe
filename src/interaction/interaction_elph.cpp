@@ -45,6 +45,7 @@ InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
 InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
     : crystal(that.crystal), phononH0(that.phononH0),
       couplingWannier(that.couplingWannier),
+      couplingWannier_k(that.couplingWannier_k),
       elBravaisVectors(that.elBravaisVectors),
       elBravaisVectorsDegeneracies(that.elBravaisVectorsDegeneracies),
       phBravaisVectors(that.phBravaisVectors),
@@ -62,6 +63,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     crystal = that.crystal;
     phononH0 = that.phononH0;
     couplingWannier = that.couplingWannier;
+    couplingWannier_k = that.couplingWannier_k;
     elBravaisVectors = that.elBravaisVectors;
     elBravaisVectorsDegeneracies = that.elBravaisVectorsDegeneracies;
     phBravaisVectors = that.phBravaisVectors;
@@ -536,22 +538,10 @@ void InteractionElPhWan::calcCouplingSquared(
 
     ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
                      numWannier);
+
     ComplexView2D eigvec1_k("ev1", nb1, numWannier);
-    //printf("coupling dimensions: %d %d %d %d %d\n", numElBravaisVectors, numPhBravaisVectors, numPhBands,            numWannier, numWannier);
-
-    Kokkos::View<Kokkos::complex<double>*****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
-        numElBravaisVectors, numPhBravaisVectors,
-        numPhBands, numWannier, numWannier);
-    auto couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
-    Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
-
     {
-      auto eigvec1_h = Kokkos::create_mirror_view(eigvec1_k);
-      for (int i = 0; i < nb1; i++) {
-        for (int j = 0; j < numWannier; j++) {
-          eigvec1_h(i, j) = eigvec1(j, i);
-        }
-      }
+      HostComplexView2D eigvec1_h((Kokkos::complex<double>*) eigvec1.data(), nb1, numWannier);
       Kokkos::deep_copy(eigvec1_k, eigvec1_h);
     }
 
@@ -563,6 +553,15 @@ void InteractionElPhWan::calcCouplingSquared(
           exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
     }
     Kokkos::deep_copy(phases_k, phases_h);
+
+    if(couplingWannier_k.extent(0)==0){
+      HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
+          numElBravaisVectors, numPhBravaisVectors,
+          numPhBands, numWannier, numWannier);
+      couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
+      Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
+    }
+    ComplexView5D couplingWannier_k = this->couplingWannier_k;
 #ifdef KOKKOS_ENABLE_CUDA
     Kokkos::parallel_for(
         "g1",
@@ -606,8 +605,6 @@ void InteractionElPhWan::calcCouplingSquared(
       }
     }
 #endif
-
-
 
     Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, nb1,
                     numWannier);
@@ -683,6 +680,7 @@ void InteractionElPhWan::calcCouplingSquared(
         Kokkos::create_mirror_view(phBravaisVectorsDegeneracies_k);
     auto phBravaisVectors_h = Kokkos::create_mirror_view(phBravaisVectors_k);
 
+#pragma omp parallel for
     for (int ik = 0; ik < numLoops; ik++) {
       for (int i = 0; i < numWannier; i++) {
         for (int j = 0; j < nb2s_h(ik); j++) {

@@ -69,6 +69,12 @@ class InteractionElPhWan {
   using DoubleView2D = Kokkos::View<double **, Kokkos::LayoutRight>;
   using DoubleView4D = Kokkos::View<double ****, Kokkos::LayoutRight>;
 
+  using HostComplexView1D = Kokkos::View<Kokkos::complex<double>*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView2D = Kokkos::View<Kokkos::complex<double>**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView3D = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView4D = Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView5D = Kokkos::View<Kokkos::complex<double>*****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
   // Kokkos Range types
   using Range2D = Kokkos::MDRangePolicy<Kokkos::Rank<2,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
   using Range3D = Kokkos::MDRangePolicy<Kokkos::Rank<3,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
@@ -78,6 +84,7 @@ class InteractionElPhWan {
 
 
   ComplexView4D elPhCached;
+  ComplexView5D couplingWannier_k;
 
 
 public:
