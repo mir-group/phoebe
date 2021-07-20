@@ -4,10 +4,10 @@
 #include "interaction_elph.h"
 #include "io.h"
 #include "qe_input_parser.h"
+#include "utilities.h"
 #include <exception>
 #include <sstream>
 #include <string>
-#include "utilities.h"
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -84,11 +84,11 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
   LoopPrint loopPrint("Wannier transform of coupling", "irreducible q-points",
                       loopSize);
   // for (int iqIrr : mpi->divideWorkIter(numIrrQPoints)) {
-  for (int iLoop=0; iLoop<loopSize; iLoop++) {
+  for (int iLoop = 0; iLoop < loopSize; iLoop++) {
     loopPrint.update(false);
 
     int iqIrr = -1;
-    if ( iLoop < int(pointsIterator.size()) ) {
+    if (iLoop < int(pointsIterator.size())) {
       iqIrr = pointsIterator[iLoop];
     }
 
@@ -96,9 +96,10 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
 
       auto t = readChunkGFromQE(iqIrr, context, kPoints, numModes, numQEBands,
                                 ikMap);
-      auto gStarTmp = std::get<0>(t);
+      auto& gStarTmp = std::get<0>(t);
       auto phononEigenvectorsStar = std::get<1>(t);
       auto qStar = std::get<3>(t);
+      int numQStar = int(qStar.cols());
 
       // Note: the tensor read from file contains
       // gFull(ib1, ib2, nu, ik, iq)
@@ -109,21 +110,21 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
 
       // reorder the q/k indices
       Eigen::Tensor<std::complex<double>, 5> gStar(numBands, numBands, numModes,
-                                                   numKPoints, numQPoints);
-      for (int iqStar = 0; iqStar < qStar.cols(); iqStar++) {
+                                                   numKPoints, numQStar);
+      for (int iqStar = 0; iqStar < numQStar; iqStar++) {
         for (int nu = 0; nu < numModes; nu++) {
           for (int ik = 0; ik < numKPoints; ik++) {
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
-                gStar(ib1, ib2, nu, ik, iqStar) = gStarTmp(
-                    bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
+                gStar(ib1, ib2, nu, ik, iqStar) =
+                    gStarTmp(bandsOffset + 1 + ib1, bandsOffset + 1 + ib2, nu,
+                             ik, iqStar);
               }
             }
           }
         }
       }
       gStarTmp.resize(zeros);
-      int numQStar = int(qStar.cols());
 
       if (usePolarCorrection) {
         // we need to subtract the polar correction
@@ -156,16 +157,17 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
               int ikq = kPoints.getIndex(kqCrystal);
 
               // gather eigenvectors
+              // uMatrices has size (numBands, numWannier, numKPoints)
               Eigen::MatrixXcd ev1(numBands, numWannier);
               Eigen::MatrixXcd ev2(numBands, numWannier);
-              for (int j = 0; j < numBands; j++) {
+              for (int j = 0; j < numWannier; j++) {
                 for (int i = 0; i < numBands; i++) {
                   ev1(i, j) = uMatrices(i, j, ik);
                   ev2(i, j) = uMatrices(i, j, ikq);
                 }
               }
-              // ev1 = ev1.adjoint();
-              ev2 = ev2.adjoint();
+              ev1 = ev1.adjoint(); // (Wannier,bands)
+              ev2 = ev2.adjoint(); // (Wannier,bands)
 
               auto v = InteractionElPhWan::getPolarCorrectionStatic(
                   q, ev1, ev2, ev3, volume, reciprocalUnitCell,
@@ -203,8 +205,8 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
           // u has size (numBands, numWannier, numKPoints)
           Eigen::MatrixXcd uK(numBands, numWannier);
           Eigen::MatrixXcd uKq(numBands, numWannier);
-          for (int i = 0; i < numBands; i++) {
-            for (int j = 0; j < numWannier; j++) {
+          for (int j = 0; j < numWannier; j++) {
+            for (int i = 0; i < numBands; i++) {
               uK(i, j) = uMatrices(i, j, ik);
               uKq(i, j) = uMatrices(i, j, ikq);
             }
@@ -313,8 +315,8 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
       }
       gFullTmp.reshape(zeros);
 
-      gWannierTmp.resize(
-          numWannier, numWannier, numModes, numElBravaisVectors, numQStar);
+      gWannierTmp.resize(numWannier, numWannier, numModes, numElBravaisVectors,
+                         numQStar);
       gWannierTmp.setZero();
       {
         Eigen::Tensor<std::complex<double>, 3> uQM1s(numModes, numModes,
@@ -371,7 +373,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
 
     } // if iqIrr != -1
 
-//    Eigen::Tensor<std::complex<double>, 5> tmp;
+    //    Eigen::Tensor<std::complex<double>, 5> tmp;
 
     // Create a vector with the indices from 0, 1, ..., numElBravaisVectors-1
     std::vector<int> v(numElBravaisVectors);
@@ -380,21 +382,23 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
     int chunkSize = numElBravaisVectors / mpi->getSize();
     auto chunks = splitVector(v, chunkSize);
 
-    for ( std::vector<int> chunk : chunks ) {
-      Eigen::Tensor<std::complex<double>, 5> tmp(
-          numWannier, numWannier, numModes, numPhBravaisVectors, int(chunk.size()));
+    for (std::vector<int> chunk : chunks) {
+      Eigen::Tensor<std::complex<double>, 5> tmp(numWannier, numWannier,
+                                                 numModes, numPhBravaisVectors,
+                                                 int(chunk.size()));
       tmp.setZero();
 
       if (iqIrr >= 0) { // if the MPI process actually is computing something
         for (int irE : chunk) {
 #pragma omp parallel for collapse(4) default(none)                             \
-    shared(numPhBravaisVectors, phPhases, numModes, numWannier, gWannierTmp, tmp, irE, chunk)
+    shared(numPhBravaisVectors, phPhases, numModes, numWannier, gWannierTmp,   \
+           tmp, irE, chunk)
           for (int irP = 0; irP < numPhBravaisVectors; irP++) {
             for (int nu = 0; nu < numModes; nu++) {
               for (int j = 0; j < numWannier; j++) {
                 for (int i = 0; i < numWannier; i++) {
                   for (int iq = 0; iq < phPhases.cols(); iq++) {
-                    tmp(i, j, nu, irP, irE-chunk[0]) +=
+                    tmp(i, j, nu, irP, irE - chunk[0]) +=
                         phPhases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
                   }
                 }
@@ -414,7 +418,8 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
             for (int nu = 0; nu < numModes; nu++) {
               for (int j = 0; j < numWannier; j++) {
                 for (int i = 0; i < numWannier; i++) {
-                  gWannierPara(i, j, nu, irP, irELocal) += tmp(i, j, nu, irP, irE-chunk[0]);
+                  gWannierPara(i, j, nu, irP, irELocal) +=
+                      tmp(i, j, nu, irP, irE - chunk[0]);
                 }
               }
             }
@@ -509,7 +514,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
               ev2(i, j) = uMatrices(i, j, ikq);
             }
           }
-          // ev1 = ev1.adjoint();
+          ev1 = ev1.adjoint();
           ev2 = ev2.adjoint();
 
           auto v = InteractionElPhWan::getPolarCorrectionStatic(
@@ -1359,7 +1364,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
   // uMatrices has size (numBands, numWannier, numKPoints)
   uMatrices = setupRotationMatrices(wannierPrefix, kPoints);
-  auto numBands = int(uMatrices.dimension(0));        // number of entangled bands
+  auto numBands = int(uMatrices.dimension(0));  // number of entangled bands
   assert(numWannier == uMatrices.dimension(1)); // number of entangled bands
 
   //----------------------------------------------------------------------------
@@ -1507,15 +1512,16 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         // but we have to compute the right offsets to file.
 
         // start point and the number of elements to be written by this process
-        offset = aux.getAllLocalRows()[0] * numWannier * numWannier *
-                        numModes * numPhBravaisVectors;
+        offset = aux.getAllLocalRows()[0] * numWannier * numWannier * numModes *
+                 numPhBravaisVectors;
         numElements = aux.getAllLocalRows().size() * numWannier * numWannier *
-                             numModes * numPhBravaisVectors;
+                      numModes * numPhBravaisVectors;
         gwanSlice = gwan;
       } else {
         // here we slice the gWannier tensor (it's not distributed)
 
-        // get the start and stop points of elements to be written by this process
+        // get the start and stop points of elements to be written by this
+        // process
         std::vector<int> workDivs = mpi->divideWork(gwan.size());
         offset = workDivs[0];
         numElements = workDivs[1] - workDivs[0];
