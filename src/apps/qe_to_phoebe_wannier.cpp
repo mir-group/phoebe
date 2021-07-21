@@ -111,9 +111,10 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
       // reorder the q/k indices
       Eigen::Tensor<std::complex<double>, 5> gStar(numBands, numBands, numModes,
                                                    numKPoints, numQStar);
+      gStar.setZero();
       for (int iqStar = 0; iqStar < numQStar; iqStar++) {
-        for (int nu = 0; nu < numModes; nu++) {
-          for (int ik = 0; ik < numKPoints; ik++) {
+        for (int ik = 0; ik < numKPoints; ik++) {
+          for (int nu = 0; nu < numModes; nu++) {
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
                 gStar(ib1, ib2, nu, ik, iqStar) =
@@ -1507,6 +1508,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
 
       Eigen::VectorXcd gwanSlice;
       size_t offset, numElements;
+
       if (matrixDistributed) {
         // here, no need to slice the gwan tensor (it's already distributed)
         // but we have to compute the right offsets to file.
@@ -1522,10 +1524,12 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
 
         // get the start and stop points of elements to be written by this
         // process
-        std::vector<int> workDivs = mpi->divideWork(gwan.size());
-        offset = workDivs[0];
-        numElements = workDivs[1] - workDivs[0];
-        gwanSlice = gwan(Eigen::seq(workDivs[0], workDivs[1]));
+        int start = mpi->divideWorkIter(gwan.size())[0];
+        int stop = mpi->divideWorkIter(gwan.size()).back();
+        offset = start;
+        numElements = stop - start + 1;
+        gwanSlice.resize(numElements);
+        gwanSlice = gwan(Eigen::seq(start, stop));
       }
 
       // Each process writes to hdf5
