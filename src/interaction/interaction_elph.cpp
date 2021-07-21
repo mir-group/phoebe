@@ -317,7 +317,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
     elBravaisVectors_.resize(3, numElBravaisVectors);
     elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                            numElBravaisVectors, numPhBravaisVectors);
+                            numPhBravaisVectors, numElBravaisVectors);
     phBravaisVectors_.setZero();
     phBravaisVectorsDegeneracies_.setZero();
     elBravaisVectors_.setZero();
@@ -417,7 +417,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       elBravaisVectors_.resize(3, numElBravaisVectors);
       elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
       couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                              numElBravaisVectors, numPhBravaisVectors);
+                              numPhBravaisVectors, numElBravaisVectors);
       phBravaisVectors_.setZero();
       phBravaisVectorsDegeneracies_.setZero();
       elBravaisVectors_.setZero();
