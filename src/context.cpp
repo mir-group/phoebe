@@ -792,6 +792,7 @@ void Context::printInputSummary(const std::string &fileName) {
       appName.find("elPh") != std::string::npos) {
     std::cout << "electronH0Name = " << electronH0Name << std::endl;
     std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+
     if (appName.find("elPh") != std::string::npos ||
         appName == "electronLifetimes" ||
         appName == "electronWannierTransport") {
@@ -804,6 +805,7 @@ void Context::printInputSummary(const std::string &fileName) {
         std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
                   << std::endl;
     }
+    // EPA specific parameters
     if (appName.find("elPh") != std::string::npos &&
         elPhInterpolation == "epa") {
       if (!std::isnan(epaMinEnergy))
@@ -820,6 +822,10 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(electronFourierCutoff))
         std::cout << "electronFourierCutoff = " << electronFourierCutoff
                   << std::endl;
+    }
+    if(appName.find("elPhQeToPhoebe") != std::string::npos) {
+      std::cout << "distributedElPhCoupling = " << distributedElPhCoupling
+        << std::endl;
     }
     std::cout << std::endl;
   }
