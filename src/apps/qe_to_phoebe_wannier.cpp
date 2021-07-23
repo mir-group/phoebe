@@ -1516,16 +1516,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       size_t offset = start;
       size_t numElements = stop - start + 1;
 
-      std::cout << Eigen::seq(start, stop)[0] << " "
-                << Eigen::seq(start, stop-1)[stop-1] << "\n";
-
-//      std::complex<double> x = 0.;
-//      std::complex<double> x = gwan.sum();
-//      mpi->allReduceSum(&x);
-//      std::cout << "x sum: " << x << "\n";
-//      std::cout << gWannier.size() << " " << gwan.size() << " "
-//                << numElements << " " << globalSize << "\n";
-//std::cout << start << " " << stop << "\n";
       Eigen::VectorXcd gwanSlice;
       if (matrixDistributed) {
         // here, no need to slice the gwan tensor (it's already distributed)
@@ -1534,7 +1524,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       } else {
         // here we slice the gWannier tensor (it's not distributed)
         gwanSlice.resize(numElements);
-        gwanSlice = gwan(Eigen::seq(start, stop-1));
+        gwanSlice = gwan(Eigen::seq(start, stop));
       }
 
       // Each process writes to hdf5
