@@ -1544,16 +1544,16 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
             numWannier, numWannier, numModes, numPhBravaisVectors,
             numElBravaisVectors);
         gWannierRed.setZero();
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
-          if (aux.indicesAreLocal(irE, 0)) { // is local
-            int irELocal = aux.global2Local(irE, 0);
-            for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-              for (int nu = 0; nu < numModes; nu++) {
-                for (int i = 0; i < numWannier; i++) {
-                  for (int j = 0; j < numWannier; j++) {
-                    gWannierRed(i, j, nu, irP, irE) +=
-                        gWannier(i, j, nu, irP, irELocal);
-                  }
+
+        auto irEIterator = mpi->divideWorkIter(elDegeneracies.size());
+        for (int irE : irEIterator) {
+          int irELocal = irE - irEIterator[0];
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numModes; nu++) {
+              for (int i = 0; i < numWannier; i++) {
+                for (int j = 0; j < numWannier; j++) {
+                  gWannierRed(i, j, nu, irP, irE) +=
+                      gWannier(i, j, nu, irP, irELocal);
                 }
               }
             }
