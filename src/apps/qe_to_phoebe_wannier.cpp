@@ -1532,7 +1532,32 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       // Because it's a vector (1 row) all processes write to row=0,
       // col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgwannier.select({0, offset}, {1, numElements}).write(gwanSlice);
+      // dgwannier.select({0, offset}, {1, numElements}).write(gwanSlice);
+
+      // Note: using HDF5 v1.10, we found a limitation on the size of the chunk
+      // that needs to be <2gb ( due to max(int 32 bit))/1024^3 = 2Gb )
+      // to bypass this limitation, instead of writing the whole slice,
+      // we split it in chunks of 1Gb
+
+      int largestChunkSize = pow(1024,3);
+      int numChunks = int(numElements) / largestChunkSize;
+      if ( mod(int(numElements), largestChunkSize) > 0 ) {
+        numChunks++;
+      }
+      for (int iChunk=0; iChunk<numChunks; iChunk++) {
+        size_t cStart = iChunk * largestChunkSize;
+        size_t cStop;
+        if (iChunk < int(numElements) / largestChunkSize) {
+          cStop = cStart + largestChunkSize - 1;
+        } else {
+          cStop = cStart + mod(numElements, largestChunkSize) - 1;
+        }
+        size_t cNumElements = cStop - cStart + 1;
+        Eigen::VectorXcd chunk = gwanSlice(Eigen::seq(cStart, cStop));
+        dgwannier.select({0, offset+cStart},
+                         {1, cNumElements}).write(chunk);
+      }
+
     }
 #else
     { // do not remove these braces, see above note.
@@ -1624,6 +1649,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       dElDegeneracies.write(elDegeneracies);
     }
   } catch (std::exception &error) {
+    std::cout << error.what() << std::endl;
     Error("Issue writing elph Wannier representation to hdf5.");
   }
 
