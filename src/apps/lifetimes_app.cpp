@@ -5,7 +5,6 @@
 #include "el_scattering.h"
 #include "exceptions.h"
 #include "ifc3_parser.h"
-#include "io.h"
 #include "points.h"
 #include "ph_scattering.h"
 #include "parser.h"

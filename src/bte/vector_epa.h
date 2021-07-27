@@ -126,12 +126,12 @@ class VectorEPA {
 
   /** Get and set operator
    */
-  double &operator()(const int iCalc, const int iDim, const int iState);
+  double &operator()(const int &iCalc, const int &iDim, const int &iState);
 
   /** Const get and set operator
    */
-  const double &operator()(const int iCalc, const int iDim,
-                           const int iState) const;
+  const double &operator()(const int &iCalc, const int &iDim,
+                           const int &iState) const;
 
   /** raw buffer containing the values of the vector
    *  The matrix has size (numCalculations, numStates), where numCalculations is the number

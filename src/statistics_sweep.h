@@ -83,8 +83,8 @@ class StatisticsSweep {
 
  protected:
   Particle particle;
-  int numCalcs = 0;
-  Eigen::MatrixXd infoCalcs;
+  int numCalculations = 0;
+  Eigen::MatrixXd infoCalculations;
   int nTemp = 0;
   int nChemPot = 0;
   int nDop = 0;

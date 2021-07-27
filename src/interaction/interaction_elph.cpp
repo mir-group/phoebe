@@ -152,7 +152,7 @@ InteractionElPhWan::getPolarCorrectionStatic(
           double gqDotZ = gVector(0) * bornCharges(iAt, 0, iPol) +
                           gVector(1) * bornCharges(iAt, 1, iPol) +
                           gVector(2) * bornCharges(iAt, 2, iPol);
-          int k = PhononH0::getIndexEigvec(iAt, iPol, numAtoms);
+          int k = PhononH0::getIndexEigenvector(iAt, iPol, numAtoms);
           for (int ib3 = 0; ib3 < numPhBands; ib3++) {
             x(ib3) += factor3 * gqDotZ * ev3(k, ib3);
           }

@@ -99,6 +99,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   const double energyCutoff = 0.001 / ryToCmm1; // discard states with small
   // energies (smaller than 0.001 cm^-1
 
+  // auxiliary variable for deciding how to apply low energy cutoff
+  bool outerEqualInnerMesh = false; // case of lifetimes on a path
+  if (&innerBandStructure == &outerBandStructure) {
+    // case of transport calculation
+    outerEqualInnerMesh = true;
+  }
+
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() &&
       outPopulations.empty()) {
@@ -126,7 +133,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   double norm = 1. / context.getQMesh().prod();
 
   // precompute Bose populations
-  int numOuterIrrStates = outerBandStructure.irrStateIterator().size();
+  auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerBose(numCalculations, numOuterIrrStates);
   outerBose.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -144,7 +151,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
   mpi->allReduceSum(&outerBose);
 
-  int numInnerIrrStates = innerBandStructure.irrStateIterator().size();
+  auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerBose(numCalculations, numInnerIrrStates);
   innerBose.setZero();
 #pragma omp parallel for default(none)                                         \
@@ -168,7 +175,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
                              statisticsSweep, smearing->getType(), h0);
   LoopPrint loopPrint("computing scattering matrix", "q-points",
-                      qPairIterator.size());
+                      int(qPairIterator.size()));
 
   /** Very important: the code must be executed with a loop over q2 outside
    * and a loop over q1 inside. This is because the 3-ph coupling must compute
@@ -185,12 +192,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
     Point q2Point = innerBandStructure.getPoint(iq2);
     Eigen::VectorXd energies2 = innerBandStructure.getEnergies(iq2Index);
-    int nb2 = energies2.size();
+    auto nb2 = int(energies2.size());
     Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
     Eigen::Vector3d q2 = innerBandStructure.getWavevector(iq2Index);
     Eigen::MatrixXcd ev2 = innerBandStructure.getEigenvectors(iq2Index);
 
-    int nq1 = iq1Indexes.size();
+    auto nq1 = int(iq1Indexes.size());
 
     auto t = innerBandStructure.getRotationToIrreducible(
         q2Point.getCoordinates(Points::cartesianCoordinates),
@@ -245,7 +252,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         Point q1Point = outerBandStructure.getPoint(iq1);
         Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
-        int nb1 = energies1.size();
+        auto nb1 = int(energies1.size());
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto tup1 = pointHelper.get(q1Point, q2Point, Helper3rdState::casePlus);
@@ -264,8 +271,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         q1_v[iq1Batch] = outerBandStructure.getWavevector(iq1Index);
         nb1_v[iq1Batch] = nb1;
-        nb3Plus_v[iq1Batch] = energies3Plus.size();
-        nb3Minus_v[iq1Batch] = energies3Minus.size();
+        nb3Plus_v[iq1Batch] = int(energies3Plus.size());
+        nb3Minus_v[iq1Batch] = int(energies3Minus.size());
         ev1_v[iq1Batch] = outerBandStructure.getEigenvectors(iq1Index);
         ev3Plus_v[iq1Batch] = ev3Plus;
         ev3Minus_v[iq1Batch] = ev3Minus;
@@ -292,7 +299,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         auto couplingPlus = couplingPlus_v[iq1Batch];
         auto couplingMinus = couplingMinus_v[iq1Batch];
         Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
-        int nb1 = energies1.size();
+        auto nb1 = int(energies1.size());
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
         auto energies3Plus = energies3Plus_v[iq1Batch];
@@ -334,12 +341,28 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
               double en3Plus = energies3Plus(ib3);
               double enProd = en1 * en2 * en3Plus;
-              if (enProd < energyCutoff) {
-                // Note: don't split this if with three conditions on energies
-                // such as (en3Plus < energyCutoff || en1 < energyCutoff ||
-                // en2 < energyCutoff)
-                // This can cause spikes in the lifetimes.in examples!
-                continue;
+
+              // block description:
+              // we have two cases;
+              // 1) if we are doing transport calculations,
+              //    we apply the cutoff cutting away low energy phonons
+              //    with the cutoff imposed on each of the three energies
+              // 2) however, when computing lifetimes e.g. on a path, we impose
+              //    the criterion on the product of the three energies.
+              //    This is done to avoid large spikes in lifetimes along a path
+              //    which can appear when the q' mesh has a very small offset
+              //    that integrates very differently from q' mesh with large
+              //    offset. Note anyway that the difference between the two
+              //    criteria should disappear when huge q-meshes are used
+              if (outerEqualInnerMesh) {
+                if (en1 < energyCutoff || en2 < energyCutoff ||
+                    en3Plus < energyCutoff) {
+                  continue;
+                }
+              } else {
+                if (enProd < energyCutoff) {
+                  continue;
+                }
               }
 
               double deltaPlus;
@@ -429,12 +452,28 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
               double en3Minus = energies3Minus(ib3);
               double enProd = en1 * en2 * en3Minus;
-              if (enProd < energyCutoff) {
-                // Note: don't split this if with three conditions on energies
-                // such as (en3Minus < energyCutoff || en1 < energyCutoff ||
-                // en2 < energyCutoff)
-                // This can cause spikes in the lifetimes.in examples!
-                continue;
+
+              // block description:
+              // we have two cases;
+              // 1) if we are doing transport calculations,
+              //    we apply the cutoff cutting away low energy phonons
+              //    with the cutoff imposed on each of the three energies.
+              // 2) however, when computing lifetimes e.g. on a path, we impose
+              //    the criterion on the product of the three energies.
+              //    This is done to avoid large spikes in lifetimes along a path
+              //    which can appear when the q' mesh has a very small offset
+              //    that integrates very differently from q' mesh with large
+              //    offset. Note anyway that the difference between the two
+              //    criteria should disappear when huge q-meshes are used
+              if (outerEqualInnerMesh) {
+                if (en1 < energyCutoff || en2 < energyCutoff ||
+                    en3Minus < energyCutoff) {
+                  continue;
+                }
+              } else {
+                if (enProd < energyCutoff) {
+                  continue;
+                }
               }
 
               double deltaMinus1, deltaMinus2;
@@ -545,7 +584,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
       WavevectorIndex iq2Index(iq2);
       Eigen::VectorXd state2Energies = innerBandStructure.getEnergies(iq2Index);
-      int nb2 = state2Energies.size();
+      auto nb2 = int(state2Energies.size());
       Eigen::Tensor<std::complex<double>, 3> ev2 =
           innerBandStructure.getPhEigenvectors(iq2Index);
       Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
@@ -568,7 +607,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         Eigen::VectorXd state1Energies =
             outerBandStructure.getEnergies(iq1Index);
-        int nb1 = state1Energies.size();
+        auto nb1 = int(state1Energies.size());
         Eigen::Tensor<std::complex<double>, 3> ev1 =
             outerBandStructure.getPhEigenvectors(iq1Index);
         Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
@@ -697,8 +736,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   if (switchCase == 1) {
-    for (unsigned int i = 0; i < outPopulations.size(); i++) {
-      mpi->allReduceSum(&outPopulations[i].data);
+    for (auto & outPopulation : outPopulations) {
+      mpi->allReduceSum(&outPopulation.data);
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
@@ -785,8 +824,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (switchCase == 1) {
     // case of matrix-vector multiplication
     for (auto iBte1 : excludeIndices) {
-      for (unsigned int i = 0; i < outPopulations.size(); i++) {
-        outPopulations[i].data.col(iBte1).setZero();
+      for (auto & outPopulation : outPopulations) {
+        outPopulation.data.col(iBte1).setZero();
       }
     }
 

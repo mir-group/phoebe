@@ -1,5 +1,5 @@
-#ifndef VECTORBTE_H
-#define VECTORBTE_H
+#ifndef VECTOR_BTE_H
+#define VECTOR_BTE_H
 
 #include "Matrix.h"
 #include "PMatrix.h"
@@ -19,7 +19,7 @@ public:
    * variables.
    * @param statisticsSweep: saves the info on how many temperatures/chemical
    * potentials we are evaluating.
-   * @param bandStructure: saves the underlying bandstructure for which we
+   * @param bandStructure: saves the underlying band structure for which we
    * compute the out-of-equilibrium populations.
    * @param dimensionality: determines the size of the vector on cartesian
    * indices. 1 for scalar quantities like linewidths Gamma(BlochIndices), 3
@@ -38,12 +38,12 @@ public:
 
   /** Get and set operator
    */
-  double &operator()(const int iCalc, const int iDim, const int iState);
+  double &operator()(const int &iCalc, const int &iDim, const int &iState);
 
   /** Const get and set operator
    */
-  const double &operator()(const int iCalc, const int iDim,
-                           const int iState) const;
+  const double &operator()(const int &iCalc, const int &iDim,
+                           const int &iState) const;
 
   /** Computes the scalar product between two VectorBTE objects.
    * The scalar product of x and y, is defined such as

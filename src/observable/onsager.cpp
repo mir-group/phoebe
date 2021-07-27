@@ -23,20 +23,20 @@ OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
     spinFactor = 2.;
   }
 
-  numCalcs = statisticsSweep.getNumCalculations();
+  numCalculations = statisticsSweep.getNumCalculations();
 
-  sigma.resize(numCalcs, dimensionality, dimensionality);
-  seebeck.resize(numCalcs, dimensionality, dimensionality);
-  kappa.resize(numCalcs, dimensionality, dimensionality);
-  mobility.resize(numCalcs, dimensionality, dimensionality);
+  sigma.resize(numCalculations, dimensionality, dimensionality);
+  seebeck.resize(numCalculations, dimensionality, dimensionality);
+  kappa.resize(numCalculations, dimensionality, dimensionality);
+  mobility.resize(numCalculations, dimensionality, dimensionality);
   sigma.setZero();
   seebeck.setZero();
   kappa.setZero();
   mobility.setZero();
-  LEE.resize(numCalcs, dimensionality, dimensionality);
-  LTE.resize(numCalcs, dimensionality, dimensionality);
-  LET.resize(numCalcs, dimensionality, dimensionality);
-  LTT.resize(numCalcs, dimensionality, dimensionality);
+  LEE.resize(numCalculations, dimensionality, dimensionality);
+  LTE.resize(numCalculations, dimensionality, dimensionality);
+  LET.resize(numCalculations, dimensionality, dimensionality);
+  LTT.resize(numCalculations, dimensionality, dimensionality);
   LEE.setZero();
   LTE.setZero();
   LET.setZero();
@@ -48,7 +48,7 @@ OnsagerCoefficients::OnsagerCoefficients(const OnsagerCoefficients &that)
     : statisticsSweep(that.statisticsSweep), crystal(that.crystal),
       bandStructure(that.bandStructure), context(that.context),
       dimensionality(that.dimensionality), spinFactor(that.spinFactor),
-      numCalcs(that.numCalcs), sigma(that.sigma), seebeck(that.seebeck),
+      numCalculations(that.numCalculations), sigma(that.sigma), seebeck(that.seebeck),
       kappa(that.kappa), mobility(that.mobility), LEE(that.LEE), LET(that.LET),
       LTE(that.LTE), LTT(that.LTT) {}
 
@@ -62,7 +62,7 @@ OnsagerCoefficients::operator=(const OnsagerCoefficients &that) {
     context = that.context;
     dimensionality = that.dimensionality;
     spinFactor = that.spinFactor;
-    numCalcs = that.numCalcs;
+    numCalculations = that.numCalculations;
     sigma = that.sigma;
     seebeck = that.seebeck;
     kappa = that.kappa;
@@ -87,7 +87,7 @@ void OnsagerCoefficients::calcFromEPA(
   LET.setZero();
   LTE.setZero();
   LTT.setZero();
-  for (int iCalc = 0; iCalc < numCalcs; ++iCalc) {
+  for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
     double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
     double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
     for (int iBeta = 0; iBeta < dimensionality; ++iBeta) {
@@ -146,7 +146,7 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double en = energy - calcStat.chemicalPotential;
 
-      for (Eigen::Matrix3d r : rotations) {
+      for (const Eigen::Matrix3d& r : rotations) {
         Eigen::Vector3d thisNE = Eigen::Vector3d::Zero();
         Eigen::Vector3d thisNT = Eigen::Vector3d::Zero();
         for (int i : {0, 1, 2}) {
@@ -179,7 +179,7 @@ void OnsagerCoefficients::calcTransportCoefficients() {
   sigma = LEE;
   mobility = sigma;
 
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     Eigen::MatrixXd thisLEE(dimensionality, dimensionality);
     Eigen::MatrixXd thisLET(dimensionality, dimensionality);
     Eigen::MatrixXd thisLTE(dimensionality, dimensionality);
@@ -343,7 +343,7 @@ void OnsagerCoefficients::print() {
   std::string unitsSeebeck = "muV / K";
 
   std::cout << "\n";
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     double doping = calcStat.doping;
@@ -428,7 +428,7 @@ void OnsagerCoefficients::print(const int &iter) {
   strftime(s, 200, "%F, %T", p);
 
   std::cout << "Iteration: " << iter << " | " << s << "\n";
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     std::cout << std::fixed;
@@ -487,7 +487,7 @@ void OnsagerCoefficients::outputToJSON(const std::string &outFileName) {
   std::vector<std::vector<std::vector<double>>> mobilityOut;
   std::vector<std::vector<std::vector<double>>> kappaOut;
   std::vector<std::vector<std::vector<double>>> seebeckOut;
-  for (int iCalc = 0; iCalc < numCalcs; iCalc++) {
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
     // store temperatures
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
@@ -583,8 +583,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &scalingCG) {
   auto nEUnscaled = nE / scalingCG;
   auto nTUnscaled = nT / scalingCG;
-
-  int numCalculations = statisticsSweep.getNumCalculations();
 
   calcFromCanonicalPopulation(nEUnscaled, nTUnscaled);
 

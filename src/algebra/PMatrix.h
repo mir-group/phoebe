@@ -1,5 +1,5 @@
-#ifndef PMATRIX_H
-#define PMATRIX_H
+#ifndef P_MATRIX_H
+#define P_MATRIX_H
 
 #include <tuple>
 #include <vector>

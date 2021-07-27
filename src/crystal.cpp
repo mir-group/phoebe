@@ -49,8 +49,8 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   speciesMasses = speciesMasses_;
   speciesNames = speciesNames_;
 
-  numAtoms = atomicPositions.rows();
-  numSpecies = speciesNames.size();
+  numAtoms = int(atomicPositions.rows());
+  numSpecies = int(speciesNames.size());
 
   Eigen::VectorXd atomicMasses_(numAtoms);
   std::vector<std::string> atomicNames_(numAtoms);
@@ -233,7 +233,7 @@ Crystal::calcReciprocalCell(const Eigen::Matrix3d &directUnitCell) {
   return reciprocalCell;
 }
 
-void Crystal::setDirectUnitCell(Eigen::Matrix3d directUnitCell_) {
+void Crystal::setDirectUnitCell(const Eigen::Matrix3d &directUnitCell_) {
   directUnitCell = directUnitCell_;
   reciprocalUnitCell = calcReciprocalCell(directUnitCell);
 }
@@ -361,7 +361,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   }
 
   // now we store the list of these lattice vectors in the class members
-  int numPositionVectors = tmpVectors.size();
+  auto numPositionVectors = int(tmpVectors.size());
   Eigen::VectorXd positionDegeneracies(numPositionVectors);
   Eigen::MatrixXd positionVectors(3, numPositionVectors);
   int originIndex = -1; // to look for R=0 vector
@@ -407,7 +407,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   if (shift.rows() != 3) {
     Error("shift should have at least 3 cartesian coordinates");
   }
-  int shiftDims = shift.cols();
+  auto shiftDims = int(shift.cols());
 
   int nx = superCellFactor;
 
@@ -493,7 +493,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
         }
       }
 
-      tmpNumPoints(iDim, jDim) = tmpVectors.size();
+      tmpNumPoints(iDim, jDim) = int(tmpVectors.size());
       for (unsigned int iR = 0; iR < tmpVectors.size(); iR++) {
         tmpDegeneraciesAll(iDim, jDim, iR) = tmpDegeneracies[iR];
         for (int i : {0, 1, 2}) {
@@ -527,7 +527,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
       }
     }
   }
-  int numVectors = tmpVectors.size();
+  int numVectors = int(tmpVectors.size());
 
   // save the degeneracies in a smaller tensor
   Eigen::Tensor<double, 3> degeneracies(shiftDims, shiftDims, numVectors);

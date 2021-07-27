@@ -1,6 +1,6 @@
 #include "SMatrix.h"
 
-// Explict specialization of BLAS matrix-matrix mult for SerialMatrix<complex<double>>
+// Explict specialization of BLAS matrix-matrix product for SerialMatrix<complex<double>>
 template <>
 SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
     const SerialMatrix<std::complex<double>>& that, const char& trans1,
@@ -17,7 +17,7 @@ SerialMatrix<std::complex<double>> SerialMatrix<std::complex<double>>::prod(
   return ret;
 }
 
-// Explicit specializiation of BLAS matrix-matrix mult for SerialMatrix<double>
+// Explicit specialization of BLAS matrix-matrix product for SerialMatrix<double>
 template <>
 SerialMatrix<double> SerialMatrix<double>::prod(const SerialMatrix<double>& that,
                                     const char& trans1, const char& trans2) {
@@ -40,8 +40,8 @@ SerialMatrix<std::complex<double>>::diagonalize() {
   if (numRows_ != numCols_) {
     Error("Can not diagonalize non-square matrix");
   }
-  std::vector<double> eigvals(numRows_);
-  SerialMatrix<std::complex<double>> eigvecs(numRows_, numCols_);
+  std::vector<double> eigenvalues(numRows_);
+  SerialMatrix<std::complex<double>> eigenvectors(numRows_, numCols_);
 
   // throw away variables
   SerialMatrix<std::complex<double>> temp;
@@ -55,13 +55,13 @@ SerialMatrix<std::complex<double>>::diagonalize() {
   std::vector<double> rwork(rworkSize);
   int info;
 
-  zheev_(&jobz, &uplo, &numRows_, temp.mat, &numRows_, &eigvals[0], &work[0], &lwork,
+  zheev_(&jobz, &uplo, &numRows_, temp.mat, &numRows_, &eigenvalues[0], &work[0], &lwork,
          &rwork[0], &info);
 
   if (info != 0) {
     Error("ZHEEV failed in SMatrix.", info);
   }
-  return {eigvals, eigvecs};
+  return {eigenvalues, eigenvectors};
 }
 
 // Diagonalize for real double symmetric matrix
@@ -70,8 +70,8 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   if (numRows_ != numCols_) {
     Error("Can not diagonalize non-square matrix");
   }
-  std::vector<double> eigvals(numRows_);
-  SerialMatrix<double> eigvecs = *this;
+  std::vector<double> eigenvalues(numRows_);
+  SerialMatrix<double> eigenvectors = *this;
   // throw away variables
 
   char jobz = 'V';
@@ -80,13 +80,13 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   std::vector<double> work(lwork);
   int info;
 
-  dsyev_(&jobz, &uplo, &numRows_, eigvecs.mat, &numRows_, &eigvals[0], &work[0],
+  dsyev_(&jobz, &uplo, &numRows_, eigenvectors.mat, &numRows_, &eigenvalues[0], &work[0],
          &lwork, &info);
 
   if (info != 0) {
     Error("DSYEV failed in SMatrix.", info);
   }
-  return {eigvals, eigvecs};
+  return {eigenvalues, eigenvectors};
 }
 
 // Explicit specialization of norm for doubles

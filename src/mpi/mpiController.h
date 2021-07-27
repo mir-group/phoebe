@@ -1,5 +1,5 @@
-#ifndef MPICONTROLLER_H
-#define MPICONTROLLER_H
+#ifndef MPI_CONTROLLER_H
+#define MPI_CONTROLLER_H
 
 #include <chrono>
 #include <complex>

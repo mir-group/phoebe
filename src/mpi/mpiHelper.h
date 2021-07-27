@@ -1,5 +1,5 @@
-#ifndef MPIHELPER_H
-#define MPIHELPER_H
+#ifndef MPI_HELPER_H
+#define MPI_HELPER_H
 
 #include "mpiController.h"
 

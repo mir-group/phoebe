@@ -104,12 +104,12 @@ class PhononH0 : public HarmonicHamiltonian {
    * @param iPol: polarization index (0,1,2).
    * @return k: index to be used in the phonon eigenvector.
    */
-  int getIndexEigvec(const int &iAt, const int &iPol) const;
+  int getIndexEigenvector(const int &iAt, const int &iPol) const;
 
-  /** same as getIndexEigvec, but as a static member
+  /** same as getIndexEigenvector, but as a static member
    * @param nAtoms: the number of atoms in the unit cell
    */
-  static int getIndexEigvec(const int &iAt, const int &iPol, const int &nAtoms);
+  static int getIndexEigenvector(const int &iAt, const int &iPol, const int &nAtoms);
 
   /** Get the static dielectric constant matrix.
    * @return dielectricMatrix: a 3x3 eigen matrix.

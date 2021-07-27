@@ -5,8 +5,8 @@
 #include "eigen.h"
 #include "exceptions.h"
 
-const int crystalCoords_ = 0;
-const int cartesianCoords_ = 1;
+const int crystalCoordinates_ = 0;
+const int cartesianCoordinates_ = 1;
 
 //// Forward declarator of Points, because Point ants to store Points as member
 //// and Points has methods returning Point. Here we avoid recursive dependency.
@@ -22,8 +22,8 @@ public:
    * vector, used for example in sum or differences between wavevectors.
    * @param points: the points object that this Point object belongs to.
    */
-  Point(Points &points_, int index_,
-        Eigen::Vector3d umklappVector = Eigen::Vector3d::Zero());
+  Point(Points &points_, const int &index_,
+        const Eigen::Vector3d &umklappVector = Eigen::Vector3d::Zero());
 
   /** copy constructor
    */
@@ -38,7 +38,7 @@ public:
    * @param inWignerSeitz: default false, if true, folds point in WS cell.
    * @return coordinates: a 3d vector of coordinates
    */
-  Eigen::Vector3d getCoordinates(const int &basis = crystalCoords_,
+  Eigen::Vector3d getCoordinates(const int &basis = crystalCoordinates_,
                                  const bool &inWignerSeitz = false);
 
   /** Sum of two wavevectors (this + b)

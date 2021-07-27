@@ -47,19 +47,19 @@ std::tuple<double, double> memoryUsage() {
   // create some variables to get info
   std::string pid, comm, state, ppid, pgrp, session, tty_nr;
   std::string tpgid, flags, minflt, cminflt, majflt, cmajflt;
-  std::string utime, stime, cutime, cstime, priority, nice;
-  std::string O, itrealvalue, starttime;
-  unsigned long vsize;
+  std::string uTime, sTime, cuTime, csTime, priority, nice;
+  std::string O, itRealValue, startTime;
+  unsigned long vSize;
   long rss;
   stat_stream >> pid >> comm >> state >> ppid >> pgrp >> session >> tty_nr >>
-      tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt >> utime >>
-      stime >> cutime >> cstime >> priority >> nice >> O >> itrealvalue >>
-      starttime >> vsize >> rss; // don't care about the rest
+      tpgid >> flags >> minflt >> cminflt >> majflt >> cmajflt >> uTime >>
+      sTime >> cuTime >> csTime >> priority >> nice >> O >> itRealValue >>
+      startTime >> vSize >> rss; // don't care about the rest
   stat_stream.close();
   long page_size_kb = sysconf(_SC_PAGE_SIZE) /
                       1024; // for x86-64 is configured to use 2MB pages
-  vm_usage = vsize / 1024.0;
-  resident_set = rss * page_size_kb;
+  vm_usage = double(vSize) / 1024.0;
+  resident_set = double(rss) * double(page_size_kb);
 
   mpi->allReduceSum(&vm_usage);
   mpi->allReduceSum(&resident_set);

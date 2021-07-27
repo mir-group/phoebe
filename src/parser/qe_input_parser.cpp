@@ -822,7 +822,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   // now, we must read numVectors integers with the vector degeneracies
   // there can be only up to 15 numbers per line
   int numLines = numVectors / int(15);
-  if (double(numVectors) / 15. > 0.)
+  if(numVectors % 15 != 0)
     numLines += 1;
   Eigen::VectorXd vectorsDegeneracies(numVectors);
   vectorsDegeneracies.setZero();
