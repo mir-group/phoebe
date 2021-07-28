@@ -432,7 +432,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
     double x = pow(iPos * 3, 3) / pow(1024., 3) * sizeof(rx);
     if (mpi->mpiHead()) {
       std::cout << "Allocating " << x
-                << " (GB) (per MPI process) for the 3-ph coupling matrix.\n"
+                << " (GB) (per MPI process) for the 3-ph coupling matrix."
                 << std::endl;
     }
   }
