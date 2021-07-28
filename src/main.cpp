@@ -1,9 +1,9 @@
 #include "app.h"
 #include "context.h"
 #include "io.h"
+#include "main.h"
 #include "mpi/mpiHelper.h"
 #include <Kokkos_Core.hpp>
-
 
 int main(int argc, char **argv) {
 

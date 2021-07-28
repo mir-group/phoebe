@@ -11,7 +11,9 @@ endif()
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 14)
 
-project(Phoebe C CXX Fortran)
+project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
+
+configure_file(src/main.h.in ../src/main.h)
 
 ## load custom cmake find_package
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
