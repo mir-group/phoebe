@@ -349,13 +349,11 @@ As a result, we can increase the values of :ref:`qMesh`, so that we can accurate
 Calculation of Harmonic-Only Phonopy Dispersion
 -------------------------------------------------
 
-It can be helpful to check the quality of the harmonic phonons before running the full anharmonic calculation. To generate only the harmonic displacements, we can use phonopy (rather than phono3py) to do the following::
+It can be helpful to check the quality of the harmonic phonons before running the full anharmonic calculation. If you want to generate just the ``fc2.hdf5`` file and plot the dispersion with Phoebe, run::
 
-If you want to generate a ``fc2.hdf5`` file and plot the dispersion with Phoebe, run::
+  phono3py --qe -d --dim_fc2="2 2 2" --dim="1 1 1" -c <input-file-name>
 
-  phono3py --qe -d --dim_fc2="x x x" --dim="x x x" -c <input-file-name>
-
-And run scf calculations for the supercell input files with "fc2" in the name (no need to run the rest). Then, to collect the files, and generate the ``fc2.hdf5`` file, run::
+where for this case, ``dim`` doesn't matter, as we won't be running those displacements. Now, run the scf calculations for the supercell input files with "fc2" in the name (no need to run the rest). Then, to collect the files, and generate the ``fc2.hdf5`` file, run::
 
   phono3py --cf2 disp_fc2-{00001..nCalculations}/<output-file-name>
   phono3py --dim_fc2="x x x" -c <input-file-name> --sym-fc
@@ -374,11 +372,11 @@ To use the harmonic phonons in Phoebe for the bands or dos apps, the files outpu
   ...
   end point path
 
-And can be run using Phoebe as mentioned above::
+This file can be run using Phoebe (using the below command as usual), then plotted with the ``bands.py`` script as in the :ref:`postprocessing` section.
+
 
   mpirun -np 1 /path/to/phoebe -in phononBands.in
 
-And plotted with the ``bands.py`` script as in the :ref:`postprocessing` section.
 
 ----------------------
 
@@ -401,5 +399,33 @@ To plot the dispersion, we'll need a ``band.conf`` file, which should contain at
 Then, run the following line and check the output plot, named ``band.pdf``::
 
   phonopy --<DFT-package-name> -p -s band.conf -c <input-file-name>
+
+
+
+.. _different_supercells_ph:
+
+Running Phoebe with different fc2/fc3 supercells
+-------------------------------------------------
+Sometimes, one needs a larger supercell to converge the harmonic force constants than the anharmonic force constants. In this case, it is possible to run phono3py with different unit cells for the harmonic and anharmonic phonon force constant calculations, as shown in this `phono3py example <https://phonopy.github.io/phono3py/vasp.html>`__. 
+
+If you ran the phono3py calculation with different sized unit cells, you will generate a slightly different set of files,
+
+  * ``disp_fc2.yaml``
+  * ``disp_fc3.yaml``
+  * ``phono3py_disp.yaml``
+  * ``fc2.hdf5``
+  * ``fc3.hdf5``
+
+Where we can see ``disp_fc2.yaml`` is new. To run a Phoebe calculation with different unit cells, one simply needs to slightly alter the way the input files are supplied to the calculation. Simply subsitute the following lines for those typically used to specify file locations in your Phoebe input file::
+
+  # displacement information files
+  # note, dispFC2FileName is a new variable
+  phonopyDispFileName = "phono3py_disp.yaml"
+  dispFCFileName = "disp_fc3.yaml"
+  dispFC2FileName = "disp_fc2.yaml"
+  # force constant files, as usual
+  phD2FileName = "fc2.hdf5"
+  phD3FileName = "fc3.hdf5"
+
 
 
