@@ -1558,13 +1558,10 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       // determine the number of bunches. The last bunch may be smaller
       // than the rest
       int numDatasets = irEBunchSizes.size();
-      std::cout << "numDatasets size irEBunchSizes[0] " << numDatasets << " "
-                << size << " " << irEBunchSizes[0] << std::endl;
 
       // we now loop over these data sets, and write each chunk of
       // bravais vectors in parallel
-      int netOffset =
-          0; // the offset from the first bunch in this set to the current bunch
+      int netOffset = 0; // offset from first bunch in this set to current bunch
       for (int iBunch = 0; iBunch < numDatasets; iBunch++) {
 
         // we need to determine the start, stop and offset of this
@@ -1574,10 +1571,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         size_t bunchStop = bunchStart + bunchElements;
         size_t bunchOffset = offset + netOffset;
         netOffset += bunchElements;
-        std::cout << "rank elements bunchStart Stop netOffset bunchOffset "
-                  << mpi->getRank() << " " << bunchElements << " " << bunchStart
-                  << " " << bunchStop << " " << netOffset << " " << bunchOffset
-                  << std::endl;
 
         Eigen::VectorXcd gwanSlice;
         if (matrixDistributed) {
