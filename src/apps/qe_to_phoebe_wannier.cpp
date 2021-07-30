@@ -1488,122 +1488,104 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     // go out of scope, so that it can be reopened/written by head for the
     // small quantities as in the next block.
 #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
-    {
-      // open the hdf5 file
-      HighFive::File file(
-          outFileName, HighFive::File::Overwrite,
-          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-      // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
-      // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
-      // In order to be compatible with older versions, we split the tensor
-      // into smaller chunks and write them to separate datasets
-      // slower, but it will work more often.
+  {
+    // open the hdf5 file
+    HighFive::File file(outFileName, HighFive::File::Overwrite,
+        HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-      std::vector<int> irEIndices = mpi->divideWorkIter(numElBravaisVectors);
-      for (int irE=0; irE<numElBravaisVectors; irE++) {
+    // flatten the tensor (tensor is not supported) and create the data set
+    Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
+        gWannier.data(), gWannier.size());
 
-        bool iOwnIt = false;
-        if ( std::find(irEIndices.begin(), irEIndices.end(), irE) != irEIndices.end() ) {
-          iOwnIt = true;
-        }
+    // note: gwan is distributed
+    unsigned int globalSize = numWannier * numWannier * numModes *
+                               numPhBravaisVectors * numElBravaisVectors;
 
-        int irELocal;
-        if (matrixDistributed) {
-          irELocal = irE - irEIndices[0];
-        } else {
-          irELocal = irE;
-        }
+    // Create the data-space to write gWannier to
+    std::vector<size_t> dims(2);
+    dims[0] = 1;
+    dims[1] = size_t(globalSize);
+    HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
+         "/gWannier", HighFive::DataSpace(dims));
 
-        int vectorSize = numWannier * numWannier * numModes * numPhBravaisVectors;
+    // start point and the number of the total number of elements
+    // to be written by this process
+    int start = mpi->divideWorkIter(numElBravaisVectors)[0] * numWannier *
+                numWannier * numModes * numPhBravaisVectors;
+    int stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
+                   numWannier * numWannier * numModes *
+                    numPhBravaisVectors - 1;
+    size_t offset = start;
+    size_t numElements = stop - start + 1;
 
-        // Create the data-space to write gWannier to
-        std::vector<size_t> dims(2);
-        dims[0] = size_t(1);
-        dims[1] = size_t(vectorSize);
-        std::string thisName = "/gWannier_" + std::to_string(irE);
-        HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
-            thisName, HighFive::DataSpace(dims));
+    //if(mpi->mpiHead()) std::cout << "numElements start stop offset numBVS" << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
 
-        int counter = 0;
-        Eigen::VectorXcd gVec(vectorSize);
-        gVec.setZero();
-        if ( iOwnIt ) {
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int nu = 0; nu < numModes; nu++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                  gVec(counter) = gWannier(iw1, iw2, nu, irP, irELocal);
-                  counter++;
-                }
-              }
-            }
-          }
-        }
-        mpi->allReduceSum(&gVec);
+    // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
+    // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
+    // In order to be compatible with older versions, we split the tensor
+    // into smaller chunks and write them to separate datasets
+    // slower, but it will work more often.
 
-        //    // select the tensor at fixed irE
-        //    // gWannier(numWannier,numWannier,numModes,numPhDegeneracies,numElDegeneracies)
-        //    std::array<long,5> gOffset = {0,0,0,0,irELocal};
-        //    std::array<long,5> gExtent = {numWannier,numWannier,numModes,numPhBravaisVectors,irELocal+1};
-        //    std::array<long,4> gShape = {numWannier,numWannier,numModes,numPhBravaisVectors};
-        //    Eigen::Tensor<std::complex<double>,4> gSlice = gWannier.slice(gOffset,gExtent).reshape(gShape);
-        //
-        //    // reshape the tensor into a vector (supported by highfive)
-        //    Eigen::VectorXcd gVec = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-        //        gSlice.data(), gSlice.size());
+    // maxSize represents 2GB worth of std::complex<doubles>, since that's what we write
+    auto maxSize = int(pow(1000,3))/sizeof(std::complex<double>);
+    int smallestSize = numWannier * numWannier * numModes * numPhBravaisVectors;
+    int size,irEBunchSize;
+    std::vector<int> irEBunchSizes;
 
-        //write to file
-        dgwannier.write(gVec);
-      }
-
-      // this is a block of code that would write the whole el-ph tensor in a
-      // single dataset, but we don't use it due to limitations of some
-      // versions of HDF5 for large files. We leave it here just in case
-      if ( false ) {
-        // flatten the tensor (tensor is not supported) and create the data set
-        Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-            gWannier.data(), gWannier.size());
-
-        // note: gwan is distributed
-        unsigned int globalSize = numWannier * numWannier * numModes *
-                                  numPhBravaisVectors * numElBravaisVectors;
-
-        // Create the data-space to write gWannier to
-        std::vector<size_t> dims(2);
-        dims[0] = 1;
-        dims[1] = size_t(globalSize);
-        HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
-            "/gWannier", HighFive::DataSpace(dims));
-
-        // start point and the number of elements to be written by this process
-        int start = mpi->divideWorkIter(numElBravaisVectors)[0] * numWannier *
-                    numWannier * numModes * numPhBravaisVectors;
-        int stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
-                       numWannier * numWannier * numModes *
-                       numPhBravaisVectors - 1;
-        size_t offset = start;
-        size_t numElements = stop - start + 1;
-
-        Eigen::VectorXcd gwanSlice;
-        if (matrixDistributed) {
-          // here, no need to slice the gwan tensor (it's already distributed)
-          // but we have to use the right offsets to identify tensor elements.
-          gwanSlice = gwan;
-        } else {
-          // here we slice the gWannier tensor (it's not distributed)
-          gwanSlice.resize(numElements);
-          gwanSlice = gwan(Eigen::seq(start, stop));
-        }
-
-        // Each process writes to hdf5
-        // The format is ((startRow,startCol),(numRows,numCols)).write(data)
-        // Because it's a vector (1 row) all processes write to row=0,
-        // col=startPoint
-        // with nRows = 1, nCols = number of items this process will write.
-        dgwannier.select({0, offset}, {1, numElements}).write(gwanSlice);
+    // determine the size of each bunch of electronic bravais vectors
+    // the BunchSizes vector tells us how many are in each set
+    size = mpi->divideWorkIter(numElBravaisVectors).back() + 1 - mpi->divideWorkIter(numElBravaisVectors)[0];
+    for (int irE=0; irE<size; irE++) {
+      irEBunchSize = irE + 1;
+      // this bunch is as big as possible, stop adding to it
+      if ( (irEBunchSize + 1) * smallestSize > maxSize ) {
+        irEBunchSizes.push_back(irEBunchSize);
+        break;
       }
     }
+    // push the last one, no matter the size, to the list of bunch sizes
+    irEBunchSizes.push_back(irEBunchSize);
+
+    // determine the number of bunches. The last bunch may be smaller
+    // than the rest
+    int numDatasets = irEBunchSizes.size();
+    //std::cout << "numDatasets size irEBunchSizes[0] " << numDatasets << " " << size << " " << irEBunchSizes[0] << std::endl;
+
+    // we now loop over these data sets, and write each chunk of
+    // bravais vectors in parallel
+    int netOffset = 0; // the offset from the first bunch in this set to the current bunch
+    for (int iBunch=0; iBunch<numDatasets; iBunch++) {
+
+      // we need to determine the start, stop and offset of this
+      // sub-slice of the dataset available to this process
+      size_t bunchElements = irEBunchSizes[iBunch]*smallestSize;
+      size_t bunchStart = start + netOffset;
+      size_t bunchStop =  bunchStart + bunchElements;
+      netOffset += bunchElements;
+      size_t bunchOffset = offset + netOffset;
+      //std::cout << "rank elements bunchStart Stop netOffset bunchOffset " << mpi->getRank() << " " <<  bunchElements << " " << bunchStart << " " << bunchStop << " " << netOffset << " " << bunchOffset << std::endl;
+
+      Eigen::VectorXcd gwanSlice;
+      if (matrixDistributed) {
+        // here, no need to slice the gwan tensor (it's already distributed)
+        // but we have to use the right offsets to identify tensor elements.
+        gwanSlice = gwan;
+      } else {
+        // here we slice the gWannier tensor (it's not distributed)
+        gwanSlice.resize(numElements);
+        gwanSlice = gwan(Eigen::seq(bunchStart, bunchStop));
+      }
+
+      // Each process writes to hdf5
+      // The format is ((startRow,startCol),(numRows,numCols)).write(data)
+      // Because it's a vector (1 row) all processes write to row=0,
+      // col=startPoint
+      // with nRows = 1, nCols = number of items this process will write.
+      dgwannier.select({0, bunchOffset}, {1, bunchElements}).write(gwanSlice);
+
+    }
+
 #else
     { // do not remove these braces, see above note.
       // case where mpi exists, but HDF5 was built serially
