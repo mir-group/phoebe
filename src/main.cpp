@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
   // here launch parallel environment
   // Call proxy function from MPI Helper, which makes mpi object
   // globally available.
-  initMPI();
+  initMPI(argc, argv);
   Kokkos::initialize(argc, argv);
 
   // setup input/output

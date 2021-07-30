@@ -2,13 +2,14 @@
 #include <chrono>
 #include <iostream>
 #include <vector>
+#include "utilities.h"
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
 #endif
 
 // default constructor
-MPIcontroller::MPIcontroller() {
+MPIcontroller::MPIcontroller(int argc, char *argv[]) {
 
 #ifdef MPI_AVAIL
   // start the MPI environment
@@ -27,6 +28,50 @@ MPIcontroller::MPIcontroller() {
   // get rank of current process
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+
+
+  // create groups
+
+  int tmpPoolSize = 1;
+  // first parse the poolSize from the command line
+  for (int i=0; i<argc; i++) {
+    if (std::string(argv[i]) == "-ps" || std::string(argv[i]) == "-poolSize") {
+      if (i == argc-1) {
+        Error("Error in correctly specifying poolSize on the command line");
+      }
+      bool isDigits = std::string(argv[i+1]).find_first_not_of("0123456789") == std::string::npos;
+      if ( !isDigits ) {
+        std::cout << "poolSize on command line has non-digits\n";
+        exit(1);
+      }
+      tmpPoolSize = std::stoi(std::string(argv[i + 1]));
+    }
+  }
+  if (tmpPoolSize == 0) {
+    std::cout << "poolSize must be at least 1\n";
+    exit(1);
+  }
+  if (mod(size, tmpPoolSize) != 0) {
+    std::cout << "poolSize isn't an exact divisor of the # of MPI processes\n";
+    exit(1);
+  }
+
+  // now split MPI processes in groups of size "poolSize"
+  // https://mpitutorial.com/tutorials/introduction-to-groups-and-communicators/
+  int color = rank / tmpPoolSize; // Determine color based on row
+  // Split the communicator based on the color and use the
+  // original rank for ordering
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &MPI_POOL_COMM);
+  // initiate rank and size
+  MPI_Comm_rank(MPI_POOL_COMM, &poolRank);
+  MPI_Comm_size(MPI_POOL_COMM, &poolSize);
+
+  // check results are as expected
+  if ( poolSize != tmpPoolSize ) {
+    std::cout << "Unexpected MPI split result\n";
+    exit(1);
+  }
+
   // start a timer
   startTime = MPI_Wtime();
 
@@ -35,7 +80,17 @@ MPIcontroller::MPIcontroller() {
   size = 1;
   rank = 0;
   startTime = std::chrono::steady_clock::now();
+  poolSize = 1;
+  poolRank = 0;
 #endif
+}
+
+MPI_Comm MPIcontroller::intraPool() {
+  return MPI_POOL_COMM;
+}
+
+MPI_Comm MPIcontroller::interPool() {
+  return MPI_COMM_WORLD;
 }
 
 void MPIcontroller::finalize() const {

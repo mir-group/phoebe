@@ -8,8 +8,8 @@
 MPIcontroller *mpi = nullptr;
 
 // A function to set up the mpi env by creating the controller object.
-void initMPI() {
-  mpi = new MPIcontroller();
+void initMPI(int argc, char *argv[]) {
+  mpi = new MPIcontroller(argc, argv);
 }
 
 void deleteMPI() {
