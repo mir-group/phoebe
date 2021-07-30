@@ -51,7 +51,7 @@ class MPIcontroller {
    *  @param dataIn: pointer to data structure to broadcast
    */
   template <typename T>
-  void bcast(T* dataIn) const;
+  void bcast(T* dataIn, const int& bCaster=0) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank.
@@ -291,7 +291,7 @@ namespace mpiContainer {
 
 // Collective communications functions -----------------------------------
 template <typename T>
-void MPIcontroller::bcast(T* dataIn) const {
+void MPIcontroller::bcast(T* dataIn, const int& bcaster) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
@@ -299,7 +299,7 @@ void MPIcontroller::bcast(T* dataIn) const {
 
   errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
                       containerType<T>::getSize(dataIn),
-                      containerType<T>::getMPItype(), mpiHeadId, MPI_COMM_WORLD);
+                      containerType<T>::getMPItype(), bcaster, MPI_COMM_WORLD);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
