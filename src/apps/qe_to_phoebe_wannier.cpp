@@ -1529,7 +1529,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
 
     // maxSize represents 2GB worth of std::complex<doubles>, since that's what we write
     auto maxSize = int(pow(1000,3))/sizeof(std::complex<double>);
-    int smallestSize = numWannier * numWannier * numModes * numPhBravaisVectors;
+    size_t smallestSize = numWannier * numWannier * numModes * numPhBravaisVectors;
     int size,irEBunchSize;
     std::vector<int> irEBunchSizes;
 
@@ -1585,6 +1585,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       dgwannier.select({0, bunchOffset}, {1, bunchElements}).write(gwanSlice);
 
     }
+  }
 
 #else
     { // do not remove these braces, see above note.
