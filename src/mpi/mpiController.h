@@ -98,6 +98,8 @@ class MPIcontroller {
    */
   template <typename T>
   void allReduceMax(T* dataIn) const;
+  template <typename T>
+  void allReduceMaxPool(T* dataIn) const;
 
   /** Wrapper for MPI_Reduce which identifies the minimum of distributed data
    * @param dataIn: pointer to sent data from each rank.
@@ -453,6 +455,22 @@ void MPIcontroller::allReduceMax(T* dataIn) const {
       MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
                     containerType<T>::getSize(dataIn),
                     containerType<T>::getMPItype(), MPI_MAX, MPI_COMM_WORLD);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+  #endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceMaxPool(T* dataIn) const {
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+  if (poolSize == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_MAX, poolCommunicator);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
