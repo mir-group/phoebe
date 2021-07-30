@@ -24,13 +24,16 @@ class MPIcontroller {
  private:
 
   // default comm "MPI_COMM_WORLD"
-  int size = 0;  // number of MPI processses
+  int size = 0;  // number of MPI processes
   int rank;
   const int mpiHeadId = 0;
 
   int poolSize = 1;
   int poolRank = 0;
-  MPI_Comm MPI_POOL_COMM;
+#ifdef MPI_AVAIL
+  MPI_Comm poolCommunicator;
+  MPI_Comm worldCommunicator = MPI_COMM_WORLD;
+#endif
 
   // helper function used internally
   std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
@@ -55,8 +58,10 @@ class MPIcontroller {
    *  @param dataIn: pointer to data structure to broadcast
    */
   template <typename T>
-  void bcast(T* dataIn, const int& bCaster=0,
-             const MPI_Comm& communicator=MPI_COMM_WORLD) const;
+  void bcast(T* dataIn, const int& bCaster=0) const;
+
+  template <typename T>
+  void bcastPool(T* dataIn, const int& bCaster=0) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank.
@@ -70,7 +75,9 @@ class MPIcontroller {
    * Gets overwritten with the result of the MPI allreduce('SUM') operation.
    */
   template <typename T>
-  void allReduceSum(T* dataIn, const MPI_Comm& communicator=MPI_COMM_WORLD) const;
+  void allReduceSum(T* dataIn) const;
+  template <typename T>
+  void allReduceSumPool(T* dataIn) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank,
@@ -164,14 +171,26 @@ class MPIcontroller {
    * @return isRank: returns true if this rank is the head.
    */
   bool mpiHead() const { return rank == mpiHeadId; }
+
   /** Function to return the rank of a process.
    * @return rank: the rank of this process.
    */
-  int getRank() const { return rank; }
+  int getRank() const { return rank; };
+
   /** Function to return the number of ranks available.
    * @return size: number of ranks
    */
-  int getSize() const { return size; }
+  int getSize() const { return size; };
+
+  /** Function to return the rank of a process.
+ * @return rank: the rank of this process.
+ */
+  int getPoolRank() const { return poolRank; };
+
+  /** Function to return the number of ranks available.
+   * @return size: number of ranks
+   */
+  int getPoolSize() const { return poolSize; };
 
   // Error reporting and statistics
   void errorReport(int errCode) const;  // collect errors from processes and
@@ -187,9 +206,6 @@ class MPIcontroller {
    * @return divs: returns an iterator of points for the divided number of tasks.
    */
   std::vector<int> divideWorkIter(size_t numTasks);
-
-  MPI_Comm intraPool();
-  MPI_Comm interPool();
 };
 
 // we need to use the concept of a "type traits" object to serialize the
@@ -298,8 +314,7 @@ namespace mpiContainer {
 
 // Collective communications functions -----------------------------------
 template <typename T>
-void MPIcontroller::bcast(T* dataIn, const int& bcaster,
-                          const MPI_Comm& communicator) const {
+void MPIcontroller::bcast(T* dataIn, const int& bcaster) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
@@ -307,7 +322,24 @@ void MPIcontroller::bcast(T* dataIn, const int& bcaster,
 
   errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
                       containerType<T>::getSize(dataIn),
-                      containerType<T>::getMPItype(), bcaster, communicator);
+                      containerType<T>::getMPItype(), bcaster, worldCommunicator);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+#endif
+}
+
+// Collective communications functions -----------------------------------
+template <typename T>
+void MPIcontroller::bcastPool(T* dataIn, const int& bcaster) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (poolSize == 1) return;
+  int errCode;
+
+  errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
+                      containerType<T>::getSize(dataIn),
+                      containerType<T>::getMPItype(), bcaster, poolCommunicator);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
@@ -356,25 +388,6 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
 }
 
 template <typename T>
-void MPIcontroller::allReduceSum(T* dataIn, const MPI_Comm& communicator) const {
-  using namespace mpiContainer;
-  #ifdef MPI_AVAIL
-  if (size == 1) return;
-  if (communicator==MPI_POOL_COMM) {
-    if (poolSize == 1) return;
-  }
-  int errCode;
-  errCode =
-      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
-                    containerType<T>::getSize(dataIn),
-                    containerType<T>::getMPItype(), MPI_SUM, communicator);
-  if (errCode != MPI_SUCCESS) {
-    errorReport(errCode);
-  }
-  #endif
-}
-
-template <typename T>
 void MPIcontroller::reduceMax(T* dataIn) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
@@ -392,6 +405,38 @@ void MPIcontroller::reduceMax(T* dataIn) const {
         containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
         containerType<T>::getMPItype(), MPI_MAX, mpiHeadId, MPI_COMM_WORLD);
   }
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+#endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceSum(T* dataIn) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (size == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_SUM, worldCommunicator);
+  if (errCode != MPI_SUCCESS) {
+    errorReport(errCode);
+  }
+#endif
+}
+
+template <typename T>
+void MPIcontroller::allReduceSumPool(T* dataIn) const {
+  using namespace mpiContainer;
+#ifdef MPI_AVAIL
+  if (poolSize == 1) return;
+  int errCode;
+  errCode =
+      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_SUM, poolCommunicator);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }

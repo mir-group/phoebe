@@ -28,8 +28,6 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   // get rank of current process
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-
-
   // create groups
 
   int tmpPoolSize = 1;
@@ -61,10 +59,10 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   int color = rank / tmpPoolSize; // Determine color based on row
   // Split the communicator based on the color and use the
   // original rank for ordering
-  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &MPI_POOL_COMM);
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &poolCommunicator);
   // initiate rank and size
-  MPI_Comm_rank(MPI_POOL_COMM, &poolRank);
-  MPI_Comm_size(MPI_POOL_COMM, &poolSize);
+  MPI_Comm_rank(poolCommunicator, &poolRank);
+  MPI_Comm_size(poolCommunicator, &poolSize);
 
   // check results are as expected
   if ( poolSize != tmpPoolSize ) {
@@ -83,14 +81,6 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   poolSize = 1;
   poolRank = 0;
 #endif
-}
-
-MPI_Comm MPIcontroller::intraPool() {
-  return MPI_POOL_COMM;
-}
-
-MPI_Comm MPIcontroller::interPool() {
-  return MPI_COMM_WORLD;
 }
 
 void MPIcontroller::finalize() const {
