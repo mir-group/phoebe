@@ -1519,7 +1519,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     size_t offset = start;
     size_t numElements = stop - start + 1;
 
-    //if(mpi->mpiHead()) std::cout << "numElements start stop offset numBVS" << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
+    if(mpi->mpiHead()) std::cout << "numElements start stop offset numBVS" << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
 
     // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
     // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
@@ -1550,7 +1550,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     // determine the number of bunches. The last bunch may be smaller
     // than the rest
     int numDatasets = irEBunchSizes.size();
-    //std::cout << "numDatasets size irEBunchSizes[0] " << numDatasets << " " << size << " " << irEBunchSizes[0] << std::endl;
+    std::cout << "numDatasets size irEBunchSizes[0] " << numDatasets << " " << size << " " << irEBunchSizes[0] << std::endl;
 
     // we now loop over these data sets, and write each chunk of
     // bravais vectors in parallel
@@ -1562,9 +1562,9 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       size_t bunchElements = irEBunchSizes[iBunch]*smallestSize;
       size_t bunchStart = start + netOffset;
       size_t bunchStop =  bunchStart + bunchElements;
-      netOffset += bunchElements;
       size_t bunchOffset = offset + netOffset;
-      //std::cout << "rank elements bunchStart Stop netOffset bunchOffset " << mpi->getRank() << " " <<  bunchElements << " " << bunchStart << " " << bunchStop << " " << netOffset << " " << bunchOffset << std::endl;
+      netOffset += bunchElements;
+      std::cout << "rank elements bunchStart Stop netOffset bunchOffset " << mpi->getRank() << " " <<  bunchElements << " " << bunchStart << " " << bunchStop << " " << netOffset << " " << bunchOffset << std::endl;
 
       Eigen::VectorXcd gwanSlice;
       if (matrixDistributed) {
