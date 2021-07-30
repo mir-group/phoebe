@@ -452,64 +452,29 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         fileName, HighFive::File::ReadOnly,
         HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-    for (int irE = 0; irE<numElBravaisVectors; irE++) {
-      std::string thisName = "/gWannier_" + std::to_string(irE);
+    // get the start and stop points of elements to be written by this process
+    std::vector<int> workDivs = mpi->divideWork(totElems);
+    size_t localElems = workDivs[1] - workDivs[0];
 
-      // Set up buffer to be filled from hdf5
-      std::vector<std::complex<double>> gWanSlice(numElBands * numElBands * numPhBands * numPhBravaisVectors);
-      // Set up dataset for gWannier
-      HighFive::DataSet dgWannierSlice = file.getDataSet(thisName);
-      // Read in the elements for this process
-      dgWannierSlice.read(gWanSlice);
+    // Set up buffer to be filled from hdf5
+    std::vector<std::complex<double>> gWanSlice(localElems);
+    // Set up buffer to receive full matrix data
+    std::vector<std::complex<double>> gWanFlat(totElems);
 
-      // Map the flattened matrix back to tensor structure
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 4>> gWanMap(
-          gWanSlice.data(), numElBands, numElBands, numPhBands,
-          numPhBravaisVectors);
-      Eigen::Tensor<std::complex<double>, 4> gWanTemp = gWanMap;
+    // Set up dataset for gWannier
+    HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+    // Read in the elements for this process
+    dgWannier.select({0, size_t(workDivs[0])}, {1, localElems})
+        .read(gWanSlice);
 
-      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-        for (int nu = 0; nu < numPhBands; nu++) {
-          for (int iw2 = 0; iw2 < numElBands; iw2++) {
-            for (int iw1 = 0; iw1 < numElBands; iw1++) {
-              couplingWannier_(iw1, iw2, nu, irP, irE) = gWanTemp(iw1, iw2, nu, irP);
-            }
-          }
-        }
-      }
+    // Gather the elements read in by each process
+    mpi->allGatherv(&gWanSlice, &gWanFlat);
 
-    }
-
-
-    // uncomment this block when we are sure HDF5 supports datasets larger than
-    // 2Gb and we use a single dataset for everything. Check also
-    // the qe2Phoebe App for more details, where this file is created.
-    if ( false ) {
-
-      // get the start and stop points of elements to be written by this process
-      std::vector<int> workDivs = mpi->divideWork(totElems);
-      size_t localElems = workDivs[1] - workDivs[0];
-
-      // Set up buffer to be filled from hdf5
-      std::vector<std::complex<double>> gWanSlice(localElems);
-      // Set up buffer to receive full matrix data
-      std::vector<std::complex<double>> gWanFlat(totElems);
-
-      // Set up dataset for gWannier
-      HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
-      // Read in the elements for this process
-      dgWannier.select({0, size_t(workDivs[0])}, {1, localElems})
-          .read(gWanSlice);
-
-      // Gather the elements read in by each process
-      mpi->allGatherv(&gWanSlice, &gWanFlat);
-
-      // Map the flattened matrix back to tensor structure
-      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(
-          gWanFlat.data(), numElBands, numElBands, numPhBands,
-          numPhBravaisVectors, numElBravaisVectors);
-      couplingWannier_ = gWanTemp;
-    }
+    // Map the flattened matrix back to tensor structure
+    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(
+        gWanFlat.data(), numElBands, numElBands, numPhBands,
+        numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_ = gWanTemp;
 
 #else
     // Reopen serial version, either because MPI does not exist
@@ -521,35 +486,18 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     if (mpi->mpiHead()) {
       HighFive::File file(fileName, HighFive::File::ReadOnly);
 
-      for (int irE = 0; irE<numElBravaisVectors; irE++) {
-        std::string thisName = "/gWannier_" + std::to_string(irE);
-
-        // Set up buffer to be filled from hdf5
-        std::vector<std::complex<double>> gWanSlice(numElBands * numElBands * numPhBands * numPhBravaisVectors);
-        // Set up dataset for gWannier
-        HighFive::DataSet dgWannierSlice = file.getDataSet(thisName);
-        // Read in the elements for this process
-        dgWannierSlice.read(gWanSlice);
-
-        // Map the flattened matrix back to tensor structure
-        Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 4>> gWanMap(
-            gWanSlice.data(), numElBands, numElBands, numPhBands,
-            numPhBravaisVectors);
-        Eigen::Tensor<std::complex<double>, 4> gWanTemp = gWanMap;
-
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int iw2 = 0; iw2 < numElBands; iw2++) {
-              for (int iw1 = 0; iw1 < numElBands; iw1++) {
-                couplingWannier_(iw1, iw2, nu, irP, irE) = gWanTemp(iw1, iw2, nu, irP);
-              }
-            }
-          }
-        }
-      }
-
+      // Set up dataset for gWannier
+      HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+      // Read in the elements for this process
+      dgWannier.read(gWanFlat);
     }
-    mpi->bcast(&couplingWannier_);
+    mpi->bcast(&gWanFlat);
+
+    // Map the flattened matrix back to tensor structure
+    Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 5>> gWanTemp(
+        gWanFlat.data(), numElBands, numElBands, numPhBands,
+        numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_ = gWanTemp;
 
 #endif
 
