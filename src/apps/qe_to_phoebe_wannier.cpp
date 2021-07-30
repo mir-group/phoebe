@@ -1620,52 +1620,18 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         // open the hdf5 file
         HighFive::File file(outFileName, HighFive::File::Overwrite);
 
-        for (int irE=0; irE<numElBravaisVectors; irE++) {
-          int vectorSize = numWannier * numWannier * numModes * numPhBravaisVectors;
+        // flatten the tensor in a vector
+        Eigen::VectorXcd gwan =
+            Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(),
+                                                           gWannier.size());
 
-          // Create the data-space to write gWannier to
-          std::vector<size_t> dims(2);
-          dims[0] = size_t(1);
-          dims[1] = size_t(vectorSize);
-          std::string thisName = "/gWannier_" + std::to_string(irE);
-          HighFive::DataSet dgwannier = file.createDataSet<std::complex<double>>(
-              thisName, HighFive::DataSpace(dims));
+        // create dataset
+        HighFive::DataSet dgwannier =
+            file.createDataSet<std::complex<double>>(
+                "/gWannier", HighFive::DataSpace::From(gwan));
 
-          int counter = 0;
-          Eigen::VectorXcd gVec(vectorSize);
-          gVec.setZero();
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int nu = 0; nu < numModes; nu++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                  gVec(counter) = gWannier(iw1, iw2, nu, irP, irE);
-                  counter++;
-                }
-              }
-            }
-          }
-
-          //write to file
-          dgwannier.write(gVec);
-        }
-
-        // this block is the case that might fail for files larger than 2Gb
-        // although this problem shouldn't arise in the serial HDF5 version,
-        // since MPI is not called, we want nevertheless to keep the same
-        // file format as the parallel HDF5 case, for file portability.
-        if ( false ) {
-          // flatten the tensor (tensor is not supported) and create the data set
-          Eigen::VectorXcd gwan =
-              Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(gWannier.data(),
-                                                             gWannier.size());
-          HighFive::DataSet dgwannier =
-              file.createDataSet<std::complex<double>>(
-                  "/gWannier", HighFive::DataSpace::From(gwan));
-
-          // write to hdf5
-          dgwannier.write(gwan);
-        }
-
+        // write to hdf5
+        dgwannier.write(gwan);
       }
     }
 #endif
