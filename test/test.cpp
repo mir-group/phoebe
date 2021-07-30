@@ -7,7 +7,7 @@
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
-  initMPI();
+  initMPI(argc,argv);
   Kokkos::initialize(argc, argv);
 
   // mute messages from other than root rank
