@@ -398,7 +398,7 @@ void PhononThermalConductivity::outputToJSON(const std::string &outFileName) {
   } else if (dimensionality == 2) {
     units = "W / K";
   } else {
-    units = "W / m / K";
+    units = "W /(m K)";
   }
 
   std::vector<double> temps;
