@@ -83,6 +83,7 @@ class MPIcontroller {
    */
   template <typename T>
   void reduceSum(T* dataIn) const;
+
   /** Wrapper for MPI_Reduce which identifies the maximum of distributed data
    * @param dataIn: pointer to sent data from each rank.
    *       also acts as a receive buffer, as reduce is implemented IP.
@@ -173,22 +174,24 @@ class MPIcontroller {
   /** Function to return the rank of a process.
    * @return rank: the rank of this process.
    */
-  int getRank() const { return rank; };
+  int getRank(const int& communicator=worldComm) const {
+    if (communicator == worldComm) {
+      return rank;
+    } else {
+      return poolRank;
+    }
+  };
 
   /** Function to return the number of ranks available.
    * @return size: number of ranks
    */
-  int getSize() const { return size; };
-
-  /** Function to return the rank of a process.
- * @return rank: the rank of this process.
- */
-  int getPoolRank() const { return poolRank; };
-
-  /** Function to return the number of ranks available.
-   * @return size: number of ranks
-   */
-  int getPoolSize() const { return poolSize; };
+  int getSize(const int& communicator=worldComm) const {
+    if (communicator == worldComm) {
+      return size;
+    } else {
+      return poolSize;
+    }
+  };
 
   // Error reporting and statistics
   void errorReport(int errCode) const;  // collect errors from processes and
@@ -430,7 +433,7 @@ void MPIcontroller::allReduceMax(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   if (size == 1) return;
-  if (poolSize == 1) return;
+  if (communicator == poolComm && poolSize == 1) return;
 
   MPI_Comm comm = poolCommunicator;
   if (communicator == worldComm) {
