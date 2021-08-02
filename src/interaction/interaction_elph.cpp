@@ -579,7 +579,7 @@ void InteractionElPhWan::calcCouplingSquared(
           g1(irP, nu, iw1, iw2) = tmp;
         });
 #else
-    #pragma omp parallel
+    #pragma omp parallel default(none) shared(g1, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors,phases_k, couplingWannier_k)
     {
 #pragma omp for collapse(4)
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -644,7 +644,7 @@ void InteractionElPhWan::calcCouplingSquared(
   auto polarCorrections_h = Kokkos::create_mirror_view(polarCorrections);
 
 // precompute all needed polar corrections
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(polarCorrections_h, nb1, usePolarCorrections_h, numLoops, q3Cs, eigvecs2, eigvecs3, usePolarCorrection, nb2s_h, numPhBands, eigvec1)
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Vector3d q3C = q3Cs[ik];
 
@@ -682,7 +682,7 @@ void InteractionElPhWan::calcCouplingSquared(
         Kokkos::create_mirror_view(phBravaisVectorsDegeneracies_k);
     auto phBravaisVectors_h = Kokkos::create_mirror_view(phBravaisVectors_k);
 
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(eigvecs3_h, eigvecs2Dagger_h, nb2s_h, q3Cs_h, q3Cs_k, q3Cs, numLoops, numWannier, numPhBands, eigvecs2Dagger_k, eigvecs3_k, eigvecs2, eigvecs3)
     for (int ik = 0; ik < numLoops; ik++) {
       for (int i = 0; i < numWannier; i++) {
         for (int j = 0; j < nb2s_h(ik); j++) {
@@ -782,7 +782,7 @@ void InteractionElPhWan::calcCouplingSquared(
       });
   auto coupling_h = Kokkos::create_mirror_view(coupling_k);
   Kokkos::deep_copy(coupling_h, coupling_k);
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(numLoops, cacheCoupling, coupling_h, nb1, nb2s_h, numPhBands)
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Tensor<double, 3> coupling(nb1, nb2s_h(ik), numPhBands);
     for (int nu = 0; nu < numPhBands; nu++) {
