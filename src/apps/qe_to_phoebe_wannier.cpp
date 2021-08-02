@@ -463,10 +463,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   int numPhBravaisVectors = int(phBravaisVectors.cols());
   int numWannier = int(uMatrices.dimension(1));
 
-  std::array<Eigen::Index, 5> zeros;
-  for (auto &s : zeros) {
-    s = 0;
-  }
+  Eigen::array<Eigen::Index, 5> zeros({0,0,0,0,0});
 
   bool usePolarCorrection = false;
   Eigen::Matrix3d dielectricMatrix = phononH0.getDielectricMatrix();

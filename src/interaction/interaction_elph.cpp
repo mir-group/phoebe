@@ -1,4 +1,5 @@
 #include "interaction_elph.h"
+#include <Kokkos_Core.hpp>
 #include <fstream>
 
 #ifdef HDF5_AVAIL
@@ -44,6 +45,7 @@ InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
 InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
     : crystal(that.crystal), phononH0(that.phononH0),
       couplingWannier(that.couplingWannier),
+      couplingWannier_k(that.couplingWannier_k),
       elBravaisVectors(that.elBravaisVectors),
       elBravaisVectorsDegeneracies(that.elBravaisVectorsDegeneracies),
       phBravaisVectors(that.phBravaisVectors),
@@ -61,6 +63,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     crystal = that.crystal;
     phononH0 = that.phononH0;
     couplingWannier = that.couplingWannier;
+    couplingWannier_k = that.couplingWannier_k;
     elBravaisVectors = that.elBravaisVectors;
     elBravaisVectorsDegeneracies = that.elBravaisVectorsDegeneracies;
     phBravaisVectors = that.phBravaisVectors;
@@ -116,7 +119,7 @@ InteractionElPhWan::getPolarCorrectionStatic(
   // overlap = <U^+_{b2 k+q}|U_{b1 k}>
   //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
   Eigen::MatrixXcd overlap = ev2.adjoint() * ev1; // matrix size (nb2,nb1)
-  overlap = overlap.transpose(); // matrix size (nb1,nb2)
+  overlap = overlap.transpose();                  // matrix size (nb1,nb2)
 
   // auxiliary terms
   double gMax = 14.;
@@ -309,12 +312,12 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   context.setNumOccupiedStates(numElectrons);
 
   if (!mpi->mpiHead()) { // head already allocated these
-    phBravaisVectors_.resize(3, numElBravaisVectors);
-    phBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+    phBravaisVectors_.resize(3, numPhBravaisVectors);
+    phBravaisVectorsDegeneracies_.resize(numPhBravaisVectors);
     elBravaisVectors_.resize(3, numElBravaisVectors);
     elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                            numElBravaisVectors, numPhBravaisVectors);
+                            numPhBravaisVectors, numElBravaisVectors);
     phBravaisVectors_.setZero();
     phBravaisVectorsDegeneracies_.setZero();
     elBravaisVectors_.setZero();
@@ -414,7 +417,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       elBravaisVectors_.resize(3, numElBravaisVectors);
       elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
       couplingWannier_.resize(numElBands, numElBands, numPhBands,
-                              numElBravaisVectors, numPhBravaisVectors);
+                              numPhBravaisVectors, numElBravaisVectors);
       phBravaisVectors_.setZero();
       phBravaisVectorsDegeneracies_.setZero();
       elBravaisVectors_.setZero();
@@ -525,113 +528,267 @@ void InteractionElPhWan::calcCouplingSquared(
   int numLoops = eigvecs2.size();
   cacheCoupling.resize(0);
   cacheCoupling.resize(numLoops);
+  Kokkos::complex<double> complexI(0.0, 1.0);
+
+  auto elPhCached = this->elPhCached;
+  int numPhBands = this->numPhBands, numElBands = this->numElBands,
+      numElBravaisVectors = this->numElBravaisVectors,
+      numPhBravaisVectors = this->numPhBravaisVectors;
 
   if (k1C != cachedK1 || elPhCached.size() == 0) {
     cachedK1 = k1C;
 
-    Eigen::Tensor<std::complex<double>, 4> g1(numWannier, numWannier,
-                                              numPhBands, numPhBravaisVectors);
-    g1.setZero();
+    ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
+                     numWannier);
 
-    std::vector<std::complex<double>> phases(numElBravaisVectors);
+    ComplexView2D eigvec1_k("ev1", nb1, numWannier);
+    {
+      HostComplexView2D eigvec1_h((Kokkos::complex<double>*) eigvec1.data(), nb1, numWannier);
+      Kokkos::deep_copy(eigvec1_k, eigvec1_h);
+    }
+
+    ComplexView1D phases_k("phases", numElBravaisVectors);
+    auto phases_h = Kokkos::create_mirror_view(phases_k);
     for (int irE = 0; irE < numElBravaisVectors; irE++) {
       double arg = k1C.dot(elBravaisVectors.col(irE));
-      phases[irE] =
+      phases_h(irE) =
           exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
     }
-    for (int irE = 0; irE < numElBravaisVectors; irE++) {
+    Kokkos::deep_copy(phases_k, phases_h);
+
+    if(couplingWannier_k.extent(0)==0){
+      HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
+          numElBravaisVectors, numPhBravaisVectors,
+          numPhBands, numWannier, numWannier);
+      couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
+      Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
+    }
+    ComplexView5D couplingWannier_k = this->couplingWannier_k;
+#ifdef KOKKOS_ENABLE_CUDA
+    Kokkos::parallel_for(
+        "g1",
+        Range4D({0, 0, 0, 0},
+                {numPhBravaisVectors, numPhBands, numWannier, numWannier}),
+        KOKKOS_LAMBDA(int irP, int nu, int iw1, int iw2) {
+          Kokkos::complex<double> tmp(0.0);
+          for (int irE = 0; irE < numElBravaisVectors; irE++) {
+            // important note: the first index iw2 runs over the k+q transform
+            // while iw1 runs over k
+            tmp += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+          }
+          g1(irP, nu, iw1, iw2) = tmp;
+        });
+#else
+    #pragma omp parallel
+    {
+#pragma omp for collapse(4)
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
         for (int nu = 0; nu < numPhBands; nu++) {
           for (int iw1 = 0; iw1 < numWannier; iw1++) {
             for (int iw2 = 0; iw2 < numWannier; iw2++) {
-              // important note: the first index iw2 runs over the k+q transform
-              // while iw1 runs over k
-              g1(iw2, iw1, nu, irP) +=
-                  couplingWannier(iw2, iw1, nu, irP, irE) * phases[irE];
+              g1(irP, nu, iw1, iw2) = 0.0;
             }
           }
         }
       }
-    }
-
-    elPhCached.resize(numWannier, nb1, numPhBands, numPhBravaisVectors);
-    elPhCached.setZero();
-
-    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-      for (int nu = 0; nu < numPhBands; nu++) {
-        for (int iw1 = 0; iw1 < numWannier; iw1++) {
-          for (int ib1 = 0; ib1 < nb1; ib1++) {
-            for (int iw2 = 0; iw2 < numWannier; iw2++) {
-              elPhCached(iw2, ib1, nu, irP) +=
-                  g1(iw2, iw1, nu, irP) * eigvec1(iw1, ib1);
+#pragma omp barrier
+      for (int irE = 0; irE < numElBravaisVectors; irE++) {
+#pragma omp for collapse(4)
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int iw1 = 0; iw1 < numWannier; iw1++) {
+              for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+              }
             }
+          }
+        }
+#pragma omp barrier
+      }
+    }
+#endif
+
+    Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, nb1,
+                    numWannier);
+
+    Kokkos::parallel_for(
+        "elPhCached",
+        Range4D({0, 0, 0, 0},
+                {numPhBravaisVectors, numPhBands, nb1, numWannier}),
+        KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
+          Kokkos::complex<double> tmp(0.0);
+          for (int iw1 = 0; iw1 < numWannier; iw1++) {
+            tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
+          }
+          elPhCached(irP, nu, ib1, iw2) = tmp;
+        });
+  }
+
+  // get nb2 for each ik and find the max
+  // since loops and views must be rectangular, not ragged
+  IntView1D nb2s_k("nb2s", numLoops);
+  int nb2max = 0;
+  auto nb2s_h = Kokkos::create_mirror_view(nb2s_k);
+  for (int ik = 0; ik < numLoops; ik++) {
+    nb2s_h(ik) = eigvecs2[ik].cols();
+    if (nb2s_h(ik) > nb2max) {
+      nb2max = nb2s_h(ik);
+    }
+  }
+  Kokkos::deep_copy(nb2s_k, nb2s_h);
+
+  IntView1D usePolarCorrections("usePolarCorrections", numLoops);
+  ComplexView4D polarCorrections(Kokkos::ViewAllocateWithoutInitializing("polarCorrections"),
+      numLoops, numPhBands, nb1, nb2max);
+  auto usePolarCorrections_h = Kokkos::create_mirror_view(usePolarCorrections);
+  auto polarCorrections_h = Kokkos::create_mirror_view(polarCorrections);
+
+// precompute all needed polar corrections
+#pragma omp parallel for
+  for (int ik = 0; ik < numLoops; ik++) {
+    Eigen::Vector3d q3C = q3Cs[ik];
+
+    Eigen::MatrixXcd eigvec2 = eigvecs2[ik];
+    Eigen::MatrixXcd eigvec3 = eigvecs3[ik];
+
+    usePolarCorrections_h(ik) = usePolarCorrection && q3C.norm() > 1.0e-8;
+    if (usePolarCorrections_h(ik)) {
+      Eigen::Tensor<std::complex<double>, 3> polarCorrection =
+          getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
+      for (int nu = 0; nu < numPhBands; nu++) {
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
+          for (int ib2 = 0; ib2 < nb2s_h(ik); ib2++) {
+            polarCorrections_h(ik, nu, ib1, ib2) =
+                polarCorrection(ib2, ib1, nu);
           }
         }
       }
     }
   }
+  Kokkos::deep_copy(polarCorrections, polarCorrections_h);
+  Kokkos::deep_copy(usePolarCorrections, usePolarCorrections_h);
 
-  for (int ik = 0; ik < numLoops; ik++) {
-    Eigen::Vector3d q3C = q3Cs[ik];
+  // copy eigenvectors etc. to device
+  DoubleView1D phBravaisVectorsDegeneracies_k("degens", numPhBravaisVectors);
+  DoubleView2D phBravaisVectors_k("bravais", numPhBravaisVectors, 3),
+      q3Cs_k("q3", numLoops, 3);
+  ComplexView3D eigvecs2Dagger_k("ev2Dagger", numLoops, numWannier, nb2max),
+      eigvecs3_k("ev3", numLoops, numPhBands, numPhBands);
+  {
+    auto eigvecs2Dagger_h = Kokkos::create_mirror_view(eigvecs2Dagger_k);
+    auto eigvecs3_h = Kokkos::create_mirror_view(eigvecs3_k);
+    auto q3Cs_h = Kokkos::create_mirror_view(q3Cs_k);
+    auto phBravaisVectorsDegeneracies_h =
+        Kokkos::create_mirror_view(phBravaisVectorsDegeneracies_k);
+    auto phBravaisVectors_h = Kokkos::create_mirror_view(phBravaisVectors_k);
 
-    Eigen::MatrixXcd eigvec2 = eigvecs2[ik];
-    int nb2 = eigvec2.cols();
-    Eigen::MatrixXcd eigvec3 = eigvecs3[ik];
-
-    Eigen::Tensor<std::complex<double>, 3> g3(numWannier, nb1, numPhBands);
-    g3.setZero();
-    std::vector<std::complex<double>> phases(numPhBravaisVectors);
-    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-      double arg = q3C.dot(phBravaisVectors.col(irP));
-      phases[irP] =
-          exp(complexI * arg) / double(phBravaisVectorsDegeneracies(irP));
-    }
-    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-      for (int nu = 0; nu < numPhBands; nu++) {
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            g3(iw2, ib1, nu) += phases[irP] * elPhCached(iw2, ib1, nu, irP);
-          }
+#pragma omp parallel for
+    for (int ik = 0; ik < numLoops; ik++) {
+      for (int i = 0; i < numWannier; i++) {
+        for (int j = 0; j < nb2s_h(ik); j++) {
+          eigvecs2Dagger_h(ik, i, j) = std::conj(eigvecs2[ik](i, j));
         }
       }
-    }
-
-    Eigen::Tensor<std::complex<double>, 3> g4(numWannier, nb1, numPhBands);
-    g4.setZero();
-    for (int nu = 0; nu < numPhBands; nu++) {
-      for (int nu2 = 0; nu2 < numPhBands; nu2++) {
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          for (int iw2 = 0; iw2 < numWannier; iw2++) {
-            g4(iw2, ib1, nu2) += g3(iw2, ib1, nu) * eigvec3(nu, nu2);
-          }
+      for (int i = 0; i < numPhBands; i++) {
+        for (int j = 0; j < numPhBands; j++) {
+          eigvecs3_h(ik, i, j) = eigvecs3[ik](j, i);
         }
       }
-    }
+      for (int i = 0; i < numPhBands; i++) {
+        for (int j = 0; j < numPhBands; j++) {
+          eigvecs3_h(ik, i, j) = eigvecs3[ik](j, i);
+        }
+      }
 
-    auto eigvec2Dagger = eigvec2.adjoint();
-    Eigen::Tensor<std::complex<double>, 3> gFinal(nb2, nb1, numPhBands);
-    gFinal.setZero();
-    for (int nu = 0; nu < numPhBands; nu++) {
-      for (int ib1 = 0; ib1 < nb1; ib1++) {
+      for (int i = 0; i < 3; i++) {
+        q3Cs_h(ik, i) = q3Cs[ik](i);
+      }
+    }
+    for (int i = 0; i < numPhBravaisVectors; i++) {
+      phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
+      for (int j = 0; j < 3; j++) {
+        phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
+      }
+    }
+    Kokkos::deep_copy(eigvecs2Dagger_k, eigvecs2Dagger_h);
+    Kokkos::deep_copy(eigvecs3_k, eigvecs3_h);
+    Kokkos::deep_copy(q3Cs_k, q3Cs_h);
+    Kokkos::deep_copy(phBravaisVectorsDegeneracies_k,
+                      phBravaisVectorsDegeneracies_h);
+    Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
+  }
+
+  ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
+  ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier),
+      g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier),
+      gFinal(Kokkos::ViewAllocateWithoutInitializing("gfinal"), numLoops, numPhBands, nb1, nb2max);
+  DoubleView4D coupling_k(Kokkos::ViewAllocateWithoutInitializing("coupling"), numLoops, numPhBands, nb2max, nb1);
+
+  Kokkos::parallel_for(
+      "phases", Range2D({0, 0}, {numLoops, numPhBravaisVectors}),
+      KOKKOS_LAMBDA(int ik, int irP) {
+        double arg = 0.0;
+        for (int j = 0; j < 3; j++) {
+          arg += q3Cs_k(ik, j) * phBravaisVectors_k(irP, j);
+        }
+        phases(ik, irP) =
+            exp(complexI * arg) / phBravaisVectorsDegeneracies_k(irP);
+      });
+  Kokkos::parallel_for(
+      "g3", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
+      KOKKOS_LAMBDA(int ik, int nu, int ib1, int iw2) {
+        Kokkos::complex<double> tmp(0.0);
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          tmp += phases(ik, irP) * elPhCached(irP, nu, ib1, iw2);
+        }
+        g3(ik, nu, ib1, iw2) = tmp;
+      });
+
+  Kokkos::parallel_for(
+      "g4", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
+      KOKKOS_LAMBDA(int ik, int nu2, int ib1, int iw2) {
+        Kokkos::complex<double> tmp(0.0);
+        for (int nu = 0; nu < numPhBands; nu++) {
+          tmp += g3(ik, nu, ib1, iw2) * eigvecs3_k(ik, nu2, nu);
+        }
+        g4(ik, nu2, ib1, iw2) = tmp;
+      });
+
+  Kokkos::parallel_for(
+      "gFinal", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, nb2max}),
+      KOKKOS_LAMBDA(int ik, int nu, int ib1, int ib2) {
+        Kokkos::complex<double> tmp(0.0);
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          for (int ib2 = 0; ib2 < nb2; ib2++) {
-            gFinal(ib2, ib1, nu) += eigvec2Dagger(ib2, iw2) * g4(iw2, ib1, nu);
-          }
+          tmp += eigvecs2Dagger_k(ik, iw2, ib2) * g4(ik, nu, ib1, iw2);
         }
-      }
-    }
-
-    if (usePolarCorrection && q3C.norm() > 1.0e-8) {
-      gFinal += getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
-    }
-
-    Eigen::Tensor<double, 3> coupling(nb1, nb2, numPhBands);
+        gFinal(ik, nu, ib1, ib2) = tmp;
+      });
+  if (usePolarCorrection) {
+    Kokkos::parallel_for(
+        "correction",
+        Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, nb2max}),
+        KOKKOS_LAMBDA(int ik, int nu, int ib1, int ib2) {
+          gFinal(ik, nu, ib1, ib2) += polarCorrections(ik, nu, ib1, ib2);
+        });
+  }
+  Kokkos::parallel_for(
+      "coupling", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb2max, nb1}),
+      KOKKOS_LAMBDA(int ik, int nu, int ib2, int ib1) {
+        // notice the flip of 1 and 2 indices is intentional
+        // coupling is |<k+q,ib2 | dV_nu | k,ib1>|^2
+        auto tmp = gFinal(ik, nu, ib1, ib2);
+        coupling_k(ik, nu, ib2, ib1) =
+            tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
+      });
+  auto coupling_h = Kokkos::create_mirror_view(coupling_k);
+  Kokkos::deep_copy(coupling_h, coupling_k);
+#pragma omp parallel for
+  for (int ik = 0; ik < numLoops; ik++) {
+    Eigen::Tensor<double, 3> coupling(nb1, nb2s_h(ik), numPhBands);
     for (int nu = 0; nu < numPhBands; nu++) {
-      for (int ib2 = 0; ib2 < nb2; ib2++) {
+      for (int ib2 = 0; ib2 < nb2s_h(ik); ib2++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
-          // notice the flip of 1 and 2 indices is intentional
-          // coupling is |<k+q,ib2 | dV_nu | k,ib1>|^2
-          coupling(ib1, ib2, nu) = std::norm(gFinal(ib2, ib1, nu));
+          coupling(ib1, ib2, nu) = coupling_h(ik, nu, ib2, ib1);
         }
       }
     }
