@@ -12,6 +12,9 @@
 #include <mpi.h>
 #endif
 
+const int worldComm_ = 0;
+const int poolComm_ = 1;
+
 /* NOTE: When using this object make sure to use the divideWork
 functions to set up the initial division of tasks --
 functions here (see gather) operate under the
@@ -58,10 +61,7 @@ class MPIcontroller {
    *  @param dataIn: pointer to data structure to broadcast
    */
   template <typename T>
-  void bcast(T* dataIn, const int& bCaster=0) const;
-
-  template <typename T>
-  void bcastPool(T* dataIn, const int& bCaster=0) const;
+  void bcast(T* dataIn, const int& bCaster=0, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank.
@@ -75,9 +75,7 @@ class MPIcontroller {
    * Gets overwritten with the result of the MPI allreduce('SUM') operation.
    */
   template <typename T>
-  void allReduceSum(T* dataIn) const;
-  template <typename T>
-  void allReduceSumPool(T* dataIn) const;
+  void allReduceSum(T* dataIn, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank,
@@ -97,9 +95,7 @@ class MPIcontroller {
    *       also acts as a receive buffer, as reduce is implemented IP.
    */
   template <typename T>
-  void allReduceMax(T* dataIn) const;
-  template <typename T>
-  void allReduceMaxPool(T* dataIn) const;
+  void allReduceMax(T* dataIn, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_Reduce which identifies the minimum of distributed data
    * @param dataIn: pointer to sent data from each rank.
@@ -208,6 +204,9 @@ class MPIcontroller {
    * @return divs: returns an iterator of points for the divided number of tasks.
    */
   std::vector<int> divideWorkIter(size_t numTasks);
+
+  static const int worldComm;
+  static const int poolComm;
 };
 
 // we need to use the concept of a "type traits" object to serialize the
@@ -316,32 +315,22 @@ namespace mpiContainer {
 
 // Collective communications functions -----------------------------------
 template <typename T>
-void MPIcontroller::bcast(T* dataIn, const int& bcaster) const {
+void MPIcontroller::bcast(T* dataIn, const int& bcaster,
+                          const int& communicator) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
-  int errCode;
+  if (communicator == poolComm && poolSize == 1) return;
 
-  errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
-                      containerType<T>::getSize(dataIn),
-                      containerType<T>::getMPItype(), bcaster, worldCommunicator);
-  if (errCode != MPI_SUCCESS) {
-    errorReport(errCode);
+  MPI_Comm comm = poolCommunicator;
+  if (communicator == worldComm) {
+    comm = worldCommunicator;
   }
-#endif
-}
 
-// Collective communications functions -----------------------------------
-template <typename T>
-void MPIcontroller::bcastPool(T* dataIn, const int& bcaster) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (poolSize == 1) return;
   int errCode;
-
   errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
                       containerType<T>::getSize(dataIn),
-                      containerType<T>::getMPItype(), bcaster, poolCommunicator);
+                      containerType<T>::getMPItype(), bcaster, comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
@@ -414,15 +403,22 @@ void MPIcontroller::reduceMax(T* dataIn) const {
 }
 
 template <typename T>
-void MPIcontroller::allReduceSum(T* dataIn) const {
+void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
+  if (communicator == poolComm && poolSize == 1) return;
+
+  MPI_Comm comm = poolCommunicator;
+  if ( communicator == worldComm) {
+    comm = worldCommunicator;
+  }
+
   int errCode;
   errCode =
       MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
                     containerType<T>::getSize(dataIn),
-                    containerType<T>::getMPItype(), MPI_SUM, worldCommunicator);
+                    containerType<T>::getMPItype(), MPI_SUM, comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
@@ -430,47 +426,22 @@ void MPIcontroller::allReduceSum(T* dataIn) const {
 }
 
 template <typename T>
-void MPIcontroller::allReduceSumPool(T* dataIn) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (poolSize == 1) return;
-  int errCode;
-  errCode =
-      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
-                    containerType<T>::getSize(dataIn),
-                    containerType<T>::getMPItype(), MPI_SUM, poolCommunicator);
-  if (errCode != MPI_SUCCESS) {
-    errorReport(errCode);
-  }
-#endif
-}
-
-template <typename T>
-void MPIcontroller::allReduceMax(T* dataIn) const {
+void MPIcontroller::allReduceMax(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   if (size == 1) return;
-  int errCode;
-  errCode =
-      MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
-                    containerType<T>::getSize(dataIn),
-                    containerType<T>::getMPItype(), MPI_MAX, MPI_COMM_WORLD);
-  if (errCode != MPI_SUCCESS) {
-    errorReport(errCode);
-  }
-  #endif
-}
-
-template <typename T>
-void MPIcontroller::allReduceMaxPool(T* dataIn) const {
-  using namespace mpiContainer;
-  #ifdef MPI_AVAIL
   if (poolSize == 1) return;
+
+  MPI_Comm comm = poolCommunicator;
+  if (communicator == worldComm) {
+    comm = worldCommunicator;
+  }
+
   int errCode;
   errCode =
       MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
                     containerType<T>::getSize(dataIn),
-                    containerType<T>::getMPItype(), MPI_MAX, poolCommunicator);
+                    containerType<T>::getMPItype(), MPI_MAX, comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }

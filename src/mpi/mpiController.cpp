@@ -83,6 +83,9 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
 #endif
 }
 
+const int MPIcontroller::worldComm = worldComm_;
+const int MPIcontroller::poolComm = poolComm_;
+
 void MPIcontroller::finalize() const {
   if(mpiHead()) {
     // print date and time of run
