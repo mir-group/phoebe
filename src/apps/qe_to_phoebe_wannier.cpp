@@ -1677,7 +1677,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       dElDegeneracies.write(elDegeneracies);
     }
   } catch (std::exception &error) {
-    std::cout << error.what() << std::endl;
     Error("Issue writing elph Wannier representation to hdf5.");
   }
 
