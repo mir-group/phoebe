@@ -177,11 +177,11 @@ class MPIcontroller {
    * @return divs: returns a vector of length 2, containing start and stop
    *       points for the divided number of tasks.
    */
-  std::vector<int> divideWork(size_t numTasks);  // divide up a set of work
+  std::vector<size_t> divideWork(size_t numTasks);  // divide up a set of work
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns an iterator of points for the divided number of tasks.
    */
-  std::vector<int> divideWorkIter(size_t numTasks);
+  std::vector<size_t> divideWorkIter(size_t numTasks);
 
 };
 

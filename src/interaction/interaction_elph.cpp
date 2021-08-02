@@ -426,8 +426,11 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&phBravaisVectorsDegeneracies_);
 
     // Define the eph matrix element containers
-    size_t totElems = numElBands * numElBands * numPhBands *
-                      numPhBravaisVectors * numElBravaisVectors;
+    // this is broken into parts, as otherwise it can
+    // overflow if done all at once.
+    size_t totElems = numElBands * numElBands * numPhBands;
+    totElems *= numPhBravaisVectors;
+    totElems *= numElBravaisVectors;
 
     // user info about memory
     {
@@ -453,7 +456,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
     // get the start and stop points of elements to be written by this process
-    std::vector<int> workDivs = mpi->divideWork(totElems);
+    auto workDivs = mpi->divideWork(totElems);
     size_t localElems = workDivs[1] - workDivs[0];
 
     // Set up buffer to be filled from hdf5

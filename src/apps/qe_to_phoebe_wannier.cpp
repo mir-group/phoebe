@@ -66,7 +66,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
     std::cout << "Polar correction" << std::endl;
   }
 
-  std::vector<int> localElIndices = mpi->divideWorkIter(numElBravaisVectors);
+  auto localElIndices = mpi->divideWorkIter(numElBravaisVectors);
   int numLocalElIndices = localElIndices.size();
   int localElIndicesOffset = localElIndices[0];
 
@@ -82,7 +82,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
   auto localIrrPoints = int(mpi->divideWorkIter(numIrrQPoints).size());
   int loopSize = localIrrPoints;
   mpi->allReduceMax(&loopSize);
-  std::vector<int> pointsIterator = mpi->divideWorkIter(numIrrQPoints);
+  auto pointsIterator = mpi->divideWorkIter(numIrrQPoints);
 
   Eigen::MatrixXcd phPhases;
   Eigen::Tensor<std::complex<double>, 5> gWannierTmp;
@@ -545,7 +545,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
       numWannier, numWannier, numModes, numKPoints, numQPoints);
   gFullTmp.setZero();
 
-  for (int iq : mpi->divideWorkIter(numQPoints)) {
+  for (size_t iq : mpi->divideWorkIter(numQPoints)) {
     Eigen::Vector3d q =
         qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
     for (int ik = 0; ik < numKPoints; ik++) {
@@ -584,7 +584,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
               for (int l = 0; l < numBands; l++) {
                 // ukq has size(numWannier, numBands)
                 // gFull has size numBands, numBands, ...
-                tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, iq);
+                tmp(i, j, nu) += uKq(l, i) * gFull(l, j, nu, ik, int(iq));
               }
             }
           }
@@ -607,7 +607,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
         for (int nu = 0; nu < numModes; nu++) {
           for (int i = 0; i < numWannier; i++) {
             for (int j = 0; j < numWannier; j++) {
-              gFullTmp(i, j, nu, ik, iq) += tmp2(i, j, nu);
+              gFullTmp(i, j, nu, ik, int(iq)) += tmp2(i, j, nu);
             }
           }
         }
@@ -632,7 +632,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 #pragma omp parallel for default(none)                                         \
     shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, \
            mpi, complexI)
-    for (int ik : mpi->divideWorkIter(numKPoints)) {
+    for (auto ik : mpi->divideWorkIter(numKPoints)) {
       Eigen::Vector3d k =
           kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
       for (int iR = 0; iR < numElBravaisVectors; iR++) {
@@ -642,7 +642,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     }
     mpi->allReduceSum(&phases);
 
-    for (int iq : mpi->divideWorkIter(numQPoints)) {
+    for (auto iq : mpi->divideWorkIter(numQPoints)) {
 #pragma omp parallel default(none)                                             \
     shared(iq, gFullTmp, phases, numElBravaisVectors, numKPoints, numModes,    \
            numWannier, gMixed)
@@ -657,7 +657,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
               for (int j = 0; j < numWannier; j++) {
                 for (int i = 0; i < numWannier; i++) {
                   tmp(i, j, nu, iR) +=
-                      gFullTmp(i, j, nu, ik, iq) * phases(ik, iR);
+                      gFullTmp(i, j, nu, ik, int(iq)) * phases(ik, iR);
                 }
               }
             }
@@ -668,7 +668,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           for (int nu = 0; nu < numModes; nu++) {
             for (int j = 0; j < numWannier; j++) {
               for (int i = 0; i < numWannier; i++) {
-                gMixed(i, j, nu, iR, iq) += tmp(i, j, nu, iR);
+                gMixed(i, j, nu, iR, int(iq)) += tmp(i, j, nu, iR);
               }
             }
           }
@@ -690,24 +690,24 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     Eigen::Tensor<std::complex<double>, 3> uQM1s(numModes, numModes,
                                                  numQPoints);
     uQM1s.setZero();
-    for (int iq : mpi->divideWorkIter(numQPoints)) {
+    for (auto iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::MatrixXcd uQ(numModes, numModes);
       for (int nu2 = 0; nu2 < numModes; nu2++) {
         for (int nu = 0; nu < numModes; nu++) {
-          uQ(nu, nu2) = phEigenvectors(nu, nu2, iq);
+          uQ(nu, nu2) = phEigenvectors(nu, nu2, int(iq));
         }
       }
       auto uQM1 = uQ.inverse();
       for (int nu2 = 0; nu2 < numModes; nu2++) {
         for (int nu = 0; nu < numModes; nu++) {
-          uQM1s(nu, nu2, iq) = uQM1(nu, nu2);
+          uQM1s(nu, nu2, int(iq)) = uQM1(nu, nu2);
         }
       }
       // this isn't equal to the adjoint, due to mass renormalization
       // should be parallelized with OMP already
     }
     mpi->allReduceSum(&uQM1s);
-    for (int iq : mpi->divideWorkIter(numQPoints)) {
+    for (auto iq : mpi->divideWorkIter(numQPoints)) {
       for (int nu = 0; nu < numModes; nu++) {
         for (int nu2 = 0; nu2 < numModes; nu2++) {
 #pragma omp parallel for collapse(3) default(none) shared(                     \
@@ -715,8 +715,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           for (int irE = 0; irE < numElBravaisVectors; irE++) {
             for (int i = 0; i < numWannier; i++) {
               for (int j = 0; j < numWannier; j++) {
-                gWannierTmp(i, j, nu, irE, iq) +=
-                    gMixed(i, j, nu2, irE, iq) * uQM1s(nu2, nu, iq);
+                gWannierTmp(i, j, nu, irE, int(iq)) +=
+                    gMixed(i, j, nu2, irE, int(iq)) * uQM1s(nu2, nu, int(iq));
               }
             }
           }
@@ -741,7 +741,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 #pragma omp parallel for default(none)                                         \
     shared(mpi, numQPoints, numPhBravaisVectors, complexI, phases, qPoints,    \
            phBravaisVectors)
-    for (int iq : mpi->divideWorkIter(numQPoints)) {
+    for (auto iq : mpi->divideWorkIter(numQPoints)) {
       Eigen::Vector3d q =
           qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -751,7 +751,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     }
     mpi->allReduceSum(&phases);
 
-    for (int irE : mpi->divideWorkIter(numElBravaisVectors)) {
+    for (auto irE : mpi->divideWorkIter(numElBravaisVectors)) {
 #pragma omp parallel default(none)                                             \
     shared(numQPoints, numPhBravaisVectors, numModes, numWannier, phases,      \
            gWannier, irE, gWannierTmp)
@@ -766,7 +766,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
               for (int j = 0; j < numWannier; j++) {
                 for (int i = 0; i < numWannier; i++) {
                   tmp(i, j, nu, irP) +=
-                      phases(irP, iq) * gWannierTmp(i, j, nu, irE, iq);
+                      phases(irP, iq) * gWannierTmp(i, j, nu, int(irE), iq);
                 }
               }
             }
@@ -777,7 +777,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
           for (int nu = 0; nu < numModes; nu++) {
             for (int i = 0; i < numWannier; i++) {
               for (int j = 0; j < numWannier; j++) {
-                gWannier(i, j, nu, irP, irE) += tmp(i, j, nu, irP);
+                gWannier(i, j, nu, irP, int(irE)) += tmp(i, j, nu, irP);
               }
             }
           }
@@ -1511,15 +1511,15 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
 
     // start point and the number of the total number of elements
     // to be written by this process
-    int start = mpi->divideWorkIter(numElBravaisVectors)[0] * numWannier *
+    size_t start = mpi->divideWorkIter(numElBravaisVectors)[0] * numWannier *
                 numWannier * numModes * numPhBravaisVectors;
-    int stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
+    size_t stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
                    numWannier * numWannier * numModes *
                     numPhBravaisVectors - 1;
     size_t offset = start;
     size_t numElements = stop - start + 1;
 
-    if(mpi->mpiHead()) std::cout << "numElements start stop offset numBVS" << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
+    std::cout << "rank numElements start stop offset numBVS " << mpi->getRank() << " " << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
 
     // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
     // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
