@@ -1519,8 +1519,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     size_t offset = start;
     size_t numElements = stop - start + 1;
 
-    std::cout << "rank numElements start stop offset numBVS " << mpi->getRank() << " " << numElements << " " << start << " " << stop << " " << offset << " " << numElBravaisVectors << std::endl;
-
     // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
     // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
     // In order to be compatible with older versions, we split the tensor
@@ -1550,7 +1548,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
     // determine the number of bunches. The last bunch may be smaller
     // than the rest
     int numDatasets = irEBunchSizes.size();
-    std::cout << "numDatasets size irEBunchSizes[0] " << numDatasets << " " << size << " " << irEBunchSizes[0] << std::endl;
 
     // we now loop over these data sets, and write each chunk of
     // bravais vectors in parallel
@@ -1564,7 +1561,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       size_t bunchStop =  bunchStart + bunchElements;
       size_t bunchOffset = offset + netOffset;
       netOffset += bunchElements;
-      std::cout << "rank elements bunchStart Stop netOffset bunchOffset " << mpi->getRank() << " " <<  bunchElements << " " << bunchStart << " " << bunchStop << " " << netOffset << " " << bunchOffset << std::endl;
 
       Eigen::VectorXcd gwanSlice;
       if (matrixDistributed) {
