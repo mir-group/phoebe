@@ -28,7 +28,7 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   // get rank of current process
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // create groups
+  // create groups of MPI processes
 
   int tmpPoolSize = 1;
   // first parse the poolSize from the command line
@@ -56,19 +56,27 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
 
   // now split MPI processes in groups of size "poolSize"
   // https://mpitutorial.com/tutorials/introduction-to-groups-and-communicators/
-  int color = rank / tmpPoolSize; // Determine color based on row
+  poolId = rank / tmpPoolSize; // Determine color based on row
   // Split the communicator based on the color and use the
   // original rank for ordering
-  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &poolCommunicator);
+  MPI_Comm_split(MPI_COMM_WORLD, poolId, rank, &intraPoolCommunicator);
   // initiate rank and size
-  MPI_Comm_rank(poolCommunicator, &poolRank);
-  MPI_Comm_size(poolCommunicator, &poolSize);
+  MPI_Comm_rank(intraPoolCommunicator, &poolRank);
+  MPI_Comm_size(intraPoolCommunicator, &poolSize);
 
   // check results are as expected
   if ( poolSize != tmpPoolSize ) {
     std::cout << "Unexpected MPI split result\n";
     exit(1);
   }
+
+  // for communications purposes, it's also useful to define a communicator
+  // to send data across MPI processes with the same poolRank but across pools
+  // (e.g. when reading data)
+  int color = mod(rank, poolSize); // Determine color based on columns
+  // Split the communicator based on the color and use the
+  // original rank for ordering
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &interPoolCommunicator);
 
   // start a timer
   startTime = MPI_Wtime();
@@ -84,7 +92,8 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
 }
 
 const int MPIcontroller::worldComm = worldComm_;
-const int MPIcontroller::poolComm = poolComm_;
+const int MPIcontroller::intraPoolComm = intraPoolComm_;
+const int MPIcontroller::interPoolComm = interPoolComm_;
 
 void MPIcontroller::finalize() const {
   if(mpiHead()) {
@@ -152,10 +161,22 @@ std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
   return divs;
 }
 
-std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks) {
+std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks, const int& communicator) {
+  int rank_ = 0;
+  int size_ = 1;
+  if (communicator == worldComm) {
+    rank_ = rank;
+    size_ = size;
+  } else if (communicator == intraPoolComm) {
+    rank_ = poolRank;
+    size_ = poolSize;
+  } else {
+    Error("divideWorkIter called with invalid communicator");
+  }
+
   // return a vector of indices for tasks to be completed by thsi process
-  int start = (numTasks * rank) / size;
-  int stop = (numTasks * (rank + 1)) / size;
+  int start = (numTasks * rank_) / size_;
+  int stop = (numTasks * (rank_ + 1)) / size_;
   size_t localSize = stop - start;
   std::vector<int> divs(localSize);
   for (int i = start; i < stop; i++) {
@@ -187,4 +208,22 @@ MPIcontroller::workDivHelper(size_t numTasks) const {
     workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
   }
   return {workDivs, workDivisionHeads};
+}
+
+std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicator) const {
+  MPI_Comm comm = worldCommunicator;
+  int broadcaster = 0;
+  if (communicator == worldComm) {
+    comm = worldCommunicator;
+    broadcaster = mpiHeadId;
+  } else if (communicator == intraPoolComm) {
+    comm = intraPoolCommunicator;
+    broadcaster = mpiHeadPoolId;
+  } else if (communicator == interPoolComm) {
+    comm = interPoolCommunicator;
+    broadcaster = mpiHeadColsId;
+  } else {
+    Error("Invalid pool communicator");
+  }
+  return {comm, broadcaster};
 }

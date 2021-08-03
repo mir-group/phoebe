@@ -13,7 +13,8 @@
 #endif
 
 const int worldComm_ = 0;
-const int poolComm_ = 1;
+const int intraPoolComm_ = 1;
+const int interPoolComm_ = 2;
 
 /* NOTE: When using this object make sure to use the divideWork
 functions to set up the initial division of tasks --
@@ -30,11 +31,15 @@ class MPIcontroller {
   int size = 0;  // number of MPI processes
   int rank;
   const int mpiHeadId = 0;
+  const int mpiHeadPoolId = 0;
+  const int mpiHeadColsId = 0;
 
-  int poolSize = 1;
-  int poolRank = 0;
+  int poolSize = 1; // # of MPI processes in the pool
+  int poolRank = 0; // rank of the MPI process within the pool from 0 to poolSize
+  int poolId = 0; // id of the pool
 #ifdef MPI_AVAIL
-  MPI_Comm poolCommunicator;
+  MPI_Comm intraPoolCommunicator;
+  MPI_Comm interPoolCommunicator;
   MPI_Comm worldCommunicator = MPI_COMM_WORLD;
 #endif
 
@@ -46,6 +51,8 @@ class MPIcontroller {
   #else
     std::chrono::steady_clock::time_point startTime;
   #endif
+
+  std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
 
  public:
   // MPIcontroller class constructors -----------------------------------
@@ -61,7 +68,7 @@ class MPIcontroller {
    *  @param dataIn: pointer to data structure to broadcast
    */
   template <typename T>
-  void bcast(T* dataIn, const int& bCaster=0, const int& communicator=worldComm) const;
+  void bcast(T* dataIn, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank.
@@ -171,6 +178,11 @@ class MPIcontroller {
    */
   bool mpiHead() const { return rank == mpiHeadId; }
 
+  /** Returns true if the MPI process belongs to the head pool
+   * @return isHeadPool: returns true if this MPI process is in the head pool.
+   */
+  bool mpiHeadPool() const { return poolId == mpiHeadPoolId; }
+
   /** Function to return the rank of a process.
    * @return rank: the rank of this process.
    */
@@ -206,10 +218,11 @@ class MPIcontroller {
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns an iterator of points for the divided number of tasks.
    */
-  std::vector<int> divideWorkIter(size_t numTasks);
+  std::vector<int> divideWorkIter(size_t numTasks, const int& communicator=worldComm);
 
   static const int worldComm;
-  static const int poolComm;
+  static const int intraPoolComm;
+  static const int interPoolComm;
 };
 
 // we need to use the concept of a "type traits" object to serialize the
@@ -299,6 +312,12 @@ namespace mpiContainer {
           static inline size_t getSize(Eigen::Vector3i* data) { return data->size(); }
           static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
         };
+        // Container for Eigen::Vector3d
+        template <> struct containerType<Eigen::Vector3d> {
+          static inline double* getAddress(Eigen::Vector3d* data) { return data->data(); }
+          static inline size_t getSize(Eigen::Vector3d* data) { return data->size(); }
+          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
+        };
         // Container for Eigen::VectorXcd
         template <> struct containerType<Eigen::VectorXcd> {
           static inline std::complex<double>* getAddress(Eigen::VectorXcd* data) { return data->data(); }
@@ -318,22 +337,19 @@ namespace mpiContainer {
 
 // Collective communications functions -----------------------------------
 template <typename T>
-void MPIcontroller::bcast(T* dataIn, const int& bcaster,
-                          const int& communicator) const {
+void MPIcontroller::bcast(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
-  if (communicator == poolComm && poolSize == 1) return;
+  if (communicator == intraPoolComm && poolSize == 1) return;
 
-  MPI_Comm comm = poolCommunicator;
-  if (communicator == worldComm) {
-    comm = worldCommunicator;
-  }
+  auto t = decideCommunicator(communicator);
+  MPI_Comm comm = std::get<0>(t);
+  int broadcasterId = std::get<1>(t);
 
-  int errCode;
-  errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
+  int errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
                       containerType<T>::getSize(dataIn),
-                      containerType<T>::getMPItype(), bcaster, comm);
+                      containerType<T>::getMPItype(), broadcasterId, comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
@@ -410,15 +426,11 @@ void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
-  if (communicator == poolComm && poolSize == 1) return;
+  if (communicator == intraPoolComm && poolSize == 1) return;
 
-  MPI_Comm comm = poolCommunicator;
-  if ( communicator == worldComm) {
-    comm = worldCommunicator;
-  }
+  MPI_Comm comm = std::get<0>(decideCommunicator(communicator));
 
-  int errCode;
-  errCode =
+  int errCode =
       MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
                     containerType<T>::getSize(dataIn),
                     containerType<T>::getMPItype(), MPI_SUM, comm);
@@ -433,15 +445,11 @@ void MPIcontroller::allReduceMax(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   if (size == 1) return;
-  if (communicator == poolComm && poolSize == 1) return;
+  if (communicator == intraPoolComm && poolSize == 1) return;
 
-  MPI_Comm comm = poolCommunicator;
-  if (communicator == worldComm) {
-    comm = worldCommunicator;
-  }
+  MPI_Comm comm = std::get<0>(decideCommunicator(communicator));
 
-  int errCode;
-  errCode =
+  int errCode =
       MPI_Allreduce(MPI_IN_PLACE, containerType<T>::getAddress(dataIn),
                     containerType<T>::getSize(dataIn),
                     containerType<T>::getMPItype(), MPI_MAX, comm);
