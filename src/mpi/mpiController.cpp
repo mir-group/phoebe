@@ -210,6 +210,7 @@ MPIcontroller::workDivHelper(size_t numTasks) const {
   return {workDivs, workDivisionHeads};
 }
 
+#ifdef MPI_AVAIL
 std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicator) const {
   MPI_Comm comm = worldCommunicator;
   int broadcaster = 0;
@@ -227,3 +228,4 @@ std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicat
   }
   return {comm, broadcaster};
 }
+#endif

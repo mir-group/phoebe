@@ -48,11 +48,10 @@ class MPIcontroller {
 
   #ifdef MPI_AVAIL
     double startTime;  // the time for the entire mpi operation
+    std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
   #else
     std::chrono::steady_clock::time_point startTime;
   #endif
-
-  std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
 
  public:
   // MPIcontroller class constructors -----------------------------------
