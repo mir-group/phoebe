@@ -217,7 +217,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
 
   // Open ElPh file
-  if (mpi->mpiHead()) {
+  if (mpi->mpiHeadPool()) {
     std::ifstream infile(fileName);
     if (not infile.is_open()) {
       Error("ElPh file not found");
@@ -247,18 +247,33 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
       infile >> phBravaisVectorsDegeneracies_(i);
     }
 
-    infile >> iCart >> numElBravaisVectors;
+    int totalNumElBravaisVectors;
+    infile >> iCart >> totalNumElBravaisVectors;
+
+    auto localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
+    numElBravaisVectors = int(localElVectors.size());
+
     elBravaisVectors_.resize(3, numElBravaisVectors);
     elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
     elBravaisVectors_.setZero();
     elBravaisVectorsDegeneracies_.setZero();
     for (int i : {0, 1, 2}) {
-      for (int j = 0; j < numPhBravaisVectors; j++) {
-        infile >> elBravaisVectors_(i, j);
+      for (int j = 0; j < totalNumElBravaisVectors; j++) {
+        double x;
+        infile >> x;
+        if (std::find(localElVectors.begin(),localElVectors.end(), j) != localElVectors.end() ) {
+          int localIrE = j - localElVectors[0];
+          elBravaisVectors_(i, localIrE) = x;
+        }
       }
     }
-    for (int i = 0; i < numElBravaisVectors; i++) {
-      infile >> elBravaisVectorsDegeneracies_(i);
+    for (int i = 0; i < totalNumElBravaisVectors; i++) {
+      double x;
+      infile >> x;
+      if (std::find(localElVectors.begin(),localElVectors.end(), i) != localElVectors.end() ) {
+        int localIrE = i - localElVectors[0];
+        elBravaisVectorsDegeneracies_(localIrE) = x;
+      }
     }
     std::string line;
     std::getline(infile, line);
@@ -281,7 +296,11 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
                             numPhBravaisVectors, numElBravaisVectors);
     couplingWannier_.setZero();
     double re, im;
-    for (int i5 = 0; i5 < numElBravaisVectors; i5++) {
+    for (int i5 = 0; i5 < totalNumElBravaisVectors; i5++) {
+      int localIrE = -1;
+      if (std::find(localElVectors.begin(),localElVectors.end(), i5) != localElVectors.end() ) {
+        localIrE = i5 - localElVectors[0];
+      }
       for (int i4 = 0; i4 < numPhBravaisVectors; i4++) {
         for (int i3 = 0; i3 < numPhBands; i3++) {
           for (int i2 = 0; i2 < numElBands; i2++) {
@@ -290,7 +309,9 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
               // note: in qe2Phoebe, the first index is on k+q bands,
               // and the second is on the bands of k. Here I invert them
               // similarly, in qe2Phoebe I inverted the order of R_el and R_ph
-              couplingWannier_(i1, i2, i3, i4, i5) = {re, im};
+              if (localIrE >= 0) {
+                couplingWannier_(i1, i2, i3, i4, localIrE) = {re, im};
+              }
             }
           }
         }
@@ -303,7 +324,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 
   mpi->bcast(&numElBands);
   mpi->bcast(&numPhBands);
-  mpi->bcast(&numElBravaisVectors);
+  mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
   mpi->bcast(&numPhBravaisVectors);
 
   if (numSpin == 2) {
@@ -311,7 +332,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
   }
   context.setNumOccupiedStates(numElectrons);
 
-  if (!mpi->mpiHead()) { // head already allocated these
+  if (!mpi->mpiHeadPool()) { // head already allocated these
     phBravaisVectors_.resize(3, numPhBravaisVectors);
     phBravaisVectorsDegeneracies_.resize(numPhBravaisVectors);
     elBravaisVectors_.resize(3, numElBravaisVectors);
@@ -324,11 +345,11 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
     elBravaisVectorsDegeneracies_.setZero();
     couplingWannier_.setZero();
   }
-  mpi->bcast(&elBravaisVectors_);
-  mpi->bcast(&elBravaisVectorsDegeneracies_);
+  mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
+  mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
   mpi->bcast(&phBravaisVectors_);
   mpi->bcast(&phBravaisVectorsDegeneracies_);
-  mpi->bcast(&couplingWannier_);
+  mpi->bcast(&couplingWannier_, mpi->interPoolComm);
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
@@ -531,39 +552,57 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::complex<double> complexI(0.0, 1.0);
 
   auto elPhCached = this->elPhCached;
-  int numPhBands = this->numPhBands, numElBands = this->numElBands,
-      numElBravaisVectors = this->numElBravaisVectors,
-      numPhBravaisVectors = this->numPhBravaisVectors;
+  int numPhBands = this->numPhBands;
+  numElBands = this->numElBands;
+  numElBravaisVectors = this->numElBravaisVectors;
+  numPhBravaisVectors = this->numPhBravaisVectors;
 
   if (k1C != cachedK1 || elPhCached.size() == 0) {
     cachedK1 = k1C;
 
-    ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
-                     numWannier);
+    for (int iPool=0; iPool<mpi->getSize(mpi->intraPoolComm); iPool++) {
 
-    ComplexView2D eigvec1_k("ev1", nb1, numWannier);
-    {
-      HostComplexView2D eigvec1_h((Kokkos::complex<double>*) eigvec1.data(), nb1, numWannier);
-      Kokkos::deep_copy(eigvec1_k, eigvec1_h);
-    }
+      // here we decide which k1 and ev1 to use now.
+      Eigen::Vector3d poolK1C = Eigen::Vector3d::Zero();
+      int poolNb1 = 0;
+      if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+        poolNb1 = nb1;
+      }
+      mpi->allReduceSum(&poolNb1, mpi->intraPoolComm);
+      Eigen::MatrixXcd poolEigvec1 = Eigen::MatrixXcd::Zero(poolNb1, numWannier);
+      if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+        poolK1C = k1C;
+        poolEigvec1 = eigvec1;
+      }
+      mpi->allReduceSum(&poolK1C, mpi->intraPoolComm);
+      mpi->allReduceSum(&poolEigvec1, mpi->intraPoolComm);
 
-    ComplexView1D phases_k("phases", numElBravaisVectors);
-    auto phases_h = Kokkos::create_mirror_view(phases_k);
-    for (int irE = 0; irE < numElBravaisVectors; irE++) {
-      double arg = k1C.dot(elBravaisVectors.col(irE));
-      phases_h(irE) =
-          exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
-    }
-    Kokkos::deep_copy(phases_k, phases_h);
+      ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
+                       numWannier);
 
-    if(couplingWannier_k.extent(0)==0){
-      HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
-          numElBravaisVectors, numPhBravaisVectors,
-          numPhBands, numWannier, numWannier);
-      couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
-      Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
-    }
-    ComplexView5D couplingWannier_k = this->couplingWannier_k;
+      ComplexView2D eigvec1_k("ev1", poolNb1, numWannier);
+      {
+        HostComplexView2D eigvec1_h((Kokkos::complex<double>*) poolEigvec1.data(), poolNb1, numWannier);
+        Kokkos::deep_copy(eigvec1_k, eigvec1_h);
+      }
+
+      ComplexView1D phases_k("phases", numElBravaisVectors);
+      auto phases_h = Kokkos::create_mirror_view(phases_k);
+      for (int irE = 0; irE < numElBravaisVectors; irE++) {
+        double arg = poolK1C.dot(elBravaisVectors.col(irE));
+        phases_h(irE) =
+            exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
+      }
+      Kokkos::deep_copy(phases_k, phases_h);
+
+      if(couplingWannier_k.extent(0)==0){
+        HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
+            numElBravaisVectors, numPhBravaisVectors,
+            numPhBands, numWannier, numWannier);
+        couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
+        Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
+      }
+      ComplexView5D couplingWannier_k = this->couplingWannier_k;
 #ifdef KOKKOS_ENABLE_CUDA
     Kokkos::parallel_for(
         "g1",
@@ -579,50 +618,99 @@ void InteractionElPhWan::calcCouplingSquared(
           g1(irP, nu, iw1, iw2) = tmp;
         });
 #else
-    #pragma omp parallel default(none) shared(g1, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors,phases_k, couplingWannier_k)
-    {
-#pragma omp for collapse(4)
-      for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-        for (int nu = 0; nu < numPhBands; nu++) {
-          for (int iw1 = 0; iw1 < numWannier; iw1++) {
-            for (int iw2 = 0; iw2 < numWannier; iw2++) {
-              g1(irP, nu, iw1, iw2) = 0.0;
-            }
-          }
-        }
-      }
-#pragma omp barrier
-      for (int irE = 0; irE < numElBravaisVectors; irE++) {
+#pragma omp parallel default(none) shared(g1, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors,phases_k, couplingWannier_k)
+      {
 #pragma omp for collapse(4)
         for (int irP = 0; irP < numPhBravaisVectors; irP++) {
           for (int nu = 0; nu < numPhBands; nu++) {
             for (int iw1 = 0; iw1 < numWannier; iw1++) {
               for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+                g1(irP, nu, iw1, iw2) = 0.0;
               }
             }
           }
         }
 #pragma omp barrier
+        for (int irE = 0; irE < numElBravaisVectors; irE++) {
+#pragma omp for collapse(4)
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numPhBands; nu++) {
+              for (int iw1 = 0; iw1 < numWannier; iw1++) {
+                for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                  g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+                }
+              }
+            }
+          }
+#pragma omp barrier
+        }
       }
-    }
 #endif
 
-    Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, nb1,
-                    numWannier);
+      ComplexView4D poolElPhCached(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"), numPhBravaisVectors, numPhBands, poolNb1,
+                 numWannier);
 
-    Kokkos::parallel_for(
-        "elPhCached",
-        Range4D({0, 0, 0, 0},
-                {numPhBravaisVectors, numPhBands, nb1, numWannier}),
-        KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
-          Kokkos::complex<double> tmp(0.0);
-          for (int iw1 = 0; iw1 < numWannier; iw1++) {
-            tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
+      Kokkos::parallel_for(
+          "elPhCached",
+          Range4D({0, 0, 0, 0},
+                  {numPhBravaisVectors, numPhBands, nb1, numWannier}),
+          KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
+            Kokkos::complex<double> tmp(0.0);
+            for (int iw1 = 0; iw1 < numWannier; iw1++) {
+              tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
+            }
+            poolElPhCached(irP, nu, ib1, iw2) = tmp;
+          });
+
+      if (mpi->getSize(mpi->intraPoolComm)>1) {
+        // copy from accelerator to CPU
+        auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
+        Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
+
+        // do an mpi->allreduce across the pool
+        Eigen::Tensor<std::complex<double>, 4> reduc(numPhBravaisVectors, numPhBands, poolNb1, numWannier);
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
+              for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                reduc(irP, nu, ib1, iw2) = poolElPhCached_h(irP, nu, ib1, iw2);
+              }
+            }
           }
-          elPhCached(irP, nu, ib1, iw2) = tmp;
-        });
+        }
+        mpi->allReduceSum(&reduc, mpi->intraPoolComm);
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
+              for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                poolElPhCached_h(irP, nu, ib1, iw2) = reduc(irP, nu, ib1, iw2);
+              }
+            }
+          }
+        }
+
+        // if the process owns this kpoint, copy back from CPU to accelerator
+        if (mpi->getRank(mpi->intraPoolComm) == iPool) {
+          Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
+                          numWannier);
+          Kokkos::deep_copy(elPhCached, poolElPhCached_h);
+        }
+      } else { // only one element in the pool -> no need for MPI comms
+        Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
+                        numWannier);
+        Kokkos::deep_copy(elPhCached, poolElPhCached);
+
+      }
+    }
   }
+
+
+
+
+
+
+
+
 
   // get nb2 for each ik and find the max
   // since loops and views must be rectangular, not ragged
