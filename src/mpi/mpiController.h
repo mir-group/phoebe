@@ -188,8 +188,11 @@ class MPIcontroller {
   int getRank(const int& communicator=worldComm) const {
     if (communicator == worldComm) {
       return rank;
-    } else {
+    } else if (communicator == intraPoolComm) {
       return poolRank;
+    } else {
+      Error("Invalid communicator in getSize");
+      return 0;
     }
   };
 
@@ -199,8 +202,11 @@ class MPIcontroller {
   int getSize(const int& communicator=worldComm) const {
     if (communicator == worldComm) {
       return size;
-    } else {
+    } else if (communicator == intraPoolComm) {
       return poolSize;
+    } else {
+      Error("Invalid communicator in getSize");
+      return 0;
     }
   };
 
