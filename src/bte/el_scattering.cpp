@@ -148,6 +148,32 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     int ik1 = std::get<1>(t1);
     WavevectorIndex ik1Idx(ik1);
 
+    // dummy call to make pooled coupling calculation work. We need to make sure
+    // calcCouplingSquared is called the same # of times. This is also taken
+    // care of while generating the indices. Here we call calcCoupling.
+    // This block is useful if e.g. we have a pool of size 2, the 1st MPI
+    // process has 7 k-points, the 2nd MPI process has 6. This block makes
+    // the 2nd process call calcCouplingSquared 7 times as well.
+    if (ik1 == -1) {
+      Eigen::Vector3d k1C = Eigen::Vector3d::Zero();
+      std::vector<Eigen::Vector3d> allK2C;
+      std::vector<Eigen::Vector3d> allQ3C;
+      allK2C.push_back(k1C);
+      allQ3C.push_back(k1C);
+      int numWannier = couplingElPhWan->getCouplingDimensions()(0);
+      Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier,1);
+      std::vector<Eigen::MatrixXcd> allEigenVectors2;
+      std::vector<Eigen::MatrixXcd> allEigenVectors3;
+      allEigenVectors2.push_back(eigenVector1);
+      allEigenVectors3.push_back(eigenVector1);
+      couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
+                                           allEigenVectors3, k1C, allK2C, allQ3C);
+      // since this is just a dummy call used to help other MPI processes
+      // compute the coupling, and not to compute matrix elements, we can skip
+      // to the next loop iteration
+      continue;
+    }
+
     Eigen::Vector3d k1C = outerBandStructure.getWavevector(ik1Idx);
     Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(ik1Idx);
     auto nb1 = int(state1Energies.size());
@@ -335,6 +361,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       }
     }
   }
+
   if (switchCase == 1) {
     for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
       mpi->allReduceSum(&outPopulations[iVec].data);
