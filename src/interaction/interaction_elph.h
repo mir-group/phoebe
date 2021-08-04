@@ -57,7 +57,6 @@ class InteractionElPhWan {
   getPolarCorrection(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
-
   // Kokkos View types
   using ComplexView1D = Kokkos::View<Kokkos::complex<double> *, Kokkos::LayoutRight>;
   using ComplexView2D = Kokkos::View<Kokkos::complex<double> **, Kokkos::LayoutRight>;
@@ -82,13 +81,10 @@ class InteractionElPhWan {
   using Range5D = Kokkos::MDRangePolicy<Kokkos::Rank<5,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
   using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
 
-
   ComplexView4D elPhCached;
   ComplexView5D couplingWannier_k;
 
-
 public:
-
 
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
@@ -189,6 +185,8 @@ public:
       const Eigen::Tensor<double, 3> &bornCharges,
       const Eigen::MatrixXd &atomicPositions,
       const Eigen::Vector3i &qCoarseMesh);
+
+  Eigen::VectorXi getCouplingDimensions();
 };
 
 #endif

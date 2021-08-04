@@ -545,7 +545,6 @@ void InteractionElPhWan::calcCouplingSquared(
   (void)k2Cs;
   int numWannier = numElBands;
   int nb1 = eigvec1.cols();
-
   int numLoops = eigvecs2.size();
   cacheCoupling.resize(0);
   cacheCoupling.resize(numLoops);
@@ -569,6 +568,7 @@ void InteractionElPhWan::calcCouplingSquared(
         poolNb1 = nb1;
       }
       mpi->allReduceSum(&poolNb1, mpi->intraPoolComm);
+
       Eigen::MatrixXcd poolEigvec1 = Eigen::MatrixXcd::Zero(poolNb1, numWannier);
       if (iPool == mpi->getRank(mpi->intraPoolComm)) {
         poolK1C = k1C;
@@ -653,7 +653,7 @@ void InteractionElPhWan::calcCouplingSquared(
       Kokkos::parallel_for(
           "elPhCached",
           Range4D({0, 0, 0, 0},
-                  {numPhBravaisVectors, numPhBands, nb1, numWannier}),
+                  {numPhBravaisVectors, numPhBands, poolNb1, numWannier}),
           KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
             Kokkos::complex<double> tmp(0.0);
             for (int iw1 = 0; iw1 < numWannier; iw1++) {
@@ -704,13 +704,9 @@ void InteractionElPhWan::calcCouplingSquared(
     }
   }
 
-
-
-
-
-
-
-
+  if (eigvec1.squaredNorm()<1.0e-8) {
+    return;
+  }
 
   // get nb2 for each ik and find the max
   // since loops and views must be rectangular, not ragged
@@ -882,4 +878,13 @@ void InteractionElPhWan::calcCouplingSquared(
     }
     cacheCoupling[ik] = coupling;
   }
+}
+
+Eigen::VectorXi InteractionElPhWan::getCouplingDimensions() {
+  auto x = couplingWannier.dimensions();
+  Eigen::VectorXi xx(5);
+  for (int i : {0,1,2,3,4}) {
+    xx(i) = int(x[i]);
+  }
+  return xx;
 }
