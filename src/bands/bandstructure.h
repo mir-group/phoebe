@@ -39,7 +39,7 @@ class BaseBandStructure {
   virtual int getNumPoints(const bool &useFullGrid = false) = 0;
 
   /** Returns the number of bands.
-   * @return numPoints: the total number of wavevectors of the bandStructure.
+   * @return numBands: the total number of bands present in the bandstructure.
    * If the number of bands is not constant, calls an error.
    */
   virtual int getNumBands() = 0;
