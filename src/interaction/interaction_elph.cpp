@@ -411,7 +411,6 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         dphbravais.read(phBravaisVectors_);
         dphDegeneracies.read(phBravaisVectorsDegeneracies_);
         numPhBravaisVectors = phBravaisVectors_.cols();
-
         // for pooling:
         if (mpi->getSize(mpi->intraPoolComm) == 1) {
           HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
@@ -431,17 +430,19 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
           // now distribute
           localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
           numElBravaisVectors = int(localElVectors.size());
-
           // read and distribute elDegeneracies
+	  elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+          HighFive::DataSet delDegeneracies2 = file.getDataSet("/elDegeneracies");
           size_t offset = localElVectors[0];
           size_t extent = numElBravaisVectors;
-          delDegeneracies.select({0, offset}, {1, extent}).read(elBravaisVectorsDegeneracies_);
-
+          delDegeneracies2.select({offset,0}, {extent,1}).read(elBravaisVectorsDegeneracies_);
           // read and distribute elBravaisVectors
+
           HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
-          size_t offset2 = 3 * localElVectors[0];
-          size_t extent2 = 3 * numElBravaisVectors;
-          delbravais.select({0, offset2}, {1, extent2}).read(elBravaisVectors_);
+	  elBravaisVectors_.resize(3,numElBravaisVectors);
+          size_t offset2 = localElVectors[0];
+          size_t extent2 = numElBravaisVectors;
+          delbravais.select({0, offset2}, {3, extent2}).read(elBravaisVectors_);
         }
       }
     }
@@ -481,7 +482,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&phBravaisVectorsDegeneracies_, mpi->interPoolComm);
 
     // Define the eph matrix element containers
-    size_t totElems = numElBands * numElBands * numPhBands * numPhBravaisVectors * numElBravaisVectors;
+    size_t totElems = pow(numElBands,2) * numPhBands * numPhBravaisVectors * numElBravaisVectors;
 
     // user info about memory
     {
@@ -535,8 +536,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
         // Read in the elements for this process
         size_t offset = localElVectors[0] * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
-      size_t extent = numElBravaisVectors * pow(numElBands,2) 
-	* numPhBands * numPhBravaisVectors;
+	size_t extent = numElBravaisVectors * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
 
         dgWannier.select({0, offset}, {1, extent}).read(gWanFlat);
       }
@@ -574,7 +574,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
         // Read in the elements for this process
         size_t offset = localElVectors[0] * pow(numElBands, 2) * numPhBravaisVectors * numPhBands;
-        size_t extent = (localElVectors.back() - localElVectors[0] + 1) * pow(numElBands, 2) * numPhBravaisVectors * numPhBands;
+        size_t extent = numElBravaisVectors * pow(numElBands, 2) * numPhBravaisVectors * numPhBands;
         dgWannier.select({0, offset}, {1, extent}).read(gWanFlat);
       }
       mpi->bcast(&gWanFlat, mpi->interPoolComm);
