@@ -1,5 +1,5 @@
-#ifndef ELPHINTERACTION_H
-#define ELPHINTERACTION_H
+#ifndef EL_PH_INTERACTION_H
+#define EL_PH_INTERACTION_H
 
 #include <complex>
 
@@ -73,6 +73,8 @@ class InteractionElPhWan {
   using HostComplexView3D = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
   using HostComplexView4D = Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
   using HostComplexView5D = Kokkos::View<Kokkos::complex<double>*****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostDoubleView1D = Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostDoubleView2D = Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
   // Kokkos Range types
   using Range2D = Kokkos::MDRangePolicy<Kokkos::Rank<2,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
