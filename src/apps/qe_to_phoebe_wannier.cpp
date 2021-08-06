@@ -1518,11 +1518,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       size_t offset = start;
       size_t numElements = stop - start + 1;
 
-      if (mpi->mpiHead())
-        std::cout << "numElements start stop offset numBVS" << numElements
-                  << " " << start << " " << stop << " " << offset << " "
-                  << numElBravaisVectors << std::endl;
-
       // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
       // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
       // In order to be compatible with older versions, we split the tensor
