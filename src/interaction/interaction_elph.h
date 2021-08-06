@@ -85,6 +85,10 @@ class InteractionElPhWan {
 
   ComplexView4D elPhCached;
   ComplexView5D couplingWannier_k;
+  DoubleView2D phBravaisVectors_k;
+  DoubleView1D phBravaisVectorsDegeneracies_k;
+  DoubleView2D elBravaisVectors_k;
+  DoubleView1D elBravaisVectorsDegeneracies_k;
 
 public:
 
@@ -188,6 +192,9 @@ public:
       const Eigen::MatrixXd &atomicPositions,
       const Eigen::Vector3i &qCoarseMesh);
 
+  /** Auxiliary function to return the shape of the electron-phonon tensor
+   * @return (numWannier,numWannier,numPhModes,numElVectors,numPhVectors)
+   */
   Eigen::VectorXi getCouplingDimensions();
 };
 

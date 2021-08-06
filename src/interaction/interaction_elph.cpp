@@ -54,8 +54,12 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       numElBravaisVectors(that.numElBravaisVectors),
       numPhBravaisVectors(that.numPhBravaisVectors),
       cacheCoupling(that.cacheCoupling),
-  cachedK1(that.cachedK1), usePolarCorrection(that.usePolarCorrection),
-  elPhCached(that.elPhCached), couplingWannier_k(that.couplingWannier_k) {}
+      cachedK1(that.cachedK1), usePolarCorrection(that.usePolarCorrection),
+      elPhCached(that.elPhCached), couplingWannier_k(that.couplingWannier_k),
+      phBravaisVectors_k(that.phBravaisVectors_k),
+      phBravaisVectorsDegeneracies_k(that.phBravaisVectorsDegeneracies_k),
+      elBravaisVectors_k(that.elBravaisVectors_k),
+      elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k) {}
 
 // assignment operator
 InteractionElPhWan &
@@ -77,6 +81,10 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     usePolarCorrection = that.usePolarCorrection;
     elPhCached = that.elPhCached;
     couplingWannier_k = that.couplingWannier_k;
+    phBravaisVectors_k = that.phBravaisVectors_k;
+    phBravaisVectorsDegeneracies_k = that.phBravaisVectorsDegeneracies_k;
+    elBravaisVectors_k = that.elBravaisVectors_k;
+    elBravaisVectorsDegeneracies_k = that.elBravaisVectorsDegeneracies_k;
   }
   return *this;
 }
@@ -611,7 +619,7 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::complex<double> complexI(0.0, 1.0);
 
   auto elPhCached = this->elPhCached;
-  int numPhBands = this->numPhBands;
+  numPhBands = this->numPhBands;
   numElBands = this->numElBands;
   numElBravaisVectors = this->numElBravaisVectors;
   numPhBravaisVectors = this->numPhBravaisVectors;
@@ -661,26 +669,60 @@ void InteractionElPhWan::calcCouplingSquared(
             numPhBands, numWannier, numWannier);
         couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
         Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
-      }
 
-      // TODO: move this to GPU?
-      // on the CPU, compute the phases for the electronic fourier transform
-      ComplexView1D phases_k("phases", numElBravaisVectors);
-      auto phases_h = Kokkos::create_mirror_view(phases_k);
-      for (int irE = 0; irE < numElBravaisVectors; irE++) {
-        double arg = poolK1C.dot(elBravaisVectors.col(irE));
-        phases_h(irE) =
-            exp(complexI * arg) / double(elBravaisVectorsDegeneracies(irE));
+        HostDoubleView2D elBravaisVectors_h(elBravaisVectors.data(),
+                                            numElBravaisVectors, 3);
+        HostDoubleView1D elBravaisVectorsDegeneracies_h(elBravaisVectorsDegeneracies.data(),
+                                                        numElBravaisVectors);
+        HostDoubleView2D phBravaisVectors_h(phBravaisVectors.data(),
+                                            numPhBravaisVectors, 3);
+        HostDoubleView1D phBravaisVectorsDegeneracies_h(phBravaisVectorsDegeneracies.data(),
+                                                        numPhBravaisVectors);
+        for (int i = 0; i < numElBravaisVectors; i++) {
+          elBravaisVectorsDegeneracies_h(i) = elBravaisVectorsDegeneracies(i);
+          for (int j = 0; j < 3; j++) {
+            elBravaisVectors_h(i, j) = elBravaisVectors(j, i);
+          }
+        }
+        for (int i = 0; i < numPhBravaisVectors; i++) {
+          phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
+          for (int j = 0; j < 3; j++) {
+            phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
+          }
+        }
+        phBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectors_h);
+        phBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectorsDegeneracies_h);
+        elBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectors_h);
+        elBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectorsDegeneracies_h);
+        Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
+        Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
+        Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
+        Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
       }
-      // and copy them to accelerator
-      Kokkos::deep_copy(phases_k, phases_h);
 
       // now compute the Fourier transform on electronic coordinates.
-      // We have to write two codes: one for when the GPU runs on CUDA,
-      // the other for when we compile the code without GPU support
       ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
                        numWannier);
       ComplexView5D couplingWannier_k = this->couplingWannier_k;
+      DoubleView2D elBravaisVectors_k = this->elBravaisVectors_k;
+      DoubleView1D elBravaisVectorsDegeneracies_k = this->elBravaisVectorsDegeneracies_k;
+
+      // first we precompute the phases
+      ComplexView1D phases_k("phases", numElBravaisVectors);
+      Kokkos::parallel_for(
+          "phases_k", numElBravaisVectors,
+          KOKKOS_LAMBDA(int irE) {
+            double arg = 0.0;
+            for (int j = 0; j < 3; j++) {
+              arg += poolK1C_k(j) * elBravaisVectors_k(irE, j);
+            }
+            phases_k(irE) =
+                exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
+          });
+
+      // now we complete the Fourier transform
+      // We have to write two codes: one for when the GPU runs on CUDA,
+      // the other for when we compile the code without GPU support
 #ifdef KOKKOS_ENABLE_CUDA
     Kokkos::parallel_for(
         "g1",
@@ -770,6 +812,7 @@ void InteractionElPhWan::calcCouplingSquared(
         auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
         Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
 
+        // TODO: this should be done in a much cleaner way
         // do a mpi->allReduce across the pool
         Eigen::Tensor<std::complex<double>, 4> reduce(numPhBravaisVectors, numPhBands, poolNb1, numWannier);
         for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -805,6 +848,9 @@ void InteractionElPhWan::calcCouplingSquared(
   if (eigvec1.squaredNorm()<1.0e-8) {
     return;
   }
+
+  DoubleView2D phBravaisVectors_k = this->phBravaisVectors_k;
+  DoubleView1D phBravaisVectorsDegeneracies_k = this->phBravaisVectorsDegeneracies_k;
 
   // get nb2 for each ik and find the max
   // since loops and views must be rectangular, not ragged
@@ -851,18 +897,13 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::deep_copy(usePolarCorrections, usePolarCorrections_h);
 
   // copy eigenvectors etc. to device
-  DoubleView1D phBravaisVectorsDegeneracies_k("degens", numPhBravaisVectors);
-  DoubleView2D phBravaisVectors_k("bravais", numPhBravaisVectors, 3),
-      q3Cs_k("q3", numLoops, 3);
+  DoubleView2D q3Cs_k("q3", numLoops, 3);
   ComplexView3D eigvecs2Dagger_k("ev2Dagger", numLoops, numWannier, nb2max),
       eigvecs3_k("ev3", numLoops, numPhBands, numPhBands);
   {
     auto eigvecs2Dagger_h = Kokkos::create_mirror_view(eigvecs2Dagger_k);
     auto eigvecs3_h = Kokkos::create_mirror_view(eigvecs3_k);
     auto q3Cs_h = Kokkos::create_mirror_view(q3Cs_k);
-    auto phBravaisVectorsDegeneracies_h =
-        Kokkos::create_mirror_view(phBravaisVectorsDegeneracies_k);
-    auto phBravaisVectors_h = Kokkos::create_mirror_view(phBravaisVectors_k);
 
 #pragma omp parallel for default(none) shared(eigvecs3_h, eigvecs2Dagger_h, nb2s_h, q3Cs_h, q3Cs_k, q3Cs, numLoops, numWannier, numPhBands, eigvecs2Dagger_k, eigvecs3_k, eigvecs2, eigvecs3)
     for (int ik = 0; ik < numLoops; ik++) {
@@ -886,18 +927,9 @@ void InteractionElPhWan::calcCouplingSquared(
         q3Cs_h(ik, i) = q3Cs[ik](i);
       }
     }
-    for (int i = 0; i < numPhBravaisVectors; i++) {
-      phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
-      for (int j = 0; j < 3; j++) {
-        phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
-      }
-    }
     Kokkos::deep_copy(eigvecs2Dagger_k, eigvecs2Dagger_h);
     Kokkos::deep_copy(eigvecs3_k, eigvecs3_h);
     Kokkos::deep_copy(q3Cs_k, q3Cs_h);
-    Kokkos::deep_copy(phBravaisVectorsDegeneracies_k,
-                      phBravaisVectorsDegeneracies_h);
-    Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
   }
 
   ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
@@ -906,6 +938,8 @@ void InteractionElPhWan::calcCouplingSquared(
       gFinal(Kokkos::ViewAllocateWithoutInitializing("gFinal"), numLoops, numPhBands, nb1, nb2max);
   DoubleView4D coupling_k(Kokkos::ViewAllocateWithoutInitializing("coupling"), numLoops, numPhBands, nb2max, nb1);
 
+  // now we finish the Wannier transform. We have to do the Fourier transform
+  // on the lattice degrees of freedom, and then do two rotations (at k2 and q)
   Kokkos::parallel_for(
       "phases", Range2D({0, 0}, {numLoops, numPhBravaisVectors}),
       KOKKOS_LAMBDA(int ik, int irP) {
@@ -945,6 +979,7 @@ void InteractionElPhWan::calcCouplingSquared(
         }
         gFinal(ik, nu, ib1, ib2) = tmp;
       });
+  // we now add the precomputed polar corrections, before taking the norm of g
   if (usePolarCorrection) {
     Kokkos::parallel_for(
         "correction",
@@ -953,6 +988,7 @@ void InteractionElPhWan::calcCouplingSquared(
           gFinal(ik, nu, ib1, ib2) += polarCorrections(ik, nu, ib1, ib2);
         });
   }
+  // finally, compute |g|^2 from g
   Kokkos::parallel_for(
       "coupling", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb2max, nb1}),
       KOKKOS_LAMBDA(int ik, int nu, int ib2, int ib1) {
@@ -962,6 +998,7 @@ void InteractionElPhWan::calcCouplingSquared(
         coupling_k(ik, nu, ib2, ib1) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
       });
+  // now, copy results back to the CPU
   auto coupling_h = Kokkos::create_mirror_view(coupling_k);
   Kokkos::deep_copy(coupling_h, coupling_k);
 #pragma omp parallel for default(none) shared(numLoops, cacheCoupling, coupling_h, nb1, nb2s_h, numPhBands)
@@ -974,6 +1011,7 @@ void InteractionElPhWan::calcCouplingSquared(
         }
       }
     }
+    // and we save the coupling |g|^2 it for later
     cacheCoupling[ik] = coupling;
   }
 }
