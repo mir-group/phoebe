@@ -1,10 +1,9 @@
 #include "interaction_elph.h"
 #include <Kokkos_Core.hpp>
+#include <fstream>
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
-#else
-#include <fstream>
 #endif
 
 // default constructor

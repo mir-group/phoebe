@@ -35,7 +35,7 @@ In this example, Phoebe will be launched with 2 MPI processes, and 8 OpenMP thre
 
 .. note::
   The best parallelization setup will likely differ from this suggestion, as it is highly dependent on the details of your machine.
-
+  
 GPU acceleration
 ----------------
 
@@ -52,3 +52,33 @@ A tentative guess for the parallelization setup is::
 
 The variable ``MAXMEM`` is used to store as many results as possible on the GPU; when the whole GPU memory is filled, Phoebe returns partial results to the CPUs for further processing. Small test examples should not be impacted by this variable.
 See the Phoebe run in the :ref:`phononTransport` for more details.
+
+.. note::
+   The number of MPI processes must be equal to the number of GPU being used.
+
+  
+Electron-phonon parallelization
+-------------------------------
+
+In order to perform the Wannier interpolation of the electron-phonon coupling, the coupling tensor describing this interaction muts fit in the memory available to each single MPI process and, if applicable, in the GPU memory.
+However, the electron-phonon tensor may be extremely large (see the size of the *.phoebe.elph.hdf5 or *.phoebe.elph.dat files for a guess on the size), causing out-of-memory errors.
+
+To overcome this, the tensor can be distributed over different MPI processes, reducing the memory requirements of the calculation in exchange for a slowdown due to increased communications between MPI nodes.
+The parallelization of this tensor is performed over the :math:`\boldsymbol{R}_e` index (the conjugate variable of the k-point index, see the theory section).
+This parallelization is controlled by the `poolSize` or `ps` command line parameter, where poolSize is the number of MPI processes over which the coupling tensor is distributed.
+
+For example, suppose we have a computer with two nodes, each with eight-core CPUs and one GPU.
+As mentioned above, we must set the number of MPI processes equal to the number of GPU available, i.e. 2.
+Next, we want to use all CPUs present on a node, therefore we set OMP_NUM_THREADS to 8.
+Now, to distribute the coupling tensor over a pool of 2 MPI processes, set::
+  
+  export OMP_NUM_THREADS=8
+  mpirun -np 2 --bind-to none ./path_to/phoebe --poolSize 2 -in inputFile.in -out outputFile.out
+
+Or equivalently::
+  
+  export OMP_NUM_THREADS=8
+  mpirun -np 2 --bind-to none ./path_to/phoebe -ps 2 -in inputFile.in -out outputFile.out
+
+Note: the poolSize parameter must be an integer divisor of the number of MPI processes.
+For example, if using 10 MPI processes, the poolSize can only be set to 1 (no pool parallelization), 2, 5 or 10.
