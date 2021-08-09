@@ -415,48 +415,41 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         dphbravais.read(phBravaisVectors_);
         dphDegeneracies.read(phBravaisVectorsDegeneracies_);
         numPhBravaisVectors = phBravaisVectors_.cols();
-        // for pooling:
-        if (mpi->getSize(mpi->intraPoolComm) == 1) {
-          HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
-          delDegeneracies.read(elBravaisVectorsDegeneracies_);
-          totalNumElBravaisVectors = elBravaisVectorsDegeneracies_.size();
-          numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
-          HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
-          delbravais.read(elBravaisVectors_);
 
-        } else {
-
-          Eigen::VectorXd totalElBravaisVectorsDegeneracies_;
-          HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
-          delDegeneracies.read(totalElBravaisVectorsDegeneracies_);
-          totalNumElBravaisVectors = totalElBravaisVectorsDegeneracies_.size();
-
-          // now distribute
+        // read electron Bravais lattice vectors and degeneracies
+        HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
+        delDegeneracies.read(elBravaisVectorsDegeneracies_);
+        totalNumElBravaisVectors = elBravaisVectorsDegeneracies_.size();
+        numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
+        HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
+        delbravais.read(elBravaisVectors_);
+        // redistribute in case of pools are present
+        if (mpi->getSize(mpi->intraPoolComm) > 1) {
           localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
           numElBravaisVectors = int(localElVectors.size());
-          // read and distribute elDegeneracies
-	  elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
-          HighFive::DataSet delDegeneracies2 = file.getDataSet("/elDegeneracies");
-          size_t offset = localElVectors[0];
-          size_t extent = numElBravaisVectors;
-          delDegeneracies2.select({offset,0}, {extent,1}).read(elBravaisVectorsDegeneracies_);
-          // read and distribute elBravaisVectors
-
-          HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
-	  elBravaisVectors_.resize(3,numElBravaisVectors);
-          size_t offset2 = localElVectors[0];
-          size_t extent2 = numElBravaisVectors;
-          delbravais.select({0, offset2}, {3, extent2}).read(elBravaisVectors_);
+          // copy a subset of elBravaisVectors
+          Eigen::VectorXd tmp1;
+          Eigen::MatrixXd tmp2;
+          tmp1 = elBravaisVectorsDegeneracies_;
+          tmp2 = elBravaisVectors_;
+          elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+          elBravaisVectors_.resize(3,numElBravaisVectors);
+          int i = 0;
+          for (int irE : localElVectors) {
+            elBravaisVectorsDegeneracies_(i) = tmp1(irE);
+            elBravaisVectors_.col(i) = tmp2.col(irE);
+            i++;
+          }
         }
       }
     }
-    // bcast to all MPI processes
+    // broadcast to all MPI processes
     mpi->bcast(&numElectrons);
     mpi->bcast(&numSpin);
-    mpi->bcast(&numElBands);
     mpi->bcast(&numPhBands);
-    mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
     mpi->bcast(&numPhBravaisVectors);
+    mpi->bcast(&numElBands);
+    mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
     mpi->bcast(&totalNumElBravaisVectors, mpi->interPoolComm);
     mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
 
@@ -474,11 +467,6 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
       couplingWannier_.resize(numElBands, numElBands, numPhBands,
                               numPhBravaisVectors, numElBravaisVectors);
-      phBravaisVectors_.setZero();
-      phBravaisVectorsDegeneracies_.setZero();
-      elBravaisVectors_.setZero();
-      elBravaisVectorsDegeneracies_.setZero();
-      couplingWannier_.setZero();
     }
     mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
     mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
@@ -539,8 +527,9 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         // Set up dataset for gWannier
         HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
         // Read in the elements for this process
+
         size_t offset = localElVectors[0] * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
-	size_t extent = numElBravaisVectors * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
+        size_t extent = numElBravaisVectors * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
 
         dgWannier.select({0, offset}, {1, extent}).read(gWanFlat);
       }
