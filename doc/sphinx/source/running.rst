@@ -67,10 +67,11 @@ To overcome this, the tensor can be distributed over different MPI processes, re
 The parallelization of this tensor is performed over the :math:`\boldsymbol{R}_e` index (the conjugate variable of the k-point index, see the theory section).
 This parallelization is controlled by the `poolSize` or `ps` command line parameter, where poolSize is the number of MPI processes over which the coupling tensor is distributed.
 
-For example, suppose we have a computer with two nodes, each with eight-core CPUs and one GPU.
-As mentioned above, we must set the number of MPI processes equal to the number of GPU available, i.e. 2.
+For example, suppose we want to run Phoebe on a computer with four nodes, each with eight-core CPUs and one GPU.
+As mentioned above, the number of MPI processes must be equal to the number of GPU available, i.e. 4.
 Next, we want to use all CPUs present on a node, therefore we set OMP_NUM_THREADS to 8.
-Now, to distribute the coupling tensor over a pool of 2 MPI processes, set::
+Let's suppose that the electron-phonon coupling tensor fits in the combined memory of 2 GPUs.
+Therefore, we distribute the coupling tensor over a pool of 2 MPI processes, as::
   
   export OMP_NUM_THREADS=8
   mpirun -np 2 --bind-to none ./path_to/phoebe --poolSize 2 -in inputFile.in -out outputFile.out
@@ -80,5 +81,5 @@ Or equivalently::
   export OMP_NUM_THREADS=8
   mpirun -np 2 --bind-to none ./path_to/phoebe -ps 2 -in inputFile.in -out outputFile.out
 
-Note: the poolSize parameter must be an integer divisor of the number of MPI processes.
-For example, if using 10 MPI processes, the poolSize can only be set to 1 (no pool parallelization), 2, 5 or 10.
+.. note:: the poolSize parameter must be an integer divisor of the number of MPI processes.
+For example, if using 10 MPI processes, the poolSize can only be set to 1, 2, 5, or 10, with the highest number having the lowest memory footprint but slowest performance.
