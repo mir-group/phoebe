@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
+#include <Kokkos_Core.hpp>
+#include <Kokkos_ScatterView.hpp>
 
 OnsagerCoefficients::OnsagerCoefficients(StatisticsSweep &statisticsSweep_,
                                          Crystal &crystal_,
@@ -595,6 +597,61 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
 
   Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
   Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
+
+  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  int niss = iss.size();
+
+  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tmpLEE_k(tmpLEE.data(), numCalculations, 3, 3),
+    tmpLTT_k(tmpLTT.data(), numCalculations, 3, 3);
+  Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tmpLEE(tmpLEE_k),
+    scatter_tmpLTT(tmpLTT_k);
+  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+      int is = iss[iis];
+      auto tmpLEEPrivate = scatter_tmpLEE.access();
+      auto tmpLTTPrivate = scatter_tmpLTT.access();
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
+          excludeIndices.end()) {
+      return;
+      }
+
+      StateIndex isIdx(is);
+      int iBte = bandStructure.stateToBte(isIdx).get();
+      auto rotations = bandStructure.getRotationsStar(isIdx);
+
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+
+      for (Eigen::Matrix3d r : rotations) {
+      Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
+      Eigen::Vector3d thisAFE = Eigen::Vector3d::Zero();
+      Eigen::Vector3d thisFT = Eigen::Vector3d::Zero();
+      Eigen::Vector3d thisAFT = Eigen::Vector3d::Zero();
+      for (int i : {0, 1, 2}) {
+        for (int j : {0, 1, 2}) {
+          thisFE(i) += r(i, j) * fE(iCalc, j, iBte);
+          thisAFE(i) += r(i, j) * afE(iCalc, j, iBte);
+          thisFT(i) += r(i, j) * fT(iCalc, j, iBte);
+          thisAFT(i) += r(i, j) * afT(iCalc, j, iBte);
+        }
+      }
+
+      for (int i : {0, 1, 2}) {
+        for (int j : {0, 1, 2}) {
+          tmpLEEPrivate(iCalc, i, j) +=
+            thisFE(i) * thisAFE(j) * norm * temp;
+          tmpLTTPrivate(iCalc, i, j) +=
+            thisFT(i) * thisAFT(j) * norm * temp * temp;
+        }
+      }
+      }
+      }
+  });
+  Kokkos::Experimental::contribute(tmpLEE_k, scatter_tmpLEE);
+  Kokkos::Experimental::contribute(tmpLTT_k, scatter_tmpLTT);
+
+  /*
 #pragma omp parallel default(none)                                             \
     shared(bandStructure, statisticsSweep, fE, afE, fT, afT, tmpLEE, tmpLTT,   \
            norm, numCalculations, excludeIndices)
@@ -605,45 +662,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
 #pragma omp for nowait
     for (int is : bandStructure.parallelIrrStateIterator()) {
 
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
-          excludeIndices.end()) {
-        continue;
-      }
-
-      StateIndex isIdx(is);
-      int iBte = bandStructure.stateToBte(isIdx).get();
-      auto rotations = bandStructure.getRotationsStar(isIdx);
-
-      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcStat.temperature;
-
-        for (Eigen::Matrix3d r : rotations) {
-          Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
-          Eigen::Vector3d thisAFE = Eigen::Vector3d::Zero();
-          Eigen::Vector3d thisFT = Eigen::Vector3d::Zero();
-          Eigen::Vector3d thisAFT = Eigen::Vector3d::Zero();
-          for (int i : {0, 1, 2}) {
-            for (int j : {0, 1, 2}) {
-              thisFE(i) += r(i, j) * fE(iCalc, j, iBte);
-              thisAFE(i) += r(i, j) * afE(iCalc, j, iBte);
-              thisFT(i) += r(i, j) * fT(iCalc, j, iBte);
-              thisAFT(i) += r(i, j) * afT(iCalc, j, iBte);
-            }
-          }
-
-          for (int i : {0, 1, 2}) {
-            for (int j : {0, 1, 2}) {
-              tmpLEEPrivate(iCalc, i, j) +=
-                  thisFE(i) * thisAFE(j) * norm * temp;
-              tmpLTTPrivate(iCalc, i, j) +=
-                  thisFT(i) * thisAFT(j) * norm * temp * temp;
-            }
-          }
-        }
-      }
-    }
 #pragma omp critical
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
       for (int i : {0, 1, 2}) {
@@ -654,6 +672,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
       }
     }
   }
+  */
   mpi->allReduceSum(&tmpLEE);
   mpi->allReduceSum(&tmpLTT);
   sigma -= 2 * tmpLEE;

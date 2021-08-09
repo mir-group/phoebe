@@ -37,6 +37,8 @@ InteractionElPhWan::InteractionElPhWan(
       }
     }
   }
+  // TODO: REMOVE
+  usePolarCorrection = false;
 }
 
 InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}

@@ -168,9 +168,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     std::vector<Eigen::VectorXd> allState2Energies(nk2);
     std::vector<Eigen::MatrixXd> allV2s(nk2);
 
-    int ik2Counter = -1;
-    for (int ik2 : ik2Indexes) {
-      ik2Counter++;
+    int nik2s = ik2Indexes.size();
+#pragma omp parallel for
+    for (int ik2Counter = 0; ik2Counter < nik2s; ik2Counter++){
+      int ik2 = ik2Indexes[ik2Counter];
       WavevectorIndex ik2Idx(ik2);
       allK2C[ik2Counter] = innerBandStructure.getWavevector(ik2Idx);
       allState2Energies[ik2Counter] = innerBandStructure.getEnergies(ik2Idx);
@@ -188,7 +189,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
                                          allEigenVectors3, k1C, allK2C, allQ3C);
 
-    ik2Counter = -1;
+    int ik2Counter = -1;
     for (int ik2 : ik2Indexes) {
       ik2Counter++;
 

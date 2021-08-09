@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
+#include <Kokkos_Core.hpp>
+#include <Kokkos_ScatterView.hpp>
 
 ElectronViscosity::ElectronViscosity(Context &context_,
                                      StatisticsSweep &statisticsSweep_,
@@ -42,14 +44,15 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   tensordxdxdxd.setZero();
   auto excludeIndices = tau.excludeIndices;
 
-#pragma omp parallel default(none)                                             \
-    shared(bandStructure, tensordxdxdxd, excludeIndices, particle,             \
-           statisticsSweep, tau, norm, spinFactor)
-  {
-    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
+  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  int niss = iss.size();
 
-#pragma omp for nowait
-    for (int is : bandStructure.parallelIrrStateIterator()) {
+  Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
+  Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
+  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+      auto tmpTensor = scatter_tensordxdxdxd.access();
+
+      int is = iss[iis];
       auto isIdx = StateIndex(is);
 
       double en = bandStructure.getEnergy(isIdx);
@@ -61,50 +64,102 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
       // skip the acoustic phonons
       if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
           excludeIndices.end())
-        continue;
+      return;
 
       auto rots = bandStructure.getRotationsStar(isIdx);
       for (const Eigen::Matrix3d &rot : rots) {
-        Eigen::Vector3d vel = rot * velIrr;
-        Eigen::Vector3d q = rot * qIrr;
+      Eigen::Vector3d vel = rot * velIrr;
+      Eigen::Vector3d q = rot * qIrr;
 
-        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-          auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-          double temperature = calcStat.temperature;
-          double chemPot = calcStat.chemicalPotential;
-          double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+        double temperature = calcStat.temperature;
+        double chemPot = calcStat.chemicalPotential;
+        double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
 
-          for (int l = 0; l < dimensionality; l++) {
-            for (int k = 0; k < dimensionality; k++) {
-              for (int j = 0; j < dimensionality; j++) {
-                for (int i = 0; i < dimensionality; i++) {
-                  tmpTensor(iCalc, i, j, k, l) +=
-                      q(i) * vel(j) * q(k) * vel(l) * boseP1 *
-                      tau(iCalc, 0, iBte) / temperature * norm;
-                }
+        for (int l = 0; l < dimensionality; l++) {
+          for (int k = 0; k < dimensionality; k++) {
+            for (int j = 0; j < dimensionality; j++) {
+              for (int i = 0; i < dimensionality; i++) {
+                tmpTensor(iCalc, i, j, k, l) +=
+                  q(i) * vel(j) * q(k) * vel(l) * boseP1 *
+                  tau(iCalc, 0, iBte) / temperature * norm;
               }
             }
           }
         }
       }
-    }
-#pragma omp critical
-    for (int l = 0; l < dimensionality; l++) {
-      for (int k = 0; k < dimensionality; k++) {
-        for (int j = 0; j < dimensionality; j++) {
-          for (int i = 0; i < dimensionality; i++) {
-            for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-              tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
-            }
-          }
-        }
       }
-    }
+  });
+  Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
+  /*
+
+#pragma omp parallel default(none)                                             \
+shared(bandStructure, tensordxdxdxd, excludeIndices, particle,             \
+statisticsSweep, tau, norm, spinFactor, niss, iss)
+{
+Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
+
+#pragma omp for nowait
+for (int iis = 0; iis < niss; iis++) {
+int is = iss[iis];
+auto isIdx = StateIndex(is);
+
+double en = bandStructure.getEnergy(isIdx);
+Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
+Eigen::Vector3d qIrr = bandStructure.getWavevector(isIdx);
+
+int iBte = bandStructure.stateToBte(isIdx).get();
+
+  // skip the acoustic phonons
+  if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
+  excludeIndices.end())
+  continue;
+
+  auto rots = bandStructure.getRotationsStar(isIdx);
+  for (const Eigen::Matrix3d &rot : rots) {
+  Eigen::Vector3d vel = rot * velIrr;
+  Eigen::Vector3d q = rot * qIrr;
+
+  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+  auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+  double temperature = calcStat.temperature;
+  double chemPot = calcStat.chemicalPotential;
+  double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
+
+  for (int l = 0; l < dimensionality; l++) {
+  for (int k = 0; k < dimensionality; k++) {
+  for (int j = 0; j < dimensionality; j++) {
+  for (int i = 0; i < dimensionality; i++) {
+  tmpTensor(iCalc, i, j, k, l) +=
+  q(i) * vel(j) * q(k) * vel(l) * boseP1 *
+  tau(iCalc, 0, iBte) / temperature * norm;
   }
+  }
+  }
+  }
+  }
+  }
+  }
+#pragma omp critical
+tensordxdxdxd = tensordxdxdxd + tmpTensor;
+  //for (int l = 0; l < dimensionality; l++) {
+  //  for (int k = 0; k < dimensionality; k++) {
+  //    for (int j = 0; j < dimensionality; j++) {
+  //      for (int i = 0; i < dimensionality; i++) {
+  //        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+  //          tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
+  }
+  */
   mpi->allReduceSum(&tensordxdxdxd);
-}
+  }
 void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
-                                         ParallelMatrix<double> &eigenvectors) {
+    ParallelMatrix<double> &eigenvectors) {
   if (numCalculations > 1) {
     Error("Viscosity for relaxons only for 1 temperature");
   }
