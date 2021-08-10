@@ -83,8 +83,9 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<Eigen::Vector3d> q3Cs;
     q3Cs.push_back(q3C);
 
+    couplingElPh.cacheElPh(eigenVector1, k1C);
     couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3,
-                                     k1C, k2Cs, q3Cs);
+                                     q3Cs);
     auto coupling = couplingElPh.getCouplingSquared(0);
 
     double sum1 = 0.;

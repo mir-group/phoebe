@@ -159,9 +159,14 @@ public:
       const Eigen::MatrixXcd &eigvec1,
       const std::vector<Eigen::MatrixXcd> &eigvecs2,
       const std::vector<Eigen::MatrixXcd> &eigvecs3,
-      const Eigen::Vector3d &k1C,
-      const std::vector<Eigen::Vector3d> &k2Cs,
       const std::vector<Eigen::Vector3d> &q3Cs);
+
+  /** Computes a partial Fourier transform over the k1/R_el variables.
+   * @param k1C: values of the k1 cartesian coordinates over which the Fourier
+   * transform is computed.
+   * @param eigvec1: Wannier rotation matrix U at point k1.
+   */
+  void cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C);
 
   /** Get the coupling for the values of the wavevectors triplet (k1,k2,q3),
    * where k1 is the wavevector used at calcCoupling Squared(),

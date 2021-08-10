@@ -1300,6 +1300,11 @@ void ElPhQeToPhoebeApp::testBackTransform(
   for (int ik1 = 0; ik1 < numKPoints; ik1++) {
     Eigen::Vector3d k1C =
         kPoints.getPointCoordinates(ik1, Points::cartesianCoordinates);
+    auto ik1Index = WavevectorIndex(ik1);
+    Eigen::MatrixXcd eigenVector1 = bandStructure.getEigenvectors(ik1Index);
+
+    couplingElPh.cacheElPh(eigenVector1, k1C);
+
     for (int ik2 = 0; ik2 < numKPoints; ik2++) {
       Eigen::Vector3d k2C =
           kPoints.getPointCoordinates(ik2, Points::cartesianCoordinates);
@@ -1313,10 +1318,7 @@ void ElPhQeToPhoebeApp::testBackTransform(
       std::vector<Eigen::Vector3d> q3Cs;
       q3Cs.push_back(q3C);
 
-      auto ik1Index = WavevectorIndex(ik1);
       auto ik2Index = WavevectorIndex(ik2);
-
-      Eigen::MatrixXcd eigenVector1 = bandStructure.getEigenvectors(ik1Index);
       Eigen::MatrixXcd eigenVector2 = bandStructure.getEigenvectors(ik2Index);
       std::vector<Eigen::MatrixXcd> eigenVectors2;
       eigenVectors2.push_back(eigenVector2);
@@ -1327,7 +1329,7 @@ void ElPhQeToPhoebeApp::testBackTransform(
       eigenVectors3.push_back(eigenVector3);
 
       couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2,
-                                       eigenVectors3, k1C, k2Cs, q3Cs);
+                                       eigenVectors3, q3Cs);
       auto coupling2 = couplingElPh.getCouplingSquared(0);
 
       double sum1 = 0.;

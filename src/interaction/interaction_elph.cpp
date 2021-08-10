@@ -610,249 +610,17 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 void InteractionElPhWan::calcCouplingSquared(
     const Eigen::MatrixXcd &eigvec1,
     const std::vector<Eigen::MatrixXcd> &eigvecs2,
-    const std::vector<Eigen::MatrixXcd> &eigvecs3, const Eigen::Vector3d &k1C,
-    const std::vector<Eigen::Vector3d> &k2Cs,
+    const std::vector<Eigen::MatrixXcd> &eigvecs3,
     const std::vector<Eigen::Vector3d> &q3Cs) {
-  (void)k2Cs;
   int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   auto numLoops = int(eigvecs2.size());
-  cacheCoupling.resize(0);
-  cacheCoupling.resize(numLoops);
-  Kokkos::complex<double> complexI(0.0, 1.0);
 
   auto elPhCached = this->elPhCached;
   numPhBands = this->numPhBands;
   numElBands = this->numElBands;
   numElBravaisVectors = this->numElBravaisVectors;
   numPhBravaisVectors = this->numPhBravaisVectors;
-
-  { // bracket to make sure Kokkos temporary objects are deallocated
-  if (k1C != cachedK1 || elPhCached.size() == 0) {
-    cachedK1 = k1C;
-
-    // note: this loop is a parallelization over the group (Pool) of MPI
-    // processes, which together contain all the el-ph coupling tensor
-    // First, loop over the MPI processes in the pool
-    for (int iPool=0; iPool<mpi->getSize(mpi->intraPoolComm); iPool++) {
-
-      // the current MPI process must first broadcast the k-point and the
-      // eigenvector that will be computed now.
-      // So, first broadcast the number of bands of the iPool-th process
-      int poolNb1 = 0;
-      if (iPool == mpi->getRank(mpi->intraPoolComm)) {
-        poolNb1 = nb1;
-      }
-      mpi->allReduceSum(&poolNb1, mpi->intraPoolComm);
-
-      // broadcast also the wavevector and the eigenvector at k for process iPool
-      Eigen::Vector3d poolK1C = Eigen::Vector3d::Zero();
-      Eigen::MatrixXcd poolEigvec1 = Eigen::MatrixXcd::Zero(poolNb1, numWannier);
-      if (iPool == mpi->getRank(mpi->intraPoolComm)) {
-        poolK1C = k1C;
-        poolEigvec1 = eigvec1;
-      }
-      mpi->allReduceSum(&poolK1C, mpi->intraPoolComm);
-      mpi->allReduceSum(&poolEigvec1, mpi->intraPoolComm);
-
-      // now, copy the eigenvector and wavevector to the accelerator
-      ComplexView2D eigvec1_k("ev1", poolNb1, numWannier);
-      DoubleView1D poolK1C_k("k", 3);
-      {
-        HostComplexView2D eigvec1_h((Kokkos::complex<double>*) poolEigvec1.data(), poolNb1, numWannier);
-        HostDoubleView1D poolK1C_h(poolK1C.data(), 3);
-        Kokkos::deep_copy(eigvec1_k, eigvec1_h);
-        Kokkos::deep_copy(poolK1C_k, poolK1C_h);
-      }
-
-      // in the first call to this function, we must copy the el-ph tensor
-      // from the CPU to the accelerator
-      if (couplingWannier_k.extent(0) == 0) {
-        HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
-            numElBravaisVectors, numPhBravaisVectors,
-            numPhBands, numWannier, numWannier);
-        couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
-        Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
-
-        HostDoubleView2D elBravaisVectors_h(elBravaisVectors.data(),
-                                            numElBravaisVectors, 3);
-        HostDoubleView1D elBravaisVectorsDegeneracies_h(elBravaisVectorsDegeneracies.data(),
-                                                        numElBravaisVectors);
-        HostDoubleView2D phBravaisVectors_h(phBravaisVectors.data(),
-                                            numPhBravaisVectors, 3);
-        HostDoubleView1D phBravaisVectorsDegeneracies_h(phBravaisVectorsDegeneracies.data(),
-                                                        numPhBravaisVectors);
-        for (int i = 0; i < numElBravaisVectors; i++) {
-          elBravaisVectorsDegeneracies_h(i) = elBravaisVectorsDegeneracies(i);
-          for (int j = 0; j < 3; j++) {
-            elBravaisVectors_h(i, j) = elBravaisVectors(j, i);
-          }
-        }
-        for (int i = 0; i < numPhBravaisVectors; i++) {
-          phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
-          for (int j = 0; j < 3; j++) {
-            phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
-          }
-        }
-        phBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectors_h);
-        phBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectorsDegeneracies_h);
-        elBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectors_h);
-        elBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectorsDegeneracies_h);
-        Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
-        Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
-        Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
-        Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
-      }
-
-      // now compute the Fourier transform on electronic coordinates.
-      ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
-                       numWannier);
-      ComplexView5D couplingWannier_k = this->couplingWannier_k;
-      DoubleView2D elBravaisVectors_k = this->elBravaisVectors_k;
-      DoubleView1D elBravaisVectorsDegeneracies_k = this->elBravaisVectorsDegeneracies_k;
-
-      // first we precompute the phases
-      ComplexView1D phases_k("phases", numElBravaisVectors);
-      Kokkos::parallel_for(
-          "phases_k", numElBravaisVectors,
-          KOKKOS_LAMBDA(int irE) {
-            double arg = 0.0;
-            for (int j = 0; j < 3; j++) {
-              arg += poolK1C_k(j) * elBravaisVectors_k(irE, j);
-            }
-            phases_k(irE) =
-                exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
-          });
-
-      // now we complete the Fourier transform
-      // We have to write two codes: one for when the GPU runs on CUDA,
-      // the other for when we compile the code without GPU support
-#ifdef KOKKOS_ENABLE_CUDA
-    Kokkos::parallel_for(
-        "g1",
-        Range4D({0, 0, 0, 0},
-                {numPhBravaisVectors, numPhBands, numWannier, numWannier}),
-        KOKKOS_LAMBDA(int irP, int nu, int iw1, int iw2) {
-          Kokkos::complex<double> tmp(0.0);
-          for (int irE = 0; irE < numElBravaisVectors; irE++) {
-            // important note: the first index iw2 runs over the k+q transform
-            // while iw1 runs over k
-            tmp += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
-          }
-          g1(irP, nu, iw1, iw2) = tmp;
-        });
-#else
-
-#pragma omp parallel default(none) shared(g1, phases_k, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors, couplingWannier_k)
-      {
-#pragma omp for collapse(4)
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int iw1 = 0; iw1 < numWannier; iw1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                g1(irP, nu, iw1, iw2) = 0.0;
-              }
-            }
-          }
-        }
-#pragma omp barrier
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
-#pragma omp for collapse(4)
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int nu = 0; nu < numPhBands; nu++) {
-              for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                  g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
-                }
-              }
-            }
-          }
-#pragma omp barrier
-        }
-      }
-#endif
-
-      // now we need to add the rotation on the electronic coordinates
-      // and finish the transformation on electronic coordinates
-      // we distinguish two cases. If each MPI process has the whole el-ph
-      // tensor, we don't need communication and directly store results in
-      // elPhCached. Otherwise, we need to do an MPI reduction
-      if (mpi->getSize(mpi->intraPoolComm)==1) {
-        Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
-                        numWannier);
-
-        Kokkos::parallel_for(
-            "elPhCached",
-            Range4D({0, 0, 0, 0},
-                    {numPhBravaisVectors, numPhBands, poolNb1, numWannier}),
-                    KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
-              Kokkos::complex<double> tmp(0.0);
-              for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
-              }
-              elPhCached(irP, nu, ib1, iw2) = tmp;
-            });
-
-      } else {
-        ComplexView4D poolElPhCached(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"), numPhBravaisVectors, numPhBands, poolNb1,
-                     numWannier);
-
-        Kokkos::parallel_for(
-            "elPhCached",
-            Range4D({0, 0, 0, 0},
-                    {numPhBravaisVectors, numPhBands, poolNb1, numWannier}),
-            KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
-              Kokkos::complex<double> tmp(0.0);
-              for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
-              }
-              poolElPhCached(irP, nu, ib1, iw2) = tmp;
-            });
-
-        // note: we do the reduction after the rotation, so that the tensor
-        // may be a little smaller when windows are applied (nb1<numWannier)
-
-        // copy from accelerator to CPU
-        auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
-        Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
-
-        // TODO: this should be done in a much cleaner way
-        // do a mpi->allReduce across the pool
-        Eigen::Tensor<std::complex<double>, 4> reduce(numPhBravaisVectors, numPhBands, poolNb1, numWannier);
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                reduce(irP, nu, ib1, iw2) = poolElPhCached_h(irP, nu, ib1, iw2);
-              }
-            }
-          }
-        }
-        mpi->allReduceSum(&reduce, mpi->intraPoolComm);
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                poolElPhCached_h(irP, nu, ib1, iw2) = reduce(irP, nu, ib1, iw2);
-              }
-            }
-          }
-        }
-
-        // if the process owns this k-point, copy back from CPU to accelerator
-        if (mpi->getRank(mpi->intraPoolComm) == iPool) {
-          Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
-                          numWannier);
-          Kokkos::deep_copy(elPhCached, poolElPhCached_h);
-        }
-      }
-    }
-  }
-  }
-
-  if (eigvec1.squaredNorm()<1.0e-8) {
-    return;
-  }
 
   DoubleView2D phBravaisVectors_k = this->phBravaisVectors_k;
   DoubleView1D phBravaisVectorsDegeneracies_k = this->phBravaisVectorsDegeneracies_k;
@@ -878,7 +646,7 @@ void InteractionElPhWan::calcCouplingSquared(
   auto usePolarCorrections_h = Kokkos::create_mirror_view(usePolarCorrections);
   auto polarCorrections_h = Kokkos::create_mirror_view(polarCorrections);
 
-// precompute all needed polar corrections
+  // precompute all needed polar corrections
 #pragma omp parallel for default(none) shared(polarCorrections_h, nb1, usePolarCorrections_h, numLoops, q3Cs, eigvecs2, eigvecs3, usePolarCorrection, nb2s_h, numPhBands, eigvec1)
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Vector3d q3C = q3Cs[ik];
@@ -942,6 +710,7 @@ void InteractionElPhWan::calcCouplingSquared(
   // now we finish the Wannier transform. We have to do the Fourier transform
   // on the lattice degrees of freedom, and then do two rotations (at k2 and q)
   ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
+  Kokkos::complex<double> complexI(0.0, 1.0);
   Kokkos::parallel_for(
       "phases", Range2D({0, 0}, {numLoops, numPhBravaisVectors}),
       KOKKOS_LAMBDA(int ik, int irP) {
@@ -952,6 +721,8 @@ void InteractionElPhWan::calcCouplingSquared(
         phases(ik, irP) =
             exp(complexI * arg) / phBravaisVectorsDegeneracies_k(irP);
       });
+
+  std::cout << "727\n";
 
   ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
@@ -964,6 +735,7 @@ void InteractionElPhWan::calcCouplingSquared(
         g3(ik, nu, ib1, iw2) = tmp;
       });
   Kokkos::realloc(phases, 0, 0);
+  std::cout << "740\n";
 
   ComplexView4D g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
@@ -1014,6 +786,8 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::realloc(gFinal, 0, 0, 0, 0);
 
   // now, copy results back to the CPU
+  cacheCoupling.resize(0);
+  cacheCoupling.resize(numLoops);
   auto coupling_h = Kokkos::create_mirror_view(coupling_k);
   Kokkos::deep_copy(coupling_h, coupling_k);
 #pragma omp parallel for default(none) shared(numLoops, cacheCoupling, coupling_h, nb1, nb2s_h, numPhBands)
@@ -1077,4 +851,237 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
     Error("Insufficient memory!");
   }
   return numBatches;
+}
+
+void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
+  int numWannier = numElBands;
+  auto nb1 = int(eigvec1.cols());
+  Kokkos::complex<double> complexI(0.0, 1.0);
+
+//  auto elPhCached = this->elPhCached;
+//  numPhBands = this->numPhBands;
+//  numElBands = this->numElBands;
+//  numElBravaisVectors = this->numElBravaisVectors;
+//  numPhBravaisVectors = this->numPhBravaisVectors;
+
+    if (k1C != cachedK1 || elPhCached.size() == 0) {
+      cachedK1 = k1C;
+
+      // note: this loop is a parallelization over the group (Pool) of MPI
+      // processes, which together contain all the el-ph coupling tensor
+      // First, loop over the MPI processes in the pool
+      for (int iPool=0; iPool<mpi->getSize(mpi->intraPoolComm); iPool++) {
+
+        // the current MPI process must first broadcast the k-point and the
+        // eigenvector that will be computed now.
+        // So, first broadcast the number of bands of the iPool-th process
+        int poolNb1 = 0;
+        if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+          poolNb1 = nb1;
+        }
+        mpi->allReduceSum(&poolNb1, mpi->intraPoolComm);
+
+        // broadcast also the wavevector and the eigenvector at k for process iPool
+        Eigen::Vector3d poolK1C = Eigen::Vector3d::Zero();
+        Eigen::MatrixXcd poolEigvec1 = Eigen::MatrixXcd::Zero(poolNb1, numWannier);
+        if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+          poolK1C = k1C;
+          poolEigvec1 = eigvec1;
+        }
+        mpi->allReduceSum(&poolK1C, mpi->intraPoolComm);
+        mpi->allReduceSum(&poolEigvec1, mpi->intraPoolComm);
+
+        // now, copy the eigenvector and wavevector to the accelerator
+        ComplexView2D eigvec1_k("ev1", poolNb1, numWannier);
+        DoubleView1D poolK1C_k("k", 3);
+        {
+          HostComplexView2D eigvec1_h((Kokkos::complex<double>*) poolEigvec1.data(), poolNb1, numWannier);
+          HostDoubleView1D poolK1C_h(poolK1C.data(), 3);
+          Kokkos::deep_copy(eigvec1_k, eigvec1_h);
+          Kokkos::deep_copy(poolK1C_k, poolK1C_h);
+        }
+
+        // in the first call to this function, we must copy the el-ph tensor
+        // from the CPU to the accelerator
+        if (couplingWannier_k.extent(0) == 0) {
+          HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
+                                              numElBravaisVectors, numPhBravaisVectors,
+                                              numPhBands, numWannier, numWannier);
+          couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
+          Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
+
+          HostDoubleView2D elBravaisVectors_h(elBravaisVectors.data(),
+                                              numElBravaisVectors, 3);
+          HostDoubleView1D elBravaisVectorsDegeneracies_h(elBravaisVectorsDegeneracies.data(),
+                                                          numElBravaisVectors);
+          HostDoubleView2D phBravaisVectors_h(phBravaisVectors.data(),
+                                              numPhBravaisVectors, 3);
+          HostDoubleView1D phBravaisVectorsDegeneracies_h(phBravaisVectorsDegeneracies.data(),
+                                                          numPhBravaisVectors);
+          for (int i = 0; i < numElBravaisVectors; i++) {
+            elBravaisVectorsDegeneracies_h(i) = elBravaisVectorsDegeneracies(i);
+            for (int j = 0; j < 3; j++) {
+              elBravaisVectors_h(i, j) = elBravaisVectors(j, i);
+            }
+          }
+          for (int i = 0; i < numPhBravaisVectors; i++) {
+            phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
+            for (int j = 0; j < 3; j++) {
+              phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
+            }
+          }
+          phBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectors_h);
+          phBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectorsDegeneracies_h);
+          elBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectors_h);
+          elBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectorsDegeneracies_h);
+          Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
+          Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
+          Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
+          Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
+        }
+
+        // now compute the Fourier transform on electronic coordinates.
+        ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numWannier,
+                         numWannier);
+        ComplexView5D couplingWannier_k = this->couplingWannier_k;
+        DoubleView2D elBravaisVectors_k = this->elBravaisVectors_k;
+        DoubleView1D elBravaisVectorsDegeneracies_k = this->elBravaisVectorsDegeneracies_k;
+
+        // first we precompute the phases
+        ComplexView1D phases_k("phases", numElBravaisVectors);
+        Kokkos::parallel_for(
+            "phases_k", numElBravaisVectors,
+            KOKKOS_LAMBDA(int irE) {
+              double arg = 0.0;
+              for (int j = 0; j < 3; j++) {
+                arg += poolK1C_k(j) * elBravaisVectors_k(irE, j);
+              }
+              phases_k(irE) =
+                  exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
+            });
+
+        // now we complete the Fourier transform
+        // We have to write two codes: one for when the GPU runs on CUDA,
+        // the other for when we compile the code without GPU support
+#ifdef KOKKOS_ENABLE_CUDA
+Kokkos::parallel_for(
+    "g1",
+    Range4D({0, 0, 0, 0},
+            {numPhBravaisVectors, numPhBands, numWannier, numWannier}),
+            KOKKOS_LAMBDA(int irP, int nu, int iw1, int iw2) {
+      Kokkos::complex<double> tmp(0.0);
+      for (int irE = 0; irE < numElBravaisVectors; irE++) {
+        // important note: the first index iw2 runs over the k+q transform
+        // while iw1 runs over k
+        tmp += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+      }
+      g1(irP, nu, iw1, iw2) = tmp;
+    });
+#else
+
+#pragma omp parallel default(none) shared(g1, phases_k, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors, couplingWannier_k)
+{
+#pragma omp for collapse(4)
+  for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+    for (int nu = 0; nu < numPhBands; nu++) {
+      for (int iw1 = 0; iw1 < numWannier; iw1++) {
+        for (int iw2 = 0; iw2 < numWannier; iw2++) {
+          g1(irP, nu, iw1, iw2) = 0.0;
+        }
+      }
+    }
+  }
+#pragma omp barrier
+for (int irE = 0; irE < numElBravaisVectors; irE++) {
+#pragma omp for collapse(4)
+    for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+      for (int nu = 0; nu < numPhBands; nu++) {
+        for (int iw1 = 0; iw1 < numWannier; iw1++) {
+          for (int iw2 = 0; iw2 < numWannier; iw2++) {
+            g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
+          }
+        }
+      }
+    }
+#pragma omp barrier
+  }
+}
+#endif
+
+      // now we need to add the rotation on the electronic coordinates
+      // and finish the transformation on electronic coordinates
+      // we distinguish two cases. If each MPI process has the whole el-ph
+      // tensor, we don't need communication and directly store results in
+      // elPhCached. Otherwise, we need to do an MPI reduction
+      if (mpi->getSize(mpi->intraPoolComm)==1) {
+        Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
+                        numWannier);
+
+        Kokkos::parallel_for(
+            "elPhCached",
+            Range4D({0, 0, 0, 0},
+                    {numPhBravaisVectors, numPhBands, poolNb1, numWannier}),
+                    KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
+              Kokkos::complex<double> tmp(0.0);
+              for (int iw1 = 0; iw1 < numWannier; iw1++) {
+                tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
+              }
+              elPhCached(irP, nu, ib1, iw2) = tmp;
+            });
+
+      } else {
+        ComplexView4D poolElPhCached(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"), numPhBravaisVectors, numPhBands, poolNb1,
+                                     numWannier);
+
+        Kokkos::parallel_for(
+            "elPhCached",
+            Range4D({0, 0, 0, 0},
+                    {numPhBravaisVectors, numPhBands, poolNb1, numWannier}),
+                    KOKKOS_LAMBDA(int irP, int nu, int ib1, int iw2) {
+              Kokkos::complex<double> tmp(0.0);
+              for (int iw1 = 0; iw1 < numWannier; iw1++) {
+                tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
+              }
+              poolElPhCached(irP, nu, ib1, iw2) = tmp;
+            });
+
+        // note: we do the reduction after the rotation, so that the tensor
+        // may be a little smaller when windows are applied (nb1<numWannier)
+
+        // copy from accelerator to CPU
+        auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
+        Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
+
+        // TODO: this should be done in a much cleaner way
+        // do a mpi->allReduce across the pool
+        Eigen::Tensor<std::complex<double>, 4> reduce(numPhBravaisVectors, numPhBands, poolNb1, numWannier);
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
+              for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                reduce(irP, nu, ib1, iw2) = poolElPhCached_h(irP, nu, ib1, iw2);
+              }
+            }
+          }
+        }
+        mpi->allReduceSum(&reduce, mpi->intraPoolComm);
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
+              for (int iw2 = 0; iw2 < numWannier; iw2++) {
+                poolElPhCached_h(irP, nu, ib1, iw2) = reduce(irP, nu, ib1, iw2);
+              }
+            }
+          }
+        }
+
+        // if the process owns this k-point, copy back from CPU to accelerator
+        if (mpi->getRank(mpi->intraPoolComm) == iPool) {
+          Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
+                          numWannier);
+          Kokkos::deep_copy(elPhCached, poolElPhCached_h);
+        }
+      }
+    }
+  }
 }

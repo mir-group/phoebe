@@ -156,18 +156,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // the 2nd process call calcCouplingSquared 7 times as well.
     if (ik1 == -1) {
       Eigen::Vector3d k1C = Eigen::Vector3d::Zero();
-      std::vector<Eigen::Vector3d> allK2C;
-      std::vector<Eigen::Vector3d> allQ3C;
-      allK2C.push_back(k1C);
-      allQ3C.push_back(k1C);
       int numWannier = couplingElPhWan->getCouplingDimensions()(0);
       Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier,1);
-      std::vector<Eigen::MatrixXcd> allEigenVectors2;
-      std::vector<Eigen::MatrixXcd> allEigenVectors3;
-      allEigenVectors2.push_back(eigenVector1);
-      allEigenVectors3.push_back(eigenVector1);
-      couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
-                                           allEigenVectors3, k1C, allK2C, allQ3C);
+      couplingElPhWan->cacheElPh(eigenVector1, k1C);
       // since this is just a dummy call used to help other MPI processes
       // compute the coupling, and not to compute matrix elements, we can skip
       // to the next loop iteration
@@ -179,6 +170,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     auto nb1 = int(state1Energies.size());
     Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(ik1Idx);
     Eigen::MatrixXcd eigenVector1 = outerBandStructure.getEigenvectors(ik1Idx);
+
+    couplingElPhWan->cacheElPh(eigenVector1, k1C);
 
     pointHelper.prepare(k1C, ik2Indexes);
     auto nk2 = int(ik2Indexes.size());
@@ -212,7 +205,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
 
     couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
-                                         allEigenVectors3, k1C, allK2C, allQ3C);
+                                         allEigenVectors3, allQ3C);
 
     ik2Counter = -1;
     for (int ik2 : ik2Indexes) {
