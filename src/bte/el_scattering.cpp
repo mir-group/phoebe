@@ -157,7 +157,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     if (ik1 == -1) {
       Eigen::Vector3d k1C = Eigen::Vector3d::Zero();
       int numWannier = couplingElPhWan->getCouplingDimensions()(0);
-      Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier,1);
+      Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier, 1);
       couplingElPhWan->cacheElPh(eigenVector1, k1C);
       // since this is just a dummy call used to help other MPI processes
       // compute the coupling, and not to compute matrix elements, we can skip
@@ -174,179 +174,189 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     couplingElPhWan->cacheElPh(eigenVector1, k1C);
 
     pointHelper.prepare(k1C, ik2Indexes);
+
+    // prepare batches based on memory usage
     auto nk2 = int(ik2Indexes.size());
-    std::vector<Eigen::Vector3d> allQ3C(nk2);
-    std::vector<Eigen::VectorXd> allStates3Energies(nk2);
-    std::vector<int> allNb3(nk2);
-    std::vector<Eigen::MatrixXcd> allEigenVectors3(nk2);
-    std::vector<Eigen::MatrixXd> allV3s(nk2);
-    std::vector<Eigen::MatrixXd> allBose3Data(nk2);
+    int numBatches = couplingElPhWan->estimateNumBatches(nk2, nb1);
 
-    std::vector<Eigen::Vector3d> allK2C(nk2);
-    std::vector<Eigen::MatrixXcd> allEigenVectors2(nk2);
-    std::vector<Eigen::VectorXd> allState2Energies(nk2);
-    std::vector<Eigen::MatrixXd> allV2s(nk2);
+    // loop over batches of q1s
+    // later we will loop over the q1s inside each batch
+    // this is done to optimize the usage and data transfer of a GPU
+    for (int iBatch = 0; iBatch < numBatches; iBatch++) {
+      // start and end point for current batch
+      int start = nk2 * iBatch / numBatches;
+      int end = nk2 * (iBatch + 1) / numBatches;
+      int batch_size = end - start;
 
-    int ik2Counter = -1;
-    for (int ik2 : ik2Indexes) {
-      ik2Counter++;
-      WavevectorIndex ik2Idx(ik2);
-      allK2C[ik2Counter] = innerBandStructure.getWavevector(ik2Idx);
-      allState2Energies[ik2Counter] = innerBandStructure.getEnergies(ik2Idx);
-      allV2s[ik2Counter] = innerBandStructure.getGroupVelocities(ik2Idx);
-      allEigenVectors2[ik2Counter] = innerBandStructure.getEigenvectors(ik2Idx);
-      auto t2 = pointHelper.get(k1C, ik2);
-      allQ3C[ik2Counter] = std::get<0>(t2);
-      allStates3Energies[ik2Counter] = std::get<1>(t2);
-      allNb3[ik2Counter] = std::get<2>(t2);
-      allEigenVectors3[ik2Counter] = std::get<3>(t2);
-      allV3s[ik2Counter] = std::get<4>(t2);
-      allBose3Data[ik2Counter] = std::get<5>(t2);
-    }
+      std::vector<Eigen::Vector3d> allQ3C(batch_size);
+      std::vector<Eigen::VectorXd> allStates3Energies(batch_size);
+      std::vector<int> allNb3(batch_size);
+      std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
+      std::vector<Eigen::MatrixXd> allV3s(batch_size);
+      std::vector<Eigen::MatrixXd> allBose3Data(batch_size);
 
-    couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
-                                         allEigenVectors3, allQ3C);
+      std::vector<Eigen::Vector3d> allK2C(batch_size);
+      std::vector<Eigen::MatrixXcd> allEigenVectors2(batch_size);
+      std::vector<Eigen::VectorXd> allState2Energies(batch_size);
+      std::vector<Eigen::MatrixXd> allV2s(batch_size);
 
-    ik2Counter = -1;
-    for (int ik2 : ik2Indexes) {
-      ik2Counter++;
+      // do prep work for all values of q1 in current batch,
+      // store stuff needed for couplings later
+#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C)
+      for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
+        int ik2 = ik2Indexes[start + ik2Batch];
+        WavevectorIndex ik2Idx(ik2);
+        allK2C[ik2Batch] = innerBandStructure.getWavevector(ik2Idx);
+        allState2Energies[ik2Batch] = innerBandStructure.getEnergies(ik2Idx);
+        allV2s[ik2Batch] = innerBandStructure.getGroupVelocities(ik2Idx);
+        allEigenVectors2[ik2Batch] = innerBandStructure.getEigenvectors(ik2Idx);
+        auto t2 = pointHelper.get(k1C, ik2);
+        allQ3C[ik2Batch] = std::get<0>(t2);
+        allStates3Energies[ik2Batch] = std::get<1>(t2);
+        allNb3[ik2Batch] = std::get<2>(t2);
+        allEigenVectors3[ik2Batch] = std::get<3>(t2);
+        allV3s[ik2Batch] = std::get<4>(t2);
+        allBose3Data[ik2Batch] = std::get<5>(t2);
+      }
 
-      Eigen::Tensor<double, 3> coupling =
-          couplingElPhWan->getCouplingSquared(ik2Counter);
+      couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
+                                           allEigenVectors3, allQ3C);
 
-      Eigen::Vector3d k2C = allK2C[ik2Counter];
-      auto t3 = innerBandStructure.getRotationToIrreducible(
-          k2C, Points::cartesianCoordinates);
-      int ik2Irr = std::get<0>(t3);
-      Eigen::Matrix3d rotation = std::get<1>(t3);
+      // do postprocessing loop with batch of couplings
+      for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
+        int ik2 = ik2Indexes[start + ik2Batch];
 
-      WavevectorIndex ik2Idx(ik2);
-      WavevectorIndex ik2IrrIdx(ik2Irr);
+        Eigen::Tensor<double, 3> coupling =
+            couplingElPhWan->getCouplingSquared(ik2Batch);
 
-      Eigen::VectorXd state2Energies = allState2Energies[ik2Counter];
-      Eigen::MatrixXd v2s = allV2s[ik2Counter];
+        Eigen::Vector3d k2C = allK2C[ik2Batch];
+        auto t3 = innerBandStructure.getRotationToIrreducible(
+            k2C, Points::cartesianCoordinates);
+        int ik2Irr = std::get<0>(t3);
+        Eigen::Matrix3d rotation = std::get<1>(t3);
 
-      Eigen::MatrixXd bose3Data = allBose3Data[ik2Counter];
-      Eigen::MatrixXd v3s = allV3s[ik2Counter];
-      Eigen::VectorXd state3Energies = allStates3Energies[ik2Counter];
+        WavevectorIndex ik2Idx(ik2);
+        WavevectorIndex ik2IrrIdx(ik2Irr);
 
-      auto nb2 = int(state2Energies.size());
-      auto nb3 = int(state3Energies.size());
+        Eigen::VectorXd state2Energies = allState2Energies[ik2Batch];
+        Eigen::MatrixXd v2s = allV2s[ik2Batch];
 
-      for (int ib2 = 0; ib2 < nb2; ib2++) {
-        double en2 = state2Energies(ib2);
-        int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
-        int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
-        StateIndex is2Idx(is2);
-        StateIndex is2IrrIdx(is2Irr);
-        BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
-        int iBte2 = ind2Idx.get();
+        Eigen::MatrixXd bose3Data = allBose3Data[ik2Batch];
+        Eigen::MatrixXd v3s = allV3s[ik2Batch];
+        Eigen::VectorXd state3Energies = allStates3Energies[ik2Batch];
 
-        for (int ib1 = 0; ib1 < nb1; ib1++) {
-          double en1 = state1Energies(ib1);
-          int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
-          StateIndex is1Idx(is1);
-          BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
-          int iBte1 = ind1Idx.get();
+        auto nb2 = int(state2Energies.size());
+        auto nb3 = int(state3Energies.size());
 
-          for (int ib3 = 0; ib3 < nb3; ib3++) {
-            double en3 = state3Energies(ib3);
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          double en2 = state2Energies(ib2);
+          int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
+          int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
+          StateIndex is2Idx(is2);
+          StateIndex is2IrrIdx(is2Irr);
+          BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
+          int iBte2 = ind2Idx.get();
 
-            // remove small divergent phonon energies
-            if (en3 < phononCutoff) {
-              continue;
-            }
+          for (int ib1 = 0; ib1 < nb1; ib1++) {
+            double en1 = state1Energies(ib1);
+            int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
+            StateIndex is1Idx(is1);
+            BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
+            int iBte1 = ind1Idx.get();
 
-            double delta1, delta2;
-            if (smearing->getType() == DeltaFunction::gaussian) {
-              delta1 = smearing->getSmearing(en1 - en2 + en3);
-              delta2 = smearing->getSmearing(en1 - en2 - en3);
-            } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-              // Eigen::Vector3d smear = v3s.row(ib3);
-              Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
-              delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
-              delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
-            } else {
-              delta1 = smearing->getSmearing(en3 + en1, is2Idx);
-              delta2 = smearing->getSmearing(en3 - en1, is2Idx);
-            }
+            for (int ib3 = 0; ib3 < nb3; ib3++) {
+              double en3 = state3Energies(ib3);
 
-            if (delta1 <= 0. && delta2 <= 0.) {
-              continue;
-            }
+              // remove small divergent phonon energies
+              if (en3 < phononCutoff) {
+                continue;
+              }
 
-            // loop on temperature
-            for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+              double delta1, delta2;
+              if (smearing->getType() == DeltaFunction::gaussian) {
+                delta1 = smearing->getSmearing(en1 - en2 + en3);
+                delta2 = smearing->getSmearing(en1 - en2 - en3);
+              } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
+                // Eigen::Vector3d smear = v3s.row(ib3);
+                Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
+                delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
+                delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
+              } else {
+                delta1 = smearing->getSmearing(en3 + en1, is2Idx);
+                delta2 = smearing->getSmearing(en3 - en1, is2Idx);
+              }
 
-              double fermi1 = outerFermi(iCalc, iBte1);
-              double fermi2 = innerFermi(iCalc, iBte2);
-              double bose3 = bose3Data(iCalc, ib3);
+              if (delta1 <= 0. && delta2 <= 0.) {
+                continue;
+              }
 
-              // Calculate transition probability W+
+              // loop on temperature
+              for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
-              double rate =
-                  coupling(ib1, ib2, ib3) *
-                  ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) *
-                  norm / en3 * pi;
+                double fermi1 = outerFermi(iCalc, iBte1);
+                double fermi2 = innerFermi(iCalc, iBte2);
+                double bose3 = bose3Data(iCalc, ib3);
 
-              double rateOffDiagonal =
-                  coupling(ib1, ib2, ib3) *
-                  (fermi1 * (1. - fermi2) * bose3 * delta1 +
-                   fermi2 * (1. - fermi1) * bose3 * delta2) *
-                  norm / en3 * pi;
+                // Calculate transition probability W+
 
-              if (switchCase == 0) {
+                double rate =
+                    coupling(ib1, ib2, ib3) * ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) * norm / en3 * pi;
 
-                if (withSymmetries) {
-                  for (int i : {0, 1, 2}) {
-                    CartIndex iIndex(i);
-                    int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
-                    for (int j : {0, 1, 2}) {
-                      CartIndex jIndex(j);
-                      int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                      if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
-                        if (i == 0 && j == 0) {
-                          linewidth->operator()(iCalc, 0, iBte1) += rate;
-                        }
-                        if (is1 != is2Irr) {
-                          theMatrix(iMat1, iMat2) +=
-                              rotation.inverse()(i, j) * rateOffDiagonal;
+                double rateOffDiagonal =
+                    coupling(ib1, ib2, ib3) * (fermi1 * (1. - fermi2) * bose3 * delta1 + fermi2 * (1. - fermi1) * bose3 * delta2) * norm / en3 * pi;
+
+                if (switchCase == 0) {
+
+                  if (withSymmetries) {
+                    for (int i : {0, 1, 2}) {
+                      CartIndex iIndex(i);
+                      int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
+                      for (int j : {0, 1, 2}) {
+                        CartIndex jIndex(j);
+                        int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
+                        if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
+                          if (i == 0 && j == 0) {
+                            linewidth->operator()(iCalc, 0, iBte1) += rate;
+                          }
+                          if (is1 != is2Irr) {
+                            theMatrix(iMat1, iMat2) +=
+                                rotation.inverse()(i, j) * rateOffDiagonal;
+                          }
                         }
                       }
                     }
+                  } else {
+                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                      linewidth->operator()(iCalc, 0, iBte1) += rate;
+                    }
+                    theMatrix(iBte1, iBte2) += rateOffDiagonal;
+                  }
+                } else if (switchCase == 1) {
+                  // case of matrix-vector multiplication
+                  // we build the scattering matrix A = S*n(n+1)
+
+                  for (unsigned int iVec = 0; iVec < inPopulations.size();
+                       iVec++) {
+                    Eigen::Vector3d inPopRot;
+                    inPopRot.setZero();
+                    for (int i : {0, 1, 2}) {
+                      for (int j : {0, 1, 2}) {
+                        inPopRot(i) += rotation.inverse()(i, j) * inPopulations[iVec](iCalc, j, iBte2);
+                      }
+                    }
+                    for (int i : {0, 1, 2}) {
+                      if (is1 != is2Irr) {
+                        outPopulations[iVec](iCalc, i, iBte1) +=
+                            rateOffDiagonal * inPopRot(i);
+                      }
+                      outPopulations[iVec](iCalc, i, iBte1) +=
+                          rate * inPopulations[iVec](iCalc, i, iBte1);
+                    }
                   }
                 } else {
-                  if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                    linewidth->operator()(iCalc, 0, iBte1) += rate;
-                  }
-                  theMatrix(iBte1, iBte2) += rateOffDiagonal;
+                  // case of linewidth construction
+                  linewidth->operator()(iCalc, 0, iBte1) += rate;
                 }
-              } else if (switchCase == 1) {
-                // case of matrix-vector multiplication
-                // we build the scattering matrix A = S*n(n+1)
-
-                for (unsigned int iVec = 0; iVec < inPopulations.size();
-                     iVec++) {
-                  Eigen::Vector3d inPopRot;
-                  inPopRot.setZero();
-                  for (int i : {0, 1, 2}) {
-                    for (int j : {0, 1, 2}) {
-                      inPopRot(i) += rotation.inverse()(i, j) *
-                                     inPopulations[iVec](iCalc, j, iBte2);
-                    }
-                  }
-                  for (int i : {0, 1, 2}) {
-                    if (is1 != is2Irr) {
-                      outPopulations[iVec](iCalc, i, iBte1) +=
-                          rateOffDiagonal * inPopRot(i);
-                    }
-                    outPopulations[iVec](iCalc, i, iBte1) +=
-                        rate * inPopulations[iVec](iCalc, i, iBte1);
-                  }
-                }
-              } else {
-                // case of linewidth construction
-                linewidth->operator()(iCalc, 0, iBte1) += rate;
               }
             }
           }

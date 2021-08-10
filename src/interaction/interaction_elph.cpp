@@ -722,8 +722,6 @@ void InteractionElPhWan::calcCouplingSquared(
             exp(complexI * arg) / phBravaisVectorsDegeneracies_k(irP);
       });
 
-  std::cout << "727\n";
-
   ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
       "g3", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
@@ -735,7 +733,6 @@ void InteractionElPhWan::calcCouplingSquared(
         g3(ik, nu, ib1, iw2) = tmp;
       });
   Kokkos::realloc(phases, 0, 0);
-  std::cout << "740\n";
 
   ComplexView4D g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
