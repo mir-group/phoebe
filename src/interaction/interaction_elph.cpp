@@ -37,6 +37,19 @@ InteractionElPhWan::InteractionElPhWan(
       }
     }
   }
+
+  // get available memory from environment variable,
+  // defaults to 16 GB set in the header file
+  char *memstr = std::getenv("MAXMEM");
+  if (memstr != NULL) {
+    maxmem = std::atof(memstr) * 1.0e9;
+  }
+  if (mpi->mpiHead()) {
+    printf("The maximal memory used for the coupling calculation will be %g "
+           "GB,\nset the MAXMEM environment variable to the preferred memory "
+           "usage in GB.\n",
+           maxmem / 1.0e9);
+  }
 }
 
 InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
@@ -58,7 +71,8 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       phBravaisVectors_k(that.phBravaisVectors_k),
       phBravaisVectorsDegeneracies_k(that.phBravaisVectorsDegeneracies_k),
       elBravaisVectors_k(that.elBravaisVectors_k),
-      elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k) {}
+      elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k),
+      maxmem(that.maxmem) {}
 
 // assignment operator
 InteractionElPhWan &
@@ -84,6 +98,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     phBravaisVectorsDegeneracies_k = that.phBravaisVectorsDegeneracies_k;
     elBravaisVectors_k = that.elBravaisVectors_k;
     elBravaisVectorsDegeneracies_k = that.elBravaisVectorsDegeneracies_k;
+    maxmem = that.maxmem;
   }
   return *this;
 }
@@ -612,6 +627,7 @@ void InteractionElPhWan::calcCouplingSquared(
   numElBravaisVectors = this->numElBravaisVectors;
   numPhBravaisVectors = this->numPhBravaisVectors;
 
+  { // bracket to make sure Kokkos temporary objects are deallocated
   if (k1C != cachedK1 || elPhCached.size() == 0) {
     cachedK1 = k1C;
 
@@ -832,6 +848,7 @@ void InteractionElPhWan::calcCouplingSquared(
       }
     }
   }
+  }
 
   if (eigvec1.squaredNorm()<1.0e-8) {
     return;
@@ -852,6 +869,8 @@ void InteractionElPhWan::calcCouplingSquared(
     }
   }
   Kokkos::deep_copy(nb2s_k, nb2s_h);
+
+  // Polar corrections are computed on the CPU and then transferred to GPU
 
   IntView1D usePolarCorrections("usePolarCorrections", numLoops);
   ComplexView4D polarCorrections(Kokkos::ViewAllocateWithoutInitializing("polarCorrections"),
@@ -920,14 +939,9 @@ void InteractionElPhWan::calcCouplingSquared(
     Kokkos::deep_copy(q3Cs_k, q3Cs_h);
   }
 
-  ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
-  ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier),
-      g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier),
-      gFinal(Kokkos::ViewAllocateWithoutInitializing("gFinal"), numLoops, numPhBands, nb1, nb2max);
-  DoubleView4D coupling_k(Kokkos::ViewAllocateWithoutInitializing("coupling"), numLoops, numPhBands, nb2max, nb1);
-
   // now we finish the Wannier transform. We have to do the Fourier transform
   // on the lattice degrees of freedom, and then do two rotations (at k2 and q)
+  ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
   Kokkos::parallel_for(
       "phases", Range2D({0, 0}, {numLoops, numPhBravaisVectors}),
       KOKKOS_LAMBDA(int ik, int irP) {
@@ -938,6 +952,8 @@ void InteractionElPhWan::calcCouplingSquared(
         phases(ik, irP) =
             exp(complexI * arg) / phBravaisVectorsDegeneracies_k(irP);
       });
+
+  ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
       "g3", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik, int nu, int ib1, int iw2) {
@@ -947,7 +963,9 @@ void InteractionElPhWan::calcCouplingSquared(
         }
         g3(ik, nu, ib1, iw2) = tmp;
       });
+  Kokkos::realloc(phases, 0, 0);
 
+  ComplexView4D g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
       "g4", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik, int nu2, int ib1, int iw2) {
@@ -957,7 +975,9 @@ void InteractionElPhWan::calcCouplingSquared(
         }
         g4(ik, nu2, ib1, iw2) = tmp;
       });
+  Kokkos::realloc(g3, 0, 0,0,0);
 
+  ComplexView4D gFinal(Kokkos::ViewAllocateWithoutInitializing("gFinal"), numLoops, numPhBands, nb1, nb2max);
   Kokkos::parallel_for(
       "gFinal", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, nb2max}),
       KOKKOS_LAMBDA(int ik, int nu, int ib1, int ib2) {
@@ -967,6 +987,8 @@ void InteractionElPhWan::calcCouplingSquared(
         }
         gFinal(ik, nu, ib1, ib2) = tmp;
       });
+  Kokkos::realloc(g4, 0, 0, 0, 0);
+
   // we now add the precomputed polar corrections, before taking the norm of g
   if (usePolarCorrection) {
     Kokkos::parallel_for(
@@ -976,7 +998,10 @@ void InteractionElPhWan::calcCouplingSquared(
           gFinal(ik, nu, ib1, ib2) += polarCorrections(ik, nu, ib1, ib2);
         });
   }
+  Kokkos::realloc(polarCorrections, 0, 0, 0, 0);
+
   // finally, compute |g|^2 from g
+  DoubleView4D coupling_k(Kokkos::ViewAllocateWithoutInitializing("coupling"), numLoops, numPhBands, nb2max, nb1);
   Kokkos::parallel_for(
       "coupling", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb2max, nb1}),
       KOKKOS_LAMBDA(int ik, int nu, int ib2, int ib1) {
@@ -986,6 +1011,8 @@ void InteractionElPhWan::calcCouplingSquared(
         coupling_k(ik, nu, ib2, ib1) =
             tmp.real() * tmp.real() + tmp.imag() * tmp.imag();
       });
+  Kokkos::realloc(gFinal, 0, 0, 0, 0);
+
   // now, copy results back to the CPU
   auto coupling_h = Kokkos::create_mirror_view(coupling_k);
   Kokkos::deep_copy(coupling_h, coupling_k);
@@ -1011,4 +1038,43 @@ Eigen::VectorXi InteractionElPhWan::getCouplingDimensions() {
     xx(i) = int(x[i]);
   }
   return xx;
+}
+
+int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
+  int maxNb2 = numElBands;
+  int maxNb3 = numPhBands;
+
+  // available memory is MAXMEM minus size of elPh, elPhCached, U(k1) and the
+  // Bravais lattice vectors & degeneracies
+  double availmem = maxmem -
+      16 * (numElBands * numElBands * numPhBands * numElBravaisVectors * numPhBravaisVectors) -
+      16 * (nb1 * numElBands * numPhBands * numPhBravaisVectors) - // cached
+      8 * (3+1) * (numElBravaisVectors + numPhBravaisVectors) - // R + deg
+      16 * nb1 * numElBands; // U
+
+  // memory used by different tensors, that is linear in nk2
+  // Note: 16 (2*8) is the size of double (complex<double>) in bytes
+  double evs = 16 * ( maxNb2 * numElBands + maxNb3 * numPhBands );
+  double phase = 16 * numPhBravaisVectors;
+  double g3 = 2 * 16 * numPhBands * nb1 * numElBands;
+  double g4 = 2 * 16 * numPhBands * nb1 * numElBands;
+  double gFinal = 2 * 16 * numPhBands * nb1 * maxNb2;
+  double coupling = 16 * nb1 * maxNb2 * numPhBands;
+  double polar = 16 * numPhBands * nb1 * maxNb2;
+  double maxusage =
+      nk2 * (evs + polar +
+             std::max({phase + g3, g3 + g4, g4 + gFinal, gFinal + coupling}));
+
+  // the number of batches needed
+  int numBatches = std::ceil(maxusage / availmem);
+
+  if (availmem < maxusage / nk2) {
+    // not enough memory to do even a single q1
+    std::cerr << "maxmem = " << maxmem / 1e9
+    << ", availmem = " << availmem / 1e9
+    << ", maxusage = " << maxusage / 1e9
+    << ", numBatches = " << numBatches << "\n";
+    Error("Insufficient memory!");
+  }
+  return numBatches;
 }

@@ -90,6 +90,8 @@ class InteractionElPhWan {
   DoubleView2D elBravaisVectors_k;
   DoubleView1D elBravaisVectorsDegeneracies_k;
 
+  double maxmem = 16.0e9; // default 16 Gb memory space for computation
+
 public:
 
   /** Default constructor
@@ -196,6 +198,14 @@ public:
    * @return (numWannier,numWannier,numPhModes,numElVectors,numPhVectors)
    */
   Eigen::VectorXi getCouplingDimensions();
+
+  /** Estimate the number of batches that the list of k2 wavevectors must be
+   * split into, in order to fit in memory.
+   *
+   * @param nk2: total number of k2 wavevectors to be split in batches.
+   * @param nb1: number of bands at the k1 wavevector.
+   */
+  int estimateNumBatches(const int &nk2, const int &nb1);
 };
 
 #endif
