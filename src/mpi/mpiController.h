@@ -7,6 +7,7 @@
 #include "eigen.h"
 #include <tuple>
 #include "exceptions.h"
+#include <Kokkos_Core.hpp>
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -48,8 +49,7 @@ class MPIcontroller {
 
   #ifdef MPI_AVAIL
     double startTime;  // the time for the entire mpi operation
-    std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
-  #else
+#else
     std::chrono::steady_clock::time_point startTime;
   #endif
 
@@ -228,6 +228,7 @@ class MPIcontroller {
   static const int worldComm;
   static const int intraPoolComm;
   static const int interPoolComm;
+  std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
 };
 
 // we need to use the concept of a "type traits" object to serialize the
@@ -335,7 +336,6 @@ namespace mpiContainer {
           static inline size_t getSize(Eigen::VectorXd* data) { return data->size(); }
           static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype();}
         };
-
 
 #endif
 }  // namespace mpiContainer

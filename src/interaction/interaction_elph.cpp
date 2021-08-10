@@ -1049,28 +1049,13 @@ for (int irE = 0; irE < numElBravaisVectors; irE++) {
         auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
         Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
 
-        // TODO: this should be done in a much cleaner way
+        // TODO: this should be better hidden inside the mpi class
         // do a mpi->allReduce across the pool
-        Eigen::Tensor<std::complex<double>, 4> reduce(numPhBravaisVectors, numPhBands, poolNb1, numWannier);
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                reduce(irP, nu, ib1, iw2) = poolElPhCached_h(irP, nu, ib1, iw2);
-              }
-            }
-          }
-        }
-        mpi->allReduceSum(&reduce, mpi->intraPoolComm);
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int ib1 = 0; ib1 < poolNb1; ib1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                poolElPhCached_h(irP, nu, ib1, iw2) = reduce(irP, nu, ib1, iw2);
-              }
-            }
-          }
-        }
+        MPI_Allreduce(MPI_IN_PLACE, poolElPhCached_h.data(),
+                      poolElPhCached_h.size(),
+                      MPI_COMPLEX16, MPI_SUM,
+                      std::get<0>(mpi->decideCommunicator(mpi->intraPoolComm)));
+        // note: crashing with MPI_COMPLEX32
 
         // if the process owns this k-point, copy back from CPU to accelerator
         if (mpi->getRank(mpi->intraPoolComm) == iPool) {
