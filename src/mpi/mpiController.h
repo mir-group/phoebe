@@ -7,7 +7,6 @@
 #include "eigen.h"
 #include <tuple>
 #include "exceptions.h"
-#include <Kokkos_Core.hpp>
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -228,115 +227,129 @@ class MPIcontroller {
   static const int worldComm;
   static const int intraPoolComm;
   static const int interPoolComm;
+#ifdef MPI_AVAIL
   std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
+#endif
 };
 
 // we need to use the concept of a "type traits" object to serialize the
 // standard cpp types and then we can define specific implementations of this
 // for types which are not standard
 namespace mpiContainer {
-        #ifdef MPI_AVAIL
-        // Forward declaration for a basic container type
-        template <typename...>
-        struct containerType;
 
-        // Define a macro to shorthand define this container for scalar types
-        // Size for basic scalar types will always be 1
-        #define MPIDataType(cppType, mpiType)                                 \
-          template <>                                                         \
-          struct containerType<cppType> {                                     \
-            static inline cppType* getAddress(cppType* data) { return data; } \
-            static inline size_t getSize(cppType* data) {                     \
-              if (!data) return 0;                                            \
-              return 1;                                                       \
-            }                                                                 \
-            static inline MPI_Datatype getMPItype() { return mpiType; }       \
-          };
+#ifdef MPI_AVAIL
+// Forward declaration for a basic container type
+template<typename...>
+struct containerType;
 
-        // Use definition to generate containers for scalar types
-        MPIDataType(int, MPI_INT)
-        MPIDataType(long, MPI_LONG)
-        MPIDataType(unsigned int, MPI_UNSIGNED)
-        MPIDataType(float, MPI_FLOAT)
-        MPIDataType(double, MPI_DOUBLE)
-        MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
-        MPIDataType(std::complex<float>, MPI_COMPLEX)
+// Define a macro to shorthand define this container for scalar types
+// Size for basic scalar types will always be 1
+#define MPIDataType(cppType, mpiType)                                 \
+  template<>                                                          \
+  struct containerType<cppType> {                                     \
+    static inline cppType *getAddress(cppType *data) { return data; } \
+    static inline size_t getSize(cppType *data) {                     \
+      if (!data) return 0;                                            \
+      return 1;                                                       \
+    }                                                                 \
+    static inline MPI_Datatype getMPItype() { return mpiType; }       \
+  };
 
-        #undef MPIDataType
+  // Use definition to generate containers for scalar types
+  MPIDataType(int, MPI_INT)
+  MPIDataType(long, MPI_LONG)
+  MPIDataType(unsigned int, MPI_UNSIGNED)
+  MPIDataType(float, MPI_FLOAT)
+  MPIDataType(double, MPI_DOUBLE)
+  MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
+  MPIDataType(std::complex<float>, MPI_COMPLEX)
 
-        // A container for a std::vector
-        template <typename T> struct containerType<std::vector<T>> {
-                static inline T* getAddress(std::vector<T>* data) { return data->data(); }
-                static inline size_t getSize(std::vector<T>* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for <Eigen::Matrix<T, -1, 1, 0, -1, 1>
-        template <typename T> struct containerType<Eigen::Matrix<T, -1, 1, 0, -1, 1>> {
-                static inline T* getAddress(Eigen::Matrix<T, -1, 1, 0, -1, 1>* data) { return data->data(); }
-                static inline size_t getSize(Eigen::Matrix<T, -1, 1, 0, -1, 1>* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for <Eigen::Matrix<T, -1, -1>
-        template <typename T> struct containerType<Eigen::Matrix<T, -1, -1>> {
-                static inline T* getAddress(Eigen::Matrix<T, -1, -1>* data) { return data->data(); }
-                static inline size_t getSize(Eigen::Matrix<T, -1, -1>* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for Eigen::Tensor<T, 5>
-        template <typename T> struct containerType<Eigen::Tensor<T, 5>> {
-                static inline T* getAddress(Eigen::Tensor<T, 5>* data) { return data->data(); }
-                static inline size_t getSize(Eigen::Tensor<T, 5>* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for Eigen::Tensor<T, 4>
-        template <typename T> struct containerType<Eigen::Tensor<T, 4>> {
-          static inline T* getAddress(Eigen::Tensor<T, 4>* data) { return data->data(); }
-          static inline size_t getSize(Eigen::Tensor<T, 4>* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for Eigen::Tensor<T, 3>
-        template <typename T> struct containerType<Eigen::Tensor<T, 3>> {
-                static inline T* getAddress(Eigen::Tensor<T, 3>* data) { return data->data(); }
-                static inline size_t getSize(Eigen::Tensor<T, 3>* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype();}
-        };
-        // Container for Eigen::MatrixXi
-        template <> struct containerType<Eigen::MatrixXi> {
-                static inline int* getAddress(Eigen::MatrixXi* data) { return data->data(); }
-                static inline size_t getSize(Eigen::MatrixXi* data) { return data->size(); }
-                static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
-        };
-        // Container for Eigen::VectorXi
-        template <> struct containerType<Eigen::VectorXi> {
-          static inline int* getAddress(Eigen::VectorXi* data) { return data->data(); }
-          static inline size_t getSize(Eigen::VectorXi* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
-        };
-        // Container for Eigen::Vector3i
-        template <> struct containerType<Eigen::Vector3i> {
-          static inline int* getAddress(Eigen::Vector3i* data) { return data->data(); }
-          static inline size_t getSize(Eigen::Vector3i* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype();}
-        };
-        // Container for Eigen::Vector3d
-        template <> struct containerType<Eigen::Vector3d> {
-          static inline double* getAddress(Eigen::Vector3d* data) { return data->data(); }
-          static inline size_t getSize(Eigen::Vector3d* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype();}
-        };
-        // Container for Eigen::VectorXcd
-        template <> struct containerType<Eigen::VectorXcd> {
-          static inline std::complex<double>* getAddress(Eigen::VectorXcd* data) { return data->data(); }
-          static inline size_t getSize(Eigen::VectorXcd* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<std::complex<double>>::getMPItype();}
-        };
-        // Container for Eigen::VectorXd
-        template <> struct containerType<Eigen::VectorXd> {
-          static inline double* getAddress(Eigen::VectorXd* data) { return data->data(); }
-          static inline size_t getSize(Eigen::VectorXd* data) { return data->size(); }
-          static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype();}
-        };
+#undef MPIDataType
 
+    // A container for a std::vector
+  template<typename T>
+  struct containerType<std::vector<T>> {
+    static inline T *getAddress(std::vector<T> *data) { return data->data(); }
+    static inline size_t getSize(std::vector<T> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for <Eigen::Matrix<T, -1, 1, 0, -1, 1>
+  template<typename T>
+  struct containerType<Eigen::Matrix<T, -1, 1, 0, -1, 1>> {
+    static inline T *getAddress(Eigen::Matrix<T, -1, 1, 0, -1, 1> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Matrix<T, -1, 1, 0, -1, 1> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for <Eigen::Matrix<T, -1, -1>
+  template<typename T>
+  struct containerType<Eigen::Matrix<T, -1, -1>> {
+    static inline T *getAddress(Eigen::Matrix<T, -1, -1> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Matrix<T, -1, -1> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for Eigen::Tensor<T, 5>
+  template<typename T>
+  struct containerType<Eigen::Tensor<T, 5>> {
+    static inline T *getAddress(Eigen::Tensor<T, 5> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Tensor<T, 5> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for Eigen::Tensor<T, 4>
+  template<typename T>
+  struct containerType<Eigen::Tensor<T, 4>> {
+    static inline T *getAddress(Eigen::Tensor<T, 4> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Tensor<T, 4> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for Eigen::Tensor<T, 3>
+  template<typename T>
+  struct containerType<Eigen::Tensor<T, 3>> {
+    static inline T *getAddress(Eigen::Tensor<T, 3> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Tensor<T, 3> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for Eigen::MatrixXi
+  template<>
+  struct containerType<Eigen::MatrixXi> {
+    static inline int *getAddress(Eigen::MatrixXi *data) { return data->data(); }
+    static inline size_t getSize(Eigen::MatrixXi *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+  };
+  // Container for Eigen::VectorXi
+  template<>
+  struct containerType<Eigen::VectorXi> {
+    static inline int *getAddress(Eigen::VectorXi *data) { return data->data(); }
+    static inline size_t getSize(Eigen::VectorXi *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+  };
+  // Container for Eigen::Vector3i
+  template<>
+  struct containerType<Eigen::Vector3i> {
+    static inline int *getAddress(Eigen::Vector3i *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Vector3i *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+  };
+  // Container for Eigen::Vector3d
+  template<>
+  struct containerType<Eigen::Vector3d> {
+    static inline double *getAddress(Eigen::Vector3d *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Vector3d *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype(); }
+  };
+  // Container for Eigen::VectorXcd
+  template<>
+  struct containerType<Eigen::VectorXcd> {
+    static inline std::complex<double> *getAddress(Eigen::VectorXcd *data) { return data->data(); }
+    static inline size_t getSize(Eigen::VectorXcd *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<std::complex<double>>::getMPItype(); }
+  };
+  // Container for Eigen::VectorXd
+  template<>
+  struct containerType<Eigen::VectorXd> {
+    static inline double *getAddress(Eigen::VectorXd *data) { return data->data(); }
+    static inline size_t getSize(Eigen::VectorXd *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype(); }
+  };
 #endif
 }  // namespace mpiContainer
 

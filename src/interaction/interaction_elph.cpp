@@ -1051,11 +1051,13 @@ for (int irE = 0; irE < numElBravaisVectors; irE++) {
 
         // TODO: this should be better hidden inside the mpi class
         // do a mpi->allReduce across the pool
+#ifdef MPI_AVAIL
         MPI_Allreduce(MPI_IN_PLACE, poolElPhCached_h.data(),
                       poolElPhCached_h.size(),
                       MPI_COMPLEX16, MPI_SUM,
                       std::get<0>(mpi->decideCommunicator(mpi->intraPoolComm)));
         // note: crashing with MPI_COMPLEX32
+#endif
 
         // if the process owns this k-point, copy back from CPU to accelerator
         if (mpi->getRank(mpi->intraPoolComm) == iPool) {
