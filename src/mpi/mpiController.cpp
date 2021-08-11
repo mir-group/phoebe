@@ -230,7 +230,7 @@ std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicat
 }
 #endif
 
-void MPIcontroller::allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::Device<Kokkos::Serial, Kokkos::HostSpace>>* dataIn, const int& communicator) const {
+void MPIcontroller::allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>* dataIn, const int& communicator) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;

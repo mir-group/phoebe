@@ -95,7 +95,7 @@ class MPIcontroller {
   template <typename T>
   void allReduceSum(T* dataIn, T* dataOut) const;
 
-  void allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::Device<Kokkos::Serial, Kokkos::HostSpace>>* dataIn, const int& communicator=worldComm) const;
+  void allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>* dataIn, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_AllReduce in the case of a summation in-place.
    * @param data: pointer to sent data from each rank.
