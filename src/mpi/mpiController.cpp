@@ -229,21 +229,3 @@ std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicat
   return {comm, broadcaster};
 }
 #endif
-
-void MPIcontroller::allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>* dataIn, const int& communicator) const {
-  using namespace mpiContainer;
-#ifdef MPI_AVAIL
-  if (size == 1) return;
-  if (communicator == intraPoolComm && poolSize == 1) return;
-
-  MPI_Comm comm = std::get<0>(decideCommunicator(communicator));
-
-  int errCode =
-      MPI_Allreduce(MPI_IN_PLACE, dataIn->data(),
-                    dataIn->size(),
-                    MPI_COMPLEX16, MPI_SUM, comm);
-  if (errCode != MPI_SUCCESS) {
-    errorReport(errCode);
-  }
-#endif
-}

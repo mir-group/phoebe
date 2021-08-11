@@ -95,8 +95,6 @@ class MPIcontroller {
   template <typename T>
   void allReduceSum(T* dataIn, T* dataOut) const;
 
-  void allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>* dataIn, const int& communicator=worldComm) const;
-
   /** Wrapper for MPI_AllReduce in the case of a summation in-place.
    * @param data: pointer to sent data from each rank.
    * Gets overwritten with the result of the MPI allreduce('SUM') operation.
@@ -376,6 +374,13 @@ struct containerType;
     static inline double *getAddress(Eigen::VectorXd *data) { return data->data(); }
     static inline size_t getSize(Eigen::VectorXd *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype(); }
+  };
+
+  template<>
+  struct containerType<Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>> {
+    static inline Kokkos::complex<double> *getAddress(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> *data) { return data->data(); }
+    static inline size_t getSize(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return MPI_COMPLEX16; }
   };
 #endif
 }  // namespace mpiContainer
