@@ -142,6 +142,17 @@ public:
    * type k1,q3 -> k2, where k1 is one fixed wavevector, and k2,q3 are
    * wavevectors running in lists of wavevectors.
    * It is assumed that the relation (k2 = k1 + q3) holds.
+   *
+   * The call to this function must be preceded by a call to cacheElPh(),
+   * which does a precomputation at fixed value of k1.
+   * If not, results will be wrong.
+   * Hence, structure a code calling this functions as:
+   * for k1:
+   *   cacheElPh(k1)
+   *   for k2:
+   *     k3 = k2 - k1
+   *     calcCouplingSquared(k2,k3)
+   *
    * Note: this method must be used in conjunction with getCouplingSquared,
    * which is used to return the values computed here.
    * @param el1Eigenvec: electron eigenvector matrix U_{mb}(k1), where U is

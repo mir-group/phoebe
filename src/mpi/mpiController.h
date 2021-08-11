@@ -7,6 +7,7 @@
 #include "eigen.h"
 #include <tuple>
 #include "exceptions.h"
+#include <Kokkos_Core.hpp>
 
 #ifdef MPI_AVAIL
 #include <mpi.h>
@@ -23,6 +24,19 @@ assumption that they will gather using the same distribution of
  labor as divideWork provides.*/
 
 /** Class for handling the MPI library usage inside of phoebe.
+ * We define 3 communicators.
+ * 1) MPI_COMM_WORLD: this is the communicator involving all MPI processes
+ *
+ * If the -ps flag is used on the command line, the grid of MPI processes is
+ * viewed as a rectangle, and we define two MPI groups:
+ * 2) intraPoolComm: the rows of the rectangle of MPI processes identify pools.
+ * The number of processes (columns) in each pool is the number specified
+ * with the `ps` flag from the command line.
+ * 3) interPoolComm: is a communicator grouping the columns of the MPI rectangle
+ * built after specifying the `ps` flag.
+ * Note that in order for the `ps` flag to work, we require that all MPI
+ * processes in the world communicator can be divided in the rectangle with no
+ * MPI process left idle.
  */
 class MPIcontroller {
  private:
@@ -46,11 +60,17 @@ class MPIcontroller {
   // helper function used internally
   std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
 
-  #ifdef MPI_AVAIL
-    double startTime;  // the time for the entire mpi operation
+#ifdef MPI_AVAIL
+  double startTime;  // the time for the entire mpi operation
+  /** Utility function used to convert the integer communicator to a MPI_COMM
+   * communicator.
+   * @param communicator: a MPI_COMM value of th communicator.
+   * @return
+   */
+  std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
 #else
-    std::chrono::steady_clock::time_point startTime;
-  #endif
+  std::chrono::steady_clock::time_point startTime;
+#endif
 
  public:
   // MPIcontroller class constructors -----------------------------------
@@ -74,6 +94,8 @@ class MPIcontroller {
    */
   template <typename T>
   void allReduceSum(T* dataIn, T* dataOut) const;
+
+  void allReduceSum(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::Device<Kokkos::Serial, Kokkos::HostSpace>>* dataIn, const int& communicator=worldComm) const;
 
   /** Wrapper for MPI_AllReduce in the case of a summation in-place.
    * @param data: pointer to sent data from each rank.
@@ -161,10 +183,6 @@ class MPIcontroller {
   template <typename T, typename V>
   void allGather(T* dataIn, V* dataOut) const;
 
-  // point to point functions -----------------------------------
-  // template<typename T> void send(T&& data) const;
-  // template<typename T> void recv(T&& data) const;
-
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
    */
@@ -212,24 +230,33 @@ class MPIcontroller {
   // Error reporting and statistics
   void errorReport(int errCode) const;  // collect errors from processes and
                                         // reports them, then kills the code
-  void time() const;  // returns time elapsed since mpi started
+
+  /** Function to return the time elapsed since the mpi environment started.
+  */
+  void time() const;
 
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns a vector of length 2, containing start and stop
    *       points for the divided number of tasks.
    */
   std::vector<int> divideWork(size_t numTasks);  // divide up a set of work
+
   /** Divides a number of tasks appropriately for the current MPI env.
    * @return divs: returns an iterator of points for the divided number of tasks.
    */
   std::vector<int> divideWorkIter(size_t numTasks, const int& communicator=worldComm);
 
+  /** integer used to specify the call to MPI uses the world communicator.
+   */
   static const int worldComm;
+
+  /** integer used to specify the call to MPI uses the pool communicator.
+   */
   static const int intraPoolComm;
+
+  /** integer used to specify the call to MPI uses the inter-Pool communicator.
+   */
   static const int interPoolComm;
-#ifdef MPI_AVAIL
-  std::tuple<MPI_Comm, int> decideCommunicator(const int& communicator) const;
-#endif
 };
 
 // we need to use the concept of a "type traits" object to serialize the
