@@ -279,11 +279,13 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
   if (doping==0. && temperature == 0.) { // case of computing fermi level
     if (numElectronsDoped == 0.) {
       fermiLevel = energies.minCoeff();
+      chemicalPotential = fermiLevel;
+      return chemicalPotential;
     } else if (numElectronsDoped == float(numBands)) {
       fermiLevel = energies.maxCoeff();
+      chemicalPotential = fermiLevel;
+      return chemicalPotential;
     }
-    chemicalPotential = fermiLevel;
-    return chemicalPotential;
   }
 
   // I choose the following (generous) boundaries

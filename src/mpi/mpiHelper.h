@@ -8,7 +8,7 @@
 extern MPIcontroller* mpi;
 
 // Function to initialize MPI environment
-void initMPI();
+void initMPI(int argc, char *argv[]);
 
 // Function to delete MPI environment
 void deleteMPI();

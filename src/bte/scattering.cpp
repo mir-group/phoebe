@@ -494,7 +494,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::string energyUnit = "eV";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
-  double energyToTime = energyRyToFs;
+  double energyToTime = energyRyToFs/twoPi;
   if (particle.isPhonon()) {
     particleType = "phonon";
     energyUnit = "meV";
@@ -695,6 +695,7 @@ std::vector<std::tuple<std::vector<int>, int>>
 ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
                                              const bool &rowMajor) {
   if (rowMajor) { // case for el-ph scattering
+    std::vector<std::tuple<std::vector<int>, int>> pairIterator;
 
     if (switchCase == 1 || switchCase == 2) { // case for linewidth construction
       // here I parallelize over ik1
@@ -707,13 +708,10 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // populate vector with integers from 0 to numPoints-1
       std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
 
-      std::vector<std::tuple<std::vector<int>, int>> pairIterator;
       for (int ik1 : k1Iterator) {
         auto t = std::make_tuple(k2Iterator, ik1);
         pairIterator.push_back(t);
       }
-      return pairIterator;
-
     } else { // case el-ph scattering, matrix in memory
 
       // here we operate assuming innerBandStructure=outerBandStructure
@@ -768,7 +766,6 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
         q1Indexes.push_back(x);
       }
 
-      std::vector<std::tuple<std::vector<int>, int>> pairIterator;
       for (int iq1 : q1Indexes) {
         std::vector<int> x;
         auto y = std::make_tuple(x, iq1);
@@ -788,8 +785,29 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           Error("iq1 not found, not supposed to happen");
         }
       }
-      return pairIterator;
     }
+
+    // Patch to make pooled interpolation of coupling work
+    // we need to make sure each MPI process in the pool calls
+    // the calculation of the coupling interpolation the same number of times
+    // Hence, we correct pairIterator so that it does have the same size across
+    // the pool
+
+    if (mpi->getSize(mpi->intraPoolComm) > 1) {
+      // std::vector<std::tuple<std::vector<int>, int>> pairIterator;
+      auto myNumK1 = int(pairIterator.size());
+      int numK1 = myNumK1;
+      mpi->allReduceMax(&numK1, mpi->intraPoolComm);
+
+      while (myNumK1 < numK1) {
+        std::vector<int> dummyVec;
+        dummyVec.push_back(-1);
+        auto tt = std::make_tuple(dummyVec,-1);
+        pairIterator.push_back(tt);
+        myNumK1++;
+      }
+    }
+    return pairIterator;
 
   } else { // case for ph_scattering
 
@@ -797,7 +815,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // must parallelize over the inner band structure (iq2 in phonons)
       // which is the outer loop on q-points
       size_t a = innerBandStructure.getNumPoints();
-      std::vector<int> q2Iterator = mpi->divideWorkIter(a);
+      auto q2Iterator = mpi->divideWorkIter(a);
       std::vector<int> q1Iterator = outerBandStructure.irrPointsIterator();
 
       std::vector<std::tuple<std::vector<int>, int>> pairIterator;

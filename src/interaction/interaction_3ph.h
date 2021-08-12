@@ -43,8 +43,6 @@
  *
  * Use the environmental variable MAXMEM to set the amount of VRAM in gigabytes
  * available on the GPU/node (depending on the Kokkos installation).
- * Set to any value the environmental variable PROFILE to enable a more
- * detailed profiling of loops inside this class.
  */
 class Interaction3Ph {
 private:
@@ -61,17 +59,8 @@ private:
   // dimensions
   int nr2, nr3, numAtoms, numBands;
 
-  // variables for timing
-  typedef std::chrono::steady_clock::time_point time_point;
-  typedef std::chrono::steady_clock::duration time_delta;
-  std::vector<time_delta> dts;
-  std::vector<time_delta> newdts;
-  double tosec(time_delta dt) {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(dt).count() /
-           1e9;
-  };
-
 public:
+
   /** Default constructor.
    * This method mostly moves data to the GPU if necessary.
    *
@@ -143,10 +132,6 @@ public:
    * transform is computed.
    */
   void cacheD3(const Eigen::Vector3d &q2_e);
-
-  /** Destructor method, which prints a summary of execution times.
-   */
-  ~Interaction3Ph();
 
   /** Estimate the number of batches that the list of q1 wavevectors must be
    * split into, in order to fit in memory.

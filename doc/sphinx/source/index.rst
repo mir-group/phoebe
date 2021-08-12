@@ -15,8 +15,6 @@ Welcome to Phoebe's documentation!
    tutorials/tutorials
    theory/theory
    Developers' documentation <_static/index.html#http://>
-	     
-This is the documentation of Phoebe's project.
 
 Indices and tables
 ==================
