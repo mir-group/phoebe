@@ -14,8 +14,8 @@
  */
 class Context {
  private:
-  std::string phD2FileName;
-  std::string phD3FileName;
+  std::string phFC2FileName;
+  std::string phFC3FileName;
   std::string phonopyDispFileName;
   std::string dispFCFileName;
   std::string dispFC2FileName;
@@ -26,7 +26,7 @@ class Context {
   std::string elPhInterpolation;
 
   std::string appName;
-  std::string sumRuleD2;
+  std::string sumRuleFC2;
   int smearingMethod = -1;
   double smearingWidth = std::numeric_limits<double>::quiet_NaN();
   Eigen::VectorXd temperatures;
@@ -133,11 +133,11 @@ public:
    * For Quantum Espresso, this is the path to the file produced by q2r.
    * @return x: the file path.
    */
-  std::string getPhD2FileName();
-  void setPhD2FileName(const std::string &x);
+  std::string getPhFC2FileName();
+  void setPhFC2FileName(const std::string &x);
 
-  std::string getPhD3FileName();
-  void setPhD3FileName(const std::string &x);
+  std::string getPhFC3FileName();
+  void setPhFC3FileName(const std::string &x);
 
   std::string getPhonopyDispFileName();
   void setPhonopyDispFileName(const std::string &x);
@@ -185,8 +185,8 @@ public:
   /** gets the sum rule to be imposed on the lattice force constants.
    * @return x: the name of the sum rule, i.e. "simple" or "crystal".
    */
-  std::string getSumRuleD2();
-  void setSumRuleD2(const std::string &x);
+  std::string getSumRuleFC2();
+  void setSumRuleFC2(const std::string &x);
 
   /** gets the mesh of points for harmonic phonon properties.
    * @return path: an array with 3 integers representing the q-point mesh.
