@@ -12,8 +12,8 @@ TEST(InteractionIsotope, Wphisoiq4) {
 
   // Parse espresso ifc2 file
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
-  context.setSumRuleD2("simple");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setSumRuleFC2("simple");
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
