@@ -92,7 +92,7 @@ class BaseBandStructure {
   /** Returns an iterator to be used for loops over the Bloch state index.
    * The values of the iterator are distributed in N blocks over N MPI ranks.
    */
-  std::vector<int> parallelStateIterator();
+  std::vector<size_t> parallelStateIterator();
 
   /** Returns the energy of a quasiparticle from its Bloch index
    * Used for accessing the band structure in the BTE.

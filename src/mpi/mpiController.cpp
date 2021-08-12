@@ -153,15 +153,15 @@ void MPIcontroller::barrier() const {
 }
 
 // Labor division functions -----------------------------------------
-std::vector<int> MPIcontroller::divideWork(size_t numTasks) {
+std::vector<size_t> MPIcontroller::divideWork(size_t numTasks) {
   // return a vector of the start and stop points for task division
-  std::vector<int> divs(2);
+  std::vector<size_t> divs(2);
   divs[0] = (numTasks * rank) / size;
   divs[1] = (numTasks * (rank + 1)) / size;
   return divs;
 }
 
-std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks, const int& communicator) {
+std::vector<size_t> MPIcontroller::divideWorkIter(size_t numTasks, const int& communicator) {
   int rank_ = 0;
   int size_ = 1;
   if (communicator == worldComm) {
@@ -175,11 +175,11 @@ std::vector<int> MPIcontroller::divideWorkIter(size_t numTasks, const int& commu
   }
 
   // return a vector of indices for tasks to be completed by thsi process
-  int start = (numTasks * rank_) / size_;
-  int stop = (numTasks * (rank_ + 1)) / size_;
+  size_t start = (numTasks * rank_) / size_;
+  size_t stop = (numTasks * (rank_ + 1)) / size_;
   size_t localSize = stop - start;
-  std::vector<int> divs(localSize);
-  for (int i = start; i < stop; i++) {
+  std::vector<size_t> divs(localSize);
+  for (size_t i = start; i < stop; i++) {
     divs[i - start] = i;
   }
   return divs;

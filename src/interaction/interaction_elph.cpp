@@ -388,7 +388,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
-  std::vector<int> localElVectors;
+  std::vector<size_t> localElVectors;
 
   // check for existence of file
   {
@@ -489,7 +489,11 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&phBravaisVectorsDegeneracies_, mpi->interPoolComm);
 
     // Define the eph matrix element containers
-    size_t totElems = pow(numElBands,2) * numPhBands * numPhBravaisVectors * numElBravaisVectors;
+
+    // This is broken into parts, otherwise it can overflow if done all at once
+    size_t totElems = numElBands * numElBands * numPhBands;
+    totElems *= numPhBravaisVectors;
+    totElems *= numElBravaisVectors;
 
     // user info about memory
     {
@@ -519,7 +523,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
           HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
       // get start and stop points of elements to be written by this process
-      std::vector<int> workDivs = mpi->divideWork(totElems);
+      auto workDivs = mpi->divideWork(totElems);
       size_t localElems = workDivs[1] - workDivs[0];
 
       // Set up buffer to be filled from hdf5

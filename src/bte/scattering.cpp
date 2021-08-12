@@ -494,7 +494,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   std::string energyUnit = "eV";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
-  double energyToTime = energyRyToFs;
+  double energyToTime = energyRyToFs/twoPi;
   if (particle.isPhonon()) {
     particleType = "phonon";
     energyUnit = "meV";
@@ -815,7 +815,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // must parallelize over the inner band structure (iq2 in phonons)
       // which is the outer loop on q-points
       size_t a = innerBandStructure.getNumPoints();
-      std::vector<int> q2Iterator = mpi->divideWorkIter(a);
+      auto q2Iterator = mpi->divideWorkIter(a);
       std::vector<int> q1Iterator = outerBandStructure.irrPointsIterator();
 
       std::vector<std::tuple<std::vector<int>, int>> pairIterator;
