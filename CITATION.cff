@@ -1,0 +1,30 @@
+# YAML 1.2
+---
+authors: 
+  -
+    affiliation: "Harvard University"
+    family-names: Cepellotti
+    given-names: Andrea
+  -
+    affiliation: "Harvard University"
+    family-names: Coulter
+    given-names: Jennifer
+  -
+    affiliation: "Harvard University"
+    family-names: Johansson
+    given-names: Anders
+  -
+    affiliation: "Harvard University"
+    family-names: Fedorova
+    given-names: Natalya
+  -
+    affiliation: "Harvard University"
+    family-names: Kozinsky
+    given-names: Boris
+cff-version: "1.1.0"
+license: "MIT License"
+message: "If you use this software, please cite it using these metadata."
+repository-code: "https://github.com/mir-group/phoebe"
+title: "Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers"
+version: "1.0"
+...

@@ -939,13 +939,13 @@ scatteringMatrixInMemory
 distributedElPhCoupling
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes, helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used).
+* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes, helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used). If false, the electron-phonon coupling tensor is not distributed over MPI processes: calculations will be faster, but in exchange for a much larger memory requirement that can cause segmentation faults for some large use cases.
 
 * **Format:** *bool*
 
 * **Required:** no
 
-* **Default:** `false`
+* **Default:** `true`
   
 
 .. _windowType:

@@ -1,0 +1,8 @@
+#ifndef MAIN_H
+#define MAIN_H
+
+// these variables are configured by cmake
+#define Phoebe_VERSION_MAJOR "@Phoebe_VERSION_MAJOR@"
+#define Phoebe_VERSION_MINOR "@Phoebe_VERSION_MINOR@"
+
+#endif

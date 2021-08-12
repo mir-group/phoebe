@@ -1,5 +1,6 @@
 #include "io.h"
 #include "mpiHelper.h"
+#include "main.h"
 #include <algorithm>
 #include <exceptions.h>
 #include <iomanip>
@@ -75,6 +76,8 @@ void IO::welcome() {
       "  888        888  888 Y88..88P Y8b.     888 d88P Y8b.     \n"
       "  888        888  888  'Y88P'   'Y8888  88888P'   'Y8888' \n";
   std::cout << welcomeMsg << std::endl;
+  std::cout << "Phoebe v" << Phoebe_VERSION_MAJOR
+	    << "." << Phoebe_VERSION_MINOR << "\n" << std::endl;
 }
 
 void IO::goodbye(Context &context) {
