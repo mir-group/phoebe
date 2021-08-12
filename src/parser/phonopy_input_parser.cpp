@@ -311,7 +311,7 @@ infile.clear();
 infile.open(directory+"/BORN");
 if(infile.is_open()) {
   hasDielectric = true;
-  if(mpi->mpiHead()) std::cout << "Using BORN file found in D2 directory." <<
+  if(mpi->mpiHead()) std::cout << "Using BORN file found in FC2 directory." <<
 std::endl; getline(infile,line);
 
   // NOTE need to extract the list of which atoms are listed in this file
@@ -372,9 +372,9 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
   std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
   std::vector<int> cellMap;
 
-  fileName = context.getPhD2FileName();
+  fileName = context.getPhFC2FileName();
   if (fileName.empty()) {
-    Error("Phonopy required file phD2FileName (fc2.hdf5) file not "
+    Error("Phonopy required file phFC2FileName (fc2.hdf5) file not "
           "specified in input file.");
   }
   if (mpi->mpiHead())
@@ -476,7 +476,7 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
                   speciesNames, speciesMasses, dimensionality);
   crystal.print();
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
-                           forceConstants, context.getSumRuleD2());
+                           forceConstants, context.getSumRuleFC2());
 
   return {crystal, dynamicalMatrix};
 #endif

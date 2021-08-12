@@ -121,7 +121,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
 void ElPhCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getPhD2FileName(), "phD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "phFC2FileName");
   throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
   throwErrorIfUnset(context.getElphFileName(), "elphFileName");
 }

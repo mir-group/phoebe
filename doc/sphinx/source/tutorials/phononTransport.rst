@@ -113,11 +113,11 @@ Before proceeding, you should check the quality of the calculation. First, make 
   appName = "phononBands"
 
   # necessary input files
-  phD2FileName = "fc2.hdf5"
+  phFC2FileName = "fc2.hdf5"
   phonopyDispFileName = "disp_fc2.yaml"
   dispFCFileName = "disp.yaml"
 
-  sumRuleD2 = "simple"
+  sumRuleFC2 = "simple"
   begin point path
   ...
   end point path
@@ -146,15 +146,15 @@ Now, we are ready to use Phoebe to calculate the lattice thermal conductivity. T
   appName = "phononTransport"
 
   # below lines specify the paths to phono3py input files
-  phD2FileName = "fc2.hdf5"
-  phD3FileName = "fc3.hdf5"
+  phFC2FileName = "fc2.hdf5"
+  phFC3FileName = "fc3.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
   dispFCFileName = "disp_fc3.yaml"
   # in the event that separate supercells were used
   # for fc2 and fc3, one must also include
   # dispFC2FileName = "disp_fc2.yaml"
 
-  sumRuleD2 = "crystal"
+  sumRuleFC2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
   smearingMethod = "adaptiveGaussian"
@@ -165,11 +165,11 @@ Let's go through these parameters:
 
 * :ref:`appName` = `"phononTransport"` triggers the calculation of phonon transport properties.
 
-* :ref:`phD2FileName` must point to the harmonic forces constants file. Additionally, when using phono3py, it must point to the directory containing the three files (``fc2.hdf5`` and the two ``*.yaml`` files) mentioned above.
+* :ref:`phFC2FileName` must point to the harmonic forces constants file. Additionally, when using phono3py, it must point to the directory containing the three files (``fc2.hdf5`` and the two ``*.yaml`` files) mentioned above.
 
-* :ref:`phD3FileName` must point to the third-order force constant file.
+* :ref:`phFC3FileName` must point to the third-order force constant file.
 
-* :ref:`sumRuleD2` allows us to re-enforce the translational-invariance of force constants, which is broken by numerical inaccuracy. After imposing this sum rule, acoustic phonon frequencies should go to zero at the gamma point.
+* :ref:`sumRuleFC2` allows us to re-enforce the translational-invariance of force constants, which is broken by numerical inaccuracy. After imposing this sum rule, acoustic phonon frequencies should go to zero at the gamma point.
 
 * :ref:`qMesh` specifies the size of the grid of wavevectors used to integrate the Brillouin zone. Note that the value used here is very unconverged, so that the example can finish in a short amount of time.
 
@@ -392,8 +392,8 @@ Where we can see ``disp_fc2.yaml`` is new. To run a Phoebe transport calculation
   dispFCFileName = "disp_fc3.yaml"
   dispFC2FileName = "disp_fc2.yaml"
   # force constant files, as usual
-  phD2FileName = "fc2.hdf5"
-  phD3FileName = "fc3.hdf5"
+  phFC2FileName = "fc2.hdf5"
+  phFC3FileName = "fc3.hdf5"
 
 
 

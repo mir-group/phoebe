@@ -387,9 +387,9 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   //  Here we read the dynamical matrix of inter-atomic force constants
   //	in real space.
 
-  std::string fileName = context.getPhD2FileName();
+  std::string fileName = context.getPhFC2FileName();
   if (fileName.empty()) {
-    Error("Must provide a D2 file name");
+    Error("Must provide a FC2 file name");
   }
 
   std::string line;
@@ -547,7 +547,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   }
 
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
-                           forceConstants, context.getSumRuleD2());
+                           forceConstants, context.getSumRuleFC2());
 
   return {crystal, dynamicalMatrix};
 }

@@ -290,7 +290,7 @@ reorderDynamicalMatrix(
                         for (int k : {0, 1, 2}) {
 
                           // compress the cartesian indices and unit cell atom
-                          // indices for the first three indices of D3
+                          // indices for the first three indices of FC3
                           auto ind1 = compress2Indices(na, i, numAtoms, 3);
                           auto ind2 = compress2Indices(nb, j, numAtoms, 3);
                           auto ind3 = compress2Indices(nc, k, numAtoms, 3);
@@ -412,9 +412,9 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   // Open the hdf5 file containing the IFC3s
   // ===================================================
-  fileName = context.getPhD3FileName();
+  fileName = context.getPhFC3FileName();
   if (fileName.empty()) {
-    Error("Phono3py phD3FileName (fc3.hdf5) file not "
+    Error("Phono3py phFC3FileName (fc3.hdf5) file not "
           "specified in input file.");
   }
   if (mpi->mpiHead())
@@ -495,10 +495,10 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
     cellPositions(2, is) = supPositions(is, 2) - supPositions(0, 2);
   }
 
-  // reshape to D3 format
-  Eigen::Tensor<double, 5> D3;
+  // reshape to FC3 format
+  Eigen::Tensor<double, 5> FC3;
 
-  auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid, rws, D3,
+  auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid, rws, FC3,
                                     cellPositions, ifc3Tensor, cellMap);
   Eigen::MatrixXd bravaisVectors2 = std::get<0>(tup);
   Eigen::VectorXd weights2 = std::get<1>(tup);
@@ -512,7 +512,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   }
 
   // Create interaction3Ph object
-  Interaction3Ph interaction3Ph(crystal, D3, bravaisVectors2, bravaisVectors3,
+  Interaction3Ph interaction3Ph(crystal, FC3, bravaisVectors2, bravaisVectors3,
                                 weights2, weights3);
 
   return interaction3Ph;
@@ -523,14 +523,14 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
                                              Crystal &crystal) {
 
-  auto fileName = context.getPhD3FileName();
+  auto fileName = context.getPhFC3FileName();
 
   // Open IFC3 file
   std::ifstream infile(fileName);
   std::string line;
 
   if (not infile.is_open()) {
-    Error("D3 file not found");
+    Error("FC3 file not found");
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -616,7 +616,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
 
   // TODO Round cellPositions to the nearest lattice vectors
 
-  // start processing ifc3s into D3 matrix
+  // start processing ifc3s into FC3 matrix
   int numAtoms = crystal.getNumAtoms();
   int numBands = numAtoms * 3;
   int nr2 = 0;
@@ -665,8 +665,8 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
     cellPositions3.col(i) = tmpCellPositions3[i];
   }
 
-  Eigen::Tensor<double, 5> D3(numBands, numBands, numBands, nr2, nr3);
-  D3.setZero();
+  Eigen::Tensor<double, 5> FC3(numBands, numBands, numBands, nr2, nr3);
+  FC3.setZero();
 
   for (int it = 0; it < numTriplets; it++) { // sum over all triplets
     int ia1 = displacedAtoms(it, 0);
@@ -690,7 +690,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
           auto ind2 = compress2Indices(ia2, ic2, numAtoms, 3);
           auto ind3 = compress2Indices(ia3, ic3, numAtoms, 3);
 
-          D3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
+          FC3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
         }
       }
     }
@@ -701,7 +701,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
     weights(i) += 1;
   }
 
-  Interaction3Ph interaction3Ph(crystal, D3, cellPositions2, cellPositions3,
+  Interaction3Ph interaction3Ph(crystal, FC3, cellPositions2, cellPositions3,
                                 weights, weights);
 
   if (mpi->mpiHead()) {
