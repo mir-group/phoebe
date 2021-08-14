@@ -158,7 +158,7 @@ void IO::goodbye(Context &context) {
       context.getAppName() == "electronLifetimes" ||
       context.getAppName() == "electronWannierTransport") {
     std::cout << "  For the use of ab-initio electron-phonon coupling:" << std::endl;
-    std::cout << "\tS. Piscanec, M. Lazzeri, Francesco Mauri, A. C. Ferrari, and J. Robertson.\n" <<
+    std::cout << "\tS. Piscanec, M. Lazzeri, F. Mauri, A. C. Ferrari, and J. Robertson.\n" <<
               //    "\tKohn Anomalies and Electron-Phonon Interactions in Graphite.\n" <<
               "\tPhysical Review Letters 93, 185503 (2004)\n" << std::endl;
     // At least, I think it's this one. Subroutine elphel() in QE was
