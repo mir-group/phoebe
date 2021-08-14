@@ -58,8 +58,8 @@ Once we've collected the files from a prior tutorial, we can go ahead and run th
 
   appName = "electronLifetimes"
 
-  phD2FileName = "qe-elph/silicon.fc",
-  sumRuleD2 = "simple"
+  phFC2FileName = "qe-elph/silicon.fc",
+  sumRuleFC2 = "simple"
   electronH0Name = "qe-elph/si_tb.dat",
   elphFileName = "qe-elph/silicon.phoebe.elph.hdf5"
 
@@ -87,9 +87,9 @@ Once we've collected the files from a prior tutorial, we can go ahead and run th
 
   appName = "phononLifetimes"
 
-  phD2FileName = "qe-phonons/silicon.fc",
-  sumRuleD2 = "simple"
-  phD3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
+  phFC2FileName = "qe-phonons/silicon.fc",
+  sumRuleFC2 = "simple"
+  phFC3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
 
   qMesh = [10,10,10]
   temperatures = [600.]
@@ -111,13 +111,13 @@ As we can see, these input files are relatively similar. We briefly describe the
 
 * :ref:`appName`: we set this to ``electronLifetimes`` or ``phononLifetimes`` to tell Phoebe to run the app to generate lifetimes on a path.
 
-* :ref:`phD2FileName`: in both the electron and phonon cases, this file should point to the harmonic phonon input file, whether from QE or phono3py.
+* :ref:`phFC2FileName`: in both the electron and phonon cases, this file should point to the harmonic phonon input file, whether from QE or phono3py.
 
-* :ref:`sumRuleD2`: tells Phoebe to use either the simple or crystal acoustic sum rule for the harmonic phonons.
+* :ref:`sumRuleFC2`: tells Phoebe to use either the simple or crystal acoustic sum rule for the harmonic phonons.
 
 * :ref:`electronH0Name` and :ref:`elphFileName`: used for the electronic case, these point to the ``*_tb.dat`` file from Wannier90 and the ``*.phoebe.elph.hdf5`` file created by the ``qeToPhoebe`` app, respectively.
 
-* :ref:`phD3FileName`: used for the phonon case, this points to the anharmonic phonon input file from ShengBTE or phon3py.
+* :ref:`phFC3FileName`: used for the phonon case, this points to the anharmonic phonon input file from ShengBTE or phon3py.
 
 * :ref:`qMesh` or :ref:`kMesh`: for the phonon and electron cases, respectively, these variables specify the fine mesh of points used to calculate either the phonon or electrons scattering rates output by this calculation. You should converge against this value.
 

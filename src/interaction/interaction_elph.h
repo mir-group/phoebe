@@ -1,5 +1,5 @@
-#ifndef ELPHINTERACTION_H
-#define ELPHINTERACTION_H
+#ifndef EL_PH_INTERACTION_H
+#define EL_PH_INTERACTION_H
 
 #include <complex>
 
@@ -10,6 +10,7 @@
 #include "points.h"
 #include "utilities.h"
 #include "context.h"
+#include <Kokkos_Core.hpp>
 
 /** Class to handle the coupling between electron and phonons.
  * Currently implements the calculation of the diagram for the interaction
@@ -41,7 +42,6 @@ class InteractionElPhWan {
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
 
-  Eigen::Tensor<std::complex<double>, 4> elPhCached;
   Eigen::Vector3d cachedK1;
   bool usePolarCorrection = false;
 
@@ -57,8 +57,42 @@ class InteractionElPhWan {
   getPolarCorrection(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
-public:
+  // Kokkos View types
+  using ComplexView1D = Kokkos::View<Kokkos::complex<double> *, Kokkos::LayoutRight>;
+  using ComplexView2D = Kokkos::View<Kokkos::complex<double> **, Kokkos::LayoutRight>;
+  using ComplexView3D = Kokkos::View<Kokkos::complex<double> ***, Kokkos::LayoutRight>;
+  using ComplexView4D = Kokkos::View<Kokkos::complex<double> ****, Kokkos::LayoutRight>;
+  using ComplexView5D = Kokkos::View<Kokkos::complex<double> *****, Kokkos::LayoutRight>;
+  using IntView1D = Kokkos::View<int *, Kokkos::LayoutRight>;
+  using DoubleView1D = Kokkos::View<double *, Kokkos::LayoutRight>;
+  using DoubleView2D = Kokkos::View<double **, Kokkos::LayoutRight>;
+  using DoubleView4D = Kokkos::View<double ****, Kokkos::LayoutRight>;
 
+  using HostComplexView1D = Kokkos::View<Kokkos::complex<double>*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView2D = Kokkos::View<Kokkos::complex<double>**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView3D = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView4D = Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostComplexView5D = Kokkos::View<Kokkos::complex<double>*****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostDoubleView1D = Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using HostDoubleView2D = Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+  // Kokkos Range types
+  using Range2D = Kokkos::MDRangePolicy<Kokkos::Rank<2,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
+  using Range3D = Kokkos::MDRangePolicy<Kokkos::Rank<3,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
+  using Range4D = Kokkos::MDRangePolicy<Kokkos::Rank<4,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
+  using Range5D = Kokkos::MDRangePolicy<Kokkos::Rank<5,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
+  using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
+
+  ComplexView4D elPhCached;
+  ComplexView5D couplingWannier_k;
+  DoubleView2D phBravaisVectors_k;
+  DoubleView1D phBravaisVectorsDegeneracies_k;
+  DoubleView2D elBravaisVectors_k;
+  DoubleView1D elBravaisVectorsDegeneracies_k;
+
+  double maxmem = 16.0e9; // default 16 Gb memory space for computation
+
+public:
 
   /** Default constructor
    * @param crystal_: object describing the crystal unit cell.
@@ -108,6 +142,17 @@ public:
    * type k1,q3 -> k2, where k1 is one fixed wavevector, and k2,q3 are
    * wavevectors running in lists of wavevectors.
    * It is assumed that the relation (k2 = k1 + q3) holds.
+   *
+   * The call to this function must be preceded by a call to cacheElPh(),
+   * which does a precomputation at fixed value of k1.
+   * If not, results will be wrong.
+   * Hence, structure a code calling this functions as:
+   * for k1:
+   *   cacheElPh(k1)
+   *   for k2:
+   *     k3 = k2 - k1
+   *     calcCouplingSquared(k2,k3)
+   *
    * Note: this method must be used in conjunction with getCouplingSquared,
    * which is used to return the values computed here.
    * @param el1Eigenvec: electron eigenvector matrix U_{mb}(k1), where U is
@@ -125,9 +170,14 @@ public:
       const Eigen::MatrixXcd &eigvec1,
       const std::vector<Eigen::MatrixXcd> &eigvecs2,
       const std::vector<Eigen::MatrixXcd> &eigvecs3,
-      const Eigen::Vector3d &k1C,
-      const std::vector<Eigen::Vector3d> &k2Cs,
       const std::vector<Eigen::Vector3d> &q3Cs);
+
+  /** Computes a partial Fourier transform over the k1/R_el variables.
+   * @param k1C: values of the k1 cartesian coordinates over which the Fourier
+   * transform is computed.
+   * @param eigvec1: Wannier rotation matrix U at point k1.
+   */
+  void cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C);
 
   /** Get the coupling for the values of the wavevectors triplet (k1,k2,q3),
    * where k1 is the wavevector used at calcCoupling Squared(),
@@ -159,6 +209,19 @@ public:
       const Eigen::Tensor<double, 3> &bornCharges,
       const Eigen::MatrixXd &atomicPositions,
       const Eigen::Vector3i &qCoarseMesh);
+
+  /** Auxiliary function to return the shape of the electron-phonon tensor
+   * @return (numWannier,numWannier,numPhModes,numElVectors,numPhVectors)
+   */
+  Eigen::VectorXi getCouplingDimensions();
+
+  /** Estimate the number of batches that the list of k2 wavevectors must be
+   * split into, in order to fit in memory.
+   *
+   * @param nk2: total number of k2 wavevectors to be split in batches.
+   * @param nb1: number of bands at the k1 wavevector.
+   */
+  int estimateNumBatches(const int &nk2, const int &nb1);
 };
 
 #endif

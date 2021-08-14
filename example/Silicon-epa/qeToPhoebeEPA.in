@@ -2,7 +2,7 @@ appName = "elPhQeToPhoebe"
 
 elPhInterpolation = "epa"
 
-phD2FileName = "qe-elph/silicon.fc"
+phFC2FileName = "qe-elph/silicon.fc"
 electronH0Name = "qe-elph/out/silicon.xml",
 quantumEspressoPrefix = "qe-elph/silicon"
 

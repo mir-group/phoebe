@@ -11,7 +11,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   // band structure object correctly and consistently
 
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
 
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);

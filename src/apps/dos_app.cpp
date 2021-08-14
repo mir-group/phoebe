@@ -201,12 +201,12 @@ void outputDOSToJSON(std::vector<double> energies, std::vector<double> dos,
 }
 
 void PhononDosApp::checkRequirements(Context &context) {
-  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
   throwErrorIfUnset(context.getDosMinEnergy(), "dosMinEnergy");
   throwErrorIfUnset(context.getDosMaxEnergy(), "dosMaxEnergy");
   throwErrorIfUnset(context.getDosDeltaEnergy(), "dosDeltaEnergy");
-  throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+  throwWarningIfUnset(context.getSumRuleFC2(), "sumRuleFC2");
 }
 
 void ElectronWannierDosApp::checkRequirements(Context &context) {

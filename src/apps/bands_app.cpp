@@ -194,10 +194,10 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
 }
 
 void PhononBandsApp::checkRequirements(Context &context) {
-  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
   throwErrorIfUnset(context.getDeltaPath(), "deltaPath");
-  throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
+  throwWarningIfUnset(context.getSumRuleFC2(), "sumRuleFC2");
 }
 
 void ElectronWannierBandsApp::checkRequirements(Context &context) {

@@ -242,6 +242,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
+#pragma omp parallel for default(none) shared(v3sMinus_v, v3sPlus_v, bose3MinusData_v, bose3PlusData_v, energies3Minus_v, energies3Plus_v, ev1_v, ev3Minus_v, ev3Plus_v, q1_v, nb1_v, nb3Minus_v, nb3Plus_v, batch_size, iq1Indexes, start, pointHelper, q2Point)
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
         int iq1 = iq1Indexes[start + iq1Batch];
         WavevectorIndex iq1Index(iq1);

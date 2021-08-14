@@ -5,8 +5,8 @@
 TEST (PhononH0, Velocity) {
 //int main() {
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
-  context.setSumRuleD2("simple");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setSumRuleFC2("simple");
 
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);

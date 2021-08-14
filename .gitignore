@@ -74,3 +74,6 @@ tags
 .idea
 
 *zip
+
+# built by cmake for version number
+src/main.h

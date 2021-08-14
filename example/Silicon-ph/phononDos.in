@@ -1,5 +1,5 @@
-phD2FileName = "qe-phonons/silicon.fc",
-sumRuleD2 = "simple"
+phFC2FileName = "qe-phonons/silicon.fc",
+sumRuleFC2 = "simple"
 qMesh = [10,10,10]
 appName = "phononDos"
 dosMinEnergy = 0. cmm1

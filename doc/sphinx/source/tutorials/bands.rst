@@ -99,8 +99,8 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
 
 ::
 
-  phD2FileName = "silicon.fc" 
-  sumRuleD2 = "simple"
+  phFC2FileName = "silicon.fc" 
+  sumRuleFC2 = "simple"
   appName = "phononBands"
   useSymmetries = true
 
@@ -112,9 +112,9 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
   end point path
 
 
-**when using phono3py, the** ``phD2FileName`` **line should be replaced by three input variables instead**::
+**when using phono3py, the** ``phFC2FileName`` **line should be replaced by three input variables instead**::
 
-  phD2FileName = "fc2.hdf5"
+  phFC2FileName = "fc2.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
   dispFCFileName = "disp_fc3.yaml"
 
@@ -123,9 +123,9 @@ As we can see, these input files are relatively similar. We briefly describe the
 
 * :ref:`appName`: we set this to ``electronWannierBands``, ``electronFourierBands``, or ``phononBands`` to tell Phoebe to run the app to generate the band structure of choice.
 
-* :ref:`phD2FileName`: in the phonon cases, this file should point to the harmonic phonon input file, whether from QE or phono3py.
+* :ref:`phFC2FileName`: in the phonon cases, this file should point to the harmonic phonon input file, whether from QE or phono3py.
 
-* :ref:`sumRuleD2`: tells Phoebe to use either the simple or crystal acoustic sum rule for the harmonic phonons.
+* :ref:`sumRuleFC2`: tells Phoebe to use either the simple or crystal acoustic sum rule for the harmonic phonons.
 
 * :ref:`electronH0Name`: used for the electronic case, this points to the ``*_tb.dat`` file from Wannier90.
 
@@ -194,8 +194,8 @@ We can also use these inputs to run a DoS calculation, as shown in example files
 
 ::
 
-  phD2FileName = "silicon.fc",
-  sumRuleD2 = "simple"
+  phFC2FileName = "silicon.fc",
+  sumRuleFC2 = "simple"
   qMesh = [10,10,10]
   appName = "phononDos"
   dosMinEnergy = 0. cmm1

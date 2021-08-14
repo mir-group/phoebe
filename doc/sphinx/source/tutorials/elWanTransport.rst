@@ -304,7 +304,7 @@ To understand how this works, let's look at the input file ``qeToPhoebeWannier.i
 
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "wannier"
-  phD2FileName = "silicon.fc"
+  phFC2FileName = "silicon.fc"
   electronH0Name = "si_tb.dat"
   wannier90Prefix = "si"
   quantumEspressoPrefix = "silicon"
@@ -317,7 +317,7 @@ The key parameters used in this calculation are:
 * :ref:`elPhInterpolation` = `"wannier"`:
   this selects the post-processing method used to transform the electron-phonon matrix elements. In this case, we select the method which transforms them to the Wannier representation.
 
-* :ref:`phD2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
+* :ref:`phFC2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
 
 * :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of `{wannier90seedname}_tb.dat`` should point to the file created by Wannier90 due to the ``write_tb = true`` flag. If Wannier90 has disentangled bands, there should also be a file called ``si_tb_dis.dat`` in this directory.
 
@@ -350,8 +350,8 @@ After all this work, it's time to run Phoebe and compute the transport propertie
 The input file for computing electronic transport properties::
 
   appName = "electronWannierTransport"
-  phD2FileName = "silicon.fc"
-  sumRuleD2 = "crystal"
+  phFC2FileName = "silicon.fc"
+  sumRuleFC2 = "crystal"
   electronH0Name = "si_tb.dat",
   elphFileName = "silicon.phoebe.elph.dat"
 
@@ -371,9 +371,9 @@ The notable parameters in this input file are:
 
 * :ref:`appName` = `"electronWannierTransport"`: selects the app for computing electronic transport properties with Wannier interpolation.
 
-* :ref:`phD2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
+* :ref:`phFC2FileName` = `"silicon.fc"`: points to the location of the harmonic force constants file created by ``ph.x``.
 
-* :ref:`sumRuleD2`: impose translational invariance on the force constants, so that acoustic phonon frequencies go to zero at the gamma point.
+* :ref:`sumRuleFC2`: impose translational invariance on the force constants, so that acoustic phonon frequencies go to zero at the gamma point.
 
 * :ref:`electronH0Name`: points to the ``si_tb.dat`` file created by Wannier90, which contains the electron Hamiltonian in the Wannier representation.
 

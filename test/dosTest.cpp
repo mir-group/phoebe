@@ -11,8 +11,8 @@
 TEST(TetrahedronTest, Normalization) {
   // set up a phononH0
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
-  context.setSumRuleD2("simple");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setSumRuleFC2("simple");
 
   context.setUseSymmetries(true);
 

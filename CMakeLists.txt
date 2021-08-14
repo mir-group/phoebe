@@ -11,7 +11,9 @@ endif()
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 14)
 
-project(Phoebe C CXX Fortran)
+project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
+
+configure_file(src/main.h.in ../src/main.h)
 
 ## load custom cmake find_package
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -19,10 +21,11 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 if(CMAKE_CXX_COMPILER_ID MATCHES GNU)
     SET(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -ggdb -fno-omit-frame-pointer -Wno-deprecated-copy -Wno-ignored-attributes")
     add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
+    add_compile_options(-Wno-error=parentheses)
 endif()
 
 ############ OPTIONS ################
-# these can be toggled in a build script by 
+# these can be toggled in a build script by
 # supplying arguments to cmake like cmake -DHDF5_AVAIL=OFF ../
 option(MPI_AVAIL "Build with MPI wrappers" ON)
 option(OMP_AVAIL "Build with OMP" ON)
@@ -171,7 +174,7 @@ IF (BUILD_DOC)
 
 	IF (NOT SPHINX_FOUND)
 	  message("Documentation needs also sphinx")
-	else()		
+	else()
 	  add_custom_target(
 	    doc
 	    COMMAND make html

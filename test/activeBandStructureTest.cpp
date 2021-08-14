@@ -19,7 +19,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
 
   // set up a phononH0
   Context context1;
-  context1.setPhD2FileName("../test/data/444_silicon.fc");
+  context1.setPhFC2FileName("../test/data/444_silicon.fc");
   context1.setWindowType("energy");
   Eigen::Vector2d x2;
   x2 << 0, 0.004;
@@ -31,7 +31,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
   testContexts.push_back(context1);
 
   Context context2;
-  context2.setPhD2FileName("../test/data/444_silicon.fc");
+  context2.setPhFC2FileName("../test/data/444_silicon.fc");
   context2.setWindowType("population");
   context2.setWindowPopulationLimit(0.5e-8);
   context2.setTemperatures(x3);
@@ -177,7 +177,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
 TEST(ActiveBandStructureTest, WindowFilter) {
   // set up input parameters
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
   context.setWindowType("population");
   context.setWindowPopulationLimit(1.0e-2);
   Eigen::VectorXd x3(1);

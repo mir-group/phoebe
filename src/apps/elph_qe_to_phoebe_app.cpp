@@ -46,7 +46,7 @@ void ElPhQeToPhoebeApp::run(Context &context) {
 
 void ElPhQeToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQuantumEspressoPrefix(),
                     "QuantumEspressoPrefix");
 

@@ -326,10 +326,10 @@ void PhononTransportApp::run(Context &context) {
 }
 
 void PhononTransportApp::checkRequirements(Context &context) {
-  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
-  throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
-  throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
+  throwWarningIfUnset(context.getSumRuleFC2(), "sumRuleFC2");
+  throwErrorIfUnset(context.getPhFC3FileName(), "PhFC3FileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {

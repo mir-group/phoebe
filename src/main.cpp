@@ -1,16 +1,16 @@
 #include "app.h"
 #include "context.h"
 #include "io.h"
+#include "main.h"
 #include "mpi/mpiHelper.h"
 #include <Kokkos_Core.hpp>
-
 
 int main(int argc, char **argv) {
 
   // here launch parallel environment
   // Call proxy function from MPI Helper, which makes mpi object
   // globally available.
-  initMPI();
+  initMPI(argc, argv);
   Kokkos::initialize(argc, argv);
 
   // setup input/output
