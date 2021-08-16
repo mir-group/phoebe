@@ -12,7 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("INPUT",
                         help="Name of the JSON file with relaxation times")
     args = parser.parse_args()
-    
+
     # load in the json output
     jfileName = args.INPUT
     with open(jfileName) as jfile:
@@ -27,19 +27,19 @@ if __name__ == "__main__":
         except KeyError:
             raise KeyError("relaxation times not found."
                            "Are you using the correct input json file?")
-            
+
     # unpack the json file
     tau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib)
     energies = np.array(data['energies'])      # dimensions (iCalc, ik, ib)
+    if len(energies.shape) == 2:
+        print("Unfortunately, this script only makes sense with full band structures.")
+        print("It looks like you're trying to use it with an window-reduced bandstructure.")
+        exit()
     nbands = energies.shape[2]
     mu = np.array(data['chemicalPotentials'])
     T = np.array(data['temperatures'])
     particleType = data['particleType']
 
-    # Could also load in group velocities, or wavevectors
-    #vels = np.array(data['velocities'])         # dimensions: (iCalc, ik, ib, dim)
-    #wavevectors = np.array(data['wavevectorCoordinates']) # dimensions: (ik, dim)
-    
     # for now, let's select one calculation
     # the index used to select the calculation
     # also corresponds to the index for the temperature
@@ -50,14 +50,14 @@ if __name__ == "__main__":
     tau = tau[calcIndex]
     mu = mu[calcIndex]
     print("Calculation Temperature: ", T[calcIndex])
-    
+
     # plot the lifetimes, colored by band, for all dimensions
     plt.figure(figsize=(5,5))
     colors = plt.get_cmap('winter')(np.linspace(0,1,nbands))
     for ib in range(nbands):
         plt.scatter(energies[:,ib] - mu, tau[:,ib], marker='x',
                     s=18, alpha=0.25, color=colors[ib])
-        
+
     # plot aesthetics
     plt.yscale('log')
     plt.xlabel(r'Energy [' + data['energyUnit'] +']',fontsize=12)
@@ -82,4 +82,4 @@ if __name__ == "__main__":
     plotFileName = os.path.splitext(jfileName)[0] + ".pdf"
     plt.savefig(plotFileName)
     plt.show(block=False)
-    
+

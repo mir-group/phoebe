@@ -24,7 +24,7 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 
 :ref:`appName` = "elPhQeToPhoebe"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
 * :ref:`elPhInterpolation`
 
@@ -53,7 +53,7 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "wannier"
 
-  phD2FileName = "./silicon.fc"
+  phFC2FileName = "./silicon.fc"
   electronH0Name = "./si_tb.dat",
   wannier90Prefix = "si"
   quantumEspressoPrefix = "silicon"
@@ -67,7 +67,7 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "epa"
 
-  phD2FileName = "./silicon.fc"
+  phFC2FileName = "./silicon.fc"
   electronH0Name = "./out/silicon.xml",
   quantumEspressoPrefix = "silicon"
 
@@ -91,11 +91,11 @@ Phonon BTE Solver
 
 :ref:`appName` = "phononTransport"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
-* :ref:`phD3FileName`
+* :ref:`phFC3FileName`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
 * :ref:`qMesh`
 
@@ -150,9 +150,9 @@ Phonon BTE Solver
 ::
 
   appName = "phononTransport"
-  phD2FileName = "./ForceConstants2nd"
-  sumRuleD2 = "crystal"
-  phD3FileName = "./ForceConstants3rd"
+  phFC2FileName = "./ForceConstants2nd"
+  sumRuleFC2 = "crystal"
+  phFC3FileName = "./ForceConstants3rd"
   qMesh = [10,10,10]
   temperatures = [300.]
   smearingMethod = "adaptiveGaussian"
@@ -174,9 +174,9 @@ Electron BTE Solver
 
 :ref:`appName` = "electronWannierTransport"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
 * :ref:`electronH0Name`
 
@@ -239,8 +239,8 @@ Electron BTE Solver
 ::
 
   appName = "electronWannierTransport"
-  phD2FileName = "./silicon.fc"
-  sumRuleD2 = "crystal"
+  phFC2FileName = "./silicon.fc"
+  sumRuleFC2 = "crystal"
   electronH0Name = "./si_tb.dat",
   elphFileName = "silicon.phoebe.elph.dat"
   kMesh = [15,15,15]
@@ -315,11 +315,11 @@ Phonon Lifetimes on a Path
 
 :ref:`appName` = "phononLifetimes"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
-* :ref:`phD3FileName`
+* :ref:`phFC3FileName`
 
 * :ref:`qMesh`
 
@@ -359,9 +359,9 @@ Phonon Lifetimes on a Path
 ::
 
   appName = "phononLifetimes"
-  phD2FileName = "../Silicon/espresso.ifc2",
-  sumRuleD2 = "simple"
-  phD3FileName = "../Silicon/ShengBTEForceConstants3rd"
+  phFC2FileName = "../Silicon/espresso.ifc2",
+  sumRuleFC2 = "simple"
+  phFC3FileName = "../Silicon/ShengBTEForceConstants3rd"
   qMesh = [15,15,15]
   temperatures = [600.]
   smearingMethod = "gaussian"
@@ -389,11 +389,11 @@ Electron Lifetimes on a Path
 
 :ref:`appName` = "electronLifetimes"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
 * :ref:`electronH0Name`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
 * :ref:`elphFileName`
 
@@ -439,8 +439,8 @@ Electron Lifetimes on a Path
 ::
 
   appName = "electronLifetimes"
-  phD2FileName = "./silicon.fc",
-  sumRuleD2 = "crystal"
+  phFC2FileName = "./silicon.fc",
+  sumRuleFC2 = "crystal"
   electronH0Name = "./si_tb.dat",
   elphFileName = "./silicon.phoebe.elph.dat"
   kMesh = [15,15,15]
@@ -470,9 +470,9 @@ Phonon Dos
 
 :ref:`appName` = "phononDos"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
 * :ref:`qMesh`
 
@@ -492,8 +492,8 @@ Phonon Dos
 
 ::
 
-  phD2FileName = "qespresso/silicon.fc",
-  sumRuleD2 = "simple"
+  phFC2FileName = "qespresso/silicon.fc",
+  sumRuleFC2 = "simple"
   qMesh = [10,10,10]
   appName = "phononDos"
   dosMinEnergy = 0. cmm1
@@ -514,9 +514,9 @@ Phonon Bands
 
 :ref:`appName` = "phononBands"
 
-* :ref:`phD2FileName`
+* :ref:`phFC2FileName`
 
-* :ref:`sumRuleD2`
+* :ref:`sumRuleFC2`
 
 * :ref:`deltaPath`
 
@@ -534,7 +534,7 @@ Phonon Bands
 ::
 
   appName = "phononBands"
-  sumRuleD2 = "simple"
+  sumRuleFC2 = "simple"
 
   begin point path
    L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
@@ -550,18 +550,18 @@ Phonon Bands
 ::
 
   appName = "phononBands"
-  phD2FileName = "fc2.hdf5" 
+  phFC2FileName = "fc2.hdf5"
   dispFCFileName = "disp_fc3.yaml"
   phonopyDispFileName = "phono3py_disp.yaml"
-  sumRuleD2 = "simple"
+  sumRuleFC2 = "simple"
 
   begin point path
-   G 0.000 0.000 0.000  X 0.000 0.500 0.500    
-   X 0.000 0.500 0.500  W 0.250 0.750 0.500    
-   W 0.250 0.750 0.500  L 0.500 0.500 0.500  
-   L 0.500 0.500 0.500  G 0.000 0.000 0.000  
+   G 0.000 0.000 0.000  X 0.000 0.500 0.500
+   X 0.000 0.500 0.500  W 0.250 0.750 0.500
+   W 0.250 0.750 0.500  L 0.500 0.500 0.500
+   L 0.500 0.500 0.500  G 0.000 0.000 0.000
    G 0.000 0.000 0.000  K 0.375 0.750 0.375
-  end point path 
+  end point path
 
 
 -----------------------------------
@@ -790,10 +790,10 @@ appName
   * **"electronFourierBands":** app to compute the electron bands with Fourier interpolation on a Brillouin zone path.
 
 
-.. _phD2FileName:
+.. _phFC2FileName:
 
-phD2FileName
-^^^^^^^^^^^^
+phFC2FileName
+^^^^^^^^^^^^^^
 
 * **Description:** Path to a file containing harmonic force constants. File formats supported are: Quantum-ESPRESSO output of ``q2r.x`` (``prefix.fc``) or phono3py output (``fc2.hdf5``).
 
@@ -802,10 +802,10 @@ phD2FileName
 * **Required:** yes (for all phonon and electron-phonon apps)
 
 
-.. _phD3FileName:
+.. _phFC3FileName:
 
-phD3FileName
-^^^^^^^^^^^^
+phFC3FileName
+^^^^^^^^^^^^^^
 
 * **Description:** Path to a file containing anharmonic (3rd order) force constants. File formats supported are: ShengBTE (``FORCE_CONSTANTS_3RD``) or phono3py (``fc3.hdf5``).
 
@@ -836,10 +836,10 @@ dispFCFileName
 * **Required:** yes (for calculations using phono3py)
 
 
-.. _sumRuleD2:
+.. _sumRuleFC2:
 
-sumRuleD2
-^^^^^^^^^
+sumRuleFC2
+^^^^^^^^^^
 
 * **Description:** If specified, applies an acoustic sum rule to the phonon harmonic force constants. Allowed values are "simple" or "crystal", with the same algorithm and meaning of Quantum-ESPRESSO ``matdyn.x`` program.
 
@@ -946,7 +946,7 @@ distributedElPhCoupling
 * **Required:** no
 
 * **Default:** `true`
-  
+
 
 .. _windowType:
 
@@ -1058,7 +1058,7 @@ withIsotopeScattering
 massVariance
 ^^^^^^^^^^^^
 
-* **Description:** User can specify a list of custom atomic mass variances :math:`g_2^s`. See Theory section for a description. The mass variances must be ordered in the same way that atomic species are specified in the file :ref:`phD2FileName`. Defaults to the mass variance for natural isotopic abundance.
+* **Description:** User can specify a list of custom atomic mass variances :math:`g_2^s`. See Theory section for a description. The mass variances must be ordered in the same way that atomic species are specified in the file :ref:`phFC2FileName`. Defaults to the mass variance for natural isotopic abundance.
 
 * **Format:** *list of doubles*
 

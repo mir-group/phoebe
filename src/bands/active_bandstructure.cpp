@@ -387,7 +387,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
   // select a build method based on particle type
   // if it's an electron, we can't build on the fly for any reason.
-  // must buildAPP, because we need to calculate chemical potential.
+  // must buildAPP (as post-processing), because we need to calculate chemical potential.
   // Phonons can be built APP.
   if (particle.isElectron() || forceBuildAPP) {
 

@@ -114,7 +114,7 @@ cb.outline.set_visible(False)
 ax.set_xticks(pathTicks)
 ax.set_xticklabels(pathLabels)
 ax.set_ylabel(energyLabel)
-ax.set_ylim(None, 5)
+ax.set_ylim(None, None)
 ax.set_xlim(points[0],points[-1])
 
 plt.savefig('color_bands.png',bbox_inches='tight', dpi=200)

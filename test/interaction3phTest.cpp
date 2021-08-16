@@ -23,9 +23,9 @@ TEST(Interaction3Ph, Coupling3Ph000) {
   // manifold
 
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
-  context.setPhD3FileName("../test/data/FORCE_CONSTANTS_3RD");
-  context.setSumRuleD2("simple");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setPhFC3FileName("../test/data/FORCE_CONSTANTS_3RD");
+  context.setSumRuleFC2("simple");
 
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
@@ -143,9 +143,9 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   // manifold
 
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
-  context.setPhD3FileName("../test/data/FORCE_CONSTANTS_3RD");
-  context.setSumRuleD2("simple");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setPhFC3FileName("../test/data/FORCE_CONSTANTS_3RD");
+  context.setSumRuleFC2("simple");
 
   auto tup = QEParser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
@@ -353,11 +353,11 @@ TEST(Interaction3Ph, Coupling3Ph000_p3py) {
   // manifold
 
   Context context;
-  context.setPhD2FileName("../test/data/phono3py/fc2.hdf5");
-  context.setPhD3FileName("../test/data/phono3py/fc3.hdf5");
+  context.setPhFC2FileName("../test/data/phono3py/fc2.hdf5");
+  context.setPhFC3FileName("../test/data/phono3py/fc3.hdf5");
   context.setPhonopyDispFileName("../test/data/phono3py/phono3py_disp.yaml");
   context.setDispFCFileName("../test/data/phono3py/disp_fc3.yaml");
-  context.setSumRuleD2("simple");
+  context.setSumRuleFC2("simple");
 
   auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);

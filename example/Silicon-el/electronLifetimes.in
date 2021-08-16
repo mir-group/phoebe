@@ -1,7 +1,7 @@
 appName = "electronLifetimes"
 
-phD2FileName = "qe-elph/silicon.fc",
-sumRuleD2 = "simple"
+phFC2FileName = "qe-elph/silicon.fc",
+sumRuleFC2 = "simple"
 electronH0Name = "qe-elph/si_tb.dat",
 elphFileName = "qe-elph/silicon.phoebe.elph.hdf5"
 
@@ -17,6 +17,6 @@ deltaPath = 0.1
 begin point path
 L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
 G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000
 K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
 end point path

@@ -16,7 +16,7 @@ TEST(ABS, Symmetries) {
 
   // set up a phononH0
   Context context;
-  context.setPhD2FileName("../test/data/444_silicon.fc");
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
   context.setWindowType("energy");
   Eigen::Vector2d x2;
   x2 << 0, 0.0042;

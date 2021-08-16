@@ -27,13 +27,25 @@ void PhononTransportApp::run(Context &context) {
   Points fullPoints(crystal, context.getQMesh());
 
   if (mpi->mpiHead()) {
-    std::cout << "\nConstructing the band structure" << std::endl;
+    std::cout << "\nComputing phonon band structure." << std::endl;
   }
   auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
   auto bandStructure = std::get<0>(tup1);
   auto statisticsSweep = std::get<1>(tup1);
+
+  // print some info about state number reduction
   if (mpi->mpiHead()) {
-    std::cout << "Band structure done!\n" << std::endl;
+    if(bandStructure.hasWindow() != 0) {
+        std::cout << "Window selection reduced phonon band structure from "
+                << fullPoints.getNumPoints()*phononH0.getNumBands() << " to "
+                << bandStructure.getNumStates() << " states."  << std::endl;
+    }
+    if(context.getUseSymmetries()) {
+      std::cout << "Symmetries reduced phonon band structure from "
+          << bandStructure.getNumStates() << " to "
+          << bandStructure.irrStateIterator().size() << " states." << std::endl;
+    }
+    std::cout << "Done computing phonon band structure.\n" << std::endl;
   }
 
   // load the 3phonon coupling
@@ -326,10 +338,10 @@ void PhononTransportApp::run(Context &context) {
 }
 
 void PhononTransportApp::checkRequirements(Context &context) {
-  throwErrorIfUnset(context.getPhD2FileName(), "PhD2FileName");
+  throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
-  throwWarningIfUnset(context.getSumRuleD2(), "sumRuleD2");
-  throwErrorIfUnset(context.getPhD3FileName(), "PhD3FileName");
+  throwWarningIfUnset(context.getSumRuleFC2(), "sumRuleFC2");
+  throwErrorIfUnset(context.getPhFC3FileName(), "PhFC3FileName");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
   throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {

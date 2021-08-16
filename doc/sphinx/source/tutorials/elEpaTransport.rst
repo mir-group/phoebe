@@ -218,7 +218,7 @@ To do this, let's have a look at the input file ``qeToPhoebeEPA.in``::
   appName = "elPhQeToPhoebe"
   elPhInterpolation = "epa"
 
-  phD2FileName = "qe-elph/silicon.fc"
+  phFC2FileName = "qe-elph/silicon.fc"
   electronH0Name = "qe-elph/out/silicon.xml",
   quantumEspressoPrefix = "qe-elph/silicon"
 
@@ -234,7 +234,7 @@ The parameters in this input file are as follows:
 
 * :ref:`elPhInterpolation` = `"epa"`: this selects the post-processing method. In this case, we choose the mode which transforms the electron-phonon coupling to the EPA representation.
 
-* :ref:`phD2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
+* :ref:`phFC2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
 
 * :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
 

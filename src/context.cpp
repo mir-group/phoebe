@@ -413,12 +413,12 @@ void Context::setupFromInput(const std::string &fileName) {
       auto parameterName = std::get<0>(tup);
       auto val = std::get<1>(tup);
 
-      if (parameterName == "phD2FileName") {
-        phD2FileName = parseString(val);
+      if (parameterName == "phFC2FileName") {
+        phFC2FileName = parseString(val);
       }
 
-      if (parameterName == "phD3FileName") {
-        phD3FileName = parseString(val);
+      if (parameterName == "phFC3FileName") {
+        phFC3FileName = parseString(val);
       }
 
       if (parameterName == "phonopyDispFileName") {
@@ -433,8 +433,8 @@ void Context::setupFromInput(const std::string &fileName) {
         dispFC2FileName = parseString(val);
       }
 
-      if (parameterName == "sumRuleD2") {
-        sumRuleD2 = parseString(val);
+      if (parameterName == "sumRuleFC2") {
+        sumRuleFC2 = parseString(val);
       }
 
       if (parameterName == "electronH0Name") {
@@ -774,10 +774,10 @@ void Context::printInputSummary(const std::string &fileName) {
 
   // phonon parameters -------------------------------
   if (appName.find("honon") != std::string::npos) {
-    std::cout << "phD2FileName = " << phD2FileName << std::endl;
-    std::cout << "sumRuleD2 = " << sumRuleD2 << std::endl;
+    std::cout << "phFC2FileName = " << phFC2FileName << std::endl;
+    std::cout << "sumRuleFC2 = " << sumRuleFC2 << std::endl;
     if (appName == "phononLifetimes" || appName == "phononTransport") {
-      std::cout << "phD3FileName = " << phD3FileName << std::endl;
+      std::cout << "phFC3FileName = " << phFC3FileName << std::endl;
     }
     if (!phonopyDispFileName.empty()) {
       std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
@@ -1028,11 +1028,11 @@ void Context::printInputSummary(const std::string &fileName) {
   }
 }
 
-std::string Context::getPhD2FileName() { return phD2FileName; }
-void Context::setPhD2FileName(const std::string &x) { phD2FileName = x; }
+std::string Context::getPhFC2FileName() { return phFC2FileName; }
+void Context::setPhFC2FileName(const std::string &x) { phFC2FileName = x; }
 
-std::string Context::getPhD3FileName() { return phD3FileName; }
-void Context::setPhD3FileName(const std::string &x) { phD3FileName = x; }
+std::string Context::getPhFC3FileName() { return phFC3FileName; }
+void Context::setPhFC3FileName(const std::string &x) { phFC3FileName = x; }
 
 std::string Context::getPhonopyDispFileName() { return phonopyDispFileName; }
 void Context::setPhonopyDispFileName(const std::string &x) {
@@ -1045,8 +1045,8 @@ void Context::setDispFCFileName(const std::string &x) { dispFCFileName = x; }
 std::string Context::getDispFC2FileName() { return dispFC2FileName; }
 void Context::setDispFC2FileName(const std::string &x) { dispFC2FileName = x; }
 
-std::string Context::getSumRuleD2() { return sumRuleD2; }
-void Context::setSumRuleD2(const std::string &x) { sumRuleD2 = x; }
+std::string Context::getSumRuleFC2() { return sumRuleFC2; }
+void Context::setSumRuleFC2(const std::string &x) { sumRuleFC2 = x; }
 
 std::string Context::getElphFileName() { return elphFileName; }
 void Context::setElphFileName(const std::string &x) { elphFileName = x; }

@@ -15,7 +15,7 @@ TEST(InteractionElPh, Test1) {
 
   // setup input file
   Context context;
-  context.setPhD2FileName("../test/data/silicon.fc");
+  context.setPhFC2FileName("../test/data/silicon.fc");
   context.setElectronH0Name("../test/data/si_tb.dat");
   context.setWannier90Prefix("../test/data/si");
   context.setQuantumEspressoPrefix("../test/data/silicon");
