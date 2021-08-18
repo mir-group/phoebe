@@ -58,7 +58,7 @@ class MPIcontroller {
 #endif
 
   // helper function used internally
-  std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
+  std::tuple<std::vector<size_t>,std::vector<size_t>> workDivHelper(size_t numTasks) const;
 
 #ifdef MPI_AVAIL
   double startTime;  // the time for the entire mpi operation
@@ -623,6 +623,8 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   auto tup = workDivHelper(numTasks);
   std::vector<int> workDivs = std::get<0>(tup);
   std::vector<int> workDivisionHeads = std::get<1>(tup);
+
+  std::cout << "mpiRank, numTasks, localTasks " << getRank() << " " << numTasks << " " << workDivs[getRank()] << std::endl;
 
   errCode = MPI_Allgatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
