@@ -395,8 +395,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     std::ifstream infile(fileName);
     if (not infile.is_open()) {
       Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
-            "not found at "
-            + fileName + " .");
+            "not found at " + fileName + " .");
     }
   }
 
@@ -516,29 +515,119 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     // Set up buffer to receive full matrix data
     std::vector<std::complex<double>> gWanFlat(couplingWannier_.size());
 
+    // for the case where we are not using pools ------------------
     if (mpi->getSize(mpi->intraPoolComm) == 1) {
+
+      size_t counter = 0;
+
       // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
-      HighFive::File file(
-          fileName, HighFive::File::ReadOnly,
+      HighFive::File file(fileName, HighFive::File::ReadOnly,
           HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
-
-      // get start and stop points of elements to be written by this process
-      auto workDivs = mpi->divideWork(totElems);
-      size_t localElems = workDivs[1] - workDivs[0];
-
-      // Set up buffer to be filled from hdf5
-      std::vector<std::complex<double>> gWanSlice(localElems);
 
       // Set up dataset for gWannier
       HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
-      // Read in the elements for this process
-      dgWannier.select({0, size_t(workDivs[0])}, {1, localElems})
-          .read(gWanSlice);
+
+      // if this chunk of elements to be written by this process
+      // is greater than 2GB, we must split it further due to a
+      // limitation of HDF5 which prevents read/write of
+      // more than 2GB at a time.
+
+      // TODO write a reminder about this -1/+1 indexing?
+      //
+      // start point and the number of the total number of elements
+      // to be written by this process
+      size_t start = mpi->divideWorkIter(numElBravaisVectors)[0] * numElBands *
+                numElBands * numPhBands * numPhBravaisVectors;
+      size_t stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
+                numElBands* numElBands * numPhBands * numPhBravaisVectors - 1;
+      size_t offset = start;
+      size_t numElements = stop - start + 1;
+
+      // maxSize represents ~1GB worth of std::complex<doubles>
+      auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
+      size_t smallestSize =
+          numElBands * numElBands * numPhBands * numPhBravaisVectors;
+      std::vector<int> irEBunchSizes;
+
+      // determine the # of eBVs to be written by this process.
+      // the bunchSizes vector tells us how many BVs each process will write
+      int numEBVs = mpi->divideWorkIter(numElBravaisVectors).back() + 1 -
+             mpi->divideWorkIter(numElBravaisVectors)[0];
+
+      //std::cout << "rank numElBravaisVectors numElBands numPhBands numPhBravaisVectors mpiStart mpiStop " << mpi->getRank() << " " << numElBravaisVectors << " " << numElBands << " " << numPhBands << " " << numPhBravaisVectors << " " <<  mpi->divideWorkIter(numElBravaisVectors)[0] << " " <<  mpi->divideWorkIter(numElBravaisVectors).back() <<  std::endl;
+
+      int irEBunchSize = 0;
+      for (int irE = 0; irE < numEBVs; irE++) {
+        irEBunchSize++;
+        // this bunch is as big as possible, stop adding to it
+        if ((irEBunchSize + 1) * smallestSize > maxSize) {
+           if(mpi->mpiHead()) std::cout << "bunch size at irE " << irEBunchSize << " " << irE << " " << smallestSize << std::endl;
+           irEBunchSizes.push_back(irEBunchSize);
+           irEBunchSize = 0;
+        }
+      }
+      // push the last one, no matter the size, to the list of bunch sizes
+      irEBunchSizes.push_back(irEBunchSize);
+
+      // Set up buffer to be filled from hdf5, enough for total # of elements
+      // to be read in by this process
+      std::vector<std::complex<double>> gWanSlice(numElements);
+
+      // determine the number of bunches
+      // The last bunch may be smaller than the rest
+      int numBunches = irEBunchSizes.size();
+
+      // we now loop over these chunks of eBVs, and read each chunk of
+      // bravais vectors in parallel
+      size_t bunchOffset = 0; // offset from first bunch in this set to current bunch
+      for (int iBunch = 0; iBunch < numBunches; iBunch++) {
+
+        // we need to determine the start, stop and offset of this
+        // sub-slice of the dataset available to this process
+        size_t bunchElements = irEBunchSizes[iBunch] * smallestSize;
+        size_t bunchStart = start + bunchOffset;
+        size_t bunchStop = bunchStart + bunchElements;
+        size_t totalOffset = offset + bunchOffset;
+
+        Eigen::VectorXcd gWanBunch(bunchElements);
+
+        std::cout << " offset, offset for the sub-bunch, #elements in bunch, totalnumber of elements " << offset << " " << totalOffset << " " << bunchElements << " " << gWanSlice.size() << std::endl;
+
+        // Read in the elements for this process,
+        // into this bunch's location in the slice which will
+        // hold all the elements to be written on this process
+        dgWannier.select({0, totalOffset}, {1, bunchElements}).read(gWanBunch);
+
+        // TODO feels like this could be more effective
+        // copy bunch date into gWanSlice
+        for (size_t i = 0; i<bunchElements; i++) {
+          gWanSlice[i+bunchOffset] = gWanBunch[i];
+          counter++;
+        }
+        // need to do this after using this to copy to gWanSlice
+        bunchOffset += bunchElements;
+
+      } // end bunched read in
+
+      std::cout << "finished bunch read in loop, rank, dataIn.size, dataOut.size " << mpi->getRank() << " " << gWanSlice.size() << " " << gWanFlat.size() << std::endl;
+
+      std::vector<size_t> workDivisionHeads(mpi->getSize());
+      mpi->allGatherv(&offset,&workDivisionHeads);
+      std::vector<size_t> workDivs(mpi->getSize());
+      size_t numIn = gWanSlice.size();
+      mpi->allGatherv(&numIn, &workDivs);
+      mpi->barrier();
 
       // Gather the elements read in by each process
-      mpi->allGatherv(&gWanSlice, &gWanFlat);
+      mpi->bigAllGatherV(&gWanSlice, &gWanFlat, workDivs, workDivisionHeads);
+
+      std::cout << "finished allgather " << mpi->getRank() << std::endl;
+
+    // the case where we have used mpi -------------------------
+    // pools to split the calculation
     } else {
       if (mpi->mpiHeadPool()) {
+
         // Reopen the HDF5 ElPh file, again in serial mode
         // MPI is used since all MPI processes in the pool are doing this
         HighFive::File file(fileName, HighFive::File::ReadOnly);
@@ -649,7 +738,7 @@ void InteractionElPhWan::calcCouplingSquared(
   auto polarCorrections_h = Kokkos::create_mirror_view(polarCorrections);
 
   // precompute all needed polar corrections
-#pragma omp parallel for default(none) shared(polarCorrections_h, nb1, usePolarCorrections_h, numLoops, q3Cs, eigvecs2, eigvecs3, usePolarCorrection, nb2s_h, numPhBands, eigvec1)
+  #pragma omp parallel for default(none) shared(polarCorrections_h, nb1, usePolarCorrections_h, numLoops, q3Cs, eigvecs2, eigvecs3, usePolarCorrection, nb2s_h, numPhBands, eigvec1)
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Vector3d q3C = q3Cs[ik];
 

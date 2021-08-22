@@ -58,7 +58,7 @@ class MPIcontroller {
 #endif
 
   // helper function used internally
-  std::tuple<std::vector<size_t>,std::vector<size_t>> workDivHelper(size_t numTasks) const;
+  std::tuple<std::vector<int>, std::vector<int>> workDivHelper(size_t numTasks) const;
 
 #ifdef MPI_AVAIL
   double startTime;  // the time for the entire mpi operation
@@ -181,6 +181,12 @@ class MPIcontroller {
   template <typename T, typename V>
   void allGather(T* dataIn, V* dataOut) const;
 
+  template <typename T>
+  void datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const;
+
+  template <typename T>
+  void bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> workDivs_, std::vector<size_t> workDivisionHeads_) const;
+
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
    */
@@ -288,6 +294,7 @@ struct containerType;
   MPIDataType(double, MPI_DOUBLE)
   MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
   MPIDataType(std::complex<float>, MPI_COMPLEX)
+  MPIDataType(size_t, MPI_UNSIGNED_LONG_LONG)
 
 #undef MPIDataType
 
@@ -619,12 +626,10 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   // calculate the number of elements coming from each process
   // this will correspond to the save division of elements
   // as divideWorkIter provides.
-  int numTasks = containerType<V>::getSize(dataOut);
+  size_t numTasks = containerType<V>::getSize(dataOut);
   auto tup = workDivHelper(numTasks);
   std::vector<int> workDivs = std::get<0>(tup);
   std::vector<int> workDivisionHeads = std::get<1>(tup);
-
-  std::cout << "mpiRank, numTasks, localTasks " << getRank() << " " << numTasks << " " << workDivs[getRank()] << std::endl;
 
   errCode = MPI_Allgatherv(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
@@ -655,6 +660,140 @@ void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
   }
   #else
   pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
+  #endif
+}
+
+template <typename T>
+void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const {
+
+ using namespace mpiContainer;
+ #ifdef MPI_AVAIL
+
+    // these hold the count of elements sent in each block, and
+    // the remainder in case the division is not even among the ranks
+    MPI_Count blockSize = count / INT_MAX;
+    MPI_Count remain = count % INT_MAX;
+
+    std::cout << "blockSize remain count " << blockSize << " " << remain << " " << count << std::endl;
+
+    /* first, we create two intermediate data types, block and remainder.
+    *
+    *  MPI_TYPE_VECTOR: replication of a datatype into locations that consist of equally spaced blocks
+    *  MPI_TYPE_VECTOR(COUNT, BLOCKLENGTH, STRIDE, OLDTYPE, NEWTYPE, IERROR)
+    *  blocks of data will be divided into INT_MAX chunks */
+    MPI_Datatype block;
+    MPI_Type_vector(blockSize, INT_MAX, INT_MAX, containerType<T>::getMPItype(), &block);
+
+    // set up a container for the remainder of the data as well
+    MPI_Datatype remainder;
+    MPI_Type_contiguous(remain, containerType<T>::getMPItype(), &remainder);
+
+    // need to set up the "extent" of the data
+    MPI_Aint lb, extent;
+    // This function gets the lower bound and extent for a datatype
+    MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &extent);
+
+    // Find address displacements of data
+    MPI_Aint remdisp          = (MPI_Aint)blockSize * INT_MAX * extent;
+    MPI_Aint offset       = 0;
+    int blocklengths[2]       = {1,1};
+    MPI_Aint displacements[2] = {offset, offset + remdisp};
+
+    // create the datatype to actually be used,
+    // constructed from these block and remainder types
+    MPI_Datatype types[2]     = {block, remainder};
+    MPI_Type_create_struct(2, blocklengths, displacements, types, container);
+
+    std::cout << "just before freeing block and remainder" << std::endl;
+
+    // free the intermediate datatypes
+    MPI_Type_free(&block);
+    MPI_Type_free(&remainder);
+
+    std::cout << "just after freeing block and remainder " << std::endl;
+    // establish the container type within MPI
+    MPI_Type_commit(container);
+
+    std::cout << "commited container "<< std::endl;
+
+  #endif
+}
+
+
+template <typename T>
+void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> workDivs_, std::vector<size_t> workDivisionHeads_) const {
+
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+
+    // if there's only one process we don't need to act
+   // if (size == 1) return;
+    int errCodeSend, errCodeRecv;
+
+    // calculate the number of elements coming from each process
+    // this will correspond to the save division as divideWorkIter
+    std::vector<MPI_Aint> workDivisionHeads(size);
+    std::vector<MPI_Count> workDivs(size);
+
+    workDivisionHeads[0] = (MPI_Aint)workDivisionHeads_[0];
+    workDivs[0] = (MPI_Count)workDivs_[0];
+    if(rank == 0) std::cout << "rank, workDivs#, workDivisionHeads# " << rank << " " << workDivs[0] << " " << workDivisionHeads[0] << std::endl;
+
+    for (int i = 1; i < size; i++) {
+      workDivisionHeads[i] = (MPI_Aint)(workDivisionHeads_[i]);
+      workDivs[i] = (MPI_Count)workDivs_[i];
+      if(rank == 0) std::cout << "rank, workDivs#, workDivisionHeads# " << i << " " << workDivs[i] << " " << workDivisionHeads[i] << std::endl;
+    }
+    MPI_Aint * recvdispls = workDivisionHeads.data();
+
+    // this is required to use non-blocking communications,
+    // which will help this method be a bit faster
+    std::vector<MPI_Request> reqs(2*size);
+
+    // need this to determine where the received chunks will be located
+    // in the final dataOut buffer
+    MPI_Aint lb, recvextent;
+    MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &recvextent);
+
+    // this process receives from all other processes
+    for (int i=0; i<size; i++) {
+
+      MPI_Datatype container;
+      datatypeHelper(&container, workDivs[i], dataOut);
+
+      std::cout << "rank i recvCount dataOut.address reqs.size " << rank << " "<< i << " " << workDivs[i] << " " << containerType<T>::getAddress(dataOut) << " " << reqs.size() << std::endl;
+
+      // MPI_Irecv is a non-blocking communication method
+      errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+recvdispls[i]*recvextent,
+          1, container, i, 0, MPI_COMM_WORLD, &reqs[i]);
+
+      MPI_Type_free(&container);
+      if (errCodeRecv != MPI_SUCCESS) errorReport(errCodeRecv);
+
+    }
+
+    // send the data from this process to all other processes
+    for (int j=rank; j<(size+rank); j++) {
+
+      // smart way to balance communications
+      int i = j%size;
+
+      MPI_Datatype container;
+      datatypeHelper(&container, workDivs[rank], dataIn);
+
+      //if(rank != 0)
+      std::cout << "rank i sendCount dataIn.address reqs.size size+i " << rank << " "<< i << " " << workDivs[rank] << " " << containerType<T>::getAddress(dataIn) << " " << reqs.size() << " " << size+i << std::endl;
+
+      errCodeSend = MPI_Isend(containerType<T>::getAddress(dataIn), 1, container,
+          i, 0, MPI_COMM_WORLD, &reqs[size+i]);
+      std::cout << " send from rank " << rank << " got through." << std::endl;
+
+      MPI_Type_free(&container);
+      if (errCodeSend != MPI_SUCCESS) errorReport(errCodeSend);
+    }
+
+    MPI_Waitall(2*size, reqs.data(), MPI_STATUSES_IGNORE);
+
   #endif
 }
 

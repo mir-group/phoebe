@@ -207,6 +207,7 @@ MPIcontroller::workDivHelper(size_t numTasks) const {
   for (int i = 0; i < size; i++) {
     workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
   }
+
   return {workDivs, workDivisionHeads};
 }
 
