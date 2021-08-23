@@ -104,11 +104,19 @@ Points::Points(Crystal &crystal_, const Eigen::Tensor<double, 3> &pathExtrema,
 
   numPoints = int(points.size());
   pointsList = Eigen::MatrixXd::Zero(3, numPoints);
+  isPointsListSorted = true; // presume points are sorted
   int i = 0;
   for (const auto &p : points) {
     pointsList.col(i) = p;
+    if ( i > 0) { // check list is sorted
+      Eigen::Vector3d pOld = points[i-1];
+      if ( p(0)<=pOld(0) && p(1)<=pOld(1) && p(2)<=pOld(2) ) {
+        isPointsListSorted = false;
+      }
+    }
     i += 1;
   }
+
 }
 
 void Points::setActiveLayer(const Eigen::VectorXi &filter) {
@@ -126,6 +134,7 @@ void Points::setActiveLayer(const Eigen::VectorXi &filter) {
 
   int maxIndex = 0;
 
+  isPointsListSorted = true; // presume points are sorted
   // we then construct the list of points
   pointsList.resize(3, numPoints);
   pointsList.setZero();
@@ -138,6 +147,13 @@ void Points::setActiveLayer(const Eigen::VectorXi &filter) {
       ik = maxIndex;
     if (ik < 0)
       Error("Negative point filter is not valid");
+
+    if ( ikNew > 0) { // check list is sorted
+      Eigen::Vector3d pOld = pointsList.col(ikNew-1);
+      if ( x(0)<=pOld(0) && x(1)<=pOld(1) && x(2)<=pOld(2) ) {
+        isPointsListSorted = false;
+      }
+    }
   }
 
   if (maxIndex + 1 > mesh.prod()) {
@@ -159,7 +175,9 @@ void Points::setActiveLayer(const Eigen::VectorXi &filter) {
 Points::Points(const Points &that)
     : crystalObj(that.crystalObj), mesh(that.mesh), offset(that.offset),
       numPoints(that.numPoints), gVectors(that.gVectors),
-      explicitlyStored(that.explicitlyStored), pointsList(that.pointsList),
+      explicitlyStored(that.explicitlyStored),
+      isPointsListSorted(that.isPointsListSorted),
+      pointsList(that.pointsList),
       filteredToFullIndices(that.filteredToFullIndices),
       rotationMatricesCrystal(that.rotationMatricesCrystal),
       rotationMatricesCartesian(that.rotationMatricesCartesian),
@@ -178,6 +196,7 @@ Points &Points::operator=(const Points &that) { // assignment operator
     numPoints = that.numPoints;
     gVectors = that.gVectors;
     explicitlyStored = that.explicitlyStored;
+    isPointsListSorted = that.isPointsListSorted;
     pointsList = that.pointsList;
     filteredToFullIndices = that.filteredToFullIndices;
     rotationMatricesCrystal = that.rotationMatricesCrystal;
@@ -232,6 +251,150 @@ int Points::getIndex(const Eigen::Vector3d &point) {
   return ik;
 }
 
+/** This is the plain binary search algorithm.
+ * Algorithm scaling of log(numPoints)
+ *
+ * @param pointsList: sorted list of wavevectors
+ * @param left: leftr- lowest index of the search interval
+ * @param right: right- uppermost index of the search interval
+ * @param x: wavevector to be found
+ * @param direction: cartesian direction currently under exam
+ * @return -1 if point not found, or the index of the point in the list.
+ */
+int innermostPointsBinarySearch(const Eigen::MatrixXd& pointsList,
+                                const int& left, const int& right,
+                                const Eigen::Vector3d& x,
+                                const int& direction) {
+  if (right >= left) {
+    int mid = left + (right - left) / 2;
+
+    // If the element is present at the middle itself
+    double diff = pointsList(direction,mid) - x(direction);
+
+    if ( abs(diff) < 1.0e-6 ) {
+      return mid;
+    }
+
+    // If element is smaller than mid, then it can only be in left subarray
+    if ( diff > 1.0e-6 ) {
+      return innermostPointsBinarySearch(pointsList, left, mid - 1, x, direction);
+    }
+
+    // Else the element can only be present in right subarray
+    return innermostPointsBinarySearch(pointsList, mid + 1, right, x, direction);
+  }
+
+  // We reach here when element is not present in array
+  return -1;
+}
+
+/** Binary search algorithm for a fast point lookup.
+ * Since the binary search doesn't check for duplicates, here we use the index
+ * found by the binary search algorithm, and move to it's right or left to check
+ * if the point has the same coordinates on the directions that have been
+ * searched.
+ * Total cost is log(n+k) where n is number of points being searched, and k the
+ * number of duplicates.
+ *
+ * @param pointsList: (3,nk) matrix of wavevector coordinates
+ * @param left: left index value. Initialize it with 0
+ * @param right: right index value. Initialize it with Nk-1
+ * @param x: coordinates of the point to be found.
+ * @param direction: [0,1,2] the cartesian direction to search
+ * @return: the index of a point or -1 if point is not present.
+ */
+std::pair<int,int> internalPointsBinarySearch(const Eigen::MatrixXd& pointsList,
+                                              const int& idMin, const int&idMax,
+                                              const Eigen::Vector3d& point,
+                                              const int& direction) {
+  // first we start with the z coordinate, looking for matching values.
+  int id = innermostPointsBinarySearch(pointsList, idMin, idMax, point,
+                                       direction);
+
+  if (id == -1) { // point was not found
+    return {-1, -1};
+  }
+
+  // note: the binary search per-se requires unique elements
+  // points list is unique on the vector, but single components are duplicated.
+  // so, we look for the first and last matching component
+  int idxMin = id;
+  while (idxMin > 0) { // stop if idx reaches 0
+    // we also need to check the other components already checked are fine
+
+    double diff = 0.;
+    for (int i=direction; i<3; i++) {
+      double diff2 = pointsList(i, idxMin - 1) - point(i);
+      diff += diff2 * diff2;
+    }
+
+    // if still the same point at a lower index, save
+    if ( abs(diff) < 1.0e-6) {
+      idxMin -= 1;
+    } else {
+      break; // exit if point is different
+    }
+  }
+  int idxMax = id;
+  while (idxMax < pointsList.cols()-1) { // stop if idx reaches 0
+    double diff = 0.;
+    for (int i=direction; i<3; i++) {
+      double diff2 = pointsList(i, idxMax + 1) - point(i);
+      diff += diff2 * diff2;
+    }
+    // if still the same point at a lower index, save
+    if ( abs(diff) < 1.0e-6) {
+      idxMax += 1;
+    } else {
+      break; // exit if point is different
+    }
+  }
+  return {idxMin, idxMax};
+}
+
+/** Binary search algorithm to look for a vector in a list of vector.
+ * It only makes sense if the list is sorted by z, then y, and x coordinates,
+ * in this precise order. If duplicate points are found, an error is thrown.
+ * In this function, we first search through z to restrict the indices, then
+ * further restrict indices by comparing y and x coordinate.
+ *
+ * @param pointsList: list of vectors, in crystal coordinates.
+ * @param point: crystal coordinates of the vector to be found.
+ * @return idx: the index of the point in the list. -1 if not found.
+ */
+int pointsBinarySearch(const Eigen::MatrixXd& pointsList,
+                       const Eigen::Vector3d& point) {
+  // we do first z then y and x coordinate. This must be kept consistent in the
+  // points generation above, and also windows must preserve the order.
+
+  // start with the z coordinate
+  int start = 0;
+  int stop = pointsList.cols() - 1;
+  auto tz = internalPointsBinarySearch(pointsList, start, stop, point, 2);
+  int idzMin = std::get<0>(tz);
+  int idzMax = std::get<1>(tz);
+
+  if (idzMin == -1 || idzMax == -1) return -1; // point not found
+
+  // now the y coordinate, restricting the list to the right z coordinates.
+  auto ty = internalPointsBinarySearch(pointsList, idzMin, idzMax, point, 1);
+  int idyMin = std::get<0>(ty);
+  int idyMax = std::get<1>(ty);
+  if (idyMin == -1 || idyMax == -1) return -1; // point not found
+
+  // now the y coordinate, restricting the list to the right z coordinates.
+  auto tx = internalPointsBinarySearch(pointsList, idyMin, idyMax, point, 0);
+  int idxMin = std::get<0>(tx);
+  int idxMax = std::get<1>(tx);
+  if (idxMin == -1 || idxMax == -1) return -1; // point not found
+
+  if ( idxMin != idxMax ) {
+    Error("Duplicate points found");
+  }
+
+  return idxMin; // point found
+}
+
 int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
 
   if (!explicitlyStored) { // full list is faster
@@ -253,18 +416,33 @@ int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
     int ik = p(2) * mesh(0) * mesh(1) + p(1) * mesh(0) + p(0);
     return ik;
   } else {
-    for (int ikTest = 0; ikTest < numPoints; ikTest++) {
-      Eigen::Vector3d kTest = pointsList.col(ikTest);
-      Eigen::Vector3d diff = kTest - crystCoordinates_;
-      for (int i : {0, 1, 2}) {
-        diff(i) -= std::floor(diff(i) + 1.0e-8);
+
+    if ( isPointsListSorted ) {
+      // since pointsList is a sorted list, we can use binary search to find the
+      // point index in log(N) iterations
+
+      // first, we fold the point in the interval [0,1[
+      // the same for which the points are stored
+      Eigen::Vector3d thePoint = crystCoordinates_;
+      for ( int i : {0,1,2}) {
+        thePoint(i) -= std::floor(thePoint(i) + 1.0e-8);
       }
-      if (diff.squaredNorm() < 1.0e-5) {
-        return ikTest;
+      int ik = pointsBinarySearch(pointsList, thePoint);
+      return ik;
+    } else { // if not sorted, we just do a search over the full list
+      int ik = -1;
+      for (int ikTest = 0; ikTest < numPoints; ikTest++) {
+        Eigen::Vector3d kTest = pointsList.col(ikTest);
+        Eigen::Vector3d diff = kTest - crystCoordinates_;
+        for (int i : {0, 1, 2}) {
+          diff(i) -= std::floor(diff(i) + 1.0e-8);
+        }
+        if (diff.squaredNorm() < 1.0e-5) {
+          ik = ikTest;
+        }
       }
+      return ik;
     }
-    int ik = -1;
-    return ik;
   }
 }
 

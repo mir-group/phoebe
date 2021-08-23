@@ -214,6 +214,7 @@ Relaxons solution
 
 As for the phonon case, in this scheme, we use an algebraic solution to the BTE, solving the equation in the eigenvector basis.
 We first diagonalize the scattering matrix,
+
 .. math::
    \frac{1}{N_k} \sum_{\lambda'} A_{\lambda\lambda'} \theta_{\lambda'\alpha} = \frac{1}{\tau_{\alpha}} \theta_{\lambda\alpha}
 
