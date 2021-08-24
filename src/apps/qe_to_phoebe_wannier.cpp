@@ -9,6 +9,8 @@
 #include <exception>
 #include <sstream>
 #include <string>
+#include <Kokkos_Core.hpp>
+#include <Kokkos_ScatterView.hpp>
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -276,7 +278,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
         phases.setZero();
 #pragma omp parallel for default(none)                                         \
     shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, \
-           mpi, complexI)
+           mpi)
         for (int ik = 0; ik < numKPoints; ik++) {
           Eigen::Vector3d k =
               kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -367,7 +369,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
       phPhases.resize(numPhBravaisVectors, numQStar);
       phPhases.setZero();
 #pragma omp parallel for default(none)                                         \
-    shared(qStar, mpi, numQPoints, numPhBravaisVectors, complexI, phPhases,    \
+    shared(qStar, mpi, numQPoints, numPhBravaisVectors, phPhases,    \
            qPoints, phBravaisVectors, numQStar)
       for (int iq = 0; iq < numQStar; iq++) {
         Eigen::Vector3d qCrystal = qStar.col(iq);
@@ -627,10 +629,13 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   {
     Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
     phases.setZero();
+    std::vector<size_t> iks = mpi->divideWorkIter(numKPoints);
+    size_t niks = iks.size();
 #pragma omp parallel for default(none)                                         \
     shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, \
-           mpi, complexI)
-    for (auto ik : mpi->divideWorkIter(numKPoints)) {
+           mpi, iks, niks)
+    for (size_t iik = 0; iik < niks; iik++) {
+      size_t ik = iks[iik];
       Eigen::Vector3d k =
           kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
       for (int iR = 0; iR < numElBravaisVectors; iR++) {
@@ -736,10 +741,13 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
   {
     Eigen::MatrixXcd phases(numPhBravaisVectors, numQPoints);
     phases.setZero();
+    std::vector<size_t> iqs = mpi->divideWorkIter(numQPoints);
+    size_t niqs = iqs.size();
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, numQPoints, numPhBravaisVectors, complexI, phases, qPoints,    \
-           phBravaisVectors)
-    for (auto iq : mpi->divideWorkIter(numQPoints)) {
+    shared(mpi, numQPoints, numPhBravaisVectors, phases, qPoints,    \
+           phBravaisVectors, iqs, niqs)
+    for (size_t iiq = 0; iiq < niqs; iiq++) {
+      size_t iq = iqs[iiq];
       Eigen::Vector3d q =
           qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
       for (int irP = 0; irP < numPhBravaisVectors; irP++) {

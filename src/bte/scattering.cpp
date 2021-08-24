@@ -181,7 +181,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
 #pragma omp parallel for collapse(3) default(none)                             \
     shared(outPopulation, internalDiagonal, inPopulation, numCalculations, numStates)
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      for (int iDim : {0, 1, 2}) {
+      for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
           outPopulation(iCalc, iDim, iBte) -= internalDiagonal(iCalc, 0, iBte) *
                                               inPopulation(iCalc, iDim, iBte);
@@ -201,7 +201,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
     shared(numCalculations, numStates, outPopulations, internalDiagonal,              \
            inPopulations, iVec)
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      for (int iDim : {0, 1, 2}) {
+      for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
           outPopulations[iVec](iCalc, iDim, iBte) -=
               internalDiagonal(iCalc, 0, iBte) *
@@ -717,12 +717,15 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
       // here we operate assuming innerBandStructure=outerBandStructure
       // list in form [[0,0],[1,0],[2,0],...]
       std::set<std::pair<int, int>> localPairs;
-#pragma omp parallel default(none) shared(localPairs, theMatrix)
+      std::vector<std::tuple<int, int>> localStates = theMatrix.getAllLocalStates();
+      int nlocalStates = localStates.size();
+#pragma omp parallel default(none) shared(localPairs, theMatrix, localStates, nlocalStates)
       {
         std::vector<std::pair<int, int>> localPairsPrivate;
         // first unpack Bloch Index and get all wavevector pairs
 #pragma omp for nowait
-        for (auto tup0 : theMatrix.getAllLocalStates()) {
+        for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
+          std::tuple<int,int> tup0 = localStates[ilocalState];
           auto iMat1 = std::get<0>(tup0);
           auto iMat2 = std::get<1>(tup0);
           auto tup1 = getSMatrixIndex(iMat1);
@@ -829,12 +832,15 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
     } else { // case for constructing A matrix
 
       std::set<std::pair<int, int>> localPairs;
-#pragma omp parallel default(none) shared(theMatrix, localPairs)
+      std::vector<std::tuple<int, int>> localStates = theMatrix.getAllLocalStates();
+      int nlocalStates = localStates.size();
+#pragma omp parallel default(none) shared(theMatrix, localPairs, localStates, nlocalStates)
       {
         std::vector<std::pair<int, int>> localPairsPrivate;
         // first unpack Bloch Index and get all wavevector pairs
 #pragma omp for nowait
-        for (auto tup0 : theMatrix.getAllLocalStates()) {
+        for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
+          std::tuple<int,int> tup0 = localStates[ilocalState];
           auto iMat1 = std::get<0>(tup0);
           auto iMat2 = std::get<1>(tup0);
           auto tup1 = getSMatrixIndex(iMat1);

@@ -87,10 +87,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerFermi(numCalculations, numOuterIrrStates);
   outerFermi.setZero();
+  std::vector<size_t> iBtes = mpi->divideWorkIter(numOuterIrrStates);
+  int niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
     shared(mpi, outerBandStructure, numCalculations, statisticsSweep,          \
-           particle, outerFermi, numOuterIrrStates)
-  for (int iBte : mpi->divideWorkIter(numOuterIrrStates)) {
+           particle, outerFermi, numOuterIrrStates, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
     double energy = outerBandStructure.getEnergy(isIdx);
@@ -106,10 +109,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerFermi(numCalculations, numInnerIrrStates);
   innerFermi.setZero();
+  iBtes = mpi->divideWorkIter(numInnerIrrStates);
+  niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
     shared(numInnerIrrStates, mpi, innerBandStructure, statisticsSweep,        \
-           particle, innerFermi, numCalculations)
-  for (int iBte : mpi->divideWorkIter(numInnerIrrStates)) {
+           particle, innerFermi, numCalculations, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
     double energy = innerBandStructure.getEnergy(isIdx);
@@ -384,10 +390,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
 
   if (doBoundary) {
+    std::vector<int> is1s = outerBandStructure.irrStateIterator();
+    int nis1s = is1s.size();
 #pragma omp parallel for default(none) shared(                                 \
     outerBandStructure, numCalculations, statisticsSweep, boundaryLength,      \
-    particle, outPopulations, inPopulations, linewidth, switchCase)
-    for (int is1 : outerBandStructure.irrStateIterator()) {
+    particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
+    for(int iis1 = 0; iis1 < nis1s; iis1++){
+      int is1 = is1s[iis1];
       StateIndex is1Idx(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
@@ -400,7 +409,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
         } else if (switchCase == 1) { // case of matrix-vector multiplication
           for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-            for (int i : {0, 1, 2}) {
+            for (int i = 0; i < 3; i++) {
               outPopulations[iVec](iCalc, i, iBte1) +=
                   rate * inPopulations[iVec](iCalc, i, iBte1);
             }
