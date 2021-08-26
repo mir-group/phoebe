@@ -684,23 +684,20 @@ void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
   #endif
 }
 
-//template <typename T>
-//typedef struct Container(const int& sizeB,const int& sizeR) {
-//  T * block = new T [sizeB];
-//  T * remainder = new T [sizeR];
-//}
-
-
 template <typename T>
 void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const {
 
  using namespace mpiContainer;
  #ifdef MPI_AVAIL
 
+    size_t intMax = INT_MAX;
+
     // these hold the count of elements sent in each block, and
     // the remainder in case the division is not even among the ranks
-    MPI_Count blockSize = count / INT_MAX;
-    MPI_Count remain = count % INT_MAX;
+    MPI_Count blockSize = count / intMax;
+    MPI_Count remain = count % intMax;
+
+    std::cout << "blocksize remain counts " << blockSize << " " << remain << " " << std::endl;
 
     /* first, we create two intermediate data types, block and remainder.
     *
@@ -708,7 +705,7 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
     *  MPI_TYPE_VECTOR(COUNT, BLOCKLENGTH, STRIDE, OLDTYPE, NEWTYPE, IERROR)
     *  blocks of data will be divided into INT_MAX chunks */
     MPI_Datatype block;
-    MPI_Type_vector(blockSize, INT_MAX, INT_MAX, containerType<T>::getMPItype(), &block);
+    MPI_Type_vector(blockSize, intMax, intMax, containerType<T>::getMPItype(), &block);
 
     // set up a container for the remainder of the data as well
     MPI_Datatype remainder;
@@ -720,7 +717,7 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
     MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &extent);
 
     // Find address displacements of data
-    MPI_Aint remdisp      = (MPI_Aint)blockSize * INT_MAX * extent;
+    MPI_Aint remdisp      = (MPI_Aint)blockSize * intMax * extent;
     MPI_Aint offset       = 0;
     int blocklengths[2]       = {1,1};
     MPI_Aint displacements[2] = {offset, offset + remdisp};
@@ -751,6 +748,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
     // if there's only one process we don't need to act
     if (size == 1) return;
 
+/*
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
@@ -763,9 +761,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
       for(int i = 0; i<size; i++) {
         workDivisionHeads_[i] = (int)workDivisionHeads[i];
         workDivs_[i] = (int)workDivs[i];
-        //std::cout << " rank wdh " << rank << " " << workDivisionHeads[i] << " " <<  workDivisionHeads_[i] << " " << workDivs[i] << " " << workDivs_[i] << std::endl;
       }
-      //std::cout <<  typeid(T).name() << " " << dataIn->size() << " " << dataOut->size() << std::endl;
 
       int errCode;
       errCode = MPI_Allgatherv(
@@ -778,7 +774,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
       }
       return;
     }
-
+*/
     int errCodeSend, errCodeRecv;
 
     // this is required to use non-blocking communications

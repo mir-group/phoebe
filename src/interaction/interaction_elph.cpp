@@ -533,9 +533,12 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       // limitation of HDF5 which prevents read/write of
       // more than 2GB at a time.
 
-      // TODO write a reminder about this -1/+1 indexing?
+      // below, note the +1/-1 indexing on the start/stop numbers.
+      // This has to do with the way divideWorkIter sets the range
+      // of work to be done -- it uses indexing from 0 and doesn't
+      // include the last element as a result.
       //
-      // start point and the number of the total number of elements
+      // start/stop points and the number of the total number of elements
       // to be written by this process
       size_t start = mpi->divideWorkIter(numElBravaisVectors)[0] * numElBands *
                 numElBands * numPhBands * numPhBravaisVectors;
@@ -545,21 +548,25 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       size_t numElements = stop - start + 1;
 
       // maxSize represents ~1GB worth of std::complex<doubles>
+      // this is the maximum amount we feel is safe to read at once.
       auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
-      size_t smallestSize =
+      // the size of all elements associated with one electronic BV
+      size_t sizePerBV =
           numElBands * numElBands * numPhBands * numPhBravaisVectors;
       std::vector<int> irEBunchSizes;
 
       // determine the # of eBVs to be written by this process.
-      // the bunchSizes vector tells us how many BVs each process will write
+      // the bunchSizes vector tells us how many BVs each process will read
       int numEBVs = mpi->divideWorkIter(numElBravaisVectors).back() + 1 -
              mpi->divideWorkIter(numElBravaisVectors)[0];
 
+      // loop over eBVs and add them to the current write bunch until
+      // we reach the maximum writable size
       int irEBunchSize = 0;
       for (int irE = 0; irE < numEBVs; irE++) {
         irEBunchSize++;
         // this bunch is as big as possible, stop adding to it
-        if ((irEBunchSize + 1) * smallestSize > maxSize) {
+        if ((irEBunchSize + 1) * sizePerBV > maxSize) {
            irEBunchSizes.push_back(irEBunchSize);
            irEBunchSize = 0;
         }
@@ -569,23 +576,20 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
       // Set up buffer to be filled from hdf5, enough for total # of elements
       // to be read in by this process
-      //std::vector<std::complex<double>> gWanSlice(numElements);
       Eigen::VectorXcd gWanSlice(numElements);
 
-      // determine the number of bunches
-      // The last bunch may be smaller than the rest
+      // determine the number of bunches -- not necessarily evenly sized
       int numBunches = irEBunchSizes.size();
 
-      // we now loop over these chunks of eBVs, and read each chunk of
+      // we now loop over these bunch of eBVs, and read each bunch of
       // bravais vectors in parallel
-      size_t bunchOffset = 0; // offset from first bunch in this set to current bunch
+      size_t bunchOffset = 0; // offset, first bunch on this rank to current bunch
       for (int iBunch = 0; iBunch < numBunches; iBunch++) {
 
         // we need to determine the start, stop and offset of this
         // sub-slice of the dataset available to this process
         size_t bunchElements = irEBunchSizes[iBunch] * smallestSize;
         size_t bunchStart = start + bunchOffset;
-        size_t bunchStop = bunchStart + bunchElements;
         size_t totalOffset = offset + bunchOffset;
 
         Eigen::VectorXcd gWanBunch(bunchElements);
@@ -597,16 +601,17 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
         // Perhaps this could be more effective.
         // however, HiFive doesn't seem to allow me to pass
-        // a slice of gWanSlice, so we have instead this gWanBunch
+        // a slice of gWanSlice, so we have instead read to gWanBunch
+        // then copy it over
         //
-        // copy bunch date into gWanSlice
+        // copy bunch data into gWanSlice
         for (size_t i = 0; i<bunchElements; i++) {
           gWanSlice[i+bunchOffset] = gWanBunch[i];
         }
-        // need to do this after using this to copy to gWanSlice
+        // now we have the offset for the next bunch
         bunchOffset += bunchElements;
 
-      } // end bunched read in
+      }
 
       // collect the information about how many elements each mpi rank has
       std::vector<size_t> workDivisionHeads(mpi->getSize());
@@ -622,6 +627,14 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     // pools to split the calculation
     } else {
       if (mpi->mpiHeadPool()) {
+/*
+        // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
+        HighFive::File file(fileName, HighFive::File::ReadOnly,
+            HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+
+        // Set up dataset for gWannier
+        HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
+*/
 
         // Reopen the HDF5 ElPh file, again in serial mode
         // MPI is used since all MPI processes in the pool are doing this
@@ -629,11 +642,10 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
         // Set up dataset for gWannier
         HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
-        // Read in the elements for this process
 
+        // Read in the elements for this process
         size_t offset = localElVectors[0] * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
         size_t extent = numElBravaisVectors * pow(numElBands,2) * numPhBands * numPhBravaisVectors;
-
         dgWannier.select({0, offset}, {1, extent}).read(gWanFlat);
       }
       mpi->bcast(&gWanFlat, mpi->interPoolComm);
