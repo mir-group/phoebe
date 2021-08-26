@@ -181,11 +181,32 @@ class MPIcontroller {
   template <typename T, typename V>
   void allGather(T* dataIn, V* dataOut) const;
 
+  /** Helper function to create a custom MPI datatype.
+   *  Intended to be used with bigAllGatherv
+   *  @param container: a pointer to the mpi datatype we want to create
+   *  @param count: an MPI_Count object denoting the number of elements
+   *      in this dataset.
+   *  @param data: a pointer to the data associated with the container.
+   *      This is not used, but it is needed to determine the template
+   *      type of the function.
+   */
   template <typename T>
   void datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const;
 
+  /** A version of allGatherv that works on data of size larger
+   *  than can be stored in an int.
+   *  @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   *  @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   *  @param workDivs: an vector containing the number of elements
+   *       to be collected from each process.
+   *  @param workDivisionHeads: a vector containing the start positions
+   *       of each processes' elements in the dataOut array.
+   */
   template <typename T>
-  void bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> workDivs_, std::vector<size_t> workDivisionHeads_) const;
+  void bigAllGatherV(T* dataIn, T* dataOut,
+  std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const;
 
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
@@ -721,7 +742,8 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
 
 
 template <typename T>
-void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> workDivs, std::vector<size_t> workDivisionHeads) const {
+void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut,
+std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
 
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
@@ -729,36 +751,35 @@ void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> wor
     // if there's only one process we don't need to act
     if (size == 1) return;
 
-    // TODO may need to update allGatherv to take workDivs as optional argument
-    //
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     if(containerType<T>::getSize(dataOut) < INT_MAX) {
-      std::cout << "small all gather v call " << std::endl;
-      //allGatherv(dataIn,dataOut);
-      //return;
+
+      std::vector<int> workDivisionHeads_(size);
+      std::vector<int> workDivs_(size);
+
+      for(int i = 0; i<size; i++) {
+        workDivisionHeads_[i] = (int)workDivisionHeads[i];
+        workDivs_[i] = (int)workDivs[i];
+      }
+
+      int errCode;
+      errCode = MPI_Allgatherv(
+          containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+          containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
+          workDivs_.data(), workDivisionHeads_.data(), containerType<T>::getMPItype(),
+          MPI_COMM_WORLD);
+      if (errCode != MPI_SUCCESS) {
+        errorReport(errCode);
+      }
+      return;
     }
 
     int errCodeSend, errCodeRecv;
 
-    // calculate the number of elements coming from each process
-    // and where they start/stop in the end array
-    //std::vector<MPI_Aint> workDivisionHeads(size);
-    //std::vector<MPI_Count> workDivs(size);
-
-    //for (int i = 0; i < size; i++) {
-    //  workDivisionHeads[i] = (MPI_Aint) (workDivisionHeads_[i]);
-    //  workDivs[i] = (MPI_Count) workDivs_[i];
-    //}
-
     // this is required to use non-blocking communications
     // it will mark when all send/recv calls posted have been executed
     std::vector<MPI_Request> reqs(2*size);
-
-    // need this to determine where the received chunks will be located
-    // in the final dataOut buffer
-    //MPI_Aint lb, recvextent; // lb not used
-    //MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &recvextent);
 
     // this process receives data from all other processes --------------------------
     for (int i=0; i<size; i++) {
@@ -810,6 +831,8 @@ void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut, std::vector<size_t> wor
     // wait until all send/recv pairs have completed to end the function
     MPI_Waitall(2*size, reqs.data(), MPI_STATUSES_IGNORE);
 
+  #else
+  pointerSwap(dataIn, dataOut);
   #endif
 }
 
