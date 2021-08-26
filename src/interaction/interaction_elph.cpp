@@ -512,13 +512,14 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 // Regular parallel read
 #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
 
+    // TODO make sure all the variable names are sensible
+
     // Set up buffer to receive full matrix data
-    std::vector<std::complex<double>> gWanFlat(couplingWannier_.size());
+    //std::vector<std::complex<double>> gWanFlat(couplingWannier_.size());
+    Eigen::VectorXcd gWanFlat(couplingWannier_.size());
 
     // for the case where we are not using pools ------------------
     if (mpi->getSize(mpi->intraPoolComm) == 1) {
-
-      size_t counter = 0;
 
       // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
       HighFive::File file(fileName, HighFive::File::ReadOnly,
@@ -554,14 +555,11 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       int numEBVs = mpi->divideWorkIter(numElBravaisVectors).back() + 1 -
              mpi->divideWorkIter(numElBravaisVectors)[0];
 
-      //std::cout << "rank numElBravaisVectors numElBands numPhBands numPhBravaisVectors mpiStart mpiStop " << mpi->getRank() << " " << numElBravaisVectors << " " << numElBands << " " << numPhBands << " " << numPhBravaisVectors << " " <<  mpi->divideWorkIter(numElBravaisVectors)[0] << " " <<  mpi->divideWorkIter(numElBravaisVectors).back() <<  std::endl;
-
       int irEBunchSize = 0;
       for (int irE = 0; irE < numEBVs; irE++) {
         irEBunchSize++;
         // this bunch is as big as possible, stop adding to it
         if ((irEBunchSize + 1) * smallestSize > maxSize) {
-           if(mpi->mpiHead()) std::cout << "bunch size at irE " << irEBunchSize << " " << irE << " " << smallestSize << std::endl;
            irEBunchSizes.push_back(irEBunchSize);
            irEBunchSize = 0;
         }
@@ -571,7 +569,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
       // Set up buffer to be filled from hdf5, enough for total # of elements
       // to be read in by this process
-      std::vector<std::complex<double>> gWanSlice(numElements);
+      //std::vector<std::complex<double>> gWanSlice(numElements);
+      Eigen::VectorXcd gWanSlice(numElements);
 
       // determine the number of bunches
       // The last bunch may be smaller than the rest
@@ -591,39 +590,35 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
         Eigen::VectorXcd gWanBunch(bunchElements);
 
-        std::cout << " offset, offset for the sub-bunch, #elements in bunch, totalnumber of elements " << offset << " " << totalOffset << " " << bunchElements << " " << gWanSlice.size() << std::endl;
-
         // Read in the elements for this process,
         // into this bunch's location in the slice which will
         // hold all the elements to be written on this process
         dgWannier.select({0, totalOffset}, {1, bunchElements}).read(gWanBunch);
 
-        // TODO feels like this could be more effective
+        // Perhaps this could be more effective.
+        // however, HiFive doesn't seem to allow me to pass
+        // a slice of gWanSlice, so we have instead this gWanBunch
+        //
         // copy bunch date into gWanSlice
         for (size_t i = 0; i<bunchElements; i++) {
           gWanSlice[i+bunchOffset] = gWanBunch[i];
-          counter++;
         }
         // need to do this after using this to copy to gWanSlice
         bunchOffset += bunchElements;
 
       } // end bunched read in
 
-      std::cout << "finished bunch read in loop, rank, dataIn.size, dataOut.size " << mpi->getRank() << " " << gWanSlice.size() << " " << gWanFlat.size() << std::endl;
-
+      // collect the information about how many elements each mpi rank has
       std::vector<size_t> workDivisionHeads(mpi->getSize());
       mpi->allGatherv(&offset,&workDivisionHeads);
       std::vector<size_t> workDivs(mpi->getSize());
       size_t numIn = gWanSlice.size();
       mpi->allGatherv(&numIn, &workDivs);
-      mpi->barrier();
 
       // Gather the elements read in by each process
-      mpi->bigAllGatherV(&gWanSlice, &gWanFlat, workDivs, workDivisionHeads);
+      mpi->bigAllGatherV(gWanSlice.data(), gWanFlat.data(), workDivs, workDivisionHeads);
 
-      std::cout << "finished allgather " << mpi->getRank() << std::endl;
-
-    // the case where we have used mpi -------------------------
+    // the case where we have used mpi ----------------------------------------
     // pools to split the calculation
     } else {
       if (mpi->mpiHeadPool()) {
@@ -667,6 +662,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         dgWannier.read(gWanFlat);
       }
       mpi->bcast(&gWanFlat);
+
     } else {
       if (mpi->mpiHead()) {
         HighFive::File file(fileName, HighFive::File::ReadOnly);

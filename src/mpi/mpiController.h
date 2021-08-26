@@ -753,19 +753,23 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
 
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
-    if(containerType<T>::getSize(dataOut) < INT_MAX) {
+    size_t outSize = workDivisionHeads.back() + workDivs.back();
+    if(outSize < INT_MAX) {
 
+      // if size is less than INT_MAX, it's safe to store
+      // these as ints and pass them directly to allgatherv
       std::vector<int> workDivisionHeads_(size);
       std::vector<int> workDivs_(size);
-
       for(int i = 0; i<size; i++) {
         workDivisionHeads_[i] = (int)workDivisionHeads[i];
         workDivs_[i] = (int)workDivs[i];
+        //std::cout << " rank wdh " << rank << " " << workDivisionHeads[i] << " " <<  workDivisionHeads_[i] << " " << workDivs[i] << " " << workDivs_[i] << std::endl;
       }
+      //std::cout <<  typeid(T).name() << " " << dataIn->size() << " " << dataOut->size() << std::endl;
 
       int errCode;
       errCode = MPI_Allgatherv(
-          containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
+          containerType<T>::getAddress(dataIn), workDivs[rank],
           containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
           workDivs_.data(), workDivisionHeads_.data(), containerType<T>::getMPItype(),
           MPI_COMM_WORLD);
