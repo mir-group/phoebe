@@ -4,6 +4,10 @@
 #include "mpiHelper.h"
 #include "delta_function.h"
 #include <iomanip>
+#include <chrono>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
@@ -19,6 +23,9 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   // 2 - the mesh is gamma-centered
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
+
+  auto time0 = std::chrono::steady_clock::now();
+
   auto t1 = outerBandStructure.getPoints().getMesh();
 //  auto mesh = std::get<0>(t1);
   auto offset = std::get<1>(t1);
@@ -30,6 +37,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
+
+    printf("BRANCH 1\n");
 
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case1;
@@ -54,6 +63,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   } else if ((&innerBandStructure == &outerBandStructure) &&
              (offset.norm() == 0.) && innerBandStructure.hasWindow() != 0) {
+    printf("BRANCH 2\n");
 
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case2;
@@ -73,28 +83,64 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     // now, we loop over the pairs of wavevectors
     std::set<int> listOfIndexes;
     int numPoints = innerBandStructure.getNumPoints();
-    for (int ik2 : mpi->divideWorkIter(numPoints)) {
-      auto ik2Index = WavevectorIndex(ik2);
-      Eigen::Vector3d k2Coordinates_ = innerBandStructure.getWavevector(ik2Index);
+    std::vector<size_t> ik2s = mpi->divideWorkIter(numPoints);
+    int nik2s = ik2s.size();
+    int ncandidates = 0;
+    auto beforeomp = std::chrono::steady_clock::now();
+    std::vector<std::set<int>> perThreadIndexes;
+#pragma omp parallel reduction(+:ncandidates)
+    {
+#ifdef _OPENMP
+      int numthreads = omp_get_num_threads();
+      int threadidx = omp_get_thread_num();
+#else
+      int numthreads = 1;
+      int threadidx = 0;
+#endif
+#pragma omp single
+      perThreadIndexes.resize(numthreads);
+#pragma omp for
+      for(int iik2 = 0; iik2 < nik2s; iik2++){
+        int ik2 = ik2s[iik2];
+        auto ik2Index = WavevectorIndex(ik2);
+        Eigen::Vector3d k2Coordinates_ = innerBandStructure.getWavevector(ik2Index);
 
-      auto rotations = innerPoints.getRotationsStar(ik2);
-      for ( const Eigen::Matrix3d& rotation : rotations ) {
-        Eigen::Vector3d k2Coordinates = rotation * k2Coordinates_;
+        auto rotations = innerPoints.getRotationsStar(ik2);
+        for ( const Eigen::Matrix3d& rotation : rotations ) {
+          Eigen::Vector3d k2Coordinates = rotation * k2Coordinates_;
 
-        for (int ik1 = 0; ik1 < outerBandStructure.getNumPoints(); ik1++) {
-          auto ik1Index = WavevectorIndex(ik1);
-          Eigen::Vector3d k1Coordinates = outerBandStructure.getWavevector(ik1Index);
+          for (int ik1 = 0; ik1 < outerBandStructure.getNumPoints(); ik1++) {
+            auto ik1Index = WavevectorIndex(ik1);
+            Eigen::Vector3d k1Coordinates = outerBandStructure.getWavevector(ik1Index);
 
-          // k' = k + q : phonon absorption
-          Eigen::Vector3d q3Coordinates = k2Coordinates - k1Coordinates;
-          Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coordinates);
+            // k' = k + q : phonon absorption
+            Eigen::Vector3d q3Coordinates = k2Coordinates - k1Coordinates;
+            Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coordinates);
 
-          int iq3 = fullPoints3->getIndex(q3Cart);
-          listOfIndexes.insert(iq3);
+            int iq3 = fullPoints3->getIndex(q3Cart);
+            perThreadIndexes[threadidx].insert(iq3);
+            ncandidates++;
+          }
         }
       }
+      // recursively join the per-thread sets
+      int niter = std::ceil(std::log2(numthreads));
+      for(int l = 1; l < niter + 1; l++){
+        int neighthread = threadidx + std::pow(2,l-1);
+        if(threadidx % int(std::pow(2,l)) == 0 && neighthread  < numthreads){
+          perThreadIndexes[threadidx].insert(perThreadIndexes[neighthread].begin(), perThreadIndexes[neighthread].end());
+        }
+        #pragma omp barrier
+      }
+#pragma omp single
+      listOfIndexes = std::move(perThreadIndexes[0]);
     }
+    printf("rank %d: size before local filter: %d after: %d\n", mpi->getRank(), ncandidates, (int)listOfIndexes.size());
+    auto afteromp = std::chrono::steady_clock::now();
+    std::cout << "time for omp loop:" << std::chrono::duration_cast<std::chrono::milliseconds>(afteromp - beforeomp).count() << " ms" << std::endl;
 
+
+    auto beforempi = std::chrono::steady_clock::now();
     std::vector<int> localCounts(mpi->getSize(), 0);
     localCounts[mpi->getRank()] = int(listOfIndexes.size());
     mpi->allReduceSum(&localCounts);
@@ -119,13 +165,14 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     mpi->allReduceSum(&globalListOfIndexes);
 
     // now we must avoid duplicates between different MPI processes
-    std::set<int> setOfIndexes;
-    for ( auto x : globalListOfIndexes ) {
-      setOfIndexes.insert(x);
-    }
+    std::set<int> setOfIndexes(globalListOfIndexes.begin(), globalListOfIndexes.end());
+
+    if(mpi->mpiHead()) printf("global size before: %d after: %d\n", totalCounts, (int)setOfIndexes.size());
 
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
+    auto aftermpi = std::chrono::steady_clock::now();
+    std::cout << "time for mpi filter:" << std::chrono::duration_cast<std::chrono::seconds>(aftermpi - beforempi).count() << " s" << std::endl;
     i = 0;
     for (int iq : setOfIndexes) {
       filter(i) = iq;
@@ -150,6 +197,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         ap3, &h0, withEigenvectors, withVelocities);
   }
+  auto time1 = std::chrono::steady_clock::now();
+  std::cout << "\n\nHELPER CONSTRUCTOR:" << std::chrono::duration_cast<std::chrono::seconds>(time1 - time0).count() << " s\n\n" << std::endl;
 }
 
 // auto [eigenValues3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]
