@@ -100,15 +100,12 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
             int iq3 = fullPoints3->getIndex(q3Cart);
             myIndexes.insert(iq3);
-            ncandidates++;
           }
         }
       }
 #pragma omp critical
       listOfIndexes.insert(myIndexes.begin(), myIndexes.end());
     }
-    printf("rank %d: size before local filter: %d after: %d\n", mpi->getRank(), ncandidates, (int)listOfIndexes.size());
-
 
     std::vector<int> localCounts(mpi->getSize(), 0);
     localCounts[mpi->getRank()] = int(listOfIndexes.size());
@@ -135,8 +132,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
     // now we must avoid duplicates between different MPI processes
     std::set<int> setOfIndexes(globalListOfIndexes.begin(), globalListOfIndexes.end());
-
-    if(mpi->mpiHead()) printf("global size before: %d after: %d\n", totalCounts, (int)setOfIndexes.size());
 
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
