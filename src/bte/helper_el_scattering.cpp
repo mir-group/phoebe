@@ -33,8 +33,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
 
-    printf("BRANCH 1\n");
-
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case1;
 
@@ -58,7 +56,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   } else if ((&innerBandStructure == &outerBandStructure) &&
              (offset.norm() == 0.) && innerBandStructure.hasWindow() != 0) {
-    printf("BRANCH 2\n");
 
     storedAllQ3 = true;
     storedAllQ3Case = storedAllQ3Case2;
