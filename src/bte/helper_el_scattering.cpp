@@ -5,9 +5,6 @@
 #include "delta_function.h"
 #include <iomanip>
 #include <chrono>
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
@@ -87,19 +84,10 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     int nik2s = ik2s.size();
     int ncandidates = 0;
     auto beforeomp = std::chrono::steady_clock::now();
-    std::vector<std::set<int>> perThreadIndexes;
 #pragma omp parallel reduction(+:ncandidates)
     {
-#ifdef _OPENMP
-      int numthreads = omp_get_num_threads();
-      int threadidx = omp_get_thread_num();
-#else
-      int numthreads = 1;
-      int threadidx = 0;
-#endif
-#pragma omp single
-      perThreadIndexes.resize(numthreads);
-#pragma omp for
+      std::set<int> myIndexes;
+#pragma omp for nowait
       for(int iik2 = 0; iik2 < nik2s; iik2++){
         int ik2 = ik2s[iik2];
         auto ik2Index = WavevectorIndex(ik2);
@@ -118,22 +106,13 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
             Eigen::Vector3d q3Cart = fullPoints3->cartesianToCrystal(q3Coordinates);
 
             int iq3 = fullPoints3->getIndex(q3Cart);
-            perThreadIndexes[threadidx].insert(iq3);
+            myIndexes.insert(iq3);
             ncandidates++;
           }
         }
       }
-      // recursively join the per-thread sets
-      int niter = std::ceil(std::log2(numthreads));
-      for(int l = 1; l < niter + 1; l++){
-        int neighthread = threadidx + std::pow(2,l-1);
-        if(threadidx % int(std::pow(2,l)) == 0 && neighthread  < numthreads){
-          perThreadIndexes[threadidx].insert(perThreadIndexes[neighthread].begin(), perThreadIndexes[neighthread].end());
-        }
-        #pragma omp barrier
-      }
-#pragma omp single
-      listOfIndexes = std::move(perThreadIndexes[0]);
+#pragma omp critical
+      listOfIndexes.insert(myIndexes.begin(), myIndexes.end());
     }
     printf("rank %d: size before local filter: %d after: %d\n", mpi->getRank(), ncandidates, (int)listOfIndexes.size());
     auto afteromp = std::chrono::steady_clock::now();
