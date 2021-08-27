@@ -4,7 +4,6 @@
 #include "mpiHelper.h"
 #include "delta_function.h"
 #include <iomanip>
-#include <chrono>
 
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
@@ -21,7 +20,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
   //     at the border)
 
-  auto time0 = std::chrono::steady_clock::now();
 
   auto t1 = outerBandStructure.getPoints().getMesh();
 //  auto mesh = std::get<0>(t1);
@@ -82,9 +80,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     int numPoints = innerBandStructure.getNumPoints();
     std::vector<size_t> ik2s = mpi->divideWorkIter(numPoints);
     int nik2s = ik2s.size();
-    int ncandidates = 0;
-    auto beforeomp = std::chrono::steady_clock::now();
-#pragma omp parallel reduction(+:ncandidates)
+#pragma omp parallel
     {
       std::set<int> myIndexes;
 #pragma omp for nowait
@@ -115,11 +111,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       listOfIndexes.insert(myIndexes.begin(), myIndexes.end());
     }
     printf("rank %d: size before local filter: %d after: %d\n", mpi->getRank(), ncandidates, (int)listOfIndexes.size());
-    auto afteromp = std::chrono::steady_clock::now();
-    std::cout << "time for omp loop:" << std::chrono::duration_cast<std::chrono::milliseconds>(afteromp - beforeomp).count() << " ms" << std::endl;
 
 
-    auto beforempi = std::chrono::steady_clock::now();
     std::vector<int> localCounts(mpi->getSize(), 0);
     localCounts[mpi->getRank()] = int(listOfIndexes.size());
     mpi->allReduceSum(&localCounts);
@@ -150,8 +143,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
-    auto aftermpi = std::chrono::steady_clock::now();
-    std::cout << "time for mpi filter:" << std::chrono::duration_cast<std::chrono::seconds>(aftermpi - beforempi).count() << " s" << std::endl;
     i = 0;
     for (int iq : setOfIndexes) {
       filter(i) = iq;
@@ -176,8 +167,6 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         ap3, &h0, withEigenvectors, withVelocities);
   }
-  auto time1 = std::chrono::steady_clock::now();
-  std::cout << "\n\nHELPER CONSTRUCTOR:" << std::chrono::duration_cast<std::chrono::seconds>(time1 - time0).count() << " s\n\n" << std::endl;
 }
 
 // auto [eigenValues3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]
