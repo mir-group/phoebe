@@ -714,8 +714,6 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
     MPI_Count blockSize = count / intMax;
     MPI_Count remain = count % intMax;
 
-    std::cout << "blocksize remain counts " << blockSize << " " << remain << " " << std::endl;
-
     /* first, we create two intermediate data types, block and remainder.
     *
     *  MPI_TYPE_VECTOR: replication of a datatype into locations that consist of equally spaced blocks
@@ -806,8 +804,6 @@ const int& communicator) const {
 
     // this process receives data from all other processes --------------------------
     for (int i=0; i<nRanks; i++) {
-
-      std::cout << "rank workDivs " << thisRank << workDivs[i] << std::endl;
 
       // make a structure of the right size to accept the block
       // of data sent by process i
