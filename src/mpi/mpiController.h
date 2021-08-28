@@ -179,7 +179,7 @@ class MPIcontroller {
    *       head rank, of length to contain all data from all processes.
    */
   template <typename T, typename V>
-  void allGather(T* dataIn, V* dataOut) const;
+  void allGather(T* dataIn, V* dataOut, const int& communicator=worldComm) const;
 
   /** Helper function to create a custom MPI datatype.
    *  Intended to be used with bigAllGatherv
@@ -206,7 +206,8 @@ class MPIcontroller {
    */
   template <typename T>
   void bigAllGatherV(T* dataIn, T* dataOut,
-  std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const;
+  std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
+  const int& communicator=worldComm) const;
 
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
@@ -233,7 +234,7 @@ class MPIcontroller {
     } else if (communicator == intraPoolComm) {
       return poolRank;
     } else {
-      Error("Invalid communicator in getSize");
+      Error("Invalid communicator in getRank.");
       return 0;
     }
   };
@@ -247,8 +248,21 @@ class MPIcontroller {
     } else if (communicator == intraPoolComm) {
       return poolSize;
     } else {
-      Error("Invalid communicator in getSize");
+      Error("Invalid communicator in getSize.");
       return 0;
+    }
+  };
+
+  MPI_Comm getComm(const int& communicator=worldComm) const {
+    if (communicator == worldComm) {
+      return worldCommunicator;
+    } else if (communicator == intraPoolComm) {
+      return intraPoolCommunicator;
+    } else if (communicator == interPoolComm) {
+      return interPoolCommunicator;
+    } else {
+      Error("Invalid communicator in getComm.");
+      return MPI_COMM_WORLD;
     }
   };
 
@@ -666,16 +680,19 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
 }
 
 template <typename T, typename V>
-void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
+void MPIcontroller::allGather(T* dataIn, V* dataOut, const int& communicator) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
+
+  auto t = decideCommunicator(communicator);
+  MPI_Comm comm = std::get<0>(t);
 
   errCode = MPI_Allgather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
       containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
       containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
-      MPI_COMM_WORLD);
+      comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
@@ -740,15 +757,20 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
 
 template <typename T>
 void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut,
-std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
+std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
+const int& communicator) const {
 
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
 
-    // if there's only one process we don't need to act
-    if (size == 1) return;
+    int nRanks = getSize(communicator);
+    int thisRank = getRank(communicator);
+    auto tup = decideCommunicator(communicator);
+    MPI_Comm comm = std::get<0>(tup);
 
-/*
+    // if there's only one process we don't need to act
+    if (nRanks == 1) return;
+
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
@@ -756,33 +778,36 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
 
       // if size is less than INT_MAX, it's safe to store
       // these as ints and pass them directly to allgatherv
-      std::vector<int> workDivisionHeads_(size);
-      std::vector<int> workDivs_(size);
-      for(int i = 0; i<size; i++) {
+      std::vector<int> workDivisionHeads_(nRanks);
+      std::vector<int> workDivs_(nRanks);
+      for(int i = 0; i<nRanks; i++) {
         workDivisionHeads_[i] = (int)workDivisionHeads[i];
         workDivs_[i] = (int)workDivs[i];
       }
 
       int errCode;
       errCode = MPI_Allgatherv(
-          containerType<T>::getAddress(dataIn), workDivs[rank],
+          containerType<T>::getAddress(dataIn), workDivs_[thisRank],
           containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
           workDivs_.data(), workDivisionHeads_.data(), containerType<T>::getMPItype(),
-          MPI_COMM_WORLD);
+          comm);
+
       if (errCode != MPI_SUCCESS) {
         errorReport(errCode);
       }
       return;
     }
-*/
+
     int errCodeSend, errCodeRecv;
 
     // this is required to use non-blocking communications
     // it will mark when all send/recv calls posted have been executed
-    std::vector<MPI_Request> reqs(2*size);
+    std::vector<MPI_Request> reqs(2*nRanks);
 
     // this process receives data from all other processes --------------------------
-    for (int i=0; i<size; i++) {
+    for (int i=0; i<nRanks; i++) {
+
+      std::cout << "rank workDivs " << thisRank << workDivs[i] << std::endl;
 
       // make a structure of the right size to accept the block
       // of data sent by process i
@@ -797,7 +822,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
       MPI_Aint offset = workDivisionHeads[i];
       // MPI_Irecv is a non-blocking communication method
       errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset,
-          1, container, src, tag, MPI_COMM_WORLD, &reqs[i]);
+          1, container, src, tag, comm, &reqs[i]);
 
       // free the datatype after use
       MPI_Type_free(&container);
@@ -807,12 +832,12 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
     }
 
     // send the data from this process to all other processes -----------------------
-    for (int j=rank; j<(size+rank); j++) {
+    for (int j=thisRank; j<(nRanks+thisRank); j++) {
 
       // better way to balance communications
-      int i = j % size;
+      int i = j % nRanks;
 
-      int tag = rank; // likely tag is not necessary because calls are matched
+      int tag = thisRank; // likely tag is not necessary because calls are matched
       int dst = i; // rank we are sending to
 
       // create a container object to encapsulate all the data this process will send
@@ -820,7 +845,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
       datatypeHelper(&container, workDivs[rank], dataIn);
 
       errCodeSend = MPI_Isend(containerType<T>::getAddress(dataIn), 1, container,
-          dst, tag, MPI_COMM_WORLD, &reqs[size+i]);
+          dst, tag, comm, &reqs[nRanks+i]);
 
       // free the datatype after use
       MPI_Type_free(&container);
@@ -829,7 +854,7 @@ std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads) const {
       if (errCodeSend != MPI_SUCCESS) errorReport(errCodeSend);
     }
     // wait until all send/recv pairs have completed to end the function
-    MPI_Waitall(2*size, reqs.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(2*nRanks, reqs.data(), MPI_STATUSES_IGNORE);
 
   #else
   pointerSwap(dataIn, dataOut);
