@@ -255,6 +255,21 @@ class MPIcontroller {
     }
   };
 
+#ifdef MPI_AVAIL
+  MPI_Comm getComm(const int& communicator=worldComm) const {
+    if (communicator == worldComm) {
+      return worldCommunicator;
+    } else if (communicator == intraPoolComm) {
+      return intraPoolCommunicator;
+    } else if (communicator == interPoolComm) {
+      return interPoolCommunicator;
+    } else {
+      Error("Invalid communicator in getComm.");
+      return MPI_COMM_WORLD;
+    }
+  };
+#endif
+
   // Error reporting and statistics
   void errorReport(int errCode) const;  // collect errors from processes and
                                         // reports them, then kills the code
