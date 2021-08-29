@@ -308,7 +308,7 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   std::ifstream infile(fileName);
   std::string line;
   if (not infile.is_open()) {
-    Error("QE el-ph file not found");
+    Error(fileName + " file not found.");
   }
   std::getline(infile, line); // first line is a title
 

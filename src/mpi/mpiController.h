@@ -794,6 +794,9 @@ const int& communicator) const {
     auto tup = decideCommunicator(communicator);
     MPI_Comm comm = std::get<0>(tup);
 
+    //int version, subversion;
+    //MPI_Get_version(&version, &subversion);
+
     // if there's only one process we don't need to act
     if (nRanks == 1) return;
 
@@ -801,6 +804,8 @@ const int& communicator) const {
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
     if(outSize < INT_MAX) {
+
+      std::cout << "about to call allGatherv " << std::endl;
 
       // if size is less than INT_MAX, it's safe to store
       // these as ints and pass them directly to allgatherv
@@ -818,10 +823,17 @@ const int& communicator) const {
           workDivs_.data(), workDivisionHeads_.data(),
           containerType<T>::getMPItype(), comm);
 
-      if (errCode != MPI_SUCCESS) {
-        errorReport(errCode);
-      }
+      if (errCode != MPI_SUCCESS) errorReport(errCode);
+
       return;
+    }
+    else if(version < 3) { // this will have problems in mpi version <3
+      std::cout << "You're running Phoebe with MPI version < 3.\n" <<
+          "For this very large calculation, you manage to overflow some \n" <<
+          "of MPI calls. Either you can rebuild with version 3 or 4, or \n" <<
+          "you can use MPI pools (see Phoebe docs) to reduce the elph \n" <<
+          "matrix elements which need to be stored on each node." << std::endl;
+      Error e("Calculation overflows MPI, run with MPI version <3.");
     }
 
     int errCodeSend, errCodeRecv;
@@ -829,11 +841,6 @@ const int& communicator) const {
     // this is required to use non-blocking communications
     // it will mark when all send/recv calls posted have been executed
     std::vector<MPI_Request> reqs(2*nRanks);
-
-    #if MPI_VERSION == 3
-    MPI_Aint lb /* unused */, recvextent;
-    MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &recvextent);
-    #endif
 
     // this process receives data from all other processes --------------------------
     for (int i=0; i<nRanks; i++) {
@@ -849,15 +856,10 @@ const int& communicator) const {
 
       // address offset from the start of the output array
       MPI_Aint offset = workDivisionHeads[i];
+
       // MPI_Irecv is a non-blocking communication method
-      #if MPI_VERSION > 3
       errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset,
           1, container, src, tag, comm, &reqs[i]);
-      #else // mpi3 -- we block 2 and 1
-      std::cout << "doing mpi3 recv" << std::endl;
-      errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset*recvextent,
-          1, container, src, tag, comm, &reqs[i]);
-      #endif
 
       // free the datatype after use
       MPI_Type_free(&container);
