@@ -235,6 +235,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
+  numElBravaisVectors = 0; // supress initialization warning
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
@@ -385,6 +386,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, totalNumElBravaisVectors, numPhBands, numPhBravaisVectors;
+  // supress intialization warning
+  numElBravaisVectors = 0; totalNumElBravaisVectors = 0; numPhBravaisVectors = 0;
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;

@@ -190,8 +190,10 @@ class MPIcontroller {
    *      This is not used, but it is needed to determine the template
    *      type of the function.
    */
+  #ifdef MPI_AVAIL
   template <typename T>
   void datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const;
+  #endif
 
   /** A version of allGatherv that works on data of size larger
    *  than can be stored in an int.
@@ -250,19 +252,6 @@ class MPIcontroller {
     } else {
       Error("Invalid communicator in getSize.");
       return 0;
-    }
-  };
-
-  MPI_Comm getComm(const int& communicator=worldComm) const {
-    if (communicator == worldComm) {
-      return worldCommunicator;
-    } else if (communicator == intraPoolComm) {
-      return intraPoolCommunicator;
-    } else if (communicator == interPoolComm) {
-      return interPoolCommunicator;
-    } else {
-      Error("Invalid communicator in getComm.");
-      return MPI_COMM_WORLD;
     }
   };
 
@@ -445,13 +434,16 @@ void MPIcontroller::bcast(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+ #else
+ (void)dataIn;
+ (void)communicator;
+ #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceSum(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   int errCode;
 
@@ -469,7 +461,9 @@ void MPIcontroller::reduceSum(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
@@ -486,13 +480,15 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+#else
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
 #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceMax(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   int errCode;
 
@@ -510,13 +506,15 @@ void MPIcontroller::reduceMax(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
 void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   if (communicator == intraPoolComm && poolSize == 1) return;
 
@@ -529,7 +527,10 @@ void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  (void)communicator;
+  #endif
 }
 
 template <typename T>
@@ -548,13 +549,17 @@ void MPIcontroller::allReduceMax(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+  #else
+  (void)dataIn;
+  (void)communicator;
   #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceMin(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
+
   if (size == 1) return;
   int errCode;
 
@@ -572,7 +577,9 @@ void MPIcontroller::reduceMin(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
@@ -588,6 +595,8 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+  #else
+  (void)dataIn;
   #endif
 }
 
@@ -701,11 +710,15 @@ void MPIcontroller::allGather(T* dataIn, V* dataOut, const int& communicator) co
   #endif
 }
 
+#ifdef MPI_AVAIL
 template <typename T>
-void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const {
+void MPIcontroller::datatypeHelper(MPI_Datatype* container,
+MPI_Count count, T* data) const {
+
+ // data is only passed for the templating
+ (void)data;
 
  using namespace mpiContainer;
- #ifdef MPI_AVAIL
 
     size_t intMax = INT_MAX;
 
@@ -716,11 +729,13 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
 
     /* first, we create two intermediate data types, block and remainder.
     *
-    *  MPI_TYPE_VECTOR: replication of a datatype into locations that consist of equally spaced blocks
+    *  MPI_TYPE_VECTOR: replication of a datatype into locations
+    *  that consist of equally spaced blocks
     *  MPI_TYPE_VECTOR(COUNT, BLOCKLENGTH, STRIDE, OLDTYPE, NEWTYPE, IERROR)
     *  blocks of data will be divided into INT_MAX chunks */
     MPI_Datatype block;
-    MPI_Type_vector(blockSize, intMax, intMax, containerType<T>::getMPItype(), &block);
+    MPI_Type_vector(blockSize, intMax, intMax,
+        containerType<T>::getMPItype(), &block);
 
     // set up a container for the remainder of the data as well
     MPI_Datatype remainder;
@@ -748,10 +763,8 @@ void MPIcontroller::datatypeHelper(MPI_Datatype* container, MPI_Count count, T* 
 
     // establish the container type within MPI
     MPI_Type_commit(container);
-
-  #endif
 }
-
+#endif
 
 template <typename T>
 void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut,
@@ -787,8 +800,8 @@ const int& communicator) const {
       errCode = MPI_Allgatherv(
           containerType<T>::getAddress(dataIn), workDivs_[thisRank],
           containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
-          workDivs_.data(), workDivisionHeads_.data(), containerType<T>::getMPItype(),
-          comm);
+          workDivs_.data(), workDivisionHeads_.data(),
+          containerType<T>::getMPItype(), comm);
 
       if (errCode != MPI_SUCCESS) {
         errorReport(errCode);

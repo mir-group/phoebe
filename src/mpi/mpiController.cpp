@@ -82,6 +82,8 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   startTime = MPI_Wtime();
 
 #else
+  (void)argv;
+  (void)argc;
   // To maintain consistency when running in serial
   size = 1;
   rank = 0;
@@ -127,6 +129,8 @@ void MPIcontroller::errorReport(int errCode) const {
   MPI_Error_string(errCode, errString, &lengthOfString);
   fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
   MPI_Abort(MPI_COMM_WORLD, errCode);
+#else
+(void)errCode;
 #endif
 }
 
