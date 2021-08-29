@@ -794,8 +794,8 @@ const int& communicator) const {
     auto tup = decideCommunicator(communicator);
     MPI_Comm comm = std::get<0>(tup);
 
-    //int version, subversion;
-    //MPI_Get_version(&version, &subversion);
+    int version, subversion;
+    MPI_Get_version(&version, &subversion);
 
     // if there's only one process we don't need to act
     if (nRanks == 1) return;
