@@ -84,15 +84,15 @@ jobs:
       #    mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononDos.in
       #    mpirun -np 4 --oversubscribe ../../${BUILD_DIR}/phoebe -in phononLifetimes.in
       #    python3 reference/run_check.py
-      #- name: Run el example without MPI
-      #  working-directory: example/Silicon-el
-      #  run: |
-      #    ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
-      #    ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
-      #    ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
-      #    ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
-      #    ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
-      #    python3 reference/run_check.py
+      - name: Run el example without MPI
+        working-directory: example/Silicon-el
+        run: |
+          ../../${BUILD_DIR}/phoebe -in qeToPhoebeWannier.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierTransport.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierBands.in
+          ../../${BUILD_DIR}/phoebe -in electronWannierDos.in
+          ../../${BUILD_DIR}/phoebe -in electronLifetimes.in
+          python3 reference/run_check.py
       - name: Run el example with MPI
         working-directory: example/Silicon-el
         if: matrix.mpi == 'ON'
