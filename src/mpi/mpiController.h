@@ -836,6 +836,8 @@ const int& communicator) const {
       Error e("Calculation overflows MPI, run with MPI version <3.");
     }
 
+    std::cout << "going to call big all gather v" << std::endl;
+
     int errCodeSend, errCodeRecv;
 
     // this is required to use non-blocking communications
