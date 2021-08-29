@@ -830,6 +830,11 @@ const int& communicator) const {
     // it will mark when all send/recv calls posted have been executed
     std::vector<MPI_Request> reqs(2*nRanks);
 
+    #if MPI_VERSION == 3
+    MPI_Aint lb /* unused */, recvextent;
+    MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &recvextent);
+    #endif
+
     // this process receives data from all other processes --------------------------
     for (int i=0; i<nRanks; i++) {
 
@@ -845,8 +850,14 @@ const int& communicator) const {
       // address offset from the start of the output array
       MPI_Aint offset = workDivisionHeads[i];
       // MPI_Irecv is a non-blocking communication method
+      #if MPI_VERSION > 3
       errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset,
           1, container, src, tag, comm, &reqs[i]);
+      #else // mpi3 -- we block 2 and 1
+      std::cout << "doing mpi3 recv" << std::endl;
+      errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset*recvextent,
+          1, container, src, tag, comm, &reqs[i]);
+      #endif
 
       // free the datatype after use
       MPI_Type_free(&container);
