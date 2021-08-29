@@ -40,7 +40,7 @@ jobs:
         run: |
           cd ${BUILD_DIR}
           make -j4
-          make -j4 runTests
+      #    make -j4 runTests
           echo $MPI_VERSION
       #- name: RunTests
       #  run : |

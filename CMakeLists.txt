@@ -33,6 +33,8 @@ option(HDF5_AVAIL "Build with HDF5" ON)
 option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" OFF)
 option(BUILD_DOC "Build documentation" ON)
 
+set(MPI_VERSION 3)
+
 ############### SOURCE ###############
 
 FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
