@@ -66,8 +66,8 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
           int iq3Plus = fullPoints3->getIndex(q3PlusCoordinates);
           int iq3Minus = fullPoints3->getIndex(q3MinusCoordinates);
 
-          listOfIndexes.insert(iq3Plus);
-          listOfIndexes.insert(iq3Minus);
+          myIndexes.insert(iq3Plus);
+          myIndexes.insert(iq3Minus);
         }
       }
 #pragma omp critical
