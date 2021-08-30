@@ -798,14 +798,17 @@ const int& communicator) const {
     MPI_Get_version(&version, &subversion);
 
     // if there's only one process we don't need to act
-    if (nRanks == 1) return;
+    if (nRanks == 1) {
+      for (unsigned int i=0;i<workDivs[0];i++) {
+        dataOut[i] = dataIn[i];
+      }
+      return;
+    }
 
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
     if(outSize < INT_MAX) {
-
-      std::cout << "about to call allGatherv " << std::endl;
 
       // if size is less than INT_MAX, it's safe to store
       // these as ints and pass them directly to allgatherv
@@ -824,7 +827,6 @@ const int& communicator) const {
           containerType<T>::getMPItype(), comm);
 
       if (errCode != MPI_SUCCESS) errorReport(errCode);
-
       return;
     }
     else if(version < 3) { // this will have problems in mpi version <3
@@ -835,8 +837,6 @@ const int& communicator) const {
           "matrix elements which need to be stored on each node." << std::endl;
       Error e("Calculation overflows MPI, run with MPI version <3.");
     }
-
-    std::cout << "going to call big all gather v" << std::endl;
 
     int errCodeSend, errCodeRecv;
 
@@ -896,7 +896,10 @@ const int& communicator) const {
     MPI_Waitall(2*nRanks, reqs.data(), MPI_STATUSES_IGNORE);
 
   #else
-  pointerSwap(dataIn, dataOut);
+  for (unsigned int i=0;i<workDivs[0];i++) {
+    dataOut[i] = dataIn[i];
+  }
+  return;
   #endif
 }
 

@@ -645,6 +645,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       bunchOffset += bunchElements;
     }
 
+    // collect and broadcas the matrix elements now that they have been read in
+
     // We have the standard case of 1 pool (aka no pools),
     // and we need to gather the components of the matrix into one big matrix
     if(comm != mpi->intraPoolComm)  {
@@ -659,10 +661,10 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       mpi->bigAllGatherV(gWanSlice.data(), gWanFlat.data(),
         workDivs, workDivisionHeads, comm);
     }
-
     // In the case of pools, where we read in only on the head pool,
     // we now send it to all the other pools
-    if(mpi->getSize(mpi->intraPoolComm) != 1) {
+    //if(mpi->getSize(mpi->intraPoolComm) != 1) {
+    else {
       mpi->bcast(&gWanFlat, mpi->interPoolComm);
     }
 
