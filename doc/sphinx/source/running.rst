@@ -35,7 +35,7 @@ In this example, Phoebe will be launched with 2 MPI processes, and 8 OpenMP thre
 
 .. note::
   The best parallelization setup will likely differ from this suggestion, as it is highly dependent on the details of your machine.
-  
+
 GPU acceleration
 ----------------
 
@@ -56,7 +56,8 @@ See the Phoebe run in the :ref:`phononTransport` for more details.
 .. note::
    The number of MPI processes must be equal to the number of GPU being used.
 
-  
+.. _poolsize:
+
 Electron-phonon parallelization
 -------------------------------
 
@@ -72,12 +73,12 @@ As mentioned above, the number of MPI processes must be equal to the number of G
 Next, we want to use all CPUs present on a node, therefore we set OMP_NUM_THREADS to 8.
 Let's suppose that the electron-phonon coupling tensor fits in the combined memory of 2 GPUs.
 Therefore, we distribute the coupling tensor over a pool of 2 MPI processes, as::
-  
+
   export OMP_NUM_THREADS=8
   mpirun -np 2 --bind-to none ./path_to/phoebe --poolSize 2 -in inputFile.in -out outputFile.out
 
 Or equivalently::
-  
+
   export OMP_NUM_THREADS=8
   mpirun -np 2 --bind-to none ./path_to/phoebe -ps 2 -in inputFile.in -out outputFile.out
 

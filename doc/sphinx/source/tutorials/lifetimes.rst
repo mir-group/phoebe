@@ -218,4 +218,7 @@ In this tutorial we show a demo calculation, which is certainly unconverged. We 
 Parallelization
 ----------------
 
+For either electron or phonon band structures, you should check the respective electron or phonon transport tutorials' parallelization sections to see more about how to parallelize the calculation. Most of the same advice will apply to these calculations.
+
+
 This application can take advantage of both OMP and MPI parallelization, so up to a certain point (largely limited by the kMesh/qMesh choice) you should get performance benefit from using either (or both) of these parameters.

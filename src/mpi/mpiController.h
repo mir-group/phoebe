@@ -49,6 +49,7 @@ class MPIcontroller {
   const int mpiHeadColsId = 0;
 
   int poolSize = 1; // # of MPI processes in the pool
+  bool hasMPIPools = false;
   int poolRank = 0; // rank of the MPI process within the pool from 0 to poolSize
   int poolId = 0; // id of the pool
 #ifdef MPI_AVAIL
@@ -58,7 +59,7 @@ class MPIcontroller {
 #endif
 
   // helper function used internally
-  std::tuple<std::vector<int>,std::vector<int>> workDivHelper(size_t numTasks) const;
+  std::tuple<std::vector<int>, std::vector<int>> workDivHelper(size_t numTasks) const;
 
 #ifdef MPI_AVAIL
   double startTime;  // the time for the entire mpi operation
@@ -179,7 +180,37 @@ class MPIcontroller {
    *       head rank, of length to contain all data from all processes.
    */
   template <typename T, typename V>
-  void allGather(T* dataIn, V* dataOut) const;
+  void allGather(T* dataIn, V* dataOut, const int& communicator=worldComm) const;
+
+  /** Helper function to create a custom MPI datatype.
+   *  Intended to be used with bigAllGatherv
+   *  @param container: a pointer to the mpi datatype we want to create
+   *  @param count: an MPI_Count object denoting the number of elements
+   *      in this dataset.
+   *  @param data: a pointer to the data associated with the container.
+   *      This is not used, but it is needed to determine the template
+   *      type of the function.
+   */
+  #ifdef MPI_AVAIL
+  template <typename T>
+  void datatypeHelper(MPI_Datatype* container, MPI_Count count, T* data) const;
+  #endif
+
+  /** A version of allGatherv that works on data of size larger
+   *  than can be stored in an int.
+   *  @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   *  @param dataOut: pointer to output buffer, allocated only by the
+   *       head rank, of length to contain all data from all processes.
+   *  @param workDivs: an vector containing the number of elements
+   *       to be collected from each process.
+   *  @param workDivisionHeads: a vector containing the start positions
+   *       of each processes' elements in the dataOut array.
+   */
+  template <typename T>
+  void bigAllGatherV(T* dataIn, T* dataOut,
+  std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
+  const int& communicator=worldComm) const;
 
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
@@ -197,6 +228,10 @@ class MPIcontroller {
    */
   bool mpiHeadPool() const { return poolId == mpiHeadPoolId; }
 
+  /** A utility to tell if the user defined the poolsize
+  * command line varible */
+  bool hasPools() const { return hasMPIPools; }
+
   /** Function to return the rank of a process.
    * @return rank: the rank of this process.
    */
@@ -206,7 +241,7 @@ class MPIcontroller {
     } else if (communicator == intraPoolComm) {
       return poolRank;
     } else {
-      Error("Invalid communicator in getSize");
+      Error("Invalid communicator in getRank.");
       return 0;
     }
   };
@@ -220,10 +255,25 @@ class MPIcontroller {
     } else if (communicator == intraPoolComm) {
       return poolSize;
     } else {
-      Error("Invalid communicator in getSize");
+      Error("Invalid communicator in getSize.");
       return 0;
     }
   };
+
+#ifdef MPI_AVAIL
+  MPI_Comm getComm(const int& communicator=worldComm) const {
+    if (communicator == worldComm) {
+      return worldCommunicator;
+    } else if (communicator == intraPoolComm) {
+      return intraPoolCommunicator;
+    } else if (communicator == interPoolComm) {
+      return interPoolCommunicator;
+    } else {
+      Error("Invalid communicator in getComm.");
+      return MPI_COMM_WORLD;
+    }
+  };
+#endif
 
   // Error reporting and statistics
   void errorReport(int errCode) const;  // collect errors from processes and
@@ -288,6 +338,7 @@ struct containerType;
   MPIDataType(double, MPI_DOUBLE)
   MPIDataType(std::complex<double>, MPI_DOUBLE_COMPLEX)
   MPIDataType(std::complex<float>, MPI_COMPLEX)
+  MPIDataType(size_t, MPI_UNSIGNED_LONG_LONG)
 
 #undef MPIDataType
 
@@ -403,13 +454,16 @@ void MPIcontroller::bcast(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+ #else
+ (void)dataIn;
+ (void)communicator;
+ #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceSum(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   int errCode;
 
@@ -427,7 +481,9 @@ void MPIcontroller::reduceSum(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
@@ -444,13 +500,15 @@ void MPIcontroller::allReduceSum(T* dataIn, T* dataOut) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+#else
+  pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
 #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceMax(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   int errCode;
 
@@ -468,13 +526,15 @@ void MPIcontroller::reduceMax(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
 void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
   if (size == 1) return;
   if (communicator == intraPoolComm && poolSize == 1) return;
 
@@ -487,7 +547,10 @@ void MPIcontroller::allReduceSum(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  (void)communicator;
+  #endif
 }
 
 template <typename T>
@@ -506,13 +569,17 @@ void MPIcontroller::allReduceMax(T* dataIn, const int& communicator) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+  #else
+  (void)dataIn;
+  (void)communicator;
   #endif
 }
 
 template <typename T>
 void MPIcontroller::reduceMin(T* dataIn) const {
   using namespace mpiContainer;
-#ifdef MPI_AVAIL
+  #ifdef MPI_AVAIL
+
   if (size == 1) return;
   int errCode;
 
@@ -530,7 +597,9 @@ void MPIcontroller::reduceMin(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
-#endif
+  #else
+  (void)dataIn;
+  #endif
 }
 
 template <typename T>
@@ -546,6 +615,8 @@ void MPIcontroller::allReduceMin(T* dataIn) const {
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
+  #else
+  (void)dataIn;
   #endif
 }
 
@@ -619,7 +690,7 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
   // calculate the number of elements coming from each process
   // this will correspond to the save division of elements
   // as divideWorkIter provides.
-  int numTasks = containerType<V>::getSize(dataOut);
+  size_t numTasks = containerType<V>::getSize(dataOut);
   auto tup = workDivHelper(numTasks);
   std::vector<int> workDivs = std::get<0>(tup);
   std::vector<int> workDivisionHeads = std::get<1>(tup);
@@ -638,21 +709,202 @@ void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
 }
 
 template <typename T, typename V>
-void MPIcontroller::allGather(T* dataIn, V* dataOut) const {
+void MPIcontroller::allGather(T* dataIn, V* dataOut, const int& communicator) const {
     using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
+
+  auto t = decideCommunicator(communicator);
+  MPI_Comm comm = std::get<0>(t);
 
   errCode = MPI_Allgather(
       containerType<T>::getAddress(dataIn), containerType<T>::getSize(dataIn),
       containerType<T>::getMPItype(), containerType<V>::getAddress(dataOut),
       containerType<T>::getSize(dataIn), containerType<V>::getMPItype(),
-      MPI_COMM_WORLD);
+      comm);
   if (errCode != MPI_SUCCESS) {
     errorReport(errCode);
   }
   #else
   pointerSwap(dataIn, dataOut);  // just switch the pointers in serial case
+  #endif
+}
+
+#ifdef MPI_AVAIL
+template <typename T>
+void MPIcontroller::datatypeHelper(MPI_Datatype* container,
+MPI_Count count, T* data) const {
+
+ // data is only passed for the templating
+ (void)data;
+
+ using namespace mpiContainer;
+
+    size_t intMax = INT_MAX;
+
+    // these hold the count of elements sent in each block, and
+    // the remainder in case the division is not even among the ranks
+    MPI_Count blockSize = count / intMax;
+    MPI_Count remain = count % intMax;
+
+    /* first, we create two intermediate data types, block and remainder.
+    *
+    *  MPI_TYPE_VECTOR: replication of a datatype into locations
+    *  that consist of equally spaced blocks
+    *  MPI_TYPE_VECTOR(COUNT, BLOCKLENGTH, STRIDE, OLDTYPE, NEWTYPE, IERROR)
+    *  blocks of data will be divided into INT_MAX chunks */
+    MPI_Datatype block;
+    MPI_Type_vector(blockSize, intMax, intMax,
+        containerType<T>::getMPItype(), &block);
+
+    // set up a container for the remainder of the data as well
+    MPI_Datatype remainder;
+    MPI_Type_contiguous(remain, containerType<T>::getMPItype(), &remainder);
+
+    // need to set up the "extent" of the data
+    MPI_Aint lb, extent;
+    // This function gets the lower bound and extent for a datatype
+    MPI_Type_get_extent(containerType<T>::getMPItype(), &lb, &extent);
+
+    // Find address displacements of data
+    MPI_Aint remdisp      = (MPI_Aint)blockSize * intMax * extent;
+    MPI_Aint offset       = 0;
+    int blocklengths[2]       = {1,1};
+    MPI_Aint displacements[2] = {offset, offset + remdisp};
+
+    // create the datatype to actually be used,
+    // constructed from these block and remainder types
+    MPI_Datatype types[2]     = {block, remainder};
+    MPI_Type_create_struct(2, blocklengths, displacements, types, container);
+
+    // free the intermediate datatypes
+    MPI_Type_free(&block);
+    MPI_Type_free(&remainder);
+
+    // establish the container type within MPI
+    MPI_Type_commit(container);
+}
+#endif
+
+template <typename T>
+void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut,
+std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
+const int& communicator) const {
+
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+
+    int nRanks = getSize(communicator);
+    int thisRank = getRank(communicator);
+    auto tup = decideCommunicator(communicator);
+    MPI_Comm comm = std::get<0>(tup);
+
+    int version, subversion;
+    MPI_Get_version(&version, &subversion);
+
+    // if there's only one process we don't need to act
+    if (nRanks == 1) {
+      for (unsigned int i=0;i<workDivs[0];i++) {
+        dataOut[i] = dataIn[i];
+      }
+      return;
+    }
+
+    // if the size of the out array is less than INT_MAX,
+    // we can just call regular allGatherV
+    size_t outSize = workDivisionHeads.back() + workDivs.back();
+    if(outSize < INT_MAX) {
+
+      // if size is less than INT_MAX, it's safe to store
+      // these as ints and pass them directly to allgatherv
+      std::vector<int> workDivisionHeads_(nRanks);
+      std::vector<int> workDivs_(nRanks);
+      for(int i = 0; i<nRanks; i++) {
+        workDivisionHeads_[i] = (int)workDivisionHeads[i];
+        workDivs_[i] = (int)workDivs[i];
+      }
+
+      int errCode;
+      errCode = MPI_Allgatherv(
+          containerType<T>::getAddress(dataIn), workDivs_[thisRank],
+          containerType<T>::getMPItype(), containerType<T>::getAddress(dataOut),
+          workDivs_.data(), workDivisionHeads_.data(),
+          containerType<T>::getMPItype(), comm);
+
+      if (errCode != MPI_SUCCESS) errorReport(errCode);
+      return;
+    }
+    else if(version < 3) { // this will have problems in mpi version <3
+      std::cout << "You're running Phoebe with MPI version < 3.\n" <<
+          "For this very large calculation, you manage to overflow some \n" <<
+          "of MPI calls. Either you can rebuild with version 3 or 4, or \n" <<
+          "you can use MPI pools (see Phoebe docs) to reduce the elph \n" <<
+          "matrix elements which need to be stored on each node." << std::endl;
+      Error e("Calculation overflows MPI, run with MPI version <3.");
+    }
+
+    int errCodeSend, errCodeRecv;
+
+    // this is required to use non-blocking communications
+    // it will mark when all send/recv calls posted have been executed
+    std::vector<MPI_Request> reqs(2*nRanks);
+
+    // this process receives data from all other processes --------------------------
+    for (int i=0; i<nRanks; i++) {
+
+      // make a structure of the right size to accept the block
+      // of data sent by process i
+      MPI_Datatype container;
+      datatypeHelper(&container, workDivs[i], dataOut);
+
+      // for now we define these, though likely tag = 0 would be fine
+      int tag = i;
+      int src = i;
+
+      // address offset from the start of the output array
+      MPI_Aint offset = workDivisionHeads[i];
+
+      // MPI_Irecv is a non-blocking communication method
+      errCodeRecv = MPI_Irecv(containerType<T>::getAddress(dataOut)+offset,
+          1, container, src, tag, comm, &reqs[i]);
+
+      // free the datatype after use
+      MPI_Type_free(&container);
+
+      // report an mpi error if there was one
+      if (errCodeRecv != MPI_SUCCESS) errorReport(errCodeRecv);
+    }
+
+    // send the data from this process to all other processes -----------------------
+    for (int j=thisRank; j<(nRanks+thisRank); j++) {
+
+      // better way to balance communications
+      int i = j % nRanks;
+
+      int tag = thisRank; // likely tag is not necessary because calls are matched
+      int dst = i; // rank we are sending to
+
+      // create a container object to encapsulate all the data this process will send
+      MPI_Datatype container;
+      datatypeHelper(&container, workDivs[rank], dataIn);
+
+      errCodeSend = MPI_Isend(containerType<T>::getAddress(dataIn), 1, container,
+          dst, tag, comm, &reqs[nRanks+i]);
+
+      // free the datatype after use
+      MPI_Type_free(&container);
+
+      // report an mpi error if there was one
+      if (errCodeSend != MPI_SUCCESS) errorReport(errCodeSend);
+    }
+    // wait until all send/recv pairs have completed to end the function
+    MPI_Waitall(2*nRanks, reqs.data(), MPI_STATUSES_IGNORE);
+
+  #else
+  for (unsigned int i=0;i<workDivs[0];i++) {
+    dataOut[i] = dataIn[i];
+  }
+  return;
   #endif
 }
 
