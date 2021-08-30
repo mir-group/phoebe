@@ -276,9 +276,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
       {
         Eigen::MatrixXcd phases(numKPoints, numElBravaisVectors);
         phases.setZero();
-#pragma omp parallel for default(none)                                         \
-    shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, \
-           mpi)
+#pragma omp parallel for
         for (int ik = 0; ik < numKPoints; ik++) {
           Eigen::Vector3d k =
               kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -368,9 +366,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
 
       phPhases.resize(numPhBravaisVectors, numQStar);
       phPhases.setZero();
-#pragma omp parallel for default(none)                                         \
-    shared(qStar, mpi, numQPoints, numPhBravaisVectors, phPhases,    \
-           qPoints, phBravaisVectors, numQStar)
+#pragma omp parallel for
       for (int iq = 0; iq < numQStar; iq++) {
         Eigen::Vector3d qCrystal = qStar.col(iq);
         Eigen::Vector3d q = qPoints.crystalToCartesian(qCrystal);
@@ -631,9 +627,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     phases.setZero();
     std::vector<size_t> iks = mpi->divideWorkIter(numKPoints);
     size_t niks = iks.size();
-#pragma omp parallel for default(none)                                         \
-    shared(numKPoints, kPoints, numElBravaisVectors, elBravaisVectors, phases, \
-           mpi, iks, niks)
+#pragma omp parallel for
     for (size_t iik = 0; iik < niks; iik++) {
       size_t ik = iks[iik];
       Eigen::Vector3d k =
@@ -743,9 +737,7 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
     phases.setZero();
     std::vector<size_t> iqs = mpi->divideWorkIter(numQPoints);
     size_t niqs = iqs.size();
-#pragma omp parallel for default(none)                                         \
-    shared(mpi, numQPoints, numPhBravaisVectors, phases, qPoints,    \
-           phBravaisVectors, iqs, niqs)
+#pragma omp parallel for
     for (size_t iiq = 0; iiq < niqs; iiq++) {
       size_t iq = iqs[iiq];
       Eigen::Vector3d q =
