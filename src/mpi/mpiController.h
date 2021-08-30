@@ -804,7 +804,7 @@ const int& communicator) const {
       }
       return;
     }
-
+/*
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
@@ -837,7 +837,7 @@ const int& communicator) const {
           "matrix elements which need to be stored on each node." << std::endl;
       Error e("Calculation overflows MPI, run with MPI version <3.");
     }
-
+*/
     int errCodeSend, errCodeRecv;
 
     // this is required to use non-blocking communications
