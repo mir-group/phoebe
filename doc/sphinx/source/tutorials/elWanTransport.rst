@@ -398,9 +398,13 @@ To run the code, we can simply do::
   export OMP_NUM_THREADS=4
   /path/to/phoebe/build/phoebe -in electronWannierTransport.in -out ewt.out
 
-  .. note::
+
+.. note::
      Transport coefficients should be converged with respect to the :ref:`kMesh` parameter, as well as the :ref:`smearingWidth`, if the Gaussian smearing method is chosen.
 
+.. note::
+
+  If this calculation runs out of memory, reference the parallelization section at the bottom of the page for advice.
 
 Output
 ------
