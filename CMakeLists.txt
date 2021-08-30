@@ -137,6 +137,11 @@ endif()
 
 # build with HDF5
 if(HDF5_AVAIL)
+  if(HDF5_SERIAL)
+    add_definitions("-DHDF5_SERIAL")
+  else()
+    set(HDF5_PREFER_PARALLEL TRUE)
+  endif()
   add_dependencies(phoebe highfive_dep)
   add_dependencies(runTests highfive_dep)
   find_package(HDF5 REQUIRED)
@@ -144,9 +149,6 @@ if(HDF5_AVAIL)
   target_link_libraries(runTests ${HDF5_LIBRARIES})
   include_directories(${HDF5_INCLUDE_DIRS})
   add_definitions("-DHDF5_AVAIL")
-  if(HDF5_SERIAL)
-    add_definitions("-DHDF5_SERIAL")
-  endif()
 endif()
 
 ############# DOCS ############
