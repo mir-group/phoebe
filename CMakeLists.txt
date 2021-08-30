@@ -5,7 +5,7 @@ endif(NOT CMAKE_BUILD_TYPE)
 
 if(Kokkos_ENABLE_CUDA)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "don't touch")
-    #set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
+    set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
 endif()
 
 cmake_minimum_required(VERSION 3.16)
