@@ -116,6 +116,7 @@ if (MPI_AVAIL)
   target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
 
 else()
+  set(HDF5_SERIAL ON)
 
   ## even for the serial version, we require lapack
   find_package(BLAS REQUIRED)
