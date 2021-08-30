@@ -49,6 +49,7 @@ class MPIcontroller {
   const int mpiHeadColsId = 0;
 
   int poolSize = 1; // # of MPI processes in the pool
+  bool hasMPIPools = false;
   int poolRank = 0; // rank of the MPI process within the pool from 0 to poolSize
   int poolId = 0; // id of the pool
 #ifdef MPI_AVAIL
@@ -226,6 +227,10 @@ class MPIcontroller {
    * @return isHeadPool: returns true if this MPI process is in the head pool.
    */
   bool mpiHeadPool() const { return poolId == mpiHeadPoolId; }
+
+  /** A utility to tell if the user defined the poolsize
+  * command line varible */
+  bool hasPools() const { return hasMPIPools; }
 
   /** Function to return the rank of a process.
    * @return rank: the rank of this process.
@@ -804,7 +809,7 @@ const int& communicator) const {
       }
       return;
     }
-/*
+
     // if the size of the out array is less than INT_MAX,
     // we can just call regular allGatherV
     size_t outSize = workDivisionHeads.back() + workDivs.back();
@@ -837,7 +842,7 @@ const int& communicator) const {
           "matrix elements which need to be stored on each node." << std::endl;
       Error e("Calculation overflows MPI, run with MPI version <3.");
     }
-*/
+
     int errCodeSend, errCodeRecv;
 
     // this is required to use non-blocking communications

@@ -37,6 +37,7 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
       if (i == argc-1) {
         Error("Error in correctly specifying poolSize on the command line");
       }
+      hasMPIPools = true;
       bool isDigits = std::string(argv[i+1]).find_first_not_of("0123456789") == std::string::npos;
       if ( !isDigits ) {
         std::cout << "poolSize on command line has non-digits\n";
