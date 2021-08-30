@@ -131,7 +131,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
           }
         }
       }
-      gStarTmp.resize(zeros);
+      gStarTmp.resize(0,0,0,0,0);
 
       if (usePolarCorrection) {
         // we need to subtract the polar correction
@@ -1566,15 +1566,14 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         size_t bunchOffset = offset + netOffset;
         netOffset += bunchElements;
 
-        Eigen::VectorXcd gwanSlice;
+        int gwanSliceStart;
         if (matrixDistributed) {
           // here, no need to slice the gwan tensor (it's already distributed)
           // but we have to use the right offsets to identify tensor elements.
-          gwanSlice = gwan;
+          gwanSliceStart = 0;
         } else {
           // here we slice the gWannier tensor (it's not distributed)
-          gwanSlice.resize(numElements);
-          gwanSlice = gwan(Eigen::seq(bunchStart, bunchStop));
+          gwanSliceStart = bunchStart;
         }
 
         // Each process writes to hdf5
@@ -1582,7 +1581,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         // Because it's a vector (1 row) all processes write to row=0,
         // col=startPoint
         // with nRows = 1, nCols = number of items this process will write.
-        dgwannier.select({0, bunchOffset}, {1, bunchElements}).write(gwanSlice);
+        dgwannier.select({0, bunchOffset}, {1, bunchElements}).write_raw(&gwan(gwanSliceStart));
       }
     }
 

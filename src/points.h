@@ -219,6 +219,7 @@ protected:
 
   // to store points on a path or active points
   bool explicitlyStored = false;
+  bool isPointsListSorted = false;
   Eigen::MatrixXd pointsList;
 
   // for active Points:
