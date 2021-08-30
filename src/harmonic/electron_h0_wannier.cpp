@@ -257,8 +257,11 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
+  std::vector<int> iks = fullBandStructure.getWavevectorIndices();
+  int niks = iks.size();
 #pragma omp parallel for
-  for (auto ik : fullBandStructure.getWavevectorIndices()) {
+  for(int iik = 0; iik < niks; iik++){
+    int ik = iks[iik];
     Point point = fullBandStructure.getPoint(ik);
     auto tup = diagonalize(point);
     auto ens = std::get<0>(tup);
