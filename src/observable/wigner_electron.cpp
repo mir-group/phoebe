@@ -26,7 +26,7 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
 
   Eigen::Tensor<std::complex<double>, 4> fE, fT;
 
-  for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
+  for (int ik : mpi->divideWorkIter(bandStructure.getNumPoints())) {
     WavevectorIndex ikIdx(ik);
     auto velocities = bandStructure.getVelocities(ikIdx);
     auto energies = bandStructure.getEnergies(ikIdx);
@@ -103,10 +103,10 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
                   velocities(ib1, ib2, ic1) * fT(ib2, ib1, ic2, iCalc) +
                   velocities(ib2, ib1, ic1) * fT(ib1, ib2, ic2, iCalc));
               correctionLEE(iCalc, ic1, ic2) += norm * xE;
-              correctionLET(iCalc, ic1, ic2) += norm * xT;
-              correctionLTE(iCalc, ic1, ic2) +=
+              correctionLET(iCalc, ic1, ic2) -= norm * xT;
+              correctionLTE(iCalc, ic1, ic2) -=
                   norm * (energies(ib1) - chemicalPotential) * xE;
-              correctionLTT(iCalc, ic1, ic2) +=
+              correctionLTT(iCalc, ic1, ic2) -=
                   norm * (energies(ib1) - chemicalPotential) * xT;
             }
           }
