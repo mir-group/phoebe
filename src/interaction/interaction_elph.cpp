@@ -693,7 +693,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       mpi->bcast(&gWanFlat);
 
     } else {
-      if (mpi->mpiHead()) {
+      if (mpi->mpiHeadPool()) {
         HighFive::File file(fileName, HighFive::File::ReadOnly);
 
         // Set up dataset for gWannier
