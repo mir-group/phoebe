@@ -3,6 +3,8 @@
 
 #include "phonon_h0.h"
 #include "vector_bte.h"
+#include "interaction_elph.h"
+#include <unordered_map>
 
 /** This class manages the calculation of phonon properties during the
  * integration of the scattering matrix.
@@ -31,7 +33,8 @@ class HelperElScattering {
                  BaseBandStructure &outerBandStructure_,
                  StatisticsSweep &statisticsSweep_,
                  const int &smearingType_,
-                 PhononH0 &h0_);
+                 PhononH0 &h0_,
+                 InteractionElPhWan *coupling);
 
   /** This function creates a "cache" of phonon properties.
    * To be called in the loop over k2, before the loop on k2.
@@ -53,10 +56,11 @@ class HelperElScattering {
    * qPointVelocities, boseEinsteinPopulation] of phonons for this q-point.
    */
   std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
-             Eigen::MatrixXd, Eigen::MatrixXd> get(Eigen::Vector3d &k1,
+             Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXcd> get(Eigen::Vector3d &k1,
                                                    const int &ik2);
 
  private:
+  InteractionElPhWan *couplingElPhWan;
   BaseBandStructure &innerBandStructure;
   BaseBandStructure &outerBandStructure;
   StatisticsSweep &statisticsSweep;
@@ -77,6 +81,9 @@ class HelperElScattering {
   std::vector<Eigen::MatrixXcd> cacheEigenVectors;
   std::vector<Eigen::MatrixXd> cacheBose;
   std::vector<Eigen::MatrixXd> cacheVelocity;
+  std::vector<Eigen::VectorXcd> cachePolarData;
+
+  std::unordered_map<int, Eigen::VectorXcd> mappedPolarData;
 };
 
 #endif

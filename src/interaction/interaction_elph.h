@@ -170,7 +170,8 @@ public:
       const Eigen::MatrixXcd &eigvec1,
       const std::vector<Eigen::MatrixXcd> &eigvecs2,
       const std::vector<Eigen::MatrixXcd> &eigvecs3,
-      const std::vector<Eigen::Vector3d> &q3Cs);
+      const std::vector<Eigen::Vector3d> &q3Cs,
+      const std::vector<Eigen::VectorXcd> &polarData);
 
   /** Computes a partial Fourier transform over the k1/R_el variables.
    * @param k1C: values of the k1 cartesian coordinates over which the Fourier
@@ -222,6 +223,19 @@ public:
    * @param nb1: number of bands at the k1 wavevector.
    */
   int estimateNumBatches(const int &nk2, const int &nb1);
+
+  Eigen::VectorXcd
+    polarCorrectionPart1(
+        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3);
+  static Eigen::VectorXcd
+    polarCorrectionPart1Static(
+        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
+        const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+        const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
+        const Eigen::MatrixXd &atomicPositions,
+        const Eigen::Vector3i &qCoarseMesh);
+  static Eigen::Tensor<std::complex<double>, 3>
+    polarCorrectionPart2(const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x);
 };
 
 #endif

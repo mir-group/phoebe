@@ -8,12 +8,12 @@
 HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
                                StatisticsSweep &statisticsSweep_,
-                               const int &smearingType_, PhononH0 &h0_)
+                               const int &smearingType_, PhononH0 &h0_, InteractionElPhWan *coupling)
     : innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       statisticsSweep(statisticsSweep_),
       smearingType(smearingType_),
-      h0(h0_) {
+      h0(h0_), couplingElPhWan(coupling) {
   // three conditions must be met to avoid recomputing q3
   // 1 - q1 and q2 mesh must be the same
   // 2 - the mesh is gamma-centered
@@ -159,6 +159,16 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         ap3, &h0, withEigenvectors, withVelocities);
   }
+
+  if(storedAllQ3){
+    for(int iq3 : bandStructure3->irrPointsIterator()){
+      WavevectorIndex iq3Index(iq3);
+      Eigen::Vector3d q3 = bandStructure3->getWavevector(iq3Index);
+      auto ev3 = bandStructure3->getEigenvectors(iq3Index);
+      Eigen::VectorXcd polarData = couplingElPhWan->polarCorrectionPart1(q3, ev3);
+      mappedPolarData.insert({iq3, polarData});
+    }
+  }
 }
 
 // auto [eigenValues3Minus, nb3Minus, eigenVectors3Minus, v3Minus, bose3]
@@ -167,7 +177,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
  * This is to be used for the third wavevector of the 3-phonon scattering.
  */
 std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
-           Eigen::MatrixXd, Eigen::MatrixXd>
+           Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXcd>
     HelperElScattering::get(Eigen::Vector3d &k1, const int &ik2) {
 
   auto ik2Idx = WavevectorIndex(ik2);
@@ -189,7 +199,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
       Eigen::Vector3d crystalPoints = activePoints3->cartesianToCrystal(q3);
       iq3 = activePoints3->getIndex(crystalPoints);
     }
-    auto iq3Index = WavevectorIndex(iq3);
+    auto iq3Index = WavevectorIndex(iq3); // TODO: MAP FROM THIS?
 
     Eigen::VectorXd energies3 = bandStructure3->getEnergies(iq3Index);
     Eigen::MatrixXcd eigenVectors3 = bandStructure3->getEigenvectors(iq3Index);
@@ -206,8 +216,9 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
          bose3Data(iCalc, ib3) = particle.getPopulation(energies3(ib3), temp);
       }
     }
+    Eigen::VectorXcd polarData = mappedPolarData.at(iq3);
 
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData};
 
   } else {
     // otherwise, q3 doesn't fall into the same grid
@@ -220,9 +231,10 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::MatrixXcd eigenVectors3 = cacheEigenVectors[ik2Counter];
     Eigen::MatrixXd v3s = cacheVelocity[ik2Counter];
     Eigen::MatrixXd bose3Data = cacheBose[ik2Counter];
+    Eigen::VectorXcd polarData = cachePolarData[ik2Counter];
     int nb3 = int(energies3.size());
 
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
+    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData};
   }
 }
 
@@ -233,6 +245,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
     cacheEnergies.resize(numPoints);
     cacheEigenVectors.resize(numPoints);
     cacheBose.resize(numPoints);
+    cachePolarData.resize(numPoints);
     cacheVelocity.resize(numPoints);
     cacheOffset = k2Indexes[0];
 
@@ -277,9 +290,12 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
         }
       }
 
+      Eigen::VectorXcd polarData = couplingElPhWan->polarCorrectionPart1(q3, eigenVectors3);
+
       cacheEnergies[ik2Counter] = energies3;
       cacheEigenVectors[ik2Counter] = eigenVectors3;
       cacheBose[ik2Counter] = bose3Data;
+      cachePolarData[ik2Counter] = polarData;
       cacheVelocity[ik2Counter] = v3s;
 
     }

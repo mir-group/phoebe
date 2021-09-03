@@ -1328,8 +1328,12 @@ void ElPhQeToPhoebeApp::testBackTransform(
       std::vector<Eigen::MatrixXcd> eigenVectors3;
       eigenVectors3.push_back(eigenVector3);
 
+      std::vector<Eigen::VectorXcd> polarData;
+      Eigen::VectorXcd polar = couplingElPh.polarCorrectionPart1(q3C, eigenVector3);
+      polarData.push_back(polar);
+
       couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2,
-                                       eigenVectors3, q3Cs);
+                                       eigenVectors3, q3Cs, polarData);
       auto coupling2 = couplingElPh.getCouplingSquared(0);
 
       double sum1 = 0.;

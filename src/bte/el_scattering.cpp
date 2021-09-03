@@ -139,7 +139,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                                 statisticsSweep, smearing->getType(), h0);
+                                 statisticsSweep, smearing->getType(), h0, couplingElPhWan);
 
   bool withSymmetries = context.getUseSymmetries();
 
@@ -200,6 +200,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
       std::vector<Eigen::MatrixXd> allV3s(batch_size);
       std::vector<Eigen::MatrixXd> allBose3Data(batch_size);
+      std::vector<Eigen::VectorXcd> allPolarData(batch_size);
 
       std::vector<Eigen::Vector3d> allK2C(batch_size);
       std::vector<Eigen::MatrixXcd> allEigenVectors2(batch_size);
@@ -208,7 +209,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
-#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C)
+#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C, allPolarData)
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         int ik2 = ik2Indexes[start + ik2Batch];
         WavevectorIndex ik2Idx(ik2);
@@ -223,10 +224,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         allEigenVectors3[ik2Batch] = std::get<3>(t2);
         allV3s[ik2Batch] = std::get<4>(t2);
         allBose3Data[ik2Batch] = std::get<5>(t2);
+        allPolarData[ik2Batch] = std::get<6>(t2);
       }
 
       couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
-                                           allEigenVectors3, allQ3C);
+                                           allEigenVectors3, allQ3C, allPolarData);
 
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
