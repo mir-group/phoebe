@@ -186,6 +186,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       polarData.col(iiq3) = couplingElPhWan->polarCorrectionPart1(q3, ev3);
     }
     mpi->allGatherv(&iq3s, &alliq3s);
+#ifdef MPI_AVAIL
     // now gather the polar data, which has been divided column-wise
     {
       int nprocs = mpi->getSize();
@@ -203,6 +204,7 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
           MPI_DOUBLE_COMPLEX, MPI_COMM_WORLD);
     }
     //mpi->allGatherv(&polarData, &allPolarData);
+#endif
 
     // store mapping from iq3 to the polar data
     for(int iiq3 = 0; iiq3 < totalniq3s; iiq3++){
