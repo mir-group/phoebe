@@ -160,13 +160,53 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
         ap3, &h0, withEigenvectors, withVelocities);
   }
 
+  // precompute the first part of the polar correction, save work
   if(storedAllQ3){
-    for(int iq3 : bandStructure3->irrPointsIterator()){
+    // get local iq3s
+    std::vector<int> iq3s = bandStructure3->parallelIrrPointsIterator();
+    int niq3s = iq3s.size();
+
+    // sum up total # iq3s
+    std::vector<int> totalniq3s_vec(1, niq3s);
+    mpi->allReduceSum(&totalniq3s_vec);
+    int totalniq3s = totalniq3s_vec[0];
+
+    int numBands = bandStructure3->getNumBands();
+    Eigen::MatrixXcd polarData(numBands, niq3s),
+                     allPolarData(numBands, totalniq3s);
+    std::vector<int> alliq3s(totalniq3s);
+
+    // compute the local columns of the matrix
+    #pragma omp parallel for
+    for(int iiq3 = 0; iiq3 < niq3s; iiq3++){
+      int iq3 = iq3s[iiq3];
       WavevectorIndex iq3Index(iq3);
       Eigen::Vector3d q3 = bandStructure3->getWavevector(iq3Index);
       auto ev3 = bandStructure3->getEigenvectors(iq3Index);
-      Eigen::VectorXcd polarData = couplingElPhWan->polarCorrectionPart1(q3, ev3);
-      mappedPolarData.insert({iq3, polarData});
+      polarData.col(iiq3) = couplingElPhWan->polarCorrectionPart1(q3, ev3);
+    }
+    mpi->allGatherv(&iq3s, &alliq3s);
+    // now gather the polar data, which has been divided column-wise
+    {
+      int nprocs = mpi->getSize();
+      std::vector<int> myniq3s(1, niq3s), allniq3s(nprocs), polarsizes(nprocs), polarstarts(nprocs, 0);
+      // get # niq3s on each MPI rank
+      mpi->allGather(&myniq3s, &allniq3s);
+      // multiply by column size, cumulative sum to get displacements
+      for(int rank = 0; rank < nprocs; rank++){
+        polarsizes[rank] = numBands * allniq3s[rank];
+        polarstarts[rank] = rank==0 ? 0 : polarstarts[rank-1]+polarsizes[rank-1];
+      }
+      // gather all polar data
+      MPI_Allgatherv(polarData.data(), polarData.size(), MPI_DOUBLE_COMPLEX,
+          allPolarData.data(), polarsizes.data(), polarstarts.data(),
+          MPI_DOUBLE_COMPLEX, MPI_COMM_WORLD);
+    }
+    //mpi->allGatherv(&polarData, &allPolarData);
+
+    // store mapping from iq3 to the polar data
+    for(int iiq3 = 0; iiq3 < totalniq3s; iiq3++){
+      mappedPolarData.insert({alliq3s[iiq3], allPolarData.col(iiq3)});
     }
   }
 }
