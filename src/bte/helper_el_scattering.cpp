@@ -204,6 +204,8 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
           MPI_DOUBLE_COMPLEX, MPI_COMM_WORLD);
     }
     //mpi->allGatherv(&polarData, &allPolarData);
+#else
+    allPolarData = polarData;
 #endif
 
     // store mapping from iq3 to the polar data
