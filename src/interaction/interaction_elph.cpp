@@ -41,7 +41,7 @@ InteractionElPhWan::InteractionElPhWan(
   // get available memory from environment variable,
   // defaults to 16 GB set in the header file
   char *memstr = std::getenv("MAXMEM");
-  if (memstr != NULL) {
+  if (memstr != nullptr) {
     maxmem = std::atof(memstr) * 1.0e9;
   }
   if (mpi->mpiHead()) {
@@ -146,8 +146,8 @@ InteractionElPhWan::getPolarCorrectionStatic(
 
   // auxiliary terms
   double gMax = 14.;
-  double e2 = 2.; // = e^2/4/Pi/eps_0 in atomic units
-  std::complex<double> factor = e2 * fourPi / volume * complexI;
+  double chargeSquare = 2.; // = e^2/4/Pi/eps_0 in atomic units
+  std::complex<double> factor = chargeSquare * fourPi / volume * complexI;
 
   // build a list of (q+G) vectors
   std::vector<Eigen::Vector3d> gVectors; // here we insert all (q+G)
@@ -235,7 +235,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, numPhBands, numPhBravaisVectors;
-  numElBravaisVectors = 0; // supress initialization warning
+  numElBravaisVectors = 0; // suppress initialization warning
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
@@ -284,7 +284,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
         double x;
         infile >> x;
         if (std::find(localElVectors.begin(),localElVectors.end(), j) != localElVectors.end() ) {
-          int localIrE = j - localElVectors[0];
+          auto localIrE = int(j - localElVectors[0]);
           elBravaisVectors_(i, localIrE) = x;
         }
       }
@@ -295,7 +295,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
       double x;
       infile >> x;
       if (std::find(localElVectors.begin(),localElVectors.end(), i) != localElVectors.end() ) {
-        int localIrE = i - localElVectors[0];
+        auto localIrE = int(i - localElVectors[0]);
         elBravaisVectorsDegeneracies_(localIrE) = x;
       }
     }
@@ -324,7 +324,7 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
     for (int i5 = 0; i5 < totalNumElBravaisVectors; i5++) {
       int localIrE = -1;
       if (std::find(localElVectors.begin(),localElVectors.end(), i5) != localElVectors.end() ) {
-        localIrE = i5 - localElVectors[0];
+        localIrE = int(i5 - localElVectors[0]);
       }
       for (int i4 = 0; i4 < numPhBravaisVectors; i4++) {
         for (int i3 = 0; i3 < numPhBands; i3++) {
@@ -386,7 +386,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
   int numElectrons, numSpin;
   int numElBands, numElBravaisVectors, totalNumElBravaisVectors, numPhBands, numPhBravaisVectors;
-  // supress intialization warning
+  // suppress initialization warning
   numElBravaisVectors = 0; totalNumElBravaisVectors = 0; numPhBravaisVectors = 0;
   Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
   Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
@@ -431,13 +431,13 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
         HighFive::DataSet dphDegeneracies = file.getDataSet("/phDegeneracies");
         dphbravais.read(phBravaisVectors_);
         dphDegeneracies.read(phBravaisVectorsDegeneracies_);
-        numPhBravaisVectors = phBravaisVectors_.cols();
+        numPhBravaisVectors = int(phBravaisVectors_.cols());
 
         // read electron Bravais lattice vectors and degeneracies
         HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
         delDegeneracies.read(elBravaisVectorsDegeneracies_);
-        totalNumElBravaisVectors = elBravaisVectorsDegeneracies_.size();
-        numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
+        totalNumElBravaisVectors = int(elBravaisVectorsDegeneracies_.size());
+        numElBravaisVectors = int(elBravaisVectorsDegeneracies_.size());
         HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
         delbravais.read(elBravaisVectors_);
         // redistribute in case of pools are present
@@ -445,14 +445,12 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
           localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
           numElBravaisVectors = int(localElVectors.size());
           // copy a subset of elBravaisVectors
-          Eigen::VectorXd tmp1;
-          Eigen::MatrixXd tmp2;
-          tmp1 = elBravaisVectorsDegeneracies_;
-          tmp2 = elBravaisVectors_;
+          Eigen::VectorXd tmp1 = elBravaisVectorsDegeneracies_;
+          Eigen::MatrixXd tmp2 = elBravaisVectors_;
           elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
           elBravaisVectors_.resize(3,numElBravaisVectors);
           int i = 0;
-          for (int irE : localElVectors) {
+          for (auto irE : localElVectors) {
             elBravaisVectorsDegeneracies_(i) = tmp1(irE);
             elBravaisVectors_.col(i) = tmp2.col(irE);
             i++;
@@ -476,8 +474,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     context.setNumOccupiedStates(numElectrons);
 
     if (!mpi->mpiHeadPool()) {// head already allocated these
-      localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
-
+      localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors,
+                                           mpi->intraPoolComm);
       phBravaisVectors_.resize(3, numPhBravaisVectors);
       phBravaisVectorsDegeneracies_.resize(numPhBravaisVectors);
       elBravaisVectors_.resize(3, numElBravaisVectors);
@@ -500,7 +498,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     // user info about memory
     {
       std::complex<double> cx;
-      double x = totElems / pow(1024., 3) * sizeof(cx);
+      auto x = double(totElems / pow(1024., 3) * sizeof(cx));
       if (mpi->mpiHead()) {
         std::cout << "Allocating " << x
                   << " (GB) (per MPI process) for the el-ph coupling matrix."
@@ -519,7 +517,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     Eigen::VectorXcd gWanFlat(couplingWannier_.size());
 
     // we will either divide the work over ranks, or we will divide the work
-    // ovver the processes in the head pool
+    // over the processes in the head pool
     int comm;
     size_t start, stop, offset, numElements;
 
@@ -535,13 +533,13 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
               numElBands* numElBands * numPhBands * numPhBravaisVectors - 1;
       offset = start;
       numElements = stop - start + 1;
-    // otherwise we have the pools case, in which each process on the head
+    // else we have the pools case, in which each process on the head
     // pool reads in a piece of the matrix (associated with whatever chunk
-    // of the bravais vectors it has), then we bcast this information to
+    // of the bravais vectors it has), then we broadcast this information to
     // all pools.
     } else {
       comm = mpi->intraPoolComm;
-      // each process has it's own chunk of bravais vectors,
+      // each process has its own chunk of bravais vectors,
       // and we need to read in all the elements associated with
       // those vectors
       start = 0;
@@ -562,9 +560,9 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
 
     // if this chunk of elements to be written by this process
-    // is greater than 2GB, we must split it further due to a
+    // is greater than 2 GB, we must split it further due to a
     // limitation of HDF5 which prevents read/write of
-    // more than 2GB at a time.
+    // more than 2 GB at a time.
 
     // below, note the +1/-1 indexing on the start/stop numbers.
     // This has to do with the way divideWorkIter sets the range
@@ -574,7 +572,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     // start/stop points and the number of the total number of elements
     // to be written by this process
 
-    // maxSize represents ~1GB worth of std::complex<doubles>
+    // maxSize represents ~1 GB worth of std::complex<doubles>
     // this is the maximum amount we feel is safe to read at once.
     auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
     // the size of all elements associated with one electronic BV
@@ -584,8 +582,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
     // determine the # of eBVs to be written by this process.
     // the bunchSizes vector tells us how many BVs each process will read
-    int numEBVs = mpi->divideWorkIter(totalNumElBravaisVectors, comm).back() + 1 -
-           mpi->divideWorkIter(totalNumElBravaisVectors, comm)[0];
+    int numEBVs = int(mpi->divideWorkIter(totalNumElBravaisVectors, comm).back() + 1 -
+           mpi->divideWorkIter(totalNumElBravaisVectors, comm)[0]);
 
     // loop over eBVs and add them to the current write bunch until
     // we reach the maximum writable size
@@ -606,7 +604,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     Eigen::VectorXcd gWanSlice(numElements);
 
     // determine the number of bunches -- not necessarily evenly sized
-    int numBunches = irEBunchSizes.size();
+    auto numBunches = int(irEBunchSizes.size());
 
     // counter for offset from first element on this rank to current element
     size_t bunchOffset = 0;
@@ -633,7 +631,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       //
       // copy bunch data into gWanSlice
       for (size_t i = 0; i<bunchElements; i++) {
-        // if we're using pool, each pool proc has it's own gwanFlat
+        // if we're using pool, each pool proc has its own gwanFlat
         if(comm == mpi->intraPoolComm) {
           gWanFlat[i+bunchOffset] = gWanBunch[i];
         }
@@ -645,7 +643,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       bunchOffset += bunchElements;
     }
 
-    // collect and broadcas the matrix elements now that they have been read in
+    // collect and broadcast the matrix elements now that they have been read in
 
     // We have the standard case of 1 pool (aka no pools),
     // and we need to gather the components of the matrix into one big matrix
@@ -693,7 +691,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
       mpi->bcast(&gWanFlat);
 
     } else {
-      if (mpi->mpiHead()) {
+      if (mpi->mpiHeadPool()) {
         HighFive::File file(fileName, HighFive::File::ReadOnly);
 
         // Set up dataset for gWannier
@@ -715,7 +713,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 #endif
 
   } catch (std::exception &error) {
-    Error("Issue reading elph Wannier represenation from hdf5.");
+    Error("Issue reading elph Wannier representation from hdf5.");
   }
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
@@ -735,9 +733,8 @@ void InteractionElPhWan::calcCouplingSquared(
   auto numLoops = int(eigvecs2.size());
 
   auto elPhCached = this->elPhCached;
-  int numPhBands = this->numPhBands,
-      numPhBravaisVectors = this->numPhBravaisVectors;
-
+  int numPhBands = this->numPhBands;
+  int numPhBravaisVectors = this->numPhBravaisVectors;
   DoubleView2D phBravaisVectors_k = this->phBravaisVectors_k;
   DoubleView1D phBravaisVectorsDegeneracies_k = this->phBravaisVectorsDegeneracies_k;
 
@@ -763,27 +760,35 @@ void InteractionElPhWan::calcCouplingSquared(
   auto polarCorrections_h = Kokkos::create_mirror_view(polarCorrections);
 
   // precompute all needed polar corrections
-  #pragma omp parallel for default(none) shared(polarCorrections_h, nb1, usePolarCorrections_h, numLoops, q3Cs, eigvecs2, eigvecs3, usePolarCorrection, nb2s_h, numPhBands, eigvec1)
+#pragma omp parallel for
   for (int ik = 0; ik < numLoops; ik++) {
     Eigen::Vector3d q3C = q3Cs[ik];
-
     Eigen::MatrixXcd eigvec2 = eigvecs2[ik];
     Eigen::MatrixXcd eigvec3 = eigvecs3[ik];
-
     usePolarCorrections_h(ik) = usePolarCorrection && q3C.norm() > 1.0e-8;
     if (usePolarCorrections_h(ik)) {
-      Eigen::Tensor<std::complex<double>, 3> polarCorrection =
+      Eigen::Tensor<std::complex<double>, 3> singleCorrection =
           getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
       for (int nu = 0; nu < numPhBands; nu++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           for (int ib2 = 0; ib2 < nb2s_h(ik); ib2++) {
             polarCorrections_h(ik, nu, ib1, ib2) =
-                polarCorrection(ib2, ib1, nu);
+                singleCorrection(ib1, ib2, nu);
+          }
+        }
+      }
+    } else {
+      Kokkos::complex<double> kZero(0.,0.);
+      for (int nu = 0; nu < numPhBands; nu++) {
+        for (int ib1 = 0; ib1 < nb1; ib1++) {
+          for (int ib2 = 0; ib2 < nb2s_h(ik); ib2++) {
+            polarCorrections_h(ik, nu, ib1, ib2) = kZero;
           }
         }
       }
     }
   }
+
   Kokkos::deep_copy(polarCorrections, polarCorrections_h);
   Kokkos::deep_copy(usePolarCorrections, usePolarCorrections_h);
 
@@ -842,7 +847,7 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::parallel_for(
       "g3", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik, int nu, int ib1, int iw2) {
-        Kokkos::complex<double> tmp(0.0);
+        Kokkos::complex<double> tmp(0., 0.);
         for (int irP = 0; irP < numPhBravaisVectors; irP++) {
           tmp += phases(ik, irP) * elPhCached(irP, nu, ib1, iw2);
         }
@@ -854,7 +859,7 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::parallel_for(
       "g4", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik, int nu2, int ib1, int iw2) {
-        Kokkos::complex<double> tmp(0.0);
+        Kokkos::complex<double> tmp(0.,0.);
         for (int nu = 0; nu < numPhBands; nu++) {
           tmp += g3(ik, nu, ib1, iw2) * eigvecs3_k(ik, nu2, nu);
         }
@@ -866,7 +871,7 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::parallel_for(
       "gFinal", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, nb2max}),
       KOKKOS_LAMBDA(int ik, int nu, int ib1, int ib2) {
-        Kokkos::complex<double> tmp(0.0);
+        Kokkos::complex<double> tmp(0.,0.);
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           tmp += eigvecs2Dagger_k(ik, iw2, ib2) * g4(ik, nu, ib1, iw2);
         }
@@ -977,9 +982,9 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
   // 'copied' back into this->elPhCached. Note that no copy actually is done,
   // since Kokkos::View works similarly to a shared_ptr.
   auto elPhCached = this->elPhCached;
-  int numPhBands = this->numPhBands,
-      numElBravaisVectors = this->numElBravaisVectors,
-      numPhBravaisVectors = this->numPhBravaisVectors;
+  int numPhBands = this->numPhBands;
+  int numElBravaisVectors = this->numElBravaisVectors;
+  int numPhBravaisVectors = this->numPhBravaisVectors;
 
   if (k1C != cachedK1 || elPhCached.size() == 0) {
     cachedK1 = k1C;

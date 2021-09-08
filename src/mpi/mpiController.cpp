@@ -92,6 +92,14 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   poolSize = 1;
   poolRank = 0;
 #endif
+
+  // Print the starting time
+  if(mpiHead()) {
+    // print date and time of run
+    auto timeNow = std::chrono::system_clock::to_time_t(
+        std::chrono::system_clock::now());
+    std::cout << "Started on " << ctime(&timeNow);
+  }
 }
 
 const int MPIcontroller::worldComm = worldComm_;
