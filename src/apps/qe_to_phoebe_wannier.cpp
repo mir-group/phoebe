@@ -182,7 +182,10 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
               for (int nu = 0; nu < numModes; nu++) {
                 for (int j = 0; j < numBands; j++) {
                   for (int i = 0; i < numBands; i++) {
-                    gStar(i, j, nu, ik, iq) -= v(i, j, nu);
+                    // note the swapped indices
+                    // since gStar has indices on k+q, k bands in this order
+                    // and v has indices on k, k+q in this other order
+                    gStar(i, j, nu, ik, iq) -= v(j, i, nu);
                   }
                 }
               }
