@@ -183,6 +183,7 @@ public:
 
 protected:
   BaseBandStructure &fullBandStructure;
+  Points fullPoints;
   int id = DeltaFunction::tetrahedron;
   Eigen::MatrixXd subCellShift;
   Eigen::MatrixXi vertices;
