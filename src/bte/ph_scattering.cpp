@@ -136,9 +136,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerBose(numCalculations, numOuterIrrStates);
   outerBose.setZero();
+  std::vector<size_t> iBtes = mpi->divideWorkIter(numOuterIrrStates);
+  int niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, particle, outerBose, numOuterIrrStates, numCalculations)
-  for (int iBte : mpi->divideWorkIter(numOuterIrrStates)) {
+    shared(mpi, particle, outerBose, numOuterIrrStates, numCalculations, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx(iBte);
     StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
     double energy = outerBandStructure.getEnergy(isIdx);
@@ -154,9 +157,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerBose(numCalculations, numInnerIrrStates);
   innerBose.setZero();
+  iBtes = mpi->divideWorkIter(numInnerIrrStates);
+  niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, particle, innerBose, numInnerIrrStates, numCalculations)
-  for (int iBte : mpi->divideWorkIter(numInnerIrrStates)) {
+    shared(mpi, particle, innerBose, numInnerIrrStates, numCalculations, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx(iBte);
     StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
     double energy = innerBandStructure.getEnergy(isIdx);
@@ -754,10 +760,13 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // Add boundary scattering
   if (doBoundary) {
+    std::vector<int> is1s = outerBandStructure.irrStateIterator();
+    int nis1s = is1s.size();
 #pragma omp parallel for default(none)                                         \
     shared(inPopulations, outPopulations, innerBose, particle, linewidth,      \
-           switchCase, numCalculations)
-    for (int is1 : outerBandStructure.irrStateIterator()) { // in serial!
+           switchCase, numCalculations, nis1s, is1s)
+    for(int iis1 = 0; iis1 < nis1s; iis1++){
+      int is1 = is1s[iis1];
       StateIndex is1Idx(is1);
       double energy = outerBandStructure.getEnergy(is1Idx);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
@@ -779,7 +788,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         } else if (switchCase == 1) { // case of matrix-vector multiplication
           for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-            for (int i : {0, 1, 2}) {
+            for (int i = 0; i < 3; i++) {
               outPopulations[iVec](iCalc, i, iBte1) +=
                   rate * inPopulations[iVec](iCalc, i, iBte1);
             }

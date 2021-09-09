@@ -46,8 +46,11 @@ void SpecificHeat::calc() {
     double chemPot = calcStat.chemicalPotential;
 
     double sum = 0.;
-#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,ryToCmm1)
-    for (int is : bandStructure.irrStateIterator()) {
+    std::vector<int> iss = bandStructure.irrStateIterator();
+    int niss = iss.size();
+#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,iss,niss)
+    for(int iis = 0; iis < niss; iis++){
+      int is = iss[iis];
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
 

@@ -113,6 +113,26 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
     const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3) {
   // doi:10.1103/physrevlett.115.176401, Eq. 4, is implemented here
 
+  Eigen::VectorXcd x = polarCorrectionPart1(q3, ev3);
+  return polarCorrectionPart2(ev1, ev2, x);
+}
+
+Eigen::Tensor<std::complex<double>, 3>
+InteractionElPhWan::getPolarCorrectionStatic(
+      const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+      const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+      const Eigen::Matrix3d &epsilon,
+      const Eigen::Tensor<double, 3> &bornCharges,
+      const Eigen::MatrixXd &atomicPositions,
+      const Eigen::Vector3i &qCoarseMesh){
+  Eigen::VectorXcd x = polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell,
+                                            epsilon, bornCharges, atomicPositions, qCoarseMesh);
+  return polarCorrectionPart2(ev1, ev2, x);
+}
+
+Eigen::VectorXcd
+InteractionElPhWan::polarCorrectionPart1(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3){
   // gather variables
   double volume = crystal.getVolumeUnitCell();
   Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
@@ -122,15 +142,14 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
   Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();
   Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
 
-  return getPolarCorrectionStatic(q3, ev1, ev2, ev3, volume, reciprocalUnitCell,
+  return polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell,
                                   epsilon, bornCharges, atomicPositions,
                                   qCoarseMesh);
 }
 
-Eigen::Tensor<std::complex<double>, 3>
-InteractionElPhWan::getPolarCorrectionStatic(
-    const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
-    const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+Eigen::VectorXcd
+InteractionElPhWan::polarCorrectionPart1Static(
+    const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
     const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
     const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
     const Eigen::MatrixXd &atomicPositions,
@@ -139,10 +158,6 @@ InteractionElPhWan::getPolarCorrectionStatic(
 
   auto numAtoms = int(atomicPositions.rows());
 
-  // overlap = <U^+_{b2 k+q}|U_{b1 k}>
-  //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
-  Eigen::MatrixXcd overlap = ev2.adjoint() * ev1; // matrix size (nb2,nb1)
-  overlap = overlap.transpose();                  // matrix size (nb1,nb2)
 
   // auxiliary terms
   double gMax = 14.;
@@ -186,9 +201,19 @@ InteractionElPhWan::getPolarCorrectionStatic(
       }
     }
   }
+  return x;
+}
 
+Eigen::Tensor<std::complex<double>, 3>
+InteractionElPhWan::polarCorrectionPart2(const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x){
+  // overlap = <U^+_{b2 k+q}|U_{b1 k}>
+  //         = <psi_{b2 k+q}|e^{i(q+G)r}|psi_{b1 k}>
+  Eigen::MatrixXcd overlap = ev2.adjoint() * ev1; // matrix size (nb2,nb1)
+  overlap = overlap.transpose();                  // matrix size (nb1,nb2)
+
+  int numPhBands = x.rows();
   Eigen::Tensor<std::complex<double>, 3> v(overlap.rows(), overlap.cols(),
-                                           numPhBands);
+      numPhBands);
   v.setZero();
   for (int ib3 = 0; ib3 < numPhBands; ib3++) {
     for (int i = 0; i < overlap.rows(); i++) {
@@ -727,7 +752,8 @@ void InteractionElPhWan::calcCouplingSquared(
     const Eigen::MatrixXcd &eigvec1,
     const std::vector<Eigen::MatrixXcd> &eigvecs2,
     const std::vector<Eigen::MatrixXcd> &eigvecs3,
-    const std::vector<Eigen::Vector3d> &q3Cs) {
+    const std::vector<Eigen::Vector3d> &q3Cs,
+    const std::vector<Eigen::VectorXcd> &polarData) {
   int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   auto numLoops = int(eigvecs2.size());
@@ -768,7 +794,7 @@ void InteractionElPhWan::calcCouplingSquared(
     usePolarCorrections_h(ik) = usePolarCorrection && q3C.norm() > 1.0e-8;
     if (usePolarCorrections_h(ik)) {
       Eigen::Tensor<std::complex<double>, 3> singleCorrection =
-          getPolarCorrection(q3C, eigvec1, eigvec2, eigvec3);
+          polarCorrectionPart2(eigvec1, eigvec2, polarData[ik]);
       for (int nu = 0; nu < numPhBands; nu++) {
         for (int ib1 = 0; ib1 < nb1; ib1++) {
           for (int ib2 = 0; ib2 < nb2s_h(ik); ib2++) {

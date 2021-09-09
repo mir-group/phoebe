@@ -116,6 +116,7 @@ if (MPI_AVAIL)
   target_link_libraries(runTests ${SCALAPACK_LIB} ${BLACS_LIB} ${LAPACK_LIBRARIES} ${BLAS_LIBRARIES} -lgfortran)
 
 else()
+  set(HDF5_SERIAL ON)
 
   ## even for the serial version, we require lapack
   find_package(BLAS REQUIRED)
@@ -137,14 +138,18 @@ endif()
 
 # build with HDF5
 if(HDF5_AVAIL)
-  add_dependencies(phoebe highfive_dep)
-  add_dependencies(runTests highfive_dep)
-  target_link_libraries(phoebe hdf5)
-  target_link_libraries(runTests hdf5)
-  add_definitions("-DHDF5_AVAIL")
   if(HDF5_SERIAL)
     add_definitions("-DHDF5_SERIAL")
+  else()
+    set(HDF5_PREFER_PARALLEL TRUE)
   endif()
+  add_dependencies(phoebe highfive_dep)
+  add_dependencies(runTests highfive_dep)
+  find_package(HDF5 REQUIRED)
+  target_link_libraries(phoebe ${HDF5_LIBRARIES})
+  target_link_libraries(runTests ${HDF5_LIBRARIES})
+  include_directories(${HDF5_INCLUDE_DIRS})
+  add_definitions("-DHDF5_AVAIL")
 endif()
 
 ############# DOCS ############
