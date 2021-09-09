@@ -1387,7 +1387,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     Error("Spin is not currently supported");
   }
   // the factor 2 is the spin degeneracy factor. Change if spin support added
-  int numFilledWannier = numElectrons - bandsOffset * 2;
+  int numFilledWannier = numElectrons - (bandsOffset+1) * 2;
   // note how we only allow numFilledWannier to be an integer
   // it can be an even or odd number, so be careful if dividing it by 2
 
