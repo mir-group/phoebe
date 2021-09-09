@@ -87,7 +87,7 @@ This list is obviously not complete, and for your research project you may need 
 
 This is a quick calculation, but if there are a few cores available, you could parallelize it as::
 
-    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in nscf.in > nscf.out
+    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in scf.in > scf.out
 
 where here we have acted as if we have 4 cores. Be sure to substitute in the suitable path to the ``pw.x`` executable.
 
