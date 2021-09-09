@@ -60,12 +60,12 @@ class HelperElScattering {
                                                    const int &ik2);
 
  private:
-  InteractionElPhWan *couplingElPhWan;
   BaseBandStructure &innerBandStructure;
   BaseBandStructure &outerBandStructure;
   StatisticsSweep &statisticsSweep;
   int smearingType;
   PhononH0 &h0;
+  InteractionElPhWan *couplingElPhWan;
 
   std::unique_ptr<BaseBandStructure> bandStructure3;
   std::unique_ptr<Points> fullPoints3;

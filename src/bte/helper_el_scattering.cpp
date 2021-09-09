@@ -162,36 +162,36 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 
   // precompute the first part of the polar correction, save work
   if(storedAllQ3){
-    // get local iq3s
+    // get the list of local iq3s indices
     std::vector<int> iq3s = bandStructure3->parallelIrrPointsIterator();
-    int niq3s = iq3s.size();
+    int localNumQ3 = iq3s.size();
 
-    // sum up total # iq3s
-    std::vector<int> totalniq3s_vec(1, niq3s);
-    mpi->allReduceSum(&totalniq3s_vec);
-    int totalniq3s = totalniq3s_vec[0];
-
-    int numBands = bandStructure3->getNumBands();
-    Eigen::MatrixXcd polarData(numBands, niq3s),
-                     allPolarData(numBands, totalniq3s);
-    std::vector<int> alliq3s(totalniq3s);
+    // sum up total number of q3 indices
+    int numQ3 = localNumQ3;
+    mpi->allReduceSum(&numQ3);
 
     // compute the local columns of the matrix
+    int numBands = bandStructure3->getNumBands();
+    Eigen::MatrixXcd polarData(numBands, localNumQ3);
     #pragma omp parallel for
-    for(int iiq3 = 0; iiq3 < niq3s; iiq3++){
+    for(int iiq3 = 0; iiq3 < localNumQ3; iiq3++){
       int iq3 = iq3s[iiq3];
       WavevectorIndex iq3Index(iq3);
       Eigen::Vector3d q3 = bandStructure3->getWavevector(iq3Index);
       auto ev3 = bandStructure3->getEigenvectors(iq3Index);
       polarData.col(iiq3) = couplingElPhWan->polarCorrectionPart1(q3, ev3);
     }
+
+    // gather results from across the MPI processes
+    std::vector<int> alliq3s(numQ3);
     mpi->allGatherv(&iq3s, &alliq3s);
+    Eigen::MatrixXcd allPolarData(numBands, numQ3);
 #ifdef MPI_AVAIL
     // now gather the polar data, which has been divided column-wise
     {
       int nprocs = mpi->getSize();
-      std::vector<int> myniq3s(1, niq3s), allniq3s(nprocs), polarsizes(nprocs), polarstarts(nprocs, 0);
-      // get # niq3s on each MPI rank
+      std::vector<int> myniq3s(1, localNumQ3), allniq3s(nprocs), polarsizes(nprocs), polarstarts(nprocs, 0);
+      // get # localNumQ3 on each MPI rank
       mpi->allGather(&myniq3s, &allniq3s);
       // multiply by column size, cumulative sum to get displacements
       for(int rank = 0; rank < nprocs; rank++){
@@ -209,7 +209,10 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
 #endif
 
     // store mapping from iq3 to the polar data
-    for(int iiq3 = 0; iiq3 < totalniq3s; iiq3++){
+    // this is required since the helper.get(iq3) functions are called with
+    // iq3 being an integer running over M values between 0 and N-1, M<N
+    // while internally, we are saving the polar terms in a vector of size M
+    for(int iiq3 = 0; iiq3 < numQ3; iiq3++){
       mappedPolarData.insert({alliq3s[iiq3], allPolarData.col(iiq3)});
     }
   }
