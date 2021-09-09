@@ -98,13 +98,13 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
 
 TetrahedronDeltaFunction::TetrahedronDeltaFunction(
     BaseBandStructure &fullBandStructure_)
-    : fullBandStructure(fullBandStructure_) {
-  auto fullPoints = fullBandStructure.getPoints();
+    : fullBandStructure(fullBandStructure_),
+      fullPoints(fullBandStructure_.getPoints()) {
   auto tup = fullPoints.getMesh();
   auto grid = std::get<0>(tup);
   auto offset = std::get<1>(tup);
   if (offset.norm() > 0.) {
-    Error("We didn't implement tetrahedra with offsets", 1);
+    Error("We didn't implement tetrahedra with offsets");
   }
   if (grid(0) < 1 || grid(1) < 1 || grid(2) < 1) {
     Error("Tetrahedron method initialized with invalid wavevector grid");
@@ -166,8 +166,8 @@ double TetrahedronDeltaFunction::getSmearing(const double &energy,
   int ik = std::get<0>(t).get();
   auto ibIndex = std::get<1>(t);
 
-  auto fullPoints = fullBandStructure.getPoints();
   // if the mesh is uniform, each k-point belongs to 6 tetrahedra
+
   auto kCoordinates = fullPoints.getPointCoordinates(ik, Points::crystalCoordinates);
 
   // in this tensor, we store the offset to find the vertices of the

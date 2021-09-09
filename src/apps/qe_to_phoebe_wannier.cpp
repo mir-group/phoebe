@@ -184,7 +184,10 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
               for (int nu = 0; nu < numModes; nu++) {
                 for (int j = 0; j < numBands; j++) {
                   for (int i = 0; i < numBands; i++) {
-                    gStar(i, j, nu, ik, iq) -= v(i, j, nu);
+                    // note the swapped indices
+                    // since gStar has indices on k+q, k bands in this order
+                    // and v has indices on k, k+q in this other order
+                    gStar(i, j, nu, ik, iq) -= v(j, i, nu);
                   }
                 }
               }
@@ -1518,11 +1521,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       // to be written by this process
       size_t start = mpi->divideWorkIter(numElBravaisVectors)[0] * numWannier *
                   numWannier * numModes * numPhBravaisVectors;
-      size_t stop = (mpi->divideWorkIter(numElBravaisVectors).back() + 1) *
-                     numWannier * numWannier * numModes * numPhBravaisVectors -
-                 1;
       size_t offset = start;
-      size_t numElements = stop - start + 1;
 
       // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
       // ( due to max(int 32 bit))/1024^3 = 2Gb overflowing in MPI)
@@ -1535,19 +1534,20 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
       auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
       size_t smallestSize =
           numWannier * numWannier * numModes * numPhBravaisVectors;
-      int size, irEBunchSize;
       std::vector<int> irEBunchSizes;
 
       // determine the size of each bunch of electronic bravais vectors
       // the BunchSizes vector tells us how many are in each set
-      size = mpi->divideWorkIter(numElBravaisVectors).back() + 1 -
+      int numBVs = mpi->divideWorkIter(numElBravaisVectors).back() + 1 -
              mpi->divideWorkIter(numElBravaisVectors)[0];
-      for (int irE = 0; irE < size; irE++) {
-        irEBunchSize = irE + 1;
+
+      int irEBunchSize = 0;
+      for (int irE = 0; irE < numBVs; irE++) {
+        irEBunchSize++;
         // this bunch is as big as possible, stop adding to it
         if ((irEBunchSize + 1) * smallestSize > maxSize) {
           irEBunchSizes.push_back(irEBunchSize);
-          break;
+          irEBunchSize = 0;
         }
       }
       // push the last one, no matter the size, to the list of bunch sizes
@@ -1566,7 +1566,6 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
         // sub-slice of the dataset available to this process
         size_t bunchElements = irEBunchSizes[iBunch] * smallestSize;
         size_t bunchStart = start + netOffset;
-        size_t bunchStop = bunchStart + bunchElements;
         size_t bunchOffset = offset + netOffset;
         netOffset += bunchElements;
 

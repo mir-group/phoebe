@@ -166,7 +166,7 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 Step 5: Run nscf
 -----------------
 
-Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an nscf run to calculate the electronic properties on the k-point mesh. We do so using the input file in the ``Silicon-epa`` example folder:: 
+Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an nscf run to calculate the electronic properties on the k-point mesh. We do so using the input file in the ``Silicon-epa`` example folder::
 
   &control
     calculation = "nscf"
@@ -193,17 +193,17 @@ Before we can run Phoebe, we need to complete one more step using Quantum ESPRES
     Si 0.25 0.25 0.25
   K_POINTS crystal
   216
-    0.00000000  0.00000000  0.00000000  4.629630e-03 
-    0.00000000  0.00000000  0.16666667  4.629630e-03 
+    0.00000000  0.00000000  0.00000000  4.629630e-03
+    0.00000000  0.00000000  0.16666667  4.629630e-03
     ...
 
 where the k-points list will continue for all 216 points. To generate this k-point list, one could use the ``kmesh.pl`` utility from Wannier90 (in the directory ``q-e/wannier90-3.0.0/utility/kmesh.pl``, used as ``kmesh.pl nk1 nk2 nk3``, with the output appended to the end of ``nscf.in``).
 
-We run this as we did the ``pw.x`` step:: 
+We run this as we did the ``pw.x`` step::
 
     mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in nscf.in > nscf.out
 
-where again this could be parallelized using ``mpi`` and ``npool``. 
+where again this could be parallelized using ``mpi`` and ``npool``.
 
 
 Step 6: QE to Phoebe conversion
@@ -361,4 +361,12 @@ In this tutorial, we show a demo calculation, which is certainly unconverged. We
 * Check the convergence of the electronic transport results with respect to the energy bins used in the EPA approximation
 
 * Test the convergence of the density of states w.r.t. the ``kMesh`` parameter.
+
+Parallelization
+---------------
+
+* **For the qeToPhoebeWannier app:** The electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
+
+  If this is the case, you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
+
 

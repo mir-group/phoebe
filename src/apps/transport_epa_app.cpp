@@ -12,7 +12,6 @@
 #include "qe_input_parser.h"
 #include "statistics_sweep.h"
 #include "utilities.h"
-#include "vector_bte.h"
 #include <nlohmann/json.hpp>
 #include <vector>
 
@@ -30,7 +29,7 @@ void TransportEpaApp::run(Context &context) {
   double energyStep = context.getEpaEnergyStep();
 
   // in principle, we should add 1 to account for ends of energy interval
-  // i will not do that, because will work with the centers of energy steps
+  // I will not do that, because will work with the centers of energy steps
   int numEnergies = int((maxEnergy - minEnergy) / energyStep);
   // energies at the centers of energy steps
   Eigen::VectorXd energies(numEnergies);
@@ -50,7 +49,7 @@ void TransportEpaApp::run(Context &context) {
   // filter to only the bands relevant to transport
   electronH0.trimBands(context, minEnergy, maxEnergy);
 
-  // Fourier interpolation of the electronic band structure
+  // Fourier's interpolation of the electronic band structure
   bool withVelocities = true;
   bool withEigenvectors = false;
   FullBandStructure bandStructure =
@@ -86,7 +85,6 @@ void TransportEpaApp::run(Context &context) {
   OnsagerCoefficients transCoefficients(statisticsSweep, crystal, bandStructure,
                                         context);
   transCoefficients.calcFromEPA(scatteringRates, energyProjVelocity, energies);
-  transCoefficients.calcTransportCoefficients();
   transCoefficients.print();
   transCoefficients.outputToJSON("epa_onsager_coefficients.json");
 }
@@ -119,9 +117,6 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   int numEnergies = int(energies.size());
   int numPoints = std::get<0>(bandStructure.getPoints().getMesh()).prod();
 
-  Eigen::Tensor<double, 3> energyProjVelocity(3, 3, numEnergies);
-  energyProjVelocity.setZero();
-
   if (mpi->mpiHead()) {
     std::cout << "\nCalculating energy projected velocity tensor" << std::endl;
   }
@@ -131,15 +126,16 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   double norm = pow(twoPi, dim) / crystal.getVolumeUnitCell(dim) / numPoints;
   double normDos = 1. / crystal.getVolumeUnitCell(dim) / numPoints;
 
+  Eigen::Tensor<double, 3> energyProjVelocity(3, 3, numEnergies);
+  energyProjVelocity.setZero();
   Eigen::VectorXd dos(numEnergies);
+  dos.setZero();
 
   LoopPrint loopPrint("calculating energy projected velocity", "states",
       numEnergies);
   std::vector<size_t> iEnergies = mpi->divideWorkIter(numEnergies);
   size_t niEnergies = iEnergies.size();
-#pragma omp parallel for default(none)                                         \
-  shared(bandStructure, loopPrint, numEnergies, tetrahedrons, energies,      \
-      energyProjVelocity, mpi, norm, normDos, dos, iEnergies, niEnergies)
+#pragma omp parallel for
   for (size_t iiEnergy = 0; iiEnergy < niEnergies; iiEnergy++) {
     int iEnergy = iEnergies[iiEnergy];
 #pragma omp critical
@@ -227,10 +223,7 @@ VectorEPA TransportEpaApp::getScatteringRates(
   std::vector<size_t> iEnergies = mpi->divideWorkIter(numEnergies);
   size_t niEnergies = iEnergies.size();
 
-#pragma omp parallel for default(none)                                         \
-    shared(norm, mpi, numEnergies, numCalculations, statisticsSweep, epaRate,  \
-           couplingEpa, bose, loopPrint, dos, particle, energies, phEnergies,  \
-           numModes, energyStep, iEnergies, niEnergies)
+#pragma omp parallel for
   for (size_t iiEnergy = 0; iiEnergy < niEnergies; iiEnergy++) {
     int iEnergy = iEnergies[iiEnergy];
 
@@ -247,8 +240,8 @@ VectorEPA TransportEpaApp::getScatteringRates(
       // scatterings mechanisms, and do a linear interpolation
       int iJump = int(phEnergies(iPhFreq) / energyStep);
       double iInterp = phEnergies(iPhFreq) / energyStep - double(iJump);
-      int largeIndex = iEnergy + iJump + 1;
-      int smallIndex = iEnergy - iJump - 1;
+      auto largeIndex = int(iEnergy + iJump + 1);
+      auto smallIndex = int(iEnergy - iJump - 1);
       double dosEmission = 0.;
       double dosAbsorption = 0.;
       // Avoid some index out of bound errors

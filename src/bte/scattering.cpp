@@ -52,7 +52,13 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   }
 }
 
-ScatteringMatrix::~ScatteringMatrix() { delete smearing; }
+ScatteringMatrix::~ScatteringMatrix() {
+  if (context.getConstantRelaxationTime() > 0.) {
+    return; // smearing is not assigned in CRT case
+  } else {
+    delete smearing;
+  }
+}
 
 // copy constructor
 ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)

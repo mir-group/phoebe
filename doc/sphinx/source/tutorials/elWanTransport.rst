@@ -336,11 +336,11 @@ and wait until completion.
 
 Note that this calculation can be memory intensive.
 For this reason, we recommend to limit/avoid use of MPI parallelization and use a large number of OMP threads (if you compiled the code with OpenMP. OpenMP is useful, because it allows multiple threads to work on a problem while sharing the memory on a node).
+
 For some large calculations, the electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
 If this is the case (e.g. if some segmentation faults appear), you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
 After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support.
-
 
 
 Step 8: Electronic Transport from Wannier interpolation
@@ -398,9 +398,13 @@ To run the code, we can simply do::
   export OMP_NUM_THREADS=4
   /path/to/phoebe/build/phoebe -in electronWannierTransport.in -out ewt.out
 
-  .. note::
+
+.. note::
      Transport coefficients should be converged with respect to the :ref:`kMesh` parameter, as well as the :ref:`smearingWidth`, if the Gaussian smearing method is chosen.
 
+.. note::
+
+  If this calculation runs out of memory, reference the parallelization section at the bottom of the page for advice.
 
 Output
 ------
@@ -473,11 +477,17 @@ In this tutorial we show a demo calculation, which is certainly unconverged. We 
 Parallelization
 ----------------
 
-The sections on parallelization discussed for the phonon transport app apply to the electronic transport app as well.
+The sections on parallelization discussed for the phonon transport app apply to the electronic transport app as well. In addition to this, there were a few important points mentioned in the text of this tutorial:
 
-.. note::
-   TLDR: :ref:`scatteringMatrixInMemory` = true speeds up calculations but requires a lot of memory (if the code fails the memory allocation, you need to request more HPC resources).
-   Running with ``useSymmetries = true`` can help to mitigate the issue.
+* **For the qeToPhoebeWannier app:** The electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
 
-   To parallelize your calculation for cases where memory is an issue, set the number of MPI processes equal to the number of nodes, and set the number of OMP threads equal to the number of cores in the node. This will allow each process to use all the memory on a node, while still getting parallel performace benefit from the OMP threads. If applicable, the number of GPUs should match the number of MPI processes.
+  If this is the case, you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
+
+* **For the electronWannierTransport app:**
+
+  * **If the code fails while reading in the el-ph coupling HDF5 file:** If your electron-phonon tensor has become to large to fit on a single node (the case when MPI processes = 1, OMP threads = #cores/node), you can group the MPI processes into groups, (aka "pools") of processes. Each pool of processes takes a section of the tensor, parallelized over the :math:`R_e` vectors. For a more detailed description of this, see the :ref:`poolsize` section of the "Running Phoebe" section.
+
+  * **If the code fails while allocating the scattering matrix:** :ref:`scatteringMatrixInMemory` = true speeds up calculations but requires a lot of memory. If the code fails during the memory allocation of the scattering matrix, you need to request more HPC resources. More MPI processes can help alleviate this, because the scattering matrix is distributed over MPI processes using ScaLAPACK/BLACS. Running with ``useSymmetries = true`` can also help to mitigate the issue by decreasing the size of the matrix.
+
+* **For any calculation where memory is an issue:** To parallelize your calculation for cases where memory is an issue, set the number of MPI processes equal to the number of nodes, and set the number of OMP threads equal to the number of cores in the node. This will allow each process to use all the memory on a node, while still getting parallel performace benefit from the OMP threads. If applicable, the number of GPUs should match the number of MPI processes.
 

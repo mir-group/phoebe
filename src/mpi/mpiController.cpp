@@ -37,6 +37,7 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
       if (i == argc-1) {
         Error("Error in correctly specifying poolSize on the command line");
       }
+      hasMPIPools = true;
       bool isDigits = std::string(argv[i+1]).find_first_not_of("0123456789") == std::string::npos;
       if ( !isDigits ) {
         std::cout << "poolSize on command line has non-digits\n";
@@ -82,6 +83,8 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   startTime = MPI_Wtime();
 
 #else
+  (void)argv;
+  (void)argc;
   // To maintain consistency when running in serial
   size = 1;
   rank = 0;
@@ -89,6 +92,14 @@ MPIcontroller::MPIcontroller(int argc, char *argv[]) {
   poolSize = 1;
   poolRank = 0;
 #endif
+
+  // Print the starting time
+  if(mpiHead()) {
+    // print date and time of run
+    auto timeNow = std::chrono::system_clock::to_time_t(
+        std::chrono::system_clock::now());
+    std::cout << "Started on " << ctime(&timeNow);
+  }
 }
 
 const int MPIcontroller::worldComm = worldComm_;
@@ -127,6 +138,8 @@ void MPIcontroller::errorReport(int errCode) const {
   MPI_Error_string(errCode, errString, &lengthOfString);
   fprintf(stderr, "Error from rank %3d: %s\n", rank, errString);
   MPI_Abort(MPI_COMM_WORLD, errCode);
+#else
+(void)errCode;
 #endif
 }
 
@@ -207,6 +220,7 @@ MPIcontroller::workDivHelper(size_t numTasks) const {
   for (int i = 0; i < size; i++) {
     workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
   }
+
   return {workDivs, workDivisionHeads};
 }
 
