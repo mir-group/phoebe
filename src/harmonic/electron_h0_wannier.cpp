@@ -92,16 +92,18 @@ ElectronH0Wannier::diagonalize(Point &point) {
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
 
-  Eigen::MatrixXcd h0K(numBands, numBands);
-  h0K.setZero();
-
+  std::vector<std::complex<double>> phases(bravaisVectors.cols());
   for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
-    Eigen::Vector3d R = bravaisVectors.col(iR);
-    double phase = k.dot(R);
+    double phase = k.dot(bravaisVectors.col(iR));
     std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+    phases[iR] = phaseFactor / vectorsDegeneracies(iR);
+  }
+
+  Eigen::MatrixXcd h0K = Eigen::MatrixXcd::Zero(numBands, numBands);
+  for (int n = 0; n < numBands; n++) {
     for (int m = 0; m < numBands; m++) {
-      for (int n = 0; n < numBands; n++) {
-        h0K(m, n) += phaseFactor * h0R(iR, m, n) / vectorsDegeneracies(iR);
+      for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
+        h0K(m, n) += phases[iR] * h0R(iR, m, n);
       }
     }
   }
@@ -255,7 +257,11 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
-  for (auto ik : fullBandStructure.getWavevectorIndices()) {
+  std::vector<int> iks = fullBandStructure.getWavevectorIndices();
+  int niks = iks.size();
+#pragma omp parallel for
+  for(int iik = 0; iik < niks; iik++){
+    int ik = iks[iik];
     Point point = fullBandStructure.getPoint(ik);
     auto tup = diagonalize(point);
     auto ens = std::get<0>(tup);

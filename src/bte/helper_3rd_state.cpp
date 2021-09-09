@@ -46,22 +46,32 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // now, we loop over the pairs of wavevectors
     std::set<int> listOfIndexes;
     int numPoints = innerPoints.getNumPoints();
-    for (int iq2 : mpi->divideWorkIter(numPoints)) {
-      for (int iq1 = 0; iq1 < numPoints; iq1++) {
-        Eigen::Vector3d q1Coordinates =
+    std::vector<size_t> iq2s = mpi->divideWorkIter(numPoints);
+    int niq2s = iq2s.size();
+#pragma omp parallel
+    {
+      std::set<int> myIndexes;
+#pragma omp for nowait
+      for(int iiq2 = 0; iiq2 < niq2s; iiq2++){
+        int iq2 = iq2s[iiq2];
+        for (int iq1 = 0; iq1 < numPoints; iq1++) {
+          Eigen::Vector3d q1Coordinates =
             innerPoints.getPointCoordinates(iq1, Points::crystalCoordinates);
-        Eigen::Vector3d q2Coordinates =
+          Eigen::Vector3d q2Coordinates =
             innerPoints.getPointCoordinates(iq2, Points::crystalCoordinates);
 
-        Eigen::Vector3d q3PlusCoordinates = q1Coordinates + q2Coordinates;
-        Eigen::Vector3d q3MinusCoordinates = q1Coordinates - q2Coordinates;
+          Eigen::Vector3d q3PlusCoordinates = q1Coordinates + q2Coordinates;
+          Eigen::Vector3d q3MinusCoordinates = q1Coordinates - q2Coordinates;
 
-        int iq3Plus = fullPoints3->getIndex(q3PlusCoordinates);
-        int iq3Minus = fullPoints3->getIndex(q3MinusCoordinates);
+          int iq3Plus = fullPoints3->getIndex(q3PlusCoordinates);
+          int iq3Minus = fullPoints3->getIndex(q3MinusCoordinates);
 
-        listOfIndexes.insert(iq3Plus);
-        listOfIndexes.insert(iq3Minus);
+          myIndexes.insert(iq3Plus);
+          myIndexes.insert(iq3Minus);
+        }
       }
+#pragma omp critical
+      listOfIndexes.insert(myIndexes.begin(), myIndexes.end());
     }
 
     std::vector<int> localCounts(mpi->getSize(), 0);
@@ -88,10 +98,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     mpi->allReduceSum(&globalListOfIndexes);
 
     // now we must avoid duplicates between different MPI processes
-    std::set<int> setOfIndexes;
-    for (auto x : globalListOfIndexes) {
-      setOfIndexes.insert(x);
-    }
+    std::set<int> setOfIndexes(globalListOfIndexes.begin(), globalListOfIndexes.end());
 
     // create the filtered list of points
     Eigen::VectorXi filter(setOfIndexes.size());
@@ -106,8 +113,6 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     // build band structure
     bool withEigenvectors = true;
     bool withVelocities = true;
-    std::unique_ptr<ActiveBandStructure> bs(new ActiveBandStructure(
-        activePoints3, h0, withEigenvectors, withVelocities));
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         activePoints3, h0, withEigenvectors, withVelocities);
   }

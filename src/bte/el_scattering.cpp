@@ -87,10 +87,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd outerFermi(numCalculations, numOuterIrrStates);
   outerFermi.setZero();
+  std::vector<size_t> iBtes = mpi->divideWorkIter(numOuterIrrStates);
+  int niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
     shared(mpi, outerBandStructure, numCalculations, statisticsSweep,          \
-           particle, outerFermi, numOuterIrrStates)
-  for (int iBte : mpi->divideWorkIter(numOuterIrrStates)) {
+           particle, outerFermi, numOuterIrrStates, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
     double energy = outerBandStructure.getEnergy(isIdx);
@@ -106,10 +109,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
   Eigen::MatrixXd innerFermi(numCalculations, numInnerIrrStates);
   innerFermi.setZero();
+  iBtes = mpi->divideWorkIter(numInnerIrrStates);
+  niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
     shared(numInnerIrrStates, mpi, innerBandStructure, statisticsSweep,        \
-           particle, innerFermi, numCalculations)
-  for (int iBte : mpi->divideWorkIter(numInnerIrrStates)) {
+           particle, innerFermi, numCalculations, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
     double energy = innerBandStructure.getEnergy(isIdx);
@@ -133,7 +139,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                                 statisticsSweep, smearing->getType(), h0);
+                                 statisticsSweep, smearing->getType(), h0, couplingElPhWan);
 
   bool withSymmetries = context.getUseSymmetries();
 
@@ -194,6 +200,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
       std::vector<Eigen::MatrixXd> allV3s(batch_size);
       std::vector<Eigen::MatrixXd> allBose3Data(batch_size);
+      std::vector<Eigen::VectorXcd> allPolarData(batch_size);
 
       std::vector<Eigen::Vector3d> allK2C(batch_size);
       std::vector<Eigen::MatrixXcd> allEigenVectors2(batch_size);
@@ -202,7 +209,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
-#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C)
+#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C, allPolarData)
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         int ik2 = ik2Indexes[start + ik2Batch];
         WavevectorIndex ik2Idx(ik2);
@@ -217,10 +224,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         allEigenVectors3[ik2Batch] = std::get<3>(t2);
         allV3s[ik2Batch] = std::get<4>(t2);
         allBose3Data[ik2Batch] = std::get<5>(t2);
+        allPolarData[ik2Batch] = std::get<6>(t2);
       }
 
       couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
-                                           allEigenVectors3, allQ3C);
+                                           allEigenVectors3, allQ3C, allPolarData);
 
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
@@ -384,10 +392,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
 
   if (doBoundary) {
+    std::vector<int> is1s = outerBandStructure.irrStateIterator();
+    int nis1s = is1s.size();
 #pragma omp parallel for default(none) shared(                                 \
     outerBandStructure, numCalculations, statisticsSweep, boundaryLength,      \
-    particle, outPopulations, inPopulations, linewidth, switchCase)
-    for (int is1 : outerBandStructure.irrStateIterator()) {
+    particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
+    for(int iis1 = 0; iis1 < nis1s; iis1++){
+      int is1 = is1s[iis1];
       StateIndex is1Idx(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
       int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
@@ -400,7 +411,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
         } else if (switchCase == 1) { // case of matrix-vector multiplication
           for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-            for (int i : {0, 1, 2}) {
+            for (int i = 0; i < 3; i++) {
               outPopulations[iVec](iCalc, i, iBte1) +=
                   rate * inPopulations[iVec](iCalc, i, iBte1);
             }

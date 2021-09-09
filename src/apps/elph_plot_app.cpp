@@ -82,10 +82,13 @@ void ElPhCouplingPlotApp::run(Context &context) {
     eigenVectors3.push_back(eigenVector3);
     std::vector<Eigen::Vector3d> q3Cs;
     q3Cs.push_back(q3C);
+    std::vector<Eigen::VectorXcd> polarData;
+    Eigen::VectorXcd polar = couplingElPh.polarCorrectionPart1(q3C, eigenVector3);
+    polarData.push_back(polar);
 
     couplingElPh.cacheElPh(eigenVector1, k1C);
     couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3,
-                                     q3Cs);
+                                     q3Cs, polarData);
     auto coupling = couplingElPh.getCouplingSquared(0);
 
     double sum1 = 0.;

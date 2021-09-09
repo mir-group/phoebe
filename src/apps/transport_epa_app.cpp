@@ -132,9 +132,12 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   dos.setZero();
 
   LoopPrint loopPrint("calculating energy projected velocity", "states",
-                      numEnergies);
+      numEnergies);
+  std::vector<size_t> iEnergies = mpi->divideWorkIter(numEnergies);
+  size_t niEnergies = iEnergies.size();
 #pragma omp parallel for
-  for (unsigned int iEnergy : mpi->divideWorkIter(numEnergies)) {
+  for (size_t iiEnergy = 0; iiEnergy < niEnergies; iiEnergy++) {
+    int iEnergy = iEnergies[iiEnergy];
 #pragma omp critical
     { loopPrint.update(); }
     for (int iState : bandStructure.irrStateIterator()) {
@@ -149,10 +152,10 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
 
       for (const Eigen::Matrix3d &r : rotations) {
         Eigen::Vector3d velocity = r * velIrr;
-        for (int j : {0, 1, 2}) {
-          for (int i : {0, 1, 2}) {
+        for (int j  = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
             energyProjVelocity(i, j, iEnergy) +=
-                velocity(i) * velocity(j) * deltaFunction * norm;
+              velocity(i) * velocity(j) * deltaFunction * norm;
           }
         }
       }
@@ -217,8 +220,12 @@ VectorEPA TransportEpaApp::getScatteringRates(
   double norm = twoPi / spinFactor *
                 crystal.getVolumeUnitCell(crystal.getDimensionality());
 
+  std::vector<size_t> iEnergies = mpi->divideWorkIter(numEnergies);
+  size_t niEnergies = iEnergies.size();
+
 #pragma omp parallel for
-  for (unsigned int iEnergy : mpi->divideWorkIter(numEnergies)) {
+  for (size_t iiEnergy = 0; iiEnergy < niEnergies; iiEnergy++) {
+    int iEnergy = iEnergies[iiEnergy];
 
 #pragma omp critical
     { loopPrint.update(); }

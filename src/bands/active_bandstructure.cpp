@@ -68,9 +68,13 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   windowMethod = Window::nothing;
   buildIndices();
 
+  std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
+  size_t niks = iks.size();
+
   // now we can loop over the trimmed list of points
-#pragma omp parallel for default(none) shared(mpi, numPoints, h0, points, withEigenvectors, withVelocities)
-  for (int ik : mpi->divideWorkIter(numPoints)) {
+#pragma omp parallel for default(none) shared(mpi, numPoints, h0, points, withEigenvectors, withVelocities, iks, niks)
+  for (size_t iik = 0; iik < niks; iik++) {
+    size_t ik = iks[iik];
     Point point = points.getPoint(ik);
     auto tup = h0->diagonalize(point);
     auto theseEnergies = std::get<0>(tup);
@@ -535,10 +539,14 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
 
 /////////////////
 
+  std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
+  size_t niks = iks.size();
+
 // now we can loop over the trimmed list of points
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities)
-  for (int ik : mpi->divideWorkIter(numPoints)) {
+    shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities, iks, niks)
+  for (size_t iik = 0; iik < niks; iik++) {
+    size_t ik = iks[iik];
     Point point = points.getPoint(ik);
     auto tup = h0.diagonalize(point);
     auto theseEnergies = std::get<0>(tup);

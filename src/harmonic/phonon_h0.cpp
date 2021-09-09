@@ -496,8 +496,8 @@ void PhononH0::reorderDynamicalMatrix() {
               m2 += -1;
               m3 += -1;
 
-              for (int i : {0, 1, 2}) {
-                for (int j : {0, 1, 2}) {
+              for (int j : {0, 1, 2}) {
+                for (int i : {0, 1, 2}) {
                   mat2R(i, j, na, nb, iR) +=
                       forceConstants(i, j, m1, m2, m3, na, nb);
                 }

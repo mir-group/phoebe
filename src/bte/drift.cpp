@@ -5,8 +5,11 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        const int &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle)
-  for (int is : bandStructure.parallelIrrStateIterator()) {
+  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  int niss = iss.size();
+#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
+  for(int iis = 0; iis < niss; iis++){
+    int is = iss[iis];
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
@@ -15,7 +18,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
-      for (int i : {0, 1, 2}) {
+      for (int i = 0; i < 3; i++) {
         operator()(iCalc, i, iBte) =
             particle.getDndt(energy, temp, chemPot) * vel(i);
       }
@@ -29,8 +32,11 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
                        const int &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle)
-  for (int is : bandStructure.parallelIrrStateIterator()) {
+  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  int niss = iss.size();
+#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
+  for(int iis = 0; iis < niss; iis++){
+    int is = iss[iis];
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
@@ -40,7 +46,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
       double x = particle.getDnde(energy, temp, chemPot);
-      for (int i : {0, 1, 2}) {
+      for (int i = 0; i < 3; i++) {
         // note: this is tuned for electrons
         // EDrift = e v dn/de
         operator()(iCalc, i, iBte) = x * vel(i);
@@ -55,8 +61,11 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
     : VectorBTE(statisticsSweep_, bandStructure_, 1) {
 
   Particle particle = bandStructure.getParticle();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle,specificHeat)
-  for (int is : bandStructure.parallelIrrStateIterator()) {
+  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  int niss = iss.size();
+#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle,specificHeat, niss, iss)
+  for(int iis = 0; iis < niss; iis++){
+    int is = iss[iis];
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     int iBte = bandStructure.stateToBte(isIdx).get();
