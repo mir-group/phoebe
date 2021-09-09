@@ -124,7 +124,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
                 gStar(ib1, ib2, nu, ik, iqStar) =
-                    gStarTmp(bandsOffset + 1 + ib1, bandsOffset + 1 + ib2, nu,
+                    gStarTmp(bandsOffset + ib1, bandsOffset + ib2, nu,
                              ik, iqStar);
               }
             }
@@ -985,8 +985,10 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     }
   }
 
-  if (possibleValues == 0) {
+  if (possibleValues == 0) { // there cannot be an offset, then offset is 0
     offset = 0;
+  } else { // if there is an offset found, we increase it by one
+    offset += 1;
   }
 
   if (offset == -1) {
@@ -1387,7 +1389,7 @@ void ElPhQeToPhoebeApp::postProcessingWannier(
     Error("Spin is not currently supported");
   }
   // the factor 2 is the spin degeneracy factor. Change if spin support added
-  int numFilledWannier = numElectrons - (bandsOffset+1) * 2;
+  int numFilledWannier = numElectrons - bandsOffset * 2;
   // note how we only allow numFilledWannier to be an integer
   // it can be an even or odd number, so be careful if dividing it by 2
 
