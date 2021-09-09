@@ -126,7 +126,7 @@ ElPhQeToPhoebeApp::BlochToWannierEfficient(
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
                 gStar(ib1, ib2, nu, ik, iqStar) =
-                    gStarTmp(bandsOffset + 1 + ib1, bandsOffset + 1 + ib2, nu,
+                    gStarTmp(bandsOffset + ib1, bandsOffset + ib2, nu,
                              ik, iqStar);
               }
             }
@@ -985,8 +985,10 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
     }
   }
 
-  if (possibleValues == 0) {
+  if (possibleValues == 0) { // there cannot be an offset, then offset is 0
     offset = 0;
+  } else { // if there is an offset found, we increase it by one
+    offset += 1;
   }
 
   if (offset == -1) {

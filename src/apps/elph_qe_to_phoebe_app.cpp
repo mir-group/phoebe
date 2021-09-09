@@ -255,7 +255,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
             for (int ib2 = 0; ib2 < numWannier; ib2++) {
               for (int ib1 = 0; ib1 < numWannier; ib1++) {
                 gFull(ib1, ib2, nu, ik, iqFull) =
-                    gStar(bandsOffset + 1 + ib1, bandsOffset + 1 + ib2, nu, ik, iqStar);
+                    gStar(bandsOffset + ib1, bandsOffset + ib2, nu, ik, iqStar);
               }
             }
           }
