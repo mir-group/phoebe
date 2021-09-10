@@ -1127,7 +1127,7 @@ Kokkos::parallel_for(
     });
 #else
 
-#pragma omp parallel default(none) shared(g1, phases_k, numPhBravaisVectors, numPhBands, numWannier, numElBravaisVectors, couplingWannier_k)
+#pragma omp parallel
       {
 #pragma omp for collapse(4)
         for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -1139,7 +1139,6 @@ Kokkos::parallel_for(
             }
           }
         }
-#pragma omp barrier
         for (int irE = 0; irE < numElBravaisVectors; irE++) {
 #pragma omp for collapse(4)
           for (int irP = 0; irP < numPhBravaisVectors; irP++) {
@@ -1151,7 +1150,6 @@ Kokkos::parallel_for(
               }
             }
           }
-#pragma omp barrier
         }
       }
 #endif
