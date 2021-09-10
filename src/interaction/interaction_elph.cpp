@@ -4,6 +4,7 @@
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
+#include <Kokkos_ScatterView.hpp>
 #endif
 
 // default constructor
@@ -1126,32 +1127,18 @@ Kokkos::parallel_for(
       g1(irP, nu, iw1, iw2) = tmp;
     });
 #else
-
-#pragma omp parallel
-      {
-#pragma omp for collapse(4)
-        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-          for (int nu = 0; nu < numPhBands; nu++) {
-            for (int iw1 = 0; iw1 < numWannier; iw1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                g1(irP, nu, iw1, iw2) = 0.0;
-              }
-            }
-          }
+    Kokkos::deep_copy(g1, Kokkos::complex<double>(0.0,0.0));
+    Kokkos::Experimental::ScatterView<Kokkos::complex<double>****> g1scatter(g1);
+    Kokkos::parallel_for(
+        "g1",
+        Range5D({0,0,0,0,0},
+                {numElBravaisVectors, numPhBravaisVectors, numPhBands, numWannier, numWannier}),
+        KOKKOS_LAMBDA(int irE, int irP, int nu, int iw1, int iw2) {
+          auto g1 = g1scatter.access();
+          g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
         }
-        for (int irE = 0; irE < numElBravaisVectors; irE++) {
-#pragma omp for collapse(4)
-          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
-            for (int nu = 0; nu < numPhBands; nu++) {
-              for (int iw1 = 0; iw1 < numWannier; iw1++) {
-                for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                  g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
-                }
-              }
-            }
-          }
-        }
-      }
+    );
+    Kokkos::Experimental::contribute(g1, g1scatter);
 #endif
 
       // now we need to add the rotation on the electronic coordinates
