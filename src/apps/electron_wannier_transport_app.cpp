@@ -349,7 +349,11 @@ void ElectronWannierTransportApp::runVariationalMethod(
   VectorBTE bE(statisticsSweep, bandStructure, 3);
   VectorBTE bT(statisticsSweep, bandStructure, 3);
   Particle particle = bandStructure.getParticle();
-  for (int is : bandStructure.parallelIrrStateIterator()) {
+  auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
+  size_t numParallelIrrStates = parallelIrrStates.size();
+#pragma omp parallel for
+  for (size_t iss=0; iss<numParallelIrrStates; iss++) {
+    int is = parallelIrrStates[iss];
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
@@ -441,7 +445,11 @@ void ElectronWannierTransportApp::runVariationalMethod(
     // we need to do this because we didn't remove this factor from sMatrix
     VectorBTE z2E = zNewE;
     VectorBTE z2T = zNewT;
-    for (int is : bandStructure.parallelIrrStateIterator()) {
+    auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
+    size_t numParallelIrrStates = parallelIrrStates.size();
+#pragma omp parallel for
+    for (size_t iss=0; iss<numParallelIrrStates; iss++) {
+      int is = parallelIrrStates[iss];
       StateIndex isIdx(is);
       double energy = bandStructure.getEnergy(isIdx);
       int iBte = bandStructure.stateToBte(isIdx).get();
