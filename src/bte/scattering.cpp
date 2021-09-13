@@ -152,8 +152,16 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
+#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
+initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
+                               omp_orig.bandStructure, omp_orig.dimensionality))
+    auto allLocalStates = theMatrix.getAllLocalStates();
+    size_t numAllLocalStates = allLocalStates.size();
+
     if (context.getUseSymmetries()) {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         int iMat1 = std::get<0>(tup);
         int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
@@ -168,7 +176,9 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
             theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
         if (iBte1 == iBte2)
@@ -203,9 +213,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   std::vector<VectorBTE> outPopulations = dot(inPopulations);
   for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-#pragma omp parallel for collapse(3) default(none)                             \
-    shared(numCalculations, numStates, outPopulations, internalDiagonal,              \
-           inPopulations, iVec)
+#pragma omp parallel for collapse(3)
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
@@ -224,8 +232,17 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
+    auto allLocalStates = theMatrix.getAllLocalStates();
+    size_t numAllLocalStates = allLocalStates.size();
+
+ #pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
+ initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
+                                omp_orig.bandStructure, omp_orig.dimensionality))
+
     if (context.getUseSymmetries()) {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         int iMat1 = std::get<0>(tup);
         int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
@@ -246,7 +263,9 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
             theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
 
@@ -320,7 +339,12 @@ void ScatteringMatrix::a2Omega() {
   double temp = calcStatistics.temperature;
   double chemPot = calcStatistics.chemicalPotential;
 
-  for (auto tup : theMatrix.getAllLocalStates()) {
+  auto allLocalStates = theMatrix.getAllLocalStates();
+  size_t numAllLocalStates = allLocalStates.size();
+#pragma omp parallel for
+  for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+    auto tup = allLocalStates[iTup];
+
     int iBte1, iBte2, iMat1, iMat2;
     StateIndex is1Idx(-1), is2Idx(-1);
     if (context.getUseSymmetries()) {
@@ -427,6 +451,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     } else { // A_nu,nu = N(1+-N) / tau
       VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
+#pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
@@ -466,6 +491,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         Error("Attempting to use a numerically unstable quantity");
         // popTerm could be = 0
       }
+#pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
