@@ -152,8 +152,16 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
+#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
+initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
+                               omp_orig.bandStructure, omp_orig.dimensionality))
+    auto allLocalStates = theMatrix.getAllLocalStates();
+    size_t numAllLocalStates = allLocalStates.size();
+
     if (context.getUseSymmetries()) {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         int iMat1 = std::get<0>(tup);
         int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
@@ -168,7 +176,9 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
             theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
         if (iBte1 == iBte2)
@@ -203,9 +213,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
   // outPopulation = outPopulation - internalDiagonal * inPopulation;
   std::vector<VectorBTE> outPopulations = dot(inPopulations);
   for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-#pragma omp parallel for collapse(3) default(none)                             \
-    shared(numCalculations, numStates, outPopulations, internalDiagonal,              \
-           inPopulations, iVec)
+#pragma omp parallel for collapse(3)
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
@@ -224,8 +232,17 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
+    auto allLocalStates = theMatrix.getAllLocalStates();
+    size_t numAllLocalStates = allLocalStates.size();
+
+ #pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
+ initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
+                                omp_orig.bandStructure, omp_orig.dimensionality))
+
     if (context.getUseSymmetries()) {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         int iMat1 = std::get<0>(tup);
         int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
@@ -246,7 +263,9 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
             theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
-      for (auto tup : theMatrix.getAllLocalStates()) {
+#pragma omp parallel for reduction(+ : outPopulation)
+      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+        auto tup = allLocalStates[iTup];
         auto iBte1 = std::get<0>(tup);
         auto iBte2 = std::get<1>(tup);
 
@@ -320,7 +339,12 @@ void ScatteringMatrix::a2Omega() {
   double temp = calcStatistics.temperature;
   double chemPot = calcStatistics.chemicalPotential;
 
-  for (auto tup : theMatrix.getAllLocalStates()) {
+  auto allLocalStates = theMatrix.getAllLocalStates();
+  size_t numAllLocalStates = allLocalStates.size();
+#pragma omp parallel for
+  for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+    auto tup = allLocalStates[iTup];
+
     int iBte1, iBte2, iMat1, iMat2;
     StateIndex is1Idx(-1), is2Idx(-1);
     if (context.getUseSymmetries()) {
@@ -427,6 +451,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
     } else { // A_nu,nu = N(1+-N) / tau
       VectorBTE times = internalDiagonal;
       auto particle = outerBandStructure.getParticle();
+#pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
@@ -466,6 +491,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         Error("Attempting to use a numerically unstable quantity");
         // popTerm could be = 0
       }
+#pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
@@ -938,6 +964,13 @@ ScatteringMatrix::getSMatrixIndex(const int &iMat) {
 void ScatteringMatrix::symmetrize() {
   // note: if the matrix is not stored in memory, it's not trivial to enforce
   // that the matrix is symmetric
+
+  if (context.getUseSymmetries()) {
+    Error("Symmetrization of the scattering matrix with symmetries"
+          " is not verified");
+    // not only, probably it doesn't make sense. To be checked
+  }
+
   if (highMemory) {
     ParallelMatrix<double> newMatrix = theMatrix;
     newMatrix *= 0.;
@@ -955,35 +988,36 @@ void ScatteringMatrix::symmetrize() {
       std::vector<int> index4(thisSize, 0);
 
       if (iRank == mpi->getRank()) {
-        int i = 0;
-        for (auto tup : theMatrix.getAllLocalStates()) {
+        auto allLocalStates = theMatrix.getAllLocalStates();
+        size_t numAllLocalStates = allLocalStates.size();
+
+        for (size_t i=0; i<numAllLocalStates; i++) {
+          auto tup = allLocalStates[i];
           int iMat1 = std::get<0>(tup);
           int iMat2 = std::get<1>(tup);
           int jMat1, jMat2;
-          if (context.getUseSymmetries()) {
-            Error("Symmetrization of the scattering matrix with symmetries"
-                  " is not verified");
-            // The matrix may not be symmetric
-
-            auto t1 = getSMatrixIndex(iMat1);
-            auto t2 = getSMatrixIndex(iMat2);
-            BteIndex iBte1 = std::get<0>(t1);
-            BteIndex iBte2 = std::get<0>(t2);
-            CartIndex ii = std::get<1>(t1);
-            CartIndex jj = std::get<1>(t2);
-            jMat1 = getSMatrixIndex(iBte1, ii);
-            jMat2 = getSMatrixIndex(iBte2, jj);
-          } else {
-            jMat1 = iMat1;
-            jMat2 = iMat2;
-          }
+//          if (context.getUseSymmetries()) {
+//            Error("Symmetrization of the scattering matrix with symmetries"
+//                  " is not verified");
+//            // The matrix may not be symmetric
+//
+//            auto t1 = getSMatrixIndex(iMat1);
+//            auto t2 = getSMatrixIndex(iMat2);
+//            BteIndex iBte1 = std::get<0>(t1);
+//            BteIndex iBte2 = std::get<0>(t2);
+//            CartIndex ii = std::get<1>(t1);
+//            CartIndex jj = std::get<1>(t2);
+//            jMat1 = getSMatrixIndex(iBte1, ii);
+//            jMat2 = getSMatrixIndex(iBte2, jj);
+//          } else {
+          jMat1 = iMat1;
+          jMat2 = iMat2;
+//          }
 
           index1[i] = iMat1;
           index2[i] = iMat2;
           index3[i] = jMat2;
           index4[i] = jMat1;
-
-          i++;
         }
       }
 
@@ -993,6 +1027,7 @@ void ScatteringMatrix::symmetrize() {
       mpi->allReduceSum(&index4);
 
       std::vector<double> values(thisSize, 0.);
+#pragma omp parallel for
       for (int i = 0; i < thisSize; i++) {
         values[i] = (theMatrix(index1[i], index2[i]) +
                      theMatrix(index3[i], index4[i])) *
@@ -1000,6 +1035,7 @@ void ScatteringMatrix::symmetrize() {
       }
       mpi->allReduceSum(&values);
 
+#pragma omp parallel for
       for (int i = 0; i < thisSize; i++) {
         newMatrix(index1[i], index2[i]) = values[i];
         newMatrix(index3[i], index4[i]) = values[i];
