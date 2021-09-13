@@ -72,13 +72,20 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
   }
   Eigen::MatrixXd result(statisticsSweep.getNumCalculations(),3);
   result.setZero();
-  for (int is : bandStructure.parallelIrrStateIterator()) {
 
+  auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
+  size_t numParallelIrrStates = parallelIrrStates.size();
+
+#pragma omp declare reduction (+: Eigen::MatrixXd: omp_out=omp_out+omp_in)\
+     initializer(omp_priv=Eigen::MatrixXd::Zero(omp_orig.rows(),omp_orig.cols()))
+
+#pragma omp parallel for reduction(+ : result)
+  for (size_t iis=0; iis<numParallelIrrStates; iis++) {
+    int is = parallelIrrStates[iis];
     if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
         excludeIndices.end()) {
       continue;
     }
-
     auto isIndex = StateIndex(is);
     BteIndex iBteIdx = bandStructure.stateToBte(isIndex);
     int iBte = iBteIdx.get();
@@ -173,6 +180,7 @@ VectorBTE VectorBTE::operator*(const Eigen::MatrixXd &vector) {
   if (vector.rows() != statisticsSweep.getNumCalculations() || vector.cols() != 3) {
     Error("VectorBTE * unexpected alignment with MatrixXd");
   }
+#pragma omp parallel for
   for (int iBte=0; iBte<numStates; iBte++) {
     for (int i : {0, 1, 2}) {
       for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
@@ -195,7 +203,16 @@ VectorBTE VectorBTE::operator*(ParallelMatrix<double> &matrix) {
   }
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
   newPopulation.data.setZero();
-  for (auto tup : matrix.getAllLocalStates()) {
+
+  auto allLocalStates = matrix.getAllLocalStates();
+  size_t numAllLocalStates = allLocalStates.size();
+
+#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
+ initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
+                                omp_orig.bandStructure, omp_orig.dimensionality))
+#pragma omp parallel for reduction(+ : newPopulation)
+  for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+    auto tup = allLocalStates[iTup];
     auto i = std::get<0>(tup);
     auto j = std::get<1>(tup);
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
@@ -242,6 +259,7 @@ VectorBTE VectorBTE::reciprocal() {
 
 void VectorBTE::canonical2Population() {
   auto particle = bandStructure.getParticle();
+#pragma omp parallel for
   for (int iBte = 0; iBte < numStates; iBte++) {
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = bandStructure.bteToState(iBteIdx);
@@ -262,6 +280,7 @@ void VectorBTE::population2Canonical() {
   if (particle.isFermi()) {
     Error("Possible divergence in population2Canonical");
   }
+#pragma omp parallel for
   for (int iBte = 0; iBte < numStates; iBte++) {
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = bandStructure.bteToState(iBteIdx);
