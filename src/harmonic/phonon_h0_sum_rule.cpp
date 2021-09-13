@@ -63,7 +63,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       for (int j = 0; j < 3; j++) {
         for (int na = 0; na < numAtoms; na++) {
           double sum = 0.;
-#pragma omp parallel for reduction(+ : sum)
+#pragma omp parallel for reduction(+ : sum) collapse(4)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int n1 = 0; n1 < qCoarseGrid(0); n1++) {
               for (int n2 = 0; n2 < qCoarseGrid(1); n2++) {
@@ -200,9 +200,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         sp_zeu(zeu_x, zeu_new, scalar);
         // rescale vector
 
-#pragma omp declare reduction (+: Eigen::Tensor<double,3>: omp_out=omp_out+omp_in)\
-initializer(omp_priv=omp_orig)
-#pragma omp parallel for collapse(3) reduction(+ : zeu_w)
+//#pragma omp declare reduction (+: Eigen::Tensor<double,3>: omp_out=omp_out+omp_in)\
+//initializer(omp_priv=omp_orig)
+//#pragma omp parallel for collapse(3) reduction(+ : zeu_w)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             for (int iat = 0; iat < numAtoms; iat++) {
@@ -461,10 +461,10 @@ initializer(omp_priv=omp_orig)
             }
           }
 
-#pragma omp declare reduction (-: Eigen::Tensor<double,7>: omp_out=omp_out-omp_in)\
-initializer(omp_priv=omp_orig)
-
-#pragma omp parallel for collapse(7) reduction(- : w)
+//#pragma omp declare reduction (-: Eigen::Tensor<double,7>: omp_out=omp_out-omp_in)\
+//initializer(omp_priv=omp_orig)
+//
+//#pragma omp parallel for collapse(7) reduction(- : w)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int na = 0; na < numAtoms; na++) {
               for (int j : {0, 1, 2}) {
@@ -584,10 +584,10 @@ initializer(omp_priv=omp_orig)
           }
         }
 
-#pragma omp declare reduction (+: Eigen::Tensor<double,7>: omp_out=omp_out+omp_in)\
-initializer(omp_priv=omp_orig)
-
-#pragma omp parallel for collapse(7) reduction(+ : w)
+//#pragma omp declare reduction (+: Eigen::Tensor<double,7>: omp_out=omp_out+omp_in)\
+//initializer(omp_priv=omp_orig)
+//
+//#pragma omp parallel for collapse(7) reduction(+ : w)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
             for (int j : {0, 1, 2}) {
@@ -666,6 +666,7 @@ void PhononH0::sp_zeu(Eigen::Tensor<double, 3> &zeu_u,
   // (considered as vectors in the R^(3*3*nat) space)
 
   scalar = 0.;
+#pragma omp parallel for collapse(3) reduction(+ : scalar)
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       for (int na = 0; na < numAtoms; na++) {
