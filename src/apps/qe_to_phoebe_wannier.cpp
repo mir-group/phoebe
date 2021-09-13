@@ -933,6 +933,9 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
   { // check the first point in Wannier90 is gamma
     std::string fileName = wannierPrefix + ".nnkp";
     std::ifstream infile(fileName);
+    if (not infile.is_open()) {
+      Error("Wannier90 *.nnkp file not found");
+    }
     std::string line;
     for (int i = 0; i < 18; i++) {
       std::getline(infile, line); // skip the first 18 lines
@@ -950,6 +953,9 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
   {
     std::string eigFileName = wannierPrefix + ".eig";
     std::ifstream eigenFile(eigFileName);
+    if (not eigenFile.is_open()) {
+      Error("Wannier90 *.eig file not found");
+    }
     int ib, ik;
     double x;
     while (eigenFile >> ib >> ik >> x) {
@@ -971,7 +977,7 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
   difference.setZero();
   for (int i = 0; i < possibleValues; i++) {
     for (int ib = 0; ib < numBandsWannier; ib++) {
-      difference(i) =
+      difference(i) +=
           pow(energiesQEAtZero(ib + i) - energiesWannierAtZero[ib], 2);
     }
   }
@@ -987,8 +993,6 @@ int ElPhQeToPhoebeApp::computeOffset(const Eigen::MatrixXd &energies,
 
   if (possibleValues == 0) { // there cannot be an offset, then offset is 0
     offset = 0;
-  } else { // if there is an offset found, we increase it by one
-    offset += 1;
   }
 
   if (offset == -1) {
@@ -1034,6 +1038,9 @@ void ElPhQeToPhoebeApp::testElectronicTransform(
     {
       std::string eigFileName = wannierPrefix + ".eig";
       std::ifstream eigenFile(eigFileName);
+      if (not eigenFile.is_open()) {
+        Error("Wannier90 *.eig file not found");
+      }
       int ib, ikk;
       double x;
       while (eigenFile >> ib >> ikk >> x) {

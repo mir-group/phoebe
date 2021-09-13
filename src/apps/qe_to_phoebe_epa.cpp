@@ -119,16 +119,14 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
         Eigen::Vector3d kqCrystal = kCrystal + qCrystal;
         int ikq = int(kPoints.getIndex(kqCrystal));
 
-#pragma omp parallel for collapse(3) default(none)                             \
-    shared(numEpaEnergies, numModes, numQEBands, gaussian, gStar, phEnergies,  \
-           g2Epa, ik, ikq, iqStar, phononCutoff, normalization)
+#pragma omp parallel for collapse(2)
         for (int j = 0; j < numEpaEnergies; j++) {
           for (int i = 0; i < numEpaEnergies; i++) {
             for (int ib2 = 0; ib2 < numQEBands; ib2++) {
               for (int ib1 = 0; ib1 < numQEBands; ib1++) {
+
                 double gaussianX =
                     gaussian(i, ib2, ik) * gaussian(j, ib1, ikq);
-
                 normalization(i,j) += gaussianX;
 
                 for (int nu = 0; nu < numModes; nu++) {
@@ -154,14 +152,6 @@ void ElPhQeToPhoebeApp::epaPostProcessing(
   mpi->allReduceSum(&normalization);
   loopPrint.close();
 
-//  int numQPoints = std::get<0>(qPoints.getMesh()).prod();
-//  for (int j = 0; j < numEpaEnergies; j++) {
-//    for (int i = 0; i < numEpaEnergies; i++) {
-//      for (int nu = 0; nu < numModes; nu++) {
-//        g2Epa(nu, i, j) /= numKPoints * numQPoints;
-//      }
-//    }
-//  }
   for (int j = 0; j < numEpaEnergies; j++) {
     for (int i = 0; i < numEpaEnergies; i++) {
       if (normalization(i,j) > 1.0e-12) {
