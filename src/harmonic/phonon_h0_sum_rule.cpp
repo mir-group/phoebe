@@ -7,7 +7,6 @@
 #include "exceptions.h"
 
 void PhononH0::setAcousticSumRule(const std::string &sumRule) {
-  double norm2;
   //  VectorXi u_less(6*3*numAtoms)
   //  indices of the vectors u that are not independent to the preceding ones
   //  n_less = number of such vectors
@@ -45,11 +44,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
   if (sr == "simple") {
     // Simple Acoustic Sum Rule on effective charges
 
-    double sum;
-
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
-        sum = 0.;
+        double sum = 0.;
+#pragma omp parallel for reduction(+ : sum)
         for (int na = 0; na < numAtoms; na++) {
           sum += bornCharges(na, i, j);
         }
@@ -64,7 +62,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         for (int na = 0; na < numAtoms; na++) {
-          sum = 0.;
+          double sum = 0.;
+#pragma omp parallel for reduction(+ : sum)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int n1 = 0; n1 < qCoarseGrid(0); n1++) {
               for (int n2 = 0; n2 < qCoarseGrid(1); n2++) {
@@ -89,6 +88,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     Eigen::Tensor<double, 3> zeu_new(3, 3, numAtoms);
     zeu_new.setZero();
 
+#pragma omp parallel for collapse(3)
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         for (int iat = 0; iat < numAtoms; iat++) {
@@ -100,6 +100,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     int p = 0;
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
+#pragma omp parallel for
         for (int iat = 0; iat < numAtoms; iat++) {
           // These are the 3*3 vectors associated with the
           // translational acoustic sum rules
@@ -125,6 +126,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     int r;
 
     for (int k = 0; k < p; k++) {
+#pragma omp parallel for collapse(3)
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
           for (int iat = 0; iat < numAtoms; iat++) {
@@ -142,6 +144,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           }
         }
         if (r != 0) {
+#pragma omp parallel for collapse(3)
           for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
               for (int iat = 0; iat < numAtoms; iat++) {
@@ -154,9 +157,11 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           zeu_w -= scalar * tempZeu;
         }
       }
+      double norm2;
       sp_zeu(zeu_w, zeu_w, norm2);
 
       if (norm2 > 1.0e-16) {
+#pragma omp parallel for collapse(3)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             for (int iat = 0; iat < numAtoms; iat++) {
@@ -183,6 +188,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
       if (r != 0) {
         // copy vector
+#pragma omp parallel for collapse(3)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             for (int iat = 0; iat < numAtoms; iat++) {
@@ -193,6 +199,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         // get rescaling factor
         sp_zeu(zeu_x, zeu_new, scalar);
         // rescale vector
+
+#pragma omp declare reduction (+: Eigen::Tensor<double,3>: omp_out=omp_out+omp_in)\
+initializer(omp_priv=omp_orig)
+#pragma omp parallel for collapse(3) reduction(+ : zeu_w)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             for (int iat = 0; iat < numAtoms; iat++) {
@@ -207,6 +217,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     // get the new "projected" zeu
 
     zeu_new -= zeu_w;
+    double norm2;
     sp_zeu(zeu_w, zeu_w, norm2);
     if (mpi->mpiHead()) {
       std::cout << "Norm of the difference between old and new effective "
@@ -214,6 +225,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
                 << sqrt(norm2) << std::endl;
     }
 
+#pragma omp parallel for collapse(3)
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         for (int iat = 0; iat < numAtoms; iat++) {
@@ -237,7 +249,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
                                   numAtoms);
     uvec.setZero();
 
-    Eigen::Tensor<double, 7> frc_new(nr1, nr2, nr3, 3, 3, numAtoms, numAtoms);
+    Eigen::Tensor<double, 7> frcNew(nr1, nr2, nr3, 3, 3, numAtoms, numAtoms);
+#pragma omp parallel for collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
         for (int j : {0, 1, 2}) {
@@ -245,7 +258,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
             for (int n3 = 0; n3 < nr3; n3++) {
               for (int n2 = 0; n2 < nr2; n2++) {
                 for (int n1 = 0; n1 < nr1; n1++) {
-                  frc_new(n1, n2, n3, i, j, na, nb) =
+                  frcNew(n1, n2, n3, i, j, na, nb) =
                       forceConstants(i, j, n1, n2, n3, na, nb);
                 }
               }
@@ -261,6 +274,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         for (int i : {0, 1, 2}) {
           // These are the 3*3*nat vectors associated with the
           // translational acoustic sum rules
+#pragma omp parallel for collapse(4)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int n3 = 0; n3 < nr3; n3++) {
               for (int n2 = 0; n2 < nr2; n2++) {
@@ -363,6 +377,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     u_less.setZero();
 
     for (int k = 1; k <= p; k++) {
+#pragma omp parallel for collapse(7)
       for (int nb = 0; nb < numAtoms; nb++) {
         for (int na = 0; na < numAtoms; na++) {
           for (int j = 0; j < 3; j++) {
@@ -432,6 +447,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         }
         if (r != 0) {
           scalar = 0.;
+#pragma omp parallel for collapse(5) reduction(+ : scalar)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int j : {0, 1, 2}) {
               for (int n3 = 0; n3 < nr3; n3++) {
@@ -445,6 +461,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
             }
           }
 
+#pragma omp declare reduction (-: Eigen::Tensor<double,7>: omp_out=omp_out-omp_in)\
+initializer(omp_priv=omp_orig)
+
+#pragma omp parallel for collapse(7) reduction(- : w)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int na = 0; na < numAtoms; na++) {
               for (int j : {0, 1, 2}) {
@@ -465,6 +485,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
 
       norm2 = 0.;
+#pragma omp parallel for collapse(7) reduction(+ : norm2)
       for (int nb = 0; nb < numAtoms; nb++) {
         for (int na = 0; na < numAtoms; na++) {
           for (int j = 0; j < 3; j++) {
@@ -483,6 +504,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       }
 
       if (norm2 > 1.0e-16) {
+#pragma omp parallel for collapse(7)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
             for (int j : {0, 1, 2}) {
@@ -511,7 +533,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     w.setZero();
     for (l = 1; l <= m; l++) {
 
-      //      call sp2(frc_new,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scalar)
+      //      call sp2(frcNew,v(l,:),ind_v(l,:,:),nr1,nr2,nr3,nat,scalar)
       scalar = 0.;
       for (int ii : {0, 1}) {
         int n1 = ind_v(l - 1, ii, 0) - 1;
@@ -521,7 +543,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         int j = ind_v(l - 1, ii, 4) - 1;
         int na = ind_v(l - 1, ii, 5) - 1;
         int nb = ind_v(l - 1, ii, 6) - 1;
-        scalar += frc_new(n1, n2, n3, i, j, na, nb) * v(l - 1, ii);
+        scalar += frcNew(n1, n2, n3, i, j, na, nb) * v(l - 1, ii);
       }
 
       for (int rr : {0, 1}) {
@@ -545,6 +567,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       if (r != 0) {
 
         scalar = 0.;
+#pragma omp parallel for collapse(7) reduction(+ : scalar)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
             for (int j : {0, 1, 2}) {
@@ -552,8 +575,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
                 for (int n3 = 0; n3 < nr3; n3++) {
                   for (int n2 = 0; n2 < nr2; n2++) {
                     for (int n1 = 0; n1 < nr1; n1++) {
-                      scalar += uvec(k - 1, n1, n2, n3, i, j, na, nb) *
-                                frc_new(n1, n2, n3, i, j, na, nb);
+                      scalar += uvec(k - 1, n1, n2, n3, i, j, na, nb) * frcNew(n1, n2, n3, i, j, na, nb);
                     }
                   }
                 }
@@ -562,6 +584,10 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           }
         }
 
+#pragma omp declare reduction (+: Eigen::Tensor<double,7>: omp_out=omp_out+omp_in)\
+initializer(omp_priv=omp_orig)
+
+#pragma omp parallel for collapse(7) reduction(+ : w)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
             for (int j : {0, 1, 2}) {
@@ -584,8 +610,9 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
     // Final subtraction of the former projection to the initial frc,
     // to get the new "projected" frc
 
-    frc_new -= w;
+    frcNew -= w;
     scalar = 0.;
+#pragma omp parallel for reduction(+ : scalar) collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
         for (int j : {0, 1, 2}) {
@@ -609,6 +636,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
                 << sqrt(scalar) << std::endl;
     }
 
+#pragma omp parallel for collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
         for (int i : {0, 1, 2}) {
@@ -617,7 +645,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
               for (int n2 = 0; n2 < nr2; n2++) {
                 for (int n1 = 0; n1 < nr1; n1++) {
                   forceConstants(i, j, n1, n2, n3, na, nb) =
-                      frc_new(n1, n2, n3, i, j, na, nb);
+                      frcNew(n1, n2, n3, i, j, na, nb);
                 }
               }
             }
