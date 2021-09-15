@@ -42,7 +42,6 @@ class InteractionElPhWan {
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
 
-  Eigen::Vector3d cachedK1;
   bool usePolarCorrection = false;
 
   /** Add polar correction to the electron-phonon coupling.
