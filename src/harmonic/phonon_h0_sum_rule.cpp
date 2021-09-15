@@ -253,8 +253,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 #pragma omp parallel for collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
-        for (int j : {0, 1, 2}) {
-          for (int i : {0, 1, 2}) {
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
             for (int n3 = 0; n3 < nr3; n3++) {
               for (int n2 = 0; n2 < nr2; n2++) {
                 for (int n1 = 0; n1 < nr1; n1++) {
@@ -270,8 +270,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 
     p = 0;
     for (int na = 0; na < numAtoms; na++) {
-      for (int j : {0, 1, 2}) {
-        for (int i : {0, 1, 2}) {
+      for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 3; i++) {
           // These are the 3*3*nat vectors associated with the
           // translational acoustic sum rules
 #pragma omp parallel for collapse(4)
@@ -449,7 +449,7 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           scalar = 0.;
 #pragma omp parallel for collapse(5) reduction(+ : scalar)
           for (int nb = 0; nb < numAtoms; nb++) {
-            for (int j : {0, 1, 2}) {
+            for (int j = 0; j < 3; j++) {
               for (int n3 = 0; n3 < nr3; n3++) {
                 for (int n2 = 0; n2 < nr2; n2++) {
                   for (int n1 = 0; n1 < nr1; n1++) {
@@ -467,8 +467,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 //#pragma omp parallel for collapse(7) reduction(- : w)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int na = 0; na < numAtoms; na++) {
-              for (int j : {0, 1, 2}) {
-                for (int i : {0, 1, 2}) {
+              for (int j = 0; j < 3; j++) {
+                for (int i = 0; i < 3; i++) {
                   for (int n3 = 0; n3 < nr3; n3++) {
                     for (int n2 = 0; n2 < nr2; n2++) {
                       for (int n1 = 0; n1 < nr1; n1++) {
@@ -507,8 +507,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 #pragma omp parallel for collapse(7)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
-            for (int j : {0, 1, 2}) {
-              for (int i : {0, 1, 2}) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
                 for (int n3 = 0; n3 < nr3; n3++) {
                   for (int n2 = 0; n2 < nr2; n2++) {
                     for (int n1 = 0; n1 < nr1; n1++) {
@@ -570,8 +570,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 #pragma omp parallel for collapse(7) reduction(+ : scalar)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
-            for (int j : {0, 1, 2}) {
-              for (int i : {0, 1, 2}) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
                 for (int n3 = 0; n3 < nr3; n3++) {
                   for (int n2 = 0; n2 < nr2; n2++) {
                     for (int n1 = 0; n1 < nr1; n1++) {
@@ -590,8 +590,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 //#pragma omp parallel for collapse(7) reduction(+ : w)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
-            for (int j : {0, 1, 2}) {
-              for (int i : {0, 1, 2}) {
+            for (int j = 0; j < 3; j++) {
+              for (int i = 0; i < 3; i++) {
                 for (int n3 = 0; n3 < nr3; n3++) {
                   for (int n2 = 0; n2 < nr2; n2++) {
                     for (int n1 = 0; n1 < nr1; n1++) {
@@ -615,8 +615,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 #pragma omp parallel for reduction(+ : scalar) collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
-        for (int j : {0, 1, 2}) {
-          for (int i : {0, 1, 2}) {
+        for (int j = 0; j < 3; j++) {
+          for (int i = 0; i < 3; i++) {
             for (int n3 = 0; n3 < nr3; n3++) {
               for (int n2 = 0; n2 < nr2; n2++) {
                 for (int n1 = 0; n1 < nr1; n1++) {
@@ -639,8 +639,8 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
 #pragma omp parallel for collapse(7)
     for (int nb = 0; nb < numAtoms; nb++) {
       for (int na = 0; na < numAtoms; na++) {
-        for (int i : {0, 1, 2}) {
-          for (int j : {0, 1, 2}) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
             for (int n3 = 0; n3 < nr3; n3++) {
               for (int n2 = 0; n2 < nr2; n2++) {
                 for (int n1 = 0; n1 < nr1; n1++) {
