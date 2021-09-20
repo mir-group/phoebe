@@ -295,7 +295,7 @@ reorderDynamicalMatrix(
                           auto ind2 = compress2Indices(nb, j, numAtoms, 3);
                           auto ind3 = compress2Indices(nc, k, numAtoms, 3);
 
-                          mat3R(ind1, ind2, ind3, iR2, iR3) +=
+                          mat3R(ind1, ind2, ind3, iR3, iR2) +=
                               ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] *
                               conversion;
 
@@ -690,7 +690,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
           auto ind2 = compress2Indices(ia2, ic2, numAtoms, 3);
           auto ind3 = compress2Indices(ia3, ic3, numAtoms, 3);
 
-          FC3(ind1, ind2, ind3, ir2, ir3) = ifc3Tensor(ic3, ic2, ic1, it);
+          FC3(ind1, ind2, ind3, ir3, ir2) = ifc3Tensor(ic3, ic2, ic1, it);
         }
       }
     }
