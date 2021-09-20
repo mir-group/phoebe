@@ -63,7 +63,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
       for (int j = 0; j < 3; j++) {
         for (int na = 0; na < numAtoms; na++) {
           double sum = 0.;
-#pragma omp parallel for reduction(+ : sum) collapse(4)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int n1 = 0; n1 < qCoarseGrid(0); n1++) {
               for (int n2 = 0; n2 < qCoarseGrid(1); n2++) {
