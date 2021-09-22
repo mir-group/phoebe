@@ -4,9 +4,9 @@
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
                                Eigen::MatrixXd &cellPositions2,
                                Eigen::MatrixXd &cellPositions3,
-                               Eigen::Tensor<double,3> &weights2,
-                               Eigen::Tensor<double,3> &weights3)
-                                 : crystal_(crystal){
+                               Eigen::Tensor<double, 3> &weights2,
+                               Eigen::Tensor<double, 3> &weights3)
+    : crystal_(crystal) {
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
@@ -33,10 +33,10 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   for (int j = 0; j < numAtoms; j++) {
     for (int k = 0; k < numAtoms; k++) {
       for (int i = 0; i < nr2; i++) {
-        weights2_h(i,j,k) = weights2(i,j,k);
+        weights2_h(i, j, k) = weights2(i, j, k);
       }
       for (int i = 0; i < nr3; i++) {
-        weights3_h(i,j,k) = weights3(i,j,k);
+        weights3_h(i, j, k) = weights3(i, j, k);
       }
     }
   }
@@ -123,25 +123,27 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
       phasePlus2("pp", nr2), phasePlus3("pp", nr3),
       phaseMins2("pp", nr2), phaseMins3("pp", nr3);
 
-      Kokkos::parallel_for("phase1loop", nr2, KOKKOS_LAMBDA(int ir2) {
-            double argP = 0, argM = 0;
-            for (int ic = 0; ic < 3; ic++) {
-              argP += +q2(ic) * cellPositions2(ir2, ic);
-              argM += -q2(ic) * cellPositions2(ir2, ic);
-            }
-            phasePlus2(ir2) = Kokkos::exp(complexI * argP);
-            phaseMins2(ir2) = Kokkos::exp(complexI * argM);
-          });
+  Kokkos::parallel_for(
+      "phase1loop", nr2, KOKKOS_LAMBDA(int ir2) {
+        double argP = 0, argM = 0;
+        for (int ic = 0; ic < 3; ic++) {
+          argP += +q2(ic) * cellPositions2(ir2, ic);
+          argM += -q2(ic) * cellPositions2(ir2, ic);
+        }
+        phasePlus2(ir2) = Kokkos::exp(complexI * argP);
+        phaseMins2(ir2) = Kokkos::exp(complexI * argM);
+      });
 
-    Kokkos::parallel_for("phase1loop", nr3, KOKKOS_LAMBDA(int ir3) {
-          double argP = 0, argM = 0;
-          for (int ic = 0; ic < 3; ic++) {
-            argP += -q2(ic) * cellPositions3(ir3, ic);
-            argM += +q2(ic) * cellPositions3(ir3, ic);
-          }
-          phasePlus3(ir3) = Kokkos::exp(complexI * argP);
-          phaseMins3(ir3) = Kokkos::exp(complexI * argM);
-        });
+  Kokkos::parallel_for(
+      "phase1loop", nr3, KOKKOS_LAMBDA(int ir3) {
+        double argP = 0, argM = 0;
+        for (int ic = 0; ic < 3; ic++) {
+          argP += -q2(ic) * cellPositions3(ir3, ic);
+          argM += +q2(ic) * cellPositions3(ir3, ic);
+        }
+        phasePlus3(ir3) = Kokkos::exp(complexI * argP);
+        phaseMins3(ir3) = Kokkos::exp(complexI * argM);
+      });
 
   // create cached D3
   Kokkos::parallel_for(
@@ -149,17 +151,20 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
           {0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
       KOKKOS_LAMBDA(int ind1, int ind2, int ind3, int ir3) {
-
-        int at1 = std::get<0>(decompress2Indices(ind1,numAtoms,3));
-        int at2 = std::get<0>(decompress2Indices(ind2,numAtoms,3));
-        int at3 = std::get<0>(decompress2Indices(ind3,numAtoms,3));
+        // note: decompress2Indices doesn't compile like this on the GPU
+        int at1 = ind1 / 3;
+        int at2 = ind2 / 3;
+        int at3 = ind3 / 3;
+        // int at1 = std::get<0>(decompress2Indices(ind1,numAtoms,3));
+        // int at2 = std::get<0>(decompress2Indices(ind2,numAtoms,3));
+        // int at3 = std::get<0>(decompress2Indices(ind3,numAtoms,3));
 
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
-        for (int ir2 = 0; ir2 < nr2; ir2++) { // sum over all triplets
+        for (int ir2 = 0; ir2 < nr2; ir2++) {// sum over all triplets
           tmpp += D3(ind1, ind2, ind3, ir3, ir2) * phasePlus2(ir2)
-              * phasePlus3(ir3) * weights2(ir2,at1,at2) * weights3(ir3,at1,at3);
+              * phasePlus3(ir3) * weights2(ir2, at1, at2) * weights3(ir3, at1, at3);
           tmpm += D3(ind1, ind2, ind3, ir3, ir2) * phaseMins2(ir2)
-              * phaseMins3(ir3) * weights2(ir2,at1,at2) * weights3(ir3,at1,at3);
+              * phaseMins3(ir3) * weights2(ir2, at1, at2) * weights3(ir3, at1, at3);
         }
         D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
         D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
@@ -272,12 +277,13 @@ Interaction3Ph::getCouplingsSquared(
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
           {0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
-        int at1 = std::get<0>(decompress2Indices(iac1,numAtoms,3));
-        int at3 = std::get<0>(decompress2Indices(iac3,numAtoms,3));
+        // note: decompress2Indices doesn't compile like this on the GPU
+        int at1 = iac1 / 3;// std::get<0>(decompress2Indices(iac1,numAtoms,3));
+        int at3 = iac3 / 3;// std::get<0>(decompress2Indices(iac3,numAtoms,3));
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
-        for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
-          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3) * weights3(ir3,at1,at3);
-          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3) * weights3(ir3,at1,at3);
+        for (int ir3 = 0; ir3 < nr3; ir3++) {// sum over all triplets
+          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3) * weights3(ir3, at1, at3);
+          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3) * weights3(ir3, at1, at3);
         }
         tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
         tmpMins(iq1, iac1, iac2, iac3) = tmpm;
@@ -337,8 +343,7 @@ Interaction3Ph::getCouplingsSquared(
         int mask = ib1 < nb1s(iq1) && ib3 < nb3Pluss(iq1);
         Kokkos::complex<double> tmpp = 0;
         for (int iac3 = 0; iac3 < numBands; iac3++) {
-          tmpp += tmp2Plus(iq1, ib1, ib2, iac3) *
-                  Kokkos::conj(ev3Pluss(iq1, ib3, iac3));
+          tmpp += tmp2Plus(iq1, ib1, ib2, iac3) * Kokkos::conj(ev3Pluss(iq1, ib3, iac3));
         }
         vPlus(iq1, ib1, ib2, ib3) = tmpp * mask;
       });
@@ -352,8 +357,7 @@ Interaction3Ph::getCouplingsSquared(
 
         Kokkos::complex<double> tmpp = 0;
         for (int iac3 = 0; iac3 < numBands; iac3++) {
-          tmpp += tmp2Mins(iq1, ib1, ib2, iac3) *
-                  Kokkos::conj(ev3Minss(iq1, ib3, iac3));
+          tmpp += tmp2Mins(iq1, ib1, ib2, iac3) * Kokkos::conj(ev3Minss(iq1, ib3, iac3));
         }
         vMins(iq1, ib1, ib2, ib3) = tmpp * mask;
       });
@@ -419,9 +423,11 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   int maxnb3Mins = numBands;
 
   // available memory is MAXMEM minus size of D3, D3cache and ev2
-  double availmem = maxmem -
-                    16 * (numBands * numBands * numBands * nr3 * (nr2 + 2)) -
-                    8 * 3 * (nr2 + nr3) - 16 * nb2 * numBands;
+  double availmem = maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2))
+      - 8 * 3 * (nr2 + nr3) // phase
+      - 16 * nb2 * numBands // ev2;
+      - 8 * (nr2+nr3) * numAtoms * numAtoms //weights
+      - 8 * 3 * (nr2+nr3); // Bravais vectors
 
   // memory used by different tensors
   // Note: 16 (2*8) is the size of double (complex<double>) in bytes
@@ -433,8 +439,7 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   double v = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
   double c = 16 * maxnb1 * nb2 * (maxnb3Plus + maxnb3Mins);
   double maxusage =
-      nq1 *
-      (evs + std::max({phase + tmp, tmp + tmp1, tmp1 + tmp2, tmp2 + v, v + c}));
+      nq1 * (evs + std::max({phase + tmp, tmp + tmp1, tmp1 + tmp2, tmp2 + v, v + c}));
 
   // the number of batches needed
   int numBatches = std::ceil(maxusage / availmem);
