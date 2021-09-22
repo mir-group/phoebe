@@ -2,8 +2,9 @@
 #include "constants.h"
 #include "eigen.h"
 #include "mpiHelper.h"
-#include <fstream> // it may be used
+#include <fstream>// it may be used
 #include <iostream>
+#include <set>
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -83,7 +84,7 @@ double wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
       nreq += 1;
     }
   }
-  double x = 1. / (double)nreq;
+  double x = 1. / (double) nreq;
   return x;
 }
 
@@ -102,7 +103,7 @@ int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
   return ir2;
 }
 
-std::tuple<Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd, Eigen::VectorXd>
+std::tuple<Eigen::Tensor<double, 4>, Eigen::Tensor<double, 3>, Eigen::Tensor<double, 4>, Eigen::Tensor<double, 3>>
 reorderDynamicalMatrix(
     Crystal &crystal, Eigen::Vector3i qCoarseGrid, const Eigen::MatrixXd &rws,
     Eigen::Tensor<double, 5> &mat3R, Eigen::MatrixXd cellPositions,
@@ -126,6 +127,8 @@ reorderDynamicalMatrix(
   Eigen::VectorXi startBVForAtom(numAtoms);
   int numBVThisAtom = 0;
 
+  std::set<std::vector<double>> setBravaisVectors;
+
   for (int na = 0; na < numAtoms; na++) {
     startBVForAtom(na) = numBVThisAtom;
     for (int nb = 0; nb < numAtoms; nb++) {
@@ -137,16 +140,17 @@ reorderDynamicalMatrix(
 
             // calculate the R2 vector for atom nb
             Eigen::Vector3d r2;
+            std::vector<double> R2(3);
             for (int i : {0, 1, 2}) {
-              r2(i) = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) +
-                      nr3 * directUnitCell(i, 2);
-              r2(i) = r2(i) - atomicPositions(na, i) + atomicPositions(nb, i);
+              R2[i] = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) + nr3 * directUnitCell(i, 2);
+              r2(i) = R2[i] - atomicPositions(na, i) + atomicPositions(nb, i);
             }
             double weightR2 = wsWeight(r2, rws);
             // count this vector if it contributes
             if (weightR2 > 0) {
               numBravaisVectors += 1;
               numBVThisAtom += 1;
+              setBravaisVectors.insert(R2);
             }
           }
         }
@@ -154,19 +158,60 @@ reorderDynamicalMatrix(
     }
   }
 
+  int numR = setBravaisVectors.size();
+  std::vector<Eigen::Vector3d> listBravaisVectors;
+  for (auto x : setBravaisVectors) {
+    Eigen::Vector3d R2;
+    for (int i : {0, 1, 2}) {
+      R2(i) = x[i];
+    }
+    listBravaisVectors.push_back(R2);
+  }
+  Eigen::Tensor<double, 4> bravaisVectors(3, numR, numAtoms, numAtoms);
+  Eigen::Tensor<double, 3> weights(numR, numAtoms, numAtoms);
+  bravaisVectors.setConstant(0.);
+  weights.setConstant(0.);
+
+  for (int na = 0; na < numAtoms; na++) {
+    for (int nb = 0; nb < numAtoms; nb++) {
+      // loop over all possible indices for the first vector
+      for (int nr1 = -nr1Big; nr1 < nr1Big; nr1++) {
+        for (int nr2 = -nr2Big; nr2 < nr2Big; nr2++) {
+          for (int nr3 = -nr3Big; nr3 < nr3Big; nr3++) {
+            // calculate the R2 vector for atom nb
+            Eigen::Vector3d r2, R2;
+            for (int i : {0, 1, 2}) {
+              R2(i) = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) + nr3 * directUnitCell(i, 2);
+              r2(i) = R2(i) - atomicPositions(na, i) + atomicPositions(nb, i);
+            }
+            double weightR2 = wsWeight(r2, rws);
+            // count this vector if it contributes
+            if (weightR2 > 0) {
+              int ir;
+              {
+                auto it = std::find(listBravaisVectors.begin(), listBravaisVectors.end(), R2);
+                if (it == listBravaisVectors.end()) Error("phono3py parser index not found");
+                ir = it - listBravaisVectors.begin();
+              }
+              for (int i : {0, 1, 2}) {
+                bravaisVectors(i, ir, na, nb) = R2(i);
+              }
+              weights(ir, na, nb) = weightR2;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //---------
+
   // next, we reorder the dynamical matrix along the bravais lattice vectors
   // similarly to what was done in the harmonic class.
-  Eigen::MatrixXd bravaisVectors2 = Eigen::MatrixXd::Zero(3, numBravaisVectors);
-  Eigen::MatrixXd bravaisVectors3 = Eigen::MatrixXd::Zero(3, numBravaisVectors);
-  Eigen::VectorXd weights2 = Eigen::VectorXd::Zero(numBravaisVectors);
-  Eigen::VectorXd weights3 = Eigen::VectorXd::Zero(numBravaisVectors);
 
-  mat3R.resize(3 * numAtoms, 3 * numAtoms, 3 * numAtoms, numBravaisVectors,
-               numBravaisVectors);
+  mat3R.resize(3 * numAtoms, 3 * numAtoms, 3 * numAtoms, numR, numR);
   mat3R.setZero();
 
-  int iR2 = -1;
-  int iR3 = -1;
   double conversion = pow(distanceBohrToAng, 3) / energyRyToEv;
 
   // Note: it may be possible to make these loops faster.
@@ -178,107 +223,108 @@ reorderDynamicalMatrix(
     for (int nr2 = -nr2Big; nr2 < nr2Big; nr2++) {
       for (int nr1 = -nr1Big; nr1 < nr1Big; nr1++) {
 
-        // loop over the atoms involved in the first vector
-        for (int na = 0; na < numAtoms; na++) {
-          for (int nb = 0; nb < numAtoms; nb++) {
+        Eigen::Vector3d r2;
+        for (int i : {0, 1, 2}) {
+          r2(i) = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) + nr3 * directUnitCell(i, 2);
+        }
+        int iR2;
+        {
+          auto it = std::find(listBravaisVectors.begin(), listBravaisVectors.end(), r2);
+          if (it == listBravaisVectors.end()) continue;
+          iR2 = it - listBravaisVectors.begin();
+        }
 
-            // calculate the R2 vector for atom nb
-            Eigen::Vector3d r2;
-            Eigen::Vector3d ra2;
-            for (int i : {0, 1, 2}) {
-              r2(i) = nr1 * directUnitCell(i, 0) + nr2 * directUnitCell(i, 1) +
-                      nr3 * directUnitCell(i, 2);
-              ra2(i) = r2(i) - atomicPositions(na, i) + atomicPositions(nb, i);
-            }
+        // calculate the positive quadrant equivalents
+        int m1 = mod((nr1 + 1), qCoarseGrid(0));
+        if (m1 <= 0) {
+          m1 += qCoarseGrid(0);
+        }
+        int m2 = mod((nr2 + 1), qCoarseGrid(1));
+        if (m2 <= 0) {
+          m2 += qCoarseGrid(1);
+        }
+        int m3 = mod((nr3 + 1), qCoarseGrid(2));
+        if (m3 <= 0) {
+          m3 += qCoarseGrid(2);
+        }
+        m1 += -1;
+        m2 += -1;
+        m3 += -1;
 
-            // skip vectors which do not contribute
-            double weightR2 = wsWeight(ra2, rws);
-            if (weightR2 == 0)
-              continue;
-            iR2 += 1; // if selected increment the R2 index
+        // build the unit cell equivalent vectors to look up
+        Eigen::Vector3d rp2;
+        for (int i : {0, 1, 2}) {
+          rp2(i) = m1 * directUnitCell(i, 0) + m2 * directUnitCell(i, 1) + m3 * directUnitCell(i, 2);
+        }
+        // look up the index of the original atom
+        auto ir2 = findIndexRow(cellPositions, rp2);
 
-            // the iR3 index should start based on how many R3 Bravais
-            // vectors we covered in the earlier loops over na.
-            // The vector startBVForAtom holds the starting
-            // points in iR3 for each atom (minus 1 for zero based
-            // indexing)
-            iR3 = startBVForAtom(na) - 1;
+        // loop over all possible indices for the R3 vector
+        for (int mr3 = -nr3Big; mr3 < nr3Big; mr3++) {
+          for (int mr2 = -nr2Big; mr2 < nr2Big; mr2++) {
+            for (int mr1 = -nr1Big; mr1 < nr1Big; mr1++) {
+              // calculate the R3 vector for atom nc
+              Eigen::Vector3d r3;
+              for (int i : {0, 1, 2}) {
+                r3(i) = mr1 * directUnitCell(i, 0) + mr2 * directUnitCell(i, 1) + mr3 * directUnitCell(i, 2);
+              }
 
-            // loop over atoms involved in R3 vector
-            for (int nc = 0; nc < numAtoms; nc++) {
+              int iR3;
+              {
+                auto it = std::find(listBravaisVectors.begin(), listBravaisVectors.end(), r3);
+                if (it == listBravaisVectors.end()) continue;
+                iR3 = it - listBravaisVectors.begin();
+              }
 
-              // loop over all possible indices for the R3 vector
-              for (int mr3 = -nr3Big; mr3 < nr3Big; mr3++) {
-                for (int mr2 = -nr2Big; mr2 < nr2Big; mr2++) {
-                  for (int mr1 = -nr1Big; mr1 < nr1Big; mr1++) {
+              // calculate the positive quadrant equivalents
+              int p1 = mod((mr1 + 1), qCoarseGrid(0));
+              if (p1 <= 0) {
+                p1 += qCoarseGrid(0);
+              }
+              int p2 = mod((mr2 + 1), qCoarseGrid(1));
+              if (p2 <= 0) {
+                p2 += qCoarseGrid(1);
+              }
+              int p3 = mod((mr3 + 1), qCoarseGrid(2));
+              if (p3 <= 0) {
+                p3 += qCoarseGrid(2);
+              }
+              p1 += -1;
+              p2 += -1;
+              p3 += -1;
+
+              // build the unit cell equivalent vectors to look up
+              Eigen::Vector3d rp3;
+              for (int i : {0, 1, 2}) {
+                rp3(i) = p1 * directUnitCell(i, 0) + p2 * directUnitCell(i, 1) + p3 * directUnitCell(i, 2);
+              }
+              // look up the index of the original atom
+              auto ir3 = findIndexRow(cellPositions, rp3);
+
+              // loop over the atoms involved in the first vector
+              for (int na = 0; na < numAtoms; na++) {
+                for (int nb = 0; nb < numAtoms; nb++) {
+
+                  // calculate the R2 vector for atom nb
+                  Eigen::Vector3d ra2;
+                  for (int i : {0, 1, 2}) {
+                    ra2(i) = r2(i) - atomicPositions(na, i) + atomicPositions(nb, i);
+                  }
+                  // skip vectors which do not contribute
+                  double weightR2 = wsWeight(ra2, rws);
+                  if (weightR2 == 0) continue;
+
+                  // loop over atoms involved in R3 vector
+                  for (int nc = 0; nc < numAtoms; nc++) {
 
                     // calculate the R3 vector for atom nc
-                    Eigen::Vector3d r3, ra3;
+                    Eigen::Vector3d ra3;
                     for (int i : {0, 1, 2}) {
-                      r3(i) = mr1 * directUnitCell(i, 0) +
-                              mr2 * directUnitCell(i, 1) +
-                              mr3 * directUnitCell(i, 2);
-                      ra3(i) = r3(i) - atomicPositions(na, i) +
-                               atomicPositions(nc, i);
+                      ra3(i) = r3(i) - atomicPositions(na, i) + atomicPositions(nc, i);
                     }
                     // continue only if this vector matters
                     double weightR3 = wsWeight(ra3, rws);
-                    if (weightR3 == 0)
-                      continue;
-                    iR3 += 1;
-
-                    // save the weights and vectors for the next step
-                    weights2(iR2) = weightR2;
-                    weights3(iR3) = weightR3;
-                    bravaisVectors2.col(iR2) = r2;
-                    bravaisVectors3.col(iR3) = r3;
-
-                    // calculate the positive quadrant equivalents
-                    int m1 = mod((nr1 + 1), qCoarseGrid(0));
-                    if (m1 <= 0) {
-                      m1 += qCoarseGrid(0);
-                    }
-                    int m2 = mod((nr2 + 1), qCoarseGrid(1));
-                    if (m2 <= 0) {
-                      m2 += qCoarseGrid(1);
-                    }
-                    int m3 = mod((nr3 + 1), qCoarseGrid(2));
-                    if (m3 <= 0) {
-                      m3 += qCoarseGrid(2);
-                    }
-                    m1 += -1;
-                    m2 += -1;
-                    m3 += -1;
-
-                    int p1 = mod((mr1 + 1), qCoarseGrid(0));
-                    if (p1 <= 0) {
-                      p1 += qCoarseGrid(0);
-                    }
-                    int p2 = mod((mr2 + 1), qCoarseGrid(1));
-                    if (p2 <= 0) {
-                      p2 += qCoarseGrid(1);
-                    }
-                    int p3 = mod((mr3 + 1), qCoarseGrid(2));
-                    if (p3 <= 0) {
-                      p3 += qCoarseGrid(2);
-                    }
-                    p1 += -1;
-                    p2 += -1;
-                    p3 += -1;
-
-                    // build the unit cell equivalent vectors to look up
-                    Eigen::Vector3d rp2, rp3;
-                    for (int i : {0, 1, 2}) {
-                      rp2(i) = m1 * directUnitCell(i, 0) +
-                               m2 * directUnitCell(i, 1) +
-                               m3 * directUnitCell(i, 2);
-                      rp3(i) = p1 * directUnitCell(i, 0) +
-                               p2 * directUnitCell(i, 1) +
-                               p3 * directUnitCell(i, 2);
-                    }
-                    // look up the index of the original atom
-                    auto ir2 = findIndexRow(cellPositions, rp2);
-                    auto ir3 = findIndexRow(cellPositions, rp3);
+                    if (weightR3 == 0) continue;
 
                     // index back to superCell positions
                     int sat2 = cellMap[nb] + ir2;
@@ -295,24 +341,30 @@ reorderDynamicalMatrix(
                           auto ind2 = compress2Indices(nb, j, numAtoms, 3);
                           auto ind3 = compress2Indices(nc, k, numAtoms, 3);
 
+                          if ( mat3R(ind1, ind2, ind3, iR3, iR2) != 0 ) {
+                            // this doesn't happen, so I am picking each element only once
+                            std::cout << "already visited\n";
+                            std::cout << ind1 << " " << ind2 << " " << ind3 << " "
+                                      << iR3 << " " << iR2 << "\n";
+                          }
                           mat3R(ind1, ind2, ind3, iR3, iR2) +=
-                              ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] *
-                              conversion;
+                              ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] * conversion;
+//                          ifc3Tensor[cellMap[na]][sat2][sat3][i][j][k] * conversion;
 
-                        } // close cartesian loops
+                        }// close cartesian loops
                       }
                     }
-                  } // r3 loops
+                  }// r3 loops
                 }
               }
-            } // close nc loop
-          }   // close R2 loops
+            }// close nc loop
+          }  // close R2 loops
         }
       }
-    } // close nb loop
-  }   // close na loop
+    }// close nb loop
+  }  // close na loop
 
-  return {bravaisVectors2, weights2, bravaisVectors3, weights3};
+  return {bravaisVectors, weights, bravaisVectors, weights};
 }
 
 Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
@@ -352,8 +404,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   }
   if (not infile.is_open()) {
     Error("Phono3py required file dispFCFileName "
-          "(disp_fc3.yaml) not found at " +
-          fileName + ".");
+          "(disp_fc3.yaml) not found at "
+          + fileName + ".");
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName << std::endl;
@@ -372,7 +424,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
     getline(infile, line);
     // if this is a cell position, save it
     if (line.find("position: ") != std::string::npos) {
-      std::string temp = line.substr(14, 57); // just the positions
+      std::string temp = line.substr(14, 57);// just the positions
       int idx1 = temp.find(',');
       supPositions(iPos, 0) = std::stod(temp.substr(0, idx1));
       int idx2 = temp.find(',', idx1 + 1);
@@ -380,9 +432,9 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       supPositions(iPos, 2) = std::stod(temp.substr(idx2 + 1));
       iPos++;
     }
-    if (iLattice < 3) { // count down lattice lines
+    if (iLattice < 3) {// count down lattice lines
       // convert from angstrom to bohr
-      std::string temp = line.substr(5, 62); // just the elements
+      std::string temp = line.substr(5, 62);// just the elements
       int idx1 = temp.find(',');
       lattice(iLattice, 0) =
           std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
@@ -461,8 +513,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   }
   if (not infile.is_open()) {
     Error("Phono3py required file phonopyDispFileName "
-          "phono3py_disp.yaml) file not found at " +
-          fileName);
+          "phono3py_disp.yaml) file not found at "
+          + fileName);
   }
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
@@ -500,10 +552,10 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   auto tup = reorderDynamicalMatrix(crystal, qCoarseGrid, rws, FC3,
                                     cellPositions, ifc3Tensor, cellMap);
-  Eigen::MatrixXd bravaisVectors2 = std::get<0>(tup);
-  Eigen::VectorXd weights2 = std::get<1>(tup);
-  Eigen::MatrixXd bravaisVectors3 = std::get<2>(tup);
-  Eigen::VectorXd weights3 = std::get<3>(tup);
+  auto bravaisVectors2 = std::get<0>(tup);
+  auto weights2 = std::get<1>(tup);
+  auto bravaisVectors3 = std::get<2>(tup);
+  auto weights3 = std::get<3>(tup);
 
   if (mpi->mpiHead()) {
     std::cout << "Successfully parsed anharmonic "
@@ -512,12 +564,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   }
 
   // Create interaction3Ph object
-  Eigen::Tensor<double,3> w(1,1,1);
-  w.setConstant(1.);
-  Eigen::Tensor<double,4> bv(1,1,1,1);
-  w.setConstant(1.);
-  Interaction3Ph interaction3Ph(crystal, FC3, bv, bv,
-                                w, w);
+  Interaction3Ph interaction3Ph(crystal, FC3, bravaisVectors2, bravaisVectors3,
+                                weights2, weights3);
 
   return interaction3Ph;
 
@@ -562,7 +610,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   Eigen::Tensor<int, 2> displacedAtoms(numTriplets, 3);
   displacedAtoms.setZero();
 
-  for (int i = 0; i < numTriplets; i++) { // loop over all triplets
+  for (int i = 0; i < numTriplets; i++) {// loop over all triplets
 
     // empty line
     std::getline(infile, line);
@@ -639,12 +687,14 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
     // now check if this element is in the list.
     bool found2 = false;
     if (std::find(tmpCellPositions2.begin(), tmpCellPositions2.end(),
-                  position2) != tmpCellPositions2.end()) {
+                  position2)
+        != tmpCellPositions2.end()) {
       found2 = true;
     }
     bool found3 = false;
     if (std::find(tmpCellPositions3.begin(), tmpCellPositions3.end(),
-                  position3) != tmpCellPositions3.end()) {
+                  position3)
+        != tmpCellPositions3.end()) {
       found3 = true;
     }
 
@@ -672,7 +722,7 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   Eigen::Tensor<double, 5> FC3(numBands, numBands, numBands, nr2, nr3);
   FC3.setZero();
 
-  for (int it = 0; it < numTriplets; it++) { // sum over all triplets
+  for (int it = 0; it < numTriplets; it++) {// sum over all triplets
     int ia1 = displacedAtoms(it, 0);
     int ia2 = displacedAtoms(it, 1);
     int ia3 = displacedAtoms(it, 2);
@@ -699,18 +749,18 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
       }
     }
   }
-  Eigen::Tensor<double,3> weights(nr2,numAtoms,numAtoms);
+  Eigen::Tensor<double, 3> weights(nr2, numAtoms, numAtoms);
   weights.setConstant(1.);
-  Eigen::Tensor<double,4> bv2(3,nr2,numAtoms,numAtoms);
-  Eigen::Tensor<double,4> bv3(3,nr3,numAtoms,numAtoms);
+  Eigen::Tensor<double, 4> bv2(3, nr2, numAtoms, numAtoms);
+  Eigen::Tensor<double, 4> bv3(3, nr3, numAtoms, numAtoms);
   for (int j = 0; j < 3; j++) {
     for (int k = 0; k < numAtoms; k++) {
       for (int l = 0; l < numAtoms; l++) {
         for (int i = 0; i < nr2; i++) {
-          bv2(j,i,k,l) = cellPositions2(j,i);
+          bv2(j, i, k, l) = cellPositions2(j, i);
         }
         for (int i = 0; i < nr3; i++) {
-          bv3(j,i,k,l) = cellPositions3(j,i);
+          bv3(j, i, k, l) = cellPositions3(j, i);
         }
       }
     }
