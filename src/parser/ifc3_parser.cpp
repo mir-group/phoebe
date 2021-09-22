@@ -512,8 +512,10 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   }
 
   // Create interaction3Ph object
+  Eigen::Tensor<double,3> w(1,1,1);
+  w.setConstant(1.);
   Interaction3Ph interaction3Ph(crystal, FC3, bravaisVectors2, bravaisVectors3,
-                                weights2, weights3);
+                                w, w);
 
   return interaction3Ph;
 
@@ -695,11 +697,8 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
       }
     }
   }
-  Eigen::VectorXd weights(cellPositions2.cols());
-  weights.setZero();
-  for (int i = 0; i < cellPositions2.cols(); i++) {
-    weights(i) += 1;
-  }
+  Eigen::Tensor<double,3> weights(nr2,numAtoms,numAtoms);
+  weights.setConstant(1.);
 
   Interaction3Ph interaction3Ph(crystal, FC3, cellPositions2, cellPositions3,
                                 weights, weights);
