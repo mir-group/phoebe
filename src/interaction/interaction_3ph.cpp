@@ -2,16 +2,16 @@
 #include "mpiHelper.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                                 Eigen::MatrixXd &cellPositions2,
-                               Eigen::MatrixXd &cellPositions3,
+                               Eigen::Tensor<double,4> &cellPositions2,
+                               Eigen::Tensor<double,4> &cellPositions3,
                                Eigen::Tensor<double,3> &weights2,
                                Eigen::Tensor<double,3> &weights3)
                                  : crystal_(crystal){
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
-  nr2 = cellPositions2.cols();
-  nr3 = cellPositions3.cols();
+  nr2 = cellPositions2.dimension(1);
+  nr3 = cellPositions3.dimension(1);
   // Copy everything to kokkos views
   Kokkos::realloc(cellPositions2_k, nr2, 3, numAtoms, numAtoms);
   Kokkos::realloc(cellPositions3_k, nr3, 3, numAtoms, numAtoms);
@@ -26,10 +26,10 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
     for (int l = 0; l < numAtoms; l++) {
       for (int j = 0; j < 3; j++) {
         for (int i = 0; i < nr2; i++) {
-          cellPositions2_h(i, j, k, l) = cellPositions2(j, i);
+          cellPositions2_h(i, j, k, l) = cellPositions2(j, i,k,l);
         }
         for (int i = 0; i < nr3; i++) {
-          cellPositions3_h(i, j, k, l) = cellPositions3(j, i);
+          cellPositions3_h(i, j, k, l) = cellPositions3(j, i,k,l);
         }
       }
     }

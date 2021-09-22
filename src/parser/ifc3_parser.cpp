@@ -514,7 +514,9 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // Create interaction3Ph object
   Eigen::Tensor<double,3> w(1,1,1);
   w.setConstant(1.);
-  Interaction3Ph interaction3Ph(crystal, FC3, bravaisVectors2, bravaisVectors3,
+  Eigen::Tensor<double,4> bv(1,1,1,1);
+  w.setConstant(1.);
+  Interaction3Ph interaction3Ph(crystal, FC3, bv, bv,
                                 w, w);
 
   return interaction3Ph;
@@ -699,9 +701,22 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   }
   Eigen::Tensor<double,3> weights(nr2,numAtoms,numAtoms);
   weights.setConstant(1.);
+  Eigen::Tensor<double,4> bv2(3,nr2,numAtoms,numAtoms);
+  Eigen::Tensor<double,4> bv3(3,nr3,numAtoms,numAtoms);
+  for (int j = 0; j < 3; j++) {
+    for (int k = 0; k < numAtoms; k++) {
+      for (int l = 0; l < numAtoms; l++) {
+        for (int i = 0; i < nr2; i++) {
+          bv2(j,i,k,l) = cellPositions2(j,i);
+        }
+        for (int i = 0; i < nr3; i++) {
+          bv3(j,i,k,l) = cellPositions3(j,i);
+        }
+      }
+    }
+  }
 
-  Interaction3Ph interaction3Ph(crystal, FC3, cellPositions2, cellPositions3,
-                                weights, weights);
+  Interaction3Ph interaction3Ph(crystal, FC3, bv2, bv3, weights, weights);
 
   if (mpi->mpiHead()) {
     std::cout << "Successfully parsed anharmonic "
