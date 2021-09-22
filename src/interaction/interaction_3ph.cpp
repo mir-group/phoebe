@@ -2,7 +2,10 @@
 #include "mpiHelper.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                                 Eigen::MatrixXd &cellPositions2, Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2, Eigen::VectorXd weights3)
+                                 Eigen::MatrixXd &cellPositions2,
+                               Eigen::MatrixXd &cellPositions3,
+                               Eigen::Tensor<double,3> &weights2,
+                               Eigen::Tensor<double,3> &weights3)
                                  : crystal_(crystal){
 
   numAtoms = crystal_.getNumAtoms();
@@ -34,10 +37,10 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   for (int j = 0; j < numAtoms; j++) {
     for (int k = 0; k < numAtoms; k++) {
       for (int i = 0; i < nr2; i++) {
-        weights2_h(i,j,k) = weights2(i);
+        weights2_h(i,j,k) = weights2(i,j,k);
       }
       for (int i = 0; i < nr3; i++) {
-        weights3_h(i,j,k) = weights3(i);
+        weights3_h(i,j,k) = weights3(i,j,k);
       }
     }
   }

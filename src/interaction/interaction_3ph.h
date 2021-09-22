@@ -86,8 +86,9 @@ public:
    */
   Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
                  Eigen::MatrixXd &cellPositions2,
-                 Eigen::MatrixXd &cellPositions3, Eigen::VectorXd weights2,
-                 Eigen::VectorXd weights3);
+                 Eigen::MatrixXd &cellPositions3,
+                 Eigen::Tensor<double,3> &weights2,
+                 Eigen::Tensor<double,3> &weights3);
 
   /** Copy constructor
    */
