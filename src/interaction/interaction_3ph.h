@@ -51,7 +51,7 @@ private:
   // variables to be saved on the GPU
   Kokkos::View<double *****> D3_k;
   Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
-  Kokkos::View<double ****> cellPositions2_k, cellPositions3_k;
+  Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
   Kokkos::View<double ***> weights2_k, weights3_k;
 
   double maxmem = 16.0e9; // default 16 Gb memory space for computation
@@ -85,8 +85,8 @@ public:
    * cellPositions3. Set to unity (e.g. in ShengBTE) if this is not used.
    */
   Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                 Eigen::Tensor<double,4> &cellPositions2,
-                 Eigen::Tensor<double,4> &cellPositions3,
+                 Eigen::Tensor<double,2> &cellPositions2,
+                 Eigen::Tensor<double,2> &cellPositions3,
                  Eigen::Tensor<double,3> &weights2,
                  Eigen::Tensor<double,3> &weights3);
 

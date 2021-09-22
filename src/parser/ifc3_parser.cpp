@@ -103,7 +103,7 @@ int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
   return ir2;
 }
 
-std::tuple<Eigen::Tensor<double, 4>, Eigen::Tensor<double, 3>, Eigen::Tensor<double, 4>, Eigen::Tensor<double, 3>>
+std::tuple<Eigen::Tensor<double, 2>, Eigen::Tensor<double, 3>, Eigen::Tensor<double, 2>, Eigen::Tensor<double, 3>>
 reorderDynamicalMatrix(
     Crystal &crystal, Eigen::Vector3i qCoarseGrid, const Eigen::MatrixXd &rws,
     Eigen::Tensor<double, 5> &mat3R, Eigen::MatrixXd cellPositions,
@@ -167,7 +167,7 @@ reorderDynamicalMatrix(
     }
     listBravaisVectors.push_back(R2);
   }
-  Eigen::Tensor<double, 4> bravaisVectors(3, numR, numAtoms, numAtoms);
+  Eigen::Tensor<double, 2> bravaisVectors(3, numR);
   Eigen::Tensor<double, 3> weights(numR, numAtoms, numAtoms);
   bravaisVectors.setConstant(0.);
   weights.setConstant(0.);
@@ -194,7 +194,7 @@ reorderDynamicalMatrix(
                 ir = it - listBravaisVectors.begin();
               }
               for (int i : {0, 1, 2}) {
-                bravaisVectors(i, ir, na, nb) = R2(i);
+                bravaisVectors(i, ir) = R2(i);
               }
               weights(ir, na, nb) = weightR2;
             }
@@ -751,18 +751,14 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   }
   Eigen::Tensor<double, 3> weights(nr2, numAtoms, numAtoms);
   weights.setConstant(1.);
-  Eigen::Tensor<double, 4> bv2(3, nr2, numAtoms, numAtoms);
-  Eigen::Tensor<double, 4> bv3(3, nr3, numAtoms, numAtoms);
+  Eigen::Tensor<double, 2> bv2(3, nr2);
+  Eigen::Tensor<double, 2> bv3(3, nr3);
   for (int j = 0; j < 3; j++) {
-    for (int k = 0; k < numAtoms; k++) {
-      for (int l = 0; l < numAtoms; l++) {
-        for (int i = 0; i < nr2; i++) {
-          bv2(j, i, k, l) = cellPositions2(j, i);
-        }
-        for (int i = 0; i < nr3; i++) {
-          bv3(j, i, k, l) = cellPositions3(j, i);
-        }
-      }
+    for (int i = 0; i < nr2; i++) {
+      bv2(j, i) = cellPositions2(j, i);
+    }
+    for (int i = 0; i < nr3; i++) {
+      bv3(j, i) = cellPositions3(j, i);
     }
   }
 
