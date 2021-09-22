@@ -12,8 +12,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   // Copy everything to kokkos views
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);
-  Kokkos::realloc(weights2_k, nr2);
-  Kokkos::realloc(weights3_k, nr2);
+  Kokkos::realloc(weights2_k, nr2, numAtoms, numAtoms);
+  Kokkos::realloc(weights3_k, nr2, numAtoms, numAtoms);
 
   auto cellPositions2_h = Kokkos::create_mirror_view(cellPositions2_k);
   auto cellPositions3_h = Kokkos::create_mirror_view(cellPositions3_k);
@@ -27,11 +27,15 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
       cellPositions3_h(i, j) = cellPositions3(j, i);
     }
   }
-  for (int i = 0; i < nr2; i++) {
-    weights2_h(i) = weights2(i);
-  }
-  for (int i = 0; i < nr3; i++) {
-    weights3_h(i) = weights3(i);
+  for (int j = 0; j < numAtoms; j++) {
+    for (int k = 0; k < numAtoms; k++) {
+      for (int i = 0; i < nr2; i++) {
+        weights2_h(i,j,k) = weights2(i);
+      }
+      for (int i = 0; i < nr3; i++) {
+        weights3_h(i,j,k) = weights3(i);
+      }
+    }
   }
   Kokkos::deep_copy(cellPositions2_k, cellPositions2_h);
   Kokkos::deep_copy(cellPositions3_k, cellPositions3_h);
@@ -112,21 +116,21 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   auto D3 = this->D3_k;
 
   // precompute phases
-  Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
-      phaseMins("pm", nr3, nr2);
-
-  Kokkos::parallel_for(
-      "phase1loop", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
-      KOKKOS_LAMBDA(int ir3, int ir2) {
-
-        double argP = 0, argM = 0;
-        for (int ic = 0; ic < 3; ic++) {
-          argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
-          argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
-        }
-        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP) * weights2(ir2) * weights3(ir3);
-        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM) * weights2(ir2) * weights3(ir3);
-      });
+//  Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nr3, nr2),
+//      phaseMins("pm", nr3, nr2);
+//
+//  Kokkos::parallel_for(
+//      "phase1loop", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nr3, nr2}),
+//      KOKKOS_LAMBDA(int ir3, int ir2) {
+//
+//        double argP = 0, argM = 0;
+//        for (int ic = 0; ic < 3; ic++) {
+//          argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+//          argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+//        }
+//        phasePlus(ir3, ir2) = Kokkos::exp(complexI * argP) * weights2(ir2) * weights3(ir3);
+//        phaseMins(ir3, ir2) = Kokkos::exp(complexI * argM) * weights2(ir2) * weights3(ir3);
+//      });
 
   // create cached D3
   Kokkos::parallel_for(
@@ -134,10 +138,24 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
           {0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
       KOKKOS_LAMBDA(int ind1, int ind2, int ind3, int ir3) {
+
+        int at1 = std::get<0>(decompress2Indices(ind1,numAtoms,3));
+        int at2 = std::get<0>(decompress2Indices(ind2,numAtoms,3));
+        int at3 = std::get<0>(decompress2Indices(ind3,numAtoms,3));
+
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir2 = 0; ir2 < nr2; ir2++) { // sum over all triplets
-          tmpp += D3(ind1, ind2, ind3, ir3, ir2) * phasePlus(ir3, ir2);
-          tmpm += D3(ind1, ind2, ind3, ir3, ir2) * phaseMins(ir3, ir2);
+
+          double argP = 0, argM = 0;
+          for (int ic = 0; ic < 3; ic++) {
+            argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+            argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+          }
+          Kokkos::complex<double> phasePlus = Kokkos::exp(complexI * argP);
+          Kokkos::complex<double> phaseMins = Kokkos::exp(complexI * argM);
+
+          tmpp += D3(ind1, ind2, ind3, ir3, ir2) * phasePlus * weights2(ir2, at1, at2) * weights3(ir3, at1, at3);
+          tmpm += D3(ind1, ind2, ind3, ir3, ir2) * phaseMins * weights2(ir2, at1, at2) * weights3(ir3, at1, at3);
         }
         D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
         D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
@@ -230,19 +248,19 @@ Interaction3Ph::getCouplingsSquared(
     Kokkos::deep_copy(nb3Minss, nb3Minss_h);
   }
 
-  Kokkos::View<Kokkos::complex<double> **> phasePlus("pp", nq1, nr3),
-      phaseMins("pm", nq1, nr3);
+  Kokkos::View<Kokkos::complex<double> ****> phasePlus("pp", nq1, nr3, numAtoms, numAtoms),
+      phaseMins("pm", nq1, nr3, numAtoms, numAtoms);
   Kokkos::parallel_for(
       "tmpphaseloop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nq1, nr3}),
-      KOKKOS_LAMBDA(int iq1, int ir3) {
+      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0,0,0}, {nq1, nr3,numAtoms,numAtoms}),
+      KOKKOS_LAMBDA(int iq1, int ir3, int at1, int at2) {
         double argP = 0, argM = 0;
         for (int ic : {0, 1, 2}) {
           argP += -q1s(iq1, ic) * cellPositions3(ir3, ic);
           argM += -q1s(iq1, ic) * cellPositions3(ir3, ic);
         }
-        phasePlus(iq1, ir3) = exp(complexI * argP) * weights3(ir3);
-        phaseMins(iq1, ir3) = exp(complexI * argM) * weights3(ir3);
+        phasePlus(iq1, ir3,at1,at2) = exp(complexI * argP) * weights3(ir3,at1,at2);
+        phaseMins(iq1, ir3,at1,at2) = exp(complexI * argM) * weights3(ir3,at1,at2);
       });
 
   Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
@@ -253,16 +271,18 @@ Interaction3Ph::getCouplingsSquared(
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
           {0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
+        int at1 = std::get<0>(decompress2Indices(iac1,numAtoms,3));
+        int at3 = std::get<0>(decompress2Indices(iac3,numAtoms,3));
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
-          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3);
-          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3);
+          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3,at1,at3);
+          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3,at1,at3);
         }
         tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
         tmpMins(iq1, iac1, iac2, iac3) = tmpm;
       });
-  Kokkos::realloc(phasePlus, 0, 0);
-  Kokkos::realloc(phaseMins, 0, 0);
+  Kokkos::realloc(phasePlus, 0, 0,0,0);
+  Kokkos::realloc(phaseMins, 0, 0,0,0);
 
 
   Kokkos::View<Kokkos::complex<double> ****> tmp1Plus("t1p", nq1, maxnb1,
