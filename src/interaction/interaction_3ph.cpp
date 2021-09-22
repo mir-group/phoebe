@@ -10,8 +10,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   nr2 = cellPositions2.cols();
   nr3 = cellPositions3.cols();
   // Copy everything to kokkos views
-  Kokkos::realloc(cellPositions2_k, nr2, 3);
-  Kokkos::realloc(cellPositions3_k, nr3, 3);
+  Kokkos::realloc(cellPositions2_k, nr2, 3, numAtoms, numAtoms);
+  Kokkos::realloc(cellPositions3_k, nr3, 3, numAtoms, numAtoms);
   Kokkos::realloc(weights2_k, nr2, numAtoms, numAtoms);
   Kokkos::realloc(weights3_k, nr2, numAtoms, numAtoms);
 
@@ -19,12 +19,16 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   auto cellPositions3_h = Kokkos::create_mirror_view(cellPositions3_k);
   auto weights2_h = Kokkos::create_mirror_view(weights2_k);
   auto weights3_h = Kokkos::create_mirror_view(weights3_k);
-  for (int j = 0; j < 3; j++) {
-    for (int i = 0; i < nr2; i++) {
-      cellPositions2_h(i, j) = cellPositions2(j, i);
-    }
-    for (int i = 0; i < nr3; i++) {
-      cellPositions3_h(i, j) = cellPositions3(j, i);
+  for (int k = 0; k < numAtoms; k++) {
+    for (int l = 0; l < numAtoms; l++) {
+      for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < nr2; i++) {
+          cellPositions2_h(i, j, k, l) = cellPositions2(j, i);
+        }
+        for (int i = 0; i < nr3; i++) {
+          cellPositions3_h(i, j, k, l) = cellPositions3(j, i);
+        }
+      }
     }
   }
   for (int j = 0; j < numAtoms; j++) {
@@ -148,8 +152,8 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
 
           double argP = 0, argM = 0;
           for (int ic = 0; ic < 3; ic++) {
-            argP += +q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
-            argM += -q2(ic) * (cellPositions2(ir2, ic) - cellPositions3(ir3, ic));
+            argP += +q2(ic) * (cellPositions2(ir2, ic, at1, at2) - cellPositions3(ir3, ic, at1, at3));
+            argM += -q2(ic) * (cellPositions2(ir2, ic, at1, at2) - cellPositions3(ir3, ic, at1, at3));
           }
           Kokkos::complex<double> phasePlus = Kokkos::exp(complexI * argP);
           Kokkos::complex<double> phaseMins = Kokkos::exp(complexI * argM);
@@ -256,8 +260,8 @@ Interaction3Ph::getCouplingsSquared(
       KOKKOS_LAMBDA(int iq1, int ir3, int at1, int at2) {
         double argP = 0, argM = 0;
         for (int ic : {0, 1, 2}) {
-          argP += -q1s(iq1, ic) * cellPositions3(ir3, ic);
-          argM += -q1s(iq1, ic) * cellPositions3(ir3, ic);
+          argP += -q1s(iq1, ic) * cellPositions3(ir3, ic, at1, at2);
+          argM += -q1s(iq1, ic) * cellPositions3(ir3, ic, at1, at2);
         }
         phasePlus(iq1, ir3,at1,at2) = exp(complexI * argP) * weights3(ir3,at1,at2);
         phaseMins(iq1, ir3,at1,at2) = exp(complexI * argM) * weights3(ir3,at1,at2);

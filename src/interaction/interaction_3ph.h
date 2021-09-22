@@ -51,7 +51,7 @@ private:
   // variables to be saved on the GPU
   Kokkos::View<double *****> D3_k;
   Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
-  Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
+  Kokkos::View<double ****> cellPositions2_k, cellPositions3_k;
   Kokkos::View<double ***> weights2_k, weights3_k;
 
   double maxmem = 16.0e9; // default 16 Gb memory space for computation
