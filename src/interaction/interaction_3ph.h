@@ -85,8 +85,8 @@ public:
    * cellPositions3. Set to unity (e.g. in ShengBTE) if this is not used.
    */
   Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                 Eigen::Tensor<double,2> &cellPositions2,
-                 Eigen::Tensor<double,2> &cellPositions3,
+                 Eigen::MatrixXd &cellPositions2,
+                 Eigen::MatrixXd &cellPositions3,
                  Eigen::Tensor<double,3> &weights2,
                  Eigen::Tensor<double,3> &weights3);
 

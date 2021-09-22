@@ -2,16 +2,16 @@
 #include "mpiHelper.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
-                               Eigen::Tensor<double,2> &cellPositions2,
-                               Eigen::Tensor<double,2> &cellPositions3,
+                               Eigen::MatrixXd &cellPositions2,
+                               Eigen::MatrixXd &cellPositions3,
                                Eigen::Tensor<double,3> &weights2,
                                Eigen::Tensor<double,3> &weights3)
                                  : crystal_(crystal){
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
-  nr2 = cellPositions2.dimension(1);
-  nr3 = cellPositions3.dimension(1);
+  nr2 = cellPositions2.cols();
+  nr3 = cellPositions3.cols();
   // Copy everything to kokkos views
   Kokkos::realloc(cellPositions2_k, nr2, 3);
   Kokkos::realloc(cellPositions3_k, nr3, 3);
