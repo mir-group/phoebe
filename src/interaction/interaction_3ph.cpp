@@ -260,19 +260,16 @@ Interaction3Ph::getCouplingsSquared(
     Kokkos::deep_copy(nb3Minss, nb3Minss_h);
   }
 
-  Kokkos::View<Kokkos::complex<double> ****> phasePlus("pp", nq1, nr3, numAtoms, numAtoms),
-      phaseMins("pm", nq1, nr3, numAtoms, numAtoms);
+  Kokkos::View<Kokkos::complex<double> ****> phases("pp", nq1, nr3, numAtoms, numAtoms);
   Kokkos::parallel_for(
       "tmpphaseloop",
       Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0,0,0}, {nq1, nr3,numAtoms,numAtoms}),
       KOKKOS_LAMBDA(int iq1, int ir3, int at1, int at2) {
-        double argP = 0, argM = 0;
+        double arg = 0;
         for (int ic : {0, 1, 2}) {
-          argP += -q1s(iq1, ic) * cellPositions3(ir3, ic, at1, at2);
-          argM += -q1s(iq1, ic) * cellPositions3(ir3, ic, at1, at2);
+          arg += -q1s(iq1, ic) * cellPositions3(ir3, ic, at1, at2);
         }
-        phasePlus(iq1, ir3,at1,at2) = exp(complexI * argP) * weights3(ir3,at1,at2);
-        phaseMins(iq1, ir3,at1,at2) = exp(complexI * argM) * weights3(ir3,at1,at2);
+        phases(iq1, ir3,at1,at2) = exp(complexI * arg) * weights3(ir3,at1,at2);
       });
 
   Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
@@ -287,14 +284,13 @@ Interaction3Ph::getCouplingsSquared(
         int at3 = std::get<0>(decompress2Indices(iac3,numAtoms,3));
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
         for (int ir3 = 0; ir3 < nr3; ir3++) { // sum over all triplets
-          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phasePlus(iq1, ir3,at1,at3);
-          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phaseMins(iq1, ir3,at1,at3);
+          tmpp += D3PlusCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3,at1,at3);
+          tmpm += D3MinsCached(iac1, iac2, iac3, ir3) * phases(iq1, ir3,at1,at3);
         }
         tmpPlus(iq1, iac1, iac2, iac3) = tmpp;
         tmpMins(iq1, iac1, iac2, iac3) = tmpm;
       });
-  Kokkos::realloc(phasePlus, 0, 0,0,0);
-  Kokkos::realloc(phaseMins, 0, 0,0,0);
+  Kokkos::realloc(phases, 0, 0,0,0);
 
 
   Kokkos::View<Kokkos::complex<double> ****> tmp1Plus("t1p", nq1, maxnb1,
