@@ -212,20 +212,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       // this exit condition must be improved
       // different temperatures might converge differently
 
-      Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
-      Eigen::Tensor<double, 3> diffT = ((thCond - thCondOld) / thCondOld).abs();
-      double dE = 10000.;
-      double dT = 10000.;
-      for (int i = 0; i < diffE.dimension(0); i++) {
-        for (int j = 0; j < diffE.dimension(0); j++) {
-          for (int k = 0; k < diffE.dimension(0); k++) {
-            if (diffE(i, j, k) < dE)
-              dE = diffE(i, j, k);
-            if (diffT(i, j, k) < dT)
-              dT = diffT(i, j, k);
-          }
-        }
-      }
+      double dE = findMaxRelativeDifference(elCond, elCondOld);
+      double dT = findMaxRelativeDifference(thCond, thCondOld);
       if ((dE < threshold) && (dT < threshold)) {
         break;
       } else {
@@ -331,8 +319,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
       transportCoefficients.getElectricalConductivity();
   Eigen::Tensor<double, 3> thCond =
       transportCoefficients.getThermalConductivity();
-  auto elCondOld = elCond;
-  auto thCondOld = thCond;
+  auto elCondOld = elCond.setConstant(1.);
+  auto thCondOld = thCond.setConstant(1.);
 
   // set the initial guess to the RTA solution
   VectorBTE preconditioning2 = scatteringMatrix.diagonal();
@@ -481,22 +469,8 @@ void ElectronWannierTransportApp::runVariationalMethod(
     thCond = transportCoefficients.getThermalConductivity();
 
     // decide whether to exit or run the next iteration
-    Eigen::Tensor<double, 3> diffE = ((elCond - elCondOld) / elCondOld).abs();
-    Eigen::Tensor<double, 3> diffT = ((thCond - thCondOld) / thCondOld).abs();
-    double deltaE = 10000.;
-    double deltaT = 10000.;
-    for (int i = 0; i < diffE.dimension(0); i++) {
-      for (int j = 0; j < diffE.dimension(0); j++) {
-        for (int k = 0; k < diffE.dimension(0); k++) {
-          if (diffE(i, j, k) < deltaE) {
-            deltaE = diffE(i, j, k);
-          }
-          if (diffT(i, j, k) < deltaT) {
-            deltaT = diffT(i, j, k);
-          }
-        }
-      }
-    }
+    double deltaE = findMaxRelativeDifference(elCond, elCondOld);
+    double deltaT = findMaxRelativeDifference(thCond, thCondOld);
     if ((deltaE < threshold) && (deltaT < threshold)) {
       // remove the preconditioning from the population
       zNewE = zNewE / preconditioning;

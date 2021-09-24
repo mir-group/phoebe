@@ -4,6 +4,7 @@
 #include <tuple>
 #include <string>
 #include <vector>
+#include "eigen.h"
 
 // returns the remainder of the division between two integers.
 // Note: c++ defines the % operator such that: (a/b)*b + a%b == a    (for b!=0)
@@ -121,5 +122,8 @@ std::vector<Vector> splitVector(const Vector& v, unsigned chunkSize) {
 
   return vectorChunks;
 }
+
+double findMaxRelativeDifference(const Eigen::Tensor<double,3> &x,
+                                 const Eigen::Tensor<double,3> &xRef);
 
 #endif

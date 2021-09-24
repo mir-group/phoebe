@@ -510,3 +510,7 @@ void PhononThermalConductivity::print(const int &iter) {
 }
 
 int PhononThermalConductivity::whichType() { return is2Tensor; }
+
+Eigen::Tensor<double,3> PhononThermalConductivity::getThermalConductivity() {
+  return tensordxd;
+}
