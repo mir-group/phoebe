@@ -308,10 +308,14 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 // Calculate transition probability W+
 
                 double rate =
-                    coupling(ib1, ib2, ib3) * ((fermi2 + bose3) * delta1 + (1. - fermi2 + bose3) * delta2) * norm / en3 * pi;
+                    coupling(ib1, ib2, ib3)
+                    * ((fermi2 + bose3) * delta1
+                       + (1. - fermi2 + bose3) * delta2) * norm / en3 * pi;
 
-                double rateOffDiagonal =
-                    coupling(ib1, ib2, ib3) * (fermi1 * (1. - fermi2) * bose3 * delta1 + fermi2 * (1. - fermi1) * bose3 * delta2) * norm / en3 * pi;
+                double rateOffDiagonal = -
+                    coupling(ib1, ib2, ib3)
+                    * ((1 + bose3 - fermi1) * delta1 + (bose3 + fermi1) * delta2)
+                    * norm / en3 * pi;
 
                 if (switchCase == 0) {
 

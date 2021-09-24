@@ -24,20 +24,36 @@ where the first term describes the diffusion due to an externally applied electr
 The electron scattering matrix :math:`A_{\lambda,\lambda'}` can be computed as
 
 .. math::
-   A_{\boldsymbol{k}b,\boldsymbol{k}'b'} =& \frac{1}{V N_k} \sum_{s, \boldsymbol{q}}
-   2 \pi
+   A_{\boldsymbol{k}b,\boldsymbol{k}'b'} =&
+   \tau_{kb} \delta_{kb,k'b'} - (1-\delta_{kb,k'b'})
+   \frac{2\pi}{V N_k} \sum_{s \boldsymbol{q}}
+   |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2 \\
+   &\times
+   \bigg[
+   ( 1 - \bar{f}_{\boldsymbol{k}b} + \bar{n}_{\boldsymbol{q}\nu})
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} + \hbar \omega_{\boldsymbol{q}\nu}) \\
+   &+
+   (\bar{f}_{\boldsymbol{k}b} + \bar{n}_{\boldsymbol{q}\nu})
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} - \hbar \omega_{\boldsymbol{q}\nu})
+   \bigg]
+   \delta(\boldsymbol{k}-\boldsymbol{k}'+\boldsymbol{q}),
+
+with
+
+.. math::
+   \tau_{kb} =&
+   \frac{2\pi}{V N_k} \sum_{b'\boldsymbol{k}',s \boldsymbol{q}}
    |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2
    \times
    \bigg[
-   \bar{f}_{\boldsymbol{k}b}(1-\bar{f}_{\boldsymbol{k}'b'}) \bar{n}_{\boldsymbol{q}\nu}
-   \delta(\epsilon_{\boldsymbol{k}b} + \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'}) \\\\
+   (1-\bar{f}_{\boldsymbol{k}'b'} + \bar{n}_{\boldsymbol{q}\nu})
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} - \hbar \omega_{\boldsymbol{q}\nu}) \\ 
    &+
-   \bar{f}_{\boldsymbol{k}'b'}(1-\bar{f}_{\boldsymbol{k}b}) \bar{n}_{\boldsymbol{q}\nu}
-   \delta(\epsilon_{\boldsymbol{k}b} - \hbar \omega_{\boldsymbol{q}\nu} - \epsilon_{\boldsymbol{k}'b'})
+   (\bar{f}_{\boldsymbol{k}'b'} + \bar{n}_{\boldsymbol{q}\nu})
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} + \hbar \omega_{\boldsymbol{q}\nu})
    \bigg]
    \delta(\boldsymbol{k}-\boldsymbol{k}'+\boldsymbol{q}). 
-
-
+   
 This scattering matrix requires us to know the phonon and electron energies, as well as the electron-phonon coupling on a fine (interpolated) mesh.
 
 Please note that, for convenience, here we use a coupling defined as
