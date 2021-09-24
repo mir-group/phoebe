@@ -199,9 +199,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
         sp_zeu(zeu_x, zeu_new, scalar);
         // rescale vector
 
-//#pragma omp declare reduction (+: Eigen::Tensor<double,3>: omp_out=omp_out+omp_in)\
-//initializer(omp_priv=omp_orig)
-//#pragma omp parallel for collapse(3) reduction(+ : zeu_w)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             for (int iat = 0; iat < numAtoms; iat++) {
@@ -460,10 +457,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
             }
           }
 
-//#pragma omp declare reduction (-: Eigen::Tensor<double,7>: omp_out=omp_out-omp_in)\
-//initializer(omp_priv=omp_orig)
-//
-//#pragma omp parallel for collapse(7) reduction(- : w)
           for (int nb = 0; nb < numAtoms; nb++) {
             for (int na = 0; na < numAtoms; na++) {
               for (int j = 0; j < 3; j++) {
@@ -583,10 +576,6 @@ void PhononH0::setAcousticSumRule(const std::string &sumRule) {
           }
         }
 
-//#pragma omp declare reduction (+: Eigen::Tensor<double,7>: omp_out=omp_out+omp_in)\
-//initializer(omp_priv=omp_orig)
-//
-//#pragma omp parallel for collapse(7) reduction(+ : w)
         for (int nb = 0; nb < numAtoms; nb++) {
           for (int na = 0; na < numAtoms; na++) {
             for (int j = 0; j < 3; j++) {
