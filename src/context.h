@@ -31,7 +31,7 @@ class Context {
   double smearingWidth = std::numeric_limits<double>::quiet_NaN();
   Eigen::VectorXd temperatures;
   std::vector<std::string> solverBTE;
-  double convergenceThresholdBTE = 1e-5;
+  double convergenceThresholdBTE = 1e-2;
   int maxIterationsBTE = 50;
 
   bool scatteringMatrixInMemory = true;
