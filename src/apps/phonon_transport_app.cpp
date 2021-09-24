@@ -187,8 +187,10 @@ void PhononTransportApp::run(Context &context) {
 
       // this exit condition must be improved
       // different temperatures might converge differently
-      auto diff = phTCond - phTCondOld;
-      if (diff.getNorm().maxCoeff() < threshold) {
+      Eigen::Tensor<double,3> newCond = phTCond.getThermalConductivity();
+      Eigen::Tensor<double,3> oldCond = phTCondOld.getThermalConductivity();
+      double diff = findMaxRelativeDifference(newCond, oldCond);
+      if (diff < threshold) {
         break;
       } else {
         phTCondOld = phTCond;
@@ -275,8 +277,10 @@ void PhononTransportApp::run(Context &context) {
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
-      auto diff = phTCond - phTCondOld;
-      if (diff.getNorm().maxCoeff() < threshold) {
+      Eigen::Tensor<double,3> newCond = phTCond.getThermalConductivity();
+      Eigen::Tensor<double,3> oldCond = phTCondOld.getThermalConductivity();
+      double diff = findMaxRelativeDifference(newCond, oldCond);
+      if (diff < threshold) {
         break;
       } else {
         phTCondOld = phTCond;

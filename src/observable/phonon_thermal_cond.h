@@ -92,6 +92,8 @@ public:
    */
   void print(const int &iter);
 
+  Eigen::Tensor<double,3> getThermalConductivity();
+
 protected:
   int whichType() override;
   BaseBandStructure &bandStructure;
