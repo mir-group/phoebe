@@ -8,7 +8,6 @@
 #include "exceptions.h"
 #include "lifetimes_app.h"
 #include "phonon_transport_app.h"
-#include "polarization_app.h"
 #include "transport_epa_app.h"
 #include <cmath>
 #include <string>
@@ -22,7 +21,6 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "phononBands",
                                             "electronWannierBands",
                                             "electronFourierBands",
-                                            "electronPolarization",
                                             "electronWannierTransport",
                                             "elPhQeToPhoebe",
                                             "elPhCouplingPlot",
@@ -53,8 +51,6 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronWannierBandsApp);
   } else if (choice == "electronFourierBands") {
     return std::unique_ptr<App>(new ElectronFourierBandsApp);
-  } else if (choice == "electronPolarization") {
-    return std::unique_ptr<App>(new ElectronPolarizationApp);
   } else if ( choice == "transportEpa" ) {
     return std::unique_ptr<App>(new TransportEpaApp);
   } else if (choice == "elPhCouplingPlot") {
