@@ -222,8 +222,8 @@ void PhononTransportApp::run(Context &context) {
     PhononThermalConductivity phTCondOld = phTCond;
 
     // load the conjugate gradient rescaling factor
-    VectorBTE preconditioning2 = scatteringMatrix.diagonal();
-    VectorBTE preconditioning = preconditioning2.sqrt();
+    // VectorBTE preconditioning2 = scatteringMatrix.diagonal();
+    // VectorBTE preconditioning = preconditioning2.sqrt();
 
     // initialize b
     VectorBTE b = drift; // / preconditioning;
