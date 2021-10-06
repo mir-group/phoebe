@@ -75,7 +75,7 @@ std::tuple<double, double> memoryUsage() {
 
 double findMaxRelativeDifference(const Eigen::Tensor<double,3> &x,
                                  const Eigen::Tensor<double,3> &xRef) {
-  if (x.dimensions() != xRef.dimensions()) {
+  if (!(x.dimensions() == xRef.dimensions())) {
     Error("Can't compare inconsistent tensors");
   }
   Eigen::Tensor<double, 3> diff = ((x - xRef) / xRef).abs();
