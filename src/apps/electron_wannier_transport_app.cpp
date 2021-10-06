@@ -356,6 +356,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
   }
   mpi->allReduceSum(&bE.data);
   mpi->allReduceSum(&bT.data);
+  mpi->allReduceSum(&preconditioning.data);
 
   // populations, initial guess
   VectorBTE zNewE = bE;
