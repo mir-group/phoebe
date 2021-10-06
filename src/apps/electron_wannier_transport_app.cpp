@@ -420,11 +420,11 @@ void ElectronWannierTransportApp::runVariationalMethod(
     // we need to do this because we didn't remove this factor from sMatrix
     VectorBTE z2E = zNewE;
     VectorBTE z2T = zNewT;
-    auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
-    size_t numParallelIrrStates = parallelIrrStates.size();
+    auto irrStates = bandStructure.irrStateIterator();
+    size_t numIrrStates = irrStates.size();
 #pragma omp parallel for
-    for (size_t iss=0; iss<numParallelIrrStates; iss++) {
-      int is = parallelIrrStates[iss];
+    for (size_t iss=0; iss<numIrrStates; iss++) {
+      int is = irrStates[iss];
       StateIndex isIdx(is);
       double energy = bandStructure.getEnergy(isIdx);
       int iBte = bandStructure.stateToBte(isIdx).get();
