@@ -71,7 +71,7 @@ This expression for :math:`X` can be used to transform the output of a density f
 The matrix is actually a periodic function, so it is possible to neglect one of the Bravais lattice vector indices of such a tensor. Note that Quantum Espresso provides the matrix :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')`, where they used this freedom to set the first vector to the initial unit cell.
 Codes like phono3py instead provide the complete matrix, and we select the subset :math:`\mathcal{E}(\boldsymbol{0} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',\boldsymbol{R}''_{l''}s''\alpha'')` that we will later use.
 
-The Fourier transform of these coupling matrix elements is, 
+The Fourier transform of these coupling matrix elements is,
 
 .. math::
    V^{(3)}(\boldsymbol{q}s\alpha,\boldsymbol{q}'s'\alpha',\boldsymbol{q}''s''\alpha'')
@@ -79,7 +79,7 @@ The Fourier transform of these coupling matrix elements is,
    \sum_{\boldsymbol{R}_l, \boldsymbol{R}_{l'}}
    \mathcal{E}(\boldsymbol{R}_{l} s\alpha,\boldsymbol{R}'_{l'} s' \alpha',0 s''\alpha'')
 
-where it's worth noting that the sum over Bravais lattice vectors is done over the Bravais lattice vectors :math:`\boldsymbol{R}_l` such that :math:`\boldsymbol{R}_l` belongs to the Wigner Seitz zone of the super cell in which the anharmonic force constants have been computed. 
+where it's worth noting that the sum over Bravais lattice vectors is done over the Bravais lattice vectors :math:`\boldsymbol{R}_l` such that :math:`\boldsymbol{R}_l` belongs to the Wigner Seitz zone of the super cell in which the anharmonic force constants have been computed.
 
 These coupling matrix elements can then be used to calculate anharmonic phonon scattering rates.
 
@@ -196,7 +196,7 @@ Iterative solution: Omini-Sparavigna method
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
-   Generally, we recommend the variational method over this.
+   Generally, we recommend the variational method over this, as the variational method converges more quickly. However, this method can be computationally cheaper in Phoebe, as it enables one to take advantage of symmetries.
 
 An exact solution of the BTE that does not imply either storing or the explicit inversion of matrix :math:`\boldsymbol{A}` has been proposed by Omini and Sparavigna by converging with respect to the iteration :math:`i` the following:
 
@@ -435,5 +435,5 @@ Hence, one can work with the same techniques detailed above, provided that we wo
 
 * Disadvantage 2: note that the symmetric matrix gains two Cartesian coordinate indices. As a result, in the limiting case of no symmetries in the system (only the identity), the matrix :math:`A^{ij}_{\nu^*\nu'^*}` will still be computed on the same number of wavevectors of  :math:`A_{\nu\nu'}`, but occupies 3x3 times more memory without adding any information. Therefore, for low-symmetry systems, consider disabling symmetries.
 
-* Disadvantage 3: The symmetries of the BTE are so far not applicable to the variational and relaxons solveres. This is not so much a problem with implementaiton, but instead is because of a need for a derivation of symmetries for these cases. 
+* Disadvantage 3: The symmetries of the BTE are so far not applicable to the variational and relaxons solveres. This is not so much a problem with implementaiton, but instead is because of a need for a derivation of symmetries for these cases.
 
