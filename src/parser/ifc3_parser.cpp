@@ -105,12 +105,12 @@ int findIndexRow(Eigen::MatrixXd &cellPositions, Eigen::Vector3d &position) {
 
 std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>, Eigen::MatrixXd, Eigen::Tensor<double, 3>>
 reorderDynamicalMatrix(
-    Crystal &crystal, Eigen::Vector3i qCoarseGrid, const Eigen::MatrixXd &rws,
-    Eigen::Tensor<double, 5> &mat3R, Eigen::MatrixXd cellPositions,
-    std::vector<
+    Crystal &crystal, const Eigen::Vector3i &qCoarseGrid, const Eigen::MatrixXd &rws,
+    Eigen::Tensor<double, 5> &mat3R, Eigen::MatrixXd &cellPositions,
+    const std::vector<
         std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>>
-        ifc3Tensor,
-    std::vector<int> cellMap) {
+        &ifc3Tensor,
+    const std::vector<int> &cellMap) {
 
   int numAtoms = crystal.getNumAtoms();
   Eigen::MatrixXd atomicPositions = crystal.getAtomicPositions();

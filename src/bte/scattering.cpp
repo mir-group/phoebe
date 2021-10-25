@@ -36,6 +36,14 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
         excludeIndices.push_back(iBte);
       }
+
+      Eigen::Vector3d k = outerBandStructure.getWavevector(isIdx);
+      if (k.squaredNorm() > 1e-8 && en < 0.) {
+        Warning("Found a phonon mode q!=0 with negative energies. "
+                "Consider increasing q-points sampling (supercell size) in the"
+                " DFT runs\n");
+      }
+
     }
   }
 

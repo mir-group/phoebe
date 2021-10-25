@@ -114,8 +114,8 @@ Before proceeding, you should check the quality of the calculation. First, make 
 
   # necessary input files
   phFC2FileName = "fc2.hdf5"
-  phonopyDispFileName = "disp_fc2.yaml"
-  dispFCFileName = "disp.yaml"
+  dispFCFileName = "disp_fc3.yaml"
+  phonopyDispFileName = "phono3py_disp.yaml"
 
   sumRuleFC2 = "simple"
   begin point path
@@ -334,7 +334,7 @@ As a result, we end up spending a lot of time computing phonon states that don't
 To avoid doing this unnecessary work, we have the parameters :ref:`windowType`, :ref:`windowEnergyLimit`, and :ref:`windowPopulationLimit`.
 If we wanted to add these two parameters to the input file above::
 
-  windowType = "phononTransport"
+  windowType = "population"
   windowPopulationLimit = 1.0e-6
   temperatures = [3.]
   qMesh = [40,40,40]
@@ -374,7 +374,7 @@ Then, run the following line and check the output plot, named ``band.pdf``::
 
 Running Phoebe with different fc2/fc3 supercells
 -------------------------------------------------
-Sometimes, one needs a larger supercell to converge the harmonic force constants than the anharmonic force constants. In this case, it is possible to run phono3py with different unit cells for the harmonic and anharmonic phonon force constant calculations, as shown in this `phono3py example <https://phonopy.github.io/phono3py/vasp.html>`__. 
+Sometimes, one needs a larger supercell to converge the harmonic force constants than the anharmonic force constants. In this case, it is possible to run phono3py with different unit cells for the harmonic and anharmonic phonon force constant calculations, as shown in this `phono3py example <https://phonopy.github.io/phono3py/vasp.html>`__.
 
 If you run the phono3py calculation with different sized unit cells, you will generate a slightly different set of files:
 
