@@ -58,14 +58,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                  std::vector<VectorBTE> &outPopulations) {
 
   int switchCase = 0;
-  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() &&
-      outPopulations.empty()) {
+  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 0;
-  } else if (theMatrix.rows() == 0 && linewidth == nullptr &&
-             !inPopulations.empty() && !outPopulations.empty()) {
+  } else if (theMatrix.rows() == 0 && linewidth == nullptr && !inPopulations.empty() && !outPopulations.empty()) {
     switchCase = 1;
-  } else if (theMatrix.rows() == 0 && linewidth != nullptr &&
-             inPopulations.empty() && outPopulations.empty()) {
+  } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
     Error("builder3Ph found a non-supported case");
@@ -89,10 +86,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   outerFermi.setZero();
   std::vector<size_t> iBtes = mpi->divideWorkIter(numOuterIrrStates);
   int niBtes = iBtes.size();
-#pragma omp parallel for default(none)                                         \
-    shared(mpi, outerBandStructure, numCalculations, statisticsSweep,          \
+#pragma omp parallel for default(none)                                \
+    shared(mpi, outerBandStructure, numCalculations, statisticsSweep, \
            particle, outerFermi, numOuterIrrStates, niBtes, iBtes)
-  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+  for (int iiBte = 0; iiBte < niBtes; iiBte++) {
     int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
@@ -111,10 +108,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   innerFermi.setZero();
   iBtes = mpi->divideWorkIter(numInnerIrrStates);
   niBtes = iBtes.size();
-#pragma omp parallel for default(none)                                         \
-    shared(numInnerIrrStates, mpi, innerBandStructure, statisticsSweep,        \
+#pragma omp parallel for default(none)                                  \
+    shared(numInnerIrrStates, mpi, innerBandStructure, statisticsSweep, \
            particle, innerFermi, numCalculations, niBtes, iBtes)
-  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+  for (int iiBte = 0; iiBte < niBtes; iiBte++) {
     int iBte = iBtes[iiBte];
     BteIndex iBteIdx = BteIndex(iBte);
     StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
@@ -143,7 +140,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   bool withSymmetries = context.getUseSymmetries();
 
-  double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
+  double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
 
   LoopPrint loopPrint("computing scattering matrix", "k-points",
                       int(kPairIterator.size()));
@@ -310,12 +307,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 double rate =
                     coupling(ib1, ib2, ib3)
                     * ((fermi2 + bose3) * delta1
-                       + (1. - fermi2 + bose3) * delta2) * norm / en3 * pi;
-
-                double rateOffDiagonal = -
-                    coupling(ib1, ib2, ib3)
-                    * ((1 + bose3 - fermi1) * delta1 + (bose3 + fermi1) * delta2)
+                       + (1. - fermi2 + bose3) * delta2)
                     * norm / en3 * pi;
+
+                double rateOffDiagonal = - fermi1 * (1. - fermi2)
+                    * coupling(ib1, ib2, ib3)
+                    * ((bose3) *delta1 + (bose3 + 1.) * delta2)
+                    * norm / en3 * pi;
+
+                // double rateOffDiagonal = -
+                // coupling(ib1, ib2, ib3)
+                // * ((1 + bose3 - fermi1) * delta1 + (bose3 + fermi1) * delta2)
+                // * norm / en3 * pi;
 
                 if (switchCase == 0) {
 
@@ -398,10 +401,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   if (doBoundary) {
     std::vector<int> is1s = outerBandStructure.irrStateIterator();
     int nis1s = is1s.size();
-#pragma omp parallel for default(none) shared(                                 \
-    outerBandStructure, numCalculations, statisticsSweep, boundaryLength,      \
+#pragma omp parallel for default(none) shared(                            \
+    outerBandStructure, numCalculations, statisticsSweep, boundaryLength, \
     particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
-    for(int iis1 = 0; iis1 < nis1s; iis1++){
+    for (int iis1 = 0; iis1 < nis1s; iis1++) {
       int is1 = is1s[iis1];
       StateIndex is1Idx(is1);
       auto vel = outerBandStructure.getGroupVelocity(is1Idx);
@@ -410,10 +413,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
-        if (switchCase == 0) { // case of matrix construction
+        if (switchCase == 0) {// case of matrix construction
           linewidth->operator()(iCalc, 0, iBte1) += rate;
 
-        } else if (switchCase == 1) { // case of matrix-vector multiplication
+        } else if (switchCase == 1) {// case of matrix-vector multiplication
           for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
             for (int i = 0; i < 3; i++) {
               outPopulations[iVec](iCalc, i, iBte1) +=
@@ -421,7 +424,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             }
           }
 
-        } else { // case of linewidth construction
+        } else {// case of linewidth construction
           // case of linewidth construction
           linewidth->operator()(iCalc, 0, iBte1) += rate;
         }
@@ -431,7 +434,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // we place the linewidths back in the diagonal of the scattering matrix
   // this because we may need an MPI_allReduce on the linewidths
-  if (switchCase == 0) { // case of matrix construction
+  if (switchCase == 0) {// case of matrix construction
     int iCalc = 0;
     if (context.getUseSymmetries()) {
       // numStates is defined in scattering.cpp as # of irrStates
