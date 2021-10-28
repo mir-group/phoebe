@@ -70,8 +70,8 @@ void PhononTransportApp::run(Context &context) {
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
-  auto dimensionality = context.getDimensionality();
-  BulkTDrift drift(statisticsSweep, bandStructure, dimensionality);
+  int dimensionality = context.getDimensionality();
+  BulkTDrift drift(statisticsSweep, bandStructure, 3);
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE popRTA = drift * phononRelTimes;
 
@@ -256,6 +256,12 @@ void PhononTransportApp::run(Context &context) {
       // amount of descent along the search direction
       // size of alpha: (numCalculations,3)
       Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
+      // note: this is to avoid a 0/0 division for low dimensional problems
+      for (int i=dimensionality; i<3; i++) {
+        for (int iCalc=0; iCalc<statisticsSweep.getNumCalculations(); iCalc++) {
+          alpha(iCalc,i) = 0.;
+        }
+      }
 
       // new guess of population
       VectorBTE fNew = d * alpha + f;
@@ -266,6 +272,12 @@ void PhononTransportApp::run(Context &context) {
 
       // amount of correction for the search direction
       Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
+      // note: this is to avoid a 0/0 division for low dimensional problems
+      for (int i=dimensionality; i<3; i++) {
+        for (int iCalc=0; iCalc<statisticsSweep.getNumCalculations(); iCalc++) {
+          beta(iCalc,i) = 0.;
+        }
+      }
 
       // new search direction
       VectorBTE dNew = d * beta + rNew;
@@ -274,6 +286,7 @@ void PhononTransportApp::run(Context &context) {
       auto aF = scatteringMatrix.dot(fNew);
       //  auto aF = scatteringMatrix.offDiagonalDot(fNew) + fNew;
       phTCond.calcVariational(aF, f, b);
+
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration
