@@ -600,6 +600,10 @@ void Context::setupFromInput(const std::string &fileName) {
         scatteringMatrixInMemory = parseBool(val);
       }
 
+      if (parameterName == "symmetrizeMatrix") {
+        symmetrizeMatrix = parseBool(val);
+      }
+
       if (parameterName == "useSymmetries") {
         useSymmetries = parseBool(val);
       }
@@ -1177,6 +1181,13 @@ bool Context::getScatteringMatrixInMemory() const {
 }
 void Context::setScatteringMatrixInMemory(const bool &x) {
   scatteringMatrixInMemory = x;
+}
+
+bool Context::getSymmetrizeMatrix() const {
+  return symmetrizeMatrix;
+}
+void Context::setSymmetrizeMatrix(const bool &x) {
+  symmetrizeMatrix = x;
 }
 
 bool Context::getUseSymmetries() const { return useSymmetries; }

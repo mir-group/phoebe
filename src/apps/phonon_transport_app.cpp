@@ -70,8 +70,7 @@ void PhononTransportApp::run(Context &context) {
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
-  auto dimensionality = context.getDimensionality();
-  BulkTDrift drift(statisticsSweep, bandStructure, dimensionality);
+  BulkTDrift drift(statisticsSweep, bandStructure, 3);
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE popRTA = drift * phononRelTimes;
 
@@ -150,11 +149,13 @@ void PhononTransportApp::run(Context &context) {
 
   if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
     if (doVariational || doRelaxons || doIterative) {
-      // reinforce the condition that the scattering matrix is symmetric
-      // A -> ( A^T + A ) / 2
-      // this helps removing negative eigenvalues which may appear due to noise
-      scatteringMatrix.symmetrize();
-      // it may not be necessary, so it's commented out
+      if ( context.getSymmetrizeMatrix() ) {
+        // reinforce the condition that the scattering matrix is symmetric
+        // A -> ( A^T + A ) / 2
+        // this helps removing negative eigenvalues which may appear due to noise
+        scatteringMatrix.symmetrize();
+        // it may not be necessary, so it's commented out
+      }
     }
   }
 
@@ -253,9 +254,29 @@ void PhononTransportApp::run(Context &context) {
       VectorBTE w = scatteringMatrix.dot(d);
       //  VectorBTE w = scatteringMatrix.offDiagonalDot(d) + d;
 
-      // amount of descent along the search direction
       // size of alpha: (numCalculations,3)
-      Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
+//      Eigen::MatrixXd alpha = (r.dot(r)).array() / d.dot(w).array();
+//      // note: this is to avoid a 0/0 division for low dimensional problems
+//      for (int i=dimensionality; i<3; i++) {
+//        for (int iCalc=0; iCalc<statisticsSweep.getNumCalculations(); iCalc++) {
+//          alpha(iCalc,i) = 0.;
+//        }
+//      }
+
+      // amount of descent along the search direction
+      int numCalculations = statisticsSweep.getNumCalculations();
+      Eigen::MatrixXd alpha = Eigen::MatrixXd::Zero(numCalculations,3);
+      {
+        Eigen::MatrixXd num = r.dot(r);
+        Eigen::MatrixXd den = d.dot(w);
+        for (int iCalc=0; iCalc<numCalculations; iCalc++) {
+          for (int i : {0,1,2}) {
+            if (den(iCalc,i) != 0.) {
+              alpha(iCalc, i) = num(iCalc, i) / den(iCalc, i);
+            }
+          }
+        }
+      }
 
       // new guess of population
       VectorBTE fNew = d * alpha + f;
@@ -265,7 +286,26 @@ void PhononTransportApp::run(Context &context) {
       VectorBTE rNew = r - tmp;
 
       // amount of correction for the search direction
-      Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
+      // Eigen::MatrixXd beta = (rNew.dot(rNew)).array() / (r.dot(r)).array();
+      Eigen::MatrixXd beta = Eigen::MatrixXd::Zero(numCalculations,3);
+      {
+        Eigen::MatrixXd num = rNew.dot(rNew);
+        Eigen::MatrixXd den = r.dot(r);
+        for (int iCalc=0; iCalc<numCalculations; iCalc++) {
+          for (int i : {0,1,2}) {
+            if (den(iCalc,i) != 0.) {
+              beta(iCalc, i) = num(iCalc, i) / den(iCalc, i);
+            }
+          }
+        }
+      }
+
+//      // note: this is to avoid a 0/0 division for low dimensional problems
+//      for (int i=dimensionality; i<3; i++) {
+//        for (int iCalc=0; iCalc<statisticsSweep.getNumCalculations(); iCalc++) {
+//          beta(iCalc,i) = 0.;
+//        }
+//      }
 
       // new search direction
       VectorBTE dNew = d * beta + rNew;
@@ -274,6 +314,7 @@ void PhononTransportApp::run(Context &context) {
       auto aF = scatteringMatrix.dot(fNew);
       //  auto aF = scatteringMatrix.offDiagonalDot(fNew) + fNew;
       phTCond.calcVariational(aF, f, b);
+
       phTCond.print(iter);
 
       // decide whether to exit or run the next iteration

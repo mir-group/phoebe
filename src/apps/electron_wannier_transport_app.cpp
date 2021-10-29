@@ -78,9 +78,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
-  auto dimensionality = context.getDimensionality();
-  BulkEDrift driftE(statisticsSweep, bandStructure, dimensionality);
-  BulkTDrift driftT(statisticsSweep, bandStructure, dimensionality);
+  BulkEDrift driftE(statisticsSweep, bandStructure, 3);
+  BulkTDrift driftT(statisticsSweep, bandStructure, 3);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE nERTA = -driftE * relaxationTimes;
   VectorBTE nTRTA = -driftT * relaxationTimes;
@@ -163,11 +162,13 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
     if (doVariational || doRelaxons || doIterative) {
-      // reinforce the condition that the scattering matrix is symmetric
-      // A -> ( A^T + A ) / 2
-      // this helps removing negative eigenvalues which may appear due to noise
-      scatteringMatrix.symmetrize();
-      // it may not be necessary, so it's commented out
+      if ( context.getSymmetrizeMatrix() ) {
+        // reinforce the condition that the scattering matrix is symmetric
+        // A -> ( A^T + A ) / 2
+        // this helps removing negative eigenvalues which may appear due to noise
+        scatteringMatrix.symmetrize();
+        // it may not be necessary, so it's commented out
+      }
     }
   }
 
@@ -394,8 +395,27 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE wT = outW[1];
 
     // amount of descent along the search direction
-    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
-    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
+//    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
+//    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
+    int numCalculations = statisticsSweep.getNumCalculations();
+    Eigen::MatrixXd alphaE = Eigen::MatrixXd::Zero(numCalculations,3);
+    Eigen::MatrixXd alphaT = Eigen::MatrixXd::Zero(numCalculations,3);
+    {
+      Eigen::MatrixXd numE = rE.dot(rE);
+      Eigen::MatrixXd numT = rT.dot(rT);
+      Eigen::MatrixXd denE = dE.dot(wE);
+      Eigen::MatrixXd denT = dT.dot(wT);
+      for (int iCalc=0; iCalc<numCalculations; iCalc++) {
+        for (int i : {0,1,2}) {
+          if (denE(iCalc,i) != 0.) {
+            alphaE(iCalc, i) = numE(iCalc, i) / denE(iCalc, i);
+          }
+          if (denT(iCalc,i) != 0.) {
+            alphaT(iCalc, i) = numT(iCalc, i) / denT(iCalc, i);
+          }
+        }
+      }
+    }
 
     // new guess of population
     zNewE = dE * alphaE + zE;
@@ -408,8 +428,26 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE rNewT = rT - tmpT;
 
     // amount of correction for the search direction
-    Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
-    Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
+//    Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
+//    Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
+    Eigen::MatrixXd betaE = Eigen::MatrixXd::Zero(numCalculations,3);
+    Eigen::MatrixXd betaT = Eigen::MatrixXd::Zero(numCalculations,3);
+    {
+      Eigen::MatrixXd numE = rNewE.dot(rNewE);
+      Eigen::MatrixXd numT = rNewT.dot(rNewT);
+      Eigen::MatrixXd denE = rE.dot(rE);
+      Eigen::MatrixXd denT = rT.dot(rT);
+      for (int iCalc=0; iCalc<numCalculations; iCalc++) {
+        for (int i : {0,1,2}) {
+          if (denE(iCalc,i) != 0.) {
+            betaE(iCalc, i) = numE(iCalc, i) / denE(iCalc, i);
+          }
+          if (denT(iCalc,i) != 0.) {
+            betaT(iCalc, i) = numT(iCalc, i) / denT(iCalc, i);
+          }
+        }
+      }
+    }
 
     // new search direction
     VectorBTE dNewE = dE * betaE + rNewE;

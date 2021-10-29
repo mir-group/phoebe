@@ -467,13 +467,12 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
   }
 
   // Now we do postprocessing
-  int dimensionality = context.getDimensionality();
   // must transpose the lattice vectors before passing to crystal,
   // as crystal uses a different format than phonopy does.
   directUnitCell.transposeInPlace();
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
   crystal.print();
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleFC2());

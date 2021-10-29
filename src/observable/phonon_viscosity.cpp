@@ -158,7 +158,9 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
     double boseP1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(isIdx);
     for (auto iDim : {0, 1, 2}) {
-      driftEigenvector(0, iDim, is) = q(iDim) * sqrt(boseP1 / temp / A(iDim));
+      if (A(iDim) != 0.) {
+        driftEigenvector(0, iDim, is) = q(iDim) * sqrt(boseP1 / temp / A(iDim));
+      }
     }
   }
   mpi->allReduceSum(&driftEigenvector.data);
@@ -184,8 +186,8 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
     auto v = bandStructure.getGroupVelocity(isIdx);
-    for (auto i : {0, 1, 2}) {
-      for (auto j : {0, 1, 2}) {
+    for (int i : {0, 1, 2}) {
+      for (int j : {0, 1, 2}) {
         tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);
         W(i, j) += vector0(0, 0, is) * v(i) * driftEigenvector(0, j, is);
       }
