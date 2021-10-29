@@ -534,9 +534,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
 
   // Now we do postprocessing
 
-  int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
   crystal.print();
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
@@ -666,9 +665,8 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   // Initialize the crystal class
 
-  int dimensionality = context.getDimensionality();
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
   crystal.print();
 
   // initialize reciprocal lattice cell
@@ -920,7 +918,6 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   if (inCrystal != nullptr) {
     return {*inCrystal, electronH0};
   } else {
-    int dimensionality = context.getDimensionality();
     Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
     Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
     std::vector<std::string> speciesNames = context.getInputSpeciesNames();
@@ -934,7 +931,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     }
 
     Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                    speciesNames, speciesMasses, dimensionality);
+                    speciesNames, speciesMasses);
     crystal.print();
     return {crystal, electronH0};
   }

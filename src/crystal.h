@@ -72,7 +72,7 @@ public:
   Crystal(Context &context, Eigen::Matrix3d &directUnitCell_, Eigen::MatrixXd &atomicPositions_,
           Eigen::VectorXi &atomicSpecies_,
           std::vector<std::string> &speciesNames_,
-          Eigen::VectorXd &speciesMasses_, int &dimensionality_);
+          Eigen::VectorXd &speciesMasses_);
 
   /** Empty constructor.
    */
