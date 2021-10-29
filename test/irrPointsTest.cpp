@@ -15,13 +15,12 @@ TEST(IrrPointsTest, Symmetries) {
   speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  int dimensionality = 3;
 
   Context context;
   context.setUseSymmetries(true);
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
 
   ASSERT_EQ(crystal.getNumSymmetries(), 48);
 
@@ -114,13 +113,11 @@ TEST(IrrPointsTest, SymmetriesGaN) {
   speciesMasses(0) = 69.723;
   speciesMasses(1) = 14.0067;
 
-  int dimensionality = 3;
-
   Context context;
   context.setUseSymmetries(true);
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
 
   ASSERT_EQ(crystal.getNumSymmetries(), 12);
 

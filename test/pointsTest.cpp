@@ -15,12 +15,11 @@ TEST(PointsTest, PointsHandling) {
   speciesNames.emplace_back("Si");
   Eigen::VectorXd speciesMasses(1);
   speciesMasses(0) = 28.086;
-  int dimensionality = 3;
 
   Context context;
 
   Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
-                  speciesNames, speciesMasses, dimensionality);
+                  speciesNames, speciesMasses);
 
   Eigen::Vector3i mesh;
   mesh << 4, 4, 4;
