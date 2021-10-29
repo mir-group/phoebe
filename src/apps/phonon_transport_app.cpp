@@ -149,11 +149,13 @@ void PhononTransportApp::run(Context &context) {
 
   if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
     if (doVariational || doRelaxons || doIterative) {
-      // reinforce the condition that the scattering matrix is symmetric
-      // A -> ( A^T + A ) / 2
-      // this helps removing negative eigenvalues which may appear due to noise
-      scatteringMatrix.symmetrize();
-      // it may not be necessary, so it's commented out
+      if ( context.getSymmetrizeMatrix() ) {
+        // reinforce the condition that the scattering matrix is symmetric
+        // A -> ( A^T + A ) / 2
+        // this helps removing negative eigenvalues which may appear due to noise
+        scatteringMatrix.symmetrize();
+        // it may not be necessary, so it's commented out
+      }
     }
   }
 

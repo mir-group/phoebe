@@ -115,6 +115,8 @@ Phonon BTE Solver
 
 * :ref:`scatteringMatrixInMemory`
 
+* :ref:`symmetrizeMatrix`
+
 * :ref:`windowType`
 
 * :ref:`windowEnergyLimit`
@@ -225,6 +227,8 @@ Electron BTE Solver
 * :ref:`solverBTE`
 
 * :ref:`scatteringMatrixInMemory`
+
+* :ref:`symmetrizeMatrix`
 
 * :ref:`fermiLevel`
 
@@ -926,6 +930,21 @@ scatteringMatrixInMemory
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 * **Description:** If true, the scattering matrix is kept in memory, and only one temperature is allowed. In exchange for a larger memory usage, exact BTE solvers are much faster. Disable this flag to reduce the memory footprint, at the cost of slowing down the exact BTE solvers.
+
+* **Format:** *bool*
+
+* **Required:** no
+
+* **Default:** `true`
+
+
+
+.. _symmetrizeMatrix:
+
+symmetrizeMatrix
+^^^^^^^^^^^^^^^^
+
+* **Description:** If true, we enforce the symmetrix property of the scattering matrix A by doing A=(A^T+A)/2, where the transpose operation is made with respect to the wavevector indices. This operation increases the stability of the variational and relaxon solvers. Set this variable to false to increase the speed of the simulation in exchange for additional numerical noise.
 
 * **Format:** *bool*
 
