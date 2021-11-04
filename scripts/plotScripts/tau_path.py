@@ -41,7 +41,6 @@ def punchPlotTau(plotFileName, tau, points, pathTicks, pathLabels):
     ymin = 10**np.floor(np.log10(np.min(flattenedTau)))
     ymax = 10**np.ceil(np.log10(np.max(flattenedTau)))
     plt.ylim(ymin, ymax)
-    plt.ylim(0,10000)
 
     plt.xticks(pathTicks,pathLabels,fontsize=12)
     for i in pathTicks:
