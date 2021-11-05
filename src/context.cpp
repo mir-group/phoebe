@@ -956,8 +956,11 @@ void Context::printInputSummary(const std::string &fileName) {
     if (appName.find("honon") != std::string::npos) {
       std::cout << "withIsotopeScattering = " << withIsotopeScattering
                 << std::endl;
-//      if (massVariance.size() != 0)
-//        printVectorXd("massVariance", massVariance, "amu");
+      if (customMasses.size() != 0)
+        printVectorXd("masses", customMasses*massRyToAmu, "amu");
+      if (customIsotopeCouplings.size() != 0)
+        std::cout << "isotopeCouplings = "
+                  << customIsotopeCouplings.transpose() << "\n";
       if (!std::isnan(boundaryLength))
         std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
                   << " mum" << std::endl;
