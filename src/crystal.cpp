@@ -5,6 +5,7 @@
 #include "utilities.h"
 #include "eigen.h"
 #include "mpi/mpiHelper.h"
+#include "periodic_table.h"
 #include <iomanip>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
@@ -45,6 +46,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   }
 
   atomicSpecies = atomicSpecies_;
+  std::cout << atomicSpecies.transpose() << "<--\n";
   atomicPositions = atomicPositions_;
   speciesMasses = speciesMasses_;
   speciesNames = speciesNames_;
@@ -52,12 +54,28 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   numAtoms = int(atomicPositions.rows());
   numSpecies = int(speciesNames.size());
 
+  speciesIsotopeCouplings.resize(numSpecies);
+  {
+    PeriodicTable pTable;
+    int i = 0;
+    for (std::string speciesName : speciesNames) {
+      double g = pTable.getMassVariance(speciesName);
+      speciesIsotopeCouplings(i) = g;
+      i++;
+    }
+    std::cout << speciesIsotopeCouplings << "??\n";
+  }
+
   atomicMasses.resize(numAtoms);
   atomicNames.resize(numAtoms);
+  atomicIsotopeCouplings.resize(numAtoms);
   for (int i = 0; i < numAtoms; i++) {
     atomicMasses(i) = speciesMasses(atomicSpecies(i));
     atomicNames[i] = speciesNames[atomicSpecies(i)];
+    atomicIsotopeCouplings(i) = speciesIsotopeCouplings(atomicSpecies(i));
   }
+
+  //-----------------------------------------------------------------
 
   int maxSize = 50;
   int rotations[maxSize][3][3];
@@ -173,6 +191,8 @@ Crystal::Crystal(const Crystal &obj) {
   atomicSpecies = obj.atomicSpecies;
   atomicNames = obj.atomicNames;
   atomicMasses = obj.atomicMasses;
+  atomicIsotopeCouplings = obj.atomicIsotopeCouplings;
+  speciesIsotopeCouplings = obj.speciesIsotopeCouplings;
   speciesNames = obj.speciesNames;
   speciesMasses = obj.speciesMasses;
   symmetryOperations = obj.symmetryOperations;
@@ -192,6 +212,8 @@ Crystal &Crystal::operator=(const Crystal &obj) {
     atomicSpecies = obj.atomicSpecies;
     atomicNames = obj.atomicNames;
     atomicMasses = obj.atomicMasses;
+    atomicIsotopeCouplings = obj.atomicIsotopeCouplings;
+    speciesIsotopeCouplings = obj.speciesIsotopeCouplings;
     speciesNames = obj.speciesNames;
     speciesMasses = obj.speciesMasses;
     symmetryOperations = obj.symmetryOperations;
@@ -267,6 +289,10 @@ const std::vector<std::string> &Crystal::getAtomicNames() {
 }
 
 const Eigen::VectorXd &Crystal::getAtomicMasses() { return atomicMasses; }
+
+const Eigen::VectorXd &Crystal::getAtomicIsotopeCouplings() {
+  return atomicIsotopeCouplings;
+}
 
 const std::vector<std::string> &Crystal::getSpeciesNames() {
   return speciesNames;

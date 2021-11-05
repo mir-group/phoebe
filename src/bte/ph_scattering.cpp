@@ -3,7 +3,6 @@
 #include "helper_3rd_state.h"
 #include "io.h"
 #include "mpiHelper.h"
-#include "periodic_table.h"
 #include <cmath>
 
 PhScatteringMatrix::PhScatteringMatrix(Context &context_,
@@ -27,31 +26,18 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     // create vector with the interaction strength
     massVariance = Eigen::VectorXd::Zero(numAtoms);
 
-    // load the mass variance at natural abundances. Hard coded.
-    PeriodicTable periodicTable;
-    auto atomsNames = crystal.getAtomicNames();
-    int i = 0;
-    for (const auto &atomName : atomsNames) {
-      double thisMass = periodicTable.getMass(atomName);
-      // since the phonon eigenvectors are normalized with sqrt(mass)
-      // we add a correction factor in the coupling here
-      massVariance(i) =
-          thisMass * thisMass * periodicTable.getMassVariance(atomName);
-      i += 1;
-    }
-
-    // check for user-defined mass variance
-    auto userMassVariance = context.getMassVariance();
-    if (userMassVariance.size() > 0) {
-      massVariance = userMassVariance;
-      if (massVariance.size() != numAtoms) {
-        Error("user mass variance should be set for each atom");
-        // i.e. for each atom in the unit cell (not each species)
+    // load the mass variance at natural abundances for isotope scattering.
+    {
+      massVariance = crystal.getAtomicIsotopeCouplings();
+      Eigen::VectorXd masses = crystal.getAtomicMasses();
+      if (masses.size() != massVariance.size() || masses.size() != numAtoms) {
+        Error("problem setting up mass variance: incosistent sizes");
+      }
+      for (int i=0; i<masses.size(); i++) {
+        massVariance(i) *= masses(i) * masses(i);
       }
     }
-
     doIsotopes = true;
-
   } else {
     doIsotopes = false;
   }
@@ -672,6 +658,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
               termIso += std::norm(zzIso) * massVariance(iat);
             }
             termIso *= pi * 0.5 * norm * en1 * en2 * deltaIso;
+
 
             for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
               double bose1 = outerBose(iCalc, iBte1);
