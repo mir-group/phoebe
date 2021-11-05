@@ -46,24 +46,64 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   }
 
   atomicSpecies = atomicSpecies_;
-  std::cout << atomicSpecies.transpose() << "<--\n";
   atomicPositions = atomicPositions_;
   speciesMasses = speciesMasses_;
   speciesNames = speciesNames_;
 
   numAtoms = int(atomicPositions.rows());
   numSpecies = int(speciesNames.size());
-
   speciesIsotopeCouplings.resize(numSpecies);
+  Eigen::VectorXi speciesZNumber(numSpecies);
+
   {
     PeriodicTable pTable;
     int i = 0;
     for (std::string speciesName : speciesNames) {
       double g = pTable.getMassVariance(speciesName);
+      speciesZNumber(i) = pTable.getIonicCharge(speciesName);
       speciesIsotopeCouplings(i) = g;
       i++;
     }
-    std::cout << speciesIsotopeCouplings << "??\n";
+  }
+
+  // We allow the user to optionally specify masses and isotopic scattering
+  {
+    Eigen::VectorXd customMasses = context.getMasses();
+    if (customMasses.size()>0) {
+
+      std::string s1 = context.getAppName();
+      std::string s2 = "phonon";
+      if (s1.find(s2) == std::string::npos) {
+        Error("Can only change masses for phonon* apps");
+        // I think that for el-ph transport, the mass should already be scaled
+        // at the ab-initio level, or it may give rise to some inconsistencies
+      }
+
+      if (customMasses.size()!= numSpecies) {
+        Error("If specifying the masses, must specify them for all"
+              " atomic species");
+      }
+      for (int i = 0; i < numSpecies; i++) {
+        if (customMasses(i) > 0.) {
+          speciesMasses(i) = customMasses(i);
+        }
+      }
+    }
+
+    //--------------------------
+
+    Eigen::VectorXd customCouplings = context.getIsotopeCouplings();
+    for (int i=0; i<numSpecies; i++) {
+      if (customCouplings.size() > 0) {
+        if (customCouplings.size() != numSpecies) {
+          Error("If specifying the isotopic couplings, must specify "
+                "them for all atomic species");
+        }
+        if (customCouplings(i) > 0.) {
+          speciesIsotopeCouplings(i) = customCouplings(i);
+        }
+      }
+    }
   }
 
   atomicMasses.resize(numAtoms);
