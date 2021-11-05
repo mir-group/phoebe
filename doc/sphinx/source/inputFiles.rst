@@ -133,7 +133,9 @@ Phonon BTE Solver
 
 * :ref:`withIsotopeScattering`
 
-* :ref:`massVariance`
+* :ref:`masses`
+
+* :ref:`isotopeCouplings`
 
 * :ref:`boundaryLength`
 
@@ -343,7 +345,9 @@ Phonon Lifetimes on a Path
 
 * :ref:`withIsotopeScattering`
 
-* :ref:`massVariance`
+* :ref:`masses`
+
+* :ref:`isotopeCouplings`
 
 * :ref:`boundaryLength`
 
@@ -490,6 +494,8 @@ Phonon Dos
 
 * :ref:`dispFCFileName`
 
+* :ref:`masses`
+
 .. raw:: html
 
   <h3>Sample input file</h3>
@@ -530,6 +536,7 @@ Phonon Bands
 
 * :ref:`dispFCFileName`
 
+* :ref:`masses`
 
 .. raw:: html
 
@@ -1072,14 +1079,28 @@ withIsotopeScattering
 * **Default:** `true`
 
 
-.. _massVariance:
+.. _masses:
 
-massVariance
-^^^^^^^^^^^^
+masses
+^^^^^^
 
-* **Description:** User can specify a list of custom atomic mass variances :math:`g_2^s`. See Theory section for a description. The mass variances must be ordered in the same way that atomic species are specified in the file :ref:`phFC2FileName`. Defaults to the mass variance for natural isotopic abundance.
+* **Description:** User can specify a custom value of atomic masses. The masses must be ordered in the same way that atomic species are specified in the file phFC2FileName. If used, must specify the masses for all species. Defaults to the average mass for natural isotopic abundance.
 
-* **Format:** *list of doubles*
+* **Format:** *vector component*
+
+* **Required:** no
+
+* **Default:** average mass at natural isotopic abundance
+
+
+.. _isotopeCouplings:
+
+isotopeCouplings
+^^^^^^^^^^^^^^^^
+
+* **Description:** User can specify a list of custom atomic mass isotopic coupling parameters :math:`g_2^s`. See Theory section for a description. The values of isotopic scattering must be ordered in the same way that atomic species are specified in the file phFC2FileName. If used, must specify the couplings for all species. Defaults to the mass isotope scattering for natural isotopic abundance.
+
+* **Format:** *vector component*
 
 * **Required:** no
 
