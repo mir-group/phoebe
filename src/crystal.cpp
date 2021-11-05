@@ -52,15 +52,12 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
   numAtoms = int(atomicPositions.rows());
   numSpecies = int(speciesNames.size());
 
-  Eigen::VectorXd atomicMasses_(numAtoms);
-  std::vector<std::string> atomicNames_(numAtoms);
-
+  atomicMasses.resize(numAtoms);
+  atomicNames.resize(numAtoms);
   for (int i = 0; i < numAtoms; i++) {
-    atomicMasses_(i) = speciesMasses(atomicSpecies(i));
-    atomicNames_[i] = speciesNames[atomicSpecies(i)];
+    atomicMasses(i) = speciesMasses(atomicSpecies(i));
+    atomicNames[i] = speciesNames[atomicSpecies(i)];
   }
-  atomicMasses = atomicMasses_;
-  atomicNames = atomicNames_;
 
   int maxSize = 50;
   int rotations[maxSize][3][3];
