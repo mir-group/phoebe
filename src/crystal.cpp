@@ -5,6 +5,7 @@
 #include "utilities.h"
 #include "eigen.h"
 #include "mpi/mpiHelper.h"
+#include "periodic_table.h"
 #include <iomanip>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
@@ -51,16 +52,70 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   numAtoms = int(atomicPositions.rows());
   numSpecies = int(speciesNames.size());
+  speciesIsotopeCouplings.resize(numSpecies);
+  Eigen::VectorXi speciesZNumber(numSpecies);
 
-  Eigen::VectorXd atomicMasses_(numAtoms);
-  std::vector<std::string> atomicNames_(numAtoms);
-
-  for (int i = 0; i < numAtoms; i++) {
-    atomicMasses_(i) = speciesMasses(atomicSpecies(i));
-    atomicNames_[i] = speciesNames[atomicSpecies(i)];
+  {
+    PeriodicTable pTable;
+    int i = 0;
+    for (std::string speciesName : speciesNames) {
+      double g = pTable.getMassVariance(speciesName);
+      speciesZNumber(i) = pTable.getIonicCharge(speciesName);
+      speciesIsotopeCouplings(i) = g;
+      i++;
+    }
   }
-  atomicMasses = atomicMasses_;
-  atomicNames = atomicNames_;
+
+  // We allow the user to optionally specify masses and isotopic scattering
+  {
+    Eigen::VectorXd customMasses = context.getMasses();
+    if (customMasses.size()>0) {
+
+      std::string s1 = context.getAppName();
+      std::string s2 = "phonon";
+      if (s1.find(s2) == std::string::npos) {
+        Error("Can only change masses for phonon* apps");
+        // I think that for el-ph transport, the mass should already be scaled
+        // at the ab-initio level, or it may give rise to some inconsistencies
+      }
+
+      if (customMasses.size()!= numSpecies) {
+        Error("If specifying the masses, must specify them for all"
+              " atomic species");
+      }
+      for (int i = 0; i < numSpecies; i++) {
+        if (customMasses(i) > 0.) {
+          speciesMasses(i) = customMasses(i);
+        }
+      }
+    }
+
+    //--------------------------
+
+    Eigen::VectorXd customCouplings = context.getIsotopeCouplings();
+    for (int i=0; i<numSpecies; i++) {
+      if (customCouplings.size() > 0) {
+        if (customCouplings.size() != numSpecies) {
+          Error("If specifying the isotopic couplings, must specify "
+                "them for all atomic species");
+        }
+        if (customCouplings(i) > 0.) {
+          speciesIsotopeCouplings(i) = customCouplings(i);
+        }
+      }
+    }
+  }
+
+  atomicMasses.resize(numAtoms);
+  atomicNames.resize(numAtoms);
+  atomicIsotopeCouplings.resize(numAtoms);
+  for (int i = 0; i < numAtoms; i++) {
+    atomicMasses(i) = speciesMasses(atomicSpecies(i));
+    atomicNames[i] = speciesNames[atomicSpecies(i)];
+    atomicIsotopeCouplings(i) = speciesIsotopeCouplings(atomicSpecies(i));
+  }
+
+  //-----------------------------------------------------------------
 
   int maxSize = 50;
   int rotations[maxSize][3][3];
@@ -176,6 +231,8 @@ Crystal::Crystal(const Crystal &obj) {
   atomicSpecies = obj.atomicSpecies;
   atomicNames = obj.atomicNames;
   atomicMasses = obj.atomicMasses;
+  atomicIsotopeCouplings = obj.atomicIsotopeCouplings;
+  speciesIsotopeCouplings = obj.speciesIsotopeCouplings;
   speciesNames = obj.speciesNames;
   speciesMasses = obj.speciesMasses;
   symmetryOperations = obj.symmetryOperations;
@@ -195,6 +252,8 @@ Crystal &Crystal::operator=(const Crystal &obj) {
     atomicSpecies = obj.atomicSpecies;
     atomicNames = obj.atomicNames;
     atomicMasses = obj.atomicMasses;
+    atomicIsotopeCouplings = obj.atomicIsotopeCouplings;
+    speciesIsotopeCouplings = obj.speciesIsotopeCouplings;
     speciesNames = obj.speciesNames;
     speciesMasses = obj.speciesMasses;
     symmetryOperations = obj.symmetryOperations;
@@ -270,6 +329,10 @@ const std::vector<std::string> &Crystal::getAtomicNames() {
 }
 
 const Eigen::VectorXd &Crystal::getAtomicMasses() { return atomicMasses; }
+
+const Eigen::VectorXd &Crystal::getAtomicIsotopeCouplings() {
+  return atomicIsotopeCouplings;
+}
 
 const std::vector<std::string> &Crystal::getSpeciesNames() {
   return speciesNames;

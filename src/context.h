@@ -68,7 +68,10 @@ class Context {
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
-  Eigen::VectorXd massVariance;       // mass variance for isotope scattering
+
+  // for custom masses and custom isotope scattering
+  Eigen::VectorXd customIsotopeCouplings;
+  Eigen::VectorXd customMasses;
 
   // add RTA boundary scattering in phonon scattering matrix
   // boundary length for isotope scattering
@@ -303,7 +306,8 @@ public:
 
   bool getWithIsotopeScattering() const;
 
-  Eigen::VectorXd getMassVariance();
+  Eigen::VectorXd getMasses();
+  Eigen::VectorXd getIsotopeCouplings();
 
   double getBoundaryLength() const;
 

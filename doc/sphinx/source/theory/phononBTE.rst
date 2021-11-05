@@ -111,16 +111,18 @@ The rate of the elastic scattering with isotopic impurities has the form:
 .. math::
    P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} = \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}
    \left[ \bar{n}_{\boldsymbol{q} j} \bar{n}_{\boldsymbol{q}' j'} + \frac{\bar{n}_{\boldsymbol{q} j} + \bar{n}_{\boldsymbol{q}' j'}} {2} \right ]
-   \sum_{s} g^{s}_{2}   |  \sum_{\alpha} z^{s \alpha^*}_{\boldsymbol{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} |^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
+   \sum_{s} g^{s}_{2}   \bigg|  \sum_{\alpha} z^{s \alpha^*}_{\boldsymbol{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} \bigg|^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
 
-where :math:`g^s_2 = \frac{(M_s - \langle  M_s\rangle)^2}{ \langle M_s \rangle^2 }` is the average over the mass distribution of the atom of type :math:`s`.
-In presence of two isotopes, :math:`M_s` and :math:`M_{s'}`, it can be written in terms of the concentration :math:`\epsilon` and mass change :math:`\Delta M_s= M_{s'} - M_s` :
+where we introduced the isotopic scattering strength  :math:`g^s_2` :
 
 .. math::
-   g^s_2=  \epsilon(1-\epsilon)  \frac{ | \Delta M_s |}{ \langle M_s \rangle}
+   g^s_2 = \frac{1}{\langle m_s \rangle^2} \sum_i f_{is} (m_{is} - \langle m_s \rangle)^2
 
-with :math:`\langle M_s \rangle = M_s + \epsilon \Delta M_s`.
+where :math:`\big< m_s \big>` is the average mass of an atom of species :math:`s`, :math:`m_{is}` is the mass of the isotope :math:`i` of atomic type :math:`s`, and :math:`f_{is}` is the isotopic abundance.
 
+
+
+   
 .. raw:: html
 
   <h4>Phonon-boundary scattering</h4>

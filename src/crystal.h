@@ -41,14 +41,16 @@ protected:
   int dimensionality;
 
   // these vectors/matrices  running over the number of atoms
-  Eigen::MatrixXd atomicPositions;      // size (numAtoms,3)
-  Eigen::VectorXi atomicSpecies;        // size (numAtoms)
-  std::vector<std::string> atomicNames; // size (numAtoms)
-  Eigen::VectorXd atomicMasses;         // size (numAtoms)
+  Eigen::MatrixXd atomicPositions;         // size (numAtoms,3)
+  Eigen::VectorXi atomicSpecies;           // size (numAtoms)
+  std::vector<std::string> atomicNames;    // size (numAtoms)
+  Eigen::VectorXd atomicMasses;            // size (numAtoms)
+  Eigen::VectorXd atomicIsotopeCouplings;  // size (numAtoms)
 
   // vectors running over the number of species
-  std::vector<std::string> speciesNames; // size (numSpecies)
-  Eigen::VectorXd speciesMasses;         // size (numSpecies)
+  std::vector<std::string> speciesNames;   // size (numSpecies)
+  Eigen::VectorXd speciesMasses;           // size (numSpecies)
+  Eigen::VectorXd speciesIsotopeCouplings; // size (numSpecies)
 
   // Untested for now
   std::vector<SymmetryOperation> symmetryOperations;
@@ -166,6 +168,8 @@ public:
   /** Return the number of atomic species present in the crystal
    */
   int getNumSpecies() const;
+
+  const Eigen::VectorXd &getAtomicIsotopeCouplings();
 
   /** Build the list of Bravais lattice vectors (real space) that live within
    * the Wigner Seitz zone of a super cell

@@ -116,6 +116,23 @@ std::vector<double> parseDoubleList(std::string &line) {
   return x;
 }
 
+std::tuple<int,double> parseDoubleVectorComponent(std::string line) {
+  std::string sep = ")";
+  size_t position = line.find(sep);
+  std::string part1 = line.substr(0, position);
+  part1.erase(std::remove_if(part1.begin(), part1.end(), ::isspace), part1.end());
+
+  std::string sep2 = "=";
+  size_t position2 = line.find(sep2);
+  std::string part2 = line.substr(position2+1, line.size());
+  part2.erase(std::remove_if(part2.begin(), part2.end(), ::isspace), part2.end());
+
+  int idx = std::stoi(part1);
+  double val = std::stod(part2);
+  return {idx,val};
+}
+
+
 /** Parse a string of format "key = value units" to return an integer value.
  */
 int parseInt(std::string &line) {
@@ -381,10 +398,17 @@ parseParameterNameValue(const std::string &line) {
   size_t position = line.find(sep); // unsigned integer
   std::string s = line.substr(0, position);
   s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
-
   std::string val = line.substr(position + 1, line.size());
 
-  return {s, val};
+  // we could also have parenthesis, e.g. mass(43) = 23.;
+  std::string sep2 = "(";
+  size_t position2 = line.find(sep2); // unsigned integer
+  std::string s2 = s.substr(0, position2);
+  s2.erase(std::remove_if(s2.begin(), s2.end(), ::isspace), s2.end());
+  if (s2 != s) {
+    val = line.substr(position2 + 1, line.size());
+  }
+  return {s2, val};
 }
 
 void Context::setupFromInput(const std::string &fileName) {
@@ -612,11 +636,18 @@ void Context::setupFromInput(const std::string &fileName) {
         withIsotopeScattering = parseBool(val);
       }
 
-      if (parameterName == "massVariance") {
+      if (parameterName == "masses") {
         std::vector<double> x = parseDoubleList(val);
-        massVariance = Eigen::VectorXd::Zero(int(x.size()));
+        customMasses = Eigen::VectorXd::Zero(int(x.size()));
         for (int unsigned i = 0; i < x.size(); i++) {
-          massVariance(i) = x[i];
+          customMasses(i) = x[i] * massAmuToRy;
+        }
+      }
+      if (parameterName == "isotopeCouplings") {
+        std::vector<double> x = parseDoubleList(val);
+        customIsotopeCouplings = Eigen::VectorXd::Zero(int(x.size()));
+        for (int unsigned i = 0; i < x.size(); i++) {
+          customIsotopeCouplings(i) = x[i];
         }
       }
 
@@ -925,8 +956,11 @@ void Context::printInputSummary(const std::string &fileName) {
     if (appName.find("honon") != std::string::npos) {
       std::cout << "withIsotopeScattering = " << withIsotopeScattering
                 << std::endl;
-      if (massVariance.size() != 0)
-        printVectorXd("massVariance", massVariance, "amu");
+      if (customMasses.size() != 0)
+        printVectorXd("masses", customMasses*massRyToAmu, "amu");
+      if (customIsotopeCouplings.size() != 0)
+        std::cout << "isotopeCouplings = "
+                  << customIsotopeCouplings.transpose() << "\n";
       if (!std::isnan(boundaryLength))
         std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
                   << " mum" << std::endl;
@@ -1193,7 +1227,8 @@ void Context::setSymmetrizeMatrix(const bool &x) {
 bool Context::getUseSymmetries() const { return useSymmetries; }
 void Context::setUseSymmetries(const bool &x) { useSymmetries = x; }
 
-Eigen::VectorXd Context::getMassVariance() { return massVariance; }
+Eigen::VectorXd Context::getMasses() { return customMasses; }
+Eigen::VectorXd Context::getIsotopeCouplings() { return customIsotopeCouplings; }
 
 bool Context::getWithIsotopeScattering() const { return withIsotopeScattering; }
 
