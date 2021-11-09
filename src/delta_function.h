@@ -103,7 +103,8 @@ public:
    * @param bandStructure: mainly to see what mesh of points and crystal is
    * being used, and to prepare a suitable scaling of velocities.
    */
-  explicit AdaptiveGaussianDeltaFunction(BaseBandStructure &bandStructure);
+  explicit AdaptiveGaussianDeltaFunction(BaseBandStructure &bandStructure,
+                                         double broadeningCutoff_=0.0001 / energyRyToEv);
 
   /** Method to obtain the value of smearing.
    * @param energy: the energy difference.
@@ -125,6 +126,8 @@ public:
 
 protected:
   int id = DeltaFunction::adaptiveGaussian;
+
+  double broadeningCutoff;
 
   const double prefactor = 1.; // could be exposed to the user
   Eigen::Matrix3d qTensor;     // to normalize by the number of wavevectors.
