@@ -377,9 +377,11 @@ void StatisticsSweep::printInfo() {
   if (particle.isElectron()) {
     std::cout << "Fermi level: " << fermiLevel * energyRyToEv << " (eV)"
               << std::endl;
+    std::cout << "Index, temperature, chemical potential, doping concentration\n";
+  } else {
+    std::cout << "Index, temperature\n";
   }
 
-  std::cout << "Index, temperature, chemical potential, doping concentration\n";
 
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
     double temp = infoCalculations(iCalc, 0);
