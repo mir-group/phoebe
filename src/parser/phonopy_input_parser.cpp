@@ -44,6 +44,8 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // If both superCells were the same, both are written to disp_fc3.yaml,
   // and disp_fc2.yaml will not have been created.
 
+  double distanceConversion = 1. / distanceBohrToAng;
+
   // open input file
   auto fileName = context.getDispFC2FileName();
   std::ifstream infile(fileName);
@@ -104,12 +106,12 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       std::string temp = line.substr(5, 62); // just the elements
       int idx1 = temp.find(',');
       supLattice(ilatt, 0) =
-          std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
+          std::stod(temp.substr(0, idx1));
       int idx2 = temp.find(',', idx1 + 1);
       supLattice(ilatt, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2)) / distanceBohrToAng;
+          std::stod(temp.substr(idx1 + 1, idx2));
       supLattice(ilatt, 2) =
-          std::stod(temp.substr(idx2 + 1)) / distanceBohrToAng;
+          std::stod(temp.substr(idx2 + 1));
       ilatt++;
     }
     if (line.find("lattice:") != std::string::npos) {
@@ -145,8 +147,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // we have to do this first, because we need to use this info
   // to allocate the below data storage.
   Eigen::Vector3i qCoarseGrid;
-  while (infile) {
-    getline(infile, line);
+  while (std::getline(infile, line)) {
 
     // In the case where force constants where generated with different
     // superCells for fc2 and fc3, the label we need is dim_fc2.
@@ -231,12 +232,12 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       std::string temp = line.substr(9, 67); // just the elements
       int idx1 = temp.find(',');
       directUnitCell(ilatt, 0) =
-          std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
+          std::stod(temp.substr(0, idx1));
       int idx2 = temp.find(',', idx1 + 1);
       directUnitCell(ilatt, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2)) / distanceBohrToAng;
+          std::stod(temp.substr(idx1 + 1, idx2));
       directUnitCell(ilatt, 2) =
-          std::stod(temp.substr(idx2 + 1, temp.find(']'))) / distanceBohrToAng;
+          std::stod(temp.substr(idx2 + 1, temp.find(']')));
       ilatt++;
     }
     if (line.find("lattice:") != std::string::npos) {
@@ -246,8 +247,18 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     if (line.find("reciprocal_lattice:") != std::string::npos) {
       break;
     }
+
+    if (line.find("length") != std::string::npos) {
+      if (line.find("au") != std::string::npos) {
+        distanceConversion = 1.; // distances already in Bohr
+      }
+    }
   }
   infile.close();
+
+  // convert distances to Bohr
+  supLattice *= distanceConversion;
+  directUnitCell *= distanceConversion;
 
   // Process the information that has been read in
   // =================================================
