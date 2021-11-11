@@ -389,6 +389,39 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // set up so that the first nAtoms*dimSup of the superCell are unit cell
   // atom #1, and the second nAtoms*dimSup are atom #2, and so on.
 
+
+
+  // First, we open the phonopyDispFileName to check the distance units.
+  // Phono3py uses Bohr for QE calculations and Angstrom for VASP
+  // so, here we decide which is the correct unit,
+  // by parsing the phono3py_disp.yaml file
+  double distanceConversion = 1. / distanceBohrToAng;
+  {
+    std::string fileName = context.getPhonopyDispFileName();
+    std::ifstream infile;
+    if (fileName.empty()) {
+      Error("Phono3py parser required file phonopyDispFileName "
+            "(phonon3py_disp.yaml) not specified in input file.");
+    }
+    infile.open(fileName);
+    if (not infile.is_open()) {
+      Error("Phono3py parser couldn't open the file (phono3py_disp.yaml)");
+    }
+    if (mpi->mpiHead())
+      std::cout << "Reading in " + fileName << std::endl;
+
+    std::string line;
+    while (std::getline(infile, line)) {
+      if (line.find("length") != std::string::npos) {
+        if (line.find("au") != std::string::npos) {
+          distanceConversion = 1.; // distances already in Bohr
+          break;
+        }
+      }
+    }
+    infile.close();
+  }
+
   // First, read in the information form disp_fc3.yaml
   int numAtoms = crystal.getNumAtoms();
 
@@ -437,12 +470,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       std::string temp = line.substr(5, 62);// just the elements
       int idx1 = temp.find(',');
       lattice(iLattice, 0) =
-          std::stod(temp.substr(0, idx1)) / distanceBohrToAng;
+          std::stod(temp.substr(0, idx1)) * distanceConversion;
       int idx2 = temp.find(',', idx1 + 1);
       lattice(iLattice, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2)) / distanceBohrToAng;
+          std::stod(temp.substr(idx1 + 1, idx2)) * distanceConversion;
       lattice(iLattice, 2) =
-          std::stod(temp.substr(idx2 + 1)) / distanceBohrToAng;
+          std::stod(temp.substr(idx2 + 1)) * distanceConversion;
       iLattice++;
     }
     if (line.find("lattice:") != std::string::npos) {

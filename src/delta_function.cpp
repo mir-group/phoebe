@@ -53,13 +53,14 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
 }
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
-    BaseBandStructure &bandStructure) {
+    BaseBandStructure &bandStructure, double broadeningCutoff_) {
   auto tup = bandStructure.getPoints().getMesh();
   auto mesh = std::get<0>(tup);
   qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
   qTensor.row(0) /= mesh(0);
   qTensor.row(1) /= mesh(1);
   qTensor.row(2) /= mesh(2);
+  broadeningCutoff = broadeningCutoff_;
 }
 
 double
@@ -77,8 +78,14 @@ AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
   }
   sigma = prefactor * sqrt(sigma / 6.);
 
-  if (sigma == 0.)
+  if (sigma == 0.) {
     return 0.;
+  }
+
+  // if the smearing is smaller than 0.1 meV, we renormalize it
+  if (sigma < broadeningCutoff ) {
+    sigma = broadeningCutoff;
+  }
 
   if (abs(energy) > 2. * sigma)
     return 0.;
