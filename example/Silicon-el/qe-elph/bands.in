@@ -1,5 +1,5 @@
 &control
-  calculation = "nscf"
+  calculation = "bands"
   restart_mode = "from_scratch"
   prefix = "silicon"
   pseudo_dir = "../../pseudoPotentials/"

@@ -179,20 +179,20 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 
 
 
-Step 5: Run nscf
------------------
+Step 5: Non-self-consistent run
+-------------------------------
 
 We now start the process of Wannierizing the electronic band structure.
 Before running Wannier90, we need to compute the electronic band structure on the full grid of k-points as a starting point for the Wannier calculation.
-You can check that the ``nscf.in`` file is essentially identical to the `scf.in` file, except that we:
+You can check that the ``bands.in`` file is essentially identical to the `scf.in` file, except that we:
 
-* Modified the parameter ``calculation = "bands"``, which indicates to QE that we will use the charge density computed in Step 2 to recompute the wavefunctions.
-
+* Modified the parameter ``calculation = "bands"``, which indicates to QE that we will use the charge density computed in Step 2 to recompute the wavefunctions. Don't set this parameter to ``"nscf"``.
+  
 * Instead of using the keyword ``K_POINTS automatic, 6 6 6 0 0 0``, we explicitly write the coordinates of all :math:`6^3` k-points. These can be generated using the helper script provided by Wannier90, ``q-e/wannier90-3.0.0/utility/kmesh.pl``, run on the command line by specifying the k-mesh used in the scf calculation. For example, ``kmesh.pl 6 6 6`` will produce the k-point list.
 
 To run it, type::
 
-  mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw.x -in nscf.in > nscf.out
+  mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw.x -in bands.in > bands.out
 
 
 Step 6: Wannierization
