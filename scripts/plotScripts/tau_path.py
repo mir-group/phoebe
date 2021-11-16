@@ -56,8 +56,12 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
 
     if data['particleType']=="phonon":
         magFactor=10
+        energyLabel = "Energy"
     else:
         magFactor = 5.
+        energyLabel = r'E-E$_F$'
+        plt.axhline(0., color='grey', ls='--')
+        energy -= mu
 
     # plot some vertical lines at high sym points
     plt.figure(figsize=(5.5,5))
@@ -65,13 +69,6 @@ def punchPlotBandTau(plotFileName2, energy, linewidth,
         plt.axvline(i, color='grey')
 
     # if mu was calculated for electrons, shift by mu and plot line
-    energyLabel = ''
-    if mu is not None:
-        energyLabel += r'E-E$_F$'
-        plt.axhline(0., color='grey', ls='--')
-        energy -= mu
-    else:
-        energyLabel += 'Energy'
 
     if magFactor == 1.:
         energyLabel += r' $\pm$ linewith'
