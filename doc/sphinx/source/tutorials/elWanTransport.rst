@@ -179,20 +179,20 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 
 
 
-Step 5: Run nscf
------------------
+Step 5: Non-self-consistent run
+-------------------------------
 
 We now start the process of Wannierizing the electronic band structure.
 Before running Wannier90, we need to compute the electronic band structure on the full grid of k-points as a starting point for the Wannier calculation.
-You can check that the ``nscf.in`` file is essentially identical to the `scf.in` file, except that we:
+You can check that the ``bands.in`` file is essentially identical to the `scf.in` file, except that we:
 
-* Modified the parameter ``calculation = "bands"``, which indicates to QE that we will use the charge density computed in Step 2 to recompute the wavefunctions.
-
+* Modified the parameter ``calculation = "bands"``, which indicates to QE that we will use the charge density computed in Step 2 to recompute the wavefunctions. Don't set this parameter to ``"nscf"``.
+  
 * Instead of using the keyword ``K_POINTS automatic, 6 6 6 0 0 0``, we explicitly write the coordinates of all :math:`6^3` k-points. These can be generated using the helper script provided by Wannier90, ``q-e/wannier90-3.0.0/utility/kmesh.pl``, run on the command line by specifying the k-mesh used in the scf calculation. For example, ``kmesh.pl 6 6 6`` will produce the k-point list.
 
 To run it, type::
 
-  mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw.x -in nscf.in > nscf.out
+  mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw.x -in bands.in > bands.out
 
 
 Step 6: Wannierization
@@ -491,3 +491,4 @@ The sections on parallelization discussed for the phonon transport app apply to 
 
 * **For any calculation where memory is an issue:** To parallelize your calculation for cases where memory is an issue, set the number of MPI processes equal to the number of nodes, and set the number of OMP threads equal to the number of cores in the node. This will allow each process to use all the memory on a node, while still getting parallel performace benefit from the OMP threads. If applicable, the number of GPUs should match the number of MPI processes.
 
+* **Optimize the MAXMEM parameter:** MAXMEM is relevant to tune the memory used during the interpolation of the el-ph coupling. For CPU-only runs, MAXMEM isn't critical to performance, and can be set to a relatively small value (e.g. 1Gb), much smaller than the memory available to each MPI process. For GPU-accelerated runs, set MAXMEM to the GPU on-board memory (e.g. ``export MAXMEM=16`` to tell Phoebe that the GPU has 16 Gb of on-board memory).

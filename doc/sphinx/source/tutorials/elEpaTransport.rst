@@ -22,7 +22,7 @@ From an installation folder of your choice, type::
     git clone https://github.com/mir-group/phoebe-quantum-espresso.git
     cd phoebe-quantum-espresso
     # install it
-    git checkout phoebe-qe-6.6
+    git checkout phoebe-qe-6.7.0
     ./configure MPIF90=mpif90 --with-scalapack=yes
     make pw pp ph w90
 
@@ -163,13 +163,14 @@ In the working folder ``./example/Silicon-epa/qe-elph`` run the command::
 If the code run successfully, you should see a new file ``silicon.fc``.
 
 
-Step 5: Run nscf
------------------
+Step 5: Non-self-consistent run
+-------------------------------
 
-Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an nscf run to calculate the electronic properties on the k-point mesh. We do so using the input file in the ``Silicon-epa`` example folder::
+Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an non-self-consistent run run to calculate the electronic properties on the k-point mesh.
+We do so using the input file ``bands.in`` in the ``Silicon-epa`` example folder::
 
   &control
-    calculation = "nscf"
+    calculation = "bands"
     restart_mode = "from_scratch"
     prefix = "silicon"
     pseudo_dir = "../../pseudoPotentials/"
@@ -197,11 +198,14 @@ Before we can run Phoebe, we need to complete one more step using Quantum ESPRES
     0.00000000  0.00000000  0.16666667  4.629630e-03
     ...
 
-where the k-points list will continue for all 216 points. To generate this k-point list, one could use the ``kmesh.pl`` utility from Wannier90 (in the directory ``q-e/wannier90-3.0.0/utility/kmesh.pl``, used as ``kmesh.pl nk1 nk2 nk3``, with the output appended to the end of ``nscf.in``).
+where the k-points list will continue for all 216 points. To generate this k-point list, one could use the ``kmesh.pl`` utility from Wannier90 (in the directory ``q-e/wannier90-3.0.0/utility/kmesh.pl``, used as ``kmesh.pl nk1 nk2 nk3``, with the output appended to the end of ``bands.in``).
+
+.. note::
+   The ``calculation`` parameter should be set to ``bands`` and not ``nscf``.
 
 We run this as we did the ``pw.x`` step::
 
-    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in nscf.in > nscf.out
+    mpirun -np 4 /path/to/patched-quantum-espresso/bin/pw.x -npool 4 -in bands.in > bands.out
 
 where again this could be parallelized using ``mpi`` and ``npool``.
 

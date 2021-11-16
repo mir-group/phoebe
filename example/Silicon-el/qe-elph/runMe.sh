@@ -11,7 +11,7 @@ mpirun -np $NMPI $QE_PATH/pw.x -npool $NPOOL -in scf.in > scf.out
 mpirun -np $NMPI $QE_PATH/ph.x -npool $NPOOL -in ph.in > ph.out
 $QE_PATH/q2r.x -in q2r.in > q2r.out
 
-mpirun -np $NMPI $QE_PATH/pw.x -npool $NPOOL -in nscf.in > nscf.out
+mpirun -np $NMPI $QE_PATH/pw.x -npool $NPOOL -in bands.in > bands.out
 $QE_PATH/wannier90.x -pp si
 mpirun -np $NMPI $QE_PATH/pw2wannier90.x -in pw2wan.in > pw2wan.out
 $QE_PATH/wannier90.x si
