@@ -1,9 +1,10 @@
 &control
-  calculation = "nscf"
+  calculation = "bands"
   restart_mode = "from_scratch"
   prefix = "silicon"
   pseudo_dir = "../../pseudoPotentials/"
   outdir = "./out"
+  verbosity='high'
 /
 &system
   ibrav = 2

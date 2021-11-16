@@ -280,8 +280,8 @@ In this tutorial we show a demo calculation, which is unconverged for the sake o
 
 
 
-Parallelization
-----------------
+Parallelization and performance
+-------------------------------
 
 As mentioned above, for the ``qeToPhoebe`` calculation, the primary method of parallelization is over OMP threads, as this calculation can be memory intensive, and OMP helps to alleviate this. For this reason, we've written the code to be sped up when using more OMP threads.
 
@@ -291,7 +291,8 @@ Phoebe takes advantage of three different parallelization schemes for the phonon
 
 * **MPI parallelization.** We distinguish two cases. If we want to compute the action of matrix :math:`\sum_{k'b'} A_{k,k',b,b'} f_{k'b'}`, we MPI-distribute over rows of wavevectors to achieve the best performance. If we want to store the matrix in memory, we parallelize over pairs of wavevectors using the ScaLAPACK layout. This distributes the scattering matrix in memory, reducing the required memory per process, and also speeds up operations on the matrix.
 
-* **Kokkos parallelization.** The calculation of the phonon-phonon coupling required by the phonon transport app can also be accelerated with Kokkos. Depending on your architecture and installation parameters, Kokkos will either run on GPUs, or CPUs with OpenMP acceleration. In the former case, remember to set the environment variable ``export MAXMEM=4`` in the job submission script, or in the command line, to set the available GPU on-board memory (4GB in this example).
+* **Kokkos acceleration.** The calculation of the phonon-phonon coupling required by the phonon transport app can also be accelerated with Kokkos. Depending on your architecture and installation parameters, Kokkos will either run on GPUs, or CPUs with OpenMP acceleration.
+  Especially for GPU-accelerated runs, remember to optimize the environment variable ``export MAXMEM=4`` in the job submission script, or in the command line, to set the available GPU on-board memory (4GB in this example). For CPU-only runs, ``MAXMEM`` instead can be set to a small value of memory, smaller and not greater than the memory available to a MPI process.
 
 * **OpenMP parallelization.** The summations over band indices when computing the scattering rates is accelerated using OpenMP. This can be accelerated by increasing the environment variable ``OMP_NUM_THREADS``.
 
@@ -302,6 +303,8 @@ Phoebe takes advantage of three different parallelization schemes for the phonon
 * Set the number of OpenMP threads equal to the number of physical cores available on each computing node. This will accelerate the band summations while still having these processes share the memory of the node.
 
 * Compile Phoebe with Kokkos. If you do so, make sure that the number of GPUs you are using matches the number of MPI processes. If you don't have a GPU, Kokkos can still accelerate the phonon-phonon calculations via the number of OpenMP threads you've set.
+  For CPU-only runs, set MAXMEM to a value smaller or at most equal to the total memory available to a MPI process (in this case MAXMEM has a small impact on performance, but increases significantly memory usage).
+  For GPU-accelerated runs, set MAXMEM equal to the total memory available on the GPU.
 
 
 Tradeoff between speed and memory
