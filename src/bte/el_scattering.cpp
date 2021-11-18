@@ -463,6 +463,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
   // first, compute all values of the vector Omega=vxB
+  // (vxB) is in Cartesian coordinates
+  // (provided the input B vector is in cartesian coordinates too)
   Eigen::MatrixXd omega(numStates,3);
   omega.setZero();
   for (int is=0; is<numStates; ++is) {
@@ -488,7 +490,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     WavevectorIndex ikIdx = std::get<0>(t);
     BandIndex ibIdx = std::get<1>(t);
 
-    // kpoint coordinate values in range [0,1]
+    // kpoint coordinate values in range [0,1]. Adimensional units!
     Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(),
                                                    Points::crystalCoordinates);
     // kpoint coordinate values in range [0, kMeshX ]
@@ -523,6 +525,8 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       StateIndex isMinsIdx(isMins);
     }
   }
-  
+  // before proceeding, we have to use the same coordinates,
+  // cartesian or crystal, for both the derivative and omega.
+
   theMatrix(isPlus, isMins) += correction;
 }
