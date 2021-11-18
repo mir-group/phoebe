@@ -460,3 +460,69 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
   }
 }
+
+void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
+  // first, compute all values of the vector Omega=vxB
+  Eigen::MatrixXd omega(numStates,3);
+  omega.setZero();
+  for (int is=0; is<numStates; ++is) {
+    StateIndex isIdx(is);
+    Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
+    Eigen::Vector3d x = vel.cross(magneticField);
+    for (int i : {0,1,2}) {
+      omega(is, i) = x(i);
+    }
+  }
+
+
+  auto points = outerBandStructure.getPoints();
+  Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
+  Eigen::Vector3d deltaK;
+  for (int i : {0,1,2}) {
+    deltaK(i) = 1. / kMesh(i);
+  }
+
+  for (int is=0; is<numStates; ++is) {
+    StateIndex isIdx(is);
+    auto t = outerBandStructure.getIndex(is);
+    WavevectorIndex ikIdx = std::get<0>(t);
+    BandIndex ibIdx = std::get<1>(t);
+
+    // kpoint coordinate values in range [0,1]
+    Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(),
+                                                   Points::crystalCoordinates);
+    // kpoint coordinate values in range [0, kMeshX ]
+    for (int i : {0,1,2}) {
+      k(i) *= kMesh(i);
+    }
+
+    for (int kDisplacement : {0, 1, 2}) {
+      // newK has coordinates in range [0, kMeshX]
+      Eigen::Vector3d kPlus = k;
+      Eigen::Vector3d kMins = k;
+      // add integer displacement
+      kPlus(kDisplacement) += 1;
+      kMins(kDisplacement) -= 1;
+      // newK has coordinates in range [0, 1]
+      for (int i : {0,1,2}) {
+        kPlus(i) /= float(kMesh(i));
+        kMins(i) /= float(kMesh(i));
+      }
+      // find index of newK in points
+      int ikPlus = outerBandStructure.getPointIndex(kPlus, true);
+      int ikMins = outerBandStructure.getPointIndex(kMins, true);
+      if (ikPlus == -1 || ikMins == -1) continue;
+
+      WavevectorIndex ikPlusIdx(ikPlus);
+      WavevectorIndex ikMinsIdx(ikMins);
+
+      int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
+      int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
+
+      StateIndex isPlusIdx(isPlus);
+      StateIndex isMinsIdx(isMins);
+    }
+  }
+  
+  theMatrix(isPlus, isMins) += correction;
+}

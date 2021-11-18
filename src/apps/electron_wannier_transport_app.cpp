@@ -172,6 +172,26 @@ void ElectronWannierTransportApp::run(Context &context) {
     }
   }
 
+
+
+  // Tentative implementation for Nernst coefficient
+  if (true) {
+    Eigen::Vector3d magneticField;
+    magneticField(0)=1.;
+    magneticField(1)=1.;
+    magneticField(2)=1.;
+
+    // conditions when this algorithm doesn't make sense
+    if (context.getUseSymmetries()) Error("No symmetries for Nernst coefficient");
+    if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for Nernst coefficient");
+    if (magneticField.squaredNorm() == 0 ) Error("Must use B/=0 for Nernst coefficient");
+
+    // add -e (vxB) . \nabla f correction to the scattering matrix
+    scatteringMatrix.addMagneticTerm(magneticField);
+  }
+
+
+
   if (doIterative) {
 
     if (mpi->mpiHead()) {

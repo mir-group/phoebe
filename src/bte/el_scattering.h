@@ -45,6 +45,13 @@ public:
    */
   ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
 
+  /** Add to the scattering matrix a term of the form
+   * -e (vxB) . nabla f, where B is a magnetic field
+   *
+   * @param magneticField: vector of the magnetic field
+   */
+  void addMagneticTerm(const Eigen::Vector3d& magneticField);
+
 protected:
   InteractionElPhWan *couplingElPhWan;
   PhononH0 &h0;
