@@ -64,6 +64,25 @@ void ElectronWannierTransportApp::run(Context &context) {
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
+
+
+  // Add magnetotransport term to scattering matrix if found in input file
+  Eigen::Vector3d magneticField;
+  magneticField(0)=0.;
+  magneticField(1)=0.;
+  magneticField(2)=1. / 235051.8086; // should convert Tesla to amu
+  if(magneticField.norm() != 0) {
+
+    // conditions when this algorithm doesn't make sense
+    if (context.getUseSymmetries()) Error("Symmetries not available for magnetotransport calculations.");
+    //if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for magnetotransport.");
+    if (magneticField.squaredNorm() == 0 ) Error("Cannot run magnetotransport with B=0.");
+
+    // add -e (vxB) . \nabla f correction to the scattering matrix
+    if(mpi->mpiHead()) std::cout << "entering magnetic field scattering matrix term" << std::endl;
+    scatteringMatrix.addMagneticTerm(magneticField);
+  }
+
   scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
@@ -171,26 +190,6 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
     }
   }
-
-
-
-  // Tentative implementation for Nernst coefficient
-  if (true) {
-    Eigen::Vector3d magneticField;
-    magneticField(0)=1.;
-    magneticField(1)=1.;
-    magneticField(2)=1.;
-
-    // conditions when this algorithm doesn't make sense
-    if (context.getUseSymmetries()) Error("No symmetries for Nernst coefficient");
-    if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for Nernst coefficient");
-    if (magneticField.squaredNorm() == 0 ) Error("Must use B/=0 for Nernst coefficient");
-
-    // add -e (vxB) . \nabla f correction to the scattering matrix
-    scatteringMatrix.addMagneticTerm(magneticField);
-  }
-
-
 
   if (doIterative) {
 

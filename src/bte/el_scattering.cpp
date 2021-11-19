@@ -65,7 +65,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error("builder3Ph found a non-supported case");
+    Error("builderElPh found a non-supported case");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
@@ -463,6 +463,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
+  if(mpi->mpiHead()) std::cout << "now inside scattering magnetic functon " << std::endl;
+
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
   Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
@@ -506,6 +508,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     }
   }
 
+
   for (int is=0; is<numStates; ++is) {
 
     // generate basic state info
@@ -519,10 +522,14 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
                                                    Points::crystalCoordinates);
     Eigen::Vector3d k3idx;
 
+    if(mpi->mpiHead()) std::cout << "kpoint coordinates " << k(0) << " " << k(1) << " " << k(2) << std::endl;
+
     // kpoint coordinate values in range [0, kMeshX] --> this is i,j,k direction index
     for (int i : {0,1,2}) {
       k3idx(i) = k(i) * kMesh(i);
     }
+
+    if(mpi->mpiHead()) std::cout << "ijk index of the middle kpoint " << k3idx(0) << " " << k3idx(1) << " " << k3idx(2) << std::endl;
 
     // for each direction of the finite differences
     for (int kDisplacement : {0, 1, 2}) {
@@ -535,16 +542,23 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       kPlus(kDisplacement) += 1;
       kMins(kDisplacement) -= 1;
 
-      // generate
+      if(mpi->mpiHead()) std::cout << "kPlus -- ijk of point forwards pt " << kPlus(0) << " " << kPlus(1) << " " << kPlus(2) << std::endl;
+      if(mpi->mpiHead()) std::cout << "kMins -- ijk of point backwards pt " << kMins(0) << " " << kMins(1) << " " << kMins(2) << std::endl;
+
       // kPlus/kMinus has coordinates in range [0, 1]
       for (int i : {0,1,2}) {
-        kPlus(i) /= float(kMesh(i));
-        kMins(i) /= float(kMesh(i));
+        kPlus(i) /= (kMesh(i) * 1.0);
+        kMins(i) /= (kMesh(i) * 1.0);
       }
+
+      if(mpi->mpiHead()) std::cout << "kPlus -- frac coords of point forwards pt " << kPlus(0) << " " << kPlus(1) << " " << kPlus(2) << std::endl;
+      if(mpi->mpiHead()) std::cout << "kMins -- frac coords of point backwards pt " << kMins(0) << " " << kMins(1) << " " << kMins(2) << std::endl;
 
       // find index of kPlus/kMinus in points
       int ikPlus = outerBandStructure.getPointIndex(kPlus, true);
       int ikMins = outerBandStructure.getPointIndex(kMins, true);
+
+      if(mpi->mpiHead()) std::cout << "ikPlus ikMins " << ikPlus << " " << ikMins << std::endl;
 
       // TODO -- I think this should be a series of if statements.
       // if we have neither +/-, we're in the middle of a region that
@@ -559,14 +573,20 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
       // find the kpoint in the kpoint list to get its state index
       // TODO any chance this could overflow?
+      // TODO need to make sure this band isn't removed for the kpoint if the band structure is active
       int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
       int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
 
       //StateIndex isPlusIdx(isPlus);
       //StateIndex isMinsIdx(isMins);
+      if(mpi->mpiHead()) std::cout << "isPlus isMins " << isPlus << " " << isMins << std::endl;
+      if(mpi->mpiHead()) std::cout << "theMatrix numCols numRows " << theMatrix.rows() << " " << theMatrix.cols() << std::endl;
 
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
+      if( !theMatrix.indicesAreLocal(isPlus,isPlus) || !theMatrix.indicesAreLocal(isMins, isMins))
+        Error("indices are not local!");
+
       theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
       theMatrix(isMins, isMins) += correction(is,kDisplacement);
 
