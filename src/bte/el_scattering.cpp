@@ -462,21 +462,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 }
 
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
-  // first, compute all values of the vector Omega=vxB
-  // (vxB) is in Cartesian coordinates
-  // (provided the input B vector is in cartesian coordinates too)
-  Eigen::MatrixXd omega(numStates,3);
-  omega.setZero();
-  for (int is=0; is<numStates; ++is) {
-    StateIndex isIdx(is);
-    Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
-    Eigen::Vector3d x = vel.cross(magneticField);
-    for (int i : {0,1,2}) {
-      omega(is, i) = x(i);
-    }
-  }
 
-
+  // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
   Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
   Eigen::Vector3d deltaK;
@@ -484,49 +471,105 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     deltaK(i) = 1. / kMesh(i);
   }
 
+  // convert the kspacing from crystal to cartesian
+  auto crystal = outerBandStructure.getPoints().getCrystal();
+  auto R = crystal.getReciprocalUnitCell();
+  if(mpi->mpiHead()) std::cout << "kmesh crys: " << kMesh[0] << " " << kMesh[1] << " " << kMesh[2] << " " << std::endl;
+  if(mpi->mpiHead()) std::cout << "deltaK crys: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
+  deltaK = R * deltaK;
+  if(mpi->mpiHead()) {
+    std::cout << "deltaK cart: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
+    for(int i = 0; i < 3; i++) {
+      for(int j = 0; j < 3; j++) {
+        std::cout << R(i,j) << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  // first, compute all values of the vector Omega=vxB
+  // (vxB) is in Cartesian coordinates
+  // (provided the input B vector is in cartesian coordinates too)
+  Eigen::MatrixXd correction(numStates,3);
+  correction.setZero();
   for (int is=0; is<numStates; ++is) {
+    StateIndex isIdx(is);
+    Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
+    Eigen::Vector3d x = vel.cross(magneticField);
+    for (int i : {0,1,2}) {
+      correction(is, i) = x(i) * deltaK(i);
+    }
+    // convert correction to crystal
+    auto temp = R.inverse() * correction(is);
+    for (int i : {0,1,2}) {
+      correction(is, i) = temp(i);
+    }
+  }
+
+  for (int is=0; is<numStates; ++is) {
+
+    // generate basic state info
     StateIndex isIdx(is);
     auto t = outerBandStructure.getIndex(is);
     WavevectorIndex ikIdx = std::get<0>(t);
     BandIndex ibIdx = std::get<1>(t);
 
-    // kpoint coordinate values in range [0,1]. Adimensional units!
+    // kpoint coordinate values in range [0,1] (crystal coords)
     Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(),
                                                    Points::crystalCoordinates);
-    // kpoint coordinate values in range [0, kMeshX ]
+    Eigen::Vector3d k3idx;
+
+    // kpoint coordinate values in range [0, kMeshX] --> this is i,j,k direction index
     for (int i : {0,1,2}) {
-      k(i) *= kMesh(i);
+      k3idx(i) = k(i) * kMesh(i);
     }
 
+    // for each direction of the finite differences
     for (int kDisplacement : {0, 1, 2}) {
+
       // newK has coordinates in range [0, kMeshX]
-      Eigen::Vector3d kPlus = k;
-      Eigen::Vector3d kMins = k;
-      // add integer displacement
+      Eigen::Vector3d kPlus = k3idx;
+      Eigen::Vector3d kMins = k3idx;
+
+      // add integer displacement, so that we have the forwards/backwards point indices
       kPlus(kDisplacement) += 1;
       kMins(kDisplacement) -= 1;
-      // newK has coordinates in range [0, 1]
+
+      // generate
+      // kPlus/kMinus has coordinates in range [0, 1]
       for (int i : {0,1,2}) {
         kPlus(i) /= float(kMesh(i));
         kMins(i) /= float(kMesh(i));
       }
-      // find index of newK in points
+
+      // find index of kPlus/kMinus in points
       int ikPlus = outerBandStructure.getPointIndex(kPlus, true);
       int ikMins = outerBandStructure.getPointIndex(kMins, true);
+
+      // TODO -- I think this should be a series of if statements.
+      // if we have neither +/-, we're in the middle of a region that
+      // was removed. We should expect (hope?) dk f ~ 0
       if (ikPlus == -1 || ikMins == -1) continue;
 
+      // TODO the other scenario will be if one or the other kpoint is missing,
+      // I think in that case -- could we use forward/backward difference
+      // instead of central for that point? But this might wreck A
       WavevectorIndex ikPlusIdx(ikPlus);
       WavevectorIndex ikMinsIdx(ikMins);
 
+      // find the kpoint in the kpoint list to get its state index
+      // TODO any chance this could overflow?
       int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
       int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
 
-      StateIndex isPlusIdx(isPlus);
-      StateIndex isMinsIdx(isMins);
+      //StateIndex isPlusIdx(isPlus);
+      //StateIndex isMinsIdx(isMins);
+
+      // before proceeding, we have to use the same coordinates,
+      // cartesian or crystal, for both the derivative and omega.
+      theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
+      theMatrix(isMins, isMins) += correction(is,kDisplacement);
+
     }
   }
-  // before proceeding, we have to use the same coordinates,
-  // cartesian or crystal, for both the derivative and omega.
-
-  theMatrix(isPlus, isMins) += correction;
 }
