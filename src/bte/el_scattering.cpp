@@ -461,12 +461,26 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 }
 
+/*
+ *   Eigen::Vector3d crystalToCartesian(const Eigen::Vector3d &point);
+ *
+ *   see also functions about folding to ws cell
+ *
+ * */
+
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   if(mpi->mpiHead()) std::cout << "now inside scattering magnetic functon " << std::endl;
 
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
+
+  for(int i = 0; i < points.getNumPoints(); i++) {
+    auto point = points.getPoint(i);
+    auto p = point.getCoordinates();
+    std::cout << p(0) << " " << p(1) << " " << p(2) << std::endl;
+  }
+
   Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
   Eigen::Vector3d deltaK;
   for (int i : {0,1,2}) {
@@ -508,7 +522,9 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     }
   }
 
-
+  // loop over every state because we do not know
+  // if k+1 or k-1 will be on another process. Therefore, we cannot restrict the loop
+  // to only local state indices
   for (int is=0; is<numStates; ++is) {
 
     // generate basic state info
@@ -580,16 +596,16 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       //StateIndex isPlusIdx(isPlus);
       //StateIndex isMinsIdx(isMins);
       if(mpi->mpiHead()) std::cout << "isPlus isMins " << isPlus << " " << isMins << std::endl;
-      if(mpi->mpiHead()) std::cout << "theMatrix numCols numRows " << theMatrix.rows() << " " << theMatrix.cols() << std::endl;
 
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
-      if( !theMatrix.indicesAreLocal(isPlus,isPlus) || !theMatrix.indicesAreLocal(isMins, isMins))
-        Error("indices are not local!");
+      if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
+        theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
+      }
 
-      theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
-      theMatrix(isMins, isMins) += correction(is,kDisplacement);
-
+      if(theMatrix.indicesAreLocal(isMins, isMins)) {
+        theMatrix(isMins, isMins) -= correction(is,kDisplacement);
+      }
     }
   }
 }
