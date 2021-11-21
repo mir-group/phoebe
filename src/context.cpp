@@ -740,6 +740,14 @@ void Context::setupFromInput(const std::string &fileName) {
         g2PlotPhBands.first = x[0];
         g2PlotPhBands.second = x[1];
       }
+      // magnetotransport
+      if (parameterName == "magneticField") {
+        std::vector<int> vecB = parseIntList(val);
+        bField(0) = vecB[0] * teslaToAu;
+        bField(1) = vecB[1] * teslaToAu;
+        bField(2) = vecB[2] * teslaToAu;
+      }
+
 
       // Polarization
 
@@ -952,6 +960,10 @@ void Context::printInputSummary(const std::string &fileName) {
         std::cout << "fermiLevel = " << fermiLevel * energyRyToEv << std::endl;
       if (!std::isnan(numOccupiedStates))
         std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
+      if(bField.size() != 0) {
+        std::cout << "magneticField = [" << bField(0)/teslaToAu << " " << bField(1)/teslaToAu << " " << bField(2)/teslaToAu
+                 << "] T" << std::endl;
+      }
     }
     if (appName.find("honon") != std::string::npos) {
       std::cout << "withIsotopeScattering = " << withIsotopeScattering
@@ -1243,6 +1255,8 @@ double Context::getMaxChemicalPotential() const { return maxChemicalPotential; }
 double Context::getDeltaChemicalPotential() const {
   return deltaChemicalPotential;
 }
+
+Eigen::Vector3d Context::getBField() const { return bField; }
 
 double Context::getMinTemperature() const { return minTemperature; }
 

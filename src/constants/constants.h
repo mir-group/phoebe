@@ -50,7 +50,7 @@ const double mevToPs = hPlanckSi * 1e15 / electronVoltSi;
 const double distanceBohrToAng = bohrRadiusSi / distanceAngToSi;
 const double massAmuToRy = amuSi / electronMassSi / 2.;
 const double massRyToAmu = 1. / massAmuToRy;
-
+const double teslaToAu = 1. / 235051.8086;
 const double TeraHertzAu = hPlanckSi / twoPi / hartreeSi * 1.0e+12;
 
 const double ryToTHz = 1. / TeraHertzAu / 2. / twoPi;

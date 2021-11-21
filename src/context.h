@@ -77,6 +77,8 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
+  Eigen::Vector3d bField;
+
   std::string elphFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
@@ -310,6 +312,9 @@ public:
   Eigen::VectorXd getIsotopeCouplings();
 
   double getBoundaryLength() const;
+
+  Eigen::Vector3d getBField() const;
+
 
   // EPA:
   std::string getEpaFileName();
