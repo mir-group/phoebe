@@ -67,19 +67,20 @@ void ElectronWannierTransportApp::run(Context &context) {
 
 
   // Add magnetotransport term to scattering matrix if found in input file
-  Eigen::Vector3d magneticField;
-  magneticField(0)=0.;
-  magneticField(1)=0.;
-  magneticField(2)=1. / 235051.8086; // should convert Tesla to amu
-  if(magneticField.norm() != 0) {
+  //Eigen::Vector3d magneticField;
+  //magneticField(0)=0.;
+  //magneticField(1)=0.;
+  //magneticField(2)=1. / 235051.8086; // should convert Tesla to amu
+  auto magneticField = context.getBField();
+  if(mpi->mpiHead()) std::cout << magneticField << std::endl;
+  if(magneticField.squaredNorm() != 0) {
 
     // conditions when this algorithm doesn't make sense
     if (context.getUseSymmetries()) Error("Symmetries not available for magnetotransport calculations.");
     //if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for magnetotransport.");
-    if (magneticField.squaredNorm() == 0 ) Error("Cannot run magnetotransport with B=0.");
+    //if (magneticField.squaredNorm() == 0 ) Error("Cannot run magnetotransport with B=0.");
 
     // add -e (vxB) . \nabla f correction to the scattering matrix
-    if(mpi->mpiHead()) std::cout << "entering magnetic field scattering matrix term" << std::endl;
     scatteringMatrix.addMagneticTerm(magneticField);
   }
 
