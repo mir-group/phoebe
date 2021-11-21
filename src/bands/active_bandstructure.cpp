@@ -960,10 +960,9 @@ ActiveBandStructure::getRotationToIrreducible(const Eigen::Vector3d &x,
 
 int ActiveBandStructure::getPointIndex(
     const Eigen::Vector3d &crystalCoordinates, const bool &suppressError) {
-  if (points.isPointStored(crystalCoordinates) == -1) {
+  if (!suppressError && points.isPointStored(crystalCoordinates) == -1) {
     Error("Point not found in activeBandStructure, something wrong");
   }
-
   if (suppressError) {
     return points.isPointStored(crystalCoordinates);
   } else {
