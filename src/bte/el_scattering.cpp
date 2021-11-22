@@ -516,7 +516,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
     Eigen::Vector3d x = vel.cross(magneticField);
     for (int i : {0,1,2}) {
-      correction(is, i) = x(i) * deltaK(i);
+      correction(is, i) = x(i) / deltaK(i);
     }
     // convert correction to crystal
     auto temp = R.inverse() * correction(is);
