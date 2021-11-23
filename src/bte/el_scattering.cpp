@@ -472,8 +472,6 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   bool debug = false;
 
-  if(mpi->mpiHead()) std::cout << "now inside scattering magnetic functon " << std::endl;
-
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
 
@@ -493,9 +491,10 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
   // convert the kspacing from crystal to cartesian
   auto crystal = outerBandStructure.getPoints().getCrystal();
   auto R = crystal.getReciprocalUnitCell();
+
   if(mpi->mpiHead()) std::cout << "kmesh crys: " << kMesh[0] << " " << kMesh[1] << " " << kMesh[2] << " " << std::endl;
   if(mpi->mpiHead()) std::cout << "deltaK crys: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
-  deltaK = R * deltaK;
+
   if(mpi->mpiHead()) {
     std::cout << "deltaK cart: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
     for(int i = 0; i < 3; i++) {
@@ -515,13 +514,10 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     StateIndex isIdx(is);
     Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
     Eigen::Vector3d x = vel.cross(magneticField);
+    Eigen::Vector3d y = x.transpose() * R.inverse();
+
     for (int i : {0,1,2}) {
-      correction(is, i) = x(i) / deltaK(i);
-    }
-    // convert correction to crystal
-    auto temp = R.inverse() * correction(is);
-    for (int i : {0,1,2}) {
-      correction(is, i) = temp(i);
+      correction(is, i) = -y(i)/(2*deltaK[i]);
     }
   }
 
@@ -568,8 +564,8 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
       // kPlus/kMinus has coordinates in range [0, 1]
       for (int i : {0,1,2}) {
-        kPlus(i) /= (kMesh(i) * 1.0);
-        kMins(i) /= (kMesh(i) * 1.0);
+        kPlus(i) /= float(kMesh(i));
+        kMins(i) /= float(kMesh(i));
       }
 
       if(debug) {
@@ -597,10 +593,6 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       // TODO need to make sure this band isn't removed for the kpoint if the band structure is active
       int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
       int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
-
-      //StateIndex isPlusIdx(isPlus);
-      //StateIndex isMinsIdx(isMins);
-      //if(debug)
 
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
