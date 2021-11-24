@@ -112,7 +112,7 @@ class StatisticsSweep {
   const int maxIter = 100;
   int numPoints = 0;
   int numBands = 0;
-  Eigen::VectorXd energies;
+  std::vector<double> energies;
   double numElectronsDoped = 0.;
   double volume = 0.;
   double spinFactor = 0.;

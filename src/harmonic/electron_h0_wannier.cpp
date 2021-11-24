@@ -143,7 +143,7 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.
   // This works better than doing finite differences on the frequencies.
-  for (int i = 0; i < 3; i++) {
+  for (int i : {0,1,2}) {
     // define q+ and q- from finite differences.
     Eigen::Vector3d qPlus = coordinates;
     Eigen::Vector3d qMinus = coordinates;
@@ -210,7 +210,7 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
     if (sizeSubspace > 1) {
       Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
       // we have to repeat for every direction
-      for (int iCart = 0; iCart < 3; iCart++) {
+      for (int iCart : {0,1,2}) {
 
         // take the velocity matrix of the degenerate subspace
         for (int i = 0; i < sizeSubspace; i++) {
@@ -290,29 +290,30 @@ ElectronH0Wannier::getBerryConnection(Point &point) {
   // note: the eigenvector matrix is the unitary transformation matrix U
   // from the Bloch to the Wannier gauge.
 
-  std::vector<Eigen::MatrixXcd> bc;
+  std::vector<Eigen::MatrixXcd> berryConnection;
 
-  for (int i = 0; i < 3; i++) {
+  std::vector<std::complex<double>> phases(bravaisVectors.cols());
+  for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
+    Eigen::Vector3d R = bravaisVectors.col(iR);
+    double phase = k.dot(R);
+    std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+    phases[iR] = phaseFactor / vectorsDegeneracies(iR);
+  }
 
+  for (int i : {0, 1, 2}) {
     // now construct the berryConnection in reciprocal space and Wannier gauge
-    Eigen::MatrixXcd berryConnectionW(numBands, numBands);
-    berryConnectionW.setZero();
-
-    for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
-      Eigen::Vector3d R = bravaisVectors.col(iR);
-      double phase = k.dot(R);
-      std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+    Eigen::MatrixXcd berryConnectionW = Eigen::MatrixXcd::Zero(numBands, numBands);
+    for (int n = 0; n < numBands; n++) {
       for (int m = 0; m < numBands; m++) {
-        for (int n = 0; n < numBands; n++) {
+          for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
           berryConnectionW(m, n) +=
-              phaseFactor * rMatrix(i, iR, m, n) / vectorsDegeneracies(iR);
+              phases[iR] * rMatrix(iR, m, n, i);
         }
       }
     }
-
-    Eigen::MatrixXcd berryConnection(numBands, numBands);
-    berryConnection = eigenvectors.adjoint() * berryConnectionW * eigenvectors;
-    bc.push_back(berryConnection);
+    Eigen::MatrixXcd thisBerryConnection(numBands, numBands);
+    thisBerryConnection = eigenvectors.adjoint() * berryConnectionW * eigenvectors;
+    berryConnection.push_back(thisBerryConnection);
   }
-  return bc;
+  return berryConnection;
 }
