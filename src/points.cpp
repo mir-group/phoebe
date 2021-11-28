@@ -748,7 +748,6 @@ void Points::setIrreduciblePoints(
 
       std::vector<int> tmp;
       std::copy(thisStar.begin(), thisStar.end(), std::back_inserter(tmp));
-      std::sort(tmp.begin(), tmp.end());
       irreducibleStars.push_back(tmp); // here we save the equivalent star
     }
   }

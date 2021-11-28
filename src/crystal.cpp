@@ -200,8 +200,8 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     thisTranslation(1) = translations[iSymmetry][1];
     thisTranslation(2) = translations[iSymmetry][2];
     Eigen::Matrix3d thisMatrix;
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
+    for (int i : {0,1,2}) {
+      for (int j : {0,1,2}) {
         thisMatrix(j, i) = rotations[iSymmetry][i][j]; // note the transpose
       }
     }
@@ -438,6 +438,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
       originIndex = iR;
     }
   }
+  if (originIndex==-1) Error("R=0 index not found");
 
   // As a convention, we keep the origin vectors at the index iR = 0
   // so we swap it. The other vectors aren't in any particular order.
@@ -451,10 +452,9 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   positionVectors.col(originIndex) = tmpV2;
 
   // check that we found all vectors
-  {
-    double tot = positionDegeneracies.sum();
-    assert(abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6);
-    (void)tot;
+  double tot = positionDegeneracies.sum();
+  if (abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6) {
+    Error("Completeness check failed in buildWignerSeitzVectors");
   }
 
   return {positionVectors, positionDegeneracies};
@@ -609,7 +609,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
             degeneracies(iDim, jDim, iRNew) = deg;
             break;
           }
-          iRNew += 1;
+          ++iRNew;
         }
       }
     }
@@ -633,9 +633,10 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
           tot += degeneracies(iDim, jDim, iR);
         }
       }
-      assert(abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6);
+      if (abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6) {
+        Error("Failed completeness check in buildWignerSeitzVectorsWithShift");
+      }
     }
   }
-
   return {bravaisVectors, degeneracies};
 }
