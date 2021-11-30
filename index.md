@@ -132,12 +132,12 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
   <div class="mySlides">
     <div class="numbertext">3 / 6</div>
-    <img src="pictures/home/relaxon.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/el.bands.tau.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
     <div class="numbertext">4 / 6</div>
-    <img src="pictures/home/3.png" style="max-height:450px; width:100%; margin-left:auto; margin-right:auto; display: block">
+    <img src="pictures/home/3.png" style="max-height:450px; margin-left:auto; margin-right:auto; display: block">
   </div>
 
   <div class="mySlides">
@@ -165,16 +165,16 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
       <img class="demo cursor" src="pictures/home/wigner.png" style="max-height:120px" onclick="currentSlide(2)" alt="Electron-phonon limited conductivity with the Wigner transport equation">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/relaxon.png" style="max-height:120px" onclick="currentSlide(3)" alt="Phonon thermal conductivity with relaxon solver">
+      <img class="demo cursor" src="pictures/home/el.bands.tau.png" style="max-height:120px" onclick="currentSlide(3)" alt="Electron-phonon linewidths for GaN along its band structure">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(4)" alt="Electron and phonon viscosity">
+      <img class="demo cursor" src="pictures/home/3.png" style="max-height:120px" onclick="currentSlide(4)" alt="Resistivity of n-type (CoSb3) skutterudite, for which the RTA (dark blue triangles) and iterative (light blue 'x's) perform similarly.">
     </div>
     <div class="column">
       <img class="demo cursor" src="pictures/home/gan_rta_ph_relaxation_times.png" style="max-height:120px" onclick="currentSlide(5)" alt="RTA phonon lifetimes of GaN, where colors from blue to green represent different phonon branches of increasing energy.">
     </div>
     <div class="column">
-      <img class="demo cursor" src="pictures/home/gan-thermal-conductivity.png" style="max-height:120px" onclick="currentSlide(6)" alt="Lattice thermal conductivity of GaN along the a crystal axis, using the RTA and iterative BTE solvers.">
+      <img class="demo cursor" src="pictures/home/gan-thermal-conductivity.png" style="max-height:120px" onclick="currentSlide(6)" alt="Lattice thermal conductivity of GaN along the 'a' crystal axis using the RTA, variational, and relaxons solvers.">
     </div>
   </div>
 </div>
