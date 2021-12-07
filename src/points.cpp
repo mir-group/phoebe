@@ -31,7 +31,7 @@ void Points::setupGVectors() {
           Eigen::Vector3d vec;
           vec << i1, i2, i3;
           gVectors.col(nGVectors) = reciprocalUnitCell * vec;
-          nGVectors += 1;
+          ++nGVectors;
         }
       }
     }
@@ -114,7 +114,7 @@ Points::Points(Crystal &crystal_, const Eigen::Tensor<double, 3> &pathExtrema,
         isPointsListSorted = false;
       }
     }
-    i += 1;
+    ++i;
   }
 
 }
@@ -748,7 +748,6 @@ void Points::setIrreduciblePoints(
 
       std::vector<int> tmp;
       std::copy(thisStar.begin(), thisStar.end(), std::back_inserter(tmp));
-      std::sort(tmp.begin(), tmp.end());
       irreducibleStars.push_back(tmp); // here we save the equivalent star
     }
   }
@@ -833,7 +832,7 @@ void Points::setIrreduciblePoints(
   numIrrPoints = 0;
   for (int ik = 0; ik < numPoints; ik++) {
     if (equiv(ik) == ik) {
-      numIrrPoints += 1;
+      ++numIrrPoints;
     }
   }
 
@@ -844,7 +843,7 @@ void Points::setIrreduciblePoints(
     for (int j = 0; j < numPoints; j++) {
       if (equiv(j) == j) { // if is irreducible
         mapIrreducibleToReducibleList(i) = j;
-        i += 1;
+        ++i;
       }
     }
   }
