@@ -1,0 +1,13 @@
+appName = "elPhQeToPhoebe"
+
+elPhInterpolation = "epa"
+
+phFC2FileName = "qe-elph/silicon.fc"
+electronH0Name = "qe-elph/out/silicon.xml",
+quantumEspressoPrefix = "qe-elph/silicon"
+
+electronFourierCutoff = 4.
+epaMinEnergy = -4. eV
+epaMaxEnergy = 10. eV
+epaNumBins = 10
+epaSmearingEnergy = 0.05 eV

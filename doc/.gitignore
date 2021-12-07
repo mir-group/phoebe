@@ -1,0 +1,9 @@
+#Documentation related files
+html/
+latex/
+*aux
+*log
+*pdf
+*.gz
+*.bib
+xml/

@@ -1,0 +1,11 @@
+appName = "electronFourierBands"
+electronH0Name = "qe-elph/out/silicon.xml",
+deltaPath = 0.01
+electronFourierCutoff = 4.
+
+begin point path
+L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
+G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
+X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
+end point path

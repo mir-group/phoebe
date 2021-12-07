@@ -1,3 +1,9 @@
+# Build folders
+*build*/
+
+# Output files
+*.json
+
 # Prerequisites
 *.d
 
@@ -34,3 +40,40 @@
 
 #IDE files
 .project
+.pydevproject
+
+#MacOS specific files
+.DS_Store
+
+.Makefile.swp
+
+#CMake stuff:
+*CMakeCache.txt
+*CMakeFiles
+*cmake_install.cmake
+CMakeDoxy*
+Makefile
+CMakeLists.txt.orig
+CTestTestfile.cmake
+
+eigen_dep-prefix/
+epa_test/
+example/Silicon/log
+googletest/
+pugixml_dep-prefix/
+runTests*_include.cmake
+scalapack_dep-prefix/
+spglib_dep-prefix/
+runTests[1]_include.cmake
+
+runTests
+tags
+*.plist
+
+# Clion IDE
+.idea
+
+*zip
+
+# built by cmake for version number
+src/main.h
