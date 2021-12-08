@@ -179,33 +179,112 @@ public:
                                       const int &basis = crystalCoordinates);
 
   /** Get the wavevector index given the crystal coordinates of a wavevector.
+   * Throws an error if the wavevector is not found in points.
    * @param point: the wavevector in crystal coordinates.
    * @return index: the index of the wavevector in the range [0,numPoints[
    */
   int getIndex(const Eigen::Vector3d &point);
 
-  // like getIndex, but returns -1 if point not found
+  /** Like getIndex, get the wavevector index given the crystal coordinates
+   * of a wavevector, but returns -1 if point not found.
+   * @param crystalCoordinates_: a 3d Eigen vector with crystal coordinates of
+   * a wavevector.
+   * @return index: the index of the wavevector in the range [0,numPoints[ if
+   * the point is in the set of points, or -1 if not found.
+   */
   int isPointStored(const Eigen::Vector3d &crystalCoordinates_);
 
-  // note: constexpr tells the compiler that the class member is
-  // available at compilation time
+  // note: we could use constexpr to tell the compiler that the class member is
+  // available at compilation time. But it wouldn't be compatible on old
+  // clusters
   static const int crystalCoordinates;
   static const int cartesianCoordinates;
 
-  // given a wavevector of the reducible list in crystal coordinates,
-  // finds the integer index ikIrr of the irreducible point in the irreducible
-  // list. Provides also the rotation matrix, in cartesian coordinates, such
-  // that rotation * kIrr = kRed
+  /** setIrreduciblePoints analyzes a current set of points to find its
+   * irreducible set. It also builds the logic for storing all symmetry
+   * operations, such as finding which rotation maps an reducible point to its
+   * irreducible point and similar symmetry operations.
+   *
+   * @param groupVelocities: an optional parameter, one can pass the values of
+   * the group velocities at all wavevectors. If passed, setIrreduciblePoints
+   * will try to find the best set of symmetries acting on wavevector that
+   * also transforms the group velocities (i.e. there may sometimes be more than
+   * one symmetry mapping v and k to irreducible values). Useful since we want
+   * symmetries in the BTE to be the same as group velocities.
+   */
   void
   setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities = nullptr);
+
+  /** Returns an iterator on the index of irreducible points. If
+   * setIrreduciblePoints has not been called, it just loops on all points.
+   *
+   * @return std::vector<int>: a list of irreducible wavevector indices.
+   */
   std::vector<int> irrPointsIterator();
+
+  /** Similar to irrPointsIterator, returns an iterator on the index of
+   * irreducible points. If setIrreduciblePoints has not been called, it just
+   * loops on all points. However, the returned list has already been scattered
+   * across different MPI processes, so each MPI process has only a subset of
+   * irreducible points.
+   *
+   * Note that symmetries do introduce some load unbalance. In fact, some
+   * irreducible points may have more symmetry-equivalent points than others,
+   * and thus may perform more work.
+   *
+   * @return std::vector<int> a MPI-distributed list of irreducible wavevector
+   * indices.
+   */
   std::vector<int> parallelIrrPointsIterator();
+
+  /** Given an index of an irreducible point in the set [0,numPoints[, returns
+   * its index in the set of [0,numIrredPoints[ irreducible wavevectors.
+   *
+   * @param ik: index of the irreducible point in the reducible list.
+   * @return ikIrr: index in the irreducible list.
+   */
   int asIrreducibleIndex(const int &ik);
+
+  /** Given the index of an irreducible point in the set [0,numIrredPoints[,
+   * returns its index in the set of [0,numPoints[ reducible wavevectors.
+   *
+   * @param ik: index of the irreducible point in the irreducible list.
+   * @return ikIrr: index in the reducible list.
+   */
   int asReducibleIndex(const int &ik);
+
+  /** Given the coordinates of a wavevector, getRotationToIrreducible returns
+   * the index of the irreducible point, and the rotation R such that
+   * k^irr = R k^red
+   *
+   * @param x: a 3d vector with the coordinates of the wavevector. They can
+   * be in crystal or cartesian basis, as specified by basis.
+   * @param basis: either Points::cartesianCoordinates or crystalCoordinates,
+   * specifies the basis in which x is specified.
+   * @return tuple: the first element of the tuple is the index of the
+   * irreducible point, the second is the 3d matrix with the rotation symmetry
+   * operation. The rotation is crystal or cartesian, depending on the value of
+   * basis.
+   */
   std::tuple<int, Eigen::Matrix3d>
   getRotationToIrreducible(const Eigen::Vector3d &x,
                            const int &basis = cartesianCoordinates);
+
+  /** Given the index of an irreducible point in the reducible list, returns the
+   * set of rotations that allow to map k^red = R k^irr.
+   *
+   * @param ik: index of irreducible point in the reducible list.
+   * @return vector<Matrix3d>: a vector with the set of rotation to reconstruct
+   * the star.
+   */
   std::vector<Eigen::Matrix3d> getRotationsStar(const int &ik);
+
+  /** Given the index of an irreducible point in the reducible list, returns the
+  * list of indices of the symmetry equivalent wavevectors.
+  *
+  * @param ik: index of irreducible point in the reducible list.
+  * @return vector<int>: a vector with the indices of symmetry-equivalent points
+   */
   std::vector<int> getReducibleStarFromIrreducible(const int &ik);
 
 protected:
