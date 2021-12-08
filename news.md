@@ -6,8 +6,6 @@ filename: news
 
 # News
 
-The code is soon to be released, stay tuned!
-
 <div class="row">
 
   {% for post in site.posts %}
