@@ -90,7 +90,9 @@ void IO::goodbye(Context &context) {
         << "in relation to this calculation:\n" << std::endl;
 
   // Phoebe citation
-  std::cout << "\tPhoebe Manuscript. Coming soon to arxiv. (2021).\n" << std::endl;
+  std::cout << "\tPhoebe: a collection of Phonon and Electron Boltzmann Equation solvers.\n"
+	    << "\tA. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.\n"
+	    << "\tarXiv:2111.14999 (2021).\n" << std::endl;
 
   std::vector<std::string> solvers = context.getSolverBTE();
   // Relaxons solver
