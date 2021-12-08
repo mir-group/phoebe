@@ -10,9 +10,9 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
 For more details, see:
 
-Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.
-A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
-[arXiv:2111.14999](https://arxiv.org/abs/2111.14999) (2021).
+* Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.  
+  A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.  
+  [arXiv:2111.14999](https://arxiv.org/abs/2111.14999). (2021).
 
 Tutorials, documentation of functionality and underlying theory can be found at:
   * [Homepage](https://mir-group.github.io/phoebe/)
