@@ -49,32 +49,32 @@ To run this calculation, go to the folder ``./example/Silicon_el/qe-elph`` in th
 The file ``scf.in`` is the input file for the ``pw.x`` executable.
 The contents of the ``scf.in`` file for a total energy DFT calculation of Quantum ESPRESSO for a silicon crystal is shown below ::
 
- &control
-   calculation = "scf"
-   prefix = "silicon"
-   pseudo_dir = "../../pseudoPotentials/"
-   outdir = "./out"
-   verbosity = "high"
-   wf_collect = .true.
- /
- &system
-   ibrav = 2
-   celldm(1) = 10.2
-   nat = 2
-   ntyp = 1
-   ecutwfc = 30.0
-   nbnd = 12
- /
- &electrons
-   conv_thr = 1.0d-14
- /
- ATOMIC_SPECIES
-   Si  28.086  Si.pz-vbc.UPF
- ATOMIC_POSITIONS alat
-   Si 0.00 0.00 0.00
-   Si 0.25 0.25 0.25
- K_POINTS automatic
- 6 6 6 0 0 0
+  &control
+    calculation = "scf"
+    prefix = "silicon"
+    pseudo_dir = "../../pseudoPotentials/"
+    outdir = "./out"
+    verbosity = "high"
+    wf_collect = .true.
+  /
+  &system
+    ibrav = 2
+    celldm(1) = 10.2
+    nat = 2
+    ntyp = 1
+    ecutwfc = 30.0
+    nbnd = 12
+  /
+  &electrons
+    conv_thr = 1.0d-14
+  /
+  ATOMIC_SPECIES
+    Si  28.086  Si.pz-vbc.UPF
+  ATOMIC_POSITIONS crystal
+    Si 0.00 0.00 0.00
+    Si 0.25 0.25 0.25
+  K_POINTS automatic
+  6 6 6 0 0 0
 
 A detailed description of these parameters can be found on `Quantum ESPRESSO's website <https://www.quantum-espresso.org/Doc/INPUT_PW.html>`__.
 The most important parameters, which should be tweaked and modified in a research project are:
@@ -187,7 +187,7 @@ Before running Wannier90, we need to compute the electronic band structure on th
 You can check that the ``bands.in`` file is essentially identical to the `scf.in` file, except that we:
 
 * Modified the parameter ``calculation = "bands"``, which indicates to QE that we will use the charge density computed in Step 2 to recompute the wavefunctions. Don't set this parameter to ``"nscf"``.
-  
+
 * Instead of using the keyword ``K_POINTS automatic, 6 6 6 0 0 0``, we explicitly write the coordinates of all :math:`6^3` k-points. These can be generated using the helper script provided by Wannier90, ``q-e/wannier90-3.0.0/utility/kmesh.pl``, run on the command line by specifying the k-mesh used in the scf calculation. For example, ``kmesh.pl 6 6 6`` will produce the k-point list.
 
 To run it, type::
@@ -231,7 +231,7 @@ The input file used above to run Wannier90 is a bit more involved::
 	num_bands         = 12
 	num_wann          = 8
 	dis_win_max       = 17.d0
-	dis_froz_max      = 6.4d0
+	dis_froz_max      = 10.4d0
 	dis_num_iter      = 120
 	dis_mix_ratio     = 1.d0
 
