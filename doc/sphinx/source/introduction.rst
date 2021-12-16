@@ -7,6 +7,12 @@ Currently, we support integration with the ab-initio software suite Quantum ESPR
 
 Additionally, Phoebe is written in C++ and designed for use on modern HPC infrastructures through hybrid MPI/OpenMP parallelization, distributed memory computation via ScaLAPACK, and support for GPU acceleration using Kokkos.
 
+For more information, or to cite Phoebe, please refer to:
+
+Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.
+A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
+[arXiv:2111.14999](https://arxiv.org/abs/2111.14999) (2021).
+
 .. raw:: html
 
   <h3>Features:</h3>

@@ -106,14 +106,14 @@ where :math:`\boldsymbol{G}` are the reciprocal lattice vectors.
 
   <h4>Phonon-isotope scattering</h4>
 
-The rate of the elastic scattering with isotopic impurities has the form:
+The rate of the elastic scattering with isotopic impurities has the form [ref]:
 
 .. math::
    P_{\boldsymbol{q} j,\boldsymbol{q}' j'}^{\mathrm{isot}} = \frac{\pi}{2 N_0} \omega_{\boldsymbol{q} j}\omega_{\boldsymbol{q}' j'}
    \left[ \bar{n}_{\boldsymbol{q} j} \bar{n}_{\boldsymbol{q}' j'} + \frac{\bar{n}_{\boldsymbol{q} j} + \bar{n}_{\boldsymbol{q}' j'}} {2} \right ]
    \sum_{s} g^{s}_{2}   \bigg|  \sum_{\alpha} z^{s \alpha^*}_{\boldsymbol{q}j} \cdot z^{s \alpha}_{\boldsymbol{q}' j'} \bigg|^2 \delta (\omega_{\boldsymbol{q} j}- \omega_{\boldsymbol{q}' j'})
 
-where we introduced the isotopic scattering strength  :math:`g^s_2` :
+where we introduced the isotopic scattering strength  :math:`g^s_2`:. See https://doi.org/10.1103/PhysRevLett.106.045901 for reference.
 
 .. math::
    g^s_2 = \frac{1}{\langle m_s \rangle^2} \sum_i f_{is} (m_{is} - \langle m_s \rangle)^2
@@ -122,7 +122,7 @@ where :math:`\big< m_s \big>` is the average mass of an atom of species :math:`s
 
 
 
-   
+
 .. raw:: html
 
   <h4>Phonon-boundary scattering</h4>
