@@ -742,7 +742,7 @@ void Context::setupFromInput(const std::string &fileName) {
       }
       // magnetotransport
       if (parameterName == "magneticField") {
-        std::vector<int> vecB = parseIntList(val);
+        std::vector<double> vecB = parseDoubleList(val);
         bField(0) = vecB[0] * teslaToAu;
         bField(1) = vecB[1] * teslaToAu;
         bField(2) = vecB[2] * teslaToAu;

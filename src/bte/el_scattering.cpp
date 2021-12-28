@@ -596,16 +596,22 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
+    if(highMemory) {
       if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
         theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
         internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
-        if(mpi->mpiHead()) std::cout << "isPlus isMins " << isPlus << " " << isMins << " " << correction(is,kDisplacement) << " " <<  theMatrix(isPlus, isPlus) << std::endl;
+        //if(mpi->mpiHead()) std::cout << "isPlus isMins " << isPlus << " " << isMins << " " << correction(is,kDisplacement) << " " <<  theMatrix(isPlus, isPlus) << std::endl;
       }
-
       if(theMatrix.indicesAreLocal(isMins, isMins)) {
-        theMatrix(isMins, isMins) -= correction(is,kDisplacement);
+        if(highMemory) theMatrix(isMins, isMins) -= correction(is,kDisplacement);
         internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
       }
+
+    } else {
+        internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
+        internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
+    }
+
     }
   }
 }
