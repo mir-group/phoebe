@@ -52,7 +52,6 @@ protected:
   Eigen::VectorXd speciesMasses;           // size (numSpecies)
   Eigen::VectorXd speciesIsotopeCouplings; // size (numSpecies)
 
-  // Untested for now
   std::vector<SymmetryOperation> symmetryOperations;
   int numSymmetries;
 
