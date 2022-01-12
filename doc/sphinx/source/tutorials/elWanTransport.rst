@@ -204,7 +204,7 @@ First, we run Wannier90 in preprocessing mode::
 
   mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/wannier90.x -pp si
 
-Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pretty minimal::
+Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pretty minimal. Here we name it `pw2wan.in`.::
 
  &inputpp
    outdir = './out'
@@ -212,7 +212,7 @@ Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pr
    seedname = 'si'
  /
 
- And can be run by::
+And can be run by::
 
   mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw2wannier90.x -in pw2wan.in > pw2wan.out
 
