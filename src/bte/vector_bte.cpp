@@ -300,12 +300,22 @@ void VectorBTE::population2Canonical() {
 // get/set operator
 double &VectorBTE::operator()(const int &iCalc, const int &iDim,
                               const int &iState) {
+  // this assumes numStates indexes from 0
+  if(iState>=numStates or iState < 0) {
+    Error("Developer error: attempted to get/set a state outside the"
+        " numState range of a VectorBTE object.");
+  }
   return data(iCalc * dimensionality + iDim, iState);
 }
 
 // const get/set operator
 const double &VectorBTE::operator()(const int &iCalc, const int &iDim,
                                     const int &iState) const {
+  // this assumes numStates indexes from 0
+  if(iState>=numStates or iState < 0) {
+    Error("Developer error: attempted to get/set a state outside the"
+        " numState range of a VectorBTE object.");
+  }
   return data(iCalc * dimensionality + iDim, iState);
 }
 
