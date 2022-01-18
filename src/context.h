@@ -77,7 +77,7 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
-  Eigen::Vector3d bField;
+  Eigen::Vector3d bField = Eigen::Vector3d::Zero();
 
   std::string elphFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();

@@ -402,7 +402,7 @@ void Crystal::magneticSymmetries(Context &context) {
     bdir = 2;
   } else {  // it's along two directions, for which we don't allow symmetry
     Error("Symmetry only permitted when magnetic field is along a"
-                "cartesian direction. \nChoose a single direction or set"
+                " Cartesian direction. \nChoose a single direction or set"
                 "useSymmetries = false");
   }
 
