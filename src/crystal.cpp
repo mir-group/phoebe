@@ -7,6 +7,7 @@
 #include "mpi/mpiHelper.h"
 #include "periodic_table.h"
 #include <iomanip>
+#include <random>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -117,6 +118,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   //-----------------------------------------------------------------
 
+  //int maxSize = 192;
   int maxSize = 50;
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
@@ -156,10 +158,38 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     }
 
     double symmetryPrecision = 1e-4;
+/*
+    // TODO remove this because it's for testing purposes only
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        if(i == j) latticeSPG[i][j] = 1.0;
+        else { latticeSPG[i][j] = 0.0; }
+      }
+    }
+    positionSPG[0][0] = 0.25; positionSPG[0][1] = 0.75; positionSPG[0][2] = 0.25;
+    positionSPG[1][0] = 0.0; positionSPG[1][1] = 0.00; positionSPG[1][2] = 0.5;
+    positionSPG[2][0] = 0.25; positionSPG[2][1] = 0.25; positionSPG[2][2] = 0.75;
+    positionSPG[3][0] = 0.00; positionSPG[3][1] = 0.5; positionSPG[3][2] = 0.00;
+    positionSPG[4][0] = 0.75; positionSPG[4][1] = 0.75; positionSPG[4][2] = 0.75;
+    positionSPG[5][0] = 0.5; positionSPG[5][1] = 0.0; positionSPG[5][2] = 0.0;
+    positionSPG[6][0] = 0.75; positionSPG[6][1] = 0.25; positionSPG[6][2] = 0.25;
+    positionSPG[7][0] = 0.5; positionSPG[7][1] = 0.5; positionSPG[7][2] = 0.5;
+*/
     numSymmetries =
-        spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
+          spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
                          positionSPG, typesSPG, numAtoms, symmetryPrecision);
-
+/*
+    if(mpi->mpiHead()) {
+      for ( int n = 0; n < numSymmetries; n++) {
+        for ( int i : {0,1,2}) {
+          for ( int j : {0,1,2}) {
+            std::cout << rotations[n][i][j] << " ";
+          }
+          std::cout << std::endl;
+        }
+        std::cout << "trans: " << translations[n][0] << " " << translations[n][1] << " " << translations[n][2] << std::endl;
+      }
+    } */
     // need to explicitly deallocate allocated arrays.
     delete[] typesSPG;
     delete[] positionSPG;
@@ -193,7 +223,6 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   // store the symmetries inside the class
   // note: spglib returns rotation and translation in fractional coordinates
-
   for (int iSymmetry = 0; iSymmetry < numSymmetries; iSymmetry++) {
     Eigen::Vector3d thisTranslation;
     thisTranslation(0) = translations[iSymmetry][0];
@@ -208,6 +237,15 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     SymmetryOperation s = {thisMatrix, thisTranslation};
     symmetryOperations.push_back(s);
   }
+
+  auto bfield = context.getBField();
+  if(bfield.norm() != 0) {
+    if(mpi->mpiHead()) {
+      std::cout << "Reducing symmetry due to magnetic field." << std::endl;
+    }
+    magneticSymmetries(context);
+  }
+
 }
 
 // empty constructor
@@ -350,6 +388,73 @@ int Crystal::getDimensionality() const { return dimensionality; }
 
 int Crystal::getNumSpecies() const { return numSpecies; }
 
+// remove rotations which are not in the magnetic field's point group
+void Crystal::magneticSymmetries(Context &context) {
+
+  // first, establish what direction the magnetic field is along.
+  Eigen::Vector3d bfield = context.getBField();
+  int bdir = -1;
+  if(bfield(0) != 0 && bfield(1) == 0 && bfield(2) == 0) { // x direction
+    bdir = 0;
+  } else if(bfield(0) == 0 && bfield(1) != 0 && bfield(2) == 0) { // y direction
+    bdir = 1;
+  } else if(bfield(0) == 0 && bfield(1) == 0 && bfield(2) != 0) { // z direction
+    bdir = 2;
+  } else {  // it's along two directions, for which we don't allow symmetry
+    Error("Symmetry only permitted when magnetic field is along a"
+                "cartesian direction. \nChoose a single direction or set"
+                "useSymmetries = false");
+  }
+
+  // Loop over all rotation matrices and remove those that are not in
+  // b field's point group (inf/m)
+  //    remove rotations which are not around the magnetic field axis (x,y, or z)
+  //    remove mirror symmetries which are not across the plane
+  //      perpendicular to the B field axis
+  std::vector<SymmetryOperation> magSymmetryOperations;
+  for (int iSymmetry = 0; iSymmetry < numSymmetries; iSymmetry++) {
+
+    // grab this symmetry operation
+    SymmetryOperation s = symmetryOperations[iSymmetry];
+    Eigen::Matrix3d rotation = s.rotation;
+    // transpose back, as these operations are stored with a T in phoebe
+    rotation = rotation.transpose();
+
+    std::random_device rd;
+    std::default_random_engine generator(rd()); // rd() provides a random seed
+    std::uniform_real_distribution<double> distribution(0.0,1.0);
+
+    Eigen::Vector3d testVector = {distribution(generator),
+                                distribution(generator),
+                                distribution(generator)};
+
+    auto rotVector = rotation * testVector;
+
+    if(testVector[bdir] == rotVector[bdir] || testVector[bdir] == -rotVector[bdir]) {
+      magSymmetryOperations.push_back(s);
+    }
+    else { continue; }
+/*
+    if(mpi->mpiHead()) {
+      for ( int i : {0,1,2}) {
+        for ( int j : {0,1,2}) {
+          std::cout << rotation(i,j) << " ";
+        }
+        std::cout << std::endl;
+      }
+      std::cout << "\n" << std::endl;
+    }
+*/
+  }
+
+  // update the symmetry operation information
+  numSymmetries = magSymmetryOperations.size();
+  symmetryOperations = magSymmetryOperations;
+
+  if(mpi->mpiHead()) std::cout << "Reduced to " << numSymmetries <<
+        " symmetries with magnetic field." << std::endl;
+}
+
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
 Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
                                  const int &superCellFactor) {
@@ -357,6 +462,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   int nx = superCellFactor;
 
   std::vector<Eigen::Vector3d> tmpVectors;
+
   std::vector<double> tmpDegeneracies;
 
   // what are we doing:
@@ -453,6 +559,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
 
   // check that we found all vectors
   double tot = positionDegeneracies.sum();
+  if(mpi->mpiHead()) std::cout << tot - grid(0) * grid(1) * grid(2) << std::endl;
   if (abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6) {
     Error("Completeness check failed in buildWignerSeitzVectors");
   }

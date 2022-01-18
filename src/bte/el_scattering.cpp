@@ -474,6 +474,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
+  points.setIrreduciblePoints();
 
   // print out the points list for debug check
   /*for(int i = 0; i < points.getNumPoints(); i++) {
@@ -491,7 +492,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
   // convert the kspacing from crystal to cartesian
   auto crystal = outerBandStructure.getPoints().getCrystal();
   auto R = crystal.getReciprocalUnitCell();
-
+/*
   if(mpi->mpiHead()) std::cout << "kmesh crys: " << kMesh[0] << " " << kMesh[1] << " " << kMesh[2] << " " << std::endl;
   if(mpi->mpiHead()) std::cout << "deltaK crys: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
 
@@ -504,7 +505,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       std::cout << std::endl;
     }
   }
-
+*/
   // first, compute all values of the vector Omega=vxB
   // (vxB) is in Cartesian coordinates
   // (provided the input B vector is in cartesian coordinates too)
@@ -524,6 +525,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
   // loop over every state because we do not know
   // if k+1 or k-1 will be on another process. Therefore, we cannot restrict the loop
   // to only local state indices
+  int numKpoints = outerBandStructure.getNumPoints();
   for (int is=0; is<numStates; ++is) {
 
     // generate basic state info
@@ -533,8 +535,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     BandIndex ibIdx = std::get<1>(t);
 
     // kpoint coordinate values in range [0,1] (crystal coords)
-    Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(),
-                                                   Points::crystalCoordinates);
+    Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(), Points::crystalCoordinates);
     Eigen::Vector3d k3idx;
 
     if(debug) if(mpi->mpiHead()) std::cout << "kpoint coordinates " << k(0) << " " << k(1) << " " << k(2) << std::endl;
@@ -574,8 +575,14 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       }
 
       // find index of kPlus/kMinus in points
-      int ikPlus = outerBandStructure.getPointIndex(kPlus, true);
-      int ikMins = outerBandStructure.getPointIndex(kMins, true);
+      int ikPlusRed = outerBandStructure.getPointIndex(kPlus, true);
+      int ikMinsRed = outerBandStructure.getPointIndex(kMins, true);
+
+      // if symmetries are turned on, we need to map the global kmesh
+      // index to a irreducible point, as this is what will be used
+      // by the interalDiagonal element
+      int ikPlus = points.asIrreducibleIndex(ikPlusRed);
+      int ikMins = points.asIrreducibleIndex(ikMinsRed);
 
       if(debug) if(mpi->mpiHead()) std::cout << "ikPlus ikMins " << ikPlus << " " << ikMins << std::endl;
 
@@ -584,7 +591,10 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       // was removed. We should expect (hope?) dk f ~ 0
       // TODO the other scenario will be if one or the other kpoint is missing,
       // I think in that case -- could we use forward/backward difference
-      if (ikPlus == -1 || ikMins == -1) continue;
+
+      // TODO why is it possible for ikPlus to be -1?
+      if (ikPlus > numKpoints || ikMins > numKpoints) { continue; }
+      if (ikPlus == -1 || ikMins == -1) { continue; }
 
       WavevectorIndex ikPlusIdx(ikPlus);
       WavevectorIndex ikMinsIdx(ikMins);
@@ -600,18 +610,15 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
         theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
         internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
-        //if(mpi->mpiHead()) std::cout << "isPlus isMins " << isPlus << " " << isMins << " " << correction(is,kDisplacement) << " " <<  theMatrix(isPlus, isPlus) << std::endl;
       }
       if(theMatrix.indicesAreLocal(isMins, isMins)) {
-        if(highMemory) theMatrix(isMins, isMins) -= correction(is,kDisplacement);
+        theMatrix(isMins, isMins) -= correction(is,kDisplacement);
         internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
       }
-
-    } else {
+   } else { // TODO need to add the icalc index
         internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
         internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
     }
-
     }
   }
 }

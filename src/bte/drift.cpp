@@ -31,10 +31,11 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
                        const int &dimensionality_)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
+
   Particle particle = bandStructure.getParticle();
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
+ #pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
   for(int iis = 0; iis < niss; iis++){
     int is = iss[iis];
     StateIndex isIdx(is);

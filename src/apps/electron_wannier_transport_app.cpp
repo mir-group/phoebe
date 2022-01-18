@@ -65,18 +65,12 @@ void ElectronWannierTransportApp::run(Context &context) {
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
 
-
   // Add magnetotransport term to scattering matrix if found in input file
-  //Eigen::Vector3d magneticField;
-  //magneticField(0)=0.;
-  //magneticField(1)=0.;
-  //magneticField(2)=1. / 235051.8086; // should convert Tesla to amu
   auto magneticField = context.getBField();
-  if(mpi->mpiHead()) std::cout << magneticField << std::endl;
   if(magneticField.squaredNorm() != 0) {
 
     // conditions when this algorithm doesn't make sense
-    if (context.getUseSymmetries()) Error("Symmetries not available for magnetotransport calculations.");
+    //if (context.getUseSymmetries()) Error("Symmetries not available for magnetotransport calculations.");
     //if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for magnetotransport.");
     //if (magneticField.squaredNorm() == 0 ) Error("Cannot run magnetotransport with B=0.");
 
@@ -107,6 +101,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // compute the electrical conductivity
   OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
                                             bandStructure, context);
+
   transportCoefficients.calcFromPopulation(nERTA, nTRTA);
   transportCoefficients.print();
   transportCoefficients.outputToJSON("rta_onsager_coefficients.json");
