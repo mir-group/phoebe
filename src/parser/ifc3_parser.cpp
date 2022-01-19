@@ -505,12 +505,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
 
-  HighFive::File file(fileName, HighFive::File::ReadOnly);
-
-  // Set up hdf5 datasets
-  HighFive::DataSet difc3 = file.getDataSet("/fc3");
-  HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
-
   // user info about memory
   {
     double rx;
@@ -531,10 +525,22 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       ifc3Tensor;
   std::vector<int> cellMap;
 
-  // read in the ifc3 data
-  difc3.read(ifc3Tensor);
-  dcellMap.read(cellMap);
+  try {
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
 
+    // Set up hdf5 datasets
+    HighFive::DataSet difc3 = file.getDataSet("/fc3");
+    HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
+
+    // read in the ifc3 data
+    difc3.read(ifc3Tensor);
+    dcellMap.read(cellMap);
+
+  } catch (std::exception &error) {
+    if(mpi->mpiHead()) std::cout << error.what() << std::endl;
+    Error("Issue reading fc3.hdf5 file. Make sure it exists at " + fileName +
+          "\n and is not open by some other persisting processes.");
+  }
   // Read dimension of superCell from phono3py_disp file
   // ====================================================
   fileName = context.getPhonopyDispFileName();
