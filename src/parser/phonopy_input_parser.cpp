@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <regex>
 
 #include "constants.h"
 #include "eigen.h"
@@ -30,6 +31,21 @@ int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
   }
   return ir2;
 }
+// helper to break up strings
+std::vector<std::string> tokenize(const std::string str) {
+
+  // break them to remove commas and spaces
+  const std::regex re(R"([\s|,]+)");
+  std::sregex_token_iterator it{ str.begin(), str.end(), re, -1 };
+  std::vector<std::string> tokenized{ it, {} };
+
+  // remove empty strings
+  tokenized.erase(std::remove_if(tokenized.begin(), tokenized.end(),
+                     [](std::string const& s) {
+                         return s.size() == 0;
+                     }), tokenized.end());
+  return tokenized;
+}
 
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
@@ -38,88 +54,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     std::cout << "Using harmonic force constants from phonopy." << std::endl;
   }
 
-  // Read disp_fc2.yaml or disp_fc3.yaml file
-  // ====================================================
-  // If disp_fc2 is supplied, it has the fc2 superCell.
-  // If both superCells were the same, both are written to disp_fc3.yaml,
-  // and disp_fc2.yaml will not have been created.
-
   double distanceConversion = 1. / distanceBohrToAng;
-
-  // open input file
-  auto fileName = context.getDispFC2FileName();
-  std::ifstream infile(fileName);
-  std::string line;
-
-  // if there's no disp_fc2 file, use disp_fc3 instead
-  if (fileName.empty()) {
-    fileName = context.getDispFCFileName();
-    if (fileName.empty()) {
-      Error("Phonopy required file dispFCFileName "
-            "(disp_fc3.yaml/disp_fc2.yaml) file not specified in input file.");
-    }
-    infile.clear();
-    infile.open(fileName);
-    if (!infile.is_open()) {
-      Error(
-          "Phonopy required file dispFCFileName (disp_fc3.yaml/disp_fc2.yaml) "
-          "not found at " +
-          fileName);
-    }
-  }
-  // if there was an fc2 file, make sure it opened correctly
-  if (!infile.is_open()) {
-    Error(
-        "Phonopy disp_fc2.yaml file specified at " + fileName +
-        " not found.");
-   }
-
-
-  if (mpi->mpiHead())
-    std::cout << "Reading in " + fileName + "." << std::endl;
-
-  // first line of disp.yaml will be numAtoms in superCell
-  std::getline(infile, line);
-  int numSupAtoms = std::stoi(line.substr(line.find(' '), line.back()));
-
-  // read the rest of the file to get superCell positions
-  Eigen::MatrixXd supPositions(numSupAtoms, 3);
-  Eigen::MatrixXd supLattice(3, 3);
-  int ilatt = 3;
-  int ipos = 0;
-  while (infile) {
-
-    getline(infile, line);
-
-    // if this is a cell position, save it
-    if (line.find("position: ") != std::string::npos) {
-      std::string temp = line.substr(14, 57); // just the positions
-      int idx1 = temp.find(',');
-      supPositions(ipos, 0) = std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      supPositions(ipos, 1) = std::stod(temp.substr(idx1 + 1, idx2));
-      supPositions(ipos, 2) = std::stod(temp.substr(idx2 + 1));
-      ipos++;
-    }
-    if (ilatt < 3) { // count down lattice lines
-      // convert from angstrom to bohr
-      std::string temp = line.substr(5, 62); // just the elements
-      int idx1 = temp.find(',');
-      supLattice(ilatt, 0) =
-          std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      supLattice(ilatt, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2));
-      supLattice(ilatt, 2) =
-          std::stod(temp.substr(idx2 + 1));
-      ilatt++;
-    }
-    if (line.find("lattice:") != std::string::npos) {
-      ilatt = 0;
-    }
-  }
-  infile.close();
-  infile.clear();
 
   // Read phono3py_disp.yaml file
   // ===================================================
@@ -128,8 +63,9 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // information specifying if fc2 has the same superCell dims as fc3
 
   // open input file
-  fileName = context.getPhonopyDispFileName();
-  infile.open(fileName);
+  std::string fileName = context.getPhonopyDispFileName();
+  std::ifstream infile(fileName);
+  std::string line;
 
   if (fileName.empty()) {
     Error("Phonopy required file phonopyDispFileName (phono3py_disp.yaml) "
@@ -145,8 +81,11 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // read in the dimension information.
   // we have to do this first, because we need to use this info
-  // to allocate the below data storage.
+  // to allocate the below data storage, and decide how we should look
+  // for supercell information.
+  // --------------------------------------------------------
   Eigen::Vector3i qCoarseGrid;
+  std::string supercellSearchString = "supercell:";
   while (std::getline(infile, line)) {
 
     // In the case where force constants where generated with different
@@ -157,6 +96,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
           line.substr(line.find('\"') + 1, line.find("\"\n") - 3);
       std::istringstream iss(temp);
       iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
+      supercellSearchString = "phonon_supercell:";
       break;
     }
     // this comes up first in the file, so if dim_fc2 is present, we'll
@@ -176,22 +116,16 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
           "Something is wrong with your input.");
   }
 
-  // set number of unit cell atoms
-  int numAtoms =
-      numSupAtoms / (qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2));
-
   // read the rest of the file to find atomic positions,
   // lattice vectors, and species
+  // --------------------------------------------------------
   Eigen::Matrix3d directUnitCell;
-
-  Eigen::MatrixXd atomicPositions(numAtoms, 3);
-  Eigen::VectorXi atomicSpecies(numAtoms);
-
+  std::vector<std::vector<double>> atomicPositionsVec;
+  std::vector<int> atomicSpeciesVec;
   std::vector<std::string> speciesNames;
   PeriodicTable pt;
 
-  ilatt = 3;
-  ipos = 0;
+  int ilatt = 3;
   // Note: watch out, this is reading the primitive cell from phono3py.
   // we might want to read in the unit cell, which could be different
   // because of some conversions they do internally.
@@ -200,6 +134,13 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // below.
   while (infile) {
     getline(infile, line);
+
+    // distance unit changes based on dft solver used
+    if (line.find("length") != std::string::npos) {
+      if (line.find("au") != std::string::npos) {
+        distanceConversion = 1.; // distances already in Bohr
+      }
+    }
 
     // if this line has a species, save it
     if (line.find(" symbol: ") != std::string::npos) {
@@ -211,21 +152,23 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
           speciesNames.end()) {
         speciesNames.push_back(temp);
+
       }
       // save the atom number of this species
-      atomicSpecies(ipos) =
+      atomicSpeciesVec.push_back(
           std::find(speciesNames.begin(), speciesNames.end(), temp) -
-          speciesNames.begin();
+          speciesNames.begin());
     }
     // if this is a cell position, save it
     if (line.find("coordinates: ") != std::string::npos) {
+      std::vector<double> position = {0,0,0};
       std::string temp = line.substr(19, 59); // just the positions
       int idx1 = temp.find(',');
-      atomicPositions(ipos, 0) = std::stod(temp.substr(0, idx1));
+      position[0] = std::stod(temp.substr(0, idx1));
       int idx2 = temp.find(',', idx1 + 1);
-      atomicPositions(ipos, 1) = std::stod(temp.substr(idx1 + 1, idx2));
-      atomicPositions(ipos, 2) = std::stod(temp.substr(idx2 + 1));
-      ipos++;
+      position[1] = std::stod(temp.substr(idx1 + 1, idx2));
+      position[2] = std::stod(temp.substr(idx2 + 1));
+      atomicPositionsVec.push_back(position);
     }
     // parse lattice vectors
     if (ilatt < 3) {                         // count down lattice lines
@@ -247,18 +190,77 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     if (line.find("reciprocal_lattice:") != std::string::npos) {
       break;
     }
+  }
 
-    if (line.find("length") != std::string::npos) {
-      if (line.find("au") != std::string::npos) {
-        distanceConversion = 1.; // distances already in Bohr
-      }
+  // read the rest of the file to get FC2 superCell positions
+  // --------------------------------------------------------
+  std::vector<std::vector<double>> supPositionsVec;
+  Eigen::MatrixXd supLattice(3, 3);
+  ilatt = 3;
+  bool readSupercell = false;
+  while (infile) {
+
+    getline(infile, line);
+
+    // read all the lines after we see the flag for the supercell
+    if (line.find(supercellSearchString) != std::string::npos) {
+      readSupercell = true;
+    }
+    // if this is a cell position, save it
+    if (line.find("coordinates: ") != std::string::npos && readSupercell) {
+      std::vector<double> position = {0.,0.,0.};
+      std::vector<std::string> tok = tokenize(line);
+      position[0] = std::stod(tok[2]);
+      position[1] = std::stod(tok[3]);
+      position[2] = std::stod(tok[4]);
+      supPositionsVec.push_back(position);
+    }
+    if (ilatt < 3 && readSupercell) { // count down lattice lines
+      // convert from angstrom to bohr
+      std::string temp = line.substr(5, 62); // just the elements
+      int idx1 = temp.find(',');
+      supLattice(ilatt, 0) =
+          std::stod(temp.substr(0, idx1));
+      int idx2 = temp.find(',', idx1 + 1);
+      supLattice(ilatt, 1) =
+          std::stod(temp.substr(idx1 + 1, idx2));
+      supLattice(ilatt, 2) =
+          std::stod(temp.substr(idx2 + 1));
+      ilatt++;
+    }
+    if (line.find("lattice:") != std::string::npos && readSupercell) {
+      ilatt = 0;
     }
   }
   infile.close();
 
+  // number of atoms in the supercell for later use
+  int numSupAtoms = supPositionsVec.size();
+
+  // set number of unit cell atoms
+  int numAtoms = atomicPositionsVec.size();
+
   // convert distances to Bohr
   supLattice *= distanceConversion;
   directUnitCell *= distanceConversion;
+
+  // convert std::vectors to Eigen formats required by the
+  // next part of phoebe
+  Eigen::VectorXi atomicSpecies(numAtoms);
+  Eigen::MatrixXd atomicPositions(numAtoms, 3);
+  Eigen::MatrixXd supPositions(numSupAtoms, 3);
+  // copy to Eigen format
+  for ( int n = 0; n < numAtoms; n++) {
+    for (int i : {0, 1, 2}) {
+        atomicPositions(n,i) = atomicPositionsVec[n][i];
+        atomicSpecies(n) = atomicSpeciesVec[n];
+    }
+  }
+  for ( int n = 0; n < numSupAtoms; n++) {
+    for (int i : {0, 1, 2}) {
+        supPositions(n,i) = supPositionsVec[n][i];
+    }
+  }
 
   // Process the information that has been read in
   // =================================================
@@ -382,6 +384,8 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
   // 4 dimensional array, and eigen tensor is not supported by highFive
   std::vector<std::vector<std::vector<std::vector<double>>>> ifc2;
   std::vector<int> cellMap;
+  HighFive::FixedLenStringArray<14> unitVec;
+  std::string unit;
 
   fileName = context.getPhFC2FileName();
   if (fileName.empty()) {
@@ -398,11 +402,16 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
     // Set up hdf5 datasets
     HighFive::DataSet difc2 = file.getDataSet("/force_constants");
     HighFive::DataSet dCellMap = file.getDataSet("/p2s_map");
+    HighFive::DataSet dConversion = file.getDataSet("/physical_unit");
 
     // read in the ifc3 data
     difc2.read(ifc2);
     dCellMap.read(cellMap);
+    dConversion.read(unitVec);
+    unit = unitVec[0];
+
   } catch (std::exception &error) {
+    if(mpi->mpiHead()) std::cout << error.what() << std::endl;
     Error("Issue reading fc2.hdf5 file. Make sure it exists at " + fileName +
           "\n and is not open by some other persisting processes.");
   }
@@ -410,8 +419,16 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
   Eigen::Tensor<double, 7> forceConstants(3, 3, qCoarseGrid[0], qCoarseGrid[1],
                                           qCoarseGrid[2], numAtoms, numAtoms);
 
+  // if the force constants are compact format, the first two
+  // dimensions will not be the same (one will be nprimAtoms, other nsupAtoms)
+  bool compact = false;
+  if(ifc2.size() != ifc2[0].size()) compact = true;
+
   // phonopy force constants are in ev/ang^2, convert to atomic
-  double conversion = pow(distanceBohrToAng, 2) / energyRyToEv;
+  double conversion = 1;
+  if(unit.find("eV/ang") != std::string::npos) {
+    conversion = pow(distanceBohrToAng, 2) / energyRyToEv;
+  }
 
   // for the second atom, we must loop over all possible
   // cells in the superCell containing copies of these
@@ -452,11 +469,18 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
             // first atom of this type is, then adding ir, which tells us
             // which cell it's in.
             //
-            // We must put an offset of iR onto the first index, because
-            // the format in phono3py is D(R',R=0)
-            int isAt = cellMap[iat] + ir;
-            int jsAt = cellMap[jat];
-
+            int isAt, jsAt;
+            if(!compact) {
+              // We must put an offset of iR onto the first index, because
+              // the format in phono3py is D(R',R=0)
+              isAt = cellMap[iat] + ir;
+              jsAt = cellMap[jat];
+            }
+            else {
+              // if compact, now it appears notation is D(R=0,R')
+              jsAt = cellMap[iat] + ir;
+              isAt = jat;
+            }
             // loop over cartesian directions
             for (int ic : {0, 1, 2}) {
               for (int jc : {0, 1, 2}) {
