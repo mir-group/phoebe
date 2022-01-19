@@ -390,13 +390,25 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
     // Set up hdf5 datasets
     HighFive::DataSet difc2 = file.getDataSet("/force_constants");
     HighFive::DataSet dCellMap = file.getDataSet("/p2s_map");
-    HighFive::DataSet dConversion = file.getDataSet("/physical_unit");
-
-    // read in the ifc3 data
+    // read in the ifc2 data
     difc2.read(ifc2);
     dCellMap.read(cellMap);
-    dConversion.read(unitVec);
-    unit = unitVec[0];
+
+    // unfortunately it appears this is not in some fc files...
+    // default to ev/Ang^2
+    try {
+      HighFive::DataSet dConversion = file.getDataSet("/physical_unit");
+      dConversion.read(unitVec);
+      unit = unitVec[0];
+    } catch (std::exception &error) {
+      if(mpi->mpiHead()) {
+        std::cout << "\nPhonopy fc file did not include units. "
+         << "\nThis is likely ok, defaulting to eV/angstrom^2."
+         << "\nHowever, you should check to be sure the magnitude of your"
+         << " phonon frequencies is sensible.\n" << std::endl;
+      }
+      unit = "eV/angstrom^2";
+    }
 
   } catch (std::exception &error) {
     if(mpi->mpiHead()) std::cout << error.what() << std::endl;
