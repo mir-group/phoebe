@@ -13,10 +13,15 @@
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 
   // check if this is a phonopy file is set in input
-  if (!context.getPhonopyDispFileName().empty()) {
-    if (mpi->mpiHead()) {
-      std::cout << "Using anharmonic force constants from phono3py."
+  if (context.getPhFC3FileName().find("hdf5") != std::string::npos) {
+    if(context.getPhonopyDispFileName().empty()) {
+      Error("You need both fc3.hdf5 and phonopy_disp.yaml "
+        "files to run phono3py." );
+    } else {
+      if (mpi->mpiHead()) {
+        std::cout << "Using anharmonic force constants from phono3py."
                 << std::endl;
+      }
     }
     return parseFromPhono3py(context, crystal);
   } else {
