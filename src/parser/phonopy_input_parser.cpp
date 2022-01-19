@@ -162,25 +162,18 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     // if this is a cell position, save it
     if (line.find("coordinates: ") != std::string::npos) {
       std::vector<double> position = {0,0,0};
-      std::string temp = line.substr(19, 59); // just the positions
-      int idx1 = temp.find(',');
-      position[0] = std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      position[1] = std::stod(temp.substr(idx1 + 1, idx2));
-      position[2] = std::stod(temp.substr(idx2 + 1));
+      std::vector<std::string> tok = tokenize(line);
+      position[0] = std::stod(tok[2]);
+      position[1] = std::stod(tok[3]);
+      position[2] = std::stod(tok[4]);
       atomicPositionsVec.push_back(position);
     }
     // parse lattice vectors
     if (ilatt < 3) {                         // count down lattice lines
-      std::string temp = line.substr(9, 67); // just the elements
-      int idx1 = temp.find(',');
-      directUnitCell(ilatt, 0) =
-          std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      directUnitCell(ilatt, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2));
-      directUnitCell(ilatt, 2) =
-          std::stod(temp.substr(idx2 + 1, temp.find(']')));
+      std::vector<std::string> tok = tokenize(line);
+      directUnitCell(ilatt, 0) = std::stod(tok[2]);
+      directUnitCell(ilatt, 1) = std::stod(tok[3]);
+      directUnitCell(ilatt, 2) = std::stod(tok[4]);
       ilatt++;
     }
     if (line.find("lattice:") != std::string::npos) {
@@ -217,15 +210,10 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
     if (ilatt < 3 && readSupercell) { // count down lattice lines
       // convert from angstrom to bohr
-      std::string temp = line.substr(5, 62); // just the elements
-      int idx1 = temp.find(',');
-      supLattice(ilatt, 0) =
-          std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      supLattice(ilatt, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2));
-      supLattice(ilatt, 2) =
-          std::stod(temp.substr(idx2 + 1));
+      std::vector<std::string> tok = tokenize(line);
+      supLattice(ilatt, 0) = std::stod(tok[2]);
+      supLattice(ilatt, 1) = std::stod(tok[3]);
+      supLattice(ilatt, 2) = std::stod(tok[4]);
       ilatt++;
     }
     if (line.find("lattice:") != std::string::npos && readSupercell) {
