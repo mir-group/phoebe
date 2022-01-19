@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <regex>
 
 #include "constants.h"
 #include "eigen.h"
@@ -30,21 +29,6 @@ int findRIndex(Eigen::MatrixXd &cellPositions2, Eigen::Vector3d &position2) {
     Error("index not found");
   }
   return ir2;
-}
-// helper to break up strings
-std::vector<std::string> tokenize(const std::string str) {
-
-  // break them to remove commas and spaces
-  const std::regex re(R"([\s|,]+)");
-  std::sregex_token_iterator it{ str.begin(), str.end(), re, -1 };
-  std::vector<std::string> tokenized{ it, {} };
-
-  // remove empty strings
-  tokenized.erase(std::remove_if(tokenized.begin(), tokenized.end(),
-                     [](std::string const& s) {
-                         return s.size() == 0;
-                     }), tokenized.end());
-  return tokenized;
 }
 
 std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
