@@ -117,7 +117,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   //-----------------------------------------------------------------
 
-  int maxSize = 50;
+  int maxSize = 192;
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
 

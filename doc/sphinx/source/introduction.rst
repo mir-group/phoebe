@@ -11,7 +11,7 @@ For more information, or to cite Phoebe, please refer to:
 
 Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.
 A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
-[arXiv:2111.14999](https://arxiv.org/abs/2111.14999) (2021).
+`arXiv:2111.14999 <https://arxiv.org/abs/2111.14999>`_ (2021).
 
 .. raw:: html
 

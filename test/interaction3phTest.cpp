@@ -356,7 +356,6 @@ TEST(Interaction3Ph, Coupling3Ph000_p3py) {
   context.setPhFC2FileName("../test/data/phono3py/fc2.hdf5");
   context.setPhFC3FileName("../test/data/phono3py/fc3.hdf5");
   context.setPhonopyDispFileName("../test/data/phono3py/phono3py_disp.yaml");
-  context.setDispFCFileName("../test/data/phono3py/disp_fc3.yaml");
   context.setSumRuleFC2("simple");
 
   auto tup = Parser::parsePhHarmonic(context);

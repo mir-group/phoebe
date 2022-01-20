@@ -116,7 +116,6 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
 
   phFC2FileName = "fc2.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
-  dispFCFileName = "disp_fc3.yaml"
 
 
 As we can see, these input files are relatively similar. We briefly describe the relevant input parameters below:
