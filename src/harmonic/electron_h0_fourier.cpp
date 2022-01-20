@@ -58,7 +58,8 @@ ElectronH0Fourier::ElectronH0Fourier(Crystal &crystal_, const Points& coarsePoin
   // now we look for the expansion coefficients that interpolates the bands
   // note that setPositionVectors must stay above this call
 
-  LoopPrint loopPrint("setting up Fourier interpolation", "bands",
+  LoopPrint loopPrint("setting up Fourier interpolation with total "
+        + std::to_string(numBands) + " bands,", "bands/mpi process",
                       int(mpi->divideWorkIter(numBands).size()));
 
   expansionCoefficients.resize(numBands, numPositionVectors);

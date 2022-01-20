@@ -30,7 +30,10 @@ int compress2Indices(const int &i1, const int &i2, const int &size1,
 std::tuple<int, int> decompress2Indices(const int &iTot, const int &size1,
         const int &size2);
 
-// A function to allocate a dynamically sized array. It tricks the 
+// helper to break up strings by commas and spaces
+std::vector<std::string> tokenize(const std::string str);
+
+// A function to allocate a dynamically sized array. It tricks the
 // compiler into thinking the size is a constant via the const identifier
 // on the argument. This resolves issues with VLAs -- see crystal.cpp
 template <typename T> T* allocate(T *&array, const unsigned int size){

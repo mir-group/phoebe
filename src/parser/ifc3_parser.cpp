@@ -10,13 +10,19 @@
 #include <highfive/H5Easy.hpp>
 #endif
 
+// decide which ifc3 parser to use
 Interaction3Ph IFC3Parser::parse(Context &context, Crystal &crystal) {
 
   // check if this is a phonopy file is set in input
-  if (!context.getPhonopyDispFileName().empty()) {
-    if (mpi->mpiHead()) {
-      std::cout << "Using anharmonic force constants from phono3py."
+  if (context.getPhFC3FileName().find("hdf5") != std::string::npos) {
+    if(context.getPhonopyDispFileName().empty()) {
+      Error("You need both fc3.hdf5 and phonopy_disp.yaml "
+        "files to run phono3py." );
+    } else {
+      if (mpi->mpiHead()) {
+        std::cout << "Using anharmonic force constants from phono3py."
                 << std::endl;
+      }
     }
     return parseFromPhono3py(context, crystal);
   } else {
@@ -389,104 +395,129 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // set up so that the first nAtoms*dimSup of the superCell are unit cell
   // atom #1, and the second nAtoms*dimSup are atom #2, and so on.
 
+  // First, get num atoms from the crystal
+  int numAtoms = crystal.getNumAtoms();
 
+  // Open disp_fc3 file, read superCell positions, nSupAtoms
+  // ==========================================================
+  auto fileName = context.getPhonopyDispFileName();
+  std::ifstream infile(fileName);
+  std::string line;
+
+  if (fileName.empty()) {
+    Error("Phono3py required file phonopyDispFileName "
+          "(phono3py_disp.yaml) not specified in input file.");
+  }
+  if (not infile.is_open()) {
+    Error("Phono3py required file phonopyDispFileName "
+          "phono3py_disp.yaml) file not found at "
+          + fileName);
+  }
+  if (mpi->mpiHead())
+    std::cout << "Reading in " + fileName + "." << std::endl;
+
+  // read in the dimension information.
+  Eigen::Vector3i qCoarseGrid;
+  while (infile) {
+    std::getline(infile, line);
+    if (line.find("dim:") != std::string::npos) {
+      std::vector<std::string> tok = tokenize(line);
+      //std::istringstream iss(temp);
+      //iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
+      qCoarseGrid(0) = std::stoi(tok[1]);
+      qCoarseGrid(1) = std::stoi(tok[2]);
+      qCoarseGrid(2) = std::stoi(tok[3]);
+      break;
+    }
+  }
 
   // First, we open the phonopyDispFileName to check the distance units.
   // Phono3py uses Bohr for QE calculations and Angstrom for VASP
   // so, here we decide which is the correct unit,
   // by parsing the phono3py_disp.yaml file
   double distanceConversion = 1. / distanceBohrToAng;
-  {
-    std::string fileName = context.getPhonopyDispFileName();
-    std::ifstream infile;
-    if (fileName.empty()) {
-      Error("Phono3py parser required file phonopyDispFileName "
-            "(phonon3py_disp.yaml) not specified in input file.");
-    }
-    infile.open(fileName);
-    if (not infile.is_open()) {
-      Error("Phono3py parser couldn't open the file (phono3py_disp.yaml)");
-    }
-    if (mpi->mpiHead())
-      std::cout << "Reading in " + fileName << std::endl;
-
-    std::string line;
-    while (std::getline(infile, line)) {
-      if (line.find("length") != std::string::npos) {
-        if (line.find("au") != std::string::npos) {
-          distanceConversion = 1.; // distances already in Bohr
-          break;
-        }
+  while (infile) {
+    std::getline(infile, line);
+    if (line.find("length") != std::string::npos) {
+      if (line.find("au") != std::string::npos) {
+        distanceConversion = 1.; // distances already in Bohr
       }
+      break;
     }
-    infile.close();
   }
-
-  // First, read in the information form disp_fc3.yaml
-  int numAtoms = crystal.getNumAtoms();
-
-  // Open disp_fc3 file, read superCell positions, nSupAtoms
-  // ==========================================================
-  auto fileName = context.getDispFCFileName();
-  std::ifstream infile(fileName);
-  std::string line;
-
-  if (fileName.empty()) {
-    Error("Phono3py required file dispFCFileName "
-          "(disp_fc3.yaml) not specified in input file.");
-  }
-  if (not infile.is_open()) {
-    Error("Phono3py required file dispFCFileName "
-          "(disp_fc3.yaml) not found at "
-          + fileName + ".");
-  }
-  if (mpi->mpiHead())
-    std::cout << "Reading in " + fileName << std::endl;
-
-  // first line will always be numAtoms in superCell
-  std::getline(infile, line);
-  int numSupAtoms = std::stoi(line.substr(line.find(' '), line.back()));
-  int nr = numSupAtoms / numAtoms;
 
   // read the rest of the file to look for superCell positions
-  Eigen::MatrixXd supPositions(numSupAtoms, 3);
+  std::vector<std::vector<double>> supPositionsVec;
   Eigen::MatrixXd lattice(3, 3);
-  int iLattice = 3;
-  int iPos = 0;
+  int ilatt = 3;
+  bool readSupercell = false;
   while (infile) {
+
     getline(infile, line);
+
+    // we dont want to read the positions after phonon_supercell_matrix,
+    // so we break here
+    if(line.find("phonon_supercell_matrix") != std::string::npos) {
+      break;
+    }
+    // read all the lines after we see the flag for the supercell
+    // no matter what, the ifc3 info will always come after "supercell:"
+    // and supercell comes before phonon_supercell in the output file
+    if (line.find("supercell:") != std::string::npos) {
+      readSupercell = true;
+    }
     // if this is a cell position, save it
-    if (line.find("position: ") != std::string::npos) {
-      std::string temp = line.substr(14, 57);// just the positions
-      int idx1 = temp.find(',');
-      supPositions(iPos, 0) = std::stod(temp.substr(0, idx1));
-      int idx2 = temp.find(',', idx1 + 1);
-      supPositions(iPos, 1) = std::stod(temp.substr(idx1 + 1, idx2));
-      supPositions(iPos, 2) = std::stod(temp.substr(idx2 + 1));
-      iPos++;
+    if (line.find("coordinates: ") != std::string::npos && readSupercell) {
+      std::vector<double> position = {0.,0.,0.};
+      std::vector<std::string> tok = tokenize(line);
+      position[0] = std::stod(tok[2]);
+      position[1] = std::stod(tok[3]);
+      position[2] = std::stod(tok[4]);
+      supPositionsVec.push_back(position);
     }
-    if (iLattice < 3) {// count down lattice lines
+    if (ilatt < 3 && readSupercell) { // count down lattice lines
       // convert from angstrom to bohr
-      std::string temp = line.substr(5, 62);// just the elements
-      int idx1 = temp.find(',');
-      lattice(iLattice, 0) =
-          std::stod(temp.substr(0, idx1)) * distanceConversion;
-      int idx2 = temp.find(',', idx1 + 1);
-      lattice(iLattice, 1) =
-          std::stod(temp.substr(idx1 + 1, idx2)) * distanceConversion;
-      lattice(iLattice, 2) =
-          std::stod(temp.substr(idx2 + 1)) * distanceConversion;
-      iLattice++;
+      std::vector<std::string> tok = tokenize(line);
+      lattice(ilatt, 0) = std::stod(tok[2]);
+      lattice(ilatt, 1) = std::stod(tok[3]);
+      lattice(ilatt, 2) = std::stod(tok[4]);
+      ilatt++;
     }
-    if (line.find("lattice:") != std::string::npos) {
-      iLattice = 0;
+    if (line.find("lattice:") != std::string::npos && readSupercell) {
+      ilatt = 0;
     }
   }
   infile.close();
   infile.clear();
 
+  // number of atoms in the supercell for later use
+  int numSupAtoms = supPositionsVec.size();
+  int nr = numSupAtoms / numAtoms;
+
+  // check that this matches the ifc2 atoms
+  int numAtomsCheck = numSupAtoms/
+        (qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2]);
+  if (numAtomsCheck != numAtoms) {
+    Error("IFC3s seem to come from a cell with a different number\n"
+        "of atoms than the IFC2s. Check your inputs."
+        "FC2 atoms: " + std::to_string(numAtoms) +
+        " FC3 atoms: " + std::to_string(numAtomsCheck));
+  }
+
+  // convert std::vectors to Eigen formats required by the
+  // next part of phoebe
+  Eigen::MatrixXd supPositions(numSupAtoms, 3);
+  for ( int n = 0; n < numSupAtoms; n++) {
+    for (int i : {0, 1, 2}) {
+        supPositions(n,i) = supPositionsVec[n][i];
+    }
+  }
+
+  // convert distances to Bohr
+  lattice *= distanceConversion;
+
   // convert positions to cartesian, in bohr
-  for (int i = 0; i < iPos; i++) {
+  for (int i = 0; i < numSupAtoms; i++) {
     Eigen::Vector3d temp(supPositions(i, 0), supPositions(i, 1),
                          supPositions(i, 2));
     Eigen::Vector3d temp2 = lattice.transpose() * temp;
@@ -505,16 +536,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   if (mpi->mpiHead())
     std::cout << "Reading in " + fileName + "." << std::endl;
 
-  HighFive::File file(fileName, HighFive::File::ReadOnly);
-
-  // Set up hdf5 datasets
-  HighFive::DataSet difc3 = file.getDataSet("/fc3");
-  HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
-
   // user info about memory
+  // note, this is for a temporary array --
+  // later we reduce to (numAtoms*3)^3 * numRVecs
   {
     double rx;
-    double x = pow(iPos * 3, 3) / pow(1024., 3) * sizeof(rx);
+    double x = pow(numSupAtoms * 3, 3) / pow(1024., 3) * sizeof(rx);
     if (mpi->mpiHead()) {
       std::cout << "Allocating " << x
                 << " (GB) (per MPI process) for the 3-ph coupling matrix."
@@ -531,36 +558,21 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       ifc3Tensor;
   std::vector<int> cellMap;
 
-  // read in the ifc3 data
-  difc3.read(ifc3Tensor);
-  dcellMap.read(cellMap);
+  try {
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
 
-  // Read dimension of superCell from phono3py_disp file
-  // ====================================================
-  fileName = context.getPhonopyDispFileName();
-  infile.open(fileName);
+    // Set up hdf5 datasets
+    HighFive::DataSet difc3 = file.getDataSet("/fc3");
+    HighFive::DataSet dcellMap = file.getDataSet("/p2s_map");
 
-  if (fileName.empty()) {
-    Error("Phono3py required file phonopyDispFileName "
-          "(phono3py_disp.yaml) not specified in input file.");
-  }
-  if (not infile.is_open()) {
-    Error("Phono3py required file phonopyDispFileName "
-          "phono3py_disp.yaml) file not found at "
-          + fileName);
-  }
-  if (mpi->mpiHead())
-    std::cout << "Reading in " + fileName + "." << std::endl;
+    // read in the ifc3 data
+    difc3.read(ifc3Tensor);
+    dcellMap.read(cellMap);
 
-  // read in the dimension information.
-  Eigen::Vector3i qCoarseGrid;
-  while (infile) {
-    getline(infile, line);
-    if (line.find("dim: ") != std::string::npos) {
-      std::string temp = line.substr(10, 5);
-      std::istringstream iss(temp);
-      iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
-    }
+  } catch (std::exception &error) {
+    if(mpi->mpiHead()) std::cout << error.what() << std::endl;
+    Error("Issue reading fc3.hdf5 file. Make sure it exists at " + fileName +
+          "\n and is not open by some other persisting processes.");
   }
 
   // Determine the list of possible R2, R3 vectors
