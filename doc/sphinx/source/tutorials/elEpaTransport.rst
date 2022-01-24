@@ -240,7 +240,7 @@ The parameters in this input file are as follows:
 
 * :ref:`phFC2FileName` = `"silicon.fc"`: this chooses the path to the phonon dynamical matrix.
 
-* :ref:`electronH0Name` = `"si_tb.dat"`: this parameter, in the form of ``{wannier90seedname}_tb.dat``, should point to the file created by Wannier90 due to the use of the ``write_tb`` flag. Additionally, there should be a file called ``si_tb_dis.dat`` if Wannier90 has disentangled bands.
+* :ref:`electronH0Name`: points to the Quantum-ESPRESSO ``*.xml`` file created by ``pw.x``, which contains the electronic single-particle energies.
 
 * :ref:`quantumEspressoPrefix` = `"silicon"`: this parameter is used to locate and read the files ``./silicon.phoebe.*.dat`` that have been created by ``ph.x``. You should set it to the ``prefix`` variable you chose when running QE in earlier steps.
 
