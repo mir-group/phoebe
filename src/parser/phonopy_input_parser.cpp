@@ -145,7 +145,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
     // if this is a cell position, save it
     if (line.find("coordinates: ") != std::string::npos) {
-      std::vector<double> position = {0,0,0};
+      std::vector<double> position(3);
       std::vector<std::string> tok = tokenize(line);
       position[0] = std::stod(tok[2]);
       position[1] = std::stod(tok[3]);
@@ -172,7 +172,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // read the rest of the file to get FC2 superCell positions
   // --------------------------------------------------------
   std::vector<std::vector<double>> supPositionsVec;
-  Eigen::MatrixXd supLattice(3, 3);
+  Eigen::Matrix3d supLattice;
   ilatt = 3;
   bool readSupercell = false;
   while (infile) {
@@ -185,7 +185,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
     // if this is a cell position, save it
     if (line.find("coordinates: ") != std::string::npos && readSupercell) {
-      std::vector<double> position = {0.,0.,0.};
+      std::vector<double> position(3);
       std::vector<std::string> tok = tokenize(line);
       position[0] = std::stod(tok[2]);
       position[1] = std::stod(tok[3]);
@@ -246,37 +246,29 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
 
   // convert superCell positions to cartesian, in bohr (supLattice in bohr)
   for (int i = 0; i < numSupAtoms; i++) {
-    Eigen::Vector3d temp(supPositions(i, 0), supPositions(i, 1),
-                         supPositions(i, 2));
+    Eigen::Vector3d temp = supPositions.row(i);
     Eigen::Vector3d temp2 = supLattice.transpose() * temp;
-    supPositions(i, 0) = temp2(0);
-    supPositions(i, 1) = temp2(1);
-    supPositions(i, 2) = temp2(2);
+    supPositions.row(i) = temp2;
   }
 
   // convert unit cell positions to cartesian, in bohr
   for (int i = 0; i < numAtoms; i++) {
-    Eigen::Vector3d temp(atomicPositions(i, 0), atomicPositions(i, 1),
-                         atomicPositions(i, 2));
-    Eigen::Vector3d temp2 =
-        directUnitCell.transpose() * temp; // lattice already in Bohr
-    atomicPositions(i, 0) = temp2(0);
-    atomicPositions(i, 1) = temp2(1);
-    atomicPositions(i, 2) = temp2(2);
+    Eigen::Vector3d temp = atomicPositions.row(i);
+    // lattice already in Bohr
+    Eigen::Vector3d temp2 = directUnitCell.transpose() * temp;
+    atomicPositions.row(i) = temp2;
   }
 
   // Determine the list of possible R2, R3 vectors
   // the distances from the unit cell to a superCell
   // nCells here is the number of unit cell copies in the superCell
-  int nCells = qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2);
+  int nCells = qCoarseGrid.prod();
   Eigen::MatrixXd cellPositions2(3, nCells);
   cellPositions2.setZero();
   for (int iCell = 0; iCell < nCells; iCell++) {
     // find the non-WS cell R2 vectors which are
     // position of atomPosSuperCell - atomPosUnitCell = R
-    cellPositions2(0, iCell) = supPositions(iCell, 0) - supPositions(0, 0);
-    cellPositions2(1, iCell) = supPositions(iCell, 1) - supPositions(0, 1);
-    cellPositions2(2, iCell) = supPositions(iCell, 2) - supPositions(0, 2);
+    cellPositions2.col(iCell) = supPositions.row(iCell) - supPositions.row(0);
   }
 
   // If hasDielectric, look for BORN file
