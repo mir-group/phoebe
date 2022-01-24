@@ -118,8 +118,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
 
   //-----------------------------------------------------------------
 
-  //int maxSize = 192;
-  int maxSize = 50;
+  int maxSize = 192;
   int rotations[maxSize][3][3];
   double translations[maxSize][3];
 
@@ -158,23 +157,6 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     }
 
     double symmetryPrecision = 1e-4;
-/*
-    // TODO remove this because it's for testing purposes only
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        if(i == j) latticeSPG[i][j] = 1.0;
-        else { latticeSPG[i][j] = 0.0; }
-      }
-    }
-    positionSPG[0][0] = 0.25; positionSPG[0][1] = 0.75; positionSPG[0][2] = 0.25;
-    positionSPG[1][0] = 0.0; positionSPG[1][1] = 0.00; positionSPG[1][2] = 0.5;
-    positionSPG[2][0] = 0.25; positionSPG[2][1] = 0.25; positionSPG[2][2] = 0.75;
-    positionSPG[3][0] = 0.00; positionSPG[3][1] = 0.5; positionSPG[3][2] = 0.00;
-    positionSPG[4][0] = 0.75; positionSPG[4][1] = 0.75; positionSPG[4][2] = 0.75;
-    positionSPG[5][0] = 0.5; positionSPG[5][1] = 0.0; positionSPG[5][2] = 0.0;
-    positionSPG[6][0] = 0.75; positionSPG[6][1] = 0.25; positionSPG[6][2] = 0.25;
-    positionSPG[7][0] = 0.5; positionSPG[7][1] = 0.5; positionSPG[7][2] = 0.5;
-*/
     numSymmetries =
           spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
                          positionSPG, typesSPG, numAtoms, symmetryPrecision);
@@ -237,12 +219,9 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     SymmetryOperation s = {thisMatrix, thisTranslation};
     symmetryOperations.push_back(s);
   }
-
+  // reduce symmetry due to the magnetic field
   auto bfield = context.getBField();
   if(bfield.norm() != 0) {
-    if(mpi->mpiHead()) {
-      std::cout << "Reducing symmetry due to magnetic field." << std::endl;
-    }
     magneticSymmetries(context);
   }
 
@@ -393,18 +372,6 @@ void Crystal::magneticSymmetries(Context &context) {
 
   // first, establish what direction the magnetic field is along.
   Eigen::Vector3d bfield = context.getBField();
-  int bdir = -1;
-  if(bfield(0) != 0 && bfield(1) == 0 && bfield(2) == 0) { // x direction
-    bdir = 0;
-  } else if(bfield(0) == 0 && bfield(1) != 0 && bfield(2) == 0) { // y direction
-    bdir = 1;
-  } else if(bfield(0) == 0 && bfield(1) == 0 && bfield(2) != 0) { // z direction
-    bdir = 2;
-  } else {  // it's along two directions, for which we don't allow symmetry
-    Error("Symmetry only permitted when magnetic field is along a"
-                " Cartesian direction. \nChoose a single direction or set"
-                "useSymmetries = false");
-  }
 
   // Loop over all rotation matrices and remove those that are not in
   // b field's point group (inf/m)
@@ -412,6 +379,8 @@ void Crystal::magneticSymmetries(Context &context) {
   //    remove mirror symmetries which are not across the plane
   //      perpendicular to the B field axis
   std::vector<SymmetryOperation> magSymmetryOperations;
+  auto bLattice = directUnitCell * bfield;
+  if(mpi->mpiHead()) std::cout << "blattice \n" << bLattice << std::endl;
   for (int iSymmetry = 0; iSymmetry < numSymmetries; iSymmetry++) {
 
     // grab this symmetry operation
@@ -424,17 +393,27 @@ void Crystal::magneticSymmetries(Context &context) {
     std::default_random_engine generator(rd()); // rd() provides a random seed
     std::uniform_real_distribution<double> distribution(0.0,1.0);
 
-    Eigen::Vector3d testVector = {distribution(generator),
-                                distribution(generator),
-                                distribution(generator)};
+    Eigen::Vector3d testVector = {1,2,3}; //{distribution(generator),
+                                //distribution(generator),
+                                //distribution(generator)};
+
+    // try changing the cartesian B vector to the lattice basis
 
     auto rotVector = rotation * testVector;
 
-    if(testVector[bdir] == rotVector[bdir] || testVector[bdir] == -rotVector[bdir]) {
+    // project original and rotated vectors onto B, and see if
+    // the component along z is the same or flipped (a rot + reflection)
+    // if this is the case, we save the symmetry
+
+    // TODO some additional rotation to take bdirCart -> bdirCrystal is needed
+    auto projRot = bfield.dot(rotVector)/bfield.norm();
+    auto projTest = bfield.dot(testVector)/bfield.norm();
+
+    if(abs(projRot) == abs(projTest)) {
       magSymmetryOperations.push_back(s);
     }
     else { continue; }
-/*
+
     if(mpi->mpiHead()) {
       for ( int i : {0,1,2}) {
         for ( int j : {0,1,2}) {
@@ -444,7 +423,7 @@ void Crystal::magneticSymmetries(Context &context) {
       }
       std::cout << "\n" << std::endl;
     }
-*/
+
   }
 
   // update the symmetry operation information
@@ -559,8 +538,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
 
   // check that we found all vectors
   double tot = positionDegeneracies.sum();
-  if(mpi->mpiHead()) std::cout << tot - grid(0) * grid(1) * grid(2) << std::endl;
-  if (abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6) {
+  if (abs(tot - grid(0) * grid(1) * grid(2)) > 1.0e-6) {
     Error("Completeness check failed in buildWignerSeitzVectors");
   }
 
@@ -740,7 +718,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
           tot += degeneracies(iDim, jDim, iR);
         }
       }
-      if (abs(tot - grid(0) * grid(1) * grid(2)) < 1.0e-6) {
+      if (abs(tot - grid(0) * grid(1) * grid(2)) > 1.0e-6) {
         Error("Failed completeness check in buildWignerSeitzVectorsWithShift");
       }
     }
