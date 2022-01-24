@@ -721,24 +721,39 @@ void Points::setIrreduciblePoints(
     }
   }
 
+  // search for irreducible kpoints, checking every point
   for (int ik = 0; ik < numPoints; ik++) {
     // check if this k-point has already been found equivalent to another
+    // if true, this point has not yet been identified as reducible
     if (equiv(ik) == ik) {
+
       // check if there are equivalent k-point to this in the list
       // (excepted those previously found to be equivalent to another)
 
       std::set<int> thisStar;
 
+      // apply symmetries to identify all other points
+      // which will reduce to this point, and save them to its star
       for (const auto &symmetry : symmetries) {
         Eigen::Matrix3d rot = symmetry.rotation;
         Eigen::Vector3d rotatedPoint =
             rot * getPointCoordinates(ik, Points::crystalCoordinates);
+
+        // check if rotated point is somewhere on the mesh
         int ikRot = isPointStored(rotatedPoint);
+
+        // if the point is on the mesh and is not previously identified
+        // as an irreducible point
         if (ikRot >= 0 && equiv(ikRot) == ikRot) {
           if (ikRot >= ik) {
+            // if the rotated point is further in the list than ik, denote ik as
+            // its ikRot's irr point
             equiv(ikRot) = ik;
             thisStar.insert(ikRot);
           } else {
+            // if ikRot was before ik in the list, yet we
+            // somehow did not flag ikRot as ik's irr kpoint,
+            // there has been an error
             if (equiv(ikRot) != ik || ikRot < ik) {
               Error("Error in finding irreducible points");
             }
