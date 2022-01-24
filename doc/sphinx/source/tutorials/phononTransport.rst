@@ -223,7 +223,7 @@ This file shows results as well as a report of the calculation progress. The str
 
 * Calculation of the thermal conductivity within the relaxation time approximation.
 
-* Calculation of Wigner thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation.
+* Calculation of Wigner thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation. **Note: though we output the Wigner correction + the RTA thermal conductivity, the Wigner correction is additive, and can be applied to any solver's output thermal conductivity. Therfore, if you want Wigner+iterative thermal conductivity, you should take** :math:`\kappa_{Wigner+RTA} - \kappa_{RTA} + \kappa_{Omini}`.
 
 * Calculation of the thermal viscosity tensor within the relaxation time approximation.
 
@@ -251,7 +251,7 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 
 * ``rta_ph_relaxation_times.json``: contains the RTA phonon lifetimes on the :ref:`qMesh` specified in the input file.
 
-* ``rta_wigner_coefficients.json``: contains the Wigner transport coefficients.
+* ``rta_wigner_coefficients.json``: contains the RTA transport coefficients + the Wigner transport correction.
 
 **As well as a few which are output for specific solvers:**
 
