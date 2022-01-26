@@ -370,50 +370,45 @@ int Crystal::getNumSpecies() const { return numSpecies; }
 // remove rotations which are not in the magnetic field's point group
 void Crystal::magneticSymmetries(Context &context) {
 
+  std::vector<SymmetryOperation> magSymmetryOperations;
+
   // first, establish what direction the magnetic field is along.
   Eigen::Vector3d bfield = context.getBField();
+  // symmetry operations are in crystal coordinates, convert bfield to this basis
+  auto bLattice = directUnitCell.inverse() * bfield;
 
   // Loop over all rotation matrices and remove those that are not in
   // b field's point group (inf/m)
   //    remove rotations which are not around the magnetic field axis (x,y, or z)
   //    remove mirror symmetries which are not across the plane
   //      perpendicular to the B field axis
-  std::vector<SymmetryOperation> magSymmetryOperations;
-  auto bLattice = directUnitCell * bfield;
-  if(mpi->mpiHead()) std::cout << "blattice \n" << bLattice << std::endl;
   for (int iSymmetry = 0; iSymmetry < numSymmetries; iSymmetry++) {
 
     // grab this symmetry operation
     SymmetryOperation s = symmetryOperations[iSymmetry];
     Eigen::Matrix3d rotation = s.rotation;
-    // transpose back, as these operations are stored with a T in phoebe
-    rotation = rotation.transpose();
 
+    // generate a random vector to test if rotations will be kept
     std::random_device rd;
     std::default_random_engine generator(rd()); // rd() provides a random seed
     std::uniform_real_distribution<double> distribution(0.0,1.0);
-
-    Eigen::Vector3d testVector = {1,2,3}; //{distribution(generator),
-                                //distribution(generator),
-                                //distribution(generator)};
-
-    // try changing the cartesian B vector to the lattice basis
+    Eigen::Vector3d testVector = {distribution(generator),
+                                distribution(generator),
+                                distribution(generator)};
 
     auto rotVector = rotation * testVector;
 
     // project original and rotated vectors onto B, and see if
     // the component along z is the same or flipped (a rot + reflection)
     // if this is the case, we save the symmetry
+    auto projRot = bLattice.dot(rotVector)/(bLattice.norm() * rotVector.norm());
+    auto projTest = bLattice.dot(testVector)/(bLattice.norm() * testVector.norm());
 
-    // TODO some additional rotation to take bdirCart -> bdirCrystal is needed
-    auto projRot = bfield.dot(rotVector)/bfield.norm();
-    auto projTest = bfield.dot(testVector)/bfield.norm();
-
-    if(abs(projRot) == abs(projTest)) {
+    if( abs(abs(projRot) - abs(projTest)) < 1e-6) {
       magSymmetryOperations.push_back(s);
     }
     else { continue; }
-
+/*
     if(mpi->mpiHead()) {
       for ( int i : {0,1,2}) {
         for ( int j : {0,1,2}) {
@@ -423,15 +418,17 @@ void Crystal::magneticSymmetries(Context &context) {
       }
       std::cout << "\n" << std::endl;
     }
-
+*/
   }
 
   // update the symmetry operation information
   numSymmetries = magSymmetryOperations.size();
   symmetryOperations = magSymmetryOperations;
 
-  if(mpi->mpiHead()) std::cout << "Reduced to " << numSymmetries <<
-        " symmetries with magnetic field." << std::endl;
+  if(mpi->mpiHead()) {
+        std::cout << "Reduced to " << numSymmetries <<
+                " symmetries with magnetic field." << std::endl;
+  }
 }
 
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd>
