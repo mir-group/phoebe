@@ -10,6 +10,136 @@
 #include "parser.h"
 #include "wigner_electron.h"
 
+void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
+                     VectorBTE &lifetimes, StatisticsSweep &statisticsSweep) {
+
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  auto bfield_points = bandStructure.getPoints();
+  auto bfield_crystal = points.getCrystal();
+
+  Crystal nofield_crystal(); <- crystal without B
+  Points nofield_points(nofield_crystal, context.getKMesh());
+
+  {
+    groupVelocities = ...
+  }
+
+  nofield_points.setIrreduciblePoints(groupVelocities);
+
+  for (int ik : nofield_points.irrPointsIterator() ) {
+    // get coordinates of point ik
+    Eigen::Vector3d kCoords = nofield_points.getWavevector(ik);
+    // reconstruct the star of wavevectors reducible to ik, by coordinates
+    std::vector<Eigen::Vector3d> equivalent_kCoords;
+    auto rots = nofield_points.getRotationsStar(ik);
+    for (const Eigen::Matrix3d &rot : rots) {
+      Eigen::Vector3d kRed = rot * kCoords;
+      equivalent_kCoords.push_back(kRed);
+    }
+
+    // see which wavevectors are in the irreducible set of bfield_points
+    // save index if the point in bfield_points
+    std::vector<int> tmp_indices;
+    for (auto testVector : equivalent_kCoords) {
+      auto testVectorCrystal = bfield_points.cartesianToCrystal(testVector);
+      int bf_ik = bfield_points.isPointStored(testVectorCrystal);
+      if (bf_ik == -1) {
+        continue;
+      }
+      tmp_indices.push_back(bf_ik);
+    }
+
+    if (tmp_indices.empty()) { continue; }
+
+    // check which indices are irreeducible in bfield_points
+    std::vector<int> indices_to_be_symmetrized;
+    auto irrPointsList = bfield_points.irrPointsIterator();
+    for (int i : tmp_indices) {
+      if (std::find(irrPointsList.begin(), irrPointsList.end(), i) != irrPointsList.end() ) {
+        indices_to_be_symmetrized.push_back(i);
+      }
+    }
+
+    //--------------------
+    // symmetrize linewidths
+    if ( indices_to_be_symmetrized.size() > 1 ) {
+      int nb;
+      {
+        WavevectorIndex ikIdx(indices_to_be_symmetrized[0]);
+        nb = int(bandStructure.getEnergies(ikIdx).size());
+      }
+      int nk = indices_to_be_symmetrized.size();
+
+      Eigen::Tensor<double,3> avg_linewidths(numCalculations, nk, nb);
+      avg_linewidths.setZero();
+
+      for (int ib=0; ib<nb; ++ib) {
+        for (int j=0; j<nk; ++j) {
+          int ikk = indices_to_be_symmetrized[j];
+          WavevectorIndex ikIdx(ikk);
+          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
+          StateIndex isIdx(is);
+          BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+          int iBte = iBteIdx.get();
+
+          for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+            avg_linewidths(iCalc, j, ib) += lifetimes(iCalc, 0, iBte);
+          }
+        }
+      }
+      avg_linewidths /= float(nk);
+      // copy back
+      for (int ib=0; ib<nb; ++ib) {
+        for (int j=0; j<nk; ++j) {
+          int ikk = indices_to_be_symmetrized[j];
+          WavevectorIndex ikIdx(ikk);
+          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
+          StateIndex isIdx(is);
+          BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+          int iBte = iBteIdx.get();
+          for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+            lifetimes(iCalc, 0, iBte) = avg_linewidths(iCalc, j, ib);
+          }
+        }
+      }
+
+      //---------------
+      // symmetrize energies and velocities
+      Eigen::VectorXd energies(nb);
+      Eigen::Tensor<std::complex<double>, 3> velocities(nb, nb, 3);
+      energies.setZero();
+      velocities.setZero();
+      for (int j = 0; j < nk; ++j) {
+        int ikk = indices_to_be_symmetrized[j];
+        WavevectorIndex ikIdx(ikk);
+        for (int ib=0; ib<nb; ++ib) {
+          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
+          StateIndex isIdx(is);
+          energies(ib) += bandStructure.getEnergy(isIdx);
+        }
+        auto tmpVel = bandStructure.getVelocities(ikidx);
+        velocities += tmpVel; // will this work?
+//        for (int ib1=0; ib1<nb; ++ib1) {
+//          for (int ib2 = 0; ib2 < nb; ++ib2) {
+//            for (int iCart : {0,1,2}) {
+//              velocities(ib1, ib2, iCart) += tmpVel(ib1, ib2, iCart);
+//            }
+//          }
+//        }
+      }
+      energies /= float(nk);
+      velocities /= float(nk); // will this work?
+      for (int j = 0; j < nk; ++j) {
+        int ikk = indices_to_be_symmetrized[j];
+        Point bfield_points.getPoint(ikk);
+        bandStructure.setEnergies(point, energies);
+        bandStructure.setVelocities(point, velocities);
+      }
+    }
+  }
+}
+
 void ElectronWannierTransportApp::run(Context &context) {
 
   auto t2 = Parser::parsePhHarmonic(context);
@@ -64,6 +194,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
+
+  symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
