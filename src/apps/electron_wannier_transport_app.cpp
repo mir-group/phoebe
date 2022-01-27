@@ -25,21 +25,27 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
   auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
   auto speciesNames = bfieldCrystal.getSpeciesNames();
   auto speciesMasses = bfieldCrystal.getSpeciesMasses();
-
   // set up a new crystal and points mesh using symmetries
   // without a magnetic field
   Crystal nofieldCrystal(context, directCell, atomicPositions,
         atomicSpecies, speciesNames, speciesMasses);
-  Points nofieldPoints(nofieldCrystal, context.getKMesh());
 
-  // TODO what was going on here... were we trying to deal with the
-  // group velocities before reducing to irr points?
-  //{
-  //  groupVelocities = ...
-  //}
+  // Points nofieldPoints(nofieldCrystal, context.getKMesh());
+  Points nofieldPoints = bfieldPoints;
+  nofieldPoints.swapCrystal(nofieldCrystal);
 
-  //nofieldPoints.setIrreduciblePoints(groupVelocities);
-  nofieldPoints.setIrreduciblePoints();
+  // Here we want to find the symmetries that rotate both k-points and
+  // the group velocities
+  {
+    std::vector<Eigen::MatrixXd> allVelocities;
+    for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
+      WavevectorIndex ikIdx(ik);
+      Eigen::MatrixXd v = bandStructure.getGroupVelocities(ikIdx);
+      allVelocities.push_back(v);
+    }
+    nofieldPoints.setIrreduciblePoints(&allVelocities);
+  }
+  // nofieldPoints.setIrreduciblePoints();
 
   // TODO why can we not loop over the irr points from the
   // mesh with the bfield? This mesh will include more irr points
@@ -70,7 +76,7 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
     // get coordinates of point ik
     // TODO first we wrote getWavevector here, which is a bands class function.
     // However, because the nofield band structure doesn't exist, can we ask for this from the bfield band structure
-    Eigen::Vector3d kCoords = nofieldPoints.getWavevector(ik);
+    Eigen::Vector3d kCoords = nofieldPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
     // reconstruct the star of wavevectors reducible to ik, by coordinates
     // TODO QUESTION -- what was the reason we didn't use
     // noFieldPoints.getReducibleStarFromIrreducible here? wouldn't that be simpler?
@@ -128,11 +134,10 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
           int iBte = iBteIdx.get();
 
           for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-            avg_linewidths(iCalc, j, ib) += lifetimes(iCalc, 0, iBte);
+            avg_linewidths(iCalc, j, ib) += lifetimes(iCalc, 0, iBte) / double(nk);
           }
         }
       }
-      avg_linewidths /= float(nk);
       // copy back
       for (int ib=0; ib<nb; ++ib) {
         for (int j=0; j<nk; ++j) {
@@ -160,25 +165,49 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
         for (int ib=0; ib<nb; ++ib) {
           int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
           StateIndex isIdx(is);
-          energies(ib) += bandStructure.getEnergy(isIdx);
+          energies(ib) += bandStructure.getEnergy(isIdx) / double(nk);
         }
         auto tmpVel = bandStructure.getVelocities(ikIdx);
-        velocities += tmpVel; // will this work?
-//        for (int ib1=0; ib1<nb; ++ib1) {
-//          for (int ib2 = 0; ib2 < nb; ++ib2) {
-//            for (int iCart : {0,1,2}) {
-//              velocities(ib1, ib2, iCart) += tmpVel(ib1, ib2, iCart);
-//            }
-//          }
-//        }
+
+        // v is a vector, so it must be rotated before performing the average
+        Eigen::Matrix3d rot = nofieldPoints.getRotationFromReducibleIndex(ikk);
+        rot = rot.inverse();
+
+        for (int ib1=0; ib1<nb; ++ib1) {
+          for (int ib2 = 0; ib2 < nb; ++ib2) {
+
+            Eigen::VectorXcd tmp(3);
+            for (int iCart : {0,1,2}) {
+              tmp(iCart) = velocities(ib1, ib2, iCart);
+            }
+            tmp = rot * tmp;
+            for (int iCart : {0,1,2}) {
+              velocities(ib1, ib2, iCart) += tmp(iCart) / double(nk);
+            }
+          }
+        }
       }
-      energies /= float(nk);
-      velocities /= float(nk); // will this work?
+
       for (int j = 0; j < nk; ++j) {
         int ikk = indices_to_be_symmetrized[j];
         Point point = bfieldPoints.getPoint(ikk);
         bandStructure.setEnergies(point, energies);
-        bandStructure.setVelocities(point, velocities);
+
+        Eigen::Matrix3d rot = nofieldPoints.getRotationFromReducibleIndex(ikk);
+
+        int nb = velocities.dimensions()[0];
+        Eigen::Tensor<std::complex<double>,3> tmpVel(nb,nb,3);
+        tmpVel.setZero();
+        for (int ib1=0; ib1<nb; ++ib1) {
+          for (int ib2 = 0; ib2 < nb; ++ib2) {
+            for (int iCart : {0,1,2}) {
+              for (int jCart : {0, 1, 2}) {
+                tmpVel(ib1,ib2,iCart) += rot(iCart,jCart) * velocities(ib1, ib2, jCart);
+              }
+            }
+          }
+        }
+        bandStructure.setVelocities(point, tmpVel);
       }
     }
   }

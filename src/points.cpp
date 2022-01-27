@@ -968,3 +968,21 @@ std::vector<int> Points::getReducibleStarFromIrreducible(const int &ik) {
   int ikIrr = mapReducibleToIrreducibleList(ik);
   return irreducibleStars[ikIrr];
 }
+
+void Points::swapCrystal(Crystal &newCrystal) {
+  crystalObj = newCrystal;
+  rotationMatricesCrystal.resize(0);
+  rotationMatricesCartesian.resize(0);
+  mapEquivalenceRotationIndex.resize(0);
+  mapIrreducibleToReducibleList.resize(0);
+  mapReducibleToIrreducibleList.resize(0);
+  numIrrPoints = 0;
+  irreducibleStars.resize(0);
+  equiv.resize(0);
+}
+
+Eigen::Matrix3d Points::getRotationFromReducibleIndex(int ikFull) {
+  Eigen::Matrix3d rot;
+  rot = rotationMatricesCartesian[mapEquivalenceRotationIndex(ikFull)];
+  return rot;
+}
