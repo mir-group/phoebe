@@ -10,14 +10,18 @@
 #include "parser.h"
 #include "wigner_electron.h"
 
+/*
 void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
                      VectorBTE &lifetimes, StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
+  // get points on the irr mesh reduced for mag field symmetries
   auto bfield_points = bandStructure.getPoints();
   auto bfield_crystal = points.getCrystal();
 
+  // set up a new crystal and points mesh using symmetries
+  // without a magnetic field
   Crystal nofield_crystal(); <- crystal without B
   Points nofield_points(nofield_crystal, context.getKMesh());
 
@@ -139,12 +143,18 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
     }
   }
 }
-
+*/
 void ElectronWannierTransportApp::run(Context &context) {
 
   auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
+
+  // if there's a magnetic field, reduce symmetry
+  auto bfield = context.getBField();
+  if(bfield.norm() != 0) {
+    crystal.magneticSymmetries(context);
+  }
 
   auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
@@ -195,7 +205,7 @@ void ElectronWannierTransportApp::run(Context &context) {
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
 
-  symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
+  //symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
