@@ -10,44 +10,84 @@
 #include "parser.h"
 #include "wigner_electron.h"
 
-/*
+
 void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
                      VectorBTE &lifetimes, StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
 
   // get points on the irr mesh reduced for mag field symmetries
-  auto bfield_points = bandStructure.getPoints();
-  auto bfield_crystal = points.getCrystal();
+  auto bfieldPoints = bandStructure.getPoints();
+  auto bfieldCrystal = bfieldPoints.getCrystal();
+
+  auto directCell = bfieldCrystal.getDirectUnitCell();
+  auto atomicPositions = bfieldCrystal.getAtomicPositions();
+  auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
+  auto speciesNames = bfieldCrystal.getSpeciesNames();
+  auto speciesMasses = bfieldCrystal.getSpeciesMasses();
 
   // set up a new crystal and points mesh using symmetries
   // without a magnetic field
-  Crystal nofield_crystal(); <- crystal without B
-  Points nofield_points(nofield_crystal, context.getKMesh());
+  Crystal nofieldCrystal(context, directCell, atomicPositions,
+        atomicSpecies, speciesNames, speciesMasses);
+  Points nofieldPoints(nofieldCrystal, context.getKMesh());
 
-  {
-    groupVelocities = ...
-  }
+  // TODO what was going on here... were we trying to deal with the
+  // group velocities before reducing to irr points?
+  //{
+  //  groupVelocities = ...
+  //}
 
-  nofield_points.setIrreduciblePoints(groupVelocities);
+  //nofieldPoints.setIrreduciblePoints(groupVelocities);
+  nofieldPoints.setIrreduciblePoints();
 
-  for (int ik : nofield_points.irrPointsIterator() ) {
+  // TODO why can we not loop over the irr points from the
+  // mesh with the bfield? This mesh will include more irr points
+  // than the noField mesh, as some of them will be duplicate under the symmetries
+  // of the noField mesh. We could symmetrize those points...
+  //
+  // I think this would also work in the noField case
+  //
+  //Strategy -- tell me why it won't work so I understand:
+  // could we loop over the irr points on the bfield mesh, and for each one...
+  //   * look up the corresponding irr point from the nofield mesh, ik.
+  //   * use noFieldPoints.getReducibleStarFromIrreducible(ik) to find
+  //     all the other points indices which reduce to this point
+  //   * look up these points on the bfield bandstructure, and average them
+  //     Use the bfield bandstructure because it's already been computed.
+  //
+  //   * keep track of which irr points we've visited already, and break the
+  //     loop if we try to do the same one twice
+  //   * skip points/bands that are removed by active band structure
+  //
+  //   QUESTION: are the grid point labels for these two grids the same, even
+  //   if only for the reducible points? I don't see any reason they should be different
+  //   QUESTION: is the bandstructure only saved on the irr mesh, or on the whole reducible mesh?
+
+
+  // loop over all irreducible points on the noField mesh
+  for (int ik : nofieldPoints.irrPointsIterator()) {
     // get coordinates of point ik
-    Eigen::Vector3d kCoords = nofield_points.getWavevector(ik);
+    // TODO first we wrote getWavevector here, which is a bands class function.
+    // However, because the nofield band structure doesn't exist, can we ask for this from the bfield band structure
+    Eigen::Vector3d kCoords = nofieldPoints.getWavevector(ik);
     // reconstruct the star of wavevectors reducible to ik, by coordinates
+    // TODO QUESTION -- what was the reason we didn't use
+    // noFieldPoints.getReducibleStarFromIrreducible here? wouldn't that be simpler?
+    // maybe not, still need to look up kpoint vectors
     std::vector<Eigen::Vector3d> equivalent_kCoords;
-    auto rots = nofield_points.getRotationsStar(ik);
+    auto rots = nofieldPoints.getRotationsStar(ik);
     for (const Eigen::Matrix3d &rot : rots) {
       Eigen::Vector3d kRed = rot * kCoords;
       equivalent_kCoords.push_back(kRed);
     }
 
-    // see which wavevectors are in the irreducible set of bfield_points
-    // save index if the point in bfield_points
+    // see which wavevectors are in the irreducible set of bfieldPoints
+    // save index if the point in bfieldPoints
     std::vector<int> tmp_indices;
     for (auto testVector : equivalent_kCoords) {
-      auto testVectorCrystal = bfield_points.cartesianToCrystal(testVector);
-      int bf_ik = bfield_points.isPointStored(testVectorCrystal);
+      auto testVectorCrystal = bfieldPoints.cartesianToCrystal(testVector);
+      int bf_ik = bfieldPoints.isPointStored(testVectorCrystal);
       if (bf_ik == -1) {
         continue;
       }
@@ -56,9 +96,9 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
 
     if (tmp_indices.empty()) { continue; }
 
-    // check which indices are irreeducible in bfield_points
+    // check which indices are irreeducible in bfieldPoints
     std::vector<int> indices_to_be_symmetrized;
-    auto irrPointsList = bfield_points.irrPointsIterator();
+    auto irrPointsList = bfieldPoints.irrPointsIterator();
     for (int i : tmp_indices) {
       if (std::find(irrPointsList.begin(), irrPointsList.end(), i) != irrPointsList.end() ) {
         indices_to_be_symmetrized.push_back(i);
@@ -122,7 +162,7 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
           StateIndex isIdx(is);
           energies(ib) += bandStructure.getEnergy(isIdx);
         }
-        auto tmpVel = bandStructure.getVelocities(ikidx);
+        auto tmpVel = bandStructure.getVelocities(ikIdx);
         velocities += tmpVel; // will this work?
 //        for (int ib1=0; ib1<nb; ++ib1) {
 //          for (int ib2 = 0; ib2 < nb; ++ib2) {
@@ -136,14 +176,14 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
       velocities /= float(nk); // will this work?
       for (int j = 0; j < nk; ++j) {
         int ikk = indices_to_be_symmetrized[j];
-        Point bfield_points.getPoint(ikk);
+        Point point = bfieldPoints.getPoint(ikk);
         bandStructure.setEnergies(point, energies);
         bandStructure.setVelocities(point, velocities);
       }
     }
   }
 }
-*/
+
 void ElectronWannierTransportApp::run(Context &context) {
 
   auto t2 = Parser::parsePhHarmonic(context);
@@ -205,16 +245,20 @@ void ElectronWannierTransportApp::run(Context &context) {
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
 
-  //symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
+  // TODO there's an internalDiagonal object that has the lifetmes -- we can get this info
+  // with .diagonal() or getLinewidths() to get a vector BTE object,
+  // but if we want to put them back in the matrix after symmetrizing we will need to
+  // add some kind of set function
+  auto lifetimes = scatteringMatrix.diagonal();
+  symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
   if(magneticField.squaredNorm() != 0) {
 
-    // conditions when this algorithm doesn't make sense
-    //if (context.getUseSymmetries()) Error("Symmetries not available for magnetotransport calculations.");
-    //if (!doVariational || !doRelaxons || !doIterative) Error("Must use exact solver for magnetotransport.");
-    //if (magneticField.squaredNorm() == 0 ) Error("Cannot run magnetotransport with B=0.");
+    // TODO we might want to throw a warning if someone runs with a
+    // bfield that adds a contribution on the order of the diagonal
+    // scattering matrix elements, or something like that
 
     // add -e (vxB) . \nabla f correction to the scattering matrix
     scatteringMatrix.addMagneticTerm(magneticField);
