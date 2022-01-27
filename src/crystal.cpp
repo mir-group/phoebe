@@ -160,18 +160,7 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     numSymmetries =
           spg_get_symmetry(rotations, translations, maxSize, latticeSPG,
                          positionSPG, typesSPG, numAtoms, symmetryPrecision);
-/*
-    if(mpi->mpiHead()) {
-      for ( int n = 0; n < numSymmetries; n++) {
-        for ( int i : {0,1,2}) {
-          for ( int j : {0,1,2}) {
-            std::cout << rotations[n][i][j] << " ";
-          }
-          std::cout << std::endl;
-        }
-        std::cout << "trans: " << translations[n][0] << " " << translations[n][1] << " " << translations[n][2] << std::endl;
-      }
-    } */
+
     // need to explicitly deallocate allocated arrays.
     delete[] typesSPG;
     delete[] positionSPG;
@@ -218,11 +207,6 @@ Crystal::Crystal(Context &context, Eigen::Matrix3d &directUnitCell_,
     }
     SymmetryOperation s = {thisMatrix, thisTranslation};
     symmetryOperations.push_back(s);
-  }
-  // reduce symmetry due to the magnetic field
-  auto bfield = context.getBField();
-  if(bfield.norm() != 0) {
-    magneticSymmetries(context);
   }
 
 }
@@ -367,7 +351,6 @@ int Crystal::getDimensionality() const { return dimensionality; }
 
 int Crystal::getNumSpecies() const { return numSpecies; }
 
-// remove rotations which are not in the magnetic field's point group
 void Crystal::magneticSymmetries(Context &context) {
 
   std::vector<SymmetryOperation> magSymmetryOperations;
@@ -408,17 +391,6 @@ void Crystal::magneticSymmetries(Context &context) {
       magSymmetryOperations.push_back(s);
     }
     else { continue; }
-/*
-    if(mpi->mpiHead()) {
-      for ( int i : {0,1,2}) {
-        for ( int j : {0,1,2}) {
-          std::cout << rotation(i,j) << " ";
-        }
-        std::cout << std::endl;
-      }
-      std::cout << "\n" << std::endl;
-    }
-*/
   }
 
   // update the symmetry operation information

@@ -25,9 +25,6 @@ protected:
    */
   void setDirectUnitCell(const Eigen::Matrix3d &directUnitCell_);
 
-  /** Internal utility to restrict symmetries to those allowed by the b field */
-  void magneticSymmetries(Context &context);
-
   /** These are the internal quantities used to store
    * - lattice vectors
    * - reciprocal lattice vectors
@@ -172,6 +169,10 @@ public:
   int getNumSpecies() const;
 
   const Eigen::VectorXd &getAtomicIsotopeCouplings();
+
+  /** Internal utility to restrict symmetries to those allowed by the b field
+  */
+  void magneticSymmetries(Context &context);
 
   /** Build the list of Bravais lattice vectors (real space) that live within
    * the Wigner Seitz zone of a super cell
