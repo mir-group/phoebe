@@ -12,9 +12,12 @@
 
 
 void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
-                     VectorBTE &lifetimes, StatisticsSweep &statisticsSweep) {
+                     ScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
+  auto linewidths = scatteringMatrix.getLinewidths();
+  //VectorBTE avgLinewidths(statisticsSweep, bandStructure);
+  //avgLinewidths.excludeIndices = linewidths.excludeIndices;
 
   // get points on the irr mesh reduced for mag field symmetries
   auto bfieldPoints = bandStructure.getPoints();
@@ -93,6 +96,8 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
 
     //--------------------
     // symmetrize linewidths
+    // TODO make a clean linewidths variable here and save them to it, then
+    // pass that over. There's definitely some refernece passing BS happening
     if ( indices_to_be_symmetrized.size() > 1 ) {
       int nb;
       {
@@ -104,6 +109,7 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
       Eigen::Tensor<double,3> avg_linewidths(numCalculations, nk, nb);
       avg_linewidths.setZero();
 
+      // sum up the contributions from each reducible point into an avg linewidth
       for (int ib=0; ib<nb; ++ib) {
         for (int j=0; j<nk; ++j) {
           int ikk = indices_to_be_symmetrized[j];
@@ -114,11 +120,12 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
           int iBte = iBteIdx.get();
 
           for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-            avg_linewidths(iCalc, j, ib) += lifetimes(iCalc, 0, iBte) / double(nk);
+            //if(mpi->mpiHead()) std::cout << "pre-avg lines " << iCalc << " " << iBte << " " << nk << " ik ikk ib " << ik << " " << ikk << " " << ib << " " << linewidths(iCalc,0,iBte) << std::endl;
+            avg_linewidths(iCalc, 0, ib) += linewidths(iCalc, 0, iBte) / double(nk);
           }
         }
       }
-      // copy back
+      // copy back into all the reducible point linewidths
       for (int ib=0; ib<nb; ++ib) {
         for (int j=0; j<nk; ++j) {
           int ikk = indices_to_be_symmetrized[j];
@@ -128,7 +135,8 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
           BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
           int iBte = iBteIdx.get();
           for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-            lifetimes(iCalc, 0, iBte) = avg_linewidths(iCalc, j, ib);
+            linewidths(iCalc, 0, iBte) = avg_linewidths(iCalc, 0, ib);
+            //if(mpi->mpiHead()) std::cout << "averaged lines " << iCalc << " " << iBte << " ik ib " << ikk << " " << ib << " " << linewidths(iCalc,0,iBte) << std::endl;
           }
         }
       }
@@ -210,6 +218,7 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
       }
     }
   }
+  scatteringMatrix.setLinewidths(linewidths);
 }
 
 void ElectronWannierTransportApp::run(Context &context) {
@@ -277,8 +286,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // with .diagonal() or getLinewidths() to get a vector BTE object,
   // but if we want to put them back in the matrix after symmetrizing we will need to
   // add some kind of set function
-  auto lifetimes = scatteringMatrix.diagonal();
-  //symmetrizeStuff(context, bandStructure, lifetimes, statisticsSweep);
+  symmetrizeStuff(context, bandStructure, scatteringMatrix, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
