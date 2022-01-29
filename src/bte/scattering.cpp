@@ -480,6 +480,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
 }
 
 VectorBTE ScatteringMatrix::getLinewidths() {
+  // TODO should there be an icalc index on this first CRTA part?
   if (constantRTA) {
     VectorBTE linewidths(statisticsSweep, outerBandStructure, 1);
     linewidths.setConst(twoPi / context.getConstantRelaxationTime());
@@ -516,6 +517,47 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       }
       linewidths.excludeIndices = excludeIndices;
       return linewidths;
+    }
+  }
+}
+
+void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
+
+  // note: this function assumes that we have not
+  // messed with excludeIndices
+
+  if(internalDiagonal.numCalculations != linewidths.numCalculations) {
+    Error("Attempted setting scattering matrix diagonal with"
+        "an incorrect number of calculations.");
+  }
+  if(internalDiagonal.numStates != linewidths.numStates) {
+    Error("Attempted setting scattering matrix diagonal with"
+        "an incorrect number of states.");
+  }
+  internalDiagonal = linewidths;
+
+  if (!isMatrixOmega) {
+    // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
+    // because the get function removed these population factors,
+    // the set function should add them back in
+
+    auto particle = outerBandStructure.getParticle();
+
+    #pragma omp parallel for
+    for (int iBte = 0; iBte < numStates; iBte++) {
+      auto iBteIdx = BteIndex(iBte);
+      StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
+      double en = outerBandStructure.getEnergy(isIdx);
+      for (int iCalc = 0; iCalc < linewidths.numCalculations; iCalc++) {
+        auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStatistics.temperature;
+        double chemPot = calcStatistics.chemicalPotential;
+        // n(n+1) for bosons, n(1-n) for fermions
+        double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+        internalDiagonal(iCalc, 0, iBte) =
+            linewidths(iCalc, 0, iBte) * popTerm;
+            if(mpi->mpiHead()) std::cout << "linewidths " << iCalc << " " << iBte << " " << internalDiagonal(iCalc,0,iBte) << std::endl;
+      }
     }
   }
 }

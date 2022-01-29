@@ -97,6 +97,12 @@ public:
    */
   VectorBTE getLinewidths();
 
+  /** Call to set the single-particle linewidths.
+   *
+   *  See getLinewidths function for notes about linewidths.
+   */
+  void setLinewidths(VectorBTE &linewidths);
+
   /** Converts the scattering matrix from the form A to the symmetrised Omega.
    * A acts on the canonical phonon population f, while Omega acts on the
    * symmetrised phonon population \tilde{n}.
