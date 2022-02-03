@@ -466,7 +466,7 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
   // Note: we expect shift to be in cartesian coordinates!
 
   if (shift.rows() != 3) {
-    Error("shift should have at least 3 cartesian coordinates");
+    Error("shift should have exactly 3 cartesian coordinates");
   }
   auto shiftDims = int(shift.cols());
 
