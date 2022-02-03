@@ -410,21 +410,19 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   double norm = e2 * fourPi / volumeUnitCell;
 
   for (int ig=0; ig<gVectors.cols(); ++ig) {
-    Eigen::Vector3d g = gVectors.col(ig);
+    Eigen::Vector3d gq = gVectors.col(ig) + q;
 
-    g += q;
-
-    double geg = (g.transpose() * dielectricMatrix * g).value();
+    double geg = (gq.transpose() * dielectricMatrix * gq).value();
 
     if (geg > 0. && geg < 4. * gMax) {
       double normG = norm * exp(-geg * 0.25) / geg;
 
       Eigen::MatrixXd gqZ(3, numAtoms);
-      for (int nb = 0; nb < numAtoms; nb++) {
-        for (int i : {0, 1, 2}) {
-          gqZ(i, nb) = g(0) * bornCharges(nb, 0, i) +
-                       g(1) * bornCharges(nb, 1, i) +
-                       g(2) * bornCharges(nb, 2, i);
+      for (int i : {0, 1, 2}) {
+        for (int nb = 0; nb < numAtoms; nb++) {
+          gqZ(i, nb) = gq(0) * bornCharges(nb, 0, i) +
+                       gq(1) * bornCharges(nb, 1, i) +
+                       gq(2) * bornCharges(nb, 2, i);
         }
       }
 
@@ -432,7 +430,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
       for (int nb = 0; nb < numAtoms; nb++) {
         for (int na = 0; na < numAtoms; na++) {
           double arg =
-              (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
+              (atomicPositions.row(na) - atomicPositions.row(nb)).dot(gq);
           phases(na, nb) = {cos(arg), sin(arg)};
         }
       }
