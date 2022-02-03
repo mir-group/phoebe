@@ -252,7 +252,12 @@ FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, points, isDistributed);
 
-  for (auto ik : fullBandStructure.getWavevectorIndices()) {
+  std::vector<int> ikIndices = fullBandStructure.getWavevectorIndices();
+  int numIkIndices = ikIndices.size();
+#pragma omp parallel for
+  for (int iik = 0; iik<numIkIndices; ++iik) {
+    int ik = ikIndices[iik];
+
     Point point = fullBandStructure.getPoint(ik);
 
     auto tup = diagonalize(point);
