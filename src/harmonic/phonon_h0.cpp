@@ -57,6 +57,83 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   setAcousticSumRule(sumRule);
 
   reorderDynamicalMatrix();
+
+  if (hasDielectric) { // prebuild terms useful for long range corrections
+    double cutoff = gMax * 4.;
+
+    // Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
+    // Only for dimensions where periodicity is present, e.g. if nr1=1
+    // and nr2=1, then the G-vectors run along nr3 only.
+    // (useful if system is in vacuum, e.g. 1D or 2D)
+
+    int nr1x = 0;
+    if (qCoarseGrid(0) > 1) {
+      nr1x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(0).norm()) + 1;
+    }
+    int nr2x = 0;
+    if (qCoarseGrid(1) > 1) {
+      nr2x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(1).norm()) + 1;
+    }
+    int nr3x = 0;
+    if (qCoarseGrid(2) > 1) {
+      nr3x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(2).norm()) + 1;
+    }
+
+    double norm = e2 * fourPi / volumeUnitCell;
+
+    int numG = (2*nr1x+1) * (2*nr2x+1) * (2*nr3x+1);
+    gVectors.resize(3,numG);
+    {
+      int ig = 0;
+      for (int m1 = -nr1x; m1 <= nr1x; m1++) {
+        for (int m2 = -nr2x; m2 <= nr2x; m2++) {
+          for (int m3 = -nr3x; m3 <= nr3x; m3++) {
+            gVectors(0, ig) = double(m1) * reciprocalUnitCell(0, 0) + double(m2) * reciprocalUnitCell(0, 1) + double(m3) * reciprocalUnitCell(0, 2);
+            gVectors(1, ig) = double(m1) * reciprocalUnitCell(1, 0) + double(m2) * reciprocalUnitCell(1, 1) + double(m3) * reciprocalUnitCell(1, 2);
+            gVectors(2, ig) = double(m1) * reciprocalUnitCell(2, 0) + double(m2) * reciprocalUnitCell(2, 1) + double(m3) * reciprocalUnitCell(2, 2);
+            ++ig;
+          }
+        }
+      }
+    }
+
+    longRangeCorrection1.resize(3,3,numAtoms);
+    longRangeCorrection1.setZero();
+    for (int ig=0; ig<numG; ++ig) {
+      Eigen::Vector3d g = gVectors.col(ig);
+
+      double geg = (g.transpose() * dielectricMatrix * g).value();
+
+      if (0. < geg && geg < 4. * gMax) {
+        double normG = norm * exp(-geg * 0.25) / geg;
+
+        Eigen::MatrixXd gZ(3, numAtoms);
+        for (int na = 0; na < numAtoms; na++) {
+          for (int i : {0, 1, 2}) {
+            gZ(i, na) = g(0) * bornCharges(na, 0, i) + g(1) * bornCharges(na, 1, i) + g(2) * bornCharges(na, 2, i);
+          }
+        }
+
+        Eigen::MatrixXd fnAt = Eigen::MatrixXd::Zero(numAtoms, 3);
+        for (int na = 0; na < numAtoms; na++) {
+          for (int i : {0, 1, 2}) {
+            for (int nb = 0; nb < numAtoms; nb++) {
+              double arg =
+                  (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
+              fnAt(na, i) += gZ(i, nb) * cos(arg);
+            }
+          }
+        }
+        for (int na = 0; na < numAtoms; na++) {
+          for (int j : {0, 1, 2}) {
+            for (int i : {0, 1, 2}) {
+              longRangeCorrection1(i, j, na) += -normG * gZ(i, na) * fnAt(na, j);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // copy constructor
@@ -72,7 +149,8 @@ PhononH0::PhononH0(const PhononH0 &that)
       wsCache(that.wsCache), nr1Big(that.nr1Big), nr2Big(that.nr2Big),
       nr3Big(that.nr3Big), numBravaisVectors(that.numBravaisVectors),
       bravaisVectors(that.bravaisVectors), weights(that.weights),
-      mat2R(that.mat2R) {}
+      mat2R(that.mat2R), gVectors(that.gVectors),
+      longRangeCorrection1(that.longRangeCorrection1) {}
 
 // copy assignment
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
@@ -99,6 +177,9 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     bravaisVectors = that.bravaisVectors;
     weights = that.weights;
     mat2R = that.mat2R;
+
+    gVectors = that.gVectors;
+    longRangeCorrection1 = that.longRangeCorrection1;
   }
   return *this;
 }
@@ -137,7 +218,7 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
   // then the long range term, which uses some convergence
   // tricks by X. Gonze et al.
   if (hasDielectric) {
-    longRangeTerm(dyn, q, +1.);
+    addLongRangeTerm(dyn, q);
   }
 
   // once everything is ready, here we scale by masses and diagonalize
@@ -298,8 +379,8 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r,
   return x;
 }
 
-void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                             const Eigen::VectorXd &q, const int &sign) {
+void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
+                                const Eigen::VectorXd &q) {
   // this subroutine is the analogous of rgd_blk in QE
   // compute the rigid-ion (long-range) term for q
   // The long-range term used here, to be added to or subtracted from the
@@ -313,115 +394,54 @@ void PhononH0::longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   //        q(3),           &! q-vector
   //        sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
 
-  // alpha is the Ewald parameter, geg is an estimate of G^2
-  // such that the G-space sum is convergent for that alpha
+  // alpha, implicitly set to 1, is the Ewald parameter,
+  // geg is an estimate of G^2 such that the G-space sum is convergent for alpha
   // very rough estimate: geg/4/alpha > gMax = 14
   // (exp (-14) = 10^-6)
 
-  double gMax = 14.;
-  double alpha = 1.;
-  double geg = gMax * alpha * 4.;
-
-  // Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
-  // Only for dimensions where periodicity is present, e.g. if nr1=1
-  // and nr2=1, then the G-vectors run along nr3 only.
-  // (useful if system is in vacuum, e.g. 1D or 2D)
-
-  int nr1x = 0;
-  if (qCoarseGrid(0) > 1) {
-    nr1x = (int)(sqrt(geg) / reciprocalUnitCell.col(0).norm()) + 1;
-  }
-  int nr2x = 0;
-  if (qCoarseGrid(1) > 1) {
-    nr2x = (int)(sqrt(geg) / reciprocalUnitCell.col(1).norm()) + 1;
-  }
-  int nr3x = 0;
-  if (qCoarseGrid(2) > 1) {
-    nr3x = (int)(sqrt(geg) / reciprocalUnitCell.col(2).norm()) + 1;
+  for (int na = 0; na < numAtoms; na++) {
+    for (int j : {0, 1, 2}) {
+      for (int i : {0, 1, 2}) {
+        dyn(i, j, na, na) += longRangeCorrection1(i, j, na);
+      }
+    }
   }
 
-  if (abs(double(sign)) != 1.) {
-    Error("wrong value for sign");
-  }
+  double norm = e2 * fourPi / volumeUnitCell;
 
-  double norm = double(sign) * e2 * fourPi / volumeUnitCell;
+  for (int ig=0; ig<gVectors.cols(); ++ig) {
+    Eigen::Vector3d g = gVectors.col(ig);
 
-  for (int m1 = -nr1x; m1 <= nr1x; m1++) {
-    for (int m2 = -nr2x; m2 <= nr2x; m2++) {
-      for (int m3 = -nr3x; m3 <= nr3x; m3++) {
-        Eigen::Vector3d g;
-        g(0) = double(m1) * reciprocalUnitCell(0, 0) +
-               double(m2) * reciprocalUnitCell(0, 1) +
-               double(m3) * reciprocalUnitCell(0, 2);
-        g(1) = double(m1) * reciprocalUnitCell(1, 0) +
-               double(m2) * reciprocalUnitCell(1, 1) +
-               double(m3) * reciprocalUnitCell(1, 2);
-        g(2) = double(m1) * reciprocalUnitCell(2, 0) +
-               double(m2) * reciprocalUnitCell(2, 1) +
-               double(m3) * reciprocalUnitCell(2, 2);
+    g += q;
 
-        geg = (g.transpose() * dielectricMatrix * g).value();
+    double geg = (g.transpose() * dielectricMatrix * g).value();
 
-        if (geg > 0. && geg < 4. * gMax) {
-          double normG = norm * exp(-geg * 0.25) / geg;
-          //        if (geg > 0. && geg / alpha / 4. < gMax) {
-          //          double facGd = fac * exp(-geg / alpha / 4.) / geg;
+    if (geg > 0. && geg < 4. * gMax) {
+      double normG = norm * exp(-geg * 0.25) / geg;
 
-          Eigen::MatrixXd gZ(3, numAtoms);
-          for (int na = 0; na < numAtoms; na++) {
-            for (int i : {0, 1, 2}) {
-              gZ(i, na) = g(0) * bornCharges(na, 0, i) +
-                          g(1) * bornCharges(na, 1, i) +
-                          g(2) * bornCharges(na, 2, i);
-            }
-          }
-
-          for (int na = 0; na < numAtoms; na++) {
-            Eigen::Vector3d fnAt = Eigen::Vector3d::Zero();
-            for (int i : {0, 1, 2}) {
-              fnAt(i) = 0.;
-              for (int nb = 0; nb < numAtoms; nb++) {
-                double arg =
-                    (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
-                fnAt(i) += gZ(i, nb) * cos(arg);
-              }
-            }
-            for (int j : {0, 1, 2}) {
-              for (int i : {0, 1, 2}) {
-                dyn(i, j, na, na) += -normG * gZ(i, na) * fnAt(j);
-              }
-            }
-          }
+      Eigen::MatrixXd gqZ(3, numAtoms);
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int i : {0, 1, 2}) {
+          gqZ(i, nb) = g(0) * bornCharges(nb, 0, i) +
+                       g(1) * bornCharges(nb, 1, i) +
+                       g(2) * bornCharges(nb, 2, i);
         }
+      }
 
-        g += q;
+      Eigen::MatrixXcd phases(numAtoms, numAtoms);
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int na = 0; na < numAtoms; na++) {
+          double arg =
+              (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
+          phases(na, nb) = {cos(arg), sin(arg)};
+        }
+      }
 
-        geg = (g.transpose() * dielectricMatrix * g).value();
-
-        if (geg > 0. && geg < 4. * gMax) {
-          double normG = norm * exp(-geg * 0.25) / geg;
-          //        if (geg > 0. && geg / alpha / 4. < gMax) {
-          //          double normG = norm * exp(-geg / alpha / 4.) / geg;
-
-          Eigen::MatrixXd gqZ(3, numAtoms);
-          for (int nb = 0; nb < numAtoms; nb++) {
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int na = 0; na < numAtoms; na++) {
+          for (int j : {0, 1, 2}) {
             for (int i : {0, 1, 2}) {
-              gqZ(i, nb) = g(0) * bornCharges(nb, 0, i) +
-                           g(1) * bornCharges(nb, 1, i) +
-                           g(2) * bornCharges(nb, 2, i);
-            }
-          }
-
-          for (int nb = 0; nb < numAtoms; nb++) {
-            for (int na = 0; na < numAtoms; na++) {
-              double arg =
-                  (atomicPositions.row(na) - atomicPositions.row(nb)).dot(g);
-              std::complex<double> phase = {cos(arg), sin(arg)};
-              for (int j : {0, 1, 2}) {
-                for (int i : {0, 1, 2}) {
-                  dyn(i, j, na, nb) += normG * phase * gqZ(i, na) * gqZ(j, nb);
-                }
-              }
+              dyn(i, j, na, nb) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
             }
           }
         }

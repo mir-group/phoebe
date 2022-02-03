@@ -154,6 +154,10 @@ protected:
   Eigen::VectorXd weights;
   Eigen::Tensor<double,5> mat2R;
 
+  Eigen::MatrixXd gVectors;
+  Eigen::Tensor<double,3> longRangeCorrection1;
+  double gMax = 14.; // cutoff for ewald summation
+
   // private methods, used to diagonalize the Dyn matrix
 
   /** In wsInit, starting from the primitive crystal unit cell, we build the
@@ -167,8 +171,8 @@ protected:
   static double wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
 
   // These functions treat hte long range corrections
-  void longRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                     const Eigen::VectorXd &q, const int &sign);
+  void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
+                        const Eigen::VectorXd &q);
   void nonAnalyticTerm(const Eigen::VectorXd &q,
                        Eigen::Tensor<std::complex<double>, 4> &dyn);
   void nonAnalIFC(const Eigen::VectorXd &q,
