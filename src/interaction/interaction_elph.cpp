@@ -228,6 +228,8 @@ InteractionElPhWan::polarCorrectionPart2(const Eigen::MatrixXcd &ev1, const Eige
 // the general parse function first
 InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
                              PhononH0 *phononH0_);
+InteractionElPhWan parseHDF5V2(Context &context, Crystal &crystal,
+                               PhononH0 *phononH0_);
 InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
                                PhononH0 *phononH0_);
 
@@ -239,7 +241,7 @@ InteractionElPhWan InteractionElPhWan::parse(Context &context, Crystal &crystal,
     std::cout << "Started parsing of el-ph interaction." << std::endl;
   }
 #ifdef HDF5_AVAIL
-  auto output = parseHDF5(context, crystal, phononH0_);
+  auto output = parseHDF5V2(context, crystal, phononH0_);
 #else
   auto output = parseNoHDF5(context, crystal, phononH0_);
 #endif
@@ -745,6 +747,218 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
                             phBravaisVectorsDegeneracies_, phononH0_);
   return output;
 }
+
+
+// specific parse function for the case where parallel HDF5 is available
+InteractionElPhWan parseHDF5V2(Context &context, Crystal &crystal,
+                               PhononH0 *phononH0_) {
+
+  std::string fileName = context.getElphFileName();
+
+  int numElectrons, numSpin;
+  int numElBands, numElBravaisVectors, totalNumElBravaisVectors, numPhBands, numPhBravaisVectors;
+  // suppress initialization warning
+  numElBravaisVectors = 0; totalNumElBravaisVectors = 0; numPhBravaisVectors = 0;
+  Eigen::MatrixXd phBravaisVectors_, elBravaisVectors_;
+  Eigen::VectorXd phBravaisVectorsDegeneracies_, elBravaisVectorsDegeneracies_;
+  Eigen::Tensor<std::complex<double>, 5> couplingWannier_;
+  std::vector<size_t> localElVectors;
+
+  // check for existence of file
+  {
+    std::ifstream infile(fileName);
+    if (not infile.is_open()) {
+      Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
+            "not found at " + fileName + " .");
+    }
+  }
+
+  try {
+    // Use MPI head only to read in the small data structures
+    // then distribute them below this
+    if (mpi->mpiHeadPool()) {
+      // need to open the files differently if MPI is available or not
+      // NOTE: do not remove the braces inside this if -- the file must
+      // go out of scope, so that it can be reopened for parallel
+      // read in the next block.
+      {
+        // Open the HDF5 ElPh file
+        HighFive::File file(fileName, HighFive::File::ReadOnly);
+
+        // read in the number of electrons and the spin
+        HighFive::DataSet dnelec = file.getDataSet("/numElectrons");
+        HighFive::DataSet dnspin = file.getDataSet("/numSpin");
+        dnelec.read(numElectrons);
+        dnspin.read(numSpin);
+
+        // read in the number of phonon and electron bands
+        HighFive::DataSet dnElBands = file.getDataSet("/numElBands");
+        HighFive::DataSet dnModes = file.getDataSet("/numPhModes");
+        dnElBands.read(numElBands);
+        dnModes.read(numPhBands);
+
+        // read phonon bravais lattice vectors and degeneracies
+        HighFive::DataSet dphbravais = file.getDataSet("/phBravaisVectors");
+        HighFive::DataSet dphDegeneracies = file.getDataSet("/phDegeneracies");
+        dphbravais.read(phBravaisVectors_);
+        dphDegeneracies.read(phBravaisVectorsDegeneracies_);
+        numPhBravaisVectors = int(phBravaisVectors_.cols());
+
+        // read electron Bravais lattice vectors and degeneracies
+        HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
+        delDegeneracies.read(elBravaisVectorsDegeneracies_);
+        totalNumElBravaisVectors = int(elBravaisVectorsDegeneracies_.size());
+        numElBravaisVectors = int(elBravaisVectorsDegeneracies_.size());
+        HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
+        delbravais.read(elBravaisVectors_);
+        // redistribute in case of pools are present
+        if (mpi->getSize(mpi->intraPoolComm) > 1) {
+          localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors, mpi->intraPoolComm);
+          numElBravaisVectors = int(localElVectors.size());
+          // copy a subset of elBravaisVectors
+          Eigen::VectorXd tmp1 = elBravaisVectorsDegeneracies_;
+          Eigen::MatrixXd tmp2 = elBravaisVectors_;
+          elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+          elBravaisVectors_.resize(3,numElBravaisVectors);
+          int i = 0;
+          for (auto irE : localElVectors) {
+            elBravaisVectorsDegeneracies_(i) = tmp1(irE);
+            elBravaisVectors_.col(i) = tmp2.col(irE);
+            i++;
+          }
+        }
+      }
+    }
+    // broadcast to all MPI processes
+    mpi->bcast(&numElectrons);
+    mpi->bcast(&numSpin);
+    mpi->bcast(&numPhBands);
+    mpi->bcast(&numPhBravaisVectors);
+    mpi->bcast(&numElBands);
+    mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
+    mpi->bcast(&totalNumElBravaisVectors, mpi->interPoolComm);
+    mpi->bcast(&numElBravaisVectors, mpi->interPoolComm);
+
+    if (numSpin == 2) {
+      Error("Spin is not currently supported");
+    }
+    context.setNumOccupiedStates(numElectrons);
+
+    if (!mpi->mpiHeadPool()) {// head already allocated these
+      localElVectors = mpi->divideWorkIter(totalNumElBravaisVectors,
+                                           mpi->intraPoolComm);
+      phBravaisVectors_.resize(3, numPhBravaisVectors);
+      phBravaisVectorsDegeneracies_.resize(numPhBravaisVectors);
+      elBravaisVectors_.resize(3, numElBravaisVectors);
+      elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+      couplingWannier_.resize(numElBands, numElBands, numPhBands,
+                              numPhBravaisVectors, numElBravaisVectors);
+    }
+    mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
+    mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
+    mpi->bcast(&phBravaisVectors_, mpi->interPoolComm);
+    mpi->bcast(&phBravaisVectorsDegeneracies_, mpi->interPoolComm);
+
+    // Define the eph matrix element containers
+
+    // This is broken into parts, otherwise it can overflow if done all at once
+    size_t totElems = numElBands * numElBands * numPhBands;
+    totElems *= numPhBravaisVectors;
+    totElems *= numElBravaisVectors;
+
+    // user info about memory
+    {
+      std::complex<double> cx;
+      auto x = double(totElems / pow(1024., 3) * sizeof(cx));
+      if (mpi->mpiHead()) {
+        std::cout << "Allocating " << x
+                  << " (GB) (per MPI process) for the el-ph coupling matrix."
+                  << std::endl;
+      }
+    }
+
+    couplingWannier_.resize(numElBands, numElBands, numPhBands,
+                            numPhBravaisVectors, numElBravaisVectors);
+    couplingWannier_.setZero();
+
+    // Set up buffer to receive full matrix data
+    size_t sliceElements = pow(numElBands,2) * numPhBands * numPhBravaisVectors;
+    Eigen::VectorXcd slice(sliceElements);
+
+    std::cout << numElBravaisVectors  << " " << totalNumElBravaisVectors << "\n";
+    std::cout << localElVectors.size() << "--\n";
+
+    if (mpi->getSize(mpi->intraPoolComm) > 1) { // case with pools
+      if (mpi->mpiHeadPool()) {
+        HighFive::File file(fileName, HighFive::File::ReadOnly);
+        for (int irE : localElVectors) {
+          int irELocal = irE - localElVectors[0];
+          std::string datasetName = "/gWannier_" + std::to_string(irE);
+          // Set up dataset for gWannier
+          HighFive::DataSet dslice = file.getDataSet(datasetName);
+          dslice.read(slice);
+
+          std::cout << slice.sum() << "\n";
+
+          // Map the flattened matrix back to tensor structure
+          Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 4>> sliceTemp(
+              slice.data(), numElBands, numElBands, numPhBands, numPhBravaisVectors);
+
+          std::cout << sliceTemp.sum() << "-\n";
+
+          for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+            for (int nu = 0; nu < numPhBands; nu++) {
+              for (int i = 0; i < numElBands; i++) {
+                for (int j = 0; j < numElBands; j++) {
+                  couplingWannier_(i, j, nu, irP, irELocal) = sliceTemp(i, j, nu, irP);
+                }
+              }
+            }
+          }
+        }
+      }
+      mpi->bcast(&couplingWannier_, mpi->interPoolComm);
+
+    } else { // case without pools
+      HighFive::File file(fileName, HighFive::File::ReadOnly);
+      auto irEIt = mpi->divideWorkIter(numElBravaisVectors);
+      for (int irE : irEIt) {
+        std::cout << irE << "\n";
+
+        std::string datasetName = "/gWannier_" + std::to_string(irE);
+        // Set up dataset for gWannier
+        HighFive::DataSet dslice = file.getDataSet(datasetName);
+        dslice.read(slice);
+
+        // Map the flattened matrix back to tensor structure
+        Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 4>> sliceTemp(
+            slice.data(), numElBands, numElBands, numPhBands, numPhBravaisVectors);
+
+        for (int irP = 0; irP < numPhBravaisVectors; irP++) {
+          for (int nu = 0; nu < numPhBands; nu++) {
+            for (int i = 0; i < numElBands; i++) {
+              for (int j = 0; j < numElBands; j++) {
+                couplingWannier_(i, j, nu, irP, irE) = sliceTemp(i, j, nu, irP);
+              }
+            }
+          }
+        }
+      }
+      mpi->bcast(&couplingWannier_);
+    }
+
+    std::cout << couplingWannier_.sum() << "!!\n";
+
+  } catch (std::exception &error) {
+    Error("Issue reading elph Wannier representation from hdf5.");
+  }
+
+  InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
+                            elBravaisVectorsDegeneracies_, phBravaisVectors_,
+                            phBravaisVectorsDegeneracies_, phononH0_);
+  return output;
+}
+
 #endif
 
 void InteractionElPhWan::calcCouplingSquared(

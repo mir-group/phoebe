@@ -226,6 +226,16 @@ protected:
       const Eigen::MatrixXd &phBravaisVectors,
       const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
       const Eigen::Vector3i &kMesh);
+
+  static void writeWannierCouplingHDF5V2(
+      Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
+      const int &numFilledWannier, const int &numSpin, const int &numModes,
+      const int &numWannier, const Eigen::VectorXd &phDegeneracies,
+      const Eigen::VectorXd &elDegeneracies,
+      const Eigen::MatrixXd &phBravaisVectors,
+      const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
+      const Eigen::Vector3i &kMesh);
+
 };
 
 #endif
