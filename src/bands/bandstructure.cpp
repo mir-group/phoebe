@@ -79,6 +79,74 @@ FullBandStructure &FullBandStructure::operator=(  // copy assignment
   return *this;
 }
 
+void FullBandStructure::symmetrize() {
+
+  // symmetrize band velocities and energies before computing
+  // active band structure
+
+  // cannot use the band structure's points object, because
+  // setting irr symmetries before active layer is not supported
+  //
+  // Note: this occupies memory linear in npoints
+  // after calling setIrrPoints (why it comes after active layer)
+  Points tempPoints = points;
+  tempPoints.setIrreduciblePoints();
+
+  // TODO points need to be already setIrrPoints, so that we have access to the
+  // reducible map. Need to pass the group velocities to this function too
+
+  // loop over bands and for each band, collect all energies at all
+  // wavevectors for this band
+  for(int ib = 0; ib < numBands; ib++) {
+
+    // this vector will contain all the energy info for this band
+    std::vector<double> bandEnergies(numPoints, 0.0);
+
+    // fill in the point indices owned by this process
+    // TODO wish I had a getLocalCols() function
+    for(std::tuple<int, int> localState : energies.getAllLocalStates()) {
+      int ibl = std::get<0>(localState);
+      int ikl = std::get<1>(localState);
+      if(ib != ibl) continue; // not the band we want
+      bandEnergies[ikl] = energies(ibl,ikl);
+    }
+
+    // reduce all the energies from each wavevector on each process for this
+    // one band to this vector
+    mpi->allReduceSum(&bandEnergies);
+
+    // now that we have all the energies for this band, we can
+    // use the irr->red map from setIrrPoints call to
+    // symmetrize the energies for this band
+    for(int ikIrr : tempPoints.irrPointsIterator()) {
+       double avgEnergy = 0;
+       auto reducibleList = tempPoints.getReducibleStarFromIrreducible(ikIrr);
+       // calculate the symmetrized energy
+       for(int ikRed : reducibleList) {
+         //if(mpi->mpiHead()) std::cout << ikRed << " " << bandEnergies[ikRed] << std::endl;
+         avgEnergy += bandEnergies[ikRed];
+       }
+       avgEnergy /= double(reducibleList.size());
+       //if(mpi->mpiHead()) std::cout << "ikIrr avgEne " << ikIrr << " " << avgEnergy << std::endl;
+
+       for(int ikRed : reducibleList) { // save all the points on this process
+        // only save points which are on this process
+        if(!energies.indicesAreLocal(ib, ikRed)) continue;
+
+        // check that relative error on the points is small
+        double error = abs((energies(ib,ikRed) - avgEnergy)/energies(ib,ikRed));
+        if( error > 100.) {
+          Error("Two points symmetrically equivalent points with very different energies found during"
+               "ymmetrization of the band structure. Check the quality of your DFT results.");
+        }
+        energies(ib,ikRed) = avgEnergy;
+      }
+    }
+  }
+  std::cout << "mpi proc finished " << mpi->getRank() << std::endl;
+}
+
+
 Particle FullBandStructure::getParticle() { return particle; }
 
 Points FullBandStructure::getPoints() { return points; }

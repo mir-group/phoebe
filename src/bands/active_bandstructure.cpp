@@ -622,9 +622,11 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
   bool tmpIsDistributed_ = true;
+
   // for now, we always generate a band structure which is distributed
   FullBandStructure fullBandStructure =
       h0.populate(points_, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
+  fullBandStructure.symmetrize();
 
   // ---------- establish mu and other statistics --------------- //
   // This will work even if fullBandStructure is distributed
