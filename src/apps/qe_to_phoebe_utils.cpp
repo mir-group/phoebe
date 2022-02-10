@@ -708,10 +708,10 @@ void writeElPhCouplingHDF5v2(
 
     {
       // open the hdf5 file and remove existing files
-      {
-        HighFive::File file(outFileName, HighFive::File::Overwrite,
-                            HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+      if (mpi->mpiHead()) {
+        HighFive::File file(outFileName, HighFive::File::Overwrite);
       }
+      mpi->barrier(); // wait for file to be overwritten
 
       // now open the file in serial mode
       // because we do the parallelization by hand
@@ -886,7 +886,7 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
   }
 
 #ifdef HDF5_AVAIL
-      if (mpi->getSize() < 4) {
+  if (mpi->getSize() < 4) {
     // Note: this HDF5 had already been reported and being worked on.
     // It's beyond the purpose of Phoebe's project.
     Warning("HDF5 with <4 MPI process may crash (due to a "
@@ -905,10 +905,10 @@ void ElPhQeToPhoebeApp::writeWannierCoupling(
                                elBravaisVectors, qMesh, kMesh);
   }
 #else
-    writeElPhCouplingNoHDF5(context, gWannier, numFilledWannier, numSpin,
-                            numModes, numWannier, phDegeneracies,
-                            elDegeneracies, phBravaisVectors,
-                            elBravaisVectors, qMesh, constkMesh);
+  writeElPhCouplingNoHDF5(context, gWannier, numFilledWannier, numSpin,
+                          numModes, numWannier, phDegeneracies,
+                          elDegeneracies, phBravaisVectors,
+                          elBravaisVectors, qMesh, constkMesh);
 #endif
 
   if (mpi->mpiHead()) {
