@@ -6,8 +6,6 @@
 #include "qe_input_parser.h"
 #include "utilities.h"
 #include <Kokkos_Core.hpp>
-#include <Kokkos_ScatterView.hpp>
-#include <algorithm>
 #include <exception>
 #include <sstream>
 #include <string>
@@ -399,6 +397,7 @@ void writeHeaderHDF5(
 
       HighFive::DataSet dnFileFormat = file.createDataSet<int>(
           "/fileFormat", HighFive::DataSpace::From(fileFormat));
+      dnFileFormat.write(fileFormat);
 
       // write out the number of electrons and the spin
       HighFive::DataSet dnElectrons = file.createDataSet<int>(
@@ -453,7 +452,7 @@ void writeElPhCouplingHDF5v1(
     const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
     const Eigen::Vector3i &kMesh) {
 
-  int fileFormat = 1;
+  const int fileFormat = 1;
 
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 
@@ -616,51 +615,6 @@ void writeElPhCouplingHDF5v1(
       }
     }
 #endif
-
-    // we write the small quantities only with MPI head
-    if (mpi->mpiHead()) {
-
-      HighFive::File file(outFileName, HighFive::File::ReadWrite);
-
-      // write out the number of electrons and the spin
-      HighFive::DataSet dnElectrons = file.createDataSet<int>(
-          "/numElectrons", HighFive::DataSpace::From(numFilledWannier));
-      HighFive::DataSet dnSpin = file.createDataSet<int>(
-          "/numSpin", HighFive::DataSpace::From(numSpin));
-      dnElectrons.write(numFilledWannier);// # of occupied wannier functions
-      dnSpin.write(numSpin);
-
-      HighFive::DataSet dnElBands = file.createDataSet<int>(
-          "/numElBands", HighFive::DataSpace::From(numWannier));
-      HighFive::DataSet dnModes = file.createDataSet<int>(
-          "/numPhModes", HighFive::DataSpace::From(numModes));
-      dnElBands.write(numWannier);
-      dnModes.write(numModes);
-
-      // write out the kMesh and qMesh
-      HighFive::DataSet dkMesh =
-          file.createDataSet<int>("/kMesh", HighFive::DataSpace::From(kMesh));
-      HighFive::DataSet dqMesh =
-          file.createDataSet<int>("/qMesh", HighFive::DataSpace::From(qMesh));
-      dkMesh.write(kMesh);
-      dqMesh.write(qMesh);
-
-      // write bravais lattice vectors
-      HighFive::DataSet dPhBravais = file.createDataSet<double>(
-          "/phBravaisVectors", HighFive::DataSpace::From(phBravaisVectors));
-      HighFive::DataSet dElBravais = file.createDataSet<double>(
-          "/elBravaisVectors", HighFive::DataSpace::From(elBravaisVectors));
-      dPhBravais.write(phBravaisVectors);
-      dElBravais.write(elBravaisVectors);
-
-      // write electron and phonon degeneracies
-      HighFive::DataSet dPhDegeneracies = file.createDataSet<double>(
-          "/phDegeneracies", HighFive::DataSpace::From(phDegeneracies));
-      HighFive::DataSet dElDegeneracies = file.createDataSet<double>(
-          "/elDegeneracies", HighFive::DataSpace::From(elDegeneracies));
-      dPhDegeneracies.write(phDegeneracies);
-      dElDegeneracies.write(elDegeneracies);
-    }
   } catch (std::exception &error) {
     Error("Issue writing elph Wannier representation to hdf5.");
   }
@@ -679,7 +633,7 @@ void writeElPhCouplingHDF5v2(
     const Eigen::MatrixXd &elBravaisVectors, const Eigen::Vector3i &qMesh,
     const Eigen::Vector3i &kMesh) {
 
-  int fileFormat = 2;
+  const int fileFormat = 2;
 
   std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
 

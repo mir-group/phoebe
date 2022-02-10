@@ -10,7 +10,6 @@
 #include <sstream>
 #include <string>
 #include <Kokkos_Core.hpp>
-#include <Kokkos_ScatterView.hpp>
 
 Eigen::Tensor<std::complex<double>, 5>
 ElPhQeToPhoebeApp::BlochToWannierEfficient(

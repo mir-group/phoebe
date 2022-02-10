@@ -663,8 +663,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     mpi->bcast(&fileFormat);
 
   } catch (std::exception &error) {
-    // the exception can be thrown when "fileFormat" key is not in HDF5
-    // i.e. the first format of the HDF5 file.
+    Error("Something wrong deciding the HDF5 format");
   }
 
   if (fileFormat==1) {
