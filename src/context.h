@@ -114,6 +114,8 @@ class Context {
 
   // if true, enforce the symmetrization of the scattering matrix
   bool symmetrizeMatrix = true;
+
+  int hdf5ElphFileFormat = 1;
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
@@ -333,6 +335,9 @@ public:
 
   bool getSymmetrizeMatrix() const;
   void setSymmetrizeMatrix(const bool &x);
+
+  int getHdf5ElPhFileFormat() const;
+  void setHdf5ElPhFileFormat(const int &x);
 };
 
 #endif
