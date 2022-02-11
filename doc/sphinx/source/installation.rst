@@ -24,6 +24,10 @@ The installation requires the following packages are available:
 
 * Optional: CUDA (for GPU acceleration)
 
+* Optional: ScaLAPACK (this will be built for you if you don't have it)
+
+* Optional: HDF5 (see below, a copy of parallel/MPI-enabled HDF5 is highly recommended)
+
 * An internet connection, to download external libraries
 
 

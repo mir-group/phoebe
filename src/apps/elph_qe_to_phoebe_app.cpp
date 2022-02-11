@@ -304,55 +304,54 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
 
   if (mpi->mpiHead()) {
 
-  std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
-  std::ifstream infile(fileName);
-  std::string line;
-  if (not infile.is_open()) {
-    Error(fileName + " file not found.");
-  }
-  std::getline(infile, line); // first line is a title
-
-  infile >> numQEBands >> numElectrons >> numSpin;
-  infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >>
-      kMesh(2);
-  infile >> bogusD >> numAtoms; // lattice parameter and numAtoms
-
-  // unit cell
-  for (int i = 0; i < 9; i++) {
-    infile >> bogusD;
-  }
-  // reciprocal unit cell
-  for (int i = 0; i < 9; i++) {
-    infile >> bogusD;
-  }
-  // iType
-  for (int i = 0; i < numAtoms; i++) {
-    infile >> bogusI;
-  }
-  // positions
-  for (int i = 0; i < 3 * numAtoms; i++) {
-    infile >> bogusD;
-  }
-
-  infile >> numQPoints >> numIrrQPoints;
-  qGridFull.resize(3, numQPoints);
-  for (int iq = 0; iq < numQPoints; iq++) {
-    infile >> qGridFull(0, iq) >> qGridFull(1, iq) >> qGridFull(2, iq);
-  }
-
-  infile >> numKPoints;
-  kGridFull.resize(3, numKPoints);
-  for (int ik = 0; ik < numKPoints; ik++) {
-    infile >> kGridFull(0, ik) >> kGridFull(1, ik) >> kGridFull(2, ik);
-  }
-
-  energies.resize(numQEBands, numKPoints);
-  for (int ik = 0; ik < numKPoints; ik++) {
-    for (int ib = 0; ib < numQEBands; ib++) {
-      infile >> energies(ib, ik);
+    std::string fileName = phoebePrefixQE + ".phoebe.0000.dat";
+    std::ifstream infile(fileName);
+    std::string line;
+    if (not infile.is_open()) {
+      Error(fileName + " file not found.");
     }
-  }
-  assert(numAtoms == crystal.getNumAtoms());
+    std::getline(infile, line);// first line is a title
+
+    infile >> numQEBands >> numElectrons >> numSpin;
+    infile >> qMesh(0) >> qMesh(1) >> qMesh(2) >> kMesh(0) >> kMesh(1) >> kMesh(2);
+    infile >> bogusD >> numAtoms;// lattice parameter and numAtoms
+
+    // unit cell
+    for (int i = 0; i < 9; i++) {
+      infile >> bogusD;
+    }
+    // reciprocal unit cell
+    for (int i = 0; i < 9; i++) {
+      infile >> bogusD;
+    }
+    // iType
+    for (int i = 0; i < numAtoms; i++) {
+      infile >> bogusI;
+    }
+    // positions
+    for (int i = 0; i < 3 * numAtoms; i++) {
+      infile >> bogusD;
+    }
+
+    infile >> numQPoints >> numIrrQPoints;
+    qGridFull.resize(3, numQPoints);
+    for (int iq = 0; iq < numQPoints; iq++) {
+      infile >> qGridFull(0, iq) >> qGridFull(1, iq) >> qGridFull(2, iq);
+    }
+
+    infile >> numKPoints;
+    kGridFull.resize(3, numKPoints);
+    for (int ik = 0; ik < numKPoints; ik++) {
+      infile >> kGridFull(0, ik) >> kGridFull(1, ik) >> kGridFull(2, ik);
+    }
+
+    energies.resize(numQEBands, numKPoints);
+    for (int ik = 0; ik < numKPoints; ik++) {
+      for (int ib = 0; ib < numQEBands; ib++) {
+        infile >> energies(ib, ik);
+      }
+    }
+    assert(numAtoms == crystal.getNumAtoms());
   }
 
   mpi->bcast(&numQEBands);

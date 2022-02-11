@@ -4,6 +4,7 @@
 #include <mpiHelper.h>
 #include <unistd.h>
 #include <iomanip>
+#include <regex>
 
 int mod(const int &a, const int &b) { return (a % b + b) % b; }
 
@@ -94,3 +95,20 @@ double findMaxRelativeDifference(const Eigen::Tensor<double,3> &x,
   }
   return maxDiff;
 }
+
+// helper to break up strings by comma and spaces and quote marks
+std::vector<std::string> tokenize(const std::string str) {
+
+  // break them to remove commas and spaces
+  const std::regex re(R"([\s|,|\"]+)");
+  std::sregex_token_iterator it{ str.begin(), str.end(), re, -1 };
+  std::vector<std::string> tokenized{ it, {} };
+
+  // remove empty strings
+  tokenized.erase(std::remove_if(tokenized.begin(), tokenized.end(),
+                     [](std::string const& s) {
+                         return s.size() == 0;
+                     }), tokenized.end());
+  return tokenized;
+}
+

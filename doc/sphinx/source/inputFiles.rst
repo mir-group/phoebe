@@ -95,6 +95,8 @@ Phonon BTE Solver
 
 * :ref:`phFC3FileName`
 
+* :ref:`phonopyDispFileName`
+
 * :ref:`sumRuleFC2`
 
 * :ref:`qMesh`
@@ -141,10 +143,6 @@ Phonon BTE Solver
 
 * :ref:`useSymmetries`
 
-* :ref:`phonopyDispFileName`
-
-* :ref:`dispFCFileName`
-
 
 
 .. raw:: html
@@ -179,6 +177,8 @@ Electron BTE Solver
 :ref:`appName` = "electronWannierTransport"
 
 * :ref:`phFC2FileName`
+
+* :ref:`phonopyDispFileName`
 
 * :ref:`sumRuleFC2`
 
@@ -327,6 +327,8 @@ Phonon Lifetimes on a Path
 
 * :ref:`phFC3FileName`
 
+* :ref:`phonopyDispFileName`
+
 * :ref:`qMesh`
 
 * :ref:`temperatures`
@@ -354,10 +356,6 @@ Phonon Lifetimes on a Path
 * :ref:`deltaPath`
 
 * :ref:`beginEndPointPath`
-
-* :ref:`phonopyDispFileName`
-
-* :ref:`dispFCFileName`
 
 
 .. raw:: html
@@ -398,6 +396,8 @@ Electron Lifetimes on a Path
 :ref:`appName` = "electronLifetimes"
 
 * :ref:`phFC2FileName`
+
+* :ref:`phonopyDispFileName`
 
 * :ref:`electronH0Name`
 
@@ -480,6 +480,8 @@ Phonon Dos
 
 * :ref:`phFC2FileName`
 
+* :ref:`phonopyDispFileName`
+
 * :ref:`sumRuleFC2`
 
 * :ref:`qMesh`
@@ -489,10 +491,6 @@ Phonon Dos
 * :ref:`dosMaxEnergy`
 
 * :ref:`dosDeltaEnergy`
-
-* :ref:`phonopyDispFileName`
-
-* :ref:`dispFCFileName`
 
 * :ref:`masses`
 
@@ -526,15 +524,13 @@ Phonon Bands
 
 * :ref:`phFC2FileName`
 
+* :ref:`phonopyDispFileName`
+
 * :ref:`sumRuleFC2`
 
 * :ref:`deltaPath`
 
 * :ref:`beginEndPointPath`
-
-* :ref:`phonopyDispFileName`
-
-* :ref:`dispFCFileName`
 
 * :ref:`masses`
 
@@ -562,7 +558,6 @@ Phonon Bands
 
   appName = "phononBands"
   phFC2FileName = "fc2.hdf5"
-  dispFCFileName = "disp_fc3.yaml"
   phonopyDispFileName = "phono3py_disp.yaml"
   sumRuleFC2 = "simple"
 
@@ -824,23 +819,13 @@ phFC3FileName
 
 * **Required:** yes (for phonon transport and lifetime apps)
 
+  
 .. _phonopyDispFileName:
 
 phonopyDispFileName
 ^^^^^^^^^^^^^^^^^^^
 
 * **Description:** Path to the ``phono3py_disp.yaml`` file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named ``phonopy_disp.yaml``).
-
-* **Format:** *string*
-
-* **Required:** yes (for calculations using phono3py)
-
-.. _dispFCFileName:
-
-dispFCFileName
-^^^^^^^^^^^^^^
-
-* **Description:** Path to the disp_fc3.yaml file output by phono3py. (In the case of running only the harmonic phonons with phonopy, this file is named disp.yaml.
 
 * **Format:** *string*
 

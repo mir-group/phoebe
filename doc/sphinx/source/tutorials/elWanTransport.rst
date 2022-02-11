@@ -25,7 +25,7 @@ From an installation folder of your choice, type::
     git clone https://github.com/mir-group/phoebe-quantum-espresso.git
     cd phoebe-quantum-espresso
     # install it
-    git checkout phoebe-qe-6.6
+    git checkout phoebe-qe-6.7.0
     ./configure MPIF90=mpif90 --with-scalapack=yes
     make pw pp ph w90
 
@@ -204,7 +204,7 @@ First, we run Wannier90 in preprocessing mode::
 
   mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/wannier90.x -pp si
 
-Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pretty minimal::
+Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pretty minimal. Here we name it `pw2wan.in`.::
 
  &inputpp
    outdir = './out'
@@ -212,7 +212,7 @@ Then, we convert data from QE to Wannier90. The input file of pw2wannier90 is pr
    seedname = 'si'
  /
 
- And can be run by::
+And can be run by::
 
   mpirun -np 4 /path/to/phoebe-quantum-espresso/bin/pw2wannier90.x -in pw2wan.in > pw2wan.out
 
@@ -443,7 +443,7 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 **Files which are always output for this calculation:**
 
 * ``el_specific_heat.json``: contains the electronic specific heat.
-* ``rta_wigner_coefficients.json``: contains the Wigner transport coefficients.
+* ``rta_wigner_coefficients.json``: contains the RTA solution + the Wigner transport correction.
 
 **As well as a few which are output for specific solvers:**
 
@@ -454,7 +454,7 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 * ``solver_el_relaxation_times.json``: contains the relaxation times on the :ref:`kMesh` specified in the ``electronWannierTransport`` input file. It is only output for solvers "rta" and "relaxons", as the lifetime is not well defined for the iterative solvers.
 
 To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page.
-
+**Note:** though we output the Wigner correction + the RTA Onsager coefficients, the Wigner correction is additive, and can be applied to any solver's output thermal conductivity. For example, if you want Wigner+iterative electrical conductivity, you should take :math:`\sigma_{Wigner+RTA} - \sigma_{RTA} + \sigma_{Omini}`.
 
 Convergence Checklist
 ----------------------

@@ -33,11 +33,16 @@ Before performing this calculation, you should either run steps 1-7 of the :ref:
 * fc3.hdf5
 * fc2.hdf5
 * phono3py_disp.yaml
-* disp_fc3.yaml
 
-**or, if using ShengBTE/thirdOrder.py instead of phono3py:**
+**or, if using ShengBTE/thirdOrder.py instead of phono3py with Quantum ESPRESSO force constants:**
 
 * silicon.fc
+* FORCE_CONSTANTS_3RD
+
+**or, if using ShengBTE/thirdOrder.py instead of phono3py with phonopy force constants:**
+
+* force_constants.hdf5
+* phonopy_disp.yaml
 * FORCE_CONSTANTS_3RD
 
 If you've run either one of these calculations, you can simply copy these files into your current directory, or point the Phoebe input file from the next step to their location. If you haven't run one of these tutorials, we recommend you do so in the interest of understanding the process -- however, you could also obtain these files by running either ``runMe.sh`` in either ``example/Silicon_el/qe-elph/`` or ``example/Silicon_ph/qe-phonons/`` and ``example/Silicon_ph/qe-ph-anharmonic/``.
