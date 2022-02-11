@@ -218,6 +218,20 @@ protected:
                                 ElectronH0Wannier &electronH0, Crystal &crystal,
                                 Eigen::Tensor<std::complex<double>, 5> &gFull);
 
+  /** This function writes the el-ph coupling to file. There are three modes
+   * of writing file.
+   * 1) plain text file. The slowest option, but we allow the user to not use
+   * the HDF5 file format.
+   * 2) HDF5 v1 (default and preferred). The el-ph tensor is written to a single
+   * dataspace. if compiled with parallel HDf5, the write operation is done
+   * in parallel. Note that we do the write operation in bunches of siez ~2Gb.
+   * This is done to avoid a limitation of the MPI library, which has problem
+   * when offsets to the tensor become > max(INT_32).
+   * 3) HDF5 v2. The el-ph tensor is split along the R_e index into different
+   * datasets. This format has been introduced because we suspect the HDF5
+   * library has limitations when the electron-phonon tensor is very large.
+   * We suspect this happens when the tensor size > max(UINT_32).
+   */
   static void writeWannierCoupling(
       Context &context, Eigen::Tensor<std::complex<double>, 5> &gWannier,
       const int &numFilledWannier, const int &numSpin, const int &numModes,
