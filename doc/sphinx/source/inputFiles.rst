@@ -44,6 +44,8 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 
 * :ref:`distributedElPhCoupling`
 
+* :ref:`hdf5ElPhFileFormat`
+  
 .. raw:: html
 
   <h3>Sample input file (Wannier interpolation)</h3>
@@ -957,6 +959,20 @@ distributedElPhCoupling
 * **Required:** no
 
 * **Default:** `true`
+
+
+.. _hdf5ElPhFileFormat:
+
+hdf5ElPhFileFormat
+^^^^^^^^^^^^^^^^^^
+
+* **Description:** Use this parameter to change the format of the HDF5 file used to store the elcetron-phonon coupling. The default (1) should work for most cases. We found that the default file format may have issues for very large electron-phonon coupling tensors (>30Gb), due to possible overflows of the HDF5 library. If HDF5 displays problems, we suggest to either try to compile the code with the serial version of HDF5, or to set hdf5ElPhFileFormat to 2, to use a different format for the coupling tensor which circumvents some of the limitations of the HDF5 library.
+
+* **Format:** *int*
+
+* **Required:** no
+
+* **Default:** `1`
 
 
 .. _windowType:
