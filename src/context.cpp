@@ -733,6 +733,11 @@ void Context::setupFromInput(const std::string &fileName) {
         g2PlotPhBands.second = x[1];
       }
 
+      if (parameterName == "hdf5ElphFileFormat") {
+        int x = parseInt(val);
+        setHdf5ElPhFileFormat(x);
+      }
+
       // Polarization
 
       if (parameterName == "numCoreElectrons") {
@@ -1276,4 +1281,12 @@ bool Context::getDistributedElPhCoupling() const {
 
 void Context::setDistributedElPhCoupling(const bool &x) {
   distributedElPhCoupling = x;
+}
+
+int Context::getHdf5ElPhFileFormat() const {
+  return hdf5ElphFileFormat;
+}
+
+void Context::setHdf5ElPhFileFormat(const int &x) {
+  hdf5ElphFileFormat = x;
 }
