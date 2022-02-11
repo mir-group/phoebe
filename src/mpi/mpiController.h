@@ -428,9 +428,9 @@ struct containerType;
   };
 
   template<>
-  struct containerType<Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>> {
-    static inline Kokkos::complex<double> *getAddress(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> *data) { return data->data(); }
-    static inline size_t getSize(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> *data) { return data->size(); }
+  struct containerType<Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace>> {
+    static inline Kokkos::complex<double> *getAddress(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> *data) { return data->data(); }
+    static inline size_t getSize(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return MPI_COMPLEX16; }
   };
 #endif
