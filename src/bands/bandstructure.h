@@ -313,6 +313,8 @@ class FullBandStructure : public BaseBandStructure {
    */
   FullBandStructure &operator=(const FullBandStructure &that);
 
+  /** Symmetrizes the full band structure energies.
+  **/
   void symmetrize();
 
   /** Get the Particle object associated with this class

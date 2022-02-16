@@ -92,18 +92,18 @@ void FullBandStructure::symmetrize() {
   Points tempPoints = points;
   tempPoints.setIrreduciblePoints();
 
-  // TODO points need to be already setIrrPoints, so that we have access to the
-  // reducible map. Need to pass the group velocities to this function too
-
   // loop over bands and for each band, collect all energies at all
   // wavevectors for this band
   for(int ib = 0; ib < numBands; ib++) {
+
+    //std::cout << "rank " << mpi->getRank() << " doing " << ib << " out of " << numBands << std::endl;
 
     // this vector will contain all the energy info for this band
     std::vector<double> bandEnergies(numPoints, 0.0);
 
     // fill in the point indices owned by this process
     // TODO wish I had a getLocalCols() function
+    //std::cout << "num local states " << energies.getAllLocalStates().size() << std::endl;
     for(std::tuple<int, int> localState : energies.getAllLocalStates()) {
       int ibl = std::get<0>(localState);
       int ikl = std::get<1>(localState);
@@ -113,37 +113,46 @@ void FullBandStructure::symmetrize() {
 
     // reduce all the energies from each wavevector on each process for this
     // one band to this vector
+    //std::cout << mpi->getRank() << " before all reduce" << std::endl;
     mpi->allReduceSum(&bandEnergies);
+    //std::cout << mpi->getRank() <<  " after all reduce" << std::endl;
 
     // now that we have all the energies for this band, we can
     // use the irr->red map from setIrrPoints call to
     // symmetrize the energies for this band
+    int numIrr = tempPoints.irrPointsIterator().size();
     for(int ikIrr : tempPoints.irrPointsIterator()) {
        double avgEnergy = 0;
        auto reducibleList = tempPoints.getReducibleStarFromIrreducible(ikIrr);
+       //if(mpi->getRank() == 2) std::cout << "irr " << ikIrr << " of " << numIrr << " num red points " << reducibleList.size() << std::endl;
        // calculate the symmetrized energy
+       //#pragma omp parallel for reduction(+:avgEnergy)
        for(int ikRed : reducibleList) {
          //if(mpi->mpiHead()) std::cout << ikRed << " " << bandEnergies[ikRed] << std::endl;
          avgEnergy += bandEnergies[ikRed];
        }
        avgEnergy /= double(reducibleList.size());
-       //if(mpi->mpiHead()) std::cout << "ikIrr avgEne " << ikIrr << " " << avgEnergy << std::endl;
+       //if(mpi->getRank() == 2) std::cout << "ikIrr avgEne " << ikIrr << " " << avgEnergy << std::endl;
 
        for(int ikRed : reducibleList) { // save all the points on this process
         // only save points which are on this process
         if(!energies.indicesAreLocal(ib, ikRed)) continue;
 
+        //if(mpi->getRank() == 2 && ikIrr == 22167) std::cout << "inds are local " << ikIrr << " " << avgEnergy << std::endl;
+
         // check that relative error on the points is small
         double error = abs((energies(ib,ikRed) - avgEnergy)/energies(ib,ikRed));
-        if( error > 100.) {
-          Error("Two points symmetrically equivalent points with very different energies found during"
-               "ymmetrization of the band structure. Check the quality of your DFT results.");
+        if(mpi->getRank() == 2 && ikIrr == 22167) std::cout << "calced errors " << energies(ib,ikRed) << " " << avgEnergy << std::endl;
+        if( error > 10000.) {
+          std::cout << "help" << std::endl;
+          Error ("Two points symmetrically equivalent points with very different energies found during"
+               "\nsymmetrization of the band structure. Check the quality of your DFT results.");
         }
+        //if(mpi->getRank() == 2 && ikIrr == 22167) std::cout << "passed errors " << ikIrr << " " << avgEnergy << std::endl;
         energies(ib,ikRed) = avgEnergy;
       }
     }
   }
-  std::cout << "mpi proc finished " << mpi->getRank() << std::endl;
 }
 
 
