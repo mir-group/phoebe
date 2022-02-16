@@ -738,6 +738,11 @@ void Context::setupFromInput(const std::string &fileName) {
         setHdf5ElPhFileFormat(x);
       }
 
+      if (parameterName == "wsVecFileName") {
+        std::string x = parseString(val);
+        setWsVecFileName(x);
+      }
+
       // Polarization
 
       if (parameterName == "numCoreElectrons") {
@@ -1289,4 +1294,12 @@ int Context::getHdf5ElPhFileFormat() const {
 
 void Context::setHdf5ElPhFileFormat(const int &x) {
   hdf5ElphFileFormat = x;
+}
+
+std::string Context::getWsVecFileName() const {
+  return wsVecFileName;
+}
+
+void Context::setWsVecFileName(const std::string& x) {
+  wsVecFileName = x;
 }

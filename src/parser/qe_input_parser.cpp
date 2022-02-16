@@ -1,6 +1,6 @@
-#include <algorithm> // to use .remove_if
-#include <cmath>     // round()
-#include <cstdlib>   // abs()
+#include <algorithm>// to use .remove_if
+#include <cmath>    // round()
+#include <cstdlib>  // abs()
 #include <fstream>
 #include <string>
 #include <vector>
@@ -16,7 +16,7 @@
 #include "utilities.h"
 
 void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
-            Eigen::Matrix3d &unitCell) {
+                  Eigen::Matrix3d &unitCell) {
   //  sets up the crystallographic vectors a1, a2, and a3.
   //
   //  iBravais is the structure index:
@@ -82,11 +82,11 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
 
   //  index of bravais lattice supplied
 
-  if (iBravais == 1) { // simple cubic lattice
+  if (iBravais == 1) {// simple cubic lattice
     a1(0) = celldm(0);
     a2(1) = celldm(0);
     a3(2) = celldm(0);
-  } else if (iBravais == 2) { //     fcc lattice
+  } else if (iBravais == 2) {//     fcc lattice
     double term = celldm(0) / 2.;
     a1(0) = -term;
     a1(2) = term;
@@ -94,7 +94,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(2) = term;
     a3(0) = -term;
     a3(1) = term;
-  } else if (abs(iBravais) == 3) { // bcc lattice
+  } else if (abs(iBravais) == 3) {// bcc lattice
     double term = celldm(0) / 2.;
     for (int ir = 0; ir < 3; ir++) {
       a1(ir) = term;
@@ -110,7 +110,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
       a3(0) = -a3(0);
       a3(1) = -a3(1);
     }
-  } else if (iBravais == 4) { // hexagonal lattice
+  } else if (iBravais == 4) {// hexagonal lattice
     if (celldm(2) <= 0.) {
       Error("wrong celldm(2)", iBravais);
     }
@@ -120,7 +120,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(1) = celldm(0) * sr3 / 2.;
     a3(2) = celldm(0) * cbya;
 
-  } else if (abs(iBravais) == 5) { // trigonal lattice
+  } else if (abs(iBravais) == 5) {// trigonal lattice
     if (celldm(3) <= -0.5 || celldm(3) >= 1.) {
       Error("wrong celldm(4)", abs(iBravais));
     }
@@ -128,7 +128,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     double term1 = sqrt(1. + 2. * celldm(3));
     double term2 = sqrt(1. - celldm(3));
 
-    if (iBravais == 5) { // threefold axis along c (001)
+    if (iBravais == 5) {// threefold axis along c (001)
       a2(1) = sr2 * celldm(0) * term2 / sr3;
       a2(2) = celldm(0) * term1 / sr3;
       a1(0) = celldm(0) * term2 / sr2;
@@ -137,7 +137,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
       a3(0) = -a1(0);
       a3(1) = a1(1);
       a3(2) = a2(2);
-    } else if (iBravais == -5) { // threefold axis along (111)
+    } else if (iBravais == -5) {// threefold axis along (111)
       // Notice that in the cubic limit (alpha=90, celldm(4)=0,
       // term1=term2=1)
       // does not yield the x,y,z axis, but an equivalent rotated triplet:
@@ -157,7 +157,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
       a3(1) = a1(2);
       a3(2) = a1(0);
     }
-  } else if (iBravais == 6) { // tetragonal lattice
+  } else if (iBravais == 6) {// tetragonal lattice
     if (celldm(2) <= 0.) {
       Error("wrong celldm(3)", iBravais);
     }
@@ -166,7 +166,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(1) = celldm(0);
     a3(2) = celldm(0) * cbya;
 
-  } else if (iBravais == 7) { // body centered tetragonal lattice
+  } else if (iBravais == 7) {// body centered tetragonal lattice
     if (celldm(2) <= 0.) {
       Error("wrong celldm(3)", iBravais);
     }
@@ -180,7 +180,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a3(0) = -a2(0);
     a3(1) = -a2(0);
     a3(2) = a2(2);
-  } else if (iBravais == 8) { // Simple orthorhombic lattice
+  } else if (iBravais == 8) {// Simple orthorhombic lattice
     if (celldm(1) <= 0.) {
       Error("wrong celldm(2)", iBravais);
     }
@@ -198,12 +198,12 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     if (celldm(2) <= 0.) {
       Error("wrong celldm(3)", abs(iBravais));
     }
-    if (iBravais == 9) { // old PW-scf description
+    if (iBravais == 9) {// old PW-scf description
       a1(0) = 0.5 * celldm(0);
       a1(1) = a1(0) * celldm(1);
       a2(0) = -a1(0);
       a2(1) = a1(1);
-    } else { // alternate description
+    } else {// alternate description
       a1(0) = 0.5 * celldm(0);
       a1(1) = -a1(0) * celldm(1);
       a2(0) = a1(0);
@@ -223,7 +223,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(2) = -celldm(0) * celldm(2) * 0.5;
     a3(1) = a2(1);
     a3(2) = -a2(2);
-  } else if (iBravais == 10) { // All face centered orthorhombic lattice
+  } else if (iBravais == 10) {// All face centered orthorhombic lattice
     if (celldm(1) <= 0.) {
       Error("wrong celldm(2)", iBravais);
     }
@@ -236,7 +236,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a1(2) = a2(0) * celldm(2);
     a3(1) = a2(0) * celldm(1);
     a3(2) = a1(2);
-  } else if (iBravais == 11) { // Body centered orthorhombic lattice
+  } else if (iBravais == 11) {// Body centered orthorhombic lattice
     if (celldm(1) <= 0.) {
       Error("wrong celldm(2)", iBravais);
     }
@@ -302,8 +302,8 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(1) = celldm(0) * celldm(1) * sen;
     a3(0) = a1(0);
     a3(2) = -a1(2);
-  } else if (iBravais ==
-             -13) { // One face centered monoclinic lattice unique axis b
+  } else if (iBravais == -13) {
+    // One face centered monoclinic lattice unique axis b
     if (celldm(1) <= 0.) {
       Error("wrong celldm(2)", -iBravais);
     }
@@ -320,7 +320,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     a2(1) = -a1(1);
     a3(0) = celldm(0) * celldm(2) * celldm(4);
     a3(2) = celldm(0) * celldm(2) * sen;
-  } else if (iBravais == 14) { // Triclinic lattice
+  } else if (iBravais == 14) {// Triclinic lattice
     if (celldm(1) <= 0.) {
       Error("wrong celldm(2)", iBravais);
     }
@@ -338,8 +338,7 @@ void getQELattice(const int iBravais, Eigen::VectorXd &celldm,
     }
     double sigma = sqrt(1. - celldm(5) * celldm(5));
     double term =
-        (1. + 2. * celldm(3) * celldm(4) * celldm(5) - celldm(3) * celldm(3) -
-         celldm(4) * celldm(4) - celldm(5) * celldm(5));
+        (1. + 2. * celldm(3) * celldm(4) * celldm(5) - celldm(3) * celldm(3) - celldm(4) * celldm(4) - celldm(5) * celldm(5));
     if (term < 0.) {
       Error("celldm does not make sense, check your data", iBravais);
     }
@@ -443,7 +442,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
     std::getline(infile, line);
     lineSplit = split(line, '\'');
     speciesNames.push_back(lineSplit[1]);
-    speciesMasses(i) = std::stod(lineSplit[2]); // in rydberg
+    speciesMasses(i) = std::stod(lineSplit[2]);// in rydberg
   }
 
   //  we read the atomic positions
@@ -542,7 +541,8 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
     Error("qCoarseGrid smaller than zero");
   }
   if (mpi->mpiHead()) {
-    std::cout << "Successfully parsed harmonic QE files.\n" << std::endl;
+    std::cout << "Successfully parsed harmonic QE files.\n"
+              << std::endl;
   }
 
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
@@ -571,7 +571,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (not result) {
     Error("Error parsing XML file");
   }
-  if(mpi->mpiHead())
+  if (mpi->mpiHead())
     std::cout << "Reading in " << fileName << "." << std::endl;
 
   pugi::xml_node output = doc.child("qes:espresso").child("output");
@@ -585,7 +585,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   int i = 0;
   for (pugi::xml_node species : atomicSpeciesXML.children("species")) {
     speciesNames.emplace_back(species.attribute("name").value());
-    speciesMasses(i) = species.child("mass").text().as_double(); // in amu
+    speciesMasses(i) = species.child("mass").text().as_double();// in amu
     i += 1;
   }
 
@@ -653,7 +653,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
 
   double homo =
       bandStructureXML.child("highestOccupiedLevel").text().as_double();
-  homo *= 2.; // conversion from Hartree to Rydberg
+  homo *= 2.;// conversion from Hartree to Rydberg
   int numIrreduciblePoints = bandStructureXML.child("nks").text().as_int();
 
   pugi::xml_node startingKPoints = bandStructureXML.child("starting_k_points");
@@ -765,13 +765,76 @@ QEParser::parseElHarmonicFourier(Context &context) {
   if (std::isnan(context.getFermiLevel()))
     context.setFermiLevel(homo);
 
-  if(mpi->mpiHead())
+  if (mpi->mpiHead())
     std::cout << "Done reading in " << fileName << "." << std::endl;
 
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
 
   return {crystal, electronH0};
+}
+
+std::pair<Eigen::Tensor<double, 3>,
+          Eigen::Tensor<double, 5>> parseWSVecFromWannier90(
+    const std::string &fileName, const int &numWannier,
+    const int &numVectors, const Eigen::Matrix3d &directUnitCell) {
+
+  if (fileName.empty()) {
+    Error("Must provide the Wannier90 WsVec file name");
+  }
+
+  std::string line;
+  std::vector<std::string> lineSplit;
+
+  // open input file
+  std::ifstream infile(fileName);
+
+  if (not infile.is_open()) {
+    Error("Wannier H0 file not found");
+  }
+
+  //  First line contains the title and date
+  std::getline(infile, line);
+
+  Eigen::Tensor<double, 3> degeneracyShifts(numWannier, numWannier, numVectors);
+  Eigen::Tensor<double, 5> phaseShifts(3, 8, numWannier, numWannier, numVectors);
+  // note: 8 is the largest degeneracy possible for a BV vector in a 3D space
+  // i.e. the corner of wigner-seitz cell is at most 8-fold degenerate
+  degeneracyShifts.setZero();
+  phaseShifts.setZero();
+
+  std::vector<int> oldBV(3, 0);
+  std::vector<int> thisBV(3, 0);
+  std::vector<int> shift(3, 0);
+  int iR = -1;
+  while (std::getline(infile, line)) {
+    auto lineSplit = split(line, ' ');
+    thisBV[0] = std::stoi(lineSplit[0]);
+    thisBV[1] = std::stoi(lineSplit[1]);
+    thisBV[2] = std::stoi(lineSplit[2]);
+    if (thisBV != oldBV) { iR++; oldBV = thisBV; }
+    int iw1 = std::stoi(lineSplit[3]) - 1;
+    int iw2 = std::stoi(lineSplit[4]) - 1;
+    std::getline(infile, line);
+    int thisDegeneracy = std::stoi(line);
+    degeneracyShifts(iw1, iw2, iR) = thisDegeneracy;
+    for (int iDeg = 0; iDeg < thisDegeneracy; ++iDeg) {
+      std::getline(infile, line);
+      auto lineSplit2 = split(line, ' ');
+      Eigen::Vector3d tmpVector;
+      tmpVector(0) = std::stoi(lineSplit2[0]);
+      tmpVector(1) = std::stoi(lineSplit2[1]);
+      tmpVector(2) = std::stoi(lineSplit2[2]);
+      // the phase shifts are written in crystal coordinates
+      // let's change them to cartesian coordinates
+      tmpVector = directUnitCell * tmpVector;
+      phaseShifts(0, iDeg, iw1, iw2, iR) = tmpVector(0);
+      phaseShifts(1, iDeg, iw1, iw2, iR) = tmpVector(1);
+      phaseShifts(2, iDeg, iw1, iw2, iR) = tmpVector(2);
+    }
+  }
+
+  return {degeneracyShifts, phaseShifts};
 }
 
 std::tuple<Crystal, ElectronH0Wannier>
@@ -820,10 +883,15 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   // now, we must read numVectors integers with the vector degeneracies
   // there can be only up to 15 numbers per line
   int numLines = numVectors / int(15);
-  if(numVectors % 15 != 0)
-    numLines += 1;
-  Eigen::VectorXd vectorsDegeneracies(numVectors);
-  vectorsDegeneracies.setZero();
+  if (numVectors % 15 != 0) { numLines += 1; }
+
+  // note: the file contains only phases to compute the FT of the hamiltonian
+  // with the phase factor e^{ikR}
+  // this does not have enough accuracy, and instead we will use the phase
+  // factors e^{ik(R-R1+R2)}, shifted by the Wannier function centers
+  // we parse the old phase factors anyway
+  Eigen::VectorXd simpleVectorsDegeneracies(numVectors);
+  simpleVectorsDegeneracies.setZero();
   {
     int j = 0;
     for (int i = 0; i < numLines; i++) {
@@ -831,7 +899,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
       lineSplit = split(line, ' ');
       for (const auto &x : lineSplit) {
         int deg = std::stoi(x);
-        vectorsDegeneracies(j) = double(deg);
+        simpleVectorsDegeneracies(j) = double(deg);
         j += 1;
       }
     }
@@ -866,7 +934,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
         lineSplit = split(line, ' ');
         double re = std::stod(lineSplit[2]) / energyRyToEv;
         double im = std::stod(lineSplit[3]) / energyRyToEv;
-        h0R(iR, i, j) = {re, im}; // the matrix was in eV
+        h0R(iR, i, j) = {re, im};// the matrix was in eV
       }
     }
   }
@@ -889,13 +957,13 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
         lineSplit = split(line, ' ');
         double re = std::stod(lineSplit[2]) / distanceBohrToAng;
         double im = std::stod(lineSplit[3]) / distanceBohrToAng;
-        rMatrix(0, iR, i, j) = {re, im}; // the matrix was in eV
+        rMatrix(0, iR, i, j) = {re, im};// the matrix was in eV
         re = std::stod(lineSplit[4]) / distanceBohrToAng;
         im = std::stod(lineSplit[5]) / distanceBohrToAng;
-        rMatrix(1, iR, i, j) = {re, im}; // the matrix was in eV
+        rMatrix(1, iR, i, j) = {re, im};// the matrix was in eV
         re = std::stod(lineSplit[6]) / distanceBohrToAng;
         im = std::stod(lineSplit[7]) / distanceBohrToAng;
-        rMatrix(2, iR, i, j) = {re, im}; // the matrix was in eV
+        rMatrix(2, iR, i, j) = {re, im};// the matrix was in eV
       }
     }
   }
@@ -913,7 +981,16 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   // note: for Wannier90, lattice vectors are the rows of the matrix
 
   ElectronH0Wannier electronH0(directUnitCell, bravaisVectors,
-                               vectorsDegeneracies, h0R, rMatrix);
+                               simpleVectorsDegeneracies, h0R, rMatrix);
+
+  std::string wsVecFileName = context.getWsVecFileName();
+  if (!wsVecFileName.empty()) {
+    auto tt = parseWSVecFromWannier90(wsVecFileName, numWannier,
+                                      numVectors, directUnitCell);
+    auto degeneracyShifts = std::get<0>(tt);
+    auto vectorsShifts = std::get<1>(tt);
+    electronH0.addShiftedVectors(degeneracyShifts, vectorsShifts);
+  }
 
   if (inCrystal != nullptr) {
     return {*inCrystal, electronH0};
