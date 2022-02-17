@@ -114,57 +114,22 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
   } else {
 
     for (int iR = 0; iR < numVectors; iR++) {
-      for (int iw1 = 0; iw1 < numWannier; iw1++) {
-        for (int iw2 = 0; iw2 < numWannier; iw2++) {
+      double phaseArg;
+      std::complex<double> phase;
+      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+        for (int iw1 = 0; iw1 < numWannier; iw1++) {
           for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
-            Eigen::Vector3d r = bravaisVectors.col(iR);
+            phaseArg = 0.;
             for (int i : {0, 1, 2}) {
-              r(i) += vectorsShifts(i, iDeg, iw1, iw2, iR);
+              phaseArg += k(i) * vectorsShifts(i, iDeg, iw1, iw2, iR);
             }
-            double phaseArg = k.dot(r);
-            std::complex<double> phase = {cos(phaseArg), sin(phaseArg)};
-            phase /= vectorsDegeneracies(iR)
-                * degeneracyShifts(iw1, iw2, iR);
+            phase = {cos(phaseArg), sin(phaseArg)};
+            phase /= vectorsDegeneracies(iR) * degeneracyShifts(iw1, iw2, iR);
             h0K(iw1, iw2) += phase * h0R(iR, iw1, iw2);
           }
         }
       }
     }
-
-    //    Eigen::Tensor<std::complex<double>,3> phases(numWannier,numWannier,numVectors);
-//    double norm = 0.;
-//    for (int iR = 0; iR < numVectors; iR++) {
-//      Eigen::Vector3d r;
-//      std::complex<double> phase, tmpPhase;
-//      double phaseArg;
-//      for (int iw1 = 0; iw1 < numWannier; iw1++) {
-//        for (int iw2 = 0; iw2 < numWannier; iw2++) {
-//          phase = {0., 0.};
-//          for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
-//            for (int i : {0, 1, 2}) {
-//              r(i) = vectorsShifts(i, iDeg, iw1, iw2, iR);
-//            }
-//            phaseArg = k.dot(r);
-//            tmpPhase = {cos(phaseArg), sin(phaseArg)};
-//            phase += tmpPhase;
-//
-//            norm += 1.    / vectorsDegeneracies(iR)
-//                / degeneracyShifts(iw1, iw2, iR);
-//          }
-//          phases(iw1, iw2, iR) = phase
-//              / vectorsDegeneracies(iR)
-//              / degeneracyShifts(iw1, iw2, iR);
-//        }
-//      }
-//    }
-//    std::cout << norm << "?\n";
-//    for (int iw1 = 0; iw1 < numWannier; iw1++) {
-//      for (int iw2 = 0; iw2 < numWannier; iw2++) {
-//        for (int iR = 0; iR < numVectors; iR++) {
-//          h0K(iw1, iw2) += phases(iw1, iw2, iR) * h0R(iR, iw1, iw2);
-//        }
-//      }
-//    }
   }
 
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(h0K);
@@ -395,4 +360,19 @@ void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShif
   hasShiftedVectors = true;
   vectorsShifts = vectorsShifts_;
   degeneracyShifts = degeneracyShifts_;
+
+  // note: for better performance, I shift all vectors by R,
+  // so that in the Fourier transform we only work with one Eigen object
+  for (int iR = 0; iR < numVectors; iR++) {
+    for (int iw1 = 0; iw1 < numWannier; iw1++) {
+      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+        for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
+          Eigen::Vector3d r = bravaisVectors.col(iR);
+          for (int i : {0, 1, 2}) {
+            vectorsShifts(i, iDeg, iw1, iw2, iR) += r(i);
+          }
+        }
+      }
+    }
+  }
 }
