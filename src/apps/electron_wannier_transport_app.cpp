@@ -16,8 +16,6 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
 
   int numCalculations = statisticsSweep.getNumCalculations();
   auto linewidths = scatteringMatrix.getLinewidths();
-  //VectorBTE avgLinewidths(statisticsSweep, bandStructure);
-  //avgLinewidths.excludeIndices = linewidths.excludeIndices;
 
   // get points on the irr mesh reduced for mag field symmetries
   auto bfieldPoints = bandStructure.getPoints();
@@ -218,7 +216,7 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
       }
     }
   }
-  scatteringMatrix.setLinewidths(linewidths);
+  //scatteringMatrix.setLinewidths(linewidths);
 }
 
 void ElectronWannierTransportApp::run(Context &context) {
@@ -227,7 +225,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 
-  // if there's a magnetic field, reduce symmetry
+  // if there's a magnetic field, reduce symmetry.
+  // we intentionally do this after the electronic structure
   auto bfield = context.getBField();
   if(bfield.norm() != 0) {
     crystal.magneticSymmetries(context);
@@ -286,7 +285,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // with .diagonal() or getLinewidths() to get a vector BTE object,
   // but if we want to put them back in the matrix after symmetrizing we will need to
   // add some kind of set function
-  symmetrizeStuff(context, bandStructure, scatteringMatrix, statisticsSweep);
+  //symmetrizeStuff(context, bandStructure, scatteringMatrix, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
