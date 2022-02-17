@@ -117,9 +117,9 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
       for (int iw1 = 0; iw1 < numWannier; iw1++) {
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
-            Eigen::Vector3d r;
+            Eigen::Vector3d r = bravaisVectors.col(iR);
             for (int i : {0, 1, 2}) {
-              r(i) = vectorsShifts(i, iDeg, iw1, iw2, iR);
+              r(i) += vectorsShifts(i, iDeg, iw1, iw2, iR);
             }
             double phaseArg = k.dot(r);
             std::complex<double> phase = {cos(phaseArg), sin(phaseArg)};
