@@ -790,11 +790,18 @@ std::pair<Eigen::Tensor<double, 3>,
   std::ifstream infile(fileName);
 
   if (not infile.is_open()) {
-    Error("Wannier H0 file not found");
+    Error("Wannier WsVec file not found");
   }
 
-  //  First line contains the title and date
+  //  First line contains the title and date, and the information whether
+  // or not the Bravais vectors shifts are present
   std::getline(infile, line);
+  {
+    std::string s2 = ".true.";
+    if (line.find(s2) == std::string::npos) { // string not found
+     Error("Wannier90 didn't run with phase shifts. Remove wsVecFileName from input");
+    }
+  }
 
   Eigen::Tensor<double, 3> degeneracyShifts(numWannier, numWannier, numVectors);
   Eigen::Tensor<double, 5> phaseShifts(3, 8, numWannier, numWannier, numVectors);
