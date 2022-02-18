@@ -30,7 +30,12 @@ This sum is typically performed over irreducible lattice vectors:
 
 where :math:`d_{\boldsymbol{R}_{irr}}` is the degree of degeneracy of the irreducible bravais lattice vector :math:`\boldsymbol{R}_{irr}`.
 
-This matrix is not diagonal, as we are working, typically, in the maximally-localized Wannier function gauge.
+The list of :math:`\boldsymbol{R}_{irr}` vectors is built, by default, from all the Bravais lattice vectors lying inside a supercell of the crystal primitive cell; the size of such supercell is equivalent to the size of the grid of :math:`k` wavevectors.
+The degeneracy :math:`d_{\boldsymbol{R}_{irr}}` keeps track of the number of equivalent lattice vectors: due to use of periodic boundary conditions, lattice vectors at the faces/sides/corners of the supercell can be up to 8-fold degenerate.
+Especially relevant when the grid of wavevectors is small, the accuracy of the Fourier transform can be improved by applying shifts to these lattice vectors.
+To this aim, the lattice vectors :math:`\boldsymbol{R}_{irr}` can be shifted, such that :math:`\boldsymbol{R}_{irr}` lies in the supercell centered at the midway point between the Wannier functions :math:`n` and :math:`m`.
+
+The Hamiltonian matrix :math:`H_{\boldsymbol{k},nm}^W` is not diagonal, as we are working in the maximally-localized Wannier function gauge.
 We thus diagonalize the matrix to pass to the Bloch representation:
 
 .. math::

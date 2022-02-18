@@ -36,7 +36,7 @@ ElectronH0Wannier::ElectronH0Wannier(
     Error("WannierH0(): rMatrix should be a vector");
   }
 
-  numBands = int(h0R.dimension(1));
+  numWannier = int(h0R.dimension(1));
   numVectors = int(vectorsDegeneracies.size());
 }
 
@@ -46,34 +46,36 @@ ElectronH0Wannier::ElectronH0Wannier(const ElectronH0Wannier &that)
   h0R = that.h0R;
   rMatrix = that.rMatrix;
   directUnitCell = that.directUnitCell;
-  numBands = that.numBands;
+  numWannier = that.numWannier;
   bravaisVectors = that.bravaisVectors;
   numVectors = that.numVectors;
   vectorsDegeneracies = that.vectorsDegeneracies;
+  hasShiftedVectors = that.hasShiftedVectors;
+  vectorsShifts = that.vectorsShifts;
+  degeneracyShifts = that.degeneracyShifts;
 }
 
 // copy assignment
 ElectronH0Wannier &ElectronH0Wannier::operator=(const ElectronH0Wannier &that) {
   if (this != &that) {
-    bravaisVectors.resize(0, 0);
-    vectorsDegeneracies.resize(0);
-    h0R.resize(0, 0, 0);
-    rMatrix.resize(0, 0, 0, 0);
     particle = that.particle;
     numVectors = that.numVectors;
-    numBands = that.numBands;
+    numWannier = that.numWannier;
     bravaisVectors = that.bravaisVectors;
     vectorsDegeneracies = that.vectorsDegeneracies;
     directUnitCell = that.directUnitCell;
     h0R = that.h0R;
     rMatrix = that.rMatrix;
+    hasShiftedVectors = that.hasShiftedVectors;
+    vectorsShifts = that.vectorsShifts;
+    degeneracyShifts = that.degeneracyShifts;
   }
   return *this;
 }
 
 Particle ElectronH0Wannier::getParticle() { return particle; }
 
-int ElectronH0Wannier::getNumBands() { return numBands; }
+int ElectronH0Wannier::getNumBands() { return numWannier; }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 ElectronH0Wannier::diagonalize(Point &point) {
@@ -92,18 +94,40 @@ ElectronH0Wannier::diagonalize(Point &point) {
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
 
-  std::vector<std::complex<double>> phases(bravaisVectors.cols());
-  for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
-    double phase = k.dot(bravaisVectors.col(iR));
-    std::complex<double> phaseFactor = {cos(phase), sin(phase)};
-    phases[iR] = phaseFactor / vectorsDegeneracies(iR);
-  }
+  Eigen::MatrixXcd h0K = Eigen::MatrixXcd::Zero(numWannier, numWannier);
 
-  Eigen::MatrixXcd h0K = Eigen::MatrixXcd::Zero(numBands, numBands);
-  for (int n = 0; n < numBands; n++) {
-    for (int m = 0; m < numBands; m++) {
-      for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
-        h0K(m, n) += phases[iR] * h0R(iR, m, n);
+  if (!hasShiftedVectors) {
+    std::vector<std::complex<double>> phases(numVectors);
+    for (int iR = 0; iR < numVectors; iR++) {
+      double phase = k.dot(bravaisVectors.col(iR));
+      std::complex<double> phaseFactor = {cos(phase), sin(phase)};
+      phases[iR] = phaseFactor / vectorsDegeneracies(iR);
+    }
+    for (int n = 0; n < numWannier; n++) {
+      for (int m = 0; m < numWannier; m++) {
+        for (int iR = 0; iR < numVectors; iR++) {
+          h0K(m, n) += phases[iR] * h0R(iR, m, n);
+        }
+      }
+    }
+
+  } else {
+
+    for (int iR = 0; iR < numVectors; iR++) {
+      double phaseArg;
+      std::complex<double> phase;
+      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+        for (int iw1 = 0; iw1 < numWannier; iw1++) {
+          for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
+            phaseArg = 0.;
+            for (int i : {0, 1, 2}) {
+              phaseArg += k(i) * vectorsShifts(i, iDeg, iw1, iw2, iR);
+            }
+            phase = {cos(phaseArg), sin(phaseArg)};
+            phase /= vectorsDegeneracies(iR) * degeneracyShifts(iw1, iw2, iR);
+            h0K(iw1, iw2) += phase * h0R(iR, iw1, iw2);
+          }
+        }
       }
     }
   }
@@ -127,7 +151,7 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
   double delta = 1.0e-8;
   double threshold = 0.000001 / energyRyToEv; // = 1 micro-eV
 
-  Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
+  Eigen::Tensor<std::complex<double>, 3> velocity(numWannier, numWannier, 3);
   velocity.setZero();
 
   // if we are working at gamma, we set all velocities to zero.
@@ -159,8 +183,8 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
     auto eigMinus = std::get<1>(tup1);
 
     // build diagonal matrices with frequencies
-    Eigen::MatrixXd enPlusMat(numBands, numBands);
-    Eigen::MatrixXd enMinusMat(numBands, numBands);
+    Eigen::MatrixXd enPlusMat(numWannier, numWannier);
+    Eigen::MatrixXd enMinusMat(numWannier, numWannier);
     enPlusMat.setZero();
     enMinusMat.setZero();
     enPlusMat.diagonal() << enPlus;
@@ -168,13 +192,13 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
 
     // build the dynamical matrix at the two wavevectors
     // since we diagonalized it before, A = M.U.M*
-    Eigen::MatrixXcd sqrtDPlus(numBands, numBands);
+    Eigen::MatrixXcd sqrtDPlus(numWannier, numWannier);
     sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
-    Eigen::MatrixXcd sqrtDMinus(numBands, numBands);
+    Eigen::MatrixXcd sqrtDMinus(numWannier, numWannier);
     sqrtDMinus = eigMinus * enMinusMat * eigMinus.adjoint();
 
     // now we can build the velocity operator
-    Eigen::MatrixXcd der(numBands, numBands);
+    Eigen::MatrixXcd der(numWannier, numWannier);
     der = (sqrtDPlus - sqrtDMinus) / (2. * delta);
 
     // and to be safe, we reimpose hermiticity
@@ -183,8 +207,8 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
     // now we rotate in the basis of the eigenvectors at q.
     der = eigenvectors.adjoint() * der * eigenvectors;
 
-    for (int ib1 = 0; ib1 < numBands; ib1++) {
-      for (int ib2 = 0; ib2 < numBands; ib2++) {
+    for (int ib1 = 0; ib1 < numWannier; ib1++) {
+      for (int ib2 = 0; ib2 < numWannier; ib2++) {
         velocity(ib1, ib2, i) = der(ib1, ib2);
       }
     }
@@ -193,12 +217,12 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
   // turns out that the above algorithm has problems with degenerate bands
   // so, we diagonalize the velocity operator in the degenerate subspace,
 
-  for (int ib = 0; ib < numBands; ib++) {
+  for (int ib = 0; ib < numWannier; ib++) {
 
     // first, we check if the band is degenerate, and the size of the
     // degenerate subspace
     int sizeSubspace = 1;
-    for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
+    for (int ib2 = ib + 1; ib2 < numWannier; ib2++) {
       // I consider bands degenerate if their frequencies are the same
       // within 0.0001 cm^-1
       if (abs(energies(ib) - energies(ib2)) > threshold) {
@@ -253,7 +277,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
                                               bool &withEigenvectors,
                                               bool isDistributed) {
 
-  FullBandStructure fullBandStructure(numBands, particle, withVelocities,
+  FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
@@ -302,18 +326,53 @@ ElectronH0Wannier::getBerryConnection(Point &point) {
 
   for (int i : {0, 1, 2}) {
     // now construct the berryConnection in reciprocal space and Wannier gauge
-    Eigen::MatrixXcd berryConnectionW = Eigen::MatrixXcd::Zero(numBands, numBands);
-    for (int n = 0; n < numBands; n++) {
-      for (int m = 0; m < numBands; m++) {
+    Eigen::MatrixXcd berryConnectionW = Eigen::MatrixXcd::Zero(numWannier, numWannier);
+    for (int n = 0; n < numWannier; n++) {
+      for (int m = 0; m < numWannier; m++) {
           for (int iR = 0; iR < bravaisVectors.cols(); iR++) {
           berryConnectionW(m, n) +=
               phases[iR] * rMatrix(iR, m, n, i);
         }
       }
     }
-    Eigen::MatrixXcd thisBerryConnection(numBands, numBands);
+    Eigen::MatrixXcd thisBerryConnection(numWannier, numWannier);
     thisBerryConnection = eigenvectors.adjoint() * berryConnectionW * eigenvectors;
     berryConnection.push_back(thisBerryConnection);
   }
   return berryConnection;
+}
+
+void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
+                       Eigen::Tensor<double,5> vectorsShifts_) {
+  // some validation
+  if (degeneracyShifts_.dimension(0) != numWannier ||
+      degeneracyShifts_.dimension(1) != numWannier ||
+      degeneracyShifts_.dimension(2) != numVectors ) {
+    Error("Inconsistent dimensions on degeneracyShifts");
+  }
+  if (vectorsShifts_.dimension(0) != 3 ||
+      vectorsShifts_.dimension(1) != 8 ||
+      vectorsShifts_.dimension(2) != numWannier ||
+      vectorsShifts_.dimension(3) != numWannier ||
+      vectorsShifts_.dimension(4) != numVectors) {
+    Error("Inconsistent dimensions on vectorsShifts");
+  }
+  hasShiftedVectors = true;
+  vectorsShifts = vectorsShifts_;
+  degeneracyShifts = degeneracyShifts_;
+
+  // note: for better performance, I shift all vectors by R,
+  // so that in the Fourier transform we only work with one Eigen object
+  for (int iR = 0; iR < numVectors; iR++) {
+    for (int iw1 = 0; iw1 < numWannier; iw1++) {
+      for (int iw2 = 0; iw2 < numWannier; iw2++) {
+        for (int iDeg = 0; iDeg < degeneracyShifts(iw1, iw2, iR); ++iDeg) {
+          Eigen::Vector3d r = bravaisVectors.col(iR);
+          for (int i : {0, 1, 2}) {
+            vectorsShifts(i, iDeg, iw1, iw2, iR) += r(i);
+          }
+        }
+      }
+    }
+  }
 }

@@ -116,6 +116,7 @@ class Context {
   bool symmetrizeMatrix = true;
 
   int hdf5ElphFileFormat = 1;
+  std::string wsVecFileName;
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
@@ -338,6 +339,9 @@ public:
 
   int getHdf5ElPhFileFormat() const;
   void setHdf5ElPhFileFormat(const int &x);
+
+  std::string getWsVecFileName() const;
+  void setWsVecFileName(const std::string& x);
 };
 
 #endif
