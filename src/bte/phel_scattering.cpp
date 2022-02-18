@@ -243,11 +243,13 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         auto nb2 = int(state2Energies.size());
 
         Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
+
+#pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
-          double en2 = state2Energies(ib2);
           for (int ib1 = 0; ib1 < nb1; ib1++) {
-            double en1 = state1Energies(ib1);
             for (int ib3 = 0; ib3 < nb3; ib3++) {
+              double en2 = state2Energies(ib2);
+              double en1 = state1Energies(ib1);
               double en3 = state3Energies(ib3);
               // remove small divergent phonon energies
               if (en3 < phononCutoff) {
@@ -267,13 +269,13 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
           }
         }
 
+#pragma omp parallel for collapse(2)
         for (int ib3 = 0; ib3 < nb3; ib3++) {
-          double en3 = state3Energies(ib3);
-          int is3 = getPhBandStructure().getIndex(iq3Idx, BandIndex(ib3));
-          for (int ib1 = 0; ib1 < nb1; ib1++) {
-            for (int ib2 = 0; ib2 < nb2; ib2++) {
+          for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+            int is3 = getPhBandStructure().getIndex(iq3Idx, BandIndex(ib3));
+            for (int ib1 = 0; ib1 < nb1; ib1++) {
+              for (int ib2 = 0; ib2 < nb2; ib2++) {
               // loop on temperature
-              for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
                 // https://arxiv.org/pdf/1409.1268.pdf
                 // double rate =
                 //    coupling(ib1, ib2, ib3)
