@@ -54,6 +54,7 @@ protected:
   BaseBandStructure& getPhBandStructure() { return outerBandStructure; };
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
+  std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
 };
 
 #endif

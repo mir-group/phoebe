@@ -24,7 +24,7 @@ void PhElLifetimesApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::cout << "\nComputing electronic band structure." << std::endl;
   }
-  Points fullPoints(crystal, context.getKMesh());
+  Points fullPoints(crystal, context.getQMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto elBandStructure = std::get<0>(t3);
   auto statisticsSweep = std::get<1>(t3);
