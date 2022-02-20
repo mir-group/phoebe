@@ -465,8 +465,8 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
     Window window(context, particle, temperatureMin, temperatureMax);
 
-    activeBandStructure.buildOnTheFly(window, points_, h0, withEigenvectors,
-                                      withVelocities);
+    activeBandStructure.buildOnTheFly(window, points_, h0, context,
+                                        withEigenvectors, withVelocities);
 
     StatisticsSweep statisticsSweep(context);
     return {activeBandStructure, statisticsSweep};
@@ -475,6 +475,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
 void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
                                         HarmonicHamiltonian &h0,
+                                        Context& context,
                                         const bool &withEigenvectors,
                                         const bool &withVelocities) {
   // this function proceeds in three logical blocks:
@@ -559,6 +560,17 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
 
   //////////////// Done MPI recollection
 
+  // initialize the raw data buffers of the activeBandStructure
+  points = points_;
+  points.setActiveLayer(filter);
+
+  /* ------- enforce that all sym eq points have same number of bands --
+  * we do this here because at this point, we have set up the filter
+  * but not applied it yet. This makes it easy to edit the filter without
+  * causing problems removing bands later */
+  enforceBandNumSymmetry(numFullBands, myFilteredPoints, filteredBands,
+        displacements, h0, withVelocities);
+
   // numBands is a book-keeping of how many bands per point there are
   // this isn't a constant number.
   // Also, we look for the size of the arrays containing band structure.
@@ -574,10 +586,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   }
   numStates = numEnStates;
 
-  // initialize the raw data buffers of the activeBandStructure
-  points = points_;
-  points.setActiveLayer(filter);
-
   // construct the mapping from combined indices to Bloch indices
   buildIndices();
 
@@ -592,13 +600,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
 
   windowMethod = window.getMethodUsed();
 
-/////////////////
+  /////////////////
 
   std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
   size_t niks = iks.size();
 
-// now we can loop over the trimmed list of points
-#pragma omp parallel for default(none)                                         \
+  // now we can loop over the trimmed list of points
+  #pragma omp parallel for default(none)                                         \
     shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities, iks, niks)
   for (size_t iik = 0; iik < niks; iik++) {
     size_t ik = iks[iik];
@@ -663,6 +671,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
 
+  symmetrize(context);
   buildSymmetries();
 }
 
@@ -731,8 +740,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   for (int ik : parallelIter) {
 
     auto ikIdx = WavevectorIndex(ik);
-    //    Eigen::VectorXd theseEnergies =
-    //    fullBandStructure.getEnergies(ikIndex);
 
     // Note: to respect symmetries, we want to make sure that the bands
     // filtered at point k are the same as the equivalent point.
@@ -815,88 +822,12 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // ---------- initialize internal data buffers --------------- //
   points.setActiveLayer(filter);
 
-  // set up the points class symmetries
-  if (withVelocities) {
-
-    Eigen::Tensor<double, 3> allVelocities(numPoints, numFullBands, 3);
-
-    // loop over the points available to this process
-    //#pragma omp parallel for default(none)                                         \
-    //  shared(myFilteredPoints, h0, displacements, mpi, filteredBands)
-    for (int i = 0; i < int(myFilteredPoints.size()); i++) {
-
-      // index corresponding to wavevector in points
-      // as well as any array of length numActivePoints,
-      // like numBands, filteredBands, ika = ikActive
-      int ika = i + int(displacements[mpi->getRank()]);
-      Point point = points.getPoint(ika);
-
-      // thisVelocity is a tensor of dimensions (ib, ib, 3)
-      auto thisVelocity = h0.diagonalizeVelocity(point);
-
-      // get group velocities is returning something nb, 3
-      // need to reformat this Velocity into that format
-      for(int ib = 0; ib < numFullBands; ib++) {
-        for (int ic = 0; ic < 3; ic++) {
-          allVelocities(ika,ib,ic) = thisVelocity(ib,ib,ic).real(); //TODO is this ok
-        }
-      }
-    }
-    mpi->allReduceSum(&allVelocities);
-    // unfortuantely it seems that we cannot all reduce
-    // a vector of eigen matrices, so we now must reformat after reducing
-    std::vector<Eigen::MatrixXd> allVels;
-    for (int ik = 0; ik < numPoints; ik++) {
-      Eigen::MatrixXd tempVels(numFullBands,3);
-      for(int ib = 0; ib < numFullBands; ib++) {
-        for (int ic = 0; ic < 3; ic++) {
-          tempVels(ib,ic) = allVelocities(ik,ib,ic);
-        }
-      }
-      allVels.push_back(tempVels);
-    }
-    points.setIrreduciblePoints(&allVels);
-  }
-  else {
-    points.setIrreduciblePoints();
-  }
-
-  //if(mpi->mpiHead()) std::cout << "post irr points setup" << std::endl;
-  // for each irr point, symmetrize all reducible points
-  for(int ikIrr : points.irrPointsIterator()) {
-
-     auto reducibleList = points.getReducibleStarFromIrreducible(ikIrr);
-     //if(mpi->mpiHead()) std::cout << "ikIrr " << ikIrr << std::endl;
-     std::vector<int> minBandList; //(reducibleList.size());
-     std::vector<int> maxBandList; //(reducibleList.size());
-
-     //if(int(reducibleList.size()) == 0) continue;
-     for(int ikRed : reducibleList) {
-       // need to make sure each point has the same number of bands
-       // we need to check that the start and stop bands are the same
-       // selected set, and then choose intersection of the bands lists
-       minBandList.push_back(filteredBands(ikRed, 0));
-       maxBandList.push_back(filteredBands(ikRed, 1));
-       //if(mpi->mpiHead()) std::cout << "ikRed " << ikRed << " band min max " << filteredBands(ikRed, 0) << " " <<  filteredBands(ikRed, 1) << std::endl;;
-     }
-     //if(mpi->mpiHead()) std::cout << " end of BandList " << std::endl;
-
-     // set all points to use only the highest min band to lowest max band
-     int newMinBand = *max_element(std::begin(minBandList), std::end(minBandList));
-     int newMaxBand = *min_element(std::begin(maxBandList), std::end(maxBandList));
-     //int numBands = newMaxBand - newMinBand;
-
-     //if(mpi->mpiHead()) {
-     //   for(auto p : maxBandList) std::cout << "max band els " << p << std::endl;
-     //   std::cout << "selected min max " << newMinBand << " " << newMaxBand << std::endl;
-     //   }
-
-     for(int ikRed : reducibleList) {
-       // set minimum end of band range
-       filteredBands(ikRed, 0) = newMinBand;
-       filteredBands(ikRed, 1) = newMaxBand;
-     }
-  }
+  /* ------- enforce that all sym eq points have same number of bands --
+  * we do this here because at this point, we have set up the filter
+  * but not applied it yet. This makes it easy to edit the filter without
+  * causing problems removing bands later */
+  enforceBandNumSymmetry(numFullBands, myFilteredPoints, filteredBands,
+        displacements, h0, withVelocities);
 
   // ---------- count numBands and numStates  --------------- //
   // numBands is a book-keeping of how many bands per point there are
@@ -1113,4 +1044,87 @@ int ActiveBandStructure::getPointIndex(
 std::vector<int>
 ActiveBandStructure::getReducibleStarFromIrreducible(const int &ik) {
   return points.getReducibleStarFromIrreducible(ik);
+}
+
+void ActiveBandStructure::enforceBandNumSymmetry(
+        int& numFullBands, std::vector<int>& myFilteredPoints,
+        Eigen::MatrixXi& filteredBands, std::vector<int>& displacements,
+        HarmonicHamiltonian& h0, const bool &withVelocities) {
+
+  // edit the filteredBands list used in constructors so that each sym eq point
+  // has the same number of bands
+  //
+  // TODO should this also operate on full crystal symmetries?
+
+  int numPoints = points.getNumPoints();
+
+  // first,  collect velocities to set up the points class symmetries
+  if (withVelocities) {
+
+    Eigen::Tensor<double, 3> allVelocities(numPoints, numFullBands, 3);
+    allVelocities.setZero();
+
+    // loop over the points available to this process
+    for (int i = 0; i < int(myFilteredPoints.size()); i++) {
+
+      // generate ika, index corresponding to wavevector in points
+      // as well as any array of length numActivePoints,
+      // like numBands, filteredBands, ika = ikActive
+      int ika = i + int(displacements[mpi->getRank()]);
+      Point point = points.getPoint(ika);
+
+      // thisVelocity is a tensor of dimensions (ib, ib, 3)
+      auto thisVelocity = h0.diagonalizeVelocity(point);
+
+      // need to reformat thisVelocity into t
+      for(int ib = 0; ib < numFullBands; ib++) {
+        for (int ic = 0; ic < 3; ic++) {
+          allVelocities(ika,ib,ic) = thisVelocity(ib,ib,ic).real();
+        }
+      }
+    }
+    mpi->allReduceSum(&allVelocities);
+
+    // unfortuantely it seems that we cannot all reduce
+    // a std::vector of eigen matrices, so we now must reformat after reducing
+    std::vector<Eigen::MatrixXd> allVels;
+    for (int ik = 0; ik < numPoints; ik++) {
+      Eigen::MatrixXd tempVels = Eigen::MatrixXd::Zero(numFullBands,3);
+      for(int ib = 0; ib < numFullBands; ib++) {
+        for (int ic = 0; ic < 3; ic++) {
+          tempVels(ib,ic) = allVelocities(ik,ib,ic);
+        }
+      }
+      allVels.push_back(tempVels);
+    }
+    points.setIrreduciblePoints(&allVels);
+  }
+  else {
+    points.setIrreduciblePoints();
+  }
+
+  // for each irr point, enforce matching band limitations
+  for(int ikIrr : points.irrPointsIterator()) {
+
+     auto reducibleList = points.getReducibleStarFromIrreducible(ikIrr);
+     std::vector<int> minBandList;
+     std::vector<int> maxBandList;
+
+     for(int ikRed : reducibleList) {
+       // need to make sure each point has the same number of bands
+       // we need to check that the start and stop bands are the same
+       // selected set, and then choose intersection of the bands lists
+       minBandList.push_back(filteredBands(ikRed, 0));
+       maxBandList.push_back(filteredBands(ikRed, 1));
+     }
+
+     // set all points to use only the highest min band to lowest max band
+     int newMinBand = *max_element(std::begin(minBandList), std::end(minBandList));
+     int newMaxBand = *min_element(std::begin(maxBandList), std::end(maxBandList));
+
+     for(int ikRed : reducibleList) {  // set new band range values
+       filteredBands(ikRed, 0) = newMinBand;
+       filteredBands(ikRed, 1) = newMaxBand;
+     }
+  }
 }

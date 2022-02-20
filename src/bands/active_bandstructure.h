@@ -429,6 +429,7 @@ public:
   std::tuple<int, int> bteComb2Bloch(const int &is);
 
   void buildOnTheFly(Window &window, Points points_, HarmonicHamiltonian &h0,
+                     Context& context,
                      const bool &withEigenvectors = true,
                      const bool &withVelocities = true);
 
@@ -436,6 +437,13 @@ public:
                                         HarmonicHamiltonian &h0,
                                         const bool &withEigenvector = true,
                                         const bool &withVelocities = true);
+
+  /* helper function to enforce that sym eq points have the same number of bands
+  *  during the construction of active band structure */
+  void enforceBandNumSymmetry(int& numFullBands, std::vector<int>& myFilteredPoints,
+        Eigen::MatrixXi& filteredBands, std::vector<int>& displacements,
+        HarmonicHamiltonian& h0, const bool &withVelocities);
+
 };
 
 #endif
