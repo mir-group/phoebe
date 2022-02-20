@@ -980,6 +980,10 @@ std::vector<Eigen::Matrix3d> Points::getRotationsStar(const int &ik) {
 }
 
 std::vector<int> Points::getReducibleStarFromIrreducible(const int &ik) {
+  if(numIrrPoints==0) {
+    Error("Developer error: tried to getReducibleStar before "
+         "irreducible points are set.");
+  }
   int ikIrr = mapReducibleToIrreducibleList(ik);
   return irreducibleStars[ikIrr];
 }
@@ -997,6 +1001,10 @@ void Points::swapCrystal(Crystal &newCrystal) {
 }
 
 Eigen::Matrix3d Points::getRotationFromReducibleIndex(int ikFull) {
+  if(numIrrPoints==0) {
+    Error("Developer error: tried to getRotationFromReducibleIndex before "
+         "irreducible points are set.");
+  }
   Eigen::Matrix3d rot;
   rot = rotationMatricesCartesian[mapEquivalenceRotationIndex(ikFull)];
   return rot;
