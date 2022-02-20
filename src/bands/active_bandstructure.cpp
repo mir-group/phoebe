@@ -378,86 +378,62 @@ void ActiveBandStructure::buildSymmetries() {
     ikOld = ik;
   }
 }
-/*
-void ActiveBandStructure::symmetrize(Eigen::MatrixXi& filteredBands) {
+
+void ActiveBandStructure::symmetrize(Context &context) {
 
   // symmetrize band velocities, energies, and eigenvectors
 
-  // TODO make a copy of the points class which uses
+  // make a copy of the points class which uses
   // the full crystal symmetries
-  Points tempPoints = points;
-  //tempPoints.setIrreduciblePoints(); // irr points should be already set
+  Crystal bfieldCrystal = points.getCrystal();
+  auto directCell = bfieldCrystal.getDirectUnitCell();
+  auto atomicPositions = bfieldCrystal.getAtomicPositions();
+  auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
+  auto speciesNames = bfieldCrystal.getSpeciesNames();
+  auto speciesMasses = bfieldCrystal.getSpeciesMasses();
+  Crystal noFieldCrystal(context, directCell, atomicPositions,
+        atomicSpecies, speciesNames, speciesMasses);
+  Points noFieldPoints = points;
+  noFieldPoints.swapCrystal(noFieldCrystal);
+  // TODO also going to need to give this the band vels...
+  noFieldPoints.setIrreduciblePoints();
 
   // for each irr point, symmetrize all reducible points
-  int numIrr = tempPoints.irrPointsIterator().size();
-  for(int ikIrr : tempPoints.irrPointsIterator()) {
+  for(int ikIrr : noFieldPoints.irrPointsIterator()) {
 
-     std::vector<int> minBandList(reducibleList.size());
-     std::vector<int> maxBandList(reducibleList.size());
-     for(int ikRed : reducibleList) {
-       // need to make sure each point has the same number of bands
-       // we need to check that the start and stop bands are the same
-       // selected set, and then choose intersection of the bands lists
-       minBandList.push_back(filteredBands(ikRed, 0));
-       maxBandList.push_back(filteredBands(ikRed, 1));
-     }
-     //check if all min and max bands are the same, if not, match them
-     //if (!std::adjacent_find(minBandsList.begin(), minBandsList.end(),
-     //                   std::not_equal_to<>()) == minBandsList.end()) {
+    auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
+    std::vector<double> avgEnergies; // holds all band E for this point
 
-     // set all points to use only the highest min band to lowest max band
-     int newMinBand = max_element(std::begin(minBandList), std::end(minBandList));
-     int newMaxBand = min_element(std::begin(maxBandList), std::end(maxBandList));
-     int numBands = newMaxBand - newMinBand;
+    for (int ib = 0; ib < numBands(ikIrr); ib++) {
 
-     // enforce symmetrized band boundaries on energies, eigenvecs, and velocities
-     for(int ikRed : reducibleList) {
+      double avgEnergy = 0;
 
-       // set minimum end of band range
-       // TODO if we knew the elements were in a block, we could do it all at once
-       int nBandsToRemove = newMinBand - filteredBands(ikRed, 0);
-       for( int ibr = filteredBands(ikRed, 0); ibr < newMinBand; ibr++) {
-         // remove energies
-         enIdx = bloch2Comb(ikRed, ibr);
-         energies.erase(energies.begin() + enIdx);
-         // remove velocities
-
-
-
-         // remove energies
-         //energies.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
-         //matrix.conservativeResize(numRows,numCols);
-       }
-     }
-
-
-     Eigen::VectorXd avgEnergies; // need to figure out the length of this
-     auto reducibleList = tempPoints.getReducibleStarFromIrreducible(ikIrr);
-
-     // calculate the symmetrized avg energy
-     //#pragma omp parallel for reduction(+:avgEnergy)
-     for(int ikRed : reducibleList) {
-       avgEnergy += getEnergy(ikRed);
-     }
-     avgEnergy /= double(reducibleList.size());
-
-     // save the energies back into these reducible points
-     for(int ikRed : reducibleList) {
-
-      // check that relative error on the points is small
-      double error = abs((energies(ib,ikRed) - avgEnergy)/energies(ib,ikRed));
-      if(mpi->getRank() == 2 && ikIrr == 22167) std::cout << "calced errors " << energies(ib,ikRed) << " " << avgEnergy << std::endl;
-      if( error > 10000.) {
-        std::cout << "help" << std::endl;
-        Error ("Two points symmetrically equivalent points with very different energies found during"
-             "\nsymmetrization of the band structure. Check the quality of your DFT results.");
+      // calculate the symmetrized avg energy
+      //#pragma omp parallel for reduction(+:avgEnergy)
+      for(int ikRed : reducibleList) {
+        avgEnergy += energies[bloch2Comb(ikRed, ib)];
       }
-      //if(mpi->getRank() == 2 && ikIrr == 22167) std::cout << "passed errors " << ikIrr << " " << avgEnergy << std::endl;
-      energies(ib,ikRed) = avgEnergy;
+      avgEnergy /= double(reducibleList.size());
+      avgEnergies.push_back(avgEnergy);
+    }
+
+    // TODO now also the energies and eigenvectors...
+
+    // save the energies back into these reducible points
+    for(int ikRed : reducibleList) {
+
+      Point point = noFieldPoints.getPoint(ikRed);
+      // TODO check that relative error on the points is small
+      //double error = abs((energies(ib,ikRed) - avgEnergy)/energies(ib,ikRed));
+      //if( error > 10000.) {
+      //  Error ("Two points symmetrically equivalent points with very different energies found during"
+      //       "\nsymmetrization of the band structure. Check the quality of your DFT results.");
+     // }
+      setEnergies(point,avgEnergies);
     }
   }
 }
-*/
+
 
 std::tuple<ActiveBandStructure, StatisticsSweep>
 ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
@@ -688,7 +664,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   mpi->allReduceSum(&eigenvectors);
 
   buildSymmetries();
-  //symmetrize(&filteredBands);
 }
 
 /** in this function, useful for electrons, we first compute the band structure
@@ -747,7 +722,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   Points pointsCopy = points_;
   points = pointsCopy; // first we copy, without the symmetries
-  points_.setIrreduciblePoints();
+  points_.  setIrreduciblePoints();
 
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
@@ -836,7 +811,6 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   mpi->allReduceSum(&filteredBands);
 
   //////////////// Done MPI recollection
-  //if(mpi->mpiHead()) std::cout << "post mpi reduce " << std::endl;
 
   // ---------- initialize internal data buffers --------------- //
   points.setActiveLayer(filter);
@@ -887,7 +861,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     points.setIrreduciblePoints();
   }
 
-  if(mpi->mpiHead()) std::cout << "post irr points setup" << std::endl;
+  //if(mpi->mpiHead()) std::cout << "post irr points setup" << std::endl;
   // for each irr point, symmetrize all reducible points
   for(int ikIrr : points.irrPointsIterator()) {
 
@@ -1047,6 +1021,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     mpi->allReduceSum(&velocities);
   }
   buildSymmetries();
+  symmetrize(context);
   return statisticsSweep;
 }
 

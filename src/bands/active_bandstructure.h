@@ -415,6 +415,8 @@ public:
   void buildIndices(); // to be called after building the band structure
   // and these are the tools to convert indices
   void buildSymmetries();
+  // symmetrizes the band energies, velocities, and eigenvectors
+  void symmetrize(Context &context);
 
   // utilities to convert Bloch indices into internal indices
   int velBloch2Comb(const int &ik, const int &ib1, const int &ib2,
