@@ -11,7 +11,7 @@
 #include "wigner_electron.h"
 
 
-void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
+void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
                      ScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
@@ -28,15 +28,16 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
   auto speciesMasses = bfieldCrystal.getSpeciesMasses();
   // set up a new crystal and points mesh using symmetries
   // without a magnetic field
-  Crystal nofieldCrystal(context, directCell, atomicPositions,
+  Crystal noFieldCrystal(context, directCell, atomicPositions,
         atomicSpecies, speciesNames, speciesMasses);
 
-  // Points nofieldPoints(nofieldCrystal, context.getKMesh());
-  Points nofieldPoints = bfieldPoints;
-  nofieldPoints.swapCrystal(nofieldCrystal);
+  // Points noFieldPoints(noFieldCrystal, context.getKMesh());
+  Points noFieldPoints = bfieldPoints;
+  noFieldPoints.swapCrystal(noFieldCrystal);
 
   // Here we want to find the symmetries that rotate both k-points and
   // the group velocities
+  // TODO do we need this here for just the linewidths?
   {
     std::vector<Eigen::MatrixXd> allVelocities;
     for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
@@ -44,179 +45,58 @@ void symmetrizeStuff(Context &context, BaseBandStructure &bandStructure,
       Eigen::MatrixXd v = bandStructure.getGroupVelocities(ikIdx);
       allVelocities.push_back(v);
       for( int ib = 0; ib < bandStructure.getNumBands(ikIdx); ib++) {
-        //if(mpi->mpiHead() && ib == 1) std::cout << "ib ik " << ib << " " << ik << " " << v(ib,0) << " " << v(ib,1) << " " << v(ib,2) << std::endl;
       }
     }
-    nofieldPoints.setIrreduciblePoints(&allVelocities);
+    noFieldPoints.setIrreduciblePoints(&allVelocities);
   }
 
-  // loop over all irreducible points on the noField mesh
-  for (int ik : nofieldPoints.irrPointsIterator()) {
-    // get coordinates of point ik
-    Eigen::Vector3d kCoords = nofieldPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
+  // for each irr point, go over all equivalent points and average
+  // the linewidths, then reset them
+  for (int ikIrr : noFieldPoints.irrPointsIterator()) {
 
-    // reconstruct the star of wavevectors reducible to ik, by coordinates
-    // this list of equivalent_kCoords tells us all the points which will
-    // reduce to this point, using the full symmetries of the crystal
-    // without the field
-    std::vector<Eigen::Vector3d> equivalent_kCoords;
-    auto rots = nofieldPoints.getRotationsStar(ik);
-    for (const Eigen::Matrix3d &rot : rots) {
-      Eigen::Vector3d kRed = rot * kCoords;
-      equivalent_kCoords.push_back(kRed);
+    // get all the kpoints which reduce to this kpoint
+    auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
+    int nkRed = reducibleList.size();
+    int numBands;
+    {
+      WavevectorIndex ikIdx(ikIrr);
+      numBands = bandStructure.getNumBands(ikIdx);
     }
 
-    // see which wavevectors are in the irreducible set of bfieldPoints
-    // save index if the point is in bfieldPoints mesh
-    std::vector<int> tmp_indices;
-    for (auto testVector : equivalent_kCoords) {
-      auto testVectorCrystal = bfieldPoints.cartesianToCrystal(testVector);
-      // TODO why can we not merge these three loops into the first loop
-      int bf_ik = bfieldPoints.isPointStored(testVectorCrystal);
-      if (bf_ik == -1) {
-        continue;
-      }
-      tmp_indices.push_back(bf_ik);
-    }
+    for (int ib = 0; ib < numBands; ++ib) {
 
-    // if there are no points to be symmetrized, continue
-    if (tmp_indices.empty()) { continue; }
+    Eigen::VectorXd avgLinewidths(numCalculations);
+    avgLinewidths.setZero();
 
-    // if one of the flagged kpoints is an irreducible point
-    // of the bfield mesh, flag it for symmetrization in the next loop
-    std::vector<int> indices_to_be_symmetrized;
-    auto irrPointsList = bfieldPoints.irrPointsIterator();
-    for (int i : tmp_indices) {
-      if (std::find(irrPointsList.begin(), irrPointsList.end(), i) != irrPointsList.end() ) {
-        indices_to_be_symmetrized.push_back(i);
-      }
-    }
+      // loop over all points to be averaged
+      for (auto ikRed : reducibleList) {
 
-    //--------------------
-    // symmetrize linewidths
-    // TODO make a clean linewidths variable here and save them to it, then
-    // pass that over. There's definitely some refernece passing BS happening
-    if ( indices_to_be_symmetrized.size() > 1 ) {
-      int nb;
-      {
-        WavevectorIndex ikIdx(indices_to_be_symmetrized[0]);
-        nb = int(bandStructure.getEnergies(ikIdx).size());
-      }
-      int nk = indices_to_be_symmetrized.size();
+        // find the bte state index of this (band, kpoint) state
+        int is = bandStructure.getIndex(WavevectorIndex(ikRed), BandIndex(ib));
+        StateIndex isIdx(is);
+        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+        int iBte = iBteIdx.get();
 
-      Eigen::Tensor<double,3> avg_linewidths(numCalculations, nk, nb);
-      avg_linewidths.setZero();
-
-      // sum up the contributions from each reducible point into an avg linewidth
-      for (int ib=0; ib<nb; ++ib) {
-        for (int j=0; j<nk; ++j) {
-          int ikk = indices_to_be_symmetrized[j];
-          WavevectorIndex ikIdx(ikk);
-          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
-          StateIndex isIdx(is);
-          BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
-          int iBte = iBteIdx.get();
-
-          for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-            //if(mpi->mpiHead()) std::cout << "pre-avg lines " << iCalc << " " << iBte << " " << nk << " ik ikk ib " << ik << " " << ikk << " " << ib << " " << linewidths(iCalc,0,iBte) << std::endl;
-            avg_linewidths(iCalc, 0, ib) += linewidths(iCalc, 0, iBte) / double(nk);
-          }
+        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+          avgLinewidths(iCalc) += linewidths(iCalc, 0, iBte) / double(nkRed);
         }
       }
       // copy back into all the reducible point linewidths
-      for (int ib=0; ib<nb; ++ib) {
-        for (int j=0; j<nk; ++j) {
-          int ikk = indices_to_be_symmetrized[j];
-          WavevectorIndex ikIdx(ikk);
-          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
-          StateIndex isIdx(is);
-          BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
-          int iBte = iBteIdx.get();
-          for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-            linewidths(iCalc, 0, iBte) = avg_linewidths(iCalc, 0, ib);
-            //if(mpi->mpiHead()) std::cout << "averaged lines " << iCalc << " " << iBte << " ik ib " << ikk << " " << ib << " " << linewidths(iCalc,0,iBte) << std::endl;
-          }
+      for (auto ikRed : reducibleList) {
+
+        // find the bte state index of this (band, kpoint) state
+        int is = bandStructure.getIndex(WavevectorIndex(ikRed), BandIndex(ib));
+        StateIndex isIdx(is);
+        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+        int iBte = iBteIdx.get();
+
+        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+          linewidths(iCalc, 0, iBte) = avgLinewidths(iCalc);
         }
-      }
-
-      //---------------
-      // symmetrize energies and velocities
-
-      // containers to hold the symmetrized quantities to be
-      // set a the end of the loop
-      Eigen::VectorXd energies(nb);
-      Eigen::Tensor<std::complex<double>, 3> velocities(nb, nb, 3);
-      energies.setZero();
-      velocities.setZero();
-      // loop over the points to be symmetrized into this kpoint
-      for (int j = 0; j < nk; ++j) {
-        int ikk = indices_to_be_symmetrized[j];
-        WavevectorIndex ikIdx(ikk);
-        // first, symmetrize the energies for this point ------------
-        for (int ib=0; ib<nb; ++ib) {
-          int is = bandStructure.getIndex(ikIdx, BandIndex(ib));
-          StateIndex isIdx(is);
-          energies(ib) += bandStructure.getEnergy(isIdx) / double(nk);
-        }
-        Eigen::Tensor<std::complex<double>, 3> tmpVel = bandStructure.getVelocities(ikIdx);
-
-        // Now symmetrize the group velocities --------------------
-
-        // v is a vector, so it must be rotated before performing the average
-        Eigen::Matrix3d rot = nofieldPoints.getRotationFromReducibleIndex(ikk);
-        rot = rot.inverse(); // TODO why is this inverse here
-
-        // rotate all the velocities to the irr point and average them
-        for (int ib1 = 0; ib1 < nb; ++ib1) {
-          for (int ib2 = 0; ib2 < nb; ++ib2) {
-
-            // save to an Eigen vector, can't rotate pieces of Eigen Tensor
-            Eigen::VectorXcd tmpRot(3);
-            for (int iCart : {0,1,2}) {
-              tmpRot(iCart) = tmpVel(ib1, ib2, iCart);
-            }
-            //if(mpi->mpiHead()) std::cout << ikk << " " << tmp(0) << " " << tmp(1) << " " << tmp(2) << std::endl;
-
-            tmpRot = rot * tmpRot;
-           // if(mpi->mpiHead() && ib1 == 1 && ib2 == 1) std::cout << "ik ikk ib1 ib2, rotated " << ik << " " << ikk << " " << ib1 << " " << ib2 << " " << tmpRot(0) << " " << tmpRot(1) << " " << tmpRot(2) << std::endl;
-            for (int iCart : {0,1,2}) {
-              velocities(ib1, ib2, iCart) += tmpRot(iCart) / double(nk);
-            }
-            //if(mpi->mpiHead() && ib1 == 1 && ib2 == 1) std::cout << "ik ikk, rotated averaged" << ik << " " << ikk << " " << velocities(ib1,ib2,0) << " " << velocities(ib1,ib2,1) << " " << velocities(ib1,ib2,2) << std::endl;
-          }
-        }
-      }
-
-      for (int j = 0; j < nk; ++j) {
-        int ikk = indices_to_be_symmetrized[j];
-        Point point = bfieldPoints.getPoint(ikk);
-        bandStructure.setEnergies(point, energies);
-
-        Eigen::Matrix3d rot = nofieldPoints.getRotationFromReducibleIndex(ikk);
-        //rot = rot.inverse();
-
-        int nb = velocities.dimensions()[0];
-        Eigen::Tensor<std::complex<double>,3> tmpVel(nb,nb,3);
-        tmpVel.setZero();
-        for (int ib1=0; ib1<nb; ++ib1) {
-          for (int ib2 = 0; ib2 < nb; ++ib2) {
-            Eigen::Vector3cd tmp;
-            tmp(0) = velocities(ib1,ib2,0); tmp(1) = velocities(ib1,ib2,1); tmp(2) = velocities(ib1,ib2,2);
-            tmp = rot * tmp;
-            for (int iCart : {0,1,2}) {
-              //for (int jCart : {0, 1, 2}) {
-              tmpVel(ib1,ib2,iCart) += tmp(iCart); //rot(iCart,jCart) * velocities(ib1, ib2, jCart);
-              //}
-            }
-           //if(mpi->mpiHead() && ib1 == 1 && ib2 == 1) std::cout << "post-rotation ikk " <<  ikk << " " << tmpVel(ib1,ib2,0) << " " << tmpVel(ib1,ib2,1) << " " << tmpVel(ib1,ib2,2) << std::endl;
-          }
-        }
-       //if(mpi->mpiHead() && ib1 == 1) std::cout << "post-rotation " <<  ikk << " " << tmpVel(0) << " " << tmpVel(1) << " " << tmpVel(2) << std::endl;
-       bandStructure.setVelocities(point, tmpVel);
       }
     }
   }
-  //scatteringMatrix.setLinewidths(linewidths);
+  scatteringMatrix.setLinewidths(linewidths);
 }
 
 void ElectronWannierTransportApp::run(Context &context) {
@@ -281,11 +161,8 @@ void ElectronWannierTransportApp::run(Context &context) {
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
 
-  // TODO there's an internalDiagonal object that has the lifetmes -- we can get this info
-  // with .diagonal() or getLinewidths() to get a vector BTE object,
-  // but if we want to put them back in the matrix after symmetrizing we will need to
-  // add some kind of set function
-  //symmetrizeStuff(context, bandStructure, scatteringMatrix, statisticsSweep);
+  // symmetrize the linewidths on the diagonal
+  symmetrizeLinewidths(context, bandStructure, scatteringMatrix, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
