@@ -474,6 +474,8 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
+  // TODO do we need to do this with velocities also?
+  // do we need to do this at all?
   points.setIrreduciblePoints();
 
   // print out the points list for debug check
