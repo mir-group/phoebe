@@ -84,6 +84,15 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
                          Eigen::Tensor<double,5> vectorsShifts_);
 
+  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+             std::vector<Eigen::Tensor<std::complex<double>,3>>> populate(
+      const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+      const bool& withVelocities=false);
+
+  std::tuple<std::vector<Eigen::VectorXd>,
+             std::vector<Eigen::MatrixXcd>> internalPopulate(
+      const std::vector<Eigen::Vector3d>& cartesianCoordinates);
+
  protected:
   Particle particle;
 
