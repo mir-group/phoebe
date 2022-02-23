@@ -6,6 +6,7 @@
 #include "points.h"
 #include "utilities.h"
 #include "Matrix.h"
+#include <set>
 
 std::vector<size_t> BaseBandStructure::parallelStateIterator() {
     size_t numStates = getNumStates();
