@@ -127,7 +127,6 @@ std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
 
 int FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
 
-// TODO this might be something I can simplify
 std::vector<int> FullBandStructure::getWavevectorIndices() {
   std::set<int> kPointsSet;
   for ( auto tup : energies.getAllLocalStates()) {

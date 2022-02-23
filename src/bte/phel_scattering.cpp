@@ -233,14 +233,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
             couplingElPhWan.getCouplingSquared(iq3Batch);
 
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
-        Eigen::Tensor<std::complex<double>,3> v2s = allStates2Velocities[iq3Batch];
-
         Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx);
-
         auto nb2 = int(state2Energies.size());
 
         Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
-
 #pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int ib1 = 0; ib1 < nb1; ib1++) {
@@ -259,7 +255,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
               } else {
                 Eigen::Vector3d smear = v1s.row(ib1);
                 for (int i : {0,1,2}) {
-                  smear(i) -= v2s(ib2, ib2, i).real();
+                  smear(i) -= allStates2Velocities[iq3Batch](ib2, ib2, i).real();
                 }
                 delta = smearing->getSmearing(en1 - en2 + en3, smear);
               }
