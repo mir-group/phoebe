@@ -31,7 +31,8 @@ public:
   PhElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &elBandStructure_,
                        BaseBandStructure &phBandStructure_,
-                       InteractionElPhWan &couplingElPhWan_);
+                       InteractionElPhWan &couplingElPhWan_,
+                       ElectronH0Wannier &electronH0_);
 
   /** Copy constructor
    * @param that: object to be copied
@@ -47,6 +48,7 @@ public:
 
 protected:
   InteractionElPhWan &couplingElPhWan;
+  ElectronH0Wannier &electronH0;
 
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;

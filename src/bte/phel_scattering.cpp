@@ -28,23 +28,26 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
                                            StatisticsSweep &statisticsSweep_,
                                            BaseBandStructure &elBandStructure_,
                                            BaseBandStructure &phBandStructure_,
-                                           InteractionElPhWan &couplingElPhWan_)
+                                           InteractionElPhWan &couplingElPhWan_,
+                                           ElectronH0Wannier &electronH0_)
     : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_,
                        phBandStructure_),
-      couplingElPhWan(couplingElPhWan_) {
+      couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
   isMatrixOmega = true;
   highMemory = false;
 }
 
 PhElScatteringMatrix::PhElScatteringMatrix(const PhElScatteringMatrix &that)
-    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan) {}
+    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
+      electronH0(that.electronH0) {}
 
 PhElScatteringMatrix &
 PhElScatteringMatrix::operator=(const PhElScatteringMatrix &that) {
   ScatteringMatrix::operator=(that);
   if (this != &that) {
     couplingElPhWan = that.couplingElPhWan;
+    electronH0 = that.electronH0;
   }
   return *this;
 }
@@ -145,7 +148,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
     int ik1 = std::get<0>(t1);
     WavevectorIndex ik1Idx(ik1);
-    auto ik2Indexes = std::get<1>(t1);
+    auto iq3Indexes = std::get<1>(t1);
 
     // dummy call to make pooled coupling calculation work. We need to make sure
     // calcCouplingSquared is called the same # of times. This is also taken
@@ -173,70 +176,64 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     couplingElPhWan.cacheElPh(eigenVector1, k1C);
 
     // prepare batches based on memory usage
-    auto nk2 = int(ik2Indexes.size());
-    int numBatches = couplingElPhWan.estimateNumBatches(nk2, nb1);
-
-    // precompute the q indices such that k'-k=q at fixed k
-    std::vector<int> iq3Indexes(nk2); // must be same size as nk2
-    {
-#pragma omp parallel for
-      for (int ik2 : ik2Indexes) {
-        auto ik2Index = WavevectorIndex(ik2);
-        Eigen::Vector3d k2C = getElBandStructure().getWavevector(ik2Index);
-
-        // k' = k + q : phonon absorption
-        Eigen::Vector3d q3C = k2C - k1C;
-        Eigen::Vector3d q3Cryst = qPoints.cartesianToCrystal(q3C);
-
-        int iq3 = qPoints.getIndex(q3Cryst);
-        iq3Indexes[ik2] = iq3;
-      }
-    }
+    auto nq3 = int(iq3Indexes.size());
+    int numBatches = couplingElPhWan.estimateNumBatches(nq3, nb1);
 
     // loop over batches of q1s
     // later we will loop over the q1s inside each batch
     // this is done to optimize the usage and data transfer of a GPU
     for (int iBatch = 0; iBatch < numBatches; iBatch++) {
       // start and end point for current batch
-      int start = nk2 * iBatch / numBatches;
-      int end = nk2 * (iBatch + 1) / numBatches;
+      int start = nq3 * iBatch / numBatches;
+      int end = nq3 * (iBatch + 1) / numBatches;
       int batch_size = end - start;
 
       std::vector<Eigen::Vector3d> allQ3C(batch_size);
       std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
       std::vector<Eigen::VectorXcd> allPolarData(batch_size);
-      std::vector<Eigen::MatrixXcd> allEigenVectors2(batch_size);
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
 #pragma omp parallel for
-      for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
-        int ik2 = ik2Indexes[start + ik2Batch];
-        WavevectorIndex ik2Idx(ik2);
-        int iq3 = iq3Indexes[start + ik2Batch];
+      for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+        int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
 
-        allPolarData[ik2Batch] = polarData.row(iq3);
-        allEigenVectors2[ik2Batch] = getElBandStructure().getEigenvectors(ik2Idx);
-        allEigenVectors3[ik2Batch] = getPhBandStructure().getEigenvectors(iq3Idx);
-        allQ3C[ik2Batch] = getPhBandStructure().getWavevector(iq3Idx);
+        allPolarData[iq3Batch] = polarData.row(iq3);
+        allEigenVectors3[iq3Batch] = getPhBandStructure().getEigenvectors(iq3Idx);
+        allQ3C[iq3Batch] = getPhBandStructure().getWavevector(iq3Idx);
       }
+
+      // precompute the q indices such that k'-k=q at fixed k
+      std::vector<Eigen::Vector3d> allK2C(batch_size);
+#pragma omp parallel for
+      for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+        int iq3 = iq3Indexes[start + iq3Batch];
+        auto iq3Index = WavevectorIndex(iq3);
+        Eigen::Vector3d q3C = getPhBandStructure().getWavevector(iq3Index);
+        // k' = k + q : phonon absorption
+        Eigen::Vector3d k2C = q3C + k1C;
+        allK2C[iq3Batch] = k2C;
+      }
+
+      auto tHelp = electronH0.populate(allK2C);
+      std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
+      std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
+      std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
 
       couplingElPhWan.calcCouplingSquared(eigenVector1, allEigenVectors2,
                                           allEigenVectors3, allQ3C, allPolarData);
 
       // do postprocessing loop with batch of couplings
-      for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
-        int ik2 = ik2Indexes[start + ik2Batch];
-        int iq3 = iq3Indexes[start + ik2Batch];
-        WavevectorIndex ik2Idx(ik2);
+      for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+        int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
 
         Eigen::Tensor<double, 3> coupling =
-            couplingElPhWan.getCouplingSquared(ik2Batch);
+            couplingElPhWan.getCouplingSquared(iq3Batch);
 
-        Eigen::VectorXd state2Energies = getElBandStructure().getEnergies(ik2Idx);
-        Eigen::MatrixXd v2s = getElBandStructure().getGroupVelocities(ik2Idx);
+        Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
+        Eigen::Tensor<std::complex<double>,3> v2s = allStates2Velocities[iq3Batch];
 
         Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx);
 
@@ -260,8 +257,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta = smearing->getSmearing(en1 - en2 + en3);
               } else {
-                // Eigen::Vector3d smear = v3s.row(ib3);
-                Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
+                Eigen::Vector3d smear = v1s.row(ib1);
+                for (int i : {0,1,2}) {
+                  smear(i) -= v2s(ib2, ib2, i).real();
+                }
                 delta = smearing->getSmearing(en1 - en2 + en3, smear);
               }
               smearing_values(ib1, ib2, ib3) = std::max(delta, 0.);
