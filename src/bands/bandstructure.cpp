@@ -128,17 +128,14 @@ int FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
 
 // TODO this might be something I can simplify
 std::vector<int> FullBandStructure::getWavevectorIndices() {
-    std::vector<int> kPointsList;
-    // loop over local states
-    for ( auto tup : energies.getAllLocalStates()) {
-        // returns global indices for local index
-        auto ik = std::get<1>(tup);
-        kPointsList.push_back(ik);
-    }
-    sort(kPointsList.begin(), kPointsList.end() );
-    kPointsList.erase( unique(kPointsList.begin(), kPointsList.end() ),
-                      kPointsList.end() );
-    return kPointsList;
+  std::set<int> kPointsSet;
+  for ( auto tup : energies.getAllLocalStates()) {
+    // returns global indices for local index
+    auto ik = std::get<1>(tup);
+    kPointsSet.insert(ik);
+  }
+  std::vector<int> kPointsList(kPointsSet.begin(), kPointsSet.end());
+  return kPointsList;
 }
 
 std::vector<std::tuple<WavevectorIndex,BandIndex>> FullBandStructure::getStateIndices() {
