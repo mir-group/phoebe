@@ -216,7 +216,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         allK2C[iq3Batch] = k2C;
       }
 
-      auto tHelp = electronH0.populate(allK2C);
+      bool withVelocities = false;
+      if (smearing->getType() == DeltaFunction::adaptiveGaussian) withVelocities = true;
+      auto tHelp = electronH0.populate(allK2C, withVelocities);
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
       std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
