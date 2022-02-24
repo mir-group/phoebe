@@ -28,7 +28,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   dielectricMatrix = dielectricMatrix_;
 
   if (dielectricMatrix.sum() > 0.) {
-    hasDielectric = true; // defaulted to false in *.h file
+    hasDielectric = true;// defaulted to false in *.h file
   }
 
   Eigen::VectorXi qCoarseGrid_(3);
@@ -58,7 +58,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
   reorderDynamicalMatrix();
 
-  if (hasDielectric) { // prebuild terms useful for long range corrections
+  if (hasDielectric) {// prebuild terms useful for long range corrections
     double cutoff = gMax * 4.;
 
     // Estimate of nr1x,nr2x,nr3x generating all vectors up to G^2 < geg
@@ -68,21 +68,21 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
     int nr1x = 0;
     if (qCoarseGrid(0) > 1) {
-      nr1x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(0).norm()) + 1;
+      nr1x = (int) (sqrt(cutoff) / reciprocalUnitCell.col(0).norm()) + 1;
     }
     int nr2x = 0;
     if (qCoarseGrid(1) > 1) {
-      nr2x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(1).norm()) + 1;
+      nr2x = (int) (sqrt(cutoff) / reciprocalUnitCell.col(1).norm()) + 1;
     }
     int nr3x = 0;
     if (qCoarseGrid(2) > 1) {
-      nr3x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(2).norm()) + 1;
+      nr3x = (int) (sqrt(cutoff) / reciprocalUnitCell.col(2).norm()) + 1;
     }
 
     double norm = e2 * fourPi / volumeUnitCell;
 
-    int numG = (2*nr1x+1) * (2*nr2x+1) * (2*nr3x+1);
-    gVectors.resize(3,numG);
+    int numG = (2 * nr1x + 1) * (2 * nr2x + 1) * (2 * nr3x + 1);
+    gVectors.resize(3, numG);
     {
       int ig = 0;
       for (int m1 = -nr1x; m1 <= nr1x; m1++) {
@@ -97,9 +97,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
       }
     }
 
-    longRangeCorrection1.resize(3,3,numAtoms);
+    longRangeCorrection1.resize(3, 3, numAtoms);
     longRangeCorrection1.setZero();
-    for (int ig=0; ig<numG; ++ig) {
+    for (int ig = 0; ig < numG; ++ig) {
       Eigen::Vector3d g = gVectors.col(ig);
 
       double geg = (g.transpose() * dielectricMatrix * g).value();
@@ -225,7 +225,7 @@ FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
   std::vector<int> ikIndices = fullBandStructure.getWavevectorIndices();
   int numIkIndices = ikIndices.size();
 #pragma omp parallel for
-  for (int iik = 0; iik<numIkIndices; ++iik) {
+  for (int iik = 0; iik < numIkIndices; ++iik) {
     int ik = ikIndices[iik];
 
     Point point = fullBandStructure.getPoint(ik);
@@ -299,9 +299,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
             Eigen::Vector3d r_ws;
             for (int i : {0, 1, 2}) {
               // note that this cell is different from above
-              r_ws(i) = double(n1) * directUnitCell(i, 0) +
-                        double(n2) * directUnitCell(i, 1) +
-                        double(n3) * directUnitCell(i, 2);
+              r_ws(i) = double(n1) * directUnitCell(i, 0) + double(n2) * directUnitCell(i, 1) + double(n3) * directUnitCell(i, 2);
               r_ws(i) += atomicPositions(na, i) - atomicPositions(nb, i);
             }
 
@@ -312,8 +310,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
         }
       }
 
-      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) >
-          1.0e-8) {
+      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) > 1.0e-8) {
         std::cout << total_weight << " " << qCoarseGrid.prod() << "\n";
         Error("wrong total_weight");
       }
@@ -350,7 +347,7 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r,
       numREq += 1;
     }
   }
-  double x = 1. / (double)numREq;
+  double x = 1. / (double) numREq;
   return x;
 }
 
@@ -381,7 +378,7 @@ void PhononH0::reorderDynamicalMatrix() {
 
   bravaisVectors = Eigen::MatrixXd::Zero(3, numBravaisVectors);
   weights = Eigen::VectorXd::Zero(numBravaisVectors);
-  mat2R.resize(numBravaisVectors, 3*numAtoms, 3*numAtoms);
+  mat2R.resize(numBravaisVectors, 3 * numAtoms, 3 * numAtoms);
   mat2R.setZero();
 
   int iR = 0;
@@ -399,8 +396,7 @@ void PhononH0::reorderDynamicalMatrix() {
 
               Eigen::Vector3d r;
               for (int i : {0, 1, 2}) {
-                r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) +
-                       n3 * directUnitCell(i, 2);
+                r(i) = n1 * directUnitCell(i, 0) + n2 * directUnitCell(i, 1) + n3 * directUnitCell(i, 2);
               }
               bravaisVectors.col(iR) = r;
 
@@ -447,126 +443,13 @@ PhononH0::diagonalizeVelocity(Point &point) {
 
 Eigen::Tensor<std::complex<double>, 3>
 PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
-  Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
-  velocity.setZero();
-
-  // if we are working at gamma, we set all velocities to zero.
-  if (coordinates.norm() < 1.0e-6) {
-    return velocity;
-  }
-
+  std::vector<Eigen::Vector3d> wavevectors;
+  wavevectors.push_back(coordinates);
+  bool withVelocities = true;
   bool withMassScaling = false;
-
-  // get the eigenvectors and the energies of the q-point
-  auto tup = diagonalizeFromCoordinates(coordinates, withMassScaling);
-  auto energies = std::get<0>(tup);
-  auto eigenvectors = std::get<1>(tup);
-
-  // now we compute the velocity operator, diagonalizing the expectation
-  // value of the derivative of the dynamical matrix.
-  // This works better than doing finite differences on the frequencies.
-  double deltaQ = 1.0e-8;
-  for (int i : {0, 1, 2}) {
-    // define q+ and q- from finite differences.
-    Eigen::Vector3d qPlus = coordinates;
-    Eigen::Vector3d qMinus = coordinates;
-    qPlus(i) += deltaQ;
-    qMinus(i) -= deltaQ;
-
-    // diagonalize the dynamical matrix at q+ and q-
-    auto tup2 = diagonalizeFromCoordinates(qPlus, withMassScaling);
-    auto enPlus = std::get<0>(tup2);
-    auto eigPlus = std::get<1>(tup2);
-    auto tup1 = diagonalizeFromCoordinates(qMinus, withMassScaling);
-    auto enMinus = std::get<0>(tup1);
-    auto eigMinus = std::get<1>(tup1);
-
-    // build diagonal matrices with frequencies
-    Eigen::MatrixXd enPlusMat(numBands, numBands);
-    Eigen::MatrixXd enMinusMat(numBands, numBands);
-    enPlusMat.setZero();
-    enMinusMat.setZero();
-    enPlusMat.diagonal() << enPlus;
-    enMinusMat.diagonal() << enMinus;
-
-    // build the dynamical matrix at the two wavevectors
-    // since we diagonalized it before, A = M.U.M*
-    Eigen::MatrixXcd sqrtDPlus(numBands, numBands);
-    sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
-    Eigen::MatrixXcd sqrtDMinus(numBands, numBands);
-    sqrtDMinus = eigMinus * enMinusMat * eigMinus.adjoint();
-
-    // now we can build the velocity operator
-    Eigen::MatrixXcd der(numBands, numBands);
-    der = (sqrtDPlus - sqrtDMinus) / (2. * deltaQ);
-
-    // and to be safe, we reimpose hermiticity
-    der = 0.5 * (der + der.adjoint());
-
-    // now we rotate in the basis of the eigenvectors at q.
-    der = eigenvectors.adjoint() * der * eigenvectors;
-
-    for (int ib2 = 0; ib2 < numBands; ib2++) {
-      for (int ib1 = 0; ib1 < numBands; ib1++) {
-        velocity(ib1, ib2, i) = der(ib1, ib2);
-      }
-    }
-  }
-
-  // turns out that the above algorithm has problems with degenerate bands
-  // so, we diagonalize the velocity operator in the degenerate subspace,
-
-  for (int ib = 0; ib < numBands; ib++) {
-    // first, we check if the band is degenerate, and the size of the
-    // degenerate subspace
-    int sizeSubspace = 1;
-    for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
-      // I consider bands degenerate if their frequencies are the same
-      // within 0.0001 cm^-1
-      if (abs(energies(ib) - energies(ib2)) > 0.0001 / ryToCmm1) {
-        break;
-      }
-      sizeSubspace += 1;
-    }
-
-    if (sizeSubspace > 1) {
-      Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
-      // we have to repeat for every direction
-      for (int iCart : {0, 1, 2}) {
-        // take the velocity matrix of the degenerate subspace
-        for (int j = 0; j < sizeSubspace; j++) {
-          for (int i = 0; i < sizeSubspace; i++) {
-            subMat(i, j) = velocity(ib + i, ib + j, iCart);
-          }
-        }
-
-        // reinforce hermiticity
-        subMat = 0.5 * (subMat + subMat.adjoint());
-
-        // diagonalize the subMatrix
-        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
-        const Eigen::MatrixXcd& newEigenVectors = eigenSolver.eigenvectors();
-
-        // rotate the original matrix in the new basis
-        // that diagonalizes the subspace.
-        subMat = newEigenVectors.adjoint() * subMat * newEigenVectors;
-
-        // reinforce hermiticity
-        subMat = 0.5 * (subMat + subMat.adjoint());
-
-        // substitute back
-        for (int j = 0; j < sizeSubspace; j++) {
-          for (int i = 0; i < sizeSubspace; i++) {
-            velocity(ib + i, ib + j, iCart) = subMat(i, j);
-          }
-        }
-      }
-    }
-
-    // we skip the bands in the subspace, since we corrected them already
-    ib += sizeSubspace - 1;
-  }
-  return velocity;
+  auto t = populate(wavevectors, withVelocities, withMassScaling);
+  std::vector<Eigen::Tensor<std::complex<double>,3>> velocities = std::get<2>(t);
+  return velocities[0];
 }
 
 Eigen::Vector3i PhononH0::getCoarseGrid() { return qCoarseGrid; }
@@ -585,9 +468,10 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
 }
 
 std::tuple<std::vector<Eigen::VectorXd>,
-           std::vector<Eigen::MatrixXcd>> PhononH0::internalPopulate(
-    const std::vector<Eigen::Vector3d>& cartesianCoordinates,
-    const bool& withMassScaling) {
+           std::vector<Eigen::MatrixXcd>>
+PhononH0::internalPopulate(
+    const std::vector<Eigen::Vector3d> &cartesianCoordinates,
+    const bool &withMassScaling) {
 
   int numQ = cartesianCoordinates.size();
 
@@ -616,7 +500,7 @@ std::tuple<std::vector<Eigen::VectorXd>,
       }
     }
 
-#pragma omp parallel for collapse(3) // don't collapse the iR index
+#pragma omp parallel for collapse(3)// don't collapse the iR index
     for (int iQ = 0; iQ < numQ; ++iQ) {
       for (int j = 0; j < numBands; j++) {
         for (int i = 0; i < numBands; i++) {
@@ -628,71 +512,75 @@ std::tuple<std::vector<Eigen::VectorXd>,
     }
   }
 
-    // then the long range term, which uses some convergence
-    // tricks by X. Gonze et al.
-    if (hasDielectric) {
-      addLongRangeTerm(dyns, cartesianCoordinates);
+  // then the long range term, which uses some convergence
+  // tricks by X. Gonze et al.
+  if (hasDielectric) {
+    addLongRangeTerm(dyns, cartesianCoordinates);
+  }
+
+  // once everything is ready, here we scale by masses and diagonalize
+
+  std::vector<Eigen::VectorXd> allEnergies(numQ);
+  std::vector<Eigen::MatrixXcd> allEigenvectors(numQ);
+  {
+    // impose hermiticity
+#pragma omp parallel for
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      dyns[iQ] = 0.5 * (dyns[iQ] + dyns[iQ].adjoint());
     }
 
-    // once everything is ready, here we scale by masses and diagonalize
-
-    std::vector<Eigen::VectorXd> allEnergies(numQ);
-    std::vector<Eigen::MatrixXcd> allEigenvectors(numQ);
-    {
-      // impose hermiticity
-#pragma omp parallel for
-      for (int iQ=0; iQ<numQ; ++iQ) {
-        dyns[iQ] = 0.5 * (dyns[iQ] + dyns[iQ].adjoint());
-      }
-
-      //  divide by the square root of masses
+    //  divide by the square root of masses
 #pragma omp parallel for collapse(3)
-      for (int iQ=0; iQ<numQ; ++iQ) {
-        for (int j = 0; j < numBands; j++) {
-          for (int i = 0; i < numBands; i++) {
-            dyns[iQ](i, j) /= sqrt(masses(i) * masses(j));
-          }
-        }
-      }
-
-      // diagonalize
-#pragma omp parallel for
-      for (int iQ=0; iQ<numQ; ++iQ) {
-        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyns[iQ]);
-        Eigen::VectorXd w2 = eigenSolver.eigenvalues();
-        Eigen::VectorXd energies(numBands);
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      for (int j = 0; j < numBands; j++) {
         for (int i = 0; i < numBands; i++) {
-          if (w2(i) < 0) {
-            energies(i) = -sqrt(-w2(i));
-          } else {
-            energies(i) = sqrt(w2(i));
-          }
+          dyns[iQ](i, j) /= sqrt(masses(i) * masses(j));
         }
-        allEnergies[iQ] = energies;
-        allEigenvectors[iQ] = eigenSolver.eigenvectors();
       }
     }
 
-    if (withMassScaling) {
-      // we normalize with the mass.
-      // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
-      // but instead (U^+) * M * U = I, where M is the mass matrix
-      // (M is diagonal with atomic masses on the diagonal)
+    // diagonalize
+#pragma omp parallel for
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyns[iQ]);
+      allEnergies[iQ] = eigenSolver.eigenvalues();
+      allEigenvectors[iQ] = eigenSolver.eigenvectors();
+    }
+
+    // rather than eigenvalues w^2, store the phonon frequencies
+#pragma omp parallel for collapse(2)
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      for (int i = 0; i < numBands; i++) {
+        if (allEnergies[iQ](i) < 0) {
+          allEnergies[iQ](i) = -sqrt(-allEnergies[iQ](i));
+        } else {
+          allEnergies[iQ](i) = sqrt(allEnergies[iQ](i));
+        }
+      }
+    }
+
+  }
+
+  if (withMassScaling) {
+    // we normalize with the mass.
+    // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+    // but instead (U^+) * M * U = I, where M is the mass matrix
+    // (M is diagonal with atomic masses on the diagonal)
 #pragma omp parallel for collapse(3)
-      for (int iQ=0; iQ<numQ; ++iQ) {
-        for (int iBand = 0; iBand < numBands; iBand++) {
-          for (int i = 0; i < numBands; i++) {
-            allEigenvectors[iQ](i, iBand) /= sqrt(masses(i));
-          }
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      for (int iBand = 0; iBand < numBands; iBand++) {
+        for (int i = 0; i < numBands; i++) {
+          allEigenvectors[iQ](i, iBand) /= sqrt(masses(i));
         }
       }
     }
+  }
 
-    return {allEnergies, allEigenvectors};
+  return {allEnergies, allEigenvectors};
 }
 
 void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
-                                const std::vector<Eigen::Vector3d>& qs) {
+                                const std::vector<Eigen::Vector3d> &qs) {
   // this subroutine is the analogous of rgd_blk in QE
   // compute the rigid-ion (long-range) term for q
   // The long-range term used here, to be added to or subtracted from the
@@ -718,7 +606,7 @@ void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
     for (int na = 0; na < numAtoms; na++) {
       for (int j : {0, 1, 2}) {
         for (int i : {0, 1, 2}) {
-          dyns[iQ](na*3+i, na*3+j) += longRangeCorrection1(i, j, na);
+          dyns[iQ](na * 3 + i, na * 3 + j) += longRangeCorrection1(i, j, na);
         }
       }
     }
@@ -726,7 +614,7 @@ void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
 
   double norm = e2 * fourPi / volumeUnitCell;
 
-#pragma omp parallel for // not on G, because that involves a reduction
+#pragma omp parallel for// not on G, because that involves a reduction
   for (int iQ = 0; iQ < numQ; ++iQ) {
     for (int ig = 0; ig < gVectors.cols(); ++ig) {
       Eigen::Vector3d gq = gVectors.col(ig) + qs[iQ];
@@ -756,12 +644,191 @@ void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
           for (int na = 0; na < numAtoms; na++) {
             for (int j : {0, 1, 2}) {
               for (int i : {0, 1, 2}) {
-                dyns[iQ](na*3+i, nb*3+j) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
+                dyns[iQ](na * 3 + i, nb * 3 + j) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
               }
             }
           }
         }
       }
     }
+  }
+}
+
+std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+           std::vector<Eigen::Tensor<std::complex<double>,3>>> PhononH0::populate(
+    const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+    const bool& withVelocities, const bool &withMassScaling) {
+
+  if (!withVelocities) {
+    auto t = internalPopulate(cartesianCoordinates, withMassScaling);
+    std::vector<Eigen::VectorXd> allEnergies = std::get<0>(t);
+    std::vector<Eigen::MatrixXcd> allEigenvectors = std::get<1>(t);
+    std::vector<Eigen::Tensor<std::complex<double>,3>> allVelocities;
+    return {allEnergies, allEigenvectors, allVelocities};
+
+  } else {
+    int numQ = cartesianCoordinates.size();
+    bool internalMassScaling = false;
+    double delta = 1.0e-8;
+
+    // compute the eigenvectors at all q, q+-dq wavevectors
+
+    std::vector<Eigen::Vector3d> allVectors(numQ * 7);
+#pragma omp parallel for
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      Eigen::Vector3d coordinates = cartesianCoordinates[iQ];
+      allVectors[iQ * 7] = coordinates;
+      for (int i : {0, 1, 2}) {
+        // define q+ and q- from finite differences.
+        Eigen::Vector3d qPlus = coordinates;
+        Eigen::Vector3d qMinus = coordinates;
+        qPlus(i) += delta;
+        qMinus(i) -= delta;
+        allVectors[iQ * 7 + i * 2 + 1] = qPlus; // 1, 3, 5, 8
+        allVectors[iQ * 7 + i * 2 + 2] = qMinus;// 2, 4, 6, 9
+      }
+    }
+
+    auto t = internalPopulate(allVectors, internalMassScaling);
+    auto allEnergies = std::get<0>(t);
+    auto allEigenvectors = std::get<1>(t);
+
+    std::vector<Eigen::VectorXd> resultEnergies(numQ);
+    std::vector<Eigen::MatrixXcd> resultEigenvectors(numQ);
+    std::vector<Eigen::Tensor<std::complex<double>, 3>> resultVelocities(numQ);
+
+    Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      Eigen::Vector3d q = allVectors[iQ * 7];
+      Eigen::VectorXd energies = allEnergies[iQ * 7];
+      Eigen::MatrixXcd eigenvectors = allEigenvectors[iQ * 7];
+
+      resultEnergies[iQ] = energies;
+      resultEigenvectors[iQ] = eigenvectors;
+      velocity.setZero();
+
+      if (q.norm() < 1.0e-6) { // if not zero, velocity is non-analytical
+        resultVelocities[iQ] = velocity;
+        continue;
+      }
+
+      for (int i : {0, 1, 2}) {
+        Eigen::VectorXd enPlus = allEnergies[iQ * 7 + i * 2 + 1];
+        Eigen::VectorXd enMinus = allEnergies[iQ * 7 + i * 2 + 2];
+        Eigen::MatrixXcd eigPlus = allEigenvectors[iQ * 7 + i * 2 + 1];
+        Eigen::MatrixXcd eigMinus = allEigenvectors[iQ * 7 + i * 2 + 2];
+
+        // build diagonal matrices with frequencies
+        Eigen::MatrixXd enPlusMat(numBands, numBands);
+        Eigen::MatrixXd enMinusMat(numBands, numBands);
+        enPlusMat.setZero();
+        enMinusMat.setZero();
+        enPlusMat.diagonal() << enPlus;
+        enMinusMat.diagonal() << enMinus;
+
+        // build the dynamical matrix at the two wavevectors
+        // since we diagonalized it before, A = M.U.M*
+        Eigen::MatrixXcd sqrtDPlus(numBands, numBands);
+        sqrtDPlus = eigPlus * enPlusMat * eigPlus.adjoint();
+        Eigen::MatrixXcd sqrtDMinus(numBands, numBands);
+        sqrtDMinus = eigMinus * enMinusMat * eigMinus.adjoint();
+
+        // now we can build the velocity operator
+        Eigen::MatrixXcd der(numBands, numBands);
+        der = (sqrtDPlus - sqrtDMinus) / (2. * delta);
+
+        // and to be safe, we reimpose hermiticity
+        der = 0.5 * (der + der.adjoint());
+
+        // now we rotate in the basis of the eigenvectors at q.
+        der = eigenvectors.adjoint() * der * eigenvectors;
+
+        for (int ib2 = 0; ib2 < numBands; ib2++) {
+          for (int ib1 = 0; ib1 < numBands; ib1++) {
+            velocity(ib1, ib2, i) = der(ib1, ib2);
+          }
+        }
+      }
+
+      {
+        // turns out that the above algorithm has problems with degenerate bands
+        // so, we diagonalize the velocity operator in the degenerate subspace,
+        for (int ib = 0; ib < numBands; ib++) {
+          // first, we check if the band is degenerate, and the size of the
+          // degenerate subspace
+          int sizeSubspace = 1;
+          for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
+            // I consider bands degenerate if their frequencies are the same
+            // within 0.0001 cm^-1
+            if (abs(energies(ib) - energies(ib2)) > 0.0001 / ryToCmm1) {
+              break;
+            }
+            sizeSubspace += 1;
+          }
+
+          if (sizeSubspace > 1) {
+            Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
+            // we have to repeat for every direction
+            for (int iCart : {0, 1, 2}) {
+              // take the velocity matrix of the degenerate subspace
+              for (int j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                  subMat(i, j) = velocity(ib + i, ib + j, iCart);
+                }
+              }
+
+              // reinforce hermiticity
+              subMat = 0.5 * (subMat + subMat.adjoint());
+
+              // diagonalize the subMatrix
+              Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
+              const Eigen::MatrixXcd &newEigenVectors = eigenSolver.eigenvectors();
+
+              // rotate the original matrix in the new basis
+              // that diagonalizes the subspace.
+              subMat = newEigenVectors.adjoint() * subMat * newEigenVectors;
+
+              // reinforce hermiticity
+              subMat = 0.5 * (subMat + subMat.adjoint());
+
+              // substitute back
+              for (int j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                  velocity(ib + i, ib + j, iCart) = subMat(i, j);
+                }
+              }
+            }
+          }
+
+          // we skip the bands in the subspace, since we corrected them already
+          ib += sizeSubspace - 1;
+        }
+      }
+      resultVelocities[iQ] = velocity;
+    }
+
+    if (withMassScaling) {
+      // align the masses with the band index, to simplify later loops
+      Eigen::VectorXd masses(numBands);
+      for (int iat = 0; iat < numAtoms; iat++) {
+        int iType = atomicSpecies(iat);
+        for (int i : {0, 1, 2}) {
+          masses(iat * 3 + i) = speciesMasses(iType);
+        }
+      }
+      // we normalize with the mass.
+      // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+      // but instead (U^+) * M * U = I, where M is the mass matrix
+      // (M is diagonal with atomic masses on the diagonal)
+#pragma omp parallel for collapse(3)
+      for (int iQ = 0; iQ < numQ; ++iQ) {
+        for (int iBand = 0; iBand < numBands; iBand++) {
+          for (int i = 0; i < numBands; i++) {
+            resultEigenvectors[iQ](i, iBand) /= sqrt(masses(i));
+          }
+        }
+      }
+    }
+    return {resultEnergies, resultEigenvectors, resultVelocities};
   }
 }

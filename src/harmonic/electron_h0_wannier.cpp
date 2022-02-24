@@ -308,8 +308,6 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
     const std::vector<Eigen::Vector3d>& cartesianCoordinates,
     const bool& withVelocities) {
 
-  int numK = cartesianCoordinates.size();
-
   if (!withVelocities) {
     auto t = internalPopulate(cartesianCoordinates);
     std::vector<Eigen::VectorXd> allEnergies = std::get<0>(t);
@@ -319,11 +317,13 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
 
   } else {
 
+    int numK = cartesianCoordinates.size();
+
     double delta = 1.0e-8;
     double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
 
     std::vector<Eigen::Vector3d> allVectors(numK * 7);
-
+#pragma omp parallel for
     for (int iK = 0; iK < numK; ++iK) {
       Eigen::Vector3d coordinates = cartesianCoordinates[iK];
       allVectors[iK * 7] = coordinates;

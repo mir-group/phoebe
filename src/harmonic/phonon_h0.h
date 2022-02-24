@@ -92,6 +92,11 @@ class PhononH0 : public HarmonicHamiltonian {
   FullBandStructure populate(Points &points, bool &withVelocities,
                              bool &withEigenvectors, bool isDistributed = false) override;
 
+  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+             std::vector<Eigen::Tensor<std::complex<double>,3>>> populate(
+      const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+      const bool& withVelocities=false, const bool &withMassScaling=true);
+
   /** Returns the size of the q-point coarse grid on which the force constants
    * have been computed.
    * @return qCoarseGrid: an Eigen vector of 3 integers.
