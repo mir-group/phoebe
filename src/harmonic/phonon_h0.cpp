@@ -381,7 +381,7 @@ void PhononH0::reorderDynamicalMatrix() {
 
   bravaisVectors = Eigen::MatrixXd::Zero(3, numBravaisVectors);
   weights = Eigen::VectorXd::Zero(numBravaisVectors);
-  mat2R.resize(3, 3, numAtoms, numAtoms, numBravaisVectors);
+  mat2R.resize(numBravaisVectors, 3*numAtoms, 3*numAtoms);
   mat2R.setZero();
 
   int iR = 0;
@@ -422,7 +422,7 @@ void PhononH0::reorderDynamicalMatrix() {
 
               for (int j : {0, 1, 2}) {
                 for (int i : {0, 1, 2}) {
-                  mat2R(i, j, na, nb, iR) +=
+                  mat2R(iR, na * 3 + i, nb * 3 + j) +=
                       forceConstants(i, j, m1, m2, m3, na, nb);
                 }
               }
@@ -591,6 +591,15 @@ std::tuple<std::vector<Eigen::VectorXd>,
 
   int numQ = cartesianCoordinates.size();
 
+  // align the masses with the band index, to simplify later loops
+  Eigen::VectorXd masses(numBands);
+  for (int iat = 0; iat < numAtoms; iat++) {
+    int iType = atomicSpecies(iat);
+    for (int i : {0, 1, 2}) {
+      masses(iat * 3 + i) = speciesMasses(iType);
+    }
+  }
+
   Eigen::MatrixXcd dyn(numBands, numBands);
   dyn.setZero();
   std::vector<Eigen::MatrixXcd> dyns(numQ, dyn);
@@ -603,21 +612,16 @@ std::tuple<std::vector<Eigen::VectorXd>,
     for (int iQ = 0; iQ < numQ; ++iQ) {
       for (int iR = 0; iR < numBravaisVectors; iR++) {
         double arg = cartesianCoordinates[iQ].dot(bravaisVectors.col(iR));
-        phases(iR, iQ) = exp(-complexI * arg);
+        phases(iR, iQ) = exp(-complexI * arg) * weights(iR);
       }
     }
 
-#pragma omp parallel for collapse(5) // don't collapse the iR index
+#pragma omp parallel for collapse(3) // don't collapse the iR index
     for (int iQ = 0; iQ < numQ; ++iQ) {
-      for (int nb = 0; nb < numAtoms; nb++) {
-        for (int j : {0, 1, 2}) {
-          for (int na = 0; na < numAtoms; na++) {
-            for (int i : {0, 1, 2}) {
-              for (int iR = 0; iR < numBravaisVectors; iR++) {
-                dyns[iQ](na * 3 + i, nb * 3 + j) +=
-                    mat2R(i, j, na, nb, iR) * phases(iR,iQ) * weights(iR);
-              }
-            }
+      for (int j = 0; j < numBands; j++) {
+        for (int i = 0; i < numBands; i++) {
+          for (int iR = 0; iR < numBravaisVectors; iR++) {
+            dyns[iQ](i, j) += mat2R(iR, i, j) * phases(iR, iQ);
           }
         }
       }
@@ -642,18 +646,11 @@ std::tuple<std::vector<Eigen::VectorXd>,
       }
 
       //  divide by the square root of masses
-      for (int jat = 0; jat < numAtoms; jat++) {
-        int jType = atomicSpecies(jat);
-        for (int iat = 0; iat < numAtoms; iat++) {
-          int iType = atomicSpecies(iat);
-#pragma omp parallel for
-          for (int iQ=0; iQ<numQ; ++iQ) {
-            for (int j : {0, 1, 2}) {
-              for (int i : {0, 1, 2}) {
-                dyns[iQ](iat * 3 + i, jat * 3 + j) /=
-                    sqrt(speciesMasses(iType) * speciesMasses(jType));
-              }
-            }
+#pragma omp parallel for collapse(3)
+      for (int iQ=0; iQ<numQ; ++iQ) {
+        for (int j = 0; j < numBands; j++) {
+          for (int i = 0; i < numBands; i++) {
+            dyns[iQ](i, j) /= sqrt(masses(i) * masses(j));
           }
         }
       }
@@ -681,15 +678,11 @@ std::tuple<std::vector<Eigen::VectorXd>,
       // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
       // but instead (U^+) * M * U = I, where M is the mass matrix
       // (M is diagonal with atomic masses on the diagonal)
-      for (int iAt = 0; iAt < numAtoms; iAt++) {
-        int iType = atomicSpecies(iAt);
-        for (int iPol : {0, 1, 2}) {
-          int ind = getIndexEigenvector(iAt, iPol);
-#pragma omp parallel for
-          for (int iQ=0; iQ<numQ; ++iQ) {
-            for (int iBand = 0; iBand < numBands; iBand++) {
-              allEigenvectors[iQ](ind, iBand) /= sqrt(speciesMasses(iType));
-            }
+#pragma omp parallel for collapse(3)
+      for (int iQ=0; iQ<numQ; ++iQ) {
+        for (int iBand = 0; iBand < numBands; iBand++) {
+          for (int i = 0; i < numBands; i++) {
+            allEigenvectors[iQ](i, iBand) /= sqrt(masses(i));
           }
         }
       }

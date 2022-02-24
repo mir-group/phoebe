@@ -153,7 +153,7 @@ protected:
   int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;
   Eigen::VectorXd weights;
-  Eigen::Tensor<double,5> mat2R;
+  Eigen::Tensor<double,3> mat2R;
 
   Eigen::MatrixXd gVectors;
   Eigen::Tensor<double,3> longRangeCorrection1;
