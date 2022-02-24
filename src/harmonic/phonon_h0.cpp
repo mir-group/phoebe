@@ -208,42 +208,12 @@ std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
 PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
                                      const bool &withMassScaling) {
   // to be executed at every q-point to get phonon frequencies and wavevectors
-
-  Eigen::Tensor<std::complex<double>, 4> dyn(3, 3, numAtoms, numAtoms);
-  dyn.setZero();
-
-  // first, the short range term, which is just a Fourier transform
-  shortRangeTerm(dyn, q);
-
-  // then the long range term, which uses some convergence
-  // tricks by X. Gonze et al.
-  if (hasDielectric) {
-    addLongRangeTerm(dyn, q);
-  }
-
-  // once everything is ready, here we scale by masses and diagonalize
-
-  auto tup = dynDiagonalize(dyn);
-  auto energies = std::get<0>(tup);
-  auto eigenvectors = std::get<1>(tup);
-
-  if (withMassScaling) {
-    // we normalize with the mass.
-    // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
-    // but instead (U^+) * M * U = I, where M is the mass matrix
-    // (M is diagonal with atomic masses on the diagonal)
-    for (int iBand = 0; iBand < numBands; iBand++) {
-      for (int iAt = 0; iAt < numAtoms; iAt++) {
-        int iType = atomicSpecies(iAt);
-        for (int iPol : {0, 1, 2}) {
-          int ind = getIndexEigenvector(iAt, iPol);
-          eigenvectors(ind, iBand) /= sqrt(speciesMasses(iType));
-        }
-      }
-    }
-  }
-
-  return {energies, eigenvectors};
+  std::vector<Eigen::Vector3d> qVecs;
+  qVecs.push_back(q);
+  auto t = internalPopulate(qVecs, withMassScaling);
+  std::vector<Eigen::VectorXd> eigvals = std::get<0>(t);
+  std::vector<Eigen::MatrixXcd> eigvecs = std::get<1>(t);
+  return {eigvals[0], eigvecs[0]};
 }
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
@@ -384,75 +354,6 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r,
   return x;
 }
 
-void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                                const Eigen::VectorXd &q) {
-  // this subroutine is the analogous of rgd_blk in QE
-  // compute the rigid-ion (long-range) term for q
-  // The long-range term used here, to be added to or subtracted from the
-  // dynamical matrices, is exactly the same of the formula introduced in:
-  // X. Gonze et al, PRB 50. 13035 (1994) . Only the G-space term is
-  // implemented: the Ewald parameter alpha must be large enough to
-  // have negligible r-space contribution
-
-  //   complex(DP) :: dyn(3,3,numAtoms,numAtoms) ! dynamical matrix
-  //   real(DP) &
-  //        q(3),           &! q-vector
-  //        sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
-
-  // alpha, implicitly set to 1, is the Ewald parameter,
-  // geg is an estimate of G^2 such that the G-space sum is convergent for alpha
-  // very rough estimate: geg/4/alpha > gMax = 14
-  // (exp (-14) = 10^-6)
-
-  for (int na = 0; na < numAtoms; na++) {
-    for (int j : {0, 1, 2}) {
-      for (int i : {0, 1, 2}) {
-        dyn(i, j, na, na) += longRangeCorrection1(i, j, na);
-      }
-    }
-  }
-
-  double norm = e2 * fourPi / volumeUnitCell;
-
-  for (int ig=0; ig<gVectors.cols(); ++ig) {
-    Eigen::Vector3d gq = gVectors.col(ig) + q;
-
-    double geg = (gq.transpose() * dielectricMatrix * gq).value();
-
-    if (geg > 0. && geg < 4. * gMax) {
-      double normG = norm * exp(-geg * 0.25) / geg;
-
-      Eigen::MatrixXd gqZ(3, numAtoms);
-      for (int i : {0, 1, 2}) {
-        for (int nb = 0; nb < numAtoms; nb++) {
-          gqZ(i, nb) = gq(0) * bornCharges(nb, 0, i) +
-                       gq(1) * bornCharges(nb, 1, i) +
-                       gq(2) * bornCharges(nb, 2, i);
-        }
-      }
-
-      Eigen::MatrixXcd phases(numAtoms, numAtoms);
-      for (int nb = 0; nb < numAtoms; nb++) {
-        for (int na = 0; na < numAtoms; na++) {
-          double arg =
-              (atomicPositions.row(na) - atomicPositions.row(nb)).dot(gq);
-          phases(na, nb) = {cos(arg), sin(arg)};
-        }
-      }
-
-      for (int nb = 0; nb < numAtoms; nb++) {
-        for (int na = 0; na < numAtoms; na++) {
-          for (int j : {0, 1, 2}) {
-            for (int i : {0, 1, 2}) {
-              dyn(i, j, na, nb) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 void PhononH0::reorderDynamicalMatrix() {
   // this part can actually be expensive to execute, so we compute it once
   // at the beginning
@@ -535,88 +436,6 @@ void PhononH0::reorderDynamicalMatrix() {
 
   wsCache.resize(0, 0, 0, 0, 0);
   forceConstants.resize(0, 0, 0, 0, 0, 0, 0);
-}
-
-void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                              const Eigen::VectorXd &q) {
-  // calculates the dynamical matrix at q from the (short-range part of the)
-  // force constants21, by doing the Fourier transform of the force constants
-
-  std::vector<std::complex<double>> phases(numBravaisVectors);
-  for (int iR = 0; iR < numBravaisVectors; iR++) {
-    Eigen::Vector3d r = bravaisVectors.col(iR);
-    double arg = q.dot(r);
-    phases[iR] = exp(-complexI * arg); // {cos(arg), -sin(arg)};
-  }
-
-  for (int iR = 0; iR < numBravaisVectors; iR++) {
-    for (int nb = 0; nb < numAtoms; nb++) {
-      for (int na = 0; na < numAtoms; na++) {
-        for (int j : {0, 1, 2}) {
-          for (int i : {0, 1, 2}) {
-            dyn(i, j, na, nb) +=
-                mat2R(i, j, na, nb, iR) * phases[iR] * weights(iR);
-          }
-        }
-      }
-    }
-  }
-}
-
-std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
-PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
-  // diagonalise the dynamical matrix
-  // On input:  speciesMasses = masses, in amu
-  // On output: w2 = energies, z = displacements
-
-  // fill the two-indices dynamical matrix
-
-  Eigen::MatrixXcd dyn2Tmp(numBands, numBands);
-  for (int jat = 0; jat < numAtoms; jat++) {
-    for (int iat = 0; iat < numAtoms; iat++) {
-      for (int j : {0, 1, 2}) {
-        for (int i : {0, 1, 2}) {
-          dyn2Tmp(iat * 3 + i, jat * 3 + j) = dyn(i, j, iat, jat);
-        }
-      }
-    }
-  }
-
-  // impose hermiticity
-
-  Eigen::MatrixXcd dyn2(numBands, numBands);
-  dyn2 = dyn2Tmp + dyn2Tmp.adjoint();
-  dyn2 *= 0.5;
-
-  //  divide by the square root of masses
-
-  for (int jat = 0; jat < numAtoms; jat++) {
-    int jType = atomicSpecies(jat);
-    for (int j : {0, 1, 2}) {
-      for (int iat = 0; iat < numAtoms; iat++) {
-        int iType = atomicSpecies(iat);
-        for (int i : {0, 1, 2}) {
-          dyn2(iat * 3 + i, jat * 3 + j) /=
-              sqrt(speciesMasses(iType) * speciesMasses(jType));
-        }
-      }
-    }
-  }
-
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyn2);
-  Eigen::VectorXd w2 = eigenSolver.eigenvalues();
-
-  Eigen::VectorXd energies(numBands);
-  for (int i = 0; i < numBands; i++) {
-    if (w2(i) < 0) {
-      energies(i) = -sqrt(-w2(i));
-    } else {
-      energies(i) = sqrt(w2(i));
-    }
-  }
-  Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
-
-  return {energies, eigenvectors};
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -763,4 +582,193 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol) const {
 int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
                                   const int &nAtoms) {
   return compress2Indices(iAt, iPol, nAtoms, 3);
+}
+
+std::tuple<std::vector<Eigen::VectorXd>,
+           std::vector<Eigen::MatrixXcd>> PhononH0::internalPopulate(
+    const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+    const bool& withMassScaling) {
+
+  int numQ = cartesianCoordinates.size();
+
+  Eigen::MatrixXcd dyn(numBands, numBands);
+  dyn.setZero();
+  std::vector<Eigen::MatrixXcd> dyns(numQ, dyn);
+
+  // first, compute the dynamical matrix from the short-range part of the
+  // force constants, by doing a Fourier transform
+  {
+    Eigen::MatrixXcd phases(numBravaisVectors, numQ);
+#pragma omp parallel for collapse(2)
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      for (int iR = 0; iR < numBravaisVectors; iR++) {
+        double arg = cartesianCoordinates[iQ].dot(bravaisVectors.col(iR));
+        phases(iR, iQ) = exp(-complexI * arg);
+      }
+    }
+
+#pragma omp parallel for collapse(5) // don't collapse the iR index
+    for (int iQ = 0; iQ < numQ; ++iQ) {
+      for (int nb = 0; nb < numAtoms; nb++) {
+        for (int j : {0, 1, 2}) {
+          for (int na = 0; na < numAtoms; na++) {
+            for (int i : {0, 1, 2}) {
+              for (int iR = 0; iR < numBravaisVectors; iR++) {
+                dyns[iQ](na * 3 + i, nb * 3 + j) +=
+                    mat2R(i, j, na, nb, iR) * phases(iR,iQ) * weights(iR);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+    // then the long range term, which uses some convergence
+    // tricks by X. Gonze et al.
+    if (hasDielectric) {
+      addLongRangeTerm(dyns, cartesianCoordinates);
+    }
+
+    // once everything is ready, here we scale by masses and diagonalize
+
+    std::vector<Eigen::VectorXd> allEnergies(numQ);
+    std::vector<Eigen::MatrixXcd> allEigenvectors(numQ);
+    {
+      // impose hermiticity
+#pragma omp parallel for
+      for (int iQ=0; iQ<numQ; ++iQ) {
+        dyns[iQ] = 0.5 * (dyns[iQ] + dyns[iQ].adjoint());
+      }
+
+      //  divide by the square root of masses
+      for (int jat = 0; jat < numAtoms; jat++) {
+        int jType = atomicSpecies(jat);
+        for (int iat = 0; iat < numAtoms; iat++) {
+          int iType = atomicSpecies(iat);
+#pragma omp parallel for
+          for (int iQ=0; iQ<numQ; ++iQ) {
+            for (int j : {0, 1, 2}) {
+              for (int i : {0, 1, 2}) {
+                dyns[iQ](iat * 3 + i, jat * 3 + j) /=
+                    sqrt(speciesMasses(iType) * speciesMasses(jType));
+              }
+            }
+          }
+        }
+      }
+
+      // diagonalize
+#pragma omp parallel for
+      for (int iQ=0; iQ<numQ; ++iQ) {
+        Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyns[iQ]);
+        Eigen::VectorXd w2 = eigenSolver.eigenvalues();
+        Eigen::VectorXd energies(numBands);
+        for (int i = 0; i < numBands; i++) {
+          if (w2(i) < 0) {
+            energies(i) = -sqrt(-w2(i));
+          } else {
+            energies(i) = sqrt(w2(i));
+          }
+        }
+        allEnergies[iQ] = energies;
+        allEigenvectors[iQ] = eigenSolver.eigenvectors();
+      }
+    }
+
+    if (withMassScaling) {
+      // we normalize with the mass.
+      // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
+      // but instead (U^+) * M * U = I, where M is the mass matrix
+      // (M is diagonal with atomic masses on the diagonal)
+      for (int iAt = 0; iAt < numAtoms; iAt++) {
+        int iType = atomicSpecies(iAt);
+        for (int iPol : {0, 1, 2}) {
+          int ind = getIndexEigenvector(iAt, iPol);
+#pragma omp parallel for
+          for (int iQ=0; iQ<numQ; ++iQ) {
+            for (int iBand = 0; iBand < numBands; iBand++) {
+              allEigenvectors[iQ](ind, iBand) /= sqrt(speciesMasses(iType));
+            }
+          }
+        }
+      }
+    }
+
+    return {allEnergies, allEigenvectors};
+}
+
+void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
+                                const std::vector<Eigen::Vector3d>& qs) {
+  // this subroutine is the analogous of rgd_blk in QE
+  // compute the rigid-ion (long-range) term for q
+  // The long-range term used here, to be added to or subtracted from the
+  // dynamical matrices, is exactly the same of the formula introduced in:
+  // X. Gonze et al, PRB 50. 13035 (1994) . Only the G-space term is
+  // implemented: the Ewald parameter alpha must be large enough to
+  // have negligible r-space contribution
+
+  //   complex(DP) :: dyn(3,3,numAtoms,numAtoms) ! dynamical matrix
+  //   real(DP) &
+  //        q(3),           &! q-vector
+  //        sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
+
+  // alpha, implicitly set to 1, is the Ewald parameter,
+  // geg is an estimate of G^2 such that the G-space sum is convergent for alpha
+  // very rough estimate: geg/4/alpha > gMax = 14
+  // (exp (-14) = 10^-6)
+
+  int numQ = qs.size();
+
+#pragma omp parallel for
+  for (int iQ = 0; iQ < numQ; ++iQ) {
+    for (int na = 0; na < numAtoms; na++) {
+      for (int j : {0, 1, 2}) {
+        for (int i : {0, 1, 2}) {
+          dyns[iQ](na*3+i, na*3+j) += longRangeCorrection1(i, j, na);
+        }
+      }
+    }
+  }
+
+  double norm = e2 * fourPi / volumeUnitCell;
+
+#pragma omp parallel for // not on G, because that involves a reduction
+  for (int iQ = 0; iQ < numQ; ++iQ) {
+    for (int ig = 0; ig < gVectors.cols(); ++ig) {
+      Eigen::Vector3d gq = gVectors.col(ig) + qs[iQ];
+
+      double geg = (gq.transpose() * dielectricMatrix * gq).value();
+
+      if (geg > 0. && geg < 4. * gMax) {
+        double normG = norm * exp(-geg * 0.25) / geg;
+
+        Eigen::MatrixXd gqZ(3, numAtoms);
+        for (int i : {0, 1, 2}) {
+          for (int nb = 0; nb < numAtoms; nb++) {
+            gqZ(i, nb) = gq(0) * bornCharges(nb, 0, i) + gq(1) * bornCharges(nb, 1, i) + gq(2) * bornCharges(nb, 2, i);
+          }
+        }
+
+        Eigen::MatrixXcd phases(numAtoms, numAtoms);
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            double arg =
+                (atomicPositions.row(na) - atomicPositions.row(nb)).dot(gq);
+            phases(na, nb) = {cos(arg), sin(arg)};
+          }
+        }
+
+        for (int nb = 0; nb < numAtoms; nb++) {
+          for (int na = 0; na < numAtoms; na++) {
+            for (int j : {0, 1, 2}) {
+              for (int i : {0, 1, 2}) {
+                dyns[iQ](na*3+i, nb*3+j) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 }

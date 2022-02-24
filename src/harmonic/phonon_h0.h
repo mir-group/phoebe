@@ -120,6 +120,7 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return bornCharges: a real tensor of shape (numAtoms,3,3) with the charges
    */
   Eigen::Tensor<double, 3> getBornCharges();
+
 protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
@@ -170,29 +171,33 @@ protected:
    */
   static double wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws);
 
-  // These functions treat hte long range corrections
-  void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                        const Eigen::VectorXd &q);
-  void nonAnalyticTerm(const Eigen::VectorXd &q,
-                       Eigen::Tensor<std::complex<double>, 4> &dyn);
-  void nonAnalIFC(const Eigen::VectorXd &q,
-                  Eigen::Tensor<std::complex<double>, 4> &f_of_q);
-
-  /** This part computes the slow-range part of the dynamical matrix, which is
-   * the Fourier transform of the force constants.
+  /** Auxiliary methods for sum rule on Born charges
    */
-  void shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
-                      const Eigen::VectorXd &q);
-
-  /** dynDiagonalize diagonalizes the dynamical matrix and returns eigenvalues and
-   * eigenvectors.
-   */
-  std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> dynDiagonalize(
-      Eigen::Tensor<std::complex<double>, 4> &dyn);
-
-  // methods for sum rule on Born charges
   void sp_zeu(Eigen::Tensor<double, 3> &zeu_u, Eigen::Tensor<double, 3> &zeu_v,
               double &scalar) const;
+
+  /** This method does the Fourier transform of the force constants to construct
+   * the dynamical matrix, and returns the phonon frequencies and eigenvectors.
+   *
+   * @param cartesianCoordinates: vector of q-point coordinates.
+   * @param withMassScaling: controls the normalization of the phonon
+   * eigenvectors. If false, phonon eigenvectors are ortho-normalized to 1. If
+   * true, the normalization of the eigenvector is proportional to the masses.
+   * @return tuple with phonon frequencies and eigenvectors. Remember that the
+   * square of the frequencies are the eigenvalues. Also, if phonon frequencies
+   * should be imaginary, they are returned with negative values.
+   */
+  std::tuple<std::vector<Eigen::VectorXd>,
+             std::vector<Eigen::MatrixXcd>> internalPopulate(
+      const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+      const bool& withMassScaling);
+
+  /** Adds the long range correction to the dynamical matrix due to dipole-ion
+   * interaction. Called by internalPopulate()
+   */
+  void addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
+                        const std::vector<Eigen::Vector3d>& qs);
+
 };
 
 #endif
