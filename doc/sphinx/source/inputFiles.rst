@@ -851,7 +851,7 @@ phonopyDispFileName
 phonopyBORNFileName
 ^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Path to the ``BORN`` file in the `format as used by phonopy <https://phonopy.github.io/phonopy/input-files.html#born-optional>`_. This allows for the inclusion of the non-analytic correction to the IFC2s.
+* **Description:** Path to the ``BORN`` file in the `format as used by phonopy <https://phonopy.github.io/phonopy/input-files.html#born-optional>`_. This allows for the inclusion of the non-analytic correction to the IFC2s. For Phoebe, there is no need to worry about the unit conversion on the first line of this file. Most codes (VASP, QE) put these parameters in units of e. Please use these units.
 
 * **Format:** *string*
 
