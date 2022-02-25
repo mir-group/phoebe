@@ -294,18 +294,40 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     if(mpi->mpiHead()) {
       std::cout << "Parsing the phonopy BORN file." << std::endl;
     }
-    getline(infile,line);
 
     // NOTE need to extract the list of which atoms are listed in this file
     // from the comment on the first line of the file. Unfortunately, there is
     // not a better way to do this.
-    std::string temp = line.substr(line.find("atoms")+5);
+    /*std::string temp = line.substr(line.find("atoms")+5);
     std::vector<int> becList;
     {
       std::istringstream iss(temp);
       int i;
       while (iss >> i) {
         becList.push_back(i);
+      }
+    }*/
+
+    // in current versions of phonopy, the first line either contains the
+    // unit conversion or the "default conversion". In old versions, it was a
+    // comment containing atom info.
+    // we're ignoring this for now, as these conversions do not appear right for us.
+    // in fact, BECs are almost always in units of e, so that had better be what the
+    // user uses.
+    getline(infile,line);
+
+    // becList is going to tell us the first unique atoms in the system
+    int lastAtom = -1;
+    int counter = 0;
+    std::vector<int> becList;
+    for(auto at : atomicSpeciesVec) {
+      // if lastAtom! = this atom, this atom is the first of a new species
+      counter += 1; // phonopy indexes from 1
+      if(mpi->mpiHead()) std::cout << "at "<< at << std::endl;
+      if(lastAtom != at) {
+        becList.push_back(counter);
+        lastAtom = at;
+        if(mpi->mpiHead()) std::cout << "lastAtom "<< counter << std::endl;
       }
     }
 
