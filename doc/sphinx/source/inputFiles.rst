@@ -45,7 +45,7 @@ This postprocesses the data for  Wannier interpolation or EPA calculations in Ph
 * :ref:`distributedElPhCoupling`
 
 * :ref:`hdf5ElPhFileFormat`
-  
+
 .. raw:: html
 
   <h3>Sample input file (Wannier interpolation)</h3>
@@ -98,6 +98,8 @@ Phonon BTE Solver
 * :ref:`phFC3FileName`
 
 * :ref:`phonopyDispFileName`
+
+* :ref: `phonopyBORNFileName`
 
 * :ref:`sumRuleFC2`
 
@@ -179,8 +181,6 @@ Electron BTE Solver
 :ref:`appName` = "electronWannierTransport"
 
 * :ref:`phFC2FileName`
-
-* :ref:`phonopyDispFileName`
 
 * :ref:`sumRuleFC2`
 
@@ -333,6 +333,8 @@ Phonon Lifetimes on a Path
 
 * :ref:`phonopyDispFileName`
 
+* :ref:`phonopyBORNFileName`
+
 * :ref:`qMesh`
 
 * :ref:`temperatures`
@@ -400,8 +402,6 @@ Electron Lifetimes on a Path
 :ref:`appName` = "electronLifetimes"
 
 * :ref:`phFC2FileName`
-
-* :ref:`phonopyDispFileName`
 
 * :ref:`electronH0Name`
 
@@ -488,6 +488,8 @@ Phonon Dos
 
 * :ref:`phonopyDispFileName`
 
+* :ref:`phonopyBORNFileName`
+
 * :ref:`sumRuleFC2`
 
 * :ref:`qMesh`
@@ -531,6 +533,8 @@ Phonon Bands
 * :ref:`phFC2FileName`
 
 * :ref:`phonopyDispFileName`
+
+* :ref:`phonopyBORNFileName`
 
 * :ref:`sumRuleFC2`
 
@@ -829,7 +833,7 @@ phFC3FileName
 
 * **Required:** yes (for phonon transport and lifetime apps)
 
-  
+
 .. _phonopyDispFileName:
 
 phonopyDispFileName
@@ -840,6 +844,18 @@ phonopyDispFileName
 * **Format:** *string*
 
 * **Required:** yes (for calculations using phono3py)
+
+
+.. _phonopyBORNFileName:
+
+phonopyBORNFileName
+^^^^^^^^^^^^^^^^^^^
+
+* **Description:** Path to the ``BORN`` file in the `format as used by phonopy <https://phonopy.github.io/phonopy/input-files.html#born-optional>`_. This allows for the inclusion of the non-analytic correction to the IFC2s.
+
+* **Format:** *string*
+
+* **Required:** no
 
 
 .. _sumRuleFC2:
@@ -1150,7 +1166,7 @@ wsVecFileName
 * **Format:** *string*
 
 * **Required:** no
-  
+
 
 .. _dosMinEnergy:
 
