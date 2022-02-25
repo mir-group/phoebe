@@ -448,7 +448,9 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "phonopyDispFileName") {
         phonopyDispFileName = parseString(val);
       }
-
+      if (parameterName == "phonopyBORNFileName") {
+        phonopyBORNFileName = parseString(val);
+      }
       if (parameterName == "sumRuleFC2") {
         sumRuleFC2 = parseString(val);
       }
@@ -819,6 +821,9 @@ void Context::printInputSummary(const std::string &fileName) {
     if (!phonopyDispFileName.empty()) {
       std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
     }
+    if (!phonopyBORNFileName.empty()) {
+      std::cout << "phonopyBORNFileName = " << phonopyBORNFileName << std::endl;
+    }
     std::cout << std::endl;
   }
 
@@ -1073,9 +1078,11 @@ std::string Context::getPhFC3FileName() { return phFC3FileName; }
 void Context::setPhFC3FileName(const std::string &x) { phFC3FileName = x; }
 
 std::string Context::getPhonopyDispFileName() { return phonopyDispFileName; }
+/* just used as a test function */
 void Context::setPhonopyDispFileName(const std::string &x) {
   phonopyDispFileName = x;
 }
+std::string Context::getPhonopyBORNFileName() { return phonopyBORNFileName; }
 
 std::string Context::getSumRuleFC2() { return sumRuleFC2; }
 void Context::setSumRuleFC2(const std::string &x) { sumRuleFC2 = x; }
