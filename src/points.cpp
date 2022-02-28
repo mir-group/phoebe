@@ -12,7 +12,7 @@ const int Points::cartesianCoordinates = cartesianCoordinates_;
 
 Points::Points(Crystal &crystalObj_, const Eigen::Vector3i &mesh_,
                const Eigen::Vector3d &offset_)
-    : crystalObj{crystalObj_} {
+    : crystalObj{&crystalObj_} {
   setMesh(mesh_, offset_);
   setupGVectors();
 }
@@ -22,7 +22,7 @@ void Points::setupGVectors() {
   int nGx = 2;
   int nGVectors = (2 * nGx + 1) * (2 * nGx + 1) * (2 * nGx + 1);
   gVectors = Eigen::MatrixXd::Zero(3, nGVectors);
-  Eigen::Matrix3d reciprocalUnitCell = crystalObj.getReciprocalUnitCell();
+  Eigen::Matrix3d reciprocalUnitCell = crystalObj->getReciprocalUnitCell();
   nGVectors = 1; // we skip the first point which is G=(0,0,0)
   for (int i1 = -nGx; i1 <= nGx; i1++) {
     for (int i2 = -nGx; i2 <= nGx; i2++) {
@@ -40,7 +40,7 @@ void Points::setupGVectors() {
 
 Points::Points(Crystal &crystal_, const Eigen::Tensor<double, 3> &pathExtrema,
                const double &delta)
-    : crystalObj(crystal_) {
+    : crystalObj(&crystal_) {
 
   const double epsilon8 = 1.0e-8;
 
@@ -449,11 +449,11 @@ int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
 // change of basis methods
 
 Eigen::Vector3d Points::crystalToCartesian(const Eigen::Vector3d &point) {
-  return crystalObj.getReciprocalUnitCell() * point;
+  return crystalObj->getReciprocalUnitCell() * point;
 }
 
 Eigen::Vector3d Points::cartesianToCrystal(const Eigen::Vector3d &point) {
-  Eigen::Vector3d p = crystalObj.getReciprocalUnitCell().inverse() * point;
+  Eigen::Vector3d p = crystalObj->getReciprocalUnitCell().inverse() * point;
   return p;
 }
 
@@ -515,7 +515,7 @@ Eigen::Vector3d Points::foldToBz(const Eigen::Vector3d &point,
   return point2;
 }
 
-Crystal &Points::getCrystal() { return crystalObj; }
+Crystal &Points::getCrystal() { return *crystalObj; }
 
 int Points::getNumPoints() const { return numPoints; }
 
@@ -699,11 +699,11 @@ void Points::setIrreduciblePoints(
   // equiv(i)!=i : k-point i is equivalent to k-point equiv(nk)
 
   std::vector<SymmetryOperation> symmetries =
-      crystalObj.getSymmetryOperations();
+      crystalObj->getSymmetryOperations();
   {
     rotationMatricesCrystal.resize(0);
     rotationMatricesCartesian.resize(0);
-    Eigen::Matrix3d bg = crystalObj.getReciprocalUnitCell();
+    Eigen::Matrix3d bg = crystalObj->getReciprocalUnitCell();
     for (const SymmetryOperation &symmetry : symmetries) {
       Eigen::Matrix3d rotation = symmetry.rotation;
       rotationMatricesCrystal.push_back(rotation);
@@ -989,7 +989,7 @@ std::vector<int> Points::getReducibleStarFromIrreducible(const int &ik) {
 }
 
 void Points::swapCrystal(Crystal &newCrystal) {
-  crystalObj = newCrystal;
+  crystalObj = &newCrystal;
   rotationMatricesCrystal.resize(0);
   rotationMatricesCartesian.resize(0);
   mapEquivalenceRotationIndex.resize(0);

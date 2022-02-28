@@ -301,7 +301,7 @@ public:
 
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);
-  Crystal &crystalObj;
+  Crystal *crystalObj;
   Eigen::Vector3i mesh;
   Eigen::Vector3d offset;
   int numPoints = 0;

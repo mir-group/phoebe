@@ -471,6 +471,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   bool debug = false;
+  // TODO can we make this work when there are multiple calculations?
 
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
