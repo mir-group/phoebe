@@ -471,157 +471,125 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
 
   bool debug = false;
-  // TODO can we make this work when there are multiple calculations?
 
   // determine the delta k spacing in cartesian coordinates
   auto points = outerBandStructure.getPoints();
-  // TODO do we need to do this with velocities also?
-  // do we need to do this at all?
-  points.setIrreduciblePoints();
 
-  // print out the points list for debug check
-  /*for(int i = 0; i < points.getNumPoints(); i++) {
-    auto point = points.getPoint(i);
-    auto p = point.getCoordinates();
-    std::cout << p(0) << " " << p(1) << " " << p(2) << std::endl;
-  }*/
-
+  // TODO 0) should we transform the kMesh?
   Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
   Eigen::Vector3d deltaK;
   for (int i : {0,1,2}) {
     deltaK(i) = 1. / kMesh(i);
+    if(mpi->mpiHead()) std::cout << deltaK(i) << std::endl;
   }
 
   // convert the kspacing from crystal to cartesian
   auto crystal = outerBandStructure.getPoints().getCrystal();
   auto R = crystal.getReciprocalUnitCell();
-/*
-  if(mpi->mpiHead()) std::cout << "kmesh crys: " << kMesh[0] << " " << kMesh[1] << " " << kMesh[2] << " " << std::endl;
-  if(mpi->mpiHead()) std::cout << "deltaK crys: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
+  deltaK = R * deltaK;
 
-  if(mpi->mpiHead()) {
-    std::cout << "deltaK cart: " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << " " << std::endl;
-    for(int i = 0; i < 3; i++) {
-      for(int j = 0; j < 3; j++) {
-        std::cout << R(i,j) << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
-*/
   // first, compute all values of the vector Omega=vxB
   // (vxB) is in Cartesian coordinates
-  // (provided the input B vector is in cartesian coordinates too)
+  // (the input B vector is in cartesian coordinates too)
   Eigen::MatrixXd correction(numStates,3);
   correction.setZero();
   for (int is=0; is<numStates; ++is) {
     StateIndex isIdx(is);
+    // TODO 1) the velocity is cartesian, do we need to transform it?
     Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
-    Eigen::Vector3d x = vel.cross(magneticField);
-    Eigen::Vector3d y = x.transpose() * R.inverse();
+    // TODO 2) does magnetic field need to be transformed?
+    //magneticField = R.inverse() * magneticField;
+
+    Eigen::Vector3d y = vel.cross(magneticField);
+    //Eigen::Vector3d y = x; //R.inverse() * x;
 
     for (int i : {0,1,2}) {
       correction(is, i) = -y(i)/(2*deltaK[i]);
     }
   }
 
-  // loop over every state because we do not know
-  // if k+1 or k-1 will be on another process. Therefore, we cannot restrict the loop
-  // to only local state indices
-  int numKpoints = outerBandStructure.getNumPoints();
-  for (int is=0; is<numStates; ++is) {
+  for(int iCalc = 0; iCalc < numCalculations; iCalc++) {
+    // loop over every state because we do not know
+    // if k+1 or k-1 will be on another process. Therefore, we cannot restrict the loop
+    // to only local state indices
+    int numKpoints = outerBandStructure.getNumPoints();
+    for (int is=0; is<numStates; ++is) {
 
-    // generate basic state info
-    StateIndex isIdx(is);
-    auto t = outerBandStructure.getIndex(is);
-    WavevectorIndex ikIdx = std::get<0>(t);
-    BandIndex ibIdx = std::get<1>(t);
+      // generate basic state info
+      StateIndex isIdx(is);
+      auto t = outerBandStructure.getIndex(is);
+      WavevectorIndex ikIdx = std::get<0>(t);
+      BandIndex ibIdx = std::get<1>(t);
 
-    // kpoint coordinate values in range [0,1] (crystal coords)
-    Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(), Points::crystalCoordinates);
-    Eigen::Vector3d k3idx;
+      // kpoint coordinate values in range [0,1] (crystal coords)
+      Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(), Points::crystalCoordinates);
+      Eigen::Vector3d k3idx;
 
-    if(debug) if(mpi->mpiHead()) std::cout << "kpoint coordinates " << k(0) << " " << k(1) << " " << k(2) << std::endl;
-
-    // kpoint coordinate values in range [0, kMeshX] --> this is i,j,k direction index
-    for (int i : {0,1,2}) {
-      k3idx(i) = k(i) * kMesh(i);
-    }
-
-    if(debug) if(mpi->mpiHead()) std::cout << "ijk index of the middle kpoint " << k3idx(0) << " " << k3idx(1) << " " << k3idx(2) << std::endl;
-
-    // for each direction of the finite differences
-    for (int kDisplacement : {0, 1, 2}) {
-
-      // newK has coordinates in range [0, kMeshX]
-      Eigen::Vector3d kPlus = k3idx;
-      Eigen::Vector3d kMins = k3idx;
-
-      // add integer displacement, so that we have the forwards/backwards point indices
-      kPlus(kDisplacement) += 1;
-      kMins(kDisplacement) -= 1;
-
-      if(debug) {
-        if(mpi->mpiHead()) std::cout << "kPlus -- ijk of point forwards pt " << kPlus(0) << " " << kPlus(1) << " " << kPlus(2) << std::endl;
-        if(mpi->mpiHead()) std::cout << "kMins -- ijk of point backwards pt " << kMins(0) << " " << kMins(1) << " " << kMins(2) << std::endl;
-      }
-
-      // kPlus/kMinus has coordinates in range [0, 1]
+      // kpoint coordinate values in range [0, kMeshX] --> this is i,j,k direction index
       for (int i : {0,1,2}) {
-        kPlus(i) /= float(kMesh(i));
-        kMins(i) /= float(kMesh(i));
+        k3idx(i) = k(i) * kMesh(i);
       }
 
-      if(debug) {
-        if(mpi->mpiHead()) std::cout << "kPlus -- frac coords of point forwards pt " << kPlus(0) << " " << kPlus(1) << " " << kPlus(2) << std::endl;
-        if(mpi->mpiHead()) std::cout << "kMins -- frac coords of point backwards pt " << kMins(0) << " " << kMins(1) << " " << kMins(2) << std::endl;
+      // for each direction of the finite differences
+      for (int kDisplacement : {0, 1, 2}) {
+
+        // newK has coordinates in range [0, kMeshX]
+        Eigen::Vector3d kPlus = k3idx;
+        Eigen::Vector3d kMins = k3idx;
+
+        // add integer displacement, so that we have the forwards/backwards point indices
+        kPlus(kDisplacement) += 1;
+        kMins(kDisplacement) -= 1;
+
+        // kPlus/kMinus has coordinates in range [0, 1]
+        for (int i : {0,1,2}) {
+          kPlus(i) /= float(kMesh(i));
+          kMins(i) /= float(kMesh(i));
+        }
+
+        // find index of kPlus/kMinus in points
+        int ikPlusRed = outerBandStructure.getPointIndex(kPlus, true);
+        int ikMinsRed = outerBandStructure.getPointIndex(kMins, true);
+
+        // if symmetries are turned on, we need to map the global kmesh
+        // index to a irreducible point, as this is what will be used
+        // by the interalDiagonal element
+        int ikPlus = points.asIrreducibleIndex(ikPlusRed);
+        int ikMins = points.asIrreducibleIndex(ikMinsRed);
+
+        // TODO -- I think this should be a series of if statements.
+        // if we have neither +/-, we're in the middle of a region that
+        // was removed. We should expect (hope?) dk f ~ 0
+        // TODO the other scenario will be if one or the other kpoint is missing,
+        // I think in that case -- could we use forward/backward difference
+
+        // TODO why is it possible for ikPlus to be -1?
+        if (ikPlus > numKpoints || ikMins > numKpoints) { continue; }
+        if (ikPlus == -1 || ikMins == -1) { continue; }
+
+        WavevectorIndex ikPlusIdx(ikPlus);
+        WavevectorIndex ikMinsIdx(ikMins);
+
+        // find the kpoint in the kpoint list to get its state index
+        int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
+        int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
+
+        // before proceeding, we have to use the same coordinates,
+        // cartesian or crystal, for both the derivative and omega.
+        if(highMemory) {
+          if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
+            theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
+            internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
+          }
+          if(theMatrix.indicesAreLocal(isMins, isMins)) {
+            theMatrix(isMins, isMins) -= correction(is,kDisplacement);
+            internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
+          }
+        } else {
+            internalDiagonal(iCalc, 0, isPlus) += correction(is, kDisplacement);
+            internalDiagonal(iCalc, 0, isMins) -= correction(is, kDisplacement);
+        }
       }
-
-      // find index of kPlus/kMinus in points
-      int ikPlusRed = outerBandStructure.getPointIndex(kPlus, true);
-      int ikMinsRed = outerBandStructure.getPointIndex(kMins, true);
-
-      // if symmetries are turned on, we need to map the global kmesh
-      // index to a irreducible point, as this is what will be used
-      // by the interalDiagonal element
-      int ikPlus = points.asIrreducibleIndex(ikPlusRed);
-      int ikMins = points.asIrreducibleIndex(ikMinsRed);
-
-      if(debug) if(mpi->mpiHead()) std::cout << "ikPlus ikMins " << ikPlus << " " << ikMins << std::endl;
-
-      // TODO -- I think this should be a series of if statements.
-      // if we have neither +/-, we're in the middle of a region that
-      // was removed. We should expect (hope?) dk f ~ 0
-      // TODO the other scenario will be if one or the other kpoint is missing,
-      // I think in that case -- could we use forward/backward difference
-
-      // TODO why is it possible for ikPlus to be -1?
-      if (ikPlus > numKpoints || ikMins > numKpoints) { continue; }
-      if (ikPlus == -1 || ikMins == -1) { continue; }
-
-      WavevectorIndex ikPlusIdx(ikPlus);
-      WavevectorIndex ikMinsIdx(ikMins);
-
-      // find the kpoint in the kpoint list to get its state index
-      // TODO need to make sure this band isn't removed for the kpoint if the band structure is active
-      int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
-      int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
-
-      // before proceeding, we have to use the same coordinates,
-      // cartesian or crystal, for both the derivative and omega.
-    if(highMemory) {
-      if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
-        theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
-        internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
-      }
-      if(theMatrix.indicesAreLocal(isMins, isMins)) {
-        theMatrix(isMins, isMins) -= correction(is,kDisplacement);
-        internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
-      }
-   } else { // TODO need to add the icalc index
-        internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
-        internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
-    }
     }
   }
 }
