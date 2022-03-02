@@ -386,6 +386,7 @@ void ActiveBandStructure::symmetrize(Context &context,
 
   // make a copy of the points class which uses
   // the full crystal symmetries
+ // TODO a better way to do this
   Crystal bfieldCrystal = points.getCrystal();
   auto directCell = bfieldCrystal.getDirectUnitCell();
   auto atomicPositions = bfieldCrystal.getAtomicPositions();
@@ -457,9 +458,7 @@ void ActiveBandStructure::symmetrize(Context &context,
           }
         }
         // average the eigenvectors --------------------
-        //   Eigen::MatrixXcd getEigenvectors(WavevectorIndex &ik)
-        // where matrix is (numBands,numActiveBands), first dim likely nWannierCenters
-        // TODO what to do about phonon eigenvectors case, this has a different function?
+        // TODO could add this, for now we don't
       }
       avgEnergy /= double(reducibleList.size());
       avgEnergies.push_back(avgEnergy);
@@ -1126,6 +1125,7 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
   // the full crystal symmetries
   // TODO seems like there should be a more elegant way to do this
   Crystal bfieldCrystal = points.getCrystal();
+
   auto directCell = bfieldCrystal.getDirectUnitCell();
   auto atomicPositions = bfieldCrystal.getAtomicPositions();
   auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
