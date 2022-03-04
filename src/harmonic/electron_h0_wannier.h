@@ -63,6 +63,14 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   std::vector<Eigen::MatrixXcd> batchedBuildHamiltonians(
     std::vector<Eigen::Vector3d>& cartesianWavevectors);
 
+  ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+    const DoubleView2D &cartesianCoordinates);
+  std::tuple<DoubleView2D, ComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
+      const DoubleView2D &cartesianCoordinates);
+  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  kokkosBatchedDiagonalizeWithVelocities(
+      const DoubleView2D &cartesianCoordinates);
+
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.
    * @return velocity(numBands,numBands,3): values of the velocity operator
