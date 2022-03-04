@@ -71,6 +71,11 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
       Eigen::Vector3d &coordinates) override;
+  std::tuple<std::vector<Eigen::VectorXd>,
+             std::vector<Eigen::MatrixXcd>,
+             std::vector<Eigen::Tensor<std::complex<double>, 3>>>
+    batchedDiagonalizeWithVelocities(
+      std::vector<Eigen::Vector3d> cartesianCoordinates);
 
   /** This method constructs an electron band structure.
    * @param points: the object with the list/mesh of wavevectors
