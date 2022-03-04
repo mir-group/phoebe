@@ -130,6 +130,7 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
 
   if (!hasShiftedVectors) {
     Eigen::MatrixXcd phases(numVectors, numK);
+#pragma omp parallel for collapse(2)
     for (int iK = 0; iK < numK; ++iK) {
       for (int iR = 0; iR < numVectors; iR++) {
         double phase = cartesianWavevectors[iK].dot(bravaisVectors.col(iR));
@@ -137,6 +138,7 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
         phases(iR, iK) = phaseFactor / vectorsDegeneracies(iR);
       }
     }
+#pragma omp parallel for collapse(3)
     for (int iK = 0; iK < numK; ++iK) {
       for (int n = 0; n < numWannier; n++) {
         for (int m = 0; m < numWannier; m++) {
@@ -181,6 +183,7 @@ ElectronH0Wannier::batchedDiagonalizeFromCoordinates(std::vector<Eigen::Vector3d
 
   std::vector<Eigen::VectorXd> allEnergies(numK);
   std::vector<Eigen::MatrixXcd> allEigenvectors(numK);
+#pragma omp parallel for
   for (int iK = 0; iK < numK; ++iK) {
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(Hs[iK]);
     allEnergies[iK] = eigenSolver.eigenvalues();
