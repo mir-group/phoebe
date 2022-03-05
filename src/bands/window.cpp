@@ -18,13 +18,15 @@ Window::Window(Context &context, Particle &particle_,
     method = population;
   } else if (inMethod == "energy") {
     method = energy;
+  } else if (inMethod == "magnetotransport") {
+    method = forMagnetotransport;
   } else if (inMethod == "nothing") {
     method = nothing;
   } else {
     Error("Unrecognized method called in Window()");
   }
 
-  if (method == population) {
+  if (method == population || method == forMagnetotransport) {
     populationThreshold = context.getWindowPopulationLimit();
 
     if (std::isnan(populationThreshold)) {
@@ -60,10 +62,18 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
                                          chemicalPotentialMax);
     }
     return internalPopWindow(energies, popMin, popMax);
-
+  }
+  else if (method == forMagnetotransport) {
+    Eigen::VectorXd popMin(numBands), popMax(numBands);
+    for (int ib = 0; ib < numBands; ib++) {
+      popMin(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
+                                         chemicalPotentialMin);
+      popMax(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
+                                         chemicalPotentialMax);
+    }
+    return internalMagWindow(energies, popMin, popMax);
   } else if (method == energy) {
     return internalEnWindow(energies);
-
   } else { // no filter
     std::vector<double> filteredEnergies(energies.size());
     for (int ib = 0; ib < numBands; ib++) {
@@ -125,3 +135,36 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
 int Window::getMethodUsed() const {
   return method;
 }
+
+std::tuple<std::vector<double>, std::vector<int>> Window::internalMagWindow(
+    const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
+    const Eigen::VectorXd &popMax) const {
+
+  // need a window for using magnetic fields which
+  // keeps all bands for the selected kpoints.
+  // This is important because of the grad k
+  // term we want to compute
+
+  std::vector<double> energiesVec;
+  std::vector<int> bandsExtrema;
+  std::vector<int> bandsIndices;
+
+  for (int ib = 0; ib < numBands; ib++) {
+    energiesVec.push_back(energies(ib));
+    if ((abs(popMin(ib)) > populationThreshold) ||
+        (abs(popMax(ib)) > populationThreshold)) {
+      bandsIndices.push_back(ib);
+    }
+  }
+  if (!bandsIndices.empty()) {
+    bandsExtrema.push_back(0);
+    bandsExtrema.push_back(numBands - 1);
+    return {energiesVec, bandsExtrema};
+  } else {
+    std::vector<double> filteredEnergies2;
+    std::vector<int> bandsExtrema2;
+    return {filteredEnergies2, bandsExtrema2};
+  }
+}
+
+

@@ -63,6 +63,10 @@ class Window {
    */
   static const int energy = 2;
 
+  /** energy labels the window type looking for states within two energy values
+   */
+  static const int forMagnetotransport= 3;
+
   /** Returns the kind of energy filter used.
    * @return method: an integer equal to either Window::nothing,
    * Window::population, or Window::energy.
@@ -91,9 +95,14 @@ class Window {
   std::tuple<std::vector<double>, std::vector<int>> internalPopWindow(
       const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
       const Eigen::VectorXd &popMax) const;
+  std::tuple<std::vector<double>, std::vector<int>> internalMagWindow(
+      const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
+      const Eigen::VectorXd &popMax) const;
+
   // internal method to apply the window on energy
   std::tuple<std::vector<double>, std::vector<int>> internalEnWindow(
       const Eigen::VectorXd &energies) const;
 };
 
 #endif
+
