@@ -106,14 +106,6 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
                          Eigen::Tensor<double,5> vectorsShifts_);
 
-//  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
-//             std::vector<Eigen::Tensor<std::complex<double>,3>>> populate(
-//      const std::vector<Eigen::Vector3d>& cartesianCoordinates,
-//      const bool& withVelocities=false);
-
-//  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D> kokkosPopulate(
-//      const DoubleView2D& cartesianCoordinates, const bool &withVelocities);
-
  protected:
   Particle particle;
 
@@ -134,15 +126,6 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   Eigen::Tensor<double,3> degeneracyShifts;
   Eigen::Tensor<double,5> vectorsShifts;
   bool hasShiftedVectors = false;
-
-//  std::tuple<std::vector<Eigen::VectorXd>,
-//             std::vector<Eigen::MatrixXcd>> internalPopulate(
-//      const std::vector<Eigen::Vector3d>& cartesianCoordinates);
-//  std::tuple<DoubleView2D, ComplexView3D> kokkosInternalPopulate(
-//      const DoubleView2D& cartesianCoordinates);
-//  ComplexView3D kokkosBuildBlochHamiltonian(
-//      const DoubleView2D &cartesianCoordinates);
-
 
   ComplexView3D h0R_d;
   DoubleView3D degeneracyShifts_d;

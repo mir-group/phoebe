@@ -1,7 +1,7 @@
 #include "common_kokkos.h"
 #include "eigen.h"
 
-void kokkosZHEEV(ComplexView3D& A, DoubleView2D& W) {
+void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
   // kokkos people didn't implement the diagonalization of matrices.
   // So, we have to do a couple of dirty tricks
 
@@ -10,28 +10,43 @@ void kokkosZHEEV(ComplexView3D& A, DoubleView2D& W) {
   // critically, here I assume host == device!
   // hence, no need for deep_copy or Kokkos lambdas
 
-  int M = A.extent(0); // number of matrices
-  int N = A.extent(1); // matrix size is NxN
+  int M = A.extent(0);// number of matrices
+  int N = A.extent(1);// matrix size is NxN
 
 #pragma omp parallel for
   for (int i = 0; i < M; ++i) {
     // extract the block that describes the H(numW,numW) at fixed k
     ComplexView2D H = Kokkos::subview(A, i, Kokkos::ALL, Kokkos::ALL);
 
-    // this is a pointer to the storage, N values, viewing it as std::complex
-    // this hopes that kokkos::complex uses the same pattern of std::complex
-    auto* storage = reinterpret_cast<std::complex<double>*>(H.data());
+    // copy to an Eigen object
+    Eigen::MatrixXcd thisH(N,N);
+    for (int m=0; m<N; ++m) {
+      for (int n = 0; n < N; ++n) {
+        // note: here there is a conversion between
+        // Kokkos::complex<double> and std::complex<double>
+        thisH(m, n) = H(m,n);
+      }
+    }
 
-    // now, I feed the data to Eigen
-    // BEWARE: this statement doesn't do data copy, but points directly to the
-    // memory array. No out-of-bounds checks are made!
-    Eigen::Map<Eigen::MatrixXcd> thisH(storage, N, N);
-    // also, MatrixXcd is col-major. But it doesn't matter since H hermitian
+    // Note: I was hoping to rework the code above without needing to do
+    // data transfer. Unfortunately, Kokkos::complex is different than
+    // std::complex. I noticed that the code below, while seemingly elegant,
+    // was returning the complex conjugate of the original matrix.
+    //
+    //    // this is a pointer to the storage, N values, viewing it as std::complex
+    //    // this hopes that kokkos::complex uses the same pattern of std::complex
+    //    auto *storage = reinterpret_cast<std::complex<double> *>(H.data());
+    //
+    //    // now, I feed the data to Eigen
+    //    // BEWARE: this statement doesn't do data copy, but points directly to the
+    //    // memory array. No out-of-bounds checks are made!
+    //    Eigen::Map<Eigen::MatrixXcd> thisH(storage, N, N);
+    //    // also, MatrixXcd is col-major. But it doesn't matter since H hermitian
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(thisH);
     Eigen::VectorXd energies = eigenSolver.eigenvalues();
     Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
-    for (int m=0; m<N; ++m) {
+    for (int m = 0; m < N; ++m) {
       W(i, m) = energies(m);
       for (int n = 0; n < N; ++n) {
         A(i, m, n) = eigenvectors(m, n);
