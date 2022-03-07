@@ -680,9 +680,15 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
     Kokkos::parallel_for(
         "vel", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
         KOKKOS_LAMBDA(int iK, int m, int n) {
+          double norm = 0.;
+          for (int i=0; i<3; ++i) {
+            norm += cartesianCoordinates(iK,i);
+          }
           Kokkos::complex<double> tmp(0.,0.);
-          for (int l = 0; l < numWannier; ++l) {
-            tmp += tmpV(iK, m, l) * resultEigenvectors(iK, l, n);
+          if ( norm > 1.0e-6 ) {// skip the gamma point
+            for (int l = 0; l < numWannier; ++l) {
+              tmp += tmpV(iK, m, l) * resultEigenvectors(iK, l, n);
+            }
           }
           resultVelocities(iK, m, n, i) = tmp;
         });
