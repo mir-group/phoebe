@@ -682,7 +682,7 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
         KOKKOS_LAMBDA(int iK, int m, int n) {
           double norm = 0.;
           for (int i=0; i<3; ++i) {
-            norm += cartesianCoordinates(iK,i);
+            norm += cartesianCoordinates(iK,i)*cartesianCoordinates(iK,i);
           }
           Kokkos::complex<double> tmp(0.,0.);
           if ( norm > 1.0e-6 ) {// skip the gamma point
@@ -874,7 +874,7 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
           int ib = funcB(iMat);
           Kokkos::complex<double> tmp = zero;
           for (int k = 0; k < iDeg; ++k) {
-            tmp += tmpSubMat(iMatCart, i, k) * newEigenvectors(iMatCart, k, i);
+            tmp += tmpSubMat(iMatCart, i, k) * newEigenvectors(iMatCart, k, j);
           }
           resultVelocities(iK, ib + i, ib + j, iCart) = tmp;
         });
