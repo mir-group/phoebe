@@ -80,7 +80,7 @@ class DeviceManager {
 };
 
 // define a global object used for managing the memory on the GPU
-extern DeviceManager * kokkosDeviceMemory;
+extern DeviceManager* kokkosDeviceMemory;
 
 // function to initialize the Kokkos environment
 void initKokkos(int argc, char *argv[]);

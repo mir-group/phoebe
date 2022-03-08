@@ -83,22 +83,22 @@ DeviceManager::DeviceManager() {
 }
 
 void DeviceManager::addDeviceMemoryUsage(const double& memoryBytes) {
-  memoryUsed += memoryBytes;
-  if (memoryUsed > memoryTotal) {
+  this->memoryUsed += memoryBytes;
+  if (this->memoryUsed > this->memoryTotal) {
     Warning("DeviceManager: running low on device memory.");
   }
 }
 
 void DeviceManager::removeDeviceMemoryUsage(const double& memoryBytes) {
-  memoryUsed -= memoryBytes;
+  this->memoryUsed -= memoryBytes;
 }
 
 double DeviceManager::getAvailableMemory() {
-  return memoryTotal - memoryUsed;
+  return this->memoryTotal - this->memoryUsed;
 }
 
 double DeviceManager::getTotalMemory() {
-  return memoryTotal;
+  return this->memoryTotal;
 }
 
 void initKokkos(int argc, char *argv[]) {
