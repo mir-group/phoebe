@@ -1,5 +1,6 @@
 #include "interaction_3ph.h"
 #include "mpiHelper.h"
+#include "common_kokkos.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
                                Eigen::MatrixXd &cellPositions2,
@@ -62,18 +63,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   }
   Kokkos::deep_copy(D3_k, D3_h);
 
-  // get available memory from environment variable,
-  // defaults to 16 GB set in the header file
-  char *memstr = std::getenv("MAXMEM");
-  if (memstr != NULL) {
-    maxmem = std::atof(memstr) * 1.0e9;
-  }
-  if (mpi->mpiHead()) {
-    printf("The maximal memory used for the coupling calculation will be %g "
-           "GB,\nset the MAXMEM environment variable to the preferred memory "
-           "usage in GB.\n",
-           maxmem / 1.0e9);
-  }
+  double memoryUsed = getDeviceMemoryUsage();
+  kokkosDeviceMemory->addDeviceMemoryUsage(memoryUsed);
 }
 
 // copy constructor
@@ -92,6 +83,18 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     numBands = that.numBands;
   }
   return *this;
+}
+
+Interaction3Ph::~Interaction3Ph() {
+  double memoryUsed = getDeviceMemoryUsage(); // call this before deallocation
+  kokkosDeviceMemory->removeDeviceMemoryUsage(memoryUsed);
+  Kokkos::realloc(D3_k, 0, 0, 0, 0, 0);
+  Kokkos::realloc(D3PlusCached_k, 0, 0, 0, 0);
+  Kokkos::realloc(D3MinsCached_k, 0, 0, 0, 0);
+  Kokkos::realloc(weights2_k, 0, 0, 0);
+  Kokkos::realloc(weights3_k, 0, 0, 0);
+  Kokkos::realloc(cellPositions2_k, 0, 0);
+  Kokkos::realloc(cellPositions3_k, 0, 0);
 }
 
 void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
@@ -423,11 +426,7 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   int maxnb3Mins = numBands;
 
   // available memory is MAXMEM minus size of D3, D3cache and ev2
-  double availmem = maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2))
-      - 8 * 3 * (nr2 + nr3) // phase
-      - 16 * nb2 * numBands // ev2;
-      - 8 * (nr2+nr3) * numAtoms * numAtoms //weights
-      - 8 * 3 * (nr2+nr3); // Bravais vectors
+  double availmem = kokkosDeviceMemory->getAvailableMemory();
 
   // memory used by different tensors
   // Note: 16 (2*8) is the size of double (complex<double>) in bytes
@@ -443,14 +442,25 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
 
   // the number of batches needed
   int numBatches = std::ceil(maxusage / availmem);
+  double totalMemory = kokkosDeviceMemory->getTotalMemory();
 
   if (availmem < maxusage / nq1) {
     // not enough memory to do even a single q1
-    std::cerr << "maxmem = " << maxmem / 1e9
-              << ", availmem = " << availmem / 1e9
-              << ", maxusage = " << maxusage / 1e9
-              << ", numBatches = " << numBatches << "\n";
+    std::cerr << "total Memory = " << totalMemory / 1e9
+              << "(Gb), availmem = " << availmem / 1e9
+              << "(Gb), maxusage = " << maxusage / 1e9
+              << "(Gb), numBatches = " << numBatches << "\n";
     Error("Insufficient memory!");
   }
   return numBatches;
+}
+
+double Interaction3Ph::getDeviceMemoryUsage() {
+  std::cout << "Entering here\n";
+  double occupiedMemory = 16 * (D3_k.size() + D3PlusCached_k.size()
+                                + D3MinsCached_k.size())
+      + 8 * (cellPositions2_k.size() + cellPositions2_k.size()
+             + weights2_k.size() + weights3_k.size());
+  std::cout << "Exiting here\n";
+  return occupiedMemory;
 }

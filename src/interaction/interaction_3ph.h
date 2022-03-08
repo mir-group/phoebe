@@ -54,10 +54,15 @@ private:
   Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
   Kokkos::View<double ***> weights2_k, weights3_k;
 
-  double maxmem = 16.0e9; // default 16 Gb memory space for computation
-
   // dimensions
   int nr2, nr3, numAtoms, numBands;
+
+  /** Estimate the memory in bytes, occupied by the kokkos Views containing
+   * the coupling tensor to be interpolated.
+   *
+   * @return a memory estimate in bytes
+   */
+  double getDeviceMemoryUsage();
 
 public:
 
@@ -97,6 +102,10 @@ public:
   /** Assignment operator
    */
   Interaction3Ph &operator=(const Interaction3Ph &that);
+
+  /** Destructor
+   */
+  ~Interaction3Ph();
 
   /** Computes the |V3|^2 matrix elements for a bunch of q1 wavevectors at fixed
    * q2 wavevector.

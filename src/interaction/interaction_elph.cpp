@@ -453,9 +453,9 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
   if (availableMemory < maxUsage / nk2) {
     // not enough memory to do even a single q1
     std::cerr << "total memory = " << totalMemory / 1e9
-    << ", available memory = " << availableMemory / 1e9
-    << ", max memory usage = " << maxUsage / 1e9
-    << ", numBatches = " << numBatches << "\n";
+    << "(Gb), available memory = " << availableMemory / 1e9
+    << "(Gb), max memory usage = " << maxUsage / 1e9
+    << "(Gb), numBatches = " << numBatches << "\n";
     Error("Insufficient memory!");
   }
   return numBatches;
