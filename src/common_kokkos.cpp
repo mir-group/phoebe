@@ -66,11 +66,27 @@ DeviceManager::DeviceManager() {
   char *memStr = std::getenv("MAXMEM");
   if (memStr != nullptr) {
     memoryTotal = std::atof(memStr) * 1.0e9;
+  } else {
+    memoryTotal = 16.0e9; // 16 Gb is our educated guess for available memory
+
+//    size_t freeMemory, totalMemory;
+//#if defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_OPENMP)
+//
+//#elif defined(KOKKOS_ENABLE_CUDA)
+//    cudaMemGetInfo (&freeMemory, &totalMemory );
+//    memoryUsed += totalMemory - freeMemory;
+//    memoryTotal = double(totalMemory);
+//#else
+//    Error("Implement DevicecManager for this backend");
+//#endif
   }
 }
 
 void DeviceManager::addDeviceMemoryUsage(const double& memoryBytes) {
   memoryUsed += memoryBytes;
+  if (memoryUsed > memoryTotal) {
+    Warning("DeviceManager: running low on device memory.");
+  }
 }
 
 void DeviceManager::removeDeviceMemoryUsage(const double& memoryBytes) {
@@ -79,6 +95,10 @@ void DeviceManager::removeDeviceMemoryUsage(const double& memoryBytes) {
 
 double DeviceManager::getAvailableMemory() {
   return memoryTotal - memoryUsed;
+}
+
+double DeviceManager::getTotalMemory() {
+  return memoryTotal;
 }
 
 void initKokkos(int argc, char *argv[]) {

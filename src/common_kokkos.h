@@ -50,9 +50,30 @@ void kokkosZHEEV(ComplexView3D& A, DoubleView2D& W);
 class DeviceManager {
  public:
   DeviceManager();
-  void addDeviceMemoryUsage(const double& memMB);
-  void removeDeviceMemoryUsage(const double& memMB);
+  /** Let the manager know that some memory on the device has been allocated.
+   *
+   * @param memoryBytes :amount of allocated memory in bytes.
+   */
+  void addDeviceMemoryUsage(const double& memoryBytes);
+
+  /** let the manager know that some memory on the device has been freed.
+   *
+   * @param memoryBytes: amount of deallocated memory in Bytes
+   */
+  void removeDeviceMemoryUsage(const double& memoryBytes);
+
+  /** Get how much memory is left on the kokkos device.
+   *
+   * @return memory left in bytes.
+   */
   double getAvailableMemory();
+
+  /** Returns the total memory present on the kokkos device.
+   * This value is set by the user with the MAXMEM environment variable.
+   *
+   * @return device memory in bytes.
+   */
+  double getTotalMemory();
  private:
   double memoryUsed = 0.;
   double memoryTotal = 0.;
