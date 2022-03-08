@@ -456,11 +456,9 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
 }
 
 double Interaction3Ph::getDeviceMemoryUsage() {
-  std::cout << "Entering here\n";
   double occupiedMemory = 16 * (D3_k.size() + D3PlusCached_k.size()
                                 + D3MinsCached_k.size())
       + 8 * (cellPositions2_k.size() + cellPositions2_k.size()
              + weights2_k.size() + weights3_k.size());
-  std::cout << "Exiting here\n";
   return occupiedMemory;
 }
