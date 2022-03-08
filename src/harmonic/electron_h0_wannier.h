@@ -58,15 +58,58 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
 
   std::tuple<Eigen::VectorXd, Eigen::MatrixXcd> diagonalizeFromCoordinates(
       Eigen::Vector3d &k) override;
+
+  /** Computes energies and eigenvectors of electrons for a batch of nk
+   * wavevectors
+   *
+   * @param cartesianWavevectors: a std::vector containing the cartesian
+   * coordinates of nk wavevectors.
+   * @return tuple with vectors of energies(nk,nb) and eigenvectors(nk,nb,nb).
+   */
   std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>>
   batchedDiagonalizeFromCoordinates(std::vector<Eigen::Vector3d>& cartesianWavevectors);
+
+  /** Computes the Fourier transform of the Wannier Hamiltonian at a batch of
+   * wavevectors.
+   *
+   * @param cartesianWavevectors: a std::vector containing the cartesian
+   * coordinates of nk wavevectors.
+   * @return a vector of hamiltonian matrices in the Bloch representation.
+   */
   std::vector<Eigen::MatrixXcd> batchedBuildHamiltonians(
     std::vector<Eigen::Vector3d>& cartesianWavevectors);
 
+  /** Computes the Fourier transform of the Wannier Hamiltonian at a batch of
+   * wavevectors.
+   *
+   * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)
+   * (must already be on the GPU), containing the cartesian coordinates of a
+   * batch of nk wavevectors.
+   * @return a View object of size nk,nb,nb containing the nk Hamiltonian
+   * matrices.
+   */
   ComplexView3D kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates);
+
+  /** Computes energies and eigenvectors of electrons for a batch of nk
+   * wavevectors.
+   *
+   * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)
+   * (must already be on the GPU), containing the cartesian coordinates of a
+   * batch of nk wavevectors.
+   * @return a tuple of views of energy(nk,nb) and eigenvectors(nk,nb,nb) at
+   * each wavevector.
+   */
   std::tuple<DoubleView2D, ComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates);
+  /** Using kokkos, computes the electronic properties of a batch of wavevectors
+   *
+   * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)
+   * (must already be on the GPU), containing the cartesian coordinates of a
+   * batch of nk wavevectors.
+   * @return a tuple with energies(nk,nb), eigenvectors(nk,nb,nb) and
+   * velocities(nk,nb,nb,3) at each wavevector.
+   */
   std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates);
@@ -79,6 +122,15 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocity(Point &point) override;
   Eigen::Tensor<std::complex<double>, 3> diagonalizeVelocityFromCoordinates(
       Eigen::Vector3d &coordinates) override;
+
+  /** Same as diagonalizeVelocityFromCoordinates, but constructs the velocity
+   * operator for a batch of wavevectors.
+   *
+   * @param cartesianCoordinates: of size(nK,3), contains the cartesian
+   * coordinates of the wavevectors at which we want the electronic properties.
+   * @return tuple, containing vectors of energies, eigenvectors and velocities
+   * at each input wavevector.
+   */
   std::tuple<std::vector<Eigen::VectorXd>,
              std::vector<Eigen::MatrixXcd>,
              std::vector<Eigen::Tensor<std::complex<double>, 3>>>
@@ -94,6 +146,9 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
                              bool &withEigenvectors, bool isDistributed=false) override;
+  FullBandStructure kokkosPopulate(Points &fullPoints, bool &withVelocities,
+                                   bool &withEigenvectors,
+                                   bool isDistributed=false);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.
@@ -103,6 +158,15 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   std::vector<Eigen::MatrixXcd> getBerryConnection(Point &point);
 
+  /** Function used during parsing, to add the shifts used in the phases for
+   * the Fourier interpolation. Results will be slightly more expensive but more
+   * accurate, especially for very small mesh sizes.
+   *
+   * @param degeneracyShifts_: vector with the degeneracy of each shifted
+   * bravais lattice vector
+   * @param vectorsShifts_: the shifts to be added to the bravais lattice
+   * vectors.
+   */
   void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
                          Eigen::Tensor<double,5> vectorsShifts_);
 
@@ -132,6 +196,21 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   DoubleView5D vectorsShifts_d;
   DoubleView1D vectorsDegeneracies_d;
   DoubleView2D bravaisVectors_d;
+
+  /** Checks the size of Device-allocated views
+   *
+   * @return size occupied by Kokkos views, in bytes.
+   */
+  double getDeviceMemoryUsage();
+
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  int estimateBatchSize(const bool& withVelocity);
 };
 
 #endif

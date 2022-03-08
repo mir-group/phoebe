@@ -1,5 +1,6 @@
 #include "common_kokkos.h"
 #include "eigen.h"
+#include "mpiHelper.h"
 
 void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
   // kokkos people didn't implement the diagonalization of matrices.
@@ -56,4 +57,45 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
 #else
   Error("Kokkos@Phoebe: implement diagonalization in this architecture");
 #endif
+}
+
+DeviceManager *kokkosDeviceMemory = nullptr;
+
+DeviceManager::DeviceManager() {
+  memoryUsed = 0.;
+  char *memStr = std::getenv("MAXMEM");
+  if (memStr != nullptr) {
+    memoryTotal = std::atof(memStr) * 1.0e9;
+  }
+}
+
+void DeviceManager::addDeviceMemoryUsage(const double& memoryBytes) {
+  memoryUsed += memoryBytes;
+}
+
+void DeviceManager::removeDeviceMemoryUsage(const double& memoryBytes) {
+  memoryUsed -= memoryBytes;
+}
+
+double DeviceManager::getAvailableMemory() {
+  return memoryTotal - memoryUsed;
+}
+
+void initKokkos(int argc, char *argv[]) {
+  Kokkos::initialize(argc, argv);
+  kokkosDeviceMemory = new DeviceManager();
+}
+
+void deleteKokkos() {
+  delete kokkosDeviceMemory;
+  Kokkos::finalize();
+}
+
+void kokkosInfo() {
+  if (mpi->mpiHead()) {
+    printf("The maximal memory used by the device (Kokkos) will be %g "
+           "GB,\nset the MAXMEM environment variable to the preferred memory "
+           "usage in GB.\n",
+           kokkosDeviceMemory->getAvailableMemory() / 1.0e9);
+  }
 }

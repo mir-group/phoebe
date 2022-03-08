@@ -47,4 +47,27 @@ using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6, Kokkos::Iterate::Right, Ko
  */
 void kokkosZHEEV(ComplexView3D& A, DoubleView2D& W);
 
+class DeviceManager {
+ public:
+  DeviceManager();
+  void addDeviceMemoryUsage(const double& memMB);
+  void removeDeviceMemoryUsage(const double& memMB);
+  double getAvailableMemory();
+ private:
+  double memoryUsed = 0.;
+  double memoryTotal = 0.;
+};
+
+// define a global object used for managing the memory on the GPU
+extern DeviceManager * kokkosDeviceMemory;
+
+// function to initialize the Kokkos environment
+void initKokkos(int argc, char *argv[]);
+
+// function to delete the Kokkos environment
+void deleteKokkos();
+
+// print info about the Device memory used by the device
+void kokkosInfo();
+
 #endif

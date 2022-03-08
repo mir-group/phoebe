@@ -9,6 +9,7 @@
 
 #include "constants.h"
 #include "exceptions.h"
+#include "mpiHelper.h"
 
 /** Returns true if a string contains a substring.
  */
@@ -798,7 +799,7 @@ void printVectorXd(const std::string& varName, Eigen::VectorXd vec,
 }
 
 void Context::printInputSummary(const std::string &fileName) {
-
+  if (!mpi->mpiHead()) return;
   std::cout << std::endl;
   std::cout << "Input read from file: " << fileName << std::endl;
   std::cout << "---------------------------------------------" << std::endl;
