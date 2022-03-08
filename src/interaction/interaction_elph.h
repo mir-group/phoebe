@@ -64,7 +64,12 @@ class InteractionElPhWan {
   DoubleView2D elBravaisVectors_k;
   DoubleView1D elBravaisVectorsDegeneracies_k;
 
-  double maxmem = 16.0e9; // default 16 Gb memory space for computation
+  /** Estimate the memory in bytes, occupied by the kokkos Views containing
+   * the coupling tensor to be interpolated.
+   *
+   * @return a memory estimate in bytes
+   */
+  double getDeviceMemoryUsage();
 
 public:
 
@@ -111,6 +116,10 @@ public:
   /** Assignment operator
    */
   InteractionElPhWan &operator=(const InteractionElPhWan &that);
+
+  /** Destructor
+   */
+  ~InteractionElPhWan();
 
   /** Computes the values of the el-ph coupling strength for transitions of
    * type k1,q3 -> k2, where k1 is one fixed wavevector, and k2,q3 are

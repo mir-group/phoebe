@@ -35,19 +35,6 @@ InteractionElPhWan::InteractionElPhWan(
       }
     }
   }
-
-  // get available memory from environment variable,
-  // defaults to 16 GB set in the header file
-  char *memstr = std::getenv("MAXMEM");
-  if (memstr != nullptr) {
-    maxmem = std::atof(memstr) * 1.0e9;
-  }
-  if (mpi->mpiHead()) {
-    printf("The maximal memory used for the coupling calculation will be %g "
-           "GB,\nset the MAXMEM environment variable to the preferred memory "
-           "usage in GB.\n",
-           maxmem / 1.0e9);
-  }
 }
 
 InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
@@ -69,8 +56,7 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       phBravaisVectors_k(that.phBravaisVectors_k),
       phBravaisVectorsDegeneracies_k(that.phBravaisVectorsDegeneracies_k),
       elBravaisVectors_k(that.elBravaisVectors_k),
-      elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k),
-      maxmem(that.maxmem) {}
+      elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k) {}
 
 // assignment operator
 InteractionElPhWan &
@@ -95,9 +81,17 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     phBravaisVectorsDegeneracies_k = that.phBravaisVectorsDegeneracies_k;
     elBravaisVectors_k = that.elBravaisVectors_k;
     elBravaisVectorsDegeneracies_k = that.elBravaisVectorsDegeneracies_k;
-    maxmem = that.maxmem;
   }
   return *this;
+}
+
+InteractionElPhWan::~InteractionElPhWan() {
+  Kokkos::realloc(couplingWannier_k, 0, 0, 0, 0, 0);
+  Kokkos::realloc(elPhCached, 0, 0, 0, 0);
+  Kokkos::realloc(phBravaisVectors_k, 0, 0);
+  Kokkos::realloc(phBravaisVectorsDegeneracies_k, 0);
+  Kokkos::realloc(elBravaisVectors_k, 0, 0);
+  Kokkos::realloc(elBravaisVectorsDegeneracies_k, 0);
 }
 
 Eigen::Tensor<double, 3>
@@ -436,13 +430,7 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
   int maxNb2 = numElBands;
   int maxNb3 = numPhBands;
 
-  // available memory is MAXMEM minus size of elPh, elPhCached, U(k1) and the
-  // Bravais lattice vectors & degeneracies
-  double availmem = maxmem -
-      16 * (numElBands * numElBands * numPhBands * numElBravaisVectors * numPhBravaisVectors) -
-      16 * (nb1 * numElBands * numPhBands * numPhBravaisVectors) - // cached
-      8 * (3+1) * (numElBravaisVectors + numPhBravaisVectors) - // R + deg
-      16 * nb1 * numElBands; // U
+  double availableMemory = kokkosDeviceMemory->getAvailableMemory();
 
   // memory used by different tensors, that is linear in nk2
   // Note: 16 (2*8) is the size of double (complex<double>) in bytes
@@ -453,18 +441,20 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
   double gFinal = 2 * 16 * numPhBands * nb1 * maxNb2;
   double coupling = 16 * nb1 * maxNb2 * numPhBands;
   double polar = 16 * numPhBands * nb1 * maxNb2;
-  double maxusage =
+  double maxUsage =
       nk2 * (evs + polar +
              std::max({phase + g3, g3 + g4, g4 + gFinal, gFinal + coupling}));
 
   // the number of batches needed
-  int numBatches = std::ceil(maxusage / availmem);
+  int numBatches = std::ceil(maxUsage / availableMemory);
 
-  if (availmem < maxusage / nk2) {
+  double totalMemory = kokkosDeviceMemory->getTotalMemory();
+
+  if (availableMemory < maxUsage / nk2) {
     // not enough memory to do even a single q1
-    std::cerr << "maxmem = " << maxmem / 1e9
-    << ", availmem = " << availmem / 1e9
-    << ", maxusage = " << maxusage / 1e9
+    std::cerr << "total memory = " << totalMemory / 1e9
+    << ", available memory = " << availableMemory / 1e9
+    << ", max memory usage = " << maxUsage / 1e9
     << ", numBatches = " << numBatches << "\n";
     Error("Insufficient memory!");
   }
@@ -523,6 +513,11 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     // in the first call to this function, we must copy the el-ph tensor
     // from the CPU to the accelerator
     if (couplingWannier_k.extent(0) == 0) {
+      // available memory is MAXMEM minus size of elPh, elPhCached, U(k1) and the
+      // Bravais lattice vectors & degeneracies
+      double requiredMemory = getDeviceMemoryUsage();
+      kokkosDeviceMemory->removeDeviceMemoryUsage(requiredMemory);
+
       HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
                                           numElBravaisVectors, numPhBravaisVectors,
                                           numPhBands, numWannier, numWannier);
@@ -557,6 +552,8 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
       Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
       Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
       Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
+      double memoryUsed = getDeviceMemoryUsage();
+      kokkosDeviceMemory->addDeviceMemoryUsage(memoryUsed);
     }
 
     // now compute the Fourier transform on electronic coordinates.
@@ -668,4 +665,12 @@ Kokkos::parallel_for(
     }
   }
   this->elPhCached = elPhCached;
+}
+
+double InteractionElPhWan::getDeviceMemoryUsage() {
+  double x = 16 * (elPhCached.size() + couplingWannier_k.size())
+      + 8* ( phBravaisVectorsDegeneracies_k.size() + phBravaisVectors_k.size()
+             + elBravaisVectors_k.size()
+             + elBravaisVectorsDegeneracies_k.size());
+  return x;
 }
