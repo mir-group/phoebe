@@ -108,10 +108,9 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     auto velocitiesAPP = absAPP.getVelocities(ikIndex);
 
     // TEST check OTF built band structure -----------------------
-
     // check the energies
     double otfEns = (ensT - ensOTF).norm();
-    ASSERT_EQ(otfEns, 0.);
+    ASSERT_NEAR(otfEns, 0.,1e-16);
 
     // check the velocities
     std::complex<double> otfVelocities = complexZero;
@@ -123,7 +122,8 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
         }
       }
     }
-    ASSERT_EQ(otfVelocities, complexZero);
+    ASSERT_NEAR(otfVelocities.real(), 0, 1e-5);
+    ASSERT_NEAR(otfVelocities.imag(), 0, 1e-5);
 
     // check the eigenvectors
     std::complex<double> otfEigenVectors = complexZero;
@@ -240,7 +240,7 @@ TEST(ActiveBandStructureTest, WindowFilter) {
 
   // check the energies
   double ens = (ensOTF - ensAPP).norm();
-  ASSERT_EQ(ens, 0.);
+  ASSERT_NEAR(ens, 0.,1e-16);
 
   // check the velocities
   std::complex<double> velocities = complexZero;
@@ -254,6 +254,7 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   }
   ASSERT_EQ(velocities, complexZero);
 
+
   // check the eigenvectors
   std::complex<double> eigenVectors = complexZero;
   for (int i = 0; i < nb; i++) {
@@ -266,4 +267,5 @@ TEST(ActiveBandStructureTest, WindowFilter) {
     }
   }
   ASSERT_EQ(eigenVectors, complexZero);
+
 }
