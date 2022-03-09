@@ -475,7 +475,6 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
   //  int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   Kokkos::complex<double> complexI(0.0, 1.0);
-
   // note: when Kokkos is compiled with GPU support, we must create elPhCached
   // and other variables as local, so that Kokkos correctly allocates these
   // quantities on the GPU. At the end of this function, elPhCached must be
@@ -518,23 +517,23 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     ComplexView2D eigvec1_k("ev1", poolNb1, numElBands);
     DoubleView1D poolK1C_k("k", 3);
     {
-      HostComplexView2D eigvec1_h((Kokkos::complex<double> *) poolEigvec1.data(), poolNb1, numElBands);
+      HostComplexView2D eigvec1_h((Kokkos::complex<double> *) poolEigvec1.data(),
+                                  poolNb1, numElBands);
       HostDoubleView1D poolK1C_h(poolK1C.data(), 3);
       Kokkos::deep_copy(eigvec1_k, eigvec1_h);
       Kokkos::deep_copy(poolK1C_k, poolK1C_h);
     }
 
     // now compute the Fourier transform on electronic coordinates.
-    ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"), numPhBravaisVectors, numPhBands, numElBands,
-                     numElBands);
+    ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"),
+                     numPhBravaisVectors, numPhBands, numElBands, numElBands);
     ComplexView5D couplingWannier_k = this->couplingWannier_k;
     DoubleView2D elBravaisVectors_k = this->elBravaisVectors_k;
     DoubleView1D elBravaisVectorsDegeneracies_k = this->elBravaisVectorsDegeneracies_k;
 
     // first we precompute the phases
     ComplexView1D phases_k("phases", numElBravaisVectors);
-    Kokkos::parallel_for(
-        "phases_k", numElBravaisVectors,
+    Kokkos::parallel_for("phases_k", numElBravaisVectors,
         KOKKOS_LAMBDA(int irE) {
           double arg = 0.0;
           for (int j = 0; j < 3; j++) {
@@ -599,7 +598,8 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
 
     } else {
 
-      ComplexView4D poolElPhCached(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"), numPhBravaisVectors, numPhBands, poolNb1,
+      ComplexView4D poolElPhCached_k(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"),
+                                   numPhBravaisVectors, numPhBands, poolNb1,
                                    numElBands);
 
       Kokkos::parallel_for(
@@ -611,16 +611,15 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
             for (int iw1 = 0; iw1 < numElBands; iw1++) {
               tmp += g1(irP, nu, iw1, iw2) * eigvec1_k(ib1, iw1);
             }
-            poolElPhCached(irP, nu, ib1, iw2) = tmp;
+            poolElPhCached_k(irP, nu, ib1, iw2) = tmp;
           });
 
       // note: we do the reduction after the rotation, so that the tensor
       // may be a little smaller when windows are applied (nb1<numWannier)
 
       // copy from accelerator to CPU
-      Kokkos::View<Kokkos::complex<double> ****, Kokkos::LayoutRight, Kokkos::HostSpace> poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
-
-      Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
+      Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached_k);
+      Kokkos::deep_copy(poolElPhCached_h, poolElPhCached_k);
 
       // do a mpi->allReduce across the pool
       mpi->allReduceSum(&poolElPhCached_h, mpi->intraPoolComm);
