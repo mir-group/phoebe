@@ -154,7 +154,9 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
         }
       }
     }
-    ASSERT_EQ(appVelocities, complexZero);
+    ASSERT_NEAR(appVelocities.real(), 0, 1e-5);
+    ASSERT_NEAR(appVelocities.imag(), 0, 1e-5);
+
 
     // check the eigenvectors
     std::complex<double> appEigenVectors = complexZero;
