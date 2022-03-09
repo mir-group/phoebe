@@ -173,10 +173,6 @@ protected:
   // These functions treat hte long range corrections
   void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                         const Eigen::VectorXd &q);
-  void nonAnalyticTerm(const Eigen::VectorXd &q,
-                       Eigen::Tensor<std::complex<double>, 4> &dyn);
-  void nonAnalIFC(const Eigen::VectorXd &q,
-                  Eigen::Tensor<std::complex<double>, 4> &f_of_q);
 
   /** This part computes the slow-range part of the dynamical matrix, which is
    * the Fourier transform of the force constants.

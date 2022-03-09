@@ -19,30 +19,14 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
     // extract the block that describes the H(numW,numW) at fixed k
     ComplexView2D H = Kokkos::subview(A, i, Kokkos::ALL, Kokkos::ALL);
 
-    // copy to an Eigen object
-    Eigen::MatrixXcd thisH(N,N);
-    for (int m=0; m<N; ++m) {
-      for (int n = 0; n < N; ++n) {
-        // note: here there is a conversion between
-        // Kokkos::complex<double> and std::complex<double>
-        thisH(m, n) = H(m,n);
-      }
-    }
+    // this is a pointer to the storage, N values, viewing it as std::complex
+    auto *storage = reinterpret_cast<std::complex<double> *>(H.data());
 
-    // Note: I was hoping to rework the code above without needing to do
-    // data transfer. Unfortunately, Kokkos::complex is different than
-    // std::complex. I noticed that the code below, while seemingly elegant,
-    // was returning the complex conjugate of the original matrix.
-    //
-    //    // this is a pointer to the storage, N values, viewing it as std::complex
-    //    // this hopes that kokkos::complex uses the same pattern of std::complex
-    //    auto *storage = reinterpret_cast<std::complex<double> *>(H.data());
-    //
-    //    // now, I feed the data to Eigen
-    //    // BEWARE: this statement doesn't do data copy, but points directly to the
-    //    // memory array. No out-of-bounds checks are made!
-    //    Eigen::Map<Eigen::MatrixXcd> thisH(storage, N, N);
-    //    // also, MatrixXcd is col-major. But it doesn't matter since H hermitian
+    // now, I feed the data to Eigen
+    // BEWARE: this statement doesn't do data copy, but points directly to the
+    // memory array. No out-of-bounds checks are made!
+    // Also, Kokkos stores data as Row-Major, but Eigen default is column-major
+    Eigen::Map<Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> thisH(storage, N, N);
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(thisH);
     Eigen::VectorXd energies = eigenSolver.eigenvalues();
