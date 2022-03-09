@@ -122,8 +122,8 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
         }
       }
     }
-    ASSERT_NEAR(otfVelocities.real(), 0, 1e-5);
-    ASSERT_NEAR(otfVelocities.imag(), 0, 1e-5);
+    ASSERT_NEAR(otfVelocities.real(), 0, 1e-4);
+    ASSERT_NEAR(otfVelocities.imag(), 0, 1e-4);
 
     // check the eigenvectors
     std::complex<double> otfEigenVectors = complexZero;
