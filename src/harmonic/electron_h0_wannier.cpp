@@ -302,6 +302,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
       auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
       Kokkos::deep_copy(allEnergies_h, allEnergies_d);
       Kokkos::deep_copy(allEigenvectors_h, allEigenvectors_d);
+#pragma omp parallel for collapse(2)
       for (int iik = 0; iik < numK; ++iik) {
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
           allEnergies(iik, ib1) = allEnergies_h(iik, ib1);
@@ -316,6 +317,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
         allVelocities.resize(numK, numWannier, numWannier, 3);
         auto allVelocities_h = Kokkos::create_mirror_view(allVelocities_d);
         Kokkos::deep_copy(allVelocities_h, allVelocities_d);
+#pragma omp parallel for collapse(4)
         for (int iik = 0; iik < numK; ++iik) {
           for (int ib1 = 0; ib1 < numWannier; ++ib1) {
             for (int ib2 = 0; ib2 < numWannier; ++ib2) {

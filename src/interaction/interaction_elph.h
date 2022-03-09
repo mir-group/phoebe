@@ -31,14 +31,6 @@ class InteractionElPhWan {
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
 
-  Eigen::Tensor<std::complex<double>, 5> couplingWannier;
-  // numElBands,numElBands,numPhBands,numPhBravaisVectors,numElBravaisVectors);
-
-  Eigen::MatrixXd elBravaisVectors;
-  Eigen::VectorXd elBravaisVectorsDegeneracies;
-  Eigen::MatrixXd phBravaisVectors;
-  Eigen::VectorXd phBravaisVectorsDegeneracies;
-
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
