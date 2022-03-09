@@ -246,7 +246,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
                                                     bool &withVelocities,
                                                     bool &withEigenvectors,
                                                     bool isDistributed) {
-
+std::cout << "start populate\n";
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
@@ -261,13 +261,13 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
   for (auto ikBatch : ikBatches) {
     int numK = ikBatch.size();
 
-    std::vector<Eigen::Vector3d> cartesianWavevectors(numK);
-#pragma omp parallel for
-    for (int iik = 0; iik < numK; iik++) {
-      int ik = ikBatch[iik];
-      WavevectorIndex ikIdx(ik);
-      cartesianWavevectors[iik] = fullBandStructure.getWavevector(ikIdx);
-    }
+//    std::vector<Eigen::Vector3d> cartesianWavevectors(numK);
+// //#pragma omp parallel for
+//    for (int iik = 0; iik < numK; iik++) {
+//      int ik = ikBatch[iik];
+//      WavevectorIndex ikIdx(ik);
+//      cartesianWavevectors[iik] = fullBandStructure.getWavevector(ikIdx);
+//    }
 
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
     {
@@ -284,14 +284,13 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
       Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
     }
 
-    HostDoubleView2D allEnergies_h;
-    HostComplexView3D allEigenvectors_h;
-    HostComplexView4D allVelocities_h;
+    Eigen::MatrixXd allEnergies(numK, numWannier);
+    Eigen::Tensor<std::complex<double>,3> allEigenvectors(numK, numWannier, numWannier);
+    Eigen::Tensor<std::complex<double>,4> allVelocities(numK, numWannier, numWannier, 3);
     {
       DoubleView2D allEnergies_d;
       ComplexView3D allEigenvectors_d;
       ComplexView4D allVelocities_d;
-
       if (withVelocities) {
         auto t = kokkosBatchedDiagonalizeWithVelocities(cartesianWavevectors_d);
         allEnergies_d = std::get<0>(t);
@@ -304,18 +303,39 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
       }
       Kokkos::realloc(cartesianWavevectors_d, 0, 0);
 
-      allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
-      allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
+      auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
+      auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
+
       Kokkos::deep_copy(allEnergies_h, allEnergies_d);
       Kokkos::deep_copy(allEigenvectors_h, allEigenvectors_d);
+      for (int iik=0; iik<numK; ++iik) {
+        for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+          allEnergies(iik, ib1) = allEnergies_h(iik, ib1);
+          for (int ib2 = 0; ib2 < numWannier; ++ib2) {
+            allEigenvectors(iik, ib1, ib2) = allEigenvectors_h(iik, ib1, ib2);
+          }
+        }
+      }
+
+      if (withVelocities) {
+        auto allVelocities_h = Kokkos::create_mirror_view(allVelocities_d);
+        Kokkos::deep_copy(allVelocities_h, allVelocities_d);
+        for (int iik=0; iik<numK; ++iik) {
+          for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+            for (int ib2 = 0; ib2 < numWannier; ++ib2) {
+              for (int i = 0; i < 3; ++i) {
+                allVelocities(iik, ib1, ib2, i) = allVelocities_h(iik, ib1, ib2, i);
+              }
+            }
+          }
+        }
+      }
       Kokkos::realloc(allEnergies_d, 0, 0);
       Kokkos::realloc(allEigenvectors_d, 0, 0, 0);
-      if (withVelocities) {
-        allVelocities_h = Kokkos::create_mirror_view(allVelocities_d);
-        Kokkos::deep_copy(allVelocities_h, allVelocities_d);
-        Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
-      }
+      Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
+
+//std::cout << "328\n";
 
 #pragma omp parallel for
     for (int iik = 0; iik < numK; iik++) {
@@ -325,7 +345,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
 
       Eigen::VectorXd ens(numWannier);
       for (int ib=0; ib<numWannier; ++ib) {
-        ens(ib) = allEnergies_h(iik, ib);
+        ens(ib) = allEnergies(iik, ib);
       }
       fullBandStructure.setEnergies(point, ens);
 
@@ -334,23 +354,26 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
           for (int ib2 = 0; ib2 < numWannier; ++ib2) {
             for (int i = 0; i < 3; ++i) {
-              v(ib1,ib2,i) = allVelocities_h(iik, ib1, ib2, i);
+              v(ib1,ib2,i) = allVelocities(iik, ib1, ib2, i);
             }
           }
         }
         fullBandStructure.setVelocities(point, v);
-      } 
+      }
       if (withEigenvectors) {
         Eigen::MatrixXcd eigVec(numWannier, numWannier);
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
           for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-            eigVec(ib1, ib2) = allEigenvectors_h(iik, ib1, ib2);
+            eigVec(ib1, ib2) = allEigenvectors(iik, ib1, ib2);
           }
         }
         fullBandStructure.setEigenvectors(point, eigVec);
       }
     }
   }
+
+
+//std::cout << "end populate\n";
   return fullBandStructure;
 }
 
