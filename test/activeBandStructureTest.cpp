@@ -154,8 +154,8 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
         }
       }
     }
-    ASSERT_NEAR(appVelocities.real(), 0, 1e-4);
-    ASSERT_NEAR(appVelocities.imag(), 0, 1e-4);
+    ASSERT_NEAR(appVelocities.real(), 0, 1e-3);
+    ASSERT_NEAR(appVelocities.imag(), 0, 1e-3);
 
 
     // check the eigenvectors
