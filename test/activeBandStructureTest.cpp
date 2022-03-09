@@ -142,7 +142,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
 
     // check the energies
     double appEns = (ensT - ensAPP).norm();
-    ASSERT_EQ(appEns, 0.);
+    ASSERT_NEAR(appEns, 1e-16);
 
     // check the velocities
     std::complex<double> appVelocities = complexZero;
