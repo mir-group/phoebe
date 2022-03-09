@@ -75,8 +75,20 @@ class DeviceManager {
    */
   double getTotalMemory();
 
+  /** splits a vector into batches of size batchSize.
+   * Note: batchSize is adjusted, if necessary.
+   * This function is used to launch a kokkos loop on the GPU. In Phoebe, the
+   * memory grows linearly with the number of k-points in the interpolation.
+   * So, this is an auxiliary utility to see how many k-points we can fit in the
+   * device (GPU) memory before using it up completely.
+   *
+   * @param ikIterator: vector of integers that needs to be looped over.
+   * @param batchSize: in input, it sets the largest size of the batch allowed.
+   * Scaled down if batchSize is bigger than the ikIterator.size().
+   * @return batches: a vector<vector<int>> which splits the original vector.
+   */
   std::vector<std::vector<int>> splitToBatches(
-      const std::vector<int>& ikIterator, const int& batchSize);
+      const std::vector<int>& ikIterator, int& batchSize);
  private:
   double memoryUsed = 0.;
   double memoryTotal = 0.;

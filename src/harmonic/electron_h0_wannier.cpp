@@ -243,9 +243,9 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
 }
 
 FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
-                                              bool &withVelocities,
-                                              bool &withEigenvectors,
-                                              bool isDistributed) {
+                                                    bool &withVelocities,
+                                                    bool &withEigenvectors,
+                                                    bool isDistributed) {
 
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
@@ -1059,7 +1059,7 @@ int ElectronH0Wannier::estimateBatchSize(const bool& withVelocity) {
   }
 
   // we try to use 90% of the available memory (leave some buffer)
-  int numBatches = (int) memoryAvailable / memoryPerPoint * 0.95;
+  int numBatches = int(memoryAvailable / memoryPerPoint * 0.95);
   if (numBatches < 1) {
     Error("Not enough memory available on device, try reduce memory usage");
   }

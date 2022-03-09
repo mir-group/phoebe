@@ -444,7 +444,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         for (int na = 0; na < numAtoms; na++) {
           for (int j : {0, 1, 2}) {
             for (int i : {0, 1, 2}) {
-              dyn(i, j, na, nb) += normG * phases(na, nb) * gqZ(i, na) * gqZ(j, nb);
+              dyn(i, j, na, nb) += normG * phases(na, nb) * std::complex<double>(gqZ(i, na) * gqZ(j, nb),0.);
             }
           }
         }
