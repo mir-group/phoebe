@@ -101,6 +101,50 @@ double DeviceManager::getTotalMemory() {
   return this->memoryTotal;
 }
 
+std::vector<std::vector<int>> DeviceManager::splitToBatches(
+    const std::vector<int>& iterator, const int& batchSize) {
+
+  // decide how many chunks we want to do
+  // we want to be conservative and have 1 more chunk if necessary,
+  // as this likely leads to a smaller memory requirement per batch
+  int iteratorSize = iterator.size();
+  int numBatches = iteratorSize / batchSize; // 4/3 = 1
+  if (iteratorSize % batchSize != 0) ++numBatches; // 2 numBatches
+
+  int start = 0;
+  int end = batchSize;
+  std::vector<std::vector<int>> result(numBatches);
+  int iBatch = 0;
+  while (start < end) {
+    int thisBatchSize = end - start;
+    std::vector<int> batch(thisBatchSize);
+    for (int j=0; j<thisBatchSize; ++j) {
+      batch[j] = iterator[start + j];
+    }
+    result[iBatch] = batch;
+    start += batchSize;
+    end += batchSize;
+    end = std::min(end, iteratorSize);
+    ++iBatch;
+  }
+
+//  std::vector<std::vector<int>> result(numBatches);
+//  for (int iBatch = 0; iBatch < numBatches; iBatch++) {
+//    // start and end point for current batch
+//    int start = (iteratorSize * iBatch) / numBatches;
+//    // the min avoids possible out-of-bounds when the last chunk is slightly
+//    // smaller than the iteratorSize/numBatches
+//    int end = std::min((iteratorSize * (iBatch + 1)) / numBatches, iteratorSize);
+//    int thisBatchSize = end - start;
+//    std::vector<int> batch(thisBatchSize);
+//    for (int j=0; j<thisBatchSize; ++j) {
+//      batch[j] = iterator[start + j];
+//    }
+//    result[iBatch] = batch;
+//  }
+  return result;
+}
+
 void initKokkos(int argc, char *argv[]) {
   Kokkos::initialize(argc, argv);
   kokkosDeviceMemory = new DeviceManager();

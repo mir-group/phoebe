@@ -74,6 +74,9 @@ class DeviceManager {
    * @return device memory in bytes.
    */
   double getTotalMemory();
+
+  std::vector<std::vector<int>> splitToBatches(
+      const std::vector<int>& ikIterator, const int& batchSize);
  private:
   double memoryUsed = 0.;
   double memoryTotal = 0.;

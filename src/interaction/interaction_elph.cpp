@@ -35,6 +35,47 @@ InteractionElPhWan::InteractionElPhWan(
       }
     }
   }
+
+  // in the first call to this function, we must copy the el-ph tensor
+  // from the CPU to the accelerator
+  {
+    HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
+                                        numElBravaisVectors, numPhBravaisVectors,
+                                        numPhBands, numElBands, numElBands);
+    couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
+    Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
+
+    HostDoubleView2D elBravaisVectors_h(elBravaisVectors.data(),
+                                        numElBravaisVectors, 3);
+    HostDoubleView1D elBravaisVectorsDegeneracies_h(elBravaisVectorsDegeneracies.data(),
+                                                    numElBravaisVectors);
+    HostDoubleView2D phBravaisVectors_h(phBravaisVectors.data(),
+                                        numPhBravaisVectors, 3);
+    HostDoubleView1D phBravaisVectorsDegeneracies_h(phBravaisVectorsDegeneracies.data(),
+                                                    numPhBravaisVectors);
+    for (int i = 0; i < numElBravaisVectors; i++) {
+      elBravaisVectorsDegeneracies_h(i) = elBravaisVectorsDegeneracies(i);
+      for (int j = 0; j < 3; j++) {
+        elBravaisVectors_h(i, j) = elBravaisVectors(j, i);
+      }
+    }
+    for (int i = 0; i < numPhBravaisVectors; i++) {
+      phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
+      for (int j = 0; j < 3; j++) {
+        phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
+      }
+    }
+    phBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectors_h);
+    phBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectorsDegeneracies_h);
+    elBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectors_h);
+    elBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectorsDegeneracies_h);
+    Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
+    Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
+    Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
+    Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
+    double memoryUsed = getDeviceMemoryUsage();
+    kokkosDeviceMemory->addDeviceMemoryUsage(memoryUsed);
+  }
 }
 
 InteractionElPhWan::InteractionElPhWan(Crystal &crystal_) : crystal(crystal_) {}
@@ -86,6 +127,8 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
 }
 
 InteractionElPhWan::~InteractionElPhWan() {
+  double memory = getDeviceMemoryUsage();
+  kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
   Kokkos::realloc(couplingWannier_k, 0, 0, 0, 0, 0);
   Kokkos::realloc(elPhCached, 0, 0, 0, 0);
   Kokkos::realloc(phBravaisVectors_k, 0, 0);
@@ -476,6 +519,9 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
   int numElBravaisVectors = this->numElBravaisVectors;
   int numPhBravaisVectors = this->numPhBravaisVectors;
 
+  double memory = getDeviceMemoryUsage();
+  kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
+
   // note: this loop is a parallelization over the group (Pool) of MPI
   // processes, which together contain all the el-ph coupling tensor
   // First, loop over the MPI processes in the pool
@@ -508,52 +554,6 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
       HostDoubleView1D poolK1C_h(poolK1C.data(), 3);
       Kokkos::deep_copy(eigvec1_k, eigvec1_h);
       Kokkos::deep_copy(poolK1C_k, poolK1C_h);
-    }
-
-    // in the first call to this function, we must copy the el-ph tensor
-    // from the CPU to the accelerator
-    if (couplingWannier_k.extent(0) == 0) {
-      // available memory is MAXMEM minus size of elPh, elPhCached, U(k1) and the
-      // Bravais lattice vectors & degeneracies
-      double requiredMemory = getDeviceMemoryUsage();
-      kokkosDeviceMemory->removeDeviceMemoryUsage(requiredMemory);
-
-      HostComplexView5D couplingWannier_h((Kokkos::complex<double>*) couplingWannier.data(),
-                                          numElBravaisVectors, numPhBravaisVectors,
-                                          numPhBands, numWannier, numWannier);
-      couplingWannier_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), couplingWannier_h);
-      Kokkos::deep_copy(couplingWannier_k, couplingWannier_h);
-
-      HostDoubleView2D elBravaisVectors_h(elBravaisVectors.data(),
-                                          numElBravaisVectors, 3);
-      HostDoubleView1D elBravaisVectorsDegeneracies_h(elBravaisVectorsDegeneracies.data(),
-                                                      numElBravaisVectors);
-      HostDoubleView2D phBravaisVectors_h(phBravaisVectors.data(),
-                                          numPhBravaisVectors, 3);
-      HostDoubleView1D phBravaisVectorsDegeneracies_h(phBravaisVectorsDegeneracies.data(),
-                                                      numPhBravaisVectors);
-      for (int i = 0; i < numElBravaisVectors; i++) {
-        elBravaisVectorsDegeneracies_h(i) = elBravaisVectorsDegeneracies(i);
-        for (int j = 0; j < 3; j++) {
-          elBravaisVectors_h(i, j) = elBravaisVectors(j, i);
-        }
-      }
-      for (int i = 0; i < numPhBravaisVectors; i++) {
-        phBravaisVectorsDegeneracies_h(i) = phBravaisVectorsDegeneracies(i);
-        for (int j = 0; j < 3; j++) {
-          phBravaisVectors_h(i, j) = phBravaisVectors(j, i);
-        }
-      }
-      phBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectors_h);
-      phBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), phBravaisVectorsDegeneracies_h);
-      elBravaisVectors_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectors_h);
-      elBravaisVectorsDegeneracies_k = Kokkos::create_mirror_view(Kokkos::DefaultExecutionSpace(), elBravaisVectorsDegeneracies_h);
-      Kokkos::deep_copy(phBravaisVectors_k, phBravaisVectors_h);
-      Kokkos::deep_copy(phBravaisVectorsDegeneracies_k, phBravaisVectorsDegeneracies_h);
-      Kokkos::deep_copy(elBravaisVectors_k, elBravaisVectors_h);
-      Kokkos::deep_copy(elBravaisVectorsDegeneracies_k, elBravaisVectorsDegeneracies_h);
-      double memoryUsed = getDeviceMemoryUsage();
-      kokkosDeviceMemory->addDeviceMemoryUsage(memoryUsed);
     }
 
     // now compute the Fourier transform on electronic coordinates.
@@ -613,6 +613,7 @@ Kokkos::parallel_for(
     // we distinguish two cases. If each MPI process has the whole el-ph
     // tensor, we don't need communication and directly store results in
     // elPhCached. Otherwise, we need to do an MPI reduction
+
     if (mpi->getSize(mpi->intraPoolComm)==1) {
       Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
                       numWannier);
@@ -665,11 +666,13 @@ Kokkos::parallel_for(
     }
   }
   this->elPhCached = elPhCached;
+  double newMemory = getDeviceMemoryUsage();
+  kokkosDeviceMemory->addDeviceMemoryUsage(newMemory);
 }
 
 double InteractionElPhWan::getDeviceMemoryUsage() {
-  double x = 16 * (elPhCached.size() + couplingWannier_k.size())
-      + 8* ( phBravaisVectorsDegeneracies_k.size() + phBravaisVectors_k.size()
+  double x = 16 * (this->elPhCached.size() + couplingWannier_k.size())
+      + 8 * ( phBravaisVectorsDegeneracies_k.size() + phBravaisVectors_k.size()
              + elBravaisVectors_k.size()
              + elBravaisVectorsDegeneracies_k.size());
   return x;

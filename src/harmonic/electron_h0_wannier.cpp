@@ -1,3 +1,4 @@
+#include <iomanip>
 #include "electron_h0_wannier.h"
 #include "constants.h"
 #include "exceptions.h"
@@ -86,6 +87,8 @@ ElectronH0Wannier::ElectronH0Wannier(const ElectronH0Wannier &that)
   vectorsShifts_d = that.vectorsShifts_d;
   vectorsDegeneracies_d = that.vectorsDegeneracies_d;
   bravaisVectors_d = that.bravaisVectors_d;
+  double memory = getDeviceMemoryUsage();
+  kokkosDeviceMemory->addDeviceMemoryUsage(memory);
 }
 
 // copy assignment
@@ -107,6 +110,8 @@ ElectronH0Wannier &ElectronH0Wannier::operator=(const ElectronH0Wannier &that) {
     vectorsShifts_d = that.vectorsShifts_d;
     vectorsDegeneracies_d = that.vectorsDegeneracies_d;
     bravaisVectors_d = that.bravaisVectors_d;
+    double memory = getDeviceMemoryUsage();
+    kokkosDeviceMemory->addDeviceMemoryUsage(memory);
   }
   return *this;
 }
@@ -116,11 +121,11 @@ ElectronH0Wannier::~ElectronH0Wannier() {
   kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
   // Deallocate stuff from GPU
   // Eigen class attributes should be deallocated automatically
-  Kokkos::realloc(h0R_d, 0, 0, 0);
-  Kokkos::realloc(degeneracyShifts_d, 0, 0, 0);
-  Kokkos::realloc(vectorsShifts_d, 0, 0, 0, 0, 0);
-  Kokkos::realloc(vectorsDegeneracies_d, 0);
-  Kokkos::realloc(bravaisVectors_d, 0, 0);
+  Kokkos::resize(h0R_d, 0, 0, 0);
+  Kokkos::resize(degeneracyShifts_d, 0, 0, 0);
+  Kokkos::resize(vectorsShifts_d, 0, 0, 0, 0, 0);
+  Kokkos::resize(vectorsDegeneracies_d, 0);
+  Kokkos::resize(bravaisVectors_d, 0, 0);
 }
 
 Particle ElectronH0Wannier::getParticle() { return particle; }
@@ -245,100 +250,113 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
-  std::vector<int> iks = fullBandStructure.getWavevectorIndices();
-  int numK = iks.size();
 
-  DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
+  std::vector<std::vector<int>> ikBatches;
   {
-    auto cartesianWavevectors_h = Kokkos::create_mirror_view(cartesianWavevectors_d);
-#pragma omp parallel for
-    for (int iik = 0; iik < numK; iik++) {
-      int ik = iks[iik];
-      WavevectorIndex ikIdx(ik);
-      Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
-      for (int i = 0; i < 3; ++i) {
-        cartesianWavevectors_h(iik, i) = k(i);
-      }
-    }
-    Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
+    std::vector<int> ikIterator = fullBandStructure.getWavevectorIndices();
+    int batchSize = estimateBatchSize(withVelocities);
+    ikBatches = kokkosDeviceMemory->splitToBatches(ikIterator, batchSize);
   }
 
-  Eigen::MatrixXd allEnergies;
-  Eigen::Tensor<std::complex<double>,3> allEigenvectors;
-  Eigen::Tensor<std::complex<double>,4> allVelocities;
-  {
-    DoubleView2D allEnergies_d;
-    ComplexView3D allEigenvectors_d;
-    ComplexView4D allVelocities_d;
+  for (std::vector<int> ikBatch : ikBatches) {
+    int numK = ikBatch.size();
 
-    if (withVelocities) {
-      auto t = kokkosBatchedDiagonalizeWithVelocities(cartesianWavevectors_d);
-      allEnergies_d = std::get<0>(t);
-      allEigenvectors_d = std::get<1>(t);
-      allVelocities_d = std::get<2>(t);
-    } else {
-      auto t = kokkosBatchedDiagonalizeFromCoordinates(cartesianWavevectors_d);
-      allEnergies_d = std::get<0>(t);
-      allEigenvectors_d = std::get<1>(t);
-    }
-
-    allEnergies.resize(numK, numWannier);
-    allEigenvectors.resize(numK, numWannier, numWannier);
-    auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
-    auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
-    Kokkos::deep_copy(allEnergies_h, allEnergies_d);
-    Kokkos::deep_copy(allEigenvectors_h, allEigenvectors_d);
-    for (int iik=0; iik<numK; ++iik) {
-      for (int ib1 = 0; ib1 < numWannier; ++ib1) {
-        allEnergies(iik, ib1) = allEnergies_h(iik, ib1);
-        for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-          allEigenvectors(iik, ib1, ib2) = allEigenvectors_h(iik, ib1, ib2);
+    DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
+    {
+      auto cartesianWavevectors_h = Kokkos::create_mirror_view(cartesianWavevectors_d);
+#pragma omp parallel for
+      for (int iik = 0; iik < numK; iik++) {
+        int ik = ikBatch[iik];
+        WavevectorIndex ikIdx(ik);
+        Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
+        for (int i = 0; i < 3; ++i) {
+          cartesianWavevectors_h(iik, i) = k(i);
         }
       }
+      Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
     }
-    if (withVelocities) {
-      allVelocities.resize(numK, numWannier, numWannier, 3);
-      auto allVelocities_h = Kokkos::create_mirror_view(allVelocities_d);
-      Kokkos::deep_copy(allVelocities_h, allVelocities_d);
-      for (int iik =0; iik <numK; ++iik) {
+
+    Eigen::MatrixXd allEnergies;
+    Eigen::Tensor<std::complex<double>, 3> allEigenvectors;
+    Eigen::Tensor<std::complex<double>, 4> allVelocities;
+    {
+      DoubleView2D allEnergies_d;
+      ComplexView3D allEigenvectors_d;
+      ComplexView4D allVelocities_d;
+
+      if (withVelocities) {
+        auto t = kokkosBatchedDiagonalizeWithVelocities(cartesianWavevectors_d);
+        allEnergies_d = std::get<0>(t);
+        allEigenvectors_d = std::get<1>(t);
+        allVelocities_d = std::get<2>(t);
+      } else {
+        auto t = kokkosBatchedDiagonalizeFromCoordinates(cartesianWavevectors_d);
+        allEnergies_d = std::get<0>(t);
+        allEigenvectors_d = std::get<1>(t);
+      }
+      Kokkos::realloc(cartesianWavevectors_d, 0, 0);
+
+      allEnergies.resize(numK, numWannier);
+      allEigenvectors.resize(numK, numWannier, numWannier);
+      auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
+      auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
+      Kokkos::deep_copy(allEnergies_h, allEnergies_d);
+      Kokkos::deep_copy(allEigenvectors_h, allEigenvectors_d);
+      for (int iik = 0; iik < numK; ++iik) {
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+          allEnergies(iik, ib1) = allEnergies_h(iik, ib1);
           for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-            for (int i = 0; i < 3; ++i) {
-              allVelocities(iik, ib1, ib2, i) = allVelocities_h(iik, ib1, ib2, i);
+            allEigenvectors(iik, ib1, ib2) = allEigenvectors_h(iik, ib1, ib2);
+          }
+        }
+      }
+      Kokkos::realloc(allEnergies_d, 0, 0);
+      Kokkos::realloc(allEigenvectors_d, 0, 0, 0);
+      if (withVelocities) {
+        allVelocities.resize(numK, numWannier, numWannier, 3);
+        auto allVelocities_h = Kokkos::create_mirror_view(allVelocities_d);
+        Kokkos::deep_copy(allVelocities_h, allVelocities_d);
+        for (int iik = 0; iik < numK; ++iik) {
+          for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+            for (int ib2 = 0; ib2 < numWannier; ++ib2) {
+              for (int i = 0; i < 3; ++i) {
+                allVelocities(iik, ib1, ib2, i) = allVelocities_h(iik, ib1, ib2, i);
+              }
             }
           }
         }
+        Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
       }
     }
-  }
 
 #pragma omp parallel for
-  for (int iik = 0; iik < numK; iik++) {
-    int ik = iks[iik];
-    Point point = fullBandStructure.getPoint(ik);
-    Eigen::VectorXd ens = allEnergies.row(iik);
-    fullBandStructure.setEnergies(point, ens);
-    if (withVelocities) {
-      Eigen::Tensor<std::complex<double>,3> velocity(numWannier, numWannier, 3);
-      for (int ib1=0; ib1<numWannier; ++ib1) {
-        for (int ib2=0; ib2<numWannier; ++ib2) {
-          for (int i=0; i<3; ++i) {
-            velocity(ib1, ib2, i) = allVelocities(ik, ib1, ib2, i);
+    for (int iik = 0; iik < numK; iik++) {
+      int ik = ikBatch[iik];
+      Point point = fullBandStructure.getPoint(ik);
+      Eigen::VectorXd ens = allEnergies.row(iik);
+      fullBandStructure.setEnergies(point, ens);
+      if (withVelocities) {
+        Eigen::Tensor<std::complex<double>, 3> velocity(numWannier, numWannier, 3);
+        for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+          for (int ib2 = 0; ib2 < numWannier; ++ib2) {
+            for (int i = 0; i < 3; ++i) {
+              velocity(ib1, ib2, i) = allVelocities(ik, ib1, ib2, i);
+            }
           }
         }
+        fullBandStructure.setVelocities(point, velocity);
       }
-      fullBandStructure.setVelocities(point, velocity);
-    }
-    if (withEigenvectors) {
-      Eigen::MatrixXcd eigenVectors(numWannier, numWannier);
-      for (int ib1=0; ib1<numWannier; ++ib1) {
-        for (int ib2=0; ib2<numWannier; ++ib2) {
-          eigenVectors(ib1,ib2) = allEigenvectors(ik, ib1, ib2);
+      if (withEigenvectors) {
+        Eigen::MatrixXcd eigenVectors(numWannier, numWannier);
+        for (int ib1 = 0; ib1 < numWannier; ++ib1) {
+          for (int ib2 = 0; ib2 < numWannier; ++ib2) {
+            eigenVectors(ib1, ib2) = allEigenvectors(ik, ib1, ib2);
+          }
         }
+        fullBandStructure.setEigenvectors(point, eigenVectors);
       }
-      fullBandStructure.setEigenvectors(point, eigenVectors);
-    }
-  }
+    } // end k-point loop
+  } // end batch loop
   return fullBandStructure;
 }
 
@@ -496,8 +514,8 @@ void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShif
     Kokkos::deep_copy(degeneracyShifts_d, degeneracyShifts_h);
     Kokkos::deep_copy(vectorsShifts_d, vectorsShifts_h);
 
-    double memory = getDeviceMemoryUsage();
-    kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
+    double newMemory = getDeviceMemoryUsage();
+    kokkosDeviceMemory->addDeviceMemoryUsage(newMemory);
   }
 }
 
@@ -1011,12 +1029,9 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
 }
 
 double ElectronH0Wannier::getDeviceMemoryUsage() {
-  std::complex<double> tmpC;
-  double tmpD;
-  double memory = h0R_d.size() * sizeof(tmpC);
-  memory += sizeof(tmpD) *
-      double(degeneracyShifts_d.size() + vectorsShifts_d.size()
-             + vectorsDegeneracies_d.size() + bravaisVectors_d.size());
+  double memory = 16 * h0R_d.size() +
+      8 * double(degeneracyShifts_d.size() + vectorsShifts_d.size() +
+                 vectorsDegeneracies_d.size() + bravaisVectors_d.size());
   return memory;
 }
 
