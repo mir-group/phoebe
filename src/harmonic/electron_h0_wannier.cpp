@@ -242,7 +242,7 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
   return std::get<2>(t)[0];
 }
 
-FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
+FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
                                                     bool &withVelocities,
                                                     bool &withEigenvectors,
                                                     bool isDistributed) {
@@ -362,58 +362,58 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
   return fullBandStructure;
 }
 
-FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
-                                              bool &withVelocities,
-                                              bool &withEigenvectors,
-                                              bool isDistributed) {
+FullBandStructure ElectronH0Wannier::cpuPopulate(Points &fullPoints,
+                                                 bool &withVelocities,
+                                                 bool &withEigenvectors,
+                                                 bool isDistributed) {
 
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
-    std::vector<int> iks = fullBandStructure.getWavevectorIndices();
-    int numK = iks.size();
+  std::vector<int> iks = fullBandStructure.getWavevectorIndices();
+  int numK = iks.size();
 
-    std::vector<Eigen::Vector3d> cartesianWavevectors(numK);
-
-  #pragma omp parallel for
-    for (int iik = 0; iik < numK; iik++) {
-      int ik = iks[iik];
-      WavevectorIndex ikIdx(ik);
-      cartesianWavevectors[iik] = fullBandStructure.getWavevector(ikIdx);
-    }
-
-    std::vector<Eigen::VectorXd> allEnergies;
-    std::vector<Eigen::MatrixXcd> allEigenvectors;
-    std::vector<Eigen::Tensor<std::complex<double>,3>> allVelocities;
-
-    if (withVelocities) {
-      auto t = batchedDiagonalizeWithVelocities(cartesianWavevectors);
-      allEnergies = std::get<0>(t);
-      allEigenvectors = std::get<1>(t);
-      allVelocities = std::get<2>(t);
-    } else {
-      auto t = batchedDiagonalizeFromCoordinates(cartesianWavevectors);
-      allEnergies = std::get<0>(t);
-      allEigenvectors = std::get<1>(t);
-    }
+  std::vector<Eigen::Vector3d> cartesianWavevectors(numK);
 
 #pragma omp parallel for
-    for (int iik = 0; iik < numK; iik++) {
-      int ik = iks[iik];
-      Point point = fullBandStructure.getPoint(ik);
-      auto tup = diagonalize(point);
-      auto ens = allEnergies[iik];
-      fullBandStructure.setEnergies(point, ens);
-      if (withVelocities) {
-        auto velocities = diagonalizeVelocity(point);
-        fullBandStructure.setVelocities(point, velocities);
-      }
-      if (withEigenvectors) {
-        auto eigenVectors = allEigenvectors[iik];
-        fullBandStructure.setEigenvectors(point, eigenVectors);
-      }
+  for (int iik = 0; iik < numK; iik++) {
+    int ik = iks[iik];
+    WavevectorIndex ikIdx(ik);
+    cartesianWavevectors[iik] = fullBandStructure.getWavevector(ikIdx);
+  }
+
+  std::vector<Eigen::VectorXd> allEnergies;
+  std::vector<Eigen::MatrixXcd> allEigenvectors;
+  std::vector<Eigen::Tensor<std::complex<double>,3>> allVelocities;
+
+  if (withVelocities) {
+    auto t = batchedDiagonalizeWithVelocities(cartesianWavevectors);
+    allEnergies = std::get<0>(t);
+    allEigenvectors = std::get<1>(t);
+    allVelocities = std::get<2>(t);
+  } else {
+    auto t = batchedDiagonalizeFromCoordinates(cartesianWavevectors);
+    allEnergies = std::get<0>(t);
+    allEigenvectors = std::get<1>(t);
+  }
+
+#pragma omp parallel for
+  for (int iik = 0; iik < numK; iik++) {
+    int ik = iks[iik];
+    Point point = fullBandStructure.getPoint(ik);
+    auto tup = diagonalize(point);
+    auto ens = allEnergies[iik];
+    fullBandStructure.setEnergies(point, ens);
+    if (withVelocities) {
+      auto velocities = diagonalizeVelocity(point);
+      fullBandStructure.setVelocities(point, velocities);
     }
-    return fullBandStructure;
+    if (withEigenvectors) {
+      auto eigenVectors = allEigenvectors[iik];
+      fullBandStructure.setEigenvectors(point, eigenVectors);
+    }
+  }
+  return fullBandStructure;
 }
 
 std::vector<Eigen::MatrixXcd>

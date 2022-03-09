@@ -144,11 +144,11 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return FullBandStructure: the band structure object containing the
    * complete electronic band structure.
    */
+  FullBandStructure cpuPopulate(Points &fullPoints, bool &withVelocities,
+                                bool &withEigenvectors, bool isDistributed=false);
   FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed=false) override;
-  FullBandStructure kokkosPopulate(Points &fullPoints, bool &withVelocities,
-                                   bool &withEigenvectors,
-                                   bool isDistributed=false);
+                             bool &withEigenvectors,
+                             bool isDistributed=false) override;
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.
