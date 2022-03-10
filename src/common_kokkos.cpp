@@ -38,12 +38,6 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
         A(i, m, n) = eigenvectors(m, n);
       }
     }
-
-    // Note: while this resize shouldn't be necessary, I found that not doing
-    // this causes some problems to Kokkos not deallocating H.
-    // e.g. set OMP_NUM_THREADS=4 and run electronLifetimes.in without this.
-    // Leave it!
-    thisH.resize(0,0);
   }
 #else
   Error("Kokkos@Phoebe: implement diagonalization in this architecture");
