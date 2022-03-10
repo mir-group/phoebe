@@ -246,7 +246,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
                                                     bool &withVelocities,
                                                     bool &withEigenvectors,
                                                     bool isDistributed) {
-std::cout << "start populate\n";
+
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
@@ -260,14 +260,6 @@ std::cout << "start populate\n";
 
   for (auto ikBatch : ikBatches) {
     int numK = ikBatch.size();
-
-//    std::vector<Eigen::Vector3d> cartesianWavevectors(numK);
-// //#pragma omp parallel for
-//    for (int iik = 0; iik < numK; iik++) {
-//      int ik = ikBatch[iik];
-//      WavevectorIndex ikIdx(ik);
-//      cartesianWavevectors[iik] = fullBandStructure.getWavevector(ikIdx);
-//    }
 
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
     {
@@ -335,14 +327,10 @@ std::cout << "start populate\n";
       Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
 
-//std::cout << "328\n";
-
 #pragma omp parallel for
     for (int iik = 0; iik < numK; iik++) {
       int ik = ikBatch[iik];
       Point point = fullBandStructure.getPoint(ik);
-      auto tup = diagonalize(point);
-
       Eigen::VectorXd ens(numWannier);
       for (int ib=0; ib<numWannier; ++ib) {
         ens(ib) = allEnergies(iik, ib);
@@ -372,8 +360,6 @@ std::cout << "start populate\n";
     }
   }
 
-
-//std::cout << "end populate\n";
   return fullBandStructure;
 }
 
