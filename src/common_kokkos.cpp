@@ -14,13 +14,14 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
   int M = A.extent(0);// number of matrices
   int N = A.extent(1);// matrix size is NxN
 
-#pragma omp parallel for
+ #pragma omp parallel for
   for (int i = 0; i < M; ++i) {
-    // extract the block that describes the H(numW,numW) at fixed k
-    ComplexView2D H = Kokkos::subview(A, i, Kokkos::ALL, Kokkos::ALL);
-
     // this is a pointer to the storage, N values, viewing it as std::complex
-    auto *storage = reinterpret_cast<std::complex<double> *>(H.data());
+    // note: don't use kokkos::subview to locate the matrix.
+    // In fact, Kokkos::Views don't play well within the #pragme loop.
+    // hence, I take advantage of A having a right-layout and place the offset
+    // i*N*N that locates the start of the i-th matrix.
+    auto *storage = reinterpret_cast<std::complex<double> *>(A.data()) + i*N*N;
 
     // now, I feed the data to Eigen
     // BEWARE: this statement doesn't do data copy, but points directly to the
@@ -37,6 +38,12 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
         A(i, m, n) = eigenvectors(m, n);
       }
     }
+
+    // Note: while this resize shouldn't be necessary, I found that not doing
+    // this causes some problems to Kokkos not deallocating H.
+    // e.g. set OMP_NUM_THREADS=4 and run electronLifetimes.in without this.
+    // Leave it!
+    thisH.resize(0,0);
   }
 #else
   Error("Kokkos@Phoebe: implement diagonalization in this architecture");
