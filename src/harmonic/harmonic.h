@@ -74,16 +74,21 @@ class HarmonicHamiltonian {
    * least the quasiparticle energies and, optionally, velocities and
    * eigenvectors.
    */
-  virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                                     bool &withEigenvectors,
-                                     bool isDistributed = false) = 0;
-
+  virtual FullBandStructure populate(Points &fullPoints, const bool &withVelocities,
+                                     const bool &withEigenvectors,
+                                     const bool isDistributed = false) = 0;
   virtual std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
-    kokkosBatchedDiagonalizeWithVelocities(
-        const DoubleView2D &cartesianCoordinates);
+      kokkosBatchedDiagonalizeWithVelocities(
+      const DoubleView2D &cartesianCoordinates) = 0;
+  void kokkosBatchedTreatDegenerateVelocities(
+      const DoubleView2D& cartesianCoordinates,
+      const DoubleView2D& resultEnergies, ComplexView4D& resultVelocities,
+      const double& threshold);
   virtual ComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) = 0;
-
+  virtual std::tuple<DoubleView2D, ComplexView3D>
+  kokkosBatchedDiagonalizeFromCoordinates(
+      const DoubleView2D &cartesianCoordinates) = 0;
 };
 
 #endif

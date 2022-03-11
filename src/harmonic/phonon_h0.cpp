@@ -139,21 +139,11 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   {
     int numG = gVectors.cols();
     Kokkos::resize(atomicMasses_d, numBands);
-    Kokkos::resize(longRangeCorrection1_d, 3, 3, numAtoms);
-    Kokkos::resize(gVectors_d, numG, 3);
-    Kokkos::resize(dielectricMatrix_d, 3, 3);
-    Kokkos::resize(bornCharges_d, 3, 3, numAtoms);
-    Kokkos::resize(atomicPositions_d, numAtoms, 3);
     Kokkos::resize(bravaisVectors_d, numBravaisVectors, 3);
     Kokkos::resize(weights_d, numBravaisVectors);
     Kokkos::resize(mat2R_d, numBands, numBands, numBravaisVectors);
 
     auto atomicMasses_h = create_mirror_view(atomicMasses_d);
-    auto longRangeCorrection1_h = create_mirror_view(longRangeCorrection1_d);
-    auto gVectors_h = create_mirror_view(gVectors_d);
-    auto dielectricMatrix_h = create_mirror_view(dielectricMatrix_d);
-    auto bornCharges_h = create_mirror_view(bornCharges_d);
-    auto atomicPositions_h = create_mirror_view(atomicPositions_d);
     auto bravaisVectors_h = create_mirror_view(bravaisVectors_d);
     auto weights_h = create_mirror_view(weights_d);
     auto mat2R_h = create_mirror_view(mat2R_d);
@@ -169,28 +159,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
         }
       }
     }
-    for (int i = 0; i < 3; i++) {
-      for (int j = 0; j < 3; j++) {
-        dielectricMatrix_h(i, j) = dielectricMatrix(i, j);
-      }
-    }
-    for (int iAt=0; iAt<numAtoms; ++iAt) {
-      for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-          bornCharges_h(j, i, iAt) = bornCharges(iAt, i, j);
-          longRangeCorrection1_h(i, j, iAt) = longRangeCorrection1(i, j, iAt);
-        }
-      }
-    }
-    for (int iG=0; iG<numG; ++iG) {
-      for (int i = 0; i < 3; i++) {
-        gVectors_h(iG,i) = gVectors(i,iG);
-      }
-    }
     for (int iAt=0; iAt<numAtoms; ++iAt) {
       int iType = atomicSpecies(iAt);
       for (int i = 0; i < 3; i++) {
-        atomicPositions_h(iAt, i) = atomicPositions(iAt, i);
         atomicMasses_h(iAt * 3 + i) = speciesMasses(iType);
       }
     }
@@ -201,14 +172,49 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
       }
     }
     Kokkos::deep_copy(atomicMasses_d, atomicMasses_h);
-    Kokkos::deep_copy(longRangeCorrection1_d, longRangeCorrection1_h);
-    Kokkos::deep_copy(gVectors_d, gVectors_h);
-    Kokkos::deep_copy(dielectricMatrix_d, dielectricMatrix_h);
-    Kokkos::deep_copy(bornCharges_d, bornCharges_h);
-    Kokkos::deep_copy(atomicPositions_d, atomicPositions_h);
     Kokkos::deep_copy(bravaisVectors_d, bravaisVectors_h);
     Kokkos::deep_copy(weights_d, weights_h);
     Kokkos::deep_copy(mat2R_d, mat2R_h);
+    if (hasDielectric) {
+      Kokkos::resize(longRangeCorrection1_d, 3, 3, numAtoms);
+      Kokkos::resize(gVectors_d, numG, 3);
+      Kokkos::resize(dielectricMatrix_d, 3, 3);
+      Kokkos::resize(bornCharges_d, 3, 3, numAtoms);
+      Kokkos::resize(atomicPositions_d, numAtoms, 3);
+      auto longRangeCorrection1_h = create_mirror_view(longRangeCorrection1_d);
+      auto gVectors_h = create_mirror_view(gVectors_d);
+      auto dielectricMatrix_h = create_mirror_view(dielectricMatrix_d);
+      auto bornCharges_h = create_mirror_view(bornCharges_d);
+      auto atomicPositions_h = create_mirror_view(atomicPositions_d);
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          dielectricMatrix_h(i, j) = dielectricMatrix(i, j);
+        }
+      }
+      for (int iAt=0; iAt<numAtoms; ++iAt) {
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            bornCharges_h(j, i, iAt) = bornCharges(iAt, i, j);
+            longRangeCorrection1_h(i, j, iAt) = longRangeCorrection1(i, j, iAt);
+          }
+        }
+      }
+      for (int iG=0; iG<numG; ++iG) {
+        for (int i = 0; i < 3; i++) {
+          gVectors_h(iG,i) = gVectors(i,iG);
+        }
+      }
+      for (int iAt=0; iAt<numAtoms; ++iAt) {
+        for (int i = 0; i < 3; i++) {
+          atomicPositions_h(iAt, i) = atomicPositions(iAt, i);
+        }
+      }
+      Kokkos::deep_copy(longRangeCorrection1_d, longRangeCorrection1_h);
+      Kokkos::deep_copy(gVectors_d, gVectors_h);
+      Kokkos::deep_copy(dielectricMatrix_d, dielectricMatrix_h);
+      Kokkos::deep_copy(bornCharges_d, bornCharges_h);
+      Kokkos::deep_copy(atomicPositions_d, atomicPositions_h);
+    }
     double mem = getDeviceMemoryUsage();
     kokkosDeviceMemory->addDeviceMemoryUsage(mem);
   }
@@ -237,7 +243,10 @@ PhononH0::PhononH0(const PhononH0 &that)
       atomicPositions_d(that.atomicPositions_d),
       bravaisVectors_d(that.bravaisVectors_d),
       weights_d(that.weights_d),
-      mat2R_d(that.mat2R_d) {}
+      mat2R_d(that.mat2R_d) {
+  double memory = getDeviceMemoryUsage();
+  kokkosDeviceMemory->addDeviceMemoryUsage(memory);
+}
 
 // copy assignment
 PhononH0 &PhononH0::operator=(const PhononH0 &that) {
@@ -276,6 +285,8 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     bravaisVectors_d = that.bravaisVectors_d;
     weights_d = that.weights_d;
     mat2R_d = that.mat2R_d;
+    double memory = getDeviceMemoryUsage();
+    kokkosDeviceMemory->addDeviceMemoryUsage(memory);
   }
   return *this;
 }
@@ -356,9 +367,10 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
   return {energies, eigenvectors};
 }
 
-FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
-                                     bool &withEigenvectors,
-                                     bool isDistributed) {
+FullBandStructure PhononH0::populate(Points &points,
+                                     const bool &withVelocities,
+                                     const bool &withEigenvectors,
+                                     const bool isDistributed) {
   return kokkosPopulate(points, withVelocities, withEigenvectors, isDistributed);
 }
 

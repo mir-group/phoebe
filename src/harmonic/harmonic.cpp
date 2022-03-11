@@ -1,105 +1,14 @@
 #include "harmonic.h"
 
-std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
-HarmonicHamiltonian::kokkosBatchedDiagonalizeWithVelocities(
-    const DoubleView2D &cartesianCoordinates) {
+void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
+    const DoubleView2D& cartesianCoordinates,
+    const DoubleView2D& resultEnergies, ComplexView4D& resultVelocities,
+    const double& threshold) {
 
   int numK = cartesianCoordinates.extent(0);
+  int numBands = resultEnergies.extent(1);
 
-  double delta = 1.0e-8;
-  double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
-
-  // prepare all the wavevectors at which we need the hamiltonian
-  DoubleView2D allVectors("wavevectors_k", numK * 7, 3);
-  Kokkos::parallel_for(
-      "elHamiltonianShifted_d", numK, KOKKOS_LAMBDA(int iK) {
-        for (int i = 0; i < 3; ++i) {
-          allVectors(iK * 7, i) = cartesianCoordinates(iK, i);
-        }
-        for (int iDir = 0; iDir < 3; ++iDir) {
-          for (int i = 0; i < 3; ++i) {
-            allVectors(iK * 7 + iDir * 2 + 1, i) = cartesianCoordinates(iK, i);
-            allVectors(iK * 7 + iDir * 2 + 2, i) = cartesianCoordinates(iK, i);
-            if (iDir == i) {
-              allVectors(iK * 7 + iDir * 2 + 1, i) += delta;
-              allVectors(iK * 7 + iDir * 2 + 2, i) -= delta;
-            }
-          }
-        }
-      });
-
-  // compute the electronic properties at all wavevectors
-  ComplexView3D allHamiltonians = kokkosBatchedBuildBlochHamiltonian(allVectors);
-
-  int numBands = allHamiltonians.extent(1);
-
-  // save energies and eigenvectors to results
-  DoubleView2D resultEnergies("energies", numK, numBands);
-  ComplexView3D resultEigenvectors("eigenvectors", numK, numBands, numBands);
-  ComplexView4D resultVelocities("velocities", numK, numBands, numBands, 3);
-
-  // put the Hamiltonian matrix in resultEigenvectors
-  Kokkos::parallel_for(
-      "eigenvectors", Range3D({0, 0, 0}, {numK, numBands, numBands}),
-      KOKKOS_LAMBDA(int iK, int m, int n) {
-        resultEigenvectors(iK, m, n) = allHamiltonians(iK*7, m, n);
-      });
-  // now, diagonalize the H matrix in place
-  kokkosZHEEV(resultEigenvectors, resultEnergies);
-
-  // these are temporary "scratch" memory spaces
-  ComplexView3D der("der", numK, numBands, numBands);
-  ComplexView3D tmpV("tmpV", numK, numBands, numBands);
-
-  for (int i = 0; i < 3; ++i) {
-
-    // To build the velocity operator, we first compute the matrix
-    // der = dH/dk = ( H(k+dk)-H(k-dk) ) / 2dk
-    // we also reinforce the Hermiticity (better numerical properties)
-    Kokkos::parallel_for(
-        "der", Range3D({0, 0, 0}, {numK, numBands, numBands}),
-        KOKKOS_LAMBDA(int iK, int m, int n) {
-          ComplexView2D HPlus = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
-          ComplexView2D HMins = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
-          der(iK, m, n) = 0.25 / delta * ((HPlus(m, n) - HMins(m, n))
-                                          + Kokkos::conj(HPlus(n, m) - HMins(n, m)));
-        });
-
-    // Now we complete the Hellman-Feynman theorem
-    // and compute the velocity as v = U(k)^* der * U(k)
-    Kokkos::parallel_for(
-        "tmpV", Range3D({0, 0, 0}, {numK, numBands, numBands}),
-        KOKKOS_LAMBDA(int iK, int m, int n) {
-          auto L = Kokkos::subview(resultEigenvectors, iK, Kokkos::ALL, Kokkos::ALL);
-          auto R = Kokkos::subview(der, iK, Kokkos::ALL, Kokkos::ALL);
-          auto A = Kokkos::subview(tmpV, iK, Kokkos::ALL, Kokkos::ALL);
-          Kokkos::complex<double> tmp(0.,0.);
-          for (int l = 0; l < numBands; ++l) {
-            tmp += Kokkos::conj(L(l,m)) * R(l, n);
-          }
-          A(m, n) = tmp;
-        });
-
-    Kokkos::parallel_for(
-        "vel", Range3D({0, 0, 0}, {numK, numBands, numBands}),
-        KOKKOS_LAMBDA(int iK, int m, int n) {
-          double norm = 0.;
-          for (int i=0; i<3; ++i) {
-            norm += cartesianCoordinates(iK,i)*cartesianCoordinates(iK,i);
-          }
-          Kokkos::complex<double> tmp(0.,0.);
-          if ( norm > 1.0e-6 ) {// skip the gamma point
-            for (int l = 0; l < numBands; ++l) {
-              tmp += tmpV(iK, m, l) * resultEigenvectors(iK, l, n);
-            }
-          }
-          resultVelocities(iK, m, n, i) = tmp;
-        });
-  }
-
-  // deallocate the scratch
-  Kokkos::resize(der, 0, 0, 0);
-  Kokkos::resize(tmpV, 0, 0, 0);
+//  double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
 
   // the degeneracy diagonalization is a bit tricky.
   // in the way it was implemented for the CPU case can't work for GPU
@@ -244,14 +153,10 @@ HarmonicHamiltonian::kokkosBatchedDiagonalizeWithVelocities(
     // now diagonalize the blocks
     ComplexView3D newEigenvectors("newEig", 3*numMatrices, iDeg, iDeg);
     Kokkos::deep_copy(newEigenvectors, subVelocity);
-    // Kokkos::parallel_for(
-    //     "vel", Range3D({0, 0, 0}, {3*numMatrices, iDeg, iDeg}),
-    //     KOKKOS_LAMBDA(int iMatCart, int i, int j) {
-    //       newEigenvectors(iMatCart, i, j) = subVelocity(iMatCart, i, j);
-    //     });
     // I don't need the eigenvalues, but I need the allocation to run zheev
     DoubleView2D newEigenvalues("newEigv", 3*numMatrices, iDeg);
     kokkosZHEEV(newEigenvectors, newEigenvalues);
+    Kokkos::realloc(newEigenvalues, 0, 0);
 
     // rotate the original matrix in the new basis
     // that diagonalizes the subspace.
@@ -283,6 +188,6 @@ HarmonicHamiltonian::kokkosBatchedDiagonalizeWithVelocities(
         });
   }
 
-  return {resultEnergies, resultEigenvectors, resultVelocities};
+//  return {resultEnergies, resultEigenvectors, resultVelocities};
 }
 

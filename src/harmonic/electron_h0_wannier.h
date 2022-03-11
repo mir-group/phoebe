@@ -110,9 +110,9 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return a tuple with energies(nk,nb), eigenvectors(nk,nb,nb) and
    * velocities(nk,nb,nb,3) at each wavevector.
    */
-//  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
-//  kokkosBatchedDiagonalizeWithVelocities(
-//      const DoubleView2D &cartesianCoordinates);
+  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  kokkosBatchedDiagonalizeWithVelocities(
+      const DoubleView2D &cartesianCoordinates);
 
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.
@@ -144,13 +144,15 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return FullBandStructure: the band structure object containing the
    * complete electronic band structure.
    */
-  FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed=false) override;
-  FullBandStructure cpuPopulate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed=false);
-  FullBandStructure kokkosPopulate(Points &fullPoints, bool &withVelocities,
-                             bool &withEigenvectors,
-                             bool isDistributed=false);
+  FullBandStructure populate(Points &fullPoints, const bool &withVelocities,
+                             const bool &withEigenvectors,
+                             const bool isDistributed=false) override;
+  FullBandStructure cpuPopulate(Points &fullPoints, const bool &withVelocities,
+                                const bool &withEigenvectors,
+                                const bool isDistributed=false);
+  FullBandStructure kokkosPopulate(Points &fullPoints, const bool &withVelocities,
+                                   const bool &withEigenvectors,
+                                   const bool isDistributed=false);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.

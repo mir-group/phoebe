@@ -243,9 +243,9 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
 }
 
 FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
-                                                    bool &withVelocities,
-                                                    bool &withEigenvectors,
-                                                    bool isDistributed) {
+                                                    const bool &withVelocities,
+                                                    const bool &withEigenvectors,
+                                                    const bool isDistributed) {
 
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
@@ -364,16 +364,16 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
 }
 
 FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
-                                                 bool &withVelocities,
-                                                 bool &withEigenvectors,
-                                                 bool isDistributed) {
+                                              const bool &withVelocities,
+                                              const bool &withEigenvectors,
+                                              const bool isDistributed) {
   return kokkosPopulate(fullPoints, withVelocities, withEigenvectors, isDistributed);
 }
 
 FullBandStructure ElectronH0Wannier::cpuPopulate(Points &fullPoints,
-                                                 bool &withVelocities,
-                                                 bool &withEigenvectors,
-                                                 bool isDistributed) {
+                                                 const bool &withVelocities,
+                                                 const bool &withEigenvectors,
+                                                 const bool isDistributed) {
 
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
@@ -753,107 +753,111 @@ std::tuple<DoubleView2D, ComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonal
   return {allEnergies, blochHamiltonians};
 }
 
-//std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
-//ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
-//    const DoubleView2D &cartesianCoordinates) {
-//
-//  int numWannier = this->numWannier; // Kokkos quirkyness
-//
-//  int numK = cartesianCoordinates.extent(0);
-//
-//  double delta = 1.0e-8;
-//  double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
-//
-//  // prepare all the wavevectors at which we need the hamiltonian
-//  DoubleView2D allVectors("wavevectors_k", numK * 7, 3);
-//  Kokkos::parallel_for(
-//      "elHamiltonianShifted_d", numK, KOKKOS_LAMBDA(int iK) {
-//        for (int i = 0; i < 3; ++i) {
-//          allVectors(iK * 7, i) = cartesianCoordinates(iK, i);
-//        }
-//        for (int iDir = 0; iDir < 3; ++iDir) {
-//          for (int i = 0; i < 3; ++i) {
-//            allVectors(iK * 7 + iDir * 2 + 1, i) = cartesianCoordinates(iK, i);
-//            allVectors(iK * 7 + iDir * 2 + 2, i) = cartesianCoordinates(iK, i);
-//            if (iDir == i) {
-//              allVectors(iK * 7 + iDir * 2 + 1, i) += delta;
-//              allVectors(iK * 7 + iDir * 2 + 2, i) -= delta;
-//            }
-//          }
-//        }
-//      });
-//
-//  // compute the electronic properties at all wavevectors
-//  ComplexView3D allHamiltonians = kokkosBatchedBuildBlochHamiltonian(allVectors);
-//
-//  // save energies and eigenvectors to results
-//  DoubleView2D resultEnergies("energies", numK, numWannier);
-//  ComplexView3D resultEigenvectors("eigenvectors", numK, numWannier, numWannier);
-//  ComplexView4D resultVelocities("velocities", numK, numWannier, numWannier, 3);
-//
-//  // put the Hamiltonian matrix in resultEigenvectors
-//  Kokkos::parallel_for(
-//      "eigenvectors", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
-//      KOKKOS_LAMBDA(int iK, int m, int n) {
-//        resultEigenvectors(iK, m, n) = allHamiltonians(iK*7, m, n);
-//      });
-//  // now, diagonalize the H matrix in place
-//  kokkosZHEEV(resultEigenvectors, resultEnergies);
-//
-//  // these are temporary "scratch" memory spaces
-//  ComplexView3D der("der", numK, numWannier, numWannier);
-//  ComplexView3D tmpV("tmpV", numK, numWannier, numWannier);
-//
-//  for (int i = 0; i < 3; ++i) {
-//
-//    // To build the velocity operator, we first compute the matrix
-//    // der = dH/dk = ( H(k+dk)-H(k-dk) ) / 2dk
-//    // we also reinforce the Hermiticity (better numerical properties)
-//    Kokkos::parallel_for(
-//        "der", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
-//        KOKKOS_LAMBDA(int iK, int m, int n) {
-//          ComplexView2D HPlus = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
-//          ComplexView2D HMins = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
-//          der(iK, m, n) = 0.25 / delta * ((HPlus(m, n) - HMins(m, n))
-//                 + Kokkos::conj(HPlus(n, m) - HMins(n, m)));
-//        });
-//
-//    // Now we complete the Hellman-Feynman theorem
-//    // and compute the velocity as v = U(k)^* der * U(k)
-//    Kokkos::parallel_for(
-//        "tmpV", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
-//        KOKKOS_LAMBDA(int iK, int m, int n) {
-//          auto L = Kokkos::subview(resultEigenvectors, iK, Kokkos::ALL, Kokkos::ALL);
-//          auto R = Kokkos::subview(der, iK, Kokkos::ALL, Kokkos::ALL);
-//          auto A = Kokkos::subview(tmpV, iK, Kokkos::ALL, Kokkos::ALL);
-//          Kokkos::complex<double> tmp(0.,0.);
-//          for (int l = 0; l < numWannier; ++l) {
-//            tmp += Kokkos::conj(L(l,m)) * R(l, n);
-//          }
-//          A(m, n) = tmp;
-//        });
-//
-//    Kokkos::parallel_for(
-//        "vel", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
-//        KOKKOS_LAMBDA(int iK, int m, int n) {
-//          double norm = 0.;
-//          for (int i=0; i<3; ++i) {
-//            norm += cartesianCoordinates(iK,i)*cartesianCoordinates(iK,i);
-//          }
-//          Kokkos::complex<double> tmp(0.,0.);
-//          if ( norm > 1.0e-6 ) {// skip the gamma point
-//            for (int l = 0; l < numWannier; ++l) {
-//              tmp += tmpV(iK, m, l) * resultEigenvectors(iK, l, n);
-//            }
-//          }
-//          resultVelocities(iK, m, n, i) = tmp;
-//        });
-//  }
-//
-//  // deallocate the scratch
-//  Kokkos::resize(der, 0, 0, 0);
-//  Kokkos::resize(tmpV, 0, 0, 0);
-//
+std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
+    const DoubleView2D &cartesianCoordinates) {
+
+  int numWannier = this->numWannier; // Kokkos quirkyness
+
+  int numK = cartesianCoordinates.extent(0);
+
+  double delta = 1.0e-8;
+  double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
+
+  // prepare all the wavevectors at which we need the hamiltonian
+  DoubleView2D allVectors("wavevectors_k", numK * 7, 3);
+  Kokkos::parallel_for(
+      "elHamiltonianShifted_d", numK, KOKKOS_LAMBDA(int iK) {
+        for (int i = 0; i < 3; ++i) {
+          allVectors(iK * 7, i) = cartesianCoordinates(iK, i);
+        }
+        for (int iDir = 0; iDir < 3; ++iDir) {
+          for (int i = 0; i < 3; ++i) {
+            allVectors(iK * 7 + iDir * 2 + 1, i) = cartesianCoordinates(iK, i);
+            allVectors(iK * 7 + iDir * 2 + 2, i) = cartesianCoordinates(iK, i);
+            if (iDir == i) {
+              allVectors(iK * 7 + iDir * 2 + 1, i) += delta;
+              allVectors(iK * 7 + iDir * 2 + 2, i) -= delta;
+            }
+          }
+        }
+      });
+
+  // compute the electronic properties at all wavevectors
+  ComplexView3D allHamiltonians = kokkosBatchedBuildBlochHamiltonian(allVectors);
+
+  // save energies and eigenvectors to results
+  DoubleView2D resultEnergies("energies", numK, numWannier);
+  ComplexView3D resultEigenvectors("eigenvectors", numK, numWannier, numWannier);
+  ComplexView4D resultVelocities("velocities", numK, numWannier, numWannier, 3);
+
+  // put the Hamiltonian matrix in resultEigenvectors
+  Kokkos::parallel_for(
+      "eigenvectors", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
+      KOKKOS_LAMBDA(int iK, int m, int n) {
+        resultEigenvectors(iK, m, n) = allHamiltonians(iK*7, m, n);
+      });
+  // now, diagonalize the H matrix in place
+  kokkosZHEEV(resultEigenvectors, resultEnergies);
+
+  // these are temporary "scratch" memory spaces
+  ComplexView3D der("der", numK, numWannier, numWannier);
+  ComplexView3D tmpV("tmpV", numK, numWannier, numWannier);
+
+  for (int i = 0; i < 3; ++i) {
+
+    // To build the velocity operator, we first compute the matrix
+    // der = dH/dk = ( H(k+dk)-H(k-dk) ) / 2dk
+    // we also reinforce the Hermiticity (better numerical properties)
+    Kokkos::parallel_for(
+        "der", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
+        KOKKOS_LAMBDA(int iK, int m, int n) {
+          ComplexView2D HPlus = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
+          ComplexView2D HMins = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
+          der(iK, m, n) = 0.25 / delta * ((HPlus(m, n) - HMins(m, n))
+                 + Kokkos::conj(HPlus(n, m) - HMins(n, m)));
+        });
+
+    // Now we complete the Hellman-Feynman theorem
+    // and compute the velocity as v = U(k)^* der * U(k)
+    Kokkos::parallel_for(
+        "tmpV", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
+        KOKKOS_LAMBDA(int iK, int m, int n) {
+          auto L = Kokkos::subview(resultEigenvectors, iK, Kokkos::ALL, Kokkos::ALL);
+          auto R = Kokkos::subview(der, iK, Kokkos::ALL, Kokkos::ALL);
+          auto A = Kokkos::subview(tmpV, iK, Kokkos::ALL, Kokkos::ALL);
+          Kokkos::complex<double> tmp(0.,0.);
+          for (int l = 0; l < numWannier; ++l) {
+            tmp += Kokkos::conj(L(l,m)) * R(l, n);
+          }
+          A(m, n) = tmp;
+        });
+
+    Kokkos::parallel_for(
+        "vel", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
+        KOKKOS_LAMBDA(int iK, int m, int n) {
+          double norm = 0.;
+          for (int i=0; i<3; ++i) {
+            norm += cartesianCoordinates(iK,i)*cartesianCoordinates(iK,i);
+          }
+          Kokkos::complex<double> tmp(0.,0.);
+          if ( norm > 1.0e-6 ) {// skip the gamma point
+            for (int l = 0; l < numWannier; ++l) {
+              tmp += tmpV(iK, m, l) * resultEigenvectors(iK, l, n);
+            }
+          }
+          resultVelocities(iK, m, n, i) = tmp;
+        });
+  }
+
+  // deallocate the scratch
+  Kokkos::resize(der, 0, 0, 0);
+  Kokkos::resize(tmpV, 0, 0, 0);
+
+  kokkosBatchedTreatDegenerateVelocities(cartesianCoordinates, resultEnergies,
+                                         resultVelocities,
+                                         0.000001 / energyRyToEv);
+
 //  // the degeneracy diagonalization is a bit tricky.
 //  // in the way it was implemented for the CPU case can't work for GPU
 //  // that's because it's hard to do several diagonalizations on GPU
@@ -1035,9 +1039,9 @@ std::tuple<DoubleView2D, ComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonal
 //          resultVelocities(iK, ib + i, ib + j, iCart) = tmp;
 //        });
 //  }
-//
-//  return {resultEnergies, resultEigenvectors, resultVelocities};
-//}
+
+  return {resultEnergies, resultEigenvectors, resultVelocities};
+}
 
 double ElectronH0Wannier::getDeviceMemoryUsage() {
   double memory = 16 * h0R_d.size() +

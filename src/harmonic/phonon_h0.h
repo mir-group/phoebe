@@ -94,8 +94,9 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return FullBandStructure: the band structure object containing the
    * complete phonon band structure.
    */
-  FullBandStructure populate(Points &points, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed = false) override;
+  FullBandStructure populate(Points &points, const bool &withVelocities,
+                             const bool &withEigenvectors,
+                             const bool isDistributed = false) override;
   FullBandStructure cpuPopulate(Points &points, bool &withVelocities,
                                 bool &withEigenvectors, bool isDistributed = false);
   FullBandStructure kokkosPopulate(Points &points, const bool &withVelocities,

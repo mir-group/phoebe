@@ -332,3 +332,106 @@ TEST(Kokkos, Wannier3) {
     ASSERT_NEAR(norm, 0., 0.00001);
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+TEST(Kokkos, PhononH0) {
+  Context context;
+
+  context.setPhFC2FileName("../test/data/444_silicon.fc");
+  context.setPhFC3FileName("../test/data/FORCE_CONSTANTS_3RD");
+  context.setSumRuleFC2("simple");
+
+  auto tup = QEParser::parsePhHarmonic(context);
+  auto crystal = std::get<0>(tup);
+  auto phononH0 = std::get<1>(tup);
+
+  int numBands = phononH0.getNumBands();
+
+  // pick a point to be diagonalized
+  Eigen::Vector3d q1 = {0.1,0.23,-0.17};
+
+  // first, we diagonalize on the CPU
+  auto tup1 = phononH0.diagonalizeFromCoordinates(q1, false);
+  auto ens1 = std::get<0>(tup1);
+  auto eigenvectors1 = std::get<1>(tup1);
+
+
+
+  Eigen::Tensor<std::complex<double>, 3> velocity1 =
+      phononH0.diagonalizeVelocityFromCoordinates(q1);
+
+  // now we add the code on Kokkos
+  Eigen::VectorXd ens2(numBands);
+  Eigen::Tensor<std::complex<double>, 3> velocity2(numBands, numBands, 3);
+  Eigen::MatrixXcd eigenvectors2(numBands, numBands);
+  {
+    int numK = 1;
+
+    // we need to copy the wavevectors to the GPU
+    DoubleView2D q3Cs_d("q3", numK, 3);
+    auto q3Cs_h = Kokkos::create_mirror_view(q3Cs_d);
+
+#pragma omp parallel for
+    for (int ik = 0; ik < numK; ik++) {
+      for (int i = 0; i < 3; i++) {
+        q3Cs_h(ik, i) = q1(i);
+      }
+    }
+    Kokkos::deep_copy(q3Cs_d, q3Cs_h);
+
+    auto t2 = phononH0.kokkosBatchedDiagonalizeFromCoordinates(q3Cs_d);
+    DoubleView2D batchedEnergies = std::get<0>(t2);
+    ComplexView3D batchedEigenvectors = std::get<1>(t2);
+
+    // now we copy back to host
+    auto tmpEnergies_h = Kokkos::create_mirror_view(batchedEnergies);
+    Kokkos::deep_copy(tmpEnergies_h, batchedEnergies);
+    for (int ib = 0; ib < numBands; ++ib) {
+      ens2(ib) = tmpEnergies_h(0, ib);
+    }
+
+    auto eigenvectors2_h = Kokkos::create_mirror_view(batchedEigenvectors);
+    Kokkos::deep_copy(eigenvectors2_h, batchedEigenvectors);
+    for (int ib1 = 0; ib1 < numBands; ++ib1) {
+      for (int ib2 = 0; ib2 < numBands; ++ib2) {
+        eigenvectors2(ib1, ib2) = eigenvectors2_h(0, ib1, ib2);
+      }
+    }
+
+    auto t3 = phononH0.kokkosBatchedDiagonalizeWithVelocities(q3Cs_d);
+    ComplexView4D velocity_d = std::get<2>(t3);
+    auto velocity_h = Kokkos::create_mirror_view(velocity_d);
+    Kokkos::deep_copy(velocity_h, velocity_d);
+    for (int ib1 = 0; ib1 < numBands; ++ib1) {
+      for (int ib2 = 0; ib2 < numBands; ++ib2) {
+        for (int i = 0; i < 3; ++i) {
+          velocity2(ib1, ib2, i) = velocity_h(0, ib1, ib2, i);
+        }
+      }
+    }
+  }
+
+  // the two masses should be similar
+  ASSERT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
+
+  ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+
+  double norm = 0.;
+  for (int ib1 = 0; ib1 < numBands; ++ib1) {
+    for (int ib2 = 0; ib2 < numBands; ++ib2) {
+      for (int i = 0; i < 3; ++i) {
+        norm += abs(velocity1(ib1, ib2, i) - velocity2(ib1, ib2, i));
+      }
+    }
+  }
+  ASSERT_NEAR(norm, 0., 0.00001);
+}
