@@ -41,7 +41,7 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
           for (int iAt=0; iAt<numAtoms; ++iAt) {
             int m = iAt * 3 + i;
             int n = iAt * 3 + j;
-            D(m, n) += longRangeCorrection1_d(m, n, iAt);
+            D(m, n) += longRangeCorrection1_d(i, j, iAt);
           }
         });
 
