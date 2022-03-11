@@ -188,9 +188,10 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
       }
     }
     for (int iAt=0; iAt<numAtoms; ++iAt) {
+      int iType = atomicSpecies(iAt);
       for (int i = 0; i < 3; i++) {
         atomicPositions_h(iAt, i) = atomicPositions(iAt, i);
-        atomicMasses_h(iAt * 3 + i) = speciesMasses(iAt);
+        atomicMasses_h(iAt * 3 + i) = speciesMasses(iType);
       }
     }
     for (int iR=0; iR<numBravaisVectors; ++iR) {
