@@ -89,7 +89,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * matrices.
    */
   ComplexView3D kokkosBatchedBuildBlochHamiltonian(
-    const DoubleView2D &cartesianCoordinates);
+    const DoubleView2D &cartesianCoordinates) override;
 
   /** Computes energies and eigenvectors of electrons for a batch of nk
    * wavevectors.
@@ -110,9 +110,9 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return a tuple with energies(nk,nb), eigenvectors(nk,nb,nb) and
    * velocities(nk,nb,nb,3) at each wavevector.
    */
-  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
-  kokkosBatchedDiagonalizeWithVelocities(
-      const DoubleView2D &cartesianCoordinates);
+//  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+//  kokkosBatchedDiagonalizeWithVelocities(
+//      const DoubleView2D &cartesianCoordinates);
 
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.

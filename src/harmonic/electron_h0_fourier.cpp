@@ -444,3 +444,8 @@ ElectronH0Fourier::getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
   }
   return velocity;
 }
+
+ComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
+    const DoubleView2D &cartesianCoordinates) {
+  Error("Kokkos not implemented in ElectronH0Fourier");
+}

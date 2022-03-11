@@ -4,6 +4,7 @@
 #include "bandstructure.h"
 #include "particle.h"
 #include "points.h"
+#include "common_kokkos.h"
 
 /** Virtual base class for Harmonic Hamiltonian.
  * The subclasses of this base class are the objects responsible for storing
@@ -76,6 +77,13 @@ class HarmonicHamiltonian {
   virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
                                      bool &withEigenvectors,
                                      bool isDistributed = false) = 0;
+
+  virtual std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+    kokkosBatchedDiagonalizeWithVelocities(
+        const DoubleView2D &cartesianCoordinates);
+  virtual ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+      const DoubleView2D &cartesianCoordinates) = 0;
+
 };
 
 #endif

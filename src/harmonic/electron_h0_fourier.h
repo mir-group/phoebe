@@ -7,6 +7,7 @@
 #include "harmonic.h"
 #include "points.h"
 #include "context.h"
+#include "common_kokkos.h"
 
 /** Class for a Fourier-like interpolation of an electronic band structure.
  * Takes the information on the band structure computed on a uniform coarse
@@ -85,6 +86,8 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
                              bool &withEigenvectors, bool isDistributed=false) override;
 
   void trimBands(Context &context, const double &minEn, const double &maxEn);
+  virtual ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+      const DoubleView2D &cartesianCoordinates) override;
 
  protected:
   Crystal &crystal;
