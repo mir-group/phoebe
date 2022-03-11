@@ -48,56 +48,124 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
     double norm = e2 * fourPi / volumeUnitCell;
     int numG = gVectors_d.extent(0);
 
-    Kokkos::parallel_for(
-        "el_hamilton", Range2D({0,0},{numK, numG}), KOKKOS_LAMBDA(int iK, int iG) {
-          auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
-          auto Q = Kokkos::subview(cartesianCoordinates, iK, Kokkos::ALL);
-          auto D = Kokkos::subview(dynamicalMatrices, iK, Kokkos::ALL, Kokkos::ALL);
+//    const Kokkos::TeamPolicy<> policy(numK*numG, Kokkos::AUTO()); // league-size, team-size
+    size_t byte_size = Kokkos::View<double*>::shmem_size(numBands);
+    Kokkos::parallel_for("long-range-ph-H0",
+        Kokkos::TeamPolicy<>(numK*numG, Kokkos::AUTO()).set_scratch_size(0, Kokkos::PerTeam(byte_size)),
+        KOKKOS_LAMBDA (const Kokkos::TeamPolicy<>::member_type &team) {
 
-          double GQ[3];
-          for (int i=0; i<3; ++i) {
-            GQ[i] = G(i) + Q(i);
-          }
+            int iKG = team.league_rank();
+            int iK = iKG % numK; // fast index, so atomic_add has less conflict
+            int iG = iKG / numK;
 
-          double geg = 0.;
-          for (int i=0; i<3; ++i) {
-            for (int j = 0; j < 3; ++j) {
-              geg += GQ[i] * dielectricMatrix_d(i, j) * GQ[j];
+            auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
+            auto Q = Kokkos::subview(cartesianCoordinates, iK, Kokkos::ALL);
+            auto D = Kokkos::subview(dynamicalMatrices, iK, Kokkos::ALL, Kokkos::ALL);
+
+            double GQ[3];
+            for (int i=0; i<3; ++i) {
+              GQ[i] = G(i) + Q(i);
             }
-          }
 
-          if (geg > 0. && geg < 4. * gMax) {
-            double normG = norm * exp(-geg * 0.25) / geg;
-
-            //TODO: this instruction may not work on a GPU. Fix this!
-            std::vector<double> GQZ(3*numAtoms, 0.);
-            for (int i : {0, 1, 2}) {
-              for (int j : {0, 1, 2}) {
-                for (int nb = 0; nb < numAtoms; nb++) {
-                  GQZ[nb * 3 + i] = GQ[j] * bornCharges_d(i, j, nb);
-                }
+            double geg = 0.;
+            for (int i=0; i<3; ++i) {
+              for (int j = 0; j < 3; ++j) {
+                geg += GQ[i] * dielectricMatrix_d(i, j) * GQ[j];
               }
             }
 
-            for (int nb = 0; nb < numAtoms; nb++) {
-              for (int na = 0; na < numAtoms; na++) {
-                double arg = 0.;
-                for (int i = 0; i < 3; i++) {
-                  double xi = atomicPositions_d(na,i) - atomicPositions_d(nb,i);
-                  arg += xi * GQ[i];
-                }
-                Kokkos::complex<double> phase = normG * exp(complexI * arg);
+            if (geg > 0. && geg < 4. * gMax) {
+              double normG = norm * exp(-geg * 0.25) / geg;
+
+              Kokkos::View<double*> GQZ(team.team_scratch(2), 3*numAtoms);
+              for (int i = 0; i < numBands; i++) {
+                GQZ(i) = 0.;
+              }
+              for (int i : {0, 1, 2}) {
                 for (int j : {0, 1, 2}) {
-                  for (int i : {0, 1, 2}) {
-                    Kokkos::complex<double> x = phase * GQZ[na*3+i] * GQZ[nb*3+j];
-                    Kokkos::atomic_add(&D(na*3+i, nb*3+j), x);
+                  for (int nb = 0; nb < numAtoms; nb++) {
+                    GQZ[nb * 3 + i] += GQ[j] * bornCharges_d(i, j, nb);
+                  }
+                }
+              }
+
+              for (int nb = 0; nb < numAtoms; nb++) {
+                for (int na = 0; na < numAtoms; na++) {
+                  double arg = 0.;
+                  for (int i = 0; i < 3; i++) {
+                    double xi = atomicPositions_d(na,i) - atomicPositions_d(nb,i);
+                    arg += xi * GQ[i];
+                  }
+                  Kokkos::complex<double> phase = normG * exp(complexI * arg);
+                  for (int j : {0, 1, 2}) {
+                    for (int i : {0, 1, 2}) {
+                      Kokkos::complex<double> x = phase * GQZ[na*3+i] * GQZ[nb*3+j];
+                      Kokkos::atomic_add(&D(na*3+i, nb*3+j), x);
+                    }
                   }
                 }
               }
             }
-          }
+    });
 
-        });
+//    using ScratchView1D = Kokkos::View<double*, Kokkos::LayoutRight,
+//                                       typename Kokkos::DeviceType::scratch_memory_space>;
+//    int B2_size = ScratchView1D::shmem_size(B2_chunk_size);
+//    Kokkos::parallel_for(
+//        "el_hamilton", Range2D({0,0},{numK, numG}), KOKKOS_LAMBDA(int iK, int iG) {
+//
+//          auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
+//          auto Q = Kokkos::subview(cartesianCoordinates, iK, Kokkos::ALL);
+//          auto D = Kokkos::subview(dynamicalMatrices, iK, Kokkos::ALL, Kokkos::ALL);
+//
+//          double GQ[3];
+//          for (int i=0; i<3; ++i) {
+//            GQ[i] = G(i) + Q(i);
+//          }
+//
+//          double geg = 0.;
+//          for (int i=0; i<3; ++i) {
+//            for (int j = 0; j < 3; ++j) {
+//              geg += GQ[i] * dielectricMatrix_d(i, j) * GQ[j];
+//            }
+//          }
+//
+//          if (geg > 0. && geg < 4. * gMax) {
+//            double normG = norm * exp(-geg * 0.25) / geg;
+//
+//            //TODO: this instruction may not work on a GPU. Fix this!
+//            // std::vector<double> GQZ(3*numAtoms, 0.);
+//            Kokkos::View<double*> GQZ(team.team_scratch(2), 3*numAtoms);
+//            for (int i = 0; i < numBands; i++) {
+//              GQZ(i) = 0.;
+//            }
+//            for (int i : {0, 1, 2}) {
+//              for (int j : {0, 1, 2}) {
+//                for (int nb = 0; nb < numAtoms; nb++) {
+//                  GQZ[nb * 3 + i] = GQ[j] * bornCharges_d(i, j, nb);
+//                }
+//              }
+//            }
+//
+//            for (int nb = 0; nb < numAtoms; nb++) {
+//              for (int na = 0; na < numAtoms; na++) {
+//                double arg = 0.;
+//                for (int i = 0; i < 3; i++) {
+//                  double xi = atomicPositions_d(na,i) - atomicPositions_d(nb,i);
+//                  arg += xi * GQ[i];
+//                }
+//                Kokkos::complex<double> phase = normG * exp(complexI * arg);
+//                for (int j : {0, 1, 2}) {
+//                  for (int i : {0, 1, 2}) {
+//                    Kokkos::complex<double> x = phase * GQZ[na*3+i] * GQZ[nb*3+j];
+//                    Kokkos::atomic_add(&D(na*3+i, nb*3+j), x);
+//                  }
+//                }
+//              }
+//            }
+//          }
+//
+//        });
 
   }
 
