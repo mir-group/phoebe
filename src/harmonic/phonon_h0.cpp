@@ -12,30 +12,28 @@
 
 PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
-                   const Eigen::Tensor<double, 7> &forceConstants_,
+                   Eigen::Tensor<double, 7> &forceConstants_,
                    const std::string &sumRule)
-    : particle(Particle::phonon), bornCharges(bornCharges_),
-      forceConstants(forceConstants_) {
+    : particle(Particle::phonon) {
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
-  directUnitCell = crystal.getDirectUnitCell();
-  reciprocalUnitCell = crystal.getReciprocalUnitCell();
+  Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
+  Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
   volumeUnitCell = crystal.getVolumeUnitCell();
   atomicSpecies = crystal.getAtomicSpecies();
   speciesMasses = crystal.getSpeciesMasses();
   atomicPositions = crystal.getAtomicPositions();
   dielectricMatrix = dielectricMatrix_;
+  bornCharges = bornCharges_;
 
   if (dielectricMatrix.sum() > 0.) {
     hasDielectric = true; // defaulted to false in *.h file
   }
 
-  Eigen::VectorXi qCoarseGrid_(3);
-  qCoarseGrid_(0) = int(forceConstants.dimension(2));
-  qCoarseGrid_(1) = int(forceConstants.dimension(3));
-  qCoarseGrid_(2) = int(forceConstants.dimension(4));
-  qCoarseGrid = qCoarseGrid_;
+  qCoarseGrid(0) = int(forceConstants_.dimension(2));
+  qCoarseGrid(1) = int(forceConstants_.dimension(3));
+  qCoarseGrid(2) = int(forceConstants_.dimension(4));
 
   numAtoms = crystal.getNumAtoms();
   numBands = numAtoms * 3;
@@ -43,20 +41,9 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   // now, I initialize an auxiliary set of vectors that are needed
   // for the diagonalization, which are precomputed once and for all.
 
-  Eigen::MatrixXd directUnitCellSup(3, 3);
-  directUnitCellSup.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
-  directUnitCellSup.col(1) = directUnitCell.col(1) * qCoarseGrid(1);
-  directUnitCellSup.col(2) = directUnitCell.col(2) * qCoarseGrid(2);
+  setAcousticSumRule(sumRule, forceConstants_);
 
-  nr1Big = 2 * qCoarseGrid(0);
-  nr2Big = 2 * qCoarseGrid(1);
-  nr3Big = 2 * qCoarseGrid(2);
-
-  PhononH0::wsInit(directUnitCellSup);
-
-  setAcousticSumRule(sumRule);
-
-  reorderDynamicalMatrix();
+  reorderDynamicalMatrix(directUnitCell, forceConstants_);
 
   if (hasDielectric) { // prebuild terms useful for long range corrections
     double cutoff = gMax * 4.;
@@ -224,14 +211,11 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 PhononH0::PhononH0(const PhononH0 &that)
     : particle(that.particle), hasDielectric(that.hasDielectric),
       numAtoms(that.numAtoms), numBands(that.numBands),
-      directUnitCell(that.directUnitCell),
-      reciprocalUnitCell(that.reciprocalUnitCell),
       volumeUnitCell(that.volumeUnitCell), atomicSpecies(that.atomicSpecies),
       speciesMasses(that.speciesMasses), atomicPositions(that.atomicPositions),
       dielectricMatrix(that.dielectricMatrix), bornCharges(that.bornCharges),
-      qCoarseGrid(that.qCoarseGrid), forceConstants(that.forceConstants),
-      wsCache(that.wsCache), nr1Big(that.nr1Big), nr2Big(that.nr2Big),
-      nr3Big(that.nr3Big), numBravaisVectors(that.numBravaisVectors),
+      qCoarseGrid(that.qCoarseGrid),
+      numBravaisVectors(that.numBravaisVectors),
       bravaisVectors(that.bravaisVectors), weights(that.weights),
       mat2R(that.mat2R), gVectors(that.gVectors),
       longRangeCorrection1(that.longRangeCorrection1),
@@ -255,8 +239,6 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     hasDielectric = that.hasDielectric;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
-    directUnitCell = that.directUnitCell;
-    reciprocalUnitCell = that.reciprocalUnitCell;
     volumeUnitCell = that.volumeUnitCell;
     atomicSpecies = that.atomicSpecies;
     speciesMasses = that.speciesMasses;
@@ -264,11 +246,6 @@ PhononH0 &PhononH0::operator=(const PhononH0 &that) {
     dielectricMatrix = that.dielectricMatrix;
     bornCharges = that.bornCharges;
     qCoarseGrid = that.qCoarseGrid;
-    forceConstants = that.forceConstants;
-    wsCache = that.wsCache;
-    nr1Big = that.nr1Big;
-    nr2Big = that.nr2Big;
-    nr3Big = that.nr3Big;
     numBravaisVectors = that.numBravaisVectors;
     bravaisVectors = that.bravaisVectors;
     weights = that.weights;
@@ -404,7 +381,11 @@ FullBandStructure PhononH0::cpuPopulate(Points &points, bool &withVelocities,
   return fullBandStructure;
 }
 
-void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
+Eigen::Tensor<double, 5> PhononH0::wsInit(const Eigen::MatrixXd &unitCell,
+                                          const Eigen::Matrix3d &directUnitCell,
+                                          const int& nr1Big,
+                                          const int& nr2Big,
+                                          const int& nr3Big) {
   const int numMax = 2;
   int index = 0;
   const int numMaxRWS = 200;
@@ -437,8 +418,8 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
   // now, I also prepare the wsCache, which is used to accelerate
   // the shortRange() calculation
 
-  wsCache.resize(2 * nr3Big + 1, 2 * nr2Big + 1, 2 * nr1Big + 1, numAtoms,
-                 numAtoms);
+  Eigen::Tensor<double, 5> wsCache(2 * nr3Big + 1, 2 * nr2Big + 1,
+                                   2 * nr1Big + 1, numAtoms, numAtoms);
   wsCache.setZero();
 
   for (int na = 0; na < numAtoms; na++) {
@@ -477,6 +458,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
       }
     }
   }
+  return wsCache;
 }
 
 double PhononH0::wsWeight(const Eigen::VectorXd &r,
@@ -525,7 +507,6 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   //   complex(DP) :: dyn(3,3,numAtoms,numAtoms) ! dynamical matrix
   //   real(DP) &
   //        q(3),           &! q-vector
-  //        sign             ! sign=+/-1.0 ==> add/subtract rigid-ion term
 
   // alpha, implicitly set to 1, is the Ewald parameter,
   // geg is an estimate of G^2 such that the G-space sum is convergent for alpha
@@ -581,10 +562,24 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   }
 }
 
-void PhononH0::reorderDynamicalMatrix() {
+void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
+                                      const Eigen::Tensor<double, 7>& forceConstants) {
   // this part can actually be expensive to execute, so we compute it once
   // at the beginning
-  // first, we compute the total number of bravais lattice vectors
+
+  Eigen::MatrixXd directUnitCellSup(3, 3);
+  directUnitCellSup.col(0) = directUnitCell.col(0) * qCoarseGrid(0);
+  directUnitCellSup.col(1) = directUnitCell.col(1) * qCoarseGrid(1);
+  directUnitCellSup.col(2) = directUnitCell.col(2) * qCoarseGrid(2);
+
+  int nr1Big = 2 * qCoarseGrid(0);
+  int nr2Big = 2 * qCoarseGrid(1);
+  int nr3Big = 2 * qCoarseGrid(2);
+
+  // start by generating the weights for the Fourier transform
+  auto wsCache = wsInit(directUnitCellSup, directUnitCell, nr1Big, nr2Big, nr3Big);
+
+  // we compute the total number of bravais lattice vectors
 
   numBravaisVectors = 0;
   for (int n3 = -nr3Big; n3 <= nr3Big; n3++) {
@@ -661,8 +656,8 @@ void PhononH0::reorderDynamicalMatrix() {
     }
   }
 
-  wsCache.resize(0, 0, 0, 0, 0);
-  forceConstants.resize(0, 0, 0, 0, 0, 0, 0);
+  // wsCache.resize(0, 0, 0, 0, 0);
+  // forceConstants.resize(0, 0, 0, 0, 0, 0, 0);
 }
 
 void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,

@@ -30,7 +30,7 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
            const Eigen::Tensor<double, 3> &bornCharges_,
-           const Eigen::Tensor<double, 7> &forceConstants_,
+           Eigen::Tensor<double, 7> &forceConstants_,
            const std::string &sumRule);
 
   /** Copy constructor
@@ -145,17 +145,17 @@ protected:
    * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
    * (to find the closest matrix which satisfies the sum rule)
    */
-  void setAcousticSumRule(const std::string &sumRule);
+  void setAcousticSumRule(const std::string &sumRule,
+                          Eigen::Tensor<double, 7>& forceConstants);
 
-  void reorderDynamicalMatrix();
+  void reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
+                              const Eigen::Tensor<double, 7>& forceConstants);
 
   Particle particle;
 
   bool hasDielectric = false;
   int numAtoms;
   int numBands;
-  Eigen::MatrixXd directUnitCell;
-  Eigen::MatrixXd reciprocalUnitCell;
   double volumeUnitCell;
   Eigen::MatrixXi atomicSpecies;
   Eigen::VectorXd speciesMasses;
@@ -163,9 +163,6 @@ protected:
   Eigen::Matrix3d dielectricMatrix;
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
-  Eigen::Tensor<double, 7> forceConstants;
-  Eigen::Tensor<double, 5> wsCache;
-  int nr1Big, nr2Big, nr3Big;
 
   int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;
@@ -192,7 +189,11 @@ protected:
   /** In wsInit, starting from the primitive crystal unit cell, we build the
    * list of bravais lattice vectors used for the phonon Fourier transform.
    */
-  void wsInit(const Eigen::MatrixXd &unitCell);
+  Eigen::Tensor<double, 5> wsInit(const Eigen::MatrixXd &unitCell,
+                                  const Eigen::Matrix3d &directUnitCell,
+                                  const int& nr1Big,
+                                  const int& nr2Big,
+                                  const int& nr3Big);
 
   /** wsWeight computes the `weights`, i.e. the number of symmetry-equivalent
    * Bravais lattice vectors, that are used in the phonon Fourier transform.
