@@ -50,26 +50,30 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   double x1 = (ens - ensT).norm();
   ASSERT_EQ(x1, 0.);
 
-  std::complex<double> c1 = complexZero;
-  for (int ib1 = 0; ib1 < numBands; ib1++) {
-    for (int ib2 = 0; ib2 < numBands; ib2++) {
-      for (int ic = 0; ic < 3; ic++) {
-        c1 += pow(velocitiesT(ib1, ib2, ic) - velocities(ib1, ib2, ic), 2);
+  {
+    double c1 = 0.;
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      for (int ib2 = 0; ib2 < numBands; ib2++) {
+        for (int ic = 0; ic < 3; ic++) {
+          c1 += std::norm(velocitiesT(ib1, ib2, ic) - velocities(ib1, ib2, ic));
+        }
       }
     }
+    ASSERT_NEAR(c1, 0., 1.e-16);
   }
-  ASSERT_EQ(c1, complexZero);
 
-  std::complex<double> c2 = complexZero;
-  for (int i = 0; i < numBands; i++) {
-    auto tup2 = decompress2Indices(i, numAtoms, 3);
-    auto iat = std::get<0>(tup2);
-    auto ic = std::get<1>(tup2);
-    for (int j = 0; j < numBands; j++) {
-      c2 += pow(eigenVectorsT(i, j) - eigenVectors(ic, iat, j), 2);
+  {
+    double c2 = 0.;
+    for (int i = 0; i < numBands; i++) {
+      auto tup2 = decompress2Indices(i, numAtoms, 3);
+      auto iat = std::get<0>(tup2);
+      auto ic = std::get<1>(tup2);
+      for (int j = 0; j < numBands; j++) {
+        c2 += std::norm(eigenVectorsT(i, j) - eigenVectors(ic, iat, j));
+      }
     }
+    ASSERT_NEAR(c2, 0., 1.e-16);
   }
-  ASSERT_EQ(c2, complexZero);
 
   // now we check that we get the same eigenvectors in the two different
   // shapes
@@ -81,33 +85,39 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   ASSERT_EQ(x1, 0.);
 
   Eigen::MatrixXcd eigenVectorsT2 = bandStructure.getEigenvectors(ikIndex);
-  c2 = complexZero;
-  for (int ib1 = 0; ib1 < numBands; ib1++) {
-    for (int ib2 = 0; ib2 < numBands; ib2++) {
-      c2 += pow(eigenVectorsT2(ib1, ib2) - eigenVectorsC(ib1, ib2), 2);
+  {
+    double c2 = 0.;
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      for (int ib2 = 0; ib2 < numBands; ib2++) {
+        c2 += std::norm(eigenVectorsT2(ib1, ib2) - eigenVectorsC(ib1, ib2));
+      }
     }
+    ASSERT_NEAR(c2, 0., 1e-16);
   }
-  ASSERT_EQ(c2, complexZero);
 
   // we check what happens if we set eigenvectors as a matrix
   Eigen::MatrixXcd eigenVectorsC2 = bandStructure.getEigenvectors(ikIndex);
-  c2 = complexZero;
-  for (int ib1 = 0; ib1 < numBands; ib1++) {
-    for (int ib2 = 0; ib2 < numBands; ib2++) {
-      c2 += pow(eigenVectorsC2(ib1, ib2) - eigenVectorsC(ib1, ib2), 2);
-    }
-  }
-  ASSERT_EQ(c2, complexZero);
-
-  // make a comparison between tensor and matrix
-  c2 = complexZero;
-  for (int iBand = 0; iBand < numBands; iBand++) {
-    for (int iat = 0; iat < numAtoms; iat++) {
-      for (int iPol = 0; iPol < 3; iPol++) {
-        auto ind = compress2Indices(iat, iPol, numAtoms, 3);
-        c2 += pow(eigenVectors(iPol, iat, iBand) - eigenVectorsC(ind, iBand), 2);
+  {
+    double c2 = 0.;
+    for (int ib1 = 0; ib1 < numBands; ib1++) {
+      for (int ib2 = 0; ib2 < numBands; ib2++) {
+        c2 += std::norm(eigenVectorsC2(ib1, ib2) - eigenVectorsC(ib1, ib2));
       }
     }
+    ASSERT_NEAR(c2, 0., 1e-16);
   }
-  ASSERT_EQ(c2, complexZero);
+
+  // make a comparison between tensor and matrix
+  {
+    double c2 = 0.;
+    for (int iBand = 0; iBand < numBands; iBand++) {
+      for (int iat = 0; iat < numAtoms; iat++) {
+        for (int iPol = 0; iPol < 3; iPol++) {
+          auto ind = compress2Indices(iat, iPol, numAtoms, 3);
+          c2 += std::norm(eigenVectors(iPol, iat, iBand) - eigenVectorsC(ind, iBand));
+        }
+      }
+    }
+    ASSERT_NEAR(c2, 0., 1e-16);
+  }
 }

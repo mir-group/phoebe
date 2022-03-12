@@ -123,8 +123,7 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
       KOKKOS_LAMBDA(int iK, int m, int n) {
-        auto D = Kokkos::subview(DD, iK, Kokkos::ALL, Kokkos::ALL);
-        D(m, n) /= sqrt(atomicMasses_d(m) * atomicMasses_d(n));
+        DD(iK, m, n) /= sqrt(atomicMasses_d(m) * atomicMasses_d(n));
       });
 
   return DD;
@@ -163,8 +162,7 @@ void PhononH0::kokkosBatchedScaleEigenvectors(ComplexView3D& eigenvectors) {
   Kokkos::parallel_for(
       "mass_rescale", Range3D({0, 0, 0}, {numK, numBands, numBands}),
       KOKKOS_LAMBDA(int iK, int m, int n) {
-        auto D = Kokkos::subview(eigenvectors, iK, Kokkos::ALL, Kokkos::ALL);
-        D(m, n) /= sqrt(atomicMasses_d(m));
+        eigenvectors(iK, m, n) /= sqrt(atomicMasses_d(m));
       });
 }
 
@@ -220,6 +218,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
   }
 
   for (auto ikBatch : ikBatches) {
+
     int numK = ikBatch.size();
 
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
@@ -320,7 +319,6 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
   int numK = cartesianCoordinates.extent(0);
 
   double delta = 1.0e-8;
-  double threshold = 0.000001 / energyRyToEv;// = 1 micro-eV
 
   // prepare all the wavevectors at which we need the hamiltonian
   DoubleView2D allVectors("wavevectors_k", numK * 7, 3);

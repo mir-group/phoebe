@@ -142,7 +142,7 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
 
     // check the energies
     double appEns = (ensT - ensAPP).norm();
-    ASSERT_EQ(appEns, 0.);
+    ASSERT_NEAR(appEns, 0., 1.e-16);
 
     // check the velocities
     std::complex<double> appVelocities = complexZero;
@@ -157,17 +157,23 @@ TEST(ActiveBandStructureTest, BandStructureStorage) {
     ASSERT_EQ(appVelocities, complexZero);
 
     // check the eigenvectors
-    std::complex<double> appEigenVectors = complexZero;
-    for (int i = 0; i < nbAPP; i++) {
-      auto tup2 = decompress2Indices(i, numAtoms, 3);
-      auto iat = std::get<0>(tup2);
-      auto ic = std::get<1>(tup2);
-      for (int j = 0; j < nbAPP; j++) {
-        appEigenVectors +=
-            pow(eigenVectorsT(i, j) - eigenVectorsAPP(ic, iat, j), 2);
+    {
+      std::complex<double> appEigenVectors = complexZero;
+      for (int i = 0; i < nbAPP; i++) {
+        auto tup2 = decompress2Indices(i, numAtoms, 3);
+        auto iat = std::get<0>(tup2);
+        auto ic = std::get<1>(tup2);
+        for (int j = 0; j < nbAPP; j++) {
+          appEigenVectors +=
+              pow(eigenVectorsT(i, j) - eigenVectorsAPP(ic, iat, j), 2);
+        }
       }
+      // I deactivate this test.
+      // In fact, APP computes eigenvectors folded in the WS zone,
+      // while OTF computes on the 1st BZ. So, energies are the same
+      // but eigenvectors can have different phases
+      // ASSERT_EQ(appEigenVectors, complexZero);
     }
-    ASSERT_EQ(appEigenVectors, complexZero);
   }
 }
 
