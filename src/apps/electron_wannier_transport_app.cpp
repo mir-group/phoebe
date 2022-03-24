@@ -10,9 +10,8 @@
 #include "parser.h"
 #include "wigner_electron.h"
 
-
 void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
-                     ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
+                          ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
   int numCalculations = statisticsSweep.getNumCalculations();
   auto linewidths = scatteringMatrix.getLinewidths();
 
@@ -28,7 +27,7 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
   // set up a new crystal and points mesh using symmetries
   // without a magnetic field
   Crystal noFieldCrystal(context, directCell, atomicPositions,
-        atomicSpecies, speciesNames, speciesMasses);
+                         atomicSpecies, speciesNames, speciesMasses);
 
   // Points noFieldPoints(noFieldCrystal, context.getKMesh());
   Points noFieldPoints = bfieldPoints;
@@ -43,7 +42,7 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
       WavevectorIndex ikIdx(ik);
       Eigen::MatrixXd v = bandStructure.getGroupVelocities(ikIdx);
       allVelocities.push_back(v);
-      for( int ib = 0; ib < bandStructure.getNumBands(ikIdx); ib++) {
+      for (int ib = 0; ib < bandStructure.getNumBands(ikIdx); ib++) {
       }
     }
     noFieldPoints.setIrreduciblePoints(&allVelocities);
@@ -64,8 +63,8 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
 
     for (int ib = 0; ib < numBands; ++ib) {
 
-    Eigen::VectorXd avgLinewidths(numCalculations);
-    avgLinewidths.setZero();
+      Eigen::VectorXd avgLinewidths(numCalculations);
+      avgLinewidths.setZero();
 
       // loop over all points to be averaged
       for (auto ikRed : reducibleList) {
@@ -76,7 +75,7 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
         BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
         int iBte = iBteIdx.get();
 
-        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+        for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
           avgLinewidths(iCalc) += linewidths(iCalc, 0, iBte) / double(nkRed);
         }
       }
@@ -87,10 +86,10 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
         int is = bandStructure.getIndex(WavevectorIndex(ikRed), BandIndex(ib));
         StateIndex isIdx(is);
 
-       BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
         int iBte = iBteIdx.get();
 
-        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+        for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
           linewidths(iCalc, 0, iBte) = avgLinewidths(iCalc);
         }
       }
@@ -99,12 +98,12 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
   scatteringMatrix.setLinewidths(linewidths);
 }
 
-void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
-                         ActiveBandStructure& bandStructure,
-                         StatisticsSweep& statisticsSweep,
-                         HarmonicHamiltonian& electronH0) {
+void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
+                      ActiveBandStructure &bandStructure,
+                      StatisticsSweep &statisticsSweep,
+                      HarmonicHamiltonian &electronH0) {
 
-  bool debug = false;
+  bool debug = true;
 
   // unfortunately for indexing, we need a copy of the old and new bandstructures
   ActiveBandStructure oldBandStructure = bandStructure;
@@ -126,15 +125,23 @@ void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
   // we end up with an issue, because the quantities inside the band structure
   // will not agree with the new points mesh (velocities specifically throw an error)
 
-
- // replace whole band structure -- somehow, this produces
- // a different crystal mesh which will be incompatible with the
- // old mesh, likely because of how active bands selects points
+  // replace whole band structure -- somehow, this produces
+  // a different crystal mesh which will be incompatible with the
+  // old mesh, likely because of how active bands selects points
   Crystal crystal = bandStructure.getPoints().getCrystal();
   Points points(crystal, context.getKMesh());
   points.magneticSymmetries(context);
   auto tup = ActiveBandStructure::builder(context, electronH0, points);
   bandStructure = std::get<0>(tup);
+
+
+  {
+    auto p1 = bandStructure.getPoints();
+    auto p2 = oldBandStructure.getPoints();
+    std::cout << p1.irrPointsIterator().size() << " " << p2.irrPointsIterator().size() << " --\n";
+  }
+
+
 
   //auto kmesh = std::get<0>(bandStructure.getPoints().getMesh());
   //Points points(crystal,kmesh);
@@ -146,38 +153,39 @@ void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
   //bandStructure.getPoints().magneticSymmetries(context);
   //bandStructure.rebuildSymmetries();
 
-if(debug) {
-  // print the points mesh to, need to check that they are the same -------------------
-  std::cout << "old mesh" << std::endl;
-  for(int ik = 0; ik < oldBandStructure.getNumPoints(); ik++) {
-    WavevectorIndex temp = WavevectorIndex(ik);
-    auto kCoords = oldBandStructure.getWavevector(temp);
-    kCoords =  oldBandStructure.getPoints().crystalToCartesian(kCoords);
-    std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+  if (debug) {
+    // print the points mesh to, need to check that they are the same -------------------
+    std::cout << "old mesh" << std::endl;
+    for (int ik = 0; ik < oldBandStructure.getNumPoints(); ik++) {
+      WavevectorIndex temp = WavevectorIndex(ik);
+      auto kCoords = oldBandStructure.getWavevector(temp);
+      kCoords = oldBandStructure.getPoints().crystalToCartesian(kCoords);
+      std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+    }
+
+    std::cout << "new mesh" << std::endl;
+    for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
+
+      WavevectorIndex temp = WavevectorIndex(ik);
+      auto kCoords = bandStructure.getWavevector(temp);
+      kCoords = bandStructure.getPoints().crystalToCartesian(kCoords);
+      std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+    }
+
+    // print the indices of each mesh which are marked as irr points
+    std::cout << std::endl;
+    std::cout << "old bands irr points" << std::endl;
+    for (auto is : oldBandStructure.irrPointsIterator()) {
+      std::cout << is << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "new bands irr points" << std::endl;
+    for (auto is : bandStructure.irrPointsIterator()) {
+      std::cout << is << " ";
+    }
+    std::cout << std::endl;
   }
 
-  std::cout << "new mesh" << std::endl;
-  for(int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
-
-    WavevectorIndex temp = WavevectorIndex(ik);
-    auto kCoords = bandStructure.getWavevector(temp);
-    kCoords =  bandStructure.getPoints().crystalToCartesian(kCoords);
-    std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
-  }
-
- // print the indices of each mesh which are marked as irr points
-  std::cout << std::endl;
-  std::cout << "old bands irr points" << std::endl;
-  for(auto is : oldBandStructure.irrPointsIterator()) {
-    std::cout << is << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "new bands irr points" << std::endl;
-  for(auto is : bandStructure.irrPointsIterator()) {
-    std::cout << is << " ";
-  }
-  std::cout << std::endl;
-}
   // now the bands should have the right symmetries, and we can attempt the linewidths
   // we take an empty scattering matrix object.
   int numCalculations = statisticsSweep.getNumCalculations();
@@ -204,46 +212,60 @@ if(debug) {
     WavevectorIndex temp = WavevectorIndex(ikIrr);
     auto kCoords = bandStructure.getWavevector(temp);
     //std::cout << "kvector " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
-    kCoords =  bandStructure.getPoints().cartesianToCrystal(kCoords);
+    kCoords = bandStructure.getPoints().cartesianToCrystal(kCoords);
     //std::cout << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
     int ikOld = oldBandStructure.getPointIndex(kCoords);
     //std::cout << "old ik index " << ikOld << std::endl;
 
+
+    {
+      WavevectorIndex ikOldIdx(ikOld);
+      Eigen::Vector3d kOld = oldBandStructure.getWavevector(ikOldIdx);
+      WavevectorIndex ikIrrIdx(ikIrr);
+      Eigen::Vector3d kIrr = bandStructure.getWavevector(ikIrrIdx);
+      if ( (kOld-kIrr).norm() > 1e-8 ) {
+        Error("Kpoint mapping failed in unfold linewidths");
+      }
+    }
+
     // for each band, we replace all the equivalent kpoints
     for (int ib = 0; ib < numBands; ++ib) {
 
-       //std::cout << "ib " << ib << " ---------------------------------------------- " << std::endl;
-        double oldEne;
-        int iBteOld;
-        {
-          int is = oldBandStructure.getIndex(WavevectorIndex(ikOld), BandIndex(ib));
-          StateIndex isIdx(is);
-          oldEne = oldBandStructure.getEnergy(isIdx);
-          BteIndex iBteIdx = oldBandStructure.stateToBte(isIdx);
-          iBteOld = iBteIdx.get();
-        }
-
-        // find the bte state index of this (band, kpoint) state
-        // must convert the reducible index (which should be the same for both band structures)
-        // to the irr representation of the new band structure
-        int is = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib));
+      //std::cout << "ib " << ib << " ---------------------------------------------- " << std::endl;
+      double oldEne;
+      int iBteOld;
+      {
+        int is = oldBandStructure.getIndex(WavevectorIndex(ikOld), BandIndex(ib));
         StateIndex isIdx(is);
-        double newEne = bandStructure.getEnergy(isIdx);
-        // check that indices map to exactly the same energies
-        if(oldEne != newEne) std::cout << "old ene: " << oldEne << " new ene: " << newEne << std::endl;
-        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
-        int iBte = iBteIdx.get();
+        oldEne = oldBandStructure.getEnergy(isIdx);
+        BteIndex iBteIdx = oldBandStructure.stateToBte(isIdx);
+        iBteOld = iBteIdx.get();
+      }
 
-        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-          newLinewidths(iCalc,0,iBte) = oldLinewidths(iCalc, 0, iBteOld);
-        }
+      // find the bte state index of this (band, kpoint) state
+      // must convert the reducible index (which should be the same for both band structures)
+      // to the irr representation of the new band structure
+      int is = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib));
+      StateIndex isIdx(is);
+      double newEne = bandStructure.getEnergy(isIdx);
+      // check that indices map to exactly the same energies
+      if (oldEne != newEne) std::cout << "old ene: " << oldEne << " new ene: " << newEne << std::endl;
+      BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+      int iBte = iBteIdx.get();
+
+      if (ib == 0) {
+        std::cout << iBte << " " << iBteOld << "\n";
+      }
+
+      for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
+        newLinewidths(iCalc, 0, iBte) = oldLinewidths(iCalc, 0, iBteOld);
+      }
     }
   }
   oldMatrix.setLinewidths(newLinewidths);
   oldMatrix.setNumStates(int(bandStructure.irrStateIterator().size()));
   oldMatrix.setNumPoints(int(bandStructure.irrPointsIterator().size()));
 }
-
 
 void ElectronWannierTransportApp::run(Context &context) {
 
@@ -281,17 +303,18 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // print some info about how window and symmetries have reduced things
   if (mpi->mpiHead()) {
-    if(bandStructure.hasWindow() != 0) {
-        std::cout << "Window selection reduced electronic band structure from "
-                << fullPoints.getNumPoints()*electronH0.getNumBands() << " to "
-                << bandStructure.getNumStates() << " states."  << std::endl;
+    if (bandStructure.hasWindow() != 0) {
+      std::cout << "Window selection reduced electronic band structure from "
+                << fullPoints.getNumPoints() * electronH0.getNumBands() << " to "
+                << bandStructure.getNumStates() << " states." << std::endl;
     }
-    if(context.getUseSymmetries()) {
+    if (context.getUseSymmetries()) {
       std::cout << "Symmetries reduced electronic band structure from "
-          << bandStructure.getNumStates() << " to "
-          << bandStructure.irrStateIterator().size() << " states." << std::endl;
+                << bandStructure.getNumStates() << " to "
+                << bandStructure.irrStateIterator().size() << " states." << std::endl;
     }
-    std::cout << "Done computing electronic band structure.\n" << std::endl;
+    std::cout << "Done computing electronic band structure.\n"
+              << std::endl;
   }
 
   // build/initialize the scattering matrix and the smearing
@@ -304,25 +327,25 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
-  if(magneticField.squaredNorm() != 0) {
+  if (magneticField.squaredNorm() != 0) {
 
-  for (const std::string &s : context.getSolverBTE()) {
-    if (s.compare("iterative") == 0 || s.compare("variational") == 0
-        || s.compare("relaxons") == 0) {
-      Error("Cannot unfold linewidths with non-RTA solver.");
+    for (const std::string &s : context.getSolverBTE()) {
+      if (s.compare("iterative") == 0 || s.compare("variational") == 0
+          || s.compare("relaxons") == 0) {
+        Error("Cannot unfold linewidths with non-RTA solver.");
+      }
     }
-  }
 
     //if(mpi->mpiHead()) std::cout << "before unfolding irr kpoints bandstructure " << bandStructure.getPoints().irrPointsIterator().size() << " full new points bandstructure " << bandStructure.getNumPoints() << " band structure numIrrStates, iterator.size " << bandStructure.getNumIrrStates() << " " << bandStructure.irrStateIterator().size() << std::endl;
 
     //if(mpi->mpiHead()) std::cout << "smatrix now has nstates, npoints " << scatteringMatrix.getNumStates() << " " << scatteringMatrix.getNumPoints() << std::endl;
 
     // unfold the symmetries
-    unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep,electronH0);
+    unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep, electronH0);
 
     //if(mpi->mpiHead()) std::cout << "after unfolding irr kpoints bandstructure " << bandStructure.getPoints().irrPointsIterator().size() << " full new points bandstructure " << bandStructure.getNumPoints() << " band structure numIrrStates, iterator.size " << bandStructure.getNumIrrStates() << " " << bandStructure.irrStateIterator().size() << std::endl;
 
-/*    auto linewidths = scatteringMatrix.getLinewidths();
+    /*    auto linewidths = scatteringMatrix.getLinewidths();
     for(auto is : bandStructure.irrStateIterator()) {
       auto isIdx = StateIndex(is);
       auto ibte = bandStructure.stateToBte(isIdx).get();
@@ -344,7 +367,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n" << std::string(80, '-') << "\n\n";
+    std::cout << "\n"
+              << std::string(80, '-') << "\n\n";
     std::cout << "Solving BTE within the relaxation time approximation.\n";
   }
 
@@ -386,11 +410,13 @@ void ElectronWannierTransportApp::run(Context &context) {
   specificHeat.outputToJSON("el_specific_heat.json");
 
   if (mpi->mpiHead()) {
-    std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
+    std::cout << "\n"
+              << std::string(80, '-') << "\n"
+              << std::endl;
   }
 
   if (!std::isnan(context.getConstantRelaxationTime())) {
-    return; // if we used the constant RTA, we can't solve the BTE exactly
+    return;// if we used the constant RTA, we can't solve the BTE exactly
   }
 
   //---------------------------------------------------------------------------
@@ -414,8 +440,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   if (doRelaxons && !context.getScatteringMatrixInMemory()) {
     Error("Relaxons require matrix kept in memory");
   }
-  if (context.getScatteringMatrixInMemory() &&
-      statisticsSweep.getNumCalculations() != 1) {
+  if (context.getScatteringMatrixInMemory() && statisticsSweep.getNumCalculations() != 1) {
     Error("If scattering matrix is kept in memory, only one "
           "temperature/chemical potential is allowed in a run");
   }
@@ -436,7 +461,7 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   if (context.getScatteringMatrixInMemory() && !context.getUseSymmetries()) {
     if (doVariational || doRelaxons || doIterative) {
-      if ( context.getSymmetrizeMatrix() ) {
+      if (context.getSymmetrizeMatrix()) {
         // reinforce the condition that the scattering matrix is symmetric
         // A -> ( A^T + A ) / 2
         // this helps removing negative eigenvalues which may appear due to noise
@@ -449,7 +474,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   if (doIterative) {
 
     if (mpi->mpiHead()) {
-      std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
+      std::cout << "Starting Omini Sparavigna BTE solver\n"
+                << std::endl;
     }
 
     Eigen::Tensor<double, 3> elCond =
@@ -507,7 +533,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     if (mpi->mpiHead()) {
       std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
-      std::cout << std::string(80, '-') << "\n" << std::endl;
+      std::cout << std::string(80, '-') << "\n"
+                << std::endl;
     }
   }
 
@@ -543,10 +570,11 @@ void ElectronWannierTransportApp::run(Context &context) {
 
     if (mpi->mpiHead()) {
       std::cout << "Finished relaxons BTE solver\n\n";
-      std::cout << std::string(80, '-') << "\n" << std::endl;
+      std::cout << std::string(80, '-') << "\n"
+                << std::endl;
     }
   }
-  if(mpi->mpiHead()) std::cout << "finished wannier app" << std::endl;
+  if (mpi->mpiHead()) std::cout << "finished wannier app" << std::endl;
 }
 
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
@@ -554,23 +582,21 @@ void ElectronWannierTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getKMesh(), "kMesh");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
 
-  if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
+  if (std::isnan(context.getConstantRelaxationTime())) {// non constant tau
     throwErrorIfUnset(context.getElphFileName(), "elphFileName");
     throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
     if (context.getSmearingMethod() == DeltaFunction::gaussian) {
       throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
     }
   } else {
-    if (std::isnan(context.getNumOccupiedStates()) &&
-        std::isnan(context.getFermiLevel())) {
+    if (std::isnan(context.getNumOccupiedStates()) && std::isnan(context.getFermiLevel())) {
       Error("For constant tau calculations, you must provide either the number "
             "of occupied Kohn-Sham states in the valence band or the Fermi "
             "level at T=0K");
     }
   }
 
-  if (context.getDopings().size() == 0 &&
-      context.getChemicalPotentials().size() == 0) {
+  if (context.getDopings().size() == 0 && context.getChemicalPotentials().size() == 0) {
     Error("Either chemical potentials or dopings must be set");
   }
 }
@@ -613,7 +639,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
   auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
   size_t numParallelIrrStates = parallelIrrStates.size();
 #pragma omp parallel for
-  for (size_t iss=0; iss<numParallelIrrStates; iss++) {
+  for (size_t iss = 0; iss < numParallelIrrStates; iss++) {
     int is = parallelIrrStates[iss];
     StateIndex isIdx(is);
     double energy = bandStructure.getEnergy(isIdx);
@@ -670,22 +696,22 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE wT = outW[1];
 
     // amount of descent along the search direction
-//    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
-//    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
+    //    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
+    //    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
     int numCalculations = statisticsSweep.getNumCalculations();
-    Eigen::MatrixXd alphaE = Eigen::MatrixXd::Zero(numCalculations,3);
-    Eigen::MatrixXd alphaT = Eigen::MatrixXd::Zero(numCalculations,3);
+    Eigen::MatrixXd alphaE = Eigen::MatrixXd::Zero(numCalculations, 3);
+    Eigen::MatrixXd alphaT = Eigen::MatrixXd::Zero(numCalculations, 3);
     {
       Eigen::MatrixXd numE = rE.dot(rE);
       Eigen::MatrixXd numT = rT.dot(rT);
       Eigen::MatrixXd denE = dE.dot(wE);
       Eigen::MatrixXd denT = dT.dot(wT);
-      for (int iCalc=0; iCalc<numCalculations; iCalc++) {
-        for (int i : {0,1,2}) {
-          if (denE(iCalc,i) != 0.) {
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        for (int i : {0, 1, 2}) {
+          if (denE(iCalc, i) != 0.) {
             alphaE(iCalc, i) = numE(iCalc, i) / denE(iCalc, i);
           }
-          if (denT(iCalc,i) != 0.) {
+          if (denT(iCalc, i) != 0.) {
             alphaT(iCalc, i) = numT(iCalc, i) / denT(iCalc, i);
           }
         }
@@ -703,21 +729,21 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE rNewT = rT - tmpT;
 
     // amount of correction for the search direction
-//    Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
-//    Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
-    Eigen::MatrixXd betaE = Eigen::MatrixXd::Zero(numCalculations,3);
-    Eigen::MatrixXd betaT = Eigen::MatrixXd::Zero(numCalculations,3);
+    //    Eigen::MatrixXd betaE = (rNewE.dot(rNewE)).array() / (rE.dot(rE)).array();
+    //    Eigen::MatrixXd betaT = (rNewT.dot(rNewT)).array() / (rT.dot(rT)).array();
+    Eigen::MatrixXd betaE = Eigen::MatrixXd::Zero(numCalculations, 3);
+    Eigen::MatrixXd betaT = Eigen::MatrixXd::Zero(numCalculations, 3);
     {
       Eigen::MatrixXd numE = rNewE.dot(rNewE);
       Eigen::MatrixXd numT = rNewT.dot(rNewT);
       Eigen::MatrixXd denE = rE.dot(rE);
       Eigen::MatrixXd denT = rT.dot(rT);
-      for (int iCalc=0; iCalc<numCalculations; iCalc++) {
-        for (int i : {0,1,2}) {
-          if (denE(iCalc,i) != 0.) {
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        for (int i : {0, 1, 2}) {
+          if (denE(iCalc, i) != 0.) {
             betaE(iCalc, i) = numE(iCalc, i) / denE(iCalc, i);
           }
-          if (denT(iCalc,i) != 0.) {
+          if (denT(iCalc, i) != 0.) {
             betaT(iCalc, i) = numT(iCalc, i) / denT(iCalc, i);
           }
         }
@@ -736,7 +762,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
     auto irrStates = bandStructure.irrStateIterator();
     size_t numIrrStates = irrStates.size();
 #pragma omp parallel for
-    for (size_t iss=0; iss<numIrrStates; iss++) {
+    for (size_t iss = 0; iss < numIrrStates; iss++) {
       int is = irrStates[iss];
       StateIndex isIdx(is);
       double energy = bandStructure.getEnergy(isIdx);
@@ -793,6 +819,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
 
   if (mpi->mpiHead()) {
     std::cout << "Finished variational BTE solver\n\n";
-    std::cout << std::string(80, '-') << "\n" << std::endl;
+    std::cout << std::string(80, '-') << "\n"
+              << std::endl;
   }
 }
