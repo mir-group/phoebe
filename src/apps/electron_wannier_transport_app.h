@@ -11,6 +11,7 @@ class ElectronWannierTransportApp: public App {
 public:
   void run(Context &context) override;
   void checkRequirements(Context &context) override;
+
 private:
   /** Method for running the variational solver of the electron BTE
    */
@@ -20,5 +21,11 @@ private:
                             ActiveBandStructure &bandStructure,
                             ElScatteringMatrix &scatteringMatrix);
 };
+
+// TODO how can i have the test access this wihtout making it public
+void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
+                         ActiveBandStructure& bandStructure,
+                         StatisticsSweep& statisticsSweep, HarmonicHamiltonian& electronH0);
+
 
 #endif

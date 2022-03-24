@@ -12,8 +12,7 @@
 
 
 void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
-                     ScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
-
+                     ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
   int numCalculations = statisticsSweep.getNumCalculations();
   auto linewidths = scatteringMatrix.getLinewidths();
 
@@ -87,7 +86,8 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
         // find the bte state index of this (band, kpoint) state
         int is = bandStructure.getIndex(WavevectorIndex(ikRed), BandIndex(ib));
         StateIndex isIdx(is);
-        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+
+       BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
         int iBte = iBteIdx.get();
 
         for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
@@ -99,6 +99,152 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
   scatteringMatrix.setLinewidths(linewidths);
 }
 
+void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
+                         ActiveBandStructure& bandStructure,
+                         StatisticsSweep& statisticsSweep,
+                         HarmonicHamiltonian& electronH0) {
+
+  bool debug = false;
+
+  // unfortunately for indexing, we need a copy of the old and new bandstructures
+  ActiveBandStructure oldBandStructure = bandStructure;
+
+  // There are two options for creating the unfolded band structure
+  // 1) create an entirely new band structure based on a new points mesh
+  // which only has the magnetic symmetries
+  // * problem: the points meshes in each band structure will be different,
+  // because each band structure filtered the points differently.
+  // * underlying points full meshes are the same, it might be possible
+  // to find a way to still map between the two. << Solution??
+  // * this works for small meshes, but becomes an issue for real sized ones
+
+  // 2) try to create a copy of an active band structure object and update it
+  // with a brand new points class object (cannot change internal points
+  // ref of the copy without changing the old one as well)
+  // * problem: if we try to swap a mag syms points class into an copy of the
+  // full syms active band structure, then call setIrr points on the new points object,
+  // we end up with an issue, because the quantities inside the band structure
+  // will not agree with the new points mesh (velocities specifically throw an error)
+
+
+ // replace whole band structure -- somehow, this produces
+ // a different crystal mesh which will be incompatible with the
+ // old mesh, likely because of how active bands selects points
+  Crystal crystal = bandStructure.getPoints().getCrystal();
+  Points points(crystal, context.getKMesh());
+  points.magneticSymmetries(context);
+  auto tup = ActiveBandStructure::builder(context, electronH0, points);
+  bandStructure = std::get<0>(tup);
+
+  //auto kmesh = std::get<0>(bandStructure.getPoints().getMesh());
+  //Points points(crystal,kmesh);
+  ///Points points = bandStructure.getPoints();
+  //points.getCrystal().magneticSymmetries(context);
+  //bandStructure.getPoints().magneticSymmetries(context);
+
+  // this seems to work for energies, hopefully linewidths
+  //bandStructure.getPoints().magneticSymmetries(context);
+  //bandStructure.rebuildSymmetries();
+
+if(debug) {
+  // print the points mesh to, need to check that they are the same -------------------
+  std::cout << "old mesh" << std::endl;
+  for(int ik = 0; ik < oldBandStructure.getNumPoints(); ik++) {
+    WavevectorIndex temp = WavevectorIndex(ik);
+    auto kCoords = oldBandStructure.getWavevector(temp);
+    kCoords =  oldBandStructure.getPoints().crystalToCartesian(kCoords);
+    std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+  }
+
+  std::cout << "new mesh" << std::endl;
+  for(int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
+
+    WavevectorIndex temp = WavevectorIndex(ik);
+    auto kCoords = bandStructure.getWavevector(temp);
+    kCoords =  bandStructure.getPoints().crystalToCartesian(kCoords);
+    std::cout << "kvector crys" << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+  }
+
+ // print the indices of each mesh which are marked as irr points
+  std::cout << std::endl;
+  std::cout << "old bands irr points" << std::endl;
+  for(auto is : oldBandStructure.irrPointsIterator()) {
+    std::cout << is << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "new bands irr points" << std::endl;
+  for(auto is : bandStructure.irrPointsIterator()) {
+    std::cout << is << " ";
+  }
+  std::cout << std::endl;
+}
+  // now the bands should have the right symmetries, and we can attempt the linewidths
+  // we take an empty scattering matrix object.
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  VectorBTE newLinewidths(statisticsSweep, bandStructure, 1);
+  VectorBTE oldLinewidths = oldMatrix.getLinewidths();
+
+  // for each irr point of the new band structure, we will get the
+  // wavevector of that point, look it up in the old list, and
+  // use that index to set the new linewidth
+  //
+  // this is more straightforward because at the end, we only care to
+  // save new irr points anyway
+  for (int ikIrr : bandStructure.getPoints().irrPointsIterator()) {
+
+    // I think this should still work because all sym eq kpoints should have the same nbands
+    int numBands;
+    {
+      WavevectorIndex ikIdx(ikIrr);
+      numBands = oldBandStructure.getNumBands(ikIdx);
+    }
+
+    // get the actual wavevector and look it up manually
+    WavevectorIndex temp = WavevectorIndex(ikIrr);
+    auto kCoords = bandStructure.getWavevector(temp);
+    //std::cout << "kvector " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+    kCoords =  bandStructure.getPoints().cartesianToCrystal(kCoords);
+    //std::cout << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+    int ikOld = oldBandStructure.getPointIndex(kCoords);
+    //std::cout << "old ik index " << ikOld << std::endl;
+
+    // for each band, we replace all the equivalent kpoints
+    for (int ib = 0; ib < numBands; ++ib) {
+
+       //std::cout << "ib " << ib << " ---------------------------------------------- " << std::endl;
+        double oldEne;
+        int iBteOld;
+        {
+          int is = oldBandStructure.getIndex(WavevectorIndex(ikOld), BandIndex(ib));
+          StateIndex isIdx(is);
+          oldEne = oldBandStructure.getEnergy(isIdx);
+          BteIndex iBteIdx = oldBandStructure.stateToBte(isIdx);
+          iBteOld = iBteIdx.get();
+        }
+
+        // find the bte state index of this (band, kpoint) state
+        // must convert the reducible index (which should be the same for both band structures)
+        // to the irr representation of the new band structure
+        int is = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib));
+        StateIndex isIdx(is);
+        double newEne = bandStructure.getEnergy(isIdx);
+        // check that indices map to exactly the same energies
+        if(oldEne != newEne) std::cout << "old ene: " << oldEne << " new ene: " << newEne << std::endl;
+        BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
+        int iBte = iBteIdx.get();
+
+        for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+          newLinewidths(iCalc,0,iBte) = oldLinewidths(iCalc, 0, iBteOld);
+        }
+    }
+  }
+  oldMatrix.setLinewidths(newLinewidths);
+  oldMatrix.setNumStates(int(bandStructure.irrStateIterator().size()));
+  oldMatrix.setNumPoints(int(bandStructure.irrPointsIterator().size()));
+}
+
+
 void ElectronWannierTransportApp::run(Context &context) {
 
   auto t2 = Parser::parsePhHarmonic(context);
@@ -107,10 +253,10 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // if there's a magnetic field, reduce symmetry.
   // we intentionally do this after the electronic structure
-  auto bfield = context.getBField();
-  if(bfield.norm() != 0) {
-    crystal.magneticSymmetries(context);
-  }
+  //auto bfield = context.getBField();
+  //if(bfield.norm() != 0) {
+  //  crystal.magneticSymmetries(context);
+  //}
 
   auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
@@ -148,25 +294,40 @@ void ElectronWannierTransportApp::run(Context &context) {
     std::cout << "Done computing electronic band structure.\n" << std::endl;
   }
 
-  // Old code for using all the band structure
-  //  bool withVelocities = true;
-  //  bool withEigenvectors = true;
-  //  FullBandStructure bandStructure = electronH0.populate(
-  //      fullPoints, withVelocities, withEigenvectors);
-  //  // set the chemical potentials to zero, load temperatures
-  //  StatisticsSweep statisticsSweep(context, &bandStructure);
-
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, phononH0, &couplingElPh);
   scatteringMatrix.setup();
 
   // symmetrize the linewidths on the diagonal
-  symmetrizeLinewidths(context, bandStructure, scatteringMatrix, statisticsSweep);
+  //symmetrizeLinewidths(context, bandStructure, scatteringMatrix, statisticsSweep);
 
   // Add magnetotransport term to scattering matrix if found in input file
   auto magneticField = context.getBField();
   if(magneticField.squaredNorm() != 0) {
+
+  for (const std::string &s : context.getSolverBTE()) {
+    if (s.compare("iterative") == 0 || s.compare("variational") == 0
+        || s.compare("relaxons") == 0) {
+      Error("Cannot unfold linewidths with non-RTA solver.");
+    }
+  }
+
+    //if(mpi->mpiHead()) std::cout << "before unfolding irr kpoints bandstructure " << bandStructure.getPoints().irrPointsIterator().size() << " full new points bandstructure " << bandStructure.getNumPoints() << " band structure numIrrStates, iterator.size " << bandStructure.getNumIrrStates() << " " << bandStructure.irrStateIterator().size() << std::endl;
+
+    //if(mpi->mpiHead()) std::cout << "smatrix now has nstates, npoints " << scatteringMatrix.getNumStates() << " " << scatteringMatrix.getNumPoints() << std::endl;
+
+    // unfold the symmetries
+    unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep,electronH0);
+
+    //if(mpi->mpiHead()) std::cout << "after unfolding irr kpoints bandstructure " << bandStructure.getPoints().irrPointsIterator().size() << " full new points bandstructure " << bandStructure.getNumPoints() << " band structure numIrrStates, iterator.size " << bandStructure.getNumIrrStates() << " " << bandStructure.irrStateIterator().size() << std::endl;
+
+/*    auto linewidths = scatteringMatrix.getLinewidths();
+    for(auto is : bandStructure.irrStateIterator()) {
+      auto isIdx = StateIndex(is);
+      auto ibte = bandStructure.stateToBte(isIdx).get();
+      if(mpi->mpiHead()) std::cout << is << " " << linewidths(0,0,ibte) << std::endl;;
+    }*/
 
     // TODO we might want to throw a warning if someone runs with a
     // bfield that adds a contribution on the order of the diagonal
@@ -385,6 +546,7 @@ void ElectronWannierTransportApp::run(Context &context) {
       std::cout << std::string(80, '-') << "\n" << std::endl;
     }
   }
+  if(mpi->mpiHead()) std::cout << "finished wannier app" << std::endl;
 }
 
 void ElectronWannierTransportApp::checkRequirements(Context &context) {

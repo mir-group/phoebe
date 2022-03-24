@@ -21,6 +21,7 @@
  */
 class ActiveBandStructure : public BaseBandStructure {
 public:
+
   /** Almost empty constructor, to be used internally.
    */
   ActiveBandStructure(Particle &particle_, Points &points_);
@@ -56,6 +57,11 @@ public:
    * Should be an ActivePoints class.
    */
   Points getPoints() override;
+
+ // TODO note may not want to keep this in the long term
+  void swapPoints(Points& newPoints);
+  void rebuildSymmetries();
+  int getNumIrrStates();
 
   /** Returns a wavevector, given a wavevector index.
    * The wavevector index runs from 0 to numPoints-1, where numPoints is the

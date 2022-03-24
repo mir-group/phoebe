@@ -1117,6 +1117,7 @@ std::string Context::getAppName() { return appName; }
 Eigen::Vector3i Context::getQMesh() { return qMesh; }
 
 Eigen::Vector3i Context::getKMesh() { return kMesh; }
+void Context::setKMesh(Eigen::Vector3i newKMesh) { kMesh = newKMesh; }
 
 std::string Context::getWindowType() { return windowType; }
 void Context::setWindowType(const std::string &x) { windowType = x; }
@@ -1198,6 +1199,7 @@ bool Context::getHasSpinOrbit() const { return hasSpinOrbit; }
 void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 
 int Context::getSmearingMethod() const { return smearingMethod; }
+void Context::setSmearingMethod(const int newSmearingMethod) { smearingMethod = newSmearingMethod; }
 
 double Context::getSmearingWidth() const { return smearingWidth; }
 void Context::setSmearingWidth(const double &x) { smearingWidth = x; }
@@ -1241,6 +1243,7 @@ double Context::getDeltaChemicalPotential() const {
 }
 
 Eigen::Vector3d Context::getBField() const { return bField; }
+void Context::setBField(const Eigen::Vector3d newBField) { bField = newBField; }
 
 double Context::getMinTemperature() const { return minTemperature; }
 

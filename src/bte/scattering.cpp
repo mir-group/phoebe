@@ -528,12 +528,13 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
 
   if(internalDiagonal.numCalculations != linewidths.numCalculations) {
     Error("Attempted setting scattering matrix diagonal with"
-        "an incorrect number of calculations.");
+        " an incorrect number of calculations.");
   }
-  if(internalDiagonal.numStates != linewidths.numStates) {
+  // TODO we should put this back later
+  /*if(internalDiagonal.numStates != linewidths.numStates) {
     Error("Attempted setting scattering matrix diagonal with"
-        "an incorrect number of states.");
-  }
+        " an incorrect number of states.");
+  }*/
   internalDiagonal = linewidths;
 
   if (!isMatrixOmega) {
@@ -1010,6 +1011,17 @@ ScatteringMatrix::getSMatrixIndex(const int &iMat) {
     return {BteIndex(iMat), CartIndex(0)};
   }
 }
+// TODO probably dont want these in the long term
+void ScatteringMatrix::setNumStates(int nStates) {
+  numStates = nStates;
+}
+void ScatteringMatrix::setNumPoints(int nPoints) {
+  numPoints = nPoints;
+}
+int ScatteringMatrix::getNumPoints() { return numPoints; }
+int ScatteringMatrix::getNumStates() { return numStates; }
+BaseBandStructure& ScatteringMatrix::getBandStructure() {return outerBandStructure;}
+
 
 void ScatteringMatrix::symmetrize() {
   // note: if the matrix is not stored in memory, it's not trivial to enforce

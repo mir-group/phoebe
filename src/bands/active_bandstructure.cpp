@@ -102,6 +102,20 @@ Point ActiveBandStructure::getPoint(const int &pointIndex) {
   return points.getPoint(pointIndex);
 }
 
+// TODO maybe can delete this
+void ActiveBandStructure::swapPoints(Points& newPoints) {
+  points = newPoints;
+  buildSymmetries();
+}
+void ActiveBandStructure::rebuildSymmetries() {
+  buildIndices();
+  buildSymmetries();
+}
+int ActiveBandStructure::getNumIrrStates() {
+  return numIrrStates;
+}
+
+
 int ActiveBandStructure::getNumPoints(const bool &useFullGrid) {
   if (useFullGrid) {
     return points.getNumPoints();
@@ -1072,8 +1086,9 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   // from k from 0 to N_k
   // to k from 0 to N_k_irreducible
   int ikBte = points.asIrreducibleIndex(ikIdx.get());
+  //if(mpi->mpiHead()) std::cout << "stateToBte found irr K " << ikBte << std::endl;
   if (ikBte < 0) {
-    Error("stateToBte is used on a reducible point");
+    Error("stateToBte is used on a point outside the mesh");
   }
   int iBte = bteBloch2Comb(ikBte, ibIdx.get());
   return BteIndex(iBte);

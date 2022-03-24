@@ -168,6 +168,9 @@ public:
    */
   void setConst(const double &constant);
 
+  //TODO remove alter
+  int getNumStates();
+
  protected:
   // we store auxiliary objects and parameters
   StatisticsSweep &statisticsSweep;

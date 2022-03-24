@@ -339,3 +339,5 @@ VectorBTE::loc2Glob(
 void VectorBTE::setConst(const double &constant) {
   data.setConstant(constant);
 }
+
+int VectorBTE::getNumStates() {return numStates;}

@@ -481,11 +481,9 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
   for (int i : {0,1,2}) {
     deltaK(i) = 1. / kMesh(i);
   }
-  //deltaK = points.crystalToCartesian(deltaK);
-  //std::cout << "deltaK " << deltaK[0] << " " << deltaK[1] << " " deltaK[2] << std::endl;
 
   auto crystal = points.getCrystal();
-  // Eigen::Matrix3d R = points.getCrystal().getReciprocalUnitCell();
+  Eigen::Matrix3d R = points.getCrystal().getReciprocalUnitCell();
   // deltaK = R * deltaK;
   //for (int i : {0,1,2} ) {
     // Eigen::Vector3d bi = crystal.getReciprocalUnitCell().col(i);
@@ -493,6 +491,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     // deltaK[i] *= dilation;
     //  }
 
+/*
   Eigen::Matrix3d spaceFactor;
   {
     Eigen::Matrix3d mat1, mat2;
@@ -508,9 +507,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     }
     spaceFactor = mat1.inverse() * mat2;
   }
-
-  if(mpi->mpiHead()) std::cout << "deltaK " << deltaK[0] << " " << deltaK[1] << " " << deltaK[2] << std::endl;
-
+*/
   // convert the kspacing from crystal to cartesian
 
 
@@ -526,9 +523,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     // TODO 2) does magnetic field need to be transformed?
 
     Eigen::Vector3d y  = vel.cross(magneticField);
-    //auto R = crystal.getReciprocalUnitCell();
-
-    Eigen::Vector3d z = y.transpose() * spaceFactor;
+    Eigen::Vector3d z = y.transpose() * R.inverse(); //spaceFactor;
 
     for (int i : {0,1,2}) {
       correction(is, i) = -z(i)/(2*deltaK[i]);
@@ -601,21 +596,30 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
       int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
 
+      StateIndex istatePlus(isPlus);
+      StateIndex istateMins(isMins);
+      int ibtePlus = outerBandStructure.stateToBte(istatePlus).get();
+      int ibteMins = outerBandStructure.stateToBte(istateMins).get();
+
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
       if(highMemory) {
-        if(theMatrix.indicesAreLocal(isPlus,isPlus)) {
-          theMatrix(isPlus, isPlus) += correction(is,kDisplacement);
-          internalDiagonal(0, 0, isPlus) += correction(is,kDisplacement);
+        if(theMatrix.indicesAreLocal(ibtePlus,ibtePlus)) {
+          theMatrix(ibtePlus, ibtePlus) += correction(is,kDisplacement);
+          internalDiagonal(0, 0, ibtePlus) += correction(is,kDisplacement);
         }
-        if(theMatrix.indicesAreLocal(isMins, isMins)) {
-          theMatrix(isMins, isMins) -= correction(is,kDisplacement);
-          internalDiagonal(0, 0, isMins) -= correction(is,kDisplacement);
+        if(theMatrix.indicesAreLocal(ibteMins, ibteMins)) {
+          theMatrix(ibteMins, ibteMins) -= correction(is,kDisplacement);
+          internalDiagonal(0, 0, ibteMins) -= correction(is,kDisplacement);
         }
       } else {
         for(int iCalc = 0; iCalc < numCalculations; iCalc++) {
-          internalDiagonal(iCalc, 0, isPlus) += correction(is, kDisplacement);
-          internalDiagonal(iCalc, 0, isMins) -= correction(is, kDisplacement);
+          if(ibtePlus < numStates) {
+            internalDiagonal(iCalc, 0, ibtePlus) += correction(is, kDisplacement);
+          }
+          if(ibteMins < numStates) {
+            internalDiagonal(iCalc, 0, ibteMins) -= correction(is, kDisplacement);
+          }
         }
       }
     }

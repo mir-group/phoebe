@@ -298,6 +298,9 @@ public:
    */
   Eigen::Matrix3d getRotationFromReducibleIndex(int ikFull);
   void swapCrystal(Crystal &newCrystal);
+  // TODO decide if we want to keept this
+  void magneticSymmetries(Context& context);
+
 
 protected:
   void setMesh(const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_);

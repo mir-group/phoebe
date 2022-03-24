@@ -691,7 +691,7 @@ void Points::setIrreduciblePoints(
 
   const double epsilon = 1.0e-5;
 
-  equiv.resize(numPoints);
+  equiv = Eigen::VectorXi::Zero(numPoints); //equiv.resize(numPoints);
   for (int i = 0; i < numPoints; i++) {
     equiv(i) = i;
   }
@@ -863,6 +863,13 @@ void Points::setIrreduciblePoints(
     }
   }
 
+if(mpi->mpiHead()) {
+  //std::cout << "mapIrreducibleToReducibleList " << std::endl;
+  for (int ik = 0; ik < numIrrPoints; ik++) {
+    //std::cout << "ik, map " << ik << " " <<  mapIrreducibleToReducibleList(ik) << std::endl;
+  }
+}
+
   // this allows us to map (ikRed in fullPoints) -> (ikIrr in the irrPoints)
   // basically the inverse of mapIrrToRedList
   mapReducibleToIrreducibleList = Eigen::VectorXi::Zero(numPoints);
@@ -881,6 +888,14 @@ void Points::setIrreduciblePoints(
     mapReducibleToIrreducibleList(ik) = ikIrr2;
   }
   mpi->allReduceSum(&mapReducibleToIrreducibleList);
+
+/*if(mpi->mpiHead()) {
+  std::cout << "equiv list" << std::endl;
+  for (int ik = 0; ik < numPoints; ik++) {
+    std::cout << equiv(ik) << std::endl;
+    std::cout << "map " << mapReducibleToIrreducibleList(ik) << std::endl;
+  }
+}*/
 }
 
 std::vector<int> Points::irrPointsIterator() {
@@ -999,6 +1014,11 @@ void Points::swapCrystal(Crystal &newCrystal) {
   irreducibleStars.resize(0);
   equiv.resize(0);
 }
+//TODO another way
+void Points::magneticSymmetries(Context& context) {
+  crystalObj->magneticSymmetries(context);
+}
+
 
 Eigen::Matrix3d Points::getRotationFromReducibleIndex(int ikFull) {
   if(numIrrPoints==0) {

@@ -156,6 +156,7 @@ public:
   std::string getQuantumEspressoPrefix();
   void setQuantumEspressoPrefix(const std::string &x);
   std::string getElPhInterpolation();
+  void setBField(const Eigen::Vector3d newBField);
 
   double getEpaSmearingEnergy() const;
   double getEpaDeltaEnergy() const;
@@ -197,6 +198,10 @@ public:
    * @return path: an array with 3 integers representing the k-point mesh.
    */
   Eigen::Vector3i getKMesh();
+
+  /** sets the mesh of points for harmonic electronic properties.
+   */
+  void setKMesh(Eigen::Vector3i newKMesh);
 
   /** gets the Window type to be used to filter out states that don't
    * contribute to transport.
@@ -286,6 +291,7 @@ public:
   void setHasSpinOrbit(const bool &x);
 
   int getSmearingMethod() const;
+  void setSmearingMethod(int smearing);
 
   double getSmearingWidth() const;
   void setSmearingWidth(const double &x);

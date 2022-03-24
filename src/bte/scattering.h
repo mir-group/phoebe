@@ -166,6 +166,13 @@ public:
 
   void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
 
+  // TODO remove later
+  void setNumStates(int numStates);
+  void setNumPoints(int numPoints);
+  int getNumStates();
+  int getNumPoints();
+  BaseBandStructure& getBandStructure();
+
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
