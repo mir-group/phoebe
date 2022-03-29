@@ -90,6 +90,7 @@ class InteractionElPhWan {
   DoubleView1D elBravaisVectorsDegeneracies_k;
 
   double maxmem = 16.0e9; // default 16 Gb memory space for computation
+  double fixedCouplingConstant = std::numeric_limits<double>::quiet_NaN();
 
 public:
 
@@ -120,7 +121,8 @@ public:
       const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
       const Eigen::MatrixXd &phBravaisVectors_,
       const Eigen::VectorXd &phBravaisVectorsDegeneracies_,
-      PhononH0 *phononH0_ = nullptr);
+      PhononH0 *phononH0_ = nullptr,
+      const double& fixedCouplingConstant_ = std::numeric_limits<double>::quiet_NaN());
 
   /** Almost empty constructor.
    * Used to fake the existence of a coupling with the constant relaxation time

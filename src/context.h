@@ -116,6 +116,11 @@ class Context {
 
   // if true, enforce the symmetrization of the scattering matrix
   bool symmetrizeMatrix = true;
+
+  // this parameter is to replace the coupling strength of quasiparticle
+  // interactions (el-ph or 3-ph) to a constant value
+  double fixedCouplingConstant = std::numeric_limits<double>::quiet_NaN();
+
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
@@ -344,6 +349,9 @@ public:
 
   bool getSymmetrizeMatrix() const;
   void setSymmetrizeMatrix(const bool &x);
+
+  double getFixedCouplingConstant() const;
+  void setFixedCouplingConstant(const double &x);
 };
 
 #endif

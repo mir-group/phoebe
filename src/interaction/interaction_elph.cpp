@@ -14,8 +14,10 @@ InteractionElPhWan::InteractionElPhWan(
     const Eigen::MatrixXd &elBravaisVectors_,
     const Eigen::VectorXd &elBravaisVectorsDegeneracies_,
     const Eigen::MatrixXd &phBravaisVectors_,
-    const Eigen::VectorXd &phBravaisVectorsDegeneracies_, PhononH0 *phononH0_)
-    : crystal(crystal_), phononH0(phononH0_) {
+    const Eigen::VectorXd &phBravaisVectorsDegeneracies_, PhononH0 *phononH0_,
+    const double& fixedCouplingConstant_)
+    : crystal(crystal_), phononH0(phononH0_),
+      fixedCouplingConstant(fixedCouplingConstant_) {
 
   couplingWannier = couplingWannier_;
   elBravaisVectors = elBravaisVectors_;
@@ -72,7 +74,7 @@ InteractionElPhWan::InteractionElPhWan(const InteractionElPhWan &that)
       phBravaisVectorsDegeneracies_k(that.phBravaisVectorsDegeneracies_k),
       elBravaisVectors_k(that.elBravaisVectors_k),
       elBravaisVectorsDegeneracies_k(that.elBravaisVectorsDegeneracies_k),
-      maxmem(that.maxmem) {}
+      maxmem(that.maxmem), fixedCouplingConstant(that.fixedCouplingConstant) {}
 
 // assignment operator
 InteractionElPhWan &
@@ -98,6 +100,7 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
     elBravaisVectors_k = that.elBravaisVectors_k;
     elBravaisVectorsDegeneracies_k = that.elBravaisVectorsDegeneracies_k;
     maxmem = that.maxmem;
+    fixedCouplingConstant = that.fixedCouplingConstant;
   }
   return *this;
 }
@@ -776,6 +779,20 @@ void InteractionElPhWan::calcCouplingSquared(
   }
   Kokkos::deep_copy(nb2s_k, nb2s_h);
 
+  // if we set |g|^2=const , no need to do any calculation
+  // we just need a constant tensor with the right shape
+  if (!std::isnan(fixedCouplingConstant)) {
+    cacheCoupling.resize(numLoops);
+#pragma omp parallel for
+    for (int ik = 0; ik < numLoops; ik++) {
+      Eigen::Tensor<double, 3> coupling(nb1, nb2s_h(ik), numPhBands);
+      coupling.setConstant(fixedCouplingConstant);
+      // and we save the coupling |g|^2 it for later
+      cacheCoupling[ik] = coupling;
+    }
+    return;
+  }
+
   // Polar corrections are computed on the CPU and then transferred to GPU
 
   IntView1D usePolarCorrections("usePolarCorrections", numLoops);
@@ -996,10 +1013,15 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
   return numBatches;
 }
 
-void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
+void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1,
+                                   const Eigen::Vector3d &k1C) {
   int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   Kokkos::complex<double> complexI(0.0, 1.0);
+
+  if (!std::isnan(fixedCouplingConstant)) {
+    return;
+  }
 
   // note: when Kokkos is compiled with GPU support, we must create elPhCached
   // and other variables as local, so that Kokkos correctly allocates these

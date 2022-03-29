@@ -578,6 +578,10 @@ void Context::setupFromInput(const std::string &fileName) {
         distributedElPhCoupling = parseBool(val);
       }
 
+      if (parameterName == "fixedCouplingConstant") {
+        fixedCouplingConstant = parseDouble(val);
+      }
+
       if (parameterName == "numOccupiedStates") {
         // note: numOccupiedStates refers to the number of states that are
         // occupied
@@ -1293,4 +1297,12 @@ bool Context::getDistributedElPhCoupling() const {
 
 void Context::setDistributedElPhCoupling(const bool &x) {
   distributedElPhCoupling = x;
+}
+
+double Context::getFixedCouplingConstant() const {
+  return fixedCouplingConstant;
+}
+
+void Context::setFixedCouplingConstant(const double &x) {
+  fixedCouplingConstant = x;
 }

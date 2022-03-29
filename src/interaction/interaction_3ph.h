@@ -58,6 +58,7 @@ private:
 
   // dimensions
   int nr2, nr3, numAtoms, numBands;
+  double fixedCouplingConstant;
 
 public:
 
@@ -88,7 +89,8 @@ public:
                  Eigen::MatrixXd &cellPositions2,
                  Eigen::MatrixXd &cellPositions3,
                  Eigen::Tensor<double,3> &weights2,
-                 Eigen::Tensor<double,3> &weights3);
+                 Eigen::Tensor<double,3> &weights3,
+                 const double& fixedCouplingConstant_ = std::numeric_limits<double>::quiet_NaN());
 
   /** Copy constructor
    */

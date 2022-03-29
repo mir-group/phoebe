@@ -5,8 +5,9 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
                                Eigen::MatrixXd &cellPositions2,
                                Eigen::MatrixXd &cellPositions3,
                                Eigen::Tensor<double, 3> &weights2,
-                               Eigen::Tensor<double, 3> &weights3)
-    : crystal_(crystal) {
+                               Eigen::Tensor<double, 3> &weights3,
+                               const double& fixedCouplingConstant_)
+    : crystal_(crystal), fixedCouplingConstant(fixedCouplingConstant_) {
 
   numAtoms = crystal_.getNumAtoms();
   numBands = numAtoms * 3;
@@ -78,9 +79,10 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
 
 // copy constructor
 Interaction3Ph::Interaction3Ph(const Interaction3Ph &that)
-    : crystal_(that.crystal_), nr2(that.nr2), nr3(that.nr3),
-      numAtoms(that.numAtoms), numBands(that.numBands) {
-}
+    : crystal_(that.crystal_),
+      nr2(that.nr2), nr3(that.nr3),
+      numAtoms(that.numAtoms), numBands(that.numBands),
+      fixedCouplingConstant(that.fixedCouplingConstant) {}
 
 // assignment operator
 Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
@@ -90,6 +92,7 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
     nr3 = that.nr3;
     numAtoms = that.numAtoms;
     numBands = that.numBands;
+    fixedCouplingConstant = that.fixedCouplingConstant;
   }
   return *this;
 }
@@ -104,6 +107,10 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   Kokkos::deep_copy(q2, q2_h);
 
   Kokkos::complex<double> complexI(0.0, 1.0);
+
+  if (!isnan(fixedCouplingConstant)) {
+    return;
+  }
 
   // Need all variables to be local to be captured by lambda
   int nr2 = this->nr2;
@@ -195,6 +202,23 @@ Interaction3Ph::getCouplingsSquared(
   auto D3MinsCached = this->D3MinsCached_k;
 
   int nq1 = q1s_e.size();
+
+  if (!isnan(fixedCouplingConstant)) { // case of constant coupling
+    // Copy result to vector of Eigen tensors
+    std::vector<Eigen::Tensor<double, 3>> couplingPlus_e(nq1),
+        couplingMins_e(nq1);
+#pragma omp parallel for
+    for (int iq1 = 0; iq1 < nq1; iq1++) {
+      int nb1 = nb1s_e[iq1];
+      int nb3Plus = nb3Pluss_e[iq1];
+      int nb3Mins = nb3Minss_e[iq1];
+      couplingPlus_e[iq1] = Eigen::Tensor<double, 3>(nb1, nb2, nb3Plus);
+      couplingMins_e[iq1] = Eigen::Tensor<double, 3>(nb1, nb2, nb3Mins);
+      couplingPlus_e[iq1].setConstant(fixedCouplingConstant);
+      couplingMins_e[iq1].setConstant(fixedCouplingConstant);
+    }
+    return {couplingPlus_e, couplingMins_e};
+  }
 
   // MDRangePolicy loops are rectangular, need maximal dimensions
   int maxnb1 = *std::max_element(nb1s_e.begin(), nb1s_e.end()),
