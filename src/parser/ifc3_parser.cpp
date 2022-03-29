@@ -610,7 +610,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   // Create interaction3Ph object
   Interaction3Ph interaction3Ph(crystal, FC3, bravaisVectors2, bravaisVectors3,
-                                weights2, weights3);
+                                weights2, weights3,
+                                context.getFixedCouplingConstant());
 
   return interaction3Ph;
 
@@ -798,7 +799,8 @@ Interaction3Ph IFC3Parser::parseFromShengBTE(Context &context,
   weights.setConstant(1.);
 
   Interaction3Ph interaction3Ph(crystal, FC3, cellPositions2,
-                                cellPositions3, weights, weights);
+                                cellPositions3, weights, weights,
+                                context.getFixedCouplingConstant());
 
   if (mpi->mpiHead()) {
     std::cout << "Successfully parsed anharmonic "

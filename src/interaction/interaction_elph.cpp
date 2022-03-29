@@ -107,7 +107,13 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
 
 Eigen::Tensor<double, 3>
 InteractionElPhWan::getCouplingSquared(const int &ik2) {
-  return cacheCoupling[ik2];
+  if (std::isnan(fixedCouplingConstant)) {
+    return cacheCoupling[ik2];
+  } else {
+    Eigen::Tensor<double,3> coupling(numElBands, numElBands, numPhBands);
+    coupling.setConstant(fixedCouplingConstant);
+    return coupling;
+  }
 }
 
 Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
@@ -400,7 +406,8 @@ InteractionElPhWan parseNoHDF5(Context &context, Crystal &crystal,
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
-                            phBravaisVectorsDegeneracies_, phononH0_);
+                            phBravaisVectorsDegeneracies_, phononH0_,
+                            context.getFixedCouplingConstant());
   return output;
 }
 
@@ -745,7 +752,8 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
 
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
-                            phBravaisVectorsDegeneracies_, phononH0_);
+                            phBravaisVectorsDegeneracies_, phononH0_,
+                            context.getFixedCouplingConstant());
   return output;
 }
 #endif
@@ -782,14 +790,6 @@ void InteractionElPhWan::calcCouplingSquared(
   // if we set |g|^2=const , no need to do any calculation
   // we just need a constant tensor with the right shape
   if (!std::isnan(fixedCouplingConstant)) {
-    cacheCoupling.resize(numLoops);
-#pragma omp parallel for
-    for (int ik = 0; ik < numLoops; ik++) {
-      Eigen::Tensor<double, 3> coupling(nb1, nb2s_h(ik), numPhBands);
-      coupling.setConstant(fixedCouplingConstant);
-      // and we save the coupling |g|^2 it for later
-      cacheCoupling[ik] = coupling;
-    }
     return;
   }
 
@@ -1022,7 +1022,6 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1,
   if (!std::isnan(fixedCouplingConstant)) {
     return;
   }
-
   // note: when Kokkos is compiled with GPU support, we must create elPhCached
   // and other variables as local, so that Kokkos correctly allocates these
   // quantities on the GPU. At the end of this function, elPhCached must be
