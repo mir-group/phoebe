@@ -29,7 +29,10 @@ TEST(MagneticUnfoldingTest, Test1) {
   Eigen::VectorXd dopings(1);
   dopings(0) = -1e14;
   context.setDopings(dopings);
-  context.setSmearingMethod(1);
+
+  context.setSmearingMethod(0);
+  context.setSmearingWidth(0.1/energyRyToEv);
+  context.setFixedCouplingConstant(1.e-4);
 
   Eigen::Vector3d bfield = {1.0,0.,0.};
   context.setBField(bfield);
@@ -181,7 +184,7 @@ TEST(MagneticUnfoldingTest, Test1) {
       // check ... anything else?
       if ( thisDiff > cutoff ) {
         thisDiff /= linewidthMagSyms;
-        ASSERT_NEAR(thisDiff, 0, 1e-3);
+        ASSERT_NEAR(thisDiff, 0, 1e-6);
       }
     }
   }
@@ -227,6 +230,7 @@ TEST(MagneticUnfoldingTest, FullBS) {
   context.setDopings(dopings);
   context.setSmearingMethod(0);
   context.setSmearingWidth(0.1/energyRyToEv);
+  context.setFixedCouplingConstant(1.e-4);
 
   Eigen::Vector3d bfield = {1.0,0.,0.};
   context.setBField(bfield);
