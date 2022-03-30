@@ -125,6 +125,16 @@ TEST(MagneticUnfoldingTest, Test1) {
     ASSERT_EQ(en1, en2);
   }
 
+  for (int is=0; is<numStatesMagSym; is++) {
+    StateIndex isIdx(is);
+    Eigen::Vector3d v1 = fullSymsBandStructure.getGroupVelocity(isIdx);
+    Eigen::Vector3d v2 = magSymBandStructure.getGroupVelocity(isIdx);
+    double diff = (v1 - v2).norm();
+    ASSERT_NEAR(diff, 0., 1e-8);
+  }
+
+
+
   auto irrKPtsFullSyms = fullSymsBandStructure.irrPointsIterator();
   auto irrKPtsMagSyms = magSymBandStructure.irrPointsIterator();
   ASSERT_EQ(irrKPtsFullSyms.size(), irrKPtsMagSyms.size());
