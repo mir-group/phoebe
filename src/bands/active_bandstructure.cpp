@@ -810,7 +810,24 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   Points pointsCopy = points_;
   points = pointsCopy; // first we copy, without the symmetries
-  points_.  setIrreduciblePoints();
+  points_.setIrreduciblePoints();
+
+
+
+
+  Crystal bfieldCrystal = points.getCrystal();
+  auto directCell = bfieldCrystal.getDirectUnitCell();
+  auto atomicPositions = bfieldCrystal.getAtomicPositions();
+  auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
+  auto speciesNames = bfieldCrystal.getSpeciesNames();
+  auto speciesMasses = bfieldCrystal.getSpeciesMasses();
+  Crystal noFieldCrystal(context, directCell, atomicPositions,
+			 atomicSpecies, speciesNames, speciesMasses);
+  Points noFieldPoints = points;
+  noFieldPoints.swapCrystal(noFieldCrystal);
+  noFieldPoints.setIrreduciblePoints();
+
+
 
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
@@ -828,10 +845,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     // the quasiparticle energies, as they may not be available locally
 
     Eigen::Vector3d k = fullBandStructure.getWavevector(ikIdx);
-    auto t = points_.getRotationToIrreducible(k, Points::cartesianCoordinates);
+    auto t = noFieldPoints.getRotationToIrreducible(k, Points::cartesianCoordinates);
     int ikIrr = std::get<0>(t);
     Eigen::Vector3d kIrr =
-        points_.getPointCoordinates(ikIrr, Points::cartesianCoordinates);
+        noFieldPoints.getPointCoordinates(ikIrr, Points::cartesianCoordinates);
     auto t2 = h0.diagonalizeFromCoordinates(kIrr);
     Eigen::VectorXd theseEnergies = std::get<0>(t2);
 
