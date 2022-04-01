@@ -297,13 +297,6 @@ void ElectronWannierTransportApp::run(Context &context) {
     // unfold the symmetries
     unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep, electronH0, fullPoints);
 
-    /*    auto linewidths = scatteringMatrix.getLinewidths();
-    for(auto is : bandStructure.irrStateIterator()) {
-      auto isIdx = StateIndex(is);
-      auto ibte = bandStructure.stateToBte(isIdx).get();
-      if(mpi->mpiHead()) std::cout << is << " " << linewidths(0,0,ibte) << std::endl;;
-    }*/
-
     // TODO we might want to throw a warning if someone runs with a
     // bfield that adds a contribution on the order of the diagonal
     // scattering matrix elements, or something like that
