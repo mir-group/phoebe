@@ -72,16 +72,6 @@ TEST(MagneticUnfoldingTest, Test1) {
   auto t4 = ActiveBandStructure::builder(context, electronH0, fullSymPoints);
   ActiveBandStructure fullSymsBandStructure = std::get<0>(t4);
   auto fullStatisticsSweep = std::get<1>(t4);
-/*
-  // make band structure with mag syms
-  ActiveBandStructure magSymBandStructure = fullSymsBandStructure;
-  // can we make a new copy of the points class so we don't mess up the old one?
-  Points magSymPoints(fullCrystal, context.getKMesh());
-  magSymPoints.magneticSymmetries(context);
-  //magSymBandStructure.getPoints().magneticSymmetries(context);
-  magSymBandStructure.swapPoints(magSymPoints);
-  magSymBandStructure.rebuildSymmetries();
-*/
 
   ASSERT_LT(magSymBandStructure.getPoints().getCrystal().getNumSymmetries(),
             fullSymsBandStructure.getPoints().getCrystal().getNumSymmetries());
@@ -94,7 +84,11 @@ TEST(MagneticUnfoldingTest, Test1) {
   // unfold the linewidths from the calculation done with full symmetries to the set of states
   // with only the magnetic symmetries, to check that this is equal to the calculation done
   // with magnetic symmetries from the beginning
-  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0);
+  Crystal crystalTemp = fullSymsBandStructure.getPoints().getCrystal();
+  Points points(crystalTemp, context.getKMesh());
+
+  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0,points);
+
   VectorBTE fullSymsLinewidths = fullScatteringMatrix.getLinewidths();
   // after this call, fullSymsBandStructure is not anymore representative
   // of the system with the full symmetries without magnetic field.
@@ -104,9 +98,6 @@ TEST(MagneticUnfoldingTest, Test1) {
                                           magSymBandStructure, phononH0, &couplingElPh);
   magScatteringMatrix.setup();
   VectorBTE magSymLinewidths = magScatteringMatrix.getLinewidths();
-
-  // NOTE: the number of active points may be different, due to some numerical
-  // noise
 
   // now we compare the linewidths
   int numStatesMagSym = magSymLinewidths.getNumStates();
@@ -131,9 +122,32 @@ TEST(MagneticUnfoldingTest, Test1) {
     Eigen::Vector3d v2 = magSymBandStructure.getGroupVelocity(isIdx);
     double diff = (v1 - v2).norm();
     ASSERT_NEAR(diff, 0., 1e-8);
+
+    auto t = fullSymsBandStructure.getIndex(isIdx);
+    WavevectorIndex ikIdx = std::get<0>(t);
+    BandIndex ibIdx = std::get<1>(t);
+
+    Eigen::Vector3d k1 = fullSymsBandStructure.getWavevector(ikIdx);
+    auto kCoords = fullSymsBandStructure.getPoints().cartesianToCrystal(k1);
+    std::cout << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
+
+    auto t2 = fullSymsBandStructure.getRotationToIrreducible(k1, Points::cartesianCoordinates);
+//    int ikIrr = std::get<0>(t2);
+///    Eigen::Matrix3d rot = std::get<1>(t2);
+/*
+    WavevectorIndex ikIrrIdx(ikIrr);
+    Eigen::Vector3d kIrr = fullSymsBandStructure.getWavevector(ikIrrIdx);
+    auto v1sIrr = fullSymsBandStructure.getGroupVelocities(ikIrrIdx);
+
+    Eigen::Vector3d v1IrrReconstructed = rot * v1;
+    Eigen::Vector3d k1IrrReconstructed = rot * k1;
+    Eigen::Vector3d v1sIrrVector = v1sIrr.row(ibIdx.get());
+
+    ASSERT_NEAR( (k1IrrReconstructed-kIrr).norm() , 0., 1e-4);
+    ASSERT_NEAR( (v1IrrReconstructed-v1sIrrVector).norm() , 0., 1e-4);
+*/
+
   }
-
-
 
   auto irrKPtsFullSyms = fullSymsBandStructure.irrPointsIterator();
   auto irrKPtsMagSyms = magSymBandStructure.irrPointsIterator();
@@ -200,24 +214,6 @@ TEST(MagneticUnfoldingTest, Test1) {
   }
   ASSERT_NEAR(lineWidthError,0, 0.001);
   //std::cout << "linewidthError" << lineWidthError << std::endl;
-
-// temporary print statements for looking at irr points from each case
-/*
-  for(auto is : magSymBandStructure.irrPointsIterator()) {
-    std::cout << is << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "now fullSyms" << std::endl;
-  for(auto is : fullSymsBandStructure.irrPointsIterator()) {
-    std::cout << is << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "now fullSyms from smatrix" << std::endl;
-  for(auto is : fullScatteringMatrix.getBandStructure().irrPointsIterator()) {
-    std::cout << is << " " ;
-  }
-  std::cout << std::endl;
-*/
 
 }
 
@@ -289,10 +285,12 @@ TEST(MagneticUnfoldingTest, FullBS) {
                                           fullSymsBandStructure, phononH0, &couplingElPh);
   fullScatteringMatrix.setup();
 
-  // unfold the linewidths from the calculation done with full symmetries to the set of states
+  Crystal crystalTemp = fullSymsBandStructure.getPoints().getCrystal();
+  Points points(crystalTemp, context.getKMesh());
+
   // with only the magnetic symmetries, to check that this is equal to the calculation done
   // with magnetic symmetries from the beginning
-  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0);
+  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0,points);
   VectorBTE fullSymsLinewidths = fullScatteringMatrix.getLinewidths();
   // after this call, fullSymsBandStructure is not anymore representative
   // of the system with the full symmetries without magnetic field.
@@ -302,7 +300,6 @@ TEST(MagneticUnfoldingTest, FullBS) {
                                          magSymsBandStructure, phononH0, &couplingElPh);
   magScatteringMatrix.setup();
   VectorBTE magSymsLinewidths = magScatteringMatrix.getLinewidths();
-
 
   // now we compare the linewidths
   int numStatesMagSyms = magSymsLinewidths.getNumStates();

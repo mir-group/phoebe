@@ -22,10 +22,10 @@ private:
                             ElScatteringMatrix &scatteringMatrix);
 };
 
-// TODO how can i have the test access this wihtout making it public
 void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
                          ActiveBandStructure& bandStructure,
-                         StatisticsSweep& statisticsSweep, HarmonicHamiltonian& electronH0);
+                         StatisticsSweep& statisticsSweep,
+                         HarmonicHamiltonian& electronH0, Points& points);
 
 
 #endif
