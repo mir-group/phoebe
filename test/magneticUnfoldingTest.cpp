@@ -32,7 +32,7 @@ TEST(MagneticUnfoldingTest, Test1) {
 
   context.setSmearingMethod(0);
   context.setSmearingWidth(0.1/energyRyToEv);
-  context.setFixedCouplingConstant(1.e-4);
+  context.setFixedCouplingConstant(1.e-6);
 
   Eigen::Vector3d bfield = {1.0,0.,0.};
   context.setBField(bfield);
@@ -45,7 +45,7 @@ TEST(MagneticUnfoldingTest, Test1) {
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  Eigen::Vector3i kMesh = {3,3,3};
+  Eigen::Vector3i kMesh = {8,8,8};
 
   int numModes = 3 * crystal.getNumAtoms();
   context.setKMesh(kMesh);
@@ -119,39 +119,47 @@ TEST(MagneticUnfoldingTest, Test1) {
   /// check the that the velocities make sense
   for (int is=0; is<numStatesMagSym; is++) {
     StateIndex isIdx(is);
-    Eigen::Vector3d v1 = fullSymsBandStructure.getGroupVelocity(isIdx);
-    Eigen::Vector3d v2 = magSymBandStructure.getGroupVelocity(isIdx);
+    Eigen::Vector3d v2 = fullSymsBandStructure.getGroupVelocity(isIdx);
+    Eigen::Vector3d v1 = magSymBandStructure.getGroupVelocity(isIdx);
     double diff = (v1 - v2).norm();
     ASSERT_NEAR(diff, 0., 1e-8);
 
-    auto t = fullSymsBandStructure.getIndex(isIdx);
+    auto t = magSymBandStructure.getIndex(isIdx);
     WavevectorIndex ikIdx = std::get<0>(t);
     BandIndex ibIdx = std::get<1>(t);
 
-    Eigen::Vector3d k1 = fullSymsBandStructure.getWavevector(ikIdx);
-    auto t2 = fullSymsBandStructure.getRotationToIrreducible(k1, Points::cartesianCoordinates);
+    Eigen::Vector3d k1 = magSymBandStructure.getWavevector(ikIdx);
+    auto t2 = magSymBandStructure.getRotationToIrreducible(k1, Points::cartesianCoordinates);
     int ikIrr = std::get<0>(t2);
     Eigen::Matrix3d rot = std::get<1>(t2);
 
-    t2 = fullSymsBandStructure.getRotationToIrreducible(k1, Points::cartesianCoordinates);
+    t2 = magSymBandStructure.getRotationToIrreducible(k1, Points::cartesianCoordinates);
     ikIrr = std::get<0>(t2);
     rot = std::get<1>(t2);
 
     WavevectorIndex ikIrrIdx(ikIrr);
-    Eigen::Vector3d kIrr = fullSymsBandStructure.getWavevector(ikIrrIdx);
-    auto v1sIrr = fullSymsBandStructure.getGroupVelocities(ikIrrIdx);
+    Eigen::Vector3d kIrr = magSymBandStructure.getWavevector(ikIrrIdx);
+    auto v1sIrr = magSymBandStructure.getGroupVelocities(ikIrrIdx);
 
     Eigen::Vector3d v1IrrReconstructed = rot * v1;
     Eigen::Vector3d k1IrrReconstructed = rot * k1;
     Eigen::Vector3d v1sIrrVector = v1sIrr.row(ibIdx.get());
 
-    k1IrrReconstructed = fullSymsBandStructure.getPoints().foldToBz(k1IrrReconstructed, Points::cartesianCoordinates);
-    kIrr = fullSymsBandStructure.getPoints().foldToBz(kIrr, Points::cartesianCoordinates);
+    //std::cout << "------\nkpoint recon " << k1IrrReconstructed.transpose() << " | kpoint irr " << kIrr.transpose() << std::endl;
+    k1IrrReconstructed = magSymBandStructure.getPoints().foldToBz(k1IrrReconstructed, Points::cartesianCoordinates);
+    kIrr = magSymBandStructure.getPoints().foldToBz(kIrr, Points::cartesianCoordinates);
+    std::cout << "------\nkpoint recon " << k1IrrReconstructed.transpose() << " | kpoint irr " << kIrr.transpose() << std::endl;
 
     ASSERT_NEAR( (k1IrrReconstructed-kIrr).norm() , 0., 1e-4);
-    ASSERT_NEAR( (v1IrrReconstructed-v1sIrrVector).norm() , 0., 1e-4);
-  }
 
+    if((v1IrrReconstructed-v1sIrrVector).norm() > 1e-4) {
+      std::cout << "reducible v, k in cart " << v1.transpose() << " | " << k1.transpose() << std::endl; //" | " << magSymBandStructure.getPoints().cartesianToCrystal(k1).transpose() << std::endl;
+      std::cout << "vIrrRecon, vIrr " << v1IrrReconstructed.transpose() << " | " << v1sIrrVector.transpose() << std::endl;
+      //std::cout << "veloc crys " << magSymBandStructure.getPoints().cartesianToCrystal(v1IrrReconstructed).transpose() << " | " << magSymBandStructure.getPoints().cartesianToCrystal(v1sIrrVector).transpose() << std::endl;
+      std::cout << "rotation\n " << rot << std::endl;
+      ASSERT_NEAR( (v1IrrReconstructed-v1sIrrVector).norm() , 0., 1e-4);
+  }
+}
   auto irrKPtsFullSyms = fullSymsBandStructure.irrPointsIterator();
   auto irrKPtsMagSyms = magSymBandStructure.irrPointsIterator();
   ASSERT_EQ(irrKPtsFullSyms.size(), irrKPtsMagSyms.size());
