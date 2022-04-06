@@ -253,7 +253,18 @@ VectorBTE VectorBTE::sqrt() {
 
 VectorBTE VectorBTE::reciprocal() {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  newPopulation.data << 1. / this->data.array();
+  auto x = this->data.array();
+  for (int i=0; i<x.size(); ++i) {
+    // In some special cases, the electronic linewidth could be = 0
+    // (when no states are available for scattering)
+    // this avoids 1/linewidth being equal to NaN
+    if (x(i) != 0.) {
+      x(i) = 1. / x(i);
+    } else {
+      x(i) = 0.;
+    }
+  }
+  newPopulation.data << x;
   return newPopulation;
 }
 
