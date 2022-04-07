@@ -376,21 +376,24 @@ void Crystal::magneticSymmetries(Context &context) {
     std::default_random_engine generator(rd()); // rd() provides a random seed
     std::uniform_real_distribution<double> distribution(0.0,1.0);
     Eigen::Vector3d testVector = {distribution(generator),
-                                distribution(generator),
-                                distribution(generator)};
+                                  distribution(generator),
+                                  distribution(generator)};
 
     auto rotVector = rotation * testVector;
 
     // project original and rotated vectors onto B, and see if
-    // the component along z is the same or flipped (a rot + reflection)
-    // if this is the case, we save the symmetry
+    // the component along B is the same or flipped (a rot + reflection)
+    // if this is the case, we save the symmetry.
+    // If the |projection| on B is not conserved by the symmetry, we discard it
     auto projRot = bLattice.dot(rotVector)/(bLattice.norm() * rotVector.norm());
     auto projTest = bLattice.dot(testVector)/(bLattice.norm() * testVector.norm());
 
     if( abs(abs(projRot) - abs(projTest)) < 1e-6) {
       magSymmetryOperations.push_back(s);
     }
-    else { continue; }
+    else {
+      continue;
+    }
   }
 
   // update the symmetry operation information
