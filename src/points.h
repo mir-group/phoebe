@@ -213,7 +213,8 @@ public:
    * symmetries in the BTE to be the same as group velocities.
    */
   void
-  setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities = nullptr);
+  setIrreduciblePoints(std::vector<Eigen::MatrixXd> *groupVelocities = nullptr,
+                       std::vector<Eigen::VectorXd> *energies = nullptr);
 
   /** Returns an iterator on the index of irreducible points. If
    * setIrreduciblePoints has not been called, it just loops on all points.

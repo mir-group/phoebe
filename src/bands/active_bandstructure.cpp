@@ -360,12 +360,15 @@ void ActiveBandStructure::buildSymmetries() {
   // things to use in presence of symmetries
   {
     std::vector<Eigen::MatrixXd> allVelocities;
+    std::vector<Eigen::VectorXd> allEnergies;
     for (int ik = 0; ik < getNumPoints(); ik++) {
       auto ikIdx = WavevectorIndex(ik);
       Eigen::MatrixXd v = getGroupVelocities(ikIdx);
       allVelocities.push_back(v);
+      Eigen::VectorXd e = getEnergies(ikIdx);
+      allEnergies.push_back(e);
     }
-    points.setIrreduciblePoints(&allVelocities);
+    points.setIrreduciblePoints(&allVelocities, &allEnergies);
   }
 
   numIrrPoints = int(points.irrPointsIterator().size());
@@ -415,12 +418,15 @@ void ActiveBandStructure::symmetrize(Context &context,
   // if velocities are present, need to also symmetrize using them
   if(withVelocities) {
     std::vector<Eigen::MatrixXd> allVelocities;
+    std::vector<Eigen::VectorXd> allEnergies;
     for (int ik = 0; ik < getNumPoints(); ik++) {
       auto ikIdx = WavevectorIndex(ik);
       Eigen::MatrixXd v = getGroupVelocities(ikIdx);
       allVelocities.push_back(v);
+      Eigen::VectorXd e = getEnergies(ikIdx);
+      allEnergies.push_back(e);
     }
-    noFieldPoints.setIrreduciblePoints(&allVelocities);
+    noFieldPoints.setIrreduciblePoints(&allVelocities, &allEnergies);
   }
   else{
     noFieldPoints.setIrreduciblePoints();
@@ -1103,7 +1109,6 @@ BteIndex ActiveBandStructure::stateToBte(StateIndex &isIndex) {
   // from k from 0 to N_k
   // to k from 0 to N_k_irreducible
   int ikBte = points.asIrreducibleIndex(ikIdx.get());
-  //if(mpi->mpiHead()) std::cout << "stateToBte found irr K " << ikBte << std::endl;
   if (ikBte < 0) {
     Error("stateToBte is used on a point outside the mesh");
   }
@@ -1173,6 +1178,7 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
 
     Eigen::Tensor<double, 3> allVelocities(numPoints, numFullBands, 3);
     allVelocities.setZero();
+    Eigen::MatrixXd allEnergies(numPoints, numFullBands);
 
     // loop over the points available to this process
     for (int i = 0; i < int(myFilteredPoints.size()); i++) {
@@ -1192,12 +1198,18 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
           allVelocities(ika,ib,ic) = thisVelocity(ib,ib,ic).real();
         }
       }
+
+      Eigen::VectorXd thisEn = std::get<0>(h0.diagonalize(point));
+      allEnergies.row(i) = thisEn;
+
     }
     mpi->allReduceSum(&allVelocities);
+    mpi->allReduceSum(&allEnergies);
 
-    // unfortuantely it seems that we cannot all reduce
+    // unfortunately it seems that we cannot all reduce
     // a std::vector of eigen matrices, so we now must reformat after reducing
     std::vector<Eigen::MatrixXd> allVels;
+    std::vector<Eigen::VectorXd> allEns;
     for (int ik = 0; ik < numPoints; ik++) {
       Eigen::MatrixXd tempVels = Eigen::MatrixXd::Zero(numFullBands,3);
       for(int ib = 0; ib < numFullBands; ib++) {
@@ -1206,8 +1218,10 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
         }
       }
       allVels.push_back(tempVels);
+      Eigen::VectorXd tmpE = allEnergies.row(ik);
+      allEns.push_back(tmpE);
     }
-    noFieldPoints.setIrreduciblePoints(&allVels);
+    noFieldPoints.setIrreduciblePoints(&allVels, &allEns);
   }
   else {
     noFieldPoints.setIrreduciblePoints();
@@ -1215,10 +1229,14 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
 
   // for each irr point, enforce matching band limitations
   for(int ikIrr : noFieldPoints.irrPointsIterator()) {
-
      auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
+
      std::vector<int> minBandList;
      std::vector<int> maxBandList;
+
+     if (reducibleList.empty()) {
+       Error("EnforceSymmetry: reducible star is empty.");
+     }
 
      for(int ikRed : reducibleList) {
        // need to make sure each point has the same number of bands

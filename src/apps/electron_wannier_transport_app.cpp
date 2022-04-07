@@ -38,14 +38,14 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
   // TODO do we need this here for just the linewidths?
   {
     std::vector<Eigen::MatrixXd> allVelocities;
+    std::vector<Eigen::VectorXd> allEnergies;
     for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
       WavevectorIndex ikIdx(ik);
       Eigen::MatrixXd v = bandStructure.getGroupVelocities(ikIdx);
       allVelocities.push_back(v);
-      for (int ib = 0; ib < bandStructure.getNumBands(ikIdx); ib++) {
-      }
+      allEnergies.push_back(bandStructure.getEnergies(ikIdx));
     }
-    noFieldPoints.setIrreduciblePoints(&allVelocities);
+    noFieldPoints.setIrreduciblePoints(&allVelocities, &allEnergies);
   }
 
   // for each irr point, go over all equivalent points and average
