@@ -22,7 +22,7 @@ ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure &that)
       cumulativeKbbOffset(that.cumulativeKbbOffset) {}
 
 ActiveBandStructure &ActiveBandStructure::operator=(
-    const ActiveBandStructure &that) { // assignment operator
+    const ActiveBandStructure &that) {// assignment operator
   if (this != &that) {
     particle = that.particle;
     points = that.points;
@@ -103,7 +103,7 @@ Point ActiveBandStructure::getPoint(const int &pointIndex) {
 }
 
 // TODO maybe can delete this
-void ActiveBandStructure::swapPoints(Points& newPoints) {
+void ActiveBandStructure::swapPoints(Points &newPoints) {
   points = newPoints;
   buildSymmetries();
 }
@@ -115,11 +115,10 @@ int ActiveBandStructure::getNumIrrStates() {
   return numIrrStates;
 }
 
-
 int ActiveBandStructure::getNumPoints(const bool &useFullGrid) {
   if (useFullGrid) {
     return points.getNumPoints();
-  } else { // default
+  } else {// default
     return numPoints;
   }
 }
@@ -383,7 +382,7 @@ void ActiveBandStructure::buildSymmetries() {
   int ikOld = 0;
   for (int ik : points.irrPointsIterator()) {
     int ikIrr = points.asIrreducibleIndex(ik);
-    if (ikIrr > 0) { // skip first iteration
+    if (ikIrr > 0) {// skip first iteration
       bteCumulativeKbOffset(ikIrr) =
           bteCumulativeKbOffset(ikIrr - 1) + numBands(ikOld);
     }
@@ -397,13 +396,13 @@ void ActiveBandStructure::buildSymmetries() {
 }
 
 void ActiveBandStructure::symmetrize(Context &context,
-                                const bool& withVelocities) {
+                                     const bool &withVelocities) {
 
   // symmetrize band velocities, energies, and eigenvectors
 
   // make a copy of the points class which uses
   // the full crystal symmetries
- // TODO a better way to do this
+  // TODO a better way to do this
   Crystal bfieldCrystal = points.getCrystal();
   auto directCell = bfieldCrystal.getDirectUnitCell();
   auto atomicPositions = bfieldCrystal.getAtomicPositions();
@@ -411,12 +410,12 @@ void ActiveBandStructure::symmetrize(Context &context,
   auto speciesNames = bfieldCrystal.getSpeciesNames();
   auto speciesMasses = bfieldCrystal.getSpeciesMasses();
   Crystal noFieldCrystal(context, directCell, atomicPositions,
-        atomicSpecies, speciesNames, speciesMasses);
+                         atomicSpecies, speciesNames, speciesMasses);
   Points noFieldPoints = points;
   noFieldPoints.swapCrystal(noFieldCrystal);
 
   // if velocities are present, need to also symmetrize using them
-  if(withVelocities) {
+  if (withVelocities) {
     std::vector<Eigen::MatrixXd> allVelocities;
     std::vector<Eigen::VectorXd> allEnergies;
     for (int ik = 0; ik < getNumPoints(); ik++) {
@@ -427,28 +426,27 @@ void ActiveBandStructure::symmetrize(Context &context,
       allEnergies.push_back(e);
     }
     noFieldPoints.setIrreduciblePoints(&allVelocities, &allEnergies);
-  }
-  else{
+  } else {
     noFieldPoints.setIrreduciblePoints();
   }
 
   // for each irr point, symmetrize all reducible points
-  for(int ikIrr : noFieldPoints.irrPointsIterator()) {
+  for (int ikIrr : noFieldPoints.irrPointsIterator()) {
 
     int nBands = numBands(ikIrr);
     auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
-    std::vector<double> avgEnergies; // holds all band E for this point
+    std::vector<double> avgEnergies;// holds all band E for this point
     // all velocities for this k state
     Eigen::Tensor<std::complex<double>, 3> avgVelocitiesIrr(nBands, nBands, 3);
     avgVelocitiesIrr.setZero();
 
     for (int ib1 = 0; ib1 < nBands; ib1++) {
 
-      double avgEnergy = 0; // avg ene for this ik,ib state
+      double avgEnergy = 0;// avg ene for this ik,ib state
 
       // average contributions from each reducible point
       //#pragma omp parallel for reduction(+:avgEnergy)
-      for(int ikRed : reducibleList) {
+      for (int ikRed : reducibleList) {
 
         // average the group velocities ------------
         // v is a vector, so it must be rotated before performing the average
@@ -458,7 +456,7 @@ void ActiveBandStructure::symmetrize(Context &context,
 
         // returns: vRed = rot * vIrr , where v* is a vector with the crystal symmetries.
         Eigen::Matrix3d rot = noFieldPoints.getRotationFromReducibleIndex(ikRed);
-        rot = rot.inverse(); // inverse so that we do vIrr = invRot * vRed
+        rot = rot.inverse();// inverse so that we do vIrr = invRot * vRed
 
         // average the energies ---------------------
         avgEnergy += energies[bloch2Comb(ikRed, ib1)];
@@ -468,12 +466,12 @@ void ActiveBandStructure::symmetrize(Context &context,
 
           // save to an Eigen vector, can't rotate pieces of Eigen Tensor
           Eigen::VectorXcd tmpRot(3);
-          for (int iCart : {0,1,2}) {
+          for (int iCart : {0, 1, 2}) {
             tmpRot(iCart) = tmpVel(ib1, ib2, iCart);
           }
           tmpRot = rot * tmpRot;
           // now average
-          for (int iCart : {0,1,2}) {
+          for (int iCart : {0, 1, 2}) {
             avgVelocitiesIrr(ib1, ib2, iCart) += tmpRot(iCart) / double(reducibleList.size());
           }
         }
@@ -485,29 +483,29 @@ void ActiveBandStructure::symmetrize(Context &context,
     }
 
     // save the energies back into these reducible points
-    for(int ikRed : reducibleList) {
+    for (int ikRed : reducibleList) {
 
       Point point = noFieldPoints.getPoint(ikRed);
 
       // set averaged band energies
       // TODO check that relative error on the points is small
-      setEnergies(point,avgEnergies);
+      setEnergies(point, avgEnergies);
 
       //set averaged band velocities
       Eigen::Matrix3d rot = noFieldPoints.getRotationFromReducibleIndex(ikRed);
 
-      Eigen::Tensor<std::complex<double>,3> avgVelocitiesRed(nBands,nBands,3);
+      Eigen::Tensor<std::complex<double>, 3> avgVelocitiesRed(nBands, nBands, 3);
       avgVelocitiesRed.setZero();
       for (int ib1 = 0; ib1 < nBands; ib1++) {
         for (int ib2 = 0; ib2 < nBands; ib2++) {
           // save to an Eigen vector, can't rotate pieces of Eigen Tensor
           Eigen::VectorXcd tmpRot(3);
-          for (int iCart : {0,1,2}) {
+          for (int iCart : {0, 1, 2}) {
             tmpRot(iCart) = avgVelocitiesIrr(ib1, ib2, iCart);
           }
           // rotate back to this ikRed point
           tmpRot = rot * tmpRot;
-          for (int iCart : {0,1,2}) {
+          for (int iCart : {0, 1, 2}) {
             avgVelocitiesRed(ib1, ib2, iCart) = tmpRot(iCart);
           }
         }
@@ -516,7 +514,6 @@ void ActiveBandStructure::symmetrize(Context &context,
     }
   }
 }
-
 
 std::tuple<ActiveBandStructure, StatisticsSweep>
 ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
@@ -540,7 +537,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
   }
   // but phonons are default built OTF.
-  else { // if (particle.isPhonon())
+  else {// if (particle.isPhonon())
 
     Eigen::VectorXd temperatures = context.getTemperatures();
     double temperatureMin = temperatures.minCoeff();
@@ -549,7 +546,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
     Window window(context, particle, temperatureMin, temperatureMax);
 
     activeBandStructure.buildOnTheFly(window, points_, h0, context,
-                                        withEigenvectors, withVelocities);
+                                      withEigenvectors, withVelocities);
 
     StatisticsSweep statisticsSweep(context);
     return {activeBandStructure, statisticsSweep};
@@ -558,7 +555,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
 void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
                                         HarmonicHamiltonian &h0,
-                                        Context& context,
+                                        Context &context,
                                         const bool &withEigenvectors,
                                         const bool &withVelocities) {
   // this function proceeds in three logical blocks:
@@ -574,7 +571,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   // - communicate the indices
   // - loop again over wavevectors to compute energies and velocities
 
-  numFullBands = 0; // save the unfiltered number of bands
+  numFullBands = 0;// save the unfiltered number of bands
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
@@ -590,9 +587,9 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
     auto tup1 = window.apply(theseEnergies);
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
-    if (ens.empty()) { // nothing to do
+    if (ens.empty()) {// nothing to do
       continue;
-    } else { // save point index and "relevant" band indices
+    } else {// save point index and "relevant" band indices
       myFilteredPoints.push_back(ik);
       myFilteredBands.push_back(bandsExtrema);
     }
@@ -652,7 +649,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   * but not applied it yet. This makes it easy to edit the filter without
   * causing problems removing bands later */
   enforceBandNumSymmetry(context, numFullBands, myFilteredPoints, filteredBands,
-        displacements, h0, withVelocities);
+                         displacements, h0, withVelocities);
 
   // numBands is a book-keeping of how many bands per point there are
   // this isn't a constant number.
@@ -688,8 +685,8 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
   size_t niks = iks.size();
 
-  // now we can loop over the trimmed list of points
-  #pragma omp parallel for default(none)                                         \
+// now we can loop over the trimmed list of points
+#pragma omp parallel for default(none) \
     shared(mpi, h0, window, filteredBands, withEigenvectors, withVelocities, iks, niks)
   for (size_t iik = 0; iik < niks; iik++) {
     size_t ik = iks[iik];
@@ -815,11 +812,8 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // All else will function once the swap is made.
 
   Points pointsCopy = points_;
-  points = pointsCopy; // first we copy, without the symmetries
+  points = pointsCopy;// first we copy, without the symmetries
   points_.setIrreduciblePoints();
-
-
-
 
   Crystal bfieldCrystal = points.getCrystal();
   auto directCell = bfieldCrystal.getDirectUnitCell();
@@ -828,12 +822,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   auto speciesNames = bfieldCrystal.getSpeciesNames();
   auto speciesMasses = bfieldCrystal.getSpeciesMasses();
   Crystal noFieldCrystal(context, directCell, atomicPositions,
-			 atomicSpecies, speciesNames, speciesMasses);
+                         atomicSpecies, speciesNames, speciesMasses);
   Points noFieldPoints = points;
   noFieldPoints.swapCrystal(noFieldCrystal);
   noFieldPoints.setIrreduciblePoints();
-
-
 
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
@@ -865,9 +857,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     auto ens = std::get<0>(tup1);
     auto bandsExtrema = std::get<1>(tup1);
 
-    if (ens.empty()) { // nothing to do
+    if (ens.empty()) {// nothing to do
       continue;
-    } else { // save point index and "relevant" band indices
+    } else {// save point index and "relevant" band indices
       myFilteredPoints.push_back(ik);
       myFilteredBands.push_back(bandsExtrema);
     }
@@ -929,7 +921,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   * but not applied it yet. This makes it easy to edit the filter without
   * causing problems removing bands later */
   enforceBandNumSymmetry(context, numFullBands, myFilteredPoints, filteredBands,
-        displacements, h0, withVelocities);
+                         displacements, h0, withVelocities);
 
   // ---------- count numBands and numStates  --------------- //
   // numBands is a book-keeping of how many bands per point there are
@@ -1017,8 +1009,8 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // compute velocities, store, reduce
   if (withVelocities) {
 
-  // loop over the points available to this process
-  #pragma omp parallel for default(none)                                         \
+// loop over the points available to this process
+#pragma omp parallel for default(none) \
     shared(myFilteredPoints, h0, displacements, mpi, filteredBands)
     for (int i = 0; i < int(myFilteredPoints.size()); i++) {
 
@@ -1148,11 +1140,12 @@ ActiveBandStructure::getReducibleStarFromIrreducible(const int &ik) {
   return points.getReducibleStarFromIrreducible(ik);
 }
 
-void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
-        int& numFullBands, std::vector<int>& myFilteredPoints,
-        Eigen::MatrixXi& filteredBands, std::vector<int>& displacements,
-        HarmonicHamiltonian& h0, const bool &withVelocities) {
-
+void ActiveBandStructure::enforceBandNumSymmetry(
+    Context &context, const int &numFullBands,
+    const std::vector<int> &myFilteredPoints,
+    Eigen::MatrixXi &filteredBands,
+    const std::vector<int> &displacements, HarmonicHamiltonian &h0,
+    const bool &withVelocities) {
   // edit the filteredBands list used in constructors so that each sym eq point
   // has the same number of bands
   //
@@ -1169,7 +1162,7 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
   auto speciesNames = bfieldCrystal.getSpeciesNames();
   auto speciesMasses = bfieldCrystal.getSpeciesMasses();
   Crystal noFieldCrystal(context, directCell, atomicPositions,
-        atomicSpecies, speciesNames, speciesMasses);
+                         atomicSpecies, speciesNames, speciesMasses);
   Points noFieldPoints = points;
   noFieldPoints.swapCrystal(noFieldCrystal);
 
@@ -1193,28 +1186,26 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
       auto thisVelocity = h0.diagonalizeVelocity(point);
 
       // need to reformat thisVelocity into t
-      for(int ib = 0; ib < numFullBands; ib++) {
+      for (int ib = 0; ib < numFullBands; ib++) {
         for (int ic = 0; ic < 3; ic++) {
-          allVelocities(ika,ib,ic) = thisVelocity(ib,ib,ic).real();
+          allVelocities(ika, ib, ic) = thisVelocity(ib, ib, ic).real();
         }
       }
 
       Eigen::VectorXd thisEn = std::get<0>(h0.diagonalize(point));
       allEnergies.row(i) = thisEn;
-
     }
     mpi->allReduceSum(&allVelocities);
     mpi->allReduceSum(&allEnergies);
-
     // unfortunately it seems that we cannot all reduce
     // a std::vector of eigen matrices, so we now must reformat after reducing
     std::vector<Eigen::MatrixXd> allVels;
     std::vector<Eigen::VectorXd> allEns;
     for (int ik = 0; ik < numPoints; ik++) {
-      Eigen::MatrixXd tempVels = Eigen::MatrixXd::Zero(numFullBands,3);
-      for(int ib = 0; ib < numFullBands; ib++) {
+      Eigen::MatrixXd tempVels = Eigen::MatrixXd::Zero(numFullBands, 3);
+      for (int ib = 0; ib < numFullBands; ib++) {
         for (int ic = 0; ic < 3; ic++) {
-          tempVels(ib,ic) = allVelocities(ik,ib,ic);
+          tempVels(ib, ic) = allVelocities(ik, ib, ic);
         }
       }
       allVels.push_back(tempVels);
@@ -1222,37 +1213,36 @@ void ActiveBandStructure::enforceBandNumSymmetry(Context& context,
       allEns.push_back(tmpE);
     }
     noFieldPoints.setIrreduciblePoints(&allVels, &allEns);
-  }
-  else {
+  } else {
     noFieldPoints.setIrreduciblePoints();
   }
 
   // for each irr point, enforce matching band limitations
-  for(int ikIrr : noFieldPoints.irrPointsIterator()) {
-     auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
+  for (int ikIrr : noFieldPoints.irrPointsIterator()) {
+    auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
 
-     std::vector<int> minBandList;
-     std::vector<int> maxBandList;
+    std::vector<int> minBandList;
+    std::vector<int> maxBandList;
 
-     if (reducibleList.empty()) {
-       Error("EnforceSymmetry: reducible star is empty.");
-     }
+    if (reducibleList.empty()) {
+      Error("EnforceSymmetry: reducible star is empty.");
+    }
 
-     for(int ikRed : reducibleList) {
-       // need to make sure each point has the same number of bands
-       // we need to check that the start and stop bands are the same
-       // selected set, and then choose intersection of the bands lists
-       minBandList.push_back(filteredBands(ikRed, 0));
-       maxBandList.push_back(filteredBands(ikRed, 1));
-     }
+    for (int ikRed : reducibleList) {
+      // need to make sure each point has the same number of bands
+      // we need to check that the start and stop bands are the same
+      // selected set, and then choose intersection of the bands lists
+      minBandList.push_back(filteredBands(ikRed, 0));
+      maxBandList.push_back(filteredBands(ikRed, 1));
+    }
 
-     // set all points to use only the highest min band to lowest max band
-     int newMinBand = *max_element(std::begin(minBandList), std::end(minBandList));
-     int newMaxBand = *min_element(std::begin(maxBandList), std::end(maxBandList));
+    // set all points to use only the highest min band to lowest max band
+    int newMinBand = *max_element(std::begin(minBandList), std::end(minBandList));
+    int newMaxBand = *min_element(std::begin(maxBandList), std::end(maxBandList));
 
-     for(int ikRed : reducibleList) {  // set new band range values
-       filteredBands(ikRed, 0) = newMinBand;
-       filteredBands(ikRed, 1) = newMaxBand;
-     }
+    for (int ikRed : reducibleList) {// set new band range values
+      filteredBands(ikRed, 0) = newMinBand;
+      filteredBands(ikRed, 1) = newMaxBand;
+    }
   }
 }

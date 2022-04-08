@@ -731,11 +731,15 @@ void Points::setIrreduciblePoints(
 
   std::vector<std::vector<int>> bandDegeneracies;
   if (groupVelocities != nullptr) {
+    if ( energies == nullptr) {
+      Error("setIrreduciblePoints: must pass both energies and velocities");
+    }
+
     if (int((*groupVelocities).size()) != numPoints) {
-      Error("setIrreducible: velocities not aligned with the full grid");
+      Error("setIrreduciblePoints: velocities not aligned with the full grid");
     }
     if (int((*energies).size()) != numPoints) {
-      Error("setIrreducible: energies not aligned with the full grid");
+      Error("setIrreduciblePoints: energies not aligned with the full grid");
     }
 
     // save in an array the information about the degeneracy of state (ik,ib)
@@ -762,6 +766,7 @@ void Points::setIrreduciblePoints(
       bandDegeneracies.push_back(kDeg);
     }
   }
+
 
   // search for irreducible kpoints, checking every point
   for (int ik = 0; ik < numPoints; ik++) {
@@ -804,13 +809,10 @@ void Points::setIrreduciblePoints(
               // or the points are not equivalent
               // similarly, energies should be close
 
-              std::vector<int> irrDeg = bandDegeneracies[ik];
-              std::vector<int> redDeg = bandDegeneracies[ikRot];
-
-              int numBands = bandDegeneracies[0].size();
+              int numBands = (*energies)[ik].size();
 
               for (int ib=0; ib<numBands; ++ib) {
-                if (irrDeg[ib] != redDeg[ib]) {
+                if (bandDegeneracies[ik][ib] != bandDegeneracies[ikRot][ib]) {
                   isEquivalent = false;
                 }
                 double enDiff = abs((*energies)[ik](ib) - (*energies)[ikRot](ib));
@@ -829,7 +831,7 @@ void Points::setIrreduciblePoints(
                 // if the band is degenerate, the velocity may not obey
                 // symmetries (because of possible permutations within
                 // the degenerate subspace of bands), so we skip it
-                if (irrDeg[ib]>1) continue;
+                if (bandDegeneracies[ik][ib]>1) continue;
 
                 Eigen::Vector3d vI, vR;
                 for (int ic : {0,1,2}) {
