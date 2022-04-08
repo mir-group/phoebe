@@ -796,7 +796,6 @@ void Points::setIrreduciblePoints(
               equiv(ikRot) = ik;
               thisStar.insert(ikRot);
               mapEquivalenceRotationIndex(ikRot) = iRot;
-              break;
             } else {
               bool isEquivalent = true;
 
@@ -859,7 +858,6 @@ void Points::setIrreduciblePoints(
                 equiv(ikRot) = ik;
                 thisStar.insert(ikRot);
                 mapEquivalenceRotationIndex(ikRot) = iRot;
-                break;
               }
             }
 
