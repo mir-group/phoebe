@@ -103,7 +103,7 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
                       StatisticsSweep &statisticsSweep,
                       HarmonicHamiltonian &electronH0, Points& points) {
 
-  bool debug = true;
+  bool debug = false;
 
   // unfortunately for indexing, we need a copy of the old and new bandstructures
   ActiveBandStructure oldBandStructure = bandStructure;
@@ -114,12 +114,6 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
   points.magneticSymmetries(context);
   auto tup = ActiveBandStructure::builder(context, electronH0, points);
   bandStructure = std::get<0>(tup);
-
-  {
-    auto p1 = bandStructure.getPoints();
-    auto p2 = oldBandStructure.getPoints();
-    std::cout << p1.irrPointsIterator().size() << " " << p2.irrPointsIterator().size() << " --\n";
-  }
 
   if (debug) {
     // print the points mesh to, need to check that they are the same -------------------
@@ -160,6 +154,7 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
 
   VectorBTE newLinewidths(statisticsSweep, bandStructure, 1);
   VectorBTE oldLinewidths = oldMatrix.getLinewidths();
+  newLinewidths.excludeIndices = oldLinewidths.excludeIndices;
 
   // for each irr point of the new band structure, we will get the
   // wavevector of that point, look it up in the old list, and
@@ -179,22 +174,16 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
     // get the actual wavevector and look it up manually
     WavevectorIndex temp = WavevectorIndex(ikIrr);
     auto kCoords = bandStructure.getWavevector(temp);
-    //std::cout << "kvector " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
     kCoords = bandStructure.getPoints().cartesianToCrystal(kCoords);
-    std::cout << "----------------- \n" << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
     int ikOld = oldBandStructure.getPointIndex(kCoords);
-    std::cout << "newIk oldIk " << ikIrr << " " << ikOld << std::endl;
 
     // for each band, we replace all the equivalent kpoints
     for (int ib = 0; ib < numBands; ++ib) {
 
-      //std::cout << "ib " << ib << " ---------------------------------------------- " << std::endl;
-      double oldEne;
       int iBteOld;
       {
         int is = oldBandStructure.getIndex(WavevectorIndex(ikOld), BandIndex(ib));
         StateIndex isIdx(is);
-        oldEne = oldBandStructure.getEnergy(isIdx);
         BteIndex iBteIdx = oldBandStructure.stateToBte(isIdx);
         iBteOld = iBteIdx.get();
       }
@@ -204,15 +193,9 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
       // to the irr representation of the new band structure
       int is = bandStructure.getIndex(WavevectorIndex(ikIrr), BandIndex(ib));
       StateIndex isIdx(is);
-      double newEne = bandStructure.getEnergy(isIdx);
       // check that indices map to exactly the same energies
-      if (ib == 0) std::cout << "old ene: " << oldEne << " new ene: " << newEne << std::endl;
       BteIndex iBteIdx = bandStructure.stateToBte(isIdx);
       int iBte = iBteIdx.get();
-
-      if (ib == 0) {
-        std::cout << "ibte, ibteOld " << iBte << " " << iBteOld << "\n";
-      }
 
       for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
         newLinewidths(iCalc, 0, iBte) = oldLinewidths(iCalc, 0, iBteOld);
@@ -519,7 +502,6 @@ void ElectronWannierTransportApp::run(Context &context) {
                 << std::endl;
     }
   }
-  if (mpi->mpiHead()) std::cout << "finished wannier app" << std::endl;
 }
 
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
