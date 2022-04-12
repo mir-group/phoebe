@@ -784,9 +784,15 @@ void Points::setIrreduciblePoints(
       int iRot = -1;
       for (const auto &symmetry : symmetries) {
         ++iRot;
+        // rotation in crystal coordinates
         Eigen::Matrix3d rot = symmetry.rotation;
         Eigen::Vector3d rotatedPoint =
             rot * getPointCoordinates(ik, Points::crystalCoordinates);
+        /*if(mpi->mpiHead()) {
+           std::cout << rot << std::endl;
+           std::cout << "point " << getPointCoordinates(ik,Points::crystalCoordinates).transpose() << std::endl;
+           std::cout << "rotated point " << rotatedPoint.transpose() << std::endl;
+        }*/
 
         // check if rotated point is somewhere on the mesh
         int ikRot = isPointStored(rotatedPoint);
@@ -831,7 +837,9 @@ void Points::setIrreduciblePoints(
                 // if the band is degenerate, the velocity may not obey
                 // symmetries (because of possible permutations within
                 // the degenerate subspace of bands), so we skip it
-                if (bandDegeneracies[ik][ib]>1) continue;
+                if (bandDegeneracies[ik][ib]>1) {
+                  continue;
+                }
 
                 Eigen::Vector3d vI, vR;
                 for (int ic : {0,1,2}) {
@@ -840,8 +848,16 @@ void Points::setIrreduciblePoints(
                 }
 
                 if (vR.norm()==0.) continue;
-                Eigen::Vector3d diffV = vR - rot * vI;
-                diff += diffV.norm() / vR.norm();
+   		          Eigen::Matrix3d rotationCartesian = rotationMatricesCartesian[iRot];
+                Eigen::Vector3d diffV = vR - rotationCartesian * vI;
+                Eigen::Vector3d temp = rotationCartesian * vI;
+                diff += (diffV).squaredNorm();
+                //diff += diffV.norm() / vR.norm();
+              if(mpi->mpiHead())  {
+                 //std::cout << "virr " <<  vI.transpose() << std::endl;
+                 //std::cout << "vrot " << vR.transpose() << std::endl;
+                 //std::cout << "vIrr->rot'd " << temp.transpose() << std::endl;
+                }
               }
 
               // Corner case: if all bands are degenerate, velocities are not
@@ -857,6 +873,10 @@ void Points::setIrreduciblePoints(
               }
 
               if (diff < 1.e-4 * numBands && isEquivalent) {
+                if(mpi->mpiHead())  {
+                   //std::cout << "ik " << ik << " equiv to " << ikRot << " diff " << diff << " isEq " << isEquivalent  << std::endl;
+                   //std::cout << rot << std::endl;
+                }
                 equiv(ikRot) = ik;
                 thisStar.insert(ikRot);
                 mapEquivalenceRotationIndex(ikRot) = iRot;
@@ -886,7 +906,7 @@ void Points::setIrreduciblePoints(
     }
   }
 
-  /*
+/*
     // search for irreducible kpoints, checking every point
     for (int ik = 0; ik < numPoints; ik++) {
       // check if this k-point has already been found equivalent to another
@@ -1008,7 +1028,7 @@ void Points::setIrreduciblePoints(
         }
       }
     }
-  */
+*/
 
   //-----------------------------------------------------------------------------
 
