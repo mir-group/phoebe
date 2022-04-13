@@ -10,6 +10,7 @@ endif()
 
 cmake_minimum_required(VERSION 3.16)
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
 
@@ -97,7 +98,8 @@ if (MPI_AVAIL)
           elseif("${MPI_CXX_LIBRARIES}" MATCHES intel)
               find_library(BLACS_LIB NAMES mkl_blacs_intelmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
           else()
-              message(FATAL_ERROR "Confused by MPI library when looking for BLACS.")
+              find_library(BLACS_LIB NAMES mkl_blacs_intelmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
+              #message(FATAL_ERROR "Confused by MPI library when looking for BLACS.")
           endif()
           if(${BLACS_LIB} MATCHES NOTFOUND)
               message(FATAL_ERROR "Found Intel SCALAPACK but not BLACS")
