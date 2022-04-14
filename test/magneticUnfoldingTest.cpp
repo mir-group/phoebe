@@ -118,7 +118,6 @@ TEST(MagneticUnfoldingTest, Test1) {
 
   /// check the that the velocities make sense
   for (int is=0; is<numStatesMagSym; is++) {
-//    std::cout << is << "-!-\n";
     StateIndex isIdx(is);
     Eigen::Vector3d v2 = fullSymsBandStructure.getGroupVelocity(isIdx);
     Eigen::Vector3d v1 = magSymsBandStructure.getGroupVelocity(isIdx);
@@ -146,31 +145,18 @@ TEST(MagneticUnfoldingTest, Test1) {
     Eigen::Vector3d k1IrrReconstructed = rot * k1;
     Eigen::Vector3d v1sIrrVector = v1sIrr.row(ibIdx.get());
 
-    //std::cout << "------\nkpoint recon " << k1IrrReconstructed.transpose() << " | kpoint irr " << kIrr.transpose() << std::endl;
     k1IrrReconstructed = magSymsBandStructure.getPoints().foldToBz(k1IrrReconstructed, Points::cartesianCoordinates);
     kIrr = magSymsBandStructure.getPoints().foldToBz(kIrr, Points::cartesianCoordinates);
-//    std::cout << "------\nkpoint recon " << k1IrrReconstructed.transpose() << " | kpoint irr " << kIrr.transpose() << std::endl;
 
     ASSERT_NEAR( (k1IrrReconstructed-kIrr).norm() , 0., 1e-4);
-
     ASSERT_NEAR( (v1IrrReconstructed-v1sIrrVector).norm() , 0., 1e-4);
-//    if((v1IrrReconstructed-v1sIrrVector).norm() > 1e-4) {
-//      std::cout << "energies: " << fullSymsBandStructure.getEnergies(ikIdx).transpose() << "\n";
-//      std::cout << "reducible v, k in cart " << v1.transpose() << " | " << k1.transpose() << std::endl; //" | " << magSymsBandStructure.getPoints().cartesianToCrystal(k1).transpose() << std::endl;
-//      std::cout << "vIrrRecon, vIrr " << v1IrrReconstructed.transpose() << " | " << v1sIrrVector.transpose() << std::endl;
-//      std::cout << "veloc crys " << magSymsBandStructure.getPoints().cartesianToCrystal(k1).transpose() << " | " << magSymsBandStructure.getPoints().cartesianToCrystal(kIrr).transpose() << std::endl;
-//      std::cout << "rotation\n " << rot << std::endl;
-//      std::cout << "inv rot " << (rot.inverse()*v1).transpose() << std::endl;
-//      std::cout << fullSymsBandStructure.getGroupVelocities(ikIrrIdx) << "--\n";
-//      std::cout << fullSymsBandStructure.getGroupVelocities(ikIdx) << "--\n";
-//  }
 }
   auto irrKPtsFullSyms = fullSymsBandStructure.irrPointsIterator();
   auto irrKPtsMagSyms = magSymsBandStructure.irrPointsIterator();
   ASSERT_EQ(irrKPtsFullSyms.size(), irrKPtsMagSyms.size());
 
 
-  double maxLinewidth = magSymLinewidths.data.maxCoeff(); //std::max_element(magSymLinewidths.n(), magSymLinewidths.data.end());
+  double maxLinewidth = magSymLinewidths.data.maxCoeff();
   double cutoff = maxLinewidth * 0.001;
 
   double lineWidthError = 0;
@@ -185,8 +171,10 @@ TEST(MagneticUnfoldingTest, Test1) {
     WavevectorIndex ikidx = WavevectorIndex(irrKUnfold);
     for(int ib = 0; ib < magSymsBandStructure.getNumBands(ikidx); ib++) {
 
-      auto isIdxUnfold = StateIndex(fullSymsBandStructure.getIndex(WavevectorIndex(irrKUnfold),BandIndex(ib)));
-      auto isIdxMagSym = StateIndex(magSymsBandStructure.getIndex(WavevectorIndex(irrKMagSyms),BandIndex(ib)));
+      auto isIdxUnfold = StateIndex(fullSymsBandStructure.getIndex(
+                WavevectorIndex(irrKUnfold),BandIndex(ib)));
+      auto isIdxMagSym = StateIndex(magSymsBandStructure.getIndex(
+                WavevectorIndex(irrKMagSyms),BandIndex(ib)));
 
       // check that the indices are the same
       ASSERT_EQ(isIdxUnfold.get(),isIdxMagSym.get());
@@ -213,10 +201,9 @@ TEST(MagneticUnfoldingTest, Test1) {
     }
   }
   ASSERT_NEAR(lineWidthError,0, 0.001);
-
 }
 
-TEST(MagneticUnfoldingTest, FullBS) {
+TEST(MagneticUnfoldingTest, FullBandStructure) {
   // the test is similar to the above, but we don't discard active states
 
   // setup input file
@@ -321,7 +308,7 @@ TEST(MagneticUnfoldingTest, FullBS) {
   auto irrKPtsMagSyms = magSymsBandStructure.irrPointsIterator();
   ASSERT_EQ(irrKPtsFullSyms.size(), irrKPtsMagSyms.size());
 
-  double maxLinewidth = magSymsLinewidths.data.maxCoeff(); //std::max_element(magSymsLinewidths.n(), magSymsLinewidths.data.end());
+  double maxLinewidth = magSymsLinewidths.data.maxCoeff();
   double cutoff = maxLinewidth * 0.001;
 
   // here we assert the equality between state and bte indices
@@ -360,9 +347,10 @@ TEST(MagneticUnfoldingTest, FullBS) {
 
     WavevectorIndex ikidx = WavevectorIndex(irrKUnfold);
     for(int ib = 0; ib < magSymsBandStructure.getNumBands(ikidx); ib++) {
-
-      auto isIdxUnfold = StateIndex(fullSymsBandStructure.getIndex(WavevectorIndex(irrKUnfold),BandIndex(ib)));
-      auto isIdxMagSym = StateIndex(magSymsBandStructure.getIndex(WavevectorIndex(irrKMagSyms),BandIndex(ib)));
+      auto isIdxUnfold = StateIndex(fullSymsBandStructure.getIndex(
+                        WavevectorIndex(irrKUnfold),BandIndex(ib)));
+      auto isIdxMagSym = StateIndex(magSymsBandStructure.getIndex(
+                        WavevectorIndex(irrKMagSyms),BandIndex(ib)));
 
       // check that the indices are the same
       ASSERT_EQ(isIdxUnfold.get(),isIdxMagSym.get());
@@ -370,6 +358,7 @@ TEST(MagneticUnfoldingTest, FullBS) {
       auto ibteUnfold = fullSymsBandStructure.stateToBte(isIdxUnfold).get();
       auto ibteMagSym = magSymsBandStructure.stateToBte(isIdxMagSym).get();
       ASSERT_EQ(ibteUnfold, ibteMagSym);
+
       // check the energies
       double enUnfold = fullSymsBandStructure.getEnergy(isIdxUnfold);
       double enMagSyms= magSymsBandStructure.getEnergy(isIdxMagSym);

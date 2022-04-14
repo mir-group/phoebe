@@ -35,7 +35,6 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
 
   // Here we want to find the symmetries that rotate both k-points and
   // the group velocities
-  // TODO do we need this here for just the linewidths?
   {
     std::vector<Eigen::MatrixXd> allVelocities;
     std::vector<Eigen::VectorXd> allEnergies;
@@ -103,8 +102,6 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
                       StatisticsSweep &statisticsSweep,
                       HarmonicHamiltonian &electronH0, Points& points) {
 
-  bool debug = false;
-
   // unfortunately for indexing, we need a copy of the old and new bandstructures
   ActiveBandStructure oldBandStructure = bandStructure;
 
@@ -114,39 +111,6 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
   points.magneticSymmetries(context);
   auto tup = ActiveBandStructure::builder(context, electronH0, points);
   bandStructure = std::get<0>(tup);
-
-  if (debug) {
-    // print the points mesh to, need to check that they are the same -------------------
-    std::cout << "old mesh" << std::endl;
-    for (int ik = 0; ik < oldBandStructure.getNumPoints(); ik++) {
-      WavevectorIndex temp = WavevectorIndex(ik);
-      auto kCoords = oldBandStructure.getWavevector(temp);
-      kCoords = oldBandStructure.getPoints().cartesianToCrystal(kCoords);
-      std::cout << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
-    }
-
-    std::cout << "new mesh" << std::endl;
-    for (int ik = 0; ik < bandStructure.getNumPoints(); ik++) {
-
-      WavevectorIndex temp = WavevectorIndex(ik);
-      auto kCoords = bandStructure.getWavevector(temp);
-      kCoords = bandStructure.getPoints().cartesianToCrystal(kCoords);
-      std::cout << "kvector crys " << kCoords(0) << " " << kCoords(1) << " " << kCoords(2) << std::endl;
-    }
-
-    // print the indices of each mesh which are marked as irr points
-    std::cout << std::endl;
-    std::cout << "old bands irr points" << std::endl;
-    for (auto is : oldBandStructure.irrPointsIterator()) {
-      std::cout << is << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "new bands irr points" << std::endl;
-    for (auto is : bandStructure.irrPointsIterator()) {
-      std::cout << is << " ";
-    }
-    std::cout << std::endl;
-  }
 
   // now the bands should have the right symmetries, and we can attempt the linewidths
   // we take an empty scattering matrix object.
@@ -164,7 +128,8 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
   // save new irr points anyway
   for (int ikIrr : bandStructure.getPoints().irrPointsIterator()) {
 
-    // I think this should still work because all sym eq kpoints should have the same nbands
+    // this should work because all sym eq kpoints should have the same nbands
+    // as a result of enforce function in active band structure
     int numBands;
     {
       WavevectorIndex ikIdx(ikIrr);
@@ -237,6 +202,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::cout << "\nComputing electronic band structure." << std::endl;
   }
+
   Points fullPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
@@ -278,7 +244,9 @@ void ElectronWannierTransportApp::run(Context &context) {
     }
 
     // unfold the symmetries
-    unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep, electronH0, fullPoints);
+    if( context.getUseSymmetries()) {
+      unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep, electronH0, fullPoints);
+    }
 
     // TODO we might want to throw a warning if someone runs with a
     // bfield that adds a contribution on the order of the diagonal
