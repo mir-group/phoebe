@@ -265,7 +265,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     }
     Eigen::VectorXcd polarData = mappedPolarData.at(iq3);
 
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData};
+    return std::make_tuple(q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData);
 
   } else {
     // otherwise, q3 doesn't fall into the same grid
@@ -281,7 +281,7 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::VectorXcd polarData = cachePolarData[ik2Counter];
     int nb3 = int(energies3.size());
 
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData};
+    return std::make_tuple(q3, energies3, nb3, eigenVectors3, v3s, bose3Data, polarData);
   }
 }
 

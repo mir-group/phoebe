@@ -195,7 +195,7 @@ PhononH0::diagonalize(Point &point) {
   auto tup = diagonalizeFromCoordinates(q, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -243,7 +243,7 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
     }
   }
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
@@ -616,7 +616,7 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
   }
   Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 Eigen::Tensor<std::complex<double>, 3>

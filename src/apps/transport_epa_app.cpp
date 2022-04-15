@@ -164,7 +164,7 @@ TransportEpaApp::calcEnergyProjVelocity(Context &context,
   mpi->allReduceSum(&energyProjVelocity);
   mpi->allReduceSum(&dos);
   loopPrint.close();
-  return {energyProjVelocity, dos};
+  return std::make_tuple(energyProjVelocity, dos);
 }
 
 VectorEPA TransportEpaApp::getScatteringRates(

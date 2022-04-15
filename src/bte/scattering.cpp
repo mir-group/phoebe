@@ -728,7 +728,7 @@ ScatteringMatrix::diagonalize() {
     eigenValues(is) = eigenvalues[is];
   }
 
-  return {eigenValues, eigenvectors};
+  return std::make_tuple(eigenValues, eigenvectors);
 }
 
 std::vector<std::tuple<std::vector<int>, int>>
@@ -963,9 +963,9 @@ std::tuple<BteIndex, CartIndex>
 ScatteringMatrix::getSMatrixIndex(const int &iMat) {
   if (context.getUseSymmetries()) {
     auto t = decompress2Indices(iMat, numStates, 3);
-    return {BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t))};
+    return std::make_tuple(BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t)));
   } else {
-    return {BteIndex(iMat), CartIndex(0)};
+    return std::make_tuple(BteIndex(iMat), CartIndex(0));
   }
 }
 

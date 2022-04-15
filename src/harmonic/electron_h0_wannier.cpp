@@ -88,7 +88,7 @@ ElectronH0Wannier::diagonalize(Point &point) {
   // note: the eigenvector matrix is the unitary transformation matrix U
   // from the Bloch to the Wannier gauge.
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -136,7 +136,7 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
   Eigen::VectorXd energies = eigenSolver.eigenvalues();
   Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 Eigen::Tensor<std::complex<double>, 3>

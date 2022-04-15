@@ -323,7 +323,7 @@ VectorBTE::loc2Glob(
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto iDim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), CartIndex(iDim)};
+  return std::make_tuple(ChemPotIndex(imu), TempIndex(it), CartIndex(iDim));
 }
 
 void VectorBTE::setConst(const double &constant) {

@@ -193,7 +193,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       }
     }
 
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
+    return std::make_tuple(q3, energies3, nb3, eigenVectors3, v3s, bose3Data);
 
   } else {
     // otherwise, q3 doesn't fall into the same grid
@@ -221,7 +221,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
     }
 
     int nb3 = int(energies3.size());
-    return {q3, energies3, nb3, eigenVectors3, v3s, bose3Data};
+    return std::make_tuple(q3, energies3, nb3, eigenVectors3, v3s, bose3Data);
   }
 }
 
