@@ -68,6 +68,9 @@ perform parallel read/write operations, they must build Phoebe using the ``-DHDF
 
    cmake .. -DCMAKE_CXX_STANDARD_LIBRARIES="-L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/" -DCMAKE_CXX_FLAGS="-I/usr/include/hdf5/openmpi/"
 
+.. note::
+   When building with Intel compilers, it seems sometimes it's necessary to set compiler flags to CC=mpiicc, CXX=mpiicpc, and FC=mpiifort explicitly. Try this if you have issues.
+
 
 OpenMP build
 ^^^^^^^^^^^^
