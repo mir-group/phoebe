@@ -160,16 +160,21 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
-#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
-initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
-                               omp_orig.bandStructure, omp_orig.dimensionality))
-    auto allLocalStates = theMatrix.getAllLocalStates();
-    size_t numAllLocalStates = allLocalStates.size();
+    Eigen::MatrixXd data(3, numStates);
+    data.setZero();
 
-    if (context.getUseSymmetries()) {
-#pragma omp parallel for reduction(+ : outPopulation)
-      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-        auto tup = allLocalStates[iTup];
+    #pragma omp parallel
+    {
+      Eigen::MatrixXd dataPrivate(3, numStates);
+      dataPrivate.setZero();
+
+      auto allLocalStates = theMatrix.getAllLocalStates();
+      size_t numAllLocalStates = allLocalStates.size();
+
+      if (context.getUseSymmetries()) {
+#pragma omp for
+	for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+	  auto tup = allLocalStates[iTup];
         int iMat1 = std::get<0>(tup);
         int iMat2 = std::get<1>(tup);
         auto t1 = getSMatrixIndex(iMat1);
@@ -180,11 +185,11 @@ initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
           continue;
         int i = std::get<1>(t1).get();
         int j = std::get<1>(t2).get();
-        outPopulation(0, i, iBte1) +=
+        dataPrivate(i, iBte1) +=
             theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
       }
     } else {
-#pragma omp parallel for reduction(+ : outPopulation)
+#pragma omp parallel for
       for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
         auto tup = allLocalStates[iTup];
         auto iBte1 = std::get<0>(tup);
@@ -192,9 +197,17 @@ initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
         if (iBte1 == iBte2)
           continue;
         for (int i : {0, 1, 2}) {
-          outPopulation(0, i, iBte1) +=
+	  dataPrivate(i, iBte1) +=
               theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
         }
+      }
+    }
+
+#pragma omp critical
+      for (int iBte1=0; iBte1<numStates; ++iBte1) {
+	for (int i : {0,1,2}) {
+	  outPopulation(0, i, iBte1) += dataPrivate(i, iBte1);
+	}
       }
     }
 
