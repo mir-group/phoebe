@@ -1045,8 +1045,8 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     }
     mpi->allReduceSum(&velocities);
   }
-  buildSymmetries();
   symmetrize(context, withVelocities);
+  buildSymmetries();
   return statisticsSweep;
 }
 
