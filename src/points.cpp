@@ -743,10 +743,12 @@ void Points::setIrreduciblePoints(
     }
 
     // save in an array the information about the degeneracy of state (ik,ib)
-    int numBands = (*energies)[0].size();
     for (int ik=0; ik<numPoints; ++ik) {
+
+      int numBands = (*energies)[ik].size(); // active bands can have different nbands at each point
       std::vector<int> kDeg(numBands, 1);
       for (int ib = 0; ib < numBands; ++ib) {
+
         // first, we check if the band is degenerate, and the size of the
         // degenerate subspace
         int degDegree = 1;
