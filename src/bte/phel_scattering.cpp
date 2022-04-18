@@ -4,6 +4,8 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
+// NOTE: this could be updated to use only irr points by looping 
+// over irr wavevectors instead of 0,numPoints
 std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIteratorWavevectorPairs() {
   std::vector<std::tuple<int, std::vector<int>>> pairIterator;
 
@@ -220,7 +222,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
         withVelocities = true;
       }
-      auto tHelp = electronH0.populate(allK2C, withVelocities);
+      auto tHelp = electronH0.populate(allK2C, withVelocities); // would need to move this on the gpu
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
       std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
@@ -237,9 +239,12 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
             couplingElPhWan.getCouplingSquared(iq3Batch);
 
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
-        Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx);
+        Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx); //for gpu would replace with compute OTF
         auto nb2 = int(state2Energies.size());
 
+        // NOTE: these loops are already set up to be applicable to gpus 
+        // the precomputaton of the smearing values and the open mp loops could 
+        // be converted to GPU relevant version
         Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
 #pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -254,6 +259,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 continue;
               }
               double delta;
+              // NOTE: for gpus, if statements need to be moved outside, as
+              // this creates load balancing issues for gpu threads and cpu must
+              // dispatch this decision info
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta = smearing->getSmearing(en1 - en2 + en3);
               } else {
@@ -281,11 +289,12 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 //    * (fermi(iCalc, ik1, ib1) - fermi(iCalc, ik2, ib2))
                 //    * smearing_values(ib1, ib2, ib3) * norm / en3 * pi;
 
-                // note: although the expression above is formally correct,
+                // NOTE: although the expression above is formally correct,
                 // fk-fk2 could be negative due to numerical noise.
                 // so instead, we do:
                 // fk-fk2 ~= dfk/dek dwq
-
+                // However, we don't include the dwq here, as this is gSE^2, which 
+                // includes a factor of (1/wq)
                 double rate =
                     coupling(ib1, ib2, ib3) * fermiTerm(iCalc, ik1, ib1)
                     * smearing_values(ib1, ib2, ib3)
@@ -293,6 +302,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
                 // case of linewidth construction
                 linewidth->operator()(iCalc, 0, is3) += rate;
+                
+                //NOTE: for eliashberg function, we could here add another vectorBTE object 
+                // as done with the linewidths here, slightly modified
+                
               }
             }
           }
