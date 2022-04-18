@@ -52,6 +52,10 @@ where you should substitute ``nproc`` with the number of cores available for par
 
 CMake will inspect the paths found in the environmental variable ``LD_LIBRARY_PATH`` to verify the existence of an installed copy of the ScaLAPACK library and link it. If not found, the installation will download and compile a copy of ScaLAPACK.
 
+.. note::
+   Phoebe often uses OMP through Kokkos. For best performance, you may want to follow the advice from Kokkos regarding OMP env variables:
+   "In general, for best performance with OpenMP 4.0 or better set ``OMP_PROC_BIND=spread`` and ``OMP_PLACES=threads``. For best performance with OpenMP 3.1 set OMP_PROC_BIND=true"
+
 HDF5 build
 ^^^^^^^^^^
 
@@ -72,14 +76,10 @@ perform parallel read/write operations, they must build Phoebe using the ``-DHDF
    When building with Intel compilers, it seems sometimes it's necessary to set compiler flags to CC=mpiicc, CXX=mpiicpc, and FC=mpiifort explicitly. Try this if you have issues.
 
 
-OpenMP build
-^^^^^^^^^^^^
-Use flags ``DOMP_AVAIL`` and ``DKokkos_ENABLE_OPENMP`` to toggle OpenMP functionally, with the first flag controlling typical OMP use, and the second applying to OMP functionality provided through Kokkos. The default is ``DOMP_AVAIL=ON`` and ``DKokkos_ENABLE_OPENMP=OFF``.
-::
+Build without OpenMP (Not recommended)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Use flags ``DOMP_AVAIL`` and ``DKokkos_ENABLE_OPENMP`` to toggle OpenMP functionally, with the first flag controlling typical OMP use, and the second applying to OMP functionality provided through Kokkos. The default is ``DOMP_AVAIL=ON`` and ``DKokkos_ENABLE_OPENMP=ON``. Setting ``DOMP_AVAIL=OFF`` will disable the use of OMP and OMP through Kokkos, though performance will take a hit if you must do this.
 
-  # CMake flags to enable OMP
-  cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON
-  make -j$(nproc)
 
 Kokkos build (For GPU use)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
