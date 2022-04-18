@@ -74,7 +74,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
     // indices which belong to this process.
     std::vector<std::tuple<WavevectorIndex, BandIndex>> stateList =
         fullBandStructure->getStateIndices();
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int is = 0; is < fullBandStructure->getNumStates(); is++) {
       auto isk = std::get<0>(stateList[is]);
       auto isb = std::get<1>(stateList[is]);
@@ -94,12 +94,21 @@ StatisticsSweep::StatisticsSweep(Context &context,
         Error("Must provide either the Fermi level or the number of"
               " occupied states");
       }
+
+      // NOTE: the intel compiler has trouble compiling omp reductions
+      // so, we do the reduction "manually"
       occupiedStates = 0.;
-#pragma omp parallel for reduction(+ : occupiedStates)
-      for (int is = 0; is < fullBandStructure->getNumStates(); is++) {
-        if (x < fermiLevel) {
-          occupiedStates += 1.;
-        }
+      #pragma omp parallel
+      {
+    	  double occupiedStatesPrivate = 0.;
+      	#pragma omp for
+	      for (int is = 0; is < fullBandStructure->getNumStates(); is++) {
+	        if (energies[is] < fermiLevel) {
+	          occupiedStatesPrivate += 1.;
+	        }
+	    }
+	    #pragma omp critical
+	    occupiedStates += occupiedStatesPrivate;
       }
 
       occupiedStates /= double(numPoints);
@@ -229,12 +238,21 @@ double StatisticsSweep::fPop(const double &chemPot, const double &temp) {
   // fPop = 1/NK \sum_\mu FermiDirac(\mu) - N
   // Note that I don`t normalize the integral, which is the same thing I did
   // for computing the particle number
+
   double fPop_ = 0.;
-#pragma omp parallel for reduction(+ \
-                                   : fPop_)
-  for (auto &x : energies) {
-    fPop_ += particle.getPopulation(x, temp, chemPot);
+  int numStates = int(energies.size());
+  #pragma omp parallel
+  {
+    double fPopPrivate = 0.;
+    #pragma omp for
+    for (int is = 0; is < numStates; is++) {
+      double x = energies[is];
+      fPopPrivate += particle.getPopulation(x, temp, chemPot);
+      }
+    #pragma omp critical
+    fPop_ += fPopPrivate;
   }
+
   // in the distributed case, this needs to be summed over all processes,
   // and also needs to be available to all processes for calculation of next
   // iteration's chem potential
@@ -333,12 +351,21 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
 
 double StatisticsSweep::findDopingFromChemicalPotential(
     const double &chemicalPotential, const double &temperature) {
+
   double fPop = 0.;
-#pragma omp parallel for reduction(+ \
-                                   : fPop)
-  for (double &x : energies) {
-    fPop += particle.getPopulation(x, temperature, chemicalPotential);
+  int numStates = int(energies.size());
+  #pragma omp parallel
+  {
+    double fPopPrivate = 0.;
+    #pragma omp for
+    for (int is = 0; is < numStates; is++) {
+      double x = energies[is];
+      fPopPrivate += particle.getPopulation(x, temperature, chemicalPotential);
+    }
+    #pragma omp critical
+    fPop += fPopPrivate;
   }
+
   if (isDistributed) mpi->allReduceSum(&fPop);
   fPop /= double(numPoints);
   double doping = (occupiedStates - fPop);
