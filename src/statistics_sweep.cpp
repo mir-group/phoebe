@@ -96,7 +96,7 @@ StatisticsSweep::StatisticsSweep(Context &context,
       }
       occupiedStates = 0.;
 #pragma omp parallel for reduction(+ : occupiedStates)
-      for (double &x : energies) {
+      for (int is = 0; is < fullBandStructure->getNumStates(); is++) {
         if (x < fermiLevel) {
           occupiedStates += 1.;
         }
