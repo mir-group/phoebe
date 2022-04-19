@@ -130,7 +130,7 @@ std::tuple<int,double> parseDoubleVectorComponent(std::string line) {
 
   int idx = std::stoi(part1);
   double val = std::stod(part2);
-  return {idx,val};
+  return std::make_tuple(idx,val);
 }
 
 
@@ -277,7 +277,7 @@ parseCrystal(std::vector<std::string> &lines) {
     counter++;
   }
   atomicPositions /= distanceBohrToAng;
-  return {atomicPositions, atomicSpecies, speciesNames};
+  return std::make_tuple(atomicPositions, atomicSpecies, speciesNames);
 }
 
 /** Reads the block with the information on the path of points in the
@@ -325,7 +325,7 @@ parsePathExtrema(std::vector<std::string> &lines) {
 
     i++;
   }
-  return {pathLabels, pathExtrema};
+  return std::make_tuple(pathLabels, pathExtrema);
 }
 
 /** Parse an input block (e.g. for crystal or points path).
@@ -342,7 +342,7 @@ parseBlockNameValue(const std::vector<std::string> &lines,
   if (!patternInString(line, "begin")) {
     std::string empty1;
     std::vector<std::string> empty2;
-    return {empty1, empty2};
+    return std::make_tuple(empty1, empty2);
   } else {
     std::string pattern = "begin";
     std::size_t found = line.find(pattern);
@@ -354,7 +354,7 @@ parseBlockNameValue(const std::vector<std::string> &lines,
       }
       val.push_back(lines[i]);
     }
-    return {blockName, val};
+    return std::make_tuple(blockName, val);
   }
 }
 
@@ -409,7 +409,7 @@ parseParameterNameValue(const std::string &line) {
   if (s2 != s) {
     val = line.substr(position2 + 1, line.size());
   }
-  return {s2, val};
+  return std::make_tuple(s2, val);
 }
 
 void Context::setupFromInput(const std::string &fileName) {

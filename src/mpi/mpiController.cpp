@@ -221,7 +221,7 @@ MPIcontroller::workDivHelper(size_t numTasks) const {
     workDivs[i] = workDivisionTails[i] - workDivisionHeads[i];
   }
 
-  return {workDivs, workDivisionHeads};
+  return std::make_tuple(workDivs, workDivisionHeads);
 }
 
 #ifdef MPI_AVAIL
@@ -240,6 +240,6 @@ std::tuple<MPI_Comm,int> MPIcontroller::decideCommunicator(const int& communicat
   } else {
     Error("Invalid pool communicator");
   }
-  return {comm, broadcaster};
+  return std::make_tuple(comm, broadcaster);
 }
 #endif

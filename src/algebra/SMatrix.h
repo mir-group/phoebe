@@ -297,7 +297,7 @@ std::tuple<int, int> SerialMatrix<T>::local2Global(const int& k) {
   if(numRows_ == 0) Error("attempted to div by zero in l2g");
   int j = k / numRows_;
   int i = k - j * numRows_;
-  return {i, j};
+  return std::make_tuple(i, j);
 }
 
 // Indexing to set up the matrix in col major format

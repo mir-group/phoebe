@@ -49,7 +49,7 @@ std::tuple<ChemPotIndex, TempIndex> Observable::loc2Glob(const int &i) const {
   auto tup = decompress2Indices(i, numChemPots, numTemps);
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
-  return {ChemPotIndex(imu), TempIndex(it)};
+  return std::make_tuple(ChemPotIndex(imu), TempIndex(it));
 }
 
 Observable Observable::operator-(const Observable &that) {

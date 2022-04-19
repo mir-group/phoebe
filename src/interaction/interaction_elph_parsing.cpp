@@ -260,9 +260,9 @@ std::tuple<int, int, int, Eigen::MatrixXd, Eigen::MatrixXd, std::vector<size_t>,
     Error("Issue reading elph Wannier representation from hdf5.");
   }
 
-  return {numElBands, numPhBands, totalNumElBravaisVectors, elBravaisVectors_,
+  return std::make_tuple(numElBands, numPhBands, totalNumElBravaisVectors, elBravaisVectors_,
           phBravaisVectors_, localElVectors, elBravaisVectorsDegeneracies_,
-          phBravaisVectorsDegeneracies_};
+          phBravaisVectorsDegeneracies_);
 }
 
 // specific parse function for the case where parallel HDF5 is available
