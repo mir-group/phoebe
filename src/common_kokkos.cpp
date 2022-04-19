@@ -6,10 +6,14 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
   // kokkos people didn't implement the diagonalization of matrices.
   // So, we have to do a couple of dirty tricks
 
-#if defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_OPENMP)
+#ifndef KOKKOS_ENABLE_HIP // defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_OPENMP)
   // in this case, we use Eigen to solve the diagonalization problem
   // critically, here I assume host == device!
   // hence, no need for deep_copy or Kokkos lambdas
+
+  auto A_h = Kokkos::create_mirror_view(A);
+  auto W_h = Kokkos::create_mirror_view(W);
+  Kokkos::deep_copy(A_h, A);
 
   int M = A.extent(0);// number of matrices
   int N = A.extent(1);// matrix size is NxN
@@ -21,7 +25,7 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
     // In fact, Kokkos::Views don't play well within the #pragme loop.
     // hence, I take advantage of A having a right-layout and place the offset
     // i*N*N that locates the start of the i-th matrix.
-    auto *storage = reinterpret_cast<std::complex<double> *>(A.data()) + i*N*N;
+    auto *storage = reinterpret_cast<std::complex<double> *>(A_h.data()) + i*N*N;
 
     // now, I feed the data to Eigen
     // BEWARE: this statement doesn't do data copy, but points directly to the
@@ -33,12 +37,14 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
     Eigen::VectorXd energies = eigenSolver.eigenvalues();
     Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
     for (int m = 0; m < N; ++m) {
-      W(i, m) = energies(m);
+      W_h(i, m) = energies(m);
       for (int n = 0; n < N; ++n) {
-        A(i, m, n) = eigenvectors(m, n);
+        A_h(i, m, n) = eigenvectors(m, n);
       }
     }
   }
+  Kokkos::deep_copy(A, A_h);
+  Kokkos::deep_copy(W, W_h);
 #else
   Error("Kokkos@Phoebe: implement diagonalization in this architecture");
 #endif

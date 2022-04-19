@@ -550,7 +550,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     Kokkos::parallel_for(
         "g1",
         Range4D({0, 0, 0, 0},
-                {numPhBravaisVectors, numPhBands, numWannier, numWannier}),
+                {numPhBravaisVectors, numPhBands, numElBands, numElBands}),
         KOKKOS_LAMBDA(int irP, int nu, int iw1, int iw2) {
           Kokkos::complex<double> tmp(0.0);
           for (int irE = 0; irE < numElBravaisVectors; irE++) {

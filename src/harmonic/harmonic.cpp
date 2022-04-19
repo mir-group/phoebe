@@ -180,7 +180,7 @@ void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
           int iCart = iMatCart % 3;
           int iK = funcK(iMat);
           int ib = funcB(iMat);
-          Kokkos::complex<double> tmp = zero;
+          Kokkos::complex<double> tmp(0.0,0.0);
           for (int k = 0; k < iDeg; ++k) {
             tmp += tmpSubMat(iMatCart, i, k) * newEigenvectors(iMatCart, k, j);
           }

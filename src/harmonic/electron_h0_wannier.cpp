@@ -686,6 +686,10 @@ ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
   ComplexView3D hamiltonians("hamiltonians", numK, numWannier, numWannier);
   Kokkos::complex<double> complexI(0.0, 1.0);
 
+  auto bravaisVectors_d = this->bravaisVectors_d;
+  auto vectorsDegeneracies_d = this->vectorsDegeneracies_d;
+  auto h0R_d = this->h0R_d;
+
   if (!hasShiftedVectors) {
     ComplexView2D elPhases_d("elPhases_d", numK, numVectors);
     Kokkos::parallel_for(
@@ -710,6 +714,8 @@ ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
     Kokkos::realloc(elPhases_d, 0, 0);
 
   } else {
+    auto vectorsShifts_d = this->vectorsShifts_d;
+    auto degeneracyShifts_d = this->degeneracyShifts_d;
 
     Kokkos::parallel_for(
         "elHamiltonianShifted_d",
