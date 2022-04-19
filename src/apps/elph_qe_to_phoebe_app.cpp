@@ -167,7 +167,7 @@ ElPhQeToPhoebeApp::readChunkGFromQE(const int& iqIrr, Context &context,
     }
   }
 
-  return {gStar, phononEigenvectorsStar, phononEnergiesStar, qStar};
+  return std::make_tuple(gStar, phononEigenvectorsStar, phononEnergiesStar, qStar);
 }
 
 // read g, which is written to file on all k, q points
@@ -280,7 +280,7 @@ ElPhQeToPhoebeApp::readGFromQEFile(Context &context, const int &numModes,
   mpi->bcast(&phEigenvectors);
   mpi->bcast(&phEnergies);
 
-  return {gFull, phEigenvectors, phEnergies};
+  return std::make_tuple(gFull, phEigenvectors, phEnergies);
 }
 
 std::tuple<Eigen::Vector3i, Eigen::Vector3i, Eigen::MatrixXd, Eigen::MatrixXd,
@@ -372,6 +372,6 @@ ElPhQeToPhoebeApp::readQEPhoebeHeader(Crystal &crystal,
   mpi->bcast(&kGridFull);
   mpi->bcast(&energies);
 
-  return {qMesh,         kMesh,      kGridFull,    qGridFull, energies,
-          numIrrQPoints, numQEBands, numElectrons, numSpin};
+  return std::make_tuple(qMesh,         kMesh,      kGridFull,    qGridFull, energies,
+          numIrrQPoints, numQEBands, numElectrons, numSpin);
 }

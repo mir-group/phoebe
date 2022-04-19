@@ -23,7 +23,7 @@ std::tuple<int, int, int> decompress3Indices(const int &iTot, const int &size1,
   int i2 = remainder / size3;
   remainder -= i2 * size3;
   int i3 = remainder;
-  return {i1, i2, i3};
+  return std::make_tuple(i1, i2, i3);
 }
 
 int compress2Indices(const int &i1, const int &i2, const int &size1,
@@ -37,7 +37,7 @@ std::tuple<int, int> decompress2Indices(const int &iTot, const int &size1,
   (void)size1;
   int i1 = iTot / size2;
   int i2 = iTot - i1 * size2;
-  return {i1, i2};
+  return std::make_tuple(i1, i2);
 }
 
 std::tuple<double, double> memoryUsage() {
@@ -71,7 +71,7 @@ std::tuple<double, double> memoryUsage() {
               << resident_set/1024./1024. << " (GB)\n" << std::endl;
   }
 
-  return {vm_usage, resident_set};
+  return std::make_tuple(vm_usage, resident_set);
 }
 
 double findMaxRelativeDifference(const Eigen::Tensor<double,3> &x,

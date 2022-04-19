@@ -39,7 +39,7 @@ Matrix<std::complex<double>>::diagonalize() {
     eigenvalues = std::get<0>(tup);
     eigenvectors.mat = &(std::get<1>(tup));
   }
-  return {eigenvalues, eigenvectors};
+  return std::make_tuple(eigenvalues, eigenvectors);
 }
 
 // Diagonalize for real double symmetric matrix
@@ -59,7 +59,7 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
     eigenvalues = std::get<0>(tup);
     eigenvectors.mat = &(std::get<1>(tup));
   }
-  return {eigenvalues, eigenvectors};
+  return std::make_tuple(eigenvalues, eigenvectors);
 }
 
 // Explicit specialization of norm for doubles

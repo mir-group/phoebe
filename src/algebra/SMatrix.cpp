@@ -61,7 +61,7 @@ SerialMatrix<std::complex<double>>::diagonalize() {
   if (info != 0) {
     Error("ZHEEV failed in SMatrix.", info);
   }
-  return {eigenvalues, eigenvectors};
+  return std::make_tuple(eigenvalues, eigenvectors);
 }
 
 // Diagonalize for real double symmetric matrix
@@ -86,7 +86,7 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   if (info != 0) {
     Error("DSYEV failed in SMatrix.", info);
   }
-  return {eigenvalues, eigenvectors};
+  return std::make_tuple(eigenvalues, eigenvectors);
 }
 
 // Explicit specialization of norm for doubles

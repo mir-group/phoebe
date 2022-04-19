@@ -455,7 +455,7 @@ Crystal::buildWignerSeitzVectors(const Eigen::Vector3i &grid,
   positionVectors.col(0) = tmpV1;
   positionVectors.col(originIndex) = tmpV2;
 
-  return {positionVectors, positionDegeneracies};
+  return std::make_tuple(positionVectors, positionDegeneracies);
 }
 
 std::tuple<Eigen::MatrixXd, Eigen::Tensor<double, 3>>
@@ -635,5 +635,5 @@ Crystal::buildWignerSeitzVectorsWithShift(const Eigen::Vector3i &grid,
       }
     }
   }
-  return {bravaisVectors, degeneracies};
+  return std::make_tuple(bravaisVectors, degeneracies);
 }

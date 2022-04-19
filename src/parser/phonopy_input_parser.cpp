@@ -519,6 +519,6 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleFC2());
 
-  return {crystal, dynamicalMatrix};
+  return std::make_tuple(crystal, dynamicalMatrix);
 #endif
 }
