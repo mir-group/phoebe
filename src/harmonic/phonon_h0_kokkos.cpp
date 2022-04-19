@@ -152,7 +152,7 @@ std::tuple<DoubleView2D, ComplexView3D> PhononH0::kokkosBatchedDiagonalizeFromCo
           frequencies(iK, m) = -sqrt(-frequencies(iK, m));
         }
       });
-  return {frequencies, dynamicalMatrices};
+  return std::make_tuple(frequencies, dynamicalMatrices);
 }
 
 void PhononH0::kokkosBatchedScaleEigenvectors(ComplexView3D& eigenvectors) {
@@ -602,6 +602,6 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
 //        });
 //  }
 
-  return {resultEnergies, resultEigenvectors, resultVelocities};
+  return std::make_tuple(resultEnergies, resultEigenvectors, resultVelocities);
 }
 

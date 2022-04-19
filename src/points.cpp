@@ -312,7 +312,7 @@ std::pair<int,int> internalPointsBinarySearch(const Eigen::MatrixXd& pointsList,
                                        direction);
 
   if (id == -1) { // point was not found
-    return {-1, -1};
+    return std::make_pair(-1, -1);
   }
 
   // note: the binary search per-se requires unique elements
@@ -349,7 +349,7 @@ std::pair<int,int> internalPointsBinarySearch(const Eigen::MatrixXd& pointsList,
       break; // exit if point is different
     }
   }
-  return {idxMin, idxMax};
+  return std::make_pair(idxMin, idxMax);
 }
 
 /** Binary search algorithm to look for a vector in a list of vector.
@@ -551,7 +551,7 @@ void Points::setMesh(const Eigen::Vector3i &mesh_,
 }
 
 std::tuple<Eigen::Vector3i, Eigen::Vector3d> Points::getMesh() {
-  return {mesh, offset};
+  return std::make_tuple(mesh, offset);
 }
 
 std::tuple<Eigen::Vector3i, Eigen::Vector3d>
@@ -616,7 +616,7 @@ Points::findMesh(const Eigen::Matrix<double, 3, Eigen::Dynamic> &testPoints) {
   if (numTestPoints != mesh_(0) * mesh_(1) * mesh_(2)) {
     Error("Mesh of points seems incomplete");
   }
-  return {mesh_, offset_};
+  return std::make_tuple(mesh_, offset_);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -949,11 +949,11 @@ Points::getRotationToIrreducible(const Eigen::Vector3d &x, const int &basis) {
           rotationMatricesCartesian[mapEquivalenceRotationIndex(ik)].inverse();
     }
     // also, we add the index of the irreducible point to which x is mapped
-    return {equiv(ik), rot};
+    return std::make_tuple(equiv(ik), rot);
   } else {
     Eigen::Matrix3d identity;
     identity.setIdentity();
-    return {ik, identity};
+    return std::make_tuple(ik, identity);
   }
 }
 

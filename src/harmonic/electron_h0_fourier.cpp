@@ -117,7 +117,7 @@ ElectronH0Fourier::diagonalize(Point &point) {
   auto tup = diagonalizeFromCoordinates(coordinates);
   auto energies = std::get<0>(tup);
   auto eigenVectors = std::get<1>(tup);
-  return {energies, eigenVectors};
+  return std::make_tuple(energies, eigenVectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -128,7 +128,7 @@ ElectronH0Fourier::diagonalizeFromCoordinates(Eigen::Vector3d &wavevector) {
   for (int ib = 0; ib < numBands; ib++) {
     energies(ib) = getEnergyFromCoordinates(wavevector, ib);
   }
-  return {energies, eigenVectors};
+  return std::make_tuple(energies, eigenVectors);
 }
 
 Eigen::Tensor<std::complex<double>, 3>

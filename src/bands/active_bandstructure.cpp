@@ -139,7 +139,7 @@ ActiveBandStructure::getIndex(const int &is) {
   auto ib = std::get<1>(tup);
   WavevectorIndex ikk(ik);
   BandIndex ibb(ib);
-  return {ikk, ibb};
+  return std::make_tuple(ikk, ibb);
 }
 
 std::tuple<WavevectorIndex, BandIndex>
@@ -309,7 +309,7 @@ int ActiveBandStructure::bloch2Comb(const int &ik, const int &ib) {
 }
 
 std::tuple<int, int> ActiveBandStructure::comb2Bloch(const int &is) {
-  return {auxBloch2Comb(is, 0), auxBloch2Comb(is, 1)};
+  return std::make_tuple(auxBloch2Comb(is, 0), auxBloch2Comb(is, 1));
 }
 
 int ActiveBandStructure::bteBloch2Comb(const int &ik, const int &ib) {
@@ -317,7 +317,7 @@ int ActiveBandStructure::bteBloch2Comb(const int &ik, const int &ib) {
 }
 
 std::tuple<int, int> ActiveBandStructure::bteComb2Bloch(const int &iBte) {
-  return {bteAuxBloch2Comb(iBte, 0), bteAuxBloch2Comb(iBte, 1)};
+  return std::make_tuple(bteAuxBloch2Comb(iBte, 0), bteAuxBloch2Comb(iBte, 1));
 }
 
 void ActiveBandStructure::buildIndices() {
@@ -397,7 +397,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
 
     StatisticsSweep s = activeBandStructure.buildAsPostprocessing(
         context, points_, h0, withEigenvectors, withVelocities);
-    return {activeBandStructure, s};
+    return std::make_tuple(activeBandStructure, s);
 
   }
   // but phonons are default built OTF.
@@ -413,7 +413,7 @@ ActiveBandStructure::builder(Context &context, HarmonicHamiltonian &h0,
                                       withVelocities);
 
     StatisticsSweep statisticsSweep(context);
-    return {activeBandStructure, statisticsSweep};
+    return std::make_tuple(activeBandStructure, statisticsSweep);
   }
 }
 

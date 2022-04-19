@@ -143,7 +143,7 @@ ElectronH0Wannier::diagonalize(Point &point) {
   // note: the eigenvector matrix is the unitary transformation matrix U
   // from the Bloch to the Wannier gauge.
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -154,7 +154,7 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
   auto t = batchedDiagonalizeFromCoordinates(cartesianWavevectors);
   auto energies = std::get<0>(t)[0];
   auto eigenVectors = std::get<1>(t)[0];
-  return {energies, eigenVectors};
+  return std::make_tuple(energies, eigenVectors);
 }
 
 std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
@@ -224,7 +224,7 @@ ElectronH0Wannier::batchedDiagonalizeFromCoordinates(std::vector<Eigen::Vector3d
     allEnergies[iK] = eigenSolver.eigenvalues();
     allEigenvectors[iK] = eigenSolver.eigenvectors();
   }
-  return {allEnergies, allEigenvectors};
+  return std::make_tuple(allEnergies, allEigenvectors);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -671,7 +671,7 @@ ElectronH0Wannier::batchedDiagonalizeWithVelocities(
     resultsVelocities[iK] = velocity;
   }
 
-  return {resultsEnergies, resultsEigenvectors, resultsVelocities};
+  return std::make_tuple(resultsEnergies, resultsEigenvectors, resultsVelocities);
 }
 
 ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
@@ -756,7 +756,7 @@ std::tuple<DoubleView2D, ComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonal
   kokkosZHEEV(blochHamiltonians, allEnergies);
   // blochHamiltonians now contains eigenvectors
 
-  return {allEnergies, blochHamiltonians};
+  return std::make_tuple(allEnergies, blochHamiltonians);
 }
 
 std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
@@ -863,7 +863,7 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
   kokkosBatchedTreatDegenerateVelocities(cartesianCoordinates, resultEnergies,
                                          resultVelocities, threshold);
 
-  return {resultEnergies, resultEigenvectors, resultVelocities};
+  return std::make_tuple(resultEnergies, resultEigenvectors, resultVelocities);
 }
 
 double ElectronH0Wannier::getDeviceMemoryUsage() {

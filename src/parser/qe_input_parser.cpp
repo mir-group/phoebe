@@ -548,7 +548,7 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleFC2());
 
-  return {crystal, dynamicalMatrix};
+  return std::make_tuple(crystal, dynamicalMatrix);
 }
 
 std::tuple<Crystal, ElectronH0Fourier>
@@ -771,7 +771,7 @@ QEParser::parseElHarmonicFourier(Context &context) {
   ElectronH0Fourier electronH0(crystal, coarsePoints, coarseBandStructure,
                                fourierCutoff);
 
-  return {crystal, electronH0};
+  return std::make_tuple(crystal, electronH0);
 }
 
 std::pair<Eigen::Tensor<double, 3>,
@@ -841,7 +841,7 @@ std::pair<Eigen::Tensor<double, 3>,
     }
   }
 
-  return {degeneracyShifts, phaseShifts};
+  return std::make_pair(degeneracyShifts, phaseShifts);
 }
 
 std::tuple<Crystal, ElectronH0Wannier>
@@ -1000,7 +1000,7 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
   }
 
   if (inCrystal != nullptr) {
-    return {*inCrystal, electronH0};
+    return std::make_tuple(*inCrystal, electronH0);
   } else {
     Eigen::MatrixXd atomicPositions = context.getInputAtomicPositions();
     Eigen::VectorXi atomicSpecies = context.getInputAtomicSpecies();
@@ -1017,6 +1017,6 @@ QEParser::parseElHarmonicWannier(Context &context, Crystal *inCrystal) {
     Crystal crystal(context, directUnitCell, atomicPositions, atomicSpecies,
                     speciesNames, speciesMasses);
     crystal.print();
-    return {crystal, electronH0};
+    return std::make_tuple(crystal, electronH0);
   }
 }

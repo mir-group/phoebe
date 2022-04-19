@@ -151,7 +151,7 @@ ParallelMatrix<double>::diagonalize() {
   delete[] work;
   // note that the scattering matrix now has different values
 
-  return {eigenvalues_, eigenvectors};
+  return std::make_tuple(eigenvalues_, eigenvectors);
 }
 
 template <>
@@ -206,7 +206,7 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   delete[] rwork;
   // note that the scattering matrix now has different values
 
-  return {eigenvalues_, eigenvectors};
+  return std::make_tuple(eigenvalues_, eigenvectors);
 }
 
 #endif  // MPI_AVAIL

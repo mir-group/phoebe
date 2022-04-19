@@ -167,7 +167,7 @@ std::tuple<std::vector<double>, std::vector<double>> calcDOS(
   // all processes send their data to be gathered into dos/eneTotal
   mpi->gatherv(&energies, &eneTotal);
   mpi->gatherv(&dos, &dosTotal);
-  return {eneTotal, dosTotal};
+  return std::make_tuple(eneTotal, dosTotal);
 
 }
 
