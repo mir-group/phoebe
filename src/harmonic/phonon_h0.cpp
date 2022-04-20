@@ -195,7 +195,7 @@ PhononH0::diagonalize(Point &point) {
   auto tup = diagonalizeFromCoordinates(q, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -213,7 +213,7 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
   auto t = internalPopulate(qVecs, withMassScaling);
   std::vector<Eigen::VectorXd> eigvals = std::get<0>(t);
   std::vector<Eigen::MatrixXcd> eigvecs = std::get<1>(t);
-  return {eigvals[0], eigvecs[0]};
+  return std::make_tuple(eigvals[0], eigvecs[0]);
 }
 
 FullBandStructure PhononH0::populate(Points &points, bool &withVelocities,
@@ -576,7 +576,7 @@ PhononH0::internalPopulate(
     }
   }
 
-  return {allEnergies, allEigenvectors};
+  return std::make_tuple(allEnergies, allEigenvectors);
 }
 
 void PhononH0::addLongRangeTerm(std::vector<Eigen::MatrixXcd> &dyns,
@@ -664,7 +664,7 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
     std::vector<Eigen::VectorXd> allEnergies = std::get<0>(t);
     std::vector<Eigen::MatrixXcd> allEigenvectors = std::get<1>(t);
     std::vector<Eigen::Tensor<std::complex<double>,3>> allVelocities;
-    return {allEnergies, allEigenvectors, allVelocities};
+    return std::make_tuple(allEnergies, allEigenvectors, allVelocities);
 
   } else {
     int numQ = cartesianCoordinates.size();
@@ -829,6 +829,6 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
         }
       }
     }
-    return {resultEnergies, resultEigenvectors, resultVelocities};
+    return std::make_tuple(resultEnergies, resultEigenvectors, resultVelocities);
   }
 }

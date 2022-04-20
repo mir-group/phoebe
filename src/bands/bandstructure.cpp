@@ -117,7 +117,7 @@ std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
   int ib = is - ik * numBands;
   auto ikk = WavevectorIndex(ik);
   auto ibb = BandIndex(ib);
-  return {ikk, ibb};
+  return std::make_tuple(ikk, ibb);
 }
 
 std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(

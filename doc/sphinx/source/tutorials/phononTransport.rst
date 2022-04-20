@@ -121,7 +121,9 @@ Before proceeding, you should check the quality of the calculation. First, make 
   ...
   end point path
 
-And then running a very inexpensive band calculation with Phoebe::
+To include the non-analytical correction to the FC2s, be sure to supply the :ref:`phonopyBORNFileName` parameter as well.
+
+Then run a very inexpensive band calculation with Phoebe::
 
   mpirun -np 1 /path/to/phoebe -in phononBands.in
 
@@ -165,6 +167,8 @@ Let's go through these parameters:
 * :ref:`phFC2FileName` must point to the harmonic forces constants file.
 
 * :ref:`phFC3FileName` must point to the third-order force constant file.
+
+* :ref:`phonopyBORNFileName` optionally, can point to the file in the phonopy BORN format to supply parameters from non-analytic correction.
 
 * :ref:`phonopyDispFileName` must point to the ``phono3py_disp.yaml`` file and is needed to read the force constant files.
 
@@ -223,7 +227,7 @@ This file shows results as well as a report of the calculation progress. The str
 
 * Calculation of the thermal conductivity within the relaxation time approximation.
 
-* Calculation of Wigner thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation. **Note: though we output the Wigner correction + the RTA thermal conductivity, the Wigner correction is additive, and can be applied to any solver's output thermal conductivity. Therfore, if you want Wigner+iterative thermal conductivity, you should take** :math:`\kappa_{Wigner+RTA} - \kappa_{RTA} + \kappa_{Omini}`.
+* Calculation of Wigner thermal conductivity, obtained including off-diagonal contributions of the flux operator, estimated within the relaxation time approximation. **Note: though we output the Wigner correction + the RTA thermal conductivity, the Wigner correction to the lattice thermal conductivity is additive, and can be applied to any solver's output thermal conductivity. Therfore, if you want Wigner+iterative thermal conductivity, you should take** :math:`\kappa_{Wigner+RTA} - \kappa_{RTA} + \kappa_{Omini}`.
 
 * Calculation of the thermal viscosity tensor within the relaxation time approximation.
 

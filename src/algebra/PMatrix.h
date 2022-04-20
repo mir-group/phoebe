@@ -490,7 +490,7 @@ std::tuple<int,int> ParallelMatrix<T>::local2Global(const int& i, const int& j) 
   int iZero = 0;
   int ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, &iZero, &numBlasRows_ );
   int jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, &iZero, &numBlasCols_ );
-  return {ig,jg};
+  return std::make_tuple(ig,jg);
 }
 
 template <typename T>
@@ -508,7 +508,7 @@ std::tuple<int, int> ParallelMatrix<T>::local2Global(const int& k) const {
 
   //int ig = indxl2g_( &il, &blockSizeRows_, &myBlasRow_, 0, &numBlasRows_ );
   //int jg = indxl2g_( &jl, &blockSizeCols_, &myBlasCol_, 0, &numBlasCols_ );
-  //return {ig,jg};
+  //return std::make_tuple(ig,jg);
 
   // now we can convert local row/col indices into global indices
 
@@ -521,7 +521,7 @@ std::tuple<int, int> ParallelMatrix<T>::local2Global(const int& k) const {
   int x_j = j % blockSizeCols_;  // where within that block
   // global col
   int J = (l_j * numBlasCols_ + myBlasCol_) * blockSizeCols_ + x_j;
-  return {I, J};
+  return std::make_tuple(I, J);
 }
 
 template <typename T>

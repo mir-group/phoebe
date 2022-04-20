@@ -17,6 +17,7 @@ class Context {
   std::string phFC2FileName;
   std::string phFC3FileName;
   std::string phonopyDispFileName;
+  std::string phonopyBORNFileName;
 
   std::string electronH0Name;
   std::string wannier90Prefix;
@@ -148,6 +149,8 @@ public:
 
   std::string getPhonopyDispFileName();
   void setPhonopyDispFileName(const std::string &x);
+
+  std::string getPhonopyBORNFileName();
 
   std::string getElphFileName();
   void setElphFileName(const std::string &x);

@@ -19,16 +19,12 @@ cmake ..
 make -j$(nproc)
 ```
 
-This will build a basic version of Phoebe, with MPI if available.
+This will build a basic version of Phoebe, with MPI and OpenMP if available.
+Often, you can receive additional acceleration by following the OMP env variable
+instructions from Kokkos:
 
-## OpenMP build
-```
-git submodule update --init
-mkdir build
-cd build
-cmake .. -DKokkos_ENABLE_OPENMP=ON -DOMP_AVAIL=ON
-make -j$(nproc)
-```
+  "In general, for best performance with OpenMP 4.0 or better set OMP_PROC_BIND=spread and OMP_PLACES=threads
+  For best performance with OpenMP 3.1 set OMP_PROC_BIND=true."
 
 ## CUDA build
 ```

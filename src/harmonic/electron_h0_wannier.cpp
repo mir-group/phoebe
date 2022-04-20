@@ -88,7 +88,7 @@ ElectronH0Wannier::diagonalize(Point &point) {
   // note: the eigenvector matrix is the unitary transformation matrix U
   // from the Bloch to the Wannier gauge.
 
-  return {energies, eigenvectors};
+  return std::make_tuple(energies, eigenvectors);
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -99,7 +99,7 @@ ElectronH0Wannier::diagonalizeFromCoordinates(Eigen::Vector3d &k) {
   auto t = internalPopulate(kVecs);
   std::vector<Eigen::VectorXd> eigvals = std::get<0>(t);
   std::vector<Eigen::MatrixXcd> eigvecs = std::get<1>(t);
-  return {eigvals[0], eigvecs[0]};
+  return std::make_tuple(eigvals[0], eigvecs[0]);
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -299,7 +299,7 @@ std::tuple<std::vector<Eigen::VectorXd>,
     allEnergies[iK] = eigenSolver.eigenvalues();
     allEigenvectors[iK] = eigenSolver.eigenvectors();
   }
-  return {allEnergies, allEigenvectors};
+  return std::make_tuple(allEnergies, allEigenvectors);
 }
 
 std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
@@ -313,7 +313,7 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
     std::vector<Eigen::VectorXd> allEnergies = std::get<0>(t);
     std::vector<Eigen::MatrixXcd> allEigenvectors = std::get<1>(t);
     std::vector<Eigen::Tensor<std::complex<double>,3>> allVelocities;
-    return {allEnergies, allEigenvectors, allVelocities};
+    return std::make_tuple(allEnergies, allEigenvectors, allVelocities);
 
   } else {
 
@@ -457,7 +457,7 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
       }
       resultVelocities[iK] = velocity;
     }
-    return {resultEnergies, resultEigenvectors, resultVelocities};
+    return std::make_tuple(resultEnergies, resultEigenvectors, resultVelocities);
   }
 
 }
