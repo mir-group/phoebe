@@ -31,7 +31,8 @@ public:
   ElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &innerBandStructure_,
                      BaseBandStructure &outerBandStructure_, PhononH0 &h0,
-                     InteractionElPhWan *couplingElPhWan_ = nullptr);
+                     InteractionElPhWan *couplingElPhWan_ = nullptr,
+                     Interaction4El *coupling4el_ = nullptr);
 
   /** Copy constructor
    * @param that: object to be copied
@@ -47,6 +48,7 @@ public:
 
 protected:
   InteractionElPhWan *couplingElPhWan;
+  Interaction4El* coupling4el;
   PhononH0 &h0;
 
   double boundaryLength;
