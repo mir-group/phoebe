@@ -363,6 +363,20 @@ struct containerType;
     static inline size_t getSize(Eigen::Matrix<T, -1, -1> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
   };
+  // Container for Eigen::Tensor<T, 7>
+  template<typename T>
+  struct containerType<Eigen::Tensor<T, 7>> {
+    static inline T *getAddress(Eigen::Tensor<T, 7> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Tensor<T, 7> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
+  // Container for Eigen::Tensor<T, 6>
+  template<typename T>
+  struct containerType<Eigen::Tensor<T, 6>> {
+    static inline T *getAddress(Eigen::Tensor<T, 6> *data) { return data->data(); }
+    static inline size_t getSize(Eigen::Tensor<T, 6> *data) { return data->size(); }
+    static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+  };
   // Container for Eigen::Tensor<T, 5>
   template<typename T>
   struct containerType<Eigen::Tensor<T, 5>> {

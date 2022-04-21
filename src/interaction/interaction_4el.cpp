@@ -1,8 +1,10 @@
 #include "interaction_4el.h"
 #include <Kokkos_Core.hpp>
+#include <fstream>
 
 #ifdef HDF5_AVAIL
 #include <Kokkos_ScatterView.hpp>
+#include <highfive/H5Easy.hpp>
 #endif
 
 // default constructor
@@ -63,10 +65,6 @@ Interaction4El &Interaction4El::operator=(const Interaction4El &that) {
 
 Eigen::Tensor<double, 4> Interaction4El::getCouplingSquared(const int &ik3) {
   return cacheCoupling[ik3];
-}
-
-Interaction4El Interaction4El::parse(Context &context, Crystal &crystal) {
-  Error("Parsing not implemented yet!");
 }
 
 void Interaction4El::calcCouplingSquared(
@@ -371,4 +369,163 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
         elPhCached2(irE3, ib1, ib2, iw3, iw4) = tmp;
       });
   this->elPhCached2 = elPhCached2;
+}
+
+#ifdef HDF5_AVAIL
+
+std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
+    parseHeaderHDF5(Context &context) {
+  std::string fileName = context.getElphFileName();
+
+  int numWannier;
+  int numElBravaisVectors;
+  // suppress initialization warning
+  numWannier = 0;
+  numElBravaisVectors = 0;
+  Eigen::MatrixXd elBravaisVectors_;
+  Eigen::VectorXd elBravaisVectorsDegeneracies_;
+  Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
+  std::vector<size_t> localElVectors;
+
+  try {
+    // Use MPI head only to read in the small data structures
+    // then distribute them below this
+    if (mpi->mpiHeadPool()) {
+      // need to open the files differently if MPI is available or not
+      // NOTE: do not remove the braces inside this if -- the file must
+      // go out of scope, so that it can be reopened for parallel
+      // read in the next block.
+      {
+        // Open the HDF5 ElPh file
+        HighFive::File file(fileName, HighFive::File::ReadOnly);
+
+        // read in the number of phonon and electron bands
+        HighFive::DataSet dnWannier = file.getDataSet("/numWannier");
+        dnWannier.read(numWannier);
+
+        // read electron Bravais lattice vectors and degeneracies
+        HighFive::DataSet delDegeneracies = file.getDataSet("/elDegeneracies");
+        delDegeneracies.read(elBravaisVectorsDegeneracies_);
+        numElBravaisVectors = int(elBravaisVectorsDegeneracies_.size());
+
+        HighFive::DataSet delbravais = file.getDataSet("/elBravaisVectors");
+        delbravais.read(elBravaisVectors_);
+      }
+    }
+    // broadcast to all MPI processes
+    mpi->bcast(&numWannier);
+    mpi->bcast(&numElBravaisVectors);
+
+    if (!mpi->mpiHeadPool()) {// head already allocated these
+      elBravaisVectors_.resize(3, numElBravaisVectors);
+      elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
+      couplingWannier_.resize(numWannier, numWannier, numWannier, numWannier,
+                              numElBravaisVectors, numElBravaisVectors,
+                              numElBravaisVectors);
+    }
+    mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
+    mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
+  } catch (std::exception &error) {
+    Error("Issue reading elph Wannier representation from hdf5.");
+  }
+
+  return std::make_tuple(numWannier, numElBravaisVectors, elBravaisVectors_,
+                         elBravaisVectorsDegeneracies_);
+}
+
+// specific parse function for the case where parallel HDF5 is available
+Interaction4El parseHDF5(Context &context, Crystal &crystal) {
+  std::string fileName = context.get4ElFileName();
+
+  auto t = parseHeaderHDF5(context);
+  int numWannier = std::get<0>(t);
+  int totalNumElBravaisVectors = std::get<1>(t);
+  Eigen::MatrixXd elBravaisVectors_ = std::get<2>(t);
+  Eigen::VectorXd elBravaisVectorsDegeneracies_ = std::get<3>(t);
+  int numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
+
+  Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
+
+  try {
+    // Define the eph matrix element containers
+
+    // This is broken into parts, otherwise it can overflow if done all at once
+    size_t totElems = numWannier * numWannier * numWannier * numWannier;
+    totElems *= numElBravaisVectors;
+    totElems *= numElBravaisVectors;
+    totElems *= numElBravaisVectors;
+
+    // user info about memory
+    {
+      std::complex<double> cx;
+      auto x = double(totElems / pow(1024., 3) * sizeof(cx));
+      if (mpi->mpiHead()) {
+        std::cout << "Allocating " << x
+                  << " (GB) (per MPI process) for the el-ph coupling matrix."
+                  << std::endl;
+      }
+    }
+
+    couplingWannier_.resize(numWannier, numWannier, numWannier, numWannier,
+                            numElBravaisVectors, numElBravaisVectors, numElBravaisVectors);
+    couplingWannier_.setZero();
+
+    // Set up buffer to receive full matrix data
+    size_t sliceElements = pow(numWannier,3) * pow(numElBravaisVectors,2);
+    Eigen::VectorXcd slice(sliceElements);
+
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
+    for (int irE1 : mpi->divideWorkIter(numElBravaisVectors)) {
+      std::string datasetName = "/gWannier_" + std::to_string(irE1);
+      // Set up dataset for gWannier
+      HighFive::DataSet dslice = file.getDataSet(datasetName);
+      dslice.read(slice);
+
+      // Map the flattened matrix back to tensor structure
+      Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 6>> sliceTemp(
+          slice.data(), numWannier, numWannier, numWannier, numWannier, numElBravaisVectors, numElBravaisVectors);
+
+      for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
+        for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
+          for (int iw1 = 0; iw1 < numWannier; iw1++) {
+            for (int iw2 = 0; iw2 < numWannier; iw2++) {
+              for (int iw3 = 0; iw3 < numWannier; iw3++) {
+                for (int iw4 = 0; iw4 < numWannier; iw4++) {
+                  couplingWannier_(iw4, iw3, iw2, iw1, irE3, irE2, irE1)
+                      = sliceTemp(iw4, iw3, iw2, iw1, irE3, irE2);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    mpi->allReduceSum(&couplingWannier_);
+
+  } catch (std::exception &error) {
+    Error("Issue reading el-el Wannier representation from hdf5.");
+  }
+
+  Interaction4El output(crystal, couplingWannier_, elBravaisVectors_,
+                        elBravaisVectorsDegeneracies_);
+  return output;
+}
+
+#endif
+
+// General parse function
+Interaction4El Interaction4El::parse(Context &context, Crystal &crystal) {
+  if (mpi->mpiHead()) {
+    std::cout << "\nStarted parsing of el-el interaction." << std::endl;
+  }
+#ifdef HDF5_AVAIL
+  auto output = parseHDF5(context, crystal);
+#else
+  Error("Didn't implement 4-el coupling parsing without HDF5");
+  // auto output = parseNoHDF5(context, crystal);
+#endif
+  if (mpi->mpiHead()) {
+    std::cout << "Finished parsing of el-ph interaction." << std::endl;
+  }
+  return output;
 }

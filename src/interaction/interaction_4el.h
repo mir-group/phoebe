@@ -25,7 +25,6 @@
  * 2) multiply by phonon/electron eigenvectors/rotation matrices;
  * 3) for polar materials, adds the long-range Frohlich interaction.
  */
-// TODO: add flag to let user decide whether to use or not polar corrections
 class Interaction4El {
   Crystal &crystal;
 

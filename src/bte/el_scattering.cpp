@@ -12,10 +12,10 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        BaseBandStructure &outerBandStructure_,
                                        PhononH0 &h0_,
                                        InteractionElPhWan *couplingElPhWan_,
-                                       Interaction4El *coupling4el_)
+                                       Interaction4El *coupling4El_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
                        outerBandStructure_),
-      couplingElPhWan(couplingElPhWan_), coupling4el(coupling4el_),
+      couplingElPhWan(couplingElPhWan_), coupling4El(coupling4El_),
       h0(h0_) {
 
   doBoundary = false;
@@ -33,7 +33,7 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
 
 ElScatteringMatrix::ElScatteringMatrix(const ElScatteringMatrix &that)
     : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
-      coupling4el(that.coupling4el),
+      coupling4El(that.coupling4El),
       h0(that.h0), boundaryLength(that.boundaryLength),
       doBoundary(that.doBoundary) {}
 
@@ -42,7 +42,7 @@ ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
   ScatteringMatrix::operator=(that);
   if (this != &that) {
     couplingElPhWan = that.couplingElPhWan;
-    coupling4el = that.coupling4el;
+    coupling4El = that.coupling4El;
     h0 = that.h0;
     boundaryLength = that.boundaryLength;
     doBoundary = that.doBoundary;
@@ -391,7 +391,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   } // end of el-ph lifetimes
 
-  if (coupling4el != nullptr) {
+  if (coupling4El != nullptr) {
 
     int numK = innerBandStructure.getNumPoints();
 
@@ -469,73 +469,72 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           eigenVectors4[ik3] = innerBandStructure.getEigenvectors(ik4Idx);
         }
 
-        coupling4El->calcCoupling(eigenVectors3, eigenVectors4, k3Cs, k4Cs);
+        coupling4El->calcCouplingSquared(eigenVectors3, eigenVectors4, k3Cs, k4Cs);
 
         for (int ik3 : ik3Indexes) {
           WavevectorIndex ik3Idx(ik3);
           Eigen::VectorXd energies3 = innerBandStructure.getEnergies(ik3Idx);
           auto nb3 = int(energies3.size());
 
-          for (int ik4 : ik4Indexes) {
-            WavevectorIndex ik4Idx(ik4);
-            Eigen::VectorXd energies4 = innerBandStructure.getEnergies(ik4Idx);
-            auto nb4 = int(energies4.size());
+          int ik4 = ik4Indexes[ik3];
+          WavevectorIndex ik4Idx(ik4);
+          Eigen::VectorXd energies4 = innerBandStructure.getEnergies(ik4Idx);
+          auto nb4 = int(energies4.size());
 
-            auto tC = coupling4El->getCouplingSquared(ik3, ik4);
-            Eigen::Tensor<double,4> coupling1 = std::get<0>(tC);
-            Eigen::Tensor<double,4> coupling2 = std::get<1>(tC);
-            Eigen::Tensor<double,4> coupling3 = std::get<2>(tC);
+          auto tC = coupling4El->getCouplingSquared(ik3);
+          Eigen::Tensor<double,4> coupling1 = std::get<0>(tC);
+          Eigen::Tensor<double,4> coupling2 = std::get<1>(tC);
+          Eigen::Tensor<double,4> coupling3 = std::get<2>(tC);
 
-            for (int ib1 = 0; ib1<nb1; ++ib1) {
-              int is1 = innerBandStructure.getIndex(ik1Idx,BandIndex(ib1));
-              for (int ib2 = 0; ib2<nb2; ++ib2) {
-                int is2 = innerBandStructure.getIndex(ik2Idx,BandIndex(ib2));
-                for (int ib3 = 0; ib3<nb3; ++ib3) {
-                  int is3 = innerBandStructure.getIndex(ik3Idx,BandIndex(ib3));
-                  for (int ib4 = 0; ib4<nb4; ++ib4) {
-                    int is4 = innerBandStructure.getIndex(ik4Idx,BandIndex(ib4));
+          for (int ib1 = 0; ib1<nb1; ++ib1) {
+            int is1 = innerBandStructure.getIndex(ik1Idx,BandIndex(ib1));
+            for (int ib2 = 0; ib2<nb2; ++ib2) {
+              int is2 = innerBandStructure.getIndex(ik2Idx,BandIndex(ib2));
+              for (int ib3 = 0; ib3<nb3; ++ib3) {
+                int is3 = innerBandStructure.getIndex(ik3Idx,BandIndex(ib3));
+                for (int ib4 = 0; ib4<nb4; ++ib4) {
+                  int is4 = innerBandStructure.getIndex(ik4Idx,BandIndex(ib4));
 
-                    for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+                  for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
 
-                      double fermi1 = fermiFactor(is1, iCalc);
-                      double fermi2 = fermiFactor(is2, iCalc);
-                      double fermi3 = fermiFactor(is3, iCalc);
-                      double fermi4 = fermiFactor(is4, iCalc);
+                    double fermi1 = fermiFactor(is1, iCalc);
+                    double fermi2 = fermiFactor(is2, iCalc);
+                    double fermi3 = fermiFactor(is3, iCalc);
+                    double fermi4 = fermiFactor(is4, iCalc);
 
-                      double rate = fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4)
-                          * norm2 * coupling1(ib1,ib2,ib3,ib4);
-                      double rateOffDiagonal =
-                          fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4) * coupling1(ib1,ib2,ib3,ib4)
-                          - fermi1 * fermi3 * (1. - fermi2) * (1. - fermi4) * coupling2(ib1,ib3,ib2,ib4)
-                          - fermi1 * fermi4 * (1. - fermi2) * (1. - fermi3) * coupling3(ib1,ib4,ib2,ib3);
-                      rateOffDiagonal *= norm2;
+                    double rate = fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4)
+                        * norm2 * coupling1(ib1,ib2,ib3,ib4);
+                    double rateOffDiagonal =
+                        fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4) * coupling1(ib1,ib2,ib3,ib4)
+                        - fermi1 * fermi3 * (1. - fermi2) * (1. - fermi4) * coupling2(ib1,ib3,ib2,ib4)
+                        - fermi1 * fermi4 * (1. - fermi2) * (1. - fermi3) * coupling3(ib1,ib4,ib2,ib3);
+                    rateOffDiagonal *= norm2;
 
-                      if (switchCase == 0) {
+                    if (switchCase == 0) {
 
-                        if (theMatrix.indicesAreLocal(is1, is2)) {
-                          linewidth->operator()(iCalc, 0, is1) += rate;
-                        }
-                        theMatrix(is1, is2) += rateOffDiagonal;
-
-                      } else if (switchCase == 1) {
-                        // case of matrix-vector multiplication
-                        // we build the scattering matrix A = S*n(n+1)
-
-                        for (unsigned int iVec = 0; iVec < inPopulations.size();
-                             iVec++) {
-                          for (int i : {0, 1, 2}) {
-                            if (is1 != is2) {
-                              outPopulations[iVec](iCalc, i, is1) +=
-                                  rateOffDiagonal * inPopulations[iVec](iCalc, i, is2);
-                            }
-                            outPopulations[iVec](iCalc, i, is1) +=
-                                rate * inPopulations[iVec](iCalc, i, is1);
-                          }
-                        }
-                      } else {
-                        // case of linewidth construction
+                      if (theMatrix.indicesAreLocal(is1, is2)) {
                         linewidth->operator()(iCalc, 0, is1) += rate;
                       }
+                      theMatrix(is1, is2) += rateOffDiagonal;
+
+                    } else if (switchCase == 1) {
+                      // case of matrix-vector multiplication
+                      // we build the scattering matrix A = S*n(n+1)
+
+                      for (unsigned int iVec = 0; iVec < inPopulations.size();
+                           iVec++) {
+                        for (int i : {0, 1, 2}) {
+                          if (is1 != is2) {
+                            outPopulations[iVec](iCalc, i, is1) +=
+                                rateOffDiagonal * inPopulations[iVec](iCalc, i, is2);
+                          }
+                          outPopulations[iVec](iCalc, i, is1) +=
+                              rate * inPopulations[iVec](iCalc, i, is1);
+                        }
+                      }
+                    } else {
+                      // case of linewidth construction
+                      linewidth->operator()(iCalc, 0, is1) += rate;
                     }
                   }
                 }

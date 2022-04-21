@@ -6,6 +6,7 @@
 #include "phonon_h0.h"
 #include "scattering.h"
 #include "vector_bte.h"
+#include "interaction_4el.h"
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
@@ -48,7 +49,7 @@ public:
 
 protected:
   InteractionElPhWan *couplingElPhWan;
-  Interaction4El* coupling4el;
+  Interaction4El* coupling4El;
   PhononH0 &h0;
 
   double boundaryLength;
