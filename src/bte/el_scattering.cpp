@@ -405,6 +405,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     Eigen::MatrixXd fermiFactor(numStates, numCalculations);
 #pragma omp parallel for collapse(2)
     for (int is1=0; is1<numStates; ++is1) {
+      StateIndex is1Idx(is1);
+      double en = outerBandStructure.getEnergy(is1Idx);
       for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
         auto calcInfo = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcInfo.temperature;
