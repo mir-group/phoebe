@@ -571,7 +571,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
 #ifdef HDF5_AVAIL
 
 std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
-    parseHeaderHDF5(Context &context) {
+    parse4ElHeaderHDF5(Context &context) {
   std::string fileName = context.getElphFileName();
 
   int numWannier;
@@ -632,9 +632,9 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
 
 // specific parse function for the case where parallel HDF5 is available
 Interaction4El parseHDF5(Context &context, Crystal &crystal) {
-  std::string fileName = context.get4ElFileName();
+  std::string fileName = context.getElectronElectronFileName();
 
-  auto t = parseHeaderHDF5(context);
+  auto t = parse4ElHeaderHDF5(context);
   int numWannier = std::get<0>(t);
   int totalNumElBravaisVectors = std::get<1>(t);
   Eigen::MatrixXd elBravaisVectors_ = std::get<2>(t);

@@ -536,6 +536,10 @@ void Context::setupFromInput(const std::string &fileName) {
         appName = parseString(val);
       }
 
+      if (parameterName == "electronElectronFileName") {
+        electronElectronFileName = parseString(val);
+      }
+
       if (parameterName == "solverBTE") {
         solverBTE = parseStringList(val);
       }
@@ -1309,4 +1313,12 @@ std::string Context::getWsVecFileName() const {
 
 void Context::setWsVecFileName(const std::string& x) {
   wsVecFileName = x;
+}
+
+std::string Context::getElectronElectronFileName() const {
+  return electronElectronFileName;
+}
+
+void Context::setElectronElectronFileName(const std::string& x) {
+  electronElectronFileName = x;
 }

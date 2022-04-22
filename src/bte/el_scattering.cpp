@@ -520,6 +520,14 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
                   for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
 
+                    // here we impose the charge conservation rule
+                    double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+                    int charge1, charge2, charge3, charge4;
+                    if (energies1(ib1)>chemPot) {charge1 = -1;} else {charge1 = 1;}
+                    if (energies2(ib2)>chemPot) {charge2 = -1;} else {charge2 = 1;}
+                    if (energies3(ib3)>chemPot) {charge3 = -1;} else {charge3 = 1;}
+                    if (energies4(ib4)>chemPot) {charge4 = -1;} else {charge4 = 1;}
+
                     double fermi1 = fermiFactor(is1, iCalc);
                     double fermi2 = fermiFactor(is2, iCalc);
                     double fermi3 = fermiFactor(is3, iCalc);
@@ -535,12 +543,23 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                         (fermi3 * fermi2 * (1. - fermi1) * (1. - fermi4)
                          + fermi1 * fermi4 * (1. - fermi3) * (1. - fermi2));
 
-                    double rate =
-                        fermiA * norm2 * couplingA(ib1, ib2, ib3, ib4);
-                    double rateOffDiagonal = norm2 *
-                        (fermiA * couplingA(ib1, ib2, ib3, ib4)
-                        - fermiB * couplingB(ib1, ib3, ib2, ib4)
-                        - fermiC * couplingC(ib1, ib4, ib2, ib3));
+                    double rate = 0.;
+                    double rateOffDiagonal = 0.;
+                    // we add the scattering terms, but we check for the charge
+                    // conservation rule.
+                    if (charge1 + charge2 == charge3 + charge4) {
+                      rate = fermiA * norm2 * couplingA(ib1, ib2, ib3, ib4);
+                      rateOffDiagonal +=
+                          norm2 * fermiA * couplingA(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1 + charge3 == charge2 + charge4) {
+                      rateOffDiagonal -=
+                          norm2 * fermiB * couplingB(ib1, ib3, ib2, ib4);
+                    }
+                    if (charge1 + charge4 == charge2 + charge3) {
+                      rateOffDiagonal -=
+                          norm2 * fermiC * couplingC(ib1, ib4, ib2, ib3);
+                    }
 
                     if (switchCase == 0) {
 

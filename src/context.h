@@ -118,10 +118,16 @@ class Context {
 
   int hdf5ElphFileFormat = 1;
   std::string wsVecFileName;
+
+  std::string electronElectronFileName;
+
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
   void setG2PlotStyle(const std::string &x);
+
+  std::string getElectronElectronFileName() const;
+  void setElectronElectronFileName(const std::string &x);
 
   Eigen::Vector3d getG2PlotFixedPoint();
   void setG2PlotFixedPoint(const Eigen::Vector3d &x);
