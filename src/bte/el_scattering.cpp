@@ -389,13 +389,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     mpi->barrier();
     loopPrint.close();
 
-  } // end of el-ph lifetimes
+  }// end of el-ph lifetimes
 
   if (coupling4El != nullptr) {
 
     int numK = innerBandStructure.getNumPoints();
 
-    double norm2 = norm * norm; // numK^2
+    double norm2 = norm * norm;// numK^2
 
     std::vector<int> ik3Indexes(numK);
     // populate vector with integers from 0 to numPoints-1
@@ -404,10 +404,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // precompute all fermi population terms
     Eigen::MatrixXd fermiFactor(numStates, numCalculations);
 #pragma omp parallel for collapse(2)
-    for (int is1=0; is1<numStates; ++is1) {
-      StateIndex is1Idx(is1);
-      double en = outerBandStructure.getEnergy(is1Idx);
+    for (int is1 = 0; is1 < numStates; ++is1) {
       for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
+        StateIndex is1Idx(is1);
+        double en = outerBandStructure.getEnergy(is1Idx);
         auto calcInfo = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcInfo.temperature;
         double chemPot = calcInfo.chemicalPotential;
@@ -420,11 +420,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       // because it's a mess to think about!
     }
 
-
     LoopPrint loopPrint("computing 4-el scattering matrix", "k-points",
                         int(kPairIterator.size()));
 
-    for (auto t1 : kPairIterator) { // loop over k
+    for (auto t1 : kPairIterator) {// loop over k
       loopPrint.update();
       auto ik2Indexes = std::get<0>(t1);
       int ik1 = std::get<1>(t1);
@@ -438,7 +437,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       // do the Fourier transform of the coupling on the 1st wavevector
       coupling4El->cache1stEl(eigenVectors1, k1C);
 
-      for (int ik2 : ik2Indexes) { // loop over k'
+      for (int ik2 : ik2Indexes) {// loop over k'
         WavevectorIndex ik2Idx(ik2);
         Eigen::Vector3d k2C = innerBandStructure.getWavevector(ik2Idx);
         Eigen::VectorXd energies2 = innerBandStructure.getEnergies(ik2Idx);
@@ -451,6 +450,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         std::vector<Eigen::Vector3d> k3Cs(numK), k4Cs(numK);
         std::vector<Eigen::MatrixXcd> eigenVectors3(numK), eigenVectors4(numK);
         std::vector<int> ik4Indexes(numK);
+
 #pragma omp parallel for
         for (int ik3 : ik3Indexes) {
           WavevectorIndex ik3Idx(ik3);
@@ -482,33 +482,65 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           auto nb4 = int(energies4.size());
 
           auto tC = coupling4El->getCouplingSquared(ik3);
-          Eigen::Tensor<double,4> coupling1 = std::get<0>(tC);
-          Eigen::Tensor<double,4> coupling2 = std::get<1>(tC);
-          Eigen::Tensor<double,4> coupling3 = std::get<2>(tC);
+          Eigen::Tensor<double, 4> couplingA = std::get<0>(tC);
+          Eigen::Tensor<double, 4> couplingB = std::get<1>(tC);
+          Eigen::Tensor<double, 4> couplingC = std::get<2>(tC);
 
-          for (int ib1 = 0; ib1<nb1; ++ib1) {
-            int is1 = innerBandStructure.getIndex(ik1Idx,BandIndex(ib1));
-            for (int ib2 = 0; ib2<nb2; ++ib2) {
-              int is2 = innerBandStructure.getIndex(ik2Idx,BandIndex(ib2));
-              for (int ib3 = 0; ib3<nb3; ++ib3) {
-                int is3 = innerBandStructure.getIndex(ik3Idx,BandIndex(ib3));
-                for (int ib4 = 0; ib4<nb4; ++ib4) {
-                  int is4 = innerBandStructure.getIndex(ik4Idx,BandIndex(ib4));
+          // add a delta term
+          {
+#pragma omp parallel for collapse(4)
+            for (int ib1 = 0; ib1 < nb1; ++ib1) {
+              for (int ib2 = 0; ib2 < nb2; ++ib2) {
+                for (int ib3 = 0; ib3 < nb3; ++ib3) {
+                  for (int ib4 = 0; ib4 < nb4; ++ib4) {
+                    double en1 = energies1(ib1);
+                    double en2 = energies2(ib2);
+                    double en3 = energies3(ib3);
+                    double en4 = energies4(ib4);
+                    double deltaA = smearing->getSmearing(en1 + en2 - en3 - en4);
+                    double deltaB = smearing->getSmearing(en1 + en3 - en2 - en4);
+                    double deltaC = smearing->getSmearing(en3 + en2 - en1 - en4);
+                    couplingA(ib1, ib2, ib3, ib4) *= deltaA;
+                    couplingB(ib1, ib3, ib2, ib4) *= deltaB;
+                    couplingC(ib3, ib2, ib1, ib4) *= deltaC;
+                  }
+                }
+              }
+            }
+          }
 
-                  for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+          for (int ib1 = 0; ib1 < nb1; ++ib1) {
+            int is1 = innerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
+            for (int ib2 = 0; ib2 < nb2; ++ib2) {
+              int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
+              for (int ib3 = 0; ib3 < nb3; ++ib3) {
+                int is3 = innerBandStructure.getIndex(ik3Idx, BandIndex(ib3));
+                for (int ib4 = 0; ib4 < nb4; ++ib4) {
+                  int is4 = innerBandStructure.getIndex(ik4Idx, BandIndex(ib4));
+
+                  for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
 
                     double fermi1 = fermiFactor(is1, iCalc);
                     double fermi2 = fermiFactor(is2, iCalc);
                     double fermi3 = fermiFactor(is3, iCalc);
                     double fermi4 = fermiFactor(is4, iCalc);
 
-                    double rate = fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4)
-                        * norm2 * coupling1(ib1,ib2,ib3,ib4);
-                    double rateOffDiagonal =
-                        fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4) * coupling1(ib1,ib2,ib3,ib4)
-                        - fermi1 * fermi3 * (1. - fermi2) * (1. - fermi4) * coupling2(ib1,ib3,ib2,ib4)
-                        - fermi1 * fermi4 * (1. - fermi2) * (1. - fermi3) * coupling3(ib1,ib4,ib2,ib3);
-                    rateOffDiagonal *= norm2;
+                    double fermiA = 0.5 *
+                        (fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4)
+                         + fermi3 * fermi4 * (1. - fermi1) * (1. - fermi2));
+                    double fermiB = 0.5 *
+                        (fermi1 * fermi3 * (1. - fermi2) * (1. - fermi4)
+                         + fermi2 * fermi4 * (1. - fermi1) * (1. - fermi3));
+                    double fermiC = 0.5 *
+                        (fermi3 * fermi2 * (1. - fermi1) * (1. - fermi4)
+                         + fermi1 * fermi4 * (1. - fermi3) * (1. - fermi2));
+
+                    double rate =
+                        fermiA * norm2 * couplingA(ib1, ib2, ib3, ib4);
+                    double rateOffDiagonal = norm2 *
+                        (fermiA * couplingA(ib1, ib2, ib3, ib4)
+                        - fermiB * couplingB(ib1, ib3, ib2, ib4)
+                        - fermiC * couplingC(ib1, ib4, ib2, ib3));
 
                     if (switchCase == 0) {
 
@@ -540,12 +572,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 }
               }
             }
-
           }
         }
-
       }
-
     }
     mpi->barrier();
     loopPrint.close();

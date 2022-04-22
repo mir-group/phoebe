@@ -30,7 +30,9 @@ class Interaction4El {
 
   int numWannier, numElBravaisVectors;
 
-  std::vector<Eigen::Tensor<double, 4>> cacheCoupling;
+  std::vector<Eigen::Tensor<double, 4>> cacheCoupling1;
+  std::vector<Eigen::Tensor<double, 4>> cacheCoupling2;
+  std::vector<Eigen::Tensor<double, 4>> cacheCoupling3;
 
   // Kokkos View types
   using ComplexView1D = Kokkos::View<Kokkos::complex<double> *, Kokkos::LayoutRight>;
@@ -64,8 +66,8 @@ class Interaction4El {
   using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
   using Range7D = Kokkos::MDRangePolicy<Kokkos::Rank<7,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
 
-  ComplexView5D elPhCached2;
-  ComplexView6D elPhCached1;
+  ComplexView5D elPhCached2a, elPhCached2b, elPhCached2c;
+  ComplexView6D elPhCached1a, elPhCached1b;
   ComplexView7D couplingWannier_d;
   DoubleView2D elBravaisVectors_d;
   DoubleView1D elBravaisVectorsDegeneracies_d;
@@ -159,7 +161,8 @@ public:
    * values of the coupling squared |g(ik1,ik2,iq3)|^2 for the el-ph transition
    * k1,q3 -> k2
    */
-  Eigen::Tensor<double, 4> getCouplingSquared(const int &ik3);
+  std::tuple<Eigen::Tensor<double, 4>,Eigen::Tensor<double, 4>,
+             Eigen::Tensor<double, 4>> getCouplingSquared(const int &ik3);
 
   /** Static method to initialize the class by parsing a file.
    * @param fileName: name of the file containing the coupling matrix elements
