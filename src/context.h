@@ -17,6 +17,7 @@ class Context {
   std::string phFC2FileName;
   std::string phFC3FileName;
   std::string phonopyDispFileName;
+  std::string phonopyBORNFileName;
 
   std::string electronH0Name;
   std::string wannier90Prefix;
@@ -121,6 +122,9 @@ class Context {
   // interactions (el-ph or 3-ph) to a constant value
   double fixedCouplingConstant = std::numeric_limits<double>::quiet_NaN();
 
+  int hdf5ElphFileFormat = 1;
+  std::string wsVecFileName;
+
 public:
   // Methods for the apps of plotting the electron-phonon coupling
   std::string getG2PlotStyle();
@@ -152,6 +156,8 @@ public:
 
   std::string getPhonopyDispFileName();
   void setPhonopyDispFileName(const std::string &x);
+
+  std::string getPhonopyBORNFileName();
 
   std::string getElphFileName();
   void setElphFileName(const std::string &x);
@@ -352,6 +358,12 @@ public:
 
   double getFixedCouplingConstant() const;
   void setFixedCouplingConstant(const double &x);
+
+  int getHdf5ElPhFileFormat() const;
+  void setHdf5ElPhFileFormat(const int &x);
+
+  std::string getWsVecFileName() const;
+  void setWsVecFileName(const std::string& x);
 };
 
 #endif

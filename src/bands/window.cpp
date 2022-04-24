@@ -82,7 +82,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     std::vector<int> bandExtrema(2);
     bandExtrema[0] = 0;
     bandExtrema[1] = numBands - 1;
-    return {filteredEnergies, bandExtrema};
+    return std::make_tuple(filteredEnergies, bandExtrema);
   }
 }
 
@@ -107,7 +107,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalPopWindow(
     bandsExtrema.push_back(bandsIndices[0]);
     bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
-  return {filteredEnergies, bandsExtrema};
+  return std::make_tuple(filteredEnergies, bandsExtrema);
 }
 
 std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
@@ -129,7 +129,7 @@ std::tuple<std::vector<double>, std::vector<int>> Window::internalEnWindow(
     bandsExtrema.push_back(bandsIndices[0]);
     bandsExtrema.push_back(bandsIndices[bandsIndices.size() - 1]);
   } // or return empty lists if nothing is found
-  return {filteredEnergies, bandsExtrema};
+  return std::make_tuple(filteredEnergies, bandsExtrema);
 }
 
 int Window::getMethodUsed() const {

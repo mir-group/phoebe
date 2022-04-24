@@ -438,7 +438,7 @@ Interaction3Ph::getCouplingsSquared(
       }
     }
   }
-  return {couplingPlus_e, couplingMins_e};
+  return std::make_tuple(couplingPlus_e, couplingMins_e);
 }
 
 int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {

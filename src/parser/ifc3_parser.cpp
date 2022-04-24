@@ -370,7 +370,7 @@ reorderDynamicalMatrix(
     }// close nb loop
   }  // close na loop
 
-  return {bravaisVectors, weights, bravaisVectors, weights};
+  return std::make_tuple(bravaisVectors, weights, bravaisVectors, weights);
 }
 
 Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,

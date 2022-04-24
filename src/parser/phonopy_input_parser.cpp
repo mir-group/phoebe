@@ -275,66 +275,97 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // ============================================================
   // the BORN file contains the dielectric matrix on the first line,
   // and the BECs of unique atoms on the following lines
-  // bool hasDielectric = false;
   Eigen::Matrix3d dielectricMatrix;
   dielectricMatrix.setZero();
   Eigen::Tensor<double, 3> bornCharges(numAtoms, 3, 3);
   bornCharges.setZero();
 
-// the below code will parse the BORN file, for now we leave it commented out
+  // the below code will parse the BORN file
+  fileName = context.getPhonopyBORNFileName();
+  // skip reading in born charges if file name is not set
+  if (!fileName.empty()) {
 
-/*
-infile.clear();
-infile.open(directory+"/BORN");
-if(infile.is_open()) {
-  hasDielectric = true;
-  if(mpi->mpiHead()) std::cout << "Using BORN file found in FC2 directory." <<
-std::endl; getline(infile,line);
+    infile.clear();
+    infile.open(fileName);
 
-  // NOTE need to extract the list of which atoms are listed in this file
-  // from the comment on the first line of the file. Unfortunately, there is
-  // not a better way to do this.
-  std::string temp = line.substr(line.find("atoms")+5);
-  std::vector<int> becList;
-  {
-    std::istringstream iss(temp);
-    int i;
-    while (iss >> i) {
-      becList.push_back(i);
+    if (!infile.is_open()) {
+      Error("BORN file " + fileName + " cannot be read.");
     }
-  }
-
-  int atomType = -1;
-  while(infile) {
-    getline(infile, line);
-    // make sure it's not a comment
-    if(line.find("#") != std::string::npos) continue;
-    // make sure it's not blank
-    if(line.find_first_not_of(' ') == std::string::npos) continue;
-
-    // the first non-comment line in the file is the dielectric matrix
-    if(atomType == -1) {
-      std::istringstream iss2(line);
-      iss2 >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >>
-dielectricMatrix(0,2) >> dielectricMatrix(1,0) >> dielectricMatrix(1,1) >>
-dielectricMatrix(1,2) >> dielectricMatrix(2,0) >> dielectricMatrix(2,1) >>
-dielectricMatrix(2,2); atomType++;
+    if(mpi->mpiHead()) {
+      std::cout << "Parsing the phonopy BORN file." << std::endl;
     }
-    else {
-      int numDupes; // number of atoms duplicate to the current index in terms
-of BEC if(atomType+1 >= becList.size()){ numDupes = numAtoms -
-(becList[atomType] - 1); } else{ numDupes = becList[atomType+1] -
-becList[atomType]; } for(int i = 0; i < numDupes; i++) { std::istringstream
-iss(line); int iat = i + (becList[atomType] - 1); iss >> bornCharges(iat,0,0) >>
-bornCharges(iat,0,1) >> bornCharges(iat,0,2) >> bornCharges(iat,1,0) >>
-bornCharges(iat,1,1) >> bornCharges(iat,1,2) >> bornCharges(iat,2,0) >>
-bornCharges(iat,2,1) >> bornCharges(iat,2,2);
+
+    // NOTE need to extract the list of which atoms are listed in this file
+    // from the comment on the first line of the file. Unfortunately, there is
+    // not a better way to do this.
+    /*std::string temp = line.substr(line.find("atoms")+5);
+    std::vector<int> becList;
+    {
+      std::istringstream iss(temp);
+      int i;
+      while (iss >> i) {
+        becList.push_back(i);
       }
-      atomType++;
+    }*/
+
+    // in current versions of phonopy, the first line either contains the
+    // unit conversion or the "default conversion". In old versions, it was a
+    // comment containing atom info.
+    // we're ignoring this for now, as these conversions do not appear right for us.
+    // in fact, BECs are almost always in units of e, so that had better be what the
+    // user uses.
+    getline(infile,line);
+
+    // becList is going to tell us the first unique atoms in the system
+    int lastAtom = -1;
+    int counter = 0;
+    std::vector<int> becList;
+    for(auto at : atomicSpeciesVec) {
+      // if lastAtom! = this atom, this atom is the first of a new species
+      counter += 1; // phonopy indexes from 1
+      if(mpi->mpiHead()) std::cout << "at "<< at << std::endl;
+      if(lastAtom != at) {
+        becList.push_back(counter);
+        lastAtom = at;
+        if(mpi->mpiHead()) std::cout << "lastAtom "<< counter << std::endl;
+      }
+    }
+
+    int atomType = -1;
+    while(infile) {
+      getline(infile, line);
+      // make sure it's not a comment
+      if(line.find("#") != std::string::npos) continue;
+      // make sure it's not blank
+      if(line.find_first_not_of(' ') == std::string::npos) continue;
+
+      // the first non-comment line in the file is the dielectric matrix
+      if(atomType == -1) {
+        std::istringstream iss2(line);
+        iss2 >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >>
+          dielectricMatrix(0,2) >> dielectricMatrix(1,0) >> dielectricMatrix(1,1) >>
+          dielectricMatrix(1,2) >> dielectricMatrix(2,0) >> dielectricMatrix(2,1) >>
+          dielectricMatrix(2,2); atomType++;
+      }
+      else {
+        int numDupes; // number of atoms duplicate to the current index in terms of BEC
+        if(atomType+1 >= int(becList.size())) {
+          numDupes = numAtoms - (becList[atomType] - 1);
+        } else {
+          numDupes = becList[atomType+1] - becList[atomType];
+        }
+        for(int i = 0; i < numDupes; i++) {
+          std::istringstream iss(line);
+          int iat = i + (becList[atomType] - 1);
+          iss >> bornCharges(iat,0,0) >> bornCharges(iat,0,1) >>
+                  bornCharges(iat,0,2) >> bornCharges(iat,1,0) >>
+                  bornCharges(iat,1,1) >> bornCharges(iat,1,2) >> bornCharges(iat,2,0) >>
+                  bornCharges(iat,2,1) >> bornCharges(iat,2,2);
+        }
+        atomType++;
+      }
     }
   }
-}
-*/
 
 // Parse the fc2.hdf5 file and read in the dynamical matrix
 // ==========================================================
@@ -488,6 +519,6 @@ bornCharges(iat,2,1) >> bornCharges(iat,2,2);
   PhononH0 dynamicalMatrix(crystal, dielectricMatrix, bornCharges,
                            forceConstants, context.getSumRuleFC2());
 
-  return {crystal, dynamicalMatrix};
+  return std::make_tuple(crystal, dynamicalMatrix);
 #endif
 }

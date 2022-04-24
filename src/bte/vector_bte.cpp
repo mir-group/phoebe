@@ -207,16 +207,23 @@ VectorBTE VectorBTE::operator*(ParallelMatrix<double> &matrix) {
   auto allLocalStates = matrix.getAllLocalStates();
   size_t numAllLocalStates = allLocalStates.size();
 
-#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
- initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
-                                omp_orig.bandStructure, omp_orig.dimensionality))
-#pragma omp parallel for reduction(+ : newPopulation)
-  for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-    auto tup = allLocalStates[iTup];
-    auto i = std::get<0>(tup);
-    auto j = std::get<1>(tup);
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      newPopulation.data(iCalc, j) += data(iCalc, i) * matrix(i, j); // -5e-12
+  #pragma omp parallel
+  {
+    Eigen::MatrixXd dataPrivate = newPopulation.data;
+#pragma omp for
+    for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
+      auto tup = allLocalStates[iTup];
+      auto i = std::get<0>(tup);
+      auto j = std::get<1>(tup);
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+	dataPrivate(iCalc, j) += data(iCalc, i) * matrix(i, j);
+      }
+    }
+#pragma omp critical
+    for (int j=0; j<data.cols(); ++j) {
+      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+	newPopulation.data(iCalc, j) += dataPrivate(iCalc, j);
+      }
     }
   }
   mpi->allReduceSum(&newPopulation.data);
@@ -344,7 +351,7 @@ VectorBTE::loc2Glob(
   auto imu = std::get<0>(tup);
   auto it = std::get<1>(tup);
   auto iDim = std::get<2>(tup);
-  return {ChemPotIndex(imu), TempIndex(it), CartIndex(iDim)};
+  return std::make_tuple(ChemPotIndex(imu), TempIndex(it), CartIndex(iDim));
 }
 
 void VectorBTE::setConst(const double &constant) {

@@ -81,6 +81,9 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   std::vector<Eigen::MatrixXcd> getBerryConnection(Point &point);
 
+  void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
+                         Eigen::Tensor<double,5> vectorsShifts_);
+
  protected:
   Particle particle;
 
@@ -95,8 +98,12 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   // position matrix elements <0m|r|nR>
   Eigen::Tensor<std::complex<double>, 4> rMatrix;
 
-  int numBands;
+  int numWannier;
   int numVectors;
+
+  Eigen::Tensor<double,3> degeneracyShifts;
+  Eigen::Tensor<double,5> vectorsShifts;
+  bool hasShiftedVectors = false;
 };
 
 #endif

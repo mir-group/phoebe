@@ -160,43 +160,53 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
-#pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
-initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
-                               omp_orig.bandStructure, omp_orig.dimensionality))
     auto allLocalStates = theMatrix.getAllLocalStates();
     size_t numAllLocalStates = allLocalStates.size();
 
-    if (context.getUseSymmetries()) {
-#pragma omp parallel for reduction(+ : outPopulation)
-      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-        auto tup = allLocalStates[iTup];
-        int iMat1 = std::get<0>(tup);
-        int iMat2 = std::get<1>(tup);
-        auto t1 = getSMatrixIndex(iMat1);
-        auto t2 = getSMatrixIndex(iMat2);
-        int iBte1 = std::get<0>(t1).get();
-        int iBte2 = std::get<0>(t2).get();
-        if (iBte1 == iBte2)
-          continue;
-        int i = std::get<1>(t1).get();
-        int j = std::get<1>(t2).get();
-        outPopulation(0, i, iBte1) +=
-            theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
-      }
-    } else {
-#pragma omp parallel for reduction(+ : outPopulation)
-      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-        auto tup = allLocalStates[iTup];
-        auto iBte1 = std::get<0>(tup);
-        auto iBte2 = std::get<1>(tup);
-        if (iBte1 == iBte2)
-          continue;
-        for (int i : {0, 1, 2}) {
-          outPopulation(0, i, iBte1) +=
-              theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
+#pragma omp parallel
+    {
+      Eigen::MatrixXd dataPrivate = Eigen::MatrixXd::Zero(3, numStates);
+
+      if (context.getUseSymmetries()) {
+#pragma omp for
+        for (size_t iTup = 0; iTup < numAllLocalStates; iTup++) {
+          auto tup = allLocalStates[iTup];
+          int iMat1 = std::get<0>(tup);
+          int iMat2 = std::get<1>(tup);
+          auto t1 = getSMatrixIndex(iMat1);
+          auto t2 = getSMatrixIndex(iMat2);
+          int iBte1 = std::get<0>(t1).get();
+          int iBte2 = std::get<0>(t2).get();
+          if (iBte1 == iBte2)
+            continue;
+          int i = std::get<1>(t1).get();
+          int j = std::get<1>(t2).get();
+          dataPrivate(i, iBte1) +=
+              theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
+        }
+      } else {
+#pragma omp for
+        for (size_t iTup = 0; iTup < numAllLocalStates; iTup++) {
+          auto tup = allLocalStates[iTup];
+          auto iBte1 = std::get<0>(tup);
+          auto iBte2 = std::get<1>(tup);
+          if (iBte1 == iBte2)
+            continue;
+          for (int i : {0, 1, 2}) {
+            dataPrivate(i, iBte1) +=
+                theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
+          }
         }
       }
-    }
+
+#pragma omp critical
+      for (int iBte1=0; iBte1<numStates; ++iBte1) {
+        for (int i : {0, 1, 2}) {
+          outPopulation(0, i, iBte1) += dataPrivate(i, iBte1);
+        }
+      }
+
+    } // end pragma omp parallel
 
     mpi->allReduceSum(&outPopulation.data);
     return outPopulation;
@@ -243,50 +253,53 @@ VectorBTE ScatteringMatrix::dot(VectorBTE &inPopulation) {
     auto allLocalStates = theMatrix.getAllLocalStates();
     size_t numAllLocalStates = allLocalStates.size();
 
- #pragma omp declare reduction (+: VectorBTE: omp_out.data=omp_out.data+omp_in.data)\
- initializer(omp_priv=VectorBTE(omp_orig.statisticsSweep, \
-                                omp_orig.bandStructure, omp_orig.dimensionality))
+#pragma omp parallel
+    {
+      Eigen::MatrixXd dataPrivate = Eigen::MatrixXd::Zero(3, numStates);
 
-    if (context.getUseSymmetries()) {
-#pragma omp parallel for reduction(+ : outPopulation)
-      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-        auto tup = allLocalStates[iTup];
-        int iMat1 = std::get<0>(tup);
-        int iMat2 = std::get<1>(tup);
-        auto t1 = getSMatrixIndex(iMat1);
-        auto t2 = getSMatrixIndex(iMat2);
-        int iBte1 = std::get<0>(t1).get();
-        int iBte2 = std::get<0>(t2).get();
+      if (context.getUseSymmetries()) {
+#pragma omp for
+        for (size_t iTup = 0; iTup < numAllLocalStates; iTup++) {
+          auto tup = allLocalStates[iTup];
+          int iMat1 = std::get<0>(tup);
+          int iMat2 = std::get<1>(tup);
+          auto t1 = getSMatrixIndex(iMat1);
+          auto t2 = getSMatrixIndex(iMat2);
+          int iBte1 = std::get<0>(t1).get();
+          int iBte2 = std::get<0>(t2).get();
 
-        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
-            excludeIndices.end())
-          continue;
-        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) !=
-            excludeIndices.end())
-          continue;
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) != excludeIndices.end())
+            continue;
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) != excludeIndices.end())
+            continue;
 
-        int i = std::get<1>(t1).get();
-        int j = std::get<1>(t2).get();
-        outPopulation(0, i, iBte1) +=
-            theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
+          int i = std::get<1>(t1).get();
+          int j = std::get<1>(t2).get();
+          dataPrivate(i, iBte1) +=
+              theMatrix(iMat1, iMat2) * inPopulation(0, j, iBte2);
+        }
+      } else {
+#pragma omp for
+        for (size_t iTup = 0; iTup < numAllLocalStates; iTup++) {
+          auto tup = allLocalStates[iTup];
+          auto iBte1 = std::get<0>(tup);
+          auto iBte2 = std::get<1>(tup);
+
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) != excludeIndices.end())
+            continue;
+          if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) != excludeIndices.end())
+            continue;
+
+          for (int i : {0, 1, 2}) {
+            dataPrivate(i, iBte1) +=
+                theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
+          }
+        }
       }
-    } else {
-#pragma omp parallel for reduction(+ : outPopulation)
-      for (size_t iTup=0; iTup<numAllLocalStates; iTup++) {
-        auto tup = allLocalStates[iTup];
-        auto iBte1 = std::get<0>(tup);
-        auto iBte2 = std::get<1>(tup);
-
-        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
-            excludeIndices.end())
-          continue;
-        if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) !=
-            excludeIndices.end())
-          continue;
-
+#pragma omp critical
+      for (int iBte1=0; iBte1<numStates; ++iBte1) {
         for (int i : {0, 1, 2}) {
-          outPopulation(0, i, iBte1) +=
-              theMatrix(iBte1, iBte2) * inPopulation(0, i, iBte2);
+          outPopulation(0, i, iBte1) += dataPrivate(i, iBte1);
         }
       }
     }
@@ -771,7 +784,7 @@ ScatteringMatrix::diagonalize() {
     eigenValues(is) = eigenvalues[is];
   }
 
-  return {eigenValues, eigenvectors};
+  return std::make_tuple(eigenValues, eigenvectors);
 }
 
 std::vector<std::tuple<std::vector<int>, int>>
@@ -1006,9 +1019,9 @@ std::tuple<BteIndex, CartIndex>
 ScatteringMatrix::getSMatrixIndex(const int &iMat) {
   if (context.getUseSymmetries()) {
     auto t = decompress2Indices(iMat, numStates, 3);
-    return {BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t))};
+    return std::make_tuple(BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t)));
   } else {
-    return {BteIndex(iMat), CartIndex(0)};
+    return std::make_tuple(BteIndex(iMat), CartIndex(0));
   }
 }
 // TODO probably dont want these in the long term

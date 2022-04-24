@@ -129,7 +129,7 @@ std::tuple<int,double> parseDoubleVectorComponent(std::string line) {
 
   int idx = std::stoi(part1);
   double val = std::stod(part2);
-  return {idx,val};
+  return std::make_tuple(idx,val);
 }
 
 
@@ -276,7 +276,7 @@ parseCrystal(std::vector<std::string> &lines) {
     counter++;
   }
   atomicPositions /= distanceBohrToAng;
-  return {atomicPositions, atomicSpecies, speciesNames};
+  return std::make_tuple(atomicPositions, atomicSpecies, speciesNames);
 }
 
 /** Reads the block with the information on the path of points in the
@@ -324,7 +324,7 @@ parsePathExtrema(std::vector<std::string> &lines) {
 
     i++;
   }
-  return {pathLabels, pathExtrema};
+  return std::make_tuple(pathLabels, pathExtrema);
 }
 
 /** Parse an input block (e.g. for crystal or points path).
@@ -341,7 +341,7 @@ parseBlockNameValue(const std::vector<std::string> &lines,
   if (!patternInString(line, "begin")) {
     std::string empty1;
     std::vector<std::string> empty2;
-    return {empty1, empty2};
+    return std::make_tuple(empty1, empty2);
   } else {
     std::string pattern = "begin";
     std::size_t found = line.find(pattern);
@@ -353,7 +353,7 @@ parseBlockNameValue(const std::vector<std::string> &lines,
       }
       val.push_back(lines[i]);
     }
-    return {blockName, val};
+    return std::make_tuple(blockName, val);
   }
 }
 
@@ -408,7 +408,7 @@ parseParameterNameValue(const std::string &line) {
   if (s2 != s) {
     val = line.substr(position2 + 1, line.size());
   }
-  return {s2, val};
+  return std::make_tuple(s2, val);
 }
 
 void Context::setupFromInput(const std::string &fileName) {
@@ -448,7 +448,9 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "phonopyDispFileName") {
         phonopyDispFileName = parseString(val);
       }
-
+      if (parameterName == "phonopyBORNFileName") {
+        phonopyBORNFileName = parseString(val);
+      }
       if (parameterName == "sumRuleFC2") {
         sumRuleFC2 = parseString(val);
       }
@@ -745,6 +747,16 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
 
+      if (parameterName == "hdf5ElphFileFormat") {
+        int x = parseInt(val);
+        setHdf5ElPhFileFormat(x);
+      }
+
+      if (parameterName == "wsVecFileName") {
+        std::string x = parseString(val);
+        setWsVecFileName(x);
+      }
+
       // Polarization
 
       if (parameterName == "numCoreElectrons") {
@@ -820,6 +832,9 @@ void Context::printInputSummary(const std::string &fileName) {
     }
     if (!phonopyDispFileName.empty()) {
       std::cout << "phonopyDispFileName = " << phonopyDispFileName << std::endl;
+    }
+    if (!phonopyBORNFileName.empty()) {
+      std::cout << "phonopyBORNFileName = " << phonopyBORNFileName << std::endl;
     }
     std::cout << std::endl;
   }
@@ -1079,9 +1094,11 @@ std::string Context::getPhFC3FileName() { return phFC3FileName; }
 void Context::setPhFC3FileName(const std::string &x) { phFC3FileName = x; }
 
 std::string Context::getPhonopyDispFileName() { return phonopyDispFileName; }
+/* just used as a test function */
 void Context::setPhonopyDispFileName(const std::string &x) {
   phonopyDispFileName = x;
 }
+std::string Context::getPhonopyBORNFileName() { return phonopyBORNFileName; }
 
 std::string Context::getSumRuleFC2() { return sumRuleFC2; }
 void Context::setSumRuleFC2(const std::string &x) { sumRuleFC2 = x; }
@@ -1305,4 +1322,20 @@ double Context::getFixedCouplingConstant() const {
 
 void Context::setFixedCouplingConstant(const double &x) {
   fixedCouplingConstant = x;
+}
+
+int Context::getHdf5ElPhFileFormat() const {
+  return hdf5ElphFileFormat;
+}
+
+void Context::setHdf5ElPhFileFormat(const int &x) {
+  hdf5ElphFileFormat = x;
+}
+
+std::string Context::getWsVecFileName() const {
+  return wsVecFileName;
+}
+
+void Context::setWsVecFileName(const std::string& x) {
+  wsVecFileName = x;
 }

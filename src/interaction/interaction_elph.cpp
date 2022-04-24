@@ -1,9 +1,7 @@
 #include "interaction_elph.h"
 #include <Kokkos_Core.hpp>
-#include <fstream>
 
 #ifdef HDF5_AVAIL
-#include <highfive/H5Easy.hpp>
 #include <Kokkos_ScatterView.hpp>
 #endif
 
@@ -1198,7 +1196,8 @@ Kokkos::parallel_for(
       // may be a little smaller when windows are applied (nb1<numWannier)
 
       // copy from accelerator to CPU
-      Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
+      Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached);
+
       Kokkos::deep_copy(poolElPhCached_h, poolElPhCached);
 
       // do a mpi->allReduce across the pool

@@ -8,8 +8,11 @@ if(Kokkos_ENABLE_CUDA)
     set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
 endif()
 
+# set cmake version
 cmake_minimum_required(VERSION 3.16)
+# set cpp standard flags
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
 
@@ -32,7 +35,9 @@ option(OMP_AVAIL "Build with OMP" ON)
 option(HDF5_AVAIL "Build with HDF5" ON)
 option(HDF5_SERIAL "Force build to accomodate serial only HDF5, but still use MPI" OFF)
 option(BUILD_DOC "Build documentation" ON)
-
+if(OMP_AVAIL)
+  option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" ON)
+endif()
 ############### SOURCE ###############
 
 FILE(GLOB_RECURSE SOURCE_FILES src src/*.cpp)
@@ -97,7 +102,8 @@ if (MPI_AVAIL)
           elseif("${MPI_CXX_LIBRARIES}" MATCHES intel)
               find_library(BLACS_LIB NAMES mkl_blacs_intelmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
           else()
-              message(FATAL_ERROR "Confused by MPI library when looking for BLACS.")
+              find_library(BLACS_LIB NAMES mkl_blacs_intelmpi_lp64 PATHS ENV LD_LIBRARY_PATH)
+              #message(FATAL_ERROR "Confused by MPI library when looking for BLACS.")
           endif()
           if(${BLACS_LIB} MATCHES NOTFOUND)
               message(FATAL_ERROR "Found Intel SCALAPACK but not BLACS")
