@@ -9,6 +9,7 @@
 #include "lifetimes_app.h"
 #include "phonon_transport_app.h"
 #include "transport_epa_app.h"
+#include "elel_to_phoebe.h"
 #include <cmath>
 #include <string>
 
@@ -23,6 +24,7 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "electronFourierBands",
                                             "electronWannierTransport",
                                             "elPhQeToPhoebe",
+                                            "elElToPhoebe",
                                             "elPhCouplingPlot",
                                             "electronLifetimes",
                                             "phononLifetimes",
@@ -39,6 +41,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new ElectronWannierTransportApp);
   } else if (choice == "elPhQeToPhoebe") {
     return std::unique_ptr<App>(new ElPhQeToPhoebeApp);
+  } else if (choice == "elElToPhoebe") {
+    return std::unique_ptr<App>(new ElElToPhoebeApp);
   } else if (choice == "phononDos") {
     return std::unique_ptr<App>(new PhononDosApp);
   } else if (choice == "electronWannierDos") {
