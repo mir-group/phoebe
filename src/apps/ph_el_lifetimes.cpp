@@ -69,10 +69,11 @@ void PhElLifetimesApp::run(Context &context) {
 }
 
 void PhElLifetimesApp::checkRequirements(Context &context) {
-  throwErrorIfUnset(context.getPhFC2FileName(), "phFc2FileName");
+
+  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+  throwErrorIfUnset(context.getPhFC2FileName(), "phFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
-  throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
 
   if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
     throwErrorIfUnset(context.getElphFileName(), "elphFileName");
@@ -88,7 +89,6 @@ void PhElLifetimesApp::checkRequirements(Context &context) {
             "level at T=0K");
     }
   }
-
   if (context.getDopings().size() == 0 &&
       context.getChemicalPotentials().size() == 0) {
     Error("Either chemical potentials or dopings must be set");
