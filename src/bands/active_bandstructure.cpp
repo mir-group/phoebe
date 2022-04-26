@@ -459,7 +459,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
     numFullBands = int(theseEnergies.size());
   }
 
-  // now, we let each MPI process now how many points each process has found
+  // now, we let each MPI process know how many points each process has found
   int myNumPts = int(myFilteredPoints.size());
   int mpiSize = mpi->getSize();
 

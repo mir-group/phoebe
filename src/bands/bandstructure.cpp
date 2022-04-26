@@ -29,6 +29,13 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
   // If is distributed is true, numBlockCols is used to column/wavevector
   // distribute the internal matrices
   int numBlockCols = std::min((int)mpi->getSize(), numPoints);
+
+  // this will cause a crash from BLACS
+  if(mpi->getSize() > numPoints() {
+    Error("Phoebe cannot run with more MPI processes than points. Increase mesh sampling \n"
+        "or decrease number of processes.");
+  }
+
   energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
   numLocalPoints = energies.localCols();
   if (hasVelocities) {
