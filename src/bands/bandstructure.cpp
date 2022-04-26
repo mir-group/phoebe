@@ -31,7 +31,7 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
   int numBlockCols = std::min((int)mpi->getSize(), numPoints);
 
   // this will cause a crash from BLACS
-  if(mpi->getSize() > numPoints() {
+  if(mpi->getSize() > numPoints) {
     Error("Phoebe cannot run with more MPI processes than points. Increase mesh sampling \n"
         "or decrease number of processes.");
   }
