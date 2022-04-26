@@ -104,8 +104,9 @@ void App::throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name) {
 }
 
 void App::throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name) {
-  if (x.size() == 0) {
-    Error("Input variable " + name + " hasn't been found in input");
+  if (x(0)*x(1)*x(2) == 0) { // size of Vector3i is always three, check if it's zero
+    Error("Input variable " + name + " hasn't been found in input or \n"
+        "has a zero dimension.");
   }
 }
 

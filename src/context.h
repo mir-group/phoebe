@@ -44,8 +44,8 @@ class Context {
   Eigen::VectorXd chemicalPotentials;
   double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
-  Eigen::Vector3i qMesh;
-  Eigen::Vector3i kMesh;
+  Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
+  Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
 
   double fermiLevel = std::numeric_limits<double>::quiet_NaN();
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
