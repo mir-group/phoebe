@@ -80,6 +80,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
+  // note: in the equations for this rate, because there's an integraton over k, 
+  // this rate is actually 1/NK (sometimes written N_eFermi). 
+  // we use the qmesh because that's the only variable being set, and 
+  // in the way this is implemented kmesh = qmesh. 
   double norm = 1. / context.getQMesh().prod();
 
   // precompute Fermi-Dirac factors
