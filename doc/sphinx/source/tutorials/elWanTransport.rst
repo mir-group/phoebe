@@ -387,7 +387,7 @@ The notable parameters in this input file are:
 
 * :ref:`smearingMethod` (and :ref:`smearingWidth`): sets the algorithm to approximate the Dirac-delta conserving energy. In this case, we are using the "gaussian" scheme, and the parameter :ref:`smearingWidth` should be converged together with the :ref:`kMesh`. Alternatively, one could use the "adaptiveSmearing" method, which chooses an adaptive width automatically. See the :ref:Theory section for more discussion.
 
-* :ref:`windowType`: reduces the number of electronic states to only those close to the chemical potential. It selects for the electronic states such that :math:`\frac{\partial n}{\partial T} < \delta` and :math:`\frac{\partial n}{\partial \epsilon} < \delta`, where :math:`\delta` is set by :ref:`windowPopulationLimit`. This makes the calculation much faster, as only a few states close to the chemical potential are relevant for transport calculations.
+* :ref:`windowType`: reduces the number of electronic states to only those close to the chemical potential. It selects for the electronic states such that :math:`\frac{\partial n}{\partial T} < \delta` and :math:`\frac{\partial n}{\partial \epsilon} < \delta`, where :math:`\delta` is set by :ref:`windowPopulationLimit`. This makes the calculation much faster, as only a few states close to the chemical potential are relevant for transport calculations. If Wigner corrections are important to you, see the below note. 
 
 * :ref:`scatteringMatrixInMemory`: sets the scattering matrix to be kept in memory. This speeds up the calculation, but makes it much more memory intensive.
 
@@ -405,6 +405,10 @@ To run the code, we can simply do::
 .. note::
 
   If this calculation runs out of memory, reference the parallelization section at the bottom of the page for advice.
+
+.. note:: 
+
+  If you are interested in the Wigner contribution to the transport properties, you need to set a large energy window or set window to "none". As described in `Materials Today Physics 19, 100412 (2021). <10.1016/j.mtphys.2021.100412>`_, Fig 4., WTE contributions can come from states far away from the chemical potential. If we set a narrow window, these states will be discarded (as is appropriate for semiclassical BTE transport). 
 
 Output
 ------
