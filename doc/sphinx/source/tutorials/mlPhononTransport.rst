@@ -1,7 +1,7 @@
 .. _mlPhononTransport:
 
-Lattice Thermal Conductivity from Machine Learning Force Fields
-===========================================================================
+Accelerated Lattice Thermal Conductivity Calculations using Machine Learning Force Fields
+===========================================================================================
 
 Synopsis
 --------
