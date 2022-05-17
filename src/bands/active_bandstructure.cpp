@@ -62,8 +62,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   hasEigenvectors = withEigenvectors;
 
   energies.resize(numPoints * numFullBands, 0.);
-  velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
-  eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
+  if(withVelocities) velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
+  if(withEigenvectors) eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
 
   windowMethod = Window::nothing;
   buildIndices();
