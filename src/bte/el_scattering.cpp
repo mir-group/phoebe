@@ -491,7 +491,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     // deltaK[i] *= dilation;
     //  }
 
-/*
+
   Eigen::Matrix3d spaceFactor;
   {
     Eigen::Matrix3d mat1, mat2;
@@ -507,7 +507,7 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     }
     spaceFactor = mat1.inverse() * mat2;
   }
-*/
+
   // convert the kspacing from crystal to cartesian
 
 
@@ -523,10 +523,10 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     // TODO 2) does magnetic field need to be transformed?
 
     Eigen::Vector3d y  = vel.cross(magneticField);
-    Eigen::Vector3d z = y.transpose() * R.inverse(); //spaceFactor;
+    Eigen::Vector3d z = y.transpose() * spaceFactor;
 
     for (int i : {0,1,2}) {
-      correction(is, i) = -z(i)/(2*deltaK[i]);
+      correction(is, i) = -z(i) * kMesh(i); // /(deltaK[i]);
     }
   }
 
@@ -557,26 +557,39 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       // newK has coordinates in range [0, kMeshX]
       Eigen::Vector3d kPlus = k3idx;
       Eigen::Vector3d kMins = k3idx;
+      Eigen::Vector3d kPlus2 = k3idx;
+      Eigen::Vector3d kMins2 = k3idx;
 
       // add integer displacement, so that we have the forwards/backwards point indices
       kPlus(kDisplacement) += 1;
       kMins(kDisplacement) -= 1;
+      kPlus2(kDisplacement) += 2;
+      kMins2(kDisplacement) -= 2;
 
+      // TODO does this work with noncubic things?
+      // I think yes for grid of crystal coords.
+      // TODO should we also use modulo to wrap around? does band structure wrap for us?
       // kPlus/kMinus has coordinates in range [0, 1]
       for (int i : {0,1,2}) {
         kPlus(i) /= float(kMesh(i));
         kMins(i) /= float(kMesh(i));
+        kPlus2(i) /= float(kMesh(i));
+        kMins2(i) /= float(kMesh(i));
       }
 
       // find index of kPlus/kMinus in points
       int ikPlusRed = outerBandStructure.getPointIndex(kPlus, true);
       int ikMinsRed = outerBandStructure.getPointIndex(kMins, true);
+      int ikPlusRed2 = outerBandStructure.getPointIndex(kPlus2, true);
+      int ikMinsRed2 = outerBandStructure.getPointIndex(kMins2, true);
 
       // if symmetries are turned on, we need to map the global kmesh
       // index to a irreducible point, as this is what will be used
       // by the interalDiagonal element
       int ikPlus = points.asIrreducibleIndex(ikPlusRed);
       int ikMins = points.asIrreducibleIndex(ikMinsRed);
+      int ikPlus2 = points.asIrreducibleIndex(ikPlusRed2);
+      int ikMins2 = points.asIrreducibleIndex(ikMinsRed2);
 
       // TODO -- I think this should be a series of if statements.
       // if we have neither +/-, we're in the middle of a region that
@@ -584,25 +597,34 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
       // TODO the other scenario will be if one or the other kpoint is missing,
       // I think in that case -- could we use forward/backward difference
 
-      // TODO why is it possible for ikPlus to be -1?
-      if (ikPlus > numKpoints || ikMins > numKpoints) { continue; }
-      if (ikPlus == -1 || ikMins == -1) { continue; }
+      // TODO why is it possible for ikPlus to be -1? -- maybe this is if +1/-1 took us off the mesh
+      if (ikPlus2 > numKpoints || ikMins2 > numKpoints) { continue; }
+      if (ikPlus == -1 || ikMins == -1 || ikMins2 == -1 || ikPlus2 == -1) { continue; }
 
       WavevectorIndex ikPlusIdx(ikPlus);
       WavevectorIndex ikMinsIdx(ikMins);
+      WavevectorIndex ikPlusIdx2(ikPlus2);
+      WavevectorIndex ikMinsIdx2(ikMins2);
 
       // find the kpoint in the kpoint list to get its state index
       // TODO different bands at two kpoints
       int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
       int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
+      int isPlus2 = outerBandStructure.getIndex(ikPlusIdx2, ibIdx);
+      int isMins2 = outerBandStructure.getIndex(ikMinsIdx2, ibIdx);
 
       StateIndex istatePlus(isPlus);
       StateIndex istateMins(isMins);
       int ibtePlus = outerBandStructure.stateToBte(istatePlus).get();
       int ibteMins = outerBandStructure.stateToBte(istateMins).get();
+      StateIndex istatePlus2(isPlus2);
+      StateIndex istateMins2(isMins2);
+      int ibtePlus2 = outerBandStructure.stateToBte(istatePlus2).get();
+      int ibteMins2 = outerBandStructure.stateToBte(istateMins2).get();
 
       // before proceeding, we have to use the same coordinates,
       // cartesian or crystal, for both the derivative and omega.
+      // TODO update these corrections as below
       if(highMemory) {
         if(theMatrix.indicesAreLocal(ibtePlus,ibtePlus)) {
           theMatrix(ibtePlus, ibtePlus) += correction(is,kDisplacement);
@@ -612,13 +634,27 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
           theMatrix(ibteMins, ibteMins) -= correction(is,kDisplacement);
           internalDiagonal(0, 0, ibteMins) -= correction(is,kDisplacement);
         }
+        if(theMatrix.indicesAreLocal(ibtePlus2,ibtePlus2)) {
+          theMatrix(ibtePlus2, ibtePlus2) += correction(is,kDisplacement);
+          internalDiagonal(0, 0, ibtePlus2) += correction(is,kDisplacement);
+        }
+        if(theMatrix.indicesAreLocal(ibteMins2, ibteMins2)) {
+          theMatrix(ibteMins2, ibteMins2) -= correction(is,kDisplacement);
+          internalDiagonal(0, 0, ibteMins2) -= correction(is,kDisplacement);
+        }
       } else {
         for(int iCalc = 0; iCalc < numCalculations; iCalc++) {
           if(ibtePlus < numStates) {
-            internalDiagonal(iCalc, 0, ibtePlus) += correction(is, kDisplacement);
+            internalDiagonal(iCalc, 0, ibtePlus) += (8./12.) * correction(is, kDisplacement);
           }
           if(ibteMins < numStates) {
-            internalDiagonal(iCalc, 0, ibteMins) -= correction(is, kDisplacement);
+            internalDiagonal(iCalc, 0, ibteMins) -= (8./12.) * correction(is, kDisplacement);
+          }
+          if(ibtePlus2 < numStates) {
+            internalDiagonal(iCalc, 0, ibtePlus2) -= (1./12.) * correction(is, kDisplacement);
+          }
+          if(ibteMins2 < numStates) {
+            internalDiagonal(iCalc, 0, ibteMins2) += (1./12.) * correction(is, kDisplacement);
           }
         }
       }
