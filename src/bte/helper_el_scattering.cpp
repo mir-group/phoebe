@@ -48,7 +48,11 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       std::cout << std::setprecision(4);
       std::cout << "Allocating " << x << " GB (per MPI process)." << std::endl;
     }
-    bool withVelocities = true;
+
+    bool withVelocities = false;
+    if (smearingType == DeltaFunction::adaptiveGaussian) {
+      withVelocities = true;
+    }
     bool withEigenvectors = true;
     FullBandStructure bs = h0.populate(*fullPoints3, withVelocities,
                                                withEigenvectors);
@@ -153,8 +157,11 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
     }
 
     // build band structure
+    bool withVelocities = false;
+    if (smearingType == DeltaFunction::adaptiveGaussian) {
+      withVelocities = true;
+    }
     bool withEigenvectors = true;
-    bool withVelocities = true;
     // note: bandStructure3 stores a copy of ap3: can't pass unique_ptr
     bandStructure3 = std::make_unique<ActiveBandStructure>(
         ap3, &h0, withEigenvectors, withVelocities);
