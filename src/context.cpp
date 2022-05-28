@@ -448,9 +448,15 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "phonopyDispFileName") {
         phonopyDispFileName = parseString(val);
       }
+
       if (parameterName == "phonopyBORNFileName") {
         phonopyBORNFileName = parseString(val);
       }
+
+      if (parameterName == "usePhElScattering") {
+        usePhElScattering = parseString(val); 
+      }
+
       if (parameterName == "sumRuleFC2") {
         sumRuleFC2 = parseString(val);
       }
@@ -884,9 +890,20 @@ void Context::printInputSummary(const std::string &fileName) {
     std::cout << std::endl;
 
     if (appName.find("honon") != std::string::npos ||
-        appName.find("elPh") != std::string::npos)
+        appName.find("elPh") != std::string::npos) {
       std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
                 << std::endl;
+      std::cout << "usePhElScattering = " << usePhElScattering << std::endl;
+      if(context.getUsePhElScattering()) { 
+        std::cout << "electronH0Name = " << electronH0Name << std::endl;
+        std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+        std::cout << "elphFileName = " << elphFileName << std::endl;
+        std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
+        std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
+                    << std::endl;
+        }
+      } 
+    }
     if (appName.find("lectron") != std::string::npos ||
         appName.find("elPh") != std::string::npos)
       std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
@@ -1084,6 +1101,8 @@ void Context::setPhonopyDispFileName(const std::string &x) {
 }
 std::string Context::getPhonopyBORNFileName() { return phonopyBORNFileName; }
 
+bool Context::getUsePhElScattering() { return usePhElScattering; } 
+
 std::string Context::getSumRuleFC2() { return sumRuleFC2; }
 void Context::setSumRuleFC2(const std::string &x) { sumRuleFC2 = x; }
 
@@ -1091,11 +1110,11 @@ std::string Context::getElphFileName() { return elphFileName; }
 void Context::setElphFileName(const std::string &x) { elphFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
-
 void Context::setElectronH0Name(const std::string &x) { electronH0Name = x; }
 
 std::string Context::getWannier90Prefix() { return wannier90Prefix; }
 void Context::setWannier90Prefix(const std::string &x) { wannier90Prefix = x; }
+
 std::string Context::getQuantumEspressoPrefix() {
   return quantumEspressoPrefix;
 }

@@ -35,6 +35,7 @@ class Context {
 
   bool scatteringMatrixInMemory = true;
   bool useSymmetries = false;
+  bool usePhElScattering = false;
 
   std::string windowType = "nothing";
   Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
@@ -152,6 +153,8 @@ public:
 
   std::string getPhonopyBORNFileName();
 
+  bool getUsePhElScattering(); 
+
   std::string getElphFileName();
   void setElphFileName(const std::string &x);
 
@@ -216,7 +219,6 @@ public:
    * values of energies that will be used
    */
   Eigen::Vector2d getWindowEnergyLimit();
-
   void setWindowEnergyLimit(const Eigen::Vector2d &x);
 
     /** gets the value of population above which a state is considered active.
