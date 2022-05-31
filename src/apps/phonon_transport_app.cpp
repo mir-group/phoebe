@@ -403,7 +403,7 @@ void PhononTransportApp::run(Context &context) {
 }
 
 // helper function to generate phEl rates
-void setUpPhononElectronScattering(Context& context, Crystal& crystal,
+void setupPhononElectronScattering(Context& context, Crystal& crystal,
 			VectorBTE& phononElectronRates) { 
 
     // load phonon band structure
