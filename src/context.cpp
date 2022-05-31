@@ -454,7 +454,7 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "usePhElScattering") {
-        usePhElScattering = parseString(val); 
+        usePhElScattering = parseBool(val); 
       }
 
       if (parameterName == "sumRuleFC2") {
@@ -894,15 +894,14 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
                 << std::endl;
       std::cout << "usePhElScattering = " << usePhElScattering << std::endl;
-      if(context.getUsePhElScattering()) { 
+      if(usePhElScattering) { 
         std::cout << "electronH0Name = " << electronH0Name << std::endl;
         std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
         std::cout << "elphFileName = " << elphFileName << std::endl;
         std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
         std::cout << "quantumEspressoPrefix = " << quantumEspressoPrefix
                     << std::endl;
-        }
-      } 
+      }
     }
     if (appName.find("lectron") != std::string::npos ||
         appName.find("elPh") != std::string::npos)
