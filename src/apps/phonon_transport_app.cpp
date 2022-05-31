@@ -483,7 +483,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
-  if (context.getUsePhElScattering)) { 
+  if (context.getUsePhElScattering()) { 
     throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
     throwErrorIfUnset(context.getElphFileName(), "elphFileName");
     if (context.getDopings().size() == 0 &&
