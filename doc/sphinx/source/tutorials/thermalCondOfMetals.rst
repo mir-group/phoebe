@@ -87,6 +87,8 @@ For this, we run a Phoebe calculation using the below input file::
   useSymmetries = true
   scatteringMatrixInMemory = false
 
+It's good to note here that currently we use the q-mesh to also define the k-mesh used for the electron-phonon calculation. 
+
 Again, this should be run just as in the other tutorial::
 
   export OMP_NUM_THREADS=4
