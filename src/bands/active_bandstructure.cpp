@@ -445,7 +445,6 @@ void ActiveBandStructure::symmetrize(Context &context,
       double avgEnergy = 0;// avg ene for this ik,ib state
 
       // average contributions from each reducible point
-      //#pragma omp parallel for reduction(+:avgEnergy)
       for (int ikRed : reducibleList) {
 
         // average the group velocities ------------
@@ -483,6 +482,7 @@ void ActiveBandStructure::symmetrize(Context &context,
     }
 
     // save the energies back into these reducible points
+    #pragma omp parallel for
     for (int ikRed : reducibleList) {
 
       Point point = noFieldPoints.getPoint(ikRed);
@@ -831,6 +831,12 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
 
   // iterate over mpi-parallelized wavevectors
+  #pragma omp parallel
+  {
+  std::vector<int> filteredThreadPoints;
+  std::vector<std::vector<int>> filteredThreadBands;
+
+  #pragma omp for nowait schedule(static)
   for (int ik : parallelIter) {
 
     auto ikIdx = WavevectorIndex(ik);
@@ -860,11 +866,30 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     if (ens.empty()) {// nothing to do
       continue;
     } else {// save point index and "relevant" band indices
-      myFilteredPoints.push_back(ik);
-      myFilteredBands.push_back(bandsExtrema);
+      filteredThreadPoints.push_back(ik);
+      filteredThreadBands.push_back(bandsExtrema);
     }
-    numFullBands = int(theseEnergies.size());
   }
+
+  // merge the vector collected by each thread
+  #pragma omp for schedule(static) ordered
+  for(int i=0; i<omp_get_num_threads(); i++) {
+    #pragma omp ordered
+    {
+    myFilteredPoints.insert(myFilteredPoints.end(),
+        std::make_move_iterator(filteredThreadPoints.begin()),
+        std::make_move_iterator(filteredThreadPoints.end()));
+
+    myFilteredBands.insert(myFilteredBands.end(),
+        std::make_move_iterator(filteredThreadBands.begin()),
+        std::make_move_iterator(filteredThreadBands.end()));
+    }
+  }
+
+  } // close OMP parallel region
+
+  // the same for all points in full band structure
+  numFullBands = fullBandStructure.getNumBands();
 
   // ---------- collect indices of relevant states  --------------- //
   // now that we've counted up the selected points and their
@@ -1218,6 +1243,8 @@ void ActiveBandStructure::enforceBandNumSymmetry(
   }
 
   // for each irr point, enforce matching band limitations
+  #pragma omp parallel
+  {
   for (int ikIrr : noFieldPoints.irrPointsIterator()) {
     auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
 
@@ -1245,4 +1272,5 @@ void ActiveBandStructure::enforceBandNumSymmetry(
       filteredBands(ikRed, 1) = newMaxBand;
     }
   }
+  } // end OMP parallel block
 }
