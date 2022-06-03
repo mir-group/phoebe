@@ -872,8 +872,12 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
 
   // merge the vector collected by each thread
+  int threadNum = 1;
+  #ifdef OMP_AVAIL
+  threadNum = omp_get_num_threads();
+  #endif
   #pragma omp for schedule(static) ordered
-  for(int i=0; i<omp_get_num_threads(); i++) {
+  for(int i=0; i<threadNum; i++) {
     #pragma omp ordered
     {
     myFilteredPoints.insert(myFilteredPoints.end(),
