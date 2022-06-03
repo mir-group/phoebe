@@ -9,6 +9,7 @@
 #include "onsager.h"
 #include "parser.h"
 #include "wigner_electron.h"
+#include "io.h"
 
 void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
                           ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
@@ -64,8 +65,14 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
 
       Eigen::VectorXd avgLinewidths(numCalculations);
       avgLinewidths.setZero();
+      // TODO: might be possible to switch this to vector and reduce
+      //std::vector<double> avgLinewidths(numCalculations);
+      //#pragma omp declare reduction(vec_double_plus : std::vector<double> : \
+      //      std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus<double>())) \
+      //      initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
 
       // loop over all points to be averaged
+      //#pragma omp parallel for reduction(vec_double_plus:avgLinewidths)
       for (auto ikRed : reducibleList) {
 
         // find the bte state index of this (band, kpoint) state
@@ -167,10 +174,12 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
       }
     }
   }
-  oldMatrix.setLinewidths(newLinewidths);
+  bool supressError = true; // normally, it's bad to set the matrix
+                            // with different # of states, so we thrown an
+                            // error. Here we have a special case.
+  oldMatrix.setLinewidths(newLinewidths, supressError);
   oldMatrix.setNumStates(int(bandStructure.irrStateIterator().size()));
   oldMatrix.setNumPoints(int(bandStructure.irrPointsIterator().size()));
-
 }
 
 void ElectronWannierTransportApp::run(Context &context) {
