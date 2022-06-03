@@ -101,7 +101,7 @@ public:
    *
    *  See getLinewidths function for notes about linewidths.
    */
-  void setLinewidths(VectorBTE &linewidths);
+  void setLinewidths(VectorBTE &linewidths, bool supressError = false);
 
   /** Converts the scattering matrix from the form A to the symmetrised Omega.
    * A acts on the canonical phonon population f, while Omega acts on the

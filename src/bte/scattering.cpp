@@ -534,7 +534,8 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   }
 }
 
-void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
+void ScatteringMatrix::setLinewidths(VectorBTE &linewidths,
+                                        bool supressError) {
 
   // note: this function assumes that we have not
   // messed with excludeIndices
@@ -543,11 +544,10 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
     Error("Attempted setting scattering matrix diagonal with"
         " an incorrect number of calculations.");
   }
-  // TODO we should put this back later
-  /*if(internalDiagonal.numStates != linewidths.numStates) {
+  if(internalDiagonal.numStates != linewidths.numStates && !supressError) {
     Error("Attempted setting scattering matrix diagonal with"
         " an incorrect number of states.");
-  }*/
+  }
   internalDiagonal = linewidths;
 
   if (!isMatrixOmega) {
@@ -570,7 +570,6 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
         double popTerm = particle.getPopPopPm1(en, temp, chemPot);
         internalDiagonal(iCalc, 0, iBte) =
             linewidths(iCalc, 0, iBte) * popTerm;
-            if(mpi->mpiHead()) std::cout << "linewidths " << iCalc << " " << iBte << " " << internalDiagonal(iCalc,0,iBte) << std::endl;
       }
     }
   }
