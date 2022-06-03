@@ -729,7 +729,7 @@ void Points::setIrreduciblePoints(
   mapEquivalenceRotationIndex = Eigen::VectorXi::Zero(numPoints);
   mapEquivalenceRotationIndex.setConstant(0);
 
-  std::vector<std::vector<int>> bandDegeneracies;
+  std::vector<std::vector<int>> bandDegeneracies(numPoints);
   if (groupVelocities != nullptr) {
     if ( energies == nullptr) {
       Error("setIrreduciblePoints: must pass both energies and velocities");
@@ -743,6 +743,7 @@ void Points::setIrreduciblePoints(
     }
 
     // save in an array the information about the degeneracy of state (ik,ib)
+    #pragma omp parallel for
     for (int ik=0; ik<numPoints; ++ik) {
 
       int numBands = (*energies)[ik].size(); // active bands can have different nbands at each point
@@ -765,7 +766,7 @@ void Points::setIrreduciblePoints(
         // we skip the bands in the subspace, since we corrected them already
         ib += degDegree - 1;
       }
-      bandDegeneracies.push_back(kDeg);
+      bandDegeneracies[ik] = kDeg;
     }
   }
 
@@ -800,8 +801,8 @@ void Points::setIrreduciblePoints(
             if (groupVelocities == nullptr) {
               // if the rotated point is further in the list than ik, denote ik as
               // its ikRot's irr point
-              equiv(ikRot) = ik;
               thisStar.insert(ikRot);
+              equiv(ikRot) = ik;
               mapEquivalenceRotationIndex(ikRot) = iRot;
             } else {
               bool isEquivalent = true;
@@ -861,8 +862,8 @@ void Points::setIrreduciblePoints(
                 }
               }
               if (diff < 1.e-4 * numBands && isEquivalent) {
-                equiv(ikRot) = ik;
                 thisStar.insert(ikRot);
+                equiv(ikRot) = ik;
                 mapEquivalenceRotationIndex(ikRot) = iRot;
               }
             }
@@ -899,7 +900,7 @@ void Points::setIrreduciblePoints(
 
         // check if there are equivalent k-point to this in the list
         // (excepted those previously found to be equivalent to another)
-
+s
         std::set<int> thisStar;
 
         // apply symmetries to identify all other points
@@ -1018,6 +1019,7 @@ void Points::setIrreduciblePoints(
 
   // count number of irreducible points
   numIrrPoints = 0;
+  #pragma omp parallel for reduction(+:numIrrPoints)
   for (int ik = 0; ik < numPoints; ik++) {
     if (equiv(ik) == ik) {
       ++numIrrPoints;
@@ -1039,15 +1041,17 @@ void Points::setIrreduciblePoints(
   // this allows us to map (ikRed in fullPoints) -> (ikIrr in the irrPoints)
   // basically the inverse of mapIrrToRedList
   mapReducibleToIrreducibleList = Eigen::VectorXi::Zero(numPoints);
+
+  // make a vector copy of mI2R for binary search
+  std::vector<int> mI2R(mapIrreducibleToReducibleList.data(),
+                   mapIrreducibleToReducibleList.data()
+                        + mapIrreducibleToReducibleList.size());
+
   for (int ik : mpi->divideWorkIter(numPoints)) {
     int ikIrr = equiv(ik); // map to the irreducible in fullPoints
-    int ikIrr2 = -1;
-    for (int i = 0; i < numIrrPoints; i++) {
-      if (mapIrreducibleToReducibleList(i) == ikIrr) {
-        ikIrr2 = i;
-        break;
-      }
-    }
+    auto itr = std::lower_bound(mI2R.begin(), mI2R.end(), ikIrr);
+    int ikIrr2 = std::distance(mI2R.begin(), itr);
+
     if (ikIrr2 == -1) {
       Error("Failed building irreducible points mapRedToIrrList");
     }
