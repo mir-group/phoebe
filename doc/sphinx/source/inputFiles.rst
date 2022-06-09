@@ -99,7 +99,7 @@ Phonon BTE Solver
 
 * :ref:`phonopyDispFileName`
 
-* :ref: `phonopyBORNFileName`
+* :ref:`phonopyBORNFileName`
 
 * :ref:`sumRuleFC2`
 
