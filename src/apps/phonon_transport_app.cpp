@@ -6,6 +6,7 @@
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "parser.h"
+#include "phel_scattering.h"
 #include "ph_scattering.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
@@ -13,6 +14,10 @@
 #include "specific_heat.h"
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
+
+// forward declare helper function to calculate phel scattering
+void setupPhononElectronScattering(Context& context, Crystal& crystal, 
+				VectorBTE& phononElectronRates); 
 
 void PhononTransportApp::run(Context &context) {
 
@@ -51,10 +56,25 @@ void PhononTransportApp::run(Context &context) {
   // load the 3phonon coupling
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
+  // if requested in input, load the phononElectron information
+  // we save only a vector BTE to add to the phonon scattering matrix, 
+  // as the phonon electron lifetime only contributes to the digaonal 
+  VectorBTE phononElectronRates(statisticsSweep, bandStructure); 
+  if(context.getUsePhElScattering()) { 
+    setupPhononElectronScattering(context, crystal, phononElectronRates); 
+  } 
+
   // build/initialize the scattering matrix and the smearing
   PhScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
+
+  // if we use phEl Scattering, we need to merge these rates
+  if(context.getUsePhElScattering()) { 
+    VectorBTE totalRates = scatteringMatrix.diagonal(); 
+    totalRates = totalRates + phononElectronRates; 
+    scatteringMatrix.setLinewidths(totalRates); 
+  } 
 
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
@@ -382,6 +402,77 @@ void PhononTransportApp::run(Context &context) {
   mpi->barrier();
 }
 
+// helper function to generate phEl rates
+void setupPhononElectronScattering(Context& context, Crystal& crystal,
+			VectorBTE& phononElectronRates) { 
+
+    // load phonon band structure
+    auto t2 = Parser::parsePhHarmonic(context);
+    auto crystalPh = std::get<0>(t2);
+    auto phononH0 = std::get<1>(t2);
+
+    // check that the crystal in the elph calculation is the 
+    // same as the one in the phph calculation
+    if(crystalPh.getDirectUnitCell() != crystal.getDirectUnitCell()) {
+      Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
+        "ph-el scattering are not the same!");
+    }
+
+    // load electron band structure
+    auto t1 = Parser::parseElHarmonicWannier(context, &crystalPh);
+    auto crystalEl = std::get<0>(t1);
+    auto electronH0 = std::get<1>(t1);
+
+    // load the elph coupling
+    // Note: this file contains the number of electrons
+    // which is needed to understand where to place the fermi level
+    auto couplingElPh = InteractionElPhWan::parse(context, crystalPh, &phononH0);
+
+    // compute the band structure on the fine grid
+    if (mpi->mpiHead()) {
+      std::cout << "\nComputing electronic band structure for " <<
+        "ph-el scattering." << std::endl;
+    }
+
+    // construct electronic band structure
+    Points fullPoints(crystalPh, context.getQMesh());
+    auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
+    auto elBandStructure = std::get<0>(t3);
+    auto statisticsSweep = std::get<1>(t3);
+
+    // print some info about how window and symmetries have reduced el bands
+    if (mpi->mpiHead()) {
+      if(elBandStructure.hasWindow() != 0) {
+          std::cout << "Window selection reduced electronic band structure from "
+                  << fullPoints.getNumPoints()*electronH0.getNumBands() << " to "
+                  << elBandStructure.getNumStates() << " states."  << std::endl;
+      }
+      if(context.getUseSymmetries()) {
+        std::cout << "Symmetries reduced electronic band structure from "
+          << elBandStructure.getNumStates() << " to "
+          << elBandStructure.irrStateIterator().size() << " states." << std::endl;
+      }
+      std::cout << "Done computing electronic band structure.\n" << std::endl;
+    }
+
+    // Compute the full phonon band structure
+    bool withVelocities = true;
+    bool withEigenvectors = true;
+    FullBandStructure phBandStructure = phononH0.populate(
+        fullPoints, withVelocities, withEigenvectors);
+    // set the chemical potentials to zero, load temperatures
+
+    // build/initialize the scattering matrix and the smearing
+    // it shouldn't take up too much memory, as it's just 
+    // the diagonal 
+    PhElScatteringMatrix scatteringMatrix(context, statisticsSweep,
+                                        elBandStructure, phBandStructure,
+                                        couplingElPh, electronH0);
+    scatteringMatrix.setup();
+
+    phononElectronRates = scatteringMatrix.diagonal();
+}
+
 void PhononTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
@@ -392,4 +483,12 @@ void PhononTransportApp::checkRequirements(Context &context) {
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
+  if (context.getUsePhElScattering()) { 
+    throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
+    throwErrorIfUnset(context.getElphFileName(), "elphFileName");
+    if (context.getDopings().size() == 0 &&
+        context.getChemicalPotentials().size() == 0) {
+      Error("Either chemical potentials or dopings must be set");
+    }
+  } 
 }

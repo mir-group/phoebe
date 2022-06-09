@@ -113,6 +113,11 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
 VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
 
+  // check that they have the same number of states
+  if(this->numStates != that.numStates) { 
+    Error("Cannot operate on vectorBTEs with different numStates!");
+  } 
+
   if (dimensionality == that.dimensionality) {
 
     if (operatorType == operatorSums) {
@@ -127,6 +132,8 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
       Error("Operator type for VectorBTE not recognized");
     }
 
+  // TODO is this the only case where we need to worry about numCalcs, 
+  // as the other case would be highMemory = true, iCalc = 1? 
   } else if (that.dimensionality == 1) {
 
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {

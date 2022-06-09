@@ -132,14 +132,14 @@ and plotting the resulting phonon dispersion with the ``bands.py`` script found 
 .. note::
   You should make sure this disperson is converged with respect to DFT parameters (energy cutoff, kpoint mesh, etc) and also with respect to the dimension of the supercell provided to phono3py. It is also recommend you check the convergence of the final calculated transport properties with respect to supercell size.
 
+.. _calculatePhononTransport:
 
 Step 4: Calculate Lattice Thermal Conductivity
 ------------------------------------------------
 
 If this dispersion looks good, we are now ready to move on to phonon transport calculations using Phoebe.
 
-There are four files output by phono3py which we will need: ``fc2.hdf5``, ``fc3.hdf5``, ``phono3py_disp.yaml``, and ``disp_fc3.yaml`` (in the event that you ran phono3py with different dimensions on the harmonic and anharmonic force constants, there will be a fifth file, ``disp_fc2.yaml`` as well).
-Out of these, we only need the first three to go forward, and can be copied into a new directory to run Phoebe if desired.
+There are three files output by phono3py which we will need: ``fc2.hdf5``, ``fc3.hdf5``, ``phono3py_disp.yaml``.
 The first two files contain the harmonic and anharmonic force constants, while the ``phono3py_disp.yaml`` describes the crystal supercells.
 
 Any of the phonon related apps can be run with these files, including the phononBands, phononDos, and lifetime apps. We describe here the use of the transport app here, but the input for other apps will be similar.

@@ -37,6 +37,7 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
       couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
   isMatrixOmega = true;
+  // automatically false, as phel scattering is only the diagonal
   highMemory = false;
 }
 
@@ -54,13 +55,8 @@ PhElScatteringMatrix::operator=(const PhElScatteringMatrix &that) {
   return *this;
 }
 
-// 3 cases:
-// theMatrix and linewidth is passed: we compute and store in memory the
-// scattering
-//       matrix and the diagonal
-// inPopulation+outPopulation is passed: we compute the action of the
-//       scattering matrix on the in vector, returning outVec = sMatrix*vector
-// only linewidth is passed: we compute only the linewidths
+// In the phononElectron case, we only compute the diagonal of the
+// scattering matrix. Therefore, we compute only the linewidths
 void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                                    std::vector<VectorBTE> &inPopulations,
                                    std::vector<VectorBTE> &outPopulations) {
@@ -68,7 +64,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   (void) outPopulations;
 
   if (linewidth == nullptr) {
-    Error("builder3Ph found a non-supported case");
+    Error("builderPhEl found a non-supported case");
   }
   if (linewidth->dimensionality != 1) {
     Error("Linewidths shouldn't have dimensionality");
@@ -80,6 +76,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
+  // note: in the equations for this rate, because there's an integraton over k, 
+  // this rate is actually 1/NK (sometimes written N_eFermi). 
+  // we use the qmesh because that's the only variable being set, and 
+  // in the way this is implemented kmesh = qmesh. 
   double norm = 1. / context.getQMesh().prod();
 
   // precompute Fermi-Dirac factors
