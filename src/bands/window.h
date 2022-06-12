@@ -8,11 +8,13 @@
 /** The window class contains the logic to decide whether to keep or discard
  * a Bloch state. Mainly used by ActiveBandStructure, it contains some criteria
  * by which we decide to discard some points from the calculation.
- * Only three filters are implemented:
+ * Four filters are implemented:
  * 1- no filter is applied
  * 2- population: we discard states that are scarcely (or fully) populated.
  * 3- energy: the user provides a lower an upper bound to the energies to be
  * considered.
+ * 4- magnetotransport calculations require we keep all kpoints for
+ * selected bands, which is necessary in order to do finite difference calculations
  */
 class Window {
  public:
@@ -95,10 +97,10 @@ class Window {
   std::tuple<std::vector<double>, std::vector<int>> internalPopWindow(
       const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
       const Eigen::VectorXd &popMax) const;
+  // internal method to apply the window for magnetotransport calculations
   std::tuple<std::vector<double>, std::vector<int>> internalMagWindow(
       const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
       const Eigen::VectorXd &popMax) const;
-
   // internal method to apply the window on energy
   std::tuple<std::vector<double>, std::vector<int>> internalEnWindow(
       const Eigen::VectorXd &energies) const;
