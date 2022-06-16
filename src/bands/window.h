@@ -4,6 +4,7 @@
 #include "context.h"
 #include "eigen.h"
 #include "particle.h"
+#include "bandstructure.h"
 
 /** The window class contains the logic to decide whether to keep or discard
  * a Bloch state. Mainly used by ActiveBandStructure, it contains some criteria
@@ -52,6 +53,18 @@ class Window {
   std::tuple<std::vector<double>, std::vector<int>> apply(
       Eigen::VectorXd &energies);
 
+  /** This function determines the band range that will be used
+  * by every kpoint in the mag window.
+  */
+  std::vector<int> prepareMagWindow(FullBandStructure& fbs,
+                                double chemPot, double temperature);
+  /** Because the band structure is slightly different at the point
+  * where this window is set, we must call prepare on the head proc
+  * and then this function to set the head procs range for all procs
+  */
+  void setMagBandsExtrema(std::vector<int> bandsExtrema);
+
+
   // Constants that identify the kind of filter to be used
   /** nothing=0 identifies the do-nothing window
    */
@@ -65,13 +78,13 @@ class Window {
    */
   static const int energy = 2;
 
-  /** energy labels the window type looking for states within two energy values
+  /** filters so that we keep all kpoints for each selected band
    */
-  static const int forMagnetotransport= 3;
+  static const int magnetotransport= 3;
 
   /** Returns the kind of energy filter used.
    * @return method: an integer equal to either Window::nothing,
-   * Window::population, or Window::energy.
+   * Window::population, Window::energy, Window::magnetotransport.
    */
   int getMethodUsed() const;
  private:
@@ -93,14 +106,17 @@ class Window {
    */
   int numBands = 0;
 
+  /** holds the band range for all MT points
+  */
+  std::vector<int> magBandsExtrema;
+
   // internal method to apply the window on population
   std::tuple<std::vector<double>, std::vector<int>> internalPopWindow(
       const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
       const Eigen::VectorXd &popMax) const;
   // internal method to apply the window for magnetotransport calculations
   std::tuple<std::vector<double>, std::vector<int>> internalMagWindow(
-      const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
-      const Eigen::VectorXd &popMax) const;
+      const Eigen::VectorXd &energies) const;
   // internal method to apply the window on energy
   std::tuple<std::vector<double>, std::vector<int>> internalEnWindow(
       const Eigen::VectorXd &energies) const;

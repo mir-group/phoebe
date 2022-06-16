@@ -830,6 +830,20 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
 
+  if(window.getMethodUsed() == 3) {
+    if(temps.size() > 1 || chemPots.size() > 1)
+      Error("Magnetic field window not implemented for more than one calc at a time");
+    // we do this once and broadcast it, as we haven't enforced band energy sym
+    // get at this point, and different procs can have different badn #s
+    std::vector<int> bandExtrema(2);
+    if(mpi->mpiHead()) {
+      bandExtrema =
+        window.prepareMagWindow(fullBandStructure,chemPots[0],temps[0]);
+    }
+    mpi->bcast(&bandExtrema);
+    window.setMagBandsExtrema(bandExtrema);
+  }
+
   // iterate over mpi-parallelized wavevectors
   #pragma omp parallel
   {

@@ -19,14 +19,14 @@ Window::Window(Context &context, Particle &particle_,
   } else if (inMethod == "energy") {
     method = energy;
   } else if (inMethod == "magnetotransport") {
-    method = forMagnetotransport;
+    method = magnetotransport;
   } else if (inMethod == "nothing") {
     method = nothing;
   } else {
     Error("Unrecognized method called in Window()");
   }
 
-  if (method == population || method == forMagnetotransport) {
+  if (method == population || method == magnetotransport) {
     populationThreshold = context.getWindowPopulationLimit();
 
     if (std::isnan(populationThreshold)) {
@@ -63,7 +63,8 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     }
     return internalPopWindow(energies, popMin, popMax);
   }
-  else if (method == forMagnetotransport) {
+  else if (method == magnetotransport) {
+
     Eigen::VectorXd popMin(numBands), popMax(numBands);
     for (int ib = 0; ib < numBands; ib++) {
       popMin(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
@@ -71,7 +72,11 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
       popMax(ib) = particle.getPopPopPm1(energies(ib), temperatureMax,
                                          chemicalPotentialMax);
     }
-    return internalMagWindow(energies, popMin, popMax);
+    if(particle.isPhonon()) {
+      return internalPopWindow(energies, popMin, popMax);
+    } else {
+      return internalMagWindow(energies);
+    }
   } else if (method == energy) {
     return internalEnWindow(energies);
   } else { // no filter
@@ -136,35 +141,52 @@ int Window::getMethodUsed() const {
   return method;
 }
 
+std::vector<int> Window::prepareMagWindow(FullBandStructure& fbs,
+                                double chemPot, double temperature) {
+
+  int numBands = fbs.getNumBands();
+  std::vector<int> magBands;
+  // E = ln(1/popThresh)(kbT) + mu
+  double maxEn = log(1e9)*(temperature) + chemPot;
+  double minEn = -log(1e9)*(temperature) + chemPot;
+
+  for(int ib = 0; ib < numBands; ib++) {
+    Eigen::VectorXd bandEns = fbs.getBandEnergies(ib);
+    double maxBandEn = bandEns.maxCoeff();
+    double minBandEn = bandEns.minCoeff();
+    // check if ranged intersect
+    if(minBandEn <= maxEn && minEn <= maxBandEn) {
+      magBands.push_back(ib);
+    }
+  }
+  std::vector<int> bandsExtrema;
+  bandsExtrema.push_back(*std::min_element(magBands.begin(),magBands.end()));
+  bandsExtrema.push_back(*std::max_element(magBands.begin(),magBands.end()));
+  return bandsExtrema;
+}
+
+void Window::setMagBandsExtrema(std::vector<int> bandsExtrema) {
+   magBandsExtrema.push_back(bandsExtrema[0]);
+   magBandsExtrema.push_back(bandsExtrema[1]);
+}
+
 std::tuple<std::vector<double>, std::vector<int>> Window::internalMagWindow(
-    const Eigen::VectorXd &energies, const Eigen::VectorXd &popMin,
-    const Eigen::VectorXd &popMax) const {
+    const Eigen::VectorXd &energies) const {
 
   // need a window for using magnetic fields which
   // keeps all bands for the selected kpoints.
   // This is important because of the grad k
-  // term we want to compute
+  // term we want to compute. We pre-determined which bands to
+  // keep in the "prepareMagWindow" function, and set them for all
+  // mpi processes in "setMagBandsExtrema". Now we simply apply them.
 
-  std::vector<double> energiesVec;
-  std::vector<int> bandsExtrema;
-  std::vector<int> bandsIndices;
+  std::vector<double> filteredEnergies;
 
-  for (int ib = 0; ib < numBands; ib++) {
-    energiesVec.push_back(energies(ib));
-    if ((abs(popMin(ib)) > populationThreshold) ||
-        (abs(popMax(ib)) > populationThreshold)) {
-      bandsIndices.push_back(ib);
-    }
+  // we only save the relevant band energies
+  for (int ib = magBandsExtrema[0]; ib < magBandsExtrema[1]+1; ib++) {
+    filteredEnergies.push_back(energies(ib));
   }
-  if (!bandsIndices.empty()) {
-    bandsExtrema.push_back(0);
-    bandsExtrema.push_back(numBands - 1);
-    return {energiesVec, bandsExtrema};
-  } else {
-    std::vector<double> filteredEnergies2;
-    std::vector<int> bandsExtrema2;
-    return {filteredEnergies2, bandsExtrema2};
-  }
+  return {filteredEnergies,magBandsExtrema};
 }
 
 
