@@ -341,10 +341,7 @@ void PhononH0::wsInit(const Eigen::MatrixXd &unitCell) {
           }
         }
       }
-
-      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) >
-          1.0e-8) {
-        std::cout << total_weight << " " << qCoarseGrid.prod() << "\n";
+      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) > 1.0e-8) {
         Error("wrong total_weight");
       }
     }
@@ -373,10 +370,10 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r,
   for (int ir = 0; ir < rws.cols(); ir++) {
     double rrt = r.dot(rws.col(ir));
     double ck = rrt - rws.col(ir).squaredNorm() / 2.;
-    if (ck > 1.0e-6) {
+    if (ck > 1.0e-5) {
       return 0.;
     }
-    if (abs(ck) < 1.0e-6) {
+    if (abs(ck) < 1.0e-5) {
       numREq += 1;
     }
   }
