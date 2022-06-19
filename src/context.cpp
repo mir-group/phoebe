@@ -454,7 +454,7 @@ void Context::setupFromInput(const std::string &fileName) {
       }
 
       if (parameterName == "usePhElScattering") {
-        usePhElScattering = parseBool(val); 
+        usePhElScattering = parseBool(val);
       }
 
       if (parameterName == "sumRuleFC2") {
@@ -894,7 +894,7 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
                 << std::endl;
       std::cout << "usePhElScattering = " << usePhElScattering << std::endl;
-      if(usePhElScattering) { 
+      if(usePhElScattering) {
         std::cout << "electronH0Name = " << electronH0Name << std::endl;
         std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
         std::cout << "elphFileName = " << elphFileName << std::endl;
@@ -1100,7 +1100,7 @@ void Context::setPhonopyDispFileName(const std::string &x) {
 }
 std::string Context::getPhonopyBORNFileName() { return phonopyBORNFileName; }
 
-bool Context::getUsePhElScattering() { return usePhElScattering; } 
+bool Context::getUsePhElScattering() { return usePhElScattering; }
 
 std::string Context::getSumRuleFC2() { return sumRuleFC2; }
 void Context::setSumRuleFC2(const std::string &x) { sumRuleFC2 = x; }
