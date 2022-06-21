@@ -135,7 +135,12 @@ void ScatteringMatrix::setup() {
                 << std::endl;
     }
 
-    theMatrix = ParallelMatrix<double>(matSize, matSize);
+    try {
+      theMatrix = ParallelMatrix<double>(matSize, matSize);
+    } catch(std::bad_alloc&) {
+      Error("Failed to allocate memory for the scattering matrix.\n"
+        "You are likely running out of memory.");
+    }
 
     // calc matrix and linewidth.
     builder(&internalDiagonal, emptyVector, emptyVector);

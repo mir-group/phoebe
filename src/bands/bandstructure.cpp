@@ -36,19 +36,34 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
         "or decrease number of processes.");
   }
 
-  energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
+  try {
+    energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
+  } catch(std::bad_alloc) {
+    Error("Failed to allocate band structure energies.\n"
+        "You are likely out of memory.");
+  }
   numLocalPoints = energies.localCols();
   if (hasVelocities) {
-    velocities = Matrix<std::complex<double>>(
+    try {
+      velocities = Matrix<std::complex<double>>(
         numBands * numBands * 3, numPoints, 1, numBlockCols, isDistributed);
+    } catch(std::bad_alloc) {
+      Error("Failed to allocate band structure velocities.\n"
+        "You are likely out of memory.");
+    }
   }
   if (hasEigenvectors) {
-    if ( particle.isPhonon() ) {
-      eigenvectors = Matrix<std::complex<double>>(
-          3 * numAtoms * numBands, numPoints, 1, numBlockCols, isDistributed);
-    } else {
-      eigenvectors = Matrix<std::complex<double>>(
-          numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
+    try {
+      if ( particle.isPhonon() ) {
+        eigenvectors = Matrix<std::complex<double>>(
+            3 * numAtoms * numBands, numPoints, 1, numBlockCols, isDistributed);
+      } else {
+        eigenvectors = Matrix<std::complex<double>>(
+            numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
+      }
+    } catch(std::bad_alloc) {
+      Error("Failed to allocate band structure eigenvectors.\n"
+        "You are likely out of memory.");
     }
   }
 }
