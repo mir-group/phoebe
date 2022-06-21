@@ -445,18 +445,18 @@ ElectronH0Fourier::getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
   return velocity;
 }
 
-ComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
+StridedComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) {
   Error("Kokkos not implemented in ElectronH0Fourier");
 }
 
-std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 ElectronH0Fourier::kokkosBatchedDiagonalizeWithVelocities(
     const DoubleView2D &cartesianCoordinates) {
   Error("Kokkos not implemented in ElectronH0Fourier");
 }
 
-std::tuple<DoubleView2D, ComplexView3D>
+std::tuple<DoubleView2D, StridedComplexView3D>
 ElectronH0Fourier::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates) {
   Error("Kokkos not implemented in ElectronH0Fourier");

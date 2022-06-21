@@ -1,12 +1,17 @@
 #include "phonon_h0.h"
 
-ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
+StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) {
 
   int numK = cartesianCoordinates.extent(0);
   int numBands = this->numBands;
   int numBravaisVectors = this->numBravaisVectors;
   Kokkos::complex<double> complexI(0.0, 1.0);
+
+  auto bravaisVectors_d = this->bravaisVectors_d;
+  auto weights_d = this->weights_d;
+  auto mat2R_d = this->mat2R_d;
+  auto numAtoms = this->numAtoms;
 
   ComplexView3D dynamicalMatrices("dynMat", numK, numBands, numBands);
 
@@ -33,6 +38,8 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   Kokkos::realloc(phases_d, 0, 0);
 
   if (hasDielectric) {
+    printf("\n\n\n DIELECTRIC=TRUE \n\n\n\n\n");
+    auto longRangeCorrection1_d = this->longRangeCorrection1_d;
 
     Kokkos::parallel_for(
         "el_hamilton", Range3D({0, 0, 0}, {numK, 3, 3}),
@@ -47,6 +54,12 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
 
     double norm = e2 * fourPi / volumeUnitCell;
     int numG = gVectors_d.extent(0);
+
+    auto gVectors_d = this->gVectors_d;
+    auto dielectricMatrix_d = this->dielectricMatrix_d;
+    auto bornCharges_d = this->bornCharges_d;
+    auto atomicPositions_d = this->atomicPositions_d;
+    auto gMax = this->gMax;
 
     size_t byte_size = Kokkos::View<double*>::shmem_size(numBands);
     Kokkos::parallel_for("long-range-ph-H0",
@@ -77,7 +90,7 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
             if (geg > 0. && geg < 4. * gMax) {
               double normG = norm * exp(-geg * 0.25) / geg;
 
-              Kokkos::View<double*> GQZ(team.team_scratch(2), 3*numAtoms);
+              Kokkos::View<double*> GQZ(team.team_scratch(0), 3*numAtoms);
               for (int i = 0; i < numBands; i++) {
                 GQZ(i) = 0.;
               }
@@ -111,7 +124,15 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
 
   }
 
-  ComplexView3D DD("dynMat", numK, numBands, numBands);
+
+  // Col-major matrices stored contiguously
+  Kokkos::LayoutStride DDlayout(
+      numK, numBands*numBands,
+      numBands, 1,
+      numBands, numBands
+  );
+
+  StridedComplexView3D DD("dynMat", DDlayout);
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
       KOKKOS_LAMBDA(int iK, int m, int n) {
@@ -119,6 +140,8 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
         DD(iK, m, n) = 0.5 * ( D(m,n) + Kokkos::conj(D(n,m)) );
       });
   Kokkos::realloc(dynamicalMatrices, 0, 0, 0);
+
+  auto atomicMasses_d = this->atomicMasses_d;
 
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
@@ -129,10 +152,10 @@ ComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   return DD;
 }
 
-std::tuple<DoubleView2D, ComplexView3D> PhononH0::kokkosBatchedDiagonalizeFromCoordinates(
+std::tuple<DoubleView2D, StridedComplexView3D> PhononH0::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates) {
 
-  ComplexView3D dynamicalMatrices =
+  StridedComplexView3D dynamicalMatrices =
       kokkosBatchedBuildBlochHamiltonian(cartesianCoordinates);
 
   // now the diagonalization.
@@ -155,9 +178,10 @@ std::tuple<DoubleView2D, ComplexView3D> PhononH0::kokkosBatchedDiagonalizeFromCo
   return std::make_tuple(frequencies, dynamicalMatrices);
 }
 
-void PhononH0::kokkosBatchedScaleEigenvectors(ComplexView3D& eigenvectors) {
+void PhononH0::kokkosBatchedScaleEigenvectors(StridedComplexView3D& eigenvectors) {
   int numK = eigenvectors.extent(0);
   int numBands = this->numBands;
+  auto atomicMasses_d = this->atomicMasses_d;
 
   Kokkos::parallel_for(
       "mass_rescale", Range3D({0, 0, 0}, {numK, numBands, numBands}),
@@ -238,7 +262,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
 
     {
       DoubleView2D allEnergies_d;
-      ComplexView3D allEigenvectors_d;
+      StridedComplexView3D allEigenvectors_d;
       ComplexView4D allVelocities_d;
       if (withVelocities) {
         auto t = kokkosBatchedDiagonalizeWithVelocities(cartesianWavevectors_d);
@@ -299,7 +323,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
         }
       }
       Kokkos::realloc(allEnergies_d, 0, 0);
-      Kokkos::realloc(allEigenvectors_d, 0, 0, 0);
+      allEigenvectors_d = decltype(allEigenvectors_d)();
       Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
   }
@@ -308,7 +332,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
 }
 
 
-std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 PhononH0::kokkosBatchedDiagonalizeWithVelocities(
     const DoubleView2D &cartesianCoordinates) {
 
@@ -342,13 +366,18 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
   // compute the electronic properties at all wavevectors
   auto t = kokkosBatchedDiagonalizeFromCoordinates(allVectors);
   DoubleView2D allEnergies = std::get<0>(t);
-  ComplexView3D allEigenvectors = std::get<1>(t);
+  StridedComplexView3D allEigenvectors = std::get<1>(t);
 
   int numBands = allEnergies.extent(1);
 
+  Kokkos::LayoutStride eigenvectorLayout(
+      numK, numBands*numBands,
+      numBands, 1,
+      numBands, numBands);
+
   // save energies and eigenvectors to results
   DoubleView2D resultEnergies("energies", numK, numBands);
-  ComplexView3D resultEigenvectors("eigenvectors", numK, numBands, numBands);
+  StridedComplexView3D resultEigenvectors("eigenvectors", eigenvectorLayout);
   ComplexView4D resultVelocities("velocities", numK, numBands, numBands, 3);
 
   Kokkos::parallel_for(
@@ -373,8 +402,8 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
     Kokkos::parallel_for(
         "der", Range3D({0, 0, 0}, {numK, numBands, numBands}),
         KOKKOS_LAMBDA(int iK, int m, int n) {
-          ComplexView2D XPlus = Kokkos::subview(allEigenvectors, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
-          ComplexView2D XMins = Kokkos::subview(allEigenvectors, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
+          auto XPlus = Kokkos::subview(allEigenvectors, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
+          auto XMins = Kokkos::subview(allEigenvectors, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
           DoubleView1D EPlus = Kokkos::subview(allEnergies, iK * 7 + i * 2 + 1, Kokkos::ALL);
           DoubleView1D EMins = Kokkos::subview(allEnergies, iK * 7 + i * 2 + 2, Kokkos::ALL);
           Kokkos::complex<double> x(0.,0.);

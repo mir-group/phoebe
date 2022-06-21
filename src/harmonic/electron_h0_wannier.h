@@ -88,7 +88,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return a View object of size nk,nb,nb containing the nk Hamiltonian
    * matrices.
    */
-  ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+  StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) override;
 
   /** Computes energies and eigenvectors of electrons for a batch of nk
@@ -100,7 +100,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return a tuple of views of energy(nk,nb) and eigenvectors(nk,nb,nb) at
    * each wavevector.
    */
-  std::tuple<DoubleView2D, ComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
+  std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates);
   /** Using kokkos, computes the electronic properties of a batch of wavevectors
    *
@@ -110,7 +110,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * @return a tuple with energies(nk,nb), eigenvectors(nk,nb,nb) and
    * velocities(nk,nb,nb,3) at each wavevector.
    */
-  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates);
 

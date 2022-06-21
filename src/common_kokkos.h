@@ -19,6 +19,7 @@ using DoubleView2D = Kokkos::View<double **, Kokkos::LayoutRight>;
 using DoubleView3D = Kokkos::View<double ***, Kokkos::LayoutRight>;
 using DoubleView4D = Kokkos::View<double ****, Kokkos::LayoutRight>;
 using DoubleView5D = Kokkos::View<double *****, Kokkos::LayoutRight>;
+using StridedComplexView3D = Kokkos::View<Kokkos::complex<double> ***, Kokkos::LayoutStride>;
 
 using HostComplexView1D = Kokkos::View<Kokkos::complex<double> *, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 using HostComplexView2D = Kokkos::View<Kokkos::complex<double> **, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
@@ -45,7 +46,7 @@ using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6, Kokkos::Iterate::Right, Ko
  * NxN. matrix. On exit, A contains the eigenvectors of all the M matrices.
  * @param W: a MxN tensor, containing the N eigenvalues of each M-th matrix A.
  */
-void kokkosZHEEV(ComplexView3D& A, DoubleView2D& W);
+void kokkosZHEEV(StridedComplexView3D& A, DoubleView2D& W);
 
 class DeviceManager {
  public:

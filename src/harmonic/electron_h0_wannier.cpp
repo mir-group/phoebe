@@ -281,7 +281,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
     Eigen::Tensor<std::complex<double>,4> allVelocities(numK, numWannier, numWannier, 3);
     {
       DoubleView2D allEnergies_d;
-      ComplexView3D allEigenvectors_d;
+      StridedComplexView3D allEigenvectors_d;
       ComplexView4D allVelocities_d;
       if (withVelocities) {
         auto t = kokkosBatchedDiagonalizeWithVelocities(cartesianWavevectors_d);
@@ -323,7 +323,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
         }
       }
       Kokkos::realloc(allEnergies_d, 0, 0);
-      Kokkos::realloc(allEigenvectors_d, 0, 0, 0);
+      allEigenvectors_d = decltype(allEigenvectors_d)();
       Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
 
@@ -674,7 +674,7 @@ ElectronH0Wannier::batchedDiagonalizeWithVelocities(
   return std::make_tuple(resultsEnergies, resultsEigenvectors, resultsVelocities);
 }
 
-ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
+StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) {
 
   // Kokkos quirkyness
@@ -683,7 +683,14 @@ ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
 
   int numK = cartesianCoordinates.extent(0);
 
-  ComplexView3D hamiltonians("hamiltonians", numK, numWannier, numWannier);
+  // Col-major matrices stored contiguously
+  Kokkos::LayoutStride Hlayout(
+      numK, numWannier*numWannier,
+      numWannier, 1,
+      numWannier, numWannier
+  );
+
+  StridedComplexView3D hamiltonians("hamiltonians", Hlayout);
   Kokkos::complex<double> complexI(0.0, 1.0);
 
   auto bravaisVectors_d = this->bravaisVectors_d;
@@ -740,12 +747,12 @@ ComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
   return hamiltonians;
 }
 
-std::tuple<DoubleView2D, ComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonalizeFromCoordinates(
+std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates) {
 
   int numWannier = this->numWannier; // Kokkos quirkyness
 
-  ComplexView3D blochHamiltonians =
+  StridedComplexView3D blochHamiltonians =
       kokkosBatchedBuildBlochHamiltonian(cartesianCoordinates);
 
   // now the diagonalization.
@@ -759,7 +766,7 @@ std::tuple<DoubleView2D, ComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonal
   return std::make_tuple(allEnergies, blochHamiltonians);
 }
 
-std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
     const DoubleView2D &cartesianCoordinates) {
 
@@ -789,12 +796,19 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
         }
       });
 
+  // Col-major matrices stored contiguously
+  Kokkos::LayoutStride Hlayout(
+      numK, numWannier*numWannier,
+      numWannier, 1,
+      numWannier, numWannier
+  );
+
   // compute the electronic properties at all wavevectors
-  ComplexView3D allHamiltonians = kokkosBatchedBuildBlochHamiltonian(allVectors);
+  StridedComplexView3D allHamiltonians = kokkosBatchedBuildBlochHamiltonian(allVectors);
 
   // save energies and eigenvectors to results
   DoubleView2D resultEnergies("energies", numK, numWannier);
-  ComplexView3D resultEigenvectors("eigenvectors", numK, numWannier, numWannier);
+  StridedComplexView3D resultEigenvectors("eigenvectors", Hlayout);
   ComplexView4D resultVelocities("velocities", numK, numWannier, numWannier, 3);
 
   // put the Hamiltonian matrix in resultEigenvectors
@@ -818,8 +832,8 @@ ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
     Kokkos::parallel_for(
         "der", Range3D({0, 0, 0}, {numK, numWannier, numWannier}),
         KOKKOS_LAMBDA(int iK, int m, int n) {
-          ComplexView2D HPlus = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
-          ComplexView2D HMins = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
+          auto HPlus = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 1, Kokkos::ALL, Kokkos::ALL);
+          auto HMins = Kokkos::subview(allHamiltonians, iK * 7 + i * 2 + 2, Kokkos::ALL, Kokkos::ALL);
           der(iK, m, n) = 0.25 / delta * ((HPlus(m, n) - HMins(m, n))
                  + Kokkos::conj(HPlus(n, m) - HMins(n, m)));
         });

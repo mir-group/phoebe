@@ -87,12 +87,12 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
                              const bool isDistributed=false) override;
 
   void trimBands(Context &context, const double &minEn, const double &maxEn);
-  virtual ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+  virtual StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) override;
-  virtual std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  virtual std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates) override;
-  std::tuple<DoubleView2D, ComplexView3D>
+  std::tuple<DoubleView2D, StridedComplexView3D>
   kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates) override;
  protected:

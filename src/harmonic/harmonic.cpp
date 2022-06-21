@@ -150,8 +150,16 @@ void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
                  + Kokkos::conj(resultVelocities(iK, ib + j, ib + i, iCart)));
         });
 
+
+    // Col-major matrices stored contiguously
+    Kokkos::LayoutStride Hlayout(
+        3*numMatrices, iDeg*iDeg,
+        iDeg, 1,
+        iDeg, iDeg
+    );
+
     // now diagonalize the blocks
-    ComplexView3D newEigenvectors("newEig", 3*numMatrices, iDeg, iDeg);
+    StridedComplexView3D newEigenvectors("newEig", Hlayout);
     Kokkos::deep_copy(newEigenvectors, subVelocity);
     // I don't need the eigenvalues, but I need the allocation to run zheev
     DoubleView2D newEigenvalues("newEigv", 3*numMatrices, iDeg);

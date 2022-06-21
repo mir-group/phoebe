@@ -1,22 +1,27 @@
 #include "common_kokkos.h"
 #include "eigen.h"
 #include "mpiHelper.h"
+#include <stdexcept>
 
-void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
+#ifdef KOKKOS_ENABLE_CUDA
+#include <cusolver_common.h>
+#include <cusolverDn.h>
+#endif
+
+void kokkosZHEEV(StridedComplexView3D &A, DoubleView2D &W) {
   // kokkos people didn't implement the diagonalization of matrices.
   // So, we have to do a couple of dirty tricks
 
-#ifndef KOKKOS_ENABLE_HIP // defined(KOKKOS_ENABLE_SERIAL) || defined(KOKKOS_ENABLE_OPENMP)
-  // in this case, we use Eigen to solve the diagonalization problem
-  // critically, here I assume host == device!
-  // hence, no need for deep_copy or Kokkos lambdas
+  int M = A.extent(0);// number of matrices
+  int N = A.extent(1);// matrix size is NxN
+
+#ifndef KOKKOS_ENABLE_HIP
+  // general case, copy to CPU (if necessary) and
+  // use Eigen to solve the diagonalization problems
 
   auto A_h = Kokkos::create_mirror_view(A);
   auto W_h = Kokkos::create_mirror_view(W);
   Kokkos::deep_copy(A_h, A);
-
-  int M = A.extent(0);// number of matrices
-  int N = A.extent(1);// matrix size is NxN
 
  #pragma omp parallel for
   for (int i = 0; i < M; ++i) {
@@ -30,8 +35,8 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
     // now, I feed the data to Eigen
     // BEWARE: this statement doesn't do data copy, but points directly to the
     // memory array. No out-of-bounds checks are made!
-    // Also, Kokkos stores data as Row-Major, but Eigen default is column-major
-    Eigen::Map<Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> thisH(storage, N, N);
+    // Each matrix is column-major due to the strided layout
+    Eigen::Map<Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>> thisH(storage, N, N);
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(thisH);
     Eigen::VectorXd energies = eigenSolver.eigenvalues();
@@ -46,7 +51,50 @@ void kokkosZHEEV(ComplexView3D &A, DoubleView2D &W) {
   Kokkos::deep_copy(A, A_h);
   Kokkos::deep_copy(W, W_h);
 #else
-  Error("Kokkos@Phoebe: implement diagonalization in this architecture");
+  // CUDA special case, call the cuSOLVER library directly
+
+  // cuSOLVER setup
+  cusolverDnHandle_t handle;
+  cusolverDnCreate(&handle);
+  syevjInfo_t params;
+  cusolverDnCreateSyevjInfo(&params);
+  const cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
+  const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+
+  int lda = N;
+  int lwork;
+
+  cuDoubleComplex* Aptr = (cuDoubleComplex*) A.data();
+  double *Wptr = W.data();
+
+  // determine work array size
+  cusolverDnZheevjBatched_bufferSize(handle, jobz, uplo, N, Aptr, lda, Wptr, &lwork, params, M);
+  //printf("lwork = %d\n", lwork);
+
+  ComplexView1D work("work", lwork);
+  cuDoubleComplex* workptr = (cuDoubleComplex*) work.data();
+  IntView1D info("info", M);
+
+  // call diagonalization
+  cusolverDnZheevjBatched(handle, jobz, uplo, N, Aptr, lda, Wptr, workptr, lwork, info.data(), params, M);
+
+  // check if any diagonalizations went wrong
+  int sum_infos = 0;
+  Kokkos::parallel_reduce(M, KOKKOS_LAMBDA(int i, int &sum){
+      sum += info(i)!=0;
+  }, sum_infos);
+
+  if(sum_infos > 0){
+    // check info for each diagonalization
+    auto info_h = Kokkos::create_mirror_view(info);
+    Kokkos::deep_copy(info_h, info);
+
+    for(int i = 0; i < M; i++){
+      if(info_h(i) != 0) printf("info[%d] = %d\n", i, info_h(i));
+    }
+
+    throw std::runtime_error("Error in cusolverDnZheevjBatched!");
+  }
 #endif
 }
 

@@ -101,14 +101,14 @@ class PhononH0 : public HarmonicHamiltonian {
                                 bool &withEigenvectors, bool isDistributed = false);
   FullBandStructure kokkosPopulate(Points &points, const bool &withVelocities,
                                    const bool &withEigenvectors, const bool isDistributed = false);
-  ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+  StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) override;
-  std::tuple<DoubleView2D, ComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
+  std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates);
-  std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates) override;
-  void kokkosBatchedScaleEigenvectors(ComplexView3D& eigenvectors);
+  void kokkosBatchedScaleEigenvectors(StridedComplexView3D& eigenvectors);
 
   /** Returns the size of the q-point coarse grid on which the force constants
    * have been computed.

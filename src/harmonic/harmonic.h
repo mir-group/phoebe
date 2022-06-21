@@ -77,16 +77,16 @@ class HarmonicHamiltonian {
   virtual FullBandStructure populate(Points &fullPoints, const bool &withVelocities,
                                      const bool &withEigenvectors,
                                      const bool isDistributed = false) = 0;
-  virtual std::tuple<DoubleView2D, ComplexView3D, ComplexView4D>
+  virtual std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
       kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates) = 0;
   void kokkosBatchedTreatDegenerateVelocities(
       const DoubleView2D& cartesianCoordinates,
       const DoubleView2D& resultEnergies, ComplexView4D& resultVelocities,
       const double& threshold);
-  virtual ComplexView3D kokkosBatchedBuildBlochHamiltonian(
+  virtual StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) = 0;
-  virtual std::tuple<DoubleView2D, ComplexView3D>
+  virtual std::tuple<DoubleView2D, StridedComplexView3D>
   kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates) = 0;
 };
