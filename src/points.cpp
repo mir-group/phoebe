@@ -866,15 +866,16 @@ void Points::setIrreduciblePoints(
   // this allows us to map (ikRed in fullPoints) -> (ikIrr in the irrPoints)
   // basically the inverse of mapIrrToRedList
   mapReducibleToIrreducibleList = Eigen::VectorXi::Zero(numPoints);
+
+  // make a vector copy of mI2R for binary search
+  std::vector<int> mI2R(mapIrreducibleToReducibleList.data(),
+                   mapIrreducibleToReducibleList.data()
+                        + mapIrreducibleToReducibleList.size());
+
   for (int ik : mpi->divideWorkIter(numPoints)) {
     int ikIrr = equiv(ik); // map to the irreducible in fullPoints
-    int ikIrr2 = -1;
-    for (int i = 0; i < numIrrPoints; i++) {
-      if (mapIrreducibleToReducibleList(i) == ikIrr) {
-        ikIrr2 = i;
-        break;
-      }
-    }
+    auto itr = std::lower_bound(mI2R.begin(), mI2R.end(), ikIrr);
+    int ikIrr2 = std::distance(mI2R.begin(), itr);
     if (ikIrr2 == -1) {
       Error("Failed building irreducible points mapRedToIrrList");
     }
