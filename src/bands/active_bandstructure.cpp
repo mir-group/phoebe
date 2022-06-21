@@ -575,6 +575,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
+  // iterate over mpi-parallelized wavevectors
+  #pragma omp parallel
+  {
+  std::vector<int> filteredThreadPoints;
+  std::vector<std::vector<int>> filteredThreadBands;
+
+  #pragma omp for nowait schedule(static)
   for (int ik : mpi->divideWorkIter(points_.getNumPoints())) {
     Point point = points_.getPoint(ik);
     // diagonalize harmonic hamiltonian
@@ -589,12 +596,37 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
     auto bandsExtrema = std::get<1>(tup1);
     if (ens.empty()) {// nothing to do
       continue;
-    } else {// save point index and "relevant" band indices
-      myFilteredPoints.push_back(ik);
-      myFilteredBands.push_back(bandsExtrema);
+    } else { // save point index and "relevant" band indices
+      filteredThreadPoints.push_back(ik);
+      filteredThreadBands.push_back(bandsExtrema);
     }
-    numFullBands = int(theseEnergies.size());
   }
+  // merge the vector collected by each thread
+  int threadNum = 1;
+  #ifdef OMP_AVAIL
+  threadNum = omp_get_num_threads();
+  #endif
+  #pragma omp for schedule(static) ordered
+  for(int i=0; i<threadNum; i++) {
+    #pragma omp ordered
+    {
+    myFilteredPoints.insert(myFilteredPoints.end(),
+        std::make_move_iterator(filteredThreadPoints.begin()),
+        std::make_move_iterator(filteredThreadPoints.end()));
+
+    myFilteredBands.insert(myFilteredBands.end(),
+        std::make_move_iterator(filteredThreadBands.begin()),
+        std::make_move_iterator(filteredThreadBands.end()));
+    }
+  }
+
+  } // close OMP parallel region
+
+  // this numBands is the full bands num, doesn't matter which point
+  Point point = points_.getPoint(0);
+  auto tup = h0.diagonalize(point);
+  auto theseEnergies = std::get<0>(tup);
+  numFullBands = int(theseEnergies.size());
 
   // now, we let each MPI process now how many points each process has found
   int myNumPts = int(myFilteredPoints.size());

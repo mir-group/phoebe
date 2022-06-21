@@ -1051,7 +1051,6 @@ s
     int ikIrr = equiv(ik); // map to the irreducible in fullPoints
     auto itr = std::lower_bound(mI2R.begin(), mI2R.end(), ikIrr);
     int ikIrr2 = std::distance(mI2R.begin(), itr);
-
     if (ikIrr2 == -1) {
       Error("Failed building irreducible points mapRedToIrrList");
     }
