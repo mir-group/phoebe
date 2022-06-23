@@ -253,6 +253,16 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         auto nb2 = int(state2Energies.size());
         auto nb3 = int(state3Energies.size());
 
+        Eigen::MatrixXd sinh3Data(nb3, numCalculations);
+#pragma omp parallel for collapse(2)
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
+          for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+            double en3 = state3Energies(ib3);
+            double kT = statisticsSweep.getCalcStatistics(iCalc).temperature;
+            sinh3Data(ib3, iCalc) = 0.5 / sinh(0.5 * en3 / kT);
+          }
+        }
+
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           double en2 = state2Energies(ib2);
           int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
@@ -301,6 +311,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 double fermi1 = outerFermi(iCalc, iBte1);
                 double fermi2 = innerFermi(iCalc, iBte2);
                 double bose3 = bose3Data(iCalc, ib3);
+                double bose3Symm = sinh3Data(ib3, iCalc); // 1/2/sinh() term
 
                 // Calculate transition probability W+
 
@@ -310,10 +321,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                        + (1. - fermi2 + bose3) * delta2)
                     * norm / en3 * pi;
 
-                double rateOffDiagonal = - fermi1 * (1. - fermi2)
-                    * coupling(ib1, ib2, ib3)
-                    * ((bose3) *delta1 + (bose3 + 1.) * delta2)
-                    * norm / en3 * pi;
+                double rateOffDiagonal = -
+                      coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
+                      * norm / en3 * pi;
 
                 // double rateOffDiagonal = -
                 // coupling(ib1, ib2, ib3)

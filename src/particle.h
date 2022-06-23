@@ -53,7 +53,8 @@ public:
    * @return dndT: derivative wrt temperature of the equilibrium distribution
    */
   double getDndt(const double &energy, const double &temperature,
-                 const double &chemicalPotential = 0.) const;
+                 const double &chemicalPotential = 0.,
+                 const bool &symmetrize = false) const;
 
   /** Returns dn/dE, with E the particle energy, and n being either a
    * Bose or Fermi distribution, depending on the value of "statistics".
@@ -63,7 +64,8 @@ public:
    * @return dndE: derivative wrt QP energy of the equilibrium distribution.
    */
   double getDnde(const double &energy, const double &temperature,
-                 const double &chemicalPotential = 0.) const;
+                 const double &chemicalPotential = 0.,
+                 const bool &symmetrize = false) const;
 
   /** Returns bose(bose+1) for bosons, fermi(1-fermi) for fermions.
    * @param energy: value of quasiparticle energy.

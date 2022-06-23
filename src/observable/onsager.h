@@ -30,6 +30,7 @@ public:
    * @param n: the electron population out-of-equilibrium.
    */
   virtual void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
+  virtual void calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &nT);
 
   /** Compute the transport coefficients from the canonical electron populations
    * where the canonical population f is related to the population n as

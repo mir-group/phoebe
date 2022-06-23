@@ -127,6 +127,31 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
+void OnsagerCoefficients::calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &nT) {
+  VectorBTE nE2 = nE;
+  VectorBTE nT2 = nT;
+
+  Particle electron = bandStructure.getParticle();
+
+  for (int is : bandStructure.parallelIrrStateIterator()) {
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    int iBte = bandStructure.stateToBte(isIdx).get();
+
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+      double chemPot = calcStat.chemicalPotential;
+      double x = sqrt(electron.getPopPopPm1(energy, temp, chemPot));
+      for (int i : {0, 1, 2}) {
+        nE2(iCalc, i, iBte) *= x;
+        nT2(iCalc, i, iBte) *= x;
+      }
+    }
+  }
+  calcFromPopulation(nE2, nT2);
+}
+
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
@@ -317,10 +342,10 @@ void OnsagerCoefficients::calcFromRelaxons(
       double en = bandStructure.getEnergy(isIndex);
       auto vel = bandStructure.getGroupVelocity(isIndex);
       for (int i : {0, 1, 2}) {
-        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
-                              eigenvectors(is, alfa) / eigenvalues(alfa);
-        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot) * vel(i) *
-                              eigenvectors(is, alfa) / eigenvalues(alfa);
+        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
+        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
       }
     }
     mpi->allReduceSum(&fE.data);
@@ -338,7 +363,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nT.data);
 
   } else { // with symmetries
-
+    Error("Not sure relaxons with symmetries would work");
     Eigen::MatrixXd fE(3, eigenvectors.cols());
     Eigen::MatrixXd fT(3, eigenvectors.cols());
     fE.setZero();
@@ -361,9 +386,9 @@ void OnsagerCoefficients::calcFromRelaxons(
         continue;
       }
       fE(iDim, alpha) +=
-          -dnde * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+          -sqrt(dnde) * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
       fT(iDim, alpha) +=
-          -dndt * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+          -sqrt(dndt) * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
     }
     mpi->allReduceSum(&fT);
     mpi->allReduceSum(&fE);
@@ -384,7 +409,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nE.data);
     mpi->allReduceSum(&nT.data);
   }
-  calcFromPopulation(nE, nT);
+  calcFromSymmetricPopulation(nE, nT);
 }
 
 void OnsagerCoefficients::print() {
