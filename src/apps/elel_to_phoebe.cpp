@@ -19,22 +19,25 @@ void ElElToPhoebeApp::run(Context &context) {
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
+  // these variables need to be fixed
+//  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+//  auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
 
-  Eigen::Vector3i kMesh = std::get<1>(t0);
-  Eigen::MatrixXd kGridFull = std::get<2>(t0);
+  Eigen::Vector3i kMesh;// = std::get<1>(t0);
+  Eigen::MatrixXd kGridFull;// = std::get<2>(t0);
 
-  Eigen::MatrixXd energies = std::get<4>(t0);
+  Eigen::MatrixXd energies;// = std::get<4>(t0);
 
-  int numQEBands = std::get<6>(t0);
-  int numElectrons = std::get<7>(t0);
+  int numQEBands;// = std::get<6>(t0);
+  int numElectrons;// = std::get<7>(t0);
 
   int numBands = 0;
   int numWannier = 0;
   int numR = 0;
   Eigen::MatrixXd bravaisDegeneracies;
-  Eigen::VectorXd bravaisVectors;
+  Eigen::MatrixXd bravaisVectors;
+
+  //---------
 
   Points kPoints(crystal, kMesh);
 
