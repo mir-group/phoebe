@@ -251,6 +251,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
     std::cout << std::endl;
   }
 
+//  auto particle = bandStructure.getParticle();
   OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
                                             bandStructure, context);
 
@@ -271,33 +272,14 @@ void ElectronWannierTransportApp::runVariationalMethod(
   // where f0 is the Fermi-Dirac distribution
   // so, here we compute b without the factor n(1-n)
   // note also, we cannot do divisions by n(1-n) because it could be zero
-  VectorBTE bE(statisticsSweep, bandStructure, 3);
-  VectorBTE bT(statisticsSweep, bandStructure, 3);
   VectorBTE preconditioning(statisticsSweep, bandStructure, 3);
-  Particle particle = bandStructure.getParticle();
-  auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
-  size_t numParallelIrrStates = parallelIrrStates.size();
-#pragma omp parallel for
-  for (size_t iss=0; iss<numParallelIrrStates; iss++) {
-    int is = parallelIrrStates[iss];
-    StateIndex isIdx(is);
-    double energy = bandStructure.getEnergy(isIdx);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
-    int iBte = bandStructure.stateToBte(isIdx).get();
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      auto chemPot = calcStat.chemicalPotential;
-      auto temp = calcStat.temperature;
-      for (int i : {0, 1, 2}) {
-        bE(iCalc, i, iBte) = vel(i) / temp;
-        bT(iCalc, i, iBte) = -vel(i) * (energy - chemPot) / temp / temp;
-        preconditioning(iCalc, i, iBte) = 1.;
-      }
-    }
-  }
-  mpi->allReduceSum(&bE.data);
-  mpi->allReduceSum(&bT.data);
-  mpi->allReduceSum(&preconditioning.data);
+  preconditioning.setConst(1.);
+
+  // symmetrized b vectors
+  BulkEDrift bE(statisticsSweep, bandStructure, 3, true);
+  BulkTDrift bT(statisticsSweep, bandStructure, 3, true);
+  bE.data *= -1.; // because the scattering matrix should have a -1 sign
+  bT.data *= -1.; // and we are solving b = -Af
 
   // populations, initial guess
   VectorBTE zNewE = bE;
@@ -396,34 +378,34 @@ void ElectronWannierTransportApp::runVariationalMethod(
     // now we update the guess of transport coefficients
     // first though, we add the factors n(1-n) that we removed from the CG
     // we need to do this because we didn't remove this factor from sMatrix
-    VectorBTE z2E = zNewE;
-    VectorBTE z2T = zNewT;
-    auto irrStates = bandStructure.irrStateIterator();
-    size_t numIrrStates = irrStates.size();
-#pragma omp parallel for
-    for (size_t iss=0; iss<numIrrStates; iss++) {
-      int is = irrStates[iss];
-      StateIndex isIdx(is);
-      double energy = bandStructure.getEnergy(isIdx);
-      int iBte = bandStructure.stateToBte(isIdx).get();
-      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        auto chemPot = calcStat.chemicalPotential;
-        auto temp = calcStat.temperature;
-        double pop = sqrt(particle.getPopPopPm1(energy, temp, chemPot));
-        for (int i : {0, 1, 2}) {
-          z2E(iCalc, i, iBte) *= pop;
-          z2T(iCalc, i, iBte) *= pop;
-        }
-      }
-    }
+//    VectorBTE z2E = zNewE;
+//    VectorBTE z2T = zNewT;
+//    auto irrStates = bandStructure.irrStateIterator();
+//    size_t numIrrStates = irrStates.size();
+//#pragma omp parallel for
+//    for (size_t iss=0; iss<numIrrStates; iss++) {
+//      int is = irrStates[iss];
+//      StateIndex isIdx(is);
+//      double energy = bandStructure.getEnergy(isIdx);
+//      int iBte = bandStructure.stateToBte(isIdx).get();
+//      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+//        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+//        auto chemPot = calcStat.chemicalPotential;
+//        auto temp = calcStat.temperature;
+//        double pop = sqrt(particle.getPopPopPm1(energy, temp, chemPot));
+//        for (int i : {0, 1, 2}) {
+//          z2E(iCalc, i, iBte) *= pop;
+//          z2T(iCalc, i, iBte) *= pop;
+//        }
+//      }
+//    }
     std::vector<VectorBTE> inF;
-    inF.push_back(z2E);
-    inF.push_back(z2T);
+    inF.push_back(zNewE);
+    inF.push_back(zNewT);
     auto outF = scatteringMatrix.dot(inF);
     VectorBTE az2E = outF[0];
     VectorBTE az2T = outF[1];
-    transportCoefficients.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
+    transportCoefficients.calcVariational(az2E, az2T, zNewE, zNewT, bE, bT,
                                           preconditioning);
     transportCoefficients.print(iter);
     elCond = transportCoefficients.getElectricalConductivity();
@@ -434,7 +416,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
     double deltaT = findMaxRelativeDifference(thCond, thCondOld);
     if ((deltaE < threshold) && (deltaT < threshold)) {
       // recompute our final guess for transport coefficients
-      transportCoefficients.calcFromCanonicalPopulation(zNewE, zNewT);
+      transportCoefficients.calcFromSymmetricPopulation(zNewE, zNewT);
       break;
     } else {
       elCondOld = elCond;
