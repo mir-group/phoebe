@@ -682,7 +682,7 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &scalingCG) {
   double norm = spinFactor / context.getKMesh().prod() /
       crystal.getVolumeUnitCell(dimensionality);
-
+  (void) scalingCG;
   int numCalculations = statisticsSweep.getNumCalculations();
 
   sigma.setConstant(0.);
@@ -774,8 +774,6 @@ void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
   mpi->allReduceSum(&y2E);
   mpi->allReduceSum(&y1T);
   mpi->allReduceSum(&y2T);
-  sigma = y2E;
-  kappa = y2T;
-//  sigma = y2E - y1E * 0.5;
-//  kappa = y2T - y1T * 0.5;
+  sigma = 2. * y2E - y1E;
+  kappa = 2. * y2T - y1T;
 }
