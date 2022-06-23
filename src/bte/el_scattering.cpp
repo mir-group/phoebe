@@ -147,7 +147,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
 
   if (couplingElPhWan != nullptr) {
-
     LoopPrint loopPrint("computing scattering matrix", "k-points",
                         int(kPairIterator.size()));
 
@@ -259,6 +258,16 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           auto nb2 = int(state2Energies.size());
           auto nb3 = int(state3Energies.size());
 
+          Eigen::MatrixXd sinh3Data(nb3, numCalculations);
+#pragma omp parallel for collapse(2)
+          for (int ib3 = 0; ib3 < nb3; ib3++) {
+            for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+              double en3 = state3Energies(ib3);
+              double kT = statisticsSweep.getCalcStatistics(iCalc).temperature;
+              sinh3Data(ib3, iCalc) = 0.5 / sinh(0.5 * en3 / kT);
+            }
+          }
+
           for (int ib2 = 0; ib2 < nb2; ib2++) {
             double en2 = state2Energies(ib2);
             int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
@@ -307,6 +316,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   double fermi1 = outerFermi(iCalc, iBte1);
                   double fermi2 = innerFermi(iCalc, iBte2);
                   double bose3 = bose3Data(iCalc, ib3);
+                  double bose3Symm = sinh3Data(ib3, iCalc); // 1/2/sinh() term
 
                   // Calculate transition probability W+
 
@@ -316,9 +326,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                          + (1. - fermi2 + bose3) * delta2)
                       * norm / en3 * pi;
 
-                  double rateOffDiagonal = -fermi1 * (1. - fermi2)
-                      * coupling(ib1, ib2, ib3)
-                      * ((bose3) *delta1 + (bose3 + 1.) * delta2)
+                  double rateOffDiagonal = -
+                                           coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
                       * norm / en3 * pi;
 
                   // double rateOffDiagonal = -
@@ -385,7 +394,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         }
       }
     }
-
     mpi->barrier();
     loopPrint.close();
 
@@ -403,6 +411,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
     // precompute all fermi population terms
     Eigen::MatrixXd fermiFactor(numStates, numCalculations);
+    Eigen::MatrixXd charges(numStates, numCalculations);
 #pragma omp parallel for collapse(2)
     for (int is1 = 0; is1 < numStates; ++is1) {
       for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
@@ -412,7 +421,20 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         double temp = calcInfo.temperature;
         double chemPot = calcInfo.chemicalPotential;
         fermiFactor(is1, iCalc) = particle.getPopulation(en, temp, chemPot);
+
+        charges(is1, iCalc) = -1.;
+        if (en < chemPot) {// it's a hole!
+          charges(is1, iCalc) = 1.;
+          fermiFactor(is1, iCalc) = 1. - fermiFactor(is1, iCalc);
+        }
       }
+    }
+
+    std::vector<double> temperatures(numCalculations);
+    for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
+      auto calcInfo = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcInfo.temperature;
+      temperatures[iCalc] = temp;
     }
 
     if (withSymmetries) {
@@ -522,43 +544,47 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
                     // here we impose the charge conservation rule
                     double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-                    int charge1, charge2, charge3, charge4;
-                    if (energies1(ib1)>chemPot) {charge1 = -1;} else {charge1 = 1;}
-                    if (energies2(ib2)>chemPot) {charge2 = -1;} else {charge2 = 1;}
-                    if (energies3(ib3)>chemPot) {charge3 = -1;} else {charge3 = 1;}
-                    if (energies4(ib4)>chemPot) {charge4 = -1;} else {charge4 = 1;}
 
                     double fermi1 = fermiFactor(is1, iCalc);
                     double fermi2 = fermiFactor(is2, iCalc);
                     double fermi3 = fermiFactor(is3, iCalc);
                     double fermi4 = fermiFactor(is4, iCalc);
 
-                    double fermiA = 0.5 *
-                        (fermi1 * fermi2 * (1. - fermi3) * (1. - fermi4)
-                         + fermi3 * fermi4 * (1. - fermi1) * (1. - fermi2));
-                    double fermiB = 0.5 *
-                        (fermi1 * fermi3 * (1. - fermi2) * (1. - fermi4)
-                         + fermi2 * fermi4 * (1. - fermi1) * (1. - fermi3));
-                    double fermiC = 0.5 *
-                        (fermi3 * fermi2 * (1. - fermi1) * (1. - fermi4)
-                         + fermi1 * fermi4 * (1. - fermi3) * (1. - fermi2));
+                    double charge1 = charges(is1, iCalc);
+                    double charge2 = charges(is2, iCalc);
+                    double charge3 = charges(is3, iCalc);
+                    double charge4 = charges(is4, iCalc);
 
                     double rate = 0.;
                     double rateOffDiagonal = 0.;
-                    // we add the scattering terms, but we check for the charge
-                    // conservation rule.
-                    if (charge1 + charge2 == charge3 + charge4) {
-                      rate = fermiA * norm2 * couplingA(ib1, ib2, ib3, ib4);
-                      rateOffDiagonal +=
-                          norm2 * fermiA * couplingA(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1 + charge3 == charge2 + charge4) {
+
+                    // condition for e-h creation
+                    if (charge1 == charge2 + charge3 + charge3) {
+                      rate += norm2 * 2
+                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4) + fermi2 * fermi3 * fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4);
                       rateOffDiagonal -=
-                          norm2 * fermiB * couplingB(ib1, ib3, ib2, ib4);
-                    }
-                    if (charge1 + charge4 == charge2 + charge3) {
-                      rateOffDiagonal -=
-                          norm2 * fermiC * couplingC(ib1, ib4, ib2, ib3);
+                          norm2 * 2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
+                          * (1. - fermi3) * (1. - fermi4) * (couplingA(ib1, ib2, ib3, ib4) + couplingB(ib1, ib3, ib2, ib4) + couplingC(ib1, ib4, ib3, ib2));
+                    } else// in this case is e-e, e-h or h-h scattering
+                    {
+                      if (charge1 == charge3 && charge2 == charge4) {
+                        rate = norm2 * (fermi2 * (1. - fermi3) * (1. - fermi4) + (1. - fermi2) * fermi3 * fermi4)
+                            * couplingA(ib1, ib2, ib3, ib4);
+                        rateOffDiagonal +=
+                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) + energies2(ib2) + 2. * chemPot))
+                            * (1. - fermi3) * (1. - fermi4) * couplingA(ib1, ib2, ib3, ib4);
+                      }
+                      if (charge1 == charge2 && charge3 == charge4) {
+                        rateOffDiagonal -=
+                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
+                            * fermi3 * (1. - fermi4) * couplingB(ib1, ib3, ib2, ib4);
+                      }
+                      if (charge1 == charge3 && charge2 == charge4) {
+                        rateOffDiagonal -=
+                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
+                            * fermi4 * (1. - fermi3) * couplingC(ib1, ib4, ib3, ib2);
+                      }
                     }
 
                     if (switchCase == 0) {

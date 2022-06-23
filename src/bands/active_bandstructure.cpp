@@ -62,8 +62,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   hasEigenvectors = withEigenvectors;
 
   energies.resize(numPoints * numFullBands, 0.);
-  velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
-  eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
+  if(withVelocities) velocities.resize(numPoints * numFullBands * numFullBands * 3, complexZero);
+  if(withEigenvectors) eigenvectors.resize(numPoints * numFullBands * numFullBands, complexZero);
 
   windowMethod = Window::nothing;
   buildIndices();
@@ -438,6 +438,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
+  // iterate over mpi-parallelized wavevectors
+  #pragma omp parallel
+  {
+  std::vector<int> filteredThreadPoints;
+  std::vector<std::vector<int>> filteredThreadBands;
+
+  #pragma omp for nowait schedule(static)
   for (int ik : mpi->divideWorkIter(points_.getNumPoints())) {
     Point point = points_.getPoint(ik);
     // diagonalize harmonic hamiltonian
@@ -453,11 +460,36 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
     if (ens.empty()) { // nothing to do
       continue;
     } else { // save point index and "relevant" band indices
-      myFilteredPoints.push_back(ik);
-      myFilteredBands.push_back(bandsExtrema);
+      filteredThreadPoints.push_back(ik);
+      filteredThreadBands.push_back(bandsExtrema);
     }
-    numFullBands = int(theseEnergies.size());
   }
+  // merge the vector collected by each thread
+  int threadNum = 1;
+  #ifdef OMP_AVAIL
+  threadNum = omp_get_num_threads();
+  #endif
+  #pragma omp for schedule(static) ordered
+  for(int i=0; i<threadNum; i++) {
+    #pragma omp ordered
+    {
+    myFilteredPoints.insert(myFilteredPoints.end(),
+        std::make_move_iterator(filteredThreadPoints.begin()),
+        std::make_move_iterator(filteredThreadPoints.end()));
+
+    myFilteredBands.insert(myFilteredBands.end(),
+        std::make_move_iterator(filteredThreadBands.begin()),
+        std::make_move_iterator(filteredThreadBands.end()));
+    }
+  }
+
+  } // close OMP parallel region
+
+  // this numBands is the full bands num, doesn't matter which point
+  Point point = points_.getPoint(0);
+  auto tup = h0.diagonalize(point);
+  auto theseEnergies = std::get<0>(tup);
+  numFullBands = int(theseEnergies.size());
 
   // now, we let each MPI process now how many points each process has found
   int myNumPts = int(myFilteredPoints.size());
@@ -672,6 +704,12 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
 
   // iterate over mpi-parallelized wavevectors
+  #pragma omp parallel
+  {
+  std::vector<int> filteredThreadPoints;
+  std::vector<std::vector<int>> filteredThreadBands;
+
+  #pragma omp for nowait schedule(static)
   for (int ik : parallelIter) {
 
     auto ikIdx = WavevectorIndex(ik);
@@ -702,12 +740,35 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
     if (ens.empty()) { // nothing to do
       continue;
-    } else { // save point index and "relevant" band indices
-      myFilteredPoints.push_back(ik);
-      myFilteredBands.push_back(bandsExtrema);
+    } else {// save point index and "relevant" band indices
+      filteredThreadPoints.push_back(ik);
+      filteredThreadBands.push_back(bandsExtrema);
     }
-    numFullBands = int(theseEnergies.size());
   }
+
+  // merge the vector collected by each thread
+  int threadNum = 1;
+  #ifdef OMP_AVAIL
+  threadNum = omp_get_num_threads();
+  #endif
+  #pragma omp for schedule(static) ordered
+  for(int i=0; i<threadNum; i++) {
+    #pragma omp ordered
+    {
+    myFilteredPoints.insert(myFilteredPoints.end(),
+        std::make_move_iterator(filteredThreadPoints.begin()),
+        std::make_move_iterator(filteredThreadPoints.end()));
+
+    myFilteredBands.insert(myFilteredBands.end(),
+        std::make_move_iterator(filteredThreadBands.begin()),
+        std::make_move_iterator(filteredThreadBands.end()));
+    }
+  }
+
+  } // close OMP parallel region
+
+  // the same for all points in full band structure
+  numFullBands = fullBandStructure.getNumBands();
 
   // ---------- collect indices of relevant states  --------------- //
   // now that we've counted up the selected points and their

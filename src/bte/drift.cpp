@@ -2,12 +2,13 @@
 
 BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
-                       const int &dimensionality_)
+                       const int &dimensionality_,
+                       const bool& symmetrize)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
+#pragma omp parallel for
   for(int iis = 0; iis < niss; iis++){
     int is = iss[iis];
     StateIndex isIdx(is);
@@ -20,7 +21,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
       auto temp = calcStat.temperature;
       for (int i = 0; i < 3; i++) {
         operator()(iCalc, i, iBte) =
-            particle.getDndt(energy, temp, chemPot) * vel(i);
+            particle.getDndt(energy, temp, chemPot, symmetrize) * vel(i);
       }
     }
   }
@@ -29,12 +30,13 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
 
 BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &bandStructure_,
-                       const int &dimensionality_)
+                       const int &dimensionality_,
+                       const bool& symmetrize)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
   Particle particle = bandStructure.getParticle();
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
-#pragma omp parallel for default(none) shared(bandStructure,statisticsSweep,particle, niss, iss)
+#pragma omp parallel for
   for(int iis = 0; iis < niss; iis++){
     int is = iss[iis];
     StateIndex isIdx(is);
@@ -45,7 +47,7 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       auto chemPot = calcStat.chemicalPotential;
       auto temp = calcStat.temperature;
-      double x = particle.getDnde(energy, temp, chemPot);
+      double x = particle.getDnde(energy, temp, chemPot, symmetrize);
       for (int i = 0; i < 3; i++) {
         // note: this is tuned for electrons
         // EDrift = e v dn/de

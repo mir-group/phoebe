@@ -168,68 +168,8 @@ void ElectronWannierTransportApp::run(Context &context) {
   }
 
   if (doIterative) {
-
-    if (mpi->mpiHead()) {
-      std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
-    }
-
-    Eigen::Tensor<double, 3> elCond =
-        transportCoefficients.getElectricalConductivity();
-    Eigen::Tensor<double, 3> thCond =
-        transportCoefficients.getThermalConductivity();
-    Eigen::Tensor<double, 3> elCondOld = elCond;
-    Eigen::Tensor<double, 3> thCondOld = thCond;
-
-    VectorBTE nENext(statisticsSweep, bandStructure, 3);
-    VectorBTE nTNext(statisticsSweep, bandStructure, 3);
-
-    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
-    VectorBTE nEOld = nERTA;
-    VectorBTE nTOld = nTRTA;
-
-    auto threshold = context.getConvergenceThresholdBTE();
-
-    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
-
-      std::vector<VectorBTE> nIn;
-      nIn.push_back(nEOld);
-      nIn.push_back(nTOld);
-      auto nOut = scatteringMatrix.offDiagonalDot(nIn);
-      nENext = nOut[0] / lineWidths;
-      nTNext = nOut[1] / lineWidths;
-      nENext = nERTA - nENext;
-      nTNext = nTRTA - nTNext;
-
-      transportCoefficients.calcFromPopulation(nENext, nTNext);
-      transportCoefficients.print(iter);
-      elCond = transportCoefficients.getElectricalConductivity();
-      thCond = transportCoefficients.getThermalConductivity();
-
-      // this exit condition must be improved
-      // different temperatures might converge differently
-
-      double dE = findMaxRelativeDifference(elCond, elCondOld);
-      double dT = findMaxRelativeDifference(thCond, thCondOld);
-      if ((dE < threshold) && (dT < threshold)) {
-        break;
-      } else {
-        elCondOld = elCond;
-        thCondOld = thCond;
-        nEOld = nENext;
-        nTOld = nTNext;
-      }
-
-      if (iter == context.getMaxIterationsBTE() - 1) {
-        Error("Reached max BTE iterations without convergence");
-      }
-    }
-    transportCoefficients.print();
-    transportCoefficients.outputToJSON("omini_onsager_coefficients.json");
-
-    if (mpi->mpiHead()) {
-      std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
-      std::cout << std::string(80, '-') << "\n" << std::endl;
-    }
+    runIterativeMethod(context, crystal, statisticsSweep, bandStructure,
+                       scatteringMatrix);
   }
 
   if (doVariational) {
@@ -306,6 +246,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
     std::cout << std::endl;
   }
 
+//  auto particle = bandStructure.getParticle();
   OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
                                             bandStructure, context);
 
@@ -326,33 +267,14 @@ void ElectronWannierTransportApp::runVariationalMethod(
   // where f0 is the Fermi-Dirac distribution
   // so, here we compute b without the factor n(1-n)
   // note also, we cannot do divisions by n(1-n) because it could be zero
-  VectorBTE bE(statisticsSweep, bandStructure, 3);
-  VectorBTE bT(statisticsSweep, bandStructure, 3);
   VectorBTE preconditioning(statisticsSweep, bandStructure, 3);
-  Particle particle = bandStructure.getParticle();
-  auto parallelIrrStates = bandStructure.parallelIrrStateIterator();
-  size_t numParallelIrrStates = parallelIrrStates.size();
-#pragma omp parallel for
-  for (size_t iss=0; iss<numParallelIrrStates; iss++) {
-    int is = parallelIrrStates[iss];
-    StateIndex isIdx(is);
-    double energy = bandStructure.getEnergy(isIdx);
-    Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
-    int iBte = bandStructure.stateToBte(isIdx).get();
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      auto chemPot = calcStat.chemicalPotential;
-      auto temp = calcStat.temperature;
-      for (int i : {0, 1, 2}) {
-        bE(iCalc, i, iBte) = vel(i) / temp;
-        bT(iCalc, i, iBte) = -vel(i) * (energy - chemPot) / temp / temp;
-        preconditioning(iCalc, i, iBte) = 1.;
-      }
-    }
-  }
-  mpi->allReduceSum(&bE.data);
-  mpi->allReduceSum(&bT.data);
-  mpi->allReduceSum(&preconditioning.data);
+  preconditioning.setConst(1.);
+
+  // symmetrized b vectors
+  BulkEDrift bE(statisticsSweep, bandStructure, 3, true);
+  BulkTDrift bT(statisticsSweep, bandStructure, 3, true);
+  bE.data *= -1.; // because the scattering matrix should have a -1 sign
+  bT.data *= -1.; // and we are solving b = -Af
 
   // populations, initial guess
   VectorBTE zNewE = bE;
@@ -390,8 +312,6 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE wT = outW[1];
 
     // amount of descent along the search direction
-//    Eigen::MatrixXd alphaE = (rE.dot(rE)).array() / (dE.dot(wE)).array();
-//    Eigen::MatrixXd alphaT = (rT.dot(rT)).array() / (dT.dot(wT)).array();
     int numCalculations = statisticsSweep.getNumCalculations();
     Eigen::MatrixXd alphaE = Eigen::MatrixXd::Zero(numCalculations,3);
     Eigen::MatrixXd alphaT = Eigen::MatrixXd::Zero(numCalculations,3);
@@ -403,6 +323,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
       for (int iCalc=0; iCalc<numCalculations; iCalc++) {
         for (int i : {0,1,2}) {
           if (denE(iCalc,i) != 0.) {
+            // note there can be divisions by zero here!
             alphaE(iCalc, i) = numE(iCalc, i) / denE(iCalc, i);
           }
           if (denT(iCalc,i) != 0.) {
@@ -449,36 +370,13 @@ void ElectronWannierTransportApp::runVariationalMethod(
     VectorBTE dNewT = dT * betaT + rNewT;
 
     // now we update the guess of transport coefficients
-    // first though, we add the factors n(1-n) that we removed from the CG
-    // we need to do this because we didn't remove this factor from sMatrix
-    VectorBTE z2E = zNewE;
-    VectorBTE z2T = zNewT;
-    auto irrStates = bandStructure.irrStateIterator();
-    size_t numIrrStates = irrStates.size();
-#pragma omp parallel for
-    for (size_t iss=0; iss<numIrrStates; iss++) {
-      int is = irrStates[iss];
-      StateIndex isIdx(is);
-      double energy = bandStructure.getEnergy(isIdx);
-      int iBte = bandStructure.stateToBte(isIdx).get();
-      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-        auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        auto chemPot = calcStat.chemicalPotential;
-        auto temp = calcStat.temperature;
-        double pop = sqrt(particle.getPopPopPm1(energy, temp, chemPot));
-        for (int i : {0, 1, 2}) {
-          z2E(iCalc, i, iBte) *= pop;
-          z2T(iCalc, i, iBte) *= pop;
-        }
-      }
-    }
     std::vector<VectorBTE> inF;
-    inF.push_back(z2E);
-    inF.push_back(z2T);
+    inF.push_back(zNewE);
+    inF.push_back(zNewT);
     auto outF = scatteringMatrix.dot(inF);
     VectorBTE az2E = outF[0];
     VectorBTE az2T = outF[1];
-    transportCoefficients.calcVariational(az2E, az2T, z2E, z2T, zNewE, zNewT,
+    transportCoefficients.calcVariational(az2E, az2T, zNewE, zNewT, bE, bT,
                                           preconditioning);
     transportCoefficients.print(iter);
     elCond = transportCoefficients.getElectricalConductivity();
@@ -489,7 +387,7 @@ void ElectronWannierTransportApp::runVariationalMethod(
     double deltaT = findMaxRelativeDifference(thCond, thCondOld);
     if ((deltaE < threshold) && (deltaT < threshold)) {
       // recompute our final guess for transport coefficients
-      transportCoefficients.calcFromCanonicalPopulation(zNewE, zNewT);
+      transportCoefficients.calcFromSymmetricPopulation(zNewE, zNewT);
       break;
     } else {
       elCondOld = elCond;
@@ -513,6 +411,91 @@ void ElectronWannierTransportApp::runVariationalMethod(
 
   if (mpi->mpiHead()) {
     std::cout << "Finished variational BTE solver\n\n";
+    std::cout << std::string(80, '-') << "\n" << std::endl;
+  }
+}
+
+
+void ElectronWannierTransportApp::runIterativeMethod(
+    Context &context, Crystal &crystal, StatisticsSweep &statisticsSweep,
+    ActiveBandStructure &bandStructure, ElScatteringMatrix &scatteringMatrix) {
+
+  // here we implement a conjugate gradient solution to Az = b
+
+  if (mpi->mpiHead()) {
+    std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
+  }
+
+  OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
+                                            bandStructure, context);
+
+  // initialize the transport coefficients
+  // to check how these change during iterations
+  Eigen::Tensor<double, 3> elCond =
+      transportCoefficients.getElectricalConductivity();
+  Eigen::Tensor<double, 3> thCond =
+      transportCoefficients.getThermalConductivity();
+  auto elCondOld = elCond.setConstant(1.);
+  auto thCondOld = thCond.setConstant(1.);
+
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  VectorBTE nENext(statisticsSweep, bandStructure, 3);
+  VectorBTE nTNext(statisticsSweep, bandStructure, 3);
+
+  VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+
+  // we get the symmetrized
+  BulkEDrift driftE(statisticsSweep, bandStructure, 3, true);
+  BulkTDrift driftT(statisticsSweep, bandStructure, 3, true);
+  VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
+  VectorBTE nERTA = -driftE * relaxationTimes;
+  VectorBTE nTRTA = -driftT * relaxationTimes;
+
+  VectorBTE nEOld = nERTA;
+  VectorBTE nTOld = nTRTA;
+
+  auto threshold = context.getConvergenceThresholdBTE();
+
+  for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+
+    std::vector<VectorBTE> nIn;
+    nIn.push_back(nEOld);
+    nIn.push_back(nTOld);
+    auto nOut = scatteringMatrix.offDiagonalDot(nIn);
+    nENext = nOut[0] / lineWidths;
+    nTNext = nOut[1] / lineWidths;
+    nENext = nERTA - nENext;
+    nTNext = nTRTA - nTNext;
+
+    transportCoefficients.calcFromSymmetricPopulation(nENext, nTNext);
+    transportCoefficients.print(iter);
+    elCond = transportCoefficients.getElectricalConductivity();
+    thCond = transportCoefficients.getThermalConductivity();
+
+    // this exit condition must be improved
+    // different temperatures might converge differently
+
+    double dE = findMaxRelativeDifference(elCond, elCondOld);
+    double dT = findMaxRelativeDifference(thCond, thCondOld);
+    if ((dE < threshold) && (dT < threshold)) {
+      break;
+    } else {
+      elCondOld = elCond;
+      thCondOld = thCond;
+      nEOld = nENext;
+      nTOld = nTNext;
+    }
+
+    if (iter == context.getMaxIterationsBTE() - 1) {
+      Error("Reached max BTE iterations without convergence");
+    }
+  }
+  transportCoefficients.print();
+  transportCoefficients.outputToJSON("omini_onsager_coefficients.json");
+
+  if (mpi->mpiHead()) {
+    std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
     std::cout << std::string(80, '-') << "\n" << std::endl;
   }
 }

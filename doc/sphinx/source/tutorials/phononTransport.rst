@@ -17,6 +17,8 @@ Though we show below how to do this calculation with phono3py, Phoebe is also ca
 .. note::
   Support of phono3py is only available if Phoebe is built using `hdf5`. It's needed for this tutorial.
 
+.. _phono3pyInstallation:
+
 Step 1: Phono3py Installation
 -----------------------------
 
@@ -133,6 +135,8 @@ and plotting the resulting phonon dispersion with the ``bands.py`` script found 
   You should make sure this disperson is converged with respect to DFT parameters (energy cutoff, kpoint mesh, etc) and also with respect to the dimension of the supercell provided to phono3py. It is also recommend you check the convergence of the final calculated transport properties with respect to supercell size.
 
 
+.. _thermalConductivityCalculation:
+
 Step 4: Calculate Lattice Thermal Conductivity
 ------------------------------------------------
 
@@ -191,7 +195,7 @@ With this input, we can compute the phonon contribution to thermal conductivity 
   mpirun -np 1 /path/to/phoebe/build/phoebe -in phononTransport.in > phTransport.out
 
 .. note::
-   By default, isotopic scattering at natural abundances is included in the scattering matrix. To disable or modify it, check the parameters :ref:`withIsotopeScattering` and :ref:`massVariance`.
+   By default, isotopic scattering at natural abundances is included in the scattering matrix. To disable or modify it, check the parameters :ref:`withIsotopeScattering` and :ref:`masses`.
 
 .. note::
    In several studies you may want to include boundary scattering. To include it, use the parameter :ref:`boundaryLength`.
