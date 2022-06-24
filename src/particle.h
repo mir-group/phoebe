@@ -50,6 +50,8 @@ public:
    * @param energy: value of quasiparticle energy.
    * @param temperature: value of temperature.
    * @param chemicalPotential: 0 by default, set a value for electrons.
+   * @param symmetrize: false by default, if true rescales dndt by a factor
+   * 1/sqrt(f(1-f)) or 1/sqrt(n(1+n)). Used for the symmetrized BTE.
    * @return dndT: derivative wrt temperature of the equilibrium distribution
    */
   double getDndt(const double &energy, const double &temperature,
@@ -61,6 +63,8 @@ public:
    * @param energy: value of quasiparticle energy.
    * @param temperature: value of temperature.
    * @param chemicalPotential: 0 by default, set a value for electrons.
+   * @param symmetrize: false by default, if true rescales dndt by a factor
+   * 1/sqrt(f(1-f)) or 1/sqrt(n(1+n)). Used for the symmetrized BTE.
    * @return dndE: derivative wrt QP energy of the equilibrium distribution.
    */
   double getDnde(const double &energy, const double &temperature,

@@ -30,6 +30,12 @@ public:
    * @param n: the electron population out-of-equilibrium.
    */
   virtual void calcFromPopulation(VectorBTE &nE, VectorBTE &nT);
+
+  /** Compute the transport coefficients from the symmetrized electron
+   * populations $\delta \tilde{n} = (f(1-f))^{1/2}) \delta n $.
+   * In practice, it just does a rescaling and calls calcFromPopulation.
+   * @param n: the electron population out-of-equilibrium.
+   */
   virtual void calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &nT);
 
   /** Compute the transport coefficients from the canonical electron populations
@@ -55,16 +61,46 @@ public:
    */
   void outputToJSON(const std::string &outFileName);
 
+  /** After the Onsager coefficients L_EE, L_TT, L_ET, L_TE have been computed
+   * this function evaluates the transport coefficients such as electrical
+   * conductivity, Seebeck and thermal conductivity.
+   */
   void calcTransportCoefficients();
 
+  /** Evaluation of the Onsager coefficients within the EPA approximation.
+   *
+   * @param scatteringRates: lifetimes vs energy.
+   * @param energyProjVelocity: $v^2 \rho$ as a function of energy.
+   * @param energies: energies at which the previous quantities are evaluated.
+   */
   void calcFromEPA(VectorEPA &scatteringRates,
                    Eigen::Tensor<double, 3> &energyProjVelocity,
                    Eigen::VectorXd &energies);
 
+  /** This function solves the BTE in the relaxons basis, rotates the population
+   * in the electron basis, and calls calcFromPopulation to compute the
+   * transport coefficients.
+   *
+   * @param eigenvalues: eigenvalues of $\tilde{\Omega}$
+   * @param eigenvectors : eigenvectors of $\tilde{\Omega}$
+   * @param scatteringMatrix: $\tilde{\Omega}$
+   */
   void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors,
                         ElScatteringMatrix &scatteringMatrix);
 
+  /** This function computes the electrical and thermal conductivity using the
+   * variational functional (f \Omega f - b f).
+   *
+   * @param afE: product of scattering matrix with populations (E perturbation)
+   * @param afT: product of scattering matrix with populations ($\nabla T$
+   * perturbation)
+   * @param fE: populations (E perturbation)
+   * @param fT: populations ($\nabla T$ perturbation)
+   * @param nE: diffusion vector (E perturbation)
+   * @param nT: diffusion vector ($\nabla T$ perturbation)
+   * @param scalingCG: to use if the conjugate gradient has a rescaling (not atm).
+   */
   void calcVariational(VectorBTE &afE, VectorBTE &afT, VectorBTE &fE,
                        VectorBTE &fT, VectorBTE &nE, VectorBTE &nT,
                        VectorBTE &scalingCG);
