@@ -55,6 +55,16 @@ protected:
   double boundaryLength;
   bool doBoundary;
 
+  /** Function with the detailed calculation of the scattering matrix.
+   *
+   * Note: this function is computing the symmetrized scattering matrix
+   * $\tilde{\Omega}$.
+   * As a result, only use this with the appropriately symmetrized BTE
+   *
+   * @param linewidth
+   * @param inPopulations
+   * @param outPopulations
+   */
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 };
