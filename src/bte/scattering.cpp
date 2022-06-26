@@ -74,8 +74,8 @@ ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
       smearing(that.smearing), innerBandStructure(that.innerBandStructure),
       outerBandStructure(that.outerBandStructure),
       constantRTA(that.constantRTA), highMemory(that.highMemory),
-      internalDiagonal(that.internalDiagonal), theMatrix(that.theMatrix),
-      numStates(that.numStates), numPoints(that.numPoints),
+      isMatrixOmega(that.isMatrixOmega), internalDiagonal(that.internalDiagonal),
+      theMatrix(that.theMatrix), numStates(that.numStates), numPoints(that.numPoints),
       numCalculations(that.numCalculations), dimensionality_(that.dimensionality_),
       excludeIndices(that.excludeIndices) {}
 
@@ -96,6 +96,7 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     numCalculations = that.numCalculations;
     excludeIndices = that.excludeIndices;
     dimensionality_ = that.dimensionality_;
+    isMatrixOmega = that.isMatrixOmega;
   }
   return *this;
 }
