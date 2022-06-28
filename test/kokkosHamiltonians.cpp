@@ -61,7 +61,7 @@ TEST(Kokkos, Wannier1) {
 
     auto t2 = electronH0.kokkosBatchedDiagonalizeFromCoordinates(q3Cs_d);
     DoubleView2D batchedEnergies = std::get<0>(t2);
-    ComplexView3D batchedEigenvectors = std::get<1>(t2);
+    StridedComplexView3D batchedEigenvectors = std::get<1>(t2);
 
     // now we copy back to host
     auto tmpEnergies_h = Kokkos::create_mirror_view(batchedEnergies);
@@ -181,7 +181,7 @@ TEST(Kokkos, Wannier2) {
 
     auto t2 = electronH0.kokkosBatchedDiagonalizeFromCoordinates(q3Cs_d);
     DoubleView2D batchedEnergies = std::get<0>(t2);
-    ComplexView3D batchedEigenvectors = std::get<1>(t2);
+    StridedComplexView3D batchedEigenvectors = std::get<1>(t2);
 
     // now we copy back to host
     auto tmpEnergies_h = Kokkos::create_mirror_view(batchedEnergies);
@@ -285,7 +285,7 @@ TEST(Kokkos, Wannier3) {
 
     auto t2 = electronH0.kokkosBatchedDiagonalizeFromCoordinates(q3Cs_d);
     DoubleView2D batchedEnergies = std::get<0>(t2);
-    ComplexView3D batchedEigenvectors = std::get<1>(t2);
+    StridedComplexView3D batchedEigenvectors = std::get<1>(t2);
 
     // now we copy back to host
     auto tmpEnergies_h = Kokkos::create_mirror_view(batchedEnergies);
@@ -390,7 +390,7 @@ TEST(Kokkos, PhononH0) {
 
     auto t2 = phononH0.kokkosBatchedDiagonalizeFromCoordinates(q3Cs_d);
     DoubleView2D batchedEnergies = std::get<0>(t2);
-    ComplexView3D batchedEigenvectors = std::get<1>(t2);
+    StridedComplexView3D batchedEigenvectors = std::get<1>(t2);
 
     // now we copy back to host
     auto tmpEnergies_h = Kokkos::create_mirror_view(batchedEnergies);
