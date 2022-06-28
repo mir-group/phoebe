@@ -146,6 +146,7 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         phasePlus3(ir3) = Kokkos::exp(complexI * argP);
         phaseMins3(ir3) = Kokkos::exp(complexI * argM);
       });
+  Kokkos::fence();
 
   // create cached D3
   Kokkos::parallel_for(
@@ -170,6 +171,7 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
         D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
       });
+  Kokkos::fence();
 }
 
 std::tuple<std::vector<Eigen::Tensor<double, 3>>,
@@ -267,6 +269,7 @@ Interaction3Ph::getCouplingsSquared(
         }
         phases(iq1, ir3) = exp(complexI * arg);
       });
+  Kokkos::fence();
 
   ComplexView4D tmpPlus("tmpp", nq1, numBands, numBands, numBands);
   ComplexView4D tmpMins("tmpm", nq1, numBands, numBands, numBands);

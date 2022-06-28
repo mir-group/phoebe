@@ -347,7 +347,8 @@ void InteractionElPhWan::calcCouplingSquared(
         }
         phases(ik, irP) =
             exp(complexI * arg) / phBravaisVectorsDegeneracies_k(irP);
-      });
+     });
+   Kokkos::fence();
 
   ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
@@ -542,6 +543,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
           phases_k(irE) =
               exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
         });
+   Kokkos::fence();
 
     // now we complete the Fourier transform
     // We have to write two codes: one for when the GPU runs on CUDA,
@@ -560,6 +562,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
           }
           g1(irP, nu, iw1, iw2) = tmp;
         });
+   Kokkos::fence();
 #else
     Kokkos::deep_copy(g1, Kokkos::complex<double>(0.0, 0.0));
     Kokkos::Experimental::ScatterView<Kokkos::complex<double> ****> g1scatter(g1);
@@ -595,6 +598,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
             }
             elPhCached(irP, nu, ib1, iw2) = tmp;
           });
+      Kokkos::fence();
 
     } else {
 
