@@ -77,6 +77,7 @@ class Context {
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
   std::string elphFileName;
+  std::string elelFileName, yamboInteractionFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double maxChemicalPotential = std::numeric_limits<double>::quiet_NaN();
   double deltaChemicalPotential = std::numeric_limits<double>::quiet_NaN();
@@ -160,6 +161,10 @@ public:
 
   std::string getElphFileName();
   void setElphFileName(const std::string &x);
+  std::string getElelFileName();
+  void setElelFileName(const std::string &x);
+  std::string getYamboInteractionFileName();
+  void setYamboInteractionFileName(const std::string &x);
 
   std::string getWannier90Prefix();
   void setWannier90Prefix(const std::string &x);

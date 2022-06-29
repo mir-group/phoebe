@@ -84,6 +84,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
                          Eigen::Tensor<double,5> vectorsShifts_);
 
+  std::tuple<Eigen::MatrixXd, Eigen::VectorXd> getVectors();
  protected:
   Particle particle;
 
