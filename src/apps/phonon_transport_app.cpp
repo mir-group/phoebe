@@ -56,25 +56,29 @@ void PhononTransportApp::run(Context &context) {
   // load the 3phonon coupling
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
-  // if requested in input, load the phononElectron information
-  // we save only a vector BTE to add to the phonon scattering matrix, 
-  // as the phonon electron lifetime only contributes to the digaonal 
-  VectorBTE phononElectronRates(statisticsSweep, bandStructure); 
-  if(context.getUsePhElScattering()) { 
-    setupPhononElectronScattering(context, crystal, phononElectronRates); 
-  } 
-
   // build/initialize the scattering matrix and the smearing
   PhScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
 
-  // if we use phEl Scattering, we need to merge these rates
-  if(context.getUsePhElScattering()) { 
-    VectorBTE totalRates = scatteringMatrix.diagonal(); 
-    totalRates = totalRates + phononElectronRates; 
-    scatteringMatrix.setLinewidths(totalRates); 
-  } 
+  // if requested in input, load the phononElectron information
+  // we save only a vector BTE to add to the phonon scattering matrix,
+  // as the phonon electron lifetime only contributes to the digaonal
+  if(context.getUsePhElScattering()) {
+
+    // don't proceed if we use more than one doping concentration:
+    // we'd need slightly different statisticsSweep for the 2 scatterings
+    int numMu = statisticsSweep.getNumChemicalPotentials();
+    if (numMu != 1) Error("Can only add el-ph scattering one doping "
+                          "concentration at the time");
+
+    VectorBTE elPhLinewidths = getPhononElectronLinewidth(context, crystal,
+                                                          bandStructure,
+                                                          phononH0);
+    VectorBTE totalRates = scatteringMatrix.diagonal();
+    totalRates = totalRates + elPhLinewidths;
+    scatteringMatrix.setLinewidths(totalRates);
+  }
 
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
@@ -403,25 +407,21 @@ void PhononTransportApp::run(Context &context) {
 }
 
 // helper function to generate phEl rates
-void setupPhononElectronScattering(Context& context, Crystal& crystal,
-			VectorBTE& phononElectronRates) { 
-
-    // load phonon band structure
-    auto t2 = Parser::parsePhHarmonic(context);
-    auto crystalPh = std::get<0>(t2);
-    auto phononH0 = std::get<1>(t2);
-
-    // check that the crystal in the elph calculation is the 
-    // same as the one in the phph calculation
-    if(crystalPh.getDirectUnitCell() != crystal.getDirectUnitCell()) {
-      Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
-        "ph-el scattering are not the same!");
-    }
+VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Crystal& crystalPh,
+                                                         ActiveBandStructure &phBandStructure,
+                                                         PhononH0& phononH0) {
 
     // load electron band structure
     auto t1 = Parser::parseElHarmonicWannier(context, &crystalPh);
     auto crystalEl = std::get<0>(t1);
     auto electronH0 = std::get<1>(t1);
+
+    // check that the crystal in the elph calculation is the 
+    // same as the one in the phph calculation
+    if (crystalPh.getDirectUnitCell() != crystalEl.getDirectUnitCell()) {
+      Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
+        "ph-el scattering are not the same!");
+    }
 
     // load the elph coupling
     // Note: this file contains the number of electrons
@@ -455,22 +455,15 @@ void setupPhononElectronScattering(Context& context, Crystal& crystal,
       std::cout << "Done computing electronic band structure.\n" << std::endl;
     }
 
-    // Compute the full phonon band structure
-    bool withVelocities = true;
-    bool withEigenvectors = true;
-    FullBandStructure phBandStructure = phononH0.populate(
-        fullPoints, withVelocities, withEigenvectors);
-    // set the chemical potentials to zero, load temperatures
-
     // build/initialize the scattering matrix and the smearing
     // it shouldn't take up too much memory, as it's just 
     // the diagonal 
-    PhElScatteringMatrix scatteringMatrix(context, statisticsSweep,
-                                        elBandStructure, phBandStructure,
-                                        couplingElPh, electronH0);
-    scatteringMatrix.setup();
-
-    phononElectronRates = scatteringMatrix.diagonal();
+    PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
+                                              elBandStructure, phBandStructure,
+                                              couplingElPh, electronH0);
+    phelScatteringMatrix.setup();
+    VectorBTE phononElectronRates = phelScatteringMatrix.diagonal();
+    return phononElectronRates;
 }
 
 void PhononTransportApp::checkRequirements(Context &context) {

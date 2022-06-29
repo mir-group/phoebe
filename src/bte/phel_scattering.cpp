@@ -119,15 +119,19 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   int numQPoints = getPhBandStructure().getNumPoints();
   auto qPoints = getPhBandStructure().getPoints();
-  int nb3 = getPhBandStructure().getNumBands();
-  Eigen::MatrixXcd polarData(numQPoints, nb3);
+  // we just set this to the largest possible number of phonons
+  int nb3Max = 3 * getPhBandStructure().getPoints().getCrystal().getNumAtoms();
+  Eigen::MatrixXcd polarData(numQPoints, nb3Max);
   polarData.setZero();
 #pragma omp parallel for
   for (int iq : mpi->divideWorkIter(numQPoints)){
     WavevectorIndex iqIdx(iq);
     auto q3C = getPhBandStructure().getWavevector(iqIdx);
     auto ev3 = getPhBandStructure().getEigenvectors(iqIdx);
-    polarData.row(iq) = couplingElPhWan.polarCorrectionPart1(q3C, ev3);
+    Eigen::VectorXcd thisPolar = couplingElPhWan.polarCorrectionPart1(q3C, ev3);
+    for (int i=0; i<thisPolar.size(); ++i) {
+      polarData(iq, i) = thisPolar(i);
+    }
   }
   mpi->allReduceSum(&polarData);
 
@@ -235,16 +239,19 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
 
-        Eigen::Tensor<double, 3> coupling =
-            couplingElPhWan.getCouplingSquared(iq3Batch);
-
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
         Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx); //for gpu would replace with compute OTF
         auto nb2 = int(state2Energies.size());
 
+        Eigen::Tensor<double, 3> coupling =
+            couplingElPhWan.getCouplingSquared(iq3Batch);
+        // TODO: uncomment this after it will be put in the develop branch
+        // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
+
         // NOTE: these loops are already set up to be applicable to gpus 
         // the precomputaton of the smearing values and the open mp loops could 
         // be converted to GPU relevant version
+        int nb3 = state3Energies.size();
         Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
 #pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
