@@ -19,23 +19,103 @@ void ElElToPhoebeApp::run(Context &context) {
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
+  // tentative reading of kpoints
+  {
+    std::string fileName = "/home/cepe/Desktop/Changpeng/QP_BSE/ndb.BS_head_Q1";
+    // Open the hdf5 file
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
+    // Set up hdf5 datasets
+    HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
+    // read the k/q-points in crystal coordinates
+    Eigen::MatrixXd yamboQPoints;
+    d_head_qpt.read(yamboQPoints);
+    int numDim = yamboQPoints.rows();
+    int numQ = yamboQPoints.cols();
+    if (numDim != 3) Error("qpoints are transposed in yambo?");
+    // std::cout << yamboQPoints.transpose() << "\n";
+  }
+
+  {
+    // tentative reading of the BSE kernel
+    std::string fileName = "/home/cepe/Desktop/Changpeng/QP_BSE/ndb.BS_PAR_Q1";
+    // Open the hdf5 file
+    HighFive::File file(fileName, HighFive::File::ReadOnly);
+    // Set up hdf5 datasets
+    HighFive::DataSet d_bse_resonant = file.getDataSet("/BSE_RESONANT");
+    // read in the data
+
+    std::vector<std::vector<std::vector<double>>> yamboKernel_;
+    d_bse_resonant.read(yamboKernel_);
+    int M = yamboKernel_.size();
+    int N = yamboKernel_[0].size();
+    if (N != M) Error("qpoints are transposed in yambo?");
+
+    // note: yamboKernel is a tensor (M,M,2)
+    // with the last index being real and imaginary part
+    // and M combining k-points and bands
+
+    // now I need to rearrange them
+    // NOTE! the
+
+  }
+
+  TOMORROW:
+    put this in a loop over the exciton wavevector and have a large tensor;
+    next, parse bands from the Wannier file
+
+    note che in yamboKernel_, solo la lower triangle is filled
+    i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
+
+
+  std::cout << "OK!\n";
+
+  return;
+
+//  int numStates = sqrt(BS_K_DIM);
+//  Eigen::Tensor<std::complex<double>, 4> kernel(numStates, numStates, numStates, numBands);
+//  for (int ik1=0; ik1<numPoints; ++ik1) {
+//    for (int ik2=0; ik2<numPoints; ++ik2) {
+//      for (int ik3 = 0; ik3 < numPoints; ++ik3) {
+//        int ik4 = ...; // TBD
+//        for (int ib1=0; ib1<numBands; ++ib1) {
+//          for (int ib2 = 0; ib2 < numBands; ++ib2) {
+//            for (int ib3 = 0; ib3 < numBands; ++ib3) {
+//              for (int ib4 = 0; ib4 < numBands; ++ib4) {
+//
+//                int bse1 = ...;
+//                int bse2 = ...;
+//                int is1 = ...;
+//                int is2 = ...;
+//                int is3 = ...;
+//
+//                kernel(is1, is2, is3, ib4) = kernelIn(bse1, bse2);
+//              }
+//            }
+//          }
+//        }
+//      }
+//    }
+//  }
+
   // these variables need to be fixed
-//  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-//  auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
+  //  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+  //  auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
 
-  Eigen::Vector3i kMesh;// = std::get<1>(t0);
-  Eigen::MatrixXd kGridFull;// = std::get<2>(t0);
+  Eigen::Vector3i kMesh; // = std::get<1>(t0);
+  Eigen::MatrixXd kGridFull; // = std::get<2>(t0);
 
-  Eigen::MatrixXd energies;// = std::get<4>(t0);
+  Eigen::MatrixXd energies; // = std::get<4>(t0);
 
-  int numQEBands;// = std::get<6>(t0);
-  int numElectrons;// = std::get<7>(t0);
+  int numQEBands; // = std::get<6>(t0);
+  int numElectrons; // = std::get<7>(t0);
 
   int numBands = 0;
   int numWannier = 0;
-  int numR = 0;
-  Eigen::MatrixXd bravaisDegeneracies;
-  Eigen::MatrixXd bravaisVectors;
+
+  auto t2 = electronH0.getVectors();
+  Eigen::MatrixXd bravaisVectors = std::get<0>(t2);
+  Eigen::VectorXd bravaisDegeneracies = std::get<1>(t2);
+  int numR = bravaisDegeneracies.size();
 
   //---------
 
