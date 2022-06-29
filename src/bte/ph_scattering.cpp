@@ -219,6 +219,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
       std::vector<Eigen::Vector3d> q1_v(batch_size);
       std::vector<Eigen::MatrixXcd> ev1_v(batch_size);
+      std::vector<Eigen::VectorXd> energies1_v(batch_size);
+      std::vector<Eigen::MatrixXd> v1s_v(batch_size);
       std::vector<Eigen::MatrixXcd> ev3Plus_v(batch_size);
       std::vector<Eigen::MatrixXcd> ev3Minus_v(batch_size);
       std::vector<int> nb1_v(batch_size);
@@ -234,7 +236,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
-#pragma omp parallel for default(none) shared(v3sMinus_v, v3sPlus_v, bose3MinusData_v, bose3PlusData_v, energies3Minus_v, energies3Plus_v, ev1_v, ev3Minus_v, ev3Plus_v, q1_v, nb1_v, nb3Minus_v, nb3Plus_v, batch_size, iq1Indexes, start, pointHelper, q2Point)
+#pragma omp parallel for default(none) shared(v3sMinus_v, v3sPlus_v, bose3MinusData_v, bose3PlusData_v, energies3Minus_v, energies3Plus_v, ev1_v, ev3Minus_v, ev3Plus_v, q1_v, nb1_v, nb3Minus_v, nb3Plus_v, batch_size, iq1Indexes, start, pointHelper, q2Point, v1s_v, energies1_v)
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
         int iq1 = iq1Indexes[start + iq1Batch];
         WavevectorIndex iq1Index(iq1);
@@ -264,6 +266,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
         q1_v[iq1Batch] = outerBandStructure.getWavevector(iq1Index);
         nb1_v[iq1Batch] = nb1;
+        energies1_v[iq1Batch] = energies1;
+        v1s_v[iq1Batch] = v1s;
         nb3Plus_v[iq1Batch] = int(energies3Plus.size());
         nb3Minus_v[iq1Batch] = int(energies3Minus.size());
         ev1_v[iq1Batch] = outerBandStructure.getEigenvectors(iq1Index);
@@ -285,15 +289,25 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       auto couplingPlus_v = std::get<0>(tuple1);
       auto couplingMinus_v = std::get<1>(tuple1);
 
+#pragma omp parallel for
+      for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
+        symmetrizeCoupling(
+            couplingPlus_v[iq1Batch], energies1_v[iq1Batch], energies2, energies3Plus_v[iq1Batch]
+        );
+        symmetrizeCoupling(
+            couplingMinus_v[iq1Batch], energies1_v[iq1Batch], energies2, energies3Minus_v[iq1Batch]
+        );
+      }
+
       // do postprocessing loop with batch of couplings
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
         int iq1 = iq1Indexes[start + iq1Batch];
         WavevectorIndex iq1Index(iq1);
         auto couplingPlus = couplingPlus_v[iq1Batch];
         auto couplingMinus = couplingMinus_v[iq1Batch];
-        Eigen::VectorXd energies1 = outerBandStructure.getEnergies(iq1Index);
+        Eigen::VectorXd energies1 = energies1_v[iq1Batch];
         auto nb1 = int(energies1.size());
-        Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
+        Eigen::MatrixXd v1s = v1s_v[iq1Batch];
 
         auto energies3Plus = energies3Plus_v[iq1Batch];
         auto nb3Plus = energies3Plus.size();
