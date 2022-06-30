@@ -109,7 +109,7 @@ InteractionElPhWan::~InteractionElPhWan() {
   Kokkos::realloc(elBravaisVectorsDegeneracies_k, 0);
 }
 
-Eigen::Tensor<double, 3>
+Eigen::Tensor<double, 3>&
 InteractionElPhWan::getCouplingSquared(const int &ik2) {
   return cacheCoupling[ik2];
 }

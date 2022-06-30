@@ -38,8 +38,8 @@ option(BUILD_DOC "Build documentation" ON)
 if(OMP_AVAIL)
   option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" ON)
 else()
-  option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" OFF) 
-  option(Kokkos_ENABLE_SERIAL "Use kokkos in serial" ON) 
+  option(Kokkos_ENABLE_OPENMP "Use kokkos with omp" OFF)
+  option(Kokkos_ENABLE_SERIAL "Use kokkos in serial" ON)
 endif()
 ############### SOURCE ###############
 
@@ -76,6 +76,7 @@ gtest_discover_tests(
 if(Kokkos_ENABLE_CUDA)
     find_package(CUDAToolkit REQUIRED)
     target_link_libraries(phoebe CUDA::cusolver)
+    target_link_libraries(runTests CUDA::cusolver)
 endif()
 
 ################ PARALLEL ####################
