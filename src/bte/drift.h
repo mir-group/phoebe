@@ -57,7 +57,7 @@ public:
    * @param specificHeat: object with the values of specific heat
    */
   Vector0(StatisticsSweep &statisticsSweep_, BaseBandStructure &bandStructure_,
-          SpecificHeat &specificHeat);
+          SpecificHeat &specificHeat, const bool& symmetrize = false);
 };
 
 #endif
