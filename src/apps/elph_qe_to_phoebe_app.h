@@ -67,6 +67,22 @@ public:
       const Eigen::MatrixXd &kGridFull, const Eigen::Vector3i &kMesh,
       const Eigen::Vector3i &qMesh, bool runTests = false);
 
+  /** Returns the rotation that moves the wave-function from the (entangled)
+   * Bloch representation to the disentangled Wannier representation
+   *
+   * @param wannierPrefix: path with the prefix used for the Wannier90
+   * calculation (e.g. "si" or "./si")
+   * @param fullPoints: coarse grid of wavevectors. Must be aligned with the
+   * grid used in Wannier90 or an error will be raised.
+   * @return U: tensor of shape (numBands, numWannier, numPoints), where
+   * the wavevector index is aligned with fullPoints. If no disentanglement
+   * was used in Wannier90, numWannier = numBands, otherwise,
+   * numBands > numWannier due to the disentanglement. See Wannier90 docs.
+   */
+  static Eigen::Tensor<std::complex<double>, 3>
+  setupRotationMatrices(const std::string &wannierPrefix, Points &fullPoints,
+                        const bool& noDisentanglement=false);
+
 protected:
   /** Transform the electron-phonon coupling computed by QE
    * from the Bloch to the Wannier representation. Follows roughly the procedure
@@ -114,21 +130,6 @@ protected:
       const Eigen::MatrixXd &phBravaisVectors,
       const Eigen::Tensor<std::complex<double>, 3> &uMatrices, Points &kPoints,
       Points &qPoints, Crystal &crystal, PhononH0 &phononH0);
-
-  /** Returns the rotation that moves the wave-function from the (entangled)
-   * Bloch representation to the disentangled Wannier representation
-   *
-   * @param wannierPrefix: path with the prefix used for the Wannier90
-   * calculation (e.g. "si" or "./si")
-   * @param fullPoints: coarse grid of wavevectors. Must be aligned with the
-   * grid used in Wannier90 or an error will be raised.
-   * @return U: tensor of shape (numBands, numWannier, numPoints), where
-   * the wavevector index is aligned with fullPoints. If no disentanglement
-   * was used in Wannier90, numWannier = numBands, otherwise,
-   * numBands > numWannier due to the disentanglement. See Wannier90 docs.
-   */
-  static Eigen::Tensor<std::complex<double>, 3>
-  setupRotationMatrices(const std::string &wannierPrefix, Points &fullPoints);
 
   /** Reads the electron-phonon coupling computed by QE on a coarse grid.
    *

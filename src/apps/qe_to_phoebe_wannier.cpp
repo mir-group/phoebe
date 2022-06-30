@@ -794,7 +794,8 @@ Eigen::Tensor<std::complex<double>, 5> ElPhQeToPhoebeApp::blochToWannier(
 
 Eigen::Tensor<std::complex<double>, 3>
 ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
-                                         Points &fullPoints) {
+                                         Points &fullPoints,
+                                         const bool& noDisentanglement) {
   std::string line;
 
   if (wannierPrefix.empty()) {
@@ -839,6 +840,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
     }
   }
   infile.close();
+  if (noDisentanglement) return uMatrix;// skip disentanglement part.
 
   // ---------------------------------------------------------------------
 

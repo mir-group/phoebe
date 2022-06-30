@@ -376,7 +376,3 @@ void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShif
     }
   }
 }
-
-std::tuple<Eigen::MatrixXd, Eigen::VectorXd> ElectronH0Wannier::getVectors() {
-  return {bravaisVectors, vectorsDegeneracies};
-}

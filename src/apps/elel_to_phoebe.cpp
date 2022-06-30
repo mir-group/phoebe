@@ -1,12 +1,13 @@
 #include "elel_to_phoebe.h"
 #include "bandstructure.h"
 #include "eigen.h"
+#include "elph_qe_to_phoebe_app.h"
 #include "io.h"
+#include "parser.h"
 #include "qe_input_parser.h"
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include "parser.h"
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
@@ -19,9 +20,13 @@ void ElElToPhoebeApp::run(Context &context) {
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  // tentative reading of kpoints
-  {
-    std::string fileName = "/home/cepe/Desktop/Changpeng/QP_BSE/ndb.BS_head_Q1";
+  // now we parse the first header
+  Eigen::MatrixXd yamboQPoints;
+  int numBands;
+  if (mpi->mpiHead()) {
+    std::string yamboPrefix = context.getYamboInteractionFileName();
+    // Q1 should always exist
+    std::string fileName = yamboPrefix + "_head_Q1";
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
@@ -30,99 +35,133 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXd yamboQPoints;
     d_head_qpt.read(yamboQPoints);
     int numDim = yamboQPoints.rows();
-    int numQ = yamboQPoints.cols();
     if (numDim != 3) Error("qpoints are transposed in yambo?");
     // std::cout << yamboQPoints.transpose() << "\n";
+
+    Eigen::Vector2i bandExtrema;
+    HighFive::DataSet d_bands = file.getDataSet("/Bands");
+    d_bands.read(bandExtrema);
+    numBands = bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2
+  }
+  int numPoints = yamboQPoints.cols();
+  mpi->bcast(&numPoints);
+  mpi->bcast(&numBands);
+  if (!mpi->mpiHead()) {
+    yamboQPoints.resize(3, numPoints);
+  }
+  mpi->bcast(&yamboQPoints);
+
+  if (electronH0.getNumBands() != numBands) {
+    Error("Yambo and Wannier have run with different band number");
   }
 
-  {
+  //----------------
+
+  // set up k-points
+  Eigen::Vector3i kMesh;// TODO: get this from somewhere
+  Points kPoints(crystal, kMesh);
+
+  // read U matrices
+  std::string wannierPrefix = context.getWannier90Prefix();
+  Eigen::Tensor<std::complex<double>, 3> uMatrices;
+  // uMatrices has size (numBands, numWannier, numKPoints)
+  uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, true);
+
+  if (numBands != uMatrices.dimension(0)) {
+    Error("bands not aligned between Yambo and Wannier90");
+  }
+  int numWannier = uMatrices.dimension(1);
+
+  // generate the Bravais vectors
+  auto t3 = crystal.buildWignerSeitzVectors(kMesh);
+  Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
+  Eigen::VectorXd elDegeneracies = std::get<1>(t3);
+  int numR = elDegeneracies.size();
+
+  //-------------------------
+
+  // now I can allocate the mega tensor of 4-point interaction
+
+  Eigen::Tensor<std::complex<double>, 7> qpCoupling(numPoints, numPoints,
+                                                    numPoints, numBands,
+                                                    numBands, numBands, numBands);
+  qpCoupling.setZero();
+
+  // now we read the files
+
+  for (int iQ : mpi->divideWorkIter(numPoints)) {
+
+    std::string yamboPrefix = context.getYamboInteractionFileName();
     // tentative reading of the BSE kernel
-    std::string fileName = "/home/cepe/Desktop/Changpeng/QP_BSE/ndb.BS_PAR_Q1";
+    std::string fileName = yamboPrefix + "_PAR_Q" + std::to_string(iQ);
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
     HighFive::DataSet d_bse_resonant = file.getDataSet("/BSE_RESONANT");
     // read in the data
-
-    std::vector<std::vector<std::vector<double>>> yamboKernel_;
+    Eigen::VectorXd yamboKernel_;
     d_bse_resonant.read(yamboKernel_);
-    int M = yamboKernel_.size();
-    int N = yamboKernel_[0].size();
-    if (N != M) Error("qpoints are transposed in yambo?");
 
-    // note: yamboKernel is a tensor (M,M,2)
-    // with the last index being real and imaginary part
-    // and M combining k-points and bands
+    int M = sqrt(yamboKernel_.size() / 2);
 
-    // now I need to rearrange them
-    // NOTE! the
+    // TODO: check if this doesn't transpose matrix elements
+    Eigen::TensorMap<Eigen::Tensor<double, 3>> yamboKernel(
+        yamboKernel_.data(), M, M, 2);
 
+    // note che in yamboKernel, solo la lower triangle is filled
+    // i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
+
+    // first pass: we make sure the matrix is complete
+#pragma omp parallel for
+    for (int i = 0; i < M; ++i) {
+      for (int j = i + 1; j < M; ++j) {// in this way j > i
+        for (int k = 0; k < 2; ++k) {
+          // TODO: check if this has to be a complex conjugate
+          yamboKernel(i, j, k) = yamboKernel(j, i, k);
+        }
+      }
+    }
+
+    // now we substitute this back into the big coupling tensor
+    Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
+
+#pragma omp parallel for collapse(2)
+    for (int ik1 = 0; ik1 < numPoints; ++ik1) {
+      for (int ik2 = 0; ik2 < numPoints; ++ik2) {
+
+        Eigen::Vector3d thisK1 = yamboQPoints.col(ik1);
+        Eigen::Vector3d thisK2 = yamboQPoints.col(ik2);
+        Eigen::Vector3d thisK3 = excitonQ + thisK1;
+
+        int ikk1 = kPoints.getIndex(thisK1);
+        int ikk2 = kPoints.getIndex(thisK2);
+        int ikk3 = kPoints.getIndex(thisK3);
+        // ik4 is implicit and not needed
+
+        for (int ib1 = 0; ib1 < numBands; ++ib1) {
+          for (int ib2 = 0; ib2 < numBands; ++ib2) {
+            for (int ib3 = 0; ib3 < numBands; ++ib3) {
+              for (int ib4 = 0; ib4 < numBands; ++ib4) {
+                // note: kpoints in Yambo may have different order
+                int bse1 = ikk1 * numBands + ib1;
+                int bse2 = ikk2 * numBands + ib2;
+                std::complex<double> z = {yamboKernel(bse1, bse2, 0),
+                                          yamboKernel(bse1, bse2, 1)};
+                qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  mpi->bcast(&qpCoupling);
+
+  if (mpi->mpiHead()) {
+    std::cout << "Start Wannier transform!\n";
   }
 
-  TOMORROW:
-    put this in a loop over the exciton wavevector and have a large tensor;
-    next, parse bands from the Wannier file
-
-    note che in yamboKernel_, solo la lower triangle is filled
-    i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
-
-
-  std::cout << "OK!\n";
-
-  return;
-
-//  int numStates = sqrt(BS_K_DIM);
-//  Eigen::Tensor<std::complex<double>, 4> kernel(numStates, numStates, numStates, numBands);
-//  for (int ik1=0; ik1<numPoints; ++ik1) {
-//    for (int ik2=0; ik2<numPoints; ++ik2) {
-//      for (int ik3 = 0; ik3 < numPoints; ++ik3) {
-//        int ik4 = ...; // TBD
-//        for (int ib1=0; ib1<numBands; ++ib1) {
-//          for (int ib2 = 0; ib2 < numBands; ++ib2) {
-//            for (int ib3 = 0; ib3 < numBands; ++ib3) {
-//              for (int ib4 = 0; ib4 < numBands; ++ib4) {
-//
-//                int bse1 = ...;
-//                int bse2 = ...;
-//                int is1 = ...;
-//                int is2 = ...;
-//                int is3 = ...;
-//
-//                kernel(is1, is2, is3, ib4) = kernelIn(bse1, bse2);
-//              }
-//            }
-//          }
-//        }
-//      }
-//    }
-//  }
-
-  // these variables need to be fixed
-  //  std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
-  //  auto t0 = readQEPhoebeHeader(crystal, phoebePrefixQE);
-
-  Eigen::Vector3i kMesh; // = std::get<1>(t0);
-  Eigen::MatrixXd kGridFull; // = std::get<2>(t0);
-
-  Eigen::MatrixXd energies; // = std::get<4>(t0);
-
-  int numQEBands; // = std::get<6>(t0);
-  int numElectrons; // = std::get<7>(t0);
-
-  int numBands = 0;
-  int numWannier = 0;
-
-  auto t2 = electronH0.getVectors();
-  Eigen::MatrixXd bravaisVectors = std::get<0>(t2);
-  Eigen::VectorXd bravaisDegeneracies = std::get<1>(t2);
-  int numR = bravaisDegeneracies.size();
-
-  //---------
-
-  Points kPoints(crystal, kMesh);
-
   int numK = kMesh.prod();
-  Eigen::Tensor<std::complex<double>, 3> U(numK, numBands, numWannier);
   Eigen::Tensor<std::complex<double>, 7> Gamma(numK, numK, numK, numBands, numBands, numBands, numBands);
 
   // first we do the rotation on k4, the implicit index
@@ -145,7 +184,7 @@ void ElElToPhoebeApp::run(Context &context) {
                   tmp = {0., 0.};
                   for (int ib4 = 0; ib4 < numBands; ++ib4) {
                     tmp += Gamma(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
-                        * U(ik4, ib4, iw4);
+                        * uMatrices(ib4, iw4, ik4);
                   }
                   Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4) = tmp;
                 }
@@ -174,7 +213,7 @@ void ElElToPhoebeApp::run(Context &context) {
                   tmp = {0., 0.};
                   for (int ib3 = 0; ib3 < numBands; ++ib3) {
                     tmp += Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4)
-                        * U(ik3, ib3, iw3);
+                        * uMatrices(ib3, iw3, ik3);
                   }
                   Gamma2(ik1, ik2, ik3, ib1, ib2, iw3, iw4) = tmp;
                 }
@@ -203,7 +242,7 @@ void ElElToPhoebeApp::run(Context &context) {
                   tmp = {0., 0.};
                   for (int ib2 = 0; ib2 < numBands; ++ib2) {
                     tmp += Gamma2(ik1, ik2, ik3, ib1, ib2, iw3, iw4)
-                        * std::conj(U(ik2, ib2, iw2));
+                        * std::conj(uMatrices(ib2, iw2, ik2));
                   }
                   Gamma3(ik1, ik2, ik3, ib1, iw2, iw3, iw4) = tmp;
                 }
@@ -232,7 +271,7 @@ void ElElToPhoebeApp::run(Context &context) {
                   tmp = {0., 0.};
                   for (int ib1 = 0; ib1 < numBands; ++ib1) {
                     tmp += Gamma2(ik1, ik2, ik3, ib1, iw2, iw3, iw4)
-                        * std::conj(U(ik1, ib1, iw1));
+                        * std::conj(uMatrices(ib1, iw1, ik1));
                   }
                   Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
@@ -253,7 +292,7 @@ void ElElToPhoebeApp::run(Context &context) {
     for (int ik = 0; ik < numK; ++ik) {
       for (int iR = 0; iR < numR; ++iR) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
-        Eigen::Vector3d R = bravaisVectors.row(iR);
+        Eigen::Vector3d R = elBravaisVectors.row(iR);
         double arg = k.dot(R);
         phases(ik, iR) = exp(complexI * arg);
       }
@@ -346,14 +385,13 @@ void ElElToPhoebeApp::run(Context &context) {
   }
 
   // Now, let's write it to file
-  writeWannierCoupling(context, GammaW, numElectrons, bravaisDegeneracies,
-                       bravaisVectors, kMesh);
+  writeWannierCoupling(context, GammaW, elDegeneracies,
+                       elBravaisVectors, kMesh);
 }
 
 void ElElToPhoebeApp::writeWannierCoupling(
     Context &context,
     Eigen::Tensor<std::complex<double>, 7> &gWannier,
-    const int &numElectrons,
     const Eigen::VectorXd &elDegeneracies,
     const Eigen::MatrixXd &elBravaisVectors,
     const Eigen::Vector3i &kMesh) {
@@ -382,7 +420,7 @@ void ElElToPhoebeApp::writeWannierCoupling(
     if (mpi->mpiHead()) {
       HighFive::File file(outFileName, HighFive::File::Overwrite);
     }
-    mpi->barrier(); // wait for file to be overwritten
+    mpi->barrier();// wait for file to be overwritten
 
     // now open the file in serial mode
     // because we do the parallelization by hand
@@ -394,37 +432,37 @@ void ElElToPhoebeApp::writeWannierCoupling(
 
     auto iR1Iterator = mpi->divideWorkIter(numR);
 
-      for (int iR1 : iR1Iterator) {
+    for (int iR1 : iR1Iterator) {
 
-        // select a slice
-        for (int iR2 = 0; iR2 < numR; ++iR2) {
-          for (int iR3 = 0; iR3 < numR; ++iR3) {
-            for (int iw1 = 0; iw1 < numWannier; iw1++) {
-              for (int iw2 = 0; iw2 < numWannier; iw2++) {
-                for (int iw3 = 0; iw3 < numWannier; iw3++) {
-                  for (int iw4 = 0; iw4 < numWannier; iw4++) {
-                    slice(iR2, iR3, iw1, iw2, iw3, iw4) = gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4);
-                  }
+      // select a slice
+      for (int iR2 = 0; iR2 < numR; ++iR2) {
+        for (int iR3 = 0; iR3 < numR; ++iR3) {
+          for (int iw1 = 0; iw1 < numWannier; iw1++) {
+            for (int iw2 = 0; iw2 < numWannier; iw2++) {
+              for (int iw3 = 0; iw3 < numWannier; iw3++) {
+                for (int iw4 = 0; iw4 < numWannier; iw4++) {
+                  slice(iR2, iR3, iw1, iw2, iw3, iw4) = gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4);
                 }
               }
             }
           }
         }
-
-        // flatten the tensor in a vector
-        Eigen::VectorXcd flatSlice =
-            Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-                slice.data(), slice.size());
-
-        std::string datasetName = "/gWannier_" + std::to_string(iR1);
-
-        // create dataset
-        HighFive::DataSet dslice = file.createDataSet<std::complex<double>>(
-            datasetName, HighFive::DataSpace::From(flatSlice));
-
-        // write to hdf5
-        dslice.write(flatSlice);
       }
+
+      // flatten the tensor in a vector
+      Eigen::VectorXcd flatSlice =
+          Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
+              slice.data(), slice.size());
+
+      std::string datasetName = "/gWannier_" + std::to_string(iR1);
+
+      // create dataset
+      HighFive::DataSet dslice = file.createDataSet<std::complex<double>>(
+          datasetName, HighFive::DataSpace::From(flatSlice));
+
+      // write to hdf5
+      dslice.write(flatSlice);
+    }
 
   } catch (std::exception &error) {
     Error("Issue writing elel Wannier representation to hdf5.");
@@ -435,9 +473,9 @@ void ElElToPhoebeApp::writeWannierCoupling(
     try {
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
-      HighFive::DataSet dnElectrons = file.createDataSet<int>(
-          "/numElectrons", HighFive::DataSpace::From(numElectrons));
-      dnElectrons.write(numElectrons);// # of occupied wannier functions
+      //      HighFive::DataSet dnElectrons = file.createDataSet<int>(
+      //          "/numElectrons", HighFive::DataSpace::From(numElectrons));
+      //      dnElectrons.write(numElectrons);// # of occupied wannier functions
 
       HighFive::DataSet dnWannier = file.createDataSet<int>(
           "/numWannier", HighFive::DataSpace::From(numWannier));
