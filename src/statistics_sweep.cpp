@@ -219,6 +219,7 @@ StatisticsSweep::StatisticsSweep(const StatisticsSweep &that)
   nTemp = that.nTemp;
   nChemPot = that.nChemPot;
   nDop = that.nDop;
+  isDistributed = that.isDistributed;
 }
 
 // copy assignment
@@ -230,6 +231,7 @@ StatisticsSweep &StatisticsSweep::operator=(const StatisticsSweep &that) {
     nTemp = that.nTemp;
     nChemPot = that.nChemPot;
     nDop = that.nDop;
+    isDistributed = that.isDistributed;
   }
   return *this;
 }

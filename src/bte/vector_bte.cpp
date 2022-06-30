@@ -271,7 +271,7 @@ VectorBTE VectorBTE::reciprocal() {
       x(i) = 0.;
     }
   }
-  newPopulation.data << x;
+  newPopulation.data = x;
   return newPopulation;
 }
 
