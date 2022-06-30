@@ -96,16 +96,20 @@ double Particle::getPopulation(const double &energy, const double &temperature,
 }
 
 double Particle::getDndt(const double &energy, const double &temperature,
-                         const double &chemicalPotential) const {
+                         const double &chemicalPotential,
+                         const bool &symmetrize) const {
   double x = getPopPopPm1(energy, temperature, chemicalPotential);
+  if (symmetrize) x = sqrt(x);
   double y = energy - chemicalPotential;
   double dndt = x * y / temperature / temperature;
   return dndt;
 }
 
 double Particle::getDnde(const double &energy, const double &temperature,
-                         const double &chemicalPotential) const {
+                         const double &chemicalPotential,
+                         const bool &symmetrize) const {
   double x = getPopPopPm1(energy, temperature, chemicalPotential);
+  if (symmetrize) x = sqrt(x);
   double dnde = -x / temperature;
   return dnde;
 }

@@ -127,6 +127,31 @@ void OnsagerCoefficients::calcFromCanonicalPopulation(VectorBTE &fE,
   calcFromPopulation(nE, nT);
 }
 
+void OnsagerCoefficients::calcFromSymmetricPopulation(VectorBTE &nE, VectorBTE &nT) {
+  VectorBTE nE2 = nE;
+  VectorBTE nT2 = nT;
+
+  Particle electron = bandStructure.getParticle();
+
+  for (int is : bandStructure.parallelIrrStateIterator()) {
+    StateIndex isIdx(is);
+    double energy = bandStructure.getEnergy(isIdx);
+    int iBte = bandStructure.stateToBte(isIdx).get();
+
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+      double chemPot = calcStat.chemicalPotential;
+      double x = sqrt(electron.getPopPopPm1(energy, temp, chemPot));
+      for (int i : {0, 1, 2}) {
+        nE2(iCalc, i, iBte) *= x;
+        nT2(iCalc, i, iBte) *= x;
+      }
+    }
+  }
+  calcFromPopulation(nE2, nT2);
+}
+
 void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   double norm = spinFactor / context.getKMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
@@ -317,10 +342,10 @@ void OnsagerCoefficients::calcFromRelaxons(
       double en = bandStructure.getEnergy(isIndex);
       auto vel = bandStructure.getGroupVelocity(isIndex);
       for (int i : {0, 1, 2}) {
-        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot) * vel(i) *
-                              eigenvectors(is, alfa) / eigenvalues(alfa);
-        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot) * vel(i) *
-                              eigenvectors(is, alfa) / eigenvalues(alfa);
+        fE(iCalc, i, alfa) += -particle.getDnde(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
+        fT(iCalc, i, alfa) += -particle.getDndt(en, temp, chemPot, true)
+            * vel(i) * eigenvectors(is, alfa) / eigenvalues(alfa);
       }
     }
     mpi->allReduceSum(&fE.data);
@@ -338,7 +363,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nT.data);
 
   } else { // with symmetries
-
+    Error("Not sure relaxons with symmetries would work");
     Eigen::MatrixXd fE(3, eigenvectors.cols());
     Eigen::MatrixXd fT(3, eigenvectors.cols());
     fE.setZero();
@@ -361,9 +386,9 @@ void OnsagerCoefficients::calcFromRelaxons(
         continue;
       }
       fE(iDim, alpha) +=
-          -dnde * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+          -sqrt(dnde) * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
       fT(iDim, alpha) +=
-          -dndt * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
+          -sqrt(dndt) * vel(iDim) * eigenvectors(iMat1, alpha) / eigenvalues(alpha);
     }
     mpi->allReduceSum(&fT);
     mpi->allReduceSum(&fE);
@@ -384,7 +409,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nE.data);
     mpi->allReduceSum(&nT.data);
   }
-  calcFromPopulation(nE, nT);
+  calcFromSymmetricPopulation(nE, nT);
 }
 
 void OnsagerCoefficients::print() {
@@ -653,100 +678,102 @@ Eigen::Tensor<double, 3> OnsagerCoefficients::getThermalConductivity() {
 
 void OnsagerCoefficients::calcVariational(VectorBTE &afE, VectorBTE &afT,
                                           VectorBTE &fE, VectorBTE &fT,
-                                          VectorBTE &nE, VectorBTE &nT,
+                                          VectorBTE &bE, VectorBTE &bT,
                                           VectorBTE &scalingCG) {
-  auto nEUnscaled = nE / scalingCG;
-  auto nTUnscaled = nT / scalingCG;
+  double norm = spinFactor / context.getKMesh().prod() /
+      crystal.getVolumeUnitCell(dimensionality);
+  (void) scalingCG;
+  int numCalculations = statisticsSweep.getNumCalculations();
 
-  calcFromCanonicalPopulation(nEUnscaled, nTUnscaled);
+  sigma.setConstant(0.);
+  kappa.setConstant(0.);
 
-  double norm = 1. / crystal.getVolumeUnitCell(dimensionality) /
-                context.getKMesh().prod();
-  auto excludeIndices = fE.excludeIndices;
-
-  sigma = 2 * LEE;
-  kappa = -2 * LTT;
-
-  Eigen::Tensor<double, 3> tmpLEE = LEE.constant(0.); // retains shape
-  Eigen::Tensor<double, 3> tmpLTT = LTT.constant(0.); // retains shape
+  Eigen::Tensor<double, 3> y1E = sigma.constant(0.);
+  Eigen::Tensor<double, 3> y2E = kappa.constant(0.);
+  Eigen::Tensor<double, 3> y1T = sigma.constant(0.);
+  Eigen::Tensor<double, 3> y2T = kappa.constant(0.);
 
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
 
-  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tmpLEE_k(tmpLEE.data(), numCalculations, 3, 3),
-    tmpLTT_k(tmpLTT.data(), numCalculations, 3, 3);
-  Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tmpLEE(tmpLEE_k),
-    scatter_tmpLTT(tmpLTT_k);
-  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
-      int is = iss[iis];
-      auto tmpLEEPrivate = scatter_tmpLEE.access();
-      auto tmpLTTPrivate = scatter_tmpLTT.access();
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), is) !=
-          excludeIndices.end()) {
-      return;
-      }
-
-      StateIndex isIdx(is);
-      int iBte = bandStructure.stateToBte(isIdx).get();
-      auto rotations = bandStructure.getRotationsStar(isIdx);
-
-      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double temp = calcStat.temperature;
-
-      for (Eigen::Matrix3d r : rotations) {
-      Eigen::Vector3d thisFE = Eigen::Vector3d::Zero();
-      Eigen::Vector3d thisAFE = Eigen::Vector3d::Zero();
-      Eigen::Vector3d thisFT = Eigen::Vector3d::Zero();
-      Eigen::Vector3d thisAFT = Eigen::Vector3d::Zero();
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
-          thisFE(i) += r(i, j) * fE(iCalc, j, iBte);
-          thisAFE(i) += r(i, j) * afE(iCalc, j, iBte);
-          thisFT(i) += r(i, j) * fT(iCalc, j, iBte);
-          thisAFT(i) += r(i, j) * afT(iCalc, j, iBte);
-        }
-      }
-
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
-          tmpLEEPrivate(iCalc, i, j) +=
-            thisFE(i) * thisAFE(j) * norm * temp;
-          tmpLTTPrivate(iCalc, i, j) +=
-            thisFT(i) * thisAFT(j) * norm * temp * temp;
-        }
-      }
-      }
-      }
-  });
-  Kokkos::Experimental::contribute(tmpLEE_k, scatter_tmpLEE);
-  Kokkos::Experimental::contribute(tmpLTT_k, scatter_tmpLTT);
-
-  /*
-#pragma omp parallel default(none)                                             \
-    shared(bandStructure, statisticsSweep, fE, afE, fT, afT, tmpLEE, tmpLTT,   \
-           norm, numCalculations, excludeIndices)
+#pragma omp parallel
   {
-    Eigen::Tensor<double, 3> tmpLEEPrivate = LEE.constant(0.);
-    Eigen::Tensor<double, 3> tmpLTTPrivate = LTT.constant(0.);
+    Eigen::Tensor<double, 3> x1E(numCalculations, 3, 3);
+    Eigen::Tensor<double, 3> x2E(numCalculations, 3, 3);
+    Eigen::Tensor<double, 3> x1T(numCalculations, 3, 3);
+    Eigen::Tensor<double, 3> x2T(numCalculations, 3, 3);
+    x1E.setConstant(0.);
+    x2E.setConstant(0.);
+    x1T.setConstant(0.);
+    x2T.setConstant(0.);
 
 #pragma omp for nowait
-    for (int is : bandStructure.parallelIrrStateIterator()) {
+    for (int iis=0; iis<niss; ++iis) {
+      int is = iss[iis];
+      // skip the acoustic phonons
+      if (std::find(fE.excludeIndices.begin(), fE.excludeIndices.end(),
+                    is) != fE.excludeIndices.end()) {
+        continue;
+      }
+
+      StateIndex isIndex(is);
+      BteIndex iBteIndex = bandStructure.stateToBte(isIndex);
+      int isBte = iBteIndex.get();
+      auto rots = bandStructure.getRotationsStar(isIndex);
+
+      for (const Eigen::Matrix3d &rot : rots) {
+
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
+          auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+          double temp = calcStat.temperature;
+
+          Eigen::Vector3d fRotE, afRotE, bRotE;
+          Eigen::Vector3d fRotT, afRotT, bRotT;
+          for (int i : {0, 1, 2}) {
+            fRotE(i) = fE(iCalc, i, isBte);
+            afRotE(i) = afE(iCalc, i, isBte);
+            bRotE(i) = bE(iCalc, i, isBte);
+            fRotT(i) = fT(iCalc, i, isBte);
+            afRotT(i) = afT(iCalc, i, isBte);
+            bRotT(i) = bT(iCalc, i, isBte);
+          }
+          fRotE = rot * fRotE;
+          afRotE = rot * afRotE;
+          bRotE = rot * bRotE;
+
+          fRotT = rot * fRotT;
+          afRotT = rot * afRotT;
+          bRotT = rot * bRotT;
+
+          for (int i : {0, 1, 2}) {
+            for (int j : {0, 1, 2}) {
+              x1E(iCalc, i, j) += fRotE(i) * afRotE(j) * norm * temp;
+              x2E(iCalc, i, j) += fRotE(i) * bRotE(j) * norm * temp;
+              x1T(iCalc, i, j) += fRotT(i) * afRotT(j) * norm * temp * temp;
+              x2T(iCalc, i, j) += fRotT(i) * bRotT(j) * norm * temp * temp;
+            }
+          }
+        }
+      }
+    }
 
 #pragma omp critical
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
-      for (int i : {0, 1, 2}) {
-        for (int j : {0, 1, 2}) {
-          tmpLEE(iCalc, i, j) += tmpLEEPrivate(iCalc, i, j);
-          tmpLTT(iCalc, i, j) += tmpLTTPrivate(iCalc, i, j);
+    for (int j = 0; j < dimensionality; j++) {
+      for (int i = 0; i < dimensionality; i++) {
+        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+          y1E(iCalc, i, j) += x1E(iCalc, i, j);
+          y2E(iCalc, i, j) += x2E(iCalc, i, j);
+          y1T(iCalc, i, j) += x1T(iCalc, i, j);
+          y2T(iCalc, i, j) += x2T(iCalc, i, j);
         }
       }
     }
   }
-  */
-  mpi->allReduceSum(&tmpLEE);
-  mpi->allReduceSum(&tmpLTT);
-  sigma -= 2 * tmpLEE;
-  kappa += 2 * tmpLTT;
+  mpi->allReduceSum(&y1E);
+  mpi->allReduceSum(&y2E);
+  mpi->allReduceSum(&y1T);
+  mpi->allReduceSum(&y2T);
+  sigma = 2. * y2E - y1E;
+  kappa = 2. * y2T - y1T;
 }

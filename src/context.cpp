@@ -585,7 +585,7 @@ void Context::setupFromInput(const std::string &fileName) {
         // note: numOccupiedStates refers to the number of states that are
         // occupied
         // for Wannier: the number of Wannier states that are full
-        // for Fourier: the number of occupied bands
+        // for Fourier: the number of occupied bands, minus the states trimmed
         // remember to NOT count the spin degeneracy
         double x = parseDouble(val);
         if (!hasSpinOrbit)
