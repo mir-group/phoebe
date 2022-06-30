@@ -201,7 +201,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);
+      // Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat, true);
       elViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       elViscosity.print();
       elViscosity.outputToJSON("relaxons_electron_viscosity.json");
