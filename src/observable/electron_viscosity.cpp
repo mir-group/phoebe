@@ -192,9 +192,10 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     Eigen::Vector3d vel = bandStructure.getGroupVelocity(isIdx);
     double en = bandStructure.getEnergy(isIdx);
     double pop = particle.getPopPopPm1(en, temp, chemPot);
+    // true sets a sqrt term
     for (int k = 0; k < dimensionality; k++) {
       for (int l = 0; l < dimensionality; l++) {
-        fRelaxons(k, l, alpha) += vec(k) * vel(l) * pop / temp /
+        fRelaxons(k, l, alpha) += vec(k) * vel(l) * sqrt(pop) / temp /
                                   eigenvalues(alpha) * eigenvectors(is, alpha);
       }
     }
@@ -225,8 +226,10 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
       for (int j = 0; j < dimensionality; j++) {
         for (int k = 0; k < dimensionality; k++) {
           for (int l = 0; l < dimensionality; l++) {
+            // note: the sqrt(pop) is to rescale the population from the
+            // symmetrized exact BTE
             tensordxdxdxd(iCalc, i, j, k, l) +=
-                0.5 * pop * norm *
+                0.5 * pop * norm * sqrt(pop) *
                 (vec(i) * vel(j) * f(k, l, is) + vec(i) * vel(l) * f(k, j, is));
           }
         }
