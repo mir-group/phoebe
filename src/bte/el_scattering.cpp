@@ -504,9 +504,20 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           auto nb4 = int(energies4.size());
 
           auto tC = coupling4El->getCouplingSquared(ik3);
-          Eigen::Tensor<double, 4> couplingA = std::get<0>(tC);
-          Eigen::Tensor<double, 4> couplingB = std::get<1>(tC);
-          Eigen::Tensor<double, 4> couplingC = std::get<2>(tC);
+
+          Eigen::Tensor<double, 4>& couplingA = std::get<0>(tC);
+          Eigen::Tensor<double, 4>& couplingB = std::get<1>(tC);
+          Eigen::Tensor<double, 4>& couplingC = std::get<2>(tC);
+
+          Eigen::Tensor<double, 4> deltaA1(nb1,nb2,nb3,nb4);
+          Eigen::Tensor<double, 4> deltaB1(nb1,nb2,nb3,nb4);
+          Eigen::Tensor<double, 4> deltaC1(nb1,nb2,nb3,nb4);
+          Eigen::Tensor<double, 4> deltaABC2(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaB2(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaC2(nb1,nb2,nb3,nb4);
+          Eigen::Tensor<double, 4> deltaAB3(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaB3(nb1,nb2,nb3,nb4);
+          Eigen::Tensor<double, 4> deltaC3(nb1,nb2,nb3,nb4);
 
           // add a delta term
           {
@@ -519,12 +530,17 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                     double en2 = energies2(ib2);
                     double en3 = energies3(ib3);
                     double en4 = energies4(ib4);
-                    double deltaA = smearing->getSmearing(en1 + en2 - en3 - en4);
-                    double deltaB = smearing->getSmearing(en1 + en3 - en2 - en4);
-                    double deltaC = smearing->getSmearing(en3 + en2 - en1 - en4);
-                    couplingA(ib1, ib2, ib3, ib4) *= deltaA;
-                    couplingB(ib1, ib3, ib2, ib4) *= deltaB;
-                    couplingC(ib3, ib2, ib1, ib4) *= deltaC;
+                    deltaA1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 - en3 - en4);
+                    deltaB1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en3 - en2 - en4);
+                    deltaC1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en4 - en3 - en2);
+
+                    deltaABC2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 - en2 - en3 - en4);
+//                    deltaB2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 - en3 - en2 - en4);
+//                    deltaC2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en3 - en2 - en1 - en4);
+
+                    deltaAB3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 + en3 - en4);
+//                    deltaB3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 + en3 - en4);
+                    deltaC3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en3 - en2 + en3 + en4);
                   }
                 }
               }
@@ -532,7 +548,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           }
 
           for (int ib1 = 0; ib1 < nb1; ++ib1) {
-            int is1 = innerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
+            int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
             for (int ib2 = 0; ib2 < nb2; ++ib2) {
               int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
               for (int ib3 = 0; ib3 < nb3; ++ib3) {
@@ -558,33 +574,95 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                     double rate = 0.;
                     double rateOffDiagonal = 0.;
 
-                    // condition for e-h creation
-                    if (charge1 == charge2 + charge3 + charge3) {
-                      rate += norm2 * 2
-                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4) + fermi2 * fermi3 * fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4);
+                    // s s -> s s
+                    if (charge1 + charge2 == charge3 + charge4) {
+                      rate += norm2 * 2. * pi
+                          * (fermi2 * (1. - fermi3) * (1. - fermi4)
+                             + (1. - fermi2) * fermi3 * fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4)
+                          * deltaA1(ib1, ib2, ib3, ib4);
+                      rateOffDiagonal +=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * (1. - fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4)
+                          * deltaA1(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1 + charge3 == charge2 + charge4) {
                       rateOffDiagonal -=
-                          norm2 * 2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
-                          * (1. - fermi3) * (1. - fermi4) * (couplingA(ib1, ib2, ib3, ib4) + couplingB(ib1, ib3, ib2, ib4) + couplingC(ib1, ib4, ib3, ib2));
-                    } else// in this case is e-e, e-h or h-h scattering
-                    {
-                      if (charge1 == charge3 && charge2 == charge4) {
-                        rate = norm2 * (fermi2 * (1. - fermi3) * (1. - fermi4) + (1. - fermi2) * fermi3 * fermi4)
-                            * couplingA(ib1, ib2, ib3, ib4);
-                        rateOffDiagonal +=
-                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) + energies2(ib2) + 2. * chemPot))
-                            * (1. - fermi3) * (1. - fermi4) * couplingA(ib1, ib2, ib3, ib4);
-                      }
-                      if (charge1 == charge2 && charge3 == charge4) {
-                        rateOffDiagonal -=
-                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
-                            * fermi3 * (1. - fermi4) * couplingB(ib1, ib3, ib2, ib4);
-                      }
-                      if (charge1 == charge3 && charge2 == charge4) {
-                        rateOffDiagonal -=
-                            2. * norm2 * exp(0.5 / temperatures[iCalc] * (energies1(ib1) - energies2(ib2)))
-                            * fermi4 * (1. - fermi3) * couplingC(ib1, ib4, ib3, ib2);
-                      }
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * fermi3 * (1. - fermi4)
+                          * couplingB(ib1, ib3, ib2, ib4)
+                          * deltaB1(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1 + charge4 == charge3 + charge2) {
+                      rateOffDiagonal -=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * fermi4
+                          * couplingC(ib1, ib4, ib3, ib2)
+                          * deltaC1(ib1, ib2, ib3, ib4);
+                    }
+
+                    // s -> s s s
+                    if (charge1==charge2+charge3+charge4 && charge1==charge2) {
+                      rate += norm2 * 2. * pi
+                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4)
+                             + fermi2 * fermi3 * fermi4)
+                          * couplingB(ib1, ib3, ib2, ib4)
+                          * deltaABC2(ib1, ib2, ib3, ib4);
+                      rateOffDiagonal -=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * (1. - fermi4)
+                          * couplingB(ib1, ib3, ib2, ib4)
+                          * deltaABC2(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1==charge2+charge3+charge4 && charge1==charge3) {
+                      rateOffDiagonal -=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * (1. - fermi4)
+                          * couplingC(ib1, ib4, ib3, ib2)
+                          * deltaABC2(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1==charge2+charge3+charge4 && charge1==charge4) {
+                      rateOffDiagonal -=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * (1. - fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4)
+                          * deltaABC2(ib1, ib2, ib3, ib4);
+                    }
+
+                    // s s s -> s
+                    if (charge1+charge2+charge3==charge4 && charge1==charge4) {
+                      rate += norm2 * 2. * pi
+                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4)
+                             + fermi2 * fermi3 * fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4)
+                          * deltaAB3(ib1, ib2, ib3, ib4);
+                      rateOffDiagonal +=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
+                          * fermi3 * (1. - fermi4)
+                          * couplingA(ib1, ib2, ib3, ib4)
+                          * deltaAB3(ib1, ib2, ib3, ib4);
+                      rateOffDiagonal +=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
+                          * fermi3 * (1. - fermi4)
+                          * couplingC(ib1, ib4, ib3, ib2)
+                          * deltaAB3(ib1, ib2, ib3, ib4);
+                    }
+                    if (charge1+charge3+charge4==charge2 && charge1==charge2) {
+                      rateOffDiagonal -=
+                          norm2 * 2. * pi
+                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
+                          * (1. - fermi3) * fermi4
+                          * couplingB(ib1, ib3, ib2, ib4)
+                          * deltaC3(ib1, ib2, ib3, ib4);
                     }
 
                     if (switchCase == 0) {
