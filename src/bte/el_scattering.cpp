@@ -556,6 +556,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 for (int ib4 = 0; ib4 < nb4; ++ib4) {
                   int is4 = innerBandStructure.getIndex(ik4Idx, BandIndex(ib4));
 
+                  // if the quasiparticles are the same, there's no scattering
+                  // so, I'm removing it
+                  //TODO: is this the correct thing to do?
+                  if (is1==is2 || is1==is3 || is1==is4 ||
+                      is2==is3 || is2==is4 || is3==is4) continue;
+
                   for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
 
                     // here we impose the charge conservation rule
