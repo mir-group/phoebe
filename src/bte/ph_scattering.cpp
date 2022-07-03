@@ -3,6 +3,7 @@
 #include "helper_3rd_state.h"
 #include "io.h"
 #include "mpiHelper.h"
+#include "interaction_4el.h"
 #include <cmath>
 
 PhScatteringMatrix::PhScatteringMatrix(Context &context_,
@@ -711,6 +712,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   if (false) {// coupling4Ph != nullptr) {
 
+    Interaction4El* coupling4QP = nullptr;
+
     double norm2 = norm * norm;// numFullQ^2
 
     int numQ = innerBandStructure.getNumPoints();
@@ -750,7 +753,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       Eigen::MatrixXcd eigenVectors1 = outerBandStructure.getEigenvectors(iq1Idx);
 
       // do the Fourier transform of the coupling on the 1st wavevector
-      coupling4QP->cache1stQP(eigenVectors1, q1C);
+      coupling4QP->cache1stEl(eigenVectors1, q1C);
 
       for (int iq2 : iq2Indexes) {// loop over k'
         WavevectorIndex iq2Idx(iq2);
@@ -760,7 +763,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
         Eigen::MatrixXcd eigenVectors2 = innerBandStructure.getEigenvectors(iq2Idx);
 
         // do the Fourier transform of the coupling on the 2nd wavevector
-        coupling4QP->cache2ndQP(eigenVectors2, q2C);
+        coupling4QP->cache2ndEl(eigenVectors2, q2C);
 
         std::vector<Eigen::Vector3d> q3Cs(numQ), q4Cs(numQ);
         std::vector<Eigen::MatrixXcd> eigenVectors3(numQ), eigenVectors4(numQ);
@@ -772,7 +775,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
           Eigen::Vector3d q3C = innerBandStructure.getWavevector(iq3Idx);
 
           Eigen::Vector3d q4CTemp = q1C + q2C - q3C;
-          Eigen::Vector3d q4CTempCrys = innerBandStructure.getPoints().cartesianToCrystal(k4CTemp);
+          Eigen::Vector3d q4CTempCrys = innerBandStructure.getPoints().cartesianToCrystal(q4CTemp);
           // note: I may need to think about what happens if k4C is not on the grid. Ignore?
           int iq4 = innerBandStructure.getPoints().getIndex(q4CTempCrys);
           iq4Indexes[iq3] = iq4;
@@ -831,11 +834,11 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     deltaAB3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 + en3 - en4);
                     deltaC3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en3 - en2 + en4);
 
-                    if ((en1 < energyCutoff) || (en2 < energyCutoff) || (en3 < energyCutoff) || (en4 < energyCutoff)) {
+                    if ((en1 < energyCutoff) || (en2 < energyCutoff) ||
+                        (en3 < energyCutoff) || (en4 < energyCutoff)) {
                       freqTerm(ib1, ib2, ib3, ib4) = 0.;
                     } else {
-                      freqTerm(ib1, ib2, ib3, ib4) = 1.
-                          / sqrt(en1 * en2 * en3 * en4);
+                      freqTerm(ib1, ib2, ib3, ib4) = 1. / en1 / en2 / en3 / en4;
                     }
                   }
                 }

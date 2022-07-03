@@ -326,8 +326,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                          + (1. - fermi2 + bose3) * delta2)
                       * norm / en3 * pi;
 
-                  double rateOffDiagonal = -
-                                           coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
+                  double rateOffDiagonal =
+                      - coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
                       * norm / en3 * pi;
 
                   // double rateOffDiagonal = -
@@ -409,26 +409,26 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // populate vector with integers from 0 to numPoints-1
     std::iota(std::begin(ik3Indexes), std::end(ik3Indexes), 0);
 
-    // precompute all fermi population terms
-    Eigen::MatrixXd fermiFactor(numStates, numCalculations);
-    Eigen::MatrixXd charges(numStates, numCalculations);
-#pragma omp parallel for collapse(2)
-    for (int is1 = 0; is1 < numStates; ++is1) {
-      for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
-        StateIndex is1Idx(is1);
-        double en = outerBandStructure.getEnergy(is1Idx);
-        auto calcInfo = statisticsSweep.getCalcStatistics(iCalc);
-        double temp = calcInfo.temperature;
-        double chemPot = calcInfo.chemicalPotential;
-        fermiFactor(is1, iCalc) = particle.getPopulation(en, temp, chemPot);
-
-        charges(is1, iCalc) = -1.;
-        if (en < chemPot) {// it's a hole!
-          charges(is1, iCalc) = 1.;
-          fermiFactor(is1, iCalc) = 1. - fermiFactor(is1, iCalc);
-        }
-      }
-    }
+//    // precompute all fermi population terms
+//    Eigen::MatrixXd fermiFactor(numStates, numCalculations);
+////    Eigen::MatrixXd charges(numStates, numCalculations);
+//#pragma omp parallel for collapse(2)
+//    for (int is1 = 0; is1 < numStates; ++is1) {
+//      for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
+//        StateIndex is1Idx(is1);
+//        double en = outerBandStructure.getEnergy(is1Idx);
+//        auto calcInfo = statisticsSweep.getCalcStatistics(iCalc);
+//        double temp = calcInfo.temperature;
+//        double chemPot = calcInfo.chemicalPotential;
+//        fermiFactor(is1, iCalc) = particle.getPopulation(en, temp, chemPot);
+//
+//        charges(is1, iCalc) = -1.;
+//        if (en < chemPot) {// it's a hole!
+////          charges(is1, iCalc) = 1.;
+//          fermiFactor(is1, iCalc) = 1. - fermiFactor(is1, iCalc);
+//        }
+//      }
+//    }
 
     std::vector<double> temperatures(numCalculations);
     for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
@@ -462,6 +462,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       for (int ik2 : ik2Indexes) {// loop over k'
         WavevectorIndex ik2Idx(ik2);
         Eigen::Vector3d k2C = innerBandStructure.getWavevector(ik2Idx);
+        auto tt3 = innerBandStructure.getRotationToIrreducible(
+            k2C, Points::cartesianCoordinates);
+        int ik2Irr = std::get<0>(tt3);
+        Eigen::Matrix3d rotation = std::get<1>(tt3);
+        WavevectorIndex ik2IrrIdx(ik2Irr);
+
         Eigen::VectorXd energies2 = innerBandStructure.getEnergies(ik2Idx);
         auto nb2 = int(energies2.size());
         Eigen::MatrixXcd eigenVectors2 = innerBandStructure.getEigenvectors(ik2Idx);
@@ -509,39 +515,51 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           Eigen::Tensor<double, 4>& couplingB = std::get<1>(tC);
           Eigen::Tensor<double, 4>& couplingC = std::get<2>(tC);
 
-          Eigen::Tensor<double, 4> deltaA1(nb1,nb2,nb3,nb4);
-          Eigen::Tensor<double, 4> deltaB1(nb1,nb2,nb3,nb4);
-          Eigen::Tensor<double, 4> deltaC1(nb1,nb2,nb3,nb4);
-          Eigen::Tensor<double, 4> deltaABC2(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaA1(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaB1(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaC1(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaABC2(nb1,nb2,nb3,nb4);
 //          Eigen::Tensor<double, 4> deltaB2(nb1,nb2,nb3,nb4);
 //          Eigen::Tensor<double, 4> deltaC2(nb1,nb2,nb3,nb4);
-          Eigen::Tensor<double, 4> deltaAB3(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaAB3(nb1,nb2,nb3,nb4);
 //          Eigen::Tensor<double, 4> deltaB3(nb1,nb2,nb3,nb4);
-          Eigen::Tensor<double, 4> deltaC3(nb1,nb2,nb3,nb4);
+//          Eigen::Tensor<double, 4> deltaC3(nb1,nb2,nb3,nb4);
+
+          Eigen::Tensor<double,3> exp1p2p(nb1,nb2,numCalculations);
+          Eigen::Tensor<double,3> exp1p2m(nb1,nb2,numCalculations);
+          Eigen::Tensor<double,3> exp1m2p(nb1,nb2,numCalculations);
+          Eigen::Tensor<double,3> exp1m2m(nb1,nb2,numCalculations);
 
           // add a delta term
-          {
+#pragma omp parallel for collapse(3)
+          for (int ib1 = 0; ib1 < nb1; ++ib1) {
+            for (int ib2 = 0; ib2 < nb2; ++ib2) {
+              for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
+                double& en1 = energies1(ib1);
+                double& en2 = energies2(ib2);
+                double& kT = temperatures[iCalc];
+                exp1p2p(ib1, ib2, iCalc) = exp((en1 + en2) / 2. / kT);
+                exp1m2m(ib1, ib2, iCalc) = exp((-en1 - en2) / 2. / kT);
+                exp1p2m(ib1, ib2, iCalc) = exp((en1 - en2) / 2. / kT);
+                exp1m2p(ib1, ib2, iCalc) = exp((-en1 + en2) / 2. / kT);
+              }
+            }
+          }
 #pragma omp parallel for collapse(4)
-            for (int ib1 = 0; ib1 < nb1; ++ib1) {
-              for (int ib2 = 0; ib2 < nb2; ++ib2) {
-                for (int ib3 = 0; ib3 < nb3; ++ib3) {
-                  for (int ib4 = 0; ib4 < nb4; ++ib4) {
-                    double en1 = energies1(ib1);
-                    double en2 = energies2(ib2);
-                    double en3 = energies3(ib3);
-                    double en4 = energies4(ib4);
-                    deltaA1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 - en3 - en4);
-                    deltaB1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en3 - en2 - en4);
-                    deltaC1(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en4 - en3 - en2);
-
-                    deltaABC2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 - en2 - en3 - en4);
-//                    deltaB2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 - en3 - en2 - en4);
-//                    deltaC2(ib1, ib2, ib3, ib4) = smearing->getSmearing(en3 - en2 - en1 - en4);
-
-                    deltaAB3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 + en3 - en4);
-//                    deltaB3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en1 + en2 + en3 - en4);
-                    deltaC3(ib1, ib2, ib3, ib4) = smearing->getSmearing(en3 - en2 + en3 + en4);
-                  }
+          for (int ib1 = 0; ib1 < nb1; ++ib1) {
+            for (int ib2 = 0; ib2 < nb2; ++ib2) {
+              for (int ib3 = 0; ib3 < nb3; ++ib3) {
+                for (int ib4 = 0; ib4 < nb4; ++ib4) {
+                  double& en1 = energies1(ib1);
+                  double& en2 = energies2(ib2);
+                  double& en3 = energies3(ib3);
+                  double& en4 = energies4(ib4);
+                  couplingA(ib1, ib2, ib3, ib4) *=
+                      smearing->getSmearing(en1 + en2 - en3 - en4);
+                  couplingB(ib1, ib3, ib2, ib4) *=
+                      smearing->getSmearing(en1 + en3 - en2 - en4);
+                  couplingC(ib1, ib4, ib3, ib2) *=
+                      smearing->getSmearing(en1 + en4 - en3 - en2);
                 }
               }
             }
@@ -549,12 +567,26 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
           for (int ib1 = 0; ib1 < nb1; ++ib1) {
             int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
+            StateIndex is1Idx(is1);
+            BteIndex ind1Idx = outerBandStructure.stateToBte(is1Idx);
+            int iBte1 = ind1Idx.get();
             for (int ib2 = 0; ib2 < nb2; ++ib2) {
               int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
+              StateIndex is2Idx(is2);
+              int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
+              StateIndex is2IrrIdx(is2Irr);
+              BteIndex ind2Idx = innerBandStructure.stateToBte(is2IrrIdx);
+              int iBte2 = ind2Idx.get();
               for (int ib3 = 0; ib3 < nb3; ++ib3) {
                 int is3 = innerBandStructure.getIndex(ik3Idx, BandIndex(ib3));
+                StateIndex is3Idx(is3);
+                BteIndex ind3Idx = innerBandStructure.stateToBte(is3Idx);
+                int iBte3 = ind3Idx.get();
                 for (int ib4 = 0; ib4 < nb4; ++ib4) {
                   int is4 = innerBandStructure.getIndex(ik4Idx, BandIndex(ib4));
+                  StateIndex is4Idx(is4);
+                  BteIndex ind4Idx = innerBandStructure.stateToBte(is4Idx);
+                  int iBte4 = ind4Idx.get();
 
                   // if the quasiparticles are the same, there's no scattering
                   // so, I'm removing it
@@ -564,139 +596,72 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
                   for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
 
-                    // here we impose the charge conservation rule
-                    double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-
-                    double fermi1 = fermiFactor(is1, iCalc);
-                    double fermi2 = fermiFactor(is2, iCalc);
-                    double fermi3 = fermiFactor(is3, iCalc);
-                    double fermi4 = fermiFactor(is4, iCalc);
-
-                    double charge1 = charges(is1, iCalc);
-                    double charge2 = charges(is2, iCalc);
-                    double charge3 = charges(is3, iCalc);
-                    double charge4 = charges(is4, iCalc);
+                    // double fermi1 = outerFermi(iBte1, iCalc);
+                    double fermi2 = innerFermi(iBte2, iCalc);
+                    double fermi3 = innerFermi(iBte3, iCalc);
+                    double fermi4 = innerFermi(iBte4, iCalc);
 
                     double rate = 0.;
                     double rateOffDiagonal = 0.;
 
-                    // s s -> s s
-                    if (charge1 + charge2 == charge3 + charge4) {
-                      rate += norm2 * 2. * pi
-                          * (fermi2 * (1. - fermi3) * (1. - fermi4)
-                             + (1. - fermi2) * fermi3 * fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4)
-                          * deltaA1(ib1, ib2, ib3, ib4);
-                      rateOffDiagonal +=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * (1. - fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4)
-                          * deltaA1(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1 + charge3 == charge2 + charge4) {
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * fermi3 * (1. - fermi4)
-                          * couplingB(ib1, ib3, ib2, ib4)
-                          * deltaB1(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1 + charge4 == charge3 + charge2) {
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * fermi4
-                          * couplingC(ib1, ib4, ib3, ib2)
-                          * deltaC1(ib1, ib2, ib3, ib4);
-                    }
-
-                    // s -> s s s
-                    if (charge1==charge2+charge3+charge4 && charge1==charge2) {
-                      rate += norm2 * 2. * pi
-                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4)
-                             + fermi2 * fermi3 * fermi4)
-                          * couplingB(ib1, ib3, ib2, ib4)
-                          * deltaABC2(ib1, ib2, ib3, ib4);
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * (1. - fermi4)
-                          * couplingB(ib1, ib3, ib2, ib4)
-                          * deltaABC2(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1==charge2+charge3+charge4 && charge1==charge3) {
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * (1. - fermi4)
-                          * couplingC(ib1, ib4, ib3, ib2)
-                          * deltaABC2(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1==charge2+charge3+charge4 && charge1==charge4) {
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * (1. - fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4)
-                          * deltaABC2(ib1, ib2, ib3, ib4);
-                    }
-
-                    // s s s -> s
-                    if (charge1+charge2+charge3==charge4 && charge1==charge4) {
-                      rate += norm2 * 2. * pi
-                          * ((1. - fermi2) * (1. - fermi3) * (1. - fermi4)
-                             + fermi2 * fermi3 * fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4)
-                          * deltaAB3(ib1, ib2, ib3, ib4);
-                      rateOffDiagonal +=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
-                          * fermi3 * (1. - fermi4)
-                          * couplingA(ib1, ib2, ib3, ib4)
-                          * deltaAB3(ib1, ib2, ib3, ib4);
-                      rateOffDiagonal +=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) + energies2(ib2)) / 2. / temperatures[iCalc])
-                          * fermi3 * (1. - fermi4)
-                          * couplingC(ib1, ib4, ib3, ib2)
-                          * deltaAB3(ib1, ib2, ib3, ib4);
-                    }
-                    if (charge1+charge3+charge4==charge2 && charge1==charge2) {
-                      rateOffDiagonal -=
-                          norm2 * 2. * pi
-                          * exp((energies1(ib1) - energies2(ib2)) / 2. / temperatures[iCalc])
-                          * (1. - fermi3) * fermi4
-                          * couplingB(ib1, ib3, ib2, ib4)
-                          * deltaC3(ib1, ib2, ib3, ib4);
-                    }
+                    rate += norm2 * 2. * pi
+                        * (fermi2 * (1. - fermi3) * (1. - fermi4)
+                           + (1. - fermi2) * fermi3 * fermi4)
+                        * couplingA(ib1, ib2, ib3, ib4);
+                    rateOffDiagonal +=
+                        norm2 * 2. * pi
+                        * 0.5 * (exp1p2p(ib1,ib2,iCalc) * (1. - fermi3) * (1. - fermi4) +
+                                 exp1m2m(ib1,ib2,iCalc) * fermi3 * fermi4)
+                        * couplingA(ib1, ib2, ib3, ib4);
+                    rateOffDiagonal -=
+                        norm2 * 2. * pi
+                        * 0.5 * (exp1p2m(ib1,ib2,iCalc) * fermi3 * (1. - fermi4) +
+                                 exp1m2p(ib1,ib2,iCalc) * (1. - fermi3) * fermi4)
+                        * couplingB(ib1, ib3, ib2, ib4);
+                    rateOffDiagonal -=
+                        norm2 * 2. * pi
+                        * 0.5 * (exp1p2m(ib1,ib2,iCalc) * (1. - fermi3) * fermi4 +
+                                 exp1m2p(ib1,ib2,iCalc) * fermi3 * (1. - fermi4))
+                        * couplingC(ib1, ib4, ib3, ib2);
 
                     if (switchCase == 0) {
 
-                      if (theMatrix.indicesAreLocal(is1, is2)) {
-                        linewidth->operator()(iCalc, 0, is1) += rate;
+                      if (withSymmetries) {
+                        Error("Building scattering matrix with symmetries is "
+                              "not supported");
+                      } else {
+                        if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                          linewidth->operator()(iCalc, 0, iBte1) += rate;
+                        }
+                        theMatrix(iBte1, iBte2) += rateOffDiagonal;
                       }
-                      theMatrix(is1, is2) += rateOffDiagonal;
-
                     } else if (switchCase == 1) {
                       // case of matrix-vector multiplication
                       // we build the scattering matrix A = S*n(n+1)
 
                       for (unsigned int iVec = 0; iVec < inPopulations.size();
                            iVec++) {
+                        Eigen::Vector3d inPopRot;
+                        inPopRot.setZero();
                         for (int i : {0, 1, 2}) {
-                          if (is1 != is2) {
-                            outPopulations[iVec](iCalc, i, is1) +=
-                                rateOffDiagonal * inPopulations[iVec](iCalc, i, is2);
+                          for (int j : {0, 1, 2}) {
+                            inPopRot(i) += rotation.inverse()(i, j) * inPopulations[iVec](iCalc, j, iBte2);
                           }
-                          outPopulations[iVec](iCalc, i, is1) +=
-                              rate * inPopulations[iVec](iCalc, i, is1);
+                        }
+                        for (int i : {0, 1, 2}) {
+                          if (is1 != is2Irr) {
+                            outPopulations[iVec](iCalc, i, iBte1) +=
+                                rateOffDiagonal * inPopRot(i);
+                          }
+                          outPopulations[iVec](iCalc, i, iBte1) +=
+                              rate * inPopulations[iVec](iCalc, i, iBte1);
                         }
                       }
                     } else {
                       // case of linewidth construction
-                      linewidth->operator()(iCalc, 0, is1) += rate;
+                      linewidth->operator()(iCalc, 0, iBte1) += rate;
                     }
+
                   }
                 }
               }
