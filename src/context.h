@@ -76,7 +76,7 @@ class Context {
   // boundary length for isotope scattering
   double boundaryLength = std::numeric_limits<double>::quiet_NaN();
 
-  Eigen::Vector3d bField = Eigen::Vector3d::Zero();
+  std::vector<Eigen::Vector3d> bField;
 
   std::string elphFileName;
   double minChemicalPotential = std::numeric_limits<double>::quiet_NaN();
@@ -167,7 +167,7 @@ public:
   std::string getQuantumEspressoPrefix();
   void setQuantumEspressoPrefix(const std::string &x);
   std::string getElPhInterpolation();
-  void setBField(const Eigen::Vector3d newBField);
+  void setBField(const std::vector<Eigen::Vector3d> newBField);
 
   double getEpaSmearingEnergy() const;
   double getEpaDeltaEnergy() const;
@@ -322,7 +322,7 @@ public:
 
   double getBoundaryLength() const;
 
-  Eigen::Vector3d getBField() const;
+  std::vector<Eigen::Vector3d> getBField() const;
 
 
   // EPA:

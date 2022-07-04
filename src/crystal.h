@@ -172,7 +172,7 @@ public:
 
   /** Internal utility to restrict symmetries to those allowed by the b field
   */
-  void magneticSymmetries(Context &context);
+  void magneticSymmetries(Eigen::Vector3d bfield);
 
   /** Build the list of Bravais lattice vectors (real space) that live within
    * the Wigner Seitz zone of a super cell

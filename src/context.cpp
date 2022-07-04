@@ -116,6 +116,47 @@ std::vector<double> parseDoubleList(std::string &line) {
   return x;
 }
 
+
+/** Parse a string of format "key = [[double,double,double],[double,double,double],...]"
+*/
+std::vector<std::vector<double>> parseDoubleVectorList(std::string &line) {
+
+  std::vector<std::vector<double>> doubleList;
+
+  // check that the open and close braces are there
+  std::string delimiter = "[";
+  size_t pos1 = line.find_first_of(delimiter);
+  delimiter = "]";
+  size_t pos2 = line.find_last_of(delimiter);
+  if (pos1 == std::string::npos || pos2 == std::string::npos) {
+    Error("Error in parseDoubleVectorList");
+  }
+
+  // cut off the outer braces
+  std::string s = line.substr(pos1 + 1, pos2 - pos1 - 1);
+
+  // now, break up by ], to denote the end of each 3 item set
+  std::string delimiterLast = "]";
+  std::string delimiterFirst = "[";
+  delimiter = ",";
+  while (s.find(delimiterLast) != std::string::npos) {
+    pos1 = s.find_first_of(delimiterFirst);
+    pos2 = s.find(delimiterLast);
+
+    std::vector<double> x;
+    // grab the substring
+    std::string token = s.substr(pos1,pos2 + delimiterLast.length());
+    // tokenize by ,
+    x = parseDoubleList(token);
+    doubleList.push_back(x);
+    s.erase(0, pos2 + delimiterLast.length());
+  }
+  // if we have no more ], in the list, we are done
+  // Must not forget the last element in the list
+  //doubleList.push_back(std::stod(s));
+  return doubleList;
+}
+
 std::tuple<int,double> parseDoubleVectorComponent(std::string line) {
   std::string sep = ")";
   size_t position = line.find(sep);
@@ -740,10 +781,26 @@ void Context::setupFromInput(const std::string &fileName) {
       }
       // magnetotransport
       if (parameterName == "magneticField") {
-        std::vector<double> vecB = parseDoubleList(val);
-        bField(0) = vecB[0] * teslaToAu;
-        bField(1) = vecB[1] * teslaToAu;
-        bField(2) = vecB[2] * teslaToAu;
+        // if there is only one [ brace, it's a single field value
+        if(std::count(val.begin(), val.end(), '[') == 1) {
+          std::vector<double> vecB = parseDoubleList(val);
+          Eigen::Vector3d B; B.setZero();
+          B[0] = vecB[0] * teslaToAu;
+          B[1] = vecB[1] * teslaToAu;
+          B[2] = vecB[2] * teslaToAu;
+          bField.push_back(B);
+        }
+        // multiple field values
+        else if (std::count(val.begin(), val.end(), '[') > 1) {
+          std::vector<std::vector<double>> vecsB = parseDoubleVectorList(val);
+          for(auto vecB : vecsB) {
+            Eigen::Vector3d B; B.setZero();
+            B[0] = vecB[0] * teslaToAu;
+            B[1] = vecB[1] * teslaToAu;
+            B[2] = vecB[2] * teslaToAu;
+            bField.push_back(B);
+          }
+        }
       }
 
 
@@ -970,8 +1027,10 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(numOccupiedStates))
         std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
       if(bField.size() != 0) {
-        std::cout << "magneticField = [" << bField(0)/teslaToAu << " " << bField(1)/teslaToAu << " " << bField(2)/teslaToAu
+        for(auto B : bField) {
+          std::cout << "magneticField = [" << B(0)/teslaToAu << " " << B(1)/teslaToAu << " " << B(2)/teslaToAu
                  << "] T" << std::endl;
+        }
       }
     }
     if (appName.find("honon") != std::string::npos) {
@@ -1263,8 +1322,8 @@ double Context::getDeltaChemicalPotential() const {
   return deltaChemicalPotential;
 }
 
-Eigen::Vector3d Context::getBField() const { return bField; }
-void Context::setBField(const Eigen::Vector3d newBField) { bField = newBField; }
+std::vector<Eigen::Vector3d> Context::getBField() const { return bField; }
+void Context::setBField(const std::vector<Eigen::Vector3d> newBField) { bField = newBField; }
 
 double Context::getMinTemperature() const { return minTemperature; }
 

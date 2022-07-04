@@ -300,7 +300,7 @@ public:
   Eigen::Matrix3d getRotationFromReducibleIndex(int ikFull);
   void swapCrystal(Crystal &newCrystal);
   // TODO decide if we want to keept this
-  void magneticSymmetries(Context& context);
+  void magneticSymmetries(Eigen::Vector3d bfield);
 
 
 protected:

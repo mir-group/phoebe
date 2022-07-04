@@ -351,12 +351,15 @@ int Crystal::getDimensionality() const { return dimensionality; }
 
 int Crystal::getNumSpecies() const { return numSpecies; }
 
-void Crystal::magneticSymmetries(Context &context) {
+void Crystal::magneticSymmetries(Eigen::Vector3d bfield) {
+
+  // if someone enters a zero b field, nothing changes
+  if (bfield.squaredNorm() == 0) {
+    return;
+  }
 
   std::vector<SymmetryOperation> magSymmetryOperations;
 
-  // first, establish what direction the magnetic field is along.
-  Eigen::Vector3d bfield = context.getBField();
   // symmetry operations are in crystal coordinates, convert bfield to this basis
   auto bLattice = directUnitCell.inverse() * bfield;
 

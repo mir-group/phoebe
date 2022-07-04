@@ -1176,8 +1176,8 @@ void Points::swapCrystal(Crystal &newCrystal) {
   equiv.resize(0);
 }
 //TODO another way
-void Points::magneticSymmetries(Context& context) {
-  crystalObj->magneticSymmetries(context);
+void Points::magneticSymmetries(Eigen::Vector3d bfield) {
+  crystalObj->magneticSymmetries(bfield);
 }
 
 
