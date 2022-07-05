@@ -7,8 +7,8 @@ VectorBTE::VectorBTE(StatisticsSweep &statisticsSweep_,
                      const int &dimensionality_)
     : statisticsSweep(statisticsSweep_), bandStructure(bandStructure_) {
 
-  if (dimensionality_ <= 0) {
-    Error("BaseVectorBTE doesn't accept <=0 dimensions");
+  if (dimensionality_ <= 0 || dimensionality_ > 3) {
+    Error("BaseVectorBTE doesn't accept <=0 or >3 dimensions.");
   }
 
   dimensionality = dimensionality_;
@@ -162,6 +162,9 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
 
 // product operator overload
 VectorBTE VectorBTE::operator*(VectorBTE &that) {
+  if(numStates != that.numStates)
+    Error("Developer error: \n"
+        "Cannot multiply two vectorBTE objects with different nStates.");
   return baseOperator(that, operatorProd);
 }
 
@@ -260,18 +263,14 @@ VectorBTE VectorBTE::sqrt() {
 
 VectorBTE VectorBTE::reciprocal() {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  auto x = this->data.array();
-  for (int i=0; i<x.size(); ++i) {
-    // In some special cases, the electronic linewidth could be = 0
-    // (when no states are available for scattering)
-    // this avoids 1/linewidth being equal to NaN
-    if (x(i) != 0.) {
-      x(i) = 1. / x(i);
-    } else {
-      x(i) = 0.;
+  #pragma omp parallel for
+  for (int iBte = 0; iBte < numStates; iBte++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      for (int iDim : {0,1,2}) {
+        newPopulation(iCalc, iDim, iBte)  = 1./VectorBTE::operator()(iCalc, iDim, iBte);
+      }
     }
   }
-  newPopulation.data = x;
   return newPopulation;
 }
 
