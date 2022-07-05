@@ -107,6 +107,7 @@ void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
             scan(ik*numBands+ib) = 0;
           }
         });
+    Kokkos::fence();
 
     Kokkos::parallel_scan("scan", numK*numBands, KOKKOS_LAMBDA(const int i,
                                                  int& update, const bool final) {
@@ -179,6 +180,7 @@ void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
           }
           tmpSubMat(iMatCart, i, j) = tmp;
         });
+    Kokkos::fence();
 
     // finish the rotation and substitute back in the final results
     Kokkos::parallel_for(

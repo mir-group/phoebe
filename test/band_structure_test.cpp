@@ -5,6 +5,8 @@
 #include "qe_input_parser.h"
 #include <fstream>
 #include <gtest/gtest.h>
+#include <Kokkos_Core.hpp>
+#include <complex>
 
 TEST(FullBandStructureTest, BandStructureStorage) {
   // in this test, we check whether we are storing data inside the
@@ -48,21 +50,30 @@ TEST(FullBandStructureTest, BandStructureStorage) {
 
   // now we check the difference
   double x1 = (ens - ensT).norm();
-  ASSERT_EQ(x1, 0.);
+  ASSERT_NEAR(x1, 0.,1e-14);
 
   {
     double c1 = 0.;
+    double norm = 0.0, normT=0.0;
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         for (int ic = 0; ic < 3; ic++) {
           c1 += std::norm(velocitiesT(ib1, ib2, ic) - velocities(ib1, ib2, ic));
+          norm += std::norm(velocities(ib1, ib2, ic));
+          normT += std::norm(velocitiesT(ib1, ib2, ic));
         }
       }
     }
+    printf("%.2g %.2g %.2g\n=================\n", norm, normT, std::abs(norm-normT));
+#ifdef KOKKOS_ENABLE_CUDA
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-8);
+#else
     ASSERT_NEAR(c1, 0., 1.e-16);
+#endif
   }
 
   {
+    double norm = 0.0, normT=0.0;
     double c2 = 0.;
     for (int i = 0; i < numBands; i++) {
       auto tup2 = decompress2Indices(i, numAtoms, 3);
@@ -70,9 +81,16 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       auto ic = std::get<1>(tup2);
       for (int j = 0; j < numBands; j++) {
         c2 += std::norm(eigenVectorsT(i, j) - eigenVectors(ic, iat, j));
+          norm += std::norm(eigenVectors(ic, iat, j));
+          normT += std::norm(eigenVectorsT(i, j));
       }
     }
+    printf("%.2g %.2g %.2g\n=================\n", norm, normT, std::abs(norm-normT));
+#ifdef KOKKOS_ENABLE_CUDA
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+#else
     ASSERT_NEAR(c2, 0., 1.e-16);
+#endif
   }
 
   // now we check that we get the same eigenvectors in the two different
@@ -82,42 +100,66 @@ TEST(FullBandStructureTest, BandStructureStorage) {
   auto ensC = std::get<0>(tup2);
   auto eigenVectorsC = std::get<1>(tup2);
   x1 = (ens - ensC).norm();
-  ASSERT_EQ(x1, 0.);
+  ASSERT_NEAR(x1/ens.norm(), 0.0, 1e-14);
 
   Eigen::MatrixXcd eigenVectorsT2 = bandStructure.getEigenvectors(ikIndex);
   {
     double c2 = 0.;
+    double norm = 0.0, normT=0.0;
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         c2 += std::norm(eigenVectorsT2(ib1, ib2) - eigenVectorsC(ib1, ib2));
+        norm += std::norm(eigenVectorsT2(ib1, ib2));
+        normT += std::norm(eigenVectorsC(ib1, ib2));
       }
     }
+    printf("%.2g %.2g %.2g\n=================\n", norm, normT, std::abs(norm-normT));
+#ifdef KOKKOS_ENABLE_CUDA
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+#else
     ASSERT_NEAR(c2, 0., 1e-16);
+#endif
   }
 
   // we check what happens if we set eigenvectors as a matrix
   Eigen::MatrixXcd eigenVectorsC2 = bandStructure.getEigenvectors(ikIndex);
   {
     double c2 = 0.;
+    double norm = 0.0, normT=0.0;
     for (int ib1 = 0; ib1 < numBands; ib1++) {
       for (int ib2 = 0; ib2 < numBands; ib2++) {
         c2 += std::norm(eigenVectorsC2(ib1, ib2) - eigenVectorsC(ib1, ib2));
+        norm += std::norm(eigenVectorsC2(ib1, ib2));
+        normT += std::norm(eigenVectorsC(ib1, ib2));
       }
     }
+    printf("%.2g %.2g %.2g\n=================\n", norm, normT, std::abs(norm-normT));
+#ifdef KOKKOS_ENABLE_CUDA
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+#else
     ASSERT_NEAR(c2, 0., 1e-16);
+#endif
   }
 
   // make a comparison between tensor and matrix
   {
     double c2 = 0.;
+    double norm = 0.0, normT=0.0;
     for (int iBand = 0; iBand < numBands; iBand++) {
       for (int iat = 0; iat < numAtoms; iat++) {
         for (int iPol = 0; iPol < 3; iPol++) {
           auto ind = compress2Indices(iat, iPol, numAtoms, 3);
           c2 += std::norm(eigenVectors(iPol, iat, iBand) - eigenVectorsC(ind, iBand));
+          norm += std::norm(eigenVectors(iPol, iat, iBand));
+          normT += std::norm(eigenVectorsC(ind, iBand));
         }
       }
     }
+    printf("%.2g %.2g %.2g\n=================\n", norm, normT, std::abs(norm-normT));
+#ifdef KOKKOS_ENABLE_CUDA
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+#else
     ASSERT_NEAR(c2, 0., 1e-16);
+#endif
   }
 }

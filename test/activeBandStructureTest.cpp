@@ -246,7 +246,7 @@ TEST(ActiveBandStructureTest, WindowFilter) {
 
   // check the energies
   double ens = (ensOTF - ensAPP).norm();
-  ASSERT_EQ(ens, 0.);
+  ASSERT_NEAR(ens/ensOTF.norm(), 0., 1e-14);
 
   // check the velocities
   std::complex<double> velocities = complexZero;
@@ -261,15 +261,16 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   ASSERT_EQ(velocities, complexZero);
 
   // check the eigenvectors
-  std::complex<double> eigenVectors = complexZero;
+  double eigenVectors = 0.0, totnorm = 0.0;
   for (int i = 0; i < nb; i++) {
     auto tup2 = decompress2Indices(i, numAtoms, 3);
     auto iat = std::get<0>(tup2);
     auto ic = std::get<1>(tup2);
     for (int j = 0; j < nb; j++) {
       eigenVectors +=
-          pow(eigenVectorsOTF(ic, iat, j) - eigenVectorsAPP(ic, iat, j), 2);
+          std::abs(eigenVectorsOTF(ic, iat, j) - eigenVectorsAPP(ic, iat, j));
+      totnorm += std::abs(eigenVectorsOTF(ic,iat,j));
     }
   }
-  ASSERT_EQ(eigenVectors, complexZero);
+  ASSERT_NEAR(eigenVectors, 0.0, 1e-14);
 }

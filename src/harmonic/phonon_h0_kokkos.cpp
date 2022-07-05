@@ -38,7 +38,6 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   Kokkos::realloc(phases_d, 0, 0);
 
   if (hasDielectric) {
-    printf("\n\n\n DIELECTRIC=TRUE \n\n\n\n\n");
     auto longRangeCorrection1_d = this->longRangeCorrection1_d;
 
     Kokkos::parallel_for(
@@ -91,6 +90,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
               double normG = norm * exp(-geg * 0.25) / geg;
 
               Kokkos::View<double*> GQZ(team.team_scratch(0), 3*numAtoms);
+              Kokkos::single(Kokkos::PerTeam(team), [&](){
               for (int i = 0; i < numBands; i++) {
                 GQZ(i) = 0.;
               }
@@ -119,6 +119,8 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
                   }
                 }
               }
+            }
+            );
             }
     });
 

@@ -15,7 +15,7 @@ void kokkosZHEEV(StridedComplexView3D &A, DoubleView2D &W) {
   int M = A.extent(0);// number of matrices
   int N = A.extent(1);// matrix size is NxN
 
-#ifndef KOKKOS_ENABLE_CUDA
+#ifndef KOKKOS_ENABLE_HIP
   // general case, copy to CPU (if necessary) and
   // use Eigen to solve the diagonalization problems
 
