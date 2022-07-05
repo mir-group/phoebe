@@ -515,16 +515,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           Eigen::Tensor<double, 4>& couplingB = std::get<1>(tC);
           Eigen::Tensor<double, 4>& couplingC = std::get<2>(tC);
 
-//          Eigen::Tensor<double, 4> deltaA1(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaB1(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaC1(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaABC2(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaB2(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaC2(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaAB3(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaB3(nb1,nb2,nb3,nb4);
-//          Eigen::Tensor<double, 4> deltaC3(nb1,nb2,nb3,nb4);
-
           Eigen::Tensor<double,3> exp1p2p(nb1,nb2,numCalculations);
           Eigen::Tensor<double,3> exp1p2m(nb1,nb2,numCalculations);
           Eigen::Tensor<double,3> exp1m2p(nb1,nb2,numCalculations);
@@ -597,9 +587,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   for (int iCalc = 0; iCalc < numCalculations; ++iCalc) {
 
                     // double fermi1 = outerFermi(iBte1, iCalc);
-                    double fermi2 = innerFermi(iBte2, iCalc);
-                    double fermi3 = innerFermi(iBte3, iCalc);
-                    double fermi4 = innerFermi(iBte4, iCalc);
+                    double& fermi2 = innerFermi(iBte2, iCalc);
+                    double& fermi3 = innerFermi(iBte3, iCalc);
+                    double& fermi4 = innerFermi(iBte4, iCalc);
 
                     double rate = 0.;
                     double rateOffDiagonal = 0.;
