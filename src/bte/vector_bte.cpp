@@ -266,7 +266,7 @@ VectorBTE VectorBTE::reciprocal() {
   #pragma omp parallel for
   for (int iBte = 0; iBte < numStates; iBte++) {
     for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
-      for (int iDim : {0,1,2}) {
+      for (int iDim = 0; iDim < dimensionality; iDim++) {
         newPopulation(iCalc, iDim, iBte)  = 1./VectorBTE::operator()(iCalc, iDim, iBte);
       }
     }
