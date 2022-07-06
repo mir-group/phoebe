@@ -25,6 +25,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
         }
         phases_d(iK, iR) = exp(-complexI * arg) * weights_d(iR);
       });
+  Kokkos::fence();
 
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
@@ -50,6 +51,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
             D(m, n) += longRangeCorrection1_d(i, j, iAt);
           }
         });
+    Kokkos::fence();
 
     double norm = e2 * fourPi / volumeUnitCell;
     int numG = gVectors_d.extent(0);
@@ -60,17 +62,19 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
     auto atomicPositions_d = this->atomicPositions_d;
     auto gMax = this->gMax;
 
-    size_t byte_size = Kokkos::View<double*>::shmem_size(numBands);
+    int byte_size = Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace::scratch_memory_space>::shmem_size(numBands);
     Kokkos::parallel_for("long-range-ph-H0",
-        Kokkos::TeamPolicy<>(numK*numG, Kokkos::AUTO()).set_scratch_size(
-            0, Kokkos::PerTeam(byte_size)),
+        Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>(numG, Kokkos::AUTO()).set_scratch_size(
+          0, Kokkos::PerThread(byte_size)),
         KOKKOS_LAMBDA (const Kokkos::TeamPolicy<>::member_type &team) {
 
-            int iKG = team.league_rank();
-            int iK = iKG % numK; // fast index, so atomic_add has less conflict
-            int iG = iKG / numK;
+          int iG = team.league_rank();
+          auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
 
-            auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
+          Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace::scratch_memory_space> GQZ(team.thread_scratch(0), 3*numAtoms);
+
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numK), [&] (const int iK){
+
             auto Q = Kokkos::subview(cartesianCoordinates, iK, Kokkos::ALL);
             auto D = Kokkos::subview(dynamicalMatrices, iK, Kokkos::ALL, Kokkos::ALL);
 
@@ -80,30 +84,28 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
             }
 
             double geg = 0.;
-            for (int i=0; i<3; ++i) {
-              for (int j = 0; j < 3; ++j) {
+            Kokkos::parallel_reduce(Kokkos::ThreadVectorRange(team, 9), [&] (const int ij, double &geg){
+                int i = ij / 3;
+                int j = ij % 3;
                 geg += GQ[i] * dielectricMatrix_d(i, j) * GQ[j];
-              }
-            }
+            }, geg);
 
             if (geg > 0. && geg < 4. * gMax) {
               double normG = norm * exp(-geg * 0.25) / geg;
 
-              Kokkos::View<double*> GQZ(team.team_scratch(0), 3*numAtoms);
-              Kokkos::single(Kokkos::PerTeam(team), [&](){
-              for (int i = 0; i < numBands; i++) {
-                GQZ(i) = 0.;
-              }
-              for (int i : {0, 1, 2}) {
-                for (int j : {0, 1, 2}) {
-                  for (int nb = 0; nb < numAtoms; nb++) {
-                    GQZ[nb * 3 + i] += GQ[j] * bornCharges_d(i, j, nb);
+              Kokkos::parallel_for(Kokkos::ThreadVectorRange(team, 3*numAtoms), [&] (const int inb){
+                  int nb = inb / 3;
+                  int i = inb % 3;
+                  double tmp = 0.0;
+                  for (int j : {0, 1, 2}) {
+                     tmp += GQ[j] * bornCharges_d(i, j, nb);
                   }
-                }
-              }
+                  GQZ[inb] = tmp;
+              });
 
-              for (int nb = 0; nb < numAtoms; nb++) {
-                for (int na = 0; na < numAtoms; na++) {
+              Kokkos::parallel_for(Kokkos::ThreadVectorRange(team, numAtoms*numAtoms), [&] (const int nanb){
+                  int na = nanb / numAtoms;
+                  int nb = nanb % numAtoms;
                   double arg = 0.;
                   for (int i = 0; i < 3; i++) {
                     double xi = atomicPositions_d(na,i) - atomicPositions_d(nb,i);
@@ -117,13 +119,10 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
                       // there's a reduce on iG!
                     }
                   }
-                }
-              }
+              });
             }
-            );
-            }
-    });
-
+          });
+        });
   }
 
 
