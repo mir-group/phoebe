@@ -22,7 +22,7 @@ void ElElToPhoebeApp::run(Context &context) {
 
   // now we parse the first header
   Eigen::MatrixXd yamboQPoints;
-  int numBands;
+  int numBands, bandOffset;
   if (mpi->mpiHead()) {
     std::string yamboPrefix = context.getYamboInteractionFileName();
     // Q1 should always exist
@@ -42,10 +42,12 @@ void ElElToPhoebeApp::run(Context &context) {
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
     numBands = bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2
+    bandOffset = bandExtrema.minCoeff();
   }
   int numPoints = yamboQPoints.cols();
   mpi->bcast(&numPoints);
   mpi->bcast(&numBands);
+  mpi->bcast(&bandOffset);
   if (!mpi->mpiHead()) {
     yamboQPoints.resize(3, numPoints);
   }
@@ -104,6 +106,10 @@ void ElElToPhoebeApp::run(Context &context) {
 
     int M = sqrt(yamboKernel_.size() / 2);
 
+    if (M /= numPoints * numBands * numBands) {
+      Error("BSE kernel size not consistent with the rest of the input");
+    }
+
     // TODO: check if this doesn't transpose matrix elements
     Eigen::TensorMap<Eigen::Tensor<double, 3>> yamboKernel(
         yamboKernel_.data(), M, M, 2);
@@ -122,36 +128,42 @@ void ElElToPhoebeApp::run(Context &context) {
       }
     }
 
+    // read this auxiliary mapping for Yambo indices
+    Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
+    HighFive::DataSet d_ikbz = file.getDataSet("/IKBZ_IB1_IB2_ISP2_ISP1");
+    d_ikbz.read(ikbz_ib1_ib2_isp2_isp1);
+
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-#pragma omp parallel for collapse(2)
-    for (int ik1 = 0; ik1 < numPoints; ++ik1) {
-      for (int ik2 = 0; ik2 < numPoints; ++ik2) {
+#pragma omp parallel for
+    for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
+      int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
+      int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
+      int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
+      int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
+      int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
+      Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
+      for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
+        int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
+        int jYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, jYamboBSE);
+        int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
+        int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
+        int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
+        Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
+        Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
-        Eigen::Vector3d thisK1 = yamboQPoints.col(ik1);
-        Eigen::Vector3d thisK2 = yamboQPoints.col(ik2);
-        Eigen::Vector3d thisK3 = excitonQ + thisK1;
-
-        int ikk1 = kPoints.getIndex(thisK1);
+        int ikk1 = kPoints.getIndex(thisiK);
         int ikk2 = kPoints.getIndex(thisK2);
-        int ikk3 = kPoints.getIndex(thisK3);
-        // ik4 is implicit and not needed
+        int ikk3 = kPoints.getIndex(thisjK);
+        int ib1 = iYamboIb1 - bandOffset;// because iYambo starts from 4
+        int ib2 = iYamboIb2 - bandOffset;
+        int ib3 = jYamboIb1 - bandOffset;
+        int ib4 = jYamboIb2 - bandOffset;
 
-        for (int ib1 = 0; ib1 < numBands; ++ib1) {
-          for (int ib2 = 0; ib2 < numBands; ++ib2) {
-            for (int ib3 = 0; ib3 < numBands; ++ib3) {
-              for (int ib4 = 0; ib4 < numBands; ++ib4) {
-                // note: kpoints in Yambo may have different order
-                int bse1 = ikk1 * numBands + ib1;
-                int bse2 = ikk2 * numBands + ib2;
-                std::complex<double> z = {yamboKernel(bse1, bse2, 0),
-                                          yamboKernel(bse1, bse2, 1)};
-                qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
-              }
-            }
-          }
-        }
+        std::complex<double> z = {yamboKernel(iYamboBSE, jYamboBSE, 0),
+                                  yamboKernel(iYamboBSE, jYamboBSE, 1)};
+        qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
       }
     }
   }
