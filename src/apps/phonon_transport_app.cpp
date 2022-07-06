@@ -16,8 +16,8 @@
 #include <iomanip>
 
 // forward declare helper function to calculate phel scattering
-void setupPhononElectronScattering(Context& context, Crystal& crystal, 
-				VectorBTE& phononElectronRates); 
+void setupPhononElectronScattering(Context& context, Crystal& crystal,
+				VectorBTE& phononElectronRates);
 
 void PhononTransportApp::run(Context &context) {
 
@@ -54,6 +54,9 @@ void PhononTransportApp::run(Context &context) {
   }
 
   // load the 3phonon coupling
+  if (mpi->mpiHead()) {
+    std::cout << "Starting anharmonic scattering calculation." << std::endl;
+  }
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
   // build/initialize the scattering matrix and the smearing
@@ -71,7 +74,9 @@ void PhononTransportApp::run(Context &context) {
     int numMu = statisticsSweep.getNumChemicalPotentials();
     if (numMu != 1) Error("Can only add el-ph scattering one doping "
                           "concentration at the time");
-
+    if (mpi->mpiHead()) {
+      std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
+    }
     VectorBTE elPhLinewidths = getPhononElectronLinewidth(context, crystal,
                                                           bandStructure,
                                                           phononH0);
@@ -416,7 +421,7 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     auto crystalEl = std::get<0>(t1);
     auto electronH0 = std::get<1>(t1);
 
-    // check that the crystal in the elph calculation is the 
+    // check that the crystal in the elph calculation is the
     // same as the one in the phph calculation
     if (crystalPh.getDirectUnitCell() != crystalEl.getDirectUnitCell()) {
       Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
@@ -456,11 +461,11 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     }
 
     // build/initialize the scattering matrix and the smearing
-    // it shouldn't take up too much memory, as it's just 
-    // the diagonal 
+    // it shouldn't take up too much memory, as it's just
+    // the diagonal -- be careful to put elBandStruct first
     PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
                                               elBandStructure, phBandStructure,
-                                              couplingElPh, electronH0);
+                                              &electronH0, &couplingElPh);
     phelScatteringMatrix.setup();
     VectorBTE phononElectronRates = phelScatteringMatrix.diagonal();
     return phononElectronRates;
@@ -476,12 +481,12 @@ void PhononTransportApp::checkRequirements(Context &context) {
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
-  if (context.getUsePhElScattering()) { 
+  if (context.getUsePhElScattering()) {
     throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
     throwErrorIfUnset(context.getElphFileName(), "elphFileName");
     if (context.getDopings().size() == 0 &&
         context.getChemicalPotentials().size() == 0) {
       Error("Either chemical potentials or dopings must be set");
     }
-  } 
+  }
 }
