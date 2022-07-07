@@ -61,7 +61,6 @@ public:
  // TODO note may not want to keep this in the long term
   void swapPoints(Points& newPoints);
   void rebuildSymmetries();
-  int getNumIrrStates();
 
   /** Returns a wavevector, given a wavevector index.
    * The wavevector index runs from 0 to numPoints-1, where numPoints is the
@@ -368,6 +367,10 @@ public:
    * points.
    */
   std::vector<int> parallelIrrPointsIterator() override;
+
+  /** Returns the number of irr points in this band structure
+  */
+  int getNumIrrStates() override;
 
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
