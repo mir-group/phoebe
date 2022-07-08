@@ -316,7 +316,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
               // loop on temperature
               for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
-                double fermi1 = outerFermi(iCalc, iBte1);
+                //double fermi1 = outerFermi(iCalc, iBte1);
                 double fermi2 = innerFermi(iCalc, iBte2);
                 double bose3 = bose3Data(iCalc, ib3);
                 double bose3Symm = sinh3Data(ib3, iCalc); // 1/2/sinh() term

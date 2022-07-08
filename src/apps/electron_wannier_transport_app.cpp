@@ -264,8 +264,6 @@ void ElectronWannierTransportApp::runVariationalMethod(
   auto elCondOld = elCond.setConstant(1.);
   auto thCondOld = thCond.setConstant(1.);
 
-  int numCalculations = statisticsSweep.getNumCalculations();
-
   // initialize b
   // Note: we solve Az=b not with z as electron population, but as canonical
   // population, i.e. with z being f = f0 + f0 (1-f0) z
@@ -466,8 +464,6 @@ void ElectronWannierTransportApp::runIterativeMethod(
       transportCoefficients.getThermalConductivity();
   auto elCondOld = elCond.setConstant(1.);
   auto thCondOld = thCond.setConstant(1.);
-
-  int numCalculations = statisticsSweep.getNumCalculations();
 
   VectorBTE nENext(statisticsSweep, bandStructure, 3);
   VectorBTE nTNext(statisticsSweep, bandStructure, 3);
