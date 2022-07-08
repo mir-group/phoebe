@@ -227,11 +227,19 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
                                            allEigenVectors3, allQ3C, allPolarData);
 
+#pragma omp parallel for
+      for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
+        symmetrizeCoupling(
+            couplingElPhWan->getCouplingSquared(ik2Batch),
+            state1Energies, allState2Energies[ik2Batch], allStates3Energies[ik2Batch]
+        );
+      }
+
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         int ik2 = ik2Indexes[start + ik2Batch];
 
-        Eigen::Tensor<double, 3> coupling =
+        Eigen::Tensor<double, 3>& coupling =
             couplingElPhWan->getCouplingSquared(ik2Batch);
 
         Eigen::Vector3d k2C = allK2C[ik2Batch];
