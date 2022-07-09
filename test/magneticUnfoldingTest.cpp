@@ -34,8 +34,10 @@ TEST(MagneticUnfoldingTest, Test1) {
   context.setSmearingWidth(0.1/energyRyToEv);
   context.setFixedCouplingConstant(1.e-6);
 
+  std::vector<Eigen::Vector3d> bfields;
   Eigen::Vector3d bfield = {1.0,0.,0.};
-  context.setBField(bfield);
+  bfields.push_back(bfield);
+  context.setBField(bfields);
 
   auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
@@ -46,8 +48,6 @@ TEST(MagneticUnfoldingTest, Test1) {
   auto electronH0 = std::get<1>(t1);
 
   Eigen::Vector3i kMesh = {5,5,5};
-
-  int numModes = 3 * crystal.getNumAtoms();
   context.setKMesh(kMesh);
 
   context.setElphFileName("../test/data/silicon.phoebe.elph.hdf5");
@@ -58,7 +58,7 @@ TEST(MagneticUnfoldingTest, Test1) {
   InteractionElPhWan couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
   Crystal fullCrystal = crystal;
   Crystal magCrystal = crystal;
-  magCrystal.magneticSymmetries(context);
+  magCrystal.magneticSymmetries(bfield);
 
   Points fullSymPoints(fullCrystal, context.getKMesh());
   Points magSymPoints(magCrystal, context.getKMesh());
@@ -87,7 +87,8 @@ TEST(MagneticUnfoldingTest, Test1) {
   Crystal crystalTemp = fullSymsBandStructure.getPoints().getCrystal();
   Points points(crystalTemp, context.getKMesh());
 
-  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0,points);
+  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,
+                electronH0, points, bfield);
 
   VectorBTE fullSymsLinewidths = fullScatteringMatrix.getLinewidths();
   // after this call, fullSymsBandStructure is not anymore representative
@@ -224,8 +225,10 @@ TEST(MagneticUnfoldingTest, FullBandStructure) {
   context.setSmearingWidth(0.1/energyRyToEv);
   context.setFixedCouplingConstant(1.e-4);
 
+  std::vector<Eigen::Vector3d> bfields;
   Eigen::Vector3d bfield = {1.0,0.,0.};
-  context.setBField(bfield);
+  bfields.push_back(bfield);
+  context.setBField(bfields);
 
   Eigen::Vector3i kMesh = {3,3,3};
   context.setKMesh(kMesh);
@@ -240,15 +243,13 @@ TEST(MagneticUnfoldingTest, FullBandStructure) {
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  int numModes = 3 * crystal.getNumAtoms();
-
   // load the elph coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
   InteractionElPhWan couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
   Crystal fullCrystal = crystal;
   Crystal magCrystal = crystal;
-  magCrystal.magneticSymmetries(context);
+  magCrystal.magneticSymmetries(bfield);
 
   Points fullSymPoints(fullCrystal, context.getKMesh());
   Points magSymPoints(magCrystal, context.getKMesh());
@@ -276,7 +277,8 @@ TEST(MagneticUnfoldingTest, FullBandStructure) {
 
   // with only the magnetic symmetries, to check that this is equal to the calculation done
   // with magnetic symmetries from the beginning
-  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,electronH0,points);
+  unfoldLinewidths(context, fullScatteringMatrix, fullSymsBandStructure, fullStatisticsSweep,
+                 electronH0, points, bfield);
   VectorBTE fullSymsLinewidths = fullScatteringMatrix.getLinewidths();
   // after this call, fullSymsBandStructure is not anymore representative
   // of the system with the full symmetries without magnetic field.
