@@ -20,12 +20,15 @@ private:
                             StatisticsSweep &statisticsSweep,
                             ActiveBandStructure &bandStructure,
                             ElScatteringMatrix &scatteringMatrix);
-};
 
+};
+/** Helper function to unfold linewidths. Needs to be public to be
+ * accessed by magneticUnfoldingTest
+ */
 void unfoldLinewidths(Context& context, ElScatteringMatrix& oldMatrix,
                          ActiveBandStructure& bandStructure,
                          StatisticsSweep& statisticsSweep,
-                         HarmonicHamiltonian& electronH0, Points& points);
-
+                         HarmonicHamiltonian& electronH0, Points& points,
+                         Eigen::Vector3d bfield);
 
 #endif
