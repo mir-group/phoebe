@@ -10,6 +10,7 @@
 #include "parser.h"
 #include "wigner_electron.h"
 #include "io.h"
+#include <nlohmann/json.hpp>
 
 void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
                           ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
@@ -107,15 +108,20 @@ void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
 void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
                       ActiveBandStructure &bandStructure,
                       StatisticsSweep &statisticsSweep,
-                      HarmonicHamiltonian &electronH0, Points& points) {
+                      HarmonicHamiltonian &electronH0, Points& points,
+                      Eigen::Vector3d bfield) {
+
+  for (const std::string &s : context.getSolverBTE()) {
+    if (s.compare("iterative") == 0 || s.compare("variational") == 0 || s.compare("relaxons") == 0) {
+      Error("Cannot unfold linewidths with non-RTA solver.");
+    }
+  }
 
   // unfortunately for indexing, we need a copy of the old and new bandstructures
   ActiveBandStructure oldBandStructure = bandStructure;
 
   // create a new band structure object with the right symmetries
-  //Crystal crystal = bandStructure.getPoints().getCrystal();
-  //Points points(crystal, context.getKMesh());
-  points.magneticSymmetries(context);
+  points.magneticSymmetries(bfield);
   auto tup = ActiveBandStructure::builder(context, electronH0, points);
   bandStructure = std::get<0>(tup);
 
@@ -125,7 +131,6 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
 
   VectorBTE newLinewidths(statisticsSweep, bandStructure, 1);
   VectorBTE oldLinewidths = oldMatrix.getLinewidths();
-  newLinewidths.excludeIndices = oldLinewidths.excludeIndices;
 
   // for each irr point of the new band structure, we will get the
   // wavevector of that point, look it up in the old list, and
@@ -178,8 +183,6 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
                             // with different # of states, so we thrown an
                             // error. Here we have a special case.
   oldMatrix.setLinewidths(newLinewidths, supressError);
-  oldMatrix.setNumStates(int(bandStructure.irrStateIterator().size()));
-  oldMatrix.setNumPoints(int(bandStructure.irrPointsIterator().size()));
 }
 
 void ElectronWannierTransportApp::run(Context &context) {
@@ -241,28 +244,78 @@ void ElectronWannierTransportApp::run(Context &context) {
   // symmetrize the linewidths on the diagonal
   //symmetrizeLinewidths(context, bandStructure, scatteringMatrix, statisticsSweep);
 
+  // TODO we might want to throw a warning if someone runs with a
+  // bfield that adds a contribution on the order of the diagonal
+  // scattering matrix elements, or something like that -- if we have effective mass, we could also estimate omega_c for comparison
+
   // Add magnetotransport term to scattering matrix if found in input file
-  auto magneticField = context.getBField();
-  if (magneticField.squaredNorm() != 0) {
+  std::vector<Eigen::Vector3d> magneticFields = context.getBField();
 
-    for (const std::string &s : context.getSolverBTE()) {
-      if (s.compare("iterative") == 0 || s.compare("variational") == 0
-          || s.compare("relaxons") == 0) {
-        Error("Cannot unfold linewidths with non-RTA solver.");
-      }
-    }
+// TODO MPI or OMP Parallel this
+  // if there are multiple bfields, we run everything for each of them
+  for(int b = 0; b < int(magneticFields.size()); b++) {
 
+    Eigen::Vector3d magneticField = magneticFields[b];
+
+    // crystal inside points is a reference, so we need to be careful
+    // and make an all new copy
+    auto directCell = crystal.getDirectUnitCell();
+    auto atomicPositions = crystal.getAtomicPositions();
+    auto atomicSpecies = crystal.getAtomicSpecies();
+    auto speciesNames = crystal.getSpeciesNames();
+    auto speciesMasses = crystal.getSpeciesMasses();
+    // set up a new crystal and points mesh using symmetries
+    Crystal tempCrystal(context, directCell, atomicPositions,
+                           atomicSpecies, speciesNames, speciesMasses);
+    Points tempPoints(tempCrystal, context.getKMesh());
+
+    // make a new copy of the scattering matrix
+    auto tup = ActiveBandStructure::builder(context, electronH0, tempPoints);
+    ActiveBandStructure tempBS = std::get<0>(tup);
+    auto tempStatisticsSweep = std::get<1>(tup);
+
+    // make a new scattering matrix with the new bandstructure
+    ElScatteringMatrix tempScatteringMatrix(scatteringMatrix, tempBS, tempBS);
+
+    // TODO only do this if it's RTA. Also, turn on mag syms earlier if it's iterative, relaxons, etc
     // unfold the symmetries
-    if( context.getUseSymmetries()) {
-      unfoldLinewidths(context, scatteringMatrix, bandStructure, statisticsSweep, electronH0, fullPoints);
+    if(context.getUseSymmetries()) {
+      unfoldLinewidths(context, tempScatteringMatrix, tempBS, statisticsSweep, electronH0, tempPoints, magneticField);
     }
-
-    // TODO we might want to throw a warning if someone runs with a
-    // bfield that adds a contribution on the order of the diagonal
-    // scattering matrix elements, or something like that
 
     // add -e (vxB) . \nabla f correction to the scattering matrix
-    scatteringMatrix.addMagneticTerm(magneticField);
+    tempScatteringMatrix.addMagneticTerm(magneticField);
+
+    if (mpi->mpiHead()) {
+      std::cout << "Solving BTE within the relaxation time approximation "
+            "for B = " << magneticField.transpose() * 1./teslaToAu << "." << std::endl;
+    }
+
+    // compute the populations in the relaxation time approximation.
+    BulkEDrift driftE(tempStatisticsSweep, tempBS, 3);
+    BulkTDrift driftT(tempStatisticsSweep, tempBS, 3);
+    VectorBTE relaxationTimes = tempScatteringMatrix.getSingleModeTimes();
+    VectorBTE nERTA = -driftE * relaxationTimes;
+    VectorBTE nTRTA = -driftT * relaxationTimes;
+
+    // compute the electrical conductivity -- TODO check crystal syms and make sure it's not wrongly syming?
+    OnsagerCoefficients transportCoefficients(tempStatisticsSweep, tempCrystal, tempBS, context);
+    transportCoefficients.calcFromPopulation(nERTA, nTRTA);
+    transportCoefficients.print();
+    transportCoefficients.outputToJSON("B" + std::to_string(b) + "_rta_onsager_coefficients.json");
+
+    if(mpi->mpiHead()) {
+      std::ifstream i("B" +std::to_string(b) + "_rta_onsager_coefficients.json");
+      nlohmann::json j; i >> j;
+      std::vector<double> vec(3);
+      vec[0] = magneticField(0)/teslaToAu; vec[1] = magneticField(1)/teslaToAu; vec[2] = magneticField(2)/teslaToAu;
+      j["magneticField"] = vec;
+      j["magneticFieldUnit"] = "Tesla";
+      std::ofstream o("B" +std::to_string(b) + "_rta_onsager_coefficients.json");
+      o << std::setw(5) << j << std::endl;
+      o.close();
+    }
+   tempScatteringMatrix.outputToJSON("B" +std::to_string(b) + "_rta_el_relaxation_times.json");
   }
 
   scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
@@ -277,7 +330,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     std::cout << "Solving BTE within the relaxation time approximation.\n";
   }
 
-  // compute the phonon populations in the relaxation time approximation.
+  // compute the populations in the relaxation time approximation.
+  // TODO fix this for electrons --
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
   BulkEDrift driftE(statisticsSweep, bandStructure, 3);
