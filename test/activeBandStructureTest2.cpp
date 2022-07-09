@@ -58,13 +58,15 @@ TEST(ABS, Symmetries) {
 
   points.setIrreduciblePoints(&allVelocities, &allEnergies);
   // we expect 3 irreducible points out of 8 reducible
-  EXPECT_EQ(points.irrPointsIterator().size(), 11);
+  EXPECT_EQ(points.irrPointsIterator().size(), 4);
   EXPECT_EQ(points.getNumPoints(), qMesh.prod());
   // gamma is discarded by abs
-  EXPECT_EQ(abs.irrPointsIterator().size(), 17);
+  EXPECT_EQ(abs.irrPointsIterator().size(), 3);
 
   EXPECT_EQ(abs.getNumPoints(), 26);
 
+  // check tha the first two irr (non gamma) points are 1 and 4,
+  // where we expect the four irr points to be 0, 1, 4, 5.
   int count = 0;
   for (int ik : abs.irrPointsIterator()) {
     auto ikIdx = WavevectorIndex(ik);
@@ -78,7 +80,7 @@ TEST(ABS, Symmetries) {
     }
     if (count == 1) {
       int idx = points.irrPointsIterator()[2];
-      EXPECT_EQ(idx, 3);
+      EXPECT_EQ(idx, 4);
       Eigen::Vector3d diff =
           kAbs - points.getPointCoordinates(idx, Points::cartesianCoordinates);
       EXPECT_EQ(diff.norm(), 0.);
@@ -206,8 +208,6 @@ TEST(ABS, Symmetries) {
         double en2 = abs.getEnergy(isIdx);
         ASSERT_TRUE( std::abs((en1-en2)/en1) < 1e-3);
       }
-//      std::cout << fbs.getEnergy(isFullIdx) << " " << abs.getEnergy(isIdx) << "\n";
-//      std::cout << v.transpose() << " | " << v2.transpose() << "\n";
 
       // if velocities are degenerate, can't test equality (easily)
       if ( bandDegeneracies[ikFull][ibIdx.get()] > 1 ) continue;
