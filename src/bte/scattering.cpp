@@ -10,6 +10,39 @@
 #include <set>
 #include <utility>
 
+// alternative copy constructor, which replaces band structure
+ScatteringMatrix::ScatteringMatrix(ScatteringMatrix& scatteringMatrix_,
+                        BaseBandStructure& outerBandStructure_,
+                        BaseBandStructure& innerBandStructure_)
+                :  context(scatteringMatrix_.context),
+                   statisticsSweep(scatteringMatrix_.statisticsSweep),
+                   innerBandStructure(innerBandStructure_),
+                   outerBandStructure(outerBandStructure_),
+                   internalDiagonal(statisticsSweep, outerBandStructure_, 1),
+                   theMatrix(scatteringMatrix_.theMatrix),
+                   excludeIndices(scatteringMatrix_.excludeIndices) {
+
+    // need to be careful to recreate internal diagonal!
+    // It has a band structure reference inside. If we don't make a new one,
+    // and instead attempt to copy the old one over, it will still contain
+    // a reference to the band structure of scattering matrix
+    // this line will copy everything except the band structure ref
+    internalDiagonal = scatteringMatrix_.internalDiagonal;
+    if(scatteringMatrix.numStates != outerBandStructure.getIrrNumStates()) {
+      Error("Developer error: you tried to copy a scattering matrix to one with a\n"
+                "new bandstructure which has a different number of points!");
+    }
+
+    constantRTA = scatteringMatrix_.constantRTA;
+    highMemory = scatteringMatrix_.highMemory;
+    isMatrixOmega = scatteringMatrix_.isMatrixOmega;
+    numStates = outerBandStructure.getIrrNumStates();
+    numPoints = outerBandStructure.getNumPoints();
+    numCalculations = scatteringMatrix_.numCalculations;
+    dimensionality_ = scatteringMatrix_.dimensionality_;
+    smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+}
+
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
                                    BaseBandStructure &innerBandStructure_,
@@ -89,14 +122,14 @@ ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
     outerBandStructure = that.outerBandStructure;
     constantRTA = that.constantRTA;
     highMemory = that.highMemory;
+    isMatrixOmega = that.isMatrixOmega;
     internalDiagonal = that.internalDiagonal;
     theMatrix = that.theMatrix;
     numStates = that.numStates;
     numPoints = that.numPoints;
     numCalculations = that.numCalculations;
-    excludeIndices = that.excludeIndices;
     dimensionality_ = that.dimensionality_;
-    isMatrixOmega = that.isMatrixOmega;
+    excludeIndices = that.excludeIndices;
   }
   return *this;
 }
@@ -468,7 +501,6 @@ VectorBTE ScatteringMatrix::getSingleModeTimes() {
   } else {
     if (isMatrixOmega) {
       VectorBTE times = internalDiagonal.reciprocal();
-      times.excludeIndices = excludeIndices;
       return times;
     } else { // A_nu,nu = N(1+-N) / tau
       VectorBTE times = internalDiagonal;
@@ -542,14 +574,22 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths,
   // messed with excludeIndices
 
   if(internalDiagonal.numCalculations != linewidths.numCalculations) {
-    Error("Attempted setting scattering matrix diagonal with"
+    Error("Developer error: Attempted setting scattering matrix diagonal with"
         " an incorrect number of calculations.");
   }
+  // if we plan to overwrite with new linewiths with different
+  // num states, we need to overide this error
   if(internalDiagonal.numStates != linewidths.numStates && !supressError) {
-    Error("Attempted setting scattering matrix diagonal with"
-        " an incorrect number of states.");
+    Error("Developer error: Attempted setting scattering matrix diagonal with"
+        " an incorrect number of states (1).");
   }
+  if(outerBandStructure.getNumIrrStates() != linewidths.numStates) {
+    Error("Developer error: Attempted setting scattering matrix diagonal with"
+        " an incorrect number of states (2).");
+  }
+  //internalDiagonal = VectorBTE(statisticsSweep,outerBandStructure,1);
   internalDiagonal = linewidths;
+  numStates = linewidths.getNumStates();
 
   if (!isMatrixOmega) {
     // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
@@ -1024,17 +1064,8 @@ ScatteringMatrix::getSMatrixIndex(const int &iMat) {
     return std::make_tuple(BteIndex(iMat), CartIndex(0));
   }
 }
-// TODO probably dont want these in the long term
-void ScatteringMatrix::setNumStates(int nStates) {
-  numStates = nStates;
-}
-void ScatteringMatrix::setNumPoints(int nPoints) {
-  numPoints = nPoints;
-}
-int ScatteringMatrix::getNumPoints() { return numPoints; }
-int ScatteringMatrix::getNumStates() { return numStates; }
-BaseBandStructure& ScatteringMatrix::getBandStructure() {return outerBandStructure;}
 
+int ScatteringMatrix::getNumStates() { return numStates; }
 
 void ScatteringMatrix::symmetrize() {
   // note: if the matrix is not stored in memory, it's not trivial to enforce

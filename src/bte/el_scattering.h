@@ -33,6 +33,10 @@ public:
                      BaseBandStructure &outerBandStructure_, PhononH0 &h0,
                      InteractionElPhWan *couplingElPhWan_ = nullptr);
 
+  ElScatteringMatrix(ElScatteringMatrix& elScatteringMatrix_,
+                        ActiveBandStructure &outerBandStructure_,
+                        ActiveBandStructure &innerBandStructure_);
+
   /** Copy constructor
    * @param that: object to be copied
    */

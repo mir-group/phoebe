@@ -46,6 +46,18 @@ ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
   return *this;
 }
 
+
+// alternative copy constructor, which replaces band structure
+ElScatteringMatrix::ElScatteringMatrix(ElScatteringMatrix& elScatteringMatrix_,
+                        ActiveBandStructure &outerBandStructure_,
+                        ActiveBandStructure &innerBandStructure_)
+                      : ScatteringMatrix(elScatteringMatrix_, outerBandStructure_, innerBandStructure_),
+                        couplingElPhWan(elScatteringMatrix_.couplingElPhWan), h0(elScatteringMatrix_.h0) {
+
+    boundaryLength = elScatteringMatrix_.boundaryLength;
+    doBoundary = elScatteringMatrix_.doBoundary;
+}
+
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
 // scattering

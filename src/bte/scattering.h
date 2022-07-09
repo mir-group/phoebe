@@ -27,6 +27,13 @@ public:
                    BaseBandStructure &innerBandStructure_,
                    BaseBandStructure &outerBandStructure_);
 
+  /** A copy constructor which takes new band structure objects, so that
+  * the band structure is not copied by reference, but everything else is
+  */
+  ScatteringMatrix(ScatteringMatrix& scatteringMatrix_,
+                        BaseBandStructure &outerBandStructure_,
+                        BaseBandStructure &innerBandStructure_);
+
   /** Copy constructor
    */
   ScatteringMatrix(const ScatteringMatrix &that);
@@ -128,6 +135,7 @@ public:
    * @param outFileName: string representing the name of the json file
    */
   void outputToJSON(const std::string &outFileName);
+  void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
 
   /** Function to combine a BTE index and a cartesian index into one index of
    * the scattering matrix. If no symmetries are used, the output is equal to
@@ -164,14 +172,10 @@ public:
    */
   void symmetrize();
 
-  void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
-
-  // TODO remove later
-  void setNumStates(int numStates);
-  void setNumPoints(int numPoints);
+  /** Returns the number of states used to generate the scattering matrix.
+   * @return numStates: the number of states in the scattering matrix
+   */
   int getNumStates();
-  int getNumPoints();
-  BaseBandStructure& getBandStructure();
 
  protected:
   Context &context;
