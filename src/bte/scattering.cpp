@@ -28,7 +28,7 @@ ScatteringMatrix::ScatteringMatrix(ScatteringMatrix& scatteringMatrix_,
     // a reference to the band structure of scattering matrix
     // this line will copy everything except the band structure ref
     internalDiagonal = scatteringMatrix_.internalDiagonal;
-    if(scatteringMatrix.numStates != outerBandStructure.getIrrNumStates()) {
+    if(scatteringMatrix_.numStates != outerBandStructure.getNumIrrStates()) {
       Error("Developer error: you tried to copy a scattering matrix to one with a\n"
                 "new bandstructure which has a different number of points!");
     }
@@ -36,7 +36,7 @@ ScatteringMatrix::ScatteringMatrix(ScatteringMatrix& scatteringMatrix_,
     constantRTA = scatteringMatrix_.constantRTA;
     highMemory = scatteringMatrix_.highMemory;
     isMatrixOmega = scatteringMatrix_.isMatrixOmega;
-    numStates = outerBandStructure.getIrrNumStates();
+    numStates = outerBandStructure.getNumIrrStates();
     numPoints = outerBandStructure.getNumPoints();
     numCalculations = scatteringMatrix_.numCalculations;
     dimensionality_ = scatteringMatrix_.dimensionality_;
