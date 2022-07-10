@@ -408,7 +408,17 @@ std::tuple<Crystal, PhononH0> QEParser::parsePhHarmonic(Context &context) {
   std::getline(infile, line);
   lineSplit = split(line, ' ');
 
-  int numElements = std::stoi(lineSplit[0]);
+  // we put a try catch here because if you
+  // try to run a phonopy fc2.hdf5 file through this parser,
+  // this is where things will fail
+  int numElements = 0;
+  try {
+    numElements = std::stoi(lineSplit[0]);
+  } catch (std::invalid_argument &) {
+    Error("Something has gone wrong with parsing this qe.fc file.\n"
+          "If you're trying to run phonon apps with a phonopy fc2.hdf5 file,\n"
+          "make sure that you have set the phonopyDispFileName input variable.");
+  }
   int numAtoms = std::stoi(lineSplit[1]);
   int iBravais = std::stoi(lineSplit[2]);
 
