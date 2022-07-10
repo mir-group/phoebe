@@ -118,6 +118,8 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   std::vector<int> wavevectorIndices;
   std::vector<double> tempEns;
   std::vector<std::vector<std::vector<std::vector<std::complex<double>>>>> eigendisplacements;
+  std::vector<std::vector<double>> vecCrystal;
+  std::vector<std::vector<double>> vecAtomPos;
   std::vector<std::vector<double>> pathCoordinates;
   auto particle = fullBandStructure.getParticle();
   // mev for phonons
@@ -196,13 +198,35 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
         for (int iat = 0; iat < numBands/3; iat++) {
           std::vector<std::complex<double>> atomDisp;
           for (int iDim = 0; iDim < 3; iDim++) {
-            atomDisp.push_back(eigendisps(iDim,iat,ib));
+            std::complex<double> angDisp = eigendisps(iDim,iat,ib) * distanceBohrToAng;
+            atomDisp.push_back(angDisp);
           }
           atomDisps.push_back(atomDisp);
         }
         tempEigendisps.push_back(atomDisps);
       }
       eigendisplacements.push_back(tempEigendisps);
+    }
+  }
+
+  // if we're outputting eigenvectors, we also likely want crystal and atom pos
+  if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
+    Crystal crystal = fullBandStructure.getPoints().getCrystal();
+    auto atomPositions = crystal.getAtomicPositions();
+
+    for (int ialpha = 0; ialpha < 3; ialpha++) {
+      std::vector<double> lvec;
+      for (int ibeta = 0; ibeta < 3; ibeta++) {
+         lvec.push_back(crystal.getDirectUnitCell()(ialpha,ibeta) * distanceBohrToAng);
+      }
+      vecCrystal.push_back(lvec);
+    }
+    for (int iat = 0; iat < numBands/3; iat++) {
+      std::vector<double> atomPos;
+      for (int iDim = 0; iDim < 3; iDim++) {
+        atomPos.push_back(atomPositions(iat,iDim));
+      }
+      vecAtomPos.push_back(atomPos);
     }
   }
 
@@ -220,6 +244,9 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["coordsType"] = "lattice";
   if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
     output["phononEigendisplacements"] = eigendisplacements;
+    output["latticeVectors"] = vecCrystal;
+    output["distanceUnit"] = "Angstrom";
+    output["atomPositions"] = vecAtomPos;
   }
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
