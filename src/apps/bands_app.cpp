@@ -247,6 +247,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     output["latticeVectors"] = vecCrystal;
     output["distanceUnit"] = "Angstrom";
     output["atomPositions"] = vecAtomPos;
+    output["atomSpecies"] = fullBandStructure.getPoints().getCrystal().getSpeciesNames();
   }
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
