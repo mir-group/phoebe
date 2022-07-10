@@ -232,6 +232,7 @@ PhononH0::diagonalizeFromCoordinates(Eigen::Vector3d &q,
     // In this way, the Eigenvector matrix U, doesn't satisfy (U^+) * U = I
     // but instead (U^+) * M * U = I, where M is the mass matrix
     // (M is diagonal with atomic masses on the diagonal)
+    // (this should give us the eigendisplacements)
     for (int iBand = 0; iBand < numBands; iBand++) {
       for (int iAt = 0; iAt < numAtoms; iAt++) {
         int iType = atomicSpecies(iAt);

@@ -30,7 +30,7 @@ void PhononBandsApp::run(Context &context) {
   // first we make compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
   bool withVelocities = false;
-  bool withEigenvectors = false;
+  bool withEigenvectors = true;
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
@@ -99,6 +99,14 @@ void ElectronFourierBandsApp::run(Context &context) {
   }
 }
 
+//https://github.com/nlohmann/json/issues/1510
+// for writing a complex number to json
+namespace std {
+  template <class T> void to_json(nlohmann::json &j, const std::complex< T > &p) {
+    j = nlohmann::json {p.real(), p.imag()};
+  }
+}
+
 /* helper function to output bands to a json file */
 void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
                        Points &pathPoints, std::string outFileName) {
@@ -109,6 +117,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   std::vector<std::vector<double>> outEnergies;
   std::vector<int> wavevectorIndices;
   std::vector<double> tempEns;
+  std::vector<std::vector<std::vector<std::vector<std::complex<double>>>>> eigendisplacements;
   std::vector<std::vector<double>> pathCoordinates;
   auto particle = fullBandStructure.getParticle();
   // mev for phonons
@@ -169,6 +178,32 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     }
     outEnergies.push_back(tempEns);
     tempEns.clear();
+
+    if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
+/*
+   * @return eigenvectors: a complex tensor (3,numAtoms,numBands) where
+   * numBands is the number of Bloch states present at the specified
+   * wavevector, numAtoms is the number of atoms in the crystal unit cell and
+   * 3 is a cartesian directions.*/
+
+      // these should be "with mass scaling" which would make them phonon
+      // eigendisplacements already
+      WavevectorIndex kIdx = WavevectorIndex(ik);
+      Eigen::Tensor<std::complex<double>, 3> eigendisps = fullBandStructure.getPhEigenvectors(kIdx);
+      std::vector<std::vector<std::vector<std::complex<double>>>> tempEigendisps;
+      for (int ib = 0; ib < numBands; ib++) {
+        std::vector<std::vector<std::complex<double>>> atomDisps;
+        for (int iat = 0; iat < numBands/3; iat++) {
+          std::vector<std::complex<double>> atomDisp;
+          for (int iDim = 0; iDim < 3; iDim++) {
+            atomDisp.push_back(eigendisps(iDim,iat,ib));
+          }
+          atomDisps.push_back(atomDisp);
+        }
+        tempEigendisps.push_back(atomDisps);
+      }
+      eigendisplacements.push_back(tempEigendisps);
+    }
   }
 
   // output to json
@@ -183,6 +218,9 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
   output["energyUnit"] = particle.isPhonon() ? "meV" : "eV";
   output["coordsType"] = "lattice";
+  if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
+    output["phononEigendisplacements"] = eigendisplacements;
+  }
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
   //if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
