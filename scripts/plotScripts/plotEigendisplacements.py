@@ -7,8 +7,8 @@ loc = "./"
 
 #Get k and mode index from command line
 if(len(sys.argv) != 6):
-        print("""Usage: PhononEvec.py <k0> <k1> <k2> <b> <xsfFile>
-(Generate <xsfFile> with displacements for mode number <b> at reciprocal lattice coordinates (<k0>,<k1>,<k2>).)""")
+        print("""To run: python plotEigendisplacements.py <qx> <qy> <qz> <branch> <outputFile.xsf>
+(Generates a file read by VESTA, which displays an eigendisplacement for the specified branch at wavevector q.""")
         exit(1)
 
 # parse arguments
@@ -35,13 +35,10 @@ lattice = np.array(data["latticeVectors"]).T
 # read in atom positions -- already output in cartesian
 atomPos = np.array(data["atomPositions"])
 numAtoms = atomPos.shape[0]
-#for i in range(numAtoms):
-#        atomPos[i] = np.matmul(lattice, atomPos[i])
 
 # atom species
 atomSpecies = np.array(data["atomSpecies"])
 
-#Dictionary of atomic numbers:
 Zdict = {
         'H':1, 'He':2, 'Li':3, 'Be':4, 'B':5, 'C':6, 'N':7, 'O':8, 'F':9, 'Ne':10, 'Na':11, 'Mg':12, 'Al':13, 'Si':14, 'P':15, 'S':16,
         'Cl':17, 'Ar':18, 'K':19, 'Ca':20, 'Sc':21, 'Ti':22, 'V':23, 'Cr':24, 'Mn':25, 'Fe':26, 'Co':27, 'Ni':28, 'Cu':29, 'Zn':30, 'Ga':31, 'Ge':32,
@@ -53,8 +50,7 @@ Zdict = {
 
 # write to file
 fp = open(outputFile, 'w')
-fp.write('CRYSTAL\n')
-fp.write('PRIMVEC\n')
+fp.write('CRYSTAL\nPRIMVEC\n')
 for i in range(3):
         fp.write('{} {} {}\n'.format(lattice[0,i], lattice[1,i], lattice[2,i]))
 fp.write('PRIMCOORD\n')
