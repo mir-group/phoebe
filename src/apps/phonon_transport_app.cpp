@@ -465,7 +465,13 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     // the diagonal -- be careful to put elBandStruct first
     PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
                                               elBandStructure, phBandStructure,
-                                              &electronH0, &couplingElPh);
+                                              couplingElPh, electronH0);
+
+    if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
+      Error("Cannot calculate PhEl scattering matrix with fewer states than\n"
+        "number of MPI processes. Reduce the number of MPI processes,\n"
+        "perhaps use more OMP threads instead.");
+    }
     phelScatteringMatrix.setup();
     VectorBTE phononElectronRates = phelScatteringMatrix.diagonal();
     return phononElectronRates;

@@ -57,6 +57,7 @@ protected:
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
   std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
+  std::vector<std::tuple<int, std::vector<int>>> getParallelWavevectorPairs();
 };
 
 #endif

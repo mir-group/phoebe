@@ -4,7 +4,7 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
-// NOTE: this could be updated to use only irr points by looping 
+// NOTE: this could be updated to use only irr points by looping
 // over irr wavevectors instead of 0,numPoints
 std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIteratorWavevectorPairs() {
   std::vector<std::tuple<int, std::vector<int>>> pairIterator;
@@ -18,6 +18,28 @@ std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIterator
   std::vector<int> k2Iterator(numKPoints);
   // populate vector with integers from 0 to numPoints-1
   std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
+
+  for (size_t ik1 : k1Iterator) {
+    auto t = std::make_tuple(int(ik1), k2Iterator);
+    pairIterator.push_back(t);
+  }
+  return pairIterator;
+}
+
+std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getParallelWavevectorPairs() {
+  std::vector<std::tuple<int, std::vector<int>>> pairIterator;
+
+  // here I parallelize over ik1
+  // which is the outer loop on q-points
+  //int numKPoints = getElBandStructure().getNumPoints();
+  //int numIrrKpoints = getElBandStructure().irrPointsIterator().size();
+  std::vector<int> k1Iterator = getElBandStructure().parallelIrrPointsIterator();
+
+  // I don't parallelize the inner band structure, the inner loop
+  //std::vector<int> k2Iterator(num);
+  // populate vector with integers from 0 to numPoints-1
+  //std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
+  std::vector<int> k2Iterator = getElBandStructure().irrPointsIterator();
 
   for (size_t ik1 : k1Iterator) {
     auto t = std::make_tuple(int(ik1), k2Iterator);
@@ -76,10 +98,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
-  // note: in the equations for this rate, because there's an integraton over k, 
-  // this rate is actually 1/NK (sometimes written N_eFermi). 
-  // we use the qmesh because that's the only variable being set, and 
-  // in the way this is implemented kmesh = qmesh. 
+  // note: in the equations for this rate, because there's an integraton over k,
+  // this rate is actually 1/NK (sometimes written N_eFermi).
+  // we use the qmesh because that's the only variable being set, and
+  // in the way this is implemented kmesh = qmesh.
   double norm = 1. / context.getQMesh().prod();
 
   // precompute Fermi-Dirac factors
@@ -89,6 +111,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     WavevectorIndex ikIdx(ik);
     nb1Max = std::max(nb1Max, int(getElBandStructure().getEnergies(ikIdx).size()));
   }
+
   // precompute Fermi-Dirac populations
   Eigen::Tensor<double,3> fermiTerm(numCalculations, numKPoints, nb1Max);
   fermiTerm.setZero();
@@ -116,7 +139,6 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   // precompute the q-dependent part of the polar correction ---------
-
   int numQPoints = getPhBandStructure().getNumPoints();
   auto qPoints = getPhBandStructure().getPoints();
   // we just set this to the largest possible number of phonons
@@ -143,11 +165,11 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     // and we will almost always have a window for electrons
   }
 
-  auto kPairIterator = getIteratorWavevectorPairs();
+  auto kPairIterator = getParallelWavevectorPairs(); //getIteratorWavevectorPairs();
 
   double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-  LoopPrint loopPrint("computing scattering matrix", "k-points", numKPoints);
+  LoopPrint loopPrint("computing scattering matrix", "k-points", kPairIterator.size());
 
   for (auto t1 : kPairIterator) {
     loopPrint.update();
@@ -248,12 +270,13 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         // TODO: uncomment this after it will be put in the develop branch
         // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
 
-        // NOTE: these loops are already set up to be applicable to gpus 
-        // the precomputaton of the smearing values and the open mp loops could 
+        // NOTE: these loops are already set up to be applicable to gpus
+        // the precomputaton of the smearing values and the open mp loops could
         // be converted to GPU relevant version
         int nb3 = state3Energies.size();
         Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
-#pragma omp parallel for collapse(3)
+
+        #pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int ib1 = 0; ib1 < nb1; ib1++) {
             for (int ib3 = 0; ib3 < nb3; ib3++) {
@@ -283,7 +306,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
           }
         }
 
-#pragma omp parallel for collapse(2)
+        #pragma omp parallel for collapse(2)
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
             int is3 = getPhBandStructure().getIndex(iq3Idx, BandIndex(ib3));
@@ -300,7 +323,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 // fk-fk2 could be negative due to numerical noise.
                 // so instead, we do:
                 // fk-fk2 ~= dfk/dek dwq
-                // However, we don't include the dwq here, as this is gSE^2, which 
+                // However, we don't include the dwq here, as this is gSE^2, which
                 // includes a factor of (1/wq)
                 double rate =
                     coupling(ib1, ib2, ib3) * fermiTerm(iCalc, ik1, ib1)
@@ -309,10 +332,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
                 // case of linewidth construction
                 linewidth->operator()(iCalc, 0, is3) += rate;
-                
-                //NOTE: for eliashberg function, we could here add another vectorBTE object 
+
+                //NOTE: for eliashberg function, we could here add another vectorBTE object
                 // as done with the linewidths here, slightly modified
-                
+
               }
             }
           }
@@ -320,8 +343,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       }
     }
   }
-
-  mpi->allReduceSum(&linewidth->data);
+  //mpi->allReduceSum(&linewidth->data);
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
