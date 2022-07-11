@@ -19,6 +19,11 @@ private:
                             StatisticsSweep &statisticsSweep,
                             ActiveBandStructure &bandStructure,
                             ElScatteringMatrix &scatteringMatrix);
+  static void runIterativeMethod(Context &context,
+                                 Crystal &crystal,
+                                 StatisticsSweep &statisticsSweep,
+                                 ActiveBandStructure &bandStructure,
+                                 ElScatteringMatrix &scatteringMatrix);
 };
 
 #endif

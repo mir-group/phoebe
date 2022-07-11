@@ -190,7 +190,7 @@ public:
    * values of the coupling squared |g(ik1,ik2,iq3)|^2 for the el-ph transition
    * k1,q3 -> k2
    */
-  Eigen::Tensor<double, 3> getCouplingSquared(const int &ik2);
+  Eigen::Tensor<double, 3>& getCouplingSquared(const int &ik2);
 
   /** Static method to initialize the class by parsing a file.
    * @param fileName: name of the file containing the coupling matrix elements

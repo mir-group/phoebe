@@ -529,7 +529,6 @@ InteractionElPhWan parseHDF5V2(Context &context, Crystal &crystal,
   auto t = parseHeaderHDF5(context);
   int numElBands = std::get<0>(t);
   int numPhBands = std::get<1>(t);
-  int totalNumElBravaisVectors = std::get<2>(t);
   Eigen::MatrixXd elBravaisVectors_ = std::get<3>(t);
   Eigen::MatrixXd phBravaisVectors_ = std::get<4>(t);
   std::vector<size_t> localElVectors = std::get<5>(t);

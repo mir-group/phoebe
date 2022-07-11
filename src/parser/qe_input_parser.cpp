@@ -661,8 +661,17 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // note: nelec is written as double in the XML file!
   int numElectrons = int(bandStructureXML.child("nelec").text().as_double());
 
-  double homo =
-      bandStructureXML.child("highestOccupiedLevel").text().as_double();
+  // get fermi energy
+  double homo;
+  // it's an insulator
+  if (bandStructureXML.child("highestOccupiedLevel")) {
+    homo = bandStructureXML.child("highestOccupiedLevel").text().as_double();
+  } else if (bandStructureXML.child("fermi_energy")) { // it's a metal or run with smearing
+    homo = bandStructureXML.child("fermi_energy").text().as_double();
+  } else {
+    Error("Something is wrong, neither highestOccupiedLevel "
+        "nor fermi_energy tags appear in XML file.");
+  }
   homo *= 2.;// conversion from Hartree to Rydberg
   int numIrreduciblePoints = bandStructureXML.child("nks").text().as_int();
 
