@@ -38,7 +38,7 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
 
   try {
     energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
-  } catch(std::bad_alloc) {
+  } catch(std::bad_alloc &) {
     Error("Failed to allocate band structure energies.\n"
         "You are likely out of memory.");
   }
@@ -47,7 +47,7 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
     try {
       velocities = Matrix<std::complex<double>>(
         numBands * numBands * 3, numPoints, 1, numBlockCols, isDistributed);
-    } catch(std::bad_alloc) {
+    } catch(std::bad_alloc &) {
       Error("Failed to allocate band structure velocities.\n"
         "You are likely out of memory.");
     }
@@ -61,7 +61,7 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
         eigenvectors = Matrix<std::complex<double>>(
             numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
       }
-    } catch(std::bad_alloc) {
+    } catch(std::bad_alloc &) {
       Error("Failed to allocate band structure eigenvectors.\n"
         "You are likely out of memory.");
     }
