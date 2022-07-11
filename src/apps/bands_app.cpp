@@ -224,7 +224,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     for (int iat = 0; iat < numBands/3; iat++) {
       std::vector<double> atomPos;
       for (int iDim = 0; iDim < 3; iDim++) {
-        atomPos.push_back(atomPositions(iat,iDim));
+        atomPos.push_back(atomPositions(iat,iDim) * distanceBohrToAng);
       }
       vecAtomPos.push_back(atomPos);
     }
@@ -247,7 +247,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     output["latticeVectors"] = vecCrystal;
     output["distanceUnit"] = "Angstrom";
     output["atomPositions"] = vecAtomPos;
-    output["atomSpecies"] = fullBandStructure.getPoints().getCrystal().getSpeciesNames();
+    output["atomSpecies"] = fullBandStructure.getPoints().getCrystal().getAtomicNames();
   }
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
