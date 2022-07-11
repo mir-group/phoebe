@@ -26,19 +26,14 @@ std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIterator
   return pairIterator;
 }
 
-std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getParallelWavevectorPairs() {
+std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavevectorPairs() {
   std::vector<std::tuple<int, std::vector<int>>> pairIterator;
 
-  // here I parallelize over ik1
-  // which is the outer loop on q-points
-  //int numKPoints = getElBandStructure().getNumPoints();
-  //int numIrrKpoints = getElBandStructure().irrPointsIterator().size();
+  // here I parallelize over ik1 which is the outer loop on q-points
   std::vector<int> k1Iterator = getElBandStructure().parallelIrrPointsIterator();
 
   // I don't parallelize the inner band structure, the inner loop
-  //std::vector<int> k2Iterator(num);
   // populate vector with integers from 0 to numPoints-1
-  //std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
   std::vector<int> k2Iterator = getElBandStructure().irrPointsIterator();
 
   for (size_t ik1 : k1Iterator) {
@@ -165,7 +160,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     // and we will almost always have a window for electrons
   }
 
-  auto kPairIterator = getParallelWavevectorPairs(); //getIteratorWavevectorPairs();
+  auto kPairIterator = getIrrWavevectorPairs();
 
   double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
