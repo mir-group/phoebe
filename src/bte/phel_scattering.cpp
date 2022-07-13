@@ -4,28 +4,7 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
-// NOTE: this could be updated to use only irr points by looping
-// over irr wavevectors instead of 0,numPoints
-std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIteratorWavevectorPairs() {
-  std::vector<std::tuple<int, std::vector<int>>> pairIterator;
-
-  // here I parallelize over ik1
-  // which is the outer loop on q-points
-  int numKPoints = getElBandStructure().getNumPoints();
-  std::vector<size_t> k1Iterator = mpi->divideWorkIter(numKPoints);
-
-  // I don't parallelize the inner band structure, the inner loop
-  std::vector<int> k2Iterator(numKPoints);
-  // populate vector with integers from 0 to numPoints-1
-  std::iota(std::begin(k2Iterator), std::end(k2Iterator), 0);
-
-  for (size_t ik1 : k1Iterator) {
-    auto t = std::make_tuple(int(ik1), k2Iterator);
-    pairIterator.push_back(t);
-  }
-  return pairIterator;
-}
-
+// helper function to generate kpoint pairs for phel scattering
 std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavevectorPairs() {
   std::vector<std::tuple<int, std::vector<int>>> pairIterator;
 
@@ -110,7 +89,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   // precompute Fermi-Dirac populations
   Eigen::Tensor<double,3> fermiTerm(numCalculations, numKPoints, nb1Max);
   fermiTerm.setZero();
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int ik : mpi->divideWorkIter(numKPoints)) {
     WavevectorIndex ikIdx(ik);
     Eigen::VectorXd energies = getElBandStructure().getEnergies(ikIdx);
@@ -140,7 +119,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   int nb3Max = 3 * getPhBandStructure().getPoints().getCrystal().getNumAtoms();
   Eigen::MatrixXcd polarData(numQPoints, nb3Max);
   polarData.setZero();
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int iq : mpi->divideWorkIter(numQPoints)){
     WavevectorIndex iqIdx(iq);
     auto q3C = getPhBandStructure().getWavevector(iqIdx);
@@ -217,7 +196,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
         int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
@@ -229,7 +208,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
       // precompute the q indices such that k'-k=q at fixed k
       std::vector<Eigen::Vector3d> allK2C(batch_size);
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
         int iq3 = iq3Indexes[start + iq3Batch];
         auto iq3Index = WavevectorIndex(iq3);
@@ -338,7 +317,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       }
     }
   }
-  //mpi->allReduceSum(&linewidth->data);
+  mpi->allReduceSum(&linewidth->data);
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
