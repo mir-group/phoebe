@@ -3,6 +3,7 @@
 #include "exceptions.h"
 #include "mpiHelper.h"
 #include "window.h"
+#include "common_kokkos.h"
 
 ActiveBandStructure::ActiveBandStructure(Particle &particle_, Points &points_)
     : particle(particle_), points(points_) {}
@@ -71,22 +72,101 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
   size_t niks = iks.size();
 
+  DoubleView2D qs("qs", niks, 3);
+  auto qs_h = Kokkos::create_mirror_view(qs);
+
   // now we can loop over the trimmed list of points
-#pragma omp parallel for default(none) shared(mpi, numPoints, h0, points, withEigenvectors, withVelocities, iks, niks)
+#pragma omp parallel for
   for (size_t iik = 0; iik < niks; iik++) {
     size_t ik = iks[iik];
     Point point = points.getPoint(ik);
-    auto tup = h0->diagonalize(point);
-    auto theseEnergies = std::get<0>(tup);
-    auto theseEigenvectors = std::get<1>(tup);
-    ActiveBandStructure::setEnergies(point, theseEnergies);
-    if (withEigenvectors) {
-      ActiveBandStructure::setEigenvectors(point, theseEigenvectors);
+    Eigen::Vector3d q = point.getCoordinates(Points::cartesianCoordinates);
+    for(int i = 0; i < 3; i++){
+      qs_h(iik, i) = q(i);
     }
+  }
+  Kokkos::deep_copy(qs, qs_h);
+  auto tup = h0->kokkosBatchedDiagonalizeFromCoordinates(qs);
+  DoubleView2D energies_d = std::get<0>(tup);
+  StridedComplexView3D eigenvectors_d = std::get<1>(tup);
 
-    if (withVelocities) {
-      auto thisVelocity = h0->diagonalizeVelocity(point);
-      ActiveBandStructure::setVelocities(point, thisVelocity);
+  auto energies_h = Kokkos::create_mirror_view(energies_d);
+  auto eigenvectors_h = Kokkos::create_mirror_view(eigenvectors_d);
+  Kokkos::deep_copy(energies_h, energies_d);
+  Kokkos::deep_copy(eigenvectors_h, eigenvectors_d);
+
+#pragma omp parallel
+  {
+    int numBands = energies_h.extent(1);;
+    Eigen::VectorXd energies(numBands);
+    Eigen::MatrixXcd eigenvectors(numBands, numBands);
+#pragma omp for
+    for (size_t iik = 0; iik < niks; iik++) {
+      size_t ik = iks[iik];
+      Point point = points.getPoint(ik);
+
+
+      for(int i = 0; i < numBands; i++){
+        energies(i) = energies_h(iik,i);
+        for(int j = 0; j < numBands; j++){
+          eigenvectors(j,i) = eigenvectors_h(iik,j,i);
+        }
+      }
+
+      //auto tup = h0->diagonalize(point);
+      //auto theseEnergies = std::get<0>(tup);
+      //auto theseEigenvectors = std::get<1>(tup);
+
+      //printf("NORM = %.2g\n", (energies-theseEnergies).norm());
+      //printf("NORM = %.2g %.2g %.2g\n", (eigenvectors-theseEigenvectors).norm(), eigenvectors.norm(), theseEigenvectors.norm());
+
+      ActiveBandStructure::setEnergies(point, energies);
+      if (withEigenvectors) {
+        ActiveBandStructure::setEigenvectors(point, eigenvectors);
+      }
+      //ActiveBandStructure::setEnergies(point, theseEnergies);
+      //if (withEigenvectors) {
+      //  ActiveBandStructure::setEigenvectors(point, theseEigenvectors);
+      //}
+    }
+  }
+  if (withVelocities) {
+    auto tup = h0->kokkosBatchedDiagonalizeWithVelocities(qs);
+    ComplexView4D velocities_d = std::get<2>(tup);
+    auto velocities_h = Kokkos::create_mirror_view(velocities_d);
+    Kokkos::deep_copy(velocities_h, velocities_d);
+        //print4DComplex("new = ", velocities_d);
+#pragma omp parallel
+    {
+      int numBands = energies_h.extent(1);;
+      Eigen::Tensor<std::complex<double>,3> velocities(numBands, numBands,3);
+#pragma omp for
+      for (size_t iik = 0; iik < niks; iik++) {
+        size_t ik = iks[iik];
+        Point point = points.getPoint(ik);
+
+
+        for(int k = 0; k < 3; k++){
+          for(int i = 0; i < numBands; i++){
+            for(int j = 0; j < numBands; j++){
+              velocities(j,i,k) = velocities_h(iik,j,i,k);
+            }
+          }
+        }
+        ActiveBandStructure::setVelocities(point, velocities);
+
+
+        //auto thisVelocity = h0->diagonalizeVelocity(point);
+        //for(int k = 0; k < 3; k++){
+        //  for(int i = 0; i < numBands; i++){
+        //    for(int j = 0; j < numBands; j++){
+        //      auto x = thisVelocity(j,i,k);
+        //      printf("old = %.16e %.16e\n", x.real(), x.imag());
+        //    }
+        //  }
+        //}
+        //ActiveBandStructure::setVelocities(point, thisVelocity);
+      }
     }
   }
   mpi->allReduceSum(&energies);

@@ -101,7 +101,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * each wavevector.
    */
   std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates);
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true);
   /** Using kokkos, computes the electronic properties of a batch of wavevectors
    *
    * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)

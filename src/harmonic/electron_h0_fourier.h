@@ -94,7 +94,7 @@ class ElectronH0Fourier : public HarmonicHamiltonian {
       const DoubleView2D &cartesianCoordinates) override;
   std::tuple<DoubleView2D, StridedComplexView3D>
   kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates) override;
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) override;
  protected:
   Crystal &crystal;
   FullBandStructure coarseBandStructure;

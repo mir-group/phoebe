@@ -107,4 +107,277 @@ void deleteKokkos();
 // print info about the Device memory used by the device
 void kokkosInfo();
 
+// functions for printing Kokkos Views for debugging
+template<class VT>
+void print1D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  for(int i0 = 0; i0 < n0; i0++){
+    printf("%s%.16g\n", prefix, h(i0));
+  }
+}
+template<class VT>
+void print1DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  for(int i0 = 0; i0 < n0; i0++){
+    printf("%s%.16g %.16g\n", prefix, h(i0).real(), h(i0).imag());
+  }
+}
+template<class VT>
+void print2D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      printf("%s%.16g\n", prefix, h(i0,i1));
+    }
+  }
+}
+template<class VT>
+void print2DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      printf("%s%.16g %.16g\n", prefix, h(i0,i1).real(), h(i0,i1).imag());
+    }
+  }
+}
+template<class VT>
+void print3D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        printf("%s%.16g\n", prefix, h(i0,i1,i2));
+      }
+    }
+  }
+}
+template<class VT>
+void print3DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        printf("%s%.16g %.16g\n", prefix, h(i0,i1,i2).real(), h(i0,i1,i2).imag());
+      }
+    }
+  }
+}
+template<class VT>
+void print4D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  int n3 = h.extent(3);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        for(int i3 = 0; i3 < n3; i3++){
+          printf("%s%.16g\n", prefix, h(i0,i1,i2,i3));
+        }
+      }
+    }
+  }
+}
+template<class VT>
+void print4DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  int n3 = h.extent(3);
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        for(int i3 = 0; i3 < n3; i3++){
+          printf("%s%.16g %.16g\n", prefix, h(i0,i1,i2,i3).real(), h(i0,i1,i2,i3).imag());
+        }
+      }
+    }
+  }
+}
+
+template<class VT>
+void printNorm1D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    printf("%s%.16g\n", prefix, h(i0));
+    norm += h(i0)*h(i0);
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm1DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    norm += h(i0).real()*h(i0).real() + h(i0).imag()*h(i0).imag();
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm2D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      norm += h(i0,i1)*h(i0,i1);
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm2DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      norm += h(i0,i1).real()*h(i0,i1).real() + h(i0,i1).imag()*h(i0,i1).imag();
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm3D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        norm += h(i0,i1,i2)*h(i0,i1,i2);
+      }
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm3DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        norm += h(i0,i1,i2).real()*h(i0,i1,i2).real() + h(i0,i1,i2).imag()*h(i0,i1,i2).imag();
+      }
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printSum4D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  int n3 = h.extent(3);
+  double sum = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        for(int i3 = 0; i3 < n3; i3++){
+          sum += h(i0,i1,i2,i3);
+        }
+      }
+    }
+  }
+  printf("%s%.16e\n", prefix, sum);
+}
+template<class VT>
+void printNorm4D(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  int n3 = h.extent(3);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        for(int i3 = 0; i3 < n3; i3++){
+          norm += h(i0,i1,i2,i3)*h(i0,i1,i2,i3);
+        }
+      }
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+template<class VT>
+void printNorm4DComplex(const char* prefix, VT d){
+  auto h = Kokkos::create_mirror_view(d);
+  Kokkos::deep_copy(h, d);
+
+  int n0 = h.extent(0);
+  int n1 = h.extent(1);
+  int n2 = h.extent(2);
+  int n3 = h.extent(3);
+  double norm = 0.0;
+  for(int i0 = 0; i0 < n0; i0++){
+    for(int i1 = 0; i1 < n1; i1++){
+      for(int i2 = 0; i2 < n2; i2++){
+        for(int i3 = 0; i3 < n3; i3++){
+          norm += h(i0,i1,i2,i3).real()*h(i0,i1,i2,i3).real() + h(i0,i1,i2,i3).imag()*h(i0,i1,i2,i3).imag();
+        }
+      }
+    }
+  }
+  printf("%s%.16e\n", prefix, norm);
+}
+
 #endif

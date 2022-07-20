@@ -748,7 +748,7 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
 }
 
 std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonalizeFromCoordinates(
-    const DoubleView2D &cartesianCoordinates) {
+    const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
 
   int numWannier = this->numWannier; // Kokkos quirkyness
 

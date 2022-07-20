@@ -458,6 +458,6 @@ ElectronH0Fourier::kokkosBatchedDiagonalizeWithVelocities(
 
 std::tuple<DoubleView2D, StridedComplexView3D>
 ElectronH0Fourier::kokkosBatchedDiagonalizeFromCoordinates(
-    const DoubleView2D &cartesianCoordinates) {
+    const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
   Error("Kokkos not implemented in ElectronH0Fourier");
 }

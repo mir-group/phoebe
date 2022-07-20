@@ -560,6 +560,15 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
       }
     }
   }
+    //for (int nb = 0; nb < numAtoms; nb++) {
+    //  for (int na = 0; na < numAtoms; na++) {
+    //    for (int j : {0, 1, 2}) {
+    //      for (int i : {0, 1, 2}) {
+    //        printf("old = %.16e %.16e\n", dyn(i,j,na,nb).real(), dyn(i,j,na,nb).imag());
+    //      }
+    //    }
+    //  }
+    //}
 }
 
 void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
@@ -670,6 +679,9 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     Eigen::Vector3d r = bravaisVectors.col(iR);
     double arg = q.dot(r);
     phases[iR] = exp(-complexI * arg); // {cos(arg), -sin(arg)};
+    //printf("old = %.16e %.16e\n", phases[iR].real(), phases[iR].imag());
+    //for(int i = 0; i < 3; i++)
+    //  printf("old = %.16e\n", r[i]);
   }
 
   for (int iR = 0; iR < numBravaisVectors; iR++) {
@@ -684,6 +696,15 @@ void PhononH0::shortRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
       }
     }
   }
+    //for (int nb = 0; nb < numAtoms; nb++) {
+    //  for (int na = 0; na < numAtoms; na++) {
+    //    for (int j : {0, 1, 2}) {
+    //      for (int i : {0, 1, 2}) {
+    //        printf("old = %.16e %.16e\n", dyn(i,j,na,nb).real(), dyn(i,j,na,nb).imag());
+    //      }
+    //    }
+    //  }
+    //}
 }
 
 std::tuple<Eigen::VectorXd, Eigen::MatrixXcd>
@@ -725,6 +746,12 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
       }
     }
   }
+  //for(int i = 0; i < 3*numAtoms; i++){
+  //  for(int j = 0; j < 3*numAtoms; j++){
+  //    auto x = dyn2(i,j);
+  //    printf("old = %.16e %.16e\n", x.real(), x.imag());
+  //  }
+  //}
 
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(dyn2);
   Eigen::VectorXd w2 = eigenSolver.eigenvalues();
@@ -736,8 +763,17 @@ PhononH0::dynDiagonalize(Eigen::Tensor<std::complex<double>, 4> &dyn) {
     } else {
       energies(i) = sqrt(w2(i));
     }
+    //printf("old = %.16e\n", energies(i));
   }
   Eigen::MatrixXcd eigenvectors = eigenSolver.eigenvectors();
+  //eigenvectors = 3*dyn2; // TODO: undo
+
+  //for(int i = 0; i < 3*numAtoms; i++){
+  //  for(int j = 0; j < 3*numAtoms; j++){
+  //    auto x = eigenvectors(i,j);
+  //    printf("old = %.16e %.16e\n", x.real(), x.imag());
+  //  }
+  //}
 
   return std::make_tuple(energies, eigenvectors);
 }
@@ -754,17 +790,21 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
   Eigen::Tensor<std::complex<double>, 3> velocity(numBands, numBands, 3);
   velocity.setZero();
 
-  // if we are working at gamma, we set all velocities to zero.
-  if (coordinates.norm() < 1.0e-6) {
-    return velocity;
-  }
 
   bool withMassScaling = false;
+    //for(int i = 0; i < 3; i++){
+    //  printf("old = %.16e\n", coordinates(i));
+    //}
 
   // get the eigenvectors and the energies of the q-point
   auto tup = diagonalizeFromCoordinates(coordinates, withMassScaling);
   auto energies = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
+
+  //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", energies(i));
+  //for(int i = 0; i < numBands; i++)
+  //  for(int j = 0; j < numBands; j++)
+  //    printf("old = %.16e %.16e\n", eigenvectors(i,j).real(), eigenvectors(i,j).imag());
 
   // now we compute the velocity operator, diagonalizing the expectation
   // value of the derivative of the dynamical matrix.
@@ -777,6 +817,10 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     qPlus(i) += deltaQ;
     qMinus(i) -= deltaQ;
 
+    //for(int i = 0; i < 3; i++){
+    //  printf("old = %.16e %.16e\n", qPlus(i), qMinus(i));
+    //}
+
     // diagonalize the dynamical matrix at q+ and q-
     auto tup2 = diagonalizeFromCoordinates(qPlus, withMassScaling);
     auto enPlus = std::get<0>(tup2);
@@ -784,6 +828,14 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     auto tup1 = diagonalizeFromCoordinates(qMinus, withMassScaling);
     auto enMinus = std::get<0>(tup1);
     auto eigMinus = std::get<1>(tup1);
+    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enPlus(i));
+    //for(int i = 0; i < numBands; i++) printf("old = %.16e\n", enMinus(i));
+    //for(int i = 0; i < numBands; i++)
+    //  for(int j = 0; j < numBands; j++)
+    //    printf("old = %.16e %.16e\n", eigPlus(i,j).real(), eigPlus(i,j).imag());
+    //for(int i = 0; i < numBands; i++)
+    //  for(int j = 0; j < numBands; j++)
+    //    printf("old = %.16e %.16e\n", eigMinus(i,j).real(), eigMinus(i,j).imag());
 
     // build diagonal matrices with frequencies
     Eigen::MatrixXd enPlusMat(numBands, numBands);
@@ -804,6 +856,25 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     Eigen::MatrixXcd der(numBands, numBands);
     der = (sqrtDPlus - sqrtDMinus) / (2. * deltaQ);
 
+    //for(int i = 0; i < numBands; i++){
+    //  for(int j = 0; j < numBands; j++){
+    //    auto x = der(i,j);
+    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
+    //  }
+    //}
+    //for(int i = 0; i < numBands; i++){
+    //  for(int j = 0; j < numBands; j++){
+    //    auto x = sqrtDPlus(i,j);
+    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
+    //  }
+    //}
+    //for(int i = 0; i < numBands; i++){
+    //  for(int j = 0; j < numBands; j++){
+    //    auto x = sqrtDMinus(i,j);
+    //    printf("old = %.16e %.16e\n", x.real(), x.imag());
+    //  }
+    //}
+
     // and to be safe, we reimpose hermiticity
     der = 0.5 * (der + der.adjoint());
 
@@ -813,6 +884,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     for (int ib2 = 0; ib2 < numBands; ib2++) {
       for (int ib1 = 0; ib1 < numBands; ib1++) {
         velocity(ib1, ib2, i) = der(ib1, ib2);
+        //auto x = velocity(ib1,ib2,i);
+        //printf("old = %.16e %.16e\n", x.real(), x.imag());
       }
     }
   }
@@ -849,7 +922,8 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
 
         // diagonalize the subMatrix
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
-        const Eigen::MatrixXcd& newEigenVectors = eigenSolver.eigenvectors();
+        Eigen::MatrixXcd newEigenVectors = eigenSolver.eigenvectors();
+        //newEigenVectors = 3*subMat; // TODO: undo
 
         // rotate the original matrix in the new basis
         // that diagonalizes the subspace.
@@ -870,6 +944,18 @@ PhononH0::diagonalizeVelocityFromCoordinates(Eigen::Vector3d &coordinates) {
     // we skip the bands in the subspace, since we corrected them already
     ib += sizeSubspace - 1;
   }
+  // if we are working at gamma, we set all velocities to zero.
+  if (coordinates.norm() < 1.0e-6) {
+    velocity.setZero();
+  }
+  //for(int i = 0; i < 3; i++){
+  //  for (int ib2 = 0; ib2 < numBands; ib2++) {
+  //    for (int ib1 = 0; ib1 < numBands; ib1++) {
+  //      auto x = velocity(ib1,ib2,i);
+  //      printf("old = %.16e %.16e\n", x.real(), x.imag());
+  //    }
+  //  }
+  //}
   return velocity;
 }
 

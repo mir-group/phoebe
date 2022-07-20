@@ -88,7 +88,7 @@ class HarmonicHamiltonian {
       const DoubleView2D &cartesianCoordinates) = 0;
   virtual std::tuple<DoubleView2D, StridedComplexView3D>
   kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates) = 0;
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) = 0;
 };
 
 #endif

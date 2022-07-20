@@ -104,7 +104,7 @@ class PhononH0 : public HarmonicHamiltonian {
   StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
       const DoubleView2D &cartesianCoordinates) override;
   std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates);
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling = true);
   std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
       const DoubleView2D &cartesianCoordinates) override;
@@ -175,7 +175,7 @@ protected:
 
   // kokkos members:
   DoubleView1D atomicMasses_d;
-  ComplexView3D longRangeCorrection1_d;
+  DoubleView3D longRangeCorrection1_d;
   DoubleView2D gVectors_d;
   DoubleView2D dielectricMatrix_d;
   DoubleView3D bornCharges_d;

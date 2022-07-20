@@ -44,6 +44,7 @@ void kokkosZHEEV(StridedComplexView3D &A, DoubleView2D &W) {
     for (int m = 0; m < N; ++m) {
       W_h(i, m) = energies(m);
       for (int n = 0; n < N; ++n) {
+        //A_h(i, m, n) *= 3; // TODO: undo
         A_h(i, m, n) = eigenvectors(m, n);
       }
     }
