@@ -360,7 +360,7 @@ TEST(Kokkos, PhononH0) {
   Eigen::Vector3d q1 = {0.1,0.23,-0.17};
 
   // first, we diagonalize on the CPU
-  auto tup1 = phononH0.diagonalizeFromCoordinates(q1, false);
+  auto tup1 = phononH0.diagonalizeFromCoordinates(q1, true);
   auto ens1 = std::get<0>(tup1);
   auto eigenvectors1 = std::get<1>(tup1);
 
@@ -421,9 +421,9 @@ TEST(Kokkos, PhononH0) {
   }
 
   // the two masses should be similar
-  ASSERT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
+  EXPECT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
 
-  ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  EXPECT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
 
   double norm = 0.;
   for (int ib1 = 0; ib1 < numBands; ++ib1) {
@@ -433,5 +433,5 @@ TEST(Kokkos, PhononH0) {
       }
     }
   }
-  ASSERT_NEAR(norm, 0., 0.00001);
+  EXPECT_NEAR(norm, 0., 0.00001);
 }
