@@ -89,6 +89,15 @@ class HarmonicHamiltonian {
   virtual std::tuple<DoubleView2D, StridedComplexView3D>
   kokkosBatchedDiagonalizeFromCoordinates(
       const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) = 0;
+
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  virtual int estimateBatchSize(const bool& withVelocity) {return 1;};
 };
 
 #endif

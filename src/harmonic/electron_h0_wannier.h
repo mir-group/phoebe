@@ -174,6 +174,15 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
   void addShiftedVectors(Eigen::Tensor<double,3> degeneracyShifts_,
                          Eigen::Tensor<double,5> vectorsShifts_);
 
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  int estimateBatchSize(const bool& withVelocity) override;
+
  protected:
   Particle particle;
 
@@ -207,14 +216,6 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   double getDeviceMemoryUsage();
 
-  /** Estimate how many k-points we can compute on the GPU in one batch.
-   *
-   * @param withVelocity: set to true if computing also the velocity operator,
-   * which requires more memory
-   * @return numBatches: an estimate on how many k-point we can compute in one
-   * call of the kokkosBatched functions.
-   */
-  int estimateBatchSize(const bool& withVelocity);
 };
 
 #endif

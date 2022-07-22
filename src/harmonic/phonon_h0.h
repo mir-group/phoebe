@@ -138,6 +138,15 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return bornCharges: a real tensor of shape (numAtoms,3,3) with the charges
    */
   Eigen::Tensor<double, 3> getBornCharges();
+
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  int estimateBatchSize(const bool& withVelocity) override;
 protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
@@ -226,14 +235,6 @@ protected:
    */
   double getDeviceMemoryUsage();
 
-  /** Estimate how many k-points we can compute on the GPU in one batch.
-   *
-   * @param withVelocity: set to true if computing also the velocity operator,
-   * which requires more memory
-   * @return numBatches: an estimate on how many k-point we can compute in one
-   * call of the kokkosBatched functions.
-   */
-  int estimateBatchSize(const bool& withVelocity);
 };
 
 #endif
