@@ -53,6 +53,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
                                          const bool &withVelocities)
     : particle(Particle(h0->getParticle().getParticleKind())), points(points_) {
 
+  Kokkos::Profiling::pushRegion("ActiveBandStructure constructor");
+
   numPoints = points.getNumPoints();
   numFullBands = h0->getNumBands();
   numBands = Eigen::VectorXi::Zero(numPoints);
@@ -87,13 +89,16 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   }
   Kokkos::deep_copy(qs, qs_h);
 
-  int num_batches = h0->estimateBatchSize(false);
+  int num_batches = 1;// h0->estimateBatchSize(false);
   int approx_batch_size = std::ceil(1.0*niks/num_batches);
 
+  Kokkos::Profiling::pushRegion("diagonalization loop");
   for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
     int stop_iik = std::min(niks, start_iik + approx_batch_size);
 
+    Kokkos::Profiling::pushRegion("call diagonalization");
     auto tup = h0->kokkosBatchedDiagonalizeFromCoordinates(Kokkos::subview(qs, Kokkos::make_pair(start_iik, stop_iik), Kokkos::ALL));
+    Kokkos::Profiling::popRegion();
     DoubleView2D energies_d = std::get<0>(tup);
     StridedComplexView3D eigenvectors_d = std::get<1>(tup);
 
@@ -102,6 +107,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
     Kokkos::deep_copy(energies_h, energies_d);
     Kokkos::deep_copy(eigenvectors_h, eigenvectors_d);
 
+    Kokkos::Profiling::pushRegion("store results");
 #pragma omp parallel
     {
       int numBands = energies_h.extent(1);;
@@ -137,9 +143,12 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
         //}
       }
     }
+    Kokkos::Profiling::popRegion();
   }
+  Kokkos::Profiling::popRegion();
   if (withVelocities) {
-    int num_batches = h0->estimateBatchSize(true);
+    Kokkos::Profiling::pushRegion("velocity loop");
+    int num_batches = 1;// h0->estimateBatchSize(true);
     int approx_batch_size = std::ceil(1.0*niks/num_batches);
 
     for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
@@ -183,10 +192,12 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
         }
       }
     }
+    Kokkos::Profiling::popRegion();
   }
   mpi->allReduceSum(&energies);
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
+  Kokkos::Profiling::popRegion();
 }
 
 Particle ActiveBandStructure::getParticle() { return particle; }
@@ -529,10 +540,12 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   // - communicate the indices
   // - loop again over wavevectors to compute energies and velocities
 
+  Kokkos::Profiling::pushRegion("activeBandStructure::buildOnTheFly");
   numFullBands = 0; // save the unfiltered number of bands
   std::vector<int> myFilteredPoints;
   std::vector<std::vector<int>> myFilteredBands;
 
+  Kokkos::Profiling::pushRegion("diagonalization loop");
   // iterate over mpi-parallelized wavevectors
   #pragma omp parallel
   {
@@ -579,6 +592,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   }
 
   } // close OMP parallel region
+  Kokkos::Profiling::popRegion();
 
   // this numBands is the full bands num, doesn't matter which point
   Point point = points_.getPoint(0);
@@ -668,6 +682,7 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
 
   std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
   size_t niks = iks.size();
+  Kokkos::Profiling::pushRegion("trimmed diagonalization loop");
 
 // now we can loop over the trimmed list of points
 #pragma omp parallel for default(none)                                         \
@@ -731,11 +746,13 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
       setVelocities(point, thisVelocities);
     }
   }
+  Kokkos::Profiling::popRegion();
   mpi->allReduceSum(&energies);
   mpi->allReduceSum(&velocities);
   mpi->allReduceSum(&eigenvectors);
 
   buildSymmetries();
+  Kokkos::Profiling::popRegion();
 }
 
 /** in this function, useful for electrons, we first compute the band structure
@@ -746,12 +763,16 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     Context &context, Points points_, HarmonicHamiltonian &h0,
     const bool &withEigenvectors, const bool &withVelocities) {
 
+  Kokkos::Profiling::pushRegion("ActiveBandStructure::buildAsPostprocessing");
   bool tmpWithVel_ = false;
   bool tmpWithEig_ = true;
   bool tmpIsDistributed_ = true;
+
   // for now, we always generate a band structure which is distributed
+  Kokkos::Profiling::pushRegion("h0.populate");
   FullBandStructure fullBandStructure =
       h0.populate(points_, tmpWithVel_, tmpWithEig_, tmpIsDistributed_);
+  Kokkos::Profiling::popRegion();
 
   // ---------- establish mu and other statistics --------------- //
   // This will work even if fullBandStructure is distributed
@@ -797,6 +818,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
 
   // Loop over the wavevectors belonging to each process
   std::vector<int> parallelIter = fullBandStructure.getWavevectorIndices();
+  Kokkos::Profiling::pushRegion("filter points");
 
   // iterate over mpi-parallelized wavevectors
   #pragma omp parallel
@@ -861,6 +883,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   }
 
   } // close OMP parallel region
+  Kokkos::Profiling::popRegion();
 
   // the same for all points in full band structure
   numFullBands = fullBandStructure.getNumBands();
@@ -943,6 +966,7 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
     eigenvectors.resize(numEigStates, complexZero);
   }
   windowMethod = window.getMethodUsed();
+  Kokkos::Profiling::pushRegion("collect energies and eigenvectors");
 
   // ----- collect ens, velocities, eigenVectors, at each localPt, then reduce
   // Now we can loop over the trimmed list of points.
@@ -997,9 +1021,11 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   mpi->allReduceSum(&energies);
   if (withEigenvectors)
     mpi->allReduceSum(&eigenvectors);
+  Kokkos::Profiling::popRegion();
 
   // compute velocities, store, reduce
   if (withVelocities) {
+    Kokkos::Profiling::pushRegion("compute velocities");
 
 // loop over the points available to this process
 #pragma omp parallel for default(none)                                         \
@@ -1036,8 +1062,10 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
       setVelocities(point, thisVelocities);
     }
     mpi->allReduceSum(&velocities);
+    Kokkos::Profiling::popRegion();
   }
   buildSymmetries();
+  Kokkos::Profiling::popRegion();
   return statisticsSweep;
 }
 

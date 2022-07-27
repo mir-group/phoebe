@@ -234,9 +234,27 @@ void InteractionElPhWan::calcCouplingSquared(
     const std::vector<Eigen::MatrixXcd> &eigvecs3,
     const std::vector<Eigen::Vector3d> &q3Cs,
     const std::vector<Eigen::VectorXcd> &polarData) {
+  Kokkos::Profiling::pushRegion("calcCouplingSquared");
   int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   auto numLoops = int(eigvecs2.size());
+
+#ifdef MPI_AVAIL
+  int pool_rank = mpi->getRank(mpi->intraPoolComm);
+  int pool_size = mpi->getSize(mpi->intraPoolComm);
+  if(pool_size > 1 && mpi_requests[0] != MPI_REQUEST_NULL){
+      Kokkos::Profiling::pushRegion("wait for reductions");
+      // wait for MPI_Ireduces from cacheCoupling
+      MPI_Waitall(pool_size, mpi_requests.data(), MPI_STATUSES_IGNORE);
+      Kokkos::Profiling::popRegion();
+
+      Kokkos::Profiling::pushRegion("copy to GPU");
+      this->elPhCached = Kokkos::create_mirror_view_and_copy(
+          Kokkos::DefaultExecutionSpace(), elPhCached_hs[pool_rank]
+      );
+      Kokkos::Profiling::popRegion();
+  }
+#endif
 
   auto elPhCached = this->elPhCached;
   int numPhBands = this->numPhBands;
@@ -428,6 +446,7 @@ void InteractionElPhWan::calcCouplingSquared(
     // and we save the coupling |g|^2 it for later
     cacheCoupling[ik] = coupling;
   }
+  Kokkos::Profiling::popRegion();
 }
 
 Eigen::VectorXi InteractionElPhWan::getCouplingDimensions() {
@@ -473,6 +492,7 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
 }
 
 void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
+  Kokkos::Profiling::pushRegion("cacheElPh");
   //  int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
   Kokkos::complex<double> complexI(0.0, 1.0);
@@ -490,29 +510,40 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
   double memory = getDeviceMemoryUsage();
   kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
 
+  int pool_rank = mpi->getRank(mpi->intraPoolComm);
+  int pool_size = mpi->getSize(mpi->intraPoolComm);
+
+#ifdef MPI_AVAIL
+  mpi_requests.resize(pool_size);
+  elPhCached_hs.resize(pool_size);
+#endif
+  ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"),
+      numPhBravaisVectors, numPhBands, numElBands, numElBands);
+
   // note: this loop is a parallelization over the group (Pool) of MPI
   // processes, which together contain all the el-ph coupling tensor
   // First, loop over the MPI processes in the pool
-  for (int iPool = 0; iPool < mpi->getSize(mpi->intraPoolComm); iPool++) {
+  for (int iPool = 0; iPool < pool_size; iPool++) {
+    Kokkos::Profiling::pushRegion("cacheElPh setup");
 
     // the current MPI process must first broadcast the k-point and the
     // eigenvector that will be computed now.
     // So, first broadcast the number of bands of the iPool-th process
     int poolNb1 = 0;
-    if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+    if (iPool == pool_rank) {
       poolNb1 = nb1;
     }
-    mpi->allReduceSum(&poolNb1, mpi->intraPoolComm);
+    mpi->bcast(&poolNb1, mpi->intraPoolComm, iPool);
 
     // broadcast also the wavevector and the eigenvector at k for process iPool
     Eigen::Vector3d poolK1C = Eigen::Vector3d::Zero();
     Eigen::MatrixXcd poolEigvec1 = Eigen::MatrixXcd::Zero(poolNb1, numElBands);
-    if (iPool == mpi->getRank(mpi->intraPoolComm)) {
+    if (iPool == pool_rank) {
       poolK1C = k1C;
       poolEigvec1 = eigvec1;
     }
-    mpi->allReduceSum(&poolK1C, mpi->intraPoolComm);
-    mpi->allReduceSum(&poolEigvec1, mpi->intraPoolComm);
+    mpi->bcast(&poolK1C, mpi->intraPoolComm, iPool);
+    mpi->bcast(&poolEigvec1, mpi->intraPoolComm, iPool);
 
     // now, copy the eigenvector and wavevector to the accelerator
     ComplexView2D eigvec1_k("ev1", poolNb1, numElBands);
@@ -526,11 +557,10 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     }
 
     // now compute the Fourier transform on electronic coordinates.
-    ComplexView4D g1(Kokkos::ViewAllocateWithoutInitializing("g1"),
-                     numPhBravaisVectors, numPhBands, numElBands, numElBands);
     ComplexView5D couplingWannier_k = this->couplingWannier_k;
     DoubleView2D elBravaisVectors_k = this->elBravaisVectors_k;
     DoubleView1D elBravaisVectorsDegeneracies_k = this->elBravaisVectorsDegeneracies_k;
+    Kokkos::Profiling::popRegion();
 
     // first we precompute the phases
     ComplexView1D phases_k("phases", numElBravaisVectors);
@@ -583,7 +613,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     // tensor, we don't need communication and directly store results in
     // elPhCached. Otherwise, we need to do an MPI reduction
 
-    if (mpi->getSize(mpi->intraPoolComm) == 1) {
+    if (pool_size == 1) {
       Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
                       numElBands);
 
@@ -621,24 +651,36 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
       // note: we do the reduction after the rotation, so that the tensor
       // may be a little smaller when windows are applied (nb1<numWannier)
 
-      // copy from accelerator to CPU
-      Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached_k);
-      Kokkos::deep_copy(poolElPhCached_h, poolElPhCached_k);
 
       // do a mpi->allReduce across the pool
-      mpi->allReduceSum(&poolElPhCached_h, mpi->intraPoolComm);
+      //mpi->allReduceSum(&poolElPhCached_h, mpi->intraPoolComm);
 
-      // if the process owns this k-point, copy back from CPU to accelerator
-      if (mpi->getRank(mpi->intraPoolComm) == iPool) {
-        Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
-                        numElBands);
-        Kokkos::deep_copy(elPhCached, poolElPhCached_h);
+      Kokkos::Profiling::pushRegion("copy elPhCached to CPU");
+      // copy from accelerator to CPU
+      auto poolElPhCached_h = Kokkos::create_mirror_view(poolElPhCached_k);
+      Kokkos::deep_copy(poolElPhCached_h, poolElPhCached_k);
+      Kokkos::Profiling::popRegion();
+
+      elPhCached_hs[iPool] = poolElPhCached_h;
+
+#ifdef MPI_AVAIL
+      // start reduction for current iteration
+      Kokkos::Profiling::pushRegion("call MPI_Ireduce");
+      if (pool_rank == iPool) {
+        MPI_Ireduce(MPI_IN_PLACE, poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
       }
+      else{
+        MPI_Ireduce(poolElPhCached_h.data(), poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
+      }
+      Kokkos::Profiling::popRegion();
+#endif
+
     }
   }
   this->elPhCached = elPhCached;
   double newMemory = getDeviceMemoryUsage();
   kokkosDeviceMemory->addDeviceMemoryUsage(newMemory);
+  Kokkos::Profiling::popRegion();
 }
 
 double InteractionElPhWan::getDeviceMemoryUsage() {

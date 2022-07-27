@@ -63,6 +63,11 @@ class InteractionElPhWan {
    */
   double getDeviceMemoryUsage();
 
+  std::vector<ComplexView4D::HostMirror> elPhCached_hs;
+#ifdef MPI_AVAIL
+  std::vector<MPI_Request> mpi_requests;
+#endif
+
 public:
 
   /** Default constructor
