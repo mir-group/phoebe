@@ -1019,7 +1019,6 @@ s
 
   // count number of irreducible points
   numIrrPoints = 0;
-  #pragma omp parallel for reduction(+:numIrrPoints)
   for (int ik = 0; ik < numPoints; ik++) {
     if (equiv(ik) == ik) {
       ++numIrrPoints;
