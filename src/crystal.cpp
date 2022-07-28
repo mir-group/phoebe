@@ -7,7 +7,6 @@
 #include "mpi/mpiHelper.h"
 #include "periodic_table.h"
 #include <iomanip>
-#include <random>
 
 double calcVolume(const Eigen::Matrix3d &directUnitCell) {
   Eigen::Vector3d a1 = directUnitCell.row(0);
@@ -373,14 +372,8 @@ void Crystal::magneticSymmetries(Eigen::Vector3d bfield) {
     // grab this symmetry operation
     SymmetryOperation s = symmetryOperations[iSymmetry];
     Eigen::Matrix3d rotation = s.rotation;
-
-    // generate a random vector to test if rotations will be kept
-    std::random_device rd;
-    std::default_random_engine generator(rd()); // rd() provides a random seed
-    std::uniform_real_distribution<double> distribution(0.0,1.0);
-    Eigen::Vector3d testVector = {distribution(generator),
-                                  distribution(generator),
-                                  distribution(generator)};
+    // use a random vector to test if rotations will be kept
+    Eigen::Vector3d testVector = {0.27502, 0.408367, 0.119742};
 
     auto rotVector = rotation * testVector;
 
