@@ -124,6 +124,7 @@ DeviceManager::DeviceManager() {
 
 void DeviceManager::addDeviceMemoryUsage(const double& memoryBytes) {
   this->memoryUsed += memoryBytes;
+  //printf("rank %d added %g MB, using %g MB\n", mpi->getRank(), memoryBytes/1e6, this->memoryUsed/1e6);
   if (this->memoryUsed > this->memoryTotal) {
     Warning("DeviceManager: running low on device memory.");
   }
@@ -131,6 +132,7 @@ void DeviceManager::addDeviceMemoryUsage(const double& memoryBytes) {
 
 void DeviceManager::removeDeviceMemoryUsage(const double& memoryBytes) {
   this->memoryUsed -= memoryBytes;
+  //printf("rank %d removed %g MB, using %g MB\n", mpi->getRank(), memoryBytes/1e6, this->memoryUsed/1e6);
 }
 
 double DeviceManager::getAvailableMemory() {

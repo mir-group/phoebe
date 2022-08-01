@@ -89,8 +89,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   }
   Kokkos::deep_copy(qs, qs_h);
 
-  int num_batches = 1;// h0->estimateBatchSize(false);
-  int approx_batch_size = std::ceil(1.0*niks/num_batches);
+  int approx_batch_size = h0->estimateBatchSize(false);
 
   Kokkos::Profiling::pushRegion("diagonalization loop");
   for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
@@ -148,8 +147,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   Kokkos::Profiling::popRegion();
   if (withVelocities) {
     Kokkos::Profiling::pushRegion("velocity loop");
-    int num_batches = 1;// h0->estimateBatchSize(true);
-    int approx_batch_size = std::ceil(1.0*niks/num_batches);
+    int approx_batch_size = h0->estimateBatchSize(true);
+    //printf("niks = %d, batch_size = %d\n", niks, approx_batch_size);
 
     for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
       int stop_iik = std::min(niks, start_iik + approx_batch_size);

@@ -15,7 +15,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
 
   ComplexView3D dynamicalMatrices("dynMat", numK, numBands, numBands);
 
-  ComplexView2D phases_d("elPhases_d", numK, numBravaisVectors);
+  ComplexView2D phases_d("phPhases_d", numK, numBravaisVectors);
   Kokkos::parallel_for(
       "el_phases", Range2D({0, 0}, {numK, numBravaisVectors}),
       KOKKOS_LAMBDA(int iK, int iR) {
@@ -223,6 +223,7 @@ int PhononH0::estimateBatchSize(const bool& withVelocity) {
   } else {
     memoryPerPoint += 16. * transformSize;
   }
+  //printf("memory per point = %g, available = %g\n", memoryPerPoint, memoryAvailable);
 
   // we try to use 90% of the available memory (leave some buffer)
   int numBatches = int(memoryAvailable / memoryPerPoint * 0.95);

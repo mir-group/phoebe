@@ -99,14 +99,11 @@ InteractionElPhWan::operator=(const InteractionElPhWan &that) {
 }
 
 InteractionElPhWan::~InteractionElPhWan() {
-  double memory = getDeviceMemoryUsage();
-  kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
-  Kokkos::realloc(couplingWannier_k, 0, 0, 0, 0, 0);
-  Kokkos::realloc(elPhCached, 0, 0, 0, 0);
-  Kokkos::realloc(phBravaisVectors_k, 0, 0);
-  Kokkos::realloc(phBravaisVectorsDegeneracies_k, 0);
-  Kokkos::realloc(elBravaisVectors_k, 0, 0);
-  Kokkos::realloc(elBravaisVectorsDegeneracies_k, 0);
+  //printf("rank %d calling interaction destructor\n", mpi->getRank());
+  if(couplingWannier_k.use_count()==1){
+    double memory = getDeviceMemoryUsage();
+    kokkosDeviceMemory->removeDeviceMemoryUsage(memory);
+  }
 }
 
 Eigen::Tensor<double, 3>&
