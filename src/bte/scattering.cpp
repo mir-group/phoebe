@@ -587,9 +587,9 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths,
     Error("Developer error: Attempted setting scattering matrix diagonal with"
         " an incorrect number of states (2).");
   }
-  //internalDiagonal = VectorBTE(statisticsSweep,outerBandStructure,1);
   internalDiagonal = linewidths;
   numStates = linewidths.getNumStates();
+  numPoints = int(outerBandStructure.irrPointsIterator().size());
 
   if (!isMatrixOmega) {
     // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
