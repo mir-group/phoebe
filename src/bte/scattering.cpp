@@ -1191,3 +1191,114 @@ void ScatteringMatrix::degeneracyAveragingLinewidths(VectorBTE *linewidth) {
     }
   }
 }
+
+void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
+                                          const Eigen::VectorXd& energies1,
+                                          const Eigen::VectorXd& energies2,
+                                          const Eigen::VectorXd& energies3){
+  int nb1 = energies1.size();
+  int nb2 = energies2.size();
+  int nb3 = energies3.size();
+
+  for (int ib1 = 0; ib1 < nb1; ib1++) {
+    double e1 = energies1(ib1);
+    // determine degeneracy degree
+    int degDegree = 0;
+    for (int i = ib1; i < nb1; i++) {
+      double e2 = energies1(i);
+      if (abs(e1 - e2) < 1.0e-6) { // at first iteration, ib1=ib2, degDegree=1
+        degDegree++;
+      } else {
+        break;
+      }
+    }
+    Eigen::MatrixXd tmpCoupling(nb2,nb3);
+    tmpCoupling.setZero();
+    // now do averaging
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib2 = 0; ib2 < nb2; ib2++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
+          tmpCoupling(ib2, ib3) += coupling(ib1 + i, ib2, ib3) / float(degDegree);
+        }
+      }
+    }
+    // substitute back
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib2 = 0; ib2 < nb2; ib2++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
+          coupling(ib1 + i, ib2, ib3) = tmpCoupling(ib2, ib3);
+        }
+      }
+    }
+    // now skip to next iteration
+    ib1 += degDegree - 1; // -1 because there's another addition in the loop
+  }
+
+  for (int ib2 = 0; ib2 < nb2; ib2++) {
+    double e1 = energies2(ib2);
+    // determine degeneracy degree
+    int degDegree = 0;
+    for (int i = ib2; i < nb2; i++) {
+      double e2 = energies2(i);
+      if (abs(e1 - e2) < 1.0e-6) { // at first iteration, ib1=ib2, degDegree=1
+        degDegree++;
+      } else {
+        break;
+      }
+    }
+    Eigen::MatrixXd tmpCoupling(nb1,nb3);
+    tmpCoupling.setZero();
+    // now do averaging
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
+          tmpCoupling(ib1, ib3) += coupling(ib1, ib2+i, ib3) / float(degDegree);
+        }
+      }
+    }
+    // substitute back
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int ib3 = 0; ib3 < nb3; ib3++) {
+          coupling(ib1, ib2 + i, ib3) = tmpCoupling(ib1, ib3);
+        }
+      }
+    }
+    // now skip to next iteration
+    ib2 += degDegree - 1; // -1 because there's another addition in the loop
+  }
+
+  for (int ib3 = 0; ib3 < nb3; ib3++) {
+    double e1 = energies3(ib3);
+    // determine degeneracy degree
+    int degDegree = 0;
+    for (int i = ib3; i < nb3; i++) {
+      double e2 = energies3(i);
+      if (abs(e1 - e2) < 1.0e-6) { // at first iteration, ib1=ib2, degDegree=1
+        degDegree++;
+      } else {
+        break;
+      }
+    }
+    Eigen::MatrixXd tmpCoupling(nb1,nb2);
+    tmpCoupling.setZero();
+    // now do averaging
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          tmpCoupling(ib1, ib2) += coupling(ib1, ib2, ib3+i) / float(degDegree);
+        }
+      }
+    }
+    // substitute back
+    for (int i=0; i<degDegree; ++i) {
+      for (int ib1 = 0; ib1 < nb1; ib1++) {
+        for (int ib2 = 0; ib2 < nb2; ib2++) {
+          coupling(ib1, ib2, ib3 + i) = tmpCoupling(ib1, ib2);
+        }
+      }
+    }
+    // now skip to next iteration
+    ib3 += degDegree - 1; // -1 because there's another addition in the loop
+  }
+}

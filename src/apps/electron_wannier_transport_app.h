@@ -20,7 +20,11 @@ private:
                             StatisticsSweep &statisticsSweep,
                             ActiveBandStructure &bandStructure,
                             ElScatteringMatrix &scatteringMatrix);
-
+  static void runIterativeMethod(Context &context,
+                                 Crystal &crystal,
+                                 StatisticsSweep &statisticsSweep,
+                                 ActiveBandStructure &bandStructure,
+                                 ElScatteringMatrix &scatteringMatrix);
 };
 /** Helper function to unfold linewidths. Needs to be public to be
  * accessed by magneticUnfoldingTest

@@ -17,16 +17,16 @@ Following a process similar to what was done in phonon BTE section, the lineariz
 
 .. math::
    e \boldsymbol{v}_{\lambda} \cdot \boldsymbol{E} \frac{\partial \bar{f}_{\lambda}}{\partial \epsilon} + \boldsymbol{v}_{\lambda} \cdot \boldsymbol{\nabla} T \frac{\partial \bar{f}_{\lambda}}{\partial T} =
-     - \sum_{\lambda'} A_{\lambda\lambda'} \delta f_{\lambda'}
+     - \sum_{\lambda'} \Omega_{\lambda\lambda'} \delta f_{\lambda'}
 
 where the first term describes the diffusion due to an externally applied electric field :math:`\boldsymbol{E}`, the second  the diffusion due to a temperature gradient, and the third term is the linearized scattering operator.
 
-The electron scattering matrix :math:`A_{\lambda,\lambda'}` can be computed as
+The electron scattering matrix :math:`\Omega_{\lambda,\lambda'}` can be computed as
 
 .. math::
-   A_{\boldsymbol{k}b,\boldsymbol{k}'b'} =&
+   \Omega_{\boldsymbol{k}b,\boldsymbol{k}'b'} =&
    \tau_{kb} \delta_{kb,k'b'} - (1-\delta_{kb,k'b'})
-   \frac{2\pi}{V N_k} \sum_{s \boldsymbol{q}}
+   \frac{2\pi}{V N_k} \sum_{\boldsymbol{q}\nu}
    |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2 \\
    &\times
    \bigg[
@@ -41,8 +41,8 @@ The electron scattering matrix :math:`A_{\lambda,\lambda'}` can be computed as
 with
 
 .. math::
-   \tau_{kb} =&
-   \frac{2\pi}{V N_k} \sum_{b'\boldsymbol{k}',s \boldsymbol{q}}
+   \frac{1}{\tau_{kb}} =&
+   \frac{2\pi}{V N_k} \sum_{b'\boldsymbol{k}',\nu \boldsymbol{q}}
    |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2
    \times
    \bigg[
@@ -68,8 +68,56 @@ where the latter can be interpolated as described above.
 The Dirac delta function conserving momentum is enforced exactly, since we are using points on a uniform grid centered at gamma.
 The Dirac delta conserving energy is instead with a Gaussian function, as described in the section :ref:`delta_fns`.
 
+Since the scattering matrix :math:`\Omega_{\lambda,\lambda'}` is not symmetric, we instead perform the transformation:
+
+.. math::
+   \tilde{\Omega}_{\lambda \lambda'}
+   =
+   \Omega_{\lambda \lambda'}
+   \sqrt{ \frac{\bar{f}_{\lambda'} (1-\bar{f}_{\lambda'})}{\bar{f}_{\lambda} (1-\bar{f}_{\lambda})} }
+
+which results in the matrix with diagonal matrix elements:
+
+.. math::
+   \tilde{\Omega}_{\lambda \lambda}
+   =
+   \Omega_{\lambda \lambda} = \frac{1}{\tau_{\boldsymbol{k}b}}
+
+and for the off-diagonal terms:
+   
+.. math::
+   \tilde{\Omega}_{\boldsymbol{k}b,\boldsymbol{k}'b'} =&
+   -
+   \frac{2\pi}{V N_k} \sum_{\boldsymbol{q}\nu}
+   |g_{bb'\nu}(\boldsymbol{k},\boldsymbol{k}')|^2 \delta(\boldsymbol{k}-\boldsymbol{k}'+\boldsymbol{q}) \\
+   &\times
+   \bigg[
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} + \hbar \omega_{\boldsymbol{q}\nu}) +
+   \delta(\epsilon_{\boldsymbol{k}b} - \epsilon_{\boldsymbol{k}'b'} - \hbar \omega_{\boldsymbol{q}\nu})
+   \bigg]
+   \frac{1}{2 \sinh{\big( \frac{\hbar \omega_{\boldsymbol{q}\nu}}{2 k_B T} \big)  } }
+   .
+
+This matrix is symmetric and has a number of interesting physical properties (e.g. the eigenvalues corresponding to the exact relaxation times of the electronic bath).
+Computationally, the symmetric matrix can be used in a conjugate gradient method that maximises the electrical and thermal conductivity, and guarantees the existence of eigenvalues.
+
+In Phoebe, instead of solving the original BTE problem in the form :math:`\sum_{\lambda'} \Omega_{\lambda,\lambda'} \delta f_{\lambda'} = b_{\lambda}`, we solve the symmetrized problem:
+   
+.. math::
+   \sum_{\lambda'} \tilde{\Omega}_{\lambda,\lambda'} \delta \tilde{f}_{\lambda'} = \tilde{b}_{\lambda}
+
+with 
+
+.. math::
+   \delta f_{\lambda} = ( \bar{f}_{\lambda} (1-\bar{f}_{\lambda}) )^{\frac{1}{2}} \delta f_{\lambda}
+
+and
+
+.. math::
+   \tilde{b}_{\lambda} = ( \bar{f}_{\lambda} (1-\bar{f}_{\lambda}) )^{\frac{1}{2}} b_{\lambda}
 
 
+   
 
 Onsager coefficients
 --------------------
