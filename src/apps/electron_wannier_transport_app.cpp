@@ -14,6 +14,7 @@
 
 void symmetrizeLinewidths(Context &context, BaseBandStructure &bandStructure,
                           ElScatteringMatrix &scatteringMatrix, StatisticsSweep &statisticsSweep) {
+
   int numCalculations = statisticsSweep.getNumCalculations();
   auto linewidths = scatteringMatrix.getLinewidths();
 
@@ -125,12 +126,21 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
   auto tup = ActiveBandStructure::builder(context, electronH0, points);
   bandStructure = std::get<0>(tup);
 
+  // each process should have it's own copy of this
+  VectorBTE newLinewidths(statisticsSweep, bandStructure, 1);
+
+  // if this is CRTA, we can return here now that the bands are unfolded
+  if (!std::isnan(context.getConstantRelaxationTime())) {
+    bool supressError = true; // see comment at end of function
+    oldMatrix.setLinewidths(newLinewidths, supressError);
+    return;
+  }
+  // get old linewidths to copy into correct states of newLinewidths
+  VectorBTE oldLinewidths = oldMatrix.getLinewidths();
+
   // now the bands should have the right symmetries, and we can attempt the linewidths
   // we take an empty scattering matrix object.
   int numCalculations = statisticsSweep.getNumCalculations();
-
-  VectorBTE newLinewidths(statisticsSweep, bandStructure, 1);
-  VectorBTE oldLinewidths = oldMatrix.getLinewidths();
 
   // for each irr point of the new band structure, we will get the
   // wavevector of that point, look it up in the old list, and
@@ -138,7 +148,7 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
   //
   // this is more straightforward because at the end, we only care to
   // save new irr points anyway
-  for (int ikIrr : bandStructure.getPoints().irrPointsIterator()) {
+  for (int ikIrr : bandStructure.getPoints().parallelIrrPointsIterator()) {
 
     // this should work because all sym eq kpoints should have the same nbands
     // as a result of enforce function in active band structure
@@ -155,6 +165,7 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
     int ikOld = oldBandStructure.getPointIndex(kCoords);
 
     // for each band, we replace all the equivalent kpoints
+    #pragma omp parallel for
     for (int ib = 0; ib < numBands; ++ib) {
 
       int iBteOld;
@@ -179,6 +190,7 @@ void unfoldLinewidths(Context &context, ElScatteringMatrix &oldMatrix,
       }
     }
   }
+  mpi->allReduceSum(&newLinewidths.data);
   bool supressError = true; // normally, it's bad to set the matrix
                             // with different # of states, so we thrown an
                             // error. Here we have a special case.
