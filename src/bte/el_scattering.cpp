@@ -691,3 +691,142 @@ void ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField) {
     }
   }
 }
+
+// =============================================================================================
+
+std::vector<VectorBTE> ElScatteringMatrix::addMagneticTerm(const Eigen::Vector3d& magneticField,
+                                                                  std::vector<VectorBTE> n) {
+
+  // get information about how the points are spaced
+  auto points = outerBandStructure.getPoints();
+  Eigen::Vector3i kMesh = std::get<0>(points.getMesh());
+  auto crystal = points.getCrystal();
+  Eigen::Matrix3d R = points.getCrystal().getReciprocalUnitCell();
+
+  // objects that will be corrected and returned
+  VectorBTE nEB = n[0];
+  VectorBTE nTB = n[1];
+
+  // loop over every state because we do not know
+  // if k+1 or k-1 will be on another process. Therefore, we cannot restrict the loop
+  // to only local state indices
+  for (int is=0; is<numStates; ++is) {
+
+    // generate basic state info
+    StateIndex isIdx(is);
+    auto t = outerBandStructure.getIndex(is);
+    WavevectorIndex ikIdx = std::get<0>(t);
+    BandIndex ibIdx = std::get<1>(t);
+
+    // kpoint coordinates in crystal basis
+    Eigen::Vector3d k = points.getPointCoordinates(ikIdx.get(), Points::crystalCoordinates);
+    Eigen::Vector3d k3idx;
+    // convert crystal coordintes to an index i,j,k on the mesh
+    for (int i : {0, 1, 2}) {
+      k3idx(i) = k(i) * kMesh(i);
+    }
+
+    // establish the k difference in cartesian coords
+    if(kMesh[0] < 4 || kMesh[1] < 4 || kMesh[2] < 4) Error("Cannot perform finite differences with kMesh < 2.");
+    Eigen::MatrixXd kdiff(3,3);
+    for(int i : {0,1,2}) {
+      Eigen::Vector3d k1;
+      Eigen::Vector3d k2;
+      // define x, y, z increment
+      k1(i) = 1./kMesh(i);
+      k2(i) = 2./kMesh(i);
+      // transform to cartesian
+      Eigen::Vector3d k1Cart = R*k1;
+      Eigen::Vector3d k2Cart = R*k2;
+      auto kdiffDim = k2Cart - k1Cart;
+      for(int j : {0,1,2}) {
+        kdiff(i, j) = (kdiffDim(j) == 0) ? 0.0 : 1./kdiffDim(j);
+      }
+      if(mpi->mpiHead()) std::cout << k1Cart.transpose() << " " << k2Cart.transpose() << " " << kdiffDim.transpose() << std::endl;
+  }
+
+    // for each direction of the finite differences
+    for (int dk : {0, 1, 2}) {
+
+      // find the points which are +2, +1, -1, -2 along this direction
+      Eigen::Vector3d k3Plus = k3idx;
+      Eigen::Vector3d k3Mins = k3idx;
+      Eigen::Vector3d k3Plus2 = k3idx;
+      Eigen::Vector3d k3Mins2 = k3idx;
+
+      // add integer displacement, so that we have the forwards/backwards point indices
+      k3Plus(dk) += 1;
+      k3Mins(dk) -= 1;
+      k3Plus2(dk) += 2;
+      k3Mins2(dk) -= 2;
+
+      // if one of the points goes out of bounds, wrap around the index
+      if(k3Plus(dk) == kMesh(dk))             k3Plus(dk) = 0;
+      if(k3Mins(dk) < 0)                      k3Mins(dk) = kMesh(dk) - 1;
+      if(k3Plus2(dk) == kMesh(dk))            k3Plus2(dk) = 0;
+      if(k3Plus2(dk) == kMesh(dk) + 1)        k3Plus2(dk) = 1;
+      if(k3Mins2(dk) == -1)                   k3Mins2(dk) = kMesh(dk) - 1;
+      if(k3Mins2(dk) == -2)                   k3Mins2(dk) = kMesh(dk) - 2;
+
+      // convert these points back into crystal coordinates
+      for (int i : {0, 1, 2}) {
+        k3Plus(i) /= float(kMesh(i));
+        k3Mins(i) /= float(kMesh(i));
+        k3Plus2(i) /= float(kMesh(i));
+        k3Mins2(i) /= float(kMesh(i));
+      }
+
+      // find kindex of each point on the points mesh
+      int ikPlusRed = outerBandStructure.getPointIndex(k3Plus, true);
+      int ikMinsRed = outerBandStructure.getPointIndex(k3Mins, true);
+      int ikPlusRed2 = outerBandStructure.getPointIndex(k3Plus2, true);
+      int ikMinsRed2 = outerBandStructure.getPointIndex(k3Mins2, true);
+
+      // if symmetries are turned on, we need to map the global kmesh
+      // index to a irreducible point, as this is what will be used
+      // by the interalDiagonal element
+      int ikPlus = points.asIrreducibleIndex(ikPlusRed);
+      int ikMins = points.asIrreducibleIndex(ikMinsRed);
+      int ikPlus2 = points.asIrreducibleIndex(ikPlusRed2);
+      int ikMins2 = points.asIrreducibleIndex(ikMinsRed2);
+
+      // convert these to wavevector index objects
+      WavevectorIndex ikPlusIdx(ikPlus);
+      WavevectorIndex ikMinsIdx(ikMins);
+      WavevectorIndex ikPlusIdx2(ikPlus2);
+      WavevectorIndex ikMinsIdx2(ikMins2);
+
+      // get state indices
+      int isPlus = outerBandStructure.getIndex(ikPlusIdx, ibIdx);
+      int isMins = outerBandStructure.getIndex(ikMinsIdx, ibIdx);
+      int isPlus2 = outerBandStructure.getIndex(ikPlusIdx2, ibIdx);
+      int isMins2 = outerBandStructure.getIndex(ikMinsIdx2, ibIdx);
+
+      // get vector bte indices
+      int ibte = outerBandStructure.stateToBte(isIdx).get();
+      StateIndex istatePlus(isPlus);
+      StateIndex istateMins(isMins);
+      int ibtePlus = outerBandStructure.stateToBte(istatePlus).get();
+      int ibteMins = outerBandStructure.stateToBte(istateMins).get();
+      StateIndex istatePlus2(isPlus2);
+      StateIndex istateMins2(isMins2);
+      int ibtePlus2 = outerBandStructure.stateToBte(istatePlus2).get();
+      int ibteMins2 = outerBandStructure.stateToBte(istateMins2).get();
+
+      // calculate the corrections for this state
+      Eigen::Vector3d vel = outerBandStructure.getGroupVelocity(isIdx);
+      Eigen::Vector3d y = -1 * vel.cross(magneticField);
+      Eigen::Vector3d correction ={ y(0)*((2*kdiff(dk, 0))), y(1)*((2*kdiff(dk,1))), y(2)*((2*kdiff(dk,2)))};
+
+      for(int iCalc = 0; iCalc < numCalculations; iCalc++) {
+        for(int i : {0, 1, 2}) {
+          nEB(iCalc, i, ibte) = correction(i) * (n[0](iCalc, i, ibtePlus) - n[0](iCalc, i, ibteMins));
+          nTB(iCalc, i, ibte) = correction(i) * (n[1](iCalc, i, ibtePlus) - n[1](iCalc, i, ibteMins));
+        }
+      }
+    }
+  }
+  std::vector<VectorBTE> nReturn = {nEB,nTB};
+  return nReturn;
+}
+

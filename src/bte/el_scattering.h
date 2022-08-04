@@ -55,6 +55,8 @@ public:
    * @param magneticField: vector of the magnetic field
    */
   void addMagneticTerm(const Eigen::Vector3d& magneticField);
+  std::vector<VectorBTE> addMagneticTerm(const Eigen::Vector3d& magneticField,
+                                                             std::vector<VectorBTE> n);
 
 protected:
   InteractionElPhWan *couplingElPhWan;

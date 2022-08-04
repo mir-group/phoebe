@@ -205,10 +205,11 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // if there's a magnetic field, reduce symmetry.
   // we intentionally do this after the electronic structure
-  //auto bfield = context.getBField();
-  //if(bfield.norm() != 0) {
-  //  crystal.magneticSymmetries(context);
-  //}
+  std::vector<Eigen::Vector3d> magneticFields = context.getBField();
+  Eigen::VectorXd bfield = magneticFields[0];
+  if(bfield.norm() != 0) {
+    crystal.magneticSymmetries(bfield);
+  }
 
   auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
@@ -259,7 +260,7 @@ void ElectronWannierTransportApp::run(Context &context) {
   // TODO we might want to throw a warning if someone runs with a
   // bfield that adds a contribution on the order of the diagonal
   // scattering matrix elements, or something like that -- if we have effective mass, we could also estimate omega_c for comparison
-
+/*
   // Add magnetotransport term to scattering matrix if found in input file
   std::vector<Eigen::Vector3d> magneticFields = context.getBField();
 
@@ -329,7 +330,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     }
    tempScatteringMatrix.outputToJSON("B" +std::to_string(b) + "_rta_el_relaxation_times.json");
   }
-
+*/
   scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
@@ -444,9 +445,8 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   if (doIterative) {
     runIterativeMethod(context, crystal, statisticsSweep, bandStructure,
-                       scatteringMatrix);
+                       scatteringMatrix, bfield);
   }
-
   if (doVariational) {
     runVariationalMethod(context, crystal, statisticsSweep, bandStructure,
                          scatteringMatrix);
@@ -464,8 +464,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     ParallelMatrix<double> eigenvectors = std::get<1>(tup);
     // EV such that Omega = V D V^-1
 
-    transportCoefficients.calcFromRelaxons(eigenvalues, eigenvectors,
-                                           scatteringMatrix);
+    transportCoefficients.calcFromRelaxons(eigenvalues, eigenvectors, scatteringMatrix);
     transportCoefficients.print();
     transportCoefficients.outputToJSON("relaxons_onsager_coefficients.json");
     scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json", eigenvalues);
@@ -712,10 +711,9 @@ void ElectronWannierTransportApp::runVariationalMethod(
   }
 }
 
-
 void ElectronWannierTransportApp::runIterativeMethod(
     Context &context, Crystal &crystal, StatisticsSweep &statisticsSweep,
-    ActiveBandStructure &bandStructure, ElScatteringMatrix &scatteringMatrix) {
+    ActiveBandStructure &bandStructure, ElScatteringMatrix &scatteringMatrix, Eigen::Vector3d magneticField) {
 
   // here we implement a conjugate gradient solution to Az = b
 
@@ -723,74 +721,101 @@ void ElectronWannierTransportApp::runIterativeMethod(
     std::cout << "Starting Omini Sparavigna BTE solver\n" << std::endl;
   }
 
-  OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
-                                            bandStructure, context);
+//  auto magneticFields = context.getMagneticField();
+//  for(int b = 0; b < int(magneticFields.size()); b++) {
 
-  // initialize the transport coefficients
-  // to check how these change during iterations
-  Eigen::Tensor<double, 3> elCond =
-      transportCoefficients.getElectricalConductivity();
-  Eigen::Tensor<double, 3> thCond =
-      transportCoefficients.getThermalConductivity();
-  auto elCondOld = elCond.setConstant(1.);
-  auto thCondOld = thCond.setConstant(1.);
+//    Eigen::Vector3d magneticField = magneticFields[b];
+    OnsagerCoefficients transportCoefficients(statisticsSweep, crystal,
+                                              bandStructure, context);
 
-  VectorBTE nENext(statisticsSweep, bandStructure, 3);
-  VectorBTE nTNext(statisticsSweep, bandStructure, 3);
+    // initialize the transport coefficients
+    // to check how these change during iterations
+    Eigen::Tensor<double, 3> elCond =
+        transportCoefficients.getElectricalConductivity();
+    Eigen::Tensor<double, 3> thCond =
+        transportCoefficients.getThermalConductivity();
+    auto elCondOld = elCond.setConstant(1.);
+    auto thCondOld = thCond.setConstant(1.);
 
-  VectorBTE lineWidths = scatteringMatrix.getLinewidths();
+    VectorBTE nENext(statisticsSweep, bandStructure, 3);
+    VectorBTE nTNext(statisticsSweep, bandStructure, 3);
 
-  // we get the symmetrized
-  BulkEDrift driftE(statisticsSweep, bandStructure, 3, true);
-  BulkTDrift driftT(statisticsSweep, bandStructure, 3, true);
-  VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
-  VectorBTE nERTA = -driftE * relaxationTimes;
-  VectorBTE nTRTA = -driftT * relaxationTimes;
+    VectorBTE lineWidths = scatteringMatrix.getLinewidths();
 
-  VectorBTE nEOld = nERTA;
-  VectorBTE nTOld = nTRTA;
+    // we get the symmetrized
+    BulkEDrift driftE(statisticsSweep, bandStructure, 3, true);
+    BulkTDrift driftT(statisticsSweep, bandStructure, 3, true);
+    VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
+    VectorBTE nERTA = -driftE * relaxationTimes;
+    VectorBTE nTRTA = -driftT * relaxationTimes;
 
-  auto threshold = context.getConvergenceThresholdBTE();
+    VectorBTE nEOld = nERTA;
+    VectorBTE nTOld = nTRTA;
 
-  for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
+    auto threshold = context.getConvergenceThresholdBTE();
 
-    std::vector<VectorBTE> nIn;
-    nIn.push_back(nEOld);
-    nIn.push_back(nTOld);
-    auto nOut = scatteringMatrix.offDiagonalDot(nIn);
-    nENext = nOut[0] / lineWidths;
-    nTNext = nOut[1] / lineWidths;
-    nENext = nERTA - nENext;
-    nTNext = nTRTA - nTNext;
+    for (int iter = 0; iter < context.getMaxIterationsBTE(); iter++) {
 
-    transportCoefficients.calcFromSymmetricPopulation(nENext, nTNext);
-    transportCoefficients.print(iter);
-    elCond = transportCoefficients.getElectricalConductivity();
-    thCond = transportCoefficients.getThermalConductivity();
+      std::vector<VectorBTE> nIn;
+      nIn.push_back(nEOld);
+      nIn.push_back(nTOld);
+      auto nOut = scatteringMatrix.offDiagonalDot(nIn);
+      nENext = nOut[0] / lineWidths;
+      nTNext = nOut[1] / lineWidths;
+      // if there's a magnetic field, we need to add another term
+      if(magneticField.norm() != 0) {
+        std::vector<VectorBTE> bTerms = scatteringMatrix.addMagneticTerm(magneticField, nIn);
+        VectorBTE nEB = bTerms[0] / lineWidths;
+        VectorBTE nTB = bTerms[1] / lineWidths;
+        nENext = nERTA - nENext + nEB;
+        nTNext = nTRTA - nTNext + nTB;
+      }
+      else {
+        nENext = nERTA - nENext;
+        nTNext = nTRTA - nTNext;
+      }
 
-    // this exit condition must be improved
-    // different temperatures might converge differently
+      transportCoefficients.calcFromSymmetricPopulation(nENext, nTNext);
+      transportCoefficients.print(iter);
+      elCond = transportCoefficients.getElectricalConductivity();
+      thCond = transportCoefficients.getThermalConductivity();
 
-    double dE = findMaxRelativeDifference(elCond, elCondOld);
-    double dT = findMaxRelativeDifference(thCond, thCondOld);
-    if ((dE < threshold) && (dT < threshold)) {
-      break;
-    } else {
-      elCondOld = elCond;
-      thCondOld = thCond;
-      nEOld = nENext;
-      nTOld = nTNext;
+      // this exit condition must be improved
+      // different temperatures might converge differently
+
+      double dE = findMaxRelativeDifference(elCond, elCondOld);
+      double dT = findMaxRelativeDifference(thCond, thCondOld);
+      if ((dE < threshold) && (dT < threshold)) {
+        break;
+      } else {
+        elCondOld = elCond;
+        thCondOld = thCond;
+        nEOld = nENext;
+        nTOld = nTNext;
+      }
+
+      if (iter == context.getMaxIterationsBTE() - 1) {
+        Error("Reached max BTE iterations without convergence");
+      }
     }
+    transportCoefficients.print();
+    transportCoefficients.outputToJSON("omini_onsager_coefficients.json");
+    std::ifstream i("omini_onsager_coefficients.json");
+    nlohmann::json j; i >> j;
+    std::vector<double> vec(3);
+    vec[0] = magneticField(0)/teslaToAu; vec[1] = magneticField(1)/teslaToAu; vec[2] = magneticField(2)/teslaToAu;
+    j["magneticField"] = vec;
+    j["magneticFieldUnit"] = "Tesla";
+    std::ofstream o("omini_onsager_coefficients.json");
+    o << std::setw(5) << j << std::endl;
+    o.close();
 
-    if (iter == context.getMaxIterationsBTE() - 1) {
-      Error("Reached max BTE iterations without convergence");
+
+    if (mpi->mpiHead()) {
+      if(magneticField.norm() != 0)
+        std::cout << "For B = " << magneticField.transpose() << "," << std::endl;
+      std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
+      std::cout << std::string(80, '-') << "\n" << std::endl;
     }
-  }
-  transportCoefficients.print();
-  transportCoefficients.outputToJSON("omini_onsager_coefficients.json");
-
-  if (mpi->mpiHead()) {
-    std::cout << "Finished Omini-Sparavigna BTE solver\n\n";
-    std::cout << std::string(80, '-') << "\n" << std::endl;
-  }
+//  }// close b field loop
 }

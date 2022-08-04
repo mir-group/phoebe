@@ -24,7 +24,8 @@ private:
                                  Crystal &crystal,
                                  StatisticsSweep &statisticsSweep,
                                  ActiveBandStructure &bandStructure,
-                                 ElScatteringMatrix &scatteringMatrix);
+                                 ElScatteringMatrix &scatteringMatrix,
+                                 Eigen::Vector3d bfield);
 };
 /** Helper function to unfold linewidths. Needs to be public to be
  * accessed by magneticUnfoldingTest
