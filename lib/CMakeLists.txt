@@ -15,7 +15,8 @@ FetchContent_MakeAvailable(googletest)
 # which tracks the original, minus the large test data set.
 # This is recommended by the readme of nlohmann/json
 FetchContent_Declare(json
-    GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
+#    GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
+    URL https://github.com/nlohmann/json/releases/download/v3.11.1/json.tar.xz
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/json_src
     UPDATE_COMMAND ""
 )
