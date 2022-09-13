@@ -77,7 +77,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   DoubleView2D qs("qs", niks, 3);
   auto qs_h = Kokkos::create_mirror_view(qs);
 
-  // now we can loop over the trimmed list of points
+  // store the full list of points for later use
 #pragma omp parallel for
   for (size_t iik = 0; iik < niks; iik++) {
     size_t ik = iks[iik];
@@ -87,10 +87,13 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
       qs_h(iik, i) = q(i);
     }
   }
+  // copy the points to the GPU
   Kokkos::deep_copy(qs, qs_h);
 
   int approx_batch_size = h0->estimateBatchSize(false);
 
+  // divide the q-points into batches, do all diagonalizations in parallel
+  // with Kokkos for each batch
   Kokkos::Profiling::pushRegion("diagonalization loop");
   for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
     int stop_iik = std::min(niks, start_iik + approx_batch_size);
@@ -98,14 +101,17 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
     Kokkos::Profiling::pushRegion("call diagonalization");
     auto tup = h0->kokkosBatchedDiagonalizeFromCoordinates(Kokkos::subview(qs, Kokkos::make_pair(start_iik, stop_iik), Kokkos::ALL));
     Kokkos::Profiling::popRegion();
+
     DoubleView2D energies_d = std::get<0>(tup);
     StridedComplexView3D eigenvectors_d = std::get<1>(tup);
 
+    // copy the results to CPU
     auto energies_h = Kokkos::create_mirror_view(energies_d);
     auto eigenvectors_h = Kokkos::create_mirror_view(eigenvectors_d);
     Kokkos::deep_copy(energies_h, energies_d);
     Kokkos::deep_copy(eigenvectors_h, eigenvectors_d);
 
+    // store the results in the old datastructures
     Kokkos::Profiling::pushRegion("store results");
 #pragma omp parallel
     {
@@ -125,39 +131,35 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
           }
         }
 
-        //auto tup = h0->diagonalize(point);
-        //auto theseEnergies = std::get<0>(tup);
-        //auto theseEigenvectors = std::get<1>(tup);
-
-        //printf("NORM = %.2g\n", (energies-theseEnergies).norm());
-        //printf("NORM = %.2g %.2g %.2g\n", (eigenvectors-theseEigenvectors).norm(), eigenvectors.norm(), theseEigenvectors.norm());
-
         ActiveBandStructure::setEnergies(point, energies);
         if (withEigenvectors) {
           ActiveBandStructure::setEigenvectors(point, eigenvectors);
         }
-        //ActiveBandStructure::setEnergies(point, theseEnergies);
-        //if (withEigenvectors) {
-        //  ActiveBandStructure::setEigenvectors(point, theseEigenvectors);
-        //}
       }
     }
     Kokkos::Profiling::popRegion();
   }
   Kokkos::Profiling::popRegion();
-  if (withVelocities) {
-    Kokkos::Profiling::pushRegion("velocity loop");
-    int approx_batch_size = h0->estimateBatchSize(true);
-    //printf("niks = %d, batch_size = %d\n", niks, approx_batch_size);
 
+  if (withVelocities) {
+    // the same again, but for velocities
+    // TODO: I think this also returns the energies and velocities above, so we could avoid
+    // the above calculation entirely (12.5% potential speedup)
+    Kokkos::Profiling::pushRegion("velocity loop");
+
+    int approx_batch_size = h0->estimateBatchSize(true);
+
+    // loop over points, do everything in parallel for all points in a batch
     for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
       int stop_iik = std::min(niks, start_iik + approx_batch_size);
 
+      // compute batch of velocities
       auto tup = h0->kokkosBatchedDiagonalizeWithVelocities(Kokkos::subview(qs, Kokkos::make_pair(start_iik, stop_iik), Kokkos::ALL));
       ComplexView4D velocities_d = std::get<2>(tup);
       auto velocities_h = Kokkos::create_mirror_view(velocities_d);
       Kokkos::deep_copy(velocities_h, velocities_d);
 
+      // store results in old datastructures
 #pragma omp parallel
       {
         int numBands = velocities_h.extent(1);;
@@ -167,7 +169,6 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
           size_t ik = iks[start_iik+iik];
           Point point = points.getPoint(ik);
 
-
           for(int k = 0; k < 3; k++){
             for(int i = 0; i < numBands; i++){
               for(int j = 0; j < numBands; j++){
@@ -176,18 +177,6 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
             }
           }
           ActiveBandStructure::setVelocities(point, velocities);
-
-
-          //auto thisVelocity = h0->diagonalizeVelocity(point);
-          //for(int k = 0; k < 3; k++){
-          //  for(int i = 0; i < numBands; i++){
-          //    for(int j = 0; j < numBands; j++){
-          //      auto x = thisVelocity(j,i,k);
-          //      printf("old = %.16e %.16e\n", x.real(), x.imag());
-          //    }
-          //  }
-          //}
-          //ActiveBandStructure::setVelocities(point, thisVelocity);
         }
       }
     }

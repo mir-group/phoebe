@@ -674,6 +674,9 @@ ElectronH0Wannier::batchedDiagonalizeWithVelocities(
   return std::make_tuple(resultsEnergies, resultsEigenvectors, resultsVelocities);
 }
 
+/**
+ * Build Hamiltonians for a batch of k-points
+ */
 StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) {
 
@@ -697,6 +700,7 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
   auto vectorsDegeneracies_d = this->vectorsDegeneracies_d;
   auto h0R_d = this->h0R_d;
 
+  // not sure what this does
   if (!hasShiftedVectors) {
     ComplexView2D elPhases_d("elPhases_d", numK, numVectors);
     Kokkos::parallel_for(
@@ -747,11 +751,15 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
   return hamiltonians;
 }
 
+/**
+ * Create and diagonalize Hamiltonians for a batch of k-points
+ */
 std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
 
   int numWannier = this->numWannier; // Kokkos quirkyness
 
+  // build Hamiltonians
   StridedComplexView3D blochHamiltonians =
       kokkosBatchedBuildBlochHamiltonian(cartesianCoordinates);
 
@@ -760,12 +768,16 @@ std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedD
   int numK = blochHamiltonians.extent(0);
   DoubleView2D allEnergies("energies_d", numK, numWannier);
 
+  // perform diagonalization
   kokkosZHEEV(blochHamiltonians, allEnergies);
   // blochHamiltonians now contains eigenvectors
 
   return std::make_tuple(allEnergies, blochHamiltonians);
 }
 
+/**
+ * Build and diagonalize Hamiltonians, with velocities
+ */
 std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
     const DoubleView2D &cartesianCoordinates) {

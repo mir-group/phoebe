@@ -1,5 +1,8 @@
 #include "phonon_h0.h"
 
+/**
+ * Build the Hamiltonian matrix for a batch of k-points
+ */
 StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
     const DoubleView2D &cartesianCoordinates) {
 
@@ -15,6 +18,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
 
   ComplexView3D dynamicalMatrices("dynMat", numK, numBands, numBands);
 
+  // Compute all dot products of k points (phases)
   ComplexView2D phases_d("phPhases_d", numK, numBravaisVectors);
   Kokkos::parallel_for(
       "el_phases", Range2D({0, 0}, {numK, numBravaisVectors}),
@@ -30,6 +34,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   //print2D("new = ", bravaisVectors_d);
   //print3D("new = ", mat2R_d);
 
+  // multiply matrix by phase
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
       KOKKOS_LAMBDA(int iK, int m, int n) {
@@ -45,6 +50,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   if (hasDielectric) {
     auto longRangeCorrection1_d = this->longRangeCorrection1_d;
 
+    // add constant long range term
     Kokkos::parallel_for(
         "el_hamilton", Range3D({0, 0, 0}, {numK, 3, 3}),
         KOKKOS_LAMBDA(int iK, int i, int j) {
@@ -66,7 +72,10 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
     auto atomicPositions_d = this->atomicPositions_d;
     auto gMax = this->gMax;
 
+    // per-thread scratch memory size
     int byte_size = Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace::scratch_memory_space>::shmem_size(numBands);
+
+    // compute full long range term
     Kokkos::parallel_for("long-range-ph-H0",
         Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>(numG, Kokkos::AUTO()).set_scratch_size(
           0, Kokkos::PerThread(byte_size)),
@@ -75,6 +84,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
           int iG = team.league_rank();
           auto G = Kokkos::subview(gVectors_d, iG, Kokkos::ALL);
 
+          // allocate per-thread scratch memory
           Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace::scratch_memory_space> GQZ(team.thread_scratch(0), 3*numAtoms);
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numK), [&] (const int iK){
@@ -138,6 +148,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
       numBands, numBands
   );
 
+  // ensure hermiticity
   StridedComplexView3D DD("dynMat", DDlayout);
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
@@ -149,6 +160,7 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
 
   auto atomicMasses_d = this->atomicMasses_d;
 
+  // divide by atomic masses
   Kokkos::parallel_for(
       "el_hamilton", Range3D({0, 0, 0}, {numK, numBands, numBands}),
       KOKKOS_LAMBDA(int iK, int m, int n) {
@@ -159,21 +171,25 @@ StridedComplexView3D PhononH0::kokkosBatchedBuildBlochHamiltonian(
   return DD;
 }
 
+/**
+ * Create and diagonalize Hamiltonians for a batch of k-points
+ */
 std::tuple<DoubleView2D, StridedComplexView3D> PhononH0::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
 
+  // create the Hamiltonians
   StridedComplexView3D dynamicalMatrices =
       kokkosBatchedBuildBlochHamiltonian(cartesianCoordinates);
-
-  // now the diagonalization.
+  //print3DComplex("new = ", dynamicalMatrices);
 
   int numK = dynamicalMatrices.extent(0);
   int numBands = this->numBands;
-
-  //print3DComplex("new = ", dynamicalMatrices);
   DoubleView2D frequencies("energies", numK, numBands);
+
+  // perform diagonalization of all matrices
   kokkosZHEEV(dynamicalMatrices, frequencies);
 
+  // frequencies are sign(eigenvalues)*sqrt(abs(eigenvalues))
   Kokkos::parallel_for(
       "el_hamilton", Range2D({0, 0}, {numK, numBands}),
       KOKKOS_LAMBDA(int iK, int m) {
@@ -185,6 +201,7 @@ std::tuple<DoubleView2D, StridedComplexView3D> PhononH0::kokkosBatchedDiagonaliz
       });
   //print2D("new = ", frequencies);
   //print3DComplex("new = ", dynamicalMatrices);
+
   if(withMassScaling) kokkosBatchedScaleEigenvectors(dynamicalMatrices);
   return std::make_tuple(frequencies, dynamicalMatrices);
 }
@@ -234,6 +251,9 @@ int PhononH0::estimateBatchSize(const bool& withVelocity) {
   return numBatches;
 }
 
+/**
+ * Make a bandstructure for all the k-points
+ */
 FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
                                            const bool &withVelocities,
                                            const bool &withEigenvectors,
@@ -246,6 +266,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
+  // divide the k-points into batches
   std::vector<std::vector<int>> ikBatches;
   {
     std::vector<int> ikIterator = fullBandStructure.getWavevectorIndices();
@@ -253,10 +274,12 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
     ikBatches = kokkosDeviceMemory->splitToBatches(ikIterator, batchSize);
   }
 
+  // loop over the batches
   for (auto ikBatch : ikBatches) {
 
     int numK = ikBatch.size();
 
+    // get all the k-points in a batch
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
     {
       auto cartesianWavevectors_h = Kokkos::create_mirror_view(cartesianWavevectors_d);
@@ -272,6 +295,7 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
       Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
     }
 
+    // do all diagonalizations at once with Kokkos
     {
       DoubleView2D allEnergies_d;
       StridedComplexView3D allEigenvectors_d;
@@ -289,11 +313,13 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
       Kokkos::realloc(cartesianWavevectors_d, 0, 0);
 
 
+      // copy results to CPU
       auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
       auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
       Kokkos::deep_copy(allEnergies_h, allEnergies_d);
       Kokkos::deep_copy(allEigenvectors_h, allEigenvectors_d);
 
+      // store the results in the old datastructures
 #pragma omp parallel for
       for (int iik = 0; iik < numK; iik++) {
         int ik = ikBatch[iik];
@@ -341,6 +367,9 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
 }
 
 
+/**
+ * Create and diagonalize Hamiltonians for a batch of k-points, with velocities
+ */
 std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 PhononH0::kokkosBatchedDiagonalizeWithVelocities(
     const DoubleView2D &cartesianCoordinates) {
@@ -353,7 +382,8 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
 
   double delta = 1.0e-8;
 
-  // prepare all the wavevectors at which we need the hamiltonian
+  // prepare all the wavevectors at which we need the hamiltonian,
+  // (kx, ky, kz), (kx+dk, ky, kz), (kx - dk, ky, kz), (kx, ky + dk, kz), etc.
   DoubleView2D allVectors("wavevectors_k", numK * 7, 3);
   Kokkos::parallel_for(
       "elHamiltonianShifted_d", numK, KOKKOS_LAMBDA(int iK) {
@@ -408,7 +438,7 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
 
   //print3DComplex("new = ", resultEigenvectors);
 
-  // these are temporary "scratch" memory spaces
+  // Views for intermediate results
   ComplexView3D der("der", numK, numBands, numBands);
   ComplexView3D tmpV("tmpV", numK, numBands, numBands);
   //ComplexView3D plus("plus", numK, numBands, numBands);
@@ -476,85 +506,6 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
           }
           resultVelocities(iK, m, n, i) = tmp;
         });
-
-    /*
-    {
-      for(int iK = 0; iK < numK; iK++){
-        Eigen::VectorXd energies(numBands);
-        auto e_h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), resultEnergies);
-        Eigen::MatrixXcd velocity(numBands, numBands);
-        auto V_h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), resultVelocities);
-        Kokkos::fence();
-        for(int m = 0; m < numBands; m++){
-          energies(m) = e_h(iK, m);
-          for(int n = 0; n < numBands; n++){
-            velocity(m,n) = V_h(iK, m, n, i);
-          }
-        }
-
-
-        for (int ib = 0; ib < numBands; ib++) {
-          // first, we check if the band is degenerate, and the size of the
-          // degenerate subspace
-          int sizeSubspace = 1;
-          for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
-            // I consider bands degenerate if their frequencies are the same
-            // within 0.0001 cm^-1
-            if (abs(energies(ib) - energies(ib2)) > 0.0001 / ryToCmm1) {
-              break;
-            }
-            sizeSubspace += 1;
-          }
-
-          if (sizeSubspace > 1) {
-            Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
-            // we have to repeat for every direction
-            for (int iCart : {0, 1, 2}) {
-              // take the velocity matrix of the degenerate subspace
-              for (int j = 0; j < sizeSubspace; j++) {
-                for (int i = 0; i < sizeSubspace; i++) {
-                  subMat(i, j) = velocity(ib + i, ib + j);
-                }
-              }
-
-              // reinforce hermiticity
-              subMat = 0.5 * (subMat + subMat.adjoint());
-
-              // diagonalize the subMatrix
-              Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
-              Eigen::MatrixXcd newEigenVectors = eigenSolver.eigenvectors();
-              //newEigenVectors = 3*subMat; // TODO: undo
-
-              // rotate the original matrix in the new basis
-              // that diagonalizes the subspace.
-              subMat = newEigenVectors.adjoint() * subMat * newEigenVectors;
-
-              // reinforce hermiticity
-              subMat = 0.5 * (subMat + subMat.adjoint());
-
-              // substitute back
-              for (int j = 0; j < sizeSubspace; j++) {
-                for (int i = 0; i < sizeSubspace; i++) {
-                  velocity(ib + i, ib + j) = subMat(i, j);
-                }
-              }
-            }
-          }
-
-          // we skip the bands in the subspace, since we corrected them already
-          ib += sizeSubspace - 1;
-        }
-
-        for(int m = 0; m < numBands; m++){
-          for(int n = 0; n < numBands; n++){
-            V_h(iK, m, n, i) = velocity(m,n);
-          }
-        }
-        Kokkos::deep_copy(resultVelocities, V_h);
-      }
-    }
-  */
-
   }
 
   // deallocate the scratch
@@ -563,188 +514,11 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
 
   //print4DComplex("new = ", resultVelocities);
 
+  // deal with velocity issues and degenerate bands
   kokkosBatchedTreatDegenerateVelocities(cartesianCoordinates, resultEnergies,
                                          resultVelocities, 0.0001 / ryToCmm1);
 
   //print4DComplex("new = ", resultVelocities);
-
-//  // the degeneracy diagonalization is a bit tricky.
-//  // in the way it was implemented for the CPU case can't work for GPU
-//  // that's because it's hard to do several diagonalizations on GPU
-//  // (due to the fact that the GPU can't launch kernels by itself)
-//
-//  // ALGO:
-//  // - find all the degrees of degeneracy that have to be run.
-//  // - loop over the degree of degeneracy
-//  //   - set up all sub-matrices of velocities of rank (ndegree)
-//  //   - diagonalize them
-//  //   - rotate velocity elements
-//
-//  // degCount
-//  IntView2D degCount("tmpV", numK, numBands);
-//  // maxDegeneracy is the largest degenerate block of energies
-//  int maxDegeneracy = 1;
-//  // here I do two things: find the maxDegeneracy for the current system
-//  // and set degCount such that, degCount(ik,ib) = 0 if it is a state that is
-//  // not the starting point of a degenerate block, or degCount(ik,ib) = iDeg
-//  // if ik,ib is at the start of a block iDegxiDeg that needs to be
-//  // diagonalized, with iDeg >= 2
-//  Kokkos::parallel_reduce(
-//      "Loop1", numK,
-//      KOKKOS_LAMBDA(const int &iK, int &iDeg) {
-//        for (int ib = 0; ib < numBands; ib++) {
-//          // first, we check if the band is degenerate, and the size of the
-//          // degenerate subspace
-//          int sizeSubspace = 1;
-//          for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
-//            // I consider bands degenerate if their frequencies are the same
-//            // within 0.0001 cm^-1
-//            if (abs(resultEnergies(iK, ib) - resultEnergies(iK, ib2)) > threshold) {
-//              break;
-//            }
-//            ++sizeSubspace;
-//          }
-//
-//          if (sizeSubspace > iDeg) {
-//            iDeg = sizeSubspace; // iDeg = std::max(iDeg, sizeSubspace);
-//          }
-//          if (sizeSubspace == 1) {
-//            degCount(iK, ib) = 0;
-//          } else {
-//            degCount(iK, ib) = sizeSubspace;
-//            for (int i=1; i<sizeSubspace; ++i) {
-//              degCount(iK, ib+i) = 0;
-//            }
-//          }
-//
-//          // we skip the bands in the subspace, since we corrected them already
-//          ib += sizeSubspace - 1;
-//        }
-//      },
-//      Kokkos::Max<int>(maxDegeneracy));
-//
-//  // we now do a diagonalization of all degenerate velocity sub-blocks
-//  // since cuda can only launch the diagonalization of N matrices at fixed
-//  // matrix size, we now do a loop over the degree of degeneracy
-//  for (int iDeg = 2; iDeg<=maxDegeneracy; ++iDeg) {
-//
-//    // count how many degenerate points we have at this degree of degeneracy
-//    int numMatrices = 0;
-//    Kokkos::parallel_reduce("Loop1", numK,
-//        KOKKOS_LAMBDA(const int &iK, int &iMat) {
-//          for (int ib = 0; ib < numBands; ib++) {
-//            if (degCount(iK, ib) == iDeg) {
-//              ++iMat;
-//            }
-//          }
-//        }, numMatrices);
-//
-//    /**
-//     * The next part is a bit convoluted because it's tricky to do in parallel
-//     * We want to build N matrices of size iDegxiDeg containing the velocity
-//     * degenerate blocks.
-//     * To this aim, we need two functions funcK, funcB. Such that funcK(iMat),
-//     * funcB(iMat) return the iK and ib index locating the start of the block
-//     * that will be diagonalized by the iMat-th matrix
-//     *
-//     * We take advantage of an exclusive scan. Say we have a vector
-//     * 0 0 0 1 0 0 0 0 1;
-//     * which spans the bloch states, and 1 locates the beginning of a block
-//     * of size iDeg that we want to diagonalize. The indices locating the "1",
-//     * i.e. [3, 8], are given by an exclusive scan:
-//     * 0 0 0 0 1 1 1 1 1 2
-//     * So, scan(ik,ib) = iMat. And from this, I can do the inverse mapping.
-//     */
-//
-//    IntView1D scan("scan", numK*numBands);
-//    Kokkos::parallel_for(
-//        Range2D({0,0},{numK, numBands}), KOKKOS_LAMBDA(int ik, int ib) {
-//          if ( iDeg == degCount(ik,ib) ) {
-//            scan(ik*numBands+ib) = 1;
-//          } else {
-//            scan(ik*numBands+ib) = 0;
-//          }
-//        });
-//
-//    Kokkos::parallel_scan("scan", numK*numBands, KOKKOS_LAMBDA(const int i,
-//                                               int& update, const bool final) {
-//          // Load old value in case we update it before accumulating
-//          const int val_i = scan(i);
-//          if (final) {
-//            scan(i) = update; // only update array on final pass
-//          }
-//          // For exclusive scan, change the update value after
-//          // updating array, like we do here. For inclusive scan,
-//          // change the update value before updating array.
-//          update += val_i;
-//        });
-//
-//    IntView1D funcK("funcK", numMatrices);
-//    IntView1D funcB("funcB", numMatrices);
-//    Kokkos::parallel_for(
-//        "funcKB", Range2D({0,0},{numK, numBands}), KOKKOS_LAMBDA(int ik, int ib) {
-//          int ikb = ik*numBands + ib;
-//          int iMat = scan(ikb);
-//          if (degCount(ik, ib) == iDeg) { // if we actually had a 1
-//            // the if is needed to avoid race conditions in funcK/funcB
-//            funcK(iMat) = ik;
-//            funcB(iMat) = ib;
-//          }
-//        });
-//    Kokkos::resize(scan, 0);
-//
-//    // now, I copy the degenerate blocks of the velocity operator in a scratch
-//    // memory space "subVelocity".
-//    ComplexView3D subVelocity("subVel", 3*numMatrices, iDeg, iDeg);
-//    Kokkos::parallel_for(
-//        "vel", Range3D({0, 0, 0}, {3*numMatrices, iDeg, iDeg}),
-//        KOKKOS_LAMBDA(int iMatCart, int i, int j) {
-//          int iMat = iMatCart / 3;
-//          int iCart = iMatCart % 3;
-//          int iK = funcK(iMat);
-//          int ib = funcB(iMat);
-//          subVelocity(iMatCart, i, j) = 0.5
-//              * (resultVelocities(iK, ib + i, ib + j, iCart)
-//                 + Kokkos::conj(resultVelocities(iK, ib + j, ib + i, iCart)));
-//        });
-//
-//    // now diagonalize the blocks
-//    ComplexView3D newEigenvectors("newEig", 3*numMatrices, iDeg, iDeg);
-//    Kokkos::deep_copy(newEigenvectors, subVelocity);
-//    // I don't need the eigenvalues, but I need the allocation to run zheev
-//    DoubleView2D newEigenvalues("newEigv", 3*numMatrices, iDeg);
-//    kokkosZHEEV(newEigenvectors, newEigenvalues);
-//    Kokkos::realloc(newEigenvalues, 0, 0);
-//
-//    // rotate the original matrix in the new basis
-//    // that diagonalizes the subspace.
-//    // subMat = newEigenvectors.adjoint() * subMat * newEigenvectors;
-//    ComplexView3D tmpSubMat("tmpSubMat", 3*numMatrices, iDeg, iDeg);
-//    Kokkos::parallel_for(
-//        "vel", Range3D({0, 0, 0}, {3*numMatrices, iDeg, iDeg}),
-//        KOKKOS_LAMBDA(int iMatCart, int i, int j) {
-//          Kokkos::complex<double> tmp(0., 0.);
-//          for (int k = 0; k < iDeg; k++) {
-//            tmp += Kokkos::conj(newEigenvectors(iMatCart, k, i)) * subVelocity(iMatCart, k, j);
-//          }
-//          tmpSubMat(iMatCart, i, j) = tmp;
-//        });
-//
-//    // finish the rotation and substitute back in the final results
-//    Kokkos::parallel_for(
-//        "vel", Range3D({0, 0, 0}, {3*numMatrices, iDeg, iDeg}),
-//        KOKKOS_LAMBDA(int iMatCart, int i, int j) {
-//          int iMat = iMatCart / 3;
-//          int iCart = iMatCart % 3;
-//          int iK = funcK(iMat);
-//          int ib = funcB(iMat);
-//          Kokkos::complex<double> tmp = zero;
-//          for (int k = 0; k < iDeg; ++k) {
-//            tmp += tmpSubMat(iMatCart, i, k) * newEigenvectors(iMatCart, k, j);
-//          }
-//          resultVelocities(iK, ib + i, ib + j, iCart) = tmp;
-//        });
-//  }
 
 // TODO: this is the only difference from the ElectronH0 kokkosPopulate()
 // can we unify the two?
