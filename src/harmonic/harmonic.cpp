@@ -61,6 +61,7 @@ void HarmonicHamiltonian::kokkosBatchedTreatDegenerateVelocities(
 
           // we skip the bands in the subspace, since we corrected them already
           ib += sizeSubspace - 1;
+          //printf("%d\n", sizeSubspace);
         }
       },
       Kokkos::Max<int>(maxDegeneracy));

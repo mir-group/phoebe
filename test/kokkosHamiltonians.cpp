@@ -1,6 +1,7 @@
 #include "points.h"
 #include "qe_input_parser.h"
 #include "gtest/gtest.h"
+#include "test_utils.h"
 
 /** Here I estimate the mass at the top of the valence band of silicon
  */
@@ -94,7 +95,9 @@ TEST(Kokkos, Wannier1) {
   // the two masses should be similar
   ASSERT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
 
-  ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  //ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  EXPECT_NEAR((mat_vec_mat_adj(eigenvectors1, ens1, numBands)
+               - mat_vec_mat_adj(eigenvectors2, ens2, numBands)).norm(), 0, 1e-4);
 
   {
     double norm = 0.;
@@ -212,19 +215,23 @@ TEST(Kokkos, Wannier2) {
   }
 
   // the two masses should be similar
-  ASSERT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
+  ASSERT_NEAR((ens1 - ens2).norm()/ens1.norm(), 0., 1e-12);
 
-  ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  //ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  auto evres1 = mat_vec_mat_adj(eigenvectors1, ens1, numBands);
+  auto evres2 = mat_vec_mat_adj(eigenvectors2, ens2, numBands);
+  EXPECT_NEAR((evres1 - evres2).norm()/evres2.norm(), 0, 1e-14);
 
-  double norm = 0.;
+  double norm = 0., norm1=0.;
   for (int ib1 = 0; ib1 < numBands; ++ib1) {
     for (int ib2 = 0; ib2 < numBands; ++ib2) {
       for (int i = 0; i < 3; ++i) {
-        norm += abs(velocity1(ib1, ib2, i) - velocity2(ib1, ib2, i));
+        norm += abs(velocity1(ib1, ib1, i).real() - velocity2(ib1, ib1, i).real());
+        norm1 += abs(velocity1(ib1, ib1, i).real());
       }
     }
   }
-  ASSERT_NEAR(norm, 0., 0.00001);
+  ASSERT_NEAR(norm/norm1, 0., 0.00001);
 }
 
 TEST(Kokkos, Wannier3) {
@@ -318,14 +325,17 @@ TEST(Kokkos, Wannier3) {
   // the two masses should be similar
   ASSERT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
 
-  ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  //ASSERT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  auto evres1 = mat_vec_mat_adj(eigenvectors1, ens1, numBands);
+  auto evres2 = mat_vec_mat_adj(eigenvectors2, ens2, numBands);
+  EXPECT_NEAR((evres1 - evres2).norm()/evres2.norm(), 0, 1e-14);
 
   {
     double norm = 0.;
     for (int ib1 = 0; ib1 < numBands; ++ib1) {
       for (int ib2 = 0; ib2 < numBands; ++ib2) {
         for (int i = 0; i < 3; ++i) {
-          norm += abs(velocity1(ib1, ib2, i) - velocity2(ib1, ib2, i));
+          norm += abs(velocity1(ib1, ib1, i).real() - velocity2(ib1, ib1, i).real());
         }
       }
     }
@@ -423,15 +433,19 @@ TEST(Kokkos, PhononH0) {
   // the two masses should be similar
   EXPECT_NEAR((ens1 - ens2).norm(), 0., 0.00001);
 
-  EXPECT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  //EXPECT_NEAR((eigenvectors1 - eigenvectors2).norm(), 0., 0.0001);
+  auto evres1 = mat_vec_mat_adj(eigenvectors1, ens1, numBands);
+  auto evres2 = mat_vec_mat_adj(eigenvectors2, ens2, numBands);
+  EXPECT_NEAR((evres1 - evres2).norm()/evres2.norm(), 0, 1e-14);
 
-  double norm = 0.;
+  double norm = 0., norm1=0;
   for (int ib1 = 0; ib1 < numBands; ++ib1) {
     for (int ib2 = 0; ib2 < numBands; ++ib2) {
       for (int i = 0; i < 3; ++i) {
-        norm += abs(velocity1(ib1, ib2, i) - velocity2(ib1, ib2, i));
+        norm += abs(velocity1(ib1, ib1, i).real() - velocity2(ib1, ib1, i).real());
+        norm1 += abs(velocity1(ib1, ib1, i).real());
       }
     }
   }
-  EXPECT_NEAR(norm, 0., 0.00001);
+  EXPECT_NEAR(norm, 0.0, 1e-7);
 }

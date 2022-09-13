@@ -288,9 +288,6 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
       }
       Kokkos::realloc(cartesianWavevectors_d, 0, 0);
 
-      // TODO: this is the only difference from the ElectronH0 kokkosPopulate()
-      // can we unify the two?
-      kokkosBatchedScaleEigenvectors(allEigenvectors_d);
 
       auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
       auto allEigenvectors_h = Kokkos::create_mirror_view(allEigenvectors_d);
@@ -382,6 +379,8 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
   DoubleView2D allEnergies = std::get<0>(t);
   StridedComplexView3D allEigenvectors = std::get<1>(t);
 
+    //print2D("new = ", allEnergies);
+
   int numBands = allEnergies.extent(1);
 
   //print2D("new = ", allEnergies);
@@ -406,6 +405,8 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
           resultEigenvectors(iK, m, n) = X(m, n);
         }
       });
+
+  //print3DComplex("new = ", resultEigenvectors);
 
   // these are temporary "scratch" memory spaces
   ComplexView3D der("der", numK, numBands, numBands);
@@ -439,6 +440,7 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
           //minus(iK,m,n) = pm;
         });
     Kokkos::fence();
+    //print2D("new = ", resultEnergies);
     //print3DComplex("new = ", der);
     //print3DComplex("new = ", plus);
     //print3DComplex("new = ", minus);
@@ -474,6 +476,85 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
           }
           resultVelocities(iK, m, n, i) = tmp;
         });
+
+    /*
+    {
+      for(int iK = 0; iK < numK; iK++){
+        Eigen::VectorXd energies(numBands);
+        auto e_h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), resultEnergies);
+        Eigen::MatrixXcd velocity(numBands, numBands);
+        auto V_h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), resultVelocities);
+        Kokkos::fence();
+        for(int m = 0; m < numBands; m++){
+          energies(m) = e_h(iK, m);
+          for(int n = 0; n < numBands; n++){
+            velocity(m,n) = V_h(iK, m, n, i);
+          }
+        }
+
+
+        for (int ib = 0; ib < numBands; ib++) {
+          // first, we check if the band is degenerate, and the size of the
+          // degenerate subspace
+          int sizeSubspace = 1;
+          for (int ib2 = ib + 1; ib2 < numBands; ib2++) {
+            // I consider bands degenerate if their frequencies are the same
+            // within 0.0001 cm^-1
+            if (abs(energies(ib) - energies(ib2)) > 0.0001 / ryToCmm1) {
+              break;
+            }
+            sizeSubspace += 1;
+          }
+
+          if (sizeSubspace > 1) {
+            Eigen::MatrixXcd subMat(sizeSubspace, sizeSubspace);
+            // we have to repeat for every direction
+            for (int iCart : {0, 1, 2}) {
+              // take the velocity matrix of the degenerate subspace
+              for (int j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                  subMat(i, j) = velocity(ib + i, ib + j);
+                }
+              }
+
+              // reinforce hermiticity
+              subMat = 0.5 * (subMat + subMat.adjoint());
+
+              // diagonalize the subMatrix
+              Eigen::SelfAdjointEigenSolver<Eigen::MatrixXcd> eigenSolver(subMat);
+              Eigen::MatrixXcd newEigenVectors = eigenSolver.eigenvectors();
+              //newEigenVectors = 3*subMat; // TODO: undo
+
+              // rotate the original matrix in the new basis
+              // that diagonalizes the subspace.
+              subMat = newEigenVectors.adjoint() * subMat * newEigenVectors;
+
+              // reinforce hermiticity
+              subMat = 0.5 * (subMat + subMat.adjoint());
+
+              // substitute back
+              for (int j = 0; j < sizeSubspace; j++) {
+                for (int i = 0; i < sizeSubspace; i++) {
+                  velocity(ib + i, ib + j) = subMat(i, j);
+                }
+              }
+            }
+          }
+
+          // we skip the bands in the subspace, since we corrected them already
+          ib += sizeSubspace - 1;
+        }
+
+        for(int m = 0; m < numBands; m++){
+          for(int n = 0; n < numBands; n++){
+            V_h(iK, m, n, i) = velocity(m,n);
+          }
+        }
+        Kokkos::deep_copy(resultVelocities, V_h);
+      }
+    }
+  */
+
   }
 
   // deallocate the scratch
@@ -665,6 +746,9 @@ PhononH0::kokkosBatchedDiagonalizeWithVelocities(
 //        });
 //  }
 
+// TODO: this is the only difference from the ElectronH0 kokkosPopulate()
+// can we unify the two?
+  kokkosBatchedScaleEigenvectors(resultEigenvectors);
   return std::make_tuple(resultEnergies, resultEigenvectors, resultVelocities);
 }
 

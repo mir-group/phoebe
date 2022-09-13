@@ -65,7 +65,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       }
     }
 #ifdef KOKKOS_ENABLE_CUDA
-    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-8);
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-7);
 #else
     ASSERT_NEAR(c1, 0., 1.e-16);
 #endif
@@ -85,7 +85,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       }
     }
 #ifdef KOKKOS_ENABLE_CUDA
-    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-15);
 #else
     ASSERT_NEAR(c2, 0., 1.e-16);
 #endif
@@ -112,7 +112,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       }
     }
 #ifdef KOKKOS_ENABLE_CUDA
-    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-15);
 #else
     ASSERT_NEAR(c2, 0., 1e-16);
 #endif
@@ -131,7 +131,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       }
     }
 #ifdef KOKKOS_ENABLE_CUDA
-    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-15);
 #else
     ASSERT_NEAR(c2, 0., 1e-16);
 #endif
@@ -152,7 +152,7 @@ TEST(FullBandStructureTest, BandStructureStorage) {
       }
     }
 #ifdef KOKKOS_ENABLE_CUDA
-    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-16);
+    ASSERT_NEAR(std::abs(norm-normT)/norm, 0.0, 1e-15);
 #else
     ASSERT_NEAR(c2, 0., 1e-16);
 #endif
