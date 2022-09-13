@@ -260,7 +260,18 @@ VectorBTE VectorBTE::sqrt() {
 
 VectorBTE VectorBTE::reciprocal() {
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
-  newPopulation.data << 1. / this->data.array();
+  #pragma omp parallel for
+  for (int iBte = 0; iBte < numStates; iBte++) {
+    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
+      for (int iDim = 0; iDim < dimensionality; iDim++) {
+        // if the linewidth is somehow zero, we should leave the recip value as
+        // zero so that we don't count these states.
+        if( VectorBTE::operator()(iCalc, iDim, iBte) != 0.) {
+          newPopulation(iCalc, iDim, iBte) = 1./VectorBTE::operator()(iCalc, iDim, iBte);
+        }
+      }
+    }
+  }
   return newPopulation;
 }
 

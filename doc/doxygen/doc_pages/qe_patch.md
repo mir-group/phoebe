@@ -9,7 +9,8 @@ This repository is a fork from the official QE repository.
 To develop a new patch or update it to the latest QE version, remember to pull from the remote quantum espresso repository.
 For the first Phoebe release, we only patched the latest QE 6.6 version, although a retrofit should be doable.
 
-** Files changed **
+**Files changed**
+
 For the `pw.x` part of the code, we modified the file `PW/src/c_bands.f90`.
 There are several subroutines in this file.
 
@@ -42,7 +43,18 @@ Two of these are easy:
 **Code modifications**
 
 First, download the repository phoebe-quantum-espresso from the MIR github page.
-If necessary, you may need to pull from the official quantum-espresso repository into our fork.
+Most likely, you need to pull from the official quantum-espresso repository into our fork.
+To this aim, remember to also pull the tags from the official QE repository doing this:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~{.c}
+cd path/to/fork
+git checkout master
+git remote add upstream https://github.com/QEF/q-e
+git fetch --tags upstream
+git push -f --tags origin master
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
 Checkout the branch with the version of QE that we want to patch, for example, v6.6 is stored in the branch `qe-6.6`.
 Create a new branch from `qe-6.6`, which we call `patched-qe-6.6`, and modify the source code with the lines of code needed by phoebe.
 Alternatively, you may create the new branch `patched-qe-6.6` from an older patched branch, e.g. `patched-qe-6.5`, and pull the new commits of `qe-6.6` into `patched-qe-6.6`.
