@@ -169,17 +169,15 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       if (line.find("lattice:") != std::string::npos) {
         ilatt = 0;
       }
+      // this signals we are done reading primitive cell info
+      if (line.empty() ) {
+        break;
+      }
     }
-    if (line.find("primitive_cell:") != std::string::npos) {
+    if (line.find("unit_cell:") != std::string::npos) {
       foundUnitCell = true; // need to read unit cell, as this is the one really used by phonopy
     }
-    // this signals we are done reading primitive cell info
-    if (line.find("reciprocal_lattice:") != std::string::npos) {
-      break;
-    }
   }
-
-  if(mpi->mpiHead()) std::cout << directUnitCell << std::endl;
 
   // read the rest of the file to get FC2 superCell positions
   // --------------------------------------------------------
@@ -190,7 +188,6 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   while (infile) {
 
     getline(infile, line);
-    if(mpi->mpiHead()) std::cout << line << std::endl;
 
     // read all the lines after we see the flag for the supercell
     if (line.find(supercellSearchString) != std::string::npos) {
@@ -217,7 +214,6 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       ilatt = 0;
     }
   }
-  std::cout << supLattice << std::endl;
   infile.close();
 
   // number of atoms in the supercell for later use
