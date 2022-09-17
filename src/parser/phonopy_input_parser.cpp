@@ -80,6 +80,15 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         std::getline(infile, line);
         std::vector<std::string> tok = tokenize(line);
         qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
       }
       supercellSearchString = "phonon_supercell:";
       break;
@@ -91,14 +100,20 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         std::getline(infile, line);
         std::vector<std::string> tok = tokenize(line);
         qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
       }
     }
   }
   infile.clear();
   infile.seekg(0);
-
-  if(mpi->mpiHead())
-    std::cout << "Found supercell with dims: " << qCoarseGrid.transpose() << std::endl;
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
     Error("Phonon super cell dims read as 0 or less.\n"
