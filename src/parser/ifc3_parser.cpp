@@ -389,7 +389,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // https://phonopy.github.io/phono3py/output-files.html#fc3-hdf5
 
   // the information we need outside the ifcs3 is in a file called
-  // disp_fc3.yaml, which contains the atomic positions of the
+  // phono3py_disp.yaml, which contains the atomic positions of the
   // superCell and the displacements of the atoms
   // The mapping between the superCell and unit cell atoms is
   // set up so that the first nAtoms*dimSup of the superCell are unit cell
@@ -398,7 +398,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // First, get num atoms from the crystal
   int numAtoms = crystal.getNumAtoms();
 
-  // Open disp_fc3 file, read superCell positions, nSupAtoms
+  // Open phonopy_disp file, read superCell positions, nSupAtoms
   // ==========================================================
   auto fileName = context.getPhonopyDispFileName();
   std::ifstream infile(fileName);
@@ -420,16 +420,27 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   Eigen::Vector3i qCoarseGrid;
   while (infile) {
     std::getline(infile, line);
-    if (line.find("dim:") != std::string::npos) {
-      std::vector<std::string> tok = tokenize(line);
-      //std::istringstream iss(temp);
-      //iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
-      qCoarseGrid(0) = std::stoi(tok[1]);
-      qCoarseGrid(1) = std::stoi(tok[2]);
-      qCoarseGrid(2) = std::stoi(tok[3]);
-      break;
+    // this comes up first in the file, so if a different harmonic dim is present,
+    // we'll overwrite it
+    if (line.find("supercell_matrix:") != std::string::npos) {
+      for(int i : {0, 1, 2}) {
+        std::getline(infile, line);
+        std::vector<std::string> tok = tokenize(line);
+        qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
+      }
     }
   }
+  infile.clear();
+  infile.seekg(0);
 
   // First, we open the phonopyDispFileName to check the distance units.
   // Phono3py uses Bohr for QE calculations and Angstrom for VASP
@@ -448,13 +459,12 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   // read the rest of the file to look for superCell positions
   std::vector<std::vector<double>> supPositionsVec;
-  Eigen::MatrixXd lattice(3, 3);
+  Eigen::MatrixXd lattice(3, 3); lattice.setZero();
   int ilatt = 3;
   bool readSupercell = false;
   while (infile) {
 
     getline(infile, line);
-
     // we dont want to read the positions after phonon_supercell_matrix,
     // so we break here
     if(line.find("phonon_supercell_matrix") != std::string::npos) {
