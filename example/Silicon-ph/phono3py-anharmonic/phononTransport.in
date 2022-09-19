@@ -1,0 +1,20 @@
+appName = "phononTransport"
+
+phFC2FileName = "fc2.hdf5"
+phFC3FileName = "fc3.hdf5"
+phonopyDispFileName = "phono3py_disp.yaml"
+
+sumRuleFC2 = "simple"
+
+qMesh = [6,6,6]
+temperatures = [300.]
+
+smearingMethod = "gaussian"
+smearingWidth = 10. cmm1
+
+solverBTE = ["iterative", "variational","relaxons"]
+scatteringMatrixInMemory = true
+
+boundaryLength = 1. mum
+
+windowType = "population"
