@@ -90,7 +90,7 @@ void IO::goodbye(Context &context) {
         << "in relation to this calculation:\n" << std::endl;
 
   // Phoebe citation
-  std::cout << "\tPhoebe: a high-performance framework for solving phonon and electron"
+  std::cout << "\tPhoebe: a high-performance framework for solving \n\tphonon and electron "
                "Boltzmann transport equations.\n"
 	    << "\tA. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.\n"
       << "\thttps://doi.org/10.1088/2515-7639/ac86f6\n" << std::endl;
