@@ -467,7 +467,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
     getline(infile, line);
     // we dont want to read the positions after phonon_supercell_matrix,
     // so we break here
-    if(line.find("phonon_supercell_matrix") != std::string::npos) {
+    if(line.find("phonon") != std::string::npos) {
       break;
     }
     // read all the lines after we see the flag for the supercell
@@ -507,9 +507,10 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // check that this matches the ifc2 atoms
   int numAtomsCheck = numSupAtoms/
         (qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2]);
+
   if (numAtomsCheck != numAtoms) {
     Error("IFC3s seem to come from a cell with a different number\n"
-        "of atoms than the IFC2s. Check your inputs."
+        "of atoms than the IFC2s. Check your inputs. "
         "FC2 atoms: " + std::to_string(numAtoms) +
         " FC3 atoms: " + std::to_string(numAtomsCheck));
   }
