@@ -1,8 +1,9 @@
 appName = "phononLifetimes"
 
-phFC2FileName = "qe-phonons/silicon.fc",
 sumRuleFC2 = "simple"
-phFC3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
+phFC2FileName = "fc2.hdf5"
+phFC3FileName = "fc3.hdf5"
+phonopyDispFileName = "phono3py_disp.yaml"
 
 qMesh = [10,10,10]
 temperatures = [600.]
