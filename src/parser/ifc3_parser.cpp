@@ -437,6 +437,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
           }
         }
       }
+      break;
     }
   }
   infile.clear();
@@ -456,6 +457,8 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       break;
     }
   }
+  infile.clear();
+  infile.seekg(0);
 
   // read the rest of the file to look for superCell positions
   std::vector<std::vector<double>> supPositionsVec;
@@ -477,7 +480,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       readSupercell = true;
     }
     // if this is a cell position, save it
-    if (line.find("coordinates: ") != std::string::npos && readSupercell) {
+    if (line.find("coordinates:") != std::string::npos && readSupercell) {
       std::vector<double> position = {0.,0.,0.};
       std::vector<std::string> tok = tokenize(line);
       position[0] = std::stod(tok[2]);
