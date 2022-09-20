@@ -6,7 +6,8 @@
 #include "eigen.h"
 #include "exceptions.h"
 
-void PhononH0::setAcousticSumRule(const std::string &sumRule) {
+void PhononH0::setAcousticSumRule(const std::string &sumRule,
+                                  Eigen::Tensor<double, 7>& forceConstants) {
   //  VectorXi u_less(6*3*numAtoms)
   //  indices of the vectors u that are not independent to the preceding ones
   //  n_less = number of such vectors

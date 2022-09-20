@@ -93,7 +93,7 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
-    ${CMAKE_CURRENT_BINARY_DIR}/json_src/include
+    ${CMAKE_CURRENT_BINARY_DIR}/json_src/single_include
     ${CMAKE_CURRENT_BINARY_DIR}/highfive_src/include
 )
 
