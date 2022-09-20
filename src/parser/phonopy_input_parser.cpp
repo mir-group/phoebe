@@ -68,32 +68,52 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // to allocate the below data storage, and decide how we should look
   // for supercell information.
   // --------------------------------------------------------
-  Eigen::Vector3i qCoarseGrid;
+  Eigen::Vector3i qCoarseGrid = {0,0,0};
   std::string supercellSearchString = "supercell:";
   while (std::getline(infile, line)) {
 
     // In the case where force constants where generated with different
     // superCells for fc2 and fc3, the label we need is dim_fc2.
     // Otherwise, if both are the same, it's just dim.
-    if (line.find("dim_fc2: ") != std::string::npos) {
-      std::string temp =
-          line.substr(line.find('\"') + 1, line.find("\"\n") - 3);
-      std::istringstream iss(temp);
-      iss >> qCoarseGrid[0] >> qCoarseGrid[1] >> qCoarseGrid[2];
+    if (line.find("phonon_supercell_matrix:") != std::string::npos) {
+      for(int i : {0, 1, 2}) {
+        std::getline(infile, line);
+        std::vector<std::string> tok = tokenize(line);
+        qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
+      }
       supercellSearchString = "phonon_supercell:";
       break;
     }
-    // this comes up first in the file, so if dim_fc2 is present, we'll
-    // overwrite it
-    if (line.find("dim: ") != std::string::npos) {
-      std::string temp = line.substr(10, 5);
-      std::istringstream iss(temp);
-      iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
+    // this comes up first in the file, so if a different harmonic dim is present,
+    // we'll overwrite it
+    if (line.find("supercell_matrix:") != std::string::npos) {
+      for(int i : {0, 1, 2}) {
+        std::getline(infile, line);
+        std::vector<std::string> tok = tokenize(line);
+        qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
+      }
     }
-    // pause reading here
-    if (line.find("physical_unit:") != std::string::npos)
-      break;
   }
+  infile.clear();
+  infile.seekg(0);
 
   if (qCoarseGrid(0) <= 0 || qCoarseGrid(1) <= 0 || qCoarseGrid(2) <= 0) {
     Error("Phonon super cell dims read as 0 or less.\n"
@@ -108,6 +128,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   std::vector<int> atomicSpeciesVec;
   std::vector<std::string> speciesNames;
   PeriodicTable pt;
+  bool foundUnitCell = false;
 
   int ilatt = 3;
   // Note: watch out, this is reading the primitive cell from phono3py.
@@ -118,7 +139,6 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
   // below.
   while (infile) {
     getline(infile, line);
-
     // distance unit changes based on dft solver used
     if (line.find("length") != std::string::npos) {
       if (line.find("au") != std::string::npos) {
@@ -126,46 +146,51 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       }
     }
 
-    // if this line has a species, save it
-    if (line.find(" symbol: ") != std::string::npos) {
-      std::string temp =
-          line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
-      // remove any trailing whitespaces
-      temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
-                 temp.end());
-      if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
-          speciesNames.end()) {
-        speciesNames.push_back(temp);
+    if(foundUnitCell) {
+      // if this line has a species, save it
+      if (line.find(" symbol: ") != std::string::npos) {
+        std::string temp =
+            line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
+        // remove any trailing whitespaces
+        temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
+                   temp.end());
+        if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
+            speciesNames.end()) {
+          speciesNames.push_back(temp);
 
+        }
+        // save the atom number of this species
+        atomicSpeciesVec.push_back(
+            std::find(speciesNames.begin(), speciesNames.end(), temp) -
+            speciesNames.begin());
       }
-      // save the atom number of this species
-      atomicSpeciesVec.push_back(
-          std::find(speciesNames.begin(), speciesNames.end(), temp) -
-          speciesNames.begin());
+      // if this is a cell position, save it
+      if (line.find("coordinates: ") != std::string::npos) {
+        std::vector<double> position(3);
+        std::vector<std::string> tok = tokenize(line);
+        position[0] = std::stod(tok[2]);
+        position[1] = std::stod(tok[3]);
+        position[2] = std::stod(tok[4]);
+        atomicPositionsVec.push_back(position);
+      }
+      // parse lattice vectors
+      if (ilatt < 3) {                         // count down lattice lines
+        std::vector<std::string> tok = tokenize(line);
+        directUnitCell(ilatt, 0) = std::stod(tok[2]);
+        directUnitCell(ilatt, 1) = std::stod(tok[3]);
+        directUnitCell(ilatt, 2) = std::stod(tok[4]);
+        ilatt++;
+      }
+      if (line.find("lattice:") != std::string::npos) {
+        ilatt = 0;
+      }
+      // this signals we are done reading primitive cell info
+      if (line.empty() ) {
+        break;
+      }
     }
-    // if this is a cell position, save it
-    if (line.find("coordinates: ") != std::string::npos) {
-      std::vector<double> position(3);
-      std::vector<std::string> tok = tokenize(line);
-      position[0] = std::stod(tok[2]);
-      position[1] = std::stod(tok[3]);
-      position[2] = std::stod(tok[4]);
-      atomicPositionsVec.push_back(position);
-    }
-    // parse lattice vectors
-    if (ilatt < 3) {                         // count down lattice lines
-      std::vector<std::string> tok = tokenize(line);
-      directUnitCell(ilatt, 0) = std::stod(tok[2]);
-      directUnitCell(ilatt, 1) = std::stod(tok[3]);
-      directUnitCell(ilatt, 2) = std::stod(tok[4]);
-      ilatt++;
-    }
-    if (line.find("lattice:") != std::string::npos) {
-      ilatt = 0;
-    }
-    // this signals we are done reading primitive cell info
-    if (line.find("reciprocal_lattice:") != std::string::npos) {
-      break;
+    if (line.find("unit_cell:") != std::string::npos) {
+      foundUnitCell = true; // need to read unit cell, as this is the one really used by phonopy
     }
   }
 
@@ -323,11 +348,9 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     for(auto at : atomicSpeciesVec) {
       // if lastAtom! = this atom, this atom is the first of a new species
       counter += 1; // phonopy indexes from 1
-      if(mpi->mpiHead()) std::cout << "at "<< at << std::endl;
       if(lastAtom != at) {
         becList.push_back(counter);
         lastAtom = at;
-        if(mpi->mpiHead()) std::cout << "lastAtom "<< counter << std::endl;
       }
     }
 
