@@ -222,6 +222,12 @@ TEST(Interaction3Ph, Coupling3Ph210) {
                                               nb2, nb3Pluss_e, nb3Minss_e);
   auto couplingPlus = std::get<0>(tup4)[0];
   auto couplingMins = std::get<1>(tup4)[0];
+  ScatteringMatrix::symmetrizeCoupling(
+      couplingPlus, energies1, energies2, energies3
+  );
+  ScatteringMatrix::symmetrizeCoupling(
+      couplingMins, energies1, energies2, energies3
+  );
 
   //  for (int i = 0; i < numBands; i++) {
   //    for (int j = 0; j < numBands; j++) {
@@ -322,9 +328,16 @@ TEST(Interaction3Ph, Coupling3Ph210) {
   auto couplingPlus2 = std::get<0>(tup6)[0];
   auto couplingMins2 = std::get<1>(tup6)[0];
 
+  ScatteringMatrix::symmetrizeCoupling(
+      couplingPlus2, en1, en2, en3Plus
+  );
+  ScatteringMatrix::symmetrizeCoupling(
+      couplingMins2, en1, en2, en3Mins
+  );
+
   x1 = 0.;
   x2 = 0.;
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 3; i++) {
     for (int j = 0; j < numBands; j++) {
       for (int k = 0; k < numBands; k++) {
         x1 += pow(couplingPlus(i, j, k) - couplingPlus2(i, j, k), 2);

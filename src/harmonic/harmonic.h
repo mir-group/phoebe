@@ -4,6 +4,7 @@
 #include "bandstructure.h"
 #include "particle.h"
 #include "points.h"
+#include "common_kokkos.h"
 
 /** Virtual base class for Harmonic Hamiltonian.
  * The subclasses of this base class are the objects responsible for storing
@@ -73,9 +74,30 @@ class HarmonicHamiltonian {
    * least the quasiparticle energies and, optionally, velocities and
    * eigenvectors.
    */
-  virtual FullBandStructure populate(Points &fullPoints, bool &withVelocities,
-                                     bool &withEigenvectors,
-                                     bool isDistributed = false) = 0;
+  virtual FullBandStructure populate(Points &fullPoints, const bool &withVelocities,
+                                     const bool &withEigenvectors,
+                                     const bool isDistributed = false) = 0;
+  virtual std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
+      kokkosBatchedDiagonalizeWithVelocities(
+      const DoubleView2D &cartesianCoordinates) = 0;
+  void kokkosBatchedTreatDegenerateVelocities(
+      const DoubleView2D& cartesianCoordinates,
+      const DoubleView2D& resultEnergies, ComplexView4D& resultVelocities,
+      const double& threshold);
+  virtual StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
+      const DoubleView2D &cartesianCoordinates) = 0;
+  virtual std::tuple<DoubleView2D, StridedComplexView3D>
+  kokkosBatchedDiagonalizeFromCoordinates(
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) = 0;
+
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  virtual int estimateBatchSize(const bool& withVelocity) {return 1;};
 };
 
 #endif

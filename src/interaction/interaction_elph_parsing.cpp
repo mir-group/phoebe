@@ -268,6 +268,7 @@ std::tuple<int, int, int, Eigen::MatrixXd, Eigen::MatrixXd, std::vector<size_t>,
 // specific parse function for the case where parallel HDF5 is available
 InteractionElPhWan parseHDF5V1(Context &context, Crystal &crystal,
                                PhononH0 *phononH0_) {
+  Kokkos::Profiling::pushRegion("parseHDF5V1");
 
   std::string fileName = context.getElphFileName();
 
@@ -514,9 +515,12 @@ InteractionElPhWan parseHDF5V1(Context &context, Crystal &crystal,
     Error("Issue reading elph Wannier representation from hdf5.");
   }
 
+  Kokkos::Profiling::pushRegion("Interaction constructor");
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
                             phBravaisVectorsDegeneracies_, phononH0_);
+  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion();
   return output;
 }
 

@@ -857,11 +857,9 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
   // Title line
   std::getline(infileDis, line);
 
-  int numPoints2, numWannier2, numBands;
+  int numWannier2, numBands;
   infileDis >> numPoints >> numWannier2 >> numBands;
 
-  assert(numPoints2 == numPoints);
-  (void)numPoints2;
   assert(numWannier2 == numWannier);
   assert(numBands >= numWannier);
 

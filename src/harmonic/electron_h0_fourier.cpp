@@ -153,9 +153,9 @@ ElectronH0Fourier::diagonalizeVelocityFromCoordinates(
 }
 
 FullBandStructure ElectronH0Fourier::populate(Points &fullPoints,
-                                              bool &withVelocities,
-                                              bool &withEigenvectors,
-                                              bool isDistributed) {
+                                              const bool &withVelocities,
+                                              const bool &withEigenvectors,
+                                              const bool isDistributed) {
   FullBandStructure fullBandStructure(numBands, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
@@ -443,4 +443,21 @@ ElectronH0Fourier::getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
     velocity += c.real();
   }
   return velocity;
+}
+
+StridedComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
+    const DoubleView2D &cartesianCoordinates) {
+  Error("Kokkos not implemented in ElectronH0Fourier");
+}
+
+std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
+ElectronH0Fourier::kokkosBatchedDiagonalizeWithVelocities(
+    const DoubleView2D &cartesianCoordinates) {
+  Error("Kokkos not implemented in ElectronH0Fourier");
+}
+
+std::tuple<DoubleView2D, StridedComplexView3D>
+ElectronH0Fourier::kokkosBatchedDiagonalizeFromCoordinates(
+    const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
+  Error("Kokkos not implemented in ElectronH0Fourier");
 }

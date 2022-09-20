@@ -1,5 +1,6 @@
 #include "interaction_3ph.h"
 #include "mpiHelper.h"
+#include "common_kokkos.h"
 
 Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
                                Eigen::MatrixXd &cellPositions2,
@@ -62,18 +63,8 @@ Interaction3Ph::Interaction3Ph(Crystal &crystal, Eigen::Tensor<double, 5> &D3,
   }
   Kokkos::deep_copy(D3_k, D3_h);
 
-  // get available memory from environment variable,
-  // defaults to 16 GB set in the header file
-  char *memstr = std::getenv("MAXMEM");
-  if (memstr != NULL) {
-    maxmem = std::atof(memstr) * 1.0e9;
-  }
-  if (mpi->mpiHead()) {
-    printf("The maximal memory used for the coupling calculation will be %g "
-           "GB,\nset the MAXMEM environment variable to the preferred memory "
-           "usage in GB.\n",
-           maxmem / 1.0e9);
-  }
+  double memoryUsed = getDeviceMemoryUsage();
+  kokkosDeviceMemory->addDeviceMemoryUsage(memoryUsed);
 }
 
 // copy constructor
@@ -94,9 +85,21 @@ Interaction3Ph &Interaction3Ph::operator=(const Interaction3Ph &that) {
   return *this;
 }
 
+Interaction3Ph::~Interaction3Ph() {
+  double memoryUsed = getDeviceMemoryUsage(); // call this before deallocation
+  kokkosDeviceMemory->removeDeviceMemoryUsage(memoryUsed);
+  Kokkos::realloc(D3_k, 0, 0, 0, 0, 0);
+  Kokkos::realloc(D3PlusCached_k, 0, 0, 0, 0);
+  Kokkos::realloc(D3MinsCached_k, 0, 0, 0, 0);
+  Kokkos::realloc(weights2_k, 0, 0, 0);
+  Kokkos::realloc(weights3_k, 0, 0, 0);
+  Kokkos::realloc(cellPositions2_k, 0, 0);
+  Kokkos::realloc(cellPositions3_k, 0, 0);
+}
+
 void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   // copy q2 to kokkos
-  Kokkos::View<double *> q2("q2", 3);
+  DoubleView1D q2("q2", 3);
   auto q2_h = Kokkos::create_mirror_view(q2);
   for (int i = 0; i < 3; i++) {
     q2_h(i) = q2_e(i);
@@ -119,8 +122,7 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
   auto D3 = this->D3_k;
 
   // precompute phases
-  Kokkos::View<Kokkos::complex<double> *>
-      phasePlus2("pp", nr2), phasePlus3("pp", nr3),
+  ComplexView1D phasePlus2("pp", nr2), phasePlus3("pp", nr3),
       phaseMins2("pp", nr2), phaseMins3("pp", nr3);
 
   Kokkos::parallel_for(
@@ -144,12 +146,12 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         phasePlus3(ir3) = Kokkos::exp(complexI * argP);
         phaseMins3(ir3) = Kokkos::exp(complexI * argM);
       });
+  Kokkos::fence();
 
   // create cached D3
   Kokkos::parallel_for(
       "D3cacheloop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
-          {0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
+      Range4D({0, 0, 0, 0}, {numBands, numBands, numBands, nr3}),
       KOKKOS_LAMBDA(int ind1, int ind2, int ind3, int ir3) {
         // note: decompress2Indices doesn't compile like this on the GPU
         int at1 = ind1 / 3;
@@ -169,6 +171,7 @@ void Interaction3Ph::cacheD3(const Eigen::Vector3d &q2_e) {
         D3PlusCached(ind1, ind2, ind3, ir3) = tmpp;
         D3MinsCached(ind1, ind2, ind3, ir3) = tmpm;
       });
+  Kokkos::fence();
 }
 
 std::tuple<std::vector<Eigen::Tensor<double, 3>>,
@@ -197,17 +200,16 @@ Interaction3Ph::getCouplingsSquared(
   int nq1 = q1s_e.size();
 
   // MDRangePolicy loops are rectangular, need maximal dimensions
-  int maxnb1 = *std::max_element(nb1s_e.begin(), nb1s_e.end()),
-      maxnb3Plus = *std::max_element(nb3Pluss_e.begin(), nb3Pluss_e.end()),
-      maxnb3Mins = *std::max_element(nb3Minss_e.begin(), nb3Minss_e.end());
+  int maxnb1 = *std::max_element(nb1s_e.begin(), nb1s_e.end());
+  int maxnb3Plus = *std::max_element(nb3Pluss_e.begin(), nb3Pluss_e.end());
+  int maxnb3Mins = *std::max_element(nb3Minss_e.begin(), nb3Minss_e.end());
 
-  Kokkos::View<double **> q1s("q1s", nq1, 3);
-  Kokkos::View<Kokkos::complex<double> **> ev2("ev2", nb2, numBands);
-  Kokkos::View<Kokkos::complex<double> ***> ev1s("ev1s", nq1, maxnb1, numBands),
+  DoubleView2D q1s("q1s", nq1, 3);
+  ComplexView2D ev2("ev2", nb2, numBands);
+  ComplexView3D ev1s("ev1s", nq1, maxnb1, numBands),
       ev3Pluss("ev3p", nq1, maxnb3Plus, numBands),
       ev3Minss("ev3m", nq1, maxnb3Mins, numBands);
-  Kokkos::View<int *> nb1s("nb1s", nq1), nb3Pluss("nb3ps", nq1),
-      nb3Minss("nb3ms", nq1);
+  IntView1D nb1s("nb1s", nq1), nb3Pluss("nb3ps", nq1), nb3Minss("nb3ms", nq1);
 
   // copy everything to kokkos views
   {
@@ -257,10 +259,9 @@ Interaction3Ph::getCouplingsSquared(
     Kokkos::deep_copy(nb3Minss, nb3Minss_h);
   }
 
-  Kokkos::View<Kokkos::complex<double> **> phases("pp", nq1, nr3);
+  ComplexView2D phases("pp", nq1, nr3);
   Kokkos::parallel_for(
-      "tmpphaseloop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {nq1, nr3}),
+      "tmpphaseloop", Range2D({0, 0}, {nq1, nr3}),
       KOKKOS_LAMBDA(int iq1, int ir3) {
         double arg = 0;
         for (int ic : {0, 1, 2}) {
@@ -268,14 +269,12 @@ Interaction3Ph::getCouplingsSquared(
         }
         phases(iq1, ir3) = exp(complexI * arg);
       });
+  Kokkos::fence();
 
-  Kokkos::View<Kokkos::complex<double> ****> tmpPlus("tmpp", nq1, numBands,
-                                                     numBands, numBands),
-      tmpMins("tmpm", nq1, numBands, numBands, numBands);
+  ComplexView4D tmpPlus("tmpp", nq1, numBands, numBands, numBands);
+  ComplexView4D tmpMins("tmpm", nq1, numBands, numBands, numBands);
   Kokkos::parallel_for(
-      "tmploop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>(
-          {0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
+      "tmploop", Range4D({0, 0, 0, 0}, {nq1, numBands, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int iac1, int iac2, int iac3) {
         // note: decompress2Indices doesn't compile like this on the GPU
         int at1 = iac1 / 3;// std::get<0>(decompress2Indices(iac1,numAtoms,3));
@@ -290,13 +289,11 @@ Interaction3Ph::getCouplingsSquared(
       });
   Kokkos::realloc(phases, 0, 0);
 
-  Kokkos::View<Kokkos::complex<double> ****> tmp1Plus("t1p", nq1, maxnb1,
-                                                      numBands, numBands),
-      tmp1Mins("t1m", nq1, maxnb1, numBands, numBands);
+  ComplexView4D tmp1Plus("t1p", nq1, maxnb1, numBands, numBands);
+  ComplexView4D tmp1Mins("t1m", nq1, maxnb1, numBands, numBands);
   Kokkos::parallel_for(
       "tmp1loop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, numBands, numBands}),
+      Range4D({0, 0, 0, 0}, {nq1, maxnb1, numBands, numBands}),
       KOKKOS_LAMBDA(int iq1, int ib1, int iac2, int iac3) {
         int mask = ib1 < nb1s(iq1);
         Kokkos::complex<double> tmpp = 0, tmpm = 0;
@@ -311,13 +308,11 @@ Interaction3Ph::getCouplingsSquared(
   Kokkos::realloc(tmpPlus, 0, 0, 0, 0);
   Kokkos::realloc(tmpMins, 0, 0, 0, 0);
 
-  Kokkos::View<Kokkos::complex<double> ****> tmp2Plus("t2p", nq1, maxnb1, nb2,
-                                                      numBands),
-      tmp2Mins("t2m", nq1, maxnb1, nb2, numBands);
+  ComplexView4D tmp2Plus("t2p", nq1, maxnb1, nb2, numBands);
+  ComplexView4D tmp2Mins("t2m", nq1, maxnb1, nb2, numBands);
   Kokkos::parallel_for(
       "tmp2loop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, nb2, numBands}),
+      Range4D({0, 0, 0, 0}, {nq1, maxnb1, nb2, numBands}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int iac3) {
         int mask = ib1 < nb1s(iq1);
 
@@ -332,13 +327,11 @@ Interaction3Ph::getCouplingsSquared(
   Kokkos::realloc(tmp1Plus, 0, 0, 0, 0);
   Kokkos::realloc(tmp1Mins, 0, 0, 0, 0);
 
-  Kokkos::View<Kokkos::complex<double> ****> vPlus("vp", nq1, maxnb1, nb2,
-                                                   maxnb3Plus),
-      vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
+  ComplexView4D vPlus("vp", nq1, maxnb1, nb2, maxnb3Plus);
+  ComplexView4D vMins("vm", nq1, maxnb1, nb2, maxnb3Mins);
   Kokkos::parallel_for(
       "vploop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, nb2, maxnb3Plus}),
+      Range4D({0, 0, 0, 0}, {nq1, maxnb1, nb2, maxnb3Plus}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
         int mask = ib1 < nb1s(iq1) && ib3 < nb3Pluss(iq1);
         Kokkos::complex<double> tmpp = 0;
@@ -349,9 +342,7 @@ Interaction3Ph::getCouplingsSquared(
       });
 
   Kokkos::parallel_for(
-      "vmloop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, nb2, maxnb3Mins}),
+      "vmloop", Range4D({0, 0, 0, 0}, {nq1, maxnb1, nb2, maxnb3Mins}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
         int mask = ib1 < nb1s(iq1) && ib3 < nb3Minss(iq1);
 
@@ -364,12 +355,10 @@ Interaction3Ph::getCouplingsSquared(
   Kokkos::realloc(tmp2Plus, 0, 0, 0, 0);
   Kokkos::realloc(tmp2Mins, 0, 0, 0, 0);
 
-  Kokkos::View<double ****> couplingPlus("cp", nq1, maxnb1, nb2, maxnb3Plus),
-      couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
+  DoubleView4D couplingPlus("cp", nq1, maxnb1, nb2, maxnb3Plus);
+  DoubleView4D couplingMins("cp", nq1, maxnb1, nb2, maxnb3Mins);
   Kokkos::parallel_for(
-      "cploop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, nb2, maxnb3Plus}),
+      "cploop", Range4D({0, 0, 0, 0}, {nq1, maxnb1, nb2, maxnb3Plus}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
         auto tmp = vPlus(iq1, ib1, ib2, ib3);
         couplingPlus(iq1, ib1, ib2, ib3) =
@@ -377,9 +366,7 @@ Interaction3Ph::getCouplingsSquared(
       });
 
   Kokkos::parallel_for(
-      "cmloop",
-      Kokkos::MDRangePolicy<Kokkos::Rank<4>>({0, 0, 0, 0},
-                                             {nq1, maxnb1, nb2, maxnb3Mins}),
+      "cmloop", Range4D({0, 0, 0, 0}, {nq1, maxnb1, nb2, maxnb3Mins}),
       KOKKOS_LAMBDA(int iq1, int ib1, int ib2, int ib3) {
         auto tmp = vMins(iq1, ib1, ib2, ib3);
         couplingMins(iq1, ib1, ib2, ib3) =
@@ -391,8 +378,8 @@ Interaction3Ph::getCouplingsSquared(
   // Copy result to vector of Eigen tensors
   std::vector<Eigen::Tensor<double, 3>> couplingPlus_e(nq1),
       couplingMins_e(nq1);
-  auto couplingPlus_h = Kokkos::create_mirror_view(couplingPlus),
-       couplingMins_h = Kokkos::create_mirror_view(couplingMins);
+  auto couplingPlus_h = Kokkos::create_mirror_view(couplingPlus);
+  auto couplingMins_h = Kokkos::create_mirror_view(couplingMins);
   Kokkos::deep_copy(couplingPlus_h, couplingPlus);
   Kokkos::deep_copy(couplingMins_h, couplingMins);
   for (int iq1 = 0; iq1 < nq1; iq1++) {
@@ -423,11 +410,7 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
   int maxnb3Mins = numBands;
 
   // available memory is MAXMEM minus size of D3, D3cache and ev2
-  double availmem = maxmem - 16 * (numBands * numBands * numBands * nr3 * (nr2 + 2))
-      - 8 * 3 * (nr2 + nr3) // phase
-      - 16 * nb2 * numBands // ev2;
-      - 8 * (nr2+nr3) * numAtoms * numAtoms //weights
-      - 8 * 3 * (nr2+nr3); // Bravais vectors
+  double availmem = kokkosDeviceMemory->getAvailableMemory();
 
   // memory used by different tensors
   // Note: 16 (2*8) is the size of double (complex<double>) in bytes
@@ -443,14 +426,23 @@ int Interaction3Ph::estimateNumBatches(const int &nq1, const int &nb2) {
 
   // the number of batches needed
   int numBatches = std::ceil(maxusage / availmem);
+  double totalMemory = kokkosDeviceMemory->getTotalMemory();
 
   if (availmem < maxusage / nq1) {
     // not enough memory to do even a single q1
-    std::cerr << "maxmem = " << maxmem / 1e9
-              << ", availmem = " << availmem / 1e9
-              << ", maxusage = " << maxusage / 1e9
-              << ", numBatches = " << numBatches << "\n";
+    std::cerr << "total Memory = " << totalMemory / 1e9
+              << "(Gb), availmem = " << availmem / 1e9
+              << "(Gb), maxusage = " << maxusage / 1e9
+              << "(Gb), numBatches = " << numBatches << "\n";
     Error("Insufficient memory!");
   }
   return numBatches;
+}
+
+double Interaction3Ph::getDeviceMemoryUsage() {
+  double occupiedMemory = 16 * (D3_k.size() + D3PlusCached_k.size()
+                                + D3MinsCached_k.size())
+      + 8 * (cellPositions2_k.size() + cellPositions2_k.size()
+             + weights2_k.size() + weights3_k.size());
+  return occupiedMemory;
 }
