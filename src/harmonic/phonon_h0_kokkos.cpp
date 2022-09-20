@@ -369,6 +369,11 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
 
 /**
  * Create and diagonalize Hamiltonians for a batch of k-points, with velocities
+ * Returns the energies (nk, nb), eigenvectors (nk, nb, nb)
+ * and velocities (nk, nb, nb, 3) at each k-point.
+ * Note that for each k-point, the (nb, nb) eigenvector
+ * matrix is column-major, as required by the cuSOLVER routine,
+ * hence the StridedLayout.
  */
 std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 PhononH0::kokkosBatchedDiagonalizeWithVelocities(

@@ -163,8 +163,11 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
   int numK = cartesianWavevectors.size();
   std::vector<Eigen::MatrixXcd> Hs(numK, Eigen::MatrixXcd::Zero(numWannier, numWannier));
 
+  // fourier transform Hamiltonian, without or with shift
   if (!hasShiftedVectors) {
     Eigen::MatrixXcd phases(numVectors, numK);
+
+    // precompute all phases
 #pragma omp parallel for collapse(2)
     for (int iK = 0; iK < numK; ++iK) {
       for (int iR = 0; iR < numVectors; iR++) {
@@ -173,6 +176,8 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
         phases(iR, iK) = phaseFactor / vectorsDegeneracies(iR);
       }
     }
+
+    // perform fourier transform
 #pragma omp parallel for collapse(3)
     for (int iK = 0; iK < numK; ++iK) {
       for (int n = 0; n < numWannier; n++) {
@@ -185,6 +190,7 @@ std::vector<Eigen::MatrixXcd> ElectronH0Wannier::batchedBuildHamiltonians(
     }
 
   } else {
+    // with shift
 
     for (int iK = 0; iK < numK; ++iK) {
       for (int iR = 0; iR < numVectors; iR++) {
@@ -530,6 +536,11 @@ void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShif
 }
 
 
+/**
+ * Do diagonalization for a batch of k-points on the CPU.
+ * Returns the energies (nk, nb), eigenvectors (nk, nb, nb)
+ * and velocities (nk, nb, nb, 3) at each k-point.
+ */
 std::tuple<std::vector<Eigen::VectorXd>,
            std::vector<Eigen::MatrixXcd>,
            std::vector<Eigen::Tensor<std::complex<double>, 3>>>
@@ -700,7 +711,7 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
   auto vectorsDegeneracies_d = this->vectorsDegeneracies_d;
   auto h0R_d = this->h0R_d;
 
-  // not sure what this does
+  // fourier transform the Hamiltonian
   if (!hasShiftedVectors) {
     ComplexView2D elPhases_d("elPhases_d", numK, numVectors);
     Kokkos::parallel_for(
@@ -725,6 +736,7 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
     Kokkos::realloc(elPhases_d, 0, 0);
 
   } else {
+    // with shifts
     auto vectorsShifts_d = this->vectorsShifts_d;
     auto degeneracyShifts_d = this->degeneracyShifts_d;
 
@@ -777,6 +789,11 @@ std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedD
 
 /**
  * Build and diagonalize Hamiltonians, with velocities
+ * Returns the energies (nk, nb), eigenvectors (nk, nb, nb)
+ * and velocities (nk, nb, nb, 3) at each k-point.
+ * Note that for each k-point, the (nb, nb) eigenvector
+ * matrix is column-major, as required by the cuSOLVER routine,
+ * hence the StridedLayout.
  */
 std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 ElectronH0Wannier::kokkosBatchedDiagonalizeWithVelocities(
