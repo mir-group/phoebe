@@ -66,7 +66,23 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
       nr3x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(2).norm()) + 1;
     }
 
-    double norm = e2 * fourPi / volumeUnitCell;
+
+    double norm;
+    Eigen::Matrix3d reff;
+    if(context.getDimension() == 2) {
+      fac = e2 * twoPi / volumeUnitCell;  // originally
+      // (e^2 * 2\pi) / Area
+      // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
+
+//    reff(:, :) = epsil(1:2, 1:2) * 0.5d0 * tpi / bg(3, 3) ! (eps)*c/2 in 2pi/a units
+//    reff(1, 1) = reff(1, 1) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
+//    reff(2, 2) = reff(2, 2) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
+// TODO should epsilon be reduced to planar here
+// TODO what are these extra reff lines
+      reff = epsilon * 0.5 * directUnitCell(2,2);
+    } else {
+      norm = e2 * fourPi / volumeUnitCell;
+    }
 
     int numG = (2*nr1x+1) * (2*nr2x+1) * (2*nr3x+1);
     gVectors.resize(3,numG);
@@ -89,10 +105,48 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
     for (int ig=0; ig<numG; ++ig) {
       Eigen::Vector3d g = gVectors.col(ig);
 
-      double geg = (g.transpose() * dielectricMatrix * g).value();
+      // calculate the correction term for screening, Wc as in
+      // https://doi.org/10.1021/acs.nanolett.7b01090
+      double geg = 0;
 
+/*      IF (loto_2d) THEN
+          geg = g1**2 + g2**2 + g3**2
+          grg = 0.0d0
+          IF (g1**2 + g2**2 > 1.0d-8) THEN
+            grg = g1 * reff(1, 1) * g1 + g1 * reff(1, 2) * g2 + g2 * reff(2, 1) * g1 + g2 * reff(2, 2) * g2
+            grg = grg / (g1**2 + g2**2)
+          ENDIF
+        ELSE
+          geg = (g1 * (epsil(1, 1) * g1 + epsil(1, 2) * g2 + epsil(1, 3) * g3) + &
+                 g2 * (epsil(2, 1) * g1 + epsil(2, 2) * g2 + epsil(2, 3) * g3) + &
+                 g3 * (epsil(3, 1) * g1 + epsil(3, 2) * g2 + epsil(3, 3) * g3))
+        ENDIF*/
+
+
+      if(context.getDimension() == 2) {
+        if(g1*g1 + g2*g2 > 1.e-8) {
+          geg = (g.transpose() * reff * g).value() / (g.norm() * g.norm());
+        }
+      } else {
+        geg = (g.transpose() * dielectricMatrix * g).value();
+      }
+
+      // TODO is this still true for 2D case
       if (0. < geg && geg < 4. * gMax) {
-        double normG = norm * exp(-geg * 0.25) / geg;
+        double normG;
+
+/*        IF (loto_2d) THEN
+            facgd = fac * (tpi / alat) * EXP(-geg / (alph * 4.0d0)) / (SQRT(geg) * (1.0 + grg * SQRT(geg)))
+          ELSE
+            facgd = fac * EXP(-geg / (alph * 4.0d0)) / geg
+          ENDIF
+*/
+
+        if(context.getDimension() == 2) { // TODO check if norm is squared
+          normG = norm * exp(-g.norm() * 0.25) / sqrt(g.norm()) * (1.0 + geg * sqrt(g.norm()));
+        } else {
+          normG = norm * exp(-geg * 0.25) / geg;
+        }
 
         Eigen::MatrixXd gZ(3, numAtoms);
         for (int na = 0; na < numAtoms; na++) {
