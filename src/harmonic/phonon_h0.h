@@ -172,6 +172,8 @@ protected:
   Eigen::Matrix3d dielectricMatrix;
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
+  Eigen::Matrix3d directUnitCell;
+  int dimensionality;
 
   int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;

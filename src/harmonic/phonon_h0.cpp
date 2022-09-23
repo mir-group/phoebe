@@ -18,7 +18,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
   // in this section, we save as class properties a few variables
   // that are needed for the diagonalization of phonon frequencies
 
-  Eigen::Matrix3d directUnitCell = crystal.getDirectUnitCell();
+  directUnitCell = crystal.getDirectUnitCell();
   Eigen::Matrix3d reciprocalUnitCell = crystal.getReciprocalUnitCell();
   volumeUnitCell = crystal.getVolumeUnitCell();
   atomicSpecies = crystal.getAtomicSpecies();
@@ -37,6 +37,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
   numAtoms = crystal.getNumAtoms();
   numBands = numAtoms * 3;
+  dimensionality = crystal.getDimensionality();
 
   // now, I initialize an auxiliary set of vectors that are needed
   // for the diagonalization, which are precomputed once and for all.
@@ -68,8 +69,8 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
     double norm;
     Eigen::Matrix3d reff;
-    if(context.getDimension() == 2) {
-      fac = e2 * twoPi / volumeUnitCell;  // originally
+    if(dimensionality == 2) {
+      norm = e2 * twoPi / volumeUnitCell;  // originally
       // (e^2 * 2\pi) / Area
       // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
 
@@ -78,7 +79,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 //    reff(2, 2) = reff(2, 2) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
 // TODO should epsilon be reduced to planar here
 // TODO what are these extra reff lines
-      reff = epsilon * 0.5 * directUnitCell(2,2);
+      reff = dielectricMatrix * 0.5 * directUnitCell(2,2);
     } else {
       norm = e2 * fourPi / volumeUnitCell;
     }
@@ -122,7 +123,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
         ENDIF*/
 
 
-      if(context.getDimension() == 2) {
+      if(dimensionality == 2) {
         if(g(0)*g(0) + g(1)*g(1) > 1.e-8) {
           geg = (g.transpose() * reff * g).value() / (g.norm() * g.norm());
         }
@@ -141,7 +142,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
           ENDIF
 */
 
-        if(context.getDimension() == 2) { // TODO check if norm is squared
+        if(dimensionality == 2) { // TODO check if norm is squared
           normG = norm * exp(-g.norm() * 0.25) / sqrt(g.norm()) * (1.0 + geg * sqrt(g.norm()));
         } else {
           normG = norm * exp(-geg * 0.25) / geg;
@@ -619,8 +620,8 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
   double norm;
   Eigen::Matrix3d reff;
-  if(context.getDimension() == 2) {
-    fac = e2 * twoPi / volumeUnitCell;  // originally
+  if(dimensionality == 2) {
+    norm = e2 * twoPi / volumeUnitCell;  // originally
     // (e^2 * 2\pi) / Area
     // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
 
@@ -629,7 +630,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 //    reff(2, 2) = reff(2, 2) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
 // TODO should epsilon be reduced to planar here
 // TODO what are these extra reff lines
-    reff = epsilon * 0.5 * directUnitCell(2,2);
+    reff = dielectricMatrix * 0.5 * directUnitCell(2,2);
   } else {
     norm = e2 * fourPi / volumeUnitCell;
   }
@@ -651,7 +652,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
         ENDIF*/
 
       double geg = 0;
-      if(context.getDimension() == 2) {
+      if(dimensionality == 2) {
         if(gq(0)*gq(0) + gq(1)*gq(1) > 1.e-8) {
           geg = (gq.transpose() * reff * gq).value() / (gq.norm() * gq.norm());
         }
@@ -661,7 +662,7 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
 
     if (geg > 0. && geg < 4. * gMax) {
       double normG;
-      if(context.getDimension() == 2) { // TODO check if norm is squared
+      if(dimensionality == 2) { // TODO check if norm is squared
         normG = norm * exp(-gq.norm() * 0.25) / sqrt(gq.norm()) * (1.0 + geg * sqrt(gq.norm()));
       } else {
         normG = norm * exp(-geg * 0.25) / geg;
