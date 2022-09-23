@@ -66,7 +66,6 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
       nr3x = (int)(sqrt(cutoff) / reciprocalUnitCell.col(2).norm()) + 1;
     }
 
-
     double norm;
     Eigen::Matrix3d reff;
     if(context.getDimension() == 2) {
@@ -124,7 +123,7 @@ PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
 
 
       if(context.getDimension() == 2) {
-        if(g1*g1 + g2*g2 > 1.e-8) {
+        if(g(0)*g(0) + g(1)*g(1) > 1.e-8) {
           geg = (g.transpose() * reff * g).value() / (g.norm() * g.norm());
         }
       } else {
@@ -567,6 +566,49 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
   // very rough estimate: geg/4/alpha > gMax = 14
   // (exp (-14) = 10^-6)
 
+/*
+       IF (loto_2d) THEN
+          geg = g1**2 + g2**2 + g3**2
+          grg = 0.0d0
+          IF (g1**2 + g2**2 > 1d-8) THEN
+            grg = g1 * reff(1, 1) * g1 + g1 * reff(1, 2) * g2 + g2 * reff(2, 1) * g1 + g2 * reff(2, 2) * g2
+            grg = grg / (g1**2 + g2**2)
+          ENDIF
+        ELSE
+          geg = (g1 * (epsil(1, 1) * g1 + epsil(1, 2) * g2 + epsil(1, 3) * g3) + &
+                 g2 * (epsil(2, 1) * g1 + epsil(2, 2) * g2 + epsil(2, 3) * g3) + &
+                 g3 * (epsil(3, 1) * g1 + epsil(3, 2) * g2 + epsil(3, 3) * g3))
+        ENDIF
+        !
+        IF (geg > 0.0d0 .AND. geg / (alph * 4.0d0) < gmax) THEN
+          !
+          IF (loto_2d) THEN
+            facgd = fac * (tpi / alat) * EXP(-geg / (alph * 4.0d0)) / (SQRT(geg) * (1.0 + grg * SQRT(geg)))
+          ELSE
+            facgd = fac * EXP(-geg / (alph * 4.0d0)) / geg
+          ENDIF
+          !
+          DO nb = 1, nat
+            zbg(:) = g1 * zeu(1, :, nb) + g2 * zeu(2, :, nb) + g3 * zeu(3, :, nb)
+            DO na = 1, nat
+              zag(:) = g1 * zeu(1, :, na) + g2 * zeu(2, :, na) + g3 * zeu(3, :, na)
+              arg = 2.d0 * pi * (g1 * (tau(1, na) - tau(1 ,nb)) + &
+                                 g2 * (tau(2, na) - tau(2, nb)) + &
+                                 g3 * (tau(3, na) - tau(3, nb)) )
+              facg = facgd * CMPLX(COS(arg), SIN(arg), KIND=DP)
+              !
+              DO j = 1, 3
+                DO i = 1, 3
+                  dyn(i, j, na, nb) = dyn(i, j, na, nb) + facg * zag(i) * zbg(j)
+                ENDDO ! i
+              ENDDO ! j
+            ENDDO ! na
+          ENDDO ! nb
+ */
+
+
+
+
   for (int na = 0; na < numAtoms; na++) {
     for (int j : {0, 1, 2}) {
       for (int i : {0, 1, 2}) {
@@ -575,15 +617,55 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
     }
   }
 
-  double norm = e2 * fourPi / volumeUnitCell;
+  double norm;
+  Eigen::Matrix3d reff;
+  if(context.getDimension() == 2) {
+    fac = e2 * twoPi / volumeUnitCell;  // originally
+    // (e^2 * 2\pi) / Area
+    // fac = (sign * e2 * tpi) / (omega * bg(3, 3) / alat)
+
+//    reff(:, :) = epsil(1:2, 1:2) * 0.5d0 * tpi / bg(3, 3) ! (eps)*c/2 in 2pi/a units
+//    reff(1, 1) = reff(1, 1) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
+//    reff(2, 2) = reff(2, 2) - 0.5d0 * tpi / bg(3, 3) ! (-1)*c/2 in 2pi/a units
+// TODO should epsilon be reduced to planar here
+// TODO what are these extra reff lines
+    reff = epsilon * 0.5 * directUnitCell(2,2);
+  } else {
+    norm = e2 * fourPi / volumeUnitCell;
+  }
 
   for (int ig=0; ig<gVectors.cols(); ++ig) {
     Eigen::Vector3d gq = gVectors.col(ig) + q;
 
-    double geg = (gq.transpose() * dielectricMatrix * gq).value();
+/*      IF (loto_2d) THEN
+          geg = g1**2 + g2**2 + g3**2
+          grg = 0.0d0
+          IF (g1**2 + g2**2 > 1.0d-8) THEN
+            grg = g1 * reff(1, 1) * g1 + g1 * reff(1, 2) * g2 + g2 * reff(2, 1) * g1 + g2 * reff(2, 2) * g2
+            grg = grg / (g1**2 + g2**2)
+          ENDIF
+        ELSE
+          geg = (g1 * (epsil(1, 1) * g1 + epsil(1, 2) * g2 + epsil(1, 3) * g3) + &
+                 g2 * (epsil(2, 1) * g1 + epsil(2, 2) * g2 + epsil(2, 3) * g3) + &
+                 g3 * (epsil(3, 1) * g1 + epsil(3, 2) * g2 + epsil(3, 3) * g3))
+        ENDIF*/
+
+      double geg = 0;
+      if(context.getDimension() == 2) {
+        if(gq(0)*gq(0) + gq(1)*gq(1) > 1.e-8) {
+          geg = (gq.transpose() * reff * gq).value() / (gq.norm() * gq.norm());
+        }
+      } else {
+        geg = (gq.transpose() * dielectricMatrix * gq).value();
+      }
 
     if (geg > 0. && geg < 4. * gMax) {
-      double normG = norm * exp(-geg * 0.25) / geg;
+      double normG;
+      if(context.getDimension() == 2) { // TODO check if norm is squared
+        normG = norm * exp(-gq.norm() * 0.25) / sqrt(gq.norm()) * (1.0 + geg * sqrt(gq.norm()));
+      } else {
+        normG = norm * exp(-geg * 0.25) / geg;
+      }
 
       Eigen::MatrixXd gqZ(3, numAtoms);
       for (int i : {0, 1, 2}) {
@@ -614,15 +696,6 @@ void PhononH0::addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
       }
     }
   }
-    //for (int nb = 0; nb < numAtoms; nb++) {
-    //  for (int na = 0; na < numAtoms; na++) {
-    //    for (int j : {0, 1, 2}) {
-    //      for (int i : {0, 1, 2}) {
-    //        printf("old = %.16e %.16e\n", dyn(i,j,na,nb).real(), dyn(i,j,na,nb).imag());
-    //      }
-    //    }
-    //  }
-    //}
 }
 
 void PhononH0::reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
