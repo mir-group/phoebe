@@ -28,6 +28,7 @@ ExternalProject_Add(spglib_dep
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
     CMAKE_ARGS
+        -DUSE_OMP=${OMP_AVAIL}
         -DCMAKE_BUILD_TYPE=Release
         -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
 )
