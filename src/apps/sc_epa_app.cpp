@@ -62,8 +62,14 @@ void ScEpaApp::run(Context &context) {
 
   // set temperatures, chemical potentials and carrier concentrations
   StatisticsSweep statisticsSweep(context, &bandStructure);
-  double efermi = ; // TODO put efermi here
-  // TODO throw an error if mu isn't inside the slim energy range
+
+  // TODO for now let's start with 1 calculation
+  if(statisticsSweep.getNumCalcs() != 1) Error("scEPA is only for 1 calc at a time right now!");
+  double efermi = statisticsSweep.getCalcStatistics().chemicalPotential;
+  TetrahedronDeltaFunction tetrahedrons(bandStructure);
+  double NF = tetrahedrons.getDOS(efermi);
+
+  // TODO throw an error if mu isn't inside the slim energy range?
 
   // interpolate the phonon band structure here ----------------------
   auto tup = Parser::parsePhHarmonic(context);
@@ -77,7 +83,7 @@ void ScEpaApp::run(Context &context) {
   }
   auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
   auto phBandStructure = std::get<0>(tup1);
-  int numModes = phBandStructure.getNumModes();
+  int numModes = phononH0.getNumBands();
 
   // print some info about state number reduction
   if (mpi->mpiHead()) {
@@ -103,12 +109,9 @@ void ScEpaApp::run(Context &context) {
   // get vector containing averaged phonon frequencies per mode
   InteractionEpa couplingEpa = InteractionEpa::parseEpaCoupling(context);
 
-  // these are the averaged ph energies, instead we should interpolate
-  int numModes = int(phEnergies.size());
-
   LoopPrint loopPrint("calculation of lambda values", "phonon modes",
 
-  Eigen::MatrixXd(numModes, numPoints);
+  Eigen::MatrixXd lambda(numModes, numPoints);
 
   // TODO add parallel
 
@@ -116,6 +119,7 @@ void ScEpaApp::run(Context &context) {
   for (int iMode = 0; iMode < numModes; iModes++) {
 
     // get mode-dept g coupling TODO make sure the first index is mode, and that we can trick it with Ef
+    // TODO check that this is sq
     double gvSq = couplingEpa.getCoupling(iMode, efermi, efermi);
 
     #pragma OMP critical
@@ -124,31 +128,44 @@ void ScEpaApp::run(Context &context) {
     // loop over qpoints
     for (int iq = 0; iq < numPoints; iq++) {
 
-      // here get:
-      // q vector
-
       // phonon energy
+      double omega = phBandStructure.getEnergy(WavectorIndex(iq), BandIndex(iMode));
+
+      // joint density of states integral
+      double jdos = 0;
 
       // do the phase space integral here ------------------
       for (size_t ik = 0; ik < numPoints; ik++) {
 
-        double ek =
-        double ekpq =
-        double dk = delta(ek);
-        double dkpq = delta(ekpq);
+        // get energies at k
+        WavevectorIndex kIdx = WavevectorIndex(ik);
+        Eigen::VectorXd ek = bandStructure.getEnergies(kIdx);
+        // k+q in cartesian, look up k+q idx, get energies at k+q
+        Eigen::VectorXd kpq =
+                bandStructure.getWavevector(kIdx) + phBandStructure.getWavevector(WavevectorIndex(iq));
+        // TODO might need to fold this wavevector
+        kpq = fullPoints.cartesianToCrystal(kpq);
+        int ikq = fullPoints.getIndex(kpq);
+        kqIdx = WavevectorIndex(ikq);
+        Eigen::VectorXd ekpq = bandStructure.getEnergies(kIdx);
 
-        integral += dkpq * dk;
-
+        // loop over band index
+        for(int n = 0; n < ek.size(); n++) {
+          for (int m = 0; m < ekpq.size(); m++) {
+            jdos += delta(ek) + delta(ekpq);
+          }
+        }
       } // close phase space integral
 
       // normalize here -- TODO need also NF
-      integral /= numPoints;
-      integral *= omega *
+      if(omega > 1e-8) { // is there a better way to handle this zero gamma info?
+        lambda(iMode,iq) = 1./omega * gvSq * jdos/numPoints;
+      }
 
     } // close point loop
-
   } // close mode
   loopPrint.close();
+
 
 }
 
