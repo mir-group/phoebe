@@ -317,7 +317,7 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       Error("BORN file " + fileName + " cannot be read.");
     }
     if(mpi->mpiHead()) {
-      std::cout << "Parsing the phonopy BORN file." << std::endl;
+      std::cout << "\nReading in the phonopy BORN file." << std::endl;
     }
 
     // in current versions of phonopy, the first line either contains the
@@ -356,17 +356,24 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         iat++;
       }
     }
-/* TODO delete this if(mpi->mpiHead()) {
-    for (int idx = 0; idx < iat; idx++) {
-    for(int i = 0; i < 3; i++) {
-      for(int j = 0; j < 3; j++) {
-        std::cout << bornCharges(idx,i,j) << " ";
+    // print the charge matrices
+    if(mpi->mpiHead()) {
+
+      std::cout << "Dielectric matrix read as:" << std::endl;
+      std::cout << dielectricMatrix << '\n' << std::endl;
+      std::cout << "Born effective charges read as:" << std::endl;
+      for (int idx = 0; idx < iat; idx++) {
+        std::cout << speciesNames[idx] << " ";
+        for(int i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            std::cout << bornCharges(idx,i,j) << " ";
+          }
+        }
+        std::cout << std::endl;
       }
+      std::cout << std::endl;
     }
-    std::cout << idx << std::endl;
   }
-  }*/
-}
 
 // Parse the fc2.hdf5 file and read in the dynamical matrix
 // ==========================================================
