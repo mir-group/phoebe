@@ -14,7 +14,6 @@
 #endif
 
 void ElElToPhoebeApp::run(Context &context) {
-  (void) context;
 
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
@@ -24,9 +23,9 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::MatrixXd yamboQPoints;
   int numBands, bandOffset;
   if (mpi->mpiHead()) {
-    std::string yamboPrefix = context.getYamboInteractionFileName();
+    std::string yamboPrefix = context.getYamboInteractionPrefix();
     // Q1 should always exist
-    std::string fileName = yamboPrefix + "_head_Q1";
+    std::string fileName = yamboPrefix + "BS_head_Q1";
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
@@ -93,9 +92,9 @@ void ElElToPhoebeApp::run(Context &context) {
 
   for (int iQ : mpi->divideWorkIter(numPoints)) {
 
-    std::string yamboPrefix = context.getYamboInteractionFileName();
+    std::string yamboPrefix = context.getYamboInteractionPrefix();
     // tentative reading of the BSE kernel
-    std::string fileName = yamboPrefix + "_PAR_Q" + std::to_string(iQ);
+    std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ);
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets

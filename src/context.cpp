@@ -477,8 +477,8 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "elelFileName") {
         setElelFileName(parseString(val));
       }
-      if (parameterName == "yamboInteractionFileName") {
-        setYamboInteractionFileName(parseString(val));
+      if (parameterName == "yamboInteractionPrefix") {
+        setYamboInteractionPrefix(parseString(val));
       }
 
       if (parameterName == "electronFourierCutoff") {
@@ -1107,8 +1107,8 @@ void Context::setElphFileName(const std::string &x) { elphFileName = x; }
 
 std::string Context::getElelFileName() { return elelFileName; }
 void Context::setElelFileName(const std::string &x) { elelFileName = x; }
-std::string Context::getYamboInteractionFileName() { return yamboInteractionFileName; }
-void Context::setYamboInteractionFileName(const std::string &x) { yamboInteractionFileName = x; }
+std::string Context::getYamboInteractionPrefix() { return yamboInteractionPrefix; }
+void Context::setYamboInteractionPrefix(const std::string &x) { yamboInteractionPrefix = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
 
