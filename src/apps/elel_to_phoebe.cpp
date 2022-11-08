@@ -11,9 +11,14 @@
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
+#include "H5Cpp.h"
 #endif
 
 void ElElToPhoebeApp::run(Context &context) {
+
+  #ifndef HDF5_AVAIL
+  Error("In order to run the el-el to Phoebe app, you must build Phoebe with HDF5.");
+  #endif
 
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
@@ -23,6 +28,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::MatrixXd yamboQPoints;
   int numBands, bandOffset;
   if (mpi->mpiHead()) {
+
     std::string yamboPrefix = context.getYamboInteractionPrefix();
     // Q1 should always exist
     std::string fileName = yamboPrefix + "BS_head_Q1";
@@ -31,17 +37,48 @@ void ElElToPhoebeApp::run(Context &context) {
     // Set up hdf5 datasets
     HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
     // read the k/q-points in crystal coordinates
-    Eigen::MatrixXd yamboQPoints;
+    Eigen::VectorXd yamboQPoints;
     d_head_qpt.read(yamboQPoints);
     int numDim = yamboQPoints.rows();
-    if (numDim != 3) Error("qpoints are transposed in yambo?");
+    if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
     // std::cout << yamboQPoints.transpose() << "\n";
 
-    Eigen::Vector2i bandExtrema;
-    HighFive::DataSet d_bands = file.getDataSet("/Bands");
-    d_bands.read(bandExtrema);
-    numBands = bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2
-    bandOffset = bandExtrema.minCoeff();
+    // TODO: highfive cannot load in VLEN arrays, which yambo is
+    // currently dumping. We have to do this with HDF5 explicitly
+/*
+    H5::H5File filebands(fileName, H5F_ACC_RDONLY);
+    H5::DataSet dataset {filebands.openDataSet("/Bands")};
+
+    H5::DataSpace dataspace = dataset.getSpace();
+    const int n_dims = dataspace.getSimpleExtentNdims();
+    std::vector<hsize_t> dims(n_dims);
+
+    dataspace.getSimpleExtentDims(dims.data());
+    if (dims.size() != 1) {
+        Error("Unexpected dimensions from Yambo file for band indices.");
+    }
+
+    const hsize_t n_rows = dims[0];
+    std::vector<hvl_t> varlen_specs(n_rows);
+    std::vector<std::vector<int>> bandExtrema;
+    bandExtrema.reserve(n_rows);
+
+    auto item_type = H5::PredType::NATIVE_INT;
+    //H5::IntType mem_item_type(H5::PredType::NATIVE_INT);
+    H5::VarLenType mem_type(&item_type);
+    dataset.read(varlen_specs.data(), mem_type);
+
+    for (const auto& varlen_spec: varlen_specs) {
+        auto data_ptr = static_cast<int*>(varlen_spec.p);
+        bandExtrema.emplace_back(data_ptr, data_ptr + varlen_spec.len);
+        H5free_memory(varlen_spec.p);
+    }
+*/
+    numBands = 5;
+    bandOffset = 4;
+    //numBands = bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2
+    //bandOffset = bandExtrema.minCoeff();
+
   }
   int numPoints = yamboQPoints.cols();
   mpi->bcast(&numPoints);
