@@ -74,10 +74,11 @@ void ElElToPhoebeApp::run(Context &context) {
         H5free_memory(varlen_spec.p);
     }
 */
-    numBands = 5;
-    bandOffset = 4;
-    //numBands = bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2
-    //bandOffset = bandExtrema.minCoeff();
+    Eigen::Vector2i bandExtrema;
+    bandExtrema(0) = 4;
+    bandExtrema(1) = 5;
+    numBands = 2; //bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2 // This seems weird
+    bandOffset = bandExtrema.minCoeff();
 
   }
   int numPoints = yamboQPoints.cols();
@@ -96,7 +97,7 @@ void ElElToPhoebeApp::run(Context &context) {
   //----------------
 
   // set up k-points
-  Eigen::Vector3i kMesh;// TODO: get this from somewhere
+  Eigen::Vector3i kMesh = {36, 36, 1}; // TODO: get this from somewhere
   Points kPoints(crystal, kMesh);
 
   // read U matrices
@@ -106,7 +107,7 @@ void ElElToPhoebeApp::run(Context &context) {
   uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, true);
 
   if (numBands != uMatrices.dimension(0)) {
-    Error("bands not aligned between Yambo and Wannier90");
+    Error("Band number not aligned between Yambo and Wannier90.");
   }
   int numWannier = uMatrices.dimension(1);
 
