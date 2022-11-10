@@ -95,15 +95,14 @@ void ElElToPhoebeApp::run(Context &context) {
   }
 
   //----------------
-
   // set up k-points
-  Eigen::Vector3i kMesh = {36, 36, 1}; // TODO: get this from somewhere
+  Eigen::Vector3i kMesh = {8, 8, 1}; // TODO: get this from somewhere
   Points kPoints(crystal, kMesh);
 
   // read U matrices
   std::string wannierPrefix = context.getWannier90Prefix();
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
-  // uMatrices has size (numBands, numWannier, numKPoints)
+  // uMatrices have size (numBands, numWannier, numKPoints)
   uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, true);
 
   if (numBands != uMatrices.dimension(0)) {
@@ -211,6 +210,7 @@ void ElElToPhoebeApp::run(Context &context) {
   }
 
   int numK = kMesh.prod();
+  // TODO isn't this always zero? why would FTing zeros give us anything other than zero...
   Eigen::Tensor<std::complex<double>, 7> Gamma(numK, numK, numK, numBands, numBands, numBands, numBands);
 
   // first we do the rotation on k4, the implicit index
@@ -315,11 +315,10 @@ void ElElToPhoebeApp::run(Context &context) {
           for (int iw2 = 0; iw2 < numWannier; ++iw2) {
             for (int iw3 = 0; iw3 < numWannier; ++iw3) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
-
                 for (int iw1 = 0; iw1 < numWannier; ++iw1) {
                   tmp = {0., 0.};
                   for (int ib1 = 0; ib1 < numBands; ++ib1) {
-                    tmp += Gamma2(ik1, ik2, ik3, ib1, iw2, iw3, iw4)
+                     tmp += Gamma3(ik1, ik2, ik3, ib1, iw2, iw3, iw4)
                         * std::conj(uMatrices(ib1, iw1, ik1));
                   }
                   Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
