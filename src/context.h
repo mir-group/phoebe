@@ -64,6 +64,8 @@ class Context {
   Eigen::Tensor<double, 3> pathExtrema;
   std::vector<std::string> pathLabels;
   double deltaPath = 0.05;
+  // tells us if crystal structure stuff was in input file
+  bool crystalInput = false;
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
@@ -288,6 +290,7 @@ public:
 
   Eigen::Tensor<double, 3> getPathExtrema();
   std::vector<std::string> getPathLabels();
+  bool getCrystalInput();
 
   double getDeltaPath() const;
 
