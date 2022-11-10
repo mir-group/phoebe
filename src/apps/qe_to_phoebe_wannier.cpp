@@ -799,7 +799,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
   std::string line;
 
   if (wannierPrefix.empty()) {
-    Error("Must provide an input H0 file name");
+    Error("Must provide an input H0 file name.");
   }
 
   std::string fileName = wannierPrefix + "_u.mat";
@@ -807,7 +807,7 @@ ElPhQeToPhoebeApp::setupRotationMatrices(const std::string &wannierPrefix,
   // open input file
   std::ifstream infile(fileName);
   if (not infile.is_open()) {
-    Error("U-matrix file not found");
+    Error("U-matrix file not found at provided location " + fileName + ".");
   }
 
   // Title line
