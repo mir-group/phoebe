@@ -26,7 +26,7 @@ void ElElToPhoebeApp::run(Context &context) {
 
   // now we parse the first header
   Eigen::MatrixXd yamboQPoints;
-  int numBands, bandOffset;
+  int numBands, bandOffset, numPoints;
   if (mpi->mpiHead()) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
@@ -37,11 +37,11 @@ void ElElToPhoebeApp::run(Context &context) {
     // Set up hdf5 datasets
     HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
     // read the k/q-points in crystal coordinates
-    Eigen::VectorXd yamboQPoints;
+    Eigen::MatrixXd yamboQPoints;
     d_head_qpt.read(yamboQPoints);
     int numDim = yamboQPoints.rows();
     if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
-    // std::cout << yamboQPoints.transpose() << "\n";
+    numPoints = yamboQPoints.cols();
 
     // TODO: highfive cannot load in VLEN arrays, which yambo is
     // currently dumping. We have to do this with HDF5 explicitly
@@ -81,9 +81,8 @@ void ElElToPhoebeApp::run(Context &context) {
     bandExtrema(1) = 5;
     numBands = 2; //bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2 // This seems weird
     bandOffset = bandExtrema.minCoeff();
-
   }
-  int numPoints = yamboQPoints.cols();
+
   mpi->bcast(&numPoints);
   mpi->bcast(&numBands);
   mpi->bcast(&bandOffset);
@@ -100,6 +99,7 @@ void ElElToPhoebeApp::run(Context &context) {
   // set up k-points
   Eigen::Vector3i kMesh = {8, 8, 1}; // TODO: get this from somewhere
   Points kPoints(crystal, kMesh);
+  int numK = kMesh.prod();
 
   // read U matrices
   std::string wannierPrefix = context.getWannier90Prefix();
@@ -156,7 +156,7 @@ void ElElToPhoebeApp::run(Context &context) {
     // i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
 
     // first pass: we make sure the matrix is complete
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
         for (int k = 0; k < 2; ++k) {
@@ -174,7 +174,7 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
@@ -208,12 +208,10 @@ void ElElToPhoebeApp::run(Context &context) {
   mpi->bcast(&qpCoupling);
 
   if (mpi->mpiHead()) {
-    std::cout << "Start Wannier transform!\n";
+    std::cout << "Starting the Wannier transform.\n";
   }
 
-  int numK = kMesh.prod();
-  // TODO isn't this always zero? why would FTing zeros give us anything other than zero...
-  Eigen::Tensor<std::complex<double>, 7> Gamma(numK, numK, numK, numBands, numBands, numBands, numBands);
+  if(mpi->mpiHead()) std::cout << "points " << numK << " " << numPoints << std::endl;
 
   // first we do the rotation on k4, the implicit index
   Eigen::Tensor<std::complex<double>, 7> Gamma1(numK, numK, numK, numBands, numBands, numBands, numWannier);
@@ -227,14 +225,15 @@ void ElElToPhoebeApp::run(Context &context) {
           Eigen::Vector3d k3C = kPoints.getPointCoordinates(ik3, Points::crystalCoordinates);
           Eigen::Vector3d k4C = k1C + k2C - k3C;
           int ik4 = kPoints.getIndex(k4C);
-#pragma omp parallel for collapse(4)
+
+          #pragma omp parallel for collapse(4)
           for (int ib1 = 0; ib1 < numBands; ++ib1) {
             for (int ib2 = 0; ib2 < numBands; ++ib2) {
               for (int ib3 = 0; ib3 < numBands; ++ib3) {
                 for (int iw4 = 0; iw4 < numWannier; ++iw4) {
                   tmp = {0., 0.};
                   for (int ib4 = 0; ib4 < numBands; ++ib4) {
-                    tmp += Gamma(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
+                    tmp += qpCoupling(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
                         * uMatrices(ib4, iw4, ik4);
                   }
                   Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4) = tmp;
@@ -246,7 +245,7 @@ void ElElToPhoebeApp::run(Context &context) {
       }
     }
   }
-  Gamma.resize(0, 0, 0, 0, 0, 0, 0);
+  qpCoupling.resize(0, 0, 0, 0, 0, 0, 0);
 
   // next, rotation on ik3
   Eigen::Tensor<std::complex<double>, 7> Gamma2(numK, numK, numK, numBands, numBands, numWannier, numWannier);
