@@ -290,7 +290,6 @@ public:
 
   Eigen::Tensor<double, 3> getPathExtrema();
   std::vector<std::string> getPathLabels();
-  bool getCrystalInput();
 
   double getDeltaPath() const;
 

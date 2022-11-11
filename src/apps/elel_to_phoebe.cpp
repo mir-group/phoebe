@@ -74,6 +74,8 @@ void ElElToPhoebeApp::run(Context &context) {
         H5free_memory(varlen_spec.p);
     }
 */
+
+// TODO fix this
     Eigen::Vector2i bandExtrema;
     bandExtrema(0) = 4;
     bandExtrema(1) = 5;
@@ -336,7 +338,7 @@ void ElElToPhoebeApp::run(Context &context) {
   // note that the phase factors are the same for all wavevector indices
   Eigen::MatrixXcd phases(numK, numR);
   {
-#pragma omp parallel for collapse(2)
+    #pragma omp parallel for collapse(2)
     for (int ik = 0; ik < numK; ++ik) {
       for (int iR = 0; iR < numR; ++iR) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -351,7 +353,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::Tensor<std::complex<double>, 7> Gamma5(numR, numK, numK, numWannier, numWannier, numWannier, numWannier);
   {
     std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int ik2 = 0; ik2 < numK; ++ik2) {
       for (int ik3 = 0; ik3 < numK; ++ik3) {
         for (int iw1 = 0; iw1 < numWannier; ++iw1) {
@@ -379,7 +381,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::Tensor<std::complex<double>, 7> Gamma6(numR, numR, numK, numWannier, numWannier, numWannier, numWannier);
   {
     std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int iR1 = 0; iR1 < numR; ++iR1) {
       for (int ik3 = 0; ik3 < numK; ++ik3) {
         for (int iw1 = 0; iw1 < numWannier; ++iw1) {
@@ -407,7 +409,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::Tensor<std::complex<double>, 7> GammaW(numR, numR, numR, numWannier, numWannier, numWannier, numWannier);
   {
     std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int iR1 = 0; iR1 < numR; ++iR1) {
       for (int iR2 = 0; iR2 < numR; ++iR2) {
         for (int iw1 = 0; iw1 < numWannier; ++iw1) {
@@ -449,7 +451,7 @@ void ElElToPhoebeApp::writeWannierCoupling(
     // Note: this HDF5 had already been reported and being worked on.
     // It's beyond the purpose of Phoebe's project.
     Warning("HDF5 with <4 MPI process may crash (due to a "
-            "library's bug),\nuse more MPI processes if that happens");
+            "library bug),\nuse more MPI processes if that happens");
   }
 
   int numR = gWannier.dimension(0);
@@ -553,7 +555,13 @@ void ElElToPhoebeApp::writeWannierCoupling(
 
 void ElElToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getQuantumEspressoPrefix(),
-                    "QuantumEspressoPrefix");
+  throwErrorIfUnset(context.getQuantumEspressoPrefix(), "QuantumEspressoPrefix");
   throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
+  throwErrorIfUnset(context.getYamboInteractionPrefix(), "YamboInteractionPrefix");
+  // check that crystal structure was provided
+  std::string crystalMsg = "crystal structure";
+  throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
+  throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg);
+  throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
+
 }

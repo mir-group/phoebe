@@ -780,7 +780,6 @@ void Context::setupFromInput(const std::string &fileName) {
         inputAtomicPositions = inputAtomicPositions_;
         inputAtomicSpecies = inputAtomicSpecies_;
         inputSpeciesNames = inputSpeciesNames_;
-        crystalInput = true;
       }
       if (blockName == "point path") {
         auto tup2 = parsePathExtrema(value);
@@ -1208,7 +1207,6 @@ void Context::setInputSpeciesNames(const std::vector<std::string> &x) {
 
 Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 std::vector<std::string> Context::getPathLabels() { return pathLabels; }
-bool Context::getCrystalInput() { return crystalInput; }
 
 double Context::getDeltaPath() const { return deltaPath; }
 
