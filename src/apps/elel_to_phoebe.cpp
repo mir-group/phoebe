@@ -11,7 +11,7 @@
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
-#include "H5Cpp.h"
+//#include "H5Cpp.h"
 #endif
 
 void ElElToPhoebeApp::run(Context &context) {
@@ -31,7 +31,7 @@ void ElElToPhoebeApp::run(Context &context) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
     // Q1 should always exist
-    std::string fileName = yamboPrefix + "BS_head_Q1";
+    std::string fileName = yamboPrefix + "BS_head_Q1.hdf5";
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
@@ -45,40 +45,14 @@ void ElElToPhoebeApp::run(Context &context) {
 
     // TODO: highfive cannot load in VLEN arrays, which yambo is
     // currently dumping. We have to do this with HDF5 explicitly
-/*
-    H5::H5File filebands(fileName, H5F_ACC_RDONLY);
-    H5::DataSet dataset {filebands.openDataSet("/Bands")};
 
-    H5::DataSpace dataspace = dataset.getSpace();
-    const int n_dims = dataspace.getSimpleExtentNdims();
-    std::vector<hsize_t> dims(n_dims);
-
-    dataspace.getSimpleExtentDims(dims.data());
-    if (dims.size() != 1) {
-        Error("Unexpected dimensions from Yambo file for band indices.");
-    }
-
-    const hsize_t n_rows = dims[0];
-    std::vector<hvl_t> varlen_specs(n_rows);
-    std::vector<std::vector<int>> bandExtrema;
-    bandExtrema.reserve(n_rows);
-
-    auto item_type = H5::PredType::NATIVE_INT;
-    //H5::IntType mem_item_type(H5::PredType::NATIVE_INT);
-    H5::VarLenType mem_type(&item_type);
-    dataset.read(varlen_specs.data(), mem_type);
-
-    for (const auto& varlen_spec: varlen_specs) {
-        auto data_ptr = static_cast<int*>(varlen_spec.p);
-        bandExtrema.emplace_back(data_ptr, data_ptr + varlen_spec.len);
-        H5free_memory(varlen_spec.p);
-    }
-*/
-
-// TODO fix this
-    Eigen::Vector2i bandExtrema;
-    bandExtrema(0) = 4;
-    bandExtrema(1) = 5;
+    // TODO fix this
+    Eigen::MatrixXi bandExtrema;
+    HighFive::DataSet d_bands = file.getDataSet("/Bands");
+    d_bands.read(bandExtrema);
+    std::cout << "read in bands " << std::endl;
+    //bandExtrema(0) = 4;
+    //bandExtrema(1) = 5;
     numBands = 2; //bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2 // This seems weird
     bandOffset = bandExtrema.minCoeff();
   }
@@ -129,18 +103,24 @@ void ElElToPhoebeApp::run(Context &context) {
 
   // now we read the files
 
+  std::cout << "num points " << numPoints << std::endl;
+
   for (int iQ : mpi->divideWorkIter(numPoints)) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
     // tentative reading of the BSE kernel
-    std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ);
+    // we have to offset these qs by two, and the files start from Q1,
+    // and the first file has only header info
+    std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ+2) + ".hdf5";
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
     HighFive::DataSet d_bse_resonant = file.getDataSet("/BSE_RESONANT");
     // read in the data
-    Eigen::VectorXd yamboKernel_;
+    Eigen::MatrixXcd yamboKernel_;
     d_bse_resonant.read(yamboKernel_);
+
+    std::cout << "read in " << fileName << std::endl;
 
     int M = sqrt(yamboKernel_.size() / 2);
 
