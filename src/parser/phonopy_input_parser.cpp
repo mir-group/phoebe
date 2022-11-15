@@ -317,76 +317,61 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
       Error("BORN file " + fileName + " cannot be read.");
     }
     if(mpi->mpiHead()) {
-      std::cout << "Parsing the phonopy BORN file." << std::endl;
+      std::cout << "\nReading in the phonopy BORN file." << std::endl;
     }
-
-    // NOTE need to extract the list of which atoms are listed in this file
-    // from the comment on the first line of the file. Unfortunately, there is
-    // not a better way to do this.
-    /*std::string temp = line.substr(line.find("atoms")+5);
-    std::vector<int> becList;
-    {
-      std::istringstream iss(temp);
-      int i;
-      while (iss >> i) {
-        becList.push_back(i);
-      }
-    }*/
 
     // in current versions of phonopy, the first line either contains the
     // unit conversion or the "default conversion". In old versions, it was a
     // comment containing atom info.
     // we're ignoring this for now, as these conversions do not appear right for us.
     // in fact, BECs are almost always in units of e, so that had better be what the
-    // user uses.
+    // user uses. For now, we read this line to skip it
     getline(infile,line);
 
-    // becList is going to tell us the first unique atoms in the system
-    int lastAtom = -1;
-    int counter = 0;
-    std::vector<int> becList;
-    for(auto at : atomicSpeciesVec) {
-      // if lastAtom! = this atom, this atom is the first of a new species
-      counter += 1; // phonopy indexes from 1
-      if(lastAtom != at) {
-        becList.push_back(counter);
-        lastAtom = at;
-      }
-    }
+    bool readDielectric = false;
+    int iat = 0;
+    while (getline(infile,line)) {
 
-    int atomType = -1;
-    while(infile) {
-      getline(infile, line);
       // make sure it's not a comment
       if(line.find("#") != std::string::npos) continue;
       // make sure it's not blank
       if(line.find_first_not_of(' ') == std::string::npos) continue;
 
       // the first non-comment line in the file is the dielectric matrix
-      if(atomType == -1) {
+      if(!readDielectric) {
         std::istringstream iss2(line);
         iss2 >> dielectricMatrix(0,0) >> dielectricMatrix(0,1) >>
           dielectricMatrix(0,2) >> dielectricMatrix(1,0) >> dielectricMatrix(1,1) >>
           dielectricMatrix(1,2) >> dielectricMatrix(2,0) >> dielectricMatrix(2,1) >>
-          dielectricMatrix(2,2); atomType++;
+          dielectricMatrix(2,2);
+        readDielectric = true;
       }
-      else {
-        int numDupes; // number of atoms duplicate to the current index in terms of BEC
-        if(atomType+1 >= int(becList.size())) {
-          numDupes = numAtoms - (becList[atomType] - 1);
-        } else {
-          numDupes = becList[atomType+1] - becList[atomType];
-        }
-        for(int i = 0; i < numDupes; i++) {
-          std::istringstream iss(line);
-          int iat = i + (becList[atomType] - 1);
-          iss >> bornCharges(iat,0,0) >> bornCharges(iat,0,1) >>
-                  bornCharges(iat,0,2) >> bornCharges(iat,1,0) >>
-                  bornCharges(iat,1,1) >> bornCharges(iat,1,2) >> bornCharges(iat,2,0) >>
-                  bornCharges(iat,2,1) >> bornCharges(iat,2,2);
-        }
-        atomType++;
+      else {  // parse the born charges in the rest of the file
+        std::vector<std::string> tok = tokenize(line);
+         for(int i = 0; i < 3; i++) {
+           for(int j = 0; j < 3; j++) {
+              bornCharges(iat,i,j) = std::stod(tok[i*3 + j]);
+           }
+         }
+        iat++;
       }
+    }
+    // print the charge matrices
+    if(mpi->mpiHead()) {
+
+      std::cout << "Dielectric matrix read as:" << std::endl;
+      std::cout << dielectricMatrix << '\n' << std::endl;
+      std::cout << "Born effective charges read as:" << std::endl;
+      for (int idx = 0; idx < iat; idx++) {
+        std::cout << speciesNames[idx] << " ";
+        for(int i = 0; i < 3; i++) {
+          for(int j = 0; j < 3; j++) {
+            std::cout << bornCharges(idx,i,j) << " ";
+          }
+        }
+        std::cout << std::endl;
+      }
+      std::cout << std::endl;
     }
   }
 
