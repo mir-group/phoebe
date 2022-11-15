@@ -88,16 +88,12 @@ void ElElToPhoebeApp::run(Context &context) {
   //-------------------------
 
   // now I can allocate the mega tensor of 4-point interaction
-
   Eigen::Tensor<std::complex<double>, 7> qpCoupling(numPoints, numPoints,
                                                     numPoints, numBands,
                                                     numBands, numBands, numBands);
   qpCoupling.setZero();
 
   // now we read the files
-
-  std::cout << "num points " << numPoints << std::endl;
-
   for (int iQ : mpi->divideWorkIter(numPoints)) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
@@ -110,20 +106,23 @@ void ElElToPhoebeApp::run(Context &context) {
     // Set up hdf5 datasets
     HighFive::DataSet d_bse_resonant = file.getDataSet("/BSE_RESONANT");
     // read in the data
-    Eigen::MatrixXcd yamboKernel_;
-    d_bse_resonant.read(yamboKernel_);
+    Eigen::MatrixXcd yamboKernel;
+    d_bse_resonant.read(yamboKernel);
 
     std::cout << "read in " << fileName << std::endl;
 
-    int M = sqrt(yamboKernel_.size() / 2);
+    //int M = sqrt(yamboKernel_.size() / 2);
+    int M = sqrt(yamboKernel.size());
+
+    std::cout << "M " << M << " numPoints " << numPoints << " " << numBands << " " << std::endl;
 
     if (M /= numPoints * numBands * numBands) {
       Error("BSE kernel size not consistent with the rest of the input");
     }
 
     // TODO: check if this doesn't transpose matrix elements
-    Eigen::TensorMap<Eigen::Tensor<double, 3>> yamboKernel(
-        yamboKernel_.data(), M, M, 2);
+    //Eigen::TensorMap<Eigen::Tensor<double, 3>> yamboKernel(
+    //    yamboKernel_.data(), M, M, 2);
 
     // note che in yamboKernel, solo la lower triangle is filled
     // i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
@@ -132,12 +131,13 @@ void ElElToPhoebeApp::run(Context &context) {
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
-        for (int k = 0; k < 2; ++k) {
+        //for (int k = 0; k < 2; ++k) {
           // TODO: check if this has to be a complex conjugate
-          yamboKernel(i, j, k) = yamboKernel(j, i, k);
-        }
+          //yamboKernel(i, j, k) = yamboKernel(j, i, k);
+        yamboKernel(i, j) = yamboKernel(j, i);
       }
     }
+    //}
 
     // read this auxiliary mapping for Yambo indices
     Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
@@ -172,8 +172,8 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib3 = jYamboIb1 - bandOffset;
         int ib4 = jYamboIb2 - bandOffset;
 
-        std::complex<double> z = {yamboKernel(iYamboBSE, jYamboBSE, 0),
-                                  yamboKernel(iYamboBSE, jYamboBSE, 1)};
+        std::complex<double> z = yamboKernel(iYamboBSE, jYamboBSE); //{yamboKernel(iYamboBSE, jYamboBSE, 0),
+                                 // yamboKernel(iYamboBSE, jYamboBSE, 1)};
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
       }
     }
