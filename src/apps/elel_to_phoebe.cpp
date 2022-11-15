@@ -43,17 +43,10 @@ void ElElToPhoebeApp::run(Context &context) {
     if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
     numPoints = yamboQPoints.cols();
 
-    // TODO: highfive cannot load in VLEN arrays, which yambo is
-    // currently dumping. We have to do this with HDF5 explicitly
-
-    // TODO fix this
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
-    std::cout << "read in bands " << std::endl;
-    //bandExtrema(0) = 4;
-    //bandExtrema(1) = 5;
-    numBands = 2; //bandExtrema(1) - bandExtrema(0) - 1;// 6-3-1 = 2 // This seems weird
+    numBands = bandExtrema(1) - bandExtrema(0) + 1; // if band range is 4,5, that's two bands
     bandOffset = bandExtrema.minCoeff();
   }
 
