@@ -85,9 +85,11 @@ class MPIcontroller {
   // Collective communications functions -----------------------------------
   /** Wrapper for the MPI_Broadcast function.
    *  @param dataIn: pointer to data structure to broadcast
+   *  @param communicator: Communicator over which to broacast
+   *  @param root: The root process. Automatically determined if <0.
    */
   template <typename T>
-  void bcast(T* dataIn, const int& communicator=worldComm) const;
+  void bcast(T* dataIn, const int& communicator=worldComm, const int root=-1) const;
 
   /** Wrapper for MPI_Reduce in the case of a summation.
    * @param dataIn: pointer to sent data from each rank.
@@ -452,7 +454,7 @@ struct containerType;
 
 // Collective communications functions -----------------------------------
 template <typename T>
-void MPIcontroller::bcast(T* dataIn, const int& communicator) const {
+void MPIcontroller::bcast(T* dataIn, const int& communicator, const int root) const {
   using namespace mpiContainer;
 #ifdef MPI_AVAIL
   if (size == 1) return;
@@ -461,6 +463,8 @@ void MPIcontroller::bcast(T* dataIn, const int& communicator) const {
   auto t = decideCommunicator(communicator);
   MPI_Comm comm = std::get<0>(t);
   int broadcasterId = std::get<1>(t);
+
+  broadcasterId = root < 0 ? broadcasterId : root;
 
   int errCode = MPI_Bcast(containerType<T>::getAddress(dataIn),
                       containerType<T>::getSize(dataIn),

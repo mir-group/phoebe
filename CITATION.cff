@@ -1,6 +1,6 @@
 # YAML 1.2
 ---
-authors: 
+authors:
   -
     affiliation: "Harvard University"
     family-names: Cepellotti
@@ -25,6 +25,6 @@ cff-version: "1.1.0"
 license: "MIT License"
 message: "If you use this software, please cite it using these metadata."
 repository-code: "https://github.com/mir-group/phoebe"
-title: "Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers"
+title: "Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations"
 version: "1.0"
 ...

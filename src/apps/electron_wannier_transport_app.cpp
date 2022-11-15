@@ -196,7 +196,7 @@ void ElectronWannierTransportApp::run(Context &context) {
     scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat);
+      // Vector0 fermiEigenvector(statisticsSweep, bandStructure, specificHeat, true);
       elViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       elViscosity.print();
       elViscosity.outputToJSON("relaxons_electron_viscosity.json");
@@ -258,8 +258,6 @@ void ElectronWannierTransportApp::runVariationalMethod(
       transportCoefficients.getThermalConductivity();
   auto elCondOld = elCond.setConstant(1.);
   auto thCondOld = thCond.setConstant(1.);
-
-  int numCalculations = statisticsSweep.getNumCalculations();
 
   // initialize b
   // Note: we solve Az=b not with z as electron population, but as canonical
@@ -437,8 +435,6 @@ void ElectronWannierTransportApp::runIterativeMethod(
       transportCoefficients.getThermalConductivity();
   auto elCondOld = elCond.setConstant(1.);
   auto thCondOld = thCond.setConstant(1.);
-
-  int numCalculations = statisticsSweep.getNumCalculations();
 
   VectorBTE nENext(statisticsSweep, bandStructure, 3);
   VectorBTE nTNext(statisticsSweep, bandStructure, 3);

@@ -10,6 +10,7 @@
 #include "points.h"
 #include "utilities.h"
 #include "context.h"
+#include "common_kokkos.h"
 #include <Kokkos_Core.hpp>
 
 /** Class to handle the coupling between electron and phonons.
@@ -30,14 +31,6 @@ class InteractionElPhWan {
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
 
-  Eigen::Tensor<std::complex<double>, 5> couplingWannier;
-  // numElBands,numElBands,numPhBands,numPhBravaisVectors,numElBravaisVectors);
-
-  Eigen::MatrixXd elBravaisVectors;
-  Eigen::VectorXd elBravaisVectorsDegeneracies;
-  Eigen::MatrixXd phBravaisVectors;
-  Eigen::VectorXd phBravaisVectorsDegeneracies;
-
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
 
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
@@ -56,32 +49,6 @@ class InteractionElPhWan {
   getPolarCorrection(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
-  // Kokkos View types
-  using ComplexView1D = Kokkos::View<Kokkos::complex<double> *, Kokkos::LayoutRight>;
-  using ComplexView2D = Kokkos::View<Kokkos::complex<double> **, Kokkos::LayoutRight>;
-  using ComplexView3D = Kokkos::View<Kokkos::complex<double> ***, Kokkos::LayoutRight>;
-  using ComplexView4D = Kokkos::View<Kokkos::complex<double> ****, Kokkos::LayoutRight>;
-  using ComplexView5D = Kokkos::View<Kokkos::complex<double> *****, Kokkos::LayoutRight>;
-  using IntView1D = Kokkos::View<int *, Kokkos::LayoutRight>;
-  using DoubleView1D = Kokkos::View<double *, Kokkos::LayoutRight>;
-  using DoubleView2D = Kokkos::View<double **, Kokkos::LayoutRight>;
-  using DoubleView4D = Kokkos::View<double ****, Kokkos::LayoutRight>;
-
-  using HostComplexView1D = Kokkos::View<Kokkos::complex<double>*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostComplexView2D = Kokkos::View<Kokkos::complex<double>**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostComplexView3D = Kokkos::View<Kokkos::complex<double>***, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostComplexView4D = Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostComplexView5D = Kokkos::View<Kokkos::complex<double>*****, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostDoubleView1D = Kokkos::View<double*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using HostDoubleView2D = Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-
-  // Kokkos Range types
-  using Range2D = Kokkos::MDRangePolicy<Kokkos::Rank<2,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
-  using Range3D = Kokkos::MDRangePolicy<Kokkos::Rank<3,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
-  using Range4D = Kokkos::MDRangePolicy<Kokkos::Rank<4,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
-  using Range5D = Kokkos::MDRangePolicy<Kokkos::Rank<5,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
-  using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
-
   ComplexView4D elPhCached;
   ComplexView5D couplingWannier_k;
   DoubleView2D phBravaisVectors_k;
@@ -89,7 +56,17 @@ class InteractionElPhWan {
   DoubleView2D elBravaisVectors_k;
   DoubleView1D elBravaisVectorsDegeneracies_k;
 
-  double maxmem = 16.0e9; // default 16 Gb memory space for computation
+  /** Estimate the memory in bytes, occupied by the kokkos Views containing
+   * the coupling tensor to be interpolated.
+   *
+   * @return a memory estimate in bytes
+   */
+  double getDeviceMemoryUsage();
+
+  std::vector<ComplexView4D::HostMirror> elPhCached_hs;
+#ifdef MPI_AVAIL
+  std::vector<MPI_Request> mpi_requests;
+#endif
 
 public:
 
@@ -136,6 +113,10 @@ public:
   /** Assignment operator
    */
   InteractionElPhWan &operator=(const InteractionElPhWan &that);
+
+  /** Destructor
+   */
+  ~InteractionElPhWan();
 
   /** Computes the values of the el-ph coupling strength for transitions of
    * type k1,q3 -> k2, where k1 is one fixed wavevector, and k2,q3 are
@@ -190,7 +171,7 @@ public:
    * values of the coupling squared |g(ik1,ik2,iq3)|^2 for the el-ph transition
    * k1,q3 -> k2
    */
-  Eigen::Tensor<double, 3> getCouplingSquared(const int &ik2);
+  Eigen::Tensor<double, 3>& getCouplingSquared(const int &ik2);
 
   /** Static method to initialize the class by parsing a file.
    * @param fileName: name of the file containing the coupling matrix elements
