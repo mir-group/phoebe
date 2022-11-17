@@ -46,8 +46,10 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
+    std::cout << "band extrema " << bandExtrema << std::endl;
     numBands = bandExtrema(1) - bandExtrema(0) + 1; // if band range is 4,5, that's two bands
     bandOffset = bandExtrema.minCoeff();
+    std::cout << electronH0.getNumBands() << " band extrema " << bandExtrema << " offset " << bandOffset << " numBands " << numBands <<  std::endl;
   }
 
   mpi->bcast(&numPoints);
@@ -58,9 +60,9 @@ void ElElToPhoebeApp::run(Context &context) {
   }
   mpi->bcast(&yamboQPoints);
 
-  if (electronH0.getNumBands() != numBands) {
-    Error("Yambo and Wannier have run with different band number");
-  }
+  //if (electronH0.getNumBands() != numBands) {
+  //  Error("Yambo and Wannier have run with different band number");
+  //}
 
   //----------------
   // set up k-points
@@ -72,7 +74,7 @@ void ElElToPhoebeApp::run(Context &context) {
   std::string wannierPrefix = context.getWannier90Prefix();
   Eigen::Tensor<std::complex<double>, 3> uMatrices;
   // uMatrices have size (numBands, numWannier, numKPoints)
-  uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, true);
+  uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, false);
 
   if (numBands != uMatrices.dimension(0)) {
     Error("Band number not aligned between Yambo and Wannier90.");
@@ -100,7 +102,7 @@ void ElElToPhoebeApp::run(Context &context) {
     // tentative reading of the BSE kernel
     // we have to offset these qs by two, and the files start from Q1,
     // and the first file has only header info
-    std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ+2) + ".hdf5";
+    std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ+1) + ".hdf5";
     // Open the hdf5 file
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
@@ -161,7 +163,8 @@ void ElElToPhoebeApp::run(Context &context) {
         int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
         int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
         int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
-        Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
+        std::cout << "jYamboIk1 " << jYamboIk1  << std::endl;
+/*        Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
         int ikk1 = kPoints.getIndex(thisiK);
@@ -171,10 +174,10 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib2 = iYamboIb2 - bandOffset;
         int ib3 = jYamboIb1 - bandOffset;
         int ib4 = jYamboIb2 - bandOffset;
-
-        std::complex<double> z = yamboKernel(iYamboBSE, jYamboBSE); //{yamboKernel(iYamboBSE, jYamboBSE, 0),
+*/
+        std::complex<double> z = {0,0}; //yamboKernel(iYamboBSE, jYamboBSE); //{yamboKernel(iYamboBSE, jYamboBSE, 0),
                                  // yamboKernel(iYamboBSE, jYamboBSE, 1)};
-        qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
+        //qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
       }
     }
   }
@@ -537,3 +540,4 @@ void ElElToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
 
 }
+
