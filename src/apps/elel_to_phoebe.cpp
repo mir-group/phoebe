@@ -118,13 +118,9 @@ void ElElToPhoebeApp::run(Context &context) {
 
     std::cout << "M " << M << " numPoints " << numPoints << " " << numBands << " " << std::endl;
 
-    if (M /= numPoints * numBands * numBands) {
+    if (M != numPoints * numBands * numBands) {
       Error("BSE kernel size not consistent with the rest of the input");
     }
-
-    // TODO: check if this doesn't transpose matrix elements
-    //Eigen::TensorMap<Eigen::Tensor<double, 3>> yamboKernel(
-    //    yamboKernel_.data(), M, M, 2);
 
     // note che in yamboKernel, solo la lower triangle is filled
     // i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
@@ -133,13 +129,10 @@ void ElElToPhoebeApp::run(Context &context) {
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
-        //for (int k = 0; k < 2; ++k) {
-          // TODO: check if this has to be a complex conjugate
-          //yamboKernel(i, j, k) = yamboKernel(j, i, k);
+        // TODO: check if this has to be a complex conjugate
         yamboKernel(i, j) = yamboKernel(j, i);
       }
     }
-    //}
 
     // read this auxiliary mapping for Yambo indices
     Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
@@ -149,13 +142,14 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-    #pragma omp parallel for
+  //  #pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
       int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
       int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
       int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
+      std::cout << "iYamboIk1 " << iYamboIk1  << std::endl;
       Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
       for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
         int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
@@ -164,7 +158,7 @@ void ElElToPhoebeApp::run(Context &context) {
         int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
         int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
         std::cout << "jYamboIk1 " << jYamboIk1  << std::endl;
-/*        Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
+        Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
         int ikk1 = kPoints.getIndex(thisiK);
@@ -174,7 +168,7 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib2 = iYamboIb2 - bandOffset;
         int ib3 = jYamboIb1 - bandOffset;
         int ib4 = jYamboIb2 - bandOffset;
-*/
+
         std::complex<double> z = {0,0}; //yamboKernel(iYamboBSE, jYamboBSE); //{yamboKernel(iYamboBSE, jYamboBSE, 0),
                                  // yamboKernel(iYamboBSE, jYamboBSE, 1)};
         //qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
