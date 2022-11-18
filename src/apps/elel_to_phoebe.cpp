@@ -37,7 +37,6 @@ void ElElToPhoebeApp::run(Context &context) {
     // Set up hdf5 datasets
     HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
     // read the k/q-points in crystal coordinates
-    Eigen::MatrixXd yamboQPoints;
     d_head_qpt.read(yamboQPoints);
     int numDim = yamboQPoints.rows();
     if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
@@ -59,10 +58,6 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints.resize(3, numPoints);
   }
   mpi->bcast(&yamboQPoints);
-
-  //if (electronH0.getNumBands() != numBands) {
-  //  Error("Yambo and Wannier have run with different band number");
-  //}
 
   //----------------
   // set up k-points
