@@ -113,12 +113,9 @@ void ElElToPhoebeApp::run(Context &context) {
 
     std::cout << "read in " << fileName << std::endl;
 
-    //int M = sqrt(yamboKernel_.size() / 2);
-    int M = sqrt(yamboKernel.size());
+    int M = int(sqrt(yamboKernel.size()));
 
-    std::cout << "M " << M << " numPoints " << numPoints << " " << numBands << " " << std::endl;
-
-    if (M != numPoints * numBands * numBands) {
+    if (M > numPoints * numBands * numBands) {
       Error("BSE kernel size not consistent with the rest of the input");
     }
 
