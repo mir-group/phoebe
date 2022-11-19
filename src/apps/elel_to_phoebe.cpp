@@ -23,6 +23,7 @@ void ElElToPhoebeApp::run(Context &context) {
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
+  //kMesh = context.getKMesh();
 
   // now we parse the first header
   Eigen::MatrixXd yamboQPoints;
@@ -41,6 +42,8 @@ void ElElToPhoebeApp::run(Context &context) {
     int numDim = yamboQPoints.rows();
     if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
     numPoints = yamboQPoints.cols();
+    yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
+    yamboQPoints.transposeInPlace();
 
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
@@ -58,6 +61,7 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints.resize(3, numPoints);
   }
   mpi->bcast(&yamboQPoints);
+  //std::cout << "yambo " << yamboQPoints << std::endl;
 
   //----------------
   // set up k-points
@@ -134,6 +138,12 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
+    std::cout << " number of points " << kPoints.getNumPoints() << std::endl;
+    for(int k  =0 ; k < kPoints.getNumPoints(); k++) {
+      std::cout << kPoints.getPointCoordinates(k).transpose() << std::endl;
+    }
+
+
   //  #pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
@@ -153,9 +163,15 @@ void ElElToPhoebeApp::run(Context &context) {
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
-        int ikk1 = kPoints.getIndex(thisiK);
-        int ikk2 = kPoints.getIndex(thisK2);
-        int ikk3 = kPoints.getIndex(thisjK);
+        Eigen::Vector3d ik1BZ = kPoints.foldToBz(thisiK,Points::crystalCoordinates);
+        int ikk1 = kPoints.getIndex(ik1BZ);
+        Eigen::Vector3d ik2BZ = kPoints.foldToBz(thisK2,Points::crystalCoordinates);
+        int ikk2 = kPoints.getIndex(ik2BZ);
+        std::cout << "thisjK " << thisjK.transpose() << std::endl;
+        Eigen::Vector3d ik3BZ = kPoints.foldToBz(thisjK,Points::crystalCoordinates);
+        std::cout << "ik3 " << ik3BZ.transpose() << std::endl;
+        int ikk3 = kPoints.getIndex(ik3BZ);
+
         int ib1 = iYamboIb1 - bandOffset;// because iYambo starts from 4
         int ib2 = iYamboIb2 - bandOffset;
         int ib3 = jYamboIb1 - bandOffset;
