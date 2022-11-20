@@ -49,12 +49,12 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints.transposeInPlace();
 
     // Convert from yambo internal coordiantes to phoebe's coordinates
-    //TODO make sure the definitio of alat is always the diagonal of the
+    //TODO make sure the definition of alat is always the diagonal of the
     //lattice vectors
     {
       Eigen::Matrix3d latt = crystal.getDirectUnitCell();
       Eigen::Matrix3d rlattInv = crystal.getReciprocalUnitCell().inverse();
-      Eigen::Vector3d alat = {latt(0,0),latt(1,1),latt(2,2)}; //{2.46636858, 2.13593685, 12.33184248};
+      Eigen::Vector3d alat = {latt(0,0),latt(1,1),latt(2,2)};
 
       for(int iq = 0; iq < numPoints; iq++) {
         Eigen::Vector3d temp;
@@ -69,10 +69,8 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
-    std::cout << "band extrema " << bandExtrema << std::endl;
     numBands = bandExtrema(1) - bandExtrema(0) + 1; // if band range is 4,5, that's two bands
     bandOffset = bandExtrema.minCoeff();
-    std::cout << electronH0.getNumBands() << " band extrema " << bandExtrema << " offset " << bandOffset << " numBands " << numBands <<  std::endl;
   }
 
   mpi->bcast(&numPoints);
@@ -130,17 +128,16 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXcd yamboKernel;
     d_bse_resonant.read(yamboKernel);
 
-    std::cout << "read in " << fileName << std::endl;
+    std::cout << "Reading " << fileName << std::endl;
 
+    // dimension of yambo W matrix
     int M = int(sqrt(yamboKernel.size()));
-
     if (M > numPoints * numBands * numBands) {
       Error("BSE kernel size not consistent with the rest of the input");
     }
 
-    // note che in yamboKernel, solo la lower triangle is filled
-    // i.e. kernel[4,1] ha un numero ragionevole, ma k[1,4] no
-
+    // note that the yamboKernel is only the lower triange of the
+    // matrix, and the upper triangle is nonsense that needs to be filled
     // first pass: we make sure the matrix is complete
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
@@ -154,24 +151,19 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
     HighFive::DataSet d_ikbz = file.getDataSet("/IKBZ_IB1_IB2_ISP2_ISP1");
     d_ikbz.read(ikbz_ib1_ib2_isp2_isp1);
+    ikbz_ib1_ib2_isp2_isp1 = ikbz_ib1_ib2_isp2_isp1.reshaped(M,5).eval();
+    ikbz_ib1_ib2_isp2_isp1.transposeInPlace();
 
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-    //std::cout << " number of points " << kPoints.getNumPoints() << std::endl;
-    //for(int k  =0 ; k < kPoints.getNumPoints(); k++) {
-    //  std::cout << kPoints.getPointCoordinates(k).transpose() << std::endl;
-    //}
-
-
-  //  #pragma omp parallel for
+    #pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
       int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
       int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
       int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
-      //std::cout << "iYamboIk1 " << iYamboIk1  << std::endl;
       Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
       for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
         int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
@@ -179,27 +171,20 @@ void ElElToPhoebeApp::run(Context &context) {
         int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
         int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
         int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
-        //std::cout << "jYamboIk1 " << jYamboIk1  << std::endl;
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
-        Eigen::Vector3d ik1BZ = kPoints.foldToBz(thisiK,Points::crystalCoordinates);
-        int ikk1 = kPoints.getIndex(ik1BZ, tolerance);
-        Eigen::Vector3d ik2BZ = kPoints.foldToBz(thisK2,Points::crystalCoordinates);
-        int ikk2 = kPoints.getIndex(ik2BZ,tolerance);
-        //std::cout << "thisjK " << thisjK.transpose() << std::endl;
-        Eigen::Vector3d ik3BZ = kPoints.foldToBz(thisjK,Points::crystalCoordinates);
-        //std::cout << "ik3 " << ik3BZ.transpose() << std::endl;
-        int ikk3 = kPoints.getIndex(ik3BZ,tolerance);
+        int ikk1 = kPoints.getIndex(thisiK, tolerance);
+        int ikk2 = kPoints.getIndex(thisK2, tolerance);
+        int ikk3 = kPoints.getIndex(thisjK, tolerance);
 
-        int ib1 = iYamboIb1 - bandOffset;// because iYambo starts from 4
-        int ib2 = iYamboIb2 - bandOffset;
-        int ib3 = jYamboIb1 - bandOffset;
-        int ib4 = jYamboIb2 - bandOffset;
+        // band indexing starts from bottom of offset
+        int ib1 = iYamboIb1 -  bandOffset;
+        int ib2 = iYamboIb2 -  bandOffset;
+        int ib3 = jYamboIb1 -  bandOffset;
+        int ib4 = jYamboIb2 -  bandOffset;
 
-        std::complex<double> z = {0,0}; //yamboKernel(iYamboBSE, jYamboBSE); //{yamboKernel(iYamboBSE, jYamboBSE, 0),
-                                 // yamboKernel(iYamboBSE, jYamboBSE, 1)};
-        //qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = z;
+        qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
       }
     }
   }
