@@ -243,8 +243,8 @@ Eigen::Vector3d Points::getPointCoordinates(const int &index,
   }
 }
 
-int Points::getIndex(const Eigen::Vector3d &point) {
-  int ik = isPointStored(point);
+int Points::getIndex(const Eigen::Vector3d &point, const double &tolerance) {
+  int ik = isPointStored(point, tolerance);
   if (ik == -1) {
     Error("getIndex found a point not falling on the wavevector mesh");
   }
@@ -395,7 +395,8 @@ int pointsBinarySearch(const Eigen::MatrixXd& pointsList,
   return idxMin; // point found
 }
 
-int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
+int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_,
+                          const double &tolerance) {
 
   if (!explicitlyStored) { // full list is faster
     Eigen::Vector3i p;
@@ -409,7 +410,7 @@ int Points::isPointStored(const Eigen::Vector3d &crystCoordinates_) {
       // fold in Brillouin zone in range [0,mesh-1]
       p(i) = mod(int(round(x)), mesh(i));
     }
-    if (diff >= 1.0e-6) {
+    if (diff >= tolerance) {
       int ik = -1;
       return ik;
     }

@@ -183,7 +183,7 @@ public:
    * @param point: the wavevector in crystal coordinates.
    * @return index: the index of the wavevector in the range [0,numPoints[
    */
-  int getIndex(const Eigen::Vector3d &point);
+  int getIndex(const Eigen::Vector3d &point, const double &tolerance = 1e-6);
 
   /** Like getIndex, get the wavevector index given the crystal coordinates
    * of a wavevector, but returns -1 if point not found.
@@ -192,7 +192,7 @@ public:
    * @return index: the index of the wavevector in the range [0,numPoints[ if
    * the point is in the set of points, or -1 if not found.
    */
-  int isPointStored(const Eigen::Vector3d &crystalCoordinates_);
+  int isPointStored(const Eigen::Vector3d &crystalCoordinates_, const double &tolerance = 1e-6);
 
   // note: we could use constexpr to tell the compiler that the class member is
   // available at compilation time. But it wouldn't be compatible on old
