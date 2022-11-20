@@ -23,7 +23,11 @@ void ElElToPhoebeApp::run(Context &context) {
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
-  //kMesh = context.getKMesh();
+  // set up k-points
+  Eigen::Vector3i kMesh = context.getKMesh();
+  Points kPoints(crystal, kMesh);
+  int numK = kMesh.prod();
+
   // yambo's points are low precision, so we need to lower
   // the tolerance on checks if kpoints will be the same
   double tolerance = 1e-5;
@@ -80,12 +84,6 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints.resize(3, numPoints);
   }
   mpi->bcast(&yamboQPoints);
-
-  //----------------
-  // set up k-points
-  Eigen::Vector3i kMesh = {8, 8, 1}; // TODO: get this from somewhere
-  Points kPoints(crystal, kMesh);
-  int numK = kMesh.prod();
 
   // read U matrices
   std::string wannierPrefix = context.getWannier90Prefix();
@@ -538,6 +536,7 @@ void ElElToPhoebeApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getQuantumEspressoPrefix(), "QuantumEspressoPrefix");
   throwErrorIfUnset(context.getWannier90Prefix(), "Wannier90Prefix");
   throwErrorIfUnset(context.getYamboInteractionPrefix(), "YamboInteractionPrefix");
+  throwErrorIfUnset(context.getKMesh(), "kMesh");
   // check that crystal structure was provided
   std::string crystalMsg = "crystal structure";
   throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
