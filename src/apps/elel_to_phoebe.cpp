@@ -24,6 +24,9 @@ void ElElToPhoebeApp::run(Context &context) {
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
   //kMesh = context.getKMesh();
+  // yambo's points are low precision, so we need to lower
+  // the tolerance on checks if kpoints will be the same
+  double tolerance = 1e-5;
 
   // now we parse the first header
   Eigen::MatrixXd yamboQPoints;
@@ -45,6 +48,24 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
     yamboQPoints.transposeInPlace();
 
+    // Convert from yambo internal coordiantes to phoebe's coordinates
+    //TODO make sure the definitio of alat is always the diagonal of the
+    //lattice vectors
+    {
+      Eigen::Matrix3d latt = crystal.getDirectUnitCell();
+      Eigen::Matrix3d rlattInv = crystal.getReciprocalUnitCell().inverse();
+      Eigen::Vector3d alat = {latt(0,0),latt(1,1),latt(2,2)}; //{2.46636858, 2.13593685, 12.33184248};
+
+      for(int iq = 0; iq < numPoints; iq++) {
+        Eigen::Vector3d temp;
+        for( int i : {0,1,2} )
+          temp(i) = (abs(yamboQPoints(i, iq)) < 1e-7) ? 0.0 : yamboQPoints(i, iq) * twoPi / alat(i);
+        temp = rlattInv * temp;
+        for( int i : {0,1,2} )
+          yamboQPoints(i, iq) = temp(i);
+      }
+    }
+
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
@@ -61,7 +82,6 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints.resize(3, numPoints);
   }
   mpi->bcast(&yamboQPoints);
-  //std::cout << "yambo " << yamboQPoints << std::endl;
 
   //----------------
   // set up k-points
@@ -138,10 +158,10 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-    std::cout << " number of points " << kPoints.getNumPoints() << std::endl;
-    for(int k  =0 ; k < kPoints.getNumPoints(); k++) {
-      std::cout << kPoints.getPointCoordinates(k).transpose() << std::endl;
-    }
+    //std::cout << " number of points " << kPoints.getNumPoints() << std::endl;
+    //for(int k  =0 ; k < kPoints.getNumPoints(); k++) {
+    //  std::cout << kPoints.getPointCoordinates(k).transpose() << std::endl;
+    //}
 
 
   //  #pragma omp parallel for
@@ -151,7 +171,7 @@ void ElElToPhoebeApp::run(Context &context) {
       int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
       int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
       int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
-      std::cout << "iYamboIk1 " << iYamboIk1  << std::endl;
+      //std::cout << "iYamboIk1 " << iYamboIk1  << std::endl;
       Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
       for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
         int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
@@ -159,18 +179,18 @@ void ElElToPhoebeApp::run(Context &context) {
         int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
         int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
         int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
-        std::cout << "jYamboIk1 " << jYamboIk1  << std::endl;
+        //std::cout << "jYamboIk1 " << jYamboIk1  << std::endl;
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
 
         Eigen::Vector3d ik1BZ = kPoints.foldToBz(thisiK,Points::crystalCoordinates);
-        int ikk1 = kPoints.getIndex(ik1BZ);
+        int ikk1 = kPoints.getIndex(ik1BZ, tolerance);
         Eigen::Vector3d ik2BZ = kPoints.foldToBz(thisK2,Points::crystalCoordinates);
-        int ikk2 = kPoints.getIndex(ik2BZ);
-        std::cout << "thisjK " << thisjK.transpose() << std::endl;
+        int ikk2 = kPoints.getIndex(ik2BZ,tolerance);
+        //std::cout << "thisjK " << thisjK.transpose() << std::endl;
         Eigen::Vector3d ik3BZ = kPoints.foldToBz(thisjK,Points::crystalCoordinates);
-        std::cout << "ik3 " << ik3BZ.transpose() << std::endl;
-        int ikk3 = kPoints.getIndex(ik3BZ);
+        //std::cout << "ik3 " << ik3BZ.transpose() << std::endl;
+        int ikk3 = kPoints.getIndex(ik3BZ,tolerance);
 
         int ib1 = iYamboIb1 - bandOffset;// because iYambo starts from 4
         int ib2 = iYamboIb2 - bandOffset;
@@ -188,8 +208,6 @@ void ElElToPhoebeApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::cout << "Starting the Wannier transform.\n";
   }
-
-  if(mpi->mpiHead()) std::cout << "points " << numK << " " << numPoints << std::endl;
 
   // first we do the rotation on k4, the implicit index
   Eigen::Tensor<std::complex<double>, 7> Gamma1(numK, numK, numK, numBands, numBands, numBands, numWannier);
