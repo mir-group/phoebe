@@ -117,7 +117,7 @@ void ScatteringMatrix::setup() {
     if (numCalculations > 1) {
       // note: one could write code around this
       // but the methods are very memory intensive for production runs
-      Error("High memory BTE methods can only work with one "
+      Error("High memory BTE methods (scatterngMatrixInMemory=true) can only work with one "
             "temperature and/or chemical potential in a single run");
     }
     int matSize;
