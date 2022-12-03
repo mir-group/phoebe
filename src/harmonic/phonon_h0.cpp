@@ -505,18 +505,16 @@ Eigen::Tensor<double, 5> PhononH0::wsInit(const Eigen::MatrixXd &unitCell,
         }
       }
 
-      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) >
-          1.0e-8) {
-        std::cout << total_weight << " " << qCoarseGrid.prod() << "\n";
-        Error("wrong total_weight");
+      if (abs(total_weight - qCoarseGrid(0) * qCoarseGrid(1) * qCoarseGrid(2)) > 1.0e-8) {
+        Error("DeveloperError: wrong total_weight, weight: "
+                + std::to_string(total_weight) + " qMeshProd: " + std::to_string(qCoarseGrid.prod()) );
       }
     }
   }
   return wsCache;
 }
 
-double PhononH0::wsWeight(const Eigen::VectorXd &r,
-                          const Eigen::MatrixXd &rws) {
+double PhononH0::wsWeight(const Eigen::VectorXd &r, const Eigen::MatrixXd &rws) {
   // wsWeight() assigns this weight:
   // - if a point is inside the Wigner-Seitz cell:    weight=1
   // - if a point is outside the WS cell:             weight=0
@@ -537,10 +535,10 @@ double PhononH0::wsWeight(const Eigen::VectorXd &r,
   for (int ir = 0; ir < rws.cols(); ir++) {
     double rrt = r.dot(rws.col(ir));
     double ck = rrt - rws.col(ir).squaredNorm() / 2.;
-    if (ck > 1.0e-6) {
+    if (ck > 1.0e-5) {
       return 0.;
     }
-    if (abs(ck) < 1.0e-6) {
+    if (abs(ck) <= 1.0e-5) {
       numREq += 1;
     }
   }
