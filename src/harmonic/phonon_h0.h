@@ -174,6 +174,9 @@ protected:
   Eigen::Vector3i qCoarseGrid;
   Eigen::Matrix3d directUnitCell;
   int dimensionality;
+  // TODO -- when long range correction for dim=2 has been really well checked,
+  // uncomment this to activate it
+  bool longRange2d = false;
 
   int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;
