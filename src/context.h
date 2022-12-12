@@ -65,7 +65,7 @@ class Context {
   std::vector<std::string> pathLabels;
   double deltaPath = 0.05;
 
-  bool outputEigendisplacements; // used by bands app if phonon eigdisps are dumped
+  bool outputEigendisplacements = false; // used by bands app if phonon eigdisps are dumped
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
