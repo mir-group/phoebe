@@ -24,7 +24,7 @@ with open(jfileName) as jfile:
 # read in and look up this qpoints
 qlist = data["wavevectorCoordinates"]
 qidx = qlist.index(q)
-print(qidx, qlist[qidx])
+print("Found qpoint: ",qlist[qidx])
 
 # read in eigendisplacements
 # these should be in the shape (qpoints, bands, atoms, 3, 2) where 3 are x,y,z displacements
