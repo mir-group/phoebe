@@ -45,7 +45,7 @@ Before performing this calculation, you should either run steps 1-7 of the :ref:
 * phonopy_disp.yaml
 * FORCE_CONSTANTS_3RD
 
-If you've run either one of these calculations, you can simply copy these files into your current directory, or point the Phoebe input file from the next step to their location. If you haven't run one of these tutorials, we recommend you do so in the interest of understanding the process -- however, you could also obtain these files by running either ``runMe.sh`` in either ``example/Silicon_el/qe-elph/`` or ``example/Silicon_ph/qe-phonons/`` and ``example/Silicon_ph/qe-ph-anharmonic/``.
+If you've run either one of these calculations, you can simply copy these files into your current directory, or point the Phoebe input file from the next step to their location. If you haven't run one of these tutorials, we recommend you do so in the interest of understanding the process -- however, you could also obtain these files by running either ``runMe.sh`` in either ``example/Silicon_el/qe-elph/`` or ``example/Silicon_ph/phono3py-anharmonic`` or ``example/Silicon_ph/qe-phonons/`` and ``example/Silicon_ph/thirdorder.py-anharmonic/``.
 
 Silicon could of course be replaced with the appropriate prefix for any material you want to calculate, for which you have the equivalent files prepared.
 
@@ -92,9 +92,13 @@ Once we've collected the files from a prior tutorial, we can go ahead and run th
 
   appName = "phononLifetimes"
 
-  phFC2FileName = "qe-phonons/silicon.fc",
   sumRuleFC2 = "simple"
-  phFC3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
+  phFC2FileName = "phono3py-anharmonic/fc2.hdf5"
+  phFC3FileName = "phono3py-anharmonic/fc3.hdf5"
+  phonopyDispFileName = "phono3py-anharmonic/phono3py_disp.yaml"
+  # or
+  # phFC2FileName = "qe-phonons/silicon.fc",
+  # phFC3FileName = "thirdorder.py-anharmonic/FORCE_CONSTANTS_3RD"
 
   qMesh = [10,10,10]
   temperatures = [600.]

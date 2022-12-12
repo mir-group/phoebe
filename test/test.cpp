@@ -1,14 +1,12 @@
-#include "example.h"
 #include "mpiHelper.h"
 #include "gtest/gtest.h"
-#include <Kokkos_Core.hpp>
-#include "io.h"
+#include "common_kokkos.h"
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   initMPI(argc,argv);
-  Kokkos::initialize(argc, argv);
+  initKokkos(argc, argv);
 
   // mute messages from other than root rank
   ::testing::TestEventListeners& listeners =
@@ -19,7 +17,7 @@ int main(int argc, char **argv) {
 
   int errCode = RUN_ALL_TESTS();
 
-  Kokkos::finalize();
+  deleteKokkos();
   mpi->finalize();
 
   return errCode;

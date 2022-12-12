@@ -56,6 +56,7 @@ ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
 void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
+  Kokkos::Profiling::pushRegion("ElScatteringMatrix::builder");
 
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
@@ -159,7 +160,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // the 2nd process call calcCouplingSquared 7 times as well.
     if (ik1 == -1) {
       Eigen::Vector3d k1C = Eigen::Vector3d::Zero();
-      int numWannier = couplingElPhWan->getCouplingDimensions()(0);
+      int numWannier = couplingElPhWan->getCouplingDimensions()(4);
       Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier, 1);
       couplingElPhWan->cacheElPh(eigenVector1, k1C);
       // since this is just a dummy call used to help other MPI processes
@@ -204,6 +205,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       std::vector<Eigen::VectorXd> allState2Energies(batch_size);
       std::vector<Eigen::MatrixXd> allV2s(batch_size);
 
+      Kokkos::Profiling::pushRegion("preprocessing loop");
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
 #pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C, allPolarData)
@@ -223,10 +225,12 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         allBose3Data[ik2Batch] = std::get<5>(t2);
         allPolarData[ik2Batch] = std::get<6>(t2);
       }
+      Kokkos::Profiling::popRegion();
 
       couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
                                            allEigenVectors3, allQ3C, allPolarData);
 
+      Kokkos::Profiling::pushRegion("symmetrize coupling");
 #pragma omp parallel for
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         symmetrizeCoupling(
@@ -234,7 +238,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             state1Energies, allState2Energies[ik2Batch], allStates3Energies[ik2Batch]
         );
       }
+      Kokkos::Profiling::popRegion();
 
+      Kokkos::Profiling::pushRegion("postprocessing loop");
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         int ik2 = ik2Indexes[start + ik2Batch];
@@ -395,6 +401,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           }
         }
       }
+      Kokkos::Profiling::popRegion();
     }
   }
 
@@ -417,6 +424,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
 
   if (doBoundary) {
+    Kokkos::Profiling::pushRegion("boundary scattering");
     std::vector<int> is1s = outerBandStructure.irrStateIterator();
     int nis1s = is1s.size();
 #pragma omp parallel for default(none) shared(                            \
@@ -448,6 +456,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         }
       }
     }
+    Kokkos::Profiling::popRegion();
   }
 
   // we place the linewidths back in the diagonal of the scattering matrix
@@ -477,4 +486,5 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       }
     }
   }
+  Kokkos::Profiling::popRegion();
 }

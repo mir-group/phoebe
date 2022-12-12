@@ -10,6 +10,7 @@
 #include "harmonic.h"
 #include "particle.h"
 #include "points.h"
+#include "common_kokkos.h"
 
 /** class that computes phonon energies, velocities and eigenvectors.
  * First, it contains the force constants, i.e. the second derivative of the
@@ -29,7 +30,7 @@ class PhononH0 : public HarmonicHamiltonian {
    */
   PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
            const Eigen::Tensor<double, 3> &bornCharges_,
-           const Eigen::Tensor<double, 7> &forceConstants_,
+           Eigen::Tensor<double, 7> &forceConstants_,
            const std::string &sumRule);
 
   /** Copy constructor
@@ -39,6 +40,10 @@ class PhononH0 : public HarmonicHamiltonian {
   /** Copy assignment operator
    */
   PhononH0 &operator=(const PhononH0 &that);
+
+  /** Destructor
+   */
+  ~PhononH0();
 
   /** Returns the number of phonon bands for the crystal in consideration.
    */
@@ -89,8 +94,21 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return FullBandStructure: the band structure object containing the
    * complete phonon band structure.
    */
-  FullBandStructure populate(Points &points, bool &withVelocities,
-                             bool &withEigenvectors, bool isDistributed = false) override;
+  FullBandStructure populate(Points &points, const bool &withVelocities,
+                             const bool &withEigenvectors,
+                             const bool isDistributed = false) override;
+  FullBandStructure cpuPopulate(Points &points, bool &withVelocities,
+                                bool &withEigenvectors, bool isDistributed = false);
+  FullBandStructure kokkosPopulate(Points &points, const bool &withVelocities,
+                                   const bool &withEigenvectors, const bool isDistributed = false);
+  StridedComplexView3D kokkosBatchedBuildBlochHamiltonian(
+      const DoubleView2D &cartesianCoordinates) override;
+  std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling = true);
+  std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
+  kokkosBatchedDiagonalizeWithVelocities(
+      const DoubleView2D &cartesianCoordinates) override;
+  void kokkosBatchedScaleEigenvectors(StridedComplexView3D& eigenvectors);
 
   /** Returns the size of the q-point coarse grid on which the force constants
    * have been computed.
@@ -120,6 +138,15 @@ class PhononH0 : public HarmonicHamiltonian {
    * @return bornCharges: a real tensor of shape (numAtoms,3,3) with the charges
    */
   Eigen::Tensor<double, 3> getBornCharges();
+
+  /** Estimate how many k-points we can compute on the GPU in one batch.
+   *
+   * @param withVelocity: set to true if computing also the velocity operator,
+   * which requires more memory
+   * @return numBatches: an estimate on how many k-point we can compute in one
+   * call of the kokkosBatched functions.
+   */
+  int estimateBatchSize(const bool& withVelocity) override;
 protected:
   /** Impose the acoustic sum rule on force constants and Born charges
    * @param sumRule: name of the sum rule to be used
@@ -127,17 +154,17 @@ protected:
    * i.e. "simple" (for a rescaling of the diagonal elements) or "crystal"
    * (to find the closest matrix which satisfies the sum rule)
    */
-  void setAcousticSumRule(const std::string &sumRule);
+  void setAcousticSumRule(const std::string &sumRule,
+                          Eigen::Tensor<double, 7>& forceConstants);
 
-  void reorderDynamicalMatrix();
+  void reorderDynamicalMatrix(const Eigen::Matrix3d& directUnitCell,
+                              const Eigen::Tensor<double, 7>& forceConstants);
 
   Particle particle;
 
   bool hasDielectric = false;
   int numAtoms;
   int numBands;
-  Eigen::MatrixXd directUnitCell;
-  Eigen::MatrixXd reciprocalUnitCell;
   double volumeUnitCell;
   Eigen::MatrixXi atomicSpecies;
   Eigen::VectorXd speciesMasses;
@@ -145,9 +172,11 @@ protected:
   Eigen::Matrix3d dielectricMatrix;
   Eigen::Tensor<double, 3> bornCharges;
   Eigen::Vector3i qCoarseGrid;
-  Eigen::Tensor<double, 7> forceConstants;
-  Eigen::Tensor<double, 5> wsCache;
-  int nr1Big, nr2Big, nr3Big;
+  Eigen::Matrix3d directUnitCell;
+  int dimensionality;
+  // TODO -- when long range correction for dim=2 has been really well checked,
+  // uncomment this to activate it
+  bool longRange2d = false;
 
   int numBravaisVectors = 0;
   Eigen::MatrixXd bravaisVectors;
@@ -156,14 +185,29 @@ protected:
 
   Eigen::MatrixXd gVectors;
   Eigen::Tensor<double,3> longRangeCorrection1;
-  double gMax = 14.; // cutoff for ewald summation
+  const double gMax = 14.; // cutoff for ewald summation
+
+  // kokkos members:
+  DoubleView1D atomicMasses_d;
+  DoubleView3D longRangeCorrection1_d;
+  DoubleView2D gVectors_d;
+  DoubleView2D dielectricMatrix_d;
+  DoubleView3D bornCharges_d;
+  DoubleView2D atomicPositions_d;
+  DoubleView2D bravaisVectors_d;
+  DoubleView1D weights_d;
+  DoubleView3D mat2R_d;
 
   // private methods, used to diagonalize the Dyn matrix
 
   /** In wsInit, starting from the primitive crystal unit cell, we build the
    * list of bravais lattice vectors used for the phonon Fourier transform.
    */
-  void wsInit(const Eigen::MatrixXd &unitCell);
+  Eigen::Tensor<double, 5> wsInit(const Eigen::MatrixXd &unitCell,
+                                  const Eigen::Matrix3d &directUnitCell,
+                                  const int& nr1Big,
+                                  const int& nr2Big,
+                                  const int& nr3Big);
 
   /** wsWeight computes the `weights`, i.e. the number of symmetry-equivalent
    * Bravais lattice vectors, that are used in the phonon Fourier transform.
@@ -173,10 +217,6 @@ protected:
   // These functions treat hte long range corrections
   void addLongRangeTerm(Eigen::Tensor<std::complex<double>, 4> &dyn,
                         const Eigen::VectorXd &q);
-  void nonAnalyticTerm(const Eigen::VectorXd &q,
-                       Eigen::Tensor<std::complex<double>, 4> &dyn);
-  void nonAnalIFC(const Eigen::VectorXd &q,
-                  Eigen::Tensor<std::complex<double>, 4> &f_of_q);
 
   /** This part computes the slow-range part of the dynamical matrix, which is
    * the Fourier transform of the force constants.
@@ -193,6 +233,13 @@ protected:
   // methods for sum rule on Born charges
   void sp_zeu(Eigen::Tensor<double, 3> &zeu_u, Eigen::Tensor<double, 3> &zeu_v,
               double &scalar) const;
+
+  /** Checks the size of Device-allocated views
+   *
+   * @return size occupied by Kokkos views, in bytes.
+   */
+  double getDeviceMemoryUsage();
+
 };
 
 #endif

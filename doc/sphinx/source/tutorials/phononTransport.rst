@@ -142,8 +142,7 @@ Step 4: Calculate Lattice Thermal Conductivity
 
 If this dispersion looks good, we are now ready to move on to phonon transport calculations using Phoebe.
 
-There are four files output by phono3py which we will need: ``fc2.hdf5``, ``fc3.hdf5``, ``phono3py_disp.yaml``, and ``disp_fc3.yaml`` (in the event that you ran phono3py with different dimensions on the harmonic and anharmonic force constants, there will be a fifth file, ``disp_fc2.yaml`` as well).
-Out of these, we only need the first three to go forward, and can be copied into a new directory to run Phoebe if desired.
+There are four files output by phono3py which we will need: ``fc2.hdf5``, ``fc3.hdf5``, and ``phono3py_disp.yaml``.
 The first two files contain the harmonic and anharmonic force constants, while the ``phono3py_disp.yaml`` describes the crystal supercells.
 
 Any of the phonon related apps can be run with these files, including the phononBands, phononDos, and lifetime apps. We describe here the use of the transport app here, but the input for other apps will be similar.
@@ -156,12 +155,13 @@ Now, we are ready to use Phoebe to calculate the lattice thermal conductivity. T
   phFC2FileName = "fc2.hdf5"
   phFC3FileName = "fc3.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
+  useSymmetries = true
 
   sumRuleFC2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
   smearingMethod = "adaptiveGaussian"
-  solverBTE = ["variational"]
+  solverBTE = ["iterative"]
 
 
 Let's go through these parameters:
@@ -176,6 +176,8 @@ Let's go through these parameters:
 
 * :ref:`phonopyDispFileName` must point to the ``phono3py_disp.yaml`` file and is needed to read the force constant files.
 
+* :ref:`useSymmetries` turns on the use of symmetries, which reduces the computational cost. If you want to run relaxon or variational solvers, you need to turn this off instead.
+
 * :ref:`sumRuleFC2` allows us to re-enforce the translational-invariance of force constants, which is broken by numerical inaccuracy. After imposing this sum rule, acoustic phonon frequencies should go to zero at the gamma point.
 
 * :ref:`qMesh` specifies the size of the grid of wavevectors used to integrate the Brillouin zone. Note that the value used here is very unconverged, so that the example can finish in a short amount of time.
@@ -187,7 +189,7 @@ Let's go through these parameters:
 
 * :ref:`smearingMethod` sets the algorithm to approximate the Dirac-delta conserving energy. Using the "adaptiveGaussian" scheme is particular convenient as the width of the Gaussian used to represent delta functions is automatically adjusted. The fixed-width "gaussian" scheme is also available -- in this case, you must set the :ref:`smearingWidth` parameter (and converge w.r.t. it).
 
-* :ref:`solverBTE` selects the algorithm to solve the linearized Boltzmann transport equation. If no algorithm is specified, we only compute results within the relaxation time approximation. Above, we are only using the default RTA calculation and the additional variational solver to find the solution to the BTE.
+* :ref:`solverBTE` selects the algorithm to solve the linearized Boltzmann transport equation. If no algorithm is specified, we only compute results within the relaxation time approximation. Above, we are only using the default RTA calculation and the additional iterative solver to find the solution to the BTE.
 
 With this input, we can compute the phonon contribution to thermal conductivity of silicon. We run this calculation using Phoebe::
 

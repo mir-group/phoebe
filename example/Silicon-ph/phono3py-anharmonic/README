@@ -1,0 +1,42 @@
+
+# an example run for the case where one uses QE
+
+# if you just quickly want to try Phoebe, check out the data
+# in phoebe/test/data/phono3py/, which can be used immediately
+# by step 5 and 6
+
+# 1) get prim cell symmetry
+phonopy --qe --symmetry -c scf.in
+# copy prim cell information from Punitcell.in to the bottom of scf.in
+# copy scf.in to a new file named prim-scf.in, then edit the bottom
+# to add the contents of Punitcell.in
+
+# 2) generate supercell displacements
+phono3py --qe -d --dim="2 2 2" -c prim-scf.in
+# copy prim-scf.in template.in. Delete ATOMIC_SPECIES, CELL_PARAMETERS, ATOMIC_POSITIONS
+# Change nat to number of atoms in first line of supercell.in.
+# decrease the kmesh in template.in, to kmesh_x/dim_x, kmesh_y/dim_y, kmesh_z/dim_z
+
+# now run the "generateDisps.sh" script, which appends the generated supercells
+# to the end of the template.in file to create disp*.in files, which can be run with qe
+bash generateDisps.sh
+
+# 3) now, run QE on each of the disp-*.in files, to generate disp-*.out files
+# if you have multiple cores available, take advantage of this and run the script
+# in a job or at least change the NMPI variable. This will take a while.
+bash runDisps.sh
+
+# 4) collect the disp-*.out files to construct the force constant file
+phono3py --qe --cf3 disp-{00001..00057}.out
+phono3py --qe --dim="2 2 2" -c prim-scf.in --sym-fc
+
+# 5) check the phonon bands with Phoebe:
+mpirun -np 4 /path/to/phoebe/build/phoebe -in phononBands.in
+# to plot the output, use the bands.py script from scripts/plotScripts
+python bands.py phonon_bands.json
+# make sure it looks right!
+
+# now you can calculate thermal conductivity with phonon thermal conductivity
+mpirun -np 4 /path/to/phoebe/build/phoebe -in phononTransport.in
+
+

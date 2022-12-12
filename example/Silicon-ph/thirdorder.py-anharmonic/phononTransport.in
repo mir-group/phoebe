@@ -1,8 +1,8 @@
 appName = "phononTransport"
 
-sumRuleFC2 = "simple"
 phFC2FileName = "qe-phonons/silicon.fc"
-phFC3FileName = "thirdorder.py-anharmonic/FORCE_CONSTANTS_3RD"
+sumRuleFC2 = "simple"
+phFC3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
 
 qMesh = [6,6,6]
 temperatures = [300.]
