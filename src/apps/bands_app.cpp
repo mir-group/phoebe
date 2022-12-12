@@ -27,7 +27,7 @@ void PhononBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
   bool withVelocities = false;
   bool withEigenvectors = true;
@@ -54,7 +54,7 @@ void ElectronWannierBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
@@ -82,7 +82,7 @@ void ElectronFourierBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
