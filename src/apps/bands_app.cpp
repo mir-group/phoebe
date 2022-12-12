@@ -181,13 +181,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     outEnergies.push_back(tempEns);
     tempEns.clear();
 
-    if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
-/*
-   * @return eigenvectors: a complex tensor (3,numAtoms,numBands) where
-   * numBands is the number of Bloch states present at the specified
-   * wavevector, numAtoms is the number of atoms in the crystal unit cell and
-   * 3 is a cartesian directions.*/
-
+    if(context.getOutputEigendisplacements() && particle.isPhonon()) {
       // these should be "with mass scaling" which would make them phonon
       // eigendisplacements already
       WavevectorIndex kIdx = WavevectorIndex(ik);
@@ -210,7 +204,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   }
 
   // if we're outputting eigenvectors, we also likely want crystal and atom pos
-  if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
+  if(context.getOutputEigendisplacements() && particle.isPhonon()) {
     Crystal crystal = fullBandStructure.getPoints().getCrystal();
     auto atomPositions = crystal.getAtomicPositions();
 
@@ -242,7 +236,7 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
   output["energyUnit"] = particle.isPhonon() ? "meV" : "eV";
   output["coordsType"] = "lattice";
-  if(fullBandStructure.getHasEigenvectors() && particle.isPhonon()) {
+  if(context.getOutputEigendisplacements() && particle.isPhonon()) {
     output["phononEigendisplacements"] = eigendisplacements;
     output["latticeVectors"] = vecCrystal;
     output["distanceUnit"] = "Angstrom";

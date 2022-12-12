@@ -1012,6 +1012,10 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "electronFourierCutoff = " << electronFourierCutoff
                 << std::endl;
     }
+    if (appName.find("Bands") != std::string::npos) {
+      std::cout << "outputEigendisplacements = " << outputEigendisplacements <<
+        std::endl;
+    }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
 
