@@ -29,6 +29,10 @@ print("Found qpoint: ",qlist[qidx])
 # read in eigendisplacements
 # these should be in the shape (qpoints, bands, atoms, 3, 2) where 3 are x,y,z displacements
 # and 2 is the real and complex parts
+if "phononEigendisplacements" not in data:
+  raise ValueError("JSON file does not contain phononEigendisplacements." +
+        " You must first run phononBands app with outputEigendisplacements = true");
+
 eigendisp = np.array(data["phononEigendisplacements"])[qidx,band]
 # read in lattice
 lattice = np.array(data["latticeVectors"]).T
