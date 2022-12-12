@@ -181,6 +181,12 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
 <br>
 
+<h2 style="text-align:left; padding-bottom:0.5em; border-bottom:solid"> For the full details of the Phoebe 1.0 release, see:</h2>
+
+Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.<br>
+A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.<br>
+[DOI:10.1088/2515-7639/ac86f6](https://doi.org/10.1088/2515-7639/ac86f6). (2022).
+
 <h2 style="text-align:left; padding-bottom:0.5em; border-bottom:solid"> Current functionalities</h2>
 
 <h3 style="margin:1em 0 1em 0;">Electronic Transport</h3>
@@ -203,13 +209,6 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
     <li style="margin: 0 0 0.5em 0;"> Wigner transport equation correction for electrons and phonons (Zener tunneling contribution to electron transport)</li>
     <li style="margin: 0 0 0.5em 0;"> Hydrodynamic transport properties (viscosity) for electrons and phonons</li>
   </ul>
-
-<h3 style="margin:1em 0 1em 0;"> For the full details of the Phoebe 1.0 release, see:</h3>
-
-Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.<br>
-A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.<br>
-[arXiv:2111.14999](https://arxiv.org/abs/2111.14999). (2021).
-
 
 <script>
 var slideIndex = 1;
