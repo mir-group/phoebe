@@ -569,6 +569,10 @@ void Context::setupFromInput(const std::string &fileName) {
         deltaPath = parseDouble(val);
       }
 
+      if (parameterName == "outputEigendisplacements") {
+        outputEigendisplacements = parseBool(val);
+      }
+
       if (parameterName == "fermiLevel") {
         fermiLevel = parseDoubleWithUnits(val);
       }
@@ -1190,6 +1194,8 @@ Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
 double Context::getDeltaPath() const { return deltaPath; }
+
+bool Context::getOutputEigendisplacements() const { return outputEigendisplacements; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
 

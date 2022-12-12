@@ -30,7 +30,7 @@ void PhononBandsApp::run(Context &context) {
   // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
   bool withVelocities = false;
-  bool withEigenvectors = true;
+  bool withEigenvectors = context.getOutputEigendisplacements();
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
