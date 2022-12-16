@@ -1004,7 +1004,7 @@ hdf5ElPhFileFormat
 windowType
 ^^^^^^^^^^
 
-* **Description:** Enables the window used to discard some phonon states that don't contribute to transport. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative.
+* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function. The "energy" window discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands. 
 
 * **Format:** *string*
 
