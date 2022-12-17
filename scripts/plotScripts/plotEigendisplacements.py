@@ -8,7 +8,7 @@ loc = "./"
 #Get k and mode index from command line
 if(len(sys.argv) != 6):
         print("""To run: python plotEigendisplacements.py <qx> <qy> <qz> <branch> <outputFile.xsf>
-(Generates a file read by VESTA, which displays an eigendisplacement for the specified branch at wavevector q.""")
+(Generates a file read by VESTA, which displays an eigendisplacement for the specified branch (indexed from zero) at wavevector q.""")
         exit(1)
 
 # parse arguments
