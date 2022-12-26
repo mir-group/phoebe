@@ -214,6 +214,10 @@ class MPIcontroller {
   std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
   const int& communicator=worldComm) const;
 
+  // TODO write in description
+  template <typename T>
+  void bigAllReduceSum(T* dataIn, const int& communicator=worldComm) const ;
+
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
    */
@@ -369,7 +373,7 @@ struct containerType;
   template<typename T>
   struct containerType<Eigen::Tensor<T, 7>> {
     static inline T *getAddress(Eigen::Tensor<T, 7> *data) { return data->data(); }
-    static inline size_t getSize(Eigen::Tensor<T, 7> *data) { return data->size(); }
+    static inline size_t getSize(Eigen::Tensor<T, 7> *data) { std::cout << data->size() << std::endl; return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
   };
   // Container for Eigen::Tensor<T, 6>
@@ -855,7 +859,7 @@ const int& communicator) const {
     else if(version < 3) { // this will have problems in mpi version <3
       std::cout << "You're running Phoebe with MPI version < 3.\n" <<
           "For this very large calculation, you manage to overflow some \n" <<
-          "of MPI calls. Either you can rebuild with version 3 or 4, or \n" <<
+          "MPI calls. Either you can rebuild with version 3 or 4, or \n" <<
           "you can use MPI pools (see Phoebe docs) to reduce the elph \n" <<
           "matrix elements which need to be stored on each node." << std::endl;
       Error e("Calculation overflows MPI, run with MPI version <3.");
@@ -926,4 +930,78 @@ const int& communicator) const {
   #endif
 }
 
+/* this should be an in-place allReduce */
+/*
+template <typename T>
+void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
+
+  using namespace mpiContainer;
+  #ifdef MPI_AVAIL
+
+    int nRanks = getSize(communicator);
+    int thisRank = getRank(communicator);
+    auto tup = decideCommunicator(communicator);
+    MPI_Comm comm = std::get<0>(tup);
+
+    int version, subversion;
+    MPI_Get_version(&version, &subversion);
+
+    // if there's only one process we don't need to act
+    if (nRanks == 1 || (communicator == intraPoolComm && poolSize == 1)) {
+      return;
+    }
+
+    // if the size of the out array is less than INT_MAX,
+    // we can just call regular all reduce ----------------------------
+    size_t outSize = containerType<T>::getSize(dataIn);
+    int errCode;
+    if(outSize < INT_MAX) {
+
+      // if size is less than INT_MAX, it's safe to store
+      // these as ints and pass them directly to allReduce
+      errCode = MPI_Allreduce(MPI_IN_PLACE,
+                    containerType<T>::getAddress(dataIn),
+                    containerType<T>::getSize(dataIn),
+                    containerType<T>::getMPItype(), MPI_SUM, communicator);
+
+      if (errCode != MPI_SUCCESS) errorReport(errCode);
+      return;
+    }
+    else if(version < 3) { // this will have problems in mpi version <3
+      std::cout << "You're running Phoebe with MPI version < 3.\n" <<
+          "For this very large calculation, you manage to overflow some \n" <<
+          "MPI calls. Please rebuild with version 3 or 4." << std::endl;
+      Error e("Calculation overflows MPI, run with MPI version <3.");
+    }
+
+    // if the count number is too big for MPI int argument,
+    // we do bigAllReduce instead ----------------------------------
+
+    // set up the mpi container structure to receive the data
+    MPI_Datatype container;
+    datatypeHelper(&container, outSize, dataIn);
+
+    // create the MPI operator for the user defined type
+    MPI_Op containerSumOp;
+    int commute;
+    MPI_Op_commutative(MPI_SUM, &commute);
+    // TODO use T to deal with this somehow
+    MPI_Op_create(BigMPI_SUM_DOUBLE_x, commute, &containerSumOp);
+
+    // call all reduce with user defined reduce op and container datatype
+    errCode = MPI_Allreduce(containerType<T>::getAddress(dataIn),
+              containerType<T>::getAddress(dataIn), 1, container,
+              containerSumOp, comm);
+
+    // free the datatype after use
+    MPI_Type_free(&container);
+    MPI_Op_free(&containerSumOp);
+
+  #else
+  (void)dataIn;
+  (void)communicator;
+  return;
+  #endif
+}
+*/
 #endif
