@@ -37,7 +37,7 @@ eigendisp = np.array(data["phononEigendisplacements"])[qidx,band]
 # read in lattice
 lattice = np.array(data["latticeVectors"])
 # read in atom positions -- already output in cartesian
-atomPos = np.array(data["atomPositions"])
+atomPos = np.array(data["atomPositionsCartesian"])
 numAtoms = atomPos.shape[0]
 
 # atom species

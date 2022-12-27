@@ -238,9 +238,10 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["coordsType"] = "lattice";
   if(context.getOutputEigendisplacements() && particle.isPhonon()) {
     output["phononEigendisplacements"] = eigendisplacements;
+    output["coordsTypePhononEigendisplacements"] = "cartesian";
     output["latticeVectors"] = vecCrystal;
     output["distanceUnit"] = "Angstrom";
-    output["atomPositions"] = vecAtomPos;
+    output["atomPositionsCartesian"] = vecAtomPos;
     output["atomSpecies"] = fullBandStructure.getPoints().getCrystal().getAtomicNames();
   }
   // if the user supplied mu, we will output that as well
