@@ -1004,7 +1004,7 @@ hdf5ElPhFileFormat
 windowType
 ^^^^^^^^^^
 
-* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function. The "energy" window discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands. 
+* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function. The "energy" window discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands.
 
 * **Format:** *string*
 
@@ -1257,6 +1257,7 @@ dopings
 ^^^^^^^
 
 * **Description:** Specify a list of doping concentrations, in cm :sup:`-3`, to compute electronic properties at various doping concentrations. The chemical potentials corresponding to this doping concentrations will be computed.
+Phoebe uses the convention that a negative value corresponds to n-type doping (moves chemical potential towards conduction bands) and a positive value corresponds to p-type doping (moves chemical potential downwards into valence bands).
 
 * **Format:** *list of doubles*
 
@@ -1272,7 +1273,7 @@ chemicalPotentials
 
 * **Format:** *list of doubles*
 
-* **Required:** yes (unless `minChemicalPotential, maxChemicalPotential, deltaChemicalPotential` variables are present, or :ref:`dopings` are specified).
+* **Required:** yes (unless :ref:`minChemicalPotential`, :ref:`maxChemicalPotential`, :ref:`deltaChemicalPotential` variables are present, or :ref:`dopings` are specified).
 
 
 .. _elphFileName:
