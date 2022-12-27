@@ -544,6 +544,8 @@ Phonon Bands
 
 * :ref:`masses`
 
+* :ref:`outputEigendisplacements`
+
 .. raw:: html
 
   <h3>Sample input file (Quantum ESPRESSO)</h3>
@@ -1385,6 +1387,19 @@ deltaPath
 
 * **Required:** no
 
+
+.. _outputEigendisplacements:
+
+outputEigendisplacements
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** Optional variable which outputs the phonon eigendisplacements to the ``phonon_bands.json`` file when using the ``phononBands`` app. See the :ref:`eigendisplacements` tutorial for more information on use. 
+
+* **Default:** false
+
+* **Format:** *bool*
+
+* **Required:** no 
 
 .. _elPhInterpolation:
 
