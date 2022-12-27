@@ -997,7 +997,16 @@ void Context::printInputSummary(const std::string &fileName) {
   if (appName.find("Bands") != std::string::npos) {
     const auto &dim = pathExtrema.dimensions();
     std::cout << "deltaPath = " << deltaPath << " 1/Bohr" << std::endl;
-    std::cout << "Band Path:" << std::endl;
+    if (appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                << std::endl;
+    }
+    if (appName.find("phonon") != std::string::npos) {
+      std::cout << "outputEigendisplacements = " << outputEigendisplacements <<
+        std::endl;
+    }
+
+    std::cout << "\nBand Path:" << std::endl;
     std::cout << std::setprecision(4) << std::fixed;
     int count = 0;
     for (int i = 0; i < dim[0]; i++) {
@@ -1007,14 +1016,6 @@ void Context::printInputSummary(const std::string &fileName) {
                 << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
                 << std::endl;
       count++;
-    }
-    if (appName.find("Fourier") != std::string::npos) {
-      std::cout << "electronFourierCutoff = " << electronFourierCutoff
-                << std::endl;
-    }
-    if (appName.find("Bands") != std::string::npos) {
-      std::cout << "outputEigendisplacements = " << outputEigendisplacements <<
-        std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
