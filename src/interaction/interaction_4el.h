@@ -66,8 +66,8 @@ class Interaction4El {
   using Range6D = Kokkos::MDRangePolicy<Kokkos::Rank<6,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
   using Range7D = Kokkos::MDRangePolicy<Kokkos::Rank<7,Kokkos::Iterate::Right,Kokkos::Iterate::Right>>;
 
-  ComplexView5D elPhCached2a, elPhCached2b, elPhCached2c;
   ComplexView6D elPhCached1a, elPhCached1b;
+  ComplexView5D elPhCached2a, elPhCached2b, elPhCached2c;
   ComplexView7D couplingWannier_d;
   DoubleView2D elBravaisVectors_d;
   DoubleView1D elBravaisVectorsDegeneracies_d;

@@ -636,7 +636,6 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
 
   auto t = parse4ElHeaderHDF5(context);
   int numWannier = std::get<0>(t);
-  int totalNumElBravaisVectors = std::get<1>(t);
   Eigen::MatrixXd elBravaisVectors_ = std::get<2>(t);
   Eigen::VectorXd elBravaisVectorsDegeneracies_ = std::get<3>(t);
   int numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
