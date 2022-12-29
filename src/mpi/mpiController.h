@@ -214,11 +214,13 @@ class MPIcontroller {
   std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
   const int& communicator=worldComm) const;
 
-  // TODO write in description
+  /** A version of in-place allReduceSum that works on data of size larger
+   *  than can be stored in an int.
+   *  @param dataIn: pointer to sent data from each rank, with length
+   *       of the number of points belonging to this rank.
+   */
   template <typename T>
   void bigAllReduceSum(T* dataIn, const int& communicator=worldComm) const ;
-  //void bigAllReduceSum(std::complex<double>* dataIn, const int& communicator) const;
-
 
   // Asynchronous functions
   /** Wrapper for MPI_Barrier()
@@ -932,46 +934,8 @@ const int& communicator) const {
   #endif
 }
 
-
-// This PASTE function to create generic reduction ops for user defined types
-// is essentially borrowed from the heroic BigMPI project authored by Jeff Hammond.
-// https://github.com/jeffhammond/BigMPI
-
-#ifdef MPI_AVAIL
-//#define PASTE_BIGMPI_REDUCE_OP(OP,TYPE)
-/*void BigMPI_SUM_CDOUBLE_x(void * invec, void * inoutvec, int * len, MPI_Datatype * bigtype)
-{
-    // We are reducing a single element of bigtype.
-    assert(*len==1);
-
-    int count; MPI_Status status;
-    MPI_Get_elements(&status, MPI_DOUBLE_COMPLEX, &count);
-
-    int c = (int)(count/INT_MAX);
-    int r = (int)(count%INT_MAX);
-
-    // Can use typesize rather than extent here because all built-ins lack holes.
-    int typesize;
-    MPI_Type_size(MPI_DOUBLE_COMPLEX, &typesize);
-    for (int i=0; i<c; i++) {
-        MPI_Reduce_local(invec+(size_t)i*INT_MAX*(size_t)typesize,
-                          inoutvec+i*INT_MAX*(size_t)typesize,
-                         INT_MAX, MPI_DOUBLE_COMPLEX, MPI_SUM);
-    }
-    MPI_Reduce_local(invec+(size_t)c*INT_MAX*(size_t)typesize,
-                     inoutvec+c*INT_MAX*(size_t)typesize,
-                     r, MPI_DOUBLE_COMPLEX, MPI_SUM);
-    return;
-}
-
-//PASTE_BIGMPI_REDUCE_OP(SUM,DOUBLE)
-//#undef PASTE_BIGMPI_REDUCE_OP  */
-#endif
-
-// forward declaration
+// forward declaration of sum operation for our user defined type
 void BigMPI_SUM_CDOUBLE_x(void * invec, void * inoutvec, int * len, MPI_Datatype * bigtype);
-
-/* this should be an in-place allReduce */
 
 template <typename T>
 void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
@@ -979,6 +943,18 @@ void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
 
+    MPI_User_function * bigfn;
+    // if there's no definition for type T, kill the code
+    // at compile time. This enables the function to stay templated,
+    // with simple ability to add another type if needed.
+    if(containerType<T>::getMPItype() == MPI_DOUBLE_COMPLEX) {
+      bigfn = BigMPI_SUM_CDOUBLE_x;
+    } else {
+      static_assert("Developer error: "
+          "bigAllReduceSum only implemented for std::complex<double> currently.");
+    }
+
+    // select communicator
     int nRanks = getSize(communicator);
     int thisRank = getRank(communicator);
     auto tup = decideCommunicator(communicator);
@@ -1028,8 +1004,7 @@ void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
     MPI_Op containerSumOp;
     int commute;
     MPI_Op_commutative(MPI_SUM, &commute);
-    // TODO use T to deal with this somehow
-    MPI_Op_create(BigMPI_SUM_CDOUBLE_x, commute, &containerSumOp);
+    MPI_Op_create(bigfn, commute, &containerSumOp);
 
     std::cout << rank << " created op " << std::endl;
 

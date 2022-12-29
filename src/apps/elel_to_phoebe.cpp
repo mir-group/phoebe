@@ -188,11 +188,15 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib4 = jYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
-        //if(mpi->mpiHead()) std::cout << "iQ " << iQ << " " << ikk1 << " " << ikk2 << " " << ikk3 << " " << ib1 << " " << ib2 << " " << ib3 << " " << ib4 << std::endl;
+        //if(mpi->mpiHead()) std::cout << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << " at " << iQ << " " << ikk1 << " " << ikk2 << " " << ikk3 << " " << ib1 << " " << ib2 << " " << ib3 << " " << ib4 << std::endl;
       }
     }
-  } // TODO can we all reduce this
+  }
+  // if we don't use bigAllReduce, this will crash, as it often overflows the int arguments of the MPI call
   mpi->bigAllReduceSum(&qpCoupling);
+
+  //std::cout << "qpCoupling1 " <<  qpCoupling(1, 2, 3, 2, 2, 1, 1) << std::endl;
+  //std::cout << "qpCoupling2 " <<  qpCoupling(2, 2, 4, 1, 2, 1, 1) << std::endl;
 
   if (mpi->mpiHead()) {
     std::cout << "Starting the Wannier transform.\n";
