@@ -350,6 +350,8 @@ class FullBandStructure : public BaseBandStructure {
 
   bool getIsDistributed() override;
 
+  bool getHasEigenvectors();
+
   /** Builds a Bloch state index, which runs on both wavevector index and
    * band index. ik runs from 0 to numPoints-1, ib from 0 to numBands-1.
    * It's used to view the various matrices such as energy as a 1D vector,

@@ -10,9 +10,9 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
 For more details, see:
 
-* Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.
-  [DOI:10.1088/2515-7639/ac86f6](https://doi.org/10.1088/2515-7639/ac86f6). (2022).
-  A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
+* Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.  
+  A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky. (2022).   
+  [DOI:10.1088/2515-7639/ac86f6](https://doi.org/10.1088/2515-7639/ac86f6).
 
 Tutorials, documentation of functionality and underlying theory can be found at:
   * [Homepage](https://mir-group.github.io/phoebe/)

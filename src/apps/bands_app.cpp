@@ -27,10 +27,10 @@ void PhononBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
   bool withVelocities = false;
-  bool withEigenvectors = false;
+  bool withEigenvectors = context.getOutputEigendisplacements();
   FullBandStructure fullBandStructure =
       phononH0.populate(pathPoints, withVelocities, withEigenvectors);
 
@@ -54,7 +54,7 @@ void ElectronWannierBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
@@ -82,7 +82,7 @@ void ElectronFourierBandsApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto electronH0 = std::get<1>(tup);
 
-  // first we make compute the band structure on the fine grid
+  // first we compute the band structure on the fine grid
   Points pathPoints(crystal, context.getPathExtrema(), context.getDeltaPath());
 
   bool withVelocities = false;
@@ -99,6 +99,14 @@ void ElectronFourierBandsApp::run(Context &context) {
   }
 }
 
+//https://github.com/nlohmann/json/issues/1510
+// for writing a complex number to json
+namespace std {
+  template <class T> void to_json(nlohmann::json &j, const std::complex< T > &p) {
+    j = nlohmann::json {p.real(), p.imag()};
+  }
+}
+
 /* helper function to output bands to a json file */
 void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
                        Points &pathPoints, std::string outFileName) {
@@ -109,6 +117,9 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   std::vector<std::vector<double>> outEnergies;
   std::vector<int> wavevectorIndices;
   std::vector<double> tempEns;
+  std::vector<std::vector<std::vector<std::vector<std::complex<double>>>>> eigendisplacements;
+  std::vector<std::vector<double>> vecCrystal;
+  std::vector<std::vector<double>> vecAtomPos;
   std::vector<std::vector<double>> pathCoordinates;
   auto particle = fullBandStructure.getParticle();
   // mev for phonons
@@ -169,6 +180,48 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     }
     outEnergies.push_back(tempEns);
     tempEns.clear();
+
+    if(context.getOutputEigendisplacements() && particle.isPhonon()) {
+      // these should be "with mass scaling" which would make them phonon
+      // eigendisplacements already
+      WavevectorIndex kIdx = WavevectorIndex(ik);
+      Eigen::Tensor<std::complex<double>, 3> eigendisps = fullBandStructure.getPhEigenvectors(kIdx);
+      std::vector<std::vector<std::vector<std::complex<double>>>> tempEigendisps;
+      for (int ib = 0; ib < numBands; ib++) {
+        std::vector<std::vector<std::complex<double>>> atomDisps;
+        for (int iat = 0; iat < numBands/3; iat++) {
+          std::vector<std::complex<double>> atomDisp;
+          for (int iDim = 0; iDim < 3; iDim++) {
+            std::complex<double> angDisp = eigendisps(iDim,iat,ib) * distanceBohrToAng;
+            atomDisp.push_back(angDisp);
+          }
+          atomDisps.push_back(atomDisp);
+        }
+        tempEigendisps.push_back(atomDisps);
+      }
+      eigendisplacements.push_back(tempEigendisps);
+    }
+  }
+
+  // if we're outputting eigenvectors, we also likely want crystal and atom pos
+  if(context.getOutputEigendisplacements() && particle.isPhonon()) {
+    Crystal crystal = fullBandStructure.getPoints().getCrystal();
+    auto atomPositions = crystal.getAtomicPositions();
+
+    for (int ialpha = 0; ialpha < 3; ialpha++) {
+      std::vector<double> lvec;
+      for (int ibeta = 0; ibeta < 3; ibeta++) {
+         lvec.push_back(crystal.getDirectUnitCell()(ialpha,ibeta) * distanceBohrToAng);
+      }
+      vecCrystal.push_back(lvec);
+    }
+    for (int iat = 0; iat < numBands/3; iat++) {
+      std::vector<double> atomPos;
+      for (int iDim = 0; iDim < 3; iDim++) {
+        atomPos.push_back(atomPositions(iat,iDim) * distanceBohrToAng);
+      }
+      vecAtomPos.push_back(atomPos);
+    }
   }
 
   // output to json
@@ -183,6 +236,14 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
   output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
   output["energyUnit"] = particle.isPhonon() ? "meV" : "eV";
   output["coordsType"] = "lattice";
+  if(context.getOutputEigendisplacements() && particle.isPhonon()) {
+    output["phononEigendisplacements"] = eigendisplacements;
+    output["coordsTypePhononEigendisplacements"] = "cartesian";
+    output["latticeVectors"] = vecCrystal;
+    output["distanceUnit"] = "Angstrom";
+    output["atomPositionsCartesian"] = vecAtomPos;
+    output["atomSpecies"] = fullBandStructure.getPoints().getCrystal().getAtomicNames();
+  }
   // if the user supplied mu, we will output that as well
   // if not, we don't include mu
   //if (!std::isnan(context.getFermiLevel()) && particle.isElectron()) {
