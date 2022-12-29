@@ -934,8 +934,10 @@ const int& communicator) const {
   #endif
 }
 
+#ifdef MPI_AVAIL
 // forward declaration of sum operation for our user defined type
 void BigMPI_SUM_CDOUBLE_x(void * invec, void * inoutvec, int * len, MPI_Datatype * bigtype);
+#endif
 
 template <typename T>
 void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
