@@ -109,12 +109,12 @@ void ElElToPhoebeApp::run(Context &context) {
                                                     numPoints, numBands,
                                                     numBands, numBands, numBands);
   qpCoupling.setZero();
+  // This is not distributed and we blow out the int argument on bcast...
 
   // now we read the files
   for (int iQ : mpi->divideWorkIter(numPoints)) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
-    // tentative reading of the BSE kernel
     // we have to offset these qs by two, and the files start from Q1,
     // and the first file has only header info
     std::string fileName = yamboPrefix + "BS_PAR_Q" + std::to_string(iQ+1) + ".hdf5";
@@ -126,7 +126,7 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXcd yamboKernel;
     d_bse_resonant.read(yamboKernel);
 
-    std::cout << "Reading " << fileName << std::endl;
+    std::cout << "Reading in " << fileName << std::endl;
 
     // dimension of yambo W matrix
     int M = int(sqrt(yamboKernel.size()));
@@ -137,10 +137,15 @@ void ElElToPhoebeApp::run(Context &context) {
     // note that the yamboKernel is only the lower triange of the
     // matrix, and the upper triangle is nonsense that needs to be filled
     // first pass: we make sure the matrix is complete
+    int count = 0;
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
         // TODO: check if this has to be a complex conjugate
+        //if(count<25) {
+        //   std::cout << yamboKernel(i,j) << " " << i << " " << j << std::endl;
+        //   count ++;
+        //}
         yamboKernel(i, j) = yamboKernel(j, i);
       }
     }
@@ -155,7 +160,7 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
@@ -183,10 +188,11 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib4 = jYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
+        //if(mpi->mpiHead()) std::cout << "iQ " << iQ << " " << ikk1 << " " << ikk2 << " " << ikk3 << " " << ib1 << " " << ib2 << " " << ib3 << " " << ib4 << std::endl;
       }
     }
-  }
-  mpi->bcast(&qpCoupling);
+  } // TODO can we all reduce this
+  mpi->bigAllReduceSum(&qpCoupling);
 
   if (mpi->mpiHead()) {
     std::cout << "Starting the Wannier transform.\n";
