@@ -97,7 +97,7 @@ class HarmonicHamiltonian {
    * @return numBatches: an estimate on how many k-point we can compute in one
    * call of the kokkosBatched functions.
    */
-  virtual int estimateBatchSize(const bool& withVelocity) {return 1;};
+  virtual int estimateBatchSize(const bool& withVelocity) { (void)withVelocity; return 1;};
 };
 
 #endif
