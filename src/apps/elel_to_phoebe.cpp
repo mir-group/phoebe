@@ -52,6 +52,13 @@ void ElElToPhoebeApp::run(Context &context) {
     yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
     yamboQPoints.transposeInPlace();
 
+    // if we have more MPI processes than points, the code will hang
+    // on the allReduceSum below. Plus, it's wasteful.
+    if (mpi->getSize() > numPoints) {
+      Error("Bloch2Wannier transformation cannot be run with more "
+          "MPI processes than input Yambo PAR files.");
+    }
+
     // Convert from yambo internal coordiantes to phoebe's coordinates
     //TODO make sure the definition of alat is always the diagonal of the
     //lattice vectors

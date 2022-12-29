@@ -956,7 +956,6 @@ void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
 
     // select communicator
     int nRanks = getSize(communicator);
-    int thisRank = getRank(communicator);
     auto tup = decideCommunicator(communicator);
     MPI_Comm comm = std::get<0>(tup);
 
