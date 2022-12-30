@@ -220,6 +220,23 @@ Again using the files set up in step 1, we can run the DoS calculation using the
 
 These apps are well parallelized over OMP threads or MPI processes, so set the above parameters to match your system architecture accordingly.
 
+.. _eigendisplacements:
+
+Plotting phonon eigendisplacements
+-----------------------------------------------------
+
+In the phonon bands case, Phoebe offers one additional option to plot the phonon eigendisplacements. This is sometimes useful, for example, the eigendisplacements can help diagnose the physical origin of an unstable phonon mode. 
+
+If one sets the input file variable :ref:`outputEigendisplacements` = true, the ``phononBands`` app will write the phonon eigendisplacements to the output ``phonon_bands.json`` file. Then, the eigendisplacements can be easily plotted for visualization in VESTA using the script shipped with Phoebe under ``phoebe/scripts/plotScripts/plotEigendisplacements.py``, using the syntax::
+
+  python plotEigendisplacements.py qxCrys qyCrys qzCrys nMode outputName.xsf
+
+where you need to supply the phonon wavevector in crystal coordinates, the branch index of the eigendisplacement (indexed from zero), and the name of the XSF file you want to output + the extension ``.xsf``, which will enable you to open it in VESTA. The output will look something like this: 
+
+.. image:: ../images/si.vec.png
+  :width: 35%
+  :align: center
+
 Output
 ------
 
@@ -253,11 +270,11 @@ We provide a post-processing example python script for this calculation in ``scr
 This script will generate the following images, as below for the electron bands and DoS of silicon, found using Wannier interpolation (and a slightly more converged input calculation):
 
 .. image:: ../images/electron_bands.png
-  :width: 60%
+  :width: 50%
   :align: center
 
 .. image:: ../images/electron_dos.png
-  :width: 70%
+  :width: 60%
   :align: center
 
 
@@ -276,4 +293,4 @@ As always, this is a demo calculation. However, it's a very simple one, and ther
 Parallelization
 ----------------
 
-The bands and DoS applications can take advantage of both OMP and MPI parallelization very effectively, and you should get an significant performance benefit from using either (or both) of these parameters.
+The bands and DoS applications can take advantage of both OMP and MPI parallelization very effectively, and you should get an significant performance benefit from using either (or both) of these methods.

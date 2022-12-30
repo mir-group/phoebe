@@ -67,6 +67,8 @@ class Context {
   // tells us if crystal structure stuff was in input file
   bool crystalInput = false;
 
+  bool outputEigendisplacements = false; // used by bands app if phonon eigdisps are dumped
+
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
 
@@ -232,11 +234,11 @@ public:
 
   void setWindowEnergyLimit(const Eigen::Vector2d &x);
 
-    /** gets the value of population above which a state is considered active.
-     * i.e. the state will be used if its occupation number deviates from 0 or
-     * 1 by at least this amount.
-     * @return x: the <double> value of the population threshold.
-     */
+  /** gets the value of population above which a state is considered active.
+   * i.e. the state will be used if its occupation number deviates from 0 or
+   * 1 by at least this amount.
+   * @return x: the <double> value of the population threshold.
+   */
   double getWindowPopulationLimit() const;
   void setWindowPopulationLimit(const double &x);
 
@@ -292,6 +294,8 @@ public:
   std::vector<std::string> getPathLabels();
 
   double getDeltaPath() const;
+
+  bool getOutputEigendisplacements() const;
 
   double getFermiLevel() const;
   void setFermiLevel(const double &x);

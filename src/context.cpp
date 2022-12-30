@@ -579,6 +579,10 @@ void Context::setupFromInput(const std::string &fileName) {
         deltaPath = parseDouble(val);
       }
 
+      if (parameterName == "outputEigendisplacements") {
+        outputEigendisplacements = parseBool(val);
+      }
+
       if (parameterName == "fermiLevel") {
         fermiLevel = parseDoubleWithUnits(val);
       }
@@ -1008,7 +1012,16 @@ void Context::printInputSummary(const std::string &fileName) {
   if (appName.find("Bands") != std::string::npos) {
     const auto &dim = pathExtrema.dimensions();
     std::cout << "deltaPath = " << deltaPath << " 1/Bohr" << std::endl;
-    std::cout << "Band Path:" << std::endl;
+    if (appName.find("Fourier") != std::string::npos) {
+      std::cout << "electronFourierCutoff = " << electronFourierCutoff
+                << std::endl;
+    }
+    if (appName.find("phonon") != std::string::npos) {
+      std::cout << "outputEigendisplacements = " << outputEigendisplacements <<
+        std::endl;
+    }
+
+    std::cout << "\nBand Path:" << std::endl;
     std::cout << std::setprecision(4) << std::fixed;
     int count = 0;
     for (int i = 0; i < dim[0]; i++) {
@@ -1018,10 +1031,6 @@ void Context::printInputSummary(const std::string &fileName) {
                 << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
                 << std::endl;
       count++;
-    }
-    if (appName.find("Fourier") != std::string::npos) {
-      std::cout << "electronFourierCutoff = " << electronFourierCutoff
-                << std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
@@ -1210,6 +1219,8 @@ Eigen::Tensor<double, 3> Context::getPathExtrema() { return pathExtrema; }
 std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 
 double Context::getDeltaPath() const { return deltaPath; }
+
+bool Context::getOutputEigendisplacements() const { return outputEigendisplacements; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
 
