@@ -482,9 +482,9 @@ void writeElPhCouplingHDF5v1(
 
     {
       // open the hdf5 file
-      HighFive::File file(
-          outFileName, HighFive::File::Overwrite,
-          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
+      HighFive::FileAccessProps fapl;
+      fapl.add(HighFive::MPIOFileAccess{MPI_COMM_WORLD, MPI_INFO_NULL});
+      HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
 
       // flatten the tensor (tensor is not supported) and create the data set
       Eigen::VectorXcd gwan = Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
