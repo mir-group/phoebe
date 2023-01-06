@@ -99,7 +99,7 @@ Phonon BTE Solver
 
 * :ref:`phonopyDispFileName`
 
-* :ref: `phonopyBORNFileName`
+* :ref:`phonopyBORNFileName`
 
 * :ref:`sumRuleFC2`
 
@@ -1393,13 +1393,13 @@ deltaPath
 outputEigendisplacements
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Optional variable which outputs the phonon eigendisplacements to the ``phonon_bands.json`` file when using the ``phononBands`` app. See the :ref:`eigendisplacements` tutorial for more information on use. 
+* **Description:** Optional variable which outputs the phonon eigendisplacements to the ``phonon_bands.json`` file when using the ``phononBands`` app. See the :ref:`eigendisplacements` tutorial for more information on use.
 
 * **Default:** false
 
 * **Format:** *bool*
 
-* **Required:** no 
+* **Required:** no
 
 .. _elPhInterpolation:
 
