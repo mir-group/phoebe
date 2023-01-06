@@ -63,7 +63,9 @@ if(HDF5_AVAIL)
   endif()
   ExternalProject_Add(highfive_dep
       SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/highfive_src
-      GIT_REPOSITORY https://github.com/BlueBrain/HighFive.git
+      # note: the main branch of HighFive does not work with nvcc. Watch this issue to see
+      # if it can be used now: https://github.com/BlueBrain/HighFive/issues/180
+      GIT_REPOSITORY https://github.com/anjohan/HighFive #https://github.com/BlueBrain/HighFive.git
       UPDATE_COMMAND ""
       CMAKE_ARGS
           -DCMAKE_BUILD_TYPE=Release
