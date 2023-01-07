@@ -306,6 +306,7 @@ parsePathExtrema(std::vector<std::string> &lines) {
 
   int i = 0;
   for (const std::string &line : lines) {
+
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
@@ -1012,7 +1013,8 @@ void Context::printInputSummary(const std::string &fileName) {
     for (int i = 0; i < dim[0]; i++) {
       std::cout << pathLabels[count] << " " << pathExtrema(i, 0, 0) << " "
                 << pathExtrema(i, 0, 1) << " " << pathExtrema(i, 0, 2) << "  ";
-      std::cout << pathLabels[count + 1] << " " << pathExtrema(i, 1, 0) << " "
+      count++;
+      std::cout << pathLabels[count] << " " << pathExtrema(i, 1, 0) << " "
                 << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
                 << std::endl;
       count++;
