@@ -433,6 +433,10 @@ void Context::setupFromInput(const std::string &fileName) {
     if (line.empty()) { // nothing to do
       continue;
 
+      // skip the line if it's commented out with #
+    } else if (line[line.find_first_not_of(" ")] == '#') {
+      continue;
+
       // line with pair (key,value)
     } else if (lineHasParameter(line)) {
       auto tup = parseParameterNameValue(line);
