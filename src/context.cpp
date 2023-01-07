@@ -382,6 +382,7 @@ std::vector<std::string> Context::split(const std::string &s, char delimiter) {
 /** Checks if the line of the input file contains a key=value statement.
  */
 bool lineHasParameter(const std::string &line) {
+  // parse the line
   if (std::find(line.begin(), line.end(), '=') != line.end()) {
     return true;
   } else {
@@ -429,12 +430,12 @@ void Context::setupFromInput(const std::string &fileName) {
   }
 
   int lineCounter = 0;
-  for (const std::string &line : lines) {
-    if (line.empty()) { // nothing to do
-      continue;
+  for (std::string &line : lines) {
 
-      // skip the line if it's commented out with #
-    } else if (line[line.find_first_not_of(" ")] == '#') {
+    // remove any part of the line that is beind a # comment first
+    line = line.substr(0, line.find_first_of("#"));
+
+    if (line.empty()) { // nothing to do
       continue;
 
       // line with pair (key,value)
