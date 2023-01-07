@@ -151,20 +151,25 @@ void outputBandsToJSON(FullBandStructure &fullBandStructure, Context &context,
     // store the path coordinates
     auto coord = pathPoints.getPointCoordinates(ik);
     pathCoordinates.push_back({coord[0], coord[1], coord[2]});
-
+    auto pathLabels = context.getPathLabels();
     // check if this point is one of the high sym points,
     // and if it is, save the index
     if (coord[0] == extremaCoordinates[extremaCount][0] &&
         coord[1] == extremaCoordinates[extremaCount][1] &&
         coord[2] == extremaCoordinates[extremaCount][2]) {
+
       pathLabelIndices.push_back(ik);
       // if the next extrema is the same as this one, add the index
       //  twice and increment extrema count twice.
       // we have to do this because the point won't occur a second time
       // in the path list.
+      // Alternatively, if this pathLabel and the next pathLabel are the same,
+      // even if the extremaCoordinates are not the same, they are considered the same point.
+      // This can happen when two band path points are sym equiv, such as the X points
+      // 0.5 0 0.5 and 0.5 -0.5 0 in the FCC lattice.
       if (extremaCount + 1 < extremaCoordinates.size()) { // check bounds
-        if (extremaCoordinates[extremaCount] ==
-            extremaCoordinates[extremaCount + 1]) {
+        if (extremaCoordinates[extremaCount] == extremaCoordinates[extremaCount + 1]
+                || pathLabels[extremaCount] == pathLabels[extremaCount + 1]) {
           pathLabelIndices.push_back(ik);
           extremaCount += 2;
         } else {
