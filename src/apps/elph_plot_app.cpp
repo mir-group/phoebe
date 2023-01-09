@@ -28,33 +28,42 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
+  // decide what kind of points path we're going to use
+  if (context.getG2MeshStyle() == "pointsPath") {
+    points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
+  }
+  else { //(context.getG2MeshStyle() == "pointsMesh") { // pointsMesh is default
+    points = Points(crystal, context.getKMesh(), context.getDeltaPath());
+  }
+  else {
+    Error("Select a valid g2MeshStyle "
+        "-- options are either 'pointsMesh' or 'pointsPath'.");
+  }
+
+  // loop over points and set up points pairs
   std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPath;
+  for (int ik = 0; ik < points.getNumPoints(); ik++) {
 
-  // create a list of (k,q) pairs, where k(q) is on a path and q(k) is fixed
-  if (context.getG2PlotStyle() == "fixedQ") {
+    auto thisPoint = points.getPointCoordinates(ik, Points::cartesianCoordinates);
+    std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
 
-    Points kPoints(crystal, context.getPathExtrema(),
-                       context.getDeltaPath());
-    for (int ik = 0; ik < kPoints.getNumPoints(); ik++) {
-      auto thisK =
-          kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
-      std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
-      thisPair.first = thisK;
+    // create a list of (k,q) pairs, where k is on a path and q is fixed
+    if (context.getG2PlotStyle() == "qFixed") {
+      thisPair.first = thisPoint;
       thisPair.second = context.getG2PlotFixedPoint();
-      pointsPath.push_back(thisPair);
     }
-  } else {
-
-    Points qPoints(crystal, context.getPathExtrema(),
-                       context.getDeltaPath());
-    for (int iq = 0; iq < qPoints.getNumPoints(); iq++) {
-      auto thisQ =
-          qPoints.getPointCoordinates(iq, Points::cartesianCoordinates);
-      std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair;
+    // create a list of (k,q) pairs, where k is fixed and q is on the path
+    else if (context.getG2PlotStyle() == "kFixed") {
       thisPair.first = context.getG2PlotFixedPoint();
-      thisPair.second = thisQ;
-      pointsPath.push_back(thisPair);
+      thisPair.second = thisPoint;
     }
+    else { // if neither point is fixed, it's all to all
+      for (int iq = 0; iq < points.getNumPoints(); iq++) {
+        thisPair.first = thisPoint
+        thisPair.second = points.getPointCoordinates(iq, Points::cartesianCoordinates);;
+      }
+    }
+    pointsPath.push_back(thisPair);
   }
 
   // band ranges to calculate the coupling for
@@ -206,40 +215,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
         "Phoebe has not been compiled with HDF5 support,\n"
         "or has been compiled with serial HDF5.");
   #endif
-
-
 }
-
-/*    // sum the coupling over bands?
-    double sum1 = 0.;
-    for (int ib1 = g2PlotEl1Bands.first; ib1 <= g2PlotEl1Bands.second; ib1++) {
-      for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
-        for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
-          sum1 += coupling(ib1, ib2, ib3);
-        }
-      }
-    }
-    allGs.push_back(sum1);
-  }
-
-  if (mpi->mpiHead()) {
-    std::ofstream outfile("./g2_coupling_plot.dat");
-    int i = 0;
-    for (auto x : allGs) {
-      outfile << i << "\t" << x << "\n";
-      i += 1;
-    }
-  }
-
-  if (mpi->mpiHead()) {
-    std::cout << "\n";
-    std::cout << std::string(80, '-') << "\n";
-    std::cout << "\n";
-  }
-
-  mpi->barrier();
-
-}*/
 
 void ElPhCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
