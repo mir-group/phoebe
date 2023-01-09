@@ -669,7 +669,13 @@ QEParser::parseElHarmonicFourier(Context &context) {
   // this may or may not be present! if so, I get mesh and offset
   pugi::xml_node mp = startingKPoints.child("monkhorst_pack");
   if (mp) {
-    Error("Grid found in QE:XML, should have used full kPoints grid");
+    if(mpi->mpiHead()) {
+        Error("Found Monkhorst-Pack mesh in XML file.\n"
+        "This likely means you're reading in an SCF XML file, which\n"
+        "doesn't make sense for Phoebe -- likely you forgot to perform NSCF on\n"
+        "the full k-mesh first.");
+    }
+    // Error("Grid found in QE:XML, should have used full kPoints grid");
   }
 
   // Initialize the crystal class

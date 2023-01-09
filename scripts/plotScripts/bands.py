@@ -31,23 +31,6 @@ if __name__ == "__main__":
 
     pathTicks = data['highSymIndices']
 
-    # if the path has a fictitious discontinuity
-    # e.g. in going from X=(0.50000  0.00000 0.5000) to X=(0.50000 -0.50000 0.0000)
-    # (which are the same in a FCC lattice), the JSON plots two different points
-    # Here we recombine them into one. Equality is checked by the label
-    enIndexToDelete = []
-    tkIndexToDelete = []
-    for i in range(len(pathLabels)-1):
-        if ( pathLabels[i] == pathLabels[i+1] and pathTicks[i] != pathTicks[i+1]):
-            tkIndexToDelete.append(i+1)
-            enIndexToDelete.append(pathTicks[i+1])
-    for en,tk in zip(enIndexToDelete[::-1],tkIndexToDelete[::-1]):
-        points = np.delete(points, -1)
-        pathLabels = np.delete(pathLabels, tk)
-        pathTicks = np.delete(pathTicks, tk)
-        pathTicks[tk:] -= 1
-        energies = np.delete(energies, en, 0)
-
     # plot some vertical lines at high sym points
     plt.figure(figsize=(5.5,5))
     for i in pathTicks:
