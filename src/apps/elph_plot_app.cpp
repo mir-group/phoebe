@@ -7,6 +7,10 @@
 #include "points.h"
 #include "parser.h"
 
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
+
 void ElPhCouplingPlotApp::run(Context &context) {
 
   // load ph files
@@ -39,7 +43,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
       thisPair.second = context.getG2PlotFixedPoint();
       pointsPath.push_back(thisPair);
     }
-
   } else {
 
     Points qPoints(crystal, context.getPathExtrema(),
@@ -69,7 +72,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // it to allGs. Then at the end, we write this chunk to HDF5.
   for (auto iPair : pairParallelIter) {
 
-    thisPair = pointsPath[iPair];
+    std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair = pointsPath[iPair];
 
     Eigen::Vector3d k1C = thisPair.first;
     Eigen::Vector3d q3C = thisPair.second;
@@ -125,7 +128,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
     // open the hdf5 file
     HighFive::FileAccessProps fapl;
     fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
-    HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
+    HighFive::File file(context.getQuantumEspressoPrefix()+".gmatrix.phoebe.hdf5",
+        HighFive::File::Overwrite, fapl);
 
     // product of nbands1 * nbands2 * nmodes
     size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first) *
@@ -158,45 +162,43 @@ void ElPhCouplingPlotApp::run(Context &context) {
     size_t smallestSize = bandProd; // 1 point pair
     std::vector<int> bunchSizes;
 
-      // determine the size of each bunch of electronic bravais vectors
-      // the BunchSizes vector tells us how many are in each set
-      int numPairsBunch = mpi->divideWorkIter(numPairs).back() + 1 - mpi->divideWorkIter(numPairs)[0];
+    // determine the size of each bunch of electronic bravais vectors
+    // the BunchSizes vector tells us how many are in each set
+    int numPairsBunch = mpi->divideWorkIter(numPairs).back() + 1 - mpi->divideWorkIter(numPairs)[0];
 
-      int bunchSize = 0;
-      for (int i = 0; i < numPairsBunch; i++) {
-        bunchSize++;
-        // this bunch is as big as possible, stop adding to it
-        if ((bunchSize + 1) * smallestSize > maxSize) {
-          bunchSizes.push_back(bunchSize);
-          bunchSize = 0;
-        }
+    int bunchSize = 0;
+    for (int i = 0; i < numPairsBunch; i++) {
+      bunchSize++;
+      // this bunch is as big as possible, stop adding to it
+      if ((bunchSize + 1) * smallestSize > maxSize) {
+        bunchSizes.push_back(bunchSize);
+        bunchSize = 0;
       }
-      // push the last one, no matter the size, to the list of bunch sizes
-      bunchSizes.push_back(bunchSize);
+    }
+    // push the last one, no matter the size, to the list of bunch sizes
+    bunchSizes.push_back(bunchSize);
 
-      // determine the number of bunches. The last bunch may be smaller
-      // than the rest
-      int numDatasets = bunchSizes.size();
+    // determine the number of bunches. The last bunch may be smaller
+    // than the rest
+    int numDatasets = bunchSizes.size();
 
-      // we now loop over these data sets, and write each chunk of
-      // bravais vectors in parallel
-      int netOffset = 0;// offset from first bunch in this set to current bunch
-      for (int iBunch = 0; iBunch < numDatasets; iBunch++) {
+    // we now loop over these data sets, and write each chunk of
+    // bravais vectors in parallel
+    int netOffset = 0;// offset from first bunch in this set to current bunch
+    for (int iBunch = 0; iBunch < numDatasets; iBunch++) {
 
       // we need to determine the start, stop and offset of this
       // sub-slice of the dataset available to this process
       size_t bunchElements = bunchSizes[iBunch] * smallestSize;
-      size_t bunchStart = start + netOffset;
+      //size_t bunchStart = start + netOffset;
       size_t bunchOffset = offset + netOffset;
       netOffset += bunchElements;
-
-      int gMatSliceStart = 0;
 
       // Each process writes to hdf5
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgMat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&gMat(gMat));
+      dgmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allGs);
     }
   }
   #else
@@ -236,8 +238,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
   }
 
   mpi->barrier();
-*/
-}
+
+}*/
 
 void ElPhCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
