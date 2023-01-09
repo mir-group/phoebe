@@ -9,15 +9,17 @@
 
 void ElPhCouplingPlotApp::run(Context &context) {
 
+  // load ph files
   auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
 
+  // load electronic files
   auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
   auto crystalEl = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
-  // load the 3phonon coupling
+  // load the el-ph coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
@@ -57,7 +59,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::pair<int, int> g2PlotPhBands = context.getG2PlotPhBands();
 
   // Compute the coupling
-
   std::vector<double> allGs;
   for (const auto &thisPair : pointsPath) {
     Eigen::Vector3d k1C = thisPair.first;
@@ -65,7 +66,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     Eigen::Vector3d k2C = k1C + q3C;
 
     // I need to get the eigenvectors at these three wavevectors
-
     auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
     auto eigenVector1 = std::get<1>(t3);
 
