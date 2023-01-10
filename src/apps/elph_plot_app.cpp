@@ -28,17 +28,18 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
+  Points points(crystal);
   // decide what kind of points path we're going to use
   if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
   }
   else { //(context.getG2MeshStyle() == "pointsMesh") { // pointsMesh is default
-    points = Points(crystal, context.getKMesh(), context.getDeltaPath());
+    points = Points(crystal, context.getKMesh());
   }
-  else {
-    Error("Select a valid g2MeshStyle "
-        "-- options are either 'pointsMesh' or 'pointsPath'.");
-  }
+  //else {
+   // Error("Select a valid g2MeshStyle "
+   //     "-- options are either 'pointsMesh' or 'pointsPath'.");
+  //}
 
   // loop over points and set up points pairs
   std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPath;
@@ -59,7 +60,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
     }
     else { // if neither point is fixed, it's all to all
       for (int iq = 0; iq < points.getNumPoints(); iq++) {
-        thisPair.first = thisPoint
+        thisPair.first = thisPoint;
         thisPair.second = points.getPointCoordinates(iq, Points::cartesianCoordinates);;
       }
     }
