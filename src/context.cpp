@@ -447,11 +447,9 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "phFC2FileName") {
         phFC2FileName = parseString(val);
       }
-
       if (parameterName == "phFC3FileName") {
         phFC3FileName = parseString(val);
       }
-
       if (parameterName == "phonopyDispFileName") {
         phonopyDispFileName = parseString(val);
       }
@@ -461,32 +459,25 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "sumRuleFC2") {
         sumRuleFC2 = parseString(val);
       }
-
       if (parameterName == "electronH0Name") {
         electronH0Name = parseString(val);
       }
-
       if (parameterName == "wannier90Prefix") {
         wannier90Prefix = parseString(val);
       }
-
       if (parameterName == "quantumEspressoPrefix") {
         quantumEspressoPrefix = parseString(val);
       }
-
       if (parameterName == "elPhInterpolation") {
         elPhInterpolation = parseString(val);
       }
-
       if (parameterName == "elphFileName") {
         setElphFileName(parseString(val));
       }
-
       if (parameterName == "electronFourierCutoff") {
         double x = parseDouble(val);
         electronFourierCutoff = x;
       }
-
       if (parameterName == "qMesh") {
         std::vector<int> vecMesh = parseIntList(val);
         qMesh(0) = vecMesh[0];
@@ -542,55 +533,42 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "appName") {
         appName = parseString(val);
       }
-
       if (parameterName == "solverBTE") {
         solverBTE = parseStringList(val);
       }
-
       if (parameterName == "convergenceThresholdBTE") {
         convergenceThresholdBTE = parseDouble(val);
       }
-
       if (parameterName == "maxIterationsBTE") {
         maxIterationsBTE = parseInt(val);
       }
-
       if (parameterName == "dimensionality") {
         dimensionality = parseInt(val);
       }
-
       if (parameterName == "dosMinEnergy") {
         dosMinEnergy = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "dosMaxEnergy") {
         dosMaxEnergy = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "dosDeltaEnergy") {
         dosDeltaEnergy = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "deltaPath") {
         deltaPath = parseDouble(val);
       }
-
       if (parameterName == "outputEigendisplacements") {
         outputEigendisplacements = parseBool(val);
       }
-
       if (parameterName == "fermiLevel") {
         fermiLevel = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "hasSpinOrbit") {
         hasSpinOrbit = parseBool(val);
       }
-
       if (parameterName == "distributedElPhCoupling") {
         distributedElPhCoupling = parseBool(val);
       }
-
       if (parameterName == "numOccupiedStates") {
         // note: numOccupiedStates refers to the number of states that are
         // occupied
@@ -602,7 +580,6 @@ void Context::setupFromInput(const std::string &fileName) {
           x *= 2;
         numOccupiedStates = x;
       }
-
       if (parameterName == "smearingMethod") {
         std::string x_ = parseString(val);
         // TODO: this is hardcoded, should be fixed how we validate input
@@ -616,31 +593,24 @@ void Context::setupFromInput(const std::string &fileName) {
           smearingMethod = -1;
         }
       }
-
       if (parameterName == "smearingWidth") {
         smearingWidth = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "constantRelaxationTime") {
         constantRelaxationTime = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "scatteringMatrixInMemory") {
         scatteringMatrixInMemory = parseBool(val);
       }
-
       if (parameterName == "symmetrizeMatrix") {
         symmetrizeMatrix = parseBool(val);
       }
-
       if (parameterName == "useSymmetries") {
         useSymmetries = parseBool(val);
       }
-
       if (parameterName == "withIsotopeScattering") {
         withIsotopeScattering = parseBool(val);
       }
-
       if (parameterName == "masses") {
         std::vector<double> x = parseDoubleList(val);
         customMasses = Eigen::VectorXd::Zero(int(x.size()));
@@ -655,7 +625,6 @@ void Context::setupFromInput(const std::string &fileName) {
           customIsotopeCouplings(i) = x[i];
         }
       }
-
       if (parameterName == "boundaryLength") {
         boundaryLength = parseDoubleWithUnits(val);
       }
@@ -664,35 +633,27 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "epaFileName") {
         epaFileName = parseString(val);
       }
-
       if (parameterName == "minChemicalPotential") {
         minChemicalPotential = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "maxChemicalPotential") {
         maxChemicalPotential = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "deltaChemicalPotential") {
         deltaChemicalPotential = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "minTemperature") {
         minTemperature = parseDouble(val) / temperatureAuToSi;
       }
-
       if (parameterName == "maxTemperature") {
         maxTemperature = parseDouble(val) / temperatureAuToSi;
       }
-
       if (parameterName == "deltaTemperature") {
         deltaTemperature = parseDouble(val) / temperatureAuToSi;
       }
-
       if (parameterName == "eFermiRange") {
         eFermiRange = parseDoubleWithUnits(val);
       }
-
       if (parameterName == "epaSmearingEnergy") {
         epaSmearingEnergy = parseDoubleWithUnits(val);
       }
@@ -720,44 +681,40 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "g2PlotStyle") {
         g2PlotStyle = parseString(val);
       }
-
+      if (parameterName == "g2MeshStyle") {
+        g2MeshStyle = parseString(val);
+      }
       if (parameterName == "g2FixedPoint") {
         std::vector<double> x = parseDoubleList(val);
         for (auto i : {0, 1, 2}) {
           g2PlotFixedPoint(i) = x[i];
         }
       }
-
       if (parameterName == "g2PlotBandEl1") {
         std::vector<int> x = parseIntList(val);
         g2PlotEl1Bands.first = x[0];
         g2PlotEl1Bands.second = x[1];
       }
-
       if (parameterName == "g2PlotBandEl2") {
         std::vector<int> x = parseIntList(val);
         g2PlotEl2Bands.first = x[0];
         g2PlotEl2Bands.second = x[1];
       }
-
       if (parameterName == "g2PlotBandPh") {
         std::vector<int> x = parseIntList(val);
         g2PlotPhBands.first = x[0];
         g2PlotPhBands.second = x[1];
       }
-
       if (parameterName == "hdf5ElphFileFormat") {
         int x = parseInt(val);
         setHdf5ElPhFileFormat(x);
       }
-
       if (parameterName == "wsVecFileName") {
         std::string x = parseString(val);
         setWsVecFileName(x);
       }
 
       // Polarization
-
       if (parameterName == "numCoreElectrons") {
         std::vector<int> x = parseIntList(val);
         Eigen::VectorXi xx(x.size());
@@ -1274,6 +1231,9 @@ double Context::getEFermiRange() const { return eFermiRange; }
 
 std::string Context::getG2PlotStyle() { return g2PlotStyle; }
 void Context::setG2PlotStyle(const std::string &x) { g2PlotStyle = x; }
+
+std::string Context::getG2MeshStyle() { return g2MeshStyle; }
+void Context::setG2MeshStyle(const std::string &x) { g2MeshStyle = x; }
 
 Eigen::Vector3d Context::getG2PlotFixedPoint() { return g2PlotFixedPoint; }
 void Context::setG2PlotFixedPoint(const Eigen::Vector3d &x) {
