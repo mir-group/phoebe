@@ -28,7 +28,9 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
-  Points points(crystal);
+  //Points points(crystal);
+  //std::cout << context.getKMesh().transpose() << std::endl;
+  Points points(crystal); //(crystal, context.getKMesh());
   // decide what kind of points path we're going to use
   if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
@@ -36,13 +38,11 @@ void ElPhCouplingPlotApp::run(Context &context) {
   else { //(context.getG2MeshStyle() == "pointsMesh") { // pointsMesh is default
     points = Points(crystal, context.getKMesh());
   }
-  //else {
-   // Error("Select a valid g2MeshStyle "
-   //     "-- options are either 'pointsMesh' or 'pointsPath'.");
-  //}
+
+  if(mpi->mpiHead()) std::cout << "G2 plot style " << context.getG2PlotStyle() << std::endl;
 
   // loop over points and set up points pairs
-  std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPath;
+  std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPairs;
   for (int ik = 0; ik < points.getNumPoints(); ik++) {
 
     auto thisPoint = points.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -52,19 +52,26 @@ void ElPhCouplingPlotApp::run(Context &context) {
     if (context.getG2PlotStyle() == "qFixed") {
       thisPair.first = thisPoint;
       thisPair.second = context.getG2PlotFixedPoint();
+      if(mpi->mpiHead()) std::cout << "q is fixed " << thisPair.second.transpose() << std::endl;
+      pointsPairs.push_back(thisPair);
+
     }
     // create a list of (k,q) pairs, where k is fixed and q is on the path
     else if (context.getG2PlotStyle() == "kFixed") {
       thisPair.first = context.getG2PlotFixedPoint();
       thisPair.second = thisPoint;
+      if(mpi->mpiHead()) std::cout << "k is fixed " << thisPair.second.transpose() << std::endl;
+      pointsPairs.push_back(thisPair);
     }
     else { // if neither point is fixed, it's all to all
       for (int iq = 0; iq < points.getNumPoints(); iq++) {
         thisPair.first = thisPoint;
         thisPair.second = points.getPointCoordinates(iq, Points::cartesianCoordinates);;
+        pointsPairs.push_back(thisPair);
+        //if(mpi->mpiHead()) std::cout << "none is fixed " << thisPair.second.transpose() << std::endl;
+        pointsPairs.push_back(thisPair);
       }
     }
-    pointsPath.push_back(thisPair);
   }
 
   // band ranges to calculate the coupling for
@@ -76,17 +83,24 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::vector<std::complex<double>> allGs;
 
   // distribute over k,q pairs
-  int numPairs = pointsPath.size();
+  int numPairs = pointsPairs.size();
   auto pairParallelIter = mpi->divideWorkIter(numPairs);
   // we calculate the coupling for each pair, flatten it, and append
   // it to allGs. Then at the end, we write this chunk to HDF5.
+
+  LoopPrint loopPrint("Calculating coupling", "k,q pairs", pairParallelIter.size());
   for (auto iPair : pairParallelIter) {
 
-    std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair = pointsPath[iPair];
+    loopPrint.update();
+    //std::cout << mpi->getRank() << " pair " << iPair << " of " << pairParallelIter.size() << std::endl;
+
+    std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair = pointsPairs[iPair];
 
     Eigen::Vector3d k1C = thisPair.first;
     Eigen::Vector3d q3C = thisPair.second;
     Eigen::Vector3d k2C = k1C + q3C;
+
+    std::cout << k1C.transpose() << " " << q3C.transpose() << std::endl;
 
     // need to get the eigenvectors at these three wavevectors
     auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
@@ -101,6 +115,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<Eigen::Vector3d> k2Cs;
     k2Cs.push_back(k2C);
 
+    //std::cout << mpi->getRank() << "2pair " << iPair << " of " << pairParallelIter.size() << std::endl;
+
     // phonon eigenvectors
     auto t5 = phononH0.diagonalizeFromCoordinates(q3C);
     auto eigenVector3 = std::get<1>(t5);
@@ -110,36 +126,53 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<Eigen::Vector3d> q3Cs;
     q3Cs.push_back(q3C);
 
+    //std::cout << mpi->getRank() << "3pair " << iPair << " of " << pairParallelIter.size() << std::endl;
+
     // calculate polar correction
     std::vector<Eigen::VectorXcd> polarData;
     Eigen::VectorXcd polar = couplingElPh.polarCorrectionPart1(q3C, eigenVector3);
     polarData.push_back(polar);
 
     // calculate the elph coupling
-    couplingElPh.cacheElPh(eigenVector1, k1C);
-    couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3,
-                                     q3Cs, polarData);
+    couplingElPh.cacheElPh(eigenVector1, k1C); // THIS is the fucker that hangs
+    //std::cout << mpi->getRank() << "4pair " << iPair << " of " << pairParallelIter.size() << std::endl;
+    couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3, q3Cs, polarData);
+    //std::cout << mpi->getRank() << "5pair " << iPair << " of " << pairParallelIter.size() << std::endl;
     auto coupling = couplingElPh.getCouplingSquared(0);
+    //std::cout << mpi->getRank() << "6pair " << iPair << " of " << pairParallelIter.size() << std::endl;
 
     // the coupling object is coupling at a given set of k,q, for a range of bands
     for (int ib1 = g2PlotEl1Bands.first; ib1 <= g2PlotEl1Bands.second; ib1++) {
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
           allGs.push_back(coupling(ib1, ib2, ib3));
+          if(ib1 == 1 && ib2 == 1 && ib3 == 1 && iPair == 1) {
+          if(mpi->mpiHead()) std::cout << "coupling " << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
+          }
         }
       }
     }
   } // close pairs loop
+  //std::cout << mpi->getRank() << " closing loop " << std::endl;
+  mpi->barrier();
+  loopPrint.close();
 
   // now that we've collected all the G values, we want to write them to file.
+  //if(mpi->mpiHead())
+  std::cout << mpi->getRank() << " Finished calculating coupling, writing to file." << std::endl;
+
+  std::string outFileName = "gmatrix.phoebe.hdf5";
+  std::remove(&outFileName[0]);
 
   #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
-  {
-    // open the hdf5 file
-    HighFive::FileAccessProps fapl;
-    fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
-    HighFive::File file(context.getQuantumEspressoPrefix()+".gmatrix.phoebe.hdf5",
-        HighFive::File::Overwrite, fapl);
+  try {
+
+  //std::cout << mpi->getRank() << " 1open the hdf5 file. " << outFileName << std::endl;
+
+  // open the hdf5 file
+  HighFive::FileAccessProps fapl;
+  fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
+  HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
 
     // product of nbands1 * nbands2 * nmodes
     size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first) *
@@ -188,19 +221,18 @@ void ElPhCouplingPlotApp::run(Context &context) {
     // push the last one, no matter the size, to the list of bunch sizes
     bunchSizes.push_back(bunchSize);
 
-    // determine the number of bunches. The last bunch may be smaller
-    // than the rest
+    // determine the number of bunches. The last bunch may be smaller than the rest
     int numDatasets = bunchSizes.size();
 
     // we now loop over these data sets, and write each chunk of
     // bravais vectors in parallel
-    int netOffset = 0;// offset from first bunch in this set to current bunch
+    int netOffset = 0;  // offset from first bunch in this set to current bunch
+
     for (int iBunch = 0; iBunch < numDatasets; iBunch++) {
 
       // we need to determine the start, stop and offset of this
       // sub-slice of the dataset available to this process
       size_t bunchElements = bunchSizes[iBunch] * smallestSize;
-      //size_t bunchStart = start + netOffset;
       size_t bunchOffset = offset + netOffset;
       netOffset += bunchElements;
 
@@ -210,6 +242,40 @@ void ElPhCouplingPlotApp::run(Context &context) {
       // with nRows = 1, nCols = number of items this process will write.
       dgmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allGs);
     }
+  //if(mpi->mpiHead()) {
+  //  std::cout << "2Finished calculating coupling, writing to file." << std::endl;
+  // }
+
+  } catch (std::exception &error) {
+    Error("Issue writing el-el Wannier representation to hdf5.");
+  }
+
+  // now we write a few other pieces of smaller information using only mpiHead
+  try {
+    if (mpi->mpiHead()) {
+
+      HighFive::File file(outFileName, HighFive::File::ReadWrite);
+
+      // shape the points pairs list into a format that can be written
+      Eigen::MatrixXd pointsTemp(pointsPairs.size(),6);
+      for (int iPair = 0; iPair < pointsPairs.size(); iPair++) {
+
+        auto thisPair = pointsPairs[iPair];
+        Eigen::Vector3d k1C = thisPair.first;
+        Eigen::Vector3d q3C = thisPair.second;
+        for( int i : {0,1,2} ) {
+          pointsTemp(iPair,i) = k1C(i);
+          pointsTemp(iPair,i+3) = q3C(i);
+          //std::cout << " " << k1C(i) ;
+        }
+       // std::cout << std::endl;
+      }
+      // write the points pairs to file
+      file.createDataSet("/pointsPairs", pointsTemp);
+
+    }
+  } catch (std::exception &error) {
+      Error("Issue writing el-el Wannier representation to hdf5.");
   }
   #else
   Error("You cannot output the elph matrix elements to HDF5 because your copy of \n"
@@ -221,6 +287,10 @@ void ElPhCouplingPlotApp::run(Context &context) {
 void ElPhCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getPhFC2FileName(), "phFC2FileName");
-  throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+  if(context.getG2PlotStyle() == "pointsPath")
+    throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+  else {
+    throwErrorIfUnset(context.getKMesh(), "kMesh");
+  }
   throwErrorIfUnset(context.getElphFileName(), "elphFileName");
 }
