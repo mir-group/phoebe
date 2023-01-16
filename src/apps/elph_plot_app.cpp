@@ -80,7 +80,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::pair<int, int> g2PlotPhBands = context.getG2PlotPhBands();
 
   // Compute the coupling
-  std::vector<std::complex<double>> allGs;
+  std::vector<double> allGs;
 
   // distribute over k,q pairs
   int numPairs = pointsPairs.size();
@@ -146,7 +146,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
           allGs.push_back(coupling(ib1, ib2, ib3));
-          if(ib1 == 1 && ib2 == 1 && ib3 == 1 && iPair == 1) {
+          if(ib1 == 1 && ib2 == 1 && ib3 == 1) {
           if(mpi->mpiHead()) std::cout << "coupling " << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
           }
         }
@@ -167,12 +167,15 @@ void ElPhCouplingPlotApp::run(Context &context) {
   #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
 
-  //std::cout << mpi->getRank() << " 1open the hdf5 file. " << outFileName << std::endl;
-
+  { // need open/close braces so that the HDF5 file goes out of scope
   // open the hdf5 file
-  HighFive::FileAccessProps fapl;
-  fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
-  HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
+  //HighFive::FileAccessProps fapl;
+  //fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
+  //HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
+
+    HighFive::File file(
+          outFileName, HighFive::File::Overwrite,
+          HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
     // product of nbands1 * nbands2 * nmodes
     size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first) *
@@ -185,7 +188,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<size_t> dims(2);
     dims[0] = 1;
     dims[1] = size_t(globalSize);
-    HighFive::DataSet dgmat = file.createDataSet<std::complex<double>>(
+    HighFive::DataSet dgmat = file.createDataSet<double>(
           "/gMat", HighFive::DataSpace(dims));
 
     // start point and the number of the total number of elements
@@ -201,7 +204,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     // maxSize represents 2GB worth of std::complex<doubles>, since that's
     // what we write
-    auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
+    auto maxSize = int(pow(1000, 3)) / sizeof(double);
     size_t smallestSize = bandProd; // 1 point pair
     std::vector<int> bunchSizes;
 
@@ -240,18 +243,11 @@ void ElPhCouplingPlotApp::run(Context &context) {
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allGs);
+      dgmat.select({0, bunchOffset}, {1, bunchElements}).write(allGs);
     }
-  //if(mpi->mpiHead()) {
-  //  std::cout << "2Finished calculating coupling, writing to file." << std::endl;
-  // }
+    } // end parallel write section
 
-  } catch (std::exception &error) {
-    Error("Issue writing el-el Wannier representation to hdf5.");
-  }
-
-  // now we write a few other pieces of smaller information using only mpiHead
-  try {
+    // now we write a few other pieces of smaller information using only mpiHead
     if (mpi->mpiHead()) {
 
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
@@ -266,16 +262,27 @@ void ElPhCouplingPlotApp::run(Context &context) {
         for( int i : {0,1,2} ) {
           pointsTemp(iPair,i) = k1C(i);
           pointsTemp(iPair,i+3) = q3C(i);
-          //std::cout << " " << k1C(i) ;
         }
-       // std::cout << std::endl;
       }
       // write the points pairs to file
       file.createDataSet("/pointsPairs", pointsTemp);
+      // write the band ranges
+      std::vector<int> temp;
+      temp.push_back(g2PlotEl1Bands.first);
+      temp.push_back(g2PlotEl1Bands.second);
+      file.createDataSet("/elBandRange1", temp);
+      temp.clear();
+      temp.push_back(g2PlotEl2Bands.first);
+      temp.push_back(g2PlotEl2Bands.second);
+      file.createDataSet("/elBandRange2", temp);
+      temp.clear();
+      temp.push_back(g2PlotPhBands.first);
+      temp.push_back(g2PlotPhBands.second);
+      file.createDataSet("/phModeRange", temp);
 
     }
   } catch (std::exception &error) {
-      Error("Issue writing el-el Wannier representation to hdf5.");
+      Error("Issue writing el-el Wannier representation to hdf5 -- kmesh.");
   }
   #else
   Error("You cannot output the elph matrix elements to HDF5 because your copy of \n"
