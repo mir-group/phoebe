@@ -127,12 +127,13 @@ void ElPhCouplingPlotApp::run(Context &context) {
     auto coupling = couplingElPh.getCouplingSquared(0);
 
     // the coupling object is coupling at a given set of k,q, for a range of bands
+    // band ranges are inclusive of start and finish ones
     for (int ib1 = g2PlotEl1Bands.first; ib1 <= g2PlotEl1Bands.second; ib1++) {
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
           allGs.push_back(coupling(ib1, ib2, ib3));
-          if(ib1 == 0 && ib2 == 0 && ib3 == 0) {
-          //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
+          if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
+            if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
           }
         }
       }
@@ -150,21 +151,18 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
-/*
-  { // need open/close braces so that the HDF5 file goes out of scope
-  // open the hdf5 file
-  //HighFive::FileAccessProps fapl;
-  //fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
-  //HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
 
+  { // need open/close braces so that the HDF5 file goes out of scope
+
+    // open the hdf5 file
     HighFive::File file(
           outFileName, HighFive::File::Overwrite,
           HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
 
-    // product of nbands1 * nbands2 * nmodes
-    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first) *
-                (g2PlotEl2Bands.second - g2PlotEl2Bands.first) *
-                (g2PlotPhBands.second - g2PlotPhBands.first);
+    // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
+    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
+                (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
+                (g2PlotPhBands.second - g2PlotPhBands.first + 1);
 
     unsigned int globalSize = numPairs * bandProd;
 
@@ -211,8 +209,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
     // determine the number of bunches. The last bunch may be smaller than the rest
     int numDatasets = bunchSizes.size();
 
-    // we now loop over these data sets, and write each chunk of
-    // bravais vectors in parallel
+    // we now loop over these data sets and write each chunk in parallel
     int netOffset = 0;  // offset from first bunch in this set to current bunch
 
     for (int iBunch = 0; iBunch < numDatasets; iBunch++) {
@@ -227,17 +224,15 @@ void ElPhCouplingPlotApp::run(Context &context) {
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgmat.select({0, bunchOffset}, {1, bunchElements}).write(allGs);
+      dgmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allGs[0]);
 
     }
     } // end parallel write section
-*/
+
     // now we write a few other pieces of smaller information using only mpiHead
     if (mpi->mpiHead()) {
 
-      //HighFive::File file(outFileName, HighFive::File::ReadWrite);
-      HighFive::File file(outFileName, HighFive::File::Overwrite);
-      file.createDataSet("/gMat", allGs);
+      HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       // shape the points pairs list into a format that can be written
       Eigen::MatrixXd pointsTemp(pointsPairs.size(),6);
@@ -253,6 +248,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
       }
       // write the points pairs to file
       file.createDataSet("/pointsPairs", pointsTemp);
+
       // write the band ranges
       std::vector<int> temp;
       temp.push_back(g2PlotEl1Bands.first);
