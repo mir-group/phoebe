@@ -28,9 +28,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
-  //Points points(crystal);
-  //std::cout << context.getKMesh().transpose() << std::endl;
-  Points points(crystal); //(crystal, context.getKMesh());
+  Points points(crystal);
   // decide what kind of points path we're going to use
   if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
@@ -38,8 +36,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
   else { //(context.getG2MeshStyle() == "pointsMesh") { // pointsMesh is default
     points = Points(crystal, context.getKMesh());
   }
-
-  if(mpi->mpiHead()) std::cout << "G2 plot style " << context.getG2PlotStyle() << std::endl;
 
   // loop over points and set up points pairs
   std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> pointsPairs;
@@ -52,7 +48,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     if (context.getG2PlotStyle() == "qFixed") {
       thisPair.first = thisPoint;
       thisPair.second = context.getG2PlotFixedPoint();
-      if(mpi->mpiHead()) std::cout << "q is fixed " << thisPair.second.transpose() << std::endl;
       pointsPairs.push_back(thisPair);
 
     }
@@ -60,7 +55,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     else if (context.getG2PlotStyle() == "kFixed") {
       thisPair.first = context.getG2PlotFixedPoint();
       thisPair.second = thisPoint;
-      if(mpi->mpiHead()) std::cout << "k is fixed " << thisPair.second.transpose() << std::endl;
       pointsPairs.push_back(thisPair);
     }
     else { // if neither point is fixed, it's all to all
@@ -68,7 +62,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
         thisPair.first = thisPoint;
         thisPair.second = points.getPointCoordinates(iq, Points::cartesianCoordinates);;
         pointsPairs.push_back(thisPair);
-        //if(mpi->mpiHead()) std::cout << "none is fixed " << thisPair.second.transpose() << std::endl;
         pointsPairs.push_back(thisPair);
       }
     }
@@ -92,7 +85,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
   for (auto iPair : pairParallelIter) {
 
     loopPrint.update();
-    //std::cout << mpi->getRank() << " pair " << iPair << " of " << pairParallelIter.size() << std::endl;
 
     std::pair<Eigen::Vector3d, Eigen::Vector3d> thisPair = pointsPairs[iPair];
 
@@ -115,8 +107,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<Eigen::Vector3d> k2Cs;
     k2Cs.push_back(k2C);
 
-    //std::cout << mpi->getRank() << "2pair " << iPair << " of " << pairParallelIter.size() << std::endl;
-
     // phonon eigenvectors
     auto t5 = phononH0.diagonalizeFromCoordinates(q3C);
     auto eigenVector3 = std::get<1>(t5);
@@ -126,47 +116,41 @@ void ElPhCouplingPlotApp::run(Context &context) {
     std::vector<Eigen::Vector3d> q3Cs;
     q3Cs.push_back(q3C);
 
-    //std::cout << mpi->getRank() << "3pair " << iPair << " of " << pairParallelIter.size() << std::endl;
-
     // calculate polar correction
     std::vector<Eigen::VectorXcd> polarData;
     Eigen::VectorXcd polar = couplingElPh.polarCorrectionPart1(q3C, eigenVector3);
     polarData.push_back(polar);
 
     // calculate the elph coupling
-    couplingElPh.cacheElPh(eigenVector1, k1C); // THIS is the fucker that hangs
-    //std::cout << mpi->getRank() << "4pair " << iPair << " of " << pairParallelIter.size() << std::endl;
+    couplingElPh.cacheElPh(eigenVector1, k1C); // THIS hangs when run with ps > 1, TODO
     couplingElPh.calcCouplingSquared(eigenVector1, eigenVectors2, eigenVectors3, q3Cs, polarData);
-    //std::cout << mpi->getRank() << "5pair " << iPair << " of " << pairParallelIter.size() << std::endl;
     auto coupling = couplingElPh.getCouplingSquared(0);
-    //std::cout << mpi->getRank() << "6pair " << iPair << " of " << pairParallelIter.size() << std::endl;
 
     // the coupling object is coupling at a given set of k,q, for a range of bands
     for (int ib1 = g2PlotEl1Bands.first; ib1 <= g2PlotEl1Bands.second; ib1++) {
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
           allGs.push_back(coupling(ib1, ib2, ib3));
-          if(ib1 == 1 && ib2 == 1 && ib3 == 1) {
-          if(mpi->mpiHead()) std::cout << "coupling " << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
+          if(ib1 == 0 && ib2 == 0 && ib3 == 0) {
+          //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
           }
         }
       }
     }
   } // close pairs loop
-  //std::cout << mpi->getRank() << " closing loop " << std::endl;
   mpi->barrier();
   loopPrint.close();
 
   // now that we've collected all the G values, we want to write them to file.
-  //if(mpi->mpiHead())
-  std::cout << mpi->getRank() << " Finished calculating coupling, writing to file." << std::endl;
+  if(mpi->mpiHead())
+    std::cout << " Finished calculating coupling, writing to file." << std::endl;
 
   std::string outFileName = "gmatrix.phoebe.hdf5";
   std::remove(&outFileName[0]);
 
   #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
-
+/*
   { // need open/close braces so that the HDF5 file goes out of scope
   // open the hdf5 file
   //HighFive::FileAccessProps fapl;
@@ -244,13 +228,16 @@ void ElPhCouplingPlotApp::run(Context &context) {
       // Because it's a vector (1 row) all processes write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
       dgmat.select({0, bunchOffset}, {1, bunchElements}).write(allGs);
+
     }
     } // end parallel write section
-
+*/
     // now we write a few other pieces of smaller information using only mpiHead
     if (mpi->mpiHead()) {
 
-      HighFive::File file(outFileName, HighFive::File::ReadWrite);
+      //HighFive::File file(outFileName, HighFive::File::ReadWrite);
+      HighFive::File file(outFileName, HighFive::File::Overwrite);
+      file.createDataSet("/gMat", allGs);
 
       // shape the points pairs list into a format that can be written
       Eigen::MatrixXd pointsTemp(pointsPairs.size(),6);
