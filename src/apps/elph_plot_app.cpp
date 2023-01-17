@@ -149,7 +149,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::string outFileName = "gmatrix.phoebe.hdf5";
   std::remove(&outFileName[0]);
 
-  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
+  #if defined(HDF5_AVAIL) && defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
 
   { // need open/close braces so that the HDF5 file goes out of scope
@@ -228,7 +228,18 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     }
     } // end parallel write section
+    #elif defined(HDF5_AVAIL) && defined(HDF5_SERIAL)
+    {
 
+    // call an mpi collective to grab allGs
+
+    // throw an error if there are too many elements to write
+
+    // write elph matrix elements
+    HighFive::File file(outFileName, HighFive::File::Overwrite);
+    file.createDataSet("/gMat", allGs);
+
+    }
     // now we write a few other pieces of smaller information using only mpiHead
     if (mpi->mpiHead()) {
 
@@ -265,14 +276,19 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     }
   } catch (std::exception &error) {
-      Error("Issue writing el-el Wannier representation to hdf5 -- kmesh.");
+      Error("Issue writing el-el Wannier representation to hdf5.");
   }
   #else
   Error("You cannot output the elph matrix elements to HDF5 because your copy of \n"
-        "Phoebe has not been compiled with HDF5 support,\n"
-        "or has been compiled with serial HDF5.");
+        "Phoebe has not been compiled with HDF5 support.");
   #endif
 }
+
+// TODO fix checkRequirements
+// TODO write tutorial
+// TODO write tests
+// TODO check with kfixed, qfixed, none fixed + path vs mesh
+// TODO check with and without HDF5, as well as with HDF5_SERIAL
 
 void ElPhCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
