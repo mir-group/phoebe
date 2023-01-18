@@ -149,7 +149,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::string outFileName = "gmatrix.phoebe.hdf5";
   std::remove(&outFileName[0]);
 
-  #if defined(HDF5_AVAIL) && defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
+  #if defined(HDF5_AVAIL)
+  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
 
   { // need open/close braces so that the HDF5 file goes out of scope
@@ -228,18 +229,29 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
     }
     } // end parallel write section
-    #elif defined(HDF5_AVAIL) && defined(HDF5_SERIAL)
+    #else
     {
 
-    // call an mpi collective to grab allGs
-
     // throw an error if there are too many elements to write
+    unsigned int globalSize = numPairs * bandProd;
+    auto maxSize = int(pow(1000, 3)) / sizeof(double);
+    if(globalSize > maxSize) {
+      Error("Your requested el-ph matrix element file size is greater than the allowed size\n"
+        "for a single write by HDF5. Either compile Phoebe with a parallel copy of HDF5 or\n"
+        "request to output fewer matrix elements. ");
+    }
+
+    // call an mpi collective to grab allGs
+    std::vector<double> collectedGs;
+    if(mpi->mpiHead()) collectedGs.resize(globalSize);
+    mpi->allGatherv(&collectedGs, &allGs);
 
     // write elph matrix elements
     HighFive::File file(outFileName, HighFive::File::Overwrite);
-    file.createDataSet("/gMat", allGs);
+    file.createDataSet("/gMat", collectedGs);
 
     }
+    #endif
     // now we write a few other pieces of smaller information using only mpiHead
     if (mpi->mpiHead()) {
 
@@ -247,7 +259,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
       // shape the points pairs list into a format that can be written
       Eigen::MatrixXd pointsTemp(pointsPairs.size(),6);
-      for (int iPair = 0; iPair < pointsPairs.size(); iPair++) {
+      for (size_t iPair = 0; iPair < pointsPairs.size(); iPair++) {
 
         auto thisPair = pointsPairs[iPair];
         Eigen::Vector3d k1C = thisPair.first;
@@ -278,6 +290,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   } catch (std::exception &error) {
       Error("Issue writing el-el Wannier representation to hdf5.");
   }
+  // close else for HDF5_AVAIL
   #else
   Error("You cannot output the elph matrix elements to HDF5 because your copy of \n"
         "Phoebe has not been compiled with HDF5 support.");
