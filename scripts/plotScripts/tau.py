@@ -10,12 +10,14 @@ import sys
 def noWindow(data,jfileName,calcIndex):
     # unpack the json file
     tau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib)
+    tau[np.where(tau==None)] = 0   # remove None values (from gamma pt acoustic ph)
     energies = np.array(data['energies'])      # dimensions (iCalc, ik, ib)
     linewidths = np.array(data['linewidths'])      # dimensions (iCalc, ik, ib)
     nbands = energies.shape[2]
     mu = np.array(data['chemicalPotentials'])
     T = np.array(data['temperatures'])
 
+    linewidths = linewidths[calcIndex].flatten()
     energies = energies[calcIndex].flatten()
     tau = tau[calcIndex].flatten()
     mu = mu[calcIndex]
@@ -27,6 +29,7 @@ def noWindow(data,jfileName,calcIndex):
 def withWindow(data,jfileName,calcIndex):
     # unpack the json file
     srcTau = np.array(data['relaxationTimes'])    # dimensions (iCalc, ik, ib)
+    srcTau[np.where(srcTau==None)] = 0   # remove None values (from gamma pt acoustic ph)
     srcEnergies = np.array(data['energies'])      # dimensions (iCalc, ik, ib)
     srcLinewidths = np.array(data['linewidths'])      # dimensions (iCalc, ik, ib)
     tau = []
@@ -40,13 +43,11 @@ def withWindow(data,jfileName,calcIndex):
         linewidths.append(np.array(list(itertools.chain(*x))))
     mu = np.array(data['chemicalPotentials'])
     T = np.array(data['temperatures'])
-    
+
     print("Calculation Temperature: ", T[calcIndex])
 
     return energies[calcIndex]-mu[calcIndex], tau[calcIndex], linewidths[calcIndex]
-        
 
-    
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Plot relaxation times that "
@@ -58,7 +59,7 @@ if __name__ == "__main__":
                         default=0)
     args = parser.parse_args()
 
-    # we select one calculation
+    # we select one calculation and check that the json file is correct
     try:
         calcIndex = int(args.calcIndex)
     except ValueError:
@@ -69,32 +70,29 @@ if __name__ == "__main__":
     with open(jfileName) as jfile:
         data = json.load(jfile)
 
-        # some relaxation times may be None (e.g. acoustic phonon modes at Gamma)
-        # we replace that with 0, in order to be plotted
-        try:
-            data['relaxationTimes'] =[ [ [ 0. if x==None else x for x in y]
-                                         for y in z ]
-                                       for z in data['relaxationTimes'] ]
-        except KeyError:
-            raise KeyError("relaxation times not found."
-                           "Are you using the correct input json file?")
+    try:
+        data['relaxationTimes']
+    except KeyError:
+        raise KeyError("relaxation times not found."
+              "Are you using the correct input json file?")
 
     particleType = data['particleType']
-        
+
+    # if a window was used to filter points in the calculation,
+    # the format of the output can be slightly different
     if len(np.array(data['relaxationTimes']).shape) == 3:
         energies, tau, linewidths = noWindow(data,jfileName,calcIndex)
     else:
         energies, tau, linewidths = withWindow(data,jfileName,calcIndex)
-        
-    # Could also load in group velocities, or wavevectors
 
-    for y, name in [[tau,'tau'],
-                    [linewidths,'Gamma']]:    
+
+    for y, name in [[tau,'tau'], [linewidths,'Gamma']]:
+
         # plot the lifetimes
         plt.figure(figsize=(5,5))
-        plt.scatter(energies, y,
-                    marker='o', s=18, color='royalblue')
-        
+
+        plt.scatter(energies, y, marker='o', s=18, color='royalblue')
+
         # plot aesthetics
         plt.yscale('log')
         plt.xlabel(r'Energy [' + data['energyUnit'] +']',fontsize=12)
@@ -102,7 +100,7 @@ if __name__ == "__main__":
             units = ' [' + data['relaxationTimeUnit'] + ']'
         else:
             units = ' [' + data['linewidthsUnit'] + ']'
-            
+
         plt.ylabel(r'$\{}_{{'.format(name) + data['particleType'] + '}$' +
                    units, fontsize=12)
 
@@ -112,14 +110,10 @@ if __name__ == "__main__":
         # Find limits of the y axis
         zeroIndex = np.argwhere(y<=0.)
         y = np.delete(y, zeroIndex)
-        print(y.shape)
         ymin = 10**np.floor(np.log10(np.min(y)))
         ymax = 10**np.ceil(np.log10(np.max(y)))
         plt.ylim(ymin, ymax)
 
-        # plt.colorbar()
-        
         plt.tight_layout()
-        
         plotFileName = os.path.splitext(jfileName)[0] + ".{}.pdf".format(name.lower())
         plt.savefig(plotFileName)
