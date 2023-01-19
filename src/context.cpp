@@ -436,6 +436,7 @@ void Context::setupFromInput(const std::string &fileName) {
     line = line.substr(0, line.find_first_of("#"));
 
     if (line.empty()) { // nothing to do
+      lineCounter ++;
       continue;
 
       // line with pair (key,value)
@@ -834,6 +835,52 @@ void Context::printInputSummary(const std::string &fileName) {
     if(appName.find("elPhQeToPhoebe") != std::string::npos) {
       std::cout << "distributedElPhCoupling = " << distributedElPhCoupling
         << std::endl;
+    }
+    // plot coupling app
+    if(appName.find("elPhCouplingPlot") != std::string::npos) {
+      std::cout << "g2PlotStyle = " << g2PlotStyle << std::endl;
+      std::cout << "g2MeshStyle = " << g2MeshStyle << std::endl;
+      if(g2PlotStyle.find("Fixed") != std::string::npos) {
+        std::cout << "g2PlotFixedPoint = [ " << g2PlotFixedPoint.transpose() <<
+          " ]" << std::endl;
+      }
+      if(g2PlotEl1Bands.first != -1)
+        std::cout << "g2PlotEl1Bands = [ " << g2PlotEl1Bands.first << " " <<
+                 g2PlotEl1Bands.second << " ]" << std::endl;
+      if(g2PlotEl1Bands.first != -1)
+        std::cout << "g2PlotEl2Bands = [ " << g2PlotEl2Bands.first << " " <<
+                 g2PlotEl2Bands.second << " ]" << std::endl;
+      if(g2PlotEl1Bands.first != -1)
+        std::cout << "g2PlotPhBands = [ " << g2PlotPhBands.first << " " <<
+                 g2PlotPhBands.second << " ]" << std::endl;
+
+      if(g2MeshStyle == "pointsPath") {
+
+        std::cout << "deltaPath = " << deltaPath << " 1/Bohr" << std::endl;
+
+        std::cout << "\nBand Path:" << std::endl;
+        std::cout << std::setprecision(4) << std::fixed;
+        const auto &dim = pathExtrema.dimensions();
+        int count = 0;
+        for (int i = 0; i < dim[0]; i++) {
+          std::cout << pathLabels[count] << " " << pathExtrema(i, 0, 0) << " "
+                    << pathExtrema(i, 0, 1) << " " << pathExtrema(i, 0, 2) << "  ";
+          count++;
+          std::cout << pathLabels[count] << " " << pathExtrema(i, 1, 0) << " "
+                    << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
+                    << std::endl;
+          count++;
+        }
+      } else {
+        if(g2PlotStyle == "qFixed") {
+          std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
+                << std::endl;
+        }
+        else if(g2PlotStyle == "kFixed") {
+          std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
+                << std::endl;
+        }
+      }
     }
     std::cout << std::endl;
   }
