@@ -436,6 +436,7 @@ void Context::setupFromInput(const std::string &fileName) {
     line = line.substr(0, line.find_first_of("#"));
 
     if (line.empty()) { // nothing to do
+      lineCounter ++;
       continue;
 
       // line with pair (key,value)
