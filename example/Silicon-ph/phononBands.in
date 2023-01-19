@@ -2,6 +2,8 @@ phFC2FileName = "qe-phonons/silicon.fc",
 sumRuleFC2 = "simple"
 appName = "phononBands"
 
+# fill in the appropriate band path for your
+# structure here
 begin point path
 L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
 G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
