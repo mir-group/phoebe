@@ -13,6 +13,12 @@
 
 void ElPhCouplingPlotApp::run(Context &context) {
 
+  if(mpi->hasPools()) {
+    Error("Cannot currently run el-ph coupling plot app with\n"
+        "MPI pool size (-ps) greater than 1. Please run without pools\n"
+        "or let the developers know you need this feature.");
+  }
+
   // load ph files
   auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
@@ -29,7 +35,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
   Points points(crystal);
-  // decide what kind of points path we're going to use
+  // decide what kind of points path we're going to use ---------------------------
   if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
   }
@@ -72,16 +78,20 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::pair<int, int> g2PlotEl2Bands = context.getG2PlotEl2Bands();
   std::pair<int, int> g2PlotPhBands = context.getG2PlotPhBands();
 
-  // Compute the coupling
+  // Compute the coupling --------------------------------------------------
   std::vector<double> allGs;
 
   // distribute over k,q pairs
   int numPairs = pointsPairs.size();
   auto pairParallelIter = mpi->divideWorkIter(numPairs);
+
   // we calculate the coupling for each pair, flatten it, and append
   // it to allGs. Then at the end, we write this chunk to HDF5.
 
-  LoopPrint loopPrint("Calculating coupling", "k,q pairs", pairParallelIter.size());
+  if(mpi->mpiHead())
+    std::cout << "\nCoupling requested for " << numPairs << " k,q pairs." << std::endl;
+
+  LoopPrint loopPrint("calculating coupling", "k,q pairs on this process", pairParallelIter.size());
   for (auto iPair : pairParallelIter) {
 
     loopPrint.update();
@@ -91,8 +101,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     Eigen::Vector3d k1C = thisPair.first;
     Eigen::Vector3d q3C = thisPair.second;
     Eigen::Vector3d k2C = k1C + q3C;
-
-    std::cout << k1C.transpose() << " " << q3C.transpose() << std::endl;
 
     // need to get the eigenvectors at these three wavevectors
     auto t3 = electronH0.diagonalizeFromCoordinates(k1C);
@@ -132,9 +140,9 @@ void ElPhCouplingPlotApp::run(Context &context) {
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotPhBands.first; ib3 <= g2PlotPhBands.second; ib3++) {
           allGs.push_back(coupling(ib1, ib2, ib3));
-          if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
-            if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
-          }
+          //if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
+            //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
+         // }
         }
       }
     }
@@ -144,7 +152,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
 
   // now that we've collected all the G values, we want to write them to file.
   if(mpi->mpiHead())
-    std::cout << " Finished calculating coupling, writing to file." << std::endl;
+    std::cout << "\nFinished calculating coupling, writing to file." << std::endl;
 
   std::string outFileName = "gmatrix.phoebe.hdf5";
   std::remove(&outFileName[0]);
@@ -296,6 +304,7 @@ void ElPhCouplingPlotApp::run(Context &context) {
         "Phoebe has not been compiled with HDF5 support.");
   #endif
 }
+
 
 // TODO fix checkRequirements
 // TODO write tutorial

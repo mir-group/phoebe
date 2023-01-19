@@ -838,7 +838,7 @@ void Context::printInputSummary(const std::string &fileName) {
     }
     // plot coupling app
     if(appName.find("elPhCouplingPlot") != std::string::npos) {
-      std::cout << "g2PlotStyle = " << g2PlotStyle << std::endl;
+      std::cout << '\n' << "g2PlotStyle = " << g2PlotStyle << std::endl;
       std::cout << "g2MeshStyle = " << g2MeshStyle << std::endl;
       if(g2PlotStyle.find("Fixed") != std::string::npos) {
         std::cout << "g2PlotFixedPoint = [ " << g2PlotFixedPoint.transpose() <<
