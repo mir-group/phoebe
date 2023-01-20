@@ -34,13 +34,20 @@ void ElPhCouplingPlotApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
+  Eigen::Vector3i mesh;
+  if (context.getG2PlotStyle() == "qFixed") {
+    mesh = context.getKMesh();
+  } else if (context.getG2PlotStyle() == "kFixed") {
+    mesh = context.getQMesh();
+  }
+
   Points points(crystal);
   // decide what kind of points path we're going to use ---------------------------
   if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
   }
   else { //(context.getG2MeshStyle() == "pointsMesh") { // pointsMesh is default
-    points = Points(crystal, context.getKMesh());
+    points = Points(crystal, mesh);
   }
 
   // loop over points and set up points pairs
@@ -53,13 +60,13 @@ void ElPhCouplingPlotApp::run(Context &context) {
     // create a list of (k,q) pairs, where k is on a path and q is fixed
     if (context.getG2PlotStyle() == "qFixed") {
       thisPair.first = thisPoint;
-      thisPair.second = context.getG2PlotFixedPoint();
+      thisPair.second = points.crystalToCartesian(context.getG2PlotFixedPoint());
       pointsPairs.push_back(thisPair);
 
     }
     // create a list of (k,q) pairs, where k is fixed and q is on the path
     else if (context.getG2PlotStyle() == "kFixed") {
-      thisPair.first = context.getG2PlotFixedPoint();
+      thisPair.first = points.crystalToCartesian(context.getG2PlotFixedPoint());
       thisPair.second = thisPoint;
       pointsPairs.push_back(thisPair);
     }
@@ -270,8 +277,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
       for (size_t iPair = 0; iPair < pointsPairs.size(); iPair++) {
 
         auto thisPair = pointsPairs[iPair];
-        Eigen::Vector3d k1C = thisPair.first;
-        Eigen::Vector3d q3C = thisPair.second;
+        Eigen::Vector3d k1C = points.cartesianToCrystal(thisPair.first);
+        Eigen::Vector3d q3C = points.cartesianToCrystal(thisPair.second);
         for( int i : {0,1,2} ) {
           pointsTemp(iPair,i) = k1C(i);
           pointsTemp(iPair,i+3) = q3C(i);
@@ -305,7 +312,8 @@ void ElPhCouplingPlotApp::run(Context &context) {
   #endif
 }
 
-
+// TODO is there an issue where half the poitns are in crystal and half in cartesian
+// TODO why do cartesian coords go past 1?
 // TODO fix checkRequirements
 // TODO write tutorial
 // TODO write tests
