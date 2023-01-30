@@ -340,7 +340,7 @@ For this reason, we recommend to limit/avoid use of MPI parallelization and use 
 For some large calculations, the electron-phonon coupling tensor may be very large, so that a single MPI process cannot store an entire copy of the tensor in its own memory.
 If this is the case (e.g. if some segmentation faults appear), you can try setting the input variable :ref:`distributedElPhCoupling` = `"true"`: this will decrease the memory requirements of the calculation in exchange for a slower calculation, and will parallelize with MPI over the irreducible q-points.
 
-After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support.
+After the code completes, you should see an output file called ``silicon.phoebe.elph.dat`` or ``silicon.phoebe.elph.hdf5`` if you compiled Phoebe with HDF5 support (recommended).
 
 
 Step 8: Electronic Transport from Wannier interpolation
@@ -353,7 +353,7 @@ The input file for computing electronic transport properties::
   phFC2FileName = "silicon.fc"
   sumRuleFC2 = "crystal"
   electronH0Name = "si_tb.dat",
-  elphFileName = "silicon.phoebe.elph.dat"
+  elphFileName = "silicon.phoebe.elph.hdf5"
 
   kMesh = [15,15,15]
   temperatures = [300.]
