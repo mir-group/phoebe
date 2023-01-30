@@ -116,9 +116,12 @@ void ElElToPhoebeApp::run(Context &context) {
                                                     numPoints, numBands,
                                                     numBands, numBands, numBands);
   qpCoupling.setZero();
-  // This is not distributed and we blow out the int argument on bcast...
 
   // now we read the files
+  // TODO if we were smarter, we could figure out which files each process had,
+  // and which indices they would write to -- ideally, it would be in a certain block
+  // of the matrix, so we could parallelize the transform of these blocks
+  // and then write them in parallel
   for (int iQ : mpi->divideWorkIter(numPoints)) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
@@ -149,11 +152,7 @@ void ElElToPhoebeApp::run(Context &context) {
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
         // TODO: check if this has to be a complex conjugate
-        //if(count<25) {
-        //   std::cout << yamboKernel(i,j) << " " << i << " " << j << std::endl;
-        //   count ++;
-        //}
-        yamboKernel(i, j) = yamboKernel(j, i);
+        yamboKernel(j, i) = std::conj(yamboKernel(i, j));
       }
     }
 
@@ -167,7 +166,7 @@ void ElElToPhoebeApp::run(Context &context) {
     // now we substitute this back into the big coupling tensor
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int iYamboBSE = 0; iYamboBSE < M; ++iYamboBSE) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
@@ -200,10 +199,9 @@ void ElElToPhoebeApp::run(Context &context) {
     }
   }
   // if we don't use bigAllReduce, this will crash, as it often overflows the int arguments of the MPI call
+  // NOTE: this is somewhat slow, and also I wish we could reduce after FTing
   mpi->bigAllReduceSum(&qpCoupling);
-
-  //std::cout << "qpCoupling1 " <<  qpCoupling(1, 2, 3, 2, 2, 1, 1) << std::endl;
-  //std::cout << "qpCoupling2 " <<  qpCoupling(2, 2, 4, 1, 2, 1, 1) << std::endl;
+  mpi->barrier();
 
   if (mpi->mpiHead()) {
     std::cout << "Starting the Wannier transform.\n";
@@ -247,7 +245,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::Tensor<std::complex<double>, 7> Gamma2(numK, numK, numK, numBands, numBands, numWannier, numWannier);
   {
     std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+  #pragma omp parallel for collapse(6)
     for (int ik1 = 0; ik1 < numK; ++ik1) {
       for (int ik2 = 0; ik2 < numK; ++ik2) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -428,6 +426,7 @@ void ElElToPhoebeApp::run(Context &context) {
     }
     Gamma6.resize(0, 0, 0, 0, 0, 0, 0);
   }
+  mpi->barrier();
 
   // Now, let's write it to file
   writeWannierCoupling(context, GammaW, elDegeneracies,
@@ -458,13 +457,13 @@ void ElElToPhoebeApp::writeWannierCoupling(
   // these files seem to get stuck open when a process dies while writing to
   // them, (even if a python script dies) and then they can't be overwritten
   // properly.
+
   std::remove(&outFileName[0]);
+  mpi->barrier();
 
   try {
-    // open the hdf5 file and remove existing files
-    if (mpi->mpiHead()) {
-      HighFive::File file(outFileName, HighFive::File::Overwrite);
-    }
+  {
+
     mpi->barrier();// wait for file to be overwritten
 
     // now open the file in serial mode
@@ -475,6 +474,8 @@ void ElElToPhoebeApp::writeWannierCoupling(
     Eigen::Tensor<std::complex<double>, 6> slice;
     slice.resize(numR, numR, numWannier, numWannier, numWannier, numWannier);
 
+    // All processes have the same gWannier tensor, but each one
+    // will write a few R1s to file
     auto iR1Iterator = mpi->divideWorkIter(numR);
 
     for (int iR1 : iR1Iterator) {
@@ -496,8 +497,17 @@ void ElElToPhoebeApp::writeWannierCoupling(
 
       // flatten the tensor in a vector
       Eigen::VectorXcd flatSlice =
-          Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(
-              slice.data(), slice.size());
+          Eigen::Map<Eigen::VectorXcd, Eigen::Unaligned>(slice.data(), slice.size());
+      size_t flatSize = std::pow(numR, 2) * std::pow(numWannier,4);
+
+      auto maxSize = int(pow(1000, 3)) / sizeof(std::complex<double>);
+      if(flatSize > maxSize) {
+        if(mpi->mpiHead()) {
+          Warning("You tried to write a slice of data to HDF5 which is greater than the allowed\n"
+                "maximum HDF5 write size of ~2GB. If this fails, please contact the developers to let them know\n"
+                "you need bunched write functionality for this app.");
+          }
+      }
 
       std::string datasetName = "/gWannier_" + std::to_string(iR1);
 
@@ -507,15 +517,20 @@ void ElElToPhoebeApp::writeWannierCoupling(
 
       // write to hdf5
       dslice.write(flatSlice);
-    }
 
-  } catch (std::exception &error) {
-    Error("Issue writing elel Wannier representation to hdf5.");
+    }
+  mpi->barrier();
   }
+  } catch (std::exception &error) {
+    Error("Issue writing elel Wannier representation matrix elements to hdf5.");
+  }
+
+  mpi->barrier();
 
   // now we write some extra info
   if (mpi->mpiHead()) {
     try {
+
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       //      HighFive::DataSet dnElectrons = file.createDataSet<int>(
@@ -542,9 +557,10 @@ void ElElToPhoebeApp::writeWannierCoupling(
       Error("Issue writing elel Wannier header to hdf5.");
     }
   }
-
+  mpi->barrier();
 #else
-  Error("Didn't implement writing el-el interaction to file without HDF5");
+  Error("Phoebe requires HDF5 support to write el-el interaction to file.\n"
+        "Please recompile with HDF5.");
 #endif
 }
 
