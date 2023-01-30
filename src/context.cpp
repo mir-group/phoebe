@@ -306,6 +306,7 @@ parsePathExtrema(std::vector<std::string> &lines) {
 
   int i = 0;
   for (const std::string &line : lines) {
+
     // split line by spaces
     std::stringstream ss(line);
     std::istream_iterator<std::string> begin(ss);
@@ -381,6 +382,7 @@ std::vector<std::string> Context::split(const std::string &s, char delimiter) {
 /** Checks if the line of the input file contains a key=value statement.
  */
 bool lineHasParameter(const std::string &line) {
+  // parse the line
   if (std::find(line.begin(), line.end(), '=') != line.end()) {
     return true;
   } else {
@@ -428,8 +430,13 @@ void Context::setupFromInput(const std::string &fileName) {
   }
 
   int lineCounter = 0;
-  for (const std::string &line : lines) {
+  for (std::string &line : lines) {
+
+    // remove any part of the line that is beind a # comment first
+    line = line.substr(0, line.find_first_of("#"));
+
     if (line.empty()) { // nothing to do
+      lineCounter ++;
       continue;
 
       // line with pair (key,value)
@@ -1027,7 +1034,8 @@ void Context::printInputSummary(const std::string &fileName) {
     for (int i = 0; i < dim[0]; i++) {
       std::cout << pathLabels[count] << " " << pathExtrema(i, 0, 0) << " "
                 << pathExtrema(i, 0, 1) << " " << pathExtrema(i, 0, 2) << "  ";
-      std::cout << pathLabels[count + 1] << " " << pathExtrema(i, 1, 0) << " "
+      count++;
+      std::cout << pathLabels[count] << " " << pathExtrema(i, 1, 0) << " "
                 << pathExtrema(i, 1, 1) << " " << pathExtrema(i, 1, 2)
                 << std::endl;
       count++;
