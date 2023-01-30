@@ -999,22 +999,16 @@ void MPIcontroller::bigAllReduceSum(T* dataIn, const int& communicator) const {
     MPI_Datatype container;
     datatypeHelper(&container, outSize, dataIn);
 
-    std::cout << rank << " allocated container " << std::endl;
-
     // create the MPI operator for the user defined type
     MPI_Op containerSumOp;
     int commute;
     MPI_Op_commutative(MPI_SUM, &commute);
     MPI_Op_create(bigfn, commute, &containerSumOp);
 
-    std::cout << rank << " created op " << std::endl;
-
     // call all reduce with user defined reduce op and container datatype
     errCode = MPI_Allreduce(containerType<T>::getAddress(dataIn),
               containerType<T>::getAddress(dataIn), 1, container,
               containerSumOp, comm);
-
-    std::cout << rank << " ran all reduce " << std::endl;
 
     // free the datatype after use
     MPI_Type_free(&container);
