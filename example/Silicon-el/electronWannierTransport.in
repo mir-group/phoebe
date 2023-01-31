@@ -12,5 +12,10 @@ smearingMethod = "gaussian"
 smearingWidth = 0.5 eV
 windowType = "population"
 
+begin crystal
+ Si   0.00000000   0.00000000   0.00000000
+ Si   1.34940189   1.34940189   1.34940189
+end crystal
+
 scatteringMatrixInMemory=true
 solverBTE = ["iterative","variational","relaxons"]

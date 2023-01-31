@@ -672,7 +672,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
     couplingWannier_.setZero();
 
     // Set up buffer to receive full matrix data
-    size_t sliceElements = pow(numWannier,3) * pow(numElBravaisVectors,2);
+    size_t sliceElements = pow(numWannier,4) * pow(numElBravaisVectors,2);
     Eigen::VectorXcd slice(sliceElements);
 
     HighFive::File file(fileName, HighFive::File::ReadOnly);
