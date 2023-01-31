@@ -861,9 +861,8 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!elPhInterpolation.empty())
         std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
       std::cout << "elphFileName = " << elphFileName << std::endl;
-
       if (!elelFileName.empty()) {
-        std::cout << "elphFileName = " << elphFileName << std::endl;
+        std::cout << "elelFileName = " << elelFileName << std::endl;
       }
 
       if (!wannier90Prefix.empty())

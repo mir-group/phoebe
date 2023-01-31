@@ -70,7 +70,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error("builder3Ph found a non-supported case");
+    Error("builderEl found a non-supported case");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
