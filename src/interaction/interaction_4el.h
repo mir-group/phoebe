@@ -74,7 +74,7 @@ class Interaction4El {
 
 public:
 
-  /** Default constructor
+  /** Base constructor
    * @param crystal_: object describing the crystal unit cell.
    * @param couplingWannier_: matrix elements of the electron phonon
    * interaction. A tensor of shape (iw1,iw2,imode,rPh,rEl), where iw1 iw2 are
@@ -99,6 +99,9 @@ public:
       const Eigen::Tensor<std::complex<double>, 7> &couplingWannier_,
       const Eigen::MatrixXd &elBravaisVectors_,
       const Eigen::VectorXd &elBravaisVectorsDegeneracies_);
+
+  /** Default constructor */
+  Interaction4El(Crystal &crystal_);
 
   /** Copy constructor
    */

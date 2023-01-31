@@ -8,6 +8,9 @@
 #endif
 
 // default constructor
+Interaction4El::Interaction4El(Crystal &crystal_) : crystal(crystal_) {}
+
+// constructor
 Interaction4El::Interaction4El(
     Crystal &crystal_,
     const Eigen::Tensor<std::complex<double>, 7> &couplingWannier_,
@@ -572,7 +575,8 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
 
 std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
     parse4ElHeaderHDF5(Context &context) {
-  std::string fileName = context.getElphFileName();
+
+  std::string fileName = context.getElectronElectronFileName();
 
   int numWannier;
   int numElBravaisVectors;
@@ -623,7 +627,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
     mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
     mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
   } catch (std::exception &error) {
-    Error("Issue reading elph Wannier representation from hdf5.");
+    Error("Issue reading el-el Wannier representation header from hdf5.");
   }
 
   return std::make_tuple(numWannier, numElBravaisVectors, elBravaisVectors_,
@@ -632,6 +636,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
 
 // specific parse function for the case where parallel HDF5 is available
 Interaction4El parseHDF5(Context &context, Crystal &crystal) {
+
   std::string fileName = context.getElectronElectronFileName();
 
   auto t = parse4ElHeaderHDF5(context);
@@ -643,7 +648,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
   Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
 
   try {
-    // Define the eph matrix element containers
+    // Define the elel matrix element containers
 
     // This is broken into parts, otherwise it can overflow if done all at once
     size_t totElems = numWannier * numWannier * numWannier * numWannier;
@@ -657,7 +662,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
       auto x = double(totElems / pow(1024., 3) * sizeof(cx));
       if (mpi->mpiHead()) {
         std::cout << "Allocating " << x
-                  << " (GB) (per MPI process) for the el-ph coupling matrix."
+                  << " (GB) (per MPI process) for the el-el coupling matrix."
                   << std::endl;
       }
     }
@@ -699,7 +704,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
     mpi->allReduceSum(&couplingWannier_);
 
   } catch (std::exception &error) {
-    Error("Issue reading el-el Wannier representation from hdf5.");
+    Error("Issue reading el-el Wannier representation matrix elements from hdf5.");
   }
 
   Interaction4El output(crystal, couplingWannier_, elBravaisVectors_,
@@ -711,9 +716,21 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
 
 // General parse function
 Interaction4El Interaction4El::parse(Context &context, Crystal &crystal) {
+
   if (mpi->mpiHead()) {
-    std::cout << "\nStarted parsing of el-el interaction." << std::endl;
+    std::cout << "\nStarted parsing of el-el interaction from " <<
+        context.getElectronElectronFileName() << "." << std::endl;
+
+    // check that the HDF5 file exists
+    std::ifstream f(context.getElectronElectronFileName());
+    if(!f.good()) {
+      Error("An electron-electron interaction file name was specified in input at"
+        + context.getElectronElectronFileName() +
+        ",\n however, the file cannot be opened.");
+    }
   }
+  mpi->barrier();
+
 #ifdef HDF5_AVAIL
   auto output = parseHDF5(context, crystal);
 #else
@@ -721,7 +738,7 @@ Interaction4El Interaction4El::parse(Context &context, Crystal &crystal) {
   // auto output = parseNoHDF5(context, crystal);
 #endif
   if (mpi->mpiHead()) {
-    std::cout << "Finished parsing of el-ph interaction." << std::endl;
+    std::cout << "Finished parsing of el-el interaction." << std::endl;
   }
   return output;
 }
