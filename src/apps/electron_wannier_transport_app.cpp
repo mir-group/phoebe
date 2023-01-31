@@ -12,26 +12,43 @@
 
 void ElectronWannierTransportApp::run(Context &context) {
 
-  auto t2 = Parser::parsePhHarmonic(context);
-  auto crystal = std::get<0>(t2);
-  auto phononH0 = std::get<1>(t2);
+  Crystal crystal;
 
-  auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
-  auto crystalEl = std::get<0>(t1);
+  auto t1 = Parser::parseElHarmonicWannier(context);
   auto electronH0 = std::get<1>(t1);
+  // if only elH0 is defined, crystal must have been
+  // specified in the input file
+  crystal = std::get<0>(t1);
+  // TODO add a check req to force user supplied fermi level
+  // TODO add a check req for crystal if elph is not supplied
 
   // load the elph coupling
   // Note: this file contains the number of electrons
   // which is needed to understand where to place the fermi level
   InteractionElPhWan couplingElPh(crystal);
-  if (std::isnan(context.getConstantRelaxationTime())) {
+  PhononH0 phononH0(crystal);
+  if (std::isnan(context.getConstantRelaxationTime()) &&
+        !context.getElphFileName().empty()) {
+
+    auto t2 = Parser::parsePhHarmonic(context);
+    crystal = std::get<0>(t2);
+    phononH0 = std::get<1>(t2);
+
     couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
+  }
+
+  // Load the elel coupling, if it is supplied
+  Interaction4El coupling4El(crystal);
+  if (std::isnan(context.getConstantRelaxationTime()) &&
+        !context.getElectronElectronFileName().empty()) {
+    coupling4El = Interaction4El::parse(context, crystal);
   }
 
   // compute the band structure on the fine grid
   if (mpi->mpiHead()) {
     std::cout << "\nComputing electronic band structure." << std::endl;
   }
+
   Points fullPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto bandStructure = std::get<0>(t3);
@@ -51,8 +68,6 @@ void ElectronWannierTransportApp::run(Context &context) {
     }
     std::cout << "Done computing electronic band structure.\n" << std::endl;
   }
-
-  Interaction4El coupling4El = Interaction4El::parse(context, crystal);
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
@@ -210,12 +225,17 @@ void ElectronWannierTransportApp::run(Context &context) {
 }
 
 void ElectronWannierTransportApp::checkRequirements(Context &context) {
+
+  // TODO we need to adjust this more carefully given the update to support both el and ph
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getKMesh(), "kMesh");
   throwErrorIfUnset(context.getTemperatures(), "temperatures");
 
   if (std::isnan(context.getConstantRelaxationTime())) { // non constant tau
-    throwErrorIfUnset(context.getElphFileName(), "elphFileName");
+    if(context.getElectronElectronFileName().empty()
+        && context.getElphFileName().empty()) {
+      Error("Need to supply either el-ph or el-el interaction.");
+    }
     throwErrorIfUnset(context.getSmearingMethod(), "smearingMethod");
     if (context.getSmearingMethod() == DeltaFunction::gaussian) {
       throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
