@@ -10,6 +10,10 @@
 #include "points.h"
 #include "utilities.h"
 
+// default constructor
+PhononH0::PhononH0(Crystal &crystal) : particle(Particle::phonon) { }
+
+// base constructor
 PhononH0::PhononH0(Crystal &crystal, const Eigen::Matrix3d &dielectricMatrix_,
                    const Eigen::Tensor<double, 3> &bornCharges_,
                    Eigen::Tensor<double, 7> &forceConstants_,

@@ -20,6 +20,10 @@
  */
 class PhononH0 : public HarmonicHamiltonian {
  public:
+
+  // default constructor
+  PhononH0(Crystal &crystal);
+
   /** Constructor, which stores all input data.
    * @param crystal: the object with the information on the crystal structure
    * @param dielectricMatrix: 3x3 matrix with the dielectric matrix
