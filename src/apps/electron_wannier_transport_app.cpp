@@ -12,36 +12,32 @@
 
 void ElectronWannierTransportApp::run(Context &context) {
 
+  // collect information about the run from context
+  bool useElElInteraction = !context.getElectronElectronFileName().empty();
+  bool useElPhInteraction = !context.getElphFileName().empty();
+  bool useCRTA = std::isnan(context.getConstantRelaxationTime());
+
   Crystal crystal;
 
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto electronH0 = std::get<1>(t1);
   // if only elH0 is defined, crystal must have been
   // specified in the input file
-  crystal = std::get<0>(t1);
   // TODO add a check req to force user supplied fermi level
   // TODO add a check req for crystal if elph is not supplied
 
-  // load the elph coupling
-  // Note: this file contains the number of electrons
-  // which is needed to understand where to place the fermi level
-  InteractionElPhWan couplingElPh(crystal);
-  PhononH0 phononH0(crystal);
-  if (std::isnan(context.getConstantRelaxationTime()) &&
-        !context.getElphFileName().empty()) {
-
+  // if we're using elph coupling, load the phononH0 and use
+  // the crystal object from this
+  std::shared_ptr<PhononH0> phononH0;
+  if (useCRTA && useElPhInteraction) {
     auto t2 = Parser::parsePhHarmonic(context);
     crystal = std::get<0>(t2);
-    phononH0 = std::get<1>(t2);
-
-    couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
-  }
-
-  // Load the elel coupling, if it is supplied
-  Interaction4El coupling4El(crystal);
-  if (std::isnan(context.getConstantRelaxationTime()) &&
-        !context.getElectronElectronFileName().empty()) {
-    coupling4El = Interaction4El::parse(context, crystal);
+    phononH0 = std::make_shared<PhononH0>(std::get<1>(t2));
+   }
+  // if we don't have a phonon file, we need the crystal object
+  // from input file, as electron wannier files don't contain it
+  else {
+    crystal = std::get<0>(t1);
   }
 
   // compute the band structure on the fine grid
@@ -71,10 +67,26 @@ void ElectronWannierTransportApp::run(Context &context) {
 
   // build/initialize the scattering matrix and the smearing
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
-                                      bandStructure, phononH0, &couplingElPh,
-                                      &coupling4El);
+                                      bandStructure);
+
+  // If elel scattering is used, add it to the scattering matrix
+  std::shared_ptr<Interaction4El> coupling4El;
+  if (useCRTA && useElElInteraction) {
+     coupling4El = std::make_shared<Interaction4El>(Interaction4El::parse(context, crystal));
+     scatteringMatrix.add4ElInteraction(context, coupling4El);
+  }
+  // If elph scattering is used, add it to the scattering matrix
+  std::shared_ptr<InteractionElPhWan> couplingElPh;
+  if (useCRTA && useElPhInteraction) {
+    couplingElPh = std::make_shared<InteractionElPhWan>(
+        InteractionElPhWan::parse(context, crystal, phononH0.get()));
+    scatteringMatrix.addElPhInteraction(context, couplingElPh, phononH0.get());
+  }
+
+  // build scattering rates and set up the scattering matrix
   scatteringMatrix.setup();
-  scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
+
+  // Solve BTE and output RTA first --------------------------------------
 
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
@@ -85,9 +97,10 @@ void ElectronWannierTransportApp::run(Context &context) {
     std::cout << "Solving BTE within the relaxation time approximation.\n";
   }
 
-  // compute the phonon populations in the relaxation time approximation.
-  // Note: this is the total phonon population n (n != f(1+f) Delta n)
+  scatteringMatrix.outputToJSON("rta_el_relaxation_times.json");
 
+  // compute populations in the relaxation time approximation.
+  // Note: this is the total population n (n != f(1+f) Delta n)
   BulkEDrift driftE(statisticsSweep, bandStructure, 3);
   BulkTDrift driftT(statisticsSweep, bandStructure, 3);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();
@@ -196,6 +209,8 @@ void ElectronWannierTransportApp::run(Context &context) {
     if (mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
+    // TODO is the below comment true for electrons? I think this is scaled
+    // differently.
     // scatteringMatrix.a2Omega(); Important!! Must use the matrix A, non-scaled
     // this because the scaling used for phonons here would cause instability
     // as it could contains factors like 1/0
