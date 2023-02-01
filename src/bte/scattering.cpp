@@ -108,6 +108,8 @@ void ScatteringMatrix::setup() {
   if (constantRTA)
     return; // nothing to construct
 
+  built = true;
+
   std::vector<VectorBTE> emptyVector;
 
   // user info about memory

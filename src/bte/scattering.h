@@ -178,6 +178,7 @@ public:
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
+  bool built = false; // once the matrix is built, we should not change underlying H0/coupling
 
   // Smearing is a pointer created in constructor with a smearing factory
   // Used in the construction of the scattering matrix to approximate the
