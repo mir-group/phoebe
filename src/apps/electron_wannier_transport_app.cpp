@@ -73,14 +73,14 @@ void ElectronWannierTransportApp::run(Context &context) {
   std::shared_ptr<Interaction4El> coupling4El;
   if (useCRTA && useElElInteraction) {
      coupling4El = std::make_shared<Interaction4El>(Interaction4El::parse(context, crystal));
-     scatteringMatrix.add4ElInteraction(context, coupling4El);
+     scatteringMatrix.add4ElInteraction(coupling4El);
   }
   // If elph scattering is used, add it to the scattering matrix
   std::shared_ptr<InteractionElPhWan> couplingElPh;
   if (useCRTA && useElPhInteraction) {
     couplingElPh = std::make_shared<InteractionElPhWan>(
         InteractionElPhWan::parse(context, crystal, phononH0.get()));
-    scatteringMatrix.addElPhInteraction(context, couplingElPh, phononH0.get());
+    scatteringMatrix.addElPhInteraction(couplingElPh, phononH0.get());
   }
 
   // build scattering rates and set up the scattering matrix

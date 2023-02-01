@@ -49,7 +49,7 @@ void ElectronLifetimesApp::run(Context &context) {
   ElScatteringMatrix scatteringMatrix(context, statisticsSweep,
                                       fullBandStructure, pathBandStructure);
 
-  scatteringMatrix.addElPhInteraction(context, couplingElPh, &phononH0);
+  scatteringMatrix.addElPhInteraction(couplingElPh, &phononH0);
   scatteringMatrix.setup();
 
   scatteringMatrix.outputToJSON("path_el_relaxation_times.json");
