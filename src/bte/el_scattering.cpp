@@ -45,10 +45,25 @@ ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
   return *this;
 }
 
-void ElScatteringMatrix::addElPhInteraction(Context &context,
-        std::shared_ptr<InteractionElPhWan>, PhononH0* phononH0) {}
+void ElScatteringMatrix::addElPhInteraction(
+        std::shared_ptr<InteractionElPhWan> couplingElPhWan, PhononH0* phononH0) {
 
-void ElScatteringMatrix::add4ElInteraction(Context &context, std::shared_ptr<Interaction4El>) {}
+  if(built) {
+    Error("Developer error: cannot change interaction and phonon H0 after building SMatrix.");
+  }
+
+  this->couplingElPhWan = couplingElPhWan;
+  this->h0 = phononH0;
+}
+
+void ElScatteringMatrix::add4ElInteraction(std::shared_ptr<Interaction4El> coupling4El) {
+
+  if(built) {
+    Error("Developer error: cannot change interaction and phonon H0 after building SMatrix.");
+  }
+
+  this->coupling4El = coupling4El;
+}
 
 
 // 3 cases:
