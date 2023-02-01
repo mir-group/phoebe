@@ -600,7 +600,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
         // Open the HDF5 ElPh file
         HighFive::File file(fileName, HighFive::File::ReadOnly);
 
-        // read in the number of phonon and electron bands
+        // read in the number of electron bands
         HighFive::DataSet dnWannier = file.getDataSet("/numWannier");
         dnWannier.read(numWannier);
 

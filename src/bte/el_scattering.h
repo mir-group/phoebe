@@ -31,9 +31,7 @@ public:
    */
   ElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                      BaseBandStructure &innerBandStructure_,
-                     BaseBandStructure &outerBandStructure_, PhononH0 &h0,
-                     InteractionElPhWan *couplingElPhWan_ = nullptr,
-                     Interaction4El *coupling4el_ = nullptr);
+                     BaseBandStructure &outerBandStructure_);
 
   /** Copy constructor
    * @param that: object to be copied
@@ -47,10 +45,29 @@ public:
    */
   ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
 
+  /** Add electron-phonon interaction object, if elph interactions are
+   * to be used
+   * @param context
+   * @param std::shared_ptr couplingElPhWan: shared ptr to elph coupling object
+   * @param std::shared_ptr phononH0: phononH0 object associated with elph int
+   * */
+  void addElPhInteraction(Context &context,
+        std::shared_ptr<InteractionElPhWan>, PhononH0* phononH0);
+
+  /** Add electron-electron interaction object, if elel interactions are
+   * to be used
+   * @param context
+   * @param std::shared_ptr coupling4El: shared ptr to elel coupling object
+   * */
+  void add4ElInteraction(Context &context, std::shared_ptr<Interaction4El>);
+
 protected:
-  InteractionElPhWan *couplingElPhWan;
-  Interaction4El* coupling4El;
-  PhononH0 &h0;
+  // these are shared pointers because we want to be able to optionally
+  // create and add these interaction objects in apps,
+  // possibly allowing them to go out of scope in the apps
+  std::shared_ptr<InteractionElPhWan> couplingElPhWan;
+  std::shared_ptr<Interaction4El> coupling4El;
+  std::shared_ptr<PhononH0> h0;
 
   double boundaryLength;
   bool doBoundary;

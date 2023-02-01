@@ -9,14 +9,9 @@
 ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        StatisticsSweep &statisticsSweep_,
                                        BaseBandStructure &innerBandStructure_,
-                                       BaseBandStructure &outerBandStructure_,
-                                       PhononH0 &h0_,
-                                       InteractionElPhWan *couplingElPhWan_,
-                                       Interaction4El *coupling4El_)
+                                       BaseBandStructure &outerBandStructure_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
-                       outerBandStructure_),
-      couplingElPhWan(couplingElPhWan_), coupling4El(coupling4El_),
-      h0(h0_) {
+                       outerBandStructure_) {
 
   doBoundary = false;
   boundaryLength = context.getBoundaryLength();
@@ -49,6 +44,12 @@ ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
   }
   return *this;
 }
+
+void ElScatteringMatrix::addElPhInteraction(Context &context,
+        std::shared_ptr<InteractionElPhWan>, PhononH0* phononH0) {}
+
+void ElScatteringMatrix::add4ElInteraction(Context &context, std::shared_ptr<Interaction4El>) {}
+
 
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
@@ -140,14 +141,15 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
-  HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                                 statisticsSweep, smearing->getType(), h0, couplingElPhWan);
-
   bool withSymmetries = context.getUseSymmetries();
 
-  double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
+  if (couplingElPhWan.get() != nullptr) {
 
-  if (couplingElPhWan != nullptr) {
+    HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
+                                 statisticsSweep, smearing->getType(), *h0, couplingElPhWan.get());
+
+    double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
+
     LoopPrint loopPrint("computing scattering matrix", "k-points",
                         int(kPairIterator.size()));
 
@@ -413,7 +415,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   }// end of el-ph lifetimes
 
-  if (coupling4El != nullptr) {
+  if (coupling4El.get() != nullptr) {
 
     int numK = innerBandStructure.getNumPoints();
 
