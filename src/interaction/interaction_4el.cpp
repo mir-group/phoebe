@@ -18,8 +18,8 @@ Interaction4El::Interaction4El(
     const Eigen::VectorXd &elBravaisVectorsDegeneracies)
     : crystal(crystal_) {
 
-  int numElBravaisVectors = couplingWannier_.dimension(0);
-  int numWannier = couplingWannier_.dimension(4);
+  numElBravaisVectors = couplingWannier_.dimension(0);
+  numWannier = couplingWannier_.dimension(4);
 
   HostComplexView7D couplingWannier_h((Kokkos::complex<double>*) couplingWannier_.data(),
                                       numElBravaisVectors, numElBravaisVectors, numElBravaisVectors,
@@ -634,11 +634,12 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
                          elBravaisVectorsDegeneracies_);
 }
 
-// specific parse function for the case where parallel HDF5 is available
+// specific parse function for the case where HDF5is available
 Interaction4El parseHDF5(Context &context, Crystal &crystal) {
 
   std::string fileName = context.getElectronElectronFileName();
 
+  // parse header file to get dimension information
   auto t = parse4ElHeaderHDF5(context);
   int numWannier = std::get<0>(t);
   Eigen::MatrixXd elBravaisVectors_ = std::get<2>(t);
