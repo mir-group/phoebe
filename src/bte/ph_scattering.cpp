@@ -50,7 +50,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     }
   }
 }
-
+/*
 PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix &that)
     : ScatteringMatrix(that), coupling3Ph(that.coupling3Ph), h0(that.h0),
       massVariance(that.massVariance), doIsotopes(that.doIsotopes),
@@ -69,7 +69,7 @@ PhScatteringMatrix::operator=(const PhScatteringMatrix &that) {
   }
   return *this;
 }
-
+*/
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
 // scattering matrix and the diagonal
@@ -452,6 +452,16 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
                 } else { // case of linewidth construction
                   linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                  if(outputUNTimes) {
+                    Point q1 = outerBandStructure.getPoint(iq1);
+                    Point q2 = outerBandStructure.getPoint(iq2);
+                    // check if this process is umklapp
+                    if((q1-q2).hasUmklapp()) {
+                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    } else {
+                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    }
+                  }
                 }
               }
             }
@@ -574,6 +584,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 } else { // case of linewidth construction
                   linewidth->operator()(iCalc, 0, iBte1) +=
                       0.5 * (rateMinus1 + rateMinus2);
+                  if(outputUNTimes) {
+                    Point q1 = outerBandStructure.getPoint(iq1);
+                    Point q2 = outerBandStructure.getPoint(iq2);
+                    if((q1-q2).hasUmklapp()) {
+                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                    } else {
+                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                    }
+                  }
                 }
               }
             }
@@ -749,6 +768,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     }
   } else {
     mpi->allReduceSum(&linewidth->data);
+    if(outputUNTimes) {
+      mpi->allReduceSum(&internalDiagonalUmklapp->data);
+      mpi->allReduceSum(&internalDiagonalNormal->data);
+    }
   }
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
@@ -757,6 +780,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // we turn it off for now and leave the code if needed in the future
   if (switchCase == 2) {
     degeneracyAveragingLinewidths(linewidth);
+    if(outputUNTimes) {
+      degeneracyAveragingLinewidths(internalDiagonalUmklapp.get());
+      degeneracyAveragingLinewidths(internalDiagonalNormal.get());
+    }
   }
 
   // Add boundary scattering
@@ -844,6 +871,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
     // case of linewidth construction
     for (auto iBte1 : excludeIndices) {
       linewidth->data.col(iBte1).setZero();
+      // TODO may need to toss U and N indices here?
     }
   }
 
