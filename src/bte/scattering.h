@@ -29,11 +29,11 @@ public:
 
   /** Copy constructor
    */
-  ScatteringMatrix(const ScatteringMatrix &that);
+  //ScatteringMatrix(const ScatteringMatrix &that);
 
   /** Copy assignment operator
    */
-  ScatteringMatrix &operator=(const ScatteringMatrix &that);
+  //ScatteringMatrix &operator=(const ScatteringMatrix &that);
 
   /** Destructor
    */
@@ -73,10 +73,11 @@ public:
 //   */
 //  ParallelMatrix<double> dot(const ParallelMatrix<double> &otherMatrix);
 
-  /** Call to obtain the single-particle relaxation times of the system.s
+  /** Call to obtain the single-particle relaxation times of the systems
+   * @param int: which times to output, 0 = internalDiagonal, 1 = normal, 2 = umklapp
    * @return tau: a VectorBTE object storing the relaxation times
    */
-  VectorBTE getSingleModeTimes();
+  VectorBTE getSingleModeTimes(const int whichTimes = 0);
 
   /** Call to obtain the single-particle linewidths.
    *
@@ -192,11 +193,15 @@ public:
   bool constantRTA = false;
   bool highMemory = true;     // whether the matrix is kept in memory
   bool isMatrixOmega = false; // whether the matrix is Omega or A
+  bool outputUNTimes = false;    // whether to output U and N processes in RTA
+
   // A acts on the canonical population, omega on the population
   // A acts on f, omega on n, with n = bose(bose+1)f e.g. for phonons
 
   // we save the diagonal matrix element in a dedicated vector
   VectorBTE internalDiagonal;
+  std::shared_ptr<VectorBTE> internalDiagonalUmklapp;
+  std::shared_ptr<VectorBTE> internalDiagonalNormal;
   // the scattering matrix, initialized if highMemory==true
   ParallelMatrix<double> theMatrix;
 
@@ -264,6 +269,13 @@ public:
    * linewidths to be averaged.
    */
   void degeneracyAveragingLinewidths(VectorBTE *linewidth);
+
+  /** Internal helper to formats single mode times stored in vectorBTE
+   * object based on if the matrix isOmega or not.
+   * @param VectorBTE& diagonal: the list of times we want to reformat
+   * @return VectorBTE: containing the reformated times
+   */
+  VectorBTE getTimesFromVectorBTE(VectorBTE& diagonal);
 
 };
 
