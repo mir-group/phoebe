@@ -580,6 +580,10 @@ void Context::setupFromInput(const std::string &fileName) {
         outputEigendisplacements = parseBool(val);
       }
 
+      if (parameterName == "outputUNTimes") {
+        outputUNTimes = parseBool(val);
+      }
+
       if (parameterName == "fermiLevel") {
         fermiLevel = parseDoubleWithUnits(val);
       }
@@ -1209,6 +1213,7 @@ std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 double Context::getDeltaPath() const { return deltaPath; }
 
 bool Context::getOutputEigendisplacements() const { return outputEigendisplacements; }
+bool Context::getOutputUNTimes() const { return outputUNTimes; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
 
