@@ -985,6 +985,7 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(boundaryLength))
         std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
                   << " mum" << std::endl;
+      std::cout << "outputUNTimes = " << outputUNTimes << std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
