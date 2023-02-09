@@ -65,7 +65,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     // warn users that if they run an exact bte solver, the U and N will
     // still only come out in RTA
     if( context.getSolverBTE().size() > 0 ) {
-      Warning("You've set outputUNTimes to true in input file, but requested an exact BTE solver."
+      Warning("You've set outputUNTimes to true in input file, but requested an exact BTE solver.\n"
         "Be aware that U and N separation is only currently implemented in the RTA case.");
     }
   }

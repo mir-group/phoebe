@@ -456,7 +456,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     Point q1 = outerBandStructure.getPoint(iq1);
                     Point q2 = outerBandStructure.getPoint(iq2);
                     // check if this process is umklapp
-                    if((q1-q2).hasUmklapp()) {
+                    if((q2-q1).hasUmklapp()) {
                       internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     } else {
                       internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
@@ -540,6 +540,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) +=
                                 0.5 * (rateMinus1 + rateMinus2);
+                            if(outputUNTimes) {
+                              Point q1 = outerBandStructure.getPoint(iq1);
+                              Point q2 = outerBandStructure.getPoint(iq2);
+                              if((q2-q1).hasUmklapp()) {
+                                internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                              } else {
+                                internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                              }
+                            }
                           }
                           if (is1 != is2Irr) {
                             theMatrix(iMat1, iMat2) -=
@@ -553,11 +562,22 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) +=
                           0.5 * (rateMinus1 + rateMinus2);
+                  if(outputUNTimes) {
+                    Point q1 = outerBandStructure.getPoint(iq1);
+                    Point q2 = outerBandStructure.getPoint(iq2);
+                    if((q2-q1).hasUmklapp()) {
+                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                    } else {
+                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                    }
+                  }
+
                     }
                     theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
                   }
 
                 } else if (switchCase == 1) { // matrix-vector multiplication
+                    std::cout << "inside 1" << std::endl;
                   for (unsigned int iInput = 0; iInput < inPopulations.size();
                        iInput++) {
                     Eigen::Vector3d inPopRot;
@@ -581,18 +601,18 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                           inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
-                } else { // case of linewidth construction
+                } else { // TODO might we delete this case of linewidth construction
                   linewidth->operator()(iCalc, 0, iBte1) +=
                       0.5 * (rateMinus1 + rateMinus2);
-                  if(outputUNTimes) {
+                  /*if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
                     Point q2 = outerBandStructure.getPoint(iq2);
-                    if((q1-q2).hasUmklapp()) {
+                    if((q2-q1).hasUmklapp()) {
                       internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
                     } else {
                       internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
                     }
-                  }
+                  }*/
                 }
               }
             }
