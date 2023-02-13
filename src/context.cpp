@@ -677,31 +677,31 @@ void Context::setupFromInput(const std::string &fileName) {
         epaEnergyStep = parseDoubleWithUnits(val);
       }
 
-      // EL-PH coupling plot App
+      // coupling plot apps
 
-      if (parameterName == "g2PlotStyle") {
+      if (parameterName == "couplingPlotStyle") {
         g2PlotStyle = parseString(val);
       }
-      if (parameterName == "g2MeshStyle") {
+      if (parameterName == "couplingMeshStyle") {
         g2MeshStyle = parseString(val);
       }
-      if (parameterName == "g2FixedPoint") {
+      if (parameterName == "couplingFixedPoint") {
         std::vector<double> x = parseDoubleList(val);
         for (auto i : {0, 1, 2}) {
           g2PlotFixedPoint(i) = x[i];
         }
       }
-      if (parameterName == "g2PlotBandEl1") {
+      if (parameterName == "couplingPlotBandEl1") {
         std::vector<int> x = parseIntList(val);
         g2PlotEl1Bands.first = x[0];
         g2PlotEl1Bands.second = x[1];
       }
-      if (parameterName == "g2PlotBandEl2") {
+      if (parameterName == "couplingPlotBandEl2") {
         std::vector<int> x = parseIntList(val);
         g2PlotEl2Bands.first = x[0];
         g2PlotEl2Bands.second = x[1];
       }
-      if (parameterName == "g2PlotBandPh") {
+      if (parameterName == "couplingPlotBandPh") {
         std::vector<int> x = parseIntList(val);
         g2PlotPhBands.first = x[0];
         g2PlotPhBands.second = x[1];
@@ -836,22 +836,22 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "distributedElPhCoupling = " << distributedElPhCoupling
         << std::endl;
     }
-    // plot coupling app
-    if(appName.find("elPhCouplingPlot") != std::string::npos) {
-      std::cout << '\n' << "g2PlotStyle = " << g2PlotStyle << std::endl;
-      std::cout << "g2MeshStyle = " << g2MeshStyle << std::endl;
+    // plot coupling apps (either elph or ee)
+    if(appName.find("CouplingPlot") != std::string::npos) {
+      std::cout << '\n' << "couplingPlotStyle = " << g2PlotStyle << std::endl;
+      std::cout << "couplingMeshStyle = " << g2MeshStyle << std::endl;
       if(g2PlotStyle.find("Fixed") != std::string::npos) {
-        std::cout << "g2PlotFixedPoint = [ " << g2PlotFixedPoint.transpose() <<
+        std::cout << "couplingPlotFixedPoint = [ " << g2PlotFixedPoint.transpose() <<
           " ]" << std::endl;
       }
       if(g2PlotEl1Bands.first != -1)
-        std::cout << "g2PlotEl1Bands = [ " << g2PlotEl1Bands.first << " " <<
+        std::cout << "couplingPlotEl1Bands = [ " << g2PlotEl1Bands.first << " " <<
                  g2PlotEl1Bands.second << " ]" << std::endl;
       if(g2PlotEl1Bands.first != -1)
-        std::cout << "g2PlotEl2Bands = [ " << g2PlotEl2Bands.first << " " <<
+        std::cout << "couplingPlotEl2Bands = [ " << g2PlotEl2Bands.first << " " <<
                  g2PlotEl2Bands.second << " ]" << std::endl;
       if(g2PlotEl1Bands.first != -1)
-        std::cout << "g2PlotPhBands = [ " << g2PlotPhBands.first << " " <<
+        std::cout << "couplingPlotPhBands = [ " << g2PlotPhBands.first << " " <<
                  g2PlotPhBands.second << " ]" << std::endl;
 
       if(g2MeshStyle == "pointsPath") {
