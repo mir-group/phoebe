@@ -8,7 +8,11 @@
 const int Points::crystalCoordinates = crystalCoordinates_;
 const int Points::cartesianCoordinates = cartesianCoordinates_;
 
-// default constructors
+// constructors
+
+// default constructor
+Points::Points(Crystal &crystalObj_) : crystalObj{crystalObj_} {
+}
 
 Points::Points(Crystal &crystalObj_, const Eigen::Vector3i &mesh_,
                const Eigen::Vector3d &offset_)
