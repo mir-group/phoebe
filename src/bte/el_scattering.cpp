@@ -437,6 +437,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     double norm2 = norm * norm;// numK^2
 
     std::vector<int> ik3Indexes(numK);
+
     // populate vector with integers from 0 to numPoints-1
     std::iota(std::begin(ik3Indexes), std::end(ik3Indexes), 0);
 
@@ -469,7 +470,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     }
 
     if (withSymmetries) {
-      Error("Didn't implement 4el interaction with symmetries");
+      Error("Developer notice: El-el interaction with symmetries not implemented.");
       // because it's a mess to think about!
     }
 
@@ -518,7 +519,14 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           Eigen::Vector3d k4CTemp = k1C + k2C - k3C;
           Eigen::Vector3d k4CTempCrys = innerBandStructure.getPoints().cartesianToCrystal(k4CTemp);
           // note: I may need to think about what happens if k4C is not on the grid. Ignore?
+          // TODO -- if k4C is not on the grid, this is because it's been discarded by a window.
+          // Therefore, we should be able to safely ignore k4C.
+          //std::cout << "k1C " << k1C.transpose() << std::endl;
+          //std::cout << "k2C " << k2C.transpose() << std::endl;
+          //std::cout << "k3C " << k3C.transpose() << std::endl;
+          //std::cout << "k4" << k4CTemp.transpose() << std::endl;
           int ik4 = innerBandStructure.getPoints().getIndex(k4CTempCrys);
+          if(ik4 == -1) continue;
           ik4Indexes[ik3] = ik4;
           WavevectorIndex ik4Idx(ik4);
           Eigen::Vector3d k4C = innerBandStructure.getWavevector(ik4Idx);
@@ -530,6 +538,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
         coupling4El->calcCouplingSquared(eigenVectors3, eigenVectors4, k3Cs, k4Cs);
 
+        // TODO why is ik3 in here twice?
         for (int ik3 : ik3Indexes) {
           WavevectorIndex ik3Idx(ik3);
           Eigen::VectorXd energies3 = innerBandStructure.getEnergies(ik3Idx);
