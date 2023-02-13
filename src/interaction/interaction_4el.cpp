@@ -484,6 +484,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
             exp(-complexI * arg) / elBravaisVectorsDegeneracies_d(irE);
       });
 
+
   // fourier transform on 1st coordinate
   ComplexView5D preCache2a("preCache2", numElBravaisVectors,
                            nb1, numWannier, numWannier, numWannier);
@@ -535,8 +536,8 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
                   nb1, numWannier, nb2, numWannier);
   Kokkos::realloc(elPhCached2c, numElBravaisVectors,
                   numWannier, nb2, nb1, numWannier);
-  Kokkos::parallel_for("cache2a",
-      Range5D({0, 0, 0, 0, 0},
+
+  Kokkos::parallel_for("cache2a", Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, nb2, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int ib2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0.0);
@@ -545,6 +546,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
         }
         elPhCached2a(irE3, ib1, ib2, iw3, iw4) = tmp;
       });
+
   Kokkos::parallel_for("cache2b",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, numWannier, nb2, numWannier}),
@@ -555,13 +557,17 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
         }
         elPhCached2b(irE3, ib1, iw3, ib2, iw4) = tmp;
       });
+
   Kokkos::parallel_for("cache2c",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, numWannier, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int irE3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.0);
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          tmp += preCache2a(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
+          // RESUME HERE
+          // TODO previously this was the below line, but this is a bad access!
+          //tmp += preCache2a(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
+          tmp += preCache2a(irE3, ib1, iw2, iw3, iw4) * eigvec2_d(ib2, iw2);
         }
         elPhCached2c(irE3, iw3, ib2, ib1, iw4) = tmp;
       });
@@ -569,6 +575,8 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
   this->elPhCached2a = elPhCached2a;
   this->elPhCached2b = elPhCached2b;
   this->elPhCached2c = elPhCached2c;
+
+
 }
 
 #ifdef HDF5_AVAIL
