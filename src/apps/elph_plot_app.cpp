@@ -164,9 +164,14 @@ void ElPhCouplingPlotApp::run(Context &context) {
   std::string outFileName = "gmatrix.phoebe.hdf5";
   std::remove(&outFileName[0]);
 
+  // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
+  size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
+            (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
+            (g2PlotPhBands.second - g2PlotPhBands.first + 1);
+
   #if defined(HDF5_AVAIL)
-  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
+  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
 
   { // need open/close braces so that the HDF5 file goes out of scope
 
@@ -174,11 +179,6 @@ void ElPhCouplingPlotApp::run(Context &context) {
     HighFive::File file(
           outFileName, HighFive::File::Overwrite,
           HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
-
-    // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
-    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
-                (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
-                (g2PlotPhBands.second - g2PlotPhBands.first + 1);
 
     unsigned int globalSize = numPairs * bandProd;
 
