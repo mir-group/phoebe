@@ -521,10 +521,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           // note: I may need to think about what happens if k4C is not on the grid. Ignore?
           // TODO -- if k4C is not on the grid, this is because it's been discarded by a window.
           // Therefore, we should be able to safely ignore k4C.
-          //std::cout << "k1C " << k1C.transpose() << std::endl;
-          //std::cout << "k2C " << k2C.transpose() << std::endl;
-          //std::cout << "k3C " << k3C.transpose() << std::endl;
-          //std::cout << "k4" << k4CTemp.transpose() << std::endl;
           int ik4 = innerBandStructure.getPoints().getIndex(k4CTempCrys);
           if(ik4 == -1) continue;
           ik4Indexes[ik3] = ik4;

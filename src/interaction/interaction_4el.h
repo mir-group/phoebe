@@ -153,6 +153,8 @@ public:
   void cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C);
   void cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Vector3d &k2C);
 
+ // TODO this description is not right! It's for elph and it needs to be elel
+
   /** Get the coupling for the values of the wavevectors triplet (k1,k2,q3),
    * where k1 is the wavevector used at calcCoupling Squared(),
    * k2 (at index ik2) is the wavevector of the scattered electron in the
@@ -161,7 +163,7 @@ public:
    * @param ik2: index of the 2nd wavevector, aligned with the list of
    * wavevectors passed to calcCouplingSquared().
    * @return g2: a tensor of shape (nb1,nb2,numPhBands=3*numAtoms) with the
-   * values of the coupling squared |g(ik1,ik2,iq3)|^2 for the el-ph transition
+   * values of the coupling squared |g(ik1,ik2,iq3)|^2 for the el-el transition
    * k1,q3 -> k2
    */
   std::tuple<Eigen::Tensor<double, 4>,Eigen::Tensor<double, 4>,
