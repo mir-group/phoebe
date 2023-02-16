@@ -346,21 +346,16 @@ void ElElCouplingPlotApp::run(Context &context) {
   #endif
 }
 
-// TODO is there an issue where half the poitns are in crystal and half in cartesian
-// TODO why do cartesian coords go past 1?
-// TODO fix checkRequirements
-// TODO write tutorial
-// TODO write tests
-// TODO check with kfixed, qfixed, none fixed + path vs mesh
-// TODO check with and without HDF5, as well as with HDF5_SERIAL
-
 void ElElCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getPhFC2FileName(), "phFC2FileName");
-  if(context.getG2PlotStyle() == "pointsPath")
-    throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
-  else {
-    throwErrorIfUnset(context.getKMesh(), "kMesh");
-  }
-  throwErrorIfUnset(context.getElphFileName(), "elphFileName");
+  //if(context.getG2PlotStyle() == "pointsPath")
+  //  throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
+  //else {
+  //  throwErrorIfUnset(context.getKMesh(), "kMesh");
+  //}
+  // check that crystal structure was provided
+  std::string crystalMsg = "crystal structure";
+  throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
+  throwErrorIfUnset(context.getInputSpeciesNames(), crystalMsg);
+  throwErrorIfUnset(context.getInputAtomicSpecies(), crystalMsg);
 }

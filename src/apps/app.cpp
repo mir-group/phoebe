@@ -27,6 +27,7 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
                                             "elPhQeToPhoebe",
                                             "elElToPhoebe",
                                             "elPhCouplingPlot",
+                                            "elElCouplingPlot",
                                             "electronLifetimes",
                                             "phononLifetimes",
                                             "transportEpa"};
