@@ -4,6 +4,7 @@
 #include "dos_app.h"
 #include "electron_wannier_transport_app.h"
 #include "elph_plot_app.h"
+#include "elel_plot_app.h"
 #include "elph_qe_to_phoebe_app.h"
 #include "exceptions.h"
 #include "lifetimes_app.h"
@@ -59,6 +60,8 @@ std::unique_ptr<App> App::loadApp(const std::string &choice) {
     return std::unique_ptr<App>(new TransportEpaApp);
   } else if (choice == "elPhCouplingPlot") {
     return std::unique_ptr<App>(new ElPhCouplingPlotApp);
+  } else if (choice == "elElCouplingPlot") {
+    return std::unique_ptr<App>(new ElElCouplingPlotApp);
   } else if (choice == "electronLifetimes") {
     return std::unique_ptr<App>(new ElectronLifetimesApp);
   } else if (choice == "phononLifetimes") {

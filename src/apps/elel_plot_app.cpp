@@ -20,7 +20,7 @@ void ElElCouplingPlotApp::run(Context &context) {
   }
 
   // load electronic files
-  auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
+  auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
 
@@ -65,7 +65,7 @@ void ElElCouplingPlotApp::run(Context &context) {
   // TODO this is now going to be... points triplets? k1, k2, Q?
   // loop over points and set up points pairs
   std::vector<std::tuple<Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>> pointsTriplets;
-  auto std::make_tuple(k1,k2,Q);
+  pointsTriplets.push_back(std::make_tuple(k1,k2,Q));
 /*  for (int ik = 0; ik < points.getNumPoints(); ik++) {
 
     auto thisPoint = points.getPointCoordinates(ik, Points::cartesianCoordinates);
@@ -102,7 +102,7 @@ void ElElCouplingPlotApp::run(Context &context) {
   std::pair<int, int> g2PlotEl4Bands = std::make_pair(0,2); //context.getG2PlotPhBands();
 
   // Compute the coupling --------------------------------------------------
-  std::vector<double> allMatrixElementSq;
+  std::vector<double> allMatrixElementsSq;
 
   // distribute over triplets
   int numTriplets = pointsTriplets.size();
@@ -112,9 +112,9 @@ void ElElCouplingPlotApp::run(Context &context) {
   // it to allMatrixElementsSq. Then at the end, we write this chunk to HDF5.
 
   if(mpi->mpiHead())
-    std::cout << "\nCoupling requested for " << numPairs << " k1,k2,Q set." << std::endl;
+    std::cout << "\nCoupling requested for " << numTriplets << " k1,k2,Q set." << std::endl;
 
-  LoopPrint loopPrint("calculating coupling", "triplets on this process", pairParallelIter.size());
+  LoopPrint loopPrint("calculating coupling", "triplets on this process", pointsParallelIter.size());
   for (auto iTriplet : pointsParallelIter) {
 
     loopPrint.update();
@@ -155,8 +155,8 @@ void ElElCouplingPlotApp::run(Context &context) {
     k4Cs.push_back(k4C);
 
     // calculate the coupling
-    coupling4El->cache1stEl(eigenVectors1, k1C);
-    coupling4El->cache2ndEl(eigenVectors2, k2C);
+    coupling4El.cache1stEl(eigenVector1, k1C);
+    coupling4El.cache2ndEl(eigenVector2, k2C);
     coupling4El.calcCouplingSquared(eigenVectors3, eigenVectors4, k3Cs, k4Cs);
     // normally this function requires a kpoint index, but we only had coupling for 1
     // kpoint set, so here it's 0.
@@ -172,7 +172,7 @@ void ElElCouplingPlotApp::run(Context &context) {
         for (int ib3 = g2PlotEl3Bands.first; ib3 <= g2PlotEl3Bands.second; ib3++) {
           for (int ib4 = g2PlotEl4Bands.first; ib4 <= g2PlotEl4Bands.second; ib4++) {
             // TODO is it a product of these couplings?
-            allMatrixElementsSq.push_back(coupling(ib1, ib2, ib3, b4));
+            allMatrixElementsSq.push_back(couplingA(ib1, ib2, ib3, ib4));
             //if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
               //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
            // }
@@ -208,7 +208,7 @@ void ElElCouplingPlotApp::run(Context &context) {
                 (g2PlotEl3Bands.second - g2PlotEl3Bands.first + 1) *
                 (g2PlotEl4Bands.second - g2PlotEl4Bands.first + 1);
 
-    unsigned int globalSize = numPairs * bandProd;
+    unsigned int globalSize = numTriplets * bandProd;
 
     // Create the data-space to write g to
     std::vector<size_t> dims(2);
@@ -219,7 +219,7 @@ void ElElCouplingPlotApp::run(Context &context) {
 
     // start point and the number of the total number of elements
     // to be written by this process
-    size_t start = mpi->divideWorkIter(numPairs)[0] * bandProd;
+    size_t start = mpi->divideWorkIter(numTriplets)[0] * bandProd;
     size_t offset = start;
 
     // Note: HDF5 < v1.10.2 cannot write datasets larger than 2 Gbs
@@ -236,10 +236,10 @@ void ElElCouplingPlotApp::run(Context &context) {
 
     // determine the size of each bunch of electronic bravais vectors
     // the BunchSizes vector tells us how many are in each set
-    int numPairsBunch = mpi->divideWorkIter(numPairs).back() + 1 - mpi->divideWorkIter(numPairs)[0];
+    int numTripletsBunch = mpi->divideWorkIter(numTriplets).back() + 1 - mpi->divideWorkIter(numTriplets)[0];
 
     int bunchSize = 0;
-    for (int i = 0; i < numPairsBunch; i++) {
+    for (int i = 0; i < numTripletsBunch; i++) {
       bunchSize++;
       // this bunch is as big as possible, stop adding to it
       if ((bunchSize + 1) * smallestSize > maxSize) {
@@ -268,7 +268,7 @@ void ElElCouplingPlotApp::run(Context &context) {
       // The format is ((startRow,startCol),(numRows,numCols)).write(data)
       // Because it's a vector (1 row) all processes write to row=0, col=startPoint
       // with nRows = 1, nCols = number of items this process will write.
-      dgmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allGs[0]);
+      dmat.select({0, bunchOffset}, {1, bunchElements}).write_raw(&allMatrixElementsSq[0]);
 
     }
     } // end parallel write section
@@ -276,7 +276,7 @@ void ElElCouplingPlotApp::run(Context &context) {
     {
 
     // throw an error if there are too many elements to write
-    unsigned int globalSize = numPairs * bandProd;
+    unsigned int globalSize = numTriplets * bandProd;
     auto maxSize = int(pow(1000, 3)) / sizeof(double);
     if(globalSize > maxSize) {
       Error("Your requested el-el matrix element file size is greater than the allowed size\n"
@@ -284,10 +284,10 @@ void ElElCouplingPlotApp::run(Context &context) {
         "request to output fewer matrix elements. ");
     }
 
-    // call an mpi collective to grab allGs
+    // call an mpi collective to gather matrix elements
     std::vector<double> collectedGs;
     if(mpi->mpiHead()) collectedGs.resize(globalSize);
-    mpi->allGatherv(&collectedGs, &allGs);
+    mpi->allGatherv(&collectedGs, &allMatrixElementsSq);
 
     // write elph matrix elements
     HighFive::File file(outFileName, HighFive::File::Overwrite);
@@ -301,19 +301,21 @@ void ElElCouplingPlotApp::run(Context &context) {
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
 
       // shape the points pairs list into a format that can be written
-      Eigen::MatrixXd pointsTemp(pointsPairs.size(),6);
-      for (size_t iPair = 0; iPair < pointsPairs.size(); iPair++) {
+      Eigen::MatrixXd pointsTemp(pointsTriplets.size(),9);
+      for (size_t iTriplet = 0; iTriplet < pointsTriplets.size(); iTriplet++) {
 
-        auto thisPair = pointsPairs[iPair];
-        Eigen::Vector3d k1C = points.cartesianToCrystal(thisPair.first);
-        Eigen::Vector3d q3C = points.cartesianToCrystal(thisPair.second);
+        auto thisTriplet = pointsTriplets[iTriplet];
+        Eigen::Vector3d k1C = points.cartesianToCrystal(std::get<0>(thisTriplet));
+        Eigen::Vector3d k2C = points.cartesianToCrystal(std::get<1>(thisTriplet));
+        Eigen::Vector3d QC = points.cartesianToCrystal(std::get<1>(thisTriplet));
         for( int i : {0,1,2} ) {
-          pointsTemp(iPair,i) = k1C(i);
-          pointsTemp(iPair,i+3) = q3C(i);
+          pointsTemp(iTriplet,i) = k1C(i);
+          pointsTemp(iTriplet,i+3) = k2C(i);
+          pointsTemp(iTriplet,i+6) = QC(i);
         }
       }
       // write the points pairs to file
-      file.createDataSet("/pointsPairs", pointsTemp);
+      file.createDataSet("/pointsTriplets", pointsTemp);
 
       // write the band ranges
       std::vector<int> temp;
@@ -325,9 +327,13 @@ void ElElCouplingPlotApp::run(Context &context) {
       temp.push_back(g2PlotEl2Bands.second);
       file.createDataSet("/elBandRange2", temp);
       temp.clear();
-      temp.push_back(g2PlotPhBands.first);
-      temp.push_back(g2PlotPhBands.second);
-      file.createDataSet("/phModeRange", temp);
+      temp.push_back(g2PlotEl3Bands.first);
+      temp.push_back(g2PlotEl3Bands.second);
+      file.createDataSet("/elBandRange3", temp);
+      temp.clear();
+      temp.push_back(g2PlotEl4Bands.first);
+      temp.push_back(g2PlotEl4Bands.second);
+      file.createDataSet("/elBandRange4", temp);
 
     }
   } catch (std::exception &error) {
@@ -348,7 +354,7 @@ void ElElCouplingPlotApp::run(Context &context) {
 // TODO check with kfixed, qfixed, none fixed + path vs mesh
 // TODO check with and without HDF5, as well as with HDF5_SERIAL
 
-void ElPhCouplingPlotApp::checkRequirements(Context &context) {
+void ElElCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   throwErrorIfUnset(context.getPhFC2FileName(), "phFC2FileName");
   if(context.getG2PlotStyle() == "pointsPath")
