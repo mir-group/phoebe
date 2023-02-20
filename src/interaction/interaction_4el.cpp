@@ -99,7 +99,7 @@ void Interaction4El::calcCouplingSquared(
   auto elBravaisVectorsDegeneracies_d = this->elBravaisVectorsDegeneracies_d;
 
   int nb1 = elPhCached2a.extent(1);
-  int nb2 = elPhCached2b.extent(2);
+  int nb2 = elPhCached2a.extent(2);
 
   // get nb2 for each ik and find the max
   // since loops and views must be rectangular, not ragged
@@ -182,21 +182,31 @@ void Interaction4El::calcCouplingSquared(
         }
         g3_1(ik3, ib1, ib2, iw3, iw4) = tmp;
       });
+
   Kokkos::parallel_for(
       "g3_2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, numWannier, nb2, numWannier}),
       KOKKOS_LAMBDA(int ik3, int ib1, int iw3, int ib2, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
-          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2a(irE3, ib1, iw3, ib2, iw4);
+          // TODO elPhCached2a access was previously here as:
+          //tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2a(irE3, ib1, iw3, ib2, iw4);
+         // but this is an incorrect access, so either we're trying to loop over
+         // 2b:   Kokkos::realloc(elPhCached2b, numElBravaisVectors, nb1, numWannier, nb2, numWannier);
+         // or 2a needs to be reindexed to
+         // Kokkos::realloc(elPhCached2a, numElBravaisVectors, nb1, nb2, numWannier, numWannier);
+          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2b(irE3, ib1, iw3, ib2, iw4);
         }
         g3_2(ik3, ib1, iw3, ib2, iw4) = tmp;
       });
+
   Kokkos::parallel_for(
       "g3_3", Range5D({0, 0, 0, 0, 0}, {numLoops, numWannier, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
-          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2b(irE3, iw3, ib2, ib1, iw4);
+          // TODO similarly this one looks like it should be 2c
+          //   Kokkos::realloc(elPhCached2c, numElBravaisVectors, numWannier, nb2, nb1, numWannier);
+          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2c(irE3, iw3, ib2, ib1, iw4);
         }
         g3_3(ik3, iw3, ib2, ib1, iw4) = tmp;
       });
@@ -345,10 +355,10 @@ void Interaction4El::calcCouplingSquared(
 void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
   Kokkos::complex<double> complexI(0.0, 1.0);
 
-  // note: when Kokkos is compiled with GPU support, we must create elPhCached
+  // note: when Kokkos is compiled with GPU support, we must create elElCached
   // and other variables as local, so that Kokkos correctly allocates these
-  // quantities on the GPU. At the end of this function, elPhCached must be
-  // 'copied' back into this->elPhCached. Note that no copy actually is done,
+  // quantities on the GPU. At the end of this function, elElCached must be
+  // 'copied' back into this->elElCached. Note that no copy actually is done,
   // since Kokkos::View works similarly to a shared_ptr.
   auto elPhCached1a = this->elPhCached1a;
   auto elPhCached1b = this->elPhCached1b;
@@ -386,6 +396,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
                            numWannier, numWannier, numWannier, numWannier);
   ComplexView6D preCache1b("preCache1", numElBravaisVectors, numElBravaisVectors,
                            numWannier, numWannier, numWannier, numWannier);
+
   Kokkos::parallel_for("preCache1a",
       Range6D({0, 0, 0, 0, 0, 0},
               {numElBravaisVectors, numElBravaisVectors, numWannier, numWannier, numWannier, numWannier}),
@@ -394,6 +405,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
         for (int irE1 = 0; irE1 < numElBravaisVectors; irE1++) {
           // important note: the first index iw2 runs over the k+q transform
           // while iw1 runs over k
+          // NOTE may have modified this
           tmp += couplingWannier_d(irE1, irE2, irE3, iw1, iw2, iw3, iw4) * phases_k(irE1);
         }
         preCache1a(irE2, irE3, iw1, iw2, iw3, iw4) = tmp;
@@ -530,12 +542,9 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
       });
 
   // rotate eigenvector
-  Kokkos::realloc(elPhCached2a, numElBravaisVectors,
-                  nb1, nb2, numWannier, numWannier);
-  Kokkos::realloc(elPhCached2b, numElBravaisVectors,
-                  nb1, numWannier, nb2, numWannier);
-  Kokkos::realloc(elPhCached2c, numElBravaisVectors,
-                  numWannier, nb2, nb1, numWannier);
+  Kokkos::realloc(elPhCached2a, numElBravaisVectors, nb1, nb2, numWannier, numWannier);
+  Kokkos::realloc(elPhCached2b, numElBravaisVectors, nb1, numWannier, nb2, numWannier);
+  Kokkos::realloc(elPhCached2c, numElBravaisVectors, numWannier, nb2, nb1, numWannier);
 
   Kokkos::parallel_for("cache2a", Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, nb2, numWannier, numWannier}),
@@ -575,7 +584,6 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
   this->elPhCached2a = elPhCached2a;
   this->elPhCached2b = elPhCached2b;
   this->elPhCached2c = elPhCached2c;
-
 
 }
 

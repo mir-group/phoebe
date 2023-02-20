@@ -43,7 +43,6 @@ void ElElCouplingPlotApp::run(Context &context) {
   Eigen::Vector3d k2 = {0.5,0.5,0.5};
   Eigen::Vector3d Q = {0.25,0.25,0.25};
 
-
   // TODO need to decide how this gets set up, see above notes
 /*  Eigen::Vector3i mesh;
   if (context.getG2PlotStyle() == "qFixed") {
@@ -54,6 +53,10 @@ void ElElCouplingPlotApp::run(Context &context) {
   }
 */
   Points points(crystal);
+  k1 = points.crystalToCartesian(k1);
+  k2 = points.crystalToCartesian(k2);
+  Q = points.crystalToCartesian(Q);
+
   // decide what kind of points path we're going to use ---------------------------
 /*  if (context.getG2MeshStyle() == "pointsPath") {
     points = Points(crystal, context.getPathExtrema(), context.getDeltaPath());
@@ -96,10 +99,10 @@ void ElElCouplingPlotApp::run(Context &context) {
 */
   // TODO determine best way to read this from file
   // band ranges to calculate the coupling for
-  std::pair<int, int> g2PlotEl1Bands = std::make_pair(1,2); //context.getG2PlotEl1Bands();
-  std::pair<int, int> g2PlotEl2Bands = std::make_pair(1,2); //context.getG2PlotEl2Bands();
-  std::pair<int, int> g2PlotEl3Bands = std::make_pair(0,2); //context.getG2PlotPhBands();
-  std::pair<int, int> g2PlotEl4Bands = std::make_pair(0,2); //context.getG2PlotPhBands();
+  std::pair<int, int> g2PlotEl1Bands = std::make_pair(0,1); //context.getG2PlotEl1Bands();
+  std::pair<int, int> g2PlotEl2Bands = std::make_pair(0,1); //context.getG2PlotEl2Bands();
+  std::pair<int, int> g2PlotEl3Bands = std::make_pair(0,1); //context.getG2PlotPhBands();
+  std::pair<int, int> g2PlotEl4Bands = std::make_pair(0,1); //context.getG2PlotPhBands();
 
   // Compute the coupling --------------------------------------------------
   std::vector<double> allMatrixElementsSq;
@@ -345,6 +348,9 @@ void ElElCouplingPlotApp::run(Context &context) {
         "Phoebe has not been compiled with HDF5 support.");
   #endif
 }
+
+//TODO
+// * check that the bands supplied by users don't exceed nWannier
 
 void ElElCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
