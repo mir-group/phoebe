@@ -25,7 +25,7 @@ Step 1: Phono3py Installation
 To calculate the anharmonic force constants from phono3py, you first need to follow the instructions to `set up phono3py <https://atztogo.github.io/phono3py/install.html#installation-from-source-code>`_. To summarize the brief installation process, you first need to have Anaconda installed on your computer (which you can `download and install from here <https://docs.conda.io/projects/conda/en/latest/user-guide/install/>`_). Then, you can install phono3py in a conda environment with the following on the command line instructions::
 
   # create a conda environment named phono3py
-  conda create --name phono3py
+  conda create --name phono3py python=3.10
   # activate the enviroment (use conda activate for newer conda versions)
   source activate phono3py
   # install phono3py in this environment
@@ -34,8 +34,7 @@ To calculate the anharmonic force constants from phono3py, you first need to fol
 You should now have the command `phono3py` available to run on the command line.
 If for any reason this doesn't work, refer to the phono3py documentation linked above for more detailed installation instructions.
 
-.. note::
-   Make sure you have python3 available or set up a conda env which uses python3 -- otherwise, you may not get the latest version of phono3py.
+.. _forceConstantCalculation:
 
 Step 2: Calculation of Force Constants
 ---------------------------------------
@@ -270,6 +269,9 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 * ``solver_phonon_thermal_cond.json``: contains the phonon thermal conductivity output by a specific solver.
 
 * ``solver_relaxation_times.json``: contains the phonon relaxation times on the :ref:`qMesh` specified in the ``phononTransport`` input file. It is only output for solvers "rta" and "relaxons", as the lifetime is not well defined for the iterative solvers.
+
+
+To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page. In particular, if you want to plot lifetimes vs. energy, look at ``tau.py``. If you want to plot the thermal conductivity vs. temperature, check out ``transport_coefficients.py``.
 
 
 Convergence Checklist

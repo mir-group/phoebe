@@ -42,7 +42,7 @@ Step 1: Phono3py Installation
 -----------------------------
 
 See :ref:`phono3pyInstallation`.
-
+Additionally, we recommend you use the unit cell that phonopy selects as the primitive cell. See a note on this in :ref:`forceConstantCalculation`.
 
 Step 2: Relax the Atomic Structure
 ----------------------------------
@@ -156,7 +156,6 @@ Here we use different supercell sizes for 2nd order force constants (6x6x2) and 
     ph3 = Phono3py(
         unitcell,
         supercell_matrix=[3, 3, 3],
-        primitive_matrix='auto',
         phonon_supercell_matrix=[6, 6, 2],
     )
     ph3.generate_displacements(cutoff_pair_distance=2.5)
