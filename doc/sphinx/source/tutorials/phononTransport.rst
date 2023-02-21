@@ -25,7 +25,7 @@ Step 1: Phono3py Installation
 To calculate the anharmonic force constants from phono3py, you first need to follow the instructions to `set up phono3py <https://atztogo.github.io/phono3py/install.html#installation-from-source-code>`_. To summarize the brief installation process, you first need to have Anaconda installed on your computer (which you can `download and install from here <https://docs.conda.io/projects/conda/en/latest/user-guide/install/>`_). Then, you can install phono3py in a conda environment with the following on the command line instructions::
 
   # create a conda environment named phono3py
-  conda create --name phono3py
+  conda create --name phono3py python=3.10
   # activate the enviroment (use conda activate for newer conda versions)
   source activate phono3py
   # install phono3py in this environment
@@ -34,8 +34,7 @@ To calculate the anharmonic force constants from phono3py, you first need to fol
 You should now have the command `phono3py` available to run on the command line.
 If for any reason this doesn't work, refer to the phono3py documentation linked above for more detailed installation instructions.
 
-.. note::
-   Make sure you have python3 available or set up a conda env which uses python3 -- otherwise, you may not get the latest version of phono3py.
+.. _forceConstantCalculation:
 
 Step 2: Calculation of Force Constants
 ---------------------------------------
