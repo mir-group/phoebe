@@ -149,22 +149,21 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
     }
 
     if(foundUnitCell) {
-      // if this line has a species, save it
-      if (line.find(" symbol: ") != std::string::npos) {
-        std::string temp =
-            line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
-        // remove any trailing whitespaces
-        temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
-                   temp.end());
-        if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
-            speciesNames.end()) {
-          speciesNames.push_back(temp);
-
-        }
-        // save the atom number of this species
-        atomicSpeciesVec.push_back(
-            std::find(speciesNames.begin(), speciesNames.end(), temp) -
-            speciesNames.begin());
+     // if this line has a species, save it
+     if (line.find(" symbol: ") != std::string::npos) {
+       std::string temp =
+           line.substr(line.find("symbol: ") + 8, line.find('#') - 13);
+      // remove any trailing whitespaces
+      temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace),
+                 temp.end());
+      if (std::find(speciesNames.begin(), speciesNames.end(), temp) ==
+          speciesNames.end()) {
+        speciesNames.push_back(temp);
+      }
+      // save the atom number of this species
+      atomicSpeciesVec.push_back(
+          std::find(speciesNames.begin(), speciesNames.end(), temp) -
+          speciesNames.begin());
       }
       // if this is a cell position, save it
       if (line.find("coordinates: ") != std::string::npos) {
@@ -176,34 +175,42 @@ std::tuple<Crystal, PhononH0> PhonopyParser::parsePhHarmonic(Context &context) {
         atomicPositionsVec.push_back(position);
       }
       // parse lattice vectors
-      if (ilatt < 3 && foundUnitCell) { // count down lattice lines
+      if (ilatt < 3) { // count down lattice lines
         std::vector<std::string> tok = tokenize(line);
         directUnitCell(ilatt, 0) = std::stod(tok[2]);
         directUnitCell(ilatt, 1) = std::stod(tok[3]);
         directUnitCell(ilatt, 2) = std::stod(tok[4]);
         ilatt++;
       }
-      if (ilatt < 3 && foundPrimCell) { // count down lattice lines
+      if (line.find("lattice:") != std::string::npos) {
+        ilatt = 0;
+      }
+      // this signals we are done reading cell info
+      if (line.empty()) {
+        break;
+      }
+    }
+    if(foundPrimCell) {
+
+      if (ilatt < 3) { // count down lattice lines
         std::vector<std::string> tok = tokenize(line);
         primUnitCell(ilatt, 0) = std::stod(tok[2]);
         primUnitCell(ilatt, 1) = std::stod(tok[3]);
         primUnitCell(ilatt, 2) = std::stod(tok[4]);
         ilatt++;
+        // done prim cell read in
+        if(ilatt == 3) foundPrimCell = false;
       }
       if (line.find("lattice:") != std::string::npos &&
-                                line.find("recip") == std::string::npos) {
+                         line.find("recip") == std::string::npos) {
         ilatt = 0;
-      }
-      // this signals we are done reading cell info
-      if (line.empty() ) {
-        break;
       }
     }
     if (line.find("unit_cell:") != std::string::npos) {
-      foundUnitCell = true; // need to read unit cell, as this is the one really used by phonopy
+      foundUnitCell = true;
     }
     if (line.find("primitive_cell:") != std::string::npos) {
-      foundPrimCell = true; // need to read unit cell, as this is the one really used by phonopy
+      foundPrimCell = true;
     }
   }
 
