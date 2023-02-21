@@ -27,7 +27,7 @@ Additionally, in the subfolder ``phoebe/scripts``, we prepared a few simple pyth
 
 The scripts are self-documented, e.g. you can run::
 
-  ./bands.py -h
+  python bands.py -h
 
 to see a description of the script.
 In general, these scripts have at least one input argument that must be passed on the command line, including the path to the suitable JSON file.
@@ -39,9 +39,9 @@ Feel free to use these scripts as a starting point for your own customized plots
 bands.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Plots the band structure. Usage example::
+Plots the band structure. Example use::
 
-  ./bands.py path/to/electron_bands.json
+  python bands.py electron_bands.json
 
 
 transport_coefficients.py
@@ -49,46 +49,47 @@ transport_coefficients.py
 
 Plots the transport coefficients (thermal conductivity, electrical conductivity, etc...) as a function of temperature.
 Works for transport coefficients computed with different BTE solvers (EPA, Wannier interpolation, RTA, iterative, ...).
-Usage example::
+The arguments here are the direction of transport and also the the x-axis type, which can be either doping (n) or temperature (T).
+Example use::
 
-  ./transport_coefficients.py path/to/rta_phonon_thermal_cond.json xx
+  python transport_coefficients.py rta_phonon_thermal_cond.json n xx
 
 or::
 
-  ./transport_coefficients.py path/to/epa_onsager_coefficients.json xx
+  python transport_coefficients.py epa_onsager_coefficients.json T xx
 
 
 dos.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Plots the density of states. Usage example::
+Plots the density of states. Example use::
 
-  ./dos.py path/to/electron_dos.json
+  python dos.py electron_dos.json
 
 
 tau_path.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Overlays the band structure with the particle linewidths, using the output of the lifetimes apps. Usage example::
+Overlays the band structure with the particle linewidths, using the output of the lifetimes apps. Example use::
 
-  ./tau_path.py path_el_relaxation_times.json path_el_bandstructure.json
+  python tau_path.py path_el_relaxation_times.json path_el_bandstructure.json 0
 
+In this case, we follow the json file with 0 because this script takes a "calculation index". The calculation index is 0 unless you used multiple temperatures or dopings. If this is the case, you want to supply the calculation index corresponding to the doping/temperature you want to plot.
 
 tau.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Plots lifetimes vs energy. Example usage::
 
-Plots lifetimes vs energy. Usage example::
+  python tau.py rta_relaxation_times.json 0
 
-  ./tau.py rta_relaxation_times.json
-
+See note above under ``tau_path.py`` for more info about calcIndex (the 0 at the end).
 
 tau_bandResolved.py
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Plots lifetimes/linewidths vs energy. It's similar to the script tau.py, but it has a color-code for lifetimes and linewidths from each different band and it only works if no window has been used in the transport code. Note that the n-th band index is defined as the n-th lowest-energy band. Usage example::
+Plots lifetimes/linewidths vs energy. It's similar to the script tau.py, but it has a color-code for lifetimes and linewidths from each different band and it only works if no window has been used in the transport code. Note that the n-th band index is defined as the n-th lowest-energy band. Example use::
 
-  ./tau_bandResolved.py rta_relaxation_times.json
+  python tau_bandResolved.py rta_relaxation_times.json 0
 
-
-
+See note above under ``tau_path.py`` for more info about calcIndex (the 0 at the end).
