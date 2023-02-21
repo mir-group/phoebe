@@ -93,8 +93,7 @@ void IO::goodbye(Context &context) {
   std::cout << "\tPhoebe: a high-performance framework for solving \n\tphonon and electron "
                "Boltzmann transport equations.\n"
 	    << "\tA. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.\n"
-      << "\thttps://doi.org/10.1088/2515-7639/ac86f6\n" << std::endl;
-	    //<< "\tarXiv:2111.14999\n" << std::endl;
+      << "\thttps://doi.org/10.1088/2515-7639/ac86f6 (2022).\n" << std::endl;
 
   std::vector<std::string> solvers = context.getSolverBTE();
   // Relaxons solver
