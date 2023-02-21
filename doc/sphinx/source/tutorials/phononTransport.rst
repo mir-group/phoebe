@@ -272,6 +272,9 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 * ``solver_relaxation_times.json``: contains the phonon relaxation times on the :ref:`qMesh` specified in the ``phononTransport`` input file. It is only output for solvers "rta" and "relaxons", as the lifetime is not well defined for the iterative solvers.
 
 
+To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page. In particular, if you want to plot lifetimes vs. energy, look at ``tau.py``. If you want to plot the thermal conductivity vs. temperature, check out ``transport_coefficients.py``.
+
+
 Convergence Checklist
 ----------------------
 

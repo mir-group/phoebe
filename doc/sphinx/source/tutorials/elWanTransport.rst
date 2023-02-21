@@ -457,7 +457,8 @@ You can learn more about how to post-process these files at :ref:`postprocessing
 
 * ``solver_el_relaxation_times.json``: contains the relaxation times on the :ref:`kMesh` specified in the ``electronWannierTransport`` input file. It is only output for solvers "rta" and "relaxons", as the lifetime is not well defined for the iterative solvers.
 
-To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page.
+To understand how to parse these files in more detail, take a look at the scripts described by the :ref:`postprocessing` page. In particular, if you want to plot lifetimes vs. energy, look at ``tau.py``. If you want to plot the transport coefficients vs. doping or temperature, check out ``transport_coefficients.py``.
+
 **Note:** though we output the Wigner correction with the RTA Onsager coefficients, the Wigner correction is additive for the conductivity and mobility. (Though, not additive for the Seebeck coefficient and electronic thermal conductivity). Therefore, for the electrical conductivity, for example, if you want Wigner+iterative electrical conductivity, you should take :math:`\sigma_{Wigner+RTA} - \sigma_{RTA} + \sigma_{Omini}`.
 
 Convergence Checklist
