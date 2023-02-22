@@ -1379,9 +1379,9 @@ epaEnergyRange
 deltaPath
 ^^^^^^^^^
 
-* **Description:** This variable controls how far apart are the wavevectors when a path in the Brillouin zone is specified, and it represents the distance (in Bohr) between wavevectors. Can be used when a path of wavevectors is specified with the :ref:`beginEndPointPath` key.
+* **Description:** This variable controls how far apart are the wavevectors when a path in the Brillouin zone is specified, and it represents the distance between wavevectors on the band path in crystal coordinates. Can be used when a path of wavevectors is specified with the :ref:`beginEndPointPath` key.
 
-* Default: 0.05 Bohr:sup:`-1`
+* Default: 0.05
 
 * **Format:** *string*
 
