@@ -143,7 +143,7 @@ void ElElCouplingPlotApp::run(Context &context) {
     auto t5 = electronH0.diagonalizeFromCoordinates(k3C);
     auto eigenVector3 = std::get<1>(t5);
 
-    // third electron eigenvector
+    // fourth electron eigenvector
     auto t6 = electronH0.diagonalizeFromCoordinates(k4C);
     auto eigenVector4 = std::get<1>(t6);
 
