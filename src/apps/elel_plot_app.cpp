@@ -197,6 +197,11 @@ void ElElCouplingPlotApp::run(Context &context) {
   #if defined(HDF5_AVAIL)
   #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
+    // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
+    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
+              (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
+              (g2PlotEl3Bands.second - g2PlotEl3Bands.first + 1) *
+              (g2PlotEl4Bands.second - g2PlotEl4Bands.first + 1);
 
   { // need open/close braces so that the HDF5 file goes out of scope
 
@@ -204,12 +209,6 @@ void ElElCouplingPlotApp::run(Context &context) {
     HighFive::File file(
           outFileName, HighFive::File::Overwrite,
           HighFive::MPIOFileDriver(MPI_COMM_WORLD, MPI_INFO_NULL));
-
-    // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
-    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
-                (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
-                (g2PlotEl3Bands.second - g2PlotEl3Bands.first + 1) *
-                (g2PlotEl4Bands.second - g2PlotEl4Bands.first + 1);
 
     unsigned int globalSize = numTriplets * bandProd;
 
