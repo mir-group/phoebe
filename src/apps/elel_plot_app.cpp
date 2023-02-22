@@ -194,15 +194,15 @@ void ElElCouplingPlotApp::run(Context &context) {
   std::string outFileName = "coupling.4el.phoebe.hdf5";
   std::remove(&outFileName[0]);
 
-  #if defined(HDF5_AVAIL)
-  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
-  try {
-    // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
-    size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
+  // product of nbands1 * nbands2 * nmodes -- + 1 is because range is inclusive
+  size_t bandProd = (g2PlotEl1Bands.second - g2PlotEl1Bands.first + 1) *
               (g2PlotEl2Bands.second - g2PlotEl2Bands.first + 1) *
               (g2PlotEl3Bands.second - g2PlotEl3Bands.first + 1) *
               (g2PlotEl4Bands.second - g2PlotEl4Bands.first + 1);
 
+  #if defined(HDF5_AVAIL)
+  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
+  try {
   { // need open/close braces so that the HDF5 file goes out of scope
 
     // open the hdf5 file
