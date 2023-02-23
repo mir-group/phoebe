@@ -201,8 +201,8 @@ void ElElCouplingPlotApp::run(Context &context) {
               (g2PlotEl4Bands.second - g2PlotEl4Bands.first + 1);
 
   #if defined(HDF5_AVAIL)
-  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   try {
+  #if defined(MPI_AVAIL) && !defined(HDF5_SERIAL)
   { // need open/close braces so that the HDF5 file goes out of scope
 
     // open the hdf5 file
