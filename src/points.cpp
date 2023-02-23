@@ -656,7 +656,7 @@ Eigen::Vector3d Point::getCoordinates(const int &basis,
 }
 
 bool Point::hasUmklapp() {
-  if (umklappVector.norm() < 1.0e-8) {
+  if (abs(umklappVector.norm()) < 1.0e-8) {
     return false;
   } else {
     return true;
