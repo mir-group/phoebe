@@ -452,8 +452,17 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                   linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                   if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
-                    Point q2 = outerBandStructure.getPoint(iq2);
+                    Point q2 = innerBandStructure.getPoint(iq2);
                     // check if this process is umklapp
+                   /* auto tup1 = pointHelper.get(q1, q2, Helper3rdState::casePlus);
+                    Eigen::Vector3d q3 = std::get<0>(tup1);
+                    Eigen::Vector3d q3fold = outerBandStructure.getPoints().foldToBz(q3,Points::cartesianCoordinates);
+                    bool isUmklapp = false;
+                    if(abs((q3-q3fold).norm()) > 1e-6) {
+                      // it's umklapp
+                      isUmklapp = true;
+                    }*/
+
                     if((q1+q2).hasUmklapp()) {
                       internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     } else {
@@ -584,7 +593,21 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                       0.5 * (rateMinus1 + rateMinus2);
                   if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
-                    Point q2 = outerBandStructure.getPoint(iq2);
+                    //auto qcoords1 = q1.getCoordinates(Points::crystalCoordinates);
+                    Point q2 = innerBandStructure.getPoint(iq2);
+                    //auto qcoords2 = q2.getCoordinates(Points::crystalCoordinates);
+                    //Eigen::Vector3d qcoords3 = qcoords1 - qcoords2;
+                    //qcoords3 = outerBandStructure.getPoints().foldToBz(qcoords3,Points::crystalCoordinates);
+                    //double isUmklapp = (qcoords1 - qcoords2 + qcoords3).sum();
+/*                    auto tup1 = pointHelper.get(q1, q2, Helper3rdState::caseMinus);
+                    Eigen::Vector3d q3 = std::get<0>(tup1);
+                    Eigen::Vector3d q3fold = outerBandStructure.getPoints().foldToBz(q3,Points::cartesianCoordinates);
+                    bool isUmklapp = false;
+                    if(abs((q3-q3fold).norm()) > 1e-6) {
+                      // it's umklapp
+                      isUmklapp = true;
+                    }
+*/
                     if((q1-q2).hasUmklapp()) {
                       internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus1);
                     } else {
@@ -595,6 +618,12 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                     } else {
                       internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus2);
                     }
+                    //if((q1-q2).hasUmklapp()) { //&& (qcoords1-qcoords2)(2) == 0) {//&& !(q2-q1).hasUmklapp()) {
+                    //    if(mpi->mpiHead()) std::cout << "q1 q2 (q1-q2) umklapp " << qcoords1.transpose() << " | " << qcoords2.transpose() << " | " << (qcoords1-qcoords2).transpose() << " || " << (q1-q2).umklappVector.transpose() << std::endl;
+                    //}
+                    //else {
+                    //    if(mpi->mpiHead()) std::cout << "q1 q2 (q1-q2) normal " << qcoords1.transpose() << " | " << qcoords2.transpose() << " | " << (qcoords1-qcoords2).transpose() << " || " << (q1-q2).umklappVector.transpose() << std::endl;
+                    //}
                   }
                 }
               }
@@ -759,13 +788,22 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                 linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                   if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
-                    Point q2 = outerBandStructure.getPoint(iq2);
+                    Point q2 = innerBandStructure.getPoint(iq2);
+                   /* auto tup1 = pointHelper.get(q1, q2, Helper3rdState::caseMinus);
+                    Eigen::Vector3d q3 = std::get<0>(tup1);
+                    Eigen::Vector3d q3fold = outerBandStructure.getPoints().foldToBz(q3,Points::cartesianCoordinates);
+                    bool isUmklapp = false;
+                    if(abs((q3-q3fold).norm()) > 1e-6) {
+                      // it's umklapp
+                      isUmklapp = true;
+                    }
+*//*
                     if((q1-q2).hasUmklapp()) {
                       internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += rateIso;
                     } else {
                       internalDiagonalNormal->operator()(iCalc, 0, iBte1) += rateIso;
                     }
-                  }
+                  }*/
               }
             }
           }
