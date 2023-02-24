@@ -1,4 +1,5 @@
 #include "electron_wannier_transport_app.h"
+#include "elph_qe_to_phoebe_app.h" // TODO remove if we can work around
 #include "bandstructure.h"
 #include "context.h"
 #include "drift.h"
@@ -16,6 +17,11 @@ void ElectronWannierTransportApp::run(Context &context) {
   bool useElElInteraction = !context.getElectronElectronFileName().empty();
   bool useElPhInteraction = !context.getElphFileName().empty();
   bool useCRTA = std::isnan(context.getConstantRelaxationTime());
+
+  if(!useElElInteraction && !useElPhInteraction && !useCRTA) {
+    Error("If not using the CRTA, you must specify either a el-ph or el-el"
+        " coupling input file!");
+  }
 
   Crystal crystal;
 
@@ -38,6 +44,18 @@ void ElectronWannierTransportApp::run(Context &context) {
   // from input file, as electron wannier files don't contain it
   else {
     crystal = std::get<0>(t1);
+  }
+
+  // TODO tricky problem here -- need num electrons before constructing bandstructure
+  if(std::isnan(context.getFermiLevel()) && !useElPhInteraction) { // TODO is this true for CRTA
+    Error("If supplying only el-el interaction or CRTA, user must specify"
+        "the fermiLevel variable in the input file.");
+  } else if(useElPhInteraction) {
+    std::string phoebePrefixQE = context.getQuantumEspressoPrefix();
+    auto tup = ElPhQeToPhoebeApp::readQEPhoebeHeader(crystal, phoebePrefixQE); // we're parsing only to set the number of electrons
+                                // TODO there's gotta be a better way
+    int numElectrons = std::get<7>(tup);
+    context.setNumOccupiedStates(numElectrons);
   }
 
   // compute the band structure on the fine grid

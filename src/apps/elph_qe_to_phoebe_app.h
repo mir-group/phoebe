@@ -5,7 +5,7 @@
 #include "electron_h0_wannier.h"
 #include "phonon_h0.h"
 
-/** Main driver for the transport calculation
+/** Main driver for the reciprocal QE rep to real-space Wannier rep
  */
 class ElPhQeToPhoebeApp : public App {
 public:

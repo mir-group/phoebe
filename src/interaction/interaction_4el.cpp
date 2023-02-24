@@ -464,9 +464,6 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
           }
           elPhCached1b_(irE2, irE3, iw3, iw2, ib1, iw4) = tmp;
   });
-
-  this->elPhCached1a = elPhCached1a_;
-  this->elPhCached1b = elPhCached1b_;
 }
 
 void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Vector3d &k2C) {
@@ -562,6 +559,8 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
   Kokkos::realloc(elPhCached2a, numElBravaisVectors, nb1, nb2, numWannier, numWannier);
   Kokkos::realloc(elPhCached2b, numElBravaisVectors, nb1, numWannier, nb2, numWannier);
   Kokkos::realloc(elPhCached2c, numElBravaisVectors, numWannier, nb2, nb1, numWannier);
+
+  // TODO note -- precache 2b and 2c go unused?
 
   Kokkos::parallel_for("cache2a", Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, nb2, numWannier, numWannier}),
