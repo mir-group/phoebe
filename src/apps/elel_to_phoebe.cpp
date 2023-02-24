@@ -11,7 +11,6 @@
 
 #ifdef HDF5_AVAIL
 #include <highfive/H5Easy.hpp>
-//#include "H5Cpp.h"
 #endif
 
 void ElElToPhoebeApp::run(Context &context) {
@@ -83,7 +82,7 @@ void ElElToPhoebeApp::run(Context &context) {
     numBands = bandExtrema(1) - bandExtrema(0) + 1; // if band range is 4,5, that's two bands
     bandOffset = bandExtrema.minCoeff();
   }
-
+  // push these quantities to all processes
   mpi->bcast(&numPoints);
   mpi->bcast(&numBands);
   mpi->bcast(&bandOffset);
@@ -173,6 +172,7 @@ void ElElToPhoebeApp::run(Context &context) {
       int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
       int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
       int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
+      // k1
       Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
       for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
         int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
@@ -180,8 +180,11 @@ void ElElToPhoebeApp::run(Context &context) {
         int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
         int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
         int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
+        // k3
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
+        // k2 -- because k1-k2 = Q
         Eigen::Vector3d thisK2 = thisiK - excitonQ;
+        // k4 will be defined by momentum conservation
 
         int ikk1 = kPoints.getIndex(thisiK, tolerance);
         int ikk2 = kPoints.getIndex(thisK2, tolerance);
@@ -194,7 +197,13 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib4 = jYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
-        //if(mpi->mpiHead()) std::cout << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << " at " << iQ << " " << ikk1 << " " << ikk2 << " " << ikk3 << " " << ib1 << " " << ib2 << " " << ib3 << " " << ib4 << std::endl;
+        if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
+          std::cout << "k1 " << thisiK.transpose() << std::endl;
+          std::cout << "k2 " << thisK2.transpose() << std::endl;
+          std::cout << "k3 " << thisjK.transpose() << std::endl;
+          std::cout << "Q " << excitonQ.transpose() << std::endl;
+          std::cout << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << std::endl;
+        }
       }
     }
   }
@@ -337,7 +346,7 @@ void ElElToPhoebeApp::run(Context &context) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
         Eigen::Vector3d R = elBravaisVectors.row(iR);
         double arg = k.dot(R);
-        phases(ik, iR) = exp(complexI * arg);
+        phases(ik, iR) = exp(complexI * arg)/ double(numPoints);
       }
     }
   }
