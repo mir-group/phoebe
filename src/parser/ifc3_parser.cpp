@@ -389,7 +389,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // https://phonopy.github.io/phono3py/output-files.html#fc3-hdf5
 
   // the information we need outside the ifcs3 is in a file called
-  // disp_fc3.yaml, which contains the atomic positions of the
+  // phono3py_disp.yaml, which contains the atomic positions of the
   // superCell and the displacements of the atoms
   // The mapping between the superCell and unit cell atoms is
   // set up so that the first nAtoms*dimSup of the superCell are unit cell
@@ -398,7 +398,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // First, get num atoms from the crystal
   int numAtoms = crystal.getNumAtoms();
 
-  // Open disp_fc3 file, read superCell positions, nSupAtoms
+  // Open phonopy_disp file, read superCell positions, nSupAtoms
   // ==========================================================
   auto fileName = context.getPhonopyDispFileName();
   std::ifstream infile(fileName);
@@ -420,16 +420,28 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   Eigen::Vector3i qCoarseGrid;
   while (infile) {
     std::getline(infile, line);
-    if (line.find("dim:") != std::string::npos) {
-      std::vector<std::string> tok = tokenize(line);
-      //std::istringstream iss(temp);
-      //iss >> qCoarseGrid(0) >> qCoarseGrid(1) >> qCoarseGrid(2);
-      qCoarseGrid(0) = std::stoi(tok[1]);
-      qCoarseGrid(1) = std::stoi(tok[2]);
-      qCoarseGrid(2) = std::stoi(tok[3]);
+    // this comes up first in the file, so if a different harmonic dim is present,
+    // we'll overwrite it
+    if (line.find("supercell_matrix:") != std::string::npos) {
+      for(int i : {0, 1, 2}) {
+        std::getline(infile, line);
+        std::vector<std::string> tok = tokenize(line);
+        qCoarseGrid[i] = std::stoi(tok[2+i]);
+        for(int j : {0, 1, 2}) {
+          if(j != i && std::stoi(tok[2+j]) != 0) {
+            Error("The phonopy cell you used has a non-diagonal supecell matrix.\n"
+                "Phoebe presently doesn't know how to support this."
+                "Revisit the ph transport tutorial\n"
+                "and consider running the first step to generate a primitive cell before\n"
+                "doing this calculation. Otherwise, contact the developers.");
+          }
+        }
+      }
       break;
     }
   }
+  infile.clear();
+  infile.seekg(0);
 
   // First, we open the phonopyDispFileName to check the distance units.
   // Phono3py uses Bohr for QE calculations and Angstrom for VASP
@@ -445,22 +457,20 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       break;
     }
   }
+  infile.clear();
+  infile.seekg(0);
 
   // read the rest of the file to look for superCell positions
   std::vector<std::vector<double>> supPositionsVec;
-  Eigen::MatrixXd lattice(3, 3);
+  Eigen::MatrixXd lattice(3, 3); lattice.setZero();
   int ilatt = 3;
   bool readSupercell = false;
   while (infile) {
 
     getline(infile, line);
-
     // we dont want to read the positions after phonon_supercell_matrix,
     // so we break here
-    // it is possible that either of these two items can come first. Seems to
-    // depend on phonopy version?
-    if(line.find("phonon_supercell") != std::string::npos
-        || line.find("phonon_primitive_cell") !=std::string::npos) {
+    if(line.find("phonon") != std::string::npos) {
       break;
     }
     // read all the lines after we see the flag for the supercell
@@ -470,7 +480,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
       readSupercell = true;
     }
     // if this is a cell position, save it
-    if (line.find("coordinates: ") != std::string::npos && readSupercell) {
+    if (line.find("coordinates:") != std::string::npos && readSupercell) {
       std::vector<double> position = {0.,0.,0.};
       std::vector<std::string> tok = tokenize(line);
       position[0] = std::stod(tok[2]);
@@ -500,6 +510,7 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // check that this matches the ifc2 atoms
   int numAtomsCheck = numSupAtoms/
         (qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2]);
+
   if (numAtomsCheck != numAtoms) {
     Error("IFC3s seem to come from a cell with a different number\n"
         "of atoms than the IFC2s. Check your inputs.\n"

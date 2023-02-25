@@ -1,0 +1,20 @@
+ &control
+    calculation = 'scf'
+    restart_mode='from_scratch',
+    prefix='silicon',
+    tstress = .true.
+    tprnfor = .true.,
+    pseudo_dir = '../../pseudoPotentials/',
+    outdir='./out',
+ /
+ &system
+    ibrav = 0
+    nat = 16
+    ntyp = 1,
+    ecutwfc = 30.
+ /
+ &electrons
+    conv_thr =  1.0d-12
+ /
+K_POINTS automatic
+6 6 6 0 0 0

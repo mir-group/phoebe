@@ -15,7 +15,7 @@ FetchContent_MakeAvailable(googletest)
 # which tracks the original, minus the large test data set.
 # This is recommended by the readme of nlohmann/json
 FetchContent_Declare(json
-    GIT_REPOSITORY https://github.com/ArthurSonzogni/nlohmann_json_cmake_fetchcontent.git
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
     SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/json_src
     UPDATE_COMMAND ""
 )
@@ -94,7 +94,7 @@ include_directories(
     ${CMAKE_CURRENT_BINARY_DIR}/spglib_src/src
     ${CMAKE_CURRENT_BINARY_DIR}/eigen_src
     ${CMAKE_CURRENT_BINARY_DIR}/googletest/googletest/include
-    ${CMAKE_CURRENT_BINARY_DIR}/json_src/include
+    ${CMAKE_CURRENT_BINARY_DIR}/json_src/single_include
     ${CMAKE_CURRENT_BINARY_DIR}/highfive_src/include
 )
 

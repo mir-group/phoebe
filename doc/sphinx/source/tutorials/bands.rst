@@ -1,18 +1,18 @@
 .. _bands:
 
-Basic Band Structure and DoS 
+Basic Band Structure and DoS
 ==============================
 
 Synopsis
 --------
 
-In addition to transport and lifetime calculations, Phoebe can also perform basic band structure and density of states calculations. These can be useful when debugging a calculation or checking the quality of a Wannier or Fourier interpolation. The quality of interpolation is often dependent on the number of k or q points used in DFT, so sometimes it can be helpful to run this calculation to ensure that your DFT calculation used a dense enough mesh. 
+In addition to transport and lifetime calculations, Phoebe can also perform basic band structure and density of states calculations. These can be useful when debugging a calculation or checking the quality of a Wannier or Fourier interpolation. The quality of interpolation is often dependent on the number of k or q points used in DFT, so sometimes it can be helpful to run this calculation to ensure that your DFT calculation used a dense enough mesh.
 
 
 Step 1: Generate input files
 --------------------------------------
 
-For this short tutorial, we're going to use Quantum Espresso output files for electrons, and phono3py output for phonons, as generated from one of the other tutorials. 
+For this short tutorial, we're going to use Quantum Espresso output files for electrons, and phono3py output for phonons, as generated from one of the other tutorials.
 
 Before performing this calculation, you should either run steps 1-3 of the :ref:`elWanTransport` or steps 1-3 of the :ref:`phononTransport`. The input files necessary for the electron and phonon bands calculations are:
 
@@ -42,7 +42,7 @@ Before performing this calculation, you should either run steps 1-3 of the :ref:
 * phono3py_disp.yaml (or phonopy_disp.yaml harmonic only)
 * disp_fc3.yaml (or disp.yaml if harmonic only)
 
-After running at least the necessary steps of these prior calculations and copying this output into your current directory (or at least, noting the path to the files so that you can specify it in the below input files), we can proceed to the next step. 
+After running at least the necessary steps of these prior calculations and copying this output into your current directory (or at least, noting the path to the files so that you can specify it in the below input files), we can proceed to the next step.
 
 
 Step 2: Using Phoebe to calculate band structure
@@ -80,6 +80,7 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
 ::
 
   appName = "electronFourierBands"
+  # note that this XML file should be from an NSCF run
   electronH0Name = "silicon.xml"
   deltaPath = 0.1
   electronFourierCutoff = 4.
@@ -88,7 +89,7 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
   begin point path
   L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
   G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-  X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+  X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000
   K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
   end point path
 
@@ -99,7 +100,7 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
 
 ::
 
-  phFC2FileName = "silicon.fc" 
+  phFC2FileName = "silicon.fc"
   sumRuleFC2 = "simple"
   appName = "phononBands"
   useSymmetries = true
@@ -107,7 +108,7 @@ Once we have the necessary input files, we run Phoebe using one of the input fil
   begin point path
   L 0.50000  0.50000 0.5000 G 0.00000  0.00000 0.0000
   G 0.00000  0.00000 0.0000 X 0.50000  0.00000 0.5000
-  X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000 
+  X 0.50000 -0.50000 0.0000 K 0.37500 -0.37500 0.0000
   K 0.37500 -0.37500 0.0000 G 0.00000  0.00000 0.0000
   end point path
 
@@ -126,15 +127,15 @@ As we can see, these input files are relatively similar. We briefly describe the
 
 * :ref:`sumRuleFC2`: tells Phoebe to use either the simple or crystal acoustic sum rule for the harmonic phonons.
 
-* :ref:`electronH0Name`: used for the electronic case, this points to the ``*_tb.dat`` file from Wannier90.
+* :ref:`electronH0Name`: used for the electronic case, this points to the ``*_tb.dat`` file from Wannier90 or for Fourier bands, an NSCF calculation's ``*.xml`` output.
 
 * :ref:`deltaPath`: this parameter specifies the spacing of points along the band path. Smaller values will give a band path along a finer wavevector path.
 
-* :ref:`electronFourierCutoff`: this parameter specifies the cutoff size of the supercell used in the Fourier interpolation process. The calculation expense scales as :math:`N^3` for this parameter, and you will only see improvement up to a certain point. 
+* :ref:`electronFourierCutoff`: this parameter specifies the cutoff size of the supercell used in the Fourier interpolation process. The calculation expense scales as :math:`N^3` for this parameter, and you will only see improvement up to a certain point.
 
-* :ref:`useSymmetries`: this turns on the use of symmetries in Phoebe, which can speed up the calculation. 
+* :ref:`useSymmetries`: this turns on the use of symmetries in Phoebe, which can speed up the calculation.
 
-* The ``begin crystal`` and ``end crystal`` block is used to provide the crystal structure used in the Wannier90 calculation in crystal coordinates, as this information is not stored in the tb.dat file. 
+* The ``begin crystal`` and ``end crystal`` block is used to provide the crystal structure used in the Wannier90 calculation in crystal coordinates, as this information is not stored in the tb.dat file.
 
 * Finally, the ``begin point path`` and ``end point path`` specify the band path along which we will calculate the lifetimes.
 
@@ -203,15 +204,15 @@ We can also use these inputs to run a DoS calculation, as shown in example files
   useSymmetries = true
 
 
-As we can see, these input files are all pretty much the same. We briefly describe the relevant input parameters below (without repeating those already defined in the bands step above): 
+As we can see, these input files are all pretty much the same. We briefly describe the relevant input parameters below (without repeating those already defined in the bands step above):
 
 * :ref:`appName`: we set this to ``electronWannierDos``, ``electronFourierDos``, or ``phononDos`` to tell Phoebe to run the app to generate the band structure of choice.
 
-* :ref:`qMesh` or :ref:`kMesh`: for the phonon and electron cases, respectively, these variables specify the fine mesh of points used to calculate the DoS. 
+* :ref:`qMesh` or :ref:`kMesh`: for the phonon and electron cases, respectively, these variables specify the fine mesh of points used to calculate the DoS.
 
-* :ref:`dosMinEnergy` and :ref:`dosMaxEnergy`: these parameters define the minimum and maximum energies for which the DoS is calculated. 
+* :ref:`dosMinEnergy` and :ref:`dosMaxEnergy`: these parameters define the minimum and maximum energies for which the DoS is calculated.
 
-* :ref:`dosDeltaEnergy`: specifies the increment size in energy for which the DoS will be calculated. 
+* :ref:`dosDeltaEnergy`: specifies the increment size in energy for which the DoS will be calculated.
 
 Again using the files set up in step 1, we can run the DoS calculation using the input file of our choice::
 
@@ -219,6 +220,23 @@ Again using the files set up in step 1, we can run the DoS calculation using the
   mpirun -np 1 /path/to/phoebe/build/phoebe -in electronWannierDoS.in
 
 These apps are well parallelized over OMP threads or MPI processes, so set the above parameters to match your system architecture accordingly.
+
+.. _eigendisplacements:
+
+Plotting phonon eigendisplacements
+-----------------------------------------------------
+
+In the phonon bands case, Phoebe offers one additional option to plot the phonon eigendisplacements. This is sometimes useful, for example, the eigendisplacements can help diagnose the physical origin of an unstable phonon mode.
+
+If one sets the input file variable :ref:`outputEigendisplacements` = true, the ``phononBands`` app will write the phonon eigendisplacements to the output ``phonon_bands.json`` file. Then, the eigendisplacements can be easily plotted for visualization in VESTA using the script shipped with Phoebe under ``phoebe/scripts/plotScripts/plotEigendisplacements.py``, using the syntax::
+
+  python plotEigendisplacements.py qxCrys qyCrys qzCrys nMode outputName.xsf
+
+where you need to supply the phonon wavevector in crystal coordinates, the branch index of the eigendisplacement (indexed from zero), and the name of the XSF file you want to output + the extension ``.xsf``, which will enable you to open it in VESTA. The output will look something like this:
+
+.. image:: ../images/si.vec.png
+  :width: 35%
+  :align: center
 
 Output
 ------
@@ -253,22 +271,22 @@ We provide a post-processing example python script for this calculation in ``scr
 This script will generate the following images, as below for the electron bands and DoS of silicon, found using Wannier interpolation (and a slightly more converged input calculation):
 
 .. image:: ../images/electron_bands.png
-  :width: 60%
+  :width: 50%
   :align: center
 
 .. image:: ../images/electron_dos.png
-  :width: 70%
+  :width: 60%
   :align: center
 
 
 Convergence Checklist
 ----------------------
 
-As always, this is a demo calculation. However, it's a very simple one, and there are only a few parameters which affect the end calculation. 
+As always, this is a demo calculation. However, it's a very simple one, and there are only a few parameters which affect the end calculation.
 
-* The convergence of your electronic and phonon DFT calculations is of course, critical to this calculation (energy cutoff, k/q mesh, etc). 
+* The convergence of your electronic and phonon DFT calculations is of course, critical to this calculation (energy cutoff, k/q mesh, etc).
 
-* **In particular, the electron Fourier interpolation can need many k-points to converge effectively.** This is not a limitation of Phoebe -- simply, Fourier interpolation requires many points to reach a high quality replication of the electronic structure. 
+* **In particular, the electron Fourier interpolation can need many k-points to converge effectively.** This is not a limitation of Phoebe -- simply, Fourier interpolation requires many points to reach a high quality replication of the electronic structure.
 
 * You also should converge the DoS with respect to the kMesh/qMesh sampling of the Phoebe calculation.
 
@@ -276,4 +294,4 @@ As always, this is a demo calculation. However, it's a very simple one, and ther
 Parallelization
 ----------------
 
-The bands and DoS applications can take advantage of both OMP and MPI parallelization very effectively, and you should get an significant performance benefit from using either (or both) of these parameters.
+The bands and DoS applications can take advantage of both OMP and MPI parallelization very effectively, and you should get an significant performance benefit from using either (or both) of these methods.

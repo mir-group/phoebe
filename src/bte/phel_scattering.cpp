@@ -222,7 +222,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
         withVelocities = true;
       }
-      auto tHelp = electronH0.populate(allK2C, withVelocities); // would need to move this on the gpu
+      bool withEigenvectors = true; // we need these below to calculate coupling
+      auto tHelp = electronH0.populate(allK2C, withVelocities, withEigenvectors); // TODO is this done on GPUs?
+
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
       std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);

@@ -9,7 +9,7 @@ As an alternative to phono3py, we also support anharmonic force constants genera
 Step 1: Run pw.x
 --------------------------------------
 
-Again, we start by calculating the total energy of the silicon unit cell. This calculation will create the ground state charge density and wavefunctions that are used in further calculations. 
+Again, we start by calculating the total energy of the silicon unit cell. This calculation will create the ground state charge density and wavefunctions that are used in further calculations.
 
 To run, go to the folder ``./example/Silicon-ph/qe-phonons`` in the phoebe repository.
 The file ``scf.in`` is the input file for the ``pw.x`` executable, and is shown below::
@@ -54,7 +54,7 @@ The most important parameters are:
 
 * **outdir**: name of the scratch folder. Must be used consistently throughout the run so that it points to the correct files.
 
-This list is obviously not complete, and for your research project you may need to use more functionalities from QE's ``pw.x``. 
+This list is obviously not complete, and for your research project you may need to use more functionalities from QE's ``pw.x``.
 
 Simply run it as::
 
@@ -133,7 +133,7 @@ To calculate these third-order force constants, we will use Quantum ESPRESSO to 
 * Untar the file, and cd into the ``./thirdorder`` directory that has been just created
 
 * Modify the source code in the following way:
-  
+
   * Modify line 559 of file ``thirdorder_core.c``, from ``#include "spglib/spglib.h"`` to ``#include "spglib.h"``.
   * In file ``setup.py``, set line 10 as ``INCLUDE_DIRS = ["/your/path/to/phoebe/build/spglib_src/src"]`` and line 13 as ``LIBRARY_DIRS = ["/your/path/to/phoebe/build/spglib_build"]``.
 
@@ -143,7 +143,7 @@ To calculate these third-order force constants, we will use Quantum ESPRESSO to 
 
   If everything works, you should find a ``*.so`` file in the subdirectories of ``./thirdorder/build``.
 
-* Now, go back to the Phoebe example directory ``/path/to/phoebe/example/Silicon-ph/qe-ph-anharmonic/``.
+* Now, go back to the Phoebe example directory ``/path/to/phoebe/example/Silicon-ph/thirdorder.py-anharmonic/``.
   Let's check the file ``supercell_template.in``::
 
    &control
@@ -191,7 +191,7 @@ To calculate these third-order force constants, we will use Quantum ESPRESSO to 
    If you use the ``K_POINTS gamma`` keyword, make sure you don't use the patched version of QE modified for the electron-phonon coupling, or use it with ``K_POINTS automatic``.
 
 
-* Now, we generate a set of atomic displacements on a supercell. These displacements are needed to compute the third-order force constants. From the Phoebe ``example/Silicon-ph/qe-ph-anharmonic/`` directory, execute the following::
+* Now, we generate a set of atomic displacements on a supercell. These displacements are needed to compute the third-order force constants. From the Phoebe ``example/Silicon-ph/thirdorder.py-anharmonic/`` directory, execute the following::
 
     ln -s /your/path/to/thirdorder_espresso.py .
     python3 thirdorder_espresso.py scf.in sow 2 2 2 -3 supercell_template.in
@@ -223,7 +223,7 @@ To calculate these third-order force constants, we will use Quantum ESPRESSO to 
 * Finally, we postprocess all these forces by typing::
 
     # find and sort the files
-    find . -name 'DISP.supercell_template.in.*out' | sort -n | python3 
+    find . -name 'DISP.supercell_template.in.*out' | sort -n | python3
 
     # collect (aka reap) the forces from each pw.x output file
     thirdorder_espresso.py scf.in reap 2 2 2 -3
@@ -239,7 +239,7 @@ To run a calculation with Phoebe using these force constants, we would use an in
   appName = "phononTransport"
 
   phFC2FileName = "qe-phonons/silicon.fc"
-  phFC3FileName = "qe-ph-anharmonic/FORCE_CONSTANTS_3RD"
+  phFC3FileName = "thirdorder.py-anharmonic/FORCE_CONSTANTS_3RD"
 
   sumRuleFC2 = "simple"
 

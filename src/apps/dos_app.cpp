@@ -10,7 +10,6 @@
 #include "points.h"
 #include "mpiHelper.h"
 #include "parser.h"
-#include "utilities.h"
 #include <nlohmann/json.hpp>
 
 // Forward declare this helper function so that

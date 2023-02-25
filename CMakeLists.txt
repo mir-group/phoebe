@@ -73,6 +73,12 @@ gtest_discover_tests(
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
 
+if(Kokkos_ENABLE_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_link_libraries(phoebe CUDA::cusolver)
+    target_link_libraries(runTests CUDA::cusolver)
+endif()
+
 ################ PARALLEL ####################
 # build with MPI and scalapack
 if (MPI_AVAIL)

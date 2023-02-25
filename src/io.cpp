@@ -90,9 +90,10 @@ void IO::goodbye(Context &context) {
         << "in relation to this calculation:\n" << std::endl;
 
   // Phoebe citation
-  std::cout << "\tPhoebe: a collection of Phonon and Electron Boltzmann Equation solvers.\n"
+  std::cout << "\tPhoebe: a high-performance framework for solving \n\tphonon and electron "
+               "Boltzmann transport equations.\n"
 	    << "\tA. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.\n"
-	    << "\tarXiv:2111.14999 (2021).\n" << std::endl;
+      << "\thttps://doi.org/10.1088/2515-7639/ac86f6 (2022).\n" << std::endl;
 
   std::vector<std::string> solvers = context.getSolverBTE();
   // Relaxons solver
@@ -166,7 +167,15 @@ void IO::goodbye(Context &context) {
     // At least, I think it's this one. Subroutine elphel() in QE was
     // written by F. Mauri, but it's unclear when and for what article
   }
-
+  // phonon isotope scattering
+  if(context.getWithIsotopeScattering()) {
+    std::cout << "  For use of phonon-isotope scattering:" << std::endl;
+    std::cout << "\tJ. Garg, N. Bonini, B. Kozinsky, and N. Marzari.\n" <<
+    // Role of Disorder and Anharmonicity in the Thermal Conductivity of
+    // Silicon-Germanium Alloys: A First-Principles Study
+             "\tPhysical Review Letters 106, 045901 (2011)\n" << std::endl;
+  }
+  // scattering matrix/bte symmetries
   if (context.getScatteringMatrixInMemory() && context.getUseSymmetries()) {
     std::cout << "  For the use of symmetries in the scattering matrix:" << std::endl;
     std::cout << "\tL. Chaput.\n" <<

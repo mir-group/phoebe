@@ -128,6 +128,8 @@ int FullBandStructure::hasWindow() { return 0; }
 
 bool FullBandStructure::getIsDistributed() { return isDistributed; }
 
+bool FullBandStructure::getHasEigenvectors() { return hasEigenvectors; }
+
 int FullBandStructure::getIndex(const WavevectorIndex &ik,
                                  const BandIndex &ib) {
   return ik.get() * numBands + ib.get();

@@ -1,12 +1,12 @@
 #ifndef PH_INTERACTION_H
 #define PH_INTERACTION_H
 
-#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <cmath>
 #include <complex>
 #include <iomanip>
 
+#include "common_kokkos.h"
 #include "constants.h"
 #include "crystal.h"
 #include "eigen.h"
@@ -49,15 +49,20 @@ private:
   Crystal &crystal_;
 
   // variables to be saved on the GPU
-  Kokkos::View<double *****> D3_k;
-  Kokkos::View<Kokkos::complex<double> ****> D3PlusCached_k, D3MinsCached_k;
-  Kokkos::View<double **> cellPositions2_k, cellPositions3_k;
-  Kokkos::View<double ***> weights2_k, weights3_k;
-
-  double maxmem = 16.0e9; // default 16 Gb memory space for computation
+  DoubleView5D D3_k;
+  ComplexView4D D3PlusCached_k, D3MinsCached_k;
+  DoubleView2D cellPositions2_k, cellPositions3_k;
+  DoubleView3D weights2_k, weights3_k;
 
   // dimensions
   int nr2, nr3, numAtoms, numBands;
+
+  /** Estimate the memory in bytes, occupied by the kokkos Views containing
+   * the coupling tensor to be interpolated.
+   *
+   * @return a memory estimate in bytes
+   */
+  double getDeviceMemoryUsage();
 
 public:
 
@@ -97,6 +102,10 @@ public:
   /** Assignment operator
    */
   Interaction3Ph &operator=(const Interaction3Ph &that);
+
+  /** Destructor
+   */
+  ~Interaction3Ph();
 
   /** Computes the |V3|^2 matrix elements for a bunch of q1 wavevectors at fixed
    * q2 wavevector.

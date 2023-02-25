@@ -268,6 +268,7 @@ std::tuple<int, int, int, Eigen::MatrixXd, Eigen::MatrixXd, std::vector<size_t>,
 // specific parse function for the case where parallel HDF5 is available
 InteractionElPhWan parseHDF5V1(Context &context, Crystal &crystal,
                                PhononH0 *phononH0_) {
+  Kokkos::Profiling::pushRegion("parseHDF5V1");
 
   std::string fileName = context.getElphFileName();
 
@@ -351,8 +352,9 @@ InteractionElPhWan parseHDF5V1(Context &context, Crystal &crystal,
     }
 
     // Reopen the HDF5 ElPh file for parallel read of eph matrix elements
-    HighFive::File file(fileName, HighFive::File::ReadOnly,
-        HighFive::MPIOFileDriver(mpi->getComm(comm), MPI_INFO_NULL));
+    HighFive::FileAccessProps fapl = HighFive::FileAccessProps{};
+    fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(mpi->getComm(comm), MPI_INFO_NULL));
+    HighFive::File file(fileName, HighFive::File::ReadOnly, fapl);
 
     // Set up dataset for gWannier
     HighFive::DataSet dgWannier = file.getDataSet("/gWannier");
@@ -514,9 +516,12 @@ InteractionElPhWan parseHDF5V1(Context &context, Crystal &crystal,
     Error("Issue reading elph Wannier representation from hdf5.");
   }
 
+  Kokkos::Profiling::pushRegion("Interaction constructor");
   InteractionElPhWan output(crystal, couplingWannier_, elBravaisVectors_,
                             elBravaisVectorsDegeneracies_, phBravaisVectors_,
                             phBravaisVectorsDegeneracies_, phononH0_);
+  Kokkos::Profiling::popRegion();
+  Kokkos::Profiling::popRegion();
   return output;
 }
 

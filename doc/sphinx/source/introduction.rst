@@ -9,9 +9,10 @@ Additionally, Phoebe is written in C++ and designed for use on modern HPC infras
 
 For more information, or to cite Phoebe, please refer to:
 
-Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.
+Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.
 A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.
-`arXiv:2111.14999 <https://arxiv.org/abs/2111.14999>`_ (2021).
+J. Phys. Mater. 5 035003. (2022).
+`DOI:10.1088/2515-7639/ac86f6 <https://doi.org/10.1088/2515-7639/ac86f6>`_, `arXiv:2111.14999 <https://arxiv.org/abs/2111.14999>`_.
 
 .. raw:: html
 

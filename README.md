@@ -2,7 +2,7 @@
 
 # Phoebe <img src="doc/sphinx/source/_static/icon.png" width="25"/>
 
-### A collection of Phonon and Electron Boltzmann Equation solvers
+### A high-performance framework for solving phonon and electron Boltzmann transport equations
 
 Phoebe is an open-source code for the ab-initio computation of electron and phonon transport properties of crystalline materials.
 
@@ -10,9 +10,9 @@ It is designed to take advantage of HPC systems via MPI-OpenMP hybrid parallelis
 
 For more details, see:
 
-* Phoebe: a collection of Phonon and Electron Boltzmann Equation solvers.  
-  A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky.  
-  [arXiv:2111.14999](https://arxiv.org/abs/2111.14999). (2021).
+* Phoebe: a high-performance framework for solving phonon and electron Boltzmann transport equations.  
+  A. Cepellotti, J. Coulter, A. Johansson, N. S. Fedorova, B. Kozinsky. (2022).   
+  [DOI:10.1088/2515-7639/ac86f6](https://doi.org/10.1088/2515-7639/ac86f6).
 
 Tutorials, documentation of functionality and underlying theory can be found at:
   * [Homepage](https://mir-group.github.io/phoebe/)

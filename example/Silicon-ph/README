@@ -1,0 +1,7 @@
+# To run the full tutorial, generate the anharmonic force constants
+# using either thirdorder.py-anharmonic or phono3py-anharmonic first.
+# To just quickly try out a transport calculation, use the data at
+# in phoebe/test/data/phono3py/, which can be used immediately in
+# these .in files
+#
+# Just make sure you point the .in files to whatever anharnonic data you generate!

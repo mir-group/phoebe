@@ -166,6 +166,21 @@ public:
 
   void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
 
+  /** Average the coupling for degenerate states.
+   * When there are degenerate energies, the freedom of choice of eigenvectors
+   * within the corresponding eigenspace should not affect the final coupling.
+   * We therefore average the coupling over the degenerate states.
+   * @param coupling: Calculated coupling to be averaged.
+   * @param energies1: Energies to check for degeneracy in ib1.
+   * @param energies2: Energies to check for degeneracy in ib2.
+   * @param energies3: Energies to check for degeneracy in ib3.
+   */
+  static void symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
+                        const Eigen::VectorXd& energies1,
+                        const Eigen::VectorXd& energies2,
+                        const Eigen::VectorXd& energies3);
+
+
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
@@ -255,20 +270,6 @@ public:
    * linewidths to be averaged.
    */
   void degeneracyAveragingLinewidths(VectorBTE *linewidth);
-
-  /** Average the coupling for degenerate states.
-   * When there are degenerate energies, the freedom of choice of eigenvectors
-   * within the corresponding eigenspace should not affect the final coupling.
-   * We therefore average the coupling over the degenerate states.
-   * @param coupling: Calculated coupling to be averaged.
-   * @param energies1: Energies to check for degeneracy in ib1.
-   * @param energies2: Energies to check for degeneracy in ib2.
-   * @param energies3: Energies to check for degeneracy in ib3.
-   */
-  void symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
-                        const Eigen::VectorXd& energies1,
-                        const Eigen::VectorXd& energies2,
-                        const Eigen::VectorXd& energies3);
 
 };
 
