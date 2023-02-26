@@ -144,7 +144,7 @@ double DeviceManager::getTotalMemory() {
 }
 
 std::vector<std::vector<int>> DeviceManager::splitToBatches(
-    const std::vector<int>& iterator, int& batchSize) {
+    const std::vector<size_t>& iterator, int& batchSize) {
 
   batchSize = std::min(batchSize, int(iterator.size()));
 
