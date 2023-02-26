@@ -89,7 +89,7 @@ class DeviceManager {
    * @return batches: a vector<vector<int>> which splits the original vector.
    */
   std::vector<std::vector<int>> splitToBatches(
-      const std::vector<size_t>& ikIterator, int& batchSize);
+      const std::vector<int>& ikIterator, int& batchSize);
 
  private:
   double memoryUsed = 0.;

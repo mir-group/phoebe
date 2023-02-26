@@ -277,7 +277,8 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
   std::vector<std::vector<int>> ikBatches;
   {
     // TODO let's try to replace this with an standard mpi iterator
-    std::vector<size_t> ikIterator = mpi->divideWorkIter(numKpoints);
+    std::vector<size_t> tempIter = mpi->divideWorkIter(numKpoints);
+    std::vector<int> ikIterator(begin(tempIter), end(tempIter)); // ideally, all these would already be size_t
     //std::vector<int> ikIterator = fullBandStructure.getWavevectorIndices();
     int batchSize = estimateBatchSize(withVelocities);
     ikBatches = kokkosDeviceMemory->splitToBatches(ikIterator, batchSize);
