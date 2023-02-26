@@ -269,7 +269,8 @@ FullBandStructure PhononH0::kokkosPopulate(Points &fullPoints,
   // divide the k-points into batches
   std::vector<std::vector<int>> ikBatches;
   {
-    std::vector<int> ikIterator = fullBandStructure.getWavevectorIndices();
+    std::vector<int> tempIter = fullBandStructure.getWavevectorIndices();
+    std::vector<size_t> ikIterator(begin(tempIter), end(tempIter)); // ideally, all these would already be size_t
     int batchSize = estimateBatchSize(withVelocities);
     ikBatches = kokkosDeviceMemory->splitToBatches(ikIterator, batchSize);
   }
