@@ -254,11 +254,20 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
                                                     const bool &withVelocities,
                                                     const bool &withEigenvectors,
                                                     const bool isDistributed) {
+  // TODO enforce hasEigenvectors here, could allow more kpoints to be on
+  // the GPU at the same time
 
+  // make a front-facing function that handles conversion into a kpoint list, then
+  // have this function take the kpoint list instead, the interface function
+  // takes the output and sticks that into bandstructure
+
+  // TODO move it to wrapper function
+  // generate a band structure to be filled and returned
   FullBandStructure fullBandStructure(numWannier, particle, withVelocities,
                                       withEigenvectors, fullPoints,
                                       isDistributed);
 
+  // set up information about how kpoint batches will be moved onto host
   std::vector<std::vector<int>> ikBatches;
   {
     std::vector<int> ikIterator = fullBandStructure.getWavevectorIndices();
@@ -266,9 +275,11 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
     ikBatches = kokkosDeviceMemory->splitToBatches(ikIterator, batchSize);
   }
 
+  // diagonalize batches of kpoints
   for (auto ikBatch : ikBatches) {
     int numK = ikBatch.size();
 
+    // set up kokkos view for the wavevectors
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numK, 3);
     {
       auto cartesianWavevectors_h = Kokkos::create_mirror_view(cartesianWavevectors_d);
@@ -284,6 +295,10 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
       Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
     }
 
+// END OF PART TO WRAP
+
+    // structures to fill in with energies, eigenvectors, and velocities
+    // then, create kokkos views to these structures
     Eigen::MatrixXd allEnergies(numK, numWannier);
     Eigen::Tensor<std::complex<double>,3> allEigenvectors(numK, numWannier, numWannier);
     Eigen::Tensor<std::complex<double>,4> allVelocities(numK, numWannier, numWannier, 3);
@@ -301,6 +316,7 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
         allEnergies_d = std::get<0>(t);
         allEigenvectors_d = std::get<1>(t);
       }
+      // no need to keep the wavevectors in memory after this
       Kokkos::realloc(cartesianWavevectors_d, 0, 0);
 
       auto allEnergies_h = Kokkos::create_mirror_view(allEnergies_d);
@@ -335,6 +351,8 @@ FullBandStructure ElectronH0Wannier::kokkosPopulate(Points &fullPoints,
       Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
 
+
+// TODO move this to wrapper function
 #pragma omp parallel for
     for (int iik = 0; iik < numK; iik++) {
       int ik = ikBatch[iik];
@@ -375,7 +393,20 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
                                               const bool &withVelocities,
                                               const bool &withEigenvectors,
                                               const bool isDistributed) {
-  return kokkosPopulate(fullPoints, withVelocities, withEigenvectors, isDistributed);
+
+  return kokkosPopulate(cartesianCoordinates, withVelocities, withEigenvectors, isDistributed);
+}
+
+// this is for when we want to run populate on a points list,
+// without creating a new bandstructure object
+std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+           std::vector<Eigen::Tensor<std::complex<double>,3>>>
+        ElectronH0Wannier::populate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
+                                              const bool &withVelocities,
+                                              const bool &withEigenvectors,
+                                              const bool isDistributed) {
+
+  return kokkosPopulate(cartesianCoordiantes, withVelocities, withEigenvectors, isDistributed);
 }
 
 FullBandStructure ElectronH0Wannier::cpuPopulate(Points &fullPoints,
