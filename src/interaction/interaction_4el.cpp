@@ -460,7 +460,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
 
           Kokkos::complex<double> tmp(0.0);
           for (int iw1 = 0; iw1 < numWannier; iw1++) {
-            tmp += preCache1a(irE2, irE3, iw3, iw2, iw1, iw4) * Kokkos::conj(eigvec1_d(ib1, iw1));
+            tmp += preCache1b(irE2, irE3, iw3, iw2, iw1, iw4) * Kokkos::conj(eigvec1_d(ib1, iw1));
           }
           elPhCached1b_(irE2, irE3, iw3, iw2, ib1, iw4) = tmp;
   });
@@ -578,7 +578,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
       KOKKOS_LAMBDA(int irE3, int ib1, int iw3, int ib2, int iw4) {
         Kokkos::complex<double> tmp(0.0);
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          tmp += preCache2a(irE3, ib1, iw3, iw2, iw4) * Kokkos::conj(eigvec2_d(ib2, iw2));
+          tmp += preCache2b(irE3, ib1, iw3, iw2, iw4) * Kokkos::conj(eigvec2_d(ib2, iw2));
         }
         elPhCached2b(irE3, ib1, iw3, ib2, iw4) = tmp;
       });
@@ -592,7 +592,8 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           // RESUME HERE
           // TODO previously this was the below line, but this is a bad access!
           //tmp += preCache2a(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
-          tmp += preCache2a(irE3, ib1, iw2, iw3, iw4) * eigvec2_d(ib2, iw2);
+          tmp += preCache2c(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
+  Kokkos::parallel_for("preCache2a",
         }
         elPhCached2c(irE3, iw3, ib2, ib1, iw4) = tmp;
       });
