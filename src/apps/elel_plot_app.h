@@ -6,6 +6,8 @@
 
 /** Main driver for the calculation
  */
+
+// TODO add a comment decribing the functionality of this app
 class ElElCouplingPlotApp: public App {
 public:
   void run(Context &context) override;
