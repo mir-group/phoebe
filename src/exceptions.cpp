@@ -6,8 +6,8 @@
 Error::Error(const std::string &errMessage, const int &errCode) {
   if (errCode != 0) {
     if (mpi->mpiHead()) {
-      std::cout << "Error!" << std::endl;
-      std::cout << errMessage << std::endl;
+      std::cout << "\nError!" << std::endl;
+      std::cout << errMessage << "\n" << std::endl;
     }
     mpi->barrier();
     mpi->finalize();
@@ -18,5 +18,5 @@ Error::Error(const std::string &errMessage, const int &errCode) {
 Warning::Warning(const std::string &errMessage) {
   if (!mpi->mpiHead())
     return;
-  std::cout << "WARNING: " << errMessage << std::endl;
+  std::cout << "\nWARNING: " << errMessage << "\n" << std::endl;
 }
