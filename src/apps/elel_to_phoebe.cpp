@@ -19,6 +19,9 @@ void ElElToPhoebeApp::run(Context &context) {
   Error("In order to run the el-el to Phoebe app, you must build Phoebe with HDF5.");
   #endif
 
+  // read in the electron Wannier files and set up the el_h0 hamiltonian
+  // crystal has to be supplied in input file, because Wannier90 doesn't 
+  // print it to output
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
   auto electronH0 = std::get<1>(t1);
@@ -31,9 +34,9 @@ void ElElToPhoebeApp::run(Context &context) {
   // the tolerance on checks if kpoints will be the same
   double tolerance = 1e-5;
 
-  // now we parse the first header
+  // now we parse the first header, BS_head_Q1
   Eigen::MatrixXd yamboQPoints;
-  int numBands, bandOffset, numPoints;
+  int numBands, bandOffset, numPoints; // TODO is numPoints duplicate with numK?
   if (mpi->mpiHead()) {
 
     std::string yamboPrefix = context.getYamboInteractionPrefix();
@@ -45,8 +48,8 @@ void ElElToPhoebeApp::run(Context &context) {
     HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
     // read the k/q-points in crystal coordinates
     d_head_qpt.read(yamboQPoints);
-    int numDim = yamboQPoints.rows();
-    if (numDim != 3) Error("Developer error: qpoints are transposed in yambo?");
+    if (yamboQPoints.rows() != 3) 
+        Error("Developer error: qpoints are transposed in yambo?");
     numPoints = yamboQPoints.cols();
     yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
     yamboQPoints.transposeInPlace();
@@ -86,6 +89,7 @@ void ElElToPhoebeApp::run(Context &context) {
   mpi->bcast(&numPoints);
   mpi->bcast(&numBands);
   mpi->bcast(&bandOffset);
+  // head process has already allocated this, other ones need to
   if (!mpi->mpiHead()) {
     yamboQPoints.resize(3, numPoints);
   }
@@ -97,12 +101,13 @@ void ElElToPhoebeApp::run(Context &context) {
   // uMatrices have size (numBands, numWannier, numKPoints)
   uMatrices = ElPhQeToPhoebeApp::setupRotationMatrices(wannierPrefix, kPoints, false);
 
+  // check that the band numbers from Yambo header file are the same as from Wannier90
   if (numBands != uMatrices.dimension(0)) {
     Error("Band number not aligned between Yambo and Wannier90.");
   }
   int numWannier = uMatrices.dimension(1);
 
-  // generate the Bravais vectors
+  // generate the Bravais vectors and weights
   auto t3 = crystal.buildWignerSeitzVectors(kMesh);
   Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
   Eigen::VectorXd elDegeneracies = std::get<1>(t3);
@@ -143,7 +148,7 @@ void ElElToPhoebeApp::run(Context &context) {
       Error("BSE kernel size not consistent with the rest of the input");
     }
 
-    // note that the yamboKernel is only the lower triange of the
+    // note that the yamboKernel is only the lower triangle of the
     // matrix, and the upper triangle is nonsense that needs to be filled
     // first pass: we make sure the matrix is complete
     int count = 0;
@@ -159,10 +164,11 @@ void ElElToPhoebeApp::run(Context &context) {
     Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
     HighFive::DataSet d_ikbz = file.getDataSet("/IKBZ_IB1_IB2_ISP2_ISP1");
     d_ikbz.read(ikbz_ib1_ib2_isp2_isp1);
+    // reshape to correct dimension
     ikbz_ib1_ib2_isp2_isp1 = ikbz_ib1_ib2_isp2_isp1.reshaped(M,5).eval();
     ikbz_ib1_ib2_isp2_isp1.transposeInPlace();
 
-    // now we substitute this back into the big coupling tensor
+    // Get the exciton Q this file is associated with
     Eigen::Vector3d excitonQ = yamboQPoints.col(iQ);
 
     #pragma omp parallel for
@@ -170,16 +176,16 @@ void ElElToPhoebeApp::run(Context &context) {
       int iYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, iYamboBSE);
       int iYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, iYamboBSE);
       int iYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, iYamboBSE);
-      int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
-      int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
+      //int iYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, iYamboBSE);
+      //int iYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, iYamboBSE);
       // k1
       Eigen::Vector3d thisiK = yamboQPoints.col(iYamboIk1 - 1);
       for (int jYamboBSE = 0; jYamboBSE < M; ++jYamboBSE) {
         int jYamboIk1 = ikbz_ib1_ib2_isp2_isp1(0, jYamboBSE);
         int jYamboIb1 = ikbz_ib1_ib2_isp2_isp1(1, jYamboBSE);
         int jYamboIb2 = ikbz_ib1_ib2_isp2_isp1(2, jYamboBSE);
-        int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
-        int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
+        //int jYamboIS2 = ikbz_ib1_ib2_isp2_isp1(3, jYamboBSE);
+        //int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
         // k3
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         // k2 -- because k1-k2 = Q
@@ -197,13 +203,13 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib4 = jYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
-        if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
+        /*if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
           std::cout << "k1 " << thisiK.transpose() << std::endl;
           std::cout << "k2 " << thisK2.transpose() << std::endl;
           std::cout << "k3 " << thisjK.transpose() << std::endl;
           std::cout << "Q " << excitonQ.transpose() << std::endl;
           std::cout << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << std::endl;
-        }
+        }*/
       }
     }
   }
@@ -422,8 +428,7 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iR3 = 0; iR3 < numR; ++iR3) {
                   tmp = {0., 0.};
                   for (int ik3 = 0; ik3 < numK; ++ik3) {
-                    tmp += std::conj(phases(ik3, iR3))
-                        * Gamma6(iR1, iR2, ik3, iw1, iw2, iw3, iw4);
+                    tmp += std::conj(phases(ik3, iR3)) * Gamma6(iR1, iR2, ik3, iw1, iw2, iw3, iw4);
                   }
                   GammaW(iR1, iR2, iR3, iw1, iw2, iw3, iw4) = tmp;
                 }
@@ -438,8 +443,7 @@ void ElElToPhoebeApp::run(Context &context) {
   mpi->barrier();
 
   // Now, let's write it to file
-  writeWannierCoupling(context, GammaW, elDegeneracies,
-                       elBravaisVectors, kMesh);
+  writeWannierCoupling(context, GammaW, elDegeneracies, elBravaisVectors, kMesh);
 }
 
 void ElElToPhoebeApp::writeWannierCoupling(
@@ -466,10 +470,10 @@ void ElElToPhoebeApp::writeWannierCoupling(
   // these files seem to get stuck open when a process dies while writing to
   // them, (even if a python script dies) and then they can't be overwritten
   // properly.
-
   std::remove(&outFileName[0]);
   mpi->barrier();
-
+  
+  // TODO may be a problem here if run with more than 1 MPI process, Jenny should check this
   try {
   {
 
@@ -526,14 +530,12 @@ void ElElToPhoebeApp::writeWannierCoupling(
 
       // write to hdf5
       dslice.write(flatSlice);
-
     }
-  mpi->barrier();
-  }
+    mpi->barrier();
+  } // closing braces
   } catch (std::exception &error) {
-    Error("Issue writing elel Wannier representation matrix elements to hdf5.");
+    Error("Issue writing el-l Wannier representation matrix elements to hdf5.");
   }
-
   mpi->barrier();
 
   // now we write some extra info
