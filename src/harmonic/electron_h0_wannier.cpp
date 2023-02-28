@@ -366,7 +366,6 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
       Kokkos::realloc(allVelocities_d, 0, 0, 0, 0);
     }
 
-
     // each process could push back to a vector of E, v, and eigs...
     // they will be ordered correctly within the process
     // possible strategies:
@@ -448,19 +447,26 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
 
   // band structure quantities from kokkosPopulate, the outer std::vectors are indexed by
   // kpoints in cartesianCoordinates, Eigen components are indexed by bands
-  size_t numKpoints = cartesianCoordinates.size();
+  //size_t numKpoints = cartesianCoordinates.size();
   std::vector<Eigen::VectorXd> returnEnergies = std::get<0>(tup);
   std::vector<Eigen::MatrixXcd> returnEigenvectors = std::get<1>(tup);
   std::vector<Eigen::Tensor<std::complex<double>,3>> returnVelocities = std::get<2>(tup);
 
   // copy returned quantities into the band structure
+
+  // if the bandstructure is distributed, it only has some fraction
+  // of the kPoints. Remember to loop over iks, which
+  // are the kpoint indices it owns!
   #pragma omp parallel for
-  for (int ik = 0; ik < numKpoints; ik++) {
+  for(int iik = 0; iik < niks; iik++) {
+
+    // ik is the global index of the kpoint, iik is the local index
+    int ik = iks[iik];
 
     Point point = fullBandStructure.getPoint(ik);
     Eigen::VectorXd ens(numWannier);
     for (int ib=0; ib<numWannier; ++ib) {
-      ens(ib) = returnEnergies[ik](ib);
+      ens(ib) = returnEnergies[iik](ib);
     }
     fullBandStructure.setEnergies(point, ens);
 
@@ -469,7 +475,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
       for (int ib1 = 0; ib1 < numWannier; ++ib1) {
         for (int ib2 = 0; ib2 < numWannier; ++ib2) {
           for (int i = 0; i < 3; ++i) {
-            v(ib1,ib2,i) = returnVelocities[ik](ib1, ib2, i);
+            v(ib1,ib2,i) = returnVelocities[iik](ib1, ib2, i);
           }
         }
       }
@@ -479,13 +485,14 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
       Eigen::MatrixXcd eigVec(numWannier, numWannier);
       for (int ib1 = 0; ib1 < numWannier; ++ib1) {
         for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-          eigVec(ib1, ib2) = returnEigenvectors[ik](ib1, ib2);
+          eigVec(ib1, ib2) = returnEigenvectors[iik](ib1, ib2);
         }
       }
       fullBandStructure.setEigenvectors(point, eigVec);
     }
   }
-  return fullBandStructure;
+
+return fullBandStructure;
 }
 
 // this is for when we want to run populate on a points list,
@@ -546,14 +553,14 @@ FullBandStructure ElectronH0Wannier::cpuPopulate(Points &fullPoints,
     auto ens = allEnergies[iik];
     fullBandStructure.setEnergies(point, ens);
     if (withVelocities) {
-      fullBandStructure.setVelocities(point, allVelocities[iik]);
+      auto velocities = diagonalizeVelocity(point);
+      fullBandStructure.setVelocities(point, velocities);
     }
     if (withEigenvectors) {
       auto eigenVectors = allEigenvectors[iik];
       fullBandStructure.setEigenvectors(point, eigenVectors);
     }
   }
-
   return fullBandStructure;
 }
 
@@ -667,7 +674,8 @@ void ElectronH0Wannier::addShiftedVectors(Eigen::Tensor<double,3> degeneracyShif
  * Returns the energies (nk, nb), eigenvectors (nk, nb, nb)
  * and velocities (nk, nb, nb, 3) at each k-point.
  */
-std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+std::tuple<std::vector<Eigen::VectorXd>,
+           std::vector<Eigen::MatrixXcd>,
            std::vector<Eigen::Tensor<std::complex<double>, 3>>>
 ElectronH0Wannier::batchedDiagonalizeWithVelocities(
     std::vector<Eigen::Vector3d> cartesianCoordinates) {
@@ -1067,7 +1075,7 @@ int ElectronH0Wannier::estimateBatchSize(const bool& withVelocity) {
   // we try to use 95% of the available memory (leave some buffer)
   int numBatches = int(memoryAvailable / memoryPerPoint * 0.95);
   if (numBatches < 1) {
-    Error("Not enough memory available on device, reduce memory useage or run on "
+    Error("Not enough memory available on device, reduce memory usage or run on "
         "a different device.");
   }
 
