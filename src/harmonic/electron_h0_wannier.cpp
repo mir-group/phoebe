@@ -286,7 +286,6 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
         WavevectorIndex ikIdx(ik);
         // TODO anders, can I copy this in directly rather than by element? Are views smart like this?
         Eigen::Vector3d k = cartesianCoordinates[iik];
-        if(mpi->getRank()) std::cout << k.transpose() << std::endl;
         for (int i = 0; i < 3; ++i) {
           cartesianWavevectors_h(iik, i) = k(i);
         }
@@ -325,7 +324,6 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
       for (int iik=0; iik<numBatchK; ++iik) {
         // iik is local, ik is global
         int ik = ikBatch[iik];
-        if(mpi->getRank()) std::cout << "ik iik " << ik << " " << iik << std::endl;
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
           //allEnergies(iik, ib1) = allEnergies_h(iik, ib1);
           returnEnergies[iik](ib1) = allEnergies_h(iik, ib1);
@@ -407,7 +405,6 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
   //mpi->allReduceSum(&returnEigenvectors);
   //if(withVelocities)
   //  mpi->allReduceSum(&returnVelocities);
-  std::cout << "end function " << mpi->getRank() << std::endl;
   return std::make_tuple(returnEnergies, returnEigenvectors, returnVelocities);
 }
 
@@ -435,7 +432,6 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
     int ik = iks[iik];
     Eigen::Vector3d kCart = fullPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
     cartesianCoordinates[iik] = kCart;
-    std::cout << "kcart " << kCart.transpose() << std::endl;
   }
 
   // call kokkos populate to generate energies, velocities, and eigenvectors as necessary
@@ -457,10 +453,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
 
     // ik is the global index of the kpoint, iik is the local index
     int ik = iks[iik];
-    if(mpi->getRank() == 1) std::cout << ik << " ene " << returnEnergies[iik](1) << std::endl;
-
     Point point = fullBandStructure.getPoint(ik);
-    if(mpi->getRank() == 1) std::cout << iik << " kpoint " << point.getCoordinates().transpose() << std::endl;
 
     Eigen::VectorXd ens(numWannier);
     for (int ib=0; ib<numWannier; ++ib) {
@@ -519,11 +512,11 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
   mpi->allGatherv(&localEnergies, &returnEnergies);
   if(withEigenvectors) {
     returnEigenvectors.resize(totalNumPoints, Eigen::MatrixXd(numWannier,numWannier));
-    mpi->allGatherv(&localEigenvectors, &returnEnergies);
+    mpi->allGatherv(&localEigenvectors, &returnEigenvectors);
   }
   if(withVelocities) {
     returnVelocities.resize(totalNumPoints, Eigen::Tensor<std::complex<double>,3>(numWannier,numWannier,3));
-    mpi->allGatherv(&localVelocities, &returnEnergies);
+    mpi->allGatherv(&localVelocities, &returnVelocities);
   }
 
   return std::make_tuple(returnEnergies, returnEigenvectors, returnVelocities);
