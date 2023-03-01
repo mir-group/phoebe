@@ -171,7 +171,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
            std::vector<Eigen::Tensor<std::complex<double>,3>>>
                     kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
                                    const bool &withVelocities,
-                                   const bool &withEigenvectors);
+                                   const bool &withEigenvectors, const std::vector<int>& iks);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
    * @param point: the Point coordinates of the wavevector.
