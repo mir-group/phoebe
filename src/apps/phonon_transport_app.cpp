@@ -21,14 +21,22 @@ void setupPhononElectronScattering(Context& context, Crystal& crystal,
 
 void PhononTransportApp::run(Context &context) {
 
-  // Read the necessary input files
+  // collect information about the run from context
+  // TODO make these two each optional
+  bool usePhPhInteraction = !context.getPhFC3FileName().empty();
+  bool usePhElInteraction = !context.getElphFileName().empty();
+  bool useCRTA = std::isnan(context.getConstantRelaxationTime());
 
+  if(!usePhPhInteraction && !usePhElInteraction && !useCRTA) {
+    Error("To run the ph transport app beyond CRTA, supply a ph-ph or el-ph file!");
+  }
+
+  // Read the necessary input files
   auto tup = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
   // first we make compute the band structure on the fine grid
-
   Points fullPoints(crystal, context.getQMesh());
 
   if (mpi->mpiHead()) {
@@ -67,7 +75,7 @@ void PhononTransportApp::run(Context &context) {
   // if requested in input, load the phononElectron information
   // we save only a vector BTE to add to the phonon scattering matrix,
   // as the phonon electron lifetime only contributes to the digaonal
-  if(context.getUsePhElScattering()) {
+  if(usePhElInteraction) {
 
     // don't proceed if we use more than one doping concentration:
     // we'd need slightly different statisticsSweep for the 2 scatterings
@@ -487,7 +495,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   if (context.getSmearingMethod() == DeltaFunction::gaussian) {
     throwErrorIfUnset(context.getSmearingWidth(), "smearingWidth");
   }
-  if (context.getUsePhElScattering()) {
+  if (!context.getElphFileName().empty()) {
     throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
     throwErrorIfUnset(context.getElphFileName(), "elphFileName");
     if (context.getDopings().size() == 0 &&

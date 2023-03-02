@@ -642,7 +642,7 @@ InteractionElPhWan parseHDF5(Context &context, Crystal &crystal,
     std::ifstream infile(fileName);
     if (not infile.is_open()) {
       Error("Required electron-phonon file ***.phoebe.elph.hdf5 "
-            "not found at " + fileName + " .");
+            "not found at " + fileName);
     }
   }
 
