@@ -70,11 +70,7 @@ For this, we run a Phoebe calculation using the below input file::
   phFC3FileName = "fc3.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
 
-  # tell phoebe to read in the electron-phonon information
-  usePhElScattering = true
-
   # path to electron-phonon coupling inputs
-  phFC2FileName = "cu.fc"  # TODO need to add an extra item for this....?
   electronH0Name = "cu_tb.dat",
   elphFileName = "cu.phoebe.elph.hdf5"
 

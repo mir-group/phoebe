@@ -21,8 +21,9 @@ void setupPhononElectronScattering(Context& context, Crystal& crystal,
 
 void PhononTransportApp::run(Context &context) {
 
+  // TODO make sure .fc and fc2.hdf5 have the same info!
+  // TODO make these two each optional, and that we can run if only one or the other is defed
   // collect information about the run from context
-  // TODO make these two each optional
   bool usePhPhInteraction = !context.getPhFC3FileName().empty();
   bool usePhElInteraction = !context.getElphFileName().empty();
   bool useCRTA = std::isnan(context.getConstantRelaxationTime());
@@ -85,11 +86,11 @@ void PhononTransportApp::run(Context &context) {
     if (mpi->mpiHead()) {
       std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
     }
-    VectorBTE elPhLinewidths = getPhononElectronLinewidth(context, crystal,
+    VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
                                                           bandStructure,
                                                           phononH0);
     VectorBTE totalRates = scatteringMatrix.diagonal();
-    totalRates = totalRates + elPhLinewidths;
+    totalRates = totalRates + phElLinewidths;
     scatteringMatrix.setLinewidths(totalRates);
   }
 
