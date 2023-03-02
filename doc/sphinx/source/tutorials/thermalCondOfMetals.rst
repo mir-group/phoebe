@@ -10,34 +10,34 @@ While in many semiconducting and insulating systems phonon transport is dominate
 
 This is no small task, as the calculation requires the input files from both the phonon-phonon and electron-phonon calculations. Before starting, we ask that you follow the tutorials for :ref:`phononTransport` (steps 1-3) and :ref:`elPhTransport` (steps 1-7), using the input files `here <phoebe site>`_ for copper.
 
-While we note that these tutorial files will result in unconverged calculations, they will serve the purpose of this example. Both sets of calculations need to be converged as described in their respective tutorials for real use. 
+While we note that these tutorial files will result in unconverged calculations, they will serve the purpose of this example. Both sets of calculations need to be converged as described in their respective tutorials for real use.
 
-To begin, we will require these input files from each of the coupling calculations: 
+To begin, we will require these input files from each of the coupling calculations:
 
-**Electron-Phonon**: 
+**Electron-Phonon**:
 * `cu.fc`
 * `cu_tb.dat`
 * `cu.phoebe.elph.dat`
 
-**Phonon-Phonon**: 
+**Phonon-Phonon**:
 * `fc2.hdf5`
 * `fc3.hdf5`
-* `phono3py_disp.yaml` 
+* `phono3py_disp.yaml`
 (though ShengBTE files could also be used).
 
 
 Step 1: Electronic Thermal Conductivity Calculation
 ----------------------------------------------------
 
-First we do the straightforward step -- we need to calculate :math:`\kappa_{el}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there. 
+First we do the straightforward step -- we need to calculate :math:`\kappa_{el}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there.
 
-Then, run the following Phoebe input file:: 
+Then, run the following Phoebe input file::
 
   appName = "electronWannierTransport"
   phFC2FileName = "cu.fc"
   sumRuleFC2 = "crystal"
   electronH0Name = "cu_tb.dat",
-  elphFileName = "cu.phoebe.elph.dat"
+  elphFileName = "cu.phoebe.elph.hdf5"
 
   kMesh = [20,20,20]
   temperatures = [100.,200.,300.,400.]
@@ -49,17 +49,17 @@ Then, run the following Phoebe input file::
   useSymmetries = true
   scatteringMatrixInMemory = false
 
-Here, we do a calculation across a few temperatures, and therefore, for the sake of doing a quick calculation, we use the RTA transport method. This means we don't need to store the full scattering matrix in memory and we can run them all together to save time. In a production quality calculation, it would also be important to be sure each temperature is converged for the selected k-point mesh, as lower temperatuers will require more k-points to converge. 
+Here, we do a calculation across a few temperatures, and therefore, for the sake of doing a quick calculation, we use the RTA transport method. This means we don't need to store the full scattering matrix in memory and we can run them all together to save time. In a production quality calculation, it would also be important to be sure each temperature is converged for the selected k-point mesh, as lower temperatuers will require more k-points to converge.
 
 This should be run just as in the other tutorial::
 
   export OMP_NUM_THREADS=4
   /path/to/phoebe/build/phoebe -in electronWannierTransport.in > electronTransport.out
 
-Step 2: Lattice Thermal Conducivity Calculation 
+Step 2: Lattice Thermal Conducivity Calculation
 ------------------------------------------------
 
-Now, we have to calculate the lattice thermal conductivity using both phonon-electron and phonon-phonon scattering. This corresponds to :ref:`calculatePhononTransport`, step 4 of the phonon transport tutorial, but now also uses electron-phonon information. 
+Now, we have to calculate the lattice thermal conductivity using both phonon-electron and phonon-phonon scattering. This corresponds to :ref:`calculatePhononTransport`, step 4 of the phonon transport tutorial, but now also uses electron-phonon information.
 
 For this, we run a Phoebe calculation using the below input file::
 
@@ -73,10 +73,10 @@ For this, we run a Phoebe calculation using the below input file::
   # tell phoebe to read in the electron-phonon information
   usePhElScattering = true
 
-  # path to electron-phonon coupling inputs 
-  phFC2FileName = "cu.fc"  # TODO need to add an extra item for this....? 
+  # path to electron-phonon coupling inputs
+  phFC2FileName = "cu.fc"  # TODO need to add an extra item for this....?
   electronH0Name = "cu_tb.dat",
-  elphFileName = "cu.phoebe.elph.dat"
+  elphFileName = "cu.phoebe.elph.hdf5"
 
   temperatures = [100.,200.,300.,400.]
   chemicalPotentials = [FERMI ENERGY]
@@ -87,7 +87,7 @@ For this, we run a Phoebe calculation using the below input file::
   useSymmetries = true
   scatteringMatrixInMemory = false
 
-It's good to note here that currently we use the q-mesh to also define the k-mesh used for the electron-phonon calculation. 
+It's good to note here that currently we use the q-mesh to also define the k-mesh used for the electron-phonon calculation.
 
 Again, this should be run just as in the other tutorial::
 
@@ -98,13 +98,13 @@ Again, this should be run just as in the other tutorial::
 Step 3: Post-Process the Outputs
 ------------------------------------------------
 
-From these two calculations, we'll need the `solver_onsager_coefficients.json` from the electronic calculation, and the `rta_phonon_thermal_cond.json` files. 
-Below, we plot the output of these calculations together using the following simple python script:: 
+From these two calculations, we'll need the `solver_onsager_coefficients.json` from the electronic calculation, and the `rta_phonon_thermal_cond.json` files.
+Below, we plot the output of these calculations together using the following simple python script::
 
   # TODO python script
 
 
-# TODO stick in the plot 
+# TODO stick in the plot
 
 
 
