@@ -35,7 +35,6 @@ class Context {
 
   bool scatteringMatrixInMemory = true;
   bool useSymmetries = false;
-  bool usePhElScattering = false;
 
   std::string windowType = "nothing";
   Eigen::Vector2d windowEnergyLimit = Eigen::Vector2d::Zero();
@@ -154,8 +153,6 @@ public:
   void setPhonopyDispFileName(const std::string &x);
 
   std::string getPhonopyBORNFileName();
-
-  bool getUsePhElScattering(); 
 
   std::string getElphFileName();
   void setElphFileName(const std::string &x);
