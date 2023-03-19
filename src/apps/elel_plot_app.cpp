@@ -50,20 +50,39 @@ q = k3 - k1 = 0.25 0 0
  */
 
   // for now we set up the coupling points by hand. Later will bring in a way to read this from input
-  Eigen::Vector3d k1 = {0.125,0.0,0.0};
-  Eigen::Vector3d k2 = {0.25, 0.0,0.0};
-  Eigen::Vector3d k3 = {0.375,0.0,0.0};
+  // for now, let's do ... coupling between fixed K1, K2, and a specified uniform kmesh and do coupling between
+  // set up k-points
+  //
+  Eigen::Vector3i kMesh = context.getKMesh();
+  Points kPoints(crystal, kMesh);
+  int numKPoints = kMesh.prod();
+  // TODO any way to enforce this is crystal?
+  Eigen::Vector3d k1 = context.getG2PlotFixedPoint();
+  k1 = kPoints.crystalToCartesian(k1);
+  // TODO give some way to specify this by input
+  Eigen::Vector3d k2 = {0.25, 0.0, 0.0};
+  k2 = kPoints.crystalToCartesian(k2);
 
-  Points points(crystal);
-  k1 = points.crystalToCartesian(k1);
-  k2 = points.crystalToCartesian(k2);
-  k3 = points.crystalToCartesian(k3);
+  //Eigen::Vector3d k1 = {0.125,0.0,0.0};
+  //Eigen::Vector3d k2 = {0.25, 0.0,0.0};
+  //Eigen::Vector3d k3 = {0.375,0.0,0.0};
+  //k1 = kPoints.crystalToCartesian(k1);
+  //k2 = kPoints.crystalToCartesian(k2);
+  //k3 = points.crystalToCartesian(k3);
 
-  // loop over points and set up points pairs
+  // loop over points and set up points triplets
   std::vector<std::tuple<Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d>> pointsTriplets;
-  pointsTriplets.push_back(std::make_tuple(k1,k2,k3));
+  for (int ik3 = 0; ik3 < numKPoints; ik3++) {
+
+    Eigen::Vector3d k3 = kPoints.getPointCoordinates(ik3, Points::cartesianCoordinates);
+    std::cout << k3.transpose() << std::endl;
+    //std::tuple<Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d> thisTriplet;
+    pointsTriplets.push_back(std::make_tuple(k1, k2, k3));
+
+  }
 
   // band ranges to calculate the coupling for
+  // TODO add PlotElBand ranges variables for 3 and 4? Or just use one and enforce that?
   std::pair<int, int> g2PlotEl1Bands = std::make_pair(0,1); //context.getG2PlotEl1Bands();
   std::pair<int, int> g2PlotEl2Bands = std::make_pair(0,1); //context.getG2PlotEl2Bands();
   std::pair<int, int> g2PlotEl3Bands = std::make_pair(0,1); //context.getG2PlotPhBands();
@@ -72,7 +91,6 @@ q = k3 - k1 = 0.25 0 0
   // Compute the coupling --------------------------------------------------
   // we calculate the coupling for each pair, flatten it, and append
   // it to allMatrixElementsSq. Then at the end, we write this chunk to HDF5.
-
   std::vector<double> allMatrixElementsSq;
 
   // distribute over triplets
@@ -97,6 +115,8 @@ q = k3 - k1 = 0.25 0 0
     Eigen::Vector3d k2 = std::get<1>(thisTriplet);
     Eigen::Vector3d k3 = std::get<2>(thisTriplet);
     Eigen::Vector3d k4 = k3 - k1 + k2; //k2 + q;
+
+    std::cout << "k3 " << k3.transpose() << std::endl;
 
     // need to get the eigenvectors at these three wavevectors
     auto t3 = electronH0.diagonalizeFromCoordinates(k1);
@@ -272,13 +292,13 @@ q = k3 - k1 = 0.25 0 0
       for (size_t iTriplet = 0; iTriplet < pointsTriplets.size(); iTriplet++) {
 
         auto thisTriplet = pointsTriplets[iTriplet];
-        Eigen::Vector3d k1C = points.cartesianToCrystal(std::get<0>(thisTriplet));
-        Eigen::Vector3d k2C = points.cartesianToCrystal(std::get<1>(thisTriplet));
-        Eigen::Vector3d QC = points.cartesianToCrystal(std::get<1>(thisTriplet));
+        Eigen::Vector3d k1C = kPoints.cartesianToCrystal(std::get<0>(thisTriplet));
+        Eigen::Vector3d k2C = kPoints.cartesianToCrystal(std::get<1>(thisTriplet));
+        Eigen::Vector3d k3C = kPoints.cartesianToCrystal(std::get<2>(thisTriplet));
         for( int i : {0,1,2} ) {
           pointsTemp(iTriplet,i) = k1C(i);
           pointsTemp(iTriplet,i+3) = k2C(i);
-          pointsTemp(iTriplet,i+6) = QC(i);
+          pointsTemp(iTriplet,i+6) = k3C(i);
         }
       }
       // write the points pairs to file
@@ -320,9 +340,9 @@ void ElElCouplingPlotApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
   //if(context.getG2PlotStyle() == "pointsPath")
   //  throwErrorIfUnset(context.getPathExtrema(), "points path extrema");
-  //else {
-  //  throwErrorIfUnset(context.getKMesh(), "kMesh");
-  //}
+  throwErrorIfUnset(context.getKMesh(), "kMesh");
+  // TODO this does not work!
+  throwErrorIfUnset(context.getG2PlotFixedPoint(), "couplingFixedPoint");
   // check that crystal structure was provided
   std::string crystalMsg = "crystal structure";
   throwErrorIfUnset(context.getInputAtomicPositions(), crystalMsg);
