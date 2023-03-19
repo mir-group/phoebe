@@ -102,7 +102,7 @@ class Context {
   // plot of el-ph coupling
   std::string g2PlotStyle = "allToAll";
   std::string g2MeshStyle = "pointsMesh";
-  Eigen::Vector3d g2PlotFixedPoint = {0,0,0};
+  Eigen::Vector3d g2PlotFixedPoint;
   std::pair<int,int> g2PlotEl1Bands = std::make_pair(-1,-1);
   std::pair<int,int> g2PlotEl2Bands = std::make_pair(-1,-1);
   std::pair<int,int> g2PlotPhBands = std::make_pair(-1,-1);

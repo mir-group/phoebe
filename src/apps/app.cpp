@@ -107,6 +107,12 @@ void App::throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name) {
   }
 }
 
+void App::throwErrorIfUnset(const Eigen::Vector3d &x, const std::string &name) {
+  if (x.size() == 0) {
+    Error("Input variable " + name + " hasn't been found in input");
+  }
+}
+
 void App::throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name) {
   if (x.size() == 0) {
     Error("Input variable " + name + " hasn't been found in input");

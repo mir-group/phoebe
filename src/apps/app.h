@@ -49,7 +49,9 @@ protected:
                          const std::string &name);
   static void throwErrorIfUnset(const double &x, const std::string &name);
   static void throwErrorIfUnset(const Eigen::VectorXi &x, const std::string &name);
+  // TODO: These two with length 3 do not work!
   static void throwErrorIfUnset(const Eigen::Vector3i &x, const std::string &name);
+  static void throwErrorIfUnset(const Eigen::Vector3d &x, const std::string &name);
   static void throwErrorIfUnset(const Eigen::VectorXd &x, const std::string &name);
   static void throwErrorIfUnset(const Eigen::MatrixXd &x, const std::string &name);
   static void throwErrorIfUnset(const Eigen::Tensor<double, 3> &x,
