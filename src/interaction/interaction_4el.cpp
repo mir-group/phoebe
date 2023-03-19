@@ -593,7 +593,6 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           // TODO previously this was the below line, but this is a bad access!
           //tmp += preCache2a(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
           tmp += preCache2c(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
-  Kokkos::parallel_for("preCache2a",
         }
         elPhCached2c(irE3, iw3, ib2, ib1, iw4) = tmp;
       });
