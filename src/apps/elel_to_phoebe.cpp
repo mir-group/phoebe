@@ -229,6 +229,13 @@ void ElElToPhoebeApp::run(Context &context) {
     std::cout << "Starting the Wannier transform.\n";
   }
 
+  // TODO -- for electrons, this procedure is probably good
+  // however, for holes, Changpeng wonders if we need to take the complex conjugate of 
+  // the U matrix (to essentially swap bra and ke
+  
+  // NOTE: this transform+rotation series corresponds to eq 60 in Changpeng's notes 
+  // as of 3/22/23
+  
   // first we do the rotation on k4, the implicit index
   Eigen::Tensor<std::complex<double>, 7> Gamma1(numK, numK, numK, numBands, numBands, numBands, numWannier);
   {
@@ -239,7 +246,8 @@ void ElElToPhoebeApp::run(Context &context) {
         Eigen::Vector3d k2C = kPoints.getPointCoordinates(ik2, Points::crystalCoordinates);
         for (int ik3 = 0; ik3 < numK; ++ik3) {
           Eigen::Vector3d k3C = kPoints.getPointCoordinates(ik3, Points::crystalCoordinates);
-          Eigen::Vector3d k4C = k1C + k2C - k3C;
+          // K1-K2 = K3-K4 <-- original momentum conservation relation in Yambo
+          Eigen::Vector3d k4C = k3C + k2C - k1C; 
           int ik4 = kPoints.getIndex(k4C);
 
           #pragma omp parallel for collapse(4)
@@ -249,8 +257,9 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iw4 = 0; iw4 < numWannier; ++iw4) {
                   tmp = {0., 0.};
                   for (int ib4 = 0; ib4 < numBands; ++ib4) {
+                    // TODO: previously was not complex conj
                     tmp += qpCoupling(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
-                        * uMatrices(ib4, iw4, ik4);
+                        * std::conj(uMatrices(ib4, iw4, ik4));
                   }
                   Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4) = tmp;
                 }
@@ -307,8 +316,9 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iw2 = 0; iw2 < numWannier; ++iw2) {
                   tmp = {0., 0.};
                   for (int ib2 = 0; ib2 < numBands; ++ib2) {
+                    // TODO originally, this was conj(uMatrix) -- we test the opposite
                     tmp += Gamma2(ik1, ik2, ik3, ib1, ib2, iw3, iw4)
-                        * std::conj(uMatrices(ib2, iw2, ik2));
+                        * uMatrices(ib2, iw2, ik2); 
                   }
                   Gamma3(ik1, ik2, ik3, ib1, iw2, iw3, iw4) = tmp;
                 }
@@ -375,11 +385,10 @@ void ElElToPhoebeApp::run(Context &context) {
           for (int iw2 = 0; iw2 < numWannier; ++iw2) {
             for (int iw3 = 0; iw3 < numWannier; ++iw3) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
-
                 for (int iR = 0; iR < numR; ++iR) {
                   tmp = {0., 0.};
                   for (int ik1 = 0; ik1 < numK; ++ik1) {
-                    tmp += phases(ik1, iR) * Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4);
+                    tmp += phases(ik1, iR) * std::conj(Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4));
                   }
                   Gamma5(iR, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
@@ -407,7 +416,7 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iR2 = 0; iR2 < numR; ++iR2) {
                   tmp = {0., 0.};
                   for (int ik2 = 0; ik2 < numK; ++ik2) {
-                    tmp += phases(ik2, iR2) * Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4);
+                    tmp += std::conj(phases(ik2, iR2)) * Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4);
                   }
                   Gamma6(iR1, iR2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
