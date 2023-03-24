@@ -157,7 +157,6 @@ void ElElToPhoebeApp::run(Context &context) {
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
-        // TODO: check if this has to be a complex conjugate
         yamboKernel(j, i) = std::conj(yamboKernel(i, j));
       }
     }
@@ -190,19 +189,19 @@ void ElElToPhoebeApp::run(Context &context) {
         //int jYamboIS1 = ikbz_ib1_ib2_isp2_isp1(4, jYamboBSE);
         // k3
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
-        // k2 -- because k1-k2 = Q
-        Eigen::Vector3d thisK2 = thisiK - excitonQ;
-        // k4 will be defined by momentum conservation
+        // because k3 - k4 = Q in Yambo's convention, and then we swap k2 and k4 by defining k2 = k3-Q.
+        Eigen::Vector3d thisK2 = thisjK - excitonQ;
 
         int ikk1 = kPoints.getIndex(thisiK, tolerance);
         int ikk2 = kPoints.getIndex(thisK2, tolerance);
         int ikk3 = kPoints.getIndex(thisjK, tolerance);
 
         // band indexing starts from bottom of offset
+        // note that here, we swap again s2 and s4 by switching jYamboIb2 (s4 in yambo convention) -> iYamboIb2 (s2 in yambo convention)
         int ib1 = iYamboIb1 -  bandOffset;
-        int ib2 = iYamboIb2 -  bandOffset;
+        int ib2 = jYamboIb2 -  bandOffset;
         int ib3 = jYamboIb1 -  bandOffset;
-        int ib4 = jYamboIb2 -  bandOffset;
+        int ib4 = iYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
         Eigen::Vector3d temp1 = {0.25,0.0,0.0};
@@ -230,12 +229,12 @@ void ElElToPhoebeApp::run(Context &context) {
   }
 
   // TODO -- for electrons, this procedure is probably good
-  // however, for holes, Changpeng wonders if we need to take the complex conjugate of 
-  // the U matrix (to essentially swap bra and ke
-  
-  // NOTE: this transform+rotation series corresponds to eq 60 in Changpeng's notes 
+  // however, for holes, Changpeng wonders if we need to take the complex conjugate of
+  // the U matrix (to essentially swap bra and ket)
+
+  // NOTE: this transform+rotation series corresponds to eq 60 in Changpeng's notes
   // as of 3/22/23
-  
+
   // first we do the rotation on k4, the implicit index
   Eigen::Tensor<std::complex<double>, 7> Gamma1(numK, numK, numK, numBands, numBands, numBands, numWannier);
   {
@@ -247,7 +246,7 @@ void ElElToPhoebeApp::run(Context &context) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
           Eigen::Vector3d k3C = kPoints.getPointCoordinates(ik3, Points::crystalCoordinates);
           // K1-K2 = K3-K4 <-- original momentum conservation relation in Yambo
-          Eigen::Vector3d k4C = k3C + k2C - k1C; 
+          Eigen::Vector3d k4C = k3C + k2C - k1C;
           int ik4 = kPoints.getIndex(k4C);
 
           #pragma omp parallel for collapse(4)
@@ -257,9 +256,8 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iw4 = 0; iw4 < numWannier; ++iw4) {
                   tmp = {0., 0.};
                   for (int ib4 = 0; ib4 < numBands; ++ib4) {
-                    // TODO: previously was not complex conj
                     tmp += qpCoupling(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
-                        * std::conj(uMatrices(ib4, iw4, ik4));
+                        * uMatrices(ib4, iw4, ik4);
                   }
                   Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4) = tmp;
                 }
@@ -316,9 +314,8 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iw2 = 0; iw2 < numWannier; ++iw2) {
                   tmp = {0., 0.};
                   for (int ib2 = 0; ib2 < numBands; ++ib2) {
-                    // TODO originally, this was conj(uMatrix) -- we test the opposite
                     tmp += Gamma2(ik1, ik2, ik3, ib1, ib2, iw3, iw4)
-                        * uMatrices(ib2, iw2, ik2); 
+                        * std::conj(uMatrices(ib2, iw2, ik2));
                   }
                   Gamma3(ik1, ik2, ik3, ib1, iw2, iw3, iw4) = tmp;
                 }
