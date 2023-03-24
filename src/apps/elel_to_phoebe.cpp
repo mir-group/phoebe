@@ -20,7 +20,7 @@ void ElElToPhoebeApp::run(Context &context) {
   #endif
 
   // read in the electron Wannier files and set up the el_h0 hamiltonian
-  // crystal has to be supplied in input file, because Wannier90 doesn't 
+  // crystal has to be supplied in input file, because Wannier90 doesn't
   // print it to output
   auto t1 = Parser::parseElHarmonicWannier(context);
   auto crystal = std::get<0>(t1);
@@ -46,9 +46,9 @@ void ElElToPhoebeApp::run(Context &context) {
     HighFive::File file(fileName, HighFive::File::ReadOnly);
     // Set up hdf5 datasets
     HighFive::DataSet d_head_qpt = file.getDataSet("/HEAD_QPT");
-    // read the k/q-points in crystal coordinates
+    // read the k/q-points in yambo internal coordinates
     d_head_qpt.read(yamboQPoints);
-    if (yamboQPoints.rows() != 3) 
+    if (yamboQPoints.rows() != 3)
         Error("Developer error: qpoints are transposed in yambo?");
     numPoints = yamboQPoints.cols();
     yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
@@ -76,8 +76,10 @@ void ElElToPhoebeApp::run(Context &context) {
         temp = rlattInv * temp;
         for( int i : {0,1,2} )
           yamboQPoints(i, iq) = temp(i);
-      }
+        std::cout << iq << " " << temp.transpose() << std::endl;
+        }
     }
+
 
     Eigen::MatrixXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
@@ -203,6 +205,11 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib4 = jYamboIb2 -  bandOffset;
 
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
+        Eigen::Vector3d temp1 = {0.25,0.0,0.0};
+        Eigen::Vector3d temp2 = {0.25,0.25,0.0};
+        if(abs((thisiK-temp1).norm()) < 1e-3 && abs((thisK2-temp2).norm()) < 1e-3 && ib1 == 0 && ib2 == 1 && ib3 == 0 && ib4 == 1) {
+          std::cout << thisiK.transpose() << " " << thisK2.transpose() << " " << thisjK.transpose() << " " << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << std::endl;
+        }
         /*if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
           std::cout << "k1 " << thisiK.transpose() << std::endl;
           std::cout << "k2 " << thisK2.transpose() << std::endl;
@@ -472,7 +479,7 @@ void ElElToPhoebeApp::writeWannierCoupling(
   // properly.
   std::remove(&outFileName[0]);
   mpi->barrier();
-  
+
   // TODO may be a problem here if run with more than 1 MPI process, Jenny should check this
   try {
   {
