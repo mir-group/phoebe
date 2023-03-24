@@ -89,6 +89,7 @@ Interaction4El::getCouplingSquared(const int &ik3) {
   return std::make_tuple(cacheCoupling1[ik3],cacheCoupling2[ik3],cacheCoupling3[ik3]);
 }
 
+// tranform over k3 and k4
 void Interaction4El::calcCouplingSquared(
     const std::vector<Eigen::MatrixXcd> &eigvecs3,
     const std::vector<Eigen::MatrixXcd> &eigvecs4,
@@ -162,7 +163,7 @@ void Interaction4El::calcCouplingSquared(
   }
 
   // now we finish the Wannier transform. We have to do the Fourier transform
-  // on the lattice degrees of freedom, and then do two rotations (at k2 and q)
+  // on the lattice degrees of freedom, and then do two rotations (at k3 and k4)
   ComplexView2D phases("phases", numLoops, numElBravaisVectors);
   Kokkos::complex<double> complexI(0.0, 1.0);
   Kokkos::parallel_for(
@@ -180,12 +181,15 @@ void Interaction4El::calcCouplingSquared(
   ComplexView5D g3_1(Kokkos::ViewAllocateWithoutInitializing("g3_1"), numLoops, nb1, nb2, numWannier, numWannier);
   ComplexView5D g3_2(Kokkos::ViewAllocateWithoutInitializing("g3_2"), numLoops, nb1, numWannier, nb2, numWannier);
   ComplexView5D g3_3(Kokkos::ViewAllocateWithoutInitializing("g3_3"), numLoops, numWannier, nb2, nb1, numWannier);
+    
+  // TODO ask Anders about the order of these indices to see if we can speed them up
   Kokkos::parallel_for(
       "g3_1", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb2, numWannier, numWannier}),
       KOKKOS_LAMBDA(int ik3, int ib1, int ib2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
+        // transform over k3
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
-          tmp += phases(ik3, irE3) * elPhCached2a(irE3, ib1, ib2, iw3, iw4);
+          tmp +=  Kokkos::conj(phases(ik3, irE3)) * elPhCached2a(irE3, ib1, ib2, iw3, iw4);
         }
         g3_1(ik3, ib1, ib2, iw3, iw4) = tmp;
       });
@@ -194,14 +198,9 @@ void Interaction4El::calcCouplingSquared(
       "g3_2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, numWannier, nb2, numWannier}),
       KOKKOS_LAMBDA(int ik3, int ib1, int iw3, int ib2, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
+        // transform over k3
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
-          // TODO elPhCached2a access was previously here as:
-          //tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2a(irE3, ib1, iw3, ib2, iw4);
-         // but this is an incorrect access, so either we're trying to loop over
-         // 2b:   Kokkos::realloc(elPhCached2b, numElBravaisVectors, nb1, numWannier, nb2, numWannier);
-         // or 2a needs to be reindexed to
-         // Kokkos::realloc(elPhCached2a, numElBravaisVectors, nb1, nb2, numWannier, numWannier);
-          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2b(irE3, ib1, iw3, ib2, iw4);
+          tmp += phases(ik3, irE3) * elPhCached2b(irE3, ib1, iw3, ib2, iw4);
         }
         g3_2(ik3, ib1, iw3, ib2, iw4) = tmp;
       });
@@ -210,10 +209,9 @@ void Interaction4El::calcCouplingSquared(
       "g3_3", Range5D({0, 0, 0, 0, 0}, {numLoops, numWannier, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
+        // transform over k3
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
-          // TODO similarly this one looks like it should be 2c
-          //   Kokkos::realloc(elPhCached2c, numElBravaisVectors, numWannier, nb2, nb1, numWannier);
-          tmp += Kokkos::conj(phases(ik3, irE3)) * elPhCached2c(irE3, iw3, ib2, ib1, iw4);
+          tmp += phases(ik3, irE3) * elPhCached2c(irE3, iw3, ib2, ib1, iw4);
         }
         g3_3(ik3, iw3, ib2, ib1, iw4) = tmp;
       });
@@ -228,7 +226,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_1(ik, ib1, ib2, iw3, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
+          tmp += g3_1(ik, ib1, ib2, iw3, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
         g4_1(ik, ib1, ib2, ib3, iw4) = tmp;
       });
@@ -237,7 +235,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_2(ik, ib1, ib2, iw3, iw4) * Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
+          tmp += g3_2(ik, ib1, ib2, iw3, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
         }
         g4_2(ik, ib1, ib3, ib2, iw4) = tmp;
       });
@@ -246,7 +244,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_3(ik, iw3, ib2, ib1, iw4) * Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
+          tmp += g3_3(ik, iw3, ib2, ib1, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
         }
         g4_3(ik, ib3, ib2, ib1, iw4) = tmp;
       });
@@ -262,7 +260,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_1(ik, ib1, ib2, ib3, iw4) * eigvecs4Dagger_d(ik, iw4, ib4);
+          tmp += g4_1(ik, ib1, ib2, ib3, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
         }
         gFinal1(ik, ib1, ib2, ib3, ib4) = tmp;
       });
@@ -271,7 +269,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib3, int ib2, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_2(ik, ib1, ib3, ib2, iw4) * eigvecs4Dagger_d(ik, iw4, ib4);
+          tmp += g4_2(ik, ib1, ib3, ib2, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
         }
         gFinal2(ik, ib1, ib3, ib2, ib4) = tmp;
       });
@@ -280,7 +278,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib3, int ib2, int ib1, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_3(ik, ib3, ib2, ib1, iw4) * eigvecs4Dagger_d(ik, iw4, ib4);
+          tmp += g4_3(ik, ib3, ib2, ib1, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
         }
         gFinal3(ik, ib3, ib2, ib1, ib4) = tmp;
       });
@@ -359,6 +357,7 @@ void Interaction4El::calcCouplingSquared(
   }
 }
 
+// pre Fourier transform over the first wavevector 
 void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
 
   Kokkos::complex<double> complexI(0.0, 1.0);
@@ -410,6 +409,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
   ComplexView6D preCache1b("preCache1b", numElBravaisVectors, numElBravaisVectors,
                            numWannier, numWannier, numWannier, numWannier);
 
+  // for P_1 terms in eq 36
   Kokkos::parallel_for("preCache1a",
         Range6D({0, 0, 0, 0, 0, 0},
         {numElBravaisVectors, numElBravaisVectors, numWannier, numWannier, numWannier, numWannier}),
@@ -419,12 +419,12 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
          for (int irE1 = 0; irE1 < numElBravaisVectors; irE1++) {
            // important note: the first index iw2 runs over the k+q transform
            // while iw1 runs over k
-           // TODO may have modified this
            tmp += couplingWannier_d(irE1, irE2, irE3, iw1, iw2, iw3, iw4) * phases_k(irE1);
          }
          preCache1a(irE2, irE3, iw1, iw2, iw3, iw4) = tmp;
   });
 
+  // for P_3 in eq 36
   Kokkos::parallel_for("preCache1b",
         Range6D({0, 0, 0, 0, 0, 0},
         {numElBravaisVectors, numElBravaisVectors, numWannier, numWannier, numWannier, numWannier}),
@@ -434,6 +434,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
           for (int irE1 = 0; irE1 < numElBravaisVectors; irE1++) {
             // important note: the first index iw2 runs over the k+q transform
             // while iw1 runs over k
+            // transform over s3 index (which is currently here labeled as irE1 and iw1)
             tmp += couplingWannier_d(irE3, irE2, irE1, iw3, iw2, iw1, iw4) * Kokkos::conj(phases_k(irE1));
           }
           preCache1b(irE2, irE3, iw3, iw2, iw1, iw4) = tmp;
@@ -460,6 +461,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
 
           Kokkos::complex<double> tmp(0.0);
           for (int iw1 = 0; iw1 < numWannier; iw1++) {
+            // conjugation is here because P^1 
             tmp += preCache1b(irE2, irE3, iw3, iw2, iw1, iw4) * Kokkos::conj(eigvec1_d(ib1, iw1));
           }
           elPhCached1b_(irE2, irE3, iw3, iw2, ib1, iw4) = tmp;
@@ -512,17 +514,22 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
 
 
   // fourier transform on 1st coordinate
+  // P_12^34 
   ComplexView5D preCache2a("preCache2", numElBravaisVectors,
                            nb1, numWannier, numWannier, numWannier);
+  //P_13^24
   ComplexView5D preCache2b("preCache2", numElBravaisVectors,
                            nb1, numWannier, numWannier, numWannier);
+  //P_32^14
   ComplexView5D preCache2c("preCache2", numElBravaisVectors,
                            numWannier, numWannier, nb1, numWannier);
+    
   Kokkos::parallel_for("preCache2a",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, numWannier, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int iw2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // transform over s2
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
           // important note: the first index iw2 runs over the k+q transform
           // while iw1 runs over k
@@ -530,23 +537,28 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
         }
         preCache2a(irE3, ib1, iw2, iw3, iw4) = tmp;
       });
+    
   Kokkos::parallel_for("preCache2b",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, numWannier, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int iw3, int iw2, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // transform over s3
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
           // important note: the first index iw2 runs over the k+q transform
           // while iw1 runs over k
+          // conjugate phase because s3 a final state
           tmp += elPhCached1a(irE3, irE2, ib1, iw3, iw2, iw4) * Kokkos::conj(phases_k(irE2));
         }
         preCache2b(irE3, ib1, iw3, iw2, iw4) = tmp;
       });
+    
   Kokkos::parallel_for("preCache2c",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, numWannier, numWannier, nb1, numWannier}),
       KOKKOS_LAMBDA(int irE3, int iw3, int iw2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // tranform over s2 
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
           // important note: the first index iw2 runs over the k+q transform
           // while iw1 runs over k
@@ -559,8 +571,6 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
   Kokkos::realloc(elPhCached2a, numElBravaisVectors, nb1, nb2, numWannier, numWannier);
   Kokkos::realloc(elPhCached2b, numElBravaisVectors, nb1, numWannier, nb2, numWannier);
   Kokkos::realloc(elPhCached2c, numElBravaisVectors, numWannier, nb2, nb1, numWannier);
-
-  // TODO note -- precache 2b and 2c go unused?
 
   Kokkos::parallel_for("cache2a", Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, nb2, numWannier, numWannier}),
@@ -589,9 +599,6 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
       KOKKOS_LAMBDA(int irE3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.0);
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
-          // RESUME HERE
-          // TODO previously this was the below line, but this is a bad access!
-          //tmp += preCache2a(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
           tmp += preCache2c(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
         }
         elPhCached2c(irE3, iw3, ib2, ib1, iw4) = tmp;
