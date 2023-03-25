@@ -181,13 +181,13 @@ void Interaction4El::calcCouplingSquared(
   ComplexView5D g3_1(Kokkos::ViewAllocateWithoutInitializing("g3_1"), numLoops, nb1, nb2, numWannier, numWannier);
   ComplexView5D g3_2(Kokkos::ViewAllocateWithoutInitializing("g3_2"), numLoops, nb1, numWannier, nb2, numWannier);
   ComplexView5D g3_3(Kokkos::ViewAllocateWithoutInitializing("g3_3"), numLoops, numWannier, nb2, nb1, numWannier);
-    
+
   // TODO ask Anders about the order of these indices to see if we can speed them up
   Kokkos::parallel_for(
       "g3_1", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb2, numWannier, numWannier}),
       KOKKOS_LAMBDA(int ik3, int ib1, int ib2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
-        // transform over k3
+        // transform over k3 -- where s3 is a final state
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
           tmp +=  Kokkos::conj(phases(ik3, irE3)) * elPhCached2a(irE3, ib1, ib2, iw3, iw4);
         }
@@ -198,7 +198,7 @@ void Interaction4El::calcCouplingSquared(
       "g3_2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, numWannier, nb2, numWannier}),
       KOKKOS_LAMBDA(int ik3, int ib1, int iw3, int ib2, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
-        // transform over k3
+        // transform over k3 -- where s3 is an initial state
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
           tmp += phases(ik3, irE3) * elPhCached2b(irE3, ib1, iw3, ib2, iw4);
         }
@@ -209,7 +209,7 @@ void Interaction4El::calcCouplingSquared(
       "g3_3", Range5D({0, 0, 0, 0, 0}, {numLoops, numWannier, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0., 0.);
-        // transform over k3
+        // transform over k3 -- where s3 is an initial state
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
           tmp += phases(ik3, irE3) * elPhCached2c(irE3, iw3, ib2, ib1, iw4);
         }
@@ -225,6 +225,7 @@ void Interaction4El::calcCouplingSquared(
       "g4_1", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb2, nb3max, numWannier}),
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
+        // rotate R3 -- where s3 is a final state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
           tmp += g3_1(ik, ib1, ib2, iw3, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
@@ -234,6 +235,7 @@ void Interaction4El::calcCouplingSquared(
       "g4_2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb2, nb3max, numWannier}),
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
+        // rotate R3 -- where s3 is an initial state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
           tmp += g3_2(ik, ib1, ib2, iw3, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
         }
@@ -243,6 +245,7 @@ void Interaction4El::calcCouplingSquared(
       "g4_3", Range5D({0, 0, 0, 0, 0}, {numLoops, nb3max, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int ik, int ib3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.,0.);
+        // rotate R3 -- where s3 is an initial state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
           tmp += g3_3(ik, iw3, ib2, ib1, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
         }
@@ -357,7 +360,7 @@ void Interaction4El::calcCouplingSquared(
   }
 }
 
-// pre Fourier transform over the first wavevector 
+// pre Fourier transform over the first wavevector
 void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
 
   Kokkos::complex<double> complexI(0.0, 1.0);
@@ -461,7 +464,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
 
           Kokkos::complex<double> tmp(0.0);
           for (int iw1 = 0; iw1 < numWannier; iw1++) {
-            // conjugation is here because P^1 
+            // conjugation is here because P^1
             tmp += preCache1b(irE2, irE3, iw3, iw2, iw1, iw4) * Kokkos::conj(eigvec1_d(ib1, iw1));
           }
           elPhCached1b_(irE2, irE3, iw3, iw2, ib1, iw4) = tmp;
@@ -508,13 +511,14 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
         for (int j = 0; j < 3; j++) {
           arg += k2C_d(j) * elBravaisVectors_d(irE, j);
         }
+        // TODO -- should we do this --> +k2.R2 -- this is because in the Yambo convention of k1 - k2 = k3 - k4,
         phases_k(irE) =
             exp(-complexI * arg) / elBravaisVectorsDegeneracies_d(irE);
   });
 
 
   // fourier transform on 1st coordinate
-  // P_12^34 
+  // P_12^34
   ComplexView5D preCache2a("preCache2", numElBravaisVectors,
                            nb1, numWannier, numWannier, numWannier);
   //P_13^24
@@ -523,45 +527,38 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
   //P_32^14
   ComplexView5D preCache2c("preCache2", numElBravaisVectors,
                            numWannier, numWannier, nb1, numWannier);
-    
+
   Kokkos::parallel_for("preCache2a",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, numWannier, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int iw2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0.0);
-        // transform over s2
+        // transform over R2 -- where s2 is an initial state
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
-          // important note: the first index iw2 runs over the k+q transform
-          // while iw1 runs over k
           tmp += elPhCached1a(irE2, irE3, ib1, iw2, iw3, iw4) * phases_k(irE2);
         }
         preCache2a(irE3, ib1, iw2, iw3, iw4) = tmp;
       });
-    
+
   Kokkos::parallel_for("preCache2b",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, nb1, numWannier, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int iw3, int iw2, int iw4) {
         Kokkos::complex<double> tmp(0.0);
-        // transform over s3
+        // transform over R2 -- where s2 is a final state
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
-          // important note: the first index iw2 runs over the k+q transform
-          // while iw1 runs over k
-          // conjugate phase because s3 a final state
           tmp += elPhCached1a(irE3, irE2, ib1, iw3, iw2, iw4) * Kokkos::conj(phases_k(irE2));
         }
         preCache2b(irE3, ib1, iw3, iw2, iw4) = tmp;
       });
-    
+
   Kokkos::parallel_for("preCache2c",
       Range5D({0, 0, 0, 0, 0},
               {numElBravaisVectors, numWannier, numWannier, nb1, numWannier}),
       KOKKOS_LAMBDA(int irE3, int iw3, int iw2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.0);
-        // tranform over s2 
+        // tranform over R2 -- where s2 is an initial state
         for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
-          // important note: the first index iw2 runs over the k+q transform
-          // while iw1 runs over k
           tmp += elPhCached1b(irE3, irE2, iw3, iw2, ib1, iw4) * phases_k(irE2);
         }
         preCache2c(irE3, iw3, iw2, ib1, iw4) = tmp;
@@ -576,6 +573,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
               {numElBravaisVectors, nb1, nb2, numWannier, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int ib2, int iw3, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // rotate R2 into correct basis, where s2 is an initial state
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           tmp += preCache2a(irE3, ib1, iw2, iw3, iw4) * eigvec2_d(ib2, iw2);
         }
@@ -587,6 +585,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
               {numElBravaisVectors, nb1, numWannier, nb2, numWannier}),
       KOKKOS_LAMBDA(int irE3, int ib1, int iw3, int ib2, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // rotate R2 into correct basis, where s2 is a final state
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           tmp += preCache2b(irE3, ib1, iw3, iw2, iw4) * Kokkos::conj(eigvec2_d(ib2, iw2));
         }
@@ -598,6 +597,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
               {numElBravaisVectors, numWannier, nb2, nb1, numWannier}),
       KOKKOS_LAMBDA(int irE3, int iw3, int ib2, int ib1, int iw4) {
         Kokkos::complex<double> tmp(0.0);
+        // rotate R2 into correct basis, where s2 is an initial state
         for (int iw2 = 0; iw2 < numWannier; iw2++) {
           tmp += preCache2c(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
         }
