@@ -18,7 +18,7 @@ Interaction4El::Interaction4El(
     const Eigen::VectorXd &elBravaisVectorsDegeneracies)
     : crystal(crystal_) {
 
-  numElBravaisVectors = couplingWannier_.dimension(4);
+  numElBravaisVectors = couplingWannier_.dimension(6);
   numWannier = couplingWannier_.dimension(0);
 
   // in the first call to this function, we must copy the necessary data
@@ -624,7 +624,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
   Eigen::MatrixXd elBravaisVectors_;
   Eigen::VectorXd elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
-  std::vector<size_t> localElVectors;
+  stdgg::vector<size_t> localElVectors;
 
   try {
     // Use MPI head only to read in the small data structures
@@ -725,6 +725,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
       Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 6>> sliceTemp(
           slice.data(), numWannier, numWannier, numWannier, numWannier, numElBravaisVectors, numElBravaisVectors);
 
+      // TODO put OMP pragmas here
       for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
         for (int irE3 = 0; irE3 < numElBravaisVectors; irE3++) {
           for (int iw1 = 0; iw1 < numWannier; iw1++) {

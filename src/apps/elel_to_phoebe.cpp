@@ -246,7 +246,9 @@ void ElElToPhoebeApp::run(Context &context) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
           Eigen::Vector3d k3C = kPoints.getPointCoordinates(ik3, Points::crystalCoordinates);
           // K1-K2 = K3-K4 <-- original momentum conservation relation in Yambo
-          Eigen::Vector3d k4C = k3C + k2C - k1C;
+          // we worked to alter this convention above, so now we just have the typical
+          // momentum conservation condition K1 + K2 = K3 + K4
+          Eigen::Vector3d k4C = k1C + k2C - k3C;
           int ik4 = kPoints.getIndex(k4C);
 
           #pragma omp parallel for collapse(4)
@@ -385,7 +387,7 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iR = 0; iR < numR; ++iR) {
                   tmp = {0., 0.};
                   for (int ik1 = 0; ik1 < numK; ++ik1) {
-                    tmp += phases(ik1, iR) * std::conj(Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4));
+                    tmp += phases(ik1, iR) * Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4);
                   }
                   Gamma5(iR, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
@@ -413,7 +415,7 @@ void ElElToPhoebeApp::run(Context &context) {
                 for (int iR2 = 0; iR2 < numR; ++iR2) {
                   tmp = {0., 0.};
                   for (int ik2 = 0; ik2 < numK; ++ik2) {
-                    tmp += std::conj(phases(ik2, iR2)) * Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4);
+                    tmp += phases(ik2, iR2) * Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4);
                   }
                   Gamma6(iR1, iR2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
@@ -556,10 +558,6 @@ void ElElToPhoebeApp::writeWannierCoupling(
     try {
 
       HighFive::File file(outFileName, HighFive::File::ReadWrite);
-
-      //      HighFive::DataSet dnElectrons = file.createDataSet<int>(
-      //          "/numElectrons", HighFive::DataSpace::From(numElectrons));
-      //      dnElectrons.write(numElectrons);// # of occupied wannier functions
 
       HighFive::DataSet dnWannier = file.createDataSet<int>(
           "/numWannier", HighFive::DataSpace::From(numWannier));
