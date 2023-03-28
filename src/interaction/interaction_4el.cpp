@@ -174,7 +174,7 @@ void Interaction4El::calcCouplingSquared(
           arg += k3Cs_d(ik, j) * elBravaisVectors_d(irE3, j);
         }
         phases(ik, irE3) =
-            exp(complexI * arg) / elBravaisVectorsDegeneracies_d(irE3);
+            exp(-complexI * arg) / elBravaisVectorsDegeneracies_d(irE3);
       });
 
   // Last Fourier transform term
@@ -227,7 +227,7 @@ void Interaction4El::calcCouplingSquared(
         Kokkos::complex<double> tmp(0.,0.);
         // rotate R3 -- where s3 is a final state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_1(ik, ib1, ib2, iw3, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
+          tmp += g3_1(ik, ib1, ib2, iw3, iw4) *  eigvecs3Dagger_d(ik, iw3, ib3);
         }
         g4_1(ik, ib1, ib2, ib3, iw4) = tmp;
       });
@@ -237,7 +237,7 @@ void Interaction4El::calcCouplingSquared(
         Kokkos::complex<double> tmp(0.,0.);
         // rotate R3 -- where s3 is an initial state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_2(ik, ib1, ib2, iw3, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
+          tmp += g3_2(ik, ib1, ib2, iw3, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
         g4_2(ik, ib1, ib3, ib2, iw4) = tmp;
       });
@@ -247,7 +247,7 @@ void Interaction4El::calcCouplingSquared(
         Kokkos::complex<double> tmp(0.,0.);
         // rotate R3 -- where s3 is an initial state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_3(ik, iw3, ib2, ib1, iw4) * eigvecs3Dagger_d(ik, iw3, ib3);
+          tmp += g3_3(ik, iw3, ib2, ib1, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
         g4_3(ik, ib3, ib2, ib1, iw4) = tmp;
       });
@@ -263,7 +263,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib2, int ib3, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_1(ik, ib1, ib2, ib3, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
+          tmp += g4_1(ik, ib1, ib2, ib3, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal1(ik, ib1, ib2, ib3, ib4) = tmp;
       });
@@ -272,7 +272,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib1, int ib3, int ib2, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_2(ik, ib1, ib3, ib2, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
+          tmp += g4_2(ik, ib1, ib3, ib2, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal2(ik, ib1, ib3, ib2, ib4) = tmp;
       });
@@ -281,7 +281,7 @@ void Interaction4El::calcCouplingSquared(
       KOKKOS_LAMBDA(int ik, int ib3, int ib2, int ib1, int ib4) {
         Kokkos::complex<double> tmp(0.,0.);
         for (int iw4 = 0; iw4 < numWannier; iw4++) {
-          tmp += g4_3(ik, ib3, ib2, ib1, iw4) *  Kokkos::conj(eigvecs4Dagger_d(ik, iw4, ib4));
+          tmp += g4_3(ik, ib3, ib2, ib1, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal3(ik, ib3, ib2, ib1, ib4) = tmp;
       });
@@ -624,7 +624,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
   Eigen::MatrixXd elBravaisVectors_;
   Eigen::VectorXd elBravaisVectorsDegeneracies_;
   Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
-  stdgg::vector<size_t> localElVectors;
+  std::vector<size_t> localElVectors;
 
   try {
     // Use MPI head only to read in the small data structures
