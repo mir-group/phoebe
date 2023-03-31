@@ -60,7 +60,8 @@ q = k3 - k1 = 0.25 0 0
   Eigen::Vector3d k1 = context.getG2PlotFixedPoint();
   k1 = kPoints.crystalToCartesian(k1);
   // TODO give some way to specify this by input
-  Eigen::Vector3d k2 = {0.25, 0.0, 0.0};
+
+  Eigen::Vector3d k2 = {0.25, 0.25, 0.0};
   k2 = kPoints.crystalToCartesian(k2);
 
   //Eigen::Vector3d k1 = {0.125,0.0,0.0};
@@ -75,7 +76,6 @@ q = k3 - k1 = 0.25 0 0
   for (int ik3 = 0; ik3 < numKPoints; ik3++) {
 
     Eigen::Vector3d k3 = kPoints.getPointCoordinates(ik3, Points::cartesianCoordinates);
-    std::cout << k3.transpose() << std::endl;
     //std::tuple<Eigen::Vector3d, Eigen::Vector3d, Eigen::Vector3d> thisTriplet;
     pointsTriplets.push_back(std::make_tuple(k1, k2, k3));
 
@@ -111,10 +111,12 @@ q = k3 - k1 = 0.25 0 0
     // we set these up as yambo does (rather than how we do this for scattering)
     // Where Yambo sets up the kpoint relations:
     // k1 - k2 = k3 - k4 = Q (where Q is the exciton momentum)
+    // but we are using in our notes:
+    // k1 + k2 = k3 + k4
     Eigen::Vector3d k1 = std::get<0>(thisTriplet);
     Eigen::Vector3d k2 = std::get<1>(thisTriplet);
     Eigen::Vector3d k3 = std::get<2>(thisTriplet);
-    Eigen::Vector3d k4 = k3 - k1 + k2; //k2 + q;
+    Eigen::Vector3d k4 = k1 + k2 -k3;
 
     std::cout << "k3 " << k3.transpose() << std::endl;
 
