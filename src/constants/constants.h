@@ -40,6 +40,7 @@ const double e2 = 2.;
 //
 const double temperatureAuToSi = 1. / kBoltzmannRy;
 const double energyRyToEv = rydbergSi / electronVoltSi;
+const double energyHaToEv = hartreeSi / electronVoltSi;
 const double distanceAngToSi = 1.0e-10;
 const double distanceRyToSi = bohrRadiusSi;
 const double distanceBohrToCm = bohrRadiusSi * 100.;

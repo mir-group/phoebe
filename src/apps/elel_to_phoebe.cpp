@@ -51,6 +51,8 @@ void ElElToPhoebeApp::run(Context &context) {
     if (yamboQPoints.rows() != 3)
         Error("Developer error: qpoints are transposed in yambo?");
     numPoints = yamboQPoints.cols();
+    if (numPoints != numK)
+        Error("Electronic grid from input is inconsistent with Yambo.");
     yamboQPoints = yamboQPoints.reshaped(numPoints,3).eval();
     yamboQPoints.transposeInPlace();
 
@@ -81,10 +83,10 @@ void ElElToPhoebeApp::run(Context &context) {
     }
 
 
-    Eigen::MatrixXi bandExtrema;
+    Eigen::VectorXi bandExtrema;
     HighFive::DataSet d_bands = file.getDataSet("/Bands");
     d_bands.read(bandExtrema);
-    numBands = bandExtrema(1) - bandExtrema(0) + 1; // if band range is 4,5, that's two bands
+    numBands = bandExtrema(1) - bandExtrema(0) + 1; // numBands can be larger than numWannier, i.e. disentanglement
     bandOffset = bandExtrema.minCoeff();
   }
   // push these quantities to all processes
@@ -114,6 +116,7 @@ void ElElToPhoebeApp::run(Context &context) {
   Eigen::MatrixXd elBravaisVectors = std::get<0>(t3);
   Eigen::VectorXd elDegeneracies = std::get<1>(t3);
   int numR = elDegeneracies.size();
+  // TODO use Wigner-Seitz vectors from *_wsvec.dat
 
   //-------------------------
 
@@ -153,13 +156,14 @@ void ElElToPhoebeApp::run(Context &context) {
     // note that the yamboKernel is only the lower triangle of the
     // matrix, and the upper triangle is nonsense that needs to be filled
     // first pass: we make sure the matrix is complete
-    int count = 0;
+    //int count = 0;
     #pragma omp parallel for
     for (int i = 0; i < M; ++i) {
       for (int j = i + 1; j < M; ++j) {// in this way j > i
         yamboKernel(j, i) = std::conj(yamboKernel(i, j));
       }
     }
+    yamboKernel.adjointInPlace();
 
     // read this auxiliary mapping for Yambo indices
     Eigen::MatrixXi ikbz_ib1_ib2_isp2_isp1;
@@ -190,6 +194,7 @@ void ElElToPhoebeApp::run(Context &context) {
         // k3
         Eigen::Vector3d thisjK = yamboQPoints.col(jYamboIk1 - 1);
         // because k3 - k4 = Q in Yambo's convention, and then we swap k2 and k4 by defining k2 = k3-Q.
+        // k2
         Eigen::Vector3d thisK2 = thisjK - excitonQ;
 
         int ikk1 = kPoints.getIndex(thisiK, tolerance);
@@ -203,10 +208,10 @@ void ElElToPhoebeApp::run(Context &context) {
         int ib3 = jYamboIb1 -  bandOffset;
         int ib4 = iYamboIb2 -  bandOffset;
 
-        qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE);
+        qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE) * energyHaToEv;
         Eigen::Vector3d temp1 = {0.25,0.0,0.0};
         Eigen::Vector3d temp2 = {0.25,0.25,0.0};
-        if(abs((thisiK-temp1).norm()) < 1e-3 && abs((thisK2-temp2).norm()) < 1e-3 && ib1 == 0 && ib2 == 1 && ib3 == 0 && ib4 == 1) {
+        if(abs((thisiK-temp1).norm()) < 1e-3 && abs((thisK2-temp2).norm()) < 1e-3 && ib1 == 2 && ib2 == 3 && ib3 == 2 && ib4 == 3) {
           std::cout << thisiK.transpose() << " " << thisK2.transpose() << " " << thisjK.transpose() << " " << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << std::endl;
         }
         /*if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
@@ -368,7 +373,7 @@ void ElElToPhoebeApp::run(Context &context) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
         Eigen::Vector3d R = elBravaisVectors.row(iR);
         double arg = k.dot(R);
-        phases(ik, iR) = exp(complexI * arg)/ double(numPoints);
+        phases(ik, iR) = exp(complexI * arg)/ double(numK);
       }
     }
   }

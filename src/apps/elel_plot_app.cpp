@@ -162,7 +162,7 @@ q = k3 - k1 = 0.25 0 0
       for (int ib2 = g2PlotEl2Bands.first; ib2 <= g2PlotEl2Bands.second; ib2++) {
         for (int ib3 = g2PlotEl3Bands.first; ib3 <= g2PlotEl3Bands.second; ib3++) {
           for (int ib4 = g2PlotEl4Bands.first; ib4 <= g2PlotEl4Bands.second; ib4++) {
-            allMatrixElementsSq.push_back(couplingA(ib1, ib2, ib3, ib4) / (energyRyToEv*energyRyToEv));
+            allMatrixElementsSq.push_back(couplingA(ib1, ib2, ib3, ib4));
             //if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
               //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
            // }
