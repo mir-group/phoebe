@@ -20,9 +20,9 @@ void ElElCouplingPlotApp::run(Context &context) {
   }
 
   // load electronic files
-  auto t1 = Parser::parseElHarmonicWannier(context);
-  auto crystal = std::get<0>(t1);
-  auto electronH0 = std::get<1>(t1);
+  auto t0 = Parser::parseElHarmonicWannier(context);
+  auto crystal = std::get<0>(t0);
+  auto electronH0 = std::get<1>(t0);
 
   // load the coupling
   Interaction4El coupling4El = Interaction4El::parse(context, crystal);
@@ -98,7 +98,7 @@ q = k3 - k1 = 0.25 0 0
   auto pointsParallelIter = mpi->divideWorkIter(numTriplets);
 
   if(mpi->mpiHead())
-    std::cout << "\nCoupling requested for " << numTriplets << " k1,k2,Q set." << std::endl;
+    std::cout << "\nCoupling requested for " << numTriplets << " k1,k2,k3 set." << std::endl;
 
   LoopPrint loopPrint("calculating coupling", "triplets on this process", pointsParallelIter.size());
   for (auto iTriplet : pointsParallelIter) {
@@ -116,25 +116,25 @@ q = k3 - k1 = 0.25 0 0
     Eigen::Vector3d k1 = std::get<0>(thisTriplet);
     Eigen::Vector3d k2 = std::get<1>(thisTriplet);
     Eigen::Vector3d k3 = std::get<2>(thisTriplet);
-    Eigen::Vector3d k4 = k1 + k2 -k3;
+    Eigen::Vector3d k4 = k1 + k2 - k3;
 
     std::cout << "k3 " << k3.transpose() << std::endl;
 
     // need to get the eigenvectors at these three wavevectors
-    auto t3 = electronH0.diagonalizeFromCoordinates(k1);
-    auto eigenVector1 = std::get<1>(t3);
+    auto t1 = electronH0.diagonalizeFromCoordinates(k1);
+    auto eigenVector1 = std::get<1>(t1);
 
     // second electron eigenvector
-    auto t4 = electronH0.diagonalizeFromCoordinates(k2);
-    auto eigenVector2 = std::get<1>(t4);
+    auto t2 = electronH0.diagonalizeFromCoordinates(k2);
+    auto eigenVector2 = std::get<1>(t2);
 
     // third electron eigenvector
-    auto t5 = electronH0.diagonalizeFromCoordinates(k3);
-    auto eigenVector3 = std::get<1>(t5);
+    auto t3 = electronH0.diagonalizeFromCoordinates(k3);
+    auto eigenVector3 = std::get<1>(t3);
 
     // fourth electron eigenvector
-    auto t6 = electronH0.diagonalizeFromCoordinates(k4);
-    auto eigenVector4 = std::get<1>(t6);
+    auto t4 = electronH0.diagonalizeFromCoordinates(k4);
+    auto eigenVector4 = std::get<1>(t4);
 
     std::vector<Eigen::MatrixXcd> eigenVectors3;
     eigenVectors3.push_back(eigenVector3);

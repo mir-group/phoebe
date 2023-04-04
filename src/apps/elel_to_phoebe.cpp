@@ -521,6 +521,8 @@ void ElElToPhoebeApp::writeWannierCoupling(
               for (int iw3 = 0; iw3 < numWannier; iw3++) {
                 for (int iw4 = 0; iw4 < numWannier; iw4++) {
                   slice(iR2, iR3, iw1, iw2, iw3, iw4) = gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4);
+                  //if (iR1 == 0 && iR2 == 1 && iR3 == 2) {
+                  //    std::cout << iw1 << " " << iw2 << " " << iw3 << " " << iw4 << " " << gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4) << std::endl;}
                 }
               }
             }

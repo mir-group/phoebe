@@ -18,8 +18,8 @@ Interaction4El::Interaction4El(
     const Eigen::VectorXd &elBravaisVectorsDegeneracies)
     : crystal(crystal_) {
 
-  numElBravaisVectors = couplingWannier_.dimension(6);
-  numWannier = couplingWannier_.dimension(0);
+  numElBravaisVectors = couplingWannier_.dimension(0);
+  numWannier = couplingWannier_.dimension(6);
 
   // in the first call to this function, we must copy the necessary data
   // from the CPU to the accelerator
@@ -706,8 +706,9 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
       }
     }
 
-    couplingWannier_.resize(numWannier, numWannier, numWannier, numWannier,
-                            numElBravaisVectors, numElBravaisVectors, numElBravaisVectors);
+    // by default an Eigen instance is column major
+    couplingWannier_.resize(numElBravaisVectors, numElBravaisVectors, numElBravaisVectors,
+                            numWannier, numWannier, numWannier, numWannier);
     couplingWannier_.setZero();
 
     // Set up buffer to receive full matrix data
@@ -722,8 +723,10 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
       dslice.read(slice);
 
       // Map the flattened matrix back to tensor structure
+      // Still column major, Eigen does the same way to flatten or reshape a tensor
+      // We should map in the same shape as when we flatten it
       Eigen::TensorMap<Eigen::Tensor<std::complex<double>, 6>> sliceTemp(
-          slice.data(), numWannier, numWannier, numWannier, numWannier, numElBravaisVectors, numElBravaisVectors);
+          slice.data(), numElBravaisVectors, numElBravaisVectors, numWannier, numWannier, numWannier, numWannier);
 
       // TODO put OMP pragmas here
       for (int irE2 = 0; irE2 < numElBravaisVectors; irE2++) {
@@ -732,8 +735,10 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
             for (int iw2 = 0; iw2 < numWannier; iw2++) {
               for (int iw3 = 0; iw3 < numWannier; iw3++) {
                 for (int iw4 = 0; iw4 < numWannier; iw4++) {
-                  couplingWannier_(iw4, iw3, iw2, iw1, irE3, irE2, irE1)
-                      = sliceTemp(iw4, iw3, iw2, iw1, irE3, irE2);
+                  couplingWannier_(irE1, irE2, irE3, iw1, iw2, iw3, iw4)
+                      = sliceTemp(irE2, irE3, iw1, iw2, iw3, iw4);
+                  //if (irE1 == 0 && irE2 == 1 && irE3 == 2) {
+                  //    std::cout << iw1 << " " << iw2 << " " << iw3 << " " << iw4 << " " << sliceTemp(irE2, irE3, iw1, iw2, iw3, iw4) << std::endl;}
                 }
               }
             }
