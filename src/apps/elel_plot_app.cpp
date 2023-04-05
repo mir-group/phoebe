@@ -123,18 +123,22 @@ q = k3 - k1 = 0.25 0 0
     // need to get the eigenvectors at these three wavevectors
     auto t1 = electronH0.diagonalizeFromCoordinates(k1);
     auto eigenVector1 = std::get<1>(t1);
+    eigenVector1.transposeInPlace();
 
     // second electron eigenvector
     auto t2 = electronH0.diagonalizeFromCoordinates(k2);
     auto eigenVector2 = std::get<1>(t2);
+    eigenVector2.transposeInPlace();
 
     // third electron eigenvector
     auto t3 = electronH0.diagonalizeFromCoordinates(k3);
     auto eigenVector3 = std::get<1>(t3);
+    eigenVector3.transposeInPlace();
 
     // fourth electron eigenvector
     auto t4 = electronH0.diagonalizeFromCoordinates(k4);
     auto eigenVector4 = std::get<1>(t4);
+    eigenVector4.transposeInPlace();
 
     std::vector<Eigen::MatrixXcd> eigenVectors3;
     eigenVectors3.push_back(eigenVector3);
