@@ -18,8 +18,8 @@ Interaction4El::Interaction4El(
     const Eigen::VectorXd &elBravaisVectorsDegeneracies)
     : crystal(crystal_) {
 
-  numElBravaisVectors = couplingWannier_.dimension(0);
-  numWannier = couplingWannier_.dimension(6);
+  numElBravaisVectors = couplingWannier_.dimension(6);
+  numWannier = couplingWannier_.dimension(0);
 
   // in the first call to this function, we must copy the necessary data
   // from the CPU to the accelerator
@@ -623,7 +623,7 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
   numElBravaisVectors = 0;
   Eigen::MatrixXd elBravaisVectors_;
   Eigen::VectorXd elBravaisVectorsDegeneracies_;
-  Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
+  //Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
   std::vector<size_t> localElVectors;
 
   try {
@@ -658,9 +658,8 @@ std::tuple<int, int, Eigen::MatrixXd, Eigen::VectorXd>
     if (!mpi->mpiHeadPool()) {// head already allocated these
       elBravaisVectors_.resize(3, numElBravaisVectors);
       elBravaisVectorsDegeneracies_.resize(numElBravaisVectors);
-      couplingWannier_.resize(numWannier, numWannier, numWannier, numWannier,
-                              numElBravaisVectors, numElBravaisVectors,
-                              numElBravaisVectors);
+      //couplingWannier_.resize(numElBravaisVectors, numElBravaisVectors,umElBravaisVectors,
+      //                        numWannier, numWannier, numWannier, numWannier);
     }
     mpi->bcast(&elBravaisVectors_, mpi->interPoolComm);
     mpi->bcast(&elBravaisVectorsDegeneracies_, mpi->interPoolComm);
@@ -685,6 +684,7 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
   int numElBravaisVectors = elBravaisVectorsDegeneracies_.size();
 
   Eigen::Tensor<std::complex<double>, 7> couplingWannier_;
+  Eigen::Tensor<std::complex<double>, 7> couplingWannier_T;
 
   try {
     // Define the elel matrix element containers
@@ -707,9 +707,9 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
     }
 
     // by default an Eigen instance is column major
-    couplingWannier_.resize(numElBravaisVectors, numElBravaisVectors, numElBravaisVectors,
+    couplingWannier_T.resize(numElBravaisVectors, numElBravaisVectors, numElBravaisVectors,
                             numWannier, numWannier, numWannier, numWannier);
-    couplingWannier_.setZero();
+    couplingWannier_T.setZero();
 
     // Set up buffer to receive full matrix data
     size_t sliceElements = pow(numWannier,4) * pow(numElBravaisVectors,2);
@@ -735,10 +735,10 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
             for (int iw2 = 0; iw2 < numWannier; iw2++) {
               for (int iw3 = 0; iw3 < numWannier; iw3++) {
                 for (int iw4 = 0; iw4 < numWannier; iw4++) {
-                  couplingWannier_(irE1, irE2, irE3, iw1, iw2, iw3, iw4)
+                  couplingWannier_T(irE1, irE2, irE3, iw1, iw2, iw3, iw4)
                       = sliceTemp(irE2, irE3, iw1, iw2, iw3, iw4);
                   //if (irE1 == 0 && irE2 == 1 && irE3 == 2) {
-                  //    std::cout << iw1 << " " << iw2 << " " << iw3 << " " << iw4 << " " << sliceTemp(irE2, irE3, iw1, iw2, iw3, iw4) << std::endl;}
+                  //    std::cout << iw1 << " " << iw2 << " " << iw3 << " " << iw4 << " " << couplingWannier_(irE1, irE2, irE3, iw1, iw2, iw3, iw4) << std::endl;}
                 }
               }
             }
@@ -746,7 +746,9 @@ Interaction4El parseHDF5(Context &context, Crystal &crystal) {
         }
       }
     }
-    mpi->allReduceSum(&couplingWannier_);
+    mpi->allReduceSum(&couplingWannier_T);
+    Eigen::array<int, 7> shuffling({6, 5, 4, 3, 2, 1, 0});
+    couplingWannier_ = couplingWannier_T.shuffle(shuffling);
 
   } catch (std::exception &error) {
     Error("Issue reading el-el Wannier representation matrix elements from hdf5.");

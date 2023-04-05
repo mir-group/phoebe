@@ -371,12 +371,17 @@ void ElElToPhoebeApp::run(Context &context) {
     for (int ik = 0; ik < numK; ++ik) {
       for (int iR = 0; iR < numR; ++iR) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
-        Eigen::Vector3d R = elBravaisVectors.row(iR);
+        Eigen::Vector3d R = elBravaisVectors.col(iR);
         double arg = k.dot(R);
         phases(ik, iR) = exp(complexI * arg)/ double(numK);
       }
     }
   }
+
+  //if (mpi->mpiHead()) {
+  //    for (int iR = 0; iR < numR; ++iR) {
+  //        std::cout << elBravaisVectors.col(iR) << std::endl;}
+  //}
 
   // Fourier transform on ik1
   Eigen::Tensor<std::complex<double>, 7> Gamma5(numR, numK, numK, numWannier, numWannier, numWannier, numWannier);
