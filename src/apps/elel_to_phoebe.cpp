@@ -211,7 +211,7 @@ void ElElToPhoebeApp::run(Context &context) {
         qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) = yamboKernel(iYamboBSE, jYamboBSE) * energyHaToEv;
         Eigen::Vector3d temp1 = {0.25,0.0,0.0};
         Eigen::Vector3d temp2 = {0.25,0.25,0.0};
-        if(abs((thisiK-temp1).norm()) < 1e-3 && abs((thisK2-temp2).norm()) < 1e-3 && ib1 == 2 && ib2 == 3 && ib3 == 2 && ib4 == 3) {
+        if(abs((thisiK-temp1).norm()) < 1e-3 && abs((thisK2-temp2).norm()) < 1e-3 && ib1 == 3 && ib2 == 2 && ib3 == 3 && ib4 == 2) {
           std::cout << thisiK.transpose() << " " << thisK2.transpose() << " " << thisjK.transpose() << " " << qpCoupling(ikk1, ikk2, ikk3, ib1, ib2, ib3, ib4) << std::endl;
         }
         /*if(ikk1 == 1 && ikk2 == 2 && ikk3 == 3 && ib1 == 1 && ib2 == 1 && ib3 == 1 && ib4 == 1) {
@@ -243,7 +243,6 @@ void ElElToPhoebeApp::run(Context &context) {
   // first we do the rotation on k4, the implicit index
   Eigen::Tensor<std::complex<double>, 7> Gamma1(numK, numK, numK, numBands, numBands, numBands, numWannier);
   {
-    std::complex<double> tmp;
     for (int ik1 = 0; ik1 < numK; ++ik1) {
       Eigen::Vector3d k1C = kPoints.getPointCoordinates(ik1, Points::crystalCoordinates);
       for (int ik2 = 0; ik2 < numK; ++ik2) {
@@ -261,7 +260,7 @@ void ElElToPhoebeApp::run(Context &context) {
             for (int ib2 = 0; ib2 < numBands; ++ib2) {
               for (int ib3 = 0; ib3 < numBands; ++ib3) {
                 for (int iw4 = 0; iw4 < numWannier; ++iw4) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};    // to avoid overwriting in OpenMP parallelism, tmp should be defined with the loop
                   for (int ib4 = 0; ib4 < numBands; ++ib4) {
                     tmp += qpCoupling(ik1, ik2, ik3, ib1, ib2, ib3, ib4)
                         * uMatrices(ib4, iw4, ik4);
@@ -280,8 +279,7 @@ void ElElToPhoebeApp::run(Context &context) {
   // next, rotation on ik3
   Eigen::Tensor<std::complex<double>, 7> Gamma2(numK, numK, numK, numBands, numBands, numWannier, numWannier);
   {
-    std::complex<double> tmp;
-  #pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int ik1 = 0; ik1 < numK; ++ik1) {
       for (int ik2 = 0; ik2 < numK; ++ik2) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -290,7 +288,7 @@ void ElElToPhoebeApp::run(Context &context) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
 
                 for (int iw3 = 0; iw3 < numWannier; ++iw3) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};
                   for (int ib3 = 0; ib3 < numBands; ++ib3) {
                     tmp += Gamma1(ik1, ik2, ik3, ib1, ib2, ib3, iw4)
                         * uMatrices(ib3, iw3, ik3);
@@ -309,8 +307,7 @@ void ElElToPhoebeApp::run(Context &context) {
   // rotation on ik2
   Eigen::Tensor<std::complex<double>, 7> Gamma3(numK, numK, numK, numBands, numWannier, numWannier, numWannier);
   {
-    std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int ik1 = 0; ik1 < numK; ++ik1) {
       for (int ik2 = 0; ik2 < numK; ++ik2) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -319,7 +316,7 @@ void ElElToPhoebeApp::run(Context &context) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
 
                 for (int iw2 = 0; iw2 < numWannier; ++iw2) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};
                   for (int ib2 = 0; ib2 < numBands; ++ib2) {
                     tmp += Gamma2(ik1, ik2, ik3, ib1, ib2, iw3, iw4)
                         * std::conj(uMatrices(ib2, iw2, ik2));
@@ -338,8 +335,7 @@ void ElElToPhoebeApp::run(Context &context) {
   // rotation on ik1
   Eigen::Tensor<std::complex<double>, 7> Gamma4(numK, numK, numK, numWannier, numWannier, numWannier, numWannier);
   {
-    std::complex<double> tmp;
-#pragma omp parallel for collapse(6)
+    #pragma omp parallel for collapse(6)
     for (int ik1 = 0; ik1 < numK; ++ik1) {
       for (int ik2 = 0; ik2 < numK; ++ik2) {
         for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -347,12 +343,13 @@ void ElElToPhoebeApp::run(Context &context) {
             for (int iw3 = 0; iw3 < numWannier; ++iw3) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
                 for (int iw1 = 0; iw1 < numWannier; ++iw1) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};
                   for (int ib1 = 0; ib1 < numBands; ++ib1) {
                      tmp += Gamma3(ik1, ik2, ik3, ib1, iw2, iw3, iw4)
                         * std::conj(uMatrices(ib1, iw1, ik1));
                   }
                   Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
+                  //Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4) = qpCoupling(ik1, ik2, ik3, iw1+2, iw2+2, iw3+2, iw4+2);
                 }
               }
             }
@@ -373,7 +370,7 @@ void ElElToPhoebeApp::run(Context &context) {
         Eigen::Vector3d k = kPoints.getPointCoordinates(ik, Points::cartesianCoordinates);
         Eigen::Vector3d R = elBravaisVectors.col(iR);
         double arg = k.dot(R);
-        phases(ik, iR) = exp(complexI * arg)/ double(numK);
+        phases(ik, iR) = exp(complexI * arg) / double(numK);
       }
     }
   }
@@ -386,7 +383,6 @@ void ElElToPhoebeApp::run(Context &context) {
   // Fourier transform on ik1
   Eigen::Tensor<std::complex<double>, 7> Gamma5(numR, numK, numK, numWannier, numWannier, numWannier, numWannier);
   {
-    std::complex<double> tmp;
     #pragma omp parallel for collapse(6)
     for (int ik2 = 0; ik2 < numK; ++ik2) {
       for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -394,12 +390,13 @@ void ElElToPhoebeApp::run(Context &context) {
           for (int iw2 = 0; iw2 < numWannier; ++iw2) {
             for (int iw3 = 0; iw3 < numWannier; ++iw3) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
-                for (int iR = 0; iR < numR; ++iR) {
-                  tmp = {0., 0.};
+
+                for (int iR1 = 0; iR1 < numR; ++iR1) {
+                  std::complex<double> tmp = {0., 0.};
                   for (int ik1 = 0; ik1 < numK; ++ik1) {
-                    tmp += phases(ik1, iR) * Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4);
+                    tmp += phases(ik1, iR1) * Gamma4(ik1, ik2, ik3, iw1, iw2, iw3, iw4);
                   }
-                  Gamma5(iR, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
+                  Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4) = tmp;
                 }
               }
             }
@@ -413,7 +410,6 @@ void ElElToPhoebeApp::run(Context &context) {
   // Fourier transform on ik2
   Eigen::Tensor<std::complex<double>, 7> Gamma6(numR, numR, numK, numWannier, numWannier, numWannier, numWannier);
   {
-    std::complex<double> tmp;
     #pragma omp parallel for collapse(6)
     for (int iR1 = 0; iR1 < numR; ++iR1) {
       for (int ik3 = 0; ik3 < numK; ++ik3) {
@@ -423,7 +419,7 @@ void ElElToPhoebeApp::run(Context &context) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
 
                 for (int iR2 = 0; iR2 < numR; ++iR2) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};
                   for (int ik2 = 0; ik2 < numK; ++ik2) {
                     tmp += phases(ik2, iR2) * Gamma5(iR1, ik2, ik3, iw1, iw2, iw3, iw4);
                   }
@@ -441,7 +437,6 @@ void ElElToPhoebeApp::run(Context &context) {
   // Fourier transform on ik3
   Eigen::Tensor<std::complex<double>, 7> GammaW(numR, numR, numR, numWannier, numWannier, numWannier, numWannier);
   {
-    std::complex<double> tmp;
     #pragma omp parallel for collapse(6)
     for (int iR1 = 0; iR1 < numR; ++iR1) {
       for (int iR2 = 0; iR2 < numR; ++iR2) {
@@ -451,7 +446,7 @@ void ElElToPhoebeApp::run(Context &context) {
               for (int iw4 = 0; iw4 < numWannier; ++iw4) {
 
                 for (int iR3 = 0; iR3 < numR; ++iR3) {
-                  tmp = {0., 0.};
+                  std::complex<double> tmp = {0., 0.};
                   for (int ik3 = 0; ik3 < numK; ++ik3) {
                     tmp += std::conj(phases(ik3, iR3)) * Gamma6(iR1, iR2, ik3, iw1, iw2, iw3, iw4);
                   }
@@ -526,7 +521,7 @@ void ElElToPhoebeApp::writeWannierCoupling(
               for (int iw3 = 0; iw3 < numWannier; iw3++) {
                 for (int iw4 = 0; iw4 < numWannier; iw4++) {
                   slice(iR2, iR3, iw1, iw2, iw3, iw4) = gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4);
-                  //if (iR1 == 0 && iR2 == 1 && iR3 == 2) {
+                  //if (iR1 == 0 && iR2 <= 1 && iR3 <= 1) {
                   //    std::cout << iw1 << " " << iw2 << " " << iw3 << " " << iw4 << " " << gWannier(iR1, iR2, iR3, iw1, iw2, iw3, iw4) << std::endl;}
                 }
               }

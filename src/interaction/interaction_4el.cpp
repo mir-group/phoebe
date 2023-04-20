@@ -139,7 +139,7 @@ void Interaction4El::calcCouplingSquared(
     auto eigvecs4Dagger_h = Kokkos::create_mirror_view(eigvecs4Dagger_d);
     auto k3Cs_h = Kokkos::create_mirror_view(k3Cs_d);
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int ik = 0; ik < numLoops; ik++) {
 
       for (int iw3 = 0; iw3 < numWannier; iw3++) {
@@ -230,6 +230,7 @@ void Interaction4El::calcCouplingSquared(
           tmp += g3_1(ik, ib1, ib2, iw3, iw4) *  eigvecs3Dagger_d(ik, iw3, ib3);
         }
         g4_1(ik, ib1, ib2, ib3, iw4) = tmp;
+        //g4_1(ik, ib1, ib2, ib3, iw4) = g3_1(ik, ib1, ib2, ib3, iw4);
       });
   Kokkos::parallel_for(
       "g4_2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb2, nb3max, numWannier}),
@@ -237,9 +238,10 @@ void Interaction4El::calcCouplingSquared(
         Kokkos::complex<double> tmp(0.,0.);
         // rotate R3 -- where s3 is an initial state
         for (int iw3 = 0; iw3 < numWannier; iw3++) {
-          tmp += g3_2(ik, ib1, ib2, iw3, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
+          tmp += g3_2(ik, ib1, iw3, ib2, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
         g4_2(ik, ib1, ib3, ib2, iw4) = tmp;
+        //g4_2(ik, ib1, ib3, ib2, iw4) = g3_2(ik, ib1, ib3, ib2, iw4);
       });
   Kokkos::parallel_for(
       "g4_3", Range5D({0, 0, 0, 0, 0}, {numLoops, nb3max, nb2, nb1, numWannier}),
@@ -250,6 +252,7 @@ void Interaction4El::calcCouplingSquared(
           tmp += g3_3(ik, iw3, ib2, ib1, iw4) *  Kokkos::conj(eigvecs3Dagger_d(ik, iw3, ib3));
         }
         g4_3(ik, ib3, ib2, ib1, iw4) = tmp;
+        //g4_3(ik, ib3, ib2, ib1, iw4) = g3_3(ik, ib3, ib2, ib1, iw4);
       });
   Kokkos::realloc(g3_1, 0, 0, 0, 0, 0);
   Kokkos::realloc(g3_2, 0, 0, 0, 0, 0);
@@ -266,6 +269,7 @@ void Interaction4El::calcCouplingSquared(
           tmp += g4_1(ik, ib1, ib2, ib3, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal1(ik, ib1, ib2, ib3, ib4) = tmp;
+        //gFinal1(ik, ib1, ib2, ib3, ib4) = g4_1(ik, ib1, ib2, ib3, ib4);
       });
   Kokkos::parallel_for(
       "gFinal2", Range5D({0, 0, 0, 0, 0}, {numLoops, nb1, nb3max, nb2, nb4max}),
@@ -275,6 +279,7 @@ void Interaction4El::calcCouplingSquared(
           tmp += g4_2(ik, ib1, ib3, ib2, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal2(ik, ib1, ib3, ib2, ib4) = tmp;
+        //gFinal2(ik, ib1, ib3, ib2, ib4) = g4_2(ik, ib1, ib3, ib2, ib4);
       });
   Kokkos::parallel_for(
       "gFinal3", Range5D({0, 0, 0, 0, 0}, {numLoops, nb3max, nb2, nb1, nb4max}),
@@ -284,6 +289,7 @@ void Interaction4El::calcCouplingSquared(
           tmp += g4_3(ik, ib3, ib2, ib1, iw4) *  eigvecs4Dagger_d(ik, iw4, ib4);
         }
         gFinal3(ik, ib3, ib2, ib1, ib4) = tmp;
+        //gFinal3(ik, ib3, ib2, ib1, ib4) = g4_3(ik, ib3, ib2, ib1, ib4);
       });
   Kokkos::realloc(g4_1, 0, 0, 0, 0, 0);
   Kokkos::realloc(g4_2, 0, 0, 0, 0, 0);
@@ -337,7 +343,7 @@ void Interaction4El::calcCouplingSquared(
   Kokkos::deep_copy(coupling1_h, coupling1_d);
   Kokkos::deep_copy(coupling2_h, coupling2_d);
   Kokkos::deep_copy(coupling3_h, coupling3_d);
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int ik3 = 0; ik3 < numLoops; ik3++) {
     Eigen::Tensor<double, 4> coupling1(nb1, nb2, nb3s_h(ik3), nb4s_h(ik3));
     Eigen::Tensor<double, 4> coupling2(nb1, nb3s_h(ik3), nb2, nb4s_h(ik3));
@@ -454,6 +460,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
             tmp += preCache1a(irE2, irE3, iw1, iw2, iw3, iw4) * eigvec1_d(ib1, iw1);
           }
           elPhCached1a(irE2, irE3, ib1, iw2, iw3, iw4) = tmp;
+          //elPhCached1a(irE2, irE3, ib1, iw2, iw3, iw4) = preCache1a(irE2, irE3, ib1, iw2, iw3, iw4);
 
   });
 
@@ -468,6 +475,7 @@ void Interaction4El::cache1stEl(const Eigen::MatrixXcd &eigvec1, const Eigen::Ve
             tmp += preCache1b(irE2, irE3, iw3, iw2, iw1, iw4) * Kokkos::conj(eigvec1_d(ib1, iw1));
           }
           elPhCached1b(irE2, irE3, iw3, iw2, ib1, iw4) = tmp;
+          //elPhCached1b(irE2, irE3, iw3, iw2, ib1, iw4) = preCache1b(irE2, irE3, iw3, iw2, ib1, iw4);
   });
 }
 
@@ -512,8 +520,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           arg += k2C_d(j) * elBravaisVectors_d(irE, j);
         }
         // TODO -- should we do this --> +k2.R2 -- this is because in the Yambo convention of k1 - k2 = k3 - k4,
-        phases_k(irE) =
-            exp(-complexI * arg) / elBravaisVectorsDegeneracies_d(irE);
+        phases_k(irE) = exp(-complexI * arg) / elBravaisVectorsDegeneracies_d(irE);
   });
 
 
@@ -578,6 +585,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           tmp += preCache2a(irE3, ib1, iw2, iw3, iw4) * eigvec2_d(ib2, iw2);
         }
         elPhCached2a(irE3, ib1, ib2, iw3, iw4) = tmp;
+        //elPhCached2a(irE3, ib1, ib2, iw3, iw4) = preCache2a(irE3, ib1, ib2, iw3, iw4);
       });
 
   Kokkos::parallel_for("cache2b",
@@ -590,6 +598,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           tmp += preCache2b(irE3, ib1, iw3, iw2, iw4) * Kokkos::conj(eigvec2_d(ib2, iw2));
         }
         elPhCached2b(irE3, ib1, iw3, ib2, iw4) = tmp;
+        //elPhCached2b(irE3, ib1, iw3, ib2, iw4) = preCache2b(irE3, ib1, iw3, ib2, iw4);
       });
 
   Kokkos::parallel_for("cache2c",
@@ -602,6 +611,7 @@ void Interaction4El::cache2ndEl(const Eigen::MatrixXcd &eigvec2, const Eigen::Ve
           tmp += preCache2c(irE3, iw3, iw2, ib1, iw4) * eigvec2_d(ib2, iw2);
         }
         elPhCached2c(irE3, iw3, ib2, ib1, iw4) = tmp;
+        //elPhCached2c(irE3, iw3, ib2, ib1, iw4) = preCache2c(irE3, iw3, ib2, ib1, iw4);
       });
 
   this->elPhCached2a = elPhCached2a;

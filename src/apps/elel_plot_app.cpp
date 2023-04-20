@@ -170,6 +170,8 @@ q = k3 - k1 = 0.25 0 0
             //if(ib1 == 1  && ib2 == 2 && ib3 == 1) {
               //if(mpi->mpiHead()) std::cout << "coupling " << std::setprecision(8) << coupling(ib1, ib2, ib3) << " " << k1C.transpose() << std::endl;
            // }
+            //if (iTriplet <= 2) {
+            //   if (mpi->mpiHead()) std::cout << iTriplet << " " << ib1 << " " << ib2 << " " << ib3 << " " << ib4 << " " << couplingA(ib1, ib2, ib3, ib4) << std::endl;}
           }
         }
       }
