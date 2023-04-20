@@ -167,10 +167,11 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
                                 const bool isDistributed=false);
 
   /** Internal helper function for kokkos diag of electron H0 */
-  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
-           std::vector<Eigen::Tensor<std::complex<double>,3>>>
+///  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+ //          std::vector<Eigen::Tensor<std::complex<double>,3>>>
+std::tuple<Eigen::MatrixXd, Eigen::Tensor<std::complex<double>,3>, Eigen::Tensor<std::complex<double>,4>>
                     kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
-                                   const bool &withVelocities,
+                                   const int totalNumPoints, const bool &withVelocities,
                                    const bool &withEigenvectors, const std::vector<int>& iks);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
