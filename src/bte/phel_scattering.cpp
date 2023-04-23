@@ -5,7 +5,9 @@
 #include "periodic_table.h"
 
 // helper function to generate kpoint pairs for phel scattering
+// This generates irr points for the ik1, iq3 indices
 std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavevectorPairs() {
+
   std::vector<std::tuple<int, std::vector<int>>> pairIterator;
 
   // here I parallelize over ik1 which is the outer loop on q-points
@@ -13,10 +15,10 @@ std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavev
 
   // I don't parallelize the inner band structure, the inner loop
   // populate vector with integers from 0 to numPoints-1
-  std::vector<int> k2Iterator = getElBandStructure().irrPointsIterator();
+  std::vector<int> q3Iterator = getPhBandStructure().irrPointsIterator();
 
   for (size_t ik1 : k1Iterator) {
-    auto t = std::make_tuple(int(ik1), k2Iterator);
+    auto t = std::make_tuple(int(ik1), q3Iterator);
     pairIterator.push_back(t);
   }
   return pairIterator;
@@ -28,8 +30,7 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
                                            BaseBandStructure &phBandStructure_,
                                            InteractionElPhWan &couplingElPhWan_,
                                            ElectronH0Wannier &electronH0_)
-    : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_,
-                       phBandStructure_),
+    : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
       couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
   isMatrixOmega = true;
@@ -37,19 +38,20 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
   highMemory = false;
 }
 
+/*
 PhElScatteringMatrix::PhElScatteringMatrix(const PhElScatteringMatrix &that)
     : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
       electronH0(that.electronH0) {}
-
-PhElScatteringMatrix &
-PhElScatteringMatrix::operator=(const PhElScatteringMatrix &that) {
+*/
+/*
+PhElScatteringMatrix& PhElScatteringMatrix::operator=(const PhElScatteringMatrix &that) {
   ScatteringMatrix::operator=(that);
   if (this != &that) {
     couplingElPhWan = that.couplingElPhWan;
     electronH0 = that.electronH0;
   }
   return *this;
-}
+}*/
 
 // In the phononElectron case, we only compute the diagonal of the
 // scattering matrix. Therefore, we compute only the linewidths
@@ -139,13 +141,19 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     // and we will almost always have a window for electrons
   }
 
-  auto kPairIterator = getIrrWavevectorPairs();
+  // k1, k2 are the electronic states, q3 is the phonon
+  // this helper returns pairs of the form vector<idxK1, std::vector(allQ3idxs)>
+  std::vector<std::tuple<int, std::vector<int>>> kqPairIterator = getIrrWavevectorPairs();
+  LoopPrint loopPrint("computing ph-el linewidths","k,q pairs", kqPairIterator.size());
 
   double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-  LoopPrint loopPrint("computing scattering matrix", "k-points", kPairIterator.size());
+  // iterate over vector<idxK1, std::vector(allK2idxs)>
+  // In this loop, k1 is fixed at the top, and we compute
+  // it's electronic properties in the outer loop.
+  // q3 is the list of iq3Indices, and k2 is determined using k1 and q3
+  for (auto t1 : kqPairIterator) {
 
-  for (auto t1 : kPairIterator) {
     loopPrint.update();
 
     int ik1 = std::get<0>(t1);
@@ -169,23 +177,26 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       continue;
     }
 
+    // store k1 energies, velocities, eigenvectors from elBandstructure
     Eigen::Vector3d k1C = getElBandStructure().getWavevector(ik1Idx);
     Eigen::VectorXd state1Energies = getElBandStructure().getEnergies(ik1Idx);
     auto nb1 = int(state1Energies.size());
     Eigen::MatrixXd v1s = getElBandStructure().getGroupVelocities(ik1Idx);
     Eigen::MatrixXcd eigenVector1 = getElBandStructure().getEigenvectors(ik1Idx);
 
+    // precompute first fourier transform + rotation by k1
     couplingElPhWan.cacheElPh(eigenVector1, k1C);
 
-    // prepare batches based on memory usage
+    // prepare batches of q3s based on memory usage (so that this could be done on gpus)?
     auto nq3 = int(iq3Indexes.size());
     int numBatches = couplingElPhWan.estimateNumBatches(nq3, nb1);
 
-    // loop over batches of q1s
-    // later we will loop over the q1s inside each batch
+    // loop over batches of q3s
+    // later we will loop over the q3s inside each batch
     // this is done to optimize the usage and data transfer of a GPU
     for (int iBatch = 0; iBatch < numBatches; iBatch++) {
-      // start and end point for current batch
+
+      // start and end point for current batch of q3s
       int start = nq3 * iBatch / numBatches;
       int end = nq3 * (iBatch + 1) / numBatches;
       int batch_size = end - start;
@@ -194,10 +205,13 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
       std::vector<Eigen::VectorXcd> allPolarData(batch_size);
 
-      // do prep work for all values of q1 in current batch,
+      // do prep work for all values of q3 in current batch,
       // store stuff needed for couplings later
+      //
+      // loop over each iq3 in the batch of q3s
       #pragma omp parallel for
       for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+
         int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
 
@@ -206,43 +220,54 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         allQ3C[iq3Batch] = getPhBandStructure().getWavevector(iq3Idx);
       }
 
-      // precompute the q indices such that k'-k=q at fixed k
+      // precompute the k2 indices such that k2-k1=q3, where k1 is fixed
       std::vector<Eigen::Vector3d> allK2C(batch_size);
       #pragma omp parallel for
       for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+
         int iq3 = iq3Indexes[start + iq3Batch];
         auto iq3Index = WavevectorIndex(iq3);
         Eigen::Vector3d q3C = getPhBandStructure().getWavevector(iq3Index);
+
         // k' = k + q : phonon absorption
+        // TODO do these need to be refolded into the BZ?
         Eigen::Vector3d k2C = q3C + k1C;
         allK2C[iq3Batch] = k2C;
       }
 
+      // calculate the state energies, vs, eigs of all k2 points
       bool withVelocities = false;
       if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
         withVelocities = true;
       }
       bool withEigenvectors = true; // we need these below to calculate coupling
-      auto tHelp = electronH0.populate(allK2C, withVelocities, withEigenvectors); // TODO is this done on GPUs?
+      auto tHelp = electronH0.populate(allK2C, withVelocities, withEigenvectors);
 
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
       std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
 
+      // Generate couplings for fixed k1, all k2s and all Q3Cs
       couplingElPhWan.calcCouplingSquared(eigenVector1, allEigenVectors2,
                                           allEigenVectors3, allQ3C, allPolarData);
 
-      // do postprocessing loop with batch of couplings
+      // do postprocessing loop with batch of couplings to calculate the scattering rates
       for (int iq3Batch = 0; iq3Batch < batch_size; iq3Batch++) {
+
+        // this is the reducible kpoint index!
+        // we must convert it to the irrQpoint index,
+        // as the linewidths object is size = irrQpoints
+        // TODO check that we are doing this soon enough!
         int iq3 = iq3Indexes[start + iq3Batch];
+        iq3 = getPhBandStructure().getPoints().asIrreducibleIndex(iq3);
         WavevectorIndex iq3Idx(iq3);
 
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
-        Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx); //for gpu would replace with compute OTF
+        // for gpu would replace with compute OTF
+        Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx);
         auto nb2 = int(state2Energies.size());
 
-        Eigen::Tensor<double, 3> coupling =
-            couplingElPhWan.getCouplingSquared(iq3Batch);
+        Eigen::Tensor<double, 3> coupling = couplingElPhWan.getCouplingSquared(iq3Batch);
         // TODO: uncomment this after it will be put in the develop branch
         // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
 
@@ -256,15 +281,18 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         for (int ib2 = 0; ib2 < nb2; ib2++) {
           for (int ib1 = 0; ib1 < nb1; ib1++) {
             for (int ib3 = 0; ib3 < nb3; ib3++) {
+
               double en2 = state2Energies(ib2);
               double en1 = state1Energies(ib1);
               double en3 = state3Energies(ib3);
+
               // remove small divergent phonon energies
               if (en3 < phononCutoff) {
                 smearing_values(ib1, ib2, ib3) = 0.;
                 continue;
               }
               double delta;
+
               // NOTE: for gpus, if statements need to be moved outside, as
               // this creates load balancing issues for gpu threads and cpu must
               // dispatch this decision info
@@ -285,7 +313,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         #pragma omp parallel for collapse(2)
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
             int is3 = getPhBandStructure().getIndex(iq3Idx, BandIndex(ib3));
+
             for (int ib1 = 0; ib1 < nb1; ib1++) {
               for (int ib2 = 0; ib2 < nb2; ib2++) {
               // loop on temperature
@@ -306,7 +336,11 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                     * smearing_values(ib1, ib2, ib3)
                     * norm / temperatures(iCalc) * pi;
 
-                // case of linewidth construction
+                // case of linewidth construction (the only case, for ph-el)
+                // is3 is the phonon state, which should be matched to the vector bte object
+                if(linewidth->numStates == is3  ) {
+                  Error("Developer error: Ph-el linewidth index is out of bounds.");
+                }
                 linewidth->operator()(iCalc, 0, is3) += rate;
 
                 //NOTE: for eliashberg function, we could here add another vectorBTE object

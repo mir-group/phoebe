@@ -166,7 +166,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
                              statisticsSweep, smearing->getType(), h0);
-  LoopPrint loopPrint("computing scattering matrix", "q-points",
+  LoopPrint loopPrint("computing scattering matrix", "q-point pairs",
                       int(qPairIterator.size()));
 
   /** Very important: the code must be executed with a loop over q2 outside

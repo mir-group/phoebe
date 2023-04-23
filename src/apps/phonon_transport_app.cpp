@@ -78,6 +78,7 @@ void PhononTransportApp::run(Context &context) {
   // as the phonon electron lifetime only contributes to the digaonal
   if(usePhElInteraction) {
 
+    // TODO what does this mean?
     // don't proceed if we use more than one doping concentration:
     // we'd need slightly different statisticsSweep for the 2 scatterings
     int numMu = statisticsSweep.getNumChemicalPotentials();
@@ -123,8 +124,7 @@ void PhononTransportApp::run(Context &context) {
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
-  WignerPhononThermalConductivity phTCondWigner(
-      context, statisticsSweep, crystal, bandStructure, phononRelTimes);
+  WignerPhononThermalConductivity phTCondWigner(context, statisticsSweep, crystal, bandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
   phTCondWigner.outputToJSON("wigner_phonon_thermal_cond.json");
