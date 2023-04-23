@@ -66,6 +66,7 @@ class Context {
   double deltaPath = 0.05;
 
   bool outputEigendisplacements = false; // used by bands app if phonon eigdisps are dumped
+  bool outputUNTimes = false; // triggers scattering matrix to output times for U and N processes
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
@@ -282,6 +283,7 @@ public:
   double getDeltaPath() const;
 
   bool getOutputEigendisplacements() const;
+  bool getOutputUNTimes() const;
 
   double getFermiLevel() const;
   void setFermiLevel(const double &x);

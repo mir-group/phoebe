@@ -582,6 +582,10 @@ void Context::setupFromInput(const std::string &fileName) {
         outputEigendisplacements = parseBool(val);
       }
 
+      if (parameterName == "outputUNTimes") {
+        outputUNTimes = parseBool(val);
+      }
+
       if (parameterName == "fermiLevel") {
         fermiLevel = parseDoubleWithUnits(val);
       }
@@ -992,6 +996,7 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(boundaryLength))
         std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
                   << " mum" << std::endl;
+      std::cout << "outputUNTimes = " << outputUNTimes << std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
@@ -1220,6 +1225,7 @@ std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 double Context::getDeltaPath() const { return deltaPath; }
 
 bool Context::getOutputEigendisplacements() const { return outputEigendisplacements; }
+bool Context::getOutputUNTimes() const { return outputUNTimes; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
 

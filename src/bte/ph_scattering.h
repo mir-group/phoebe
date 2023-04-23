@@ -42,11 +42,11 @@ class PhScatteringMatrix : public ScatteringMatrix {
 
   /** Copy constructor
    */
-  PhScatteringMatrix(const PhScatteringMatrix &that);
+//  PhScatteringMatrix(const PhScatteringMatrix &that);
 
   /** Copy assignment operator
    */
-  PhScatteringMatrix &operator=(const PhScatteringMatrix &that);
+//  PhScatteringMatrix &operator=(const PhScatteringMatrix &that);
 
  protected:
   Interaction3Ph *coupling3Ph;
