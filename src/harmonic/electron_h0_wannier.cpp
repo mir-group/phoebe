@@ -251,7 +251,7 @@ ElectronH0Wannier::diagonalizeVelocityFromCoordinates(
 }
 
 std::tuple<Eigen::MatrixXd, Eigen::Tensor<std::complex<double>,3>, Eigen::Tensor<std::complex<double>,4>>
-ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates, const int totalNumPoints,
+ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
                                                     const bool &withVelocities,
                                                     const bool &withEigenvectors, const std::vector<int> &iks) {
 
@@ -264,13 +264,22 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
   // cartesianCoordinates is the list of points which are local to this process
   size_t localNumPoints = cartesianCoordinates.size();
 
-  Eigen::MatrixXd allEnergies(totalNumPoints, numWannier);
-  Eigen::Tensor<std::complex<double>,3> allEigenvectors(totalNumPoints, numWannier, numWannier);
-  Eigen::Tensor<std::complex<double>,4> allVelocities(totalNumPoints, numWannier, numWannier, 3);
+  Eigen::MatrixXd allEnergies(localNumPoints, numWannier);
+  Eigen::Tensor<std::complex<double>,3> allEigenvectors(localNumPoints, numWannier, numWannier);
+  Eigen::Tensor<std::complex<double>,4> allVelocities(localNumPoints, numWannier, numWannier, 3);
 
   // set up information about how kpoint batches will be moved onto host
   int batchSize = estimateBatchSize(withVelocities);
   std::vector<std::vector<int>> ikBatches = kokkosDeviceMemory->splitToBatches(iks, batchSize);
+
+  // Note on indexing in this function:
+  // the indices in ikBatch[iik] are the global kpoint indices
+  // iik is local in the batch.
+  // we need a value which indexes within the kpoints passed as the cartCoords argument
+  // of this function, which are only a fraction to the total global kpoints
+  // To do this, we keep a batch counter, that would be ikLocal = iik + numFinishedPoints
+
+  int numFinishedPoints = 0;
 
   // diagonalize batches of kpoints
   for (auto ikBatch : ikBatches) {
@@ -281,26 +290,17 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
     DoubleView2D cartesianWavevectors_d("el_cartWav_d", numBatchK, 3);
     {
       auto cartesianWavevectors_h = Kokkos::create_mirror_view(cartesianWavevectors_d);
-#pragma omp parallel for
       for (int iik = 0; iik < numBatchK; ++iik) {
 
         // ik = index in cartCoords list, index of in iks, ikk is index in the batch
-        int ik = ikBatch[iik];
-        // TODO anders, can I copy this in directly rather than by element? Are views smart like this?
-        Eigen::Vector3d k = cartesianCoordinates[ik];
+        int ikLocal = iik + numFinishedPoints;
         for (int i = 0; i < 3; ++i) {
-          cartesianWavevectors_h(iik, i) = k(i);
+          cartesianWavevectors_h(iik, i) = cartesianCoordinates[ikLocal](i);
         }
       }
       Kokkos::deep_copy(cartesianWavevectors_d, cartesianWavevectors_h);
-    }
-    // structures to fill in with energies, eigenvectors, and velocities (for this batch)
-    // TODO anders, can I just copy straight into the already allocated vectors
-    // of these objects?
-    //Eigen::MatrixXd batchEnergies(numBatchK, numWannier);
-    //Eigen::Tensor<std::complex<double>,3> batchEigenvectors(numBatchK, numWannier, numWannier);
-    //Eigen::Tensor<std::complex<double>,4> batchVelocities(numBatchK, numWannier, numWannier, 3);
-    {
+
+      // now calculate the energies, eigenvectors, and velocities for the kpoints in this batch
       DoubleView2D batchEnergies_d;
       StridedComplexView3D batchEigenvectors_d;
       ComplexView4D batchVelocities_d;
@@ -323,14 +323,12 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
       Kokkos::deep_copy(batchEnergies_h, batchEnergies_d);
       Kokkos::deep_copy(batchEigenvectors_h, batchEigenvectors_d);
       for (int iik=0; iik<numBatchK; ++iik) {
-        // iik is local in the batch, ik is within the global list of kpoints
-        int ik = ikBatch[iik];
+        // iik is local in the batch, ikLocal is within the cartCoords list of kpoints
+        int ikLocal = iik + numFinishedPoints;
         for (int ib1 = 0; ib1 < numWannier; ++ib1) {
-          allEnergies(ik, ib1) = batchEnergies_h(iik, ib1);
-          //returnEnergies[iik](ib1) = allEnergies_h(iik, ib1);
+          allEnergies(ikLocal, ib1) = batchEnergies_h(iik, ib1);
           for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-            allEigenvectors(ik, ib1, ib2) = batchEigenvectors_h(iik, ib1, ib2);
-            //returnEigenvectors[iik](ib1, ib2) = allEigenvectors_h(iik, ib1, ib2);
+            allEigenvectors(ikLocal, ib1, ib2) = batchEigenvectors_h(iik, ib1, ib2);
           }
         }
       }
@@ -339,13 +337,12 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
         auto batchVelocities_h = Kokkos::create_mirror_view(batchVelocities_d);
         Kokkos::deep_copy(batchVelocities_h, batchVelocities_d);
         for (int iik=0; iik<numBatchK; ++iik) {
-          // iik is local, ik is global
-          int ik = ikBatch[iik];
+          // iik is local in the batch, ikLocal is within the cartCoords list of kpoints
+          int ikLocal = iik + numFinishedPoints;
           for (int ib1 = 0; ib1 < numWannier; ++ib1) {
             for (int ib2 = 0; ib2 < numWannier; ++ib2) {
               for (int i = 0; i < 3; ++i) {
-                allVelocities(ik, ib1, ib2, i) = batchVelocities_h(iik, ib1, ib2, i);
-                //returnVelocities[iik](ib1, ib2, i) = allVelocities_h(iik, ib1, ib2, i);
+                allVelocities(ikLocal, ib1, ib2, i) = batchVelocities_h(iik, ib1, ib2, i);
               }
             }
           }
@@ -356,18 +353,8 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
       batchEigenvectors_d = decltype(batchEigenvectors_d)();
       Kokkos::realloc(batchVelocities_d, 0, 0, 0, 0);
     }
+    numFinishedPoints += numBatchK;
   }
-    // each process could push back to a vector of E, v, and eigs...
-    // they will be ordered correctly within the process
-    // possible strategies:
-    // 1) try to allocate structures which are pre-sized to hold and return
-    // all the E, v, and eigs, then all reduce it at the end of the function and
-    // return
-    // 2) don't presize containers to return, push back to vectors... then
-    // sort them by a scheduled merge after the fact
-    // need an MPI version of
-    // https://github.com/mir-group/phoebe/blob/09dbcd6de19b79b39e3841a80fd2eeac398ff429/src/bands/active_bandstructure.cpp#L514
-
   return std::make_tuple(allEnergies, allEigenvectors, allVelocities);
 }
 
@@ -398,7 +385,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
   }
 
   // call kokkos populate to generate energies, velocities, and eigenvectors as necessary
-  auto tup = kokkosPopulate(cartesianCoordinates, fullPoints.getNumPoints(), withVelocities, withEigenvectors, iks);
+  auto tup = kokkosPopulate(cartesianCoordinates, withVelocities, withEigenvectors, iks);
 
   // band structure quantities from kokkosPopulate, the outer std::vectors are indexed by
   // kpoints in cartesianCoordinates, Eigen components are indexed by bands
@@ -420,7 +407,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
 
     Eigen::VectorXd ens(numWannier);
     for (int ib=0; ib<numWannier; ++ib) {
-      ens(ib) = localEnergies(ik, ib);
+      ens(ib) = localEnergies(iik, ib);
     }
     fullBandStructure.setEnergies(point, ens);
 
@@ -429,7 +416,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
       for (int ib1 = 0; ib1 < numWannier; ++ib1) {
         for (int ib2 = 0; ib2 < numWannier; ++ib2) {
           for (int i = 0; i < 3; ++i) {
-            v(ib1,ib2,i) = localVelocities(ik,ib1, ib2, i);
+            v(ib1,ib2,i) = localVelocities(iik,ib1, ib2, i);
           }
         }
       }
@@ -439,7 +426,7 @@ FullBandStructure ElectronH0Wannier::populate(Points &fullPoints,
       Eigen::MatrixXcd eigVec(numWannier, numWannier);
       for (int ib1 = 0; ib1 < numWannier; ++ib1) {
         for (int ib2 = 0; ib2 < numWannier; ++ib2) {
-          eigVec(ib1, ib2) = localEigenvectors(ik, ib1, ib2);
+          eigVec(ib1, ib2) = localEigenvectors(iik, ib1, ib2);
         }
       }
       fullBandStructure.setEigenvectors(point, eigVec);
@@ -470,37 +457,47 @@ std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
   }
 
   // call kokkos populate and return the energies and eigenvectors for each chunk of kpts
-  auto tup = kokkosPopulate(localCartesianCoordinates, totalNumPoints, withVelocities, withEigenvectors, iks);
+  auto tup = kokkosPopulate(localCartesianCoordinates, withVelocities, withEigenvectors, iks);
 
   Eigen::MatrixXd localEnergies = std::get<0>(tup);
   Eigen::Tensor<std::complex<double>,3> localEigenvectors = std::get<1>(tup);
   Eigen::Tensor<std::complex<double>,4> localVelocities = std::get<2>(tup);
 
-  // return dummy vectors
+  // containers to gather into
+  Eigen::MatrixXd gatherEnergies(totalNumPoints, numWannier);
+  Eigen::Tensor<std::complex<double>,3> gatherEigenvectors(totalNumPoints, numWannier, numWannier);
+  Eigen::Tensor<std::complex<double>,4> gatherVelocities(totalNumPoints, numWannier, numWannier, 3);
+
+  // return vectors
   std::vector<Eigen::VectorXd> returnEnergies;
   std::vector<Eigen::MatrixXcd> returnEigenvectors;
   std::vector<Eigen::Tensor<std::complex<double>,3>> returnVelocities;
 
   // merge them to reconstruct the full kpoint list
-  mpi->allReduceSum(&localEnergies);
+  // TODO feels like there should be a way to reduce these directly into vectors
+  // or merge them somehow, but for now I am doing this. There's trouble merging std::vectors
+  // of eigen::objects, because while std::vectors and eigen::objects are both contiguous in
+  // memory, std::vector<eigen::object> is not. MPI doesn't know how to handle this.
+  mpi->allGatherv(&localEnergies, &gatherEnergies);
+  mpi->allGatherv(&localEigenvectors, &gatherEigenvectors);
+  mpi->allGatherv(&localVelocities, &gatherVelocities);
+
   // convert to vector format for return
   for(int i = 0; i < totalNumPoints; i++) {
-    returnEnergies.push_back(localEnergies.row(i));
+    returnEnergies.push_back(gatherEnergies.row(i));
     if(withEigenvectors) {
-      Eigen::Tensor<std::complex<double>, 2> eig = localEigenvectors.chip(i,0);
+      Eigen::Tensor<std::complex<double>, 2> eig = gatherEigenvectors.chip(i,0);
       // TODO is this col major an issue?
-      Eigen::Map<Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>> mapEigs(eig.data(), numWannier,numWannier);
+      Eigen::Map<Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>> mapEigs(eig.data(), numWannier, numWannier);
       Eigen::MatrixXcd tempEigs = mapEigs;
       returnEigenvectors.push_back(tempEigs);
     }
     if(withVelocities) {
-      Eigen::Tensor<std::complex<double>,3> tempV = localVelocities.chip(i,0);
+      Eigen::Tensor<std::complex<double>,3> tempV = gatherVelocities.chip(i,0);
       returnVelocities.push_back(tempV);
     }
   }
-
   return std::make_tuple(returnEnergies, returnEigenvectors, returnVelocities);
-
 }
 
 FullBandStructure ElectronH0Wannier::cpuPopulate(Points &fullPoints,

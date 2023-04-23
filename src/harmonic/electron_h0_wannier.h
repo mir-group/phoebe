@@ -171,7 +171,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
  //          std::vector<Eigen::Tensor<std::complex<double>,3>>>
 std::tuple<Eigen::MatrixXd, Eigen::Tensor<std::complex<double>,3>, Eigen::Tensor<std::complex<double>,4>>
                     kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
-                                   const int totalNumPoints, const bool &withVelocities,
+                                   const bool &withVelocities,
                                    const bool &withEigenvectors, const std::vector<int>& iks);
 
   /** compute the Berry connection <u_mk| nabla_k |u_nk> at arb. wavevectors.
