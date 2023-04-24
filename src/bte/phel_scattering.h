@@ -53,6 +53,8 @@ protected:
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
+  // to prevent mistakes in which these two outer and inner BS could
+  // be accidentally swapped
   BaseBandStructure& getPhBandStructure() { return outerBandStructure; };
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
