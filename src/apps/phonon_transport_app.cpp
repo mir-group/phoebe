@@ -90,6 +90,12 @@ void PhononTransportApp::run(Context &context) {
     VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
                                                           bandStructure,
                                                           phononH0);
+
+    // if we're using both phel and phph times, we should output
+    // each independent linewidth set. PhEl is output above.
+    scatteringMatrix.outputToJSON("rta_phph_relaxation_times.json");
+
+    // add in the phel linewidths (which are only diagonal)
     VectorBTE totalRates = scatteringMatrix.diagonal();
     totalRates = totalRates + phElLinewidths;
     scatteringMatrix.setLinewidths(totalRates);
@@ -482,6 +488,8 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
         "perhaps use more OMP threads instead.");
     }
     phelScatteringMatrix.setup();
+    phelScatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
+
     VectorBTE phononElectronRates = phelScatteringMatrix.diagonal();
     return phononElectronRates;
 }
