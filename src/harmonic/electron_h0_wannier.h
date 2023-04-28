@@ -148,11 +148,13 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
                              const bool &withEigenvectors,
                              const bool isDistributed=false) override;
 
-  /** This method constructs an electron band structure.
+  /** Runs populate on a points list, without creating a new bandstructure object
+   * this is necessary if we need energies for some non-uniform grid of points
+   * currently this only used by the phonon electron scattering calculation
    * @param cartesianCoordinates: the vector with the list of wavevectors in cartesianCoords
    * @param withVelocities: if true, compute the electron velocity operator.
    * @param withEigenvectors: if true, stores the Wannier eigenvectors.
-   * @return std::tuple: A tuple of eigen structures containing energies, velocities,
+   * @return std::tuple: A tuple of std::vectors of eigen objs containing energies, velocities,
    * and eigenvectors of the electronic band structure on the provided points
    */
   std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
@@ -167,9 +169,8 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
                                 const bool isDistributed=false);
 
   /** Internal helper function for kokkos diag of electron H0 */
-///  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
- //          std::vector<Eigen::Tensor<std::complex<double>,3>>>
-std::tuple<Eigen::MatrixXd, Eigen::Tensor<std::complex<double>,3>, Eigen::Tensor<std::complex<double>,4>>
+  std::tuple<std::vector<Eigen::VectorXd>, std::vector<Eigen::MatrixXcd>,
+        std::vector<Eigen::Tensor<std::complex<double>,3>>>
                     kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianCoordinates,
                                    const bool &withVelocities,
                                    const bool &withEigenvectors, const std::vector<int>& iks);
