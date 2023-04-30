@@ -239,11 +239,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
         withVelocities = true;
       }
-      std::cout << "before populate" << std::endl;
       bool withEigenvectors = true; // we need these below to calculate coupling
       auto tHelp = electronH0.populate(allK2C, withVelocities, withEigenvectors);
 
-      std::cout << "post-populate" << std::endl;
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
       std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
@@ -258,21 +256,16 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         int iq3 = iq3Indexes[start + iq3Batch];
         WavevectorIndex iq3Idx(iq3);
 
-        // TODO this might be ok but we should be careful
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
         auto nb2 = int(state2Energies.size());
         // for gpu would replace with compute OTF
         Eigen::VectorXd state3Energies = getPhBandStructure().getEnergies(iq3Idx); // iq3Idx
 
-        Eigen::Tensor<double, 3> coupling = couplingElPhWan.getCouplingSquared(iq3Batch);
-        // TODO: uncomment this after it will be put in the develop branch
-        // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
-
         // NOTE: these loops are already set up to be applicable to gpus
         // the precomputaton of the smearing values and the open mp loops could
         // be converted to GPU relevant version
         int nb3 = state3Energies.size();
-        Eigen::Tensor<double,3> smearing_values(nb1, nb2, nb3);
+        Eigen::Tensor<double,3> smearingValues(nb1, nb2, nb3);
 
         #pragma omp parallel for collapse(3)
         for (int ib2 = 0; ib2 < nb2; ib2++) {
@@ -285,7 +278,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
               // remove small divergent phonon energies
               if (en3 < phononCutoff) {
-                smearing_values(ib1, ib2, ib3) = 0.;
+                smearingValues(ib1, ib2, ib3) = 0.;
                 continue;
               }
               double delta;
@@ -302,11 +295,15 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 }
                 delta = smearing->getSmearing(en1 - en2 + en3, smear);
               }
-              smearing_values(ib1, ib2, ib3) = std::max(delta, 0.);
+              smearingValues(ib1, ib2, ib3) = std::max(delta, 0.);
             }
           }
         }
 
+        Eigen::Tensor<double, 3> coupling = couplingElPhWan.getCouplingSquared(iq3Batch);
+        // TODO: uncomment this after it will be put in the develop branch
+        // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
+        //
         #pragma omp parallel for collapse(2)
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
@@ -336,17 +333,10 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 // includes a factor of (1/wq)
                 double rate =
                     coupling(ib1, ib2, ib3) * fermiTerm(iCalc, ik1, ib1)
-                    * smearing_values(ib1, ib2, ib3)
+                    * smearingValues(ib1, ib2, ib3)
                     * norm / temperatures(iCalc) * pi;
 
-                //std::cout << "rank " << mpi->getRank() << "bands " << ib1 << " " << ib2 << " " << ib3 << " "
-                //        << coupling(ib1, ib2, ib3) * fermiTerm(iCalc, ik1, ib1) <<
-                // " " << smearing_values(ib1, ib2, ib3) << " " << norm << " " << temperatures(iCalc) << std::endl;
-
                 // case of linewidth construction (the only case, for ph-el)
-                //if(numLinewidthStates == is3) { // TODO this doesn't work
-                //  Error("Developer error: Ph-el linewidth index is out of bounds.");
-                //}
                 linewidth->operator()(iCalc, 0, ibte3) += rate;
 
                 //NOTE: for eliashberg function, we could here add another vectorBTE object
