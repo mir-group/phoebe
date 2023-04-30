@@ -1019,7 +1019,7 @@ windowType
 windowEnergyLimit
 ^^^^^^^^^^^^^^^^^
 
-* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all phonon states  with energy outside of these bounds.
+* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all states (phonon or electron, depending on the calculation type)  with energy outside of these bounds.
 
 * **Format:** *list of doubles*
 
@@ -1031,7 +1031,7 @@ windowEnergyLimit
 windowPopulationLimit
 ^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Required if :ref:`windowType` = "population". Cutoff values for discarding phonon states based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
+* **Description:** Required if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
 
 * **Format:** *double*
 
