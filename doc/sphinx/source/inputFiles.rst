@@ -214,8 +214,6 @@ Electron BTE Solver
 
 * :ref:`smearingWidth`
 
-* :ref:`windowType`
-
 * :ref:`dimensionality`
 
 * :ref:`constantRelaxationTime`
@@ -1006,7 +1004,11 @@ hdf5ElPhFileFormat
 windowType
 ^^^^^^^^^^
 
-* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy". "nothing" means window is not applied; "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function. The "energy" window discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands.
+* **Description:** Enables the window used to discard phonon or electron states that don't contribute to transport. For phonon transport, we discard phonon states, and for electron transport, we discard electron states. Possible values are "nothing", "population" and "energy".
+  * "nothing" means window is not applied.
+  * "population" means phonon states are discarded if :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit, where :math:`\frac{\partial \bar{n}}{\partial T}` is the Bose--Einstein distribution derivative, with the same procedure used for electronic transport, just instead with a Fermi--Dirac function.
+  * "energy" discards states which fall outside the :ref:`windowEnergyLimit`. States are removed at each wavevector point, which means each wavevector can have a different number of bands. Here, the user specifies with :ref:`windowEnergyLimit` the energy range desired using absolute energies, not those relative to the chemical potential.
+  * "muCenteredEnergy" works almost identically to the "energy" window -- however, in this case, the user uses :ref:`windowEnergyLimit` to specify the energy range relative to the chemical potential. For example, if :math:`mu = 2` eV, and :ref:`windowEnergyLimit` = [-0.1, 0.1], only states with energies in the range [1.9, 2.1] eV would be included in the calculation.
 
 * **Format:** *string*
 
@@ -1019,11 +1021,11 @@ windowType
 windowEnergyLimit
 ^^^^^^^^^^^^^^^^^
 
-* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all states (phonon or electron, depending on the calculation type)  with energy outside of these bounds.
+* **Description:** Additional parameter for energy :ref:`windowType`. Specify two values :math:`E_{min}` and :math:`E_{max}` (in electronVolts) such that we discard all states (phonon or electron, depending on the calculation type) with energy outside of these bounds. When :ref:`windowType` = "muCenteredEnergy", this window specifies the energy range around the chemical potential to be included in the calculation (see :ref:`windowType` for more details).
 
 * **Format:** *list of doubles*
 
-* **Required:** yes (if :ref:`windowType` = "energy")
+* **Required:** yes (if :ref:`windowType` = "energy" or "muCenteredEnergy")
 
 
 .. _windowPopulationLimit:
