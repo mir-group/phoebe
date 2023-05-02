@@ -20,35 +20,67 @@ void PhElLifetimesApp::run(Context &context) {
   // which is needed to understand where to place the fermi level
   auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
-  // compute the band structure on the fine grid
+  // Compute the window filtered phonon band structure ---------------------------
   if (mpi->mpiHead()) {
-    std::cout << "\nComputing electronic band structure." << std::endl;
+    std::cout << "\nComputing phonon band structure." << std::endl;
   }
-  Points fullPoints(crystal, context.getQMesh());
-  auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
-  auto elBandStructure = std::get<0>(t3);
-  auto statisticsSweep = std::get<1>(t3);
+
+  bool withVelocities = true;
+  bool withEigenvectors = true;
+  Points qPoints(crystal, context.getQMesh());
+  auto t3 = ActiveBandStructure::builder(context, phononH0, qPoints);
+  auto phBandStructure = std::get<0>(t3);
+
+  // print some info about how window and symmetries have reduced things
+  if (mpi->mpiHead()) {
+    if(phBandStructure.hasWindow() != 0) {
+        std::cout << "Window selection reduced phonon band structure from "
+          << qPoints.getNumPoints() * phononH0.getNumBands() << " to "
+          << phBandStructure.getNumStates() << " states."  << std::endl;
+    }
+    if(context.getUseSymmetries()) {
+      std::cout << "Symmetries reduced phonon band structure from "
+          << phBandStructure.getNumStates() << " to "
+          << phBandStructure.irrStateIterator().size() << " states.\n" << std::endl;
+    }
+    std::cout << "Done computing phonon band structure.\n" << std::endl;
+  }
+
+  // compute the el band structure on the fine grid -----------------------------
+  if (mpi->mpiHead()) {
+    std::cout << "\nComputing electronic band structure.\n" << std::endl;
+  }
+
+  // TODO ideally get the largest phonon bandstruct energy
+  // and use that to set the window width...
+
+  // manually setting the window to 1.25 the maximum phonon
+  auto inputWindowType = context.getWindowType();
+  context.setWindowType("muCenteredEnergy");
+  Eigen::Vector2d range = {0.04,-0.04};
+  context.setWindowEnergyLimit(range);
+
+  Points kPoints(crystal, context.getKMesh());
+  auto t4 = ActiveBandStructure::builder(context, electronH0, kPoints);
+  auto elBandStructure = std::get<0>(t4);
+  auto statisticsSweep = std::get<1>(t4);
 
   // print some info about how window and symmetries have reduced things
   if (mpi->mpiHead()) {
     if(elBandStructure.hasWindow() != 0) {
         std::cout << "Window selection reduced electronic band structure from "
-                << fullPoints.getNumPoints()*electronH0.getNumBands() << " to "
-                << elBandStructure.getNumStates() << " states."  << std::endl;
+          << kPoints.getNumPoints() * electronH0.getNumBands() << " to "
+          << elBandStructure.getNumStates() << " states."  << std::endl;
     }
     if(context.getUseSymmetries()) {
       std::cout << "Symmetries reduced electronic band structure from "
           << elBandStructure.getNumStates() << " to "
-          << elBandStructure.irrStateIterator().size() << " states." << std::endl;
+          << elBandStructure.irrStateIterator().size() << " states.\n" << std::endl;
     }
     std::cout << "Done computing electronic band structure.\n" << std::endl;
   }
 
-  // Compute the full phonon band structure
-  bool withVelocities = true;
-  bool withEigenvectors = true;
-  FullBandStructure phBandStructure = phononH0.populate(
-      fullPoints, withVelocities, withEigenvectors);
+  // TODO what?
   // set the chemical potentials to zero, load temperatures
 
   // build/initialize the scattering matrix and the smearing
@@ -56,7 +88,7 @@ void PhElLifetimesApp::run(Context &context) {
                                         elBandStructure, phBandStructure,
                                         couplingElPh, electronH0);
   scatteringMatrix.setup();
-  scatteringMatrix.outputToJSON("rta_ph_el_relaxation_times.json");
+  scatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
 
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
