@@ -15,10 +15,6 @@
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
 
-// forward declare helper function to calculate phel scattering
-void setupPhononElectronScattering(Context& context, Crystal& crystal,
-				VectorBTE& phononElectronRates);
-
 void PhononTransportApp::run(Context &context) {
 
   // TODO make sure .fc and fc2.hdf5 have the same info!
@@ -51,7 +47,7 @@ void PhononTransportApp::run(Context &context) {
   if (mpi->mpiHead()) {
     if(bandStructure.hasWindow() != 0) {
         std::cout << "Window selection reduced phonon band structure from "
-                << fullPoints.getNumPoints()*phononH0.getNumBands() << " to "
+                << fullPoints.getNumPoints() * phononH0.getNumBands() << " to "
                 << bandStructure.getNumStates() << " states."  << std::endl;
     }
     if(context.getUseSymmetries()) {
@@ -82,14 +78,13 @@ void PhononTransportApp::run(Context &context) {
     // don't proceed if we use more than one doping concentration:
     // we'd need slightly different statisticsSweep for the 2 scatterings
     int numMu = statisticsSweep.getNumChemicalPotentials();
-    if (numMu != 1) Error("Can only add el-ph scattering one doping "
+    if (numMu != 1) Error("Can only add ph-el scattering one doping "
                           "concentration at the time");
     if (mpi->mpiHead()) {
       std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
     }
     VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
-                                                          bandStructure,
-                                                          phononH0);
+                                                        bandStructure, phononH0);
 
     // if we're using both phel and phph times, we should output
     // each independent linewidth set. PhEl is output above.
@@ -450,12 +445,26 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
 
     // compute the band structure on the fine grid
     if (mpi->mpiHead()) {
-      std::cout << "\nComputing electronic band structure for " <<
-        "ph-el scattering." << std::endl;
+      std::cout << "\nComputing electronic band structure for ph-el scattering.\n"
+                << std::endl;
     }
 
+    // update the window so that it's only a very narrow
+    // scale slice around mu, 1.25* the max phonon energy
+    double maxPhEnergy = phBandStructure.getMaxEnergy();
+    auto inputWindowType = context.getWindowType();
+    context.setWindowType("muCenteredEnergy");
+    if(mpi->mpiHead()) {
+      std::cout << "Of the active phonon modes, the maximum energy state is " <<
+          maxPhEnergy*energyRyToEv*1e3 << " meV." <<
+          "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
+          << " of max/min electronic mu values." << std::endl;
+    }
+    Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
+    context.setWindowEnergyLimit(range);
+
     // construct electronic band structure
-    Points fullPoints(crystalPh, context.getQMesh());
+    Points fullPoints(crystalPh, context.getKMesh());
     auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
     auto elBandStructure = std::get<0>(t3);
     auto statisticsSweep = std::get<1>(t3);
@@ -464,7 +473,7 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     if (mpi->mpiHead()) {
       if(elBandStructure.hasWindow() != 0) {
           std::cout << "Window selection reduced electronic band structure from "
-                  << fullPoints.getNumPoints()*electronH0.getNumBands() << " to "
+                  << fullPoints.getNumPoints() * electronH0.getNumBands() << " to "
                   << elBandStructure.getNumStates() << " states."  << std::endl;
       }
       if(context.getUseSymmetries()) {

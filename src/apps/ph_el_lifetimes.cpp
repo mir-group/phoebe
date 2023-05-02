@@ -48,16 +48,20 @@ void PhElLifetimesApp::run(Context &context) {
 
   // compute the el band structure on the fine grid -----------------------------
   if (mpi->mpiHead()) {
-    std::cout << "\nComputing electronic band structure.\n" << std::endl;
+    std::cout << "Computing electronic band structure.\n" << std::endl;
   }
 
-  // TODO ideally get the largest phonon bandstruct energy
-  // and use that to set the window width...
-
   // manually setting the window to 1.25 the maximum phonon
+  double maxPhEnergy = phBandStructure.getMaxEnergy();
   auto inputWindowType = context.getWindowType();
   context.setWindowType("muCenteredEnergy");
-  Eigen::Vector2d range = {0.04,-0.04};
+  if(mpi->mpiHead()) {
+    std::cout << "Of the active phonon modes, the maximum energy state is " <<
+        maxPhEnergy*energyRyToEv*1e3 << " meV." <<
+        "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
+        << " of max/min electronic mu values." << std::endl;
+  }
+  Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
   context.setWindowEnergyLimit(range);
 
   Points kPoints(crystal, context.getKMesh());
