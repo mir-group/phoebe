@@ -41,10 +41,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       Eigen::Vector3d k = outerBandStructure.getWavevector(isIdx);
       if (k.squaredNorm() > 1e-8 && en < 0.) {
         Warning("Found a phonon mode q!=0 with negative energies. "
-                "Consider increasing q-points sampling (supercell size) in the"
-                " DFT runs\n");
+                "Consider improving the quality of your DFT phonon calculation.\n");
       }
-
     }
   }
 
@@ -630,6 +628,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   auto particle = outerBandStructure.getParticle();
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
+  std::string relaxationTimeUnit = "fs";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
   double energyToTime = energyRyToFs/twoPi;
@@ -637,6 +636,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     particleType = "phonon";
     energyUnit = "meV";
     energyConversion *= 1000;
+    relaxationTimeUnit = "ps"; // phonon times more commonly in ps
+    energyToTime *= 1e-3;
+    // this is a bit of a hack to deal with phel scattering, where stat sweep
+    // has nonzero mu values in spite of it being a phonon case
+
   } else {
     particleType = "electron";
   }
@@ -660,7 +664,13 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     double chemPot = calcStatistics.chemicalPotential;
     double doping = calcStatistics.doping;
     temps.push_back(temp * temperatureAuToSi);
-    chemPots.push_back(chemPot * energyConversion);
+    // this is a bit of a hack to deal with phel scattering, where stat sweep
+    // has nonzero mu values in spite of it being a phonon case
+    if(particle.isElectron()) {
+      chemPots.push_back(chemPot * energyConversion);
+    } else {
+      chemPots.push_back(0);
+    }
     dopings.push_back(doping);
 
     std::vector<std::vector<double>> wavevectorsT;
@@ -763,7 +773,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     output["normalRelaxationTimes"] = outTimesN;
     output["umklappRelaxationTimes"] = outTimesU;
   }
-  output["relaxationTimeUnit"] = "fs";
+  output["relaxationTimeUnit"] = relaxationTimeUnit;
   output["velocities"] = velocities;
   output["velocityUnit"] = "m/s";
   output["energies"] = energies;
@@ -776,6 +786,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
+// TODO this feels redundant with above function, maybe could be simplified
 void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
                                       const Eigen::VectorXd &eigenvalues) {
   if (!mpi->mpiHead()) {

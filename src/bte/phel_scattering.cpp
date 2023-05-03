@@ -38,21 +38,6 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
   highMemory = false;
 }
 
-/*
-PhElScatteringMatrix::PhElScatteringMatrix(const PhElScatteringMatrix &that)
-    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
-      electronH0(that.electronH0) {}
-*/
-/*
-PhElScatteringMatrix& PhElScatteringMatrix::operator=(const PhElScatteringMatrix &that) {
-  ScatteringMatrix::operator=(that);
-  if (this != &that) {
-    couplingElPhWan = that.couplingElPhWan;
-    electronH0 = that.electronH0;
-  }
-  return *this;
-}*/
-
 // In the phononElectron case, we only compute the diagonal of the
 // scattering matrix. Therefore, we compute only the linewidths
 void PhElScatteringMatrix::builder(VectorBTE *linewidth,
@@ -88,6 +73,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     nb1Max = std::max(nb1Max, int(getElBandStructure().getEnergies(ikIdx).size()));
   }
 
+  // NOTE statistics sweep is the one for electrons
   // precompute Fermi-Dirac populations
   Eigen::Tensor<double,3> fermiTerm(numCalculations, numKPoints, nb1Max);
   fermiTerm.setZero();
