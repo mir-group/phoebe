@@ -510,12 +510,22 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
   // check that this matches the ifc2 atoms
   int numAtomsCheck = numSupAtoms/
         (qCoarseGrid[0]*qCoarseGrid[1]*qCoarseGrid[2]);
-
   if (numAtomsCheck != numAtoms) {
     Error("IFC3s seem to come from a cell with a different number\n"
         "of atoms than the IFC2s. Check your inputs.\n"
         " FC2 atoms: " + std::to_string(numAtoms) +
         " FC3 atoms: " + std::to_string(numAtomsCheck));
+  }
+
+  // convert distances to Bohr
+  lattice *= distanceConversion;
+
+  // check that the lattice found in the input file matches
+  // the one found for fc2
+  if(lattice != crystal.getDirectUnitCell()) {
+    Error("FC3s seem to come from a file with a different unit cell\n"
+          "than your FC2s. Check that you did not mix unit cell definitions\n"
+          "when you ran the DFT calculations.");
   }
 
   // convert std::vectors to Eigen formats required by the
@@ -526,9 +536,6 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
         supPositions(n,i) = supPositionsVec[n][i];
     }
   }
-
-  // convert distances to Bohr
-  lattice *= distanceConversion;
 
   // convert positions to cartesian, in bohr
   for (int i = 0; i < numSupAtoms; i++) {
