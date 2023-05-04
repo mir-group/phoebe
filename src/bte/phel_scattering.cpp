@@ -61,9 +61,11 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   // note: in the equations for this rate, because there's an integraton over k,
   // this rate is actually 1/NK (sometimes written N_eFermi).
-  // we use the qmesh because that's the only variable being set, and
-  // in the way this is implemented kmesh = qmesh.
-  double norm = 1. / context.getQMesh().prod();
+  double norm = 1. / context.getKMesh().prod();
+  // TODO how should this norm work when symmetry is involved?
+  // I'm also generating points on the fly? and also also... we should be using weights, I think?
+  //norm = 1. / getElBandStructure().getNumPoints();
+  //if(mpi->mpiHead()) std::cout << context.getKMesh().prod() << " " << getElBandStructure().getNumPoints() << " " << getElBandStructure().getPoints().irrPointsIterator().size() << std::endl;
 
   // precompute Fermi-Dirac factors
   int numKPoints = getElBandStructure().getNumPoints();
@@ -169,6 +171,12 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     auto nb1 = int(state1Energies.size());
     Eigen::MatrixXd v1s = getElBandStructure().getGroupVelocities(ik1Idx);
     Eigen::MatrixXcd eigenVector1 = getElBandStructure().getEigenvectors(ik1Idx);
+    // unlike in el-ph scattering, here we only loop over irr points.
+    // This means we need to multiply by the weights of the irr k1s
+    // in our integration over the BZ. This returns the list of kpoints
+    // that map to this irr kpoint
+    double k1Weight = getElBandStructure().getPoints().
+                                getReducibleStarFromIrreducible(ik1).size();
 
     // precompute first fourier transform + rotation by k1
     couplingElPhWan.cacheElPh(eigenVector1, k1C);
@@ -287,9 +295,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
         }
 
         Eigen::Tensor<double, 3> coupling = couplingElPhWan.getCouplingSquared(iq3Batch);
-        // TODO: uncomment this after it will be put in the develop branch
-        // symmetrizeCoupling(couplingElPhWan, state1Energies, state2Energies, state3Energies);
-        //
+        // symmetrize the elph coupling tensor
+        symmetrizeCoupling(coupling, state1Energies, state2Energies, state3Energies);
+
         #pragma omp parallel for collapse(2)
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
@@ -320,7 +328,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                 double rate =
                     coupling(ib1, ib2, ib3) * fermiTerm(iCalc, ik1, ib1)
                     * smearingValues(ib1, ib2, ib3)
-                    * norm / temperatures(iCalc) * pi;
+                    * norm / temperatures(iCalc) * pi * k1Weight;
 
                 // case of linewidth construction (the only case, for ph-el)
                 linewidth->operator()(iCalc, 0, ibte3) += rate;
