@@ -196,7 +196,7 @@ reorderDynamicalMatrix(
               int ir;
               {
                 auto it = std::find(listBravaisVectors.begin(), listBravaisVectors.end(), R2);
-                if (it == listBravaisVectors.end()) Error("phono3py parser index not found");
+                if (it == listBravaisVectors.end()) Error("Developer error: phono3py parser index not found");
                 ir = it - listBravaisVectors.begin();
               }
               for (int i : {0, 1, 2}) {
@@ -522,11 +522,13 @@ Interaction3Ph IFC3Parser::parseFromPhono3py(Context &context,
 
   // check that the lattice found in the input file matches
   // the one found for fc2
-  if(lattice != crystal.getDirectUnitCell()) {
+  // TODO would be nice to do this check, but this lattice is
+  // the supercell lattice and not the unit cell lattice
+  /*if(lattice != crystal.getDirectUnitCell()) {
     Error("FC3s seem to come from a file with a different unit cell\n"
           "than your FC2s. Check that you did not mix unit cell definitions\n"
           "when you ran the DFT calculations.");
-  }
+  }*/
 
   // convert std::vectors to Eigen formats required by the
   // next part of phoebe

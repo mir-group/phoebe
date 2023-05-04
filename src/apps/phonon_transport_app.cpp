@@ -119,8 +119,7 @@ void PhononTransportApp::run(Context &context) {
   scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
-  PhononThermalConductivity phTCond(context, statisticsSweep, crystal,
-                                    bandStructure);
+  PhononThermalConductivity phTCond(context, statisticsSweep, crystal, bandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
