@@ -7,6 +7,7 @@
 
 void PhElLifetimesApp::run(Context &context) {
 
+  // load harmonic hamiltonians
   auto t2 = Parser::parsePhHarmonic(context);
   auto crystal = std::get<0>(t2);
   auto phononH0 = std::get<1>(t2);
@@ -57,11 +58,11 @@ void PhElLifetimesApp::run(Context &context) {
   context.setWindowType("muCenteredEnergy");
   if(mpi->mpiHead()) {
     std::cout << "Of the active phonon modes, the maximum energy state is " <<
-        maxPhEnergy*energyRyToEv*1e3 << " meV." <<
+        maxPhEnergy * energyRyToEv * 1e3 << " meV." <<
         "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
         << " of max/min electronic mu values." << std::endl;
   }
-  Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
+  Eigen::Vector2d range = {-1.25*maxPhEnergy, 1.25*maxPhEnergy};
   context.setWindowEnergyLimit(range);
 
   Points kPoints(crystal, context.getKMesh());
@@ -83,9 +84,6 @@ void PhElLifetimesApp::run(Context &context) {
     }
     std::cout << "Done computing electronic band structure.\n" << std::endl;
   }
-
-  // TODO what?
-  // set the chemical potentials to zero, load temperatures
 
   // build/initialize the scattering matrix and the smearing
   PhElScatteringMatrix scatteringMatrix(context, statisticsSweep,

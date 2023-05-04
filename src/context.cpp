@@ -847,16 +847,18 @@ void Context::printInputSummary(const std::string &fileName) {
   }
 
   // electron and eph parameters
-  if (appName.find("elPh") != std::string::npos) {
+  if (appName.find("elPh") != std::string::npos || appName == "electronLifetimes" ||
+        appName == "electronWannierTransport") {
+
     std::cout << "electronH0Name = " << electronH0Name << std::endl;
     std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
 
-    if (appName.find("elPh") != std::string::npos ) {
-        //|| appName == "electronLifetimes" ||
-       // appName == "electronWannierTransport") {
+    if (appName.find("elPh") != std::string::npos || appName == "electronLifetimes" ||
+        appName == "electronWannierTransport") {
+
+      std::cout << "elphFileName = " << elphFileName << std::endl;
       if (!elPhInterpolation.empty())
         std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
-      std::cout << "elphFileName = " << elphFileName << std::endl;
       if (!wannier90Prefix.empty())
         std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
       if (!quantumEspressoPrefix.empty())
@@ -864,7 +866,7 @@ void Context::printInputSummary(const std::string &fileName) {
                   << std::endl;
     }
     // EPA specific parameters
-    if (appName.find("elPh") != std::string::npos && elPhInterpolation == "epa") {
+    if (elPhInterpolation == "epa") {
       if (!std::isnan(epaMinEnergy))
         std::cout << "epaMinEnergy = " << epaMinEnergy * energyRyToEv << " eV"
                   << std::endl;

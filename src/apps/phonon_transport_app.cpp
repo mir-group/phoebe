@@ -62,6 +62,7 @@ void PhononTransportApp::run(Context &context) {
   if (mpi->mpiHead()) {
     std::cout << "Starting anharmonic scattering calculation." << std::endl;
   }
+  // this also checks that the crystal is the same one read in for 3ph
   auto coupling3Ph = IFC3Parser::parse(context, crystal);
 
   // build/initialize the scattering matrix and the smearing
@@ -515,7 +516,7 @@ void PhononTransportApp::checkRequirements(Context &context) {
   }
   if (!context.getElphFileName().empty()) {
     throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-    throwErrorIfUnset(context.getElphFileName(), "elphFileName");
+    throwErrorIfUnset(context.getKMesh(), "kMesh");
     if (context.getDopings().size() == 0 &&
         context.getChemicalPotentials().size() == 0) {
       Error("Either chemical potentials or dopings must be set");

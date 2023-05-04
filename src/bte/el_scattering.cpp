@@ -395,17 +395,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 } else {
                   // case of linewidth construction
                   linewidth->operator()(iCalc, 0, iBte1) += rate;
-/*                  if(outputUNTimes) {
-                    Point k1 = outerBandStructure.getPoint(ik1);
-                    Point k2 = outerBandStructure.getPoint(ik2);
-                    // check if this process is umklapp
-                    // TODO will reverse process be different? can we still count on detailed balance for this separation?
-                    if((k1-k2).hasUmklapp()) {
-                      linewidth->operator()(iCalc, 1, iBte1) += rate;
-                    } else {
-                      linewidth->operator()(iCalc, 2, iBte1) += rate;
-                    }
-                  }*/
                 }
               }
             }
