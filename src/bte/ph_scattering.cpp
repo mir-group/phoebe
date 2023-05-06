@@ -50,26 +50,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
     }
   }
 }
-/*
-PhScatteringMatrix::PhScatteringMatrix(const PhScatteringMatrix &that)
-    : ScatteringMatrix(that), coupling3Ph(that.coupling3Ph), h0(that.h0),
-      massVariance(that.massVariance), doIsotopes(that.doIsotopes),
-      boundaryLength(that.boundaryLength), doBoundary(that.doBoundary) {}
 
-PhScatteringMatrix &
-PhScatteringMatrix::operator=(const PhScatteringMatrix &that) {
-  ScatteringMatrix::operator=(that);
-  if (this != &that) {
-    coupling3Ph = that.coupling3Ph;
-    h0 = that.h0;
-    massVariance = that.massVariance;
-    doIsotopes = that.doIsotopes;
-    boundaryLength = that.boundaryLength;
-    doBoundary = that.doBoundary;
-  }
-  return *this;
-}
-*/
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
 // scattering matrix and the diagonal

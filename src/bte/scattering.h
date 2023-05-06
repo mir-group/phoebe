@@ -27,14 +27,6 @@ public:
                    BaseBandStructure &innerBandStructure_,
                    BaseBandStructure &outerBandStructure_);
 
-  /** Copy constructor
-   */
-  //ScatteringMatrix(const ScatteringMatrix &that);
-
-  /** Copy assignment operator
-   */
-  //ScatteringMatrix &operator=(const ScatteringMatrix &that);
-
   /** Destructor
    */
   ~ScatteringMatrix();
@@ -49,7 +41,9 @@ public:
   void setup();
 
   /** Returns the diagonal matrix elements.
-   * @return diagonal: a VectorBTE containing the linewidths.
+   *  For the case of electrons, this is the linewidths -- A_out = Linewidths
+   *  For the case of phonons, this is A_out = linewidths * n(n+1)
+   * @return diagonal: a VectorBTE containing the diagonal of the scattering matrix.
    */
   VectorBTE diagonal();
 
@@ -94,6 +88,8 @@ public:
    * transport relaxation time that enters the transport equations, and satisfy
    * the relation Gamma_i * Tau_i = f_i * (1-f_i)
    *
+   * Regardless, this function just returns Gamma
+   *
    * @return linewidths: a VectorBTE object storing the linewidths
    */
   VectorBTE getLinewidths();
@@ -101,6 +97,7 @@ public:
   /** Call to set the single-particle linewidths.
    *
    *  See getLinewidths function for notes about linewidths.
+   *  @param linewidths: this is Gamma, without any population factors
    */
   void setLinewidths(VectorBTE &linewidths);
 
@@ -198,11 +195,17 @@ public:
   // and there are simplified evaluations taking place
   bool constantRTA = false;
   bool highMemory = true;     // whether the matrix is kept in memory
-  bool isMatrixOmega = false; // whether the matrix is Omega or A
   bool outputUNTimes = false;    // whether to output U and N processes in RTA
 
+  // NOTE: about the definition of A
   // A acts on the canonical population, omega on the population
-  // A acts on f, omega on n, with n = bose(bose+1)f e.g. for phonons
+  // A acts on f, Omega on n, with n = bose(bose+1)f e.g. for phonons
+  //
+  // Generally: A_out = diagonal of the scattering matrix.
+  // In the case of phonons, A_out = linewidth * n(n+1)
+  // In the case of electrons, A_out = linewidht
+  bool isMatrixOmega = false; // whether the matrix is Omega or A
+
 
   // we save the diagonal matrix element in a dedicated vector
   VectorBTE internalDiagonal;

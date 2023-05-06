@@ -84,41 +84,6 @@ ScatteringMatrix::~ScatteringMatrix() {
   }
 }
 
-// copy constructor
-/*ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
-    : context(that.context), statisticsSweep(that.statisticsSweep),
-      smearing(that.smearing), innerBandStructure(that.innerBandStructure),
-      outerBandStructure(that.outerBandStructure),
-      constantRTA(that.constantRTA), outputUNTimes(that.outputUNTimes), highMemory(that.highMemory),
-      internalDiagonal(that.internalDiagonal), internalDiagonalNormal(),
-      theMatrix(that.theMatrix),
-      numStates(that.numStates), numPoints(that.numPoints),
-      numCalculations(that.numCalculations), dimensionality_(that.dimensionality_),
-      excludeIndices(that.excludeIndices) {}
-*/
-
-// assignment operator
-/*ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
-  if (this != &that) {
-    context = that.context;
-    statisticsSweep = that.statisticsSweep;
-    smearing = that.smearing;
-    innerBandStructure = that.innerBandStructure;
-    outerBandStructure = that.outerBandStructure;
-    constantRTA = that.constantRTA;
-    outputUNTimes = that.outputUNTimes;
-    highMemory = that.highMemory;
-    internalDiagonal = that.internalDiagonal;
-    theMatrix = that.theMatrix;
-    numStates = that.numStates;
-    numPoints = that.numPoints;
-    numCalculations = that.numCalculations;
-    excludeIndices = that.excludeIndices;
-    dimensionality_ = that.dimensionality_;
-  }
-  return *this;
-}*/
-
 void ScatteringMatrix::setup() {
   // note: here we want to build the matrix or its diagonal
   // builder is a pure virtual function, which is implemented in subclasses
@@ -169,6 +134,8 @@ void ScatteringMatrix::setup() {
   }
 }
 
+// NOTE: this is returning the raw diagonal.
+// This includes whatever factors there are if it's Omega or not!
 VectorBTE ScatteringMatrix::diagonal() {
   if (constantRTA) {
     VectorBTE diagonal(statisticsSweep, outerBandStructure, 1);
@@ -492,9 +459,8 @@ VectorBTE ScatteringMatrix::getTimesFromVectorBTE(VectorBTE &diagonal) {
   } else {
     if (isMatrixOmega) {
       times = diagonal.reciprocal();
-    } else { // A_nu,nu = N(1+-N) / tau
+    } else { // A_nu,nu = N(1+-N) / tau  -- for phonon case
       auto particle = outerBandStructure.getParticle();
-
       #pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
@@ -569,11 +535,12 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   }
 }
 
-
 void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
 
   // note: this function assumes that we have not
-  // messed with excludeIndices
+  // messed with excludeIndices. Should be fine,
+  // because when we add phonon contributions to phonon scattering matrix,
+  // they will exclude the same indices so long as numStates is the same
 
   if(internalDiagonal.numCalculations != linewidths.numCalculations) {
     Error("Attempted setting scattering matrix diagonal with"
@@ -583,15 +550,14 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
     Error("Attempted setting scattering matrix diagonal with"
         " an incorrect number of states.");
   }
-  internalDiagonal = linewidths;
 
-  if (!isMatrixOmega) {
+  if (isMatrixOmega) {
     // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
     // because the get function removed these population factors,
     // the set function should add them back in
-
+    internalDiagonal = linewidths;
+   } else {  // phonons
     auto particle = outerBandStructure.getParticle();
-
     #pragma omp parallel for
     for (int iBte = 0; iBte < numStates; iBte++) {
       auto iBteIdx = BteIndex(iBte);
@@ -603,8 +569,35 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
         double chemPot = calcStatistics.chemicalPotential;
         // n(n+1) for bosons, n(1-n) for fermions
         double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-        internalDiagonal(iCalc, 0, iBte) =
-            linewidths(iCalc, 0, iBte) * popTerm;
+        internalDiagonal(iCalc, 0, iBte) = linewidths(iCalc, 0, iBte) * popTerm;
+      }
+    }
+  }
+
+  // we also need to add these to the full scattering matrix
+  // we do this after setting up internal diagonal so that population
+  // factors are already in place as needed
+  if (highMemory) { // matrix in memory
+    int iCalc = 0;
+    if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        BteIndex iBteIdx(iBte);
+        for (int i : {0, 1, 2}) {
+          CartIndex iCart(i);
+          int iMati = getSMatrixIndex(iBteIdx, iCart);
+          for (int j : {0, 1, 2}) {
+            CartIndex jCart(j);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            theMatrix(iMati, iMatj) = 0.;
+          }
+          theMatrix(iMati, iMati) += internalDiagonal(iCalc, 0, iBte);
+        }
+      }
+    } else {
+      for (int is = 0; is < numStates; is++) {
+        theMatrix(is, is) = internalDiagonal(iCalc, 0, is);
       }
     }
   }
