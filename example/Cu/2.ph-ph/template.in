@@ -1,0 +1,27 @@
+&CONTROL
+  calculation = 'scf',
+  outdir = './out/',
+  pseudo_dir = '../../'
+  wf_collect = .false.
+  disk_io = 'none'
+  tstress = .true.
+  tprnfor = .true.
+  restart_mode = 'from_scratch'
+  prefix = 'cu'
+/
+&SYSTEM
+  ibrav = 0,
+  nat   = 27,
+  ntyp  = 1,
+  occupations = 'smearing',
+  smearing = 'mp'
+  degauss = 0.01
+  ecutwfc = 70
+  ecutrho = 300
+/
+&ELECTRONS
+  conv_thr = 1.0d-13
+/
+
+K_POINTS automatic
+  3 3 3 0 0 0

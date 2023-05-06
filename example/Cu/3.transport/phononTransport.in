@@ -1,0 +1,28 @@
+appName = "phononTransport"
+
+# specify harmonic phonon file
+sumRuleFC2 = "crystal"
+phFC2FileName = "fc2.hdf5" # could also supply cu.fc from QE, but only when using ShengBTE
+
+# specify the paths to phonon-phonon input
+phFC3FileName = "../2.ph-ph/fc3.hdf5"
+phonopyDispFileName = "../2.ph-ph/phono3py_disp.yaml"
+# supply phonon band structure information
+windowType = "population"  # this will apply to the phonon states
+qMesh = [15,15,15]
+
+# path to electron-phonon coupling inputs
+# supplying elphFileName tells phononTransport to run with phel
+electronH0Name = "../1.el-ph/cu_tb.dat",
+elphFileName = "../1.el-ph/cu.phoebe.elph.hdf5"
+# sampling of electronic states -- will be filtered for a
+# +/- max(omega_ph) window around mu
+# this often requires a very dense mesh to converge
+kMesh = [75,75,75]
+
+# generic information for the calculation
+temperatures = [10.,25.,50.,100.,200.,300.,400.]
+chemicalPotentials = [13.86829112]
+smearingMethod = "adaptiveGaussian"
+useSymmetries = true
+scatteringMatrixInMemory = false
