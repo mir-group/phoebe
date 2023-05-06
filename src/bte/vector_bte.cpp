@@ -168,11 +168,9 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
     Error("Developer error: VectorBTE objects "
                 "cannot be operated on when dim > 1.");
   }
-  if(this->excludeIndices != that.excludeIndices) {
-    Error("Developer error: Operating on two "
-        "vectorBTEs with different excludeIndices.");
+  for (const int &iBte : excludeIndices) {
+    newPopulation.data.col(iBte).setZero();
   }
-  newPopulation.excludeIndices = this->excludeIndices;
   return newPopulation;
 }
 
