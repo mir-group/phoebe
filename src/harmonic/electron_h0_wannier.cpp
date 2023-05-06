@@ -257,6 +257,7 @@ ElectronH0Wannier::kokkosPopulate(const std::vector<Eigen::Vector3d>& cartesianC
                                                     const bool &withEigenvectors, const std::vector<int> &iks) {
 
   // TODO enforce hasEigenvectors here?
+  (void) withEigenvectors;
   // could allow more kpoints to be on the GPU at the same time.
   // For now it's implemented like this because it's only ever called in cases that need
   // eigenvectors (phel_scattering.cpp)
@@ -853,6 +854,9 @@ StridedComplexView3D ElectronH0Wannier::kokkosBatchedBuildBlochHamiltonian(
  */
 std::tuple<DoubleView2D, StridedComplexView3D> ElectronH0Wannier::kokkosBatchedDiagonalizeFromCoordinates(
     const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
+
+  // currently not used, this supresses a warning
+  (void) withMassScaling;
 
   int numWannier = this->numWannier; // Kokkos quirkiness
 

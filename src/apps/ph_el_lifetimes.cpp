@@ -26,10 +26,10 @@ void PhElLifetimesApp::run(Context &context) {
     std::cout << "\nComputing phonon band structure." << std::endl;
   }
 
-  bool withVelocities = true;
   bool withEigenvectors = true;
+  bool withVelocities = true;
   Points qPoints(crystal, context.getQMesh());
-  auto t3 = ActiveBandStructure::builder(context, phononH0, qPoints);
+  auto t3 = ActiveBandStructure::builder(context, phononH0, qPoints, withEigenvectors, withVelocities);
   auto phBandStructure = std::get<0>(t3);
 
   // print some info about how window and symmetries have reduced things
