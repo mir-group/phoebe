@@ -898,17 +898,17 @@ void Context::printInputSummary(const std::string &fileName) {
       appName.find("Lifetimes") != std::string::npos) {
 
     if (appName.find("honon") != std::string::npos || appName.find("elPh") != std::string::npos) {
-      std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
-                << std::endl;
+      std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2) << std::endl;
       if(!getElphFileName().empty()) {
         std::cout << "electronH0Name = " << electronH0Name << std::endl;
         std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
         std::cout << "elphFileName = " << elphFileName << std::endl;
       }
     }
-    if (appName.find("lectron") != std::string::npos || appName.find("elPh") != std::string::npos)
-      std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
-                << std::endl;
+    if (appName.find("lectron") != std::string::npos || appName.find("elPh") != std::string::npos
+                        || (appName.find("honon") != std::string::npos && !getElphFileName().empty())) {
+         std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+    }
 
     if (!std::isnan(constantRelaxationTime))
       std::cout << "constantRelaxationTime = " << constantRelaxationTime * timeAuToFs << " fs" << std::endl;
@@ -961,7 +961,8 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "deltaTemperature = " << deltaTemperature << "K"
                 << std::endl;
 
-    if (appName.find("lectron") != std::string::npos || appName == "phononElectronLifetimes") {
+    if (appName.find("lectron") != std::string::npos || appName == "phononElectronLifetimes"
+                        || (appName.find("honon") != std::string::npos && !getElphFileName().empty())) {
       if (dopings.size() != 0)
         printVectorXd("dopings", dopings, "cm^-3");
       if (chemicalPotentials.size() != 0)
@@ -975,8 +976,7 @@ void Context::printInputSummary(const std::string &fileName) {
                   << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(deltaChemicalPotential))
         std::cout << "deltaChemicalPotential = "
-                  << deltaChemicalPotential * energyRyToEv << " eV"
-                  << std::endl;
+                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(eFermiRange))
         std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
       if (!std::isnan(fermiLevel))
@@ -984,17 +984,15 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(numOccupiedStates))
         std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
     }
-    if (appName.find("honon") != std::string::npos) {
-      std::cout << "withIsotopeScattering = " << withIsotopeScattering
-                << std::endl;
+    // should not be printed when phellifetimes app is run
+    if (appName.find("honon") != std::string::npos && appName.find("lectron") == std::string::npos) {
+      std::cout << "withIsotopeScattering = " << withIsotopeScattering << std::endl;
       if (customMasses.size() != 0)
         printVectorXd("masses", customMasses*massRyToAmu, "amu");
       if (customIsotopeCouplings.size() != 0)
-        std::cout << "isotopeCouplings = "
-                  << customIsotopeCouplings.transpose() << "\n";
+        std::cout << "isotopeCouplings = " << customIsotopeCouplings.transpose() << "\n";
       if (!std::isnan(boundaryLength))
-        std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
-                  << " mum" << std::endl;
+        std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum << " mum" << std::endl;
       std::cout << "outputUNTimes = " << outputUNTimes << std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
