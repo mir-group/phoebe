@@ -127,6 +127,7 @@ Step 3: Post-Process the Outputs
 Below, we show the output for a well-converged version of this copper demonstration. These calculations are done with 40x40x40 q-meshes, and 400x400x400 k-meshes.
 It's important to note that you should converge a calculation with respect to both -- at low temperatures, you'll be sampling a very narrow window around the Fermi energy, and therefore may need to use very dense k-meshes.
 This is alleviated by useSymmetries = true and an accordingly narrow electronic population window, which is used by default in Phoebe during this calculation.
+If symmetries are on, sometimes this requires additional sampling to reach convergence, however, there is still generally a large cost benefit to using symmetries.
 
 .. note::
 
