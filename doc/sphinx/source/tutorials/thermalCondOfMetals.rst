@@ -6,7 +6,7 @@ Phonon (ph-el+ph-ph) Transport Tutorial
 Synopsis
 --------
 
-While in many semiconducting and insulating systems phonon transport is dominated by phonon-phonon scattering, in metals and some systems at low temperature, it's necessary to include both the phonon-phonon and phonon-electron scattering in the calculation of lattice thermal conductivity. Additionally, in metallic systems the electronic part of the thermal conductivity often provides the largest contribution to the thermal conductivity. Because Phoebe offers both electron-phonon and phonon-phonon interactions, we can calculate the full thermal conductivity :math:`\kappa` of a metal using phonon-phonon and phonon-electron scattering for :math:`\kappa_{ph}` as well as electron-phonon scattering to calculate :math:`\kappa_{el}`.
+While in many semiconducting and insulating systems phonon transport is dominated by phonon-phonon scattering, in metals and some systems at low temperature, it's necessary to include both the phonon-phonon and phonon-electron scattering in the calculation of lattice thermal conductivity. Additionally, in metallic systems the electronic part of the thermal conductivity often provides the largest contribution to the thermal conductivity. Because Phoebe offers both electron-phonon and phonon-phonon interactions, we can calculate the full thermal conductivity :math:`\kappa` of a metal using phonon-phonon and phonon-electron scattering for :math:`\kappa_{ph}` as well as electron-phonon scattering to calculate :math:`\kappa_{e}`.
 
 This is no small task, as the calculation requires the input files from both the phonon-phonon and electron-phonon calculations. Before starting, we ask that you follow the tutorials for :ref:`phononTransport` (steps 1-3) and :ref:`elPhTransport` (steps 1-7), using the input files `here <phoebe site>`_ for copper, stored in `example/Cu/`, under the `1.el-ph` and `2.ph-ph` directories.
 
@@ -32,7 +32,7 @@ To begin, we will require these input files from each of the coupling calculatio
 Step 1: Electronic Thermal Conductivity Calculation
 ----------------------------------------------------
 
-First, we do the straightforward step -- we need to calculate :math:`\kappa_{el}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there.
+First, we do the straightforward step -- we need to calculate :math:`\kappa_{e}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there.
 
 Then, run the following Phoebe input file, which can be found in `examples/Cu/3.transport/electronTransport.in`::
 
