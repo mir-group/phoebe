@@ -1,7 +1,7 @@
-.. _phononTransport:
+.. _phononElectronTransport:
 
-Phonon Transport Tutorial
-=========================
+Phonon (ph-el+ph-ph) Transport Tutorial
+========================================
 
 Synopsis
 --------
@@ -10,7 +10,7 @@ While in many semiconducting and insulating systems phonon transport is dominate
 
 This is no small task, as the calculation requires the input files from both the phonon-phonon and electron-phonon calculations. Before starting, we ask that you follow the tutorials for :ref:`phononTransport` (steps 1-3) and :ref:`elPhTransport` (steps 1-7), using the input files `here <phoebe site>`_ for copper.
 
-While we note that these tutorial files will result in unconverged calculations, they will serve the purpose of this example. Both sets of calculations need to be converged as described in their respective tutorials for real use.
+While we note that these tutorial files will result in unconverged calculations, they will serve the purpose of this example. Both sets of calculations need to be converged as described in their respective tutorials for production.
 
 To begin, we will require these input files from each of the coupling calculations:
 
@@ -25,13 +25,16 @@ To begin, we will require these input files from each of the coupling calculatio
 * `phono3py_disp.yaml`
 (though ShengBTE files could also be used).
 
+.. note::
+
+  These calculations take a bit to run even though they are not production quality -- ideally you will have access to more than a laptop to perform this tutorial.
 
 Step 1: Electronic Thermal Conductivity Calculation
 ----------------------------------------------------
 
-First we do the straightforward step -- we need to calculate :math:`\kappa_{el}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there.
+First, we do the straightforward step -- we need to calculate :math:`\kappa_{el}`. This can be done as in the :ref:`calculateElTransport` step of the electron Wannier transport tutorial. All of the variables we will use are described in that tutorial, so be sure to look over what is written there.
 
-Then, run the following Phoebe input file::
+Then, run the following Phoebe input file, which can be found in `examples/ph-el/2.transport/electronTransport.in`::
 
   appName = "electronWannierTransport"
   phFC2FileName = "cu.fc"
@@ -41,7 +44,7 @@ Then, run the following Phoebe input file::
 
   kMesh = [20,20,20]
   temperatures = [100.,200.,300.,400.]
-  chemicalPotentials = [FERMI ENERGY]
+  chemicalPotentials = [13.86829112]
 
   smearingMethod = "adaptiveGaussian"
   windowType = "population"
@@ -61,29 +64,36 @@ Step 2: Lattice Thermal Conducivity Calculation
 
 Now, we have to calculate the lattice thermal conductivity using both phonon-electron and phonon-phonon scattering. This corresponds to :ref:`calculatePhononTransport`, step 4 of the phonon transport tutorial, but now also uses electron-phonon information.
 
-For this, we run a Phoebe calculation using the below input file::
+For this, we run a Phoebe calculation using the below input file, which can be found in `examples/ph-el/2.transport/phononTransport.in`::
 
   appName = "phononTransport"
 
-  # specify the paths to phonon-phonon input
+  # specify harmonic phonon file
+  sumRuleFC2 = "crystal"
+  # must use fc2.hdf5 for phono3py,
+  #but could also supply cu.fc from QE for ShengBTE ph-ph
   phFC2FileName = "fc2.hdf5"
+
+  # specify the paths to phonon-phonon input
   phFC3FileName = "fc3.hdf5"
   phonopyDispFileName = "phono3py_disp.yaml"
+  # supply phonon band structure information
+  windowType = "population"  # this will apply to the phonon states
+  qMesh = [15,15,15]
 
   # path to electron-phonon coupling inputs
   electronH0Name = "cu_tb.dat",
   elphFileName = "cu.phoebe.elph.hdf5"
+  # sampling of electronic states -- will be filtered for a
+  # +/- max(omega_ph) window around mu
+  kMesh = [75,75,75]
 
+  # generic information for the calculation
   temperatures = [100.,200.,300.,400.]
-  chemicalPotentials = [FERMI ENERGY]
-  sumRuleFC2 = "crystal"
-  qMesh = [15,15,15]
+  chemicalPotentials = [13.86829112]
   smearingMethod = "adaptiveGaussian"
-
   useSymmetries = true
   scatteringMatrixInMemory = false
-
-It's good to note here that currently we use the q-mesh to also define the k-mesh used for the electron-phonon calculation.
 
 Again, this should be run just as in the other tutorial::
 
@@ -91,8 +101,34 @@ Again, this should be run just as in the other tutorial::
   /path/to/phoebe/build/phoebe -in phononTransport.in > phononTransport.out
 
 
+Additionally, if you only wanted to run the ph-el lifetimes, there is the `phononElectronLifetimes` app, which can be run using an input file like the one below, found in `examples/ph-el/2.transport/lifetimes.in`::
+
+  appName = "phononElectronLifetimes"
+
+  phFC2FileName = "cu.fc"
+  sumRuleFC2 = "simple"
+
+  electronH0Name = "cu_tb.dat",
+  elphFileName = "cu.phoebe.elph.hdf5"
+
+  kMesh = [75,75,75]
+  qMesh = [15,15,15]
+  chemicalPotentials = [13.86829112]
+  temperatures = [15.]
+
+  useSymmetries = true
+  windowType = "population"
+  smearingMethod = "adaptiveGaussian"
+
+
 Step 3: Post-Process the Outputs
 ------------------------------------------------
+
+First, we can use `scripts/tau.py` to plot the output ph-el and ph-ph lifetimes:
+
+
+
+# TODO life time plots
 
 From these two calculations, we'll need the `solver_onsager_coefficients.json` from the electronic calculation, and the `rta_phonon_thermal_cond.json` files.
 Below, we plot the output of these calculations together using the following simple python script::
