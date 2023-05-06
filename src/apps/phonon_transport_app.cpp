@@ -17,7 +17,6 @@
 
 void PhononTransportApp::run(Context &context) {
 
-  // TODO make sure .fc and fc2.hdf5 have the same info!
   // TODO make these two each optional, and that we can run if only one or the other is defed
   // collect information about the run from context
   bool usePhPhInteraction = !context.getPhFC3FileName().empty();
@@ -75,12 +74,14 @@ void PhononTransportApp::run(Context &context) {
   // as the phonon electron lifetime only contributes to the digaonal
   if(usePhElInteraction) {
 
-    // TODO what does this mean?
+    // could be possible to do this?
     // don't proceed if we use more than one doping concentration:
     // we'd need slightly different statisticsSweep for the 2 scatterings
     int numMu = statisticsSweep.getNumChemicalPotentials();
-    if (numMu != 1) Error("Can only add ph-el scattering one doping "
-                          "concentration at the time");
+    if (numMu != 1) {
+        Error("Can currenly only add ph-el scattering one doping "
+          "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
+    }
     if (mpi->mpiHead()) {
       std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
     }
@@ -91,10 +92,11 @@ void PhononTransportApp::run(Context &context) {
     // each independent linewidth set. PhEl is output above.
     scatteringMatrix.outputToJSON("rta_phph_relaxation_times.json");
 
-    // add in the phel linewidths (which are only diagonal)
-    VectorBTE totalRates = scatteringMatrix.diagonal();
+    // add in the phel linewidths -- use getLinewidths to remove pop factors
+    VectorBTE totalRates = scatteringMatrix.getLinewidths();
     totalRates = totalRates + phElLinewidths;
     scatteringMatrix.setLinewidths(totalRates);
+
   }
 
   // solve the BTE at the relaxation time approximation level
@@ -102,8 +104,7 @@ void PhononTransportApp::run(Context &context) {
   // the diagonal for the exact method.
 
   if (mpi->mpiHead()) {
-    std::cout << "\n"
-              << std::string(80, '-') << "\n\n"
+    std::cout << "\n" << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
               << std::endl;
   }
@@ -154,12 +155,9 @@ void PhononTransportApp::run(Context &context) {
   bool doVariational = false;
   bool doRelaxons = false;
   for (const auto &s : solverBTE) {
-    if (s.compare("iterative") == 0)
-      doIterative = true;
-    if (s.compare("variational") == 0)
-      doVariational = true;
-    if (s.compare("relaxons") == 0)
-      doRelaxons = true;
+    if (s.compare("iterative") == 0) {   doIterative = true; }
+    if (s.compare("variational") == 0) {  doVariational = true; }
+    if (s.compare("relaxons") == 0) {    doRelaxons = true; }
   }
 
   // here we do validation of the input, to check for consistency
@@ -469,6 +467,14 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     auto elBandStructure = std::get<0>(t3);
     auto statisticsSweep = std::get<1>(t3);
 
+    // don't proceed if we use more than one doping concentration --
+    // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly
+    int numMu = statisticsSweep.getNumChemicalPotentials();
+    if (numMu != 1) {
+        Error("Can currenly only add ph-el scattering one doping "
+          "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
+    }
+
     // print some info about how window and symmetries have reduced el bands
     if (mpi->mpiHead()) {
       if(elBandStructure.hasWindow() != 0) {
@@ -499,7 +505,9 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     phelScatteringMatrix.setup();
     phelScatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
 
-    VectorBTE phononElectronRates = phelScatteringMatrix.diagonal();
+    // important to use getLinewidths here instead of diagonal() -- they
+    // do not return the same thing (diagonal has population factors)
+    VectorBTE phononElectronRates = phelScatteringMatrix.getLinewidths();
     return phononElectronRates;
 }
 
