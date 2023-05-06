@@ -577,7 +577,7 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
   // we also need to add these to the full scattering matrix
   // we do this after setting up internal diagonal so that population
   // factors are already in place as needed
-/*
+
   if (highMemory) { // matrix in memory
     int iCalc = 0;
     if (context.getUseSymmetries()) {
@@ -601,7 +601,7 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
         theMatrix(is, is) = internalDiagonal(iCalc, 0, is);
       }
     }
-  }*/
+  }
 }
 
 void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
