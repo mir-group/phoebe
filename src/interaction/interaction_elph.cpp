@@ -146,17 +146,14 @@ InteractionElPhWan::polarCorrectionPart1(const Eigen::Vector3d &q3, const Eigen:
   Eigen::Vector3i qCoarseMesh = phononH0->getCoarseGrid();
 
   return polarCorrectionPart1Static(q3, ev3, volume, reciprocalUnitCell,
-                                    epsilon, bornCharges, atomicPositions,
-                                    qCoarseMesh);
+                                    epsilon, bornCharges, atomicPositions, qCoarseMesh);
 }
 
-Eigen::VectorXcd
-InteractionElPhWan::polarCorrectionPart1Static(
+Eigen::VectorXcd InteractionElPhWan::polarCorrectionPart1Static(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
     const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
     const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
-    const Eigen::MatrixXd &atomicPositions,
-    const Eigen::Vector3i &qCoarseMesh) {
+    const Eigen::MatrixXd &atomicPositions, const Eigen::Vector3i &qCoarseMesh) {
   // doi:10.1103/physRevLett.115.176401, Eq. 4, is implemented here
 
   auto numAtoms = int(atomicPositions.rows());

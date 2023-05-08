@@ -25,25 +25,7 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
   }
 
   isMatrixOmega = true;
-
   highMemory = context.getScatteringMatrixInMemory();
-}
-
-ElScatteringMatrix::ElScatteringMatrix(const ElScatteringMatrix &that)
-    : ScatteringMatrix(that), couplingElPhWan(that.couplingElPhWan),
-      h0(that.h0), boundaryLength(that.boundaryLength),
-      doBoundary(that.doBoundary) {}
-
-ElScatteringMatrix &
-ElScatteringMatrix::operator=(const ElScatteringMatrix &that) {
-  ScatteringMatrix::operator=(that);
-  if (this != &that) {
-    couplingElPhWan = that.couplingElPhWan;
-    h0 = that.h0;
-    boundaryLength = that.boundaryLength;
-    doBoundary = that.doBoundary;
-  }
-  return *this;
 }
 
 // 3 cases:

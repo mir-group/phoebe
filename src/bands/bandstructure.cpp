@@ -6,6 +6,7 @@
 #include "points.h"
 #include "utilities.h"
 #include "Matrix.h"
+#include <set>
 
 std::vector<size_t> BaseBandStructure::parallelStateIterator() {
     size_t numStates = getNumStates();
@@ -28,19 +29,41 @@ FullBandStructure::FullBandStructure(int numBands_, Particle &particle_,
   // If is distributed is true, numBlockCols is used to column/wavevector
   // distribute the internal matrices
   int numBlockCols = std::min((int)mpi->getSize(), numPoints);
-  energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
+
+  // this will cause a crash from BLACS
+  if(mpi->getSize() > numPoints) {
+    Error("Phoebe cannot run with more MPI processes than points. Increase mesh sampling \n"
+        "or decrease number of processes.");
+  }
+
+  try {
+    energies = Matrix<double>(numBands, numPoints, 1, numBlockCols, isDistributed);
+  } catch(std::bad_alloc &) {
+    Error("Failed to allocate band structure energies.\n"
+        "You are likely out of memory.");
+  }
   numLocalPoints = energies.localCols();
   if (hasVelocities) {
-    velocities = Matrix<std::complex<double>>(
+    try {
+      velocities = Matrix<std::complex<double>>(
         numBands * numBands * 3, numPoints, 1, numBlockCols, isDistributed);
+    } catch(std::bad_alloc &) {
+      Error("Failed to allocate band structure velocities.\n"
+        "You are likely out of memory.");
+    }
   }
   if (hasEigenvectors) {
-    if ( particle.isPhonon() ) {
-      eigenvectors = Matrix<std::complex<double>>(
-          3 * numAtoms * numBands, numPoints, 1, numBlockCols, isDistributed);
-    } else {
-      eigenvectors = Matrix<std::complex<double>>(
-          numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
+    try {
+      if ( particle.isPhonon() ) {
+        eigenvectors = Matrix<std::complex<double>>(
+            3 * numAtoms * numBands, numPoints, 1, numBlockCols, isDistributed);
+      } else {
+        eigenvectors = Matrix<std::complex<double>>(
+            numBands * numBands, numPoints, 1, numBlockCols, isDistributed);
+      }
+    } catch(std::bad_alloc &) {
+      Error("Failed to allocate band structure eigenvectors.\n"
+        "You are likely out of memory.");
     }
   }
 }
@@ -128,19 +151,15 @@ std::tuple<WavevectorIndex, BandIndex> FullBandStructure::getIndex(
 
 int FullBandStructure::getNumStates() { return numBands * getNumPoints(); }
 
-// TODO this might be something I can simplify
 std::vector<int> FullBandStructure::getWavevectorIndices() {
-    std::vector<int> kPointsList;
-    // loop over local states
-    for ( auto tup : energies.getAllLocalStates()) {
-        // returns global indices for local index
-        auto ik = std::get<1>(tup);
-        kPointsList.push_back(ik);
-    }
-    sort(kPointsList.begin(), kPointsList.end() );
-    kPointsList.erase( unique(kPointsList.begin(), kPointsList.end() ),
-                      kPointsList.end() );
-    return kPointsList;
+  std::set<int> kPointsSet;
+  for ( auto tup : energies.getAllLocalStates()) {
+    // returns global indices for local index
+    auto ik = std::get<1>(tup);
+    kPointsSet.insert(ik);
+  }
+  std::vector<int> kPointsList(kPointsSet.begin(), kPointsSet.end());
+  return kPointsList;
 }
 
 std::vector<std::tuple<WavevectorIndex,BandIndex>> FullBandStructure::getStateIndices() {
