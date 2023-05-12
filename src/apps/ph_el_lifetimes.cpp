@@ -1,7 +1,7 @@
 #include "ph_el_lifetimes.h"
 #include "bandstructure.h"
 #include "context.h"
-#include "phel_scattering.h"
+#include "phel_scattering_matrix.h"
 #include "exceptions.h"
 #include "parser.h"
 

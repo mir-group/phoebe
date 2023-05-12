@@ -14,22 +14,24 @@
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure) { 
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth) { 
 
   if(mpi->mpiHead()) {
     std::cout << 
         "Adding boundary scattering to the scattering matrix." << std::endl;
   }
 
-  boundaryLength = context.getBoundaryLength();
+  double boundaryLength = context.getBoundaryLength();
   auto excludeIndices = matrix.excludeIndices; 
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
   int switchCase = matrix.switchCase; 
   Particle particle = matrix.particle; 
+  int numCalculations = matrix.numCalculations;
 
   Kokkos::Profiling::pushRegion("boundary scattering");
 
-  std::vector<int> is1s = outerBandStructure->irrStateIterator();
+  std::vector<int> is1s = outerBandStructure.irrStateIterator();
   int nis1s = is1s.size();
 
 #pragma omp parallel for default(none) shared(                            \
@@ -38,9 +40,9 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   for (int iis1 = 0; iis1 < nis1s; iis1++) {
     int is1 = is1s[iis1];
     StateIndex is1Idx(is1);
-    auto vel = outerBandStructure->getGroupVelocity(is1Idx);
-    double energy = outerBandStructure->getEnergy(is1Idx);
-    int iBte1 = outerBandStructure->stateToBte(is1Idx).get();
+    auto vel = outerBandStructure.getGroupVelocity(is1Idx);
+    double energy = outerBandStructure.getEnergy(is1Idx);
+    int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
 
     // this applies only to phonons
     if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
@@ -65,7 +67,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
       }
 
       if (switchCase == 0) {// case of matrix construction
-        matrix.linewidth->operator()(iCalc, 0, iBte1) += rate;
+        linewidth->operator()(iCalc, 0, iBte1) += rate;
 
       } else if (switchCase == 1) {// case of matrix-vector multiplication
         for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
@@ -76,7 +78,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
         }
 
       } else {// case of linewidth construction
-        matrix.linewidth->operator()(iCalc, 0, iBte1) += rate;
+        linewidth->operator()(iCalc, 0, iBte1) += rate;
       }
     }
   }

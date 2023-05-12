@@ -67,7 +67,8 @@ protected:
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure);
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth);
 
   friend void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
                        std::vector<VectorBTE> &inPopulations,
@@ -76,7 +77,7 @@ protected:
                        int &switchCase,                                 
                        Eigen:MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure); 
+                       BaseBandStructure &outerBandStructure, VectorBTE *linewidth); 
 
 };
 

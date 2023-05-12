@@ -3,7 +3,7 @@
 
 #include "interaction_3ph.h"
 #include "phonon_h0.h"
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "vector_bte.h"
 
 /** class representing the phonon scattering matrix.
@@ -56,7 +56,8 @@ class PhScatteringMatrix : public ScatteringMatrix {
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure);
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth);
 
   friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
                                 std::vector<VectorBTE> &inPopulations,
@@ -65,7 +66,8 @@ class PhScatteringMatrix : public ScatteringMatrix {
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
                                 Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure) 
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth);
 
   // friend void addPhElScattering(); 
   friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context, 
@@ -74,7 +76,8 @@ class PhScatteringMatrix : public ScatteringMatrix {
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
                                 Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure);
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth);
 
 };
 

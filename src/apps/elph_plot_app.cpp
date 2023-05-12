@@ -1,7 +1,7 @@
 #include "elph_plot_app.h"
 #include "bandstructure.h"
 #include "context.h"
-#include "el_scattering.h"
+#include "el_scattering_matrix.h"
 #include "exceptions.h"
 #include "io.h"
 #include "points.h"

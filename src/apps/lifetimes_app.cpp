@@ -2,11 +2,11 @@
 #include "bands_app.h"
 #include "bandstructure.h"
 #include "context.h"
-#include "el_scattering.h"
+#include "el_scattering_matrix.h"
 #include "exceptions.h"
 #include "ifc3_parser.h"
 #include "points.h"
-#include "ph_scattering.h"
+#include "ph_scattering_matrix.h"
 #include "parser.h"
 
 void ElectronLifetimesApp::run(Context &context) {

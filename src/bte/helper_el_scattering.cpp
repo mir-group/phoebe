@@ -1,4 +1,4 @@
-#include "helper_el_scattering.h"
+#include "helper_el_scattering_matrix.h"
 #include <set>
 #include "constants.h"
 #include "mpiHelper.h"

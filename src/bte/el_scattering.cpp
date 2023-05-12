@@ -1,10 +1,10 @@
 #include "constants.h"
-#include "helper_el_scattering.h"
+#include "helper_el_scattering_matrix.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
 #include "interaction_elph.h"
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "vector_bte.h"
 
 // 3 cases:
@@ -26,7 +26,8 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
                        int &switchCase,                                 
                        Eigen:MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure) {
+                       BaseBandStructure &outerBandStructure, 
+                       VectorBTE *linewidth) {
 
   // TODO check that inner and outer here correc
 
@@ -256,7 +257,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
                         int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
                         if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            matrix.linewidth->operator()(iCalc, 0, iBte1) += rate;
+                            linewidth->operator()(iCalc, 0, iBte1) += rate;
                           }
                           if (is1 != is2Irr) {
                             theMatrix(iMat1, iMat2) +=
@@ -267,7 +268,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
                     }
                   } else {
                     if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                      matrix.linewidth->operator()(iCalc, 0, iBte1) += rate;
+                      linewidth->operator()(iCalc, 0, iBte1) += rate;
                     }
                     theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
@@ -295,7 +296,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
                   }
                 } else {
                   // case of linewidth construction
-                  matrix.linewidth->operator()(iCalc, 0, iBte1) += rate;
+                  linewidth->operator()(iCalc, 0, iBte1) += rate;
                 }
               }
             }

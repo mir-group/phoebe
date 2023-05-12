@@ -22,7 +22,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                  std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
                                  Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                  BaseBandStructure &innerBandStructure,
-                                 BaseBandStructure &outerBandStructure) {
+                                 BaseBandStructure &outerBandStructure,
+                                 VectorBTE *linewidth) {
   
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
@@ -293,7 +294,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                         int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                         if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            matrix.linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                            linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                           }
                           if (is1 != is2Irr) {
                             matrix.theMatrix(iMat1, iMat2) +=
@@ -304,7 +305,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                     }
                   } else {
                     if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                      matrix.linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                      linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     }
                     matrix.theMatrix(iBte1, iBte2) += ratePlus;
                   }
@@ -334,7 +335,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                   }
 
                 } else { // case of linewidth construction
-                  matrix.linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                   if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
                     Point q2 = innerBandStructure.getPoint(iq2);
@@ -431,7 +432,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                         int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                         if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
-                            matrix.linewidth->operator()(iCalc, 0, iBte1) +=
+                            linewidth->operator()(iCalc, 0, iBte1) +=
                                 0.5 * (rateMinus1 + rateMinus2);
                           }
                           if (is1 != is2Irr) {
@@ -444,7 +445,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                     }
                   } else {
                     if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                      matrix.linewidth->operator()(iCalc, 0, iBte1) +=
+                      linewidth->operator()(iCalc, 0, iBte1) +=
                           0.5 * (rateMinus1 + rateMinus2);
                     }
                     matrix.theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
@@ -475,7 +476,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                     }
                   }
                 } else {
-                  matrix.linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
+                  linewidth->operator()(iCalc, 0, iBte1) += 0.5 * (rateMinus1 + rateMinus2);
                   if(outputUNTimes) {
                     Point q1 = outerBandStructure.getPoint(iq1);
                     Point q2 = innerBandStructure.getPoint(iq2);
@@ -526,7 +527,8 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
                                 Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure) { 
+                                BaseBandStructure &outerBandStructure, 
+                                VectorBTE *linewidth) { 
 
   if(mpi->mpiHead()) {
     std::cout << 
@@ -669,7 +671,7 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                     int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
                     if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                       if (i == 0 && j == 0) {
-                        matrix.linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                        linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                       }
                       if (is1 != is2Irr) {
                         matrix.theMatrix(iMat1, iMat2) +=
@@ -680,7 +682,7 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                 }
               } else {
                 if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                  matrix.linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                  linewidth->operator()(iCalc, 0, iBte1) += rateIso;
                 }
                 matrix.theMatrix(iBte1, iBte2) += rateIso;
               }
@@ -709,7 +711,7 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
               }
 
             } else { // case of linewidth construction
-              matrix.linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+              linewidth->operator()(iCalc, 0, iBte1) += rateIso;
 
               if(outputUNTimes) {
                 Point q1 = outerBandStructure.getPoint(iq1);

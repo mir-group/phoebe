@@ -4,7 +4,7 @@
 #include "electron_h0_wannier.h"
 #include "interaction_elph.h"
 #include "phonon_h0.h"
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "vector_bte.h"
 
 /** This class describes the construction of the electron scattering matrix.

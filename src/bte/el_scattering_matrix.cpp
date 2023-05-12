@@ -1,6 +1,6 @@
 #include "el_scattering_matrix.h"
 #include "constants.h"
-#include "helper_el_scattering.h"
+#include "helper_el_scattering_matrix.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
@@ -71,7 +71,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   addElPhScattering(this, context, inPopulations, outPopulations, 
                                   switchCase, kPairIterator, 
                                   innerFermi, outerFermi,
-                                  innerBandStructure, outerBandStructure); 
+                                  innerBandStructure, outerBandStructure, 
+                                  linewidth); 
   // TODO was there previously an all reduce between these two on 
   //the linewidths? why is that? 
 

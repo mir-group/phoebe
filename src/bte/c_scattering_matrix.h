@@ -4,7 +4,7 @@
 #include "interaction_3ph.h"
 #include "interaction_elph.h"
 #include "phonon_h0.h"
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "vector_bte.h"
 
 /** class representing the combined scattering matrix.

@@ -62,7 +62,8 @@ protected:
   std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
   std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
 
-  friend void addPhElScattering(ScatteringMatrix &matrix, Context &context); 
+  friend void addPhElScattering(ScatteringMatrix &matrix, 
+                                Context &context, VectorBTE *linewidth); 
 
 };
 

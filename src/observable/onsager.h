@@ -4,7 +4,7 @@
 #include "bandstructure.h"
 #include "context.h"
 #include "crystal.h"
-#include "el_scattering.h"
+#include "el_scattering_matrix.h"
 #include "statistics_sweep.h"
 #include "vector_bte.h"
 #include "vector_epa.h"

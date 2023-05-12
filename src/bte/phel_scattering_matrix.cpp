@@ -59,12 +59,12 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   // compute the phonon electron lifetimes 
-  addPhElScattering(); 
+  addPhElScattering(this, context, linewidth); 
 
-  // TODO could we compute boundary or isotope scattering here? 
+  // TODO could we compute boundary or isotope scattering_matrix.here? 
   // I think they are diagonal terms, so this would work. 
   // 
-  
+
   mpi->allReduceSum(&linewidth->data);
 
   // Average over degenerate eigenstates.

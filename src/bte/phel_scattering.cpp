@@ -6,7 +6,7 @@
 
 const double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-void addPhElScattering(ScatteringMatrix &matrix, Context &context) { 
+void addPhElScattering(ScatteringMatrix &matrix, Context &context, VectorBTE *linewidth) { 
                        //std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
 
   Eigen::VectorXd temperatures(numCalculations);
