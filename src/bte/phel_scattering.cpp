@@ -1,60 +1,22 @@
-#include "phel_scattering.h"
 #include "constants.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
+#include "interaction_elph.h"
 
-// helper function to generate kpoint pairs for phel scattering
-// This generates irr points for the ik1, iq3 indices
-std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavevectorPairs() {
+const double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-  std::vector<std::tuple<int, std::vector<int>>> pairIterator;
+void addPhElScattering(ScatteringMatrix &matrix, Context &context) { 
+                       //std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
 
-  // here I parallelize over ik1 which is the outer loop on q-points
-  std::vector<int> k1Iterator = getElBandStructure().parallelIrrPointsIterator();
-
-  // I don't parallelize the inner band structure, the inner loop
-  // populate vector with integers from 0 to numPoints-1
-  std::vector<int> q3Iterator = getPhBandStructure().irrPointsIterator();
-
-  for (size_t ik1 : k1Iterator) {
-    auto t = std::make_tuple(int(ik1), q3Iterator);
-    pairIterator.push_back(t);
-  }
-  return pairIterator;
-}
-
-PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
-                                           StatisticsSweep &statisticsSweep_,
-                                           BaseBandStructure &elBandStructure_,
-                                           BaseBandStructure &phBandStructure_,
-                                           InteractionElPhWan &couplingElPhWan_,
-                                           ElectronH0Wannier &electronH0_)
-    : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
-      couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
-
-  isMatrixOmega = true;
-  // automatically false, as phel scattering is only the diagonal
-  highMemory = false;
-}
-
-// In the phononElectron case, we only compute the diagonal of the
-// scattering matrix. Therefore, we compute only the linewidths
-void PhElScatteringMatrix::builder(VectorBTE *linewidth,
-                                   std::vector<VectorBTE> &inPopulations,
-                                   std::vector<VectorBTE> &outPopulations) {
-  (void) inPopulations;
-  (void) outPopulations;
-
-  if (linewidth == nullptr) {
-    Error("builderPhEl found a non-supported case");
-  }
-  if (linewidth->dimensionality != 1) {
-    Error("Linewidths shouldn't have dimensionality");
+  Eigen::VectorXd temperatures(numCalculations);
+  for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
+    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+    double temp = calcStat.temperature;
+    temperatures(iCalc) = temp;
   }
 
   Particle elParticle(Particle::electron);
-
   int numCalculations = statisticsSweep.getNumCalculations();
 
   // note: innerNumFullPoints is the number of points in the full grid
@@ -62,6 +24,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   // note: in the equations for this rate, because there's an integraton over k,
   // this rate is actually 1/NK (sometimes written N_eFermi).
   double norm = 1. / context.getKMesh().prod();
+
   // TODO how should this norm work when symmetry is involved?
   // I'm also generating points on the fly? and also also... we should be using weights, I think?
   //norm = 1. / getElBandStructure().getNumPoints();
@@ -77,6 +40,8 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // NOTE statistics sweep is the one for electrons
   // precompute Fermi-Dirac populations
+  // TODO can we fit this into the same format as the other ones
+  // to call the helper function instead?
   Eigen::Tensor<double,3> fermiTerm(numCalculations, numKPoints, nb1Max);
   fermiTerm.setZero();
   #pragma omp parallel for
@@ -94,13 +59,6 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     }
   }
   mpi->allReduceSum(&fermiTerm);
-
-  Eigen::VectorXd temperatures(numCalculations);
-  for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
-    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-    double temp = calcStat.temperature;
-    temperatures(iCalc) = temp;
-  }
 
   // precompute the q-dependent part of the polar correction ---------
   int numQPoints = getPhBandStructure().getNumPoints();
@@ -123,18 +81,13 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
 
   //---------------
 
-  if (smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron method not supported by electron scattering");
-    // that's because it doesn't work with the window the way it's implemented,
-    // and we will almost always have a window for electrons
-  }
-
   // k1, k2 are the electronic states, q3 is the phonon
   // this helper returns pairs of the form vector<idxK1, std::vector(allQ3idxs)>
+
+  // TODO can we replace this with the generic function used by the rest of the code? 
   std::vector<std::tuple<int, std::vector<int>>> kqPairIterator = getIrrWavevectorPairs();
   LoopPrint loopPrint("computing ph-el linewidths","k,q pairs", kqPairIterator.size());
 
-  double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
   // iterate over vector<idxK1, std::vector(allK2idxs)>
   // In this loop, k1 is fixed at the top, and we compute
@@ -331,7 +284,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                     * norm / temperatures(iCalc) * pi * k1Weight;
 
                 // case of linewidth construction (the only case, for ph-el)
-                linewidth->operator()(iCalc, 0, ibte3) += rate;
+                matrix.linewidth->operator()(iCalc, 0, ibte3) += rate;
 
                 //NOTE: for eliashberg function, we could here add another vectorBTE object
                 // as done with the linewidths here, slightly modified
@@ -343,12 +296,8 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
       }
     }
   }
-  mpi->allReduceSum(&linewidth->data);
-
+  mpi->barrier(); 
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 
-  // Average over degenerate eigenstates.
-  // we turn it off for now and leave the code if needed in the future
-  degeneracyAveragingLinewidths(linewidth);
 }

@@ -4,11 +4,10 @@
 #include "electron_h0_wannier.h"
 #include "interaction_elph.h"
 #include "phonon_h0.h"
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "vector_bte.h"
 #include "general_scattering.cpp"
 #include "el_scattering.cpp"
-
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.

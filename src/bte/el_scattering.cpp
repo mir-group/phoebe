@@ -3,6 +3,9 @@
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
+#include "interaction_elph.h"
+#include "scattering.h"
+#include "vector_bte.h"
 
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
