@@ -286,6 +286,15 @@ public:
    */
   VectorBTE getTimesFromVectorBTE(VectorBTE& diagonal);
 
+
+  /** Function to precompute particle populations before scattering rates
+   * are calculated. 
+   * @param Bandstructure: bandstructure of the particle species
+   * @param MatrixXd occupationFactors: contains the occupations for all states
+   */
+  MatrixXd precomputeOccupations(BaseBandStructure &bandStructure); 
+
+
 };
 
 #endif

@@ -1,0 +1,127 @@
+#include "el_scattering_matrix.h"
+#include "constants.h"
+#include "helper_el_scattering.h"
+#include "io.h"
+#include "mpiHelper.h"
+#include "periodic_table.h"
+
+ElScatteringMatrix::ElScatteringMatrix(Context &context_,
+                                       StatisticsSweep &statisticsSweep_,
+                                       BaseBandStructure &innerBandStructure_,
+                                       BaseBandStructure &outerBandStructure_,
+                                       PhononH0 &h0_,
+                                       InteractionElPhWan *couplingElPhWan_)
+    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
+                       outerBandStructure_),
+      couplingElPhWan(couplingElPhWan_), h0(h0_) {
+
+  isMatrixOmega = true;
+  highMemory = context.getScatteringMatrixInMemory();
+}
+
+// 3 cases:
+// theMatrix and linewidth is passed: we compute and store in memory the
+// scattering
+//       matrix and the diagonal
+// inPopulation+outPopulation is passed: we compute the action of the
+//       scattering matrix on the in vector, returning outVec = sMatrix*vector
+// only linewidth is passed: we compute only the linewidths
+void ElScatteringMatrix::builder(VectorBTE *linewidth,
+                                 std::vector<VectorBTE> &inPopulations,
+                                 std::vector<VectorBTE> &outPopulations) {
+
+  Kokkos::Profiling::pushRegion("ElScatteringMatrix::builder");
+
+  int switchCase = 0;
+  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
+    switchCase = 0;
+  } else if (theMatrix.rows() == 0 && linewidth == nullptr && !inPopulations.empty() && !outPopulations.empty()) {
+    switchCase = 1;
+  } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
+    switchCase = 2;
+  } else {
+    Error("builder3Ph found a non-supported case");
+  }
+
+  if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
+    Error("The linewidths shouldn't have dimensionality");
+  }
+
+  auto particle = outerBandStructure.getParticle();
+  int numCalculations = statisticsSweep.getNumCalculations();
+
+  if (smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Tetrahedron method not supported by electron scattering");
+    // that's because it doesn't work with the window the way it's implemented,
+    // and we will almost always have a window for electrons
+  }
+
+  // precompute particle occupations 
+  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure); 
+  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure); 
+
+  // compute wavevector pairs for the calculation
+  std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
+      getIteratorWavevectorPairs(switchCase, rowMajor);
+
+  // add scattering contributions ---------------------------------------
+  // add elph scattering
+  addElPhScattering(this, context, inPopulations, outPopulations, kPairIterator, switchCase); 
+
+  // TODO was there previously an all reduce between these two on 
+  //the linewidths? why is that? 
+
+  // Add boundary scattering
+  if (!std::isnan(context.getBoundaryLength())) {
+    if (context.getBoundaryLength() > 0.) {
+      addBoundaryScattering(this, context, inPopulations, outPopulations, switchCase); 
+  } 
+
+  // all reduce the linewidths 
+  if (switchCase == 1) {
+    for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
+      mpi->allReduceSum(&outPopulations[iVec].data);
+    }
+  } else {
+    mpi->allReduceSum(&linewidth->data);
+  }
+  // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
+  loopPrint.close();
+
+  // Average over degenerate eigenstates.
+  // we turn it off for now and leave the code if needed in the future
+  // TODO   ^^ do we?
+  if (switchCase == 2) {
+    degeneracyAveragingLinewidths(linewidth);
+  }
+
+ // we place the linewidths back in the diagonal of the scattering matrix
+  // this because we may need an MPI_allReduce on the linewidths
+  if (switchCase == 0) {// case of matrix construction
+    int iCalc = 0;
+    if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        BteIndex iBteIdx(iBte);
+        // zero the diagonal of the matrix
+        for (int i : {0, 1, 2}) {
+          CartIndex iCart(i);
+          int iMati = getSMatrixIndex(iBteIdx, iCart);
+          for (int j : {0, 1, 2}) {
+            CartIndex jCart(j);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            theMatrix(iMati, iMatj) = 0.;
+          }
+          theMatrix(iMati, iMati) += linewidth->operator()(iCalc, 0, iBte);
+        }
+      }
+    } 
+    else {
+      for (int is = 0; is < numStates; is++) {
+        theMatrix(is, is) = linewidth->operator()(iCalc, 0, is);
+      }
+    }
+  }
+  Kokkos::Profiling::popRegion();
+}

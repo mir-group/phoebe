@@ -24,7 +24,6 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   numCalculations = statisticsSweep.getNumCalculations();
 
   dimensionality_ = int(context.getDimensionality());
-
   highMemory = context.getScatteringMatrixInMemory();
 
   // we want to know the state index of acoustic modes at gamma,
@@ -147,7 +146,9 @@ VectorBTE ScatteringMatrix::diagonal() {
 }
 
 VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
+
   if (highMemory) {
+
     VectorBTE outPopulation(statisticsSweep, outerBandStructure, 3);
     // note: we are assuming that ScatteringMatrix has numCalculations = 1
 
@@ -780,7 +781,8 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
-// TODO this feels redundant with above function, maybe could be simplified
+// TODO this feels redundant with above function, maybe could be simplified --
+// plus, it's missing a bunch of things including energies!
 void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
                                       const Eigen::VectorXd &eigenvalues) {
   if (!mpi->mpiHead()) {
@@ -1338,4 +1340,31 @@ void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
     // now skip to next iteration
     ib3 += degDegree - 1; // -1 because there's another addition in the loop
   }
+}
+
+
+MatrixXd precomputeOccupations(BaseBandStructure &bandStructure); 
+
+  //TODO this needs number of calculations 
+
+  auto numIrrStates = int(bandStructure.irrStateIterator().size());
+  Eigen::MatrixXd bose(numCalculations, numIrrStates);
+  bose.setZero();
+  std::vector<size_t> iBtes = mpi->divideWorkIter(numIrrStates);
+  niBtes = iBtes.size();
+#pragma omp parallel for default(none)                                         \
+    shared(mpi, particle, bose, numIrrStates, numCalculations, niBtes, iBtes)
+  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+    int iBte = iBtes[iiBte];
+    BteIndex iBteIdx(iBte);
+    StateIndex isIdx = bandStructure.bteToState(iBteIdx);
+    double energy = bandStructure.getEnergy(isIdx);
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+      double temp = calcStat.temperature;
+      double chemPot = calcStat.chemicalPotential;
+      bose(iCalc, iBte) = particle.getPopulation(energy, temp, chemPot);
+    }
+  }
+  mpi->allReduceSum(&bose);
 }
