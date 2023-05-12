@@ -1,14 +1,11 @@
-#ifndef EL_SCATTERING_MATRIX_H
-#define EL_SCATTERING_MATRIX_H
+#ifndef EL_SCATTERING_H
+#define EL_SCATTERING_H
 
 #include "electron_h0_wannier.h"
 #include "interaction_elph.h"
 #include "phonon_h0.h"
 #include "scattering.h"
 #include "vector_bte.h"
-#include "general_scattering.cpp"
-#include "el_scattering.cpp"
-
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
@@ -36,6 +33,18 @@ public:
                      BaseBandStructure &outerBandStructure_, PhononH0 &h0,
                      InteractionElPhWan *couplingElPhWan_ = nullptr);
 
+  /** Copy constructor
+   * @param that: object to be copied
+   */
+//  ElScatteringMatrix(const ElScatteringMatrix &that);
+
+  /** Copy assignment
+   *
+   * @param that: object to be copied
+   * @return a copy of ElScatteringMatrix
+   */
+//  ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
+
 protected:
   InteractionElPhWan *couplingElPhWan;
   PhononH0 &h0;
@@ -55,30 +64,6 @@ protected:
    */
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
-
-
-  // friend functions for adding scattering rates, 
-  // these live in el_scattering.cpp
-
-  /** 
-   * @param matrix: a el scattering matrix object
-   * @param context: object with user parameters for this calculation
-   * @param inPopulations: 
-   * */ 
-  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure);
-
-  friend void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
-                       std::vector<VectorBTE> &inPopulations,
-                       std::vector<VectorBTE> &outPopulations, 
-                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
-                       int &switchCase,                                 
-                       Eigen:MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
-                       BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure); 
-
 };
 
 #endif

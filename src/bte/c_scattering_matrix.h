@@ -2,51 +2,56 @@
 #define PH_SCATTERING_MATRIX_H
 
 #include "interaction_3ph.h"
+#include "interaction_elph.h"
 #include "phonon_h0.h"
 #include "scattering.h"
 #include "vector_bte.h"
 
-/** class representing the phonon scattering matrix.
- * This class contains the logic to compute the phonon scattering matrix.
+/** class representing the combined scattering matrix.
+ * This class contains the logic to compute the combined scattering matrix.
+ * For a coupled BTE solve. 
  * The parent class ScatteringMatrix instead contains the logic for managing
- * the operations with phonon distribution vectors.
+ * the operations with distribution vectors.
  */
-class PhScatteringMatrix : public ScatteringMatrix {
+class CScatteringMatrix : public ScatteringMatrix {
  public:
   /** Default constructor
    * @param context: the user-initialized variables.
    * @param statisticsSweep: the object containing the information on the
    * temperatures to be used in the calculation.
    * @param innerBandStructure: this is the band structure object used for
-   * integrating the sum over q2 wavevectors.
+   * integrating the sum over final state wavevectors.
    * @param outerBandStructure: this is the bandStructure object used for
-   * integrating the sum over q1 wavevectors.
+   * integrating the sum over initial state wavevectors.
    * @param coupling3Ph: a pointer to the class handling the 3-phonon
    * interaction calculation.
-   * @param h0: the object used for constructing phonon energies.
+   * @param couplingElPh: a pointer to the class handling the el-ph
+   * interaction calculation.
+   * @param PhononH0: the object used for constructing phonon energies.
+   * @param ElectronH0: the object used for constructing electron energies.
    *
-   * Note: inner and outer band structures may be different, for example, if we
-   * want to compute the phonon linewidths on a path, the outer band structure
-   * contains the phonon dispersion relation along high symmetry lines, whereas
-   * the inner band structure contains the dispersion relation on a full grid
-   * of wavevectors. For transport calculations instead, inner=outer.
-   * Especially in the case of computing linewidths on a path, it might be
-   * necessary to compute phonon energies on a wavevector q3=q1+q2: for this
-   * reason, we need to pass also the phonon h0 object.
+   * Note: For transport calculations inner=outer.
+   * Other scattering matrices allow for the possibility that they aren't equal,
+   * but this matrix will only be used for transport. 
    */
  CScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
-                     BaseBandStructure &innerBandStructure_,
-                     BaseBandStructure &outerBandStructure_,
-                     Interaction3Ph *coupling3Ph_ = nullptr,
-                     InteractionElPh *couplingElPh_ = nullptr,
-                     PhononH0 *phononH0 = nullptr, ElectronH0 *electronH0);
+                    BaseBandStructure &innerBandStructure_,
+                    BaseBandStructure &outerBandStructure_,
+                    Interaction3Ph *coupling3Ph_ = nullptr,
+                    InteractionElPh *couplingElPh_ = nullptr,
+                    PhononH0 *phononH0_ = nullptr, 
+                    ElectronH0 *electronH0_ = nullptr);
 
 // TODO -- might be smarter to add functions to add and calculate different effects one at a time, 
  // so that we do not need to store the interaction/coupling info for both the entire time
+ // If we need the matrix-vector product or any such thing where we do not 
+ // want to keep the whole matrix in memory for some reason, we will need these the whole time
 
  // TODO what are the cases where outer != inner band structure for the elph and phph cases? 
  // I think this is only for linewidths on a path, which we do not do here, so we should
  // just be able to pass directly in one phonon and one electron band structure
+
+ // TODO check on the functions that symmetrize this matrix's components
 
  protected:
 
@@ -54,30 +59,47 @@ class PhScatteringMatrix : public ScatteringMatrix {
   InteractionElPh *couplingElPh;
 
   PhononH0 *phononH0;
-  PhononH0 *electronH0;
+  ElectronH0 *electronH0;
 
   // implementation of the scattering matrix
   void builder(VectorBTE *linewidth,
                std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
- // friend functions for adding scattering rates, 
- // these live in ph_scattering.cpp
- // TODO write docstrings for these
- friend void addBoundaryScattering(PhScatteringMatrix &matrix, Context &context,
-                                 std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations, int &switchCase);
+  // friend functions for adding scattering rates, 
+  // these live in ph_scattering.cpp
+  // TODO write docstrings for these
+  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, 
+                                BaseBandStructure &outerBandStructure);
 
- friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
-                                 std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
-                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator); 
- // friend void addPhElScattering(); 
- friend void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context, 
-                                 std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
-                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator);
+  friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, 
+                                int &switchCase, 
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure) 
 
+  // friend void addPhElScattering(); 
+  friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context, 
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, int &switchCase, 
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure);
+
+  friend void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, 
+                                std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
+                                int &switchCase,                                 
+                                Eigen:MatrixXd &innerFermi,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure);
 
 };
 

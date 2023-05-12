@@ -19,19 +19,21 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
   highMemory = context.getScatteringMatrixInMemory();
 }
 
-// 3 cases:
-// theMatrix and linewidth is passed: we compute and store in memory the
-// scattering
-//       matrix and the diagonal
-// inPopulation+outPopulation is passed: we compute the action of the
-//       scattering matrix on the in vector, returning outVec = sMatrix*vector
-// only linewidth is passed: we compute only the linewidths
 void ElScatteringMatrix::builder(VectorBTE *linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
 
   Kokkos::Profiling::pushRegion("ElScatteringMatrix::builder");
 
+  // 3 cases:
+  // theMatrix and linewidth is passed: we compute and store in memory the
+  // scattering
+  //       matrix and the diagonal
+  // inPopulation+outPopulation is passed: we compute the action of the
+  //       scattering matrix on the in vector, returning outVec = sMatrix*vector
+  // only linewidth is passed: we compute only the linewidths
+  // Note: this determination is the same for all scattering matrices. 
+  // Perhaps we should make a general function for it in the parent class? 
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 0;
@@ -40,18 +42,18 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error("builder3Ph found a non-supported case");
+    Error("Developer error: El matrix builder found a non-supported case");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
-    Error("The linewidths shouldn't have dimensionality");
+    Error("Developer error: The linewidths shouldn't have dimensionality");
   }
 
   auto particle = outerBandStructure.getParticle();
   int numCalculations = statisticsSweep.getNumCalculations();
 
   if (smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron method not supported by electron scattering");
+    Error("Developer error: Tetrahedron method not supported by electron scattering");
     // that's because it doesn't work with the window the way it's implemented,
     // and we will almost always have a window for electrons
   }
@@ -66,16 +68,19 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // add scattering contributions ---------------------------------------
   // add elph scattering
-  addElPhScattering(this, context, inPopulations, outPopulations, kPairIterator, switchCase); 
-
+  addElPhScattering(this, context, inPopulations, outPopulations, 
+                                  switchCase, kPairIterator, 
+                                  innerFermi, outerFermi,
+                                  innerBandStructure, outerBandStructure); 
   // TODO was there previously an all reduce between these two on 
   //the linewidths? why is that? 
 
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(this, context, inPopulations, outPopulations, switchCase); 
-  } 
+      addBoundaryScattering(this, context, inPopulations, outPopulations, 
+                            switchCase, outerBandStructure);   
+    } 
 
   // all reduce the linewidths 
   if (switchCase == 1) {

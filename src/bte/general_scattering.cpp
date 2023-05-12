@@ -13,7 +13,8 @@
 // BOUNDARY SCATTERING ==============================================
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations) { 
+                                std::vector<VectorBTE> &outPopulations, 
+                                BaseBandStructure &outerBandStructure) { 
 
   if(mpi->mpiHead()) {
     std::cout << 
@@ -23,7 +24,6 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   boundaryLength = context.getBoundaryLength();
   auto excludeIndices = matrix.excludeIndices; 
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
-  BaseBandStructure *outerBandStructure = &(matrix.outerBandStructure); 
   int switchCase = matrix.switchCase; 
   Particle particle = matrix.particle; 
 
@@ -33,7 +33,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   int nis1s = is1s.size();
 
 #pragma omp parallel for default(none) shared(                            \
-  outerBandStructure, numCalculations, statisticsSweep, boundaryLength, \
+  outerBandStructure, numCalculations, statisticsSweep, boundaryLength,   \
   particle, outPopulations, inPopulations, matrix.linewidth, switchCase, nis1s, is1s)
   for (int iis1 = 0; iis1 < nis1s; iis1++) {
     int is1 = is1s[iis1];

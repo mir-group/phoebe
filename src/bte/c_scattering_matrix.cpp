@@ -5,24 +5,40 @@
 #include "mpiHelper.h"
 #include <cmath>
 
-PhScatteringMatrix::PhScatteringMatrix(Context &context_,
-                                       StatisticsSweep &statisticsSweep_,
-                                       BaseBandStructure &innerBandStructure_,
-                                       BaseBandStructure &outerBandStructure_,
-                                       Interaction3Ph *coupling3Ph_,
-                                       PhononH0 *h0_)
-    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
-                       outerBandStructure_),
-      coupling3Ph(coupling3Ph_), h0(h0_) {
+CScatteringMatrix::CScatteringMatrix(Context &context_,
+                                      StatisticsSweep &statisticsSweep_,
+                                      BaseBandStructure &innerBandStructure_, // phonon
+                                      BaseBandStructure &outerBandStructure_, // electron
+                                      Interaction3Ph *coupling3Ph_,
+                                      InteractionElPh *couplingElPh_,
+                                      ElectronH0 *electronH0_, 
+                                      PhononH0 *phononH0_)
+    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
+      coupling3Ph(coupling3Ph_), couplingElPh(couplingElPh_), 
+      phononH0(phononH0_), electronH0(electronH0_)  {
 
-  if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
-    Error("Developer error: PhScatteringMatrix needs h0 for incommensurate grids");
-  }
+    if(!innerBandStructure_.getParticle().isPhonon() && !outerBandStructure_.getParticle().isElectron()) {
+      Error("Developer error: Tried to create CMatrix with bandstructures of wrong particle type!");
+    }
+
+
 }
 
-void PhScatteringMatrix::builder(VectorBTE *linewidth,
+void CScatteringMatrix::builder(VectorBTE *linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
+
+  // TODO may need to shift something in the parent scattering matrix constructor
+  // wrt the size allocated for this matrix, which should be (nphononstates, nelectron states)^2
+
+  // TODO overall seems like we should allow for phonon and electron bandstructures to 
+  // supply an optional shift on state indexing. Perhaps somewhere in their mapping functions? 
+  // OHH what about just on the iBTE or state indices? 
+  // couldl construct one band structure first, then add that bandstructure's nstates 
+  // as a "shift" parameter
+
+  // TODO at first, we probably need to block symmetry in the construction of this matrix. 
+  // If that is horrible, we could resurrect the symmetry unfolding of the MT calculation. 
 
   // 3 cases:
   // theMatrix and linewidth is passed: we compute and store in memory the
@@ -31,18 +47,16 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   //       scattering matrix on the in vector, returning outVec = sMatrix*vector
   // only linewidth is passed: we compute only the linewidths
 
+  // TODO there will be a linewidth construction case here that you should block
   int switchCase = 0;
-  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() &&
-      outPopulations.empty()) {
+  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 0;
-  } else if (theMatrix.rows() == 0 && linewidth == nullptr &&
-             !inPopulations.empty() && !outPopulations.empty()) {
+  } else if (theMatrix.rows() == 0 && linewidth == nullptr && !inPopulations.empty() && !outPopulations.empty()) {
     switchCase = 1;
-  } else if (theMatrix.rows() == 0 && linewidth != nullptr &&
-             inPopulations.empty() && outPopulations.empty()) {
+  } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 2;
   } else {
-    Error("Developer error: builderPh found a non-supported case");
+    Error("Developer error: CMatrix builder found a non-supported case.");
   }
 
   if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
@@ -51,27 +65,56 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // add in the different scattering contributions -------------------
 
-  // precompute the Bose factors
+  // precompute the fermi and bose factors
+  Eigen::MatrixXd innerBose = precomputeOccupations(innerBandStructure); 
   Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure); 
-  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure); 
 
   // generate the points on which these processes will be computed
+
+  // TODO need to convert this to give me pairs in the different quadrants. 
+  // probably have to overwrite this function with a special one 
+
+  // may just be able to shift things around.
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
 
   // here we call the function to add ph-ph scattering
   addPhPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator); 
+                                  switchCase, qPairIterator, 
+                                  innerBose, innerBose,
+                                  innerBandStructure, innerBandStructure); 
+
+  // here we call the function to add el-ph scattering
+  addElPhScattering(this, context, inPopulations, outPopulations, 
+                                  switchCase, qPairIterator, 
+                                  outerFermi, // it only uses one of occupation 
+                                  innerBandStructure, outerBandStructure); 
+
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
     addIsotopeScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator); 
+                            switchCase, qPairIterator, 
+                            innerBose, innerBose, 
+                            innerBandStructure, innerBandStructure); 
   }
   // Add boundary scattering
+  // TODO there will be an issue here for the CMatrix -- 
+  // we can't set particle to be phonon or electron... 
+  // Call this twice for each section of the diagonal, 
+  // in one case handing it the phonon bands, in the other the electron bands. 
+
+  // TODO one issue that will definitely arise is the computation state indices, 
+  // which happens inside this class automatically. 
+  // Need to provide some... shift, to the state indices, or something like that
+  // maybe an optional "state range" or "state shift"?
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
+      // phonon boundary scattering
       addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase); 
+                            switchCase, innerBandStructure); 
+      // electron boundary scattering
+      addBoundaryScattering(this, context, inPopulations, outPopulations, 
+                            switchCase, outerBandStructure); 
   } 
 
   // TODO add phel scattering 
@@ -82,6 +125,10 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       // we could make it so that the phononElectron scattering object... which maybe 
       // will also compute the drag terms, does all the creating of the band structure and whatnot that
       // is currently gumming up phonon_transport_app... 
+
+    // outline: 
+    // 1) compute a new electron bandstructure here
+    // 2) call the phonon_electron scattering method supplying it and our phonon bandstructure as well as this matrix.
   //
 
   // MPI reduce the distributed data now that all the scattering is accounted for 

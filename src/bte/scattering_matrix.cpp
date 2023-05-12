@@ -1,4 +1,4 @@
-#include "scattering.h"
+#include "scattering_matrix.h"
 #include "constants.h"
 #include "mpiHelper.h"
 #include <algorithm>
@@ -70,9 +70,28 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
   if ( // innerBandStructure != outerBandStructure &&
       smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron smearing for transport untested and thus blocked");
+    Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
     // not for linewidths. Although this should be double-checked
   }
+
+  // 3 cases:
+  // theMatrix and linewidth is passed: we compute and store in memory the
+  // scattering
+  //       matrix and the diagonal
+  // inPopulation+outPopulation is passed: we compute the action of the
+  //       scattering matrix on the in vector, returning outVec = sMatrix*vector
+  // only linewidth is passed: we compute only the linewidths
+  int switchCase = 0;
+  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
+    switchCase = 0;
+  } else if (theMatrix.rows() == 0 && linewidth == nullptr && !inPopulations.empty() && !outPopulations.empty()) {
+    switchCase = 1;
+  } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
+    switchCase = 2;
+  } else {
+    Error("Developer error: Scattering matrix builder found a non-supported case");
+  }
+
 }
 
 ScatteringMatrix::~ScatteringMatrix() {

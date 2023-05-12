@@ -62,18 +62,23 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                         getIteratorWavevectorPairs(switchCase);
 
   // here we call the function to add ph-ph scattering
+  // here we call the function to add ph-ph scattering
   addPhPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator); 
+                                  switchCase, qPairIterator, 
+                                  innerBose, outerBose
+                                  innerBandStructure, outerBandStructure); 
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
     addIsotopeScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator); 
+                                  switchCase, qPairIterator, 
+                                  innerBose, outerBose, 
+                                  innerBandStructure, outerBandStructure); 
   }
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
       addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase); 
+                                  switchCase, outerBandStructure); 
   } 
 
   // TODO add phel scattering 

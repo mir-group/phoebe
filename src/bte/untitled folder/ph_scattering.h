@@ -1,5 +1,5 @@
-#ifndef PH_SCATTERING_MATRIX_H
-#define PH_SCATTERING_MATRIX_H
+#ifndef PH_SCATTERING_H
+#define PH_SCATTERING_H
 
 #include "interaction_3ph.h"
 #include "phonon_h0.h"
@@ -40,42 +40,28 @@ class PhScatteringMatrix : public ScatteringMatrix {
                      Interaction3Ph *coupling3Ph_ = nullptr,
                      PhononH0 *h0 = nullptr);
 
- protected:
+  /** Copy constructor
+   */
+//  PhScatteringMatrix(const PhScatteringMatrix &that);
 
+  /** Copy assignment operator
+   */
+//  PhScatteringMatrix &operator=(const PhScatteringMatrix &that);
+
+ protected:
   Interaction3Ph *coupling3Ph;
   PhononH0 *h0;
+
+  Eigen::VectorXd massVariance;
+  bool doIsotopes;
+
+  double boundaryLength;
+  bool doBoundary;
 
   // implementation of the scattering matrix
   void builder(VectorBTE *linewidth,
                std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
-
- // friend functions for adding scattering rates, 
- // these live in ph_scattering.cpp
- // TODO write docstrings for these
-  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure);
-
-  friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                int &switchCase, 
-                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
-                                BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure) 
-
-  // friend void addPhElScattering(); 
-  friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context, 
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, int &switchCase, 
-                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
-                                BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure);
-
 };
 
 #endif
