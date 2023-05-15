@@ -7,7 +7,7 @@
 #include "scattering_matrix.h"
 #include "vector_bte.h"
 #include "general_scattering.cpp"
-#include "el_scattering.cpp"
+//#include "el_scattering.cpp"
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
@@ -39,9 +39,6 @@ protected:
   InteractionElPhWan *couplingElPhWan;
   PhononH0 &h0;
 
-  double boundaryLength;
-  bool doBoundary;
-
   /** Function with the detailed calculation of the scattering matrix.
    *
    * Note: this function is computing the symmetrized scattering matrix
@@ -59,6 +56,7 @@ protected:
   // friend functions for adding scattering rates, 
   // these live in el_scattering.cpp
 
+ // TODO finish adding doxygen strings to these
   /** 
    * @param matrix: a el scattering matrix object
    * @param context: object with user parameters for this calculation
@@ -70,12 +68,12 @@ protected:
                                 BaseBandStructure &outerBandStructure, 
                                 VectorBTE *linewidth);
 
-  friend void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
+  friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context, 
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations, 
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
                        int &switchCase,                                 
-                       Eigen:MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure, VectorBTE *linewidth); 
 

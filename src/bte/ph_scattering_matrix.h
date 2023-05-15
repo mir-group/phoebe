@@ -64,17 +64,17 @@ class PhScatteringMatrix : public ScatteringMatrix {
                                 std::vector<VectorBTE> &outPopulations, 
                                 int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure, 
                                 VectorBTE *linewidth);
 
   // friend void addPhElScattering(); 
-  friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context, 
+  friend void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context, 
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure, 
                                 VectorBTE *linewidth);

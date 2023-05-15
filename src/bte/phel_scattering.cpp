@@ -3,10 +3,11 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 #include "interaction_elph.h"
+#include "phel_scattering_matrix.h"
 
 const double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-void addPhElScattering(ScatteringMatrix &matrix, Context &context, VectorBTE *linewidth) { 
+void addPhElScattering(PhElScatteringMatrix &matrix, Context &context, VectorBTE *linewidth) { 
                        //std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
 
   Eigen::VectorXd temperatures(numCalculations);
@@ -18,6 +19,7 @@ void addPhElScattering(ScatteringMatrix &matrix, Context &context, VectorBTE *li
 
   Particle elParticle(Particle::electron);
   int numCalculations = statisticsSweep.getNumCalculations();
+  InteractionElPhWan *couplingElPhWan = &(matrix.couplingElPhWan);
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure

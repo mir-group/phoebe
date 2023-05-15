@@ -1,11 +1,13 @@
 #include "constants.h"
-#include "helper_el_scattering_matrix.h"
+#include "helper_el_scattering.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
 #include "interaction_elph.h"
-#include "scattering_matrix.h"
+#include "el_scattering_matrix.h"
 #include "vector_bte.h"
+
+// TODO maybe remove some of these that are not necessary
 
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
@@ -19,30 +21,30 @@ const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small
 // TODO why is this different from the phonon class's? 
 //   double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
 
-void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
+void addElPhScattering(ElScatteringMatrix &matrix, Context &context, 
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations, 
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
+                        // maybe put this in all the calls, remove the one in scattering matrix class
                        int &switchCase,                                 
-                       Eigen:MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure, 
                        VectorBTE *linewidth) {
 
   // TODO check that inner and outer here correc
 
-  StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
-  auto *outPopulations = &(matrix.outPopulations);
-  auto *inPopulations = &(matrix.outPopulations);
+  StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
   Particle particle = outerBandStructure.getParticle();
-  InteractionElPhWan *couplingElPhWan_ = &(matrix.couplingElPhWan);
-
+  InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
+  DeltaFunction *smearing = matrix.smearing; 
+ 
   bool rowMajor = true;
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                                 statisticsSweep, smearing->getType(), h0, couplingElPhWan);
+                         statisticsSweep, smearing->getType(), matrix.h0, couplingElPhWan);
 
   bool withSymmetries = context.getUseSymmetries();
-  int numCalculations = statisticsSweep->getNumCalculations();
+  int numCalculations = statisticsSweep.getNumCalculations();
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   double norm = 1. / context.getKMesh().prod();
@@ -137,7 +139,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
       Kokkos::Profiling::pushRegion("symmetrize coupling");
 #pragma omp parallel for
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
-        symmetrizeCoupling(
+        matrix.symmetrizeCoupling(
             couplingElPhWan->getCouplingSquared(ik2Batch),
             state1Energies, allState2Energies[ik2Batch], allStates3Energies[ik2Batch]
         );
@@ -176,7 +178,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
             double en3 = state3Energies(ib3);
-            double kT = statisticsSweep->getCalcStatistics(iCalc).temperature;
+            double kT = statisticsSweep.getCalcStatistics(iCalc).temperature;
             sinh3Data(ib3, iCalc) = 0.5 / sinh(0.5 * en3 / kT);
           }
         }
@@ -201,7 +203,7 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
               double en3 = state3Energies(ib3);
 
               // remove small divergent phonon energies
-              if (en3 < phononCutoff) {
+              if (en3 < phEnergyCutoff) {
                 continue;
               }
 
@@ -251,26 +253,26 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
                   if (withSymmetries) {
                     for (int i : {0, 1, 2}) {
                       CartIndex iIndex(i);
-                      int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
+                      int iMat1 = matrix.getSMatrixIndex(ind1Idx, iIndex);
                       for (int j : {0, 1, 2}) {
                         CartIndex jIndex(j);
-                        int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
+                        int iMat2 = matrix.getSMatrixIndex(ind2Idx, jIndex);
+                        if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) += rate;
                           }
                           if (is1 != is2Irr) {
-                            theMatrix(iMat1, iMat2) +=
+                            matrix.theMatrix(iMat1, iMat2) +=
                                 rotation.inverse()(i, j) * rateOffDiagonal;
                           }
                         }
                       }
                     }
                   } else {
-                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                    if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
                     }
-                    theMatrix(iBte1, iBte2) += rateOffDiagonal;
+                    matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
                 } else if (switchCase == 1) {
                   // case of matrix-vector multiplication
@@ -306,4 +308,4 @@ void addElPhScattering(ScatteringMatrix &matrix, Context &context,
       Kokkos::Profiling::popRegion();
     }
   }
-
+}

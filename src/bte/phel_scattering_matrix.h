@@ -5,7 +5,8 @@
 #include "phonon_h0.h"
 #include "scattering_matrix.h"
 #include "vector_bte.h"
-#include "phel_scattering.cpp"
+#include "interaction_elph.h"
+//#include "phel_scattering.cpp"
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
@@ -48,6 +49,7 @@ public:
   PhElScatteringMatrix &operator=(const PhElScatteringMatrix &that);
 
 protected:
+
   InteractionElPhWan &couplingElPhWan;
   ElectronH0Wannier &electronH0;
 

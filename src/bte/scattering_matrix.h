@@ -182,6 +182,7 @@ public:
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
+  int switchCase; 
 
   // Smearing is a pointer created in constructor with a smearing factory
   // Used in the construction of the scattering matrix to approximate the
@@ -196,6 +197,9 @@ public:
   bool constantRTA = false;
   bool highMemory = true;     // whether the matrix is kept in memory
   bool outputUNTimes = false;    // whether to output U and N processes in RTA
+
+  double boundaryLength;
+  bool doBoundary;
 
   // NOTE: about the definition of A
   // A acts on the canonical population, omega on the population
@@ -292,7 +296,47 @@ public:
    * @param Bandstructure: bandstructure of the particle species
    * @param MatrixXd occupationFactors: contains the occupations for all states
    */
-  MatrixXd precomputeOccupations(BaseBandStructure &bandStructure); 
+  Eigen::MatrixXd precomputeOccupations(BaseBandStructure &bandStructure); 
+
+  // friend functions for scattering 
+
+  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations,
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth);
+
+  friend void addElPhScattering(ScatteringMatrix &matrix, Context &context,
+                       std::vector<VectorBTE> &inPopulations,
+                       std::vector<VectorBTE> &outPopulations,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
+                       int &switchCase,
+                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       BaseBandStructure &innerBandStructure,
+                       BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
+
+
+  friend void addPhPhScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations,
+                                int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth);
+
+  friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth);
+
+  friend void addPhElScattering(ScatteringMatrix &matrix,
+                                Context &context, VectorBTE *linewidth);
 
 
 };

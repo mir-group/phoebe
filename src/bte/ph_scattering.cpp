@@ -1,5 +1,6 @@
 #include "constants.h"
 #include "helper_3rd_state.h"
+#include "ph_scattering_matrix.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include <cmath>
@@ -20,7 +21,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                  std::vector<VectorBTE> &outPopulations, 
                                  int &switchCase, 
                                  std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                 Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                  BaseBandStructure &innerBandStructure,
                                  BaseBandStructure &outerBandStructure,
                                  VectorBTE *linewidth) {
@@ -32,11 +33,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices; 
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
-  BaseBandStructure *innerBandStructure = &(matrix.innerBandStructure); 
-  BaseBandStructure *outerBandStructure = &(matrix.outerBandStructure); 
-  auto *outPopulations = &(matrix.outPopulations);
-  auto *inPopulations = &(matrix.outPopulations);
-  Particle particle = outerBandStructure.getParticle();
+  DeltaFunction *smearing = matrix.smearing; 
+  Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
 
   // determine if this is lifetimes on a path or regular mesh
   bool outerEqualInnerMesh = false; // case of lifetimes on a path
@@ -290,8 +288,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                       for (int j : {0, 1, 2}) {
                         CartIndex iIndex(i);
                         CartIndex jIndex(j);
-                        int iMat1 = getSMatrixIndex(iBte1Idx, iIndex);
-                        int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
+                        int iMat1 = matrix.getSMatrixIndex(iBte1Idx, iIndex);
+                        int iMat2 = matrix.getSMatrixIndex(iBte2Idx, jIndex);
                         if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
@@ -351,9 +349,9 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                       isUmklapp = true;
                     }
                     if(isUmklapp) {
-                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                      matrix.internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     } else {
-                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                      matrix.internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     }
                   }
                 }
@@ -428,8 +426,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                       for (int j : {0, 1, 2}) {
                         CartIndex iIndex(i);
                         CartIndex jIndex(j);
-                        int iMat1 = getSMatrixIndex(iBte1Idx, iIndex);
-                        int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
+                        int iMat1 = matrix.getSMatrixIndex(iBte1Idx, iIndex);
+                        int iMat2 = matrix.getSMatrixIndex(iBte2Idx, jIndex);
                         if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) +=
@@ -491,9 +489,9 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                       isUmklapp = true;
                     }
                     if(isUmklapp) {
-                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus1);
+                      matrix.internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus1);
                     } else {
-                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus1);
+                      matrix.internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus1);
                     }
 
                     // check the second point
@@ -504,9 +502,9 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                       isUmklapp = true;
                     }
                     if(isUmklapp) {
-                      internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus2);
+                      matrix.internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus2);
                     } else {
-                      internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus2);
+                      matrix.internalDiagonalNormal->operator()(iCalc, 0, iBte1) += 0.5*(rateMinus2);
                     }
                   }
                 }
@@ -525,7 +523,7 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure, 
                                 VectorBTE *linewidth) { 
@@ -539,7 +537,9 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices; 
   auto smearing = matrix.smearing;
-  Particle particle = matrix.particle; 
+  // generate basic properties from the function arguments 
+  int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
+  int numCalculations = matrix.statisticsSweep->getNumCalculations();
 
   // create vector with the interaction strength
   Eigen::VectorXd massVariance = Eigen::VectorXd::Zero(numAtoms);
@@ -560,7 +560,7 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
   }
 
   // loop over points pairs 
-  for (auto tup : matrix.qPairIterator) {
+  for (auto tup : qPairIterator) {
 
     auto iq1Indexes = std::get<0>(tup);
     int iq2 = std::get<1>(tup);
@@ -665,10 +665,10 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                 BteIndex iBte2Idx(iBte2);
                 for (int i : {0, 1, 2}) {
                   CartIndex iIndex(i);
-                  int iMat1 = getSMatrixIndex(iBte1Idx, iIndex);
+                  int iMat1 = matrix.getSMatrixIndex(iBte1Idx, iIndex);
                   for (int j : {0, 1, 2}) {
                     CartIndex jIndex(j);
-                    int iMat2 = getSMatrixIndex(iBte2Idx, jIndex);
+                    int iMat2 = matrix.getSMatrixIndex(iBte2Idx, jIndex);
                     if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                       if (i == 0 && j == 0) {
                         linewidth->operator()(iCalc, 0, iBte1) += rateIso;

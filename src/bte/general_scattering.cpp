@@ -26,7 +26,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   auto excludeIndices = matrix.excludeIndices; 
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
   int switchCase = matrix.switchCase; 
-  Particle particle = matrix.particle; 
+  Particle particle = outerBandStructure.getParticle();
   int numCalculations = matrix.numCalculations;
 
   Kokkos::Profiling::pushRegion("boundary scattering");
