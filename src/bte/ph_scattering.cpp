@@ -32,9 +32,10 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
   // copy a few small things that don't take
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices; 
-  StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
   DeltaFunction *smearing = matrix.smearing; 
   Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
+  PhononH0 *h0 = matrix.h0;
+  bool outputUNTimes = matrix.outputUNTimes;
 
   // determine if this is lifetimes on a path or regular mesh
   bool outerEqualInnerMesh = false; // case of lifetimes on a path
@@ -45,14 +46,14 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
 
   // generate basic properties from the function arguments 
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  int numCalculations = statisticsSweep->getNumCalculations();
+  int numCalculations = matrix.statisticsSweep.getNumCalculations();
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   double norm = 1. / context.getQMesh().prod();
 
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
-                             statisticsSweep, smearing->getType(), h0);
+                             matrix.statisticsSweep, smearing->getType(), h0);
   LoopPrint loopPrint("computing ph-ph contribution to scattering matrix", "q-point pairs",
                       int(qPairIterator.size()));
 
@@ -177,9 +178,9 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
 
 #pragma omp parallel for
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
-        symmetrizeCoupling(
+        matrix.symmetrizeCoupling(
             couplingPlus_v[iq1Batch], energies1_v[iq1Batch], energies2, energies3Plus_v[iq1Batch]);
-        symmetrizeCoupling(
+        matrix.symmetrizeCoupling(
             couplingMinus_v[iq1Batch], energies1_v[iq1Batch], energies2, energies3Minus_v[iq1Batch]);
       }
 
@@ -537,9 +538,15 @@ void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices; 
   auto smearing = matrix.smearing;
+
   // generate basic properties from the function arguments 
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
-  int numCalculations = matrix.statisticsSweep->getNumCalculations();
+  int numCalculations = matrix.statisticsSweep.getNumCalculations();
+
+  // note: innerNumFullPoints is the number of points in the full grid
+  // may be larger than innerNumPoints, when we use ActiveBandStructure
+  double norm = 1. / context.getQMesh().prod();
+  bool outputUNTimes = matrix.outputUNTimes;
 
   // create vector with the interaction strength
   Eigen::VectorXd massVariance = Eigen::VectorXd::Zero(numAtoms);

@@ -58,8 +58,14 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
     Error("Linewidths shouldn't have dimensionality");
   }
 
+  // generate the kq pairs to be used -- TODO can we replace this with one
+  // generic pair generating function? 
+
+  std::vector<std::tuple<int, std::vector<int>>> kqPairIterator 
+                                                = getIrrWavevectorPairs();
+
   // compute the phonon electron lifetimes 
-  addPhElScattering(this, context, linewidth); 
+  addPhElScattering(this, context, kqPairIterator, linewidth); 
 
   // TODO could we compute boundary or isotope scattering_matrix.here? 
   // I think they are diagonal terms, so this would work. 

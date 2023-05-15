@@ -50,8 +50,8 @@ public:
 
 protected:
 
-  InteractionElPhWan &couplingElPhWan;
-  ElectronH0Wannier &electronH0;
+  InteractionElPhWan *couplingElPhWan;
+  ElectronH0Wannier *electronH0;
 
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
@@ -61,11 +61,12 @@ protected:
   BaseBandStructure& getPhBandStructure() { return outerBandStructure; };
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
-  std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
+  // TODO describe this function
+  //std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
   std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
 
-  friend void addPhElScattering(ScatteringMatrix &matrix, 
-                                Context &context, VectorBTE *linewidth); 
+  friend void addPhElScattering(PhElScatteringMatrix &matrix, Context &context, 
+                 std::vector<std::tuple<int, std::vector<int>>> kqPairs, VectorBTE *linewidth); 
 
 };
 
