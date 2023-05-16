@@ -15,7 +15,7 @@
 #include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
 
-void coupledBteApp::run(Context &context) {
+void CoupledTransportApp::run(Context &context) {
 
   // there are four major possible contributions to this application
   // electron-phonon, phonon-phonon, phonon-electron, and electron-electron
@@ -31,7 +31,7 @@ void coupledBteApp::run(Context &context) {
     Error("CRTA is not an option for the coupled BTE app!");
   }
 
-  if(!usePhPhInteraction && !usePhElInteraction) {
+  if(!usePhPhInteraction && !useElPhInteraction) {
     Error("To run the coupled BTE app supply a ph-ph or el-ph file!");
   }
 
@@ -44,6 +44,10 @@ void coupledBteApp::run(Context &context) {
   auto crystal = std::get<0>(tup);
   auto phononH0 = std::get<1>(tup);
 
+  auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
+  auto crystalEl = std::get<0>(t1);
+  auto electronH0 = std::get<1>(t1);
+
   // first we make compute the band structure on the fine grid
   Points fullPoints(crystal, context.getQMesh());
 
@@ -51,7 +55,7 @@ void coupledBteApp::run(Context &context) {
     std::cout << "\nComputing phonon band structure." << std::endl;
   }
   auto tup1 = ActiveBandStructure::builder(context, phononH0, fullPoints);
-  auto bandStructure = std::get<0>(tup1);
+  auto phBandStructure = std::get<0>(tup1);
   auto statisticsSweep = std::get<1>(tup1);
 
   // stop the code if someone tries to run it with more than one value of (mu, T)
@@ -62,15 +66,15 @@ void coupledBteApp::run(Context &context) {
 
   // print some info about state number reduction
   if (mpi->mpiHead()) {
-    if(bandStructure.hasWindow() != 0) {
+    if(phBandStructure.hasWindow() != 0) {
         std::cout << "Window selection reduced phonon band structure from "
                 << fullPoints.getNumPoints() * phononH0.getNumBands() << " to "
-                << bandStructure.getNumStates() << " states."  << std::endl;
+                << phBandStructure.getNumStates() << " states."  << std::endl;
     }
     if(context.getUseSymmetries()) {
       std::cout << "Symmetries reduced phonon band structure from "
-          << bandStructure.getNumStates() << " to "
-          << bandStructure.irrStateIterator().size() << " states." << std::endl;
+          << phBandStructure.getNumStates() << " to "
+          << phBandStructure.irrStateIterator().size() << " states." << std::endl;
     }
     std::cout << "Done computing phonon band structure.\n" << std::endl;
   }
@@ -81,11 +85,16 @@ void coupledBteApp::run(Context &context) {
               << std::endl;
   }
 
+  // TODO we have to resolve having these two "fullPoints" meshes, as
+  // we definitely need to allow for one phonon and one el one, since they converge
+  // differently 
   // construct electronic band structure
-  Points fullPoints(crystalPh, context.getKMesh());
+  // TODO additionally, are the two statistics sweeps separate?
+
+  //Points kPoints(crystal, context.getKMesh());
   auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
   auto elBandStructure = std::get<0>(t3);
-  auto statisticsSweep = std::get<1>(t3);
+  //auto statisticsSweep = std::get<1>(t3);
 
   // don't proceed if we use more than one doping concentration --
   // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly
@@ -116,18 +125,21 @@ void coupledBteApp::run(Context &context) {
 
   // read in electron-phonon coupling ---------------------------------
   // this also checks that the crystal is the same one read in for 3ph
-  Interaction3Ph coupling3Ph = IFC3Parser::parse(context, crystal);
+  InteractionElPhWan couplingElPh = 
+                         InteractionElPhWan::parse(context, crystal, &phononH0);
 
   // Construct the full C matrix
   // the dimensions of this matrix are (numElStates + numPhStates, numElStates + numPhStates) 
   // We definitely need to supply both the phonon and electron bandstructures to this object. 
   // The phel scattering probably needs it's own separate electronic bandstructure object, 
   // as it requires much denser sampling to converge and we need to allow for that 
-  // TODO feels like we should be passing these thigns by reference? 
-  CScatteringMatrix CMatrix(context, statisticsSweep, 
-                            lBandStructure, phBandStructure);
 
-  CMatrix.setup();   // adds in all the scattering rates
+  // TODO create this object
+  // TODO feels like we should be passing these thigns by reference? 
+  CoupledScatteringMatrix scatteringMatrix(context, statisticsSweep, 
+                            elBandStructure, phBandStructure);
+
+  scatteringMatrix.setup();   // adds in all the scattering rates
   
   // alternatively, we may want to add contributions one at a time to this matrix, 
   // especially if we're struggling in memory, so that we can only store either
@@ -142,8 +154,8 @@ void coupledBteApp::run(Context &context) {
   // helper function to return ph-el linewidths
   // TODO would it be better to make another friend function that just 
   // calculates these linewidths? 
-  VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
-                                                        bandStructure, phononH0);
+  //VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
+  //                                                      phBandStructure, phononH0);
 
   // if we're using both phel and phph times, we should output
   // each independent linewidth set. PhEl is output above.
@@ -151,9 +163,9 @@ void coupledBteApp::run(Context &context) {
 
   // add in the phel linewidths -- use getLinewidths to remove pop factors
   // TODO this needs to be changed so that we can add it to only one quadrant
-  VectorBTE totalRates = scatteringMatrix.getLinewidths();
-  totalRates = totalRates + phElLinewidths;
-  scatteringMatrix.setLinewidths(totalRates);
+  //VectorBTE totalRates = scatteringMatrix.getLinewidths();
+  //totalRates = totalRates + phElLinewidths;
+  //scatteringMatrix.setLinewidths(totalRates);
 
 
   // BTE Solvers ---------------------------------------------
@@ -170,7 +182,10 @@ void coupledBteApp::run(Context &context) {
 
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
-  BulkTDrift drift(statisticsSweep, bandStructure, 3);
+
+  // TODO these feel like they need to be swaped into an option that can take both kinds of bandstructures? 
+
+  BulkTDrift drift(statisticsSweep, phBandStructure, 3);
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE popRTA = drift * phononRelTimes;
 
@@ -178,25 +193,25 @@ void coupledBteApp::run(Context &context) {
   scatteringMatrix.outputToJSON("rta_ph_relaxation_times.json");
 
   // compute the thermal conductivity
-  PhononThermalConductivity phTCond(context, statisticsSweep, crystal, bandStructure);
+  PhononThermalConductivity phTCond(context, statisticsSweep, crystal, phBandStructure);
   phTCond.calcFromPopulation(popRTA);
   phTCond.print();
   phTCond.outputToJSON("rta_phonon_thermal_cond.json");
 
   // compute the Wigner thermal conductivity
-  WignerPhononThermalConductivity phTCondWigner(context, statisticsSweep, crystal, bandStructure, phononRelTimes);
+  WignerPhononThermalConductivity phTCondWigner(context, statisticsSweep, crystal, phBandStructure, phononRelTimes);
   phTCondWigner.calcFromPopulation(popRTA);
   phTCondWigner.print();
   phTCondWigner.outputToJSON("wigner_phonon_thermal_cond.json");
 
   // compute the thermal conductivity
-  PhononViscosity phViscosity(context, statisticsSweep, crystal, bandStructure);
+  PhononViscosity phViscosity(context, statisticsSweep, crystal, phBandStructure);
   phViscosity.calcRTA(phononRelTimes);
   phViscosity.print();
   phViscosity.outputToJSON("rta_phonon_viscosity.json");
 
   // compute the specific heat
-  SpecificHeat specificHeat(context, statisticsSweep, crystal, bandStructure);
+  SpecificHeat specificHeat(context, statisticsSweep, crystal, phBandStructure);
   specificHeat.calc();
   specificHeat.print();
   specificHeat.outputToJSON("specific_heat.json");
@@ -263,7 +278,7 @@ void coupledBteApp::run(Context &context) {
     // initialize the (old) thermal conductivity
     PhononThermalConductivity phTCondOld = phTCond;
 
-    VectorBTE fNext(statisticsSweep, bandStructure, 3);
+    VectorBTE fNext(statisticsSweep, phBandStructure, 3);
     VectorBTE sMatrixDiagonal = scatteringMatrix.diagonal();
 
     // from n, we get f, such that n = bose(bose+1)f
@@ -462,7 +477,7 @@ void coupledBteApp::run(Context &context) {
                                     eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
+      Vector0 boseEigenvector(statisticsSweep, phBandStructure, specificHeat);
       phViscosity.calcFromRelaxons(boseEigenvector, eigenvalues,
                                    scatteringMatrix, eigenvectors);
       phViscosity.print();
@@ -476,20 +491,20 @@ void coupledBteApp::run(Context &context) {
   }
   mpi->barrier();
 }
-
+/*
 // helper function to generate phEl rates
-VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Crystal& crystalPh,
+VectorBTE CoupledTransportApp::getPhononElectronLinewidth(Context& context, Crystal& crystal,
                                                          ActiveBandStructure &phBandStructure,
                                                          PhononH0& phononH0) {
 
     // load electron band structure
-    auto t1 = Parser::parseElHarmonicWannier(context, &crystalPh);
+    auto t1 = Parser::parseElHarmonicWannier(context, &crystal);
     auto crystalEl = std::get<0>(t1);
     auto electronH0 = std::get<1>(t1);
 
     // check that the crystal in the elph calculation is the
     // same as the one in the phph calculation
-    if (crystalPh.getDirectUnitCell() != crystalEl.getDirectUnitCell()) {
+    if (crystal.getDirectUnitCell() != crystalEl.getDirectUnitCell()) {
       Error("Phonon-electrons scattering requested, but crystals used for ph-ph and \n"
         "ph-el scattering are not the same!");
     }
@@ -497,7 +512,7 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     // load the elph coupling
     // Note: this file contains the number of electrons
     // which is needed to understand where to place the fermi level
-    auto couplingElPh = InteractionElPhWan::parse(context, crystalPh, &phononH0);
+    auto couplingElPh = InteractionElPhWan::parse(context, crystal, &phononH0);
 
     // compute the band structure on the fine grid
     if (mpi->mpiHead()) {
@@ -520,7 +535,7 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     context.setWindowEnergyLimit(range);
 
     // construct electronic band structure
-    Points fullPoints(crystalPh, context.getKMesh());
+    Points fullPoints(crystal, context.getKMesh());
     auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
     auto elBandStructure = std::get<0>(t3);
     auto statisticsSweep = std::get<1>(t3);
@@ -567,9 +582,9 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     // do not return the same thing (diagonal has population factors)
     VectorBTE phononElectronRates = phelScatteringMatrix.getLinewidths();
     return phononElectronRates;
-}
+}*/
 
-void PhononTransportApp::checkRequirements(Context &context) {
+void CoupledTransportApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getPhFC2FileName(), "PhFC2FileName");
   throwErrorIfUnset(context.getQMesh(), "qMesh");
   throwWarningIfUnset(context.getSumRuleFC2(), "sumRuleFC2");
