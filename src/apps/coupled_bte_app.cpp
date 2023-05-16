@@ -139,8 +139,8 @@ void CoupledTransportApp::run(Context &context) {
   // TODO feels like we should be passing these thigns by reference? 
   CoupledScatteringMatrix scatteringMatrix(context, statisticsSweep, 
                                         elBandStructure, phBandStructure, 
-                                        coupling3Ph, couplingElPh, 
-                                        phononH0, electronH0);  
+                                        &coupling3Ph, &couplingElPh, 
+                                        &phononH0, &electronH0);  
   scatteringMatrix.setup();   // adds in all the scattering rates
   
   // alternatively, we may want to add contributions one at a time to this matrix, 

@@ -1,4 +1,4 @@
-#include "ph_scattering_matrix.h"
+#include "c_scattering_matrix.h"
 #include "constants.h"
 #include "helper_3rd_state.h"
 #include "io.h"
@@ -24,14 +24,17 @@ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
 
 }
 
+// TODO here would we like to call teh constructors of the other Smatrix types as well, or is this good? 
  CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_, 
                                 StatisticsSweep &statisticsSweep_,
                                 BaseBandStructure &innerBandStructure_,
                                 BaseBandStructure &outerBandStructure_,
-                                Interaction3Ph *coupling3Ph_ = nullptr,
-                                InteractionElPh *couplingElPh_ = nullptr,
-                                PhononH0 *phononH0_ = nullptr,
-                                ElectronH0 *electronH0_ = nullptr){
+                                Interaction3Ph *coupling3Ph_,
+                                InteractionElPh *couplingElPh_, 
+                                PhononH0 *phononH0_, ElectronH0 *electronH0_) {
+    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
+      coupling3Ph(coupling3Ph_), couplingElPh(couplingElPh_), phononH0(phononH0_), electronH0(electronH0_) {
+
 
   // TODO may need to shift something in the parent scattering matrix constructor
   // wrt the size allocated for this matrix, which should be (nphononstates, nelectron states)^2

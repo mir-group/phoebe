@@ -3,9 +3,6 @@
 
 // TODO I think these are likely inherited
 //#include "interaction_3ph.h"
-//#include "interaction_elph.h"
-//#include "phonon_h0.h"
-//#include "scattering_matrix.h"
 #include "ph_scattering_matrix.h"
 #include "el_scattering_matrix.h"
 #include "phel_scattering_matrix.h"
@@ -19,6 +16,9 @@
  */
 class CoupledScatteringMatrix : public ElScatteringMatrix, public PhScatteringMatrix, public PhElScatteringMatrix {
  public:
+
+// TODO update all these comments
+ 
   /** Default constructor
    * @param context: the user-initialized variables.
    * @param statisticsSweep: the object containing the information on the
@@ -42,9 +42,9 @@ class CoupledScatteringMatrix : public ElScatteringMatrix, public PhScatteringMa
                     BaseBandStructure &innerBandStructure_,
                     BaseBandStructure &outerBandStructure_,
                     Interaction3Ph *coupling3Ph_ = nullptr,
-                    InteractionElPh *couplingElPh_ = nullptr,
+                    InteractionElPhWan *couplingElPh_ = nullptr,
                     PhononH0 *phononH0_ = nullptr, 
-                    ElectronH0 *electronH0_ = nullptr);
+                    ElectronH0Wannier *electronH0_ = nullptr);
 
   // TODO we will need to override the simple scattering matrix version of this function
   // as this one will need to behave differently than the others. 
@@ -83,7 +83,7 @@ class CoupledScatteringMatrix : public ElScatteringMatrix, public PhScatteringMa
   // implementation of the scattering matrix
   void builder(VectorBTE *linewidth,
                std::vector<VectorBTE> &inPopulations,
-               std::vector<VectorBTE> &outPopulations) override;
+               std::vector<VectorBTE> &outPopulations);
 
   // TODO we will need to write a very smart indexing funciton for this object. 
   // it should ideally take the indexing functions from the el and ph scattering matrices
