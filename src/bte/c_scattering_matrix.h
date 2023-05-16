@@ -1,10 +1,14 @@
-#ifndef PH_SCATTERING_MATRIX_H
-#define PH_SCATTERING_MATRIX_H
+#ifndef COUPLED_SCATTERING_MATRIX_H
+#define COUPLED_SCATTERING_MATRIX_H
 
-#include "interaction_3ph.h"
-#include "interaction_elph.h"
-#include "phonon_h0.h"
-#include "scattering_matrix.h"
+// TODO I think these are likely inherited
+//#include "interaction_3ph.h"
+//#include "interaction_elph.h"
+//#include "phonon_h0.h"
+//#include "scattering_matrix.h"
+#include "ph_scattering_matrix.h"
+#include "el_scattering_matrix.h"
+#include "phel_scattering_matrix.h"
 #include "vector_bte.h"
 
 /** class representing the combined scattering matrix.
@@ -13,7 +17,7 @@
  * The parent class ScatteringMatrix instead contains the logic for managing
  * the operations with distribution vectors.
  */
-class CScatteringMatrix : public ScatteringMatrix {
+class CoupledScatteringMatrix : public ElScatteringMatrix, public PhScatteringMatrix, public PhElScatteringMatrix {
  public:
   /** Default constructor
    * @param context: the user-initialized variables.
@@ -34,13 +38,27 @@ class CScatteringMatrix : public ScatteringMatrix {
    * Other scattering matrices allow for the possibility that they aren't equal,
    * but this matrix will only be used for transport. 
    */
- CScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
+ CoupledScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                     BaseBandStructure &innerBandStructure_,
                     BaseBandStructure &outerBandStructure_,
                     Interaction3Ph *coupling3Ph_ = nullptr,
                     InteractionElPh *couplingElPh_ = nullptr,
                     PhononH0 *phononH0_ = nullptr, 
                     ElectronH0 *electronH0_ = nullptr);
+
+  // TODO we will need to override the simple scattering matrix version of this function
+  // as this one will need to behave differently than the others. 
+  // we may want to output each kind of linewidths, etc, for testing?  
+  /** Outputs the quantity to a json file.
+   * @param outFileName: string representing the name of the json file
+   */
+  void outputToJSON(const std::string &outFileName);
+
+  /* TODO we will need to override this function to resolve the confusion of 
+  * multiple inheritance of this function. This override should just call 
+  * the ScatteringMatrix base version of this
+  */
+  void setup(); 
 
 // TODO -- might be smarter to add functions to add and calculate different effects one at a time, 
  // so that we do not need to store the interaction/coupling info for both the entire time
@@ -55,20 +73,34 @@ class CScatteringMatrix : public ScatteringMatrix {
 
  protected:
 
-  Interaction3Ph *coupling3Ph;
-  InteractionElPh *couplingElPh;
+  // inherit these from the other El, Ph, PhEl classes
+  //Interaction3Ph *coupling3Ph;
+  //InteractionElPh *couplingElPh;
 
-  PhononH0 *phononH0;
-  ElectronH0 *electronH0;
+  //PhononH0 *phononH0;
+  //ElectronH0 *electronH0;
 
   // implementation of the scattering matrix
   void builder(VectorBTE *linewidth,
                std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
+  // TODO we will need to write a very smart indexing funciton for this object. 
+  // it should ideally take the indexing functions from the el and ph scattering matrices
+  // and 
+
+  // TODO another smart idea would be to make PhEl scattering take a PhScatterign matrix, 
+  // and make PhElScattering matrix inherit from PhScattering, plus then have the additional
+  // elph interaction object? This idea is not fully formed but it coudl be useful
+
+  // TODO switch case should be added to all of these, basically. 
+
   // friend functions for adding scattering rates, 
   // these live in ph_scattering.cpp
   // TODO write docstrings for these
+
+// TODO I comment these out because I speculate that they are inherited from the other smatrices 
+/*
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, 
@@ -79,28 +111,28 @@ class CScatteringMatrix : public ScatteringMatrix {
                                 std::vector<VectorBTE> &outPopulations, 
                                 int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure) 
+                                BaseBandStructure &outerBandStructure); 
 
   // friend void addPhElScattering(); 
-  friend void addIsotopeScattering(ScatteringMatrix &matrix, Context &context, 
+  friend void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context, 
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
-                                Eigen:MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure);
 
-  friend void addElPhScattering(ScatteringMatrix &matrix, Context &context, 
+  friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context, 
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, 
                                 std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
                                 int &switchCase,                                 
-                                Eigen:MatrixXd &innerFermi,
+                                Eigen::MatrixXd &innerFermi,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure);
-
+*/
 };
 
 #endif

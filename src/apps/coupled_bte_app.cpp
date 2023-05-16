@@ -6,13 +6,14 @@
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "parser.h"
-#include "phel_scattering_matrix.h"
-#include "ph_scattering_matrix.h"
-#include "phonon_thermal_cond.h"
-#include "phonon_viscosity.h"
+//#include "phel_scattering_matrix.h"
+//#include "ph_scattering_matrix.h"
+#include "c_scattering_matrix.h"
+//#include "phonon_thermal_cond.h"
+//#include "phonon_viscosity.h"
 #include "points.h"
 #include "specific_heat.h"
-#include "wigner_phonon_thermal_cond.h"
+//#include "wigner_phonon_thermal_cond.h"
 #include <iomanip>
 
 void CoupledTransportApp::run(Context &context) {
@@ -137,8 +138,9 @@ void CoupledTransportApp::run(Context &context) {
   // TODO create this object
   // TODO feels like we should be passing these thigns by reference? 
   CoupledScatteringMatrix scatteringMatrix(context, statisticsSweep, 
-                            elBandStructure, phBandStructure);
-
+                                        elBandStructure, phBandStructure, 
+                                        coupling3Ph, couplingElPh, 
+                                        phononH0, electronH0);  
   scatteringMatrix.setup();   // adds in all the scattering rates
   
   // alternatively, we may want to add contributions one at a time to this matrix, 
@@ -184,7 +186,7 @@ void CoupledTransportApp::run(Context &context) {
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
   // TODO these feel like they need to be swaped into an option that can take both kinds of bandstructures? 
-
+/*
   BulkTDrift drift(statisticsSweep, phBandStructure, 3);
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();
   VectorBTE popRTA = drift * phononRelTimes;
@@ -488,7 +490,7 @@ void CoupledTransportApp::run(Context &context) {
       std::cout << "Finished relaxons BTE solver\n\n";
       std::cout << std::string(80, '-') << "\n" << std::endl;
     }
-  }
+  }*/
   mpi->barrier();
 }
 /*

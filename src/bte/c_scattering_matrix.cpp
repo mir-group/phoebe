@@ -5,7 +5,7 @@
 #include "mpiHelper.h"
 #include <cmath>
 
-CScatteringMatrix::CScatteringMatrix(Context &context_,
+CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
                                       StatisticsSweep &statisticsSweep_,
                                       BaseBandStructure &innerBandStructure_, // phonon
                                       BaseBandStructure &outerBandStructure_, // electron
@@ -20,13 +20,18 @@ CScatteringMatrix::CScatteringMatrix(Context &context_,
     if(!innerBandStructure_.getParticle().isPhonon() && !outerBandStructure_.getParticle().isElectron()) {
       Error("Developer error: Tried to create CMatrix with bandstructures of wrong particle type!");
     }
-
+    // TODO should we force scattering matrix in memory? 
 
 }
 
-void CScatteringMatrix::builder(VectorBTE *linewidth,
-                                 std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations) {
+ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_, 
+                                StatisticsSweep &statisticsSweep_,
+                                BaseBandStructure &innerBandStructure_,
+                                BaseBandStructure &outerBandStructure_,
+                                Interaction3Ph *coupling3Ph_ = nullptr,
+                                InteractionElPh *couplingElPh_ = nullptr,
+                                PhononH0 *phononH0_ = nullptr,
+                                ElectronH0 *electronH0_ = nullptr){
 
   // TODO may need to shift something in the parent scattering matrix constructor
   // wrt the size allocated for this matrix, which should be (nphononstates, nelectron states)^2
