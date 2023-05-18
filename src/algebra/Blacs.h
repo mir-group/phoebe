@@ -48,6 +48,20 @@ void pzheev_(char *, char *, int *, std::complex<double> *, int *, int *, int *,
              double *, std::complex<double> *, int *, int *, int *,
              std::complex<double> *, int *, std::complex<double> *, int *,
              int *);
+void pdsygvx_(const int *, const char*, const char*, const char*, const int*,
+                double*, int*, int*, int*, double*, int*, int*, int*, double*,
+                double*, int*, int*, double*, int*, int*,
+                double*, double*, double*, int*, int*, int*, double*,
+                int*, int*, int*, int*, int*, double*, int*);
+
+//  pdsyevx_(&jobz, &range, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0],
+//        &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
+//        z, iz, jz, desc_z, // need to still resolve this line
+//        work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
+void pdsyevx_(const char*, const char*, const char*, const int*, double*, int*, int*, int*,
+        int*, int*, int*, int*, double*, int*, int*,
+        double*, double*, double*, int*, int*, int*,
+        double*, int*, double*, int*, int*, int*, double*, int*);
 }
 
 #endif /* BLACS_H */
