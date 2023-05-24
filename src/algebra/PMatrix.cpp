@@ -96,6 +96,7 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
 template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
 ParallelMatrix<double>::diagonalize() {
+
   if (numRows_ != numCols_) {
     Error("Cannot diagonalize non-square matrix");
   }
@@ -157,6 +158,7 @@ ParallelMatrix<double>::diagonalize() {
 template <>
 std::tuple<std::vector<double>, ParallelMatrix<std::complex<double>>>
 ParallelMatrix<std::complex<double>>::diagonalize() {
+
   if (numRows_ != numCols_) {
     Error("Can not diagonalize non-square matrix");
   }
@@ -226,11 +228,6 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
     numEigenvalues = numRows_;
   }
 
-  if(mpi->mpiHead()) {
-    std::cout << "Computing first " << numEigenvalues <<
-        " eigenvalues and vectors of the scattering matrix." << std::endl;
-  }
-
   // eigenvalue return container
   double *eigenvalues;
   allocate(eigenvalues, numEigenvalues);
@@ -260,9 +257,9 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   int nz = 0;       // filled on return with number of eigenvectors found
 
   char range = 'I'; // compute a range (from smallest to largest) of the eigenvalues
-  int il = numRows_ - numEigenvalues;  // lower eigenvalue index (indexed from 1)
-  if(il == 0) il = 1;
-  int iu = numRows_;                   // higher eigenvalue index (indexed from 1)
+  int il = 1; //numRows_ - numEigenvalues;  // lower eigenvalue index (indexed from 1)
+  //if(il == 0) il = 1;
+  int iu = numEigenvalues;       // higher eigenvalue index (indexed from 1)
   double vl = -1000;             // not used unless range = V
   double vu = 0;                 // not used unless range = V
 
@@ -276,7 +273,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   double *gap;
   allocate(gap, numBlasRows_*numBlasCols_);
   // specifies which eigenvectors should be reorthogonalized.
-  double orfac = -1; //a default value of 10-3 is used.
+  double orfac = 0; // -1; //a default value of 10-3 is used.
   // If jobz = 'V', vector ifail is a vector telling us
   // which of the eigenvectors were not converged
   int *ifail;
@@ -302,7 +299,8 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
         eigenvectors.mat, &iz, &jz, &descMat_[0],
         work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
 
-  lwork=int(work[0]);
+  lwork=int(work[0])*100;
+  if(lwork < 0) lwork = 2147483000;
   delete[] work;
   delete[] iwork;
   allocate(work, lwork);
@@ -319,14 +317,18 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // first, call and report any negative eigenvalues -------------------
   // we want to note these for convergence reasons
-  if(mpi->mpiHead()) std::cout << "Checking for negative values" << std::endl;
+  //  if(context.getNegativeRelaxons()) {
+
+  if(mpi->mpiHead())
+    std::cout << "Checking scattering matrix for negative eigenvalues." << std::endl;
   eigenvectors = *this; // use the space of this matrix first to
                 // placehold the actual matrix, as it's changed by pdsyevx
   range = 'V';
   jobz = 'N';
   vl = -1.e3;
-  vu = 0; //-1.0;
-  //vu = 0.0;
+  vu = 0;
+  if(mpi->mpiHead()) mpi->time();
+
   pdsyevx_(&jobz, &range, &uplo, &numRows_, eigenvectors.mat, &ia, &ja, &descMat_[0],
         &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
         eigenvectors.mat, &iz, &jz, &descMat_[0],
@@ -346,18 +348,26 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
       std::cout << std::endl;
     }
   }
+  if(mpi->mpiHead()) mpi->time();
 
   // now we perform the regular call to get the largest ones -------------
+  if(mpi->mpiHead()) {
+    std::cout << "Now computing first " << numEigenvalues <<
+        " eigenvalues and vectors of the scattering matrix." << std::endl;
+  }
+
   range = 'I';
   jobz = 'V';
   eigenvectors.zeros();
 
+  if(mpi->mpiHead()) mpi->time();
   // We could make sure these two matrices have identical blacsContexts.
   // However, as dim(Z) must = dim(A), we can just pass A's desc twice.
   pdsyevx_(&jobz, &range, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0],
         &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
-        mat, &iz, &jz, &descMat_[0],
+        eigenvectors.mat, &iz, &jz, &descMat_[0],
         work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
+  if(mpi->mpiHead()) mpi->time();
 
   if (info != 0 && mpi->mpiHead()) {
     if(info < 0) {
@@ -382,27 +392,20 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   std::vector<double> eigenvalues_(numEigenvalues);
   for (int i = 0; i < numEigenvalues; i++) {
     eigenvalues_[i] = *(eigenvalues + i);
-    if(mpi->mpiHead()) std::cout << "eig " << i << " " << eigenvalues_[i] << std::endl;
+//    std::cout << " eigenvalue " << eigenvalues_[i] << std::endl;
+//    std::cout << " eigenvector " << numRows_ << " ";
+//    for(int is = 0; is < numRows_; is++) {
+//      std::cout << " " << eigenvectors(is,i);
+//    }
+//    std::cout << std::endl;
   }
   delete[] eigenvalues; delete[] ifail;
-  delete[] work; delete[] iwork;
+  delete[] work; //delete[] iwork;
   delete[] iclustr; delete[] gap;
-
-  ParallelMatrix<double> returnEigenvectors(numRows_, numEigenvalues,
-                                                numBlocksRows_, numBlocksCols_);
-  // TODO copy in here
-
-    for (auto tup0 : eigenvectors.getAllLocalStates()) {
-      int is = std::get<0>(tup0);
-      int alpha = std::get<1>(tup0);
-      if(alpha < numEigenvalues)
-        std::cout << "eigenvec " << is << " " << alpha << " " << eigenvectors(is, alpha) << std::endl;
-    }
 
   // note that the scattering matrix now has different values
   // it's going to be the upper triangle and diagonal of A
-
-  return std::make_tuple(eigenvalues_, returnEigenvectors);
+  return std::make_tuple(eigenvalues_, eigenvectors);
 }
 
 #endif  // MPI_AVAIL
