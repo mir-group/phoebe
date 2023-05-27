@@ -260,7 +260,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   int il = 1; //numRows_ - numEigenvalues;  // lower eigenvalue index (indexed from 1)
   //if(il == 0) il = 1;
   int iu = numEigenvalues;       // higher eigenvalue index (indexed from 1)
-  double vl = -1000;             // not used unless range = V
+  double vl = -1;                // not used unless range = V
   double vu = 0;                 // not used unless range = V
 
   // VARIABLES related to eigenvalue orthogonalization ===============================
@@ -299,7 +299,8 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
         eigenvectors.mat, &iz, &jz, &descMat_[0],
         work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
 
-  lwork=int(work[0])*100;
+  lwork=int(work[0])*100; // you need extra lwork most of the time
+  // sometimes the integer overflows... so set it to max int if it does
   if(lwork < 0) lwork = 2147483000;
   delete[] work;
   delete[] iwork;
@@ -325,7 +326,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
                 // placehold the actual matrix, as it's changed by pdsyevx
   range = 'V';
   jobz = 'N';
-  vl = -1.e3;
+  vl = -10.;
   vu = 0;
   if(mpi->mpiHead()) mpi->time();
 
@@ -337,10 +338,12 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   if( m > 3 ) { // more than just the zero eigenmode was found
     if(mpi->mpiHead()) {
       Warning("Relaxons diagonalization found " + std::to_string(m) +
-                " in the range -1000 < eigenvalues <= 0."
+                " in the range -1 < eigenvalues <= 0."
                 "\nA proper relaxons solve will not have any negative eigenvalues,"
                 "\nand finding them usually indicates the calculation is unconverged."
-                "\nYou should run with more wavevectors.");
+                "\nWhile we simply throw these out, and likely if they are small the "
+                "\ncalculation will be unaffected, "
+                "\nyou may want to run with more wavevectors or an improved DFT calculation.");
       std::cout << "These eigenvalues are:" << std::endl;
       for (int i = 0; i < m; i++) {
         std::cout << i << " " << eigenvalues[i] << std::endl;

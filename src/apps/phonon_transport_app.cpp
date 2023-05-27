@@ -403,10 +403,6 @@ void PhononTransportApp::run(Context &context) {
     scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      // Note: Andrea originally supplied the boseEigenvector, however,
-      // it appears to go unused in phViscosity.
-      //Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-      //phViscosity.calcFromRelaxons(boseEigenvector, eigenvalues, eigenvectors);
       phViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       phViscosity.print();
       phViscosity.outputToJSON("relaxons_phonon_viscosity.json");

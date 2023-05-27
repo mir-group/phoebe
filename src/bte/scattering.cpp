@@ -856,7 +856,7 @@ ScatteringMatrix::diagonalize(int numEigenvalues) {
   std::tuple<std::vector<double>, ParallelMatrix<double>> tup;
   if(numEigenvalues > numStates) { // not possible
     Error("You have requested to calculate more relaxons eigenvalues"
-        " than your number of phonon states.");
+        " than your number of particle states.");
   }
   if(numEigenvalues > 0 && numEigenvalues != numStates) { // zero is default, calculates all of them
     // calculate some of the eigenvalues

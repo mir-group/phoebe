@@ -411,7 +411,6 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&fE);
 
     // back rotate to Bloch electron coordinates
-
     for (auto tup0 : eigenvectors.getAllLocalStates()) {
       int iMat1 = std::get<0>(tup0);
       int alpha = std::get<1>(tup0);

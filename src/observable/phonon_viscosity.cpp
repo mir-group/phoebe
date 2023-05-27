@@ -115,8 +115,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
-void PhononViscosity::calcFromRelaxons(//Vector0 &vector0,
-                                       Eigen::VectorXd &eigenvalues,
+void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                                        ParallelMatrix<double> &eigenvectors) {
 
   // to simplify, here I do everything considering there is a single
@@ -195,46 +194,18 @@ void PhononViscosity::calcFromRelaxons(//Vector0 &vector0,
   }
   mpi->allReduceSum(&driftEigenvector.data);
 
-/* // Jenny's NOTE: Andrea wrote this here initially -- but it seems unused...
-  // also worth noting that the smatrix is absolutely trash by this point,
-  // scalapack has destroyed it in the diagonalization
-  Eigen::MatrixXd D(3, 3);
-  D.setZero();
-  //    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
-  VectorBTE tmp = sMatrix.dot(driftEigenvector);
-  for (int is : bandStructure.parallelStateIterator()) {
-    for (auto i : {0, 1, 2}) {
-    for (auto j : {0, 1, 2}) {
-    D(i, j) += driftEigenvector(0, i, is) * tmp(0, j, is);
-      }
-    }
-  }
-  D /= volume * context.getQMesh().prod();
-  mpi->allReduceSum(&D);
-*/
-
   // calculate the first part of w^j_i,alpha
-  // Jenny's NOTE:  Why compute D8? it seems to never be used again...
-  // W^j_0,beta, the velocity tensor as in eq D8
-  // where vector0 is (eq A8 of PRX 2020), the Bose Einstein eigenvector:
-  //           theta_0^\nu= sqrt(n(n+1)/kbT * A_i) * hbar * q_i
-  // seems like wasted effort to calculate this though, as it is never used!
   Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
   tmpDriftEigvecs.setZero();
-  //Eigen::MatrixXd W(3, 3);
-  //W.setZero();
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
     auto v = bandStructure.getGroupVelocity(isIdx);
     for (int i : {0, 1, 2}) {
       for (int j : {0, 1, 2}) {
         tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);
-        //W(i, j) += vector0(0, 0, is) * v(i) * driftEigenvector(0, j, is);
       }
     }
   }
-  //W /= volume * context.getQMesh().prod();
-  //mpi->allReduceSum(&W);
   mpi->allReduceSum(&tmpDriftEigvecs);
 
   // now we're calculating w

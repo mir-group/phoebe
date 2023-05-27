@@ -49,8 +49,7 @@ public:
    * @param eigenvectors: the eigenvectors of the scattering matrix above.
    */
    // previously used vector0: VectorBTE object with the energy-conserving eigenvector.
-  void calcFromRelaxons(//Vector0 &vector0,
-                        Eigen::VectorXd &eigenvalues,
+  void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);
 
 protected:
