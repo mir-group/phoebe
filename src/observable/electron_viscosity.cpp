@@ -34,6 +34,7 @@ ElectronViscosity &ElectronViscosity::operator=(const ElectronViscosity &that) {
 }
 
 void ElectronViscosity::calcRTA(VectorBTE &tau) {
+
   double spinFactor = 2.;
   if (context.getHasSpinOrbit()) {
     spinFactor = 1.;
@@ -50,6 +51,7 @@ void ElectronViscosity::calcRTA(VectorBTE &tau) {
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
   Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+
       auto tmpTensor = scatter_tensordxdxdxd.access();
 
       int is = iss[iis];
@@ -161,19 +163,24 @@ tensordxdxdxd = tensordxdxdxd + tmpTensor;
 void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     ParallelMatrix<double> &eigenvectors) {
   if (numCalculations > 1) {
-    Error("Viscosity for relaxons only for 1 temperature");
+    Error("Developer error: Electron viscosity cannot be calculated for more than one T.");
   }
+
+  // NOTE: view phonon viscosity for
+  // notes about which equations are calculated here.
 
   // we decide to skip relaxon states
   // 1) there is a relaxon with zero (or epsilon) eigenvalue -> infinite tau
   // 2) there might be other states with infinite lifetimes, we skip them
+  // 3) states which are alpha > numRelaxons, which were not calculated to
+  //    save computational expense.
 
   double volume = crystal.getVolumeUnitCell(dimensionality);
   auto particle = bandStructure.getParticle();
+  int numRelaxons = eigenvalues.size();
 
   // to simplify, here I do everything considering there is a single
   // temperature (due to memory constraints)
-
   int iCalc = 0;
   auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
   double temp = calcStat.temperature;
@@ -182,9 +189,10 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   Eigen::Tensor<double, 3> fRelaxons(3, 3, bandStructure.getNumStates());
   fRelaxons.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
+
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
-    if (eigenvalues(alpha) <= 0.) {
+    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) {
       continue;
     }
     StateIndex isIdx(is);
@@ -201,11 +209,15 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     }
   }
 
+  // transform from relaxon to electron populations
   Eigen::Tensor<double, 3> f(3, 3, bandStructure.getNumStates());
   f.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
+    if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) {
+      continue;
+    }
     for (int i : {0, 1, 2}) {
       for (int j : {0, 1, 2}) {
         f(i, j, is) += eigenvectors(is, alpha) * fRelaxons(i, j, alpha);
