@@ -167,7 +167,6 @@ void ElectronWannierTransportApp::run(Context &context) {
         // A -> ( A^T + A ) / 2
         // this helps removing negative eigenvalues which may appear due to noise
         scatteringMatrix.symmetrize();
-        // it may not be necessary, so it's commented out
       }
     }
   }
@@ -187,9 +186,10 @@ void ElectronWannierTransportApp::run(Context &context) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     // scatteringMatrix.a2Omega(); Important!! Must use the matrix A, non-scaled
-    // this because the scaling used for phonons here would cause instability
+    // this is because the scaling used for phonons here would cause instability
     // as it could contains factors like 1/0
-    auto tup = scatteringMatrix.diagonalize();
+    auto tup = scatteringMatrix.diagonalize(context.getNumRelaxonsEigenvalues());
+
     Eigen::VectorXd eigenvalues = std::get<0>(tup);
     ParallelMatrix<double> eigenvectors = std::get<1>(tup);
     // EV such that Omega = V D V^-1
