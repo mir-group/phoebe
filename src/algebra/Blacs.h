@@ -54,10 +54,11 @@ void pdsygvx_(const int *, const char*, const char*, const char*, const int*,
                 double*, double*, double*, int*, int*, int*, double*,
                 int*, int*, int*, int*, int*, double*, int*);
 // calculate some eigenvalues of a parallel matrix of doubles
-void pdsyevx_(const char*, const char*, const char*, const int*, double*, int*, int*, int*,
-        double*, double*, int*, int*, double*, int*, int*,
-        double*, double*, double*, int*, int*, int*,
-        double*, int*, double*, int*, int*, int*, double*, int*);
+void pdsyevr_(const char*, const char*, const char*, const int*, double*, int*, int*, int*,
+        double*, double*, int*, int*, int*, int*,
+        double*, double*, int*, int*, int*,
+        double*, int*, int*, int*, int*);
+
 
 // estimate abstol for pdsyevx_
 double pdlamch_(int*, char*);

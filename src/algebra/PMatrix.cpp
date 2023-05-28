@@ -230,7 +230,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // eigenvalue return container
   double *eigenvalues;
-  allocate(eigenvalues, numEigenvalues);
+  allocate(eigenvalues, numRows_);
 
   // NOTE even though we only need numEigenvalues + numEigenvalues worth of z matrix,
   // scalapack absolutely requires this matrix be the same size as the original.
@@ -239,7 +239,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_, numCols_,
-                                      numBlocksRows_,numBlocksCols_);
+                                numBlocksRows_,numBlocksCols_, blacsContext_);
 
   // docs for this scalapack function
   // https://www.ibm.com/docs/en/pessl/5.3.0?topic=easva-pdsyevx-pzheevx-selected-
@@ -257,93 +257,65 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   int nz = 0;       // filled on return with number of eigenvectors found
 
   char range = 'I'; // compute a range (from smallest to largest) of the eigenvalues
-  int il = 1; //numRows_ - numEigenvalues;  // lower eigenvalue index (indexed from 1)
-  //if(il == 0) il = 1;
-  int iu = numEigenvalues;       // higher eigenvalue index (indexed from 1)
-  double vl = -1;                // not used unless range = V
-  double vu = 0;                 // not used unless range = V
-
-  // VARIABLES related to eigenvalue orthogonalization ===============================
-
-  // use abstol value that gives most orthogonal eigenvectors
-  char cmach = 'S';           // used by abstol
-  double abstol = 2 * pdlamch_(&blacsContext_, &cmach);
-  //This array contains the gap between eigenvalues whose
-  //           eigenvectors could not be reorthogonalized.
-  double *gap;
-  allocate(gap, numBlasRows_*numBlasCols_);
-  // specifies which eigenvectors should be reorthogonalized.
-  double orfac = 0; // -1; //a default value of 10-3 is used.
-  // If jobz = 'V', vector ifail is a vector telling us
-  // which of the eigenvectors were not converged
-  int *ifail;
-  allocate(ifail, numRows_);
-  // If jobz = 'V', vector iclustr contains the indices of the eigenvectors
-  // corresponding to a cluster of eigenvalues that could not be reorthogonalized
-  // due to insufficient workspace.
-  int *iclustr;
-  allocate(iclustr, 2*numBlasRows_*numBlasCols_);
+  int il = numRows_ - numEigenvalues;       // lower eigenvalue index (indexed from 1)
+  int iu = numRows_;              // higher eigenvalue index (indexed from 1)
+  double vl = -1;                 // not used unless range = V
+  double vu = 0;                  // not used unless range = V
 
   // we will let pdseyv determine lwork for us. if we run it with
   // lwork = -1 and work of length 1, it will fill work with
   // an appropriate lwork number
   double *work;
-  double *iwork;
+  int *iwork;
   int lwork = -1;
   int liwork = -1; // liwork seems not to be determined this way
   allocate(work, 1);
   allocate(iwork, 1);
 
-  pdsyevx_(&jobz, &range, &uplo,  &numRows_, mat, &ia, &ja, &descMat_[0],
-        &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
-        eigenvectors.mat, &iz, &jz, &descMat_[0],
-        work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
+  pdsyevr_(&jobz, &range, &uplo,  &numRows_, mat, &ia, &ja, &descMat_[0],
+        &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
+        eigenvectors.mat, &iz, &jz, &eigenvectors.descMat_[0],
+        work, &lwork, iwork, &liwork, &info);
 
-  lwork=int(work[0])*100; // you need extra lwork most of the time
-  // sometimes the integer overflows... so set it to max int if it does
-  if(lwork < 0) lwork = 2147483000;
+  lwork=int(work[0]);
   delete[] work;
   delete[] iwork;
   allocate(work, lwork);
 
-  // for some reason, we must calculate liwork manually. The automatic
-  // determination doesn't work. Scalapack docs say:
-  // max(isizestein, isizestebz)+2n
-  //  isizestein = (n+jz-1) +2n+nprocs+1
-  //  isizestebz = max(4n, 14, nprocs)
-  int isizestein = (numRows_ + jz - 1) + 2 * numRows_ * mpi->getSize() + 1;
-  int isizestebz =  std::max(std::max(4*numRows_, 14), mpi->getSize());
-  liwork = std::max(isizestein, isizestebz)+2*numRows_;
+  // for some reason scalapack won't fill liwork automatically:
+  //Let nnp = max( n, nprow*npcol + 1, 4 ). Then:
+  //liwork≥ 12*nnp + 2*n when the eigenvectors are desired
+  int nnp = std::max(std::max(numRows_, numBlasRows_*numBlasCols_ + 1), 4);
+  liwork = 12*nnp + 2*numRows_;
   allocate(iwork, liwork);
 
-  // first, call and report any negative eigenvalues -------------------
+  // first, call and report any negative eigenvalues ------------------------------
   // we want to note these for convergence reasons
   //  if(context.getNegativeRelaxons()) {
 
   if(mpi->mpiHead())
     std::cout << "Checking scattering matrix for negative eigenvalues." << std::endl;
+
   eigenvectors = *this; // use the space of this matrix first to
-                // placehold the actual matrix, as it's changed by pdsyevx
+                // placehold the actual matrix, as it's changed by pdsyevr
   range = 'V';
   jobz = 'N';
-  vl = -10.;
-  vu = 0;
-  if(mpi->mpiHead()) mpi->time();
-
-  pdsyevx_(&jobz, &range, &uplo, &numRows_, eigenvectors.mat, &ia, &ja, &descMat_[0],
-        &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
+  vl = -1.;
+  vu = 1e-16;
+  pdsyevr_(&jobz, &range, &uplo,  &numRows_, eigenvectors.mat, &ia, &ja, &descMat_[0],
+        &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
         eigenvectors.mat, &iz, &jz, &descMat_[0],
-        work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
+        work, &lwork, iwork, &liwork, &info);
 
   if( m > 3 ) { // more than just the zero eigenmode was found
     if(mpi->mpiHead()) {
       Warning("Relaxons diagonalization found " + std::to_string(m) +
                 " in the range -1 < eigenvalues <= 0."
-                "\nA proper relaxons solve will not have any negative eigenvalues,"
-                "\nand finding them usually indicates the calculation is unconverged."
-                "\nWhile we simply throw these out, and likely if they are small the "
-                "\ncalculation will be unaffected, "
-                "\nyou may want to run with more wavevectors or an improved DFT calculation.");
+                "\n\tA proper relaxons solve will not have any negative eigenvalues,"
+                "\n\tand finding them usually indicates the calculation is unconverged."
+                "\n\tWhile we simply throw these out, and likely if they are small the "
+                "calculation will be unaffected, "
+                "\n\tyou may want to run with more wavevectors or an improved DFT calculation.");
       std::cout << "These eigenvalues are:" << std::endl;
       for (int i = 0; i < m; i++) {
         std::cout << i << " " << eigenvalues[i] << std::endl;
@@ -351,9 +323,8 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
       std::cout << std::endl;
     }
   }
-  if(mpi->mpiHead()) mpi->time();
 
-  // now we perform the regular call to get the largest ones -------------
+  // now we perform the regular call to get the largest ones ---------------------
   if(mpi->mpiHead()) {
     std::cout << "Now computing first " << numEigenvalues <<
         " eigenvalues and vectors of the scattering matrix." << std::endl;
@@ -363,48 +334,28 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   jobz = 'V';
   eigenvectors.zeros();
 
-  if(mpi->mpiHead()) mpi->time();
   // We could make sure these two matrices have identical blacsContexts.
   // However, as dim(Z) must = dim(A), we can just pass A's desc twice.
-  pdsyevx_(&jobz, &range, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0],
-        &vl, &vu, &il, &iu, &abstol, &m, &nz, eigenvalues, &orfac,
-        eigenvectors.mat, &iz, &jz, &descMat_[0],
-        work, &lwork, iwork, &liwork, ifail, iclustr, gap, &info);
-  if(mpi->mpiHead()) mpi->time();
+  pdsyevr_(&jobz, &range, &uplo,  &numRows_, mat, &ia, &ja, &descMat_[0],
+        &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
+        eigenvectors.mat, &iz, &jz, &eigenvectors.descMat_[0],
+        work, &lwork, iwork, &liwork, &info);
 
-  if (info != 0 && mpi->mpiHead()) {
-    if(info < 0) {
+  if(info != 0) {
+    if (mpi->mpiHead()) {
       std::cout << "Developer Error: "
-                "One of the input params to PDSYEVX is wrong!" << std::endl;
-    } else {
-      if ( (info/2 % 2) != 0 ) {
-        std::cout << "PDSYEVX had insufficient memory to "
-                        "reorthogonalize the eigenvectors." << std::endl;
-      } else if ( (info/4 % 2) != 0 ) {
-        std::cout << "PDSYEVX had insufficient memory to " <<
-                        "compute all of the eigenvectors." << std::endl;
-      } else if ( (info/8 % 2) != 0 ) {
-        std::cout << "PDSYEVX had an internal error and " <<
-                "failed to compute the eigenvalues." << std::endl;
-      }
+                "One of the input params to PDSYEVR is wrong!" << std::endl;
     }
-    Error("PDSYEVX failed.", info);
+    Error("PDSYEVR failed.", info);
   }
 
   // copy to return containers and free the no longer used containers.
   std::vector<double> eigenvalues_(numEigenvalues);
   for (int i = 0; i < numEigenvalues; i++) {
     eigenvalues_[i] = *(eigenvalues + i);
-//    std::cout << " eigenvalue " << eigenvalues_[i] << std::endl;
-//    std::cout << " eigenvector " << numRows_ << " ";
-//    for(int is = 0; is < numRows_; is++) {
-//      std::cout << " " << eigenvectors(is,i);
-//    }
-//    std::cout << std::endl;
   }
-  delete[] eigenvalues; delete[] ifail;
-  delete[] work; //delete[] iwork;
-  delete[] iclustr; delete[] gap;
+  delete[] eigenvalues;
+  delete[] work; delete[] iwork;
 
   // note that the scattering matrix now has different values
   // it's going to be the upper triangle and diagonal of A
