@@ -109,7 +109,7 @@ ParallelMatrix<double>::diagonalize() {
 
   // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_,numCols_,
-                                      numBlocksRows_,numBlocksCols_);
+                              numBlocksRows_,numBlocksCols_, blacsContext_);
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangular
@@ -124,26 +124,51 @@ ParallelMatrix<double>::diagonalize() {
   double *work;
   int lwork = -1;
   allocate(work, 1);
-  pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-          eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork, &info);
-  lwork=int(work[0]);
+  // somehow autodetermination never works for liwork, so we compute this manually
+  // liwork ≥ 7n + 8npcol + 2
+  int liwork = 7*numRows_ + 8* numBlasCols_ + 2;
+  int *iwork;
+  allocate(iwork, liwork);
+  // calculate lwork
+  pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
+          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
+          work, &lwork, iwork, &liwork, &info);
+  lwork=int(work[0])*100; // automatic detection finds the minimum needed
+  if(lwork<0) lwork = 2147483647; // check for overflow
   delete[] work;
   allocate(work, lwork);
 
-  // Here, we are tricking scalapack a little bit.
-  // normally, one would provide the descMat for the eigenvectors matrix
-  // as the 12th argument to pdsyev. However, this will result in an error,
-  // because the blacsContext for eigenvectors is not the exact same reference
-  // as the one for the input matrix. However, because eigenvectors is
-  // the same size and block distribution as the input matrix,
-  // there is no harm in using the same values for descMat.
-  pdsyev_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
-          eigenvectors.mat, &ia, &ja, &descMat_[0], work, &lwork, &info);
+  // call the function to now diagonalize
+  pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
+          eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
+          work, &lwork, iwork, &liwork, &info);
 
-  if (info != 0) {
-    Error("PDSYEV failed", info);
+  if(info != 0) {
+    if (mpi->mpiHead()) {
+      std::cout << "Developer Error: "
+                "One of the input params to PDSYEVD is wrong!" << std::endl;
+    }
+    Error("PDSYEVD failed.", info);
   }
 
+  if( eigenvalues[0] < 0 ) { // negative modes were found
+    if(mpi->mpiHead()) {
+      Warning("Relaxons diagonalization found negative eigenvalues."
+                "\n\tThis can happen when there's a bit of numerical noise on the scattering matrix,"
+                "\n\tand finding them may indicate the calculation is unconverged."
+                "\n\tWhile we simply do not include these when computing transport, "
+                "\n\tand likely if they are small the calculation will be unaffected, "
+                "\n\tyou may want to consider using with more wavevectors or an improved DFT calculation."
+                "\n\tAdditionally, setting symmetrizeMatrix = true in your input file will help.");
+      std::cout << "These eigenvalues are (in atomic units):" << std::endl;
+      for (int i = 0; eigenvalues[i] <= 0; i++) {
+        std::cout << i << " " << eigenvalues[i] << std::endl;
+        if(i+1 == numRows_) break; // avoid out of bounds
+      }
+      std::cout << std::endl;
+    }
+  }
+  // copy things into output containers
   std::vector<double> eigenvalues_(numRows_);
   for (int i = 0; i < numRows_; i++) {
     eigenvalues_[i] = *(eigenvalues + i);
@@ -151,7 +176,6 @@ ParallelMatrix<double>::diagonalize() {
   delete[] eigenvalues;
   delete[] work;
   // note that the scattering matrix now has different values
-
   return std::make_tuple(eigenvalues_, eigenvectors);
 }
 
@@ -206,8 +230,8 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   delete[] eigenvalues;
   delete[] work;
   delete[] rwork;
-  // note that the scattering matrix now has different values
 
+  // note that the scattering matrix now has different values
   return std::make_tuple(eigenvalues_, eigenvectors);
 }
 
@@ -310,13 +334,15 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   if( m > 3 ) { // more than just the zero eigenmode was found
     if(mpi->mpiHead()) {
       Warning("Relaxons diagonalization found " + std::to_string(m) +
-                " in the range -1 < eigenvalues <= 0."
-                "\n\tA proper relaxons solve will not have any negative eigenvalues,"
-                "\n\tand finding them usually indicates the calculation is unconverged."
-                "\n\tWhile we simply throw these out, and likely if they are small the "
-                "calculation will be unaffected, "
-                "\n\tyou may want to run with more wavevectors or an improved DFT calculation.");
-      std::cout << "These eigenvalues are:" << std::endl;
+             " in the range -1 < eigenvalues <= 0."
+                "\n\tThis can happen when there's a bit of numerical noise on the scattering matrix,"
+                "\n\tand finding them may indicate the calculation is unconverged."
+                "\n\tWhile we simply do not include these when computing transport, "
+                "\n\tand likely if they are small the calculation will be unaffected, "
+                "\n\tyou may want to consider using with more wavevectors or an improved DFT calculation."
+                "\n\tAdditionally, setting symmetrizeMatrix = true in your input file will help.");
+      std::cout << "These eigenvalues are (in atomic units):" << std::endl;
+
       for (int i = 0; i < m; i++) {
         std::cout << i << " " << eigenvalues[i] << std::endl;
       }

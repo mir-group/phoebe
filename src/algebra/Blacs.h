@@ -58,10 +58,9 @@ void pdsyevr_(const char*, const char*, const char*, const int*, double*, int*, 
         double*, double*, int*, int*, int*, int*,
         double*, double*, int*, int*, int*,
         double*, int*, int*, int*, int*);
-
-
-// estimate abstol for pdsyevx_
-double pdlamch_(int*, char*);
+// calculate all eigenvalues and vectors by divide and conquer algorithm
+void pdsyevd_(char *, char *, int *, double *, int *, int *, int *, double *,
+             double *, int *, int *, int *, double *, int *, int *, int *, int *);
 
 }
 
