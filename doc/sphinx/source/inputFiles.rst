@@ -971,6 +971,19 @@ symmetrizeMatrix
 * **Default:** `true`
 
 
+.. _numRelaxonsEigenvalues:
+
+numRelaxonsEigenvalues
+^^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** Compute the relaxons solver using only the ``numRelaxonsEigenvalues`` largest eigenvalues + corresponding eigenvectors. This can dramatically reduce the cost of the calculation, as the largest eigenvalues comprise most of the result. However, you have to be careful to converge the calculation with respect to this parameter as well if you use it.
+
+* **Format:** *intger*
+
+* **Required:** no
+
+* **Default:** `0` (this indicates the code should compute all eigenvalues)
+
 .. _distributedElPhCoupling:
 
 distributedElPhCoupling
