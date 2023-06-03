@@ -44,8 +44,8 @@ class Context {
   Eigen::VectorXd chemicalPotentials;
   double electronFourierCutoff = std::numeric_limits<double>::quiet_NaN();
 
-  Eigen::Vector3i qMesh;
-  Eigen::Vector3i kMesh;
+  Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
+  Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
 
   double fermiLevel = std::numeric_limits<double>::quiet_NaN();
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
@@ -66,6 +66,7 @@ class Context {
   double deltaPath = 0.05;
 
   bool outputEigendisplacements = false; // used by bands app if phonon eigdisps are dumped
+  bool outputUNTimes = false; // triggers scattering matrix to output times for U and N processes
 
   double constantRelaxationTime = std::numeric_limits<double>::quiet_NaN();
   bool withIsotopeScattering = true;  // add isotopes in phonon scattering matrix
@@ -218,7 +219,6 @@ public:
    * values of energies that will be used
    */
   Eigen::Vector2d getWindowEnergyLimit();
-
   void setWindowEnergyLimit(const Eigen::Vector2d &x);
 
   /** gets the value of population above which a state is considered active.
@@ -283,6 +283,7 @@ public:
   double getDeltaPath() const;
 
   bool getOutputEigendisplacements() const;
+  bool getOutputUNTimes() const;
 
   double getFermiLevel() const;
   void setFermiLevel(const double &x);

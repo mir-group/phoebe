@@ -90,6 +90,7 @@ class DeviceManager {
    */
   std::vector<std::vector<int>> splitToBatches(
       const std::vector<int>& ikIterator, int& batchSize);
+
  private:
   double memoryUsed = 0.;
   double memoryTotal = 0.;

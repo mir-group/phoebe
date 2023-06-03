@@ -18,6 +18,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
+
   numStates = int(outerBandStructure.irrStateIterator().size());
   numPoints = int(outerBandStructure.irrPointsIterator().size());
   numCalculations = statisticsSweep.getNumCalculations();
@@ -40,16 +41,31 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       Eigen::Vector3d k = outerBandStructure.getWavevector(isIdx);
       if (k.squaredNorm() > 1e-8 && en < 0.) {
         Warning("Found a phonon mode q!=0 with negative energies. "
-                "Consider increasing q-points sampling (supercell size) in the"
-                " DFT runs\n");
+                "Consider improving the quality of your DFT phonon calculation.\n");
       }
-
     }
   }
 
   if (context.getConstantRelaxationTime() > 0.) {
     constantRTA = true;
     return;
+  }
+
+  // we only output U and N in RTA, as otherwise we would need to do
+  // 1) the full scattering matrix calc multiple times
+  // 2) store 3 copies of the scattering matrix, both of which are bad options
+  if ( context.getOutputUNTimes() ) {
+
+    outputUNTimes = true;
+    internalDiagonalNormal = std::make_shared<VectorBTE>(statisticsSweep, outerBandStructure, 1);
+    internalDiagonalUmklapp = std::make_shared<VectorBTE>(statisticsSweep, outerBandStructure, 1);
+
+    // warn users that if they run an exact bte solver, the U and N will
+    // still only come out in RTA
+    if( context.getSolverBTE().size() > 0 ) {
+      Warning("You've set outputUNTimes to true in input file, but requested an exact BTE solver.\n"
+        "Be aware that U and N separation is only currently implemented in the RTA case.");
+    }
   }
 
   smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
@@ -66,38 +82,6 @@ ScatteringMatrix::~ScatteringMatrix() {
   } else {
     delete smearing;
   }
-}
-
-// copy constructor
-ScatteringMatrix::ScatteringMatrix(const ScatteringMatrix &that)
-    : context(that.context), statisticsSweep(that.statisticsSweep),
-      smearing(that.smearing), innerBandStructure(that.innerBandStructure),
-      outerBandStructure(that.outerBandStructure),
-      constantRTA(that.constantRTA), highMemory(that.highMemory),
-      internalDiagonal(that.internalDiagonal), theMatrix(that.theMatrix),
-      numStates(that.numStates), numPoints(that.numPoints),
-      numCalculations(that.numCalculations), dimensionality_(that.dimensionality_),
-      excludeIndices(that.excludeIndices) {}
-
-// assignment operator
-ScatteringMatrix &ScatteringMatrix::operator=(const ScatteringMatrix &that) {
-  if (this != &that) {
-    context = that.context;
-    statisticsSweep = that.statisticsSweep;
-    smearing = that.smearing;
-    innerBandStructure = that.innerBandStructure;
-    outerBandStructure = that.outerBandStructure;
-    constantRTA = that.constantRTA;
-    highMemory = that.highMemory;
-    internalDiagonal = that.internalDiagonal;
-    theMatrix = that.theMatrix;
-    numStates = that.numStates;
-    numPoints = that.numPoints;
-    numCalculations = that.numCalculations;
-    excludeIndices = that.excludeIndices;
-    dimensionality_ = that.dimensionality_;
-  }
-  return *this;
 }
 
 void ScatteringMatrix::setup() {
@@ -135,7 +119,12 @@ void ScatteringMatrix::setup() {
                 << std::endl;
     }
 
-    theMatrix = ParallelMatrix<double>(matSize, matSize);
+    try {
+      theMatrix = ParallelMatrix<double>(matSize, matSize);
+    } catch(std::bad_alloc&) {
+      Error("Failed to allocate memory for the scattering matrix.\n"
+        "You are likely running out of memory.");
+    }
 
     // calc matrix and linewidth.
     builder(&internalDiagonal, emptyVector, emptyVector);
@@ -145,6 +134,8 @@ void ScatteringMatrix::setup() {
   }
 }
 
+// NOTE: this is returning the raw diagonal.
+// This includes whatever factors there are if it's Omega or not!
 VectorBTE ScatteringMatrix::diagonal() {
   if (constantRTA) {
     VectorBTE diagonal(statisticsSweep, outerBandStructure, 1);
@@ -458,37 +449,48 @@ void ScatteringMatrix::a2Omega() {
 //}
 
 // to compute the RTA, get the single mode relaxation times
-VectorBTE ScatteringMatrix::getSingleModeTimes() {
+VectorBTE ScatteringMatrix::getTimesFromVectorBTE(VectorBTE &diagonal) {
+
+  // just using the shape of internalDiagonal, will be overwritten
+  VectorBTE times(statisticsSweep, outerBandStructure, 1);
+
   if (constantRTA) {
-    VectorBTE times(statisticsSweep, outerBandStructure, 1);
     times.setConst(context.getConstantRelaxationTime() / twoPi);
-    times.excludeIndices = excludeIndices;
-    return times;
   } else {
     if (isMatrixOmega) {
-      VectorBTE times = internalDiagonal.reciprocal();
-      times.excludeIndices = excludeIndices;
-      return times;
-    } else { // A_nu,nu = N(1+-N) / tau
-      VectorBTE times = internalDiagonal;
+      times = diagonal.reciprocal();
+    } else { // A_nu,nu = N(1+-N) / tau  -- for phonon case
       auto particle = outerBandStructure.getParticle();
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         BteIndex iBteIdx(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
+        for (int iCalc = 0; iCalc < diagonal.numCalculations; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-          times(iCalc, 0, iBte) = popTerm / internalDiagonal(iCalc, 0, iBte);
+          times(iCalc, 0, iBte) = popTerm / diagonal(iCalc, 0, iBte);
         }
       }
-      times.excludeIndices = excludeIndices;
-      return times;
     }
+  }
+  return times;
+}
+
+// function to decide which times to prepare
+// 0 -- regular linewidths/internal diagonal
+// 1 -- normal processes
+// 2 -- umklapp processes
+VectorBTE ScatteringMatrix::getSingleModeTimes(int whichTimes) {
+  if(whichTimes == 1) { //normal internal diagonal
+    return getTimesFromVectorBTE(*internalDiagonalNormal);
+  } else if(whichTimes == 2) { // umklapp internal diagonal
+    return getTimesFromVectorBTE(*internalDiagonalUmklapp);
+  } else { // regular internal diagonal of scattering matrix
+    return getTimesFromVectorBTE(internalDiagonal);
   }
 }
 
@@ -512,7 +514,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         Error("Attempting to use a numerically unstable quantity");
         // popTerm could be = 0
       }
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int iBte = 0; iBte < numStates; iBte++) {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
@@ -533,6 +535,75 @@ VectorBTE ScatteringMatrix::getLinewidths() {
   }
 }
 
+void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
+
+  // note: this function assumes that we have not
+  // messed with excludeIndices. Should be fine,
+  // because when we add phonon contributions to phonon scattering matrix,
+  // they will exclude the same indices so long as numStates is the same
+
+  if(internalDiagonal.numCalculations != linewidths.numCalculations) {
+    Error("Attempted setting scattering matrix diagonal with"
+        " an incorrect number of calculations.");
+  }
+  if(internalDiagonal.numStates != linewidths.numStates) {
+    Error("Attempted setting scattering matrix diagonal with"
+        " an incorrect number of states.");
+  }
+
+  if (isMatrixOmega) {
+    // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
+    // because the get function removed these population factors,
+    // the set function should add them back in
+    internalDiagonal = linewidths;
+   } else {  // phonons
+    auto particle = outerBandStructure.getParticle();
+    #pragma omp parallel for
+    for (int iBte = 0; iBte < numStates; iBte++) {
+      auto iBteIdx = BteIndex(iBte);
+      StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
+      double en = outerBandStructure.getEnergy(isIdx);
+      for (int iCalc = 0; iCalc < linewidths.numCalculations; iCalc++) {
+        auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
+        double temp = calcStatistics.temperature;
+        double chemPot = calcStatistics.chemicalPotential;
+        // n(n+1) for bosons, n(1-n) for fermions
+        double popTerm = particle.getPopPopPm1(en, temp, chemPot);
+        internalDiagonal(iCalc, 0, iBte) = linewidths(iCalc, 0, iBte) * popTerm;
+      }
+    }
+  }
+
+  // we also need to add these to the full scattering matrix
+  // we do this after setting up internal diagonal so that population
+  // factors are already in place as needed
+
+  if (highMemory) { // matrix in memory
+    int iCalc = 0;
+    if (context.getUseSymmetries()) {
+      // numStates is defined in scattering.cpp as # of irrStates
+      // from the outer band structure
+      for (int iBte = 0; iBte < numStates; iBte++) {
+        BteIndex iBteIdx(iBte);
+        for (int i : {0, 1, 2}) {
+          CartIndex iCart(i);
+          int iMati = getSMatrixIndex(iBteIdx, iCart);
+          for (int j : {0, 1, 2}) {
+            CartIndex jCart(j);
+            int iMatj = getSMatrixIndex(iBteIdx, jCart);
+            theMatrix(iMati, iMatj) = 0.;
+          }
+          theMatrix(iMati, iMati) += internalDiagonal(iCalc, 0, iBte);
+        }
+      }
+    } else {
+      for (int is = 0; is < numStates; is++) {
+        theMatrix(is, is) = internalDiagonal(iCalc, 0, is);
+      }
+    }
+  }
+}
+
 void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
 
   if (!mpi->mpiHead())
@@ -540,11 +611,18 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
 
   VectorBTE times = getSingleModeTimes();
   VectorBTE tmpLinewidths = getLinewidths();
+  std::shared_ptr<VectorBTE> timesN;
+  std::shared_ptr<VectorBTE> timesU;
+  if(outputUNTimes) {
+    timesN = std::make_shared<VectorBTE>(getSingleModeTimes(1));
+    timesU = std::make_shared<VectorBTE>(getSingleModeTimes(2));
+  }
 
   std::string particleType;
   auto particle = outerBandStructure.getParticle();
   double energyConversion = energyRyToEv;
   std::string energyUnit = "eV";
+  std::string relaxationTimeUnit = "fs";
   // we need an extra factor of two pi, likely because of unit conversion
   // (perhaps h vs hbar)
   double energyToTime = energyRyToFs/twoPi;
@@ -552,6 +630,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     particleType = "phonon";
     energyUnit = "meV";
     energyConversion *= 1000;
+    relaxationTimeUnit = "ps"; // phonon times more commonly in ps
+    energyToTime *= 1e-3;
+    // this is a bit of a hack to deal with phel scattering, where stat sweep
+    // has nonzero mu values in spite of it being a phonon case
+
   } else {
     particleType = "electron";
   }
@@ -560,6 +643,8 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   // iCalc, ik. ib, iDim (where iState is unfolded into
   // ik, ib) for the velocities and lifetimes, no dim for energies
   std::vector<std::vector<std::vector<double>>> outTimes;
+  std::vector<std::vector<std::vector<double>>> outTimesU;
+  std::vector<std::vector<std::vector<double>>> outTimesN;
   std::vector<std::vector<std::vector<double>>> outLinewidths;
   std::vector<std::vector<std::vector<std::vector<double>>>> velocities;
   std::vector<std::vector<std::vector<double>>> energies;
@@ -573,7 +658,13 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     double chemPot = calcStatistics.chemicalPotential;
     double doping = calcStatistics.doping;
     temps.push_back(temp * temperatureAuToSi);
-    chemPots.push_back(chemPot * energyConversion);
+    // this is a bit of a hack to deal with phel scattering, where stat sweep
+    // has nonzero mu values in spite of it being a phonon case
+    if(particle.isElectron()) {
+      chemPots.push_back(chemPot * energyConversion);
+    } else {
+      chemPots.push_back(0);
+    }
     dopings.push_back(doping);
 
     std::vector<std::vector<double>> wavevectorsT;
@@ -598,10 +689,9 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
         auto vel = outerBandStructure.getGroupVelocity(isIdx);
         bandsE.push_back(ene * energyConversion);
         int iBte = int(outerBandStructure.stateToBte(isIdx).get());
-        double tau = times(iCalc, 0, iBte); // only zero dim is meaningful
+        double tau = times(iCalc, 0, iBte);
         bandsT.push_back(tau * energyToTime);
-        double linewidth =
-            tmpLinewidths(iCalc, 0, iBte); // only zero dim is meaningful
+        double linewidth = tmpLinewidths(iCalc, 0, iBte);
         bandsL.push_back(linewidth * energyConversion);
 
         std::vector<double> iDimsV;
@@ -620,6 +710,33 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     outLinewidths.push_back(wavevectorsL);
     velocities.push_back(wavevectorsV);
     energies.push_back(wavevectorsE);
+  }
+  if(outputUNTimes) {
+    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+      std::vector<std::vector<double>> wavevectorsU;
+      std::vector<std::vector<double>> wavevectorsN;
+      // loop over wavevectors
+      for (int ik : outerBandStructure.irrPointsIterator()) {
+        auto ikIndex = WavevectorIndex(ik);
+        std::vector<double> bandsN;
+        std::vector<double> bandsU;
+        // loop over bands here
+        for (int ib = 0; ib < outerBandStructure.getNumBands(ikIndex); ib++) {
+          auto ibIndex = BandIndex(ib);
+          int is = outerBandStructure.getIndex(ikIndex, ibIndex);
+          StateIndex isIdx(is);
+          int iBte = int(outerBandStructure.stateToBte(isIdx).get());
+          double tauN = timesN->operator()(iCalc, 0, iBte);
+          double tauU = timesU->operator()(iCalc, 0, iBte);
+          bandsN.push_back(tauN * energyToTime);
+          bandsU.push_back(tauU * energyToTime);
+        }
+        wavevectorsN.push_back(bandsN);
+        wavevectorsU.push_back(bandsU);
+      }
+      outTimesN.push_back(wavevectorsN);
+      outTimesU.push_back(wavevectorsU);
+    }
   }
 
   auto points = outerBandStructure.getPoints();
@@ -646,7 +763,11 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   output["linewidths"] = outLinewidths;
   output["linewidthsUnit"] = energyUnit;
   output["relaxationTimes"] = outTimes;
-  output["relaxationTimeUnit"] = "fs";
+  if(outputUNTimes) {
+    output["normalRelaxationTimes"] = outTimesN;
+    output["umklappRelaxationTimes"] = outTimesU;
+  }
+  output["relaxationTimeUnit"] = relaxationTimeUnit;
   output["velocities"] = velocities;
   output["velocityUnit"] = "m/s";
   output["energies"] = energies;
@@ -659,6 +780,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
   o.close();
 }
 
+// TODO this feels redundant with above function, maybe could be simplified
 void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
                                       const Eigen::VectorXd &eigenvalues) {
   if (!mpi->mpiHead()) {

@@ -1,0 +1,16 @@
+appName = "phononElectronLifetimes"
+
+phFC2FileName = "../1.el-ph/cu.fc"  # or supply fc2.hdf5 + phonopyDispFileName = "phono3py_disp.yaml"
+sumRuleFC2 = "crystal"
+
+electronH0Name = "../1.el-ph/cu_tb.dat",
+elphFileName = "../1.el-ph/cu.phoebe.elph.hdf5"
+
+kMesh = [75,75,75]
+qMesh = [15,15,15]
+chemicalPotentials = [13.86829112]
+temperatures = [15.]
+
+useSymmetries = true
+windowType = "population"
+smearingMethod = "adaptiveGaussian"

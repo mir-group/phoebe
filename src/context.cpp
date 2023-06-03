@@ -456,9 +456,11 @@ void Context::setupFromInput(const std::string &fileName) {
       if (parameterName == "phonopyDispFileName") {
         phonopyDispFileName = parseString(val);
       }
+
       if (parameterName == "phonopyBORNFileName") {
         phonopyBORNFileName = parseString(val);
       }
+
       if (parameterName == "sumRuleFC2") {
         sumRuleFC2 = parseString(val);
       }
@@ -578,6 +580,10 @@ void Context::setupFromInput(const std::string &fileName) {
 
       if (parameterName == "outputEigendisplacements") {
         outputEigendisplacements = parseBool(val);
+      }
+
+      if (parameterName == "outputUNTimes") {
+        outputUNTimes = parseBool(val);
       }
 
       if (parameterName == "fermiLevel") {
@@ -809,6 +815,7 @@ void printVectorXd(const std::string& varName, Eigen::VectorXd vec,
   std::cout << " (" << unit << ")" << std::endl;
 }
 
+// TODO this should be replaced by something in each app like checkRequirements
 void Context::printInputSummary(const std::string &fileName) {
   if (!mpi->mpiHead()) return;
   std::cout << std::endl;
@@ -840,17 +847,18 @@ void Context::printInputSummary(const std::string &fileName) {
   }
 
   // electron and eph parameters
-  if (appName.find("lectron") != std::string::npos ||
-      appName.find("elPh") != std::string::npos) {
+  if (appName.find("elPh") != std::string::npos || appName == "electronLifetimes" ||
+        appName == "electronWannierTransport") {
+
     std::cout << "electronH0Name = " << electronH0Name << std::endl;
     std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
 
-    if (appName.find("elPh") != std::string::npos ||
-        appName == "electronLifetimes" ||
+    if (appName.find("elPh") != std::string::npos || appName == "electronLifetimes" ||
         appName == "electronWannierTransport") {
+
+      std::cout << "elphFileName = " << elphFileName << std::endl;
       if (!elPhInterpolation.empty())
         std::cout << "elPhInterpolation = " << elPhInterpolation << std::endl;
-      std::cout << "elphFileName = " << elphFileName << std::endl;
       if (!wannier90Prefix.empty())
         std::cout << "wannier90Prefix = " << wannier90Prefix << std::endl;
       if (!quantumEspressoPrefix.empty())
@@ -858,8 +866,7 @@ void Context::printInputSummary(const std::string &fileName) {
                   << std::endl;
     }
     // EPA specific parameters
-    if (appName.find("elPh") != std::string::npos &&
-        elPhInterpolation == "epa") {
+    if (elPhInterpolation == "epa") {
       if (!std::isnan(epaMinEnergy))
         std::cout << "epaMinEnergy = " << epaMinEnergy * energyRyToEv << " eV"
                   << std::endl;
@@ -890,23 +897,22 @@ void Context::printInputSummary(const std::string &fileName) {
   if (appName.find("Transport") != std::string::npos ||
       appName.find("Lifetimes") != std::string::npos) {
 
-    std::cout << "solverBTE = RTA";
-    for (const auto& i : solverBTE)
-      std::cout << ", " << i;
-    std::cout << std::endl;
-
-    if (appName.find("honon") != std::string::npos ||
-        appName.find("elPh") != std::string::npos)
-      std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2)
-                << std::endl;
-    if (appName.find("lectron") != std::string::npos ||
-        appName.find("elPh") != std::string::npos)
-      std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2)
-                << std::endl;
+    if (appName.find("honon") != std::string::npos || appName.find("elPh") != std::string::npos) {
+      std::cout << "qMesh = " << qMesh(0) << " " << qMesh(1) << " " << qMesh(2) << std::endl;
+      if(!getElphFileName().empty()) {
+        std::cout << "electronH0Name = " << electronH0Name << std::endl;
+        std::cout << "hasSpinOrbit = " << hasSpinOrbit << std::endl;
+        std::cout << "elphFileName = " << elphFileName << std::endl;
+      }
+    }
+    if (appName.find("lectron") != std::string::npos || appName.find("elPh") != std::string::npos
+                        || (appName.find("honon") != std::string::npos && !getElphFileName().empty())) {
+         std::cout << "kMesh = " << kMesh(0) << " " << kMesh(1) << " " << kMesh(2) << std::endl;
+    }
 
     if (!std::isnan(constantRelaxationTime))
-      std::cout << "constantRelaxationTime = "
-                << constantRelaxationTime * timeAuToFs << " fs" << std::endl;
+      std::cout << "constantRelaxationTime = " << constantRelaxationTime * timeAuToFs << " fs" << std::endl;
+
     std::cout << "smearingMethod = ";
     if (smearingMethod == 0)
       std::cout << "gaussian" << std::endl;
@@ -921,13 +927,21 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "smearingWidth = " << smearingWidth * energyRyToEv << " eV"
                 << std::endl;
 
-    std::cout << "convergenceThresholdBTE = " << convergenceThresholdBTE
-              << std::endl;
-    std::cout << "maxIterationsBTE = " << maxIterationsBTE << std::endl;
-    std::cout << "scatteringMatrixInMemory = " << scatteringMatrixInMemory
-              << std::endl;
+    if(appName.find("Transport") != std::string::npos) {
+      std::cout << "solverBTE = RTA";
+      for (const auto& i : solverBTE)
+        std::cout << ", " << i;
+      std::cout << std::endl;
+      std::cout << "convergenceThresholdBTE = " << convergenceThresholdBTE << std::endl;
+      std::cout << "maxIterationsBTE = " << maxIterationsBTE << std::endl;
+    } else {
+      std::cout << "solverBTE = RTA";
+    }
 
-    std::cout << "windowType = " << windowType << std::endl;
+      std::cout << "scatteringMatrixInMemory = " << scatteringMatrixInMemory
+              << std::endl;
+      std::cout << "windowType = " << windowType << std::endl;
+
     if (windowEnergyLimit(0) != 0 || windowEnergyLimit(1) != 0) {
       std::cout << "windowEnergyLimit = " << windowEnergyLimit(0) * energyRyToEv
                 << " " << windowEnergyLimit(1) * energyRyToEv << " eV"
@@ -947,7 +961,8 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "deltaTemperature = " << deltaTemperature << "K"
                 << std::endl;
 
-    if (appName.find("lectron") != std::string::npos) {
+    if (appName.find("lectron") != std::string::npos || appName == "phononElectronLifetimes"
+                        || (appName.find("honon") != std::string::npos && !getElphFileName().empty())) {
       if (dopings.size() != 0)
         printVectorXd("dopings", dopings, "cm^-3");
       if (chemicalPotentials.size() != 0)
@@ -961,8 +976,7 @@ void Context::printInputSummary(const std::string &fileName) {
                   << maxChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(deltaChemicalPotential))
         std::cout << "deltaChemicalPotential = "
-                  << deltaChemicalPotential * energyRyToEv << " eV"
-                  << std::endl;
+                  << deltaChemicalPotential * energyRyToEv << " eV" << std::endl;
       if (!std::isnan(eFermiRange))
         std::cout << "eFermiRange = " << eFermiRange << " eV" << std::endl;
       if (!std::isnan(fermiLevel))
@@ -970,17 +984,16 @@ void Context::printInputSummary(const std::string &fileName) {
       if (!std::isnan(numOccupiedStates))
         std::cout << "numOccupiedStates = " << numOccupiedStates << std::endl;
     }
-    if (appName.find("honon") != std::string::npos) {
-      std::cout << "withIsotopeScattering = " << withIsotopeScattering
-                << std::endl;
+    // should not be printed when phellifetimes app is run
+    if (appName.find("honon") != std::string::npos && appName.find("lectron") == std::string::npos) {
+      std::cout << "withIsotopeScattering = " << withIsotopeScattering << std::endl;
       if (customMasses.size() != 0)
         printVectorXd("masses", customMasses*massRyToAmu, "amu");
       if (customIsotopeCouplings.size() != 0)
-        std::cout << "isotopeCouplings = "
-                  << customIsotopeCouplings.transpose() << "\n";
+        std::cout << "isotopeCouplings = " << customIsotopeCouplings.transpose() << "\n";
       if (!std::isnan(boundaryLength))
-        std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum
-                  << " mum" << std::endl;
+        std::cout << "boundaryLength = " << boundaryLength * distanceBohrToMum << " mum" << std::endl;
+      std::cout << "outputUNTimes = " << outputUNTimes << std::endl;
     }
     std::cout << "---------------------------------------------\n" << std::endl;
   }
@@ -1109,11 +1122,11 @@ std::string Context::getElphFileName() { return elphFileName; }
 void Context::setElphFileName(const std::string &x) { elphFileName = x; }
 
 std::string Context::getElectronH0Name() { return electronH0Name; }
-
 void Context::setElectronH0Name(const std::string &x) { electronH0Name = x; }
 
 std::string Context::getWannier90Prefix() { return wannier90Prefix; }
 void Context::setWannier90Prefix(const std::string &x) { wannier90Prefix = x; }
+
 std::string Context::getQuantumEspressoPrefix() {
   return quantumEspressoPrefix;
 }
@@ -1209,6 +1222,7 @@ std::vector<std::string> Context::getPathLabels() { return pathLabels; }
 double Context::getDeltaPath() const { return deltaPath; }
 
 bool Context::getOutputEigendisplacements() const { return outputEigendisplacements; }
+bool Context::getOutputUNTimes() const { return outputUNTimes; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
 

@@ -1,0 +1,15 @@
+phonons
+&inputph
+   prefix = 'cu'
+   outdir = './out/'
+   reduce_io = .true.
+   tr2_ph = 1.0d-16
+   alpha_mix(1) = 0.3d0
+   fildyn = 'cu.dyn'
+   fildvscf = 'cu.dvscf'
+   electron_phonon = 'epa'
+   ldisp = .true.
+   nq1 = 9
+   nq2 = 9
+   nq3 = 9
+/

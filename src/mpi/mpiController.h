@@ -173,6 +173,10 @@ class MPIcontroller {
   template <typename T, typename V>
   void allGatherv(T* dataIn, V* dataOut) const;
 
+  template <typename T, typename V>
+  void allGatherv( Eigen::TensorBase<T, Eigen::WriteAccessors>* dataIn,
+        Eigen::TensorBase<V, Eigen::WriteAccessors>* dataOut) const;
+
   /** Wrapper for MPI_Allgather which collects data from different ranks
    * and combines it into one buffer, which is also broadcast
    * to all processes.
@@ -321,6 +325,13 @@ struct containerType;
 
 // Define a macro to shorthand define this container for scalar types
 // Size for basic scalar types will always be 1
+//
+// allowsAutoWorkDivs function is almost always true --
+// however, there can be issues if we try to auto-determine how many elements
+// a given MPI process has from an eigen matrix or tensor. In those cases,
+// we need to throw an error for allGatherv and gatherv, which allowsAutoWorkDvis
+// facilitates.
+//
 #define MPIDataType(cppType, mpiType)                                 \
   template<>                                                          \
   struct containerType<cppType> {                                     \
@@ -330,6 +341,7 @@ struct containerType;
       return 1;                                                       \
     }                                                                 \
     static inline MPI_Datatype getMPItype() { return mpiType; }       \
+    static inline bool allowsAutoWorkDivs() { return true; }          \
   };
 
   // Use definition to generate containers for scalar types
@@ -344,12 +356,13 @@ struct containerType;
 
 #undef MPIDataType
 
-    // A container for a std::vector
+  // A container for a std::vector
   template<typename T>
   struct containerType<std::vector<T>> {
     static inline T *getAddress(std::vector<T> *data) { return data->data(); }
     static inline size_t getSize(std::vector<T> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
   // Container for <Eigen::Matrix<T, -1, 1, 0, -1, 1>
   template<typename T>
@@ -357,6 +370,7 @@ struct containerType;
     static inline T *getAddress(Eigen::Matrix<T, -1, 1, 0, -1, 1> *data) { return data->data(); }
     static inline size_t getSize(Eigen::Matrix<T, -1, 1, 0, -1, 1> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for <Eigen::Matrix<T, -1, -1>
   template<typename T>
@@ -364,6 +378,7 @@ struct containerType;
     static inline T *getAddress(Eigen::Matrix<T, -1, -1> *data) { return data->data(); }
     static inline size_t getSize(Eigen::Matrix<T, -1, -1> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for Eigen::Tensor<T, 5>
   template<typename T>
@@ -371,6 +386,7 @@ struct containerType;
     static inline T *getAddress(Eigen::Tensor<T, 5> *data) { return data->data(); }
     static inline size_t getSize(Eigen::Tensor<T, 5> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for Eigen::Tensor<T, 4>
   template<typename T>
@@ -378,6 +394,7 @@ struct containerType;
     static inline T *getAddress(Eigen::Tensor<T, 4> *data) { return data->data(); }
     static inline size_t getSize(Eigen::Tensor<T, 4> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for Eigen::Tensor<T, 3>
   template<typename T>
@@ -385,6 +402,7 @@ struct containerType;
     static inline T *getAddress(Eigen::Tensor<T, 3> *data) { return data->data(); }
     static inline size_t getSize(Eigen::Tensor<T, 3> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<T>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for Eigen::MatrixXi
   template<>
@@ -392,6 +410,7 @@ struct containerType;
     static inline int *getAddress(Eigen::MatrixXi *data) { return data->data(); }
     static inline size_t getSize(Eigen::MatrixXi *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return false; }
   };
   // Container for Eigen::VectorXi
   template<>
@@ -399,6 +418,7 @@ struct containerType;
     static inline int *getAddress(Eigen::VectorXi *data) { return data->data(); }
     static inline size_t getSize(Eigen::VectorXi *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
   // Container for Eigen::Vector3i
   template<>
@@ -406,6 +426,7 @@ struct containerType;
     static inline int *getAddress(Eigen::Vector3i *data) { return data->data(); }
     static inline size_t getSize(Eigen::Vector3i *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<int>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
   // Container for Eigen::Vector3d
   template<>
@@ -413,6 +434,7 @@ struct containerType;
     static inline double *getAddress(Eigen::Vector3d *data) { return data->data(); }
     static inline size_t getSize(Eigen::Vector3d *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
   // Container for Eigen::VectorXcd
   template<>
@@ -420,6 +442,7 @@ struct containerType;
     static inline std::complex<double> *getAddress(Eigen::VectorXcd *data) { return data->data(); }
     static inline size_t getSize(Eigen::VectorXcd *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<std::complex<double>>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
   // Container for Eigen::VectorXd
   template<>
@@ -427,6 +450,7 @@ struct containerType;
     static inline double *getAddress(Eigen::VectorXd *data) { return data->data(); }
     static inline size_t getSize(Eigen::VectorXd *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return containerType<double>::getMPItype(); }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
 
   template<>
@@ -434,6 +458,7 @@ struct containerType;
     static inline Kokkos::complex<double> *getAddress(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> *data) { return data->data(); }
     static inline size_t getSize(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> *data) { return data->size(); }
     static inline MPI_Datatype getMPItype() { return MPI_COMPLEX16; }
+    static inline bool allowsAutoWorkDivs() { return true; }
   };
 #endif
 }  // namespace mpiContainer
@@ -644,6 +669,12 @@ void MPIcontroller::gatherv(T* dataIn, V* dataOut) const {
   #ifdef MPI_AVAIL
   int errCode;
 
+  if(!containerType<V>::allowsAutoWorkDivs() ||
+                !containerType<T>::allowsAutoWorkDivs() ) {
+    Error("Developer error: Cannot call gatherv on the given type "
+        "without also specifying more info about work division.");
+  }
+
   // calculate the number of elements coming from each process
   // this will correspond to the save division of elements
   // as divideWorkIter provides.
@@ -684,12 +715,18 @@ void MPIcontroller::gather(T* dataIn, V* dataOut) const {
   #endif
 }
 
-
 template <typename T, typename V>
 void MPIcontroller::allGatherv(T* dataIn, V* dataOut) const {
+
   using namespace mpiContainer;
   #ifdef MPI_AVAIL
   int errCode;
+
+  if(!containerType<V>::allowsAutoWorkDivs() ||
+                !containerType<T>::allowsAutoWorkDivs() ) {
+    Error("Developer error: Cannot call allGatherv on the given type "
+        "without also specifying more info about work division.");
+  }
 
   // calculate the number of elements coming from each process
   // this will correspond to the save division of elements
@@ -792,8 +829,8 @@ MPI_Count count, T* data) const {
 
 template <typename T>
 void MPIcontroller::bigAllGatherV(T* dataIn, T* dataOut,
-std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
-const int& communicator) const {
+  std::vector<size_t>& workDivs, std::vector<size_t>& workDivisionHeads,
+  const int& communicator) const {
 
   using namespace mpiContainer;
   #ifdef MPI_AVAIL

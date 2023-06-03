@@ -18,13 +18,14 @@ Tutorials, documentation of functionality and underlying theory can be found at:
   * [Homepage](https://mir-group.github.io/phoebe/)
   * [Tutorials/Documentation](https://phoebe.readthedocs.io/en/develop/introduction.html)
 
-For further questions or issues, please post on the discussions page for the git repo.
+For further questions and feature requests, please post on the discussions page for the git repo.
+If you feel you've found a bug or seen some unexpected behavior, please let us know by opening a git issue. 
 
 -------------------------
 ### Current functionalities
 #### Electronic Transport
 
-   * Electron-phonon scattering by Wannier interpolation
+   * Electron-phonon and phonon-electron scattering by Wannier interpolation
    * Electron-phonon scattering within the electron-phonon averaged (EPA) approximation
    * Polar correction and boundary scattering contributions to transport
    * Electronic transport coefficients (mobility, conductivity, thermal conductivity, and Seebeck coefficient)
@@ -34,6 +35,7 @@ For further questions or issues, please post on the discussions page for the git
    * 3-phonon scattering from thirdOrder.py/ShengBTE or Phono3py force constants
    * Boundary and isotope scattering contributions to transport
    * Phonon (lattice) thermal conductivity
+   * Lattice thermal conductivity calculations including ph-el lifetimes
 
 #### And more...
 

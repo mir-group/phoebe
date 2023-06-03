@@ -263,6 +263,12 @@ Eigen::VectorXd ActiveBandStructure::getEnergies(WavevectorIndex &ik) {
   return x;
 }
 
+double ActiveBandStructure::getMaxEnergy() {
+  if(getIsDistributed())
+    Error("Developer error: getMaxEnergy not implemented when activeBS is distributed.");
+  return *std::max_element(std::begin(energies), std::end(energies));
+}
+
 Eigen::Vector3d ActiveBandStructure::getGroupVelocity(StateIndex &is) {
   int stateIndex = is.get();
   if (velocities.empty()) {
@@ -578,7 +584,6 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
         std::make_move_iterator(filteredThreadBands.end()));
     }
   }
-
   } // close OMP parallel region
   Kokkos::Profiling::popRegion();
 

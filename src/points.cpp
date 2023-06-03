@@ -251,6 +251,8 @@ int Points::getIndex(const Eigen::Vector3d &point) {
   return ik;
 }
 
+int Point::getIndex() const { return index; }
+
 /** This is the plain binary search algorithm.
  * Algorithm scaling of log(numPoints)
  *
@@ -639,8 +641,6 @@ Point &Point::operator=(const Point &that) {
   return *this;
 }
 
-int Point::getIndex() const { return index; }
-
 Eigen::Vector3d Point::getCoordinates(const int &basis,
                                       const bool &inWignerSeitz) {
   if ((basis != Points::cartesianCoordinates) &&
@@ -656,7 +656,7 @@ Eigen::Vector3d Point::getCoordinates(const int &basis,
 }
 
 bool Point::hasUmklapp() {
-  if (umklappVector.norm() < 1.0e-8) {
+  if (abs(umklappVector.norm()) < 1.0e-8) {
     return false;
   } else {
     return true;
