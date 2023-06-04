@@ -469,7 +469,7 @@ void ElectronWannierTransportApp::runIterativeMethod(
 
   VectorBTE lineWidths = scatteringMatrix.getLinewidths();
 
-  // we get the symmetrized
+  // we get the symmetrized drift vectors
   BulkEDrift driftE(statisticsSweep, bandStructure, 3, true);
   BulkTDrift driftT(statisticsSweep, bandStructure, 3, true);
   VectorBTE relaxationTimes = scatteringMatrix.getSingleModeTimes();

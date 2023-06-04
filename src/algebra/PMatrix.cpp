@@ -138,10 +138,16 @@ ParallelMatrix<double>::diagonalize() {
   delete[] work;
   allocate(work, lwork);
 
+  if(mpi->mpiHead()) mpi->time();
+
+
   // call the function to now diagonalize
   pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
           eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
           work, &lwork, iwork, &liwork, &info);
+
+  if(mpi->mpiHead()) mpi->time();
+
 
   if(info != 0) {
     if (mpi->mpiHead()) {
@@ -204,7 +210,6 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   int lwork = (NP0 + NQ0 + NB) * NB + 3 * numRows_ + numRows_ * numRows_;
   int lrwork = 2 * numRows_ + 2 * numRows_ - 2;
 
-  // double work[lwork];
   std::complex<double>* work = nullptr;
   work = new std::complex<double>[lwork];
   std::complex<double>* rwork = nullptr;
@@ -260,14 +265,9 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   // scalapack absolutely requires this matrix be the same size as the original.
   // It's a huge waste of memory, and we should check to see if another code
   // can get around this.
-
   // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_, numCols_,
                                 numBlocksRows_,numBlocksCols_, blacsContext_);
-
-  // docs for this scalapack function
-  // https://www.ibm.com/docs/en/pessl/5.3.0?topic=easva-pdsyevx-pzheevx-selected-
-  //  eigenvalues-optionally-eigenvectors-real-symmetric-complex-hermitian-matrix
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangular
@@ -281,8 +281,8 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   int nz = 0;       // filled on return with number of eigenvectors found
 
   char range = 'I'; // compute a range (from smallest to largest) of the eigenvalues
-  int il = numRows_ - numEigenvalues;       // lower eigenvalue index (indexed from 1)
-  int iu = numRows_;              // higher eigenvalue index (indexed from 1)
+  int il = 1;       // lower eigenvalue index (indexed from 1)
+  int iu = numEigenvalues;              // higher eigenvalue index (indexed from 1)
   double vl = -1;                 // not used unless range = V
   double vu = 0;                  // not used unless range = V
 
@@ -315,8 +315,9 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // first, call and report any negative eigenvalues ------------------------------
   // we want to note these for convergence reasons
-  //  if(context.getNegativeRelaxons()) {
+  //if(context.getNegativeRelaxons()) {
 
+  if(mpi->mpiHead()) mpi->time();
   if(mpi->mpiHead())
     std::cout << "Checking scattering matrix for negative eigenvalues." << std::endl;
 
@@ -349,7 +350,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
       std::cout << std::endl;
     }
   }
-
+  if(mpi->mpiHead()) mpi->time();
   // now we perform the regular call to get the largest ones ---------------------
   if(mpi->mpiHead()) {
     std::cout << "Now computing first " << numEigenvalues <<
@@ -374,6 +375,8 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
     }
     Error("PDSYEVR failed.", info);
   }
+  if(mpi->mpiHead()) mpi->time();
+
 
   // copy to return containers and free the no longer used containers.
   std::vector<double> eigenvalues_(numEigenvalues);
