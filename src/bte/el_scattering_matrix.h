@@ -52,29 +52,30 @@ protected:
                std::vector<VectorBTE> &outPopulations) override;
 
 
-  // friend functions for adding scattering rates, 
+  // friend functions for adding scattering rates,
   // these live in el_scattering.cpp
 
  // TODO finish adding doxygen strings to these
-  /** 
+  /**
    * @param matrix: a el scattering matrix object
    * @param context: object with user parameters for this calculation
-   * @param inPopulations: 
-   * */ 
+   * @param inPopulations:
+   * */
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure, 
+                                std::vector<VectorBTE> &outPopulations,
+                                int switchCase,
+                                BaseBandStructure &outerBandStructure,
                                 VectorBTE *linewidth);
 
-  friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context, 
+  friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,
-                       std::vector<VectorBTE> &outPopulations, 
-                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
-                       int &switchCase,                                 
+                       std::vector<VectorBTE> &outPopulations,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
+                       int &switchCase,
                        Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure, VectorBTE *linewidth); 
+                       BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
 
 };
 

@@ -10,28 +10,29 @@ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
                                       BaseBandStructure &innerBandStructure_, // phonon
                                       BaseBandStructure &outerBandStructure_, // electron
                                       Interaction3Ph *coupling3Ph_,
-                                      InteractionElPh *couplingElPh_,
-                                      ElectronH0 *electronH0_, 
+                                      InteractionElPhWan *couplingElPh_,
+                                      ElectronH0Wannier *electronH0_,
                                       PhononH0 *phononH0_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
-      coupling3Ph(coupling3Ph_), couplingElPh(couplingElPh_), 
+      coupling3Ph(coupling3Ph_), couplingElPh(couplingElPh_),
       phononH0(phononH0_), electronH0(electronH0_)  {
 
     if(!innerBandStructure_.getParticle().isPhonon() && !outerBandStructure_.getParticle().isElectron()) {
       Error("Developer error: Tried to create CMatrix with bandstructures of wrong particle type!");
     }
-    // TODO should we force scattering matrix in memory? 
+    // TODO should we force scattering matrix in memory?
 
 }
 
-// TODO here would we like to call teh constructors of the other Smatrix types as well, or is this good? 
- CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_, 
+// TODO here would we like to call teh constructors of the other Smatrix types as well, or is this good?
+ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
                                 StatisticsSweep &statisticsSweep_,
                                 BaseBandStructure &innerBandStructure_,
                                 BaseBandStructure &outerBandStructure_,
                                 Interaction3Ph *coupling3Ph_,
-                                InteractionElPh *couplingElPh_, 
-                                PhononH0 *phononH0_, ElectronH0 *electronH0_) {
+                                InteractionElPhWan *couplingElPh_,
+                                ElectronH0Wannier *electronH0_,
+                                PhononH0 *phononH0_) {
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
       coupling3Ph(coupling3Ph_), couplingElPh(couplingElPh_), phononH0(phononH0_), electronH0(electronH0_) {
 
@@ -39,14 +40,14 @@ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
   // TODO may need to shift something in the parent scattering matrix constructor
   // wrt the size allocated for this matrix, which should be (nphononstates, nelectron states)^2
 
-  // TODO overall seems like we should allow for phonon and electron bandstructures to 
-  // supply an optional shift on state indexing. Perhaps somewhere in their mapping functions? 
-  // OHH what about just on the iBTE or state indices? 
-  // couldl construct one band structure first, then add that bandstructure's nstates 
+  // TODO overall seems like we should allow for phonon and electron bandstructures to
+  // supply an optional shift on state indexing. Perhaps somewhere in their mapping functions?
+  // OHH what about just on the iBTE or state indices?
+  // couldl construct one band structure first, then add that bandstructure's nstates
   // as a "shift" parameter
 
-  // TODO at first, we probably need to block symmetry in the construction of this matrix. 
-  // If that is horrible, we could resurrect the symmetry unfolding of the MT calculation. 
+  // TODO at first, we probably need to block symmetry in the construction of this matrix.
+  // If that is horrible, we could resurrect the symmetry unfolding of the MT calculation.
 
   // 3 cases:
   // theMatrix and linewidth is passed: we compute and store in memory the
@@ -74,72 +75,72 @@ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
   // add in the different scattering contributions -------------------
 
   // precompute the fermi and bose factors
-  Eigen::MatrixXd innerBose = precomputeOccupations(innerBandStructure); 
-  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure); 
+  Eigen::MatrixXd innerBose = precomputeOccupations(innerBandStructure);
+  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
 
   // generate the points on which these processes will be computed
 
-  // TODO need to convert this to give me pairs in the different quadrants. 
-  // probably have to overwrite this function with a special one 
+  // TODO need to convert this to give me pairs in the different quadrants.
+  // probably have to overwrite this function with a special one
 
   // may just be able to shift things around.
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
 
   // here we call the function to add ph-ph scattering
-  addPhPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator, 
+  addPhPhScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, qPairIterator,
                                   innerBose, innerBose,
-                                  innerBandStructure, innerBandStructure); 
+                                  innerBandStructure, innerBandStructure);
 
   // here we call the function to add el-ph scattering
-  addElPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator, 
-                                  outerFermi, // it only uses one of occupation 
-                                  innerBandStructure, outerBandStructure); 
+  addElPhScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, qPairIterator,
+                                  outerFermi, // it only uses one of occupation
+                                  innerBandStructure, outerBandStructure);
 
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
-    addIsotopeScattering(this, context, inPopulations, outPopulations, 
-                            switchCase, qPairIterator, 
-                            innerBose, innerBose, 
-                            innerBandStructure, innerBandStructure); 
+    addIsotopeScattering(this, context, inPopulations, outPopulations,
+                            switchCase, qPairIterator,
+                            innerBose, innerBose,
+                            innerBandStructure, innerBandStructure);
   }
   // Add boundary scattering
-  // TODO there will be an issue here for the CMatrix -- 
-  // we can't set particle to be phonon or electron... 
-  // Call this twice for each section of the diagonal, 
-  // in one case handing it the phonon bands, in the other the electron bands. 
+  // TODO there will be an issue here for the CMatrix --
+  // we can't set particle to be phonon or electron...
+  // Call this twice for each section of the diagonal,
+  // in one case handing it the phonon bands, in the other the electron bands.
 
-  // TODO one issue that will definitely arise is the computation state indices, 
-  // which happens inside this class automatically. 
+  // TODO one issue that will definitely arise is the computation state indices,
+  // which happens inside this class automatically.
   // Need to provide some... shift, to the state indices, or something like that
   // maybe an optional "state range" or "state shift"?
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
       // phonon boundary scattering
-      addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                            switchCase, innerBandStructure); 
+      addBoundaryScattering(this, context, inPopulations, outPopulations,
+                            switchCase, innerBandStructure);
       // electron boundary scattering
-      addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                            switchCase, outerBandStructure); 
-  } 
+      addBoundaryScattering(this, context, inPopulations, outPopulations,
+                            switchCase, outerBandStructure);
+  }
 
-  // TODO add phel scattering 
+  // TODO add phel scattering
   //if(!context.getElphFileName().empty()) {
-      // this is a weird case because it requires another band structure object, 
-      // which we don't have access to in the regular phonon class here. 
+      // this is a weird case because it requires another band structure object,
+      // which we don't have access to in the regular phonon class here.
       //
-      // we could make it so that the phononElectron scattering object... which maybe 
+      // we could make it so that the phononElectron scattering object... which maybe
       // will also compute the drag terms, does all the creating of the band structure and whatnot that
-      // is currently gumming up phonon_transport_app... 
+      // is currently gumming up phonon_transport_app...
 
-    // outline: 
+    // outline:
     // 1) compute a new electron bandstructure here
     // 2) call the phonon_electron scattering method supplying it and our phonon bandstructure as well as this matrix.
   //
 
-  // MPI reduce the distributed data now that all the scattering is accounted for 
+  // MPI reduce the distributed data now that all the scattering is accounted for
   if (switchCase == 1) {
     for (auto & outPopulation : outPopulations) {
       mpi->allReduceSum(&outPopulation.data);
@@ -155,7 +156,7 @@ CoupledScatteringMatrix::CoupledScatteringMatrix(Context &context_,
   loopPrint.close();
 
   // Average over degenerate eigenstates.
-  // we turn it off for now and leave the code if needed in the future << what does this mean? 
+  // we turn it off for now and leave the code if needed in the future << what does this mean?
   if (switchCase == 2) {
     degeneracyAveragingLinewidths(linewidth);
     if(outputUNTimes) {

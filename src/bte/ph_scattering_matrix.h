@@ -50,33 +50,34 @@ class PhScatteringMatrix : public ScatteringMatrix {
                std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
- // friend functions for adding scattering rates, 
+ // friend functions for adding scattering rates,
  // these live in ph_scattering.cpp
  // TODO write docstrings for these
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure, 
+                                std::vector<VectorBTE> &outPopulations,
+                                int switchCase,
+                                BaseBandStructure &outerBandStructure,
                                 VectorBTE *linewidth);
 
-  friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
+  friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                int &switchCase, 
-                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                std::vector<VectorBTE> &outPopulations,
+                                int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure, 
+                                BaseBandStructure &outerBandStructure,
                                 VectorBTE *linewidth);
 
-  // friend void addPhElScattering(); 
-  friend void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context, 
+  // friend void addPhElScattering();
+  friend void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, int &switchCase, 
-                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                std::vector<VectorBTE> &outPopulations, int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure, 
+                                BaseBandStructure &outerBandStructure,
                                 VectorBTE *linewidth);
 
 };

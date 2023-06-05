@@ -88,7 +88,7 @@ void PhElLifetimesApp::run(Context &context) {
   // build/initialize the scattering matrix and the smearing
   PhElScatteringMatrix scatteringMatrix(context, statisticsSweep,
                                         elBandStructure, phBandStructure,
-                                        couplingElPh, electronH0);
+                                        &couplingElPh, &electronH0);
   scatteringMatrix.setup();
   scatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
 

@@ -7,12 +7,12 @@
 
 const double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
 
-void addPhElScattering(PhElScatteringMatrix &matrix, Context &context, 
-                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator, 
-                VectorBTE *linewidth) { 
+void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
+                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
+                VectorBTE *linewidth) {
 
   // TODO wish there was a good way to not always call matrix.getPh or El bandstruct
-  // should we use exclude indices in here? 
+  // should we use exclude indices in here?
 
   Particle elParticle(Particle::electron);
   InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
@@ -297,7 +297,7 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
       }
     }
   }
-  mpi->barrier(); 
+  mpi->barrier();
   // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
   loopPrint.close();
 

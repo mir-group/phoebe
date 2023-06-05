@@ -54,47 +54,45 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // add in the different scattering contributions -------------------
 
   // precompute the Bose factors
-  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure); 
-  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure); 
+  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
+  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
 
   // generate the points on which these processes will be computed
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
 
   // here we call the function to add ph-ph scattering
-  // here we call the function to add ph-ph scattering
-  addPhPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator, 
+  addPhPhScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, qPairIterator,
                                   innerBose, outerBose
                                   innerBandStructure, outerBandStructure,
-                                  linewidth); 
+                                  linewidth);
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
-    addIsotopeScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, qPairIterator, 
-                                  innerBose, outerBose, 
-                                  innerBandStructure, outerBandStructure, 
-                                  linewidth); 
+    addIsotopeScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, qPairIterator,
+                                  innerBose, outerBose,
+                                  innerBandStructure, outerBandStructure,
+                                  linewidth);
   }
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, outerBandStructure, 
-                                  linewidth); 
-  } 
+      addBoundaryScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, outerBandStructure, linewidth);
+  }
 
-  // TODO add phel scattering 
+  // TODO add phel scattering
   //if(!context.getElphFileName().empty()) {
-      // this is a weird case because it requires another band structure object, 
-      // which we don't have access to in the regular phonon class here. 
+      // this is a weird case because it requires another band structure object,
+      // which we don't have access to in the regular phonon class here.
       //
-      // we could make it so that the phononElectron scattering object... which maybe 
+      // we could make it so that the phononElectron scattering object... which maybe
       // will also compute the drag terms, does all the creating of the band structure and whatnot that
-      // is currently gumming up phonon_transport_app... 
+      // is currently gumming up phonon_transport_app...
   //
 
-  // MPI reduce the distributed data now that all the scattering is accounted for 
+  // MPI reduce the distributed data now that all the scattering is accounted for
   if (switchCase == 1) {
     for (auto & outPopulation : outPopulations) {
       mpi->allReduceSum(&outPopulation.data);
@@ -110,7 +108,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   loopPrint.close();
 
   // Average over degenerate eigenstates.
-  // we turn it off for now and leave the code if needed in the future << what does this mean? 
+  // we turn it off for now and leave the code if needed in the future << what does this mean?
   if (switchCase == 2) {
     degeneracyAveragingLinewidths(linewidth);
     if(outputUNTimes) {

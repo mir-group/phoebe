@@ -4,9 +4,9 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
-// TODO... love this get el and get ph bandstructure thing. 
-// Could we perhaps extend this to all the scattering matrix objects? 
-// We could also write things like... get phInner and getPhOuter 
+// TODO... love this get el and get ph bandstructure thing.
+// Could we perhaps extend this to all the scattering matrix objects?
+// We could also write things like... get phInner and getPhOuter
 // instead of inner and outer bandstructures, would be way clearer
 
 // helper function to generate kpoint pairs for phel scattering
@@ -33,8 +33,8 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
                                            StatisticsSweep &statisticsSweep_,
                                            BaseBandStructure &elBandStructure_,
                                            BaseBandStructure &phBandStructure_,
-                                           InteractionElPhWan &couplingElPhWan_,
-                                           ElectronH0Wannier &electronH0_)
+                                           InteractionElPhWan *couplingElPhWan_,
+                                           ElectronH0Wannier *electronH0_)
     : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
       couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
@@ -59,17 +59,16 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   // generate the kq pairs to be used -- TODO can we replace this with one
-  // generic pair generating function? 
+  // generic pair generating function?
 
-  std::vector<std::tuple<int, std::vector<int>>> kqPairIterator 
+  std::vector<std::tuple<int, std::vector<int>>> kqPairIterator
                                                 = getIrrWavevectorPairs();
 
-  // compute the phonon electron lifetimes 
-  addPhElScattering(this, context, kqPairIterator, linewidth); 
+  // compute the phonon electron lifetimes
+  addPhElScattering(this, context, kqPairIterator, linewidth);
 
-  // TODO could we compute boundary or isotope scattering_matrix.here? 
-  // I think they are diagonal terms, so this would work. 
-  // 
+  // TODO could we compute boundary or isotope scattering_matrix.here?
+  // I think they are diagonal terms, so this would work.
 
   mpi->allReduceSum(&linewidth->data);
 

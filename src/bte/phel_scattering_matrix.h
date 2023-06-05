@@ -33,8 +33,8 @@ public:
   PhElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                        BaseBandStructure &elBandStructure_,
                        BaseBandStructure &phBandStructure_,
-                       InteractionElPhWan &couplingElPhWan_,
-                       ElectronH0Wannier &electronH0_);
+                       InteractionElPhWan *couplingElPhWan_,
+                       ElectronH0Wannier *electronH0_);
 
   /** Copy constructor
    * @param that: object to be copied
@@ -65,8 +65,8 @@ protected:
   //std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
   std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
 
-  friend void addPhElScattering(PhElScatteringMatrix &matrix, Context &context, 
-                 std::vector<std::tuple<int, std::vector<int>>> kqPairs, VectorBTE *linewidth); 
+  friend void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
+                 std::vector<std::tuple<int, std::vector<int>>> kqPairs, VectorBTE *linewidth);
 
 };
 

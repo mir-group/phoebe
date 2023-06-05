@@ -1,3 +1,4 @@
+#include "scattering_matrix.h"
 #include "constants.h"
 #include "io.h"
 #include "mpiHelper.h"
@@ -13,19 +14,20 @@
 // BOUNDARY SCATTERING ==============================================
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, 
-                                BaseBandStructure &outerBandStructure, 
-                                VectorBTE *linewidth) { 
+                                std::vector<VectorBTE> &outPopulations,
+                                int switchCase,
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth) {
 
   if(mpi->mpiHead()) {
-    std::cout << 
+    std::cout <<
         "Adding boundary scattering to the scattering matrix." << std::endl;
   }
 
   double boundaryLength = context.getBoundaryLength();
-  auto excludeIndices = matrix.excludeIndices; 
+  auto excludeIndices = matrix.excludeIndices;
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
-  int switchCase = matrix.switchCase; 
+  int switchCase = matrix.switchCase;
   Particle particle = outerBandStructure.getParticle();
   int numCalculations = matrix.numCalculations;
 
@@ -36,7 +38,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
 
 #pragma omp parallel for default(none) shared(                            \
   outerBandStructure, numCalculations, statisticsSweep, boundaryLength,   \
-  particle, outPopulations, inPopulations, matrix.linewidth, switchCase, nis1s, is1s)
+  particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
   for (int iis1 = 0; iis1 < nis1s; iis1++) {
     int is1 = is1s[iis1];
     StateIndex is1Idx(is1);
@@ -48,21 +50,21 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
     if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
         excludeIndices.end()) {
       continue;
-    } 
+    }
 
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
-      // for the case of phonons, we need to divide by a pop term. 
+      // for the case of phonons, we need to divide by a pop term.
       // might want to actually change this to "isMatrixOmega"
       // rather than isPhonon
-      double rate = 0; 
+      double rate = 0;
 
       if(particle.isPhonon()) {
         double temperature =
           statisticsSweep->getCalcStatistics(iCalc).temperature;
         double termPop = particle.getPopPopPm1(energy, temperature);
         rate = vel.squaredNorm() / boundaryLength * termPop;
-      } else { 
+      } else {
         rate = vel.squaredNorm() / boundaryLength;
       }
 

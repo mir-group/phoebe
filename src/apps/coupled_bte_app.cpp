@@ -60,9 +60,9 @@ void CoupledTransportApp::run(Context &context) {
   auto statisticsSweep = std::get<1>(tup1);
 
   // stop the code if someone tries to run it with more than one value of (mu, T)
-  if(statisticsSweep.getNumChemicalPotentials() != 1) { 
+  if(statisticsSweep.getNumChemicalPotentials() != 1) {
       Error("Can't run coupled BTE solve with more than one chemical potential or temperature "
-        "at a time, as this would take up far too much memory at once!"); 
+        "at a time, as this would take up far too much memory at once!");
   }
 
   // print some info about state number reduction
@@ -88,7 +88,7 @@ void CoupledTransportApp::run(Context &context) {
 
   // TODO we have to resolve having these two "fullPoints" meshes, as
   // we definitely need to allow for one phonon and one el one, since they converge
-  // differently 
+  // differently
   // construct electronic band structure
   // TODO additionally, are the two statistics sweeps separate?
 
@@ -126,24 +126,24 @@ void CoupledTransportApp::run(Context &context) {
 
   // read in electron-phonon coupling ---------------------------------
   // this also checks that the crystal is the same one read in for 3ph
-  InteractionElPhWan couplingElPh = 
+  InteractionElPhWan couplingElPh =
                          InteractionElPhWan::parse(context, crystal, &phononH0);
 
   // Construct the full C matrix
-  // the dimensions of this matrix are (numElStates + numPhStates, numElStates + numPhStates) 
-  // We definitely need to supply both the phonon and electron bandstructures to this object. 
-  // The phel scattering probably needs it's own separate electronic bandstructure object, 
-  // as it requires much denser sampling to converge and we need to allow for that 
+  // the dimensions of this matrix are (numElStates + numPhStates, numElStates + numPhStates)
+  // We definitely need to supply both the phonon and electron bandstructures to this object.
+  // The phel scattering probably needs it's own separate electronic bandstructure object,
+  // as it requires much denser sampling to converge and we need to allow for that
 
   // TODO create this object
-  // TODO feels like we should be passing these thigns by reference? 
-  CoupledScatteringMatrix scatteringMatrix(context, statisticsSweep, 
-                                        elBandStructure, phBandStructure, 
-                                        &coupling3Ph, &couplingElPh, 
-                                        &phononH0, &electronH0);  
+  // TODO feels like we should be passing these thigns by reference?
+  CoupledScatteringMatrix scatteringMatrix(context, statisticsSweep,
+                                        elBandStructure, phBandStructure,
+                                        &coupling3Ph, &couplingElPh,
+                                        &electronH0, &phononH0);
   scatteringMatrix.setup();   // adds in all the scattering rates
-  
-  // alternatively, we may want to add contributions one at a time to this matrix, 
+
+  // alternatively, we may want to add contributions one at a time to this matrix,
   // especially if we're struggling in memory, so that we can only store either
   // the elph matrix elements or ph-ph matrix elements at once
   // This shouldn't be too hard -- instead of calling builder, we should be able to structure
@@ -154,8 +154,8 @@ void CoupledTransportApp::run(Context &context) {
     std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
   }
   // helper function to return ph-el linewidths
-  // TODO would it be better to make another friend function that just 
-  // calculates these linewidths? 
+  // TODO would it be better to make another friend function that just
+  // calculates these linewidths?
   //VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
   //                                                      phBandStructure, phononH0);
 
@@ -185,7 +185,7 @@ void CoupledTransportApp::run(Context &context) {
   // compute the phonon populations in the relaxation time approximation.
   // Note: this is the total phonon population n (n != f(1+f) Delta n)
 
-  // TODO these feel like they need to be swaped into an option that can take both kinds of bandstructures? 
+  // TODO these feel like they need to be swaped into an option that can take both kinds of bandstructures?
 /*
   BulkTDrift drift(statisticsSweep, phBandStructure, 3);
   VectorBTE phononRelTimes = scatteringMatrix.getSingleModeTimes();

@@ -182,7 +182,6 @@ public:
  protected:
   Context &context;
   StatisticsSweep &statisticsSweep;
-  int switchCase; 
 
   // Smearing is a pointer created in constructor with a smearing factory
   // Used in the construction of the scattering matrix to approximate the
@@ -292,13 +291,13 @@ public:
 
 
   /** Function to precompute particle populations before scattering rates
-   * are calculated. 
+   * are calculated.
    * @param Bandstructure: bandstructure of the particle species
    * @param MatrixXd occupationFactors: contains the occupations for all states
    */
-  Eigen::MatrixXd precomputeOccupations(BaseBandStructure &bandStructure); 
+  Eigen::MatrixXd precomputeOccupations(BaseBandStructure &bandStructure);
 
-  // friend functions for scattering 
+  // friend functions for scattering
 
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,

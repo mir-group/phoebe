@@ -1,6 +1,6 @@
 #include "el_scattering_matrix.h"
 #include "constants.h"
-#include "helper_el_scattering_matrix.h"
+#include "helper_el_scattering.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
@@ -32,8 +32,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // inPopulation+outPopulation is passed: we compute the action of the
   //       scattering matrix on the in vector, returning outVec = sMatrix*vector
   // only linewidth is passed: we compute only the linewidths
-  // Note: this determination is the same for all scattering matrices. 
-  // Perhaps we should make a general function for it in the parent class? 
+  // Note: this determination is the same for all scattering matrices.
+  // Perhaps we should make a general function for it in the parent class?
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
     switchCase = 0;
@@ -58,9 +58,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // and we will almost always have a window for electrons
   }
 
-  // precompute particle occupations 
-  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure); 
-  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure); 
+  // precompute particle occupations
+  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
+  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
 
   // compute wavevector pairs for the calculation
   std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
@@ -68,22 +68,22 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // add scattering contributions ---------------------------------------
   // add elph scattering
-  addElPhScattering(this, context, inPopulations, outPopulations, 
-                                  switchCase, kPairIterator, 
+  addElPhScattering(this, context, inPopulations, outPopulations,
+                                  switchCase, kPairIterator,
                                   innerFermi, outerFermi,
-                                  innerBandStructure, outerBandStructure, 
-                                  linewidth); 
-  // TODO was there previously an all reduce between these two on 
-  //the linewidths? why is that? 
+                                  innerBandStructure, outerBandStructure,
+                                  linewidth);
+  // TODO was there previously an all reduce between these two on
+  //the linewidths? why is that?
 
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(this, context, inPopulations, outPopulations, 
-                            switchCase, outerBandStructure);   
-    } 
+      addBoundaryScattering(this, context, inPopulations, outPopulations,
+                            switchCase, outerBandStructure, linewidth);
+    }
 
-  // all reduce the linewidths 
+  // all reduce the linewidths
   if (switchCase == 1) {
     for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
       mpi->allReduceSum(&outPopulations[iVec].data);
@@ -122,7 +122,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           theMatrix(iMati, iMati) += linewidth->operator()(iCalc, 0, iBte);
         }
       }
-    } 
+    }
     else {
       for (int is = 0; is < numStates; is++) {
         theMatrix(is, is) = linewidth->operator()(iCalc, 0, is);
