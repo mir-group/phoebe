@@ -3,15 +3,10 @@ if(NOT CMAKE_BUILD_TYPE)
       STRING "Choose the type of build." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-if(Kokkos_ENABLE_CUDA)
-    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "don't touch")
-    set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/lib/kokkos/bin/nvcc_wrapper)
-endif()
-
 # set cmake version
 cmake_minimum_required(VERSION 3.16)
 # set cpp standard flags
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(Phoebe LANGUAGES C CXX Fortran VERSION 1.0)
@@ -74,7 +69,7 @@ gtest_discover_tests(
 )
 
 if(Kokkos_ENABLE_CUDA)
-    find_package(CUDAToolkit REQUIRED)
+    find_package(CUDAToolkit REQUIRED COMPONENTS cusolver)
     target_link_libraries(phoebe CUDA::cusolver)
     target_link_libraries(runTests CUDA::cusolver)
 endif()

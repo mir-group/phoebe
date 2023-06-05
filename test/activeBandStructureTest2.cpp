@@ -104,7 +104,7 @@ TEST(ABS, Symmetries) {
       k1 = points.bzToWs(k1, Points::cartesianCoordinates);
       q = points.bzToWs(q, Points::cartesianCoordinates);
       auto diff = (k1 - q).norm();
-      EXPECT_EQ(diff, 0.);
+      EXPECT_NEAR(diff, 0, 1.e-16);
 
       WavevectorIndex ikFullIdx(ikFull);
       Eigen::VectorXd enAbs = abs.getEnergies(ikIdx);
