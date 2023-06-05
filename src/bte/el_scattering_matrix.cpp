@@ -1,7 +1,6 @@
 #include "el_scattering_matrix.h"
 #include "constants.h"
 #include "helper_el_scattering.h"
-#include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
@@ -11,8 +10,7 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        BaseBandStructure &outerBandStructure_,
                                        PhononH0 &h0_,
                                        InteractionElPhWan *couplingElPhWan_)
-    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
-                       outerBandStructure_),
+    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
       couplingElPhWan(couplingElPhWan_), h0(h0_) {
 
   isMatrixOmega = true;
@@ -63,13 +61,15 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
 
   // compute wavevector pairs for the calculation
+  bool rowMajor = true;
   std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
       getIteratorWavevectorPairs(switchCase, rowMajor);
 
   // add scattering contributions ---------------------------------------
   // add elph scattering
-  addElPhScattering(this, context, inPopulations, outPopulations,
-                                  switchCase, kPairIterator,
+  // TODO are we sure this should get two Fermi's and not have one of them be a Bose? 
+  addElPhScattering(*this, context, inPopulations, outPopulations,
+                                  kPairIterator, switchCase,
                                   innerFermi, outerFermi,
                                   innerBandStructure, outerBandStructure,
                                   linewidth);
@@ -79,9 +79,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(this, context, inPopulations, outPopulations,
+      addBoundaryScattering(*this, context, inPopulations, outPopulations,
                             switchCase, outerBandStructure, linewidth);
     }
+  }
 
   // all reduce the linewidths
   if (switchCase == 1) {
@@ -91,8 +92,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   } else {
     mpi->allReduceSum(&linewidth->data);
   }
-  // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
-  loopPrint.close();
 
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future

@@ -25,7 +25,6 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations, 
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
-                        // maybe put this in all the calls, remove the one in scattering matrix class
                        int &switchCase,                                 
                        Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
@@ -49,8 +48,8 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   double norm = 1. / context.getKMesh().prod();
 
-  LoopPrint loopPrint("computing el-ph contribution to the "
-                              "scattering matrix", "k-points", int(kPairIterator.size()));
+  LoopPrint loopPrint("computing el-ph contribution to the scattering matrix", 
+                                        "k-points", int(kPairIterator.size()));
 
   for (auto t1 : kPairIterator) {
     loopPrint.update();
@@ -308,4 +307,5 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
       Kokkos::Profiling::popRegion();
     }
   }
+  loopPrint.close();
 }

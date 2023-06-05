@@ -27,7 +27,6 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   double boundaryLength = context.getBoundaryLength();
   auto excludeIndices = matrix.excludeIndices;
   StatisticsSweep *statisticsSweep = &(matrix.statisticsSweep);
-  int switchCase = matrix.switchCase;
   Particle particle = outerBandStructure.getParticle();
   int numCalculations = matrix.numCalculations;
 

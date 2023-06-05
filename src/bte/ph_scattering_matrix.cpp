@@ -13,8 +13,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                                        BaseBandStructure &outerBandStructure_,
                                        Interaction3Ph *coupling3Ph_,
                                        PhononH0 *h0_)
-    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
-                       outerBandStructure_),
+    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
       coupling3Ph(coupling3Ph_), h0(h0_) {
 
   if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
@@ -53,23 +52,23 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
 
   // add in the different scattering contributions -------------------
 
-  // precompute the Bose factors
-  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
-  Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
+  // precompute the Bose factors TODO check these
+  Eigen::MatrixXd outerBose = precomputeOccupations(outerBandStructure);
+  Eigen::MatrixXd innerBose = precomputeOccupations(innerBandStructure);
 
   // generate the points on which these processes will be computed
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
 
   // here we call the function to add ph-ph scattering
-  addPhPhScattering(this, context, inPopulations, outPopulations,
+  addPhPhScattering(*this, context, inPopulations, outPopulations,
                                   switchCase, qPairIterator,
-                                  innerBose, outerBose
+                                  innerBose, outerBose,
                                   innerBandStructure, outerBandStructure,
                                   linewidth);
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
-    addIsotopeScattering(this, context, inPopulations, outPopulations,
+    addIsotopeScattering(*this, context, inPopulations, outPopulations,
                                   switchCase, qPairIterator,
                                   innerBose, outerBose,
                                   innerBandStructure, outerBandStructure,
@@ -78,8 +77,9 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(this, context, inPopulations, outPopulations,
+      addBoundaryScattering(*this, context, inPopulations, outPopulations,
                                   switchCase, outerBandStructure, linewidth);
+    }
   }
 
   // TODO add phel scattering
@@ -104,8 +104,6 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
       mpi->allReduceSum(&internalDiagonalNormal->data);
     }
   }
-  // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
-  loopPrint.close();
 
   // Average over degenerate eigenstates.
   // we turn it off for now and leave the code if needed in the future << what does this mean?

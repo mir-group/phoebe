@@ -65,7 +65,7 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                                                 = getIrrWavevectorPairs();
 
   // compute the phonon electron lifetimes
-  addPhElScattering(this, context, kqPairIterator, linewidth);
+  addPhElScattering(*this, context, kqPairIterator, linewidth);
 
   // TODO could we compute boundary or isotope scattering_matrix.here?
   // I think they are diagonal terms, so this would work.

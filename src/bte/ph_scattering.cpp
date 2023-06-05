@@ -516,6 +516,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
       }
     }
   }
+  loopPrint.close();
 }
 
 // ISOTOPE SCATTERING =====================================================

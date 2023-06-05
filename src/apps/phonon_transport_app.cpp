@@ -102,7 +102,6 @@ void PhononTransportApp::run(Context &context) {
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
   // the diagonal for the exact method.
-
   if (mpi->mpiHead()) {
     std::cout << "\n" << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
@@ -495,7 +494,7 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     // the diagonal -- be careful to put elBandStruct first
     PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
                                               elBandStructure, phBandStructure,
-                                              couplingElPh, electronH0);
+                                              &couplingElPh, &electronH0);
 
     if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
       Error("Cannot calculate PhEl scattering matrix with fewer states than\n"
