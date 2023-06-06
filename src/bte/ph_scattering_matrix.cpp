@@ -4,8 +4,8 @@
 #include "io.h"
 #include "mpiHelper.h"
 #include <cmath>
-#include "general_scattering.cpp"
-#include "ph_scattering.cpp"
+#include "general_scattering.h"
+#include "ph_scattering.h"
 
 PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                                        StatisticsSweep &statisticsSweep_,

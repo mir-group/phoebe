@@ -3,6 +3,8 @@
 #include "helper_el_scattering.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
+#include "general_scattering.h"
+#include "el_scattering.h"
 
 ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        StatisticsSweep &statisticsSweep_,

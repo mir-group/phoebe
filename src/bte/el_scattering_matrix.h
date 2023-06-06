@@ -6,7 +6,6 @@
 #include "phonon_h0.h"
 #include "scattering_matrix.h"
 #include "vector_bte.h"
-#include "general_scattering.cpp"
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
@@ -61,12 +60,6 @@ protected:
    * @param context: object with user parameters for this calculation
    * @param inPopulations:
    * */
-  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations,
-                                int switchCase,
-                                BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth);
 
   friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,

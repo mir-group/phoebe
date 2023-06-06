@@ -53,12 +53,6 @@ class PhScatteringMatrix : public ScatteringMatrix {
  // friend functions for adding scattering rates,
  // these live in ph_scattering.cpp
  // TODO write docstrings for these
-  friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations,
-                                int switchCase,
-                                BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth);
 
   friend void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,

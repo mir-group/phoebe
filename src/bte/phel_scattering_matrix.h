@@ -62,7 +62,6 @@ protected:
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
   // TODO describe this function
-  //std::vector<std::tuple<int, std::vector<int>>> getIteratorWavevectorPairs();
   std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
 
   friend void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,

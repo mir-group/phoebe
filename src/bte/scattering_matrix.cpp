@@ -1343,18 +1343,20 @@ void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
 }
 
 
-Eigen::MatrixXd precomputeOccupations(BaseBandStructure &bandStructure);
+Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandStructure) { 
+                                 //     StatisticsSweep &statisticsSweep) {
 
-  //TODO this needs number of calculations
-
+  int numCalculations = statisticsSweep.getNumCalculations();
   auto numIrrStates = int(bandStructure.irrStateIterator().size());
+  Particle particle = bandStructure.getParticle();
+
   Eigen::MatrixXd bose(numCalculations, numIrrStates);
   bose.setZero();
   std::vector<size_t> iBtes = mpi->divideWorkIter(numIrrStates);
-  niBtes = iBtes.size();
+  size_t niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
     shared(mpi, particle, bose, numIrrStates, numCalculations, niBtes, iBtes)
-  for(int iiBte = 0; iiBte < niBtes; iiBte++){
+  for(size_t iiBte = 0; iiBte < niBtes; iiBte++){
     int iBte = iBtes[iiBte];
     BteIndex iBteIdx(iBte);
     StateIndex isIdx = bandStructure.bteToState(iBteIdx);
