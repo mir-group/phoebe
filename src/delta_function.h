@@ -45,8 +45,7 @@ public:
   /** Method for obtaining a smearing value (approximating \delta).
    * Overloads the previous one, and is used by the tetrahedron method.
    * @param energy: the energy difference of the dirac delta.
-   * @param iq: wavevector index.
-   * @param ib: band index.
+   * @param is: state index
    */
   virtual double getSmearing(const double &energy, StateIndex &is) = 0;
 
