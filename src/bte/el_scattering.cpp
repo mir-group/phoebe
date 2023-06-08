@@ -38,9 +38,10 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
   InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
   DeltaFunction *smearing = matrix.smearing; 
  
+  // generate the intermediate points to be summed over
   bool rowMajor = true;
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                         statisticsSweep, smearing->getType(), matrix.h0, couplingElPhWan);
+                    statisticsSweep, smearing->getType(), matrix.h0, couplingElPhWan);
 
   bool withSymmetries = context.getUseSymmetries();
   int numCalculations = statisticsSweep.getNumCalculations();
@@ -52,9 +53,10 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
                                         "k-points", int(kPairIterator.size()));
 
   for (auto t1 : kPairIterator) {
+
     loopPrint.update();
-    auto ik2Indexes = std::get<0>(t1);
     int ik1 = std::get<1>(t1);
+    auto ik2Indexes = std::get<0>(t1);
     WavevectorIndex ik1Idx(ik1);
 
     // dummy call to make pooled coupling calculation work. We need to make sure
