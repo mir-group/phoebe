@@ -1,0 +1,9 @@
+appName = "elPhQeToPhoebe"
+
+elPhInterpolation = "wannier"
+
+phFC2FileName = "cu.fc"
+electronH0Name = "cu_tb.dat"
+
+wannier90Prefix = "cu"
+quantumEspressoPrefix = "cu"

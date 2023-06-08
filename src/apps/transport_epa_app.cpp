@@ -92,7 +92,7 @@ void TransportEpaApp::run(Context &context) {
 void TransportEpaApp::checkRequirements(Context &context) {
   throwErrorIfUnset(context.getEpaFileName(), "epaFileName");
   throwErrorIfUnset(context.getElectronH0Name(), "electronH0Name");
-  throwErrorIfUnset(context.getQMesh(), "kMesh");
+  throwErrorIfUnset(context.getKMesh(), "kMesh");
 
   throwErrorIfUnset(context.getElectronFourierCutoff(),
                     "electronFourierCutoff");

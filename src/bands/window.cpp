@@ -3,6 +3,8 @@
 #include "window.h"
 #include "particle.h"
 #include "exceptions.h"
+#include "mpiHelper.h"
+#include "constants.h"
 
 Window::Window(Context &context, Particle &particle_,
                const double &temperatureMin_, const double &temperatureMax_,
@@ -18,6 +20,8 @@ Window::Window(Context &context, Particle &particle_,
     method = population;
   } else if (inMethod == "energy") {
     method = energy;
+  } else if (inMethod == "muCenteredEnergy") {
+    method = muEnergy;
   } else if (inMethod == "nothing") {
     method = nothing;
   } else {
@@ -32,12 +36,41 @@ Window::Window(Context &context, Particle &particle_,
       // note: we are filtering on the factor N(N+1) or F(1-F)
       // tested this value to be a safe one.
     }
+    std::string occ = (particle.isElectron()) ? "df/dT" : "dn/dT";
+    if(mpi->mpiHead()) {
+        std::cout << std::scientific << "Applying a population window discarding states with "
+                << occ << " < " << populationThreshold << "." << std::fixed << std::endl;
+    }
 
   } else if (method == energy) {
+
     minEnergy = context.getWindowEnergyLimit().minCoeff();
     maxEnergy = context.getWindowEnergyLimit().maxCoeff();
+
+    if(mpi->mpiHead()) {
+      std::cout << "Applying an energy window discarding states outside of ["
+                <<  std::fixed << minEnergy*energyRyToEv << ", " << maxEnergy*energyRyToEv
+                << "] eV range." << std::endl;
+    }
     if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
       Error("You must set min and max energies for your energy window!");
+    }
+    else if(minEnergy == maxEnergy) {
+      Error("Your min and max window energies cannot be the same.");
+    }
+  } else if (method == muEnergy) {
+
+    minEnergy = chemicalPotentialMin - abs(context.getWindowEnergyLimit().minCoeff());
+    maxEnergy = chemicalPotentialMax + abs(context.getWindowEnergyLimit().maxCoeff());
+
+    if(mpi->mpiHead()) {
+      std::cout << "Applying an energy window discarding states outside of ["
+          << std::fixed << minEnergy*energyRyToEv << ", " << maxEnergy*energyRyToEv <<
+          "] eV range." << std::endl;
+    }
+
+    if (std::isnan(minEnergy) || std::isnan(maxEnergy) ) {
+      Error("You must set an energy range energies for your energy window!");
     }
     else if(minEnergy == maxEnergy) {
       Error("Your min and max window energies cannot be the same.");
@@ -61,7 +94,8 @@ std::tuple<std::vector<double>, std::vector<int>> Window::apply(
     }
     return internalPopWindow(energies, popMin, popMax);
 
-  } else if (method == energy) {
+  } else if (method == energy || method == muEnergy) {
+
     return internalEnWindow(energies);
 
   } else { // no filter

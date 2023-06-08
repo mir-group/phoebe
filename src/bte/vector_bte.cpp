@@ -111,7 +111,19 @@ Eigen::MatrixXd VectorBTE::dot(const VectorBTE &that) {
 }
 
 VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
+
   VectorBTE newPopulation(statisticsSweep, bandStructure, dimensionality);
+
+  // check that they have the same number of states
+  if(this->numStates != that.numStates) {
+    Error("Cannot operate on vectorBTEs with different numStates!");
+  }
+
+  // check that they have the same number of calcs (mu, T, not dim)
+  if(statisticsSweep.getNumCalculations() !=
+                that.statisticsSweep.getNumCalculations()) {
+    Error("Cannot operate on vectorBTEs with different numCalcs!");
+  }
 
   if (dimensionality == that.dimensionality) {
 
@@ -124,16 +136,17 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
     } else if (operatorType == operatorDiff) {
       newPopulation.data << this->data.array() - that.data.array();
     } else {
-      Error("Operator type for VectorBTE not recognized");
+      Error("Developer error: Operator type for VectorBTE not recognized");
     }
-
+  // this adds the same vectorBTE that to every calc in
+  // this vector BTE
   } else if (that.dimensionality == 1) {
 
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto tup = loc2Glob(iCalc);
       auto imu = std::get<0>(tup);
-      auto it = std::get<1>(tup);
-      auto i2 = that.glob2Loc(imu, it, CartIndex(0));
+      auto it = std::get<1>(tup); // temperature
+      auto i2 = that.glob2Loc(imu, it, CartIndex(0)); //cartesian index
 
       if (operatorType == operatorSums) {
         newPopulation.data.row(iCalc) =
@@ -152,7 +165,8 @@ VectorBTE VectorBTE::baseOperator(VectorBTE &that, const int &operatorType) {
       }
     }
   } else {
-    Error("VectorBTE can't handle dimensionality for this case");
+    Error("Developer error: VectorBTE objects "
+                "cannot be operated on when dim > 1.");
   }
   for (const int &iBte : excludeIndices) {
     newPopulation.data.col(iBte).setZero();

@@ -1,0 +1,16 @@
+appName = "electronWannierTransport"
+phFC2FileName = "../1.el-ph/cu.fc"
+sumRuleFC2 = "crystal"
+electronH0Name = "../1.el-ph/cu_tb.dat",
+elphFileName = "../1.el-ph/cu.phoebe.elph.hdf5"
+
+kMesh = [20,20,20]
+temperatures = [10.,25.,50.,100.,200.,300.,400.]
+chemicalPotentials = [13.86829112]
+
+smearingMethod = "adaptiveGaussian"
+windowType = "population"
+
+useSymmetries = true
+scatteringMatrixInMemory = false
+

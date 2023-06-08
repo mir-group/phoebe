@@ -1053,3 +1053,4 @@ int PhononH0::getIndexEigenvector(const int &iAt, const int &iPol,
                                   const int &nAtoms) {
   return compress2Indices(iAt, iPol, nAtoms, 3);
 }
+

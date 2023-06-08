@@ -36,14 +36,14 @@ public:
   /** Copy constructor
    * @param that: object to be copied
    */
-  ElScatteringMatrix(const ElScatteringMatrix &that);
+//  ElScatteringMatrix(const ElScatteringMatrix &that);
 
   /** Copy assignment
    *
    * @param that: object to be copied
    * @return a copy of ElScatteringMatrix
    */
-  ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
+//  ElScatteringMatrix &operator=(const ElScatteringMatrix &that);
 
 protected:
   InteractionElPhWan *couplingElPhWan;
