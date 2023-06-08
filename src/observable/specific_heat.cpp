@@ -48,7 +48,7 @@ void SpecificHeat::calc() {
     double sum = 0.;
     std::vector<int> iss = bandStructure.irrStateIterator();
     int niss = iss.size();
-#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,iss,niss)
+#pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,iss,niss,ryToCmm1)
     for(int iis = 0; iis < niss; iis++){
       int is = iss[iis];
       StateIndex isIdx(is);

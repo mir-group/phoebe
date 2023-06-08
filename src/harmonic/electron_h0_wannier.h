@@ -101,7 +101,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    * each wavevector.
    */
   std::tuple<DoubleView2D, StridedComplexView3D> kokkosBatchedDiagonalizeFromCoordinates(
-      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true);
+      const DoubleView2D &cartesianCoordinates, const bool withMassScaling=true) override;
   /** Using kokkos, computes the electronic properties of a batch of wavevectors
    *
    * @param cartesianCoordinates: a ComplexView2D object of size (nk,3)
@@ -112,7 +112,7 @@ class ElectronH0Wannier : public HarmonicHamiltonian {
    */
   std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
   kokkosBatchedDiagonalizeWithVelocities(
-      const DoubleView2D &cartesianCoordinates);
+      const DoubleView2D &cartesianCoordinates) override;
 
   /** get the electron velocities (in atomic units) at a single k-point.
    * @param k: a Point object with the wavevector coordinates.
