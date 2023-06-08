@@ -1355,7 +1355,7 @@ Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandS
   std::vector<size_t> iBtes = mpi->divideWorkIter(numIrrStates);
   size_t niBtes = iBtes.size();
 #pragma omp parallel for default(none)                                         \
-    shared(mpi, particle, bose, numIrrStates, numCalculations, niBtes, iBtes)
+    shared(mpi, particle, bose, numIrrStates, numCalculations, niBtes, iBtes, bandStructure)
   for(size_t iiBte = 0; iiBte < niBtes; iiBte++){
     int iBte = iBtes[iiBte];
     BteIndex iBteIdx(iBte);
