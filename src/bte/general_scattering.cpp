@@ -32,14 +32,14 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
 
   Kokkos::Profiling::pushRegion("boundary scattering");
 
-  std::vector<int> is1s = outerBandStructure.irrStateIterator();
-  int nis1s = is1s.size();
+  // loop over only parallel states, because later the linewidths will be allReduceSum'd
+  std::vector<int> is1s = outerBandStructure.parallelIrrStateIterator();
 
-#pragma omp parallel for default(none) shared(                            \
-  outerBandStructure, numCalculations, statisticsSweep, boundaryLength,   \
-  particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s, excludeIndices)
-  for (int iis1 = 0; iis1 < nis1s; iis1++) {
-    int is1 = is1s[iis1];
+  #pragma omp parallel for default(none) shared(                            \
+   outerBandStructure, numCalculations, statisticsSweep, boundaryLength,   \
+   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices)
+  for (int is1 : is1s ) {
+
     StateIndex is1Idx(is1);
     auto vel = outerBandStructure.getGroupVelocity(is1Idx);
     double energy = outerBandStructure.getEnergy(is1Idx);
@@ -54,13 +54,12 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
       // for the case of phonons, we need to divide by a pop term.
-      // might want to actually change this to "isMatrixOmega"
-      // rather than isPhonon
+      // TODO might want to actually change this to "isMatrixOmega"
+      // rather than isPhonon?
       double rate = 0;
 
       if(particle.isPhonon()) {
-        double temperature =
-          statisticsSweep->getCalcStatistics(iCalc).temperature;
+        double temperature = statisticsSweep->getCalcStatistics(iCalc).temperature;
         double termPop = particle.getPopPopPm1(energy, temperature);
         rate = vel.squaredNorm() / boundaryLength * termPop;
       } else {
