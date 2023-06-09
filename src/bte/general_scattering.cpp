@@ -37,7 +37,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
 
   #pragma omp parallel for default(none) shared(                            \
    outerBandStructure, numCalculations, statisticsSweep, boundaryLength,   \
-   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices)
+   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices, is1s)
   for (int is1 : is1s ) {
 
     StateIndex is1Idx(is1);
