@@ -28,14 +28,20 @@
  */
 // TODO: add flag to let user decide whether to use or not polar corrections
 class InteractionElPhWan {
+
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
-
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
-
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
-
   bool usePolarCorrection = false;
+
+  // kokkos objects for GPU accelerated elph coupling
+  ComplexView4D elPhCached;
+  ComplexView5D couplingWannier_k;
+  DoubleView2D phBravaisVectors_k;
+  DoubleView1D phBravaisVectorsDegeneracies_k;
+  DoubleView2D elBravaisVectors_k;
+  DoubleView1D elBravaisVectorsDegeneracies_k;
 
   /** Add polar correction to the electron-phonon coupling.
    * @param q3: phonon wavevector, in cartesian coordinates
@@ -49,19 +55,24 @@ class InteractionElPhWan {
   getPolarCorrection(const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
                      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3);
 
-  ComplexView4D elPhCached;
-  ComplexView5D couplingWannier_k;
-  DoubleView2D phBravaisVectors_k;
-  DoubleView1D phBravaisVectorsDegeneracies_k;
-  DoubleView2D elBravaisVectors_k;
-  DoubleView1D elBravaisVectorsDegeneracies_k;
-
   /** Estimate the memory in bytes, occupied by the kokkos Views containing
    * the coupling tensor to be interpolated.
    *
    * @return a memory estimate in bytes
    */
   double getDeviceMemoryUsage();
+
+  // TODO documentation 
+  static Eigen::VectorXcd polarCorrectionPart1Static(
+        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
+        const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+        const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
+        const Eigen::MatrixXd &atomicPositions,
+        const Eigen::Vector3i &qCoarseMesh);
+  // TODO documentation 
+  static Eigen::Tensor<std::complex<double>, 3> polarCorrectionPart2(
+        const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x);
+
 
   std::vector<ComplexView4D::HostMirror> elPhCached_hs;
 #ifdef MPI_AVAIL
@@ -182,6 +193,14 @@ public:
   static InteractionElPhWan parse(Context &context, Crystal &crystal,
                                   PhononH0 *phononH0_ = nullptr);
 
+  /** precompute the q-dependent part of the polar correction 
+  * @param phbandstructure: the bandstructure object containing all q-points
+  *     for which this precomputation should occur
+  * @return polarData: the q-dependent part of the polar correction
+  */
+  Eigen::MatrixXcd precomputeQDependentPolar(BaseBandStructure &phBandStructure);
+
+  // TODO this function needs documentation 
   static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
       const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
       const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
@@ -204,18 +223,12 @@ public:
    */
   int estimateNumBatches(const int &nk2, const int &nb1);
 
-  Eigen::VectorXcd
-    polarCorrectionPart1(
+  // TODO this function needs documentation 
+  // TODO this function is also public because of elph coupling app. 
+        // seems like it should be private
+  Eigen::VectorXcd polarCorrectionPart1(
         const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3);
-  static Eigen::VectorXcd
-    polarCorrectionPart1Static(
-        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
-        const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
-        const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
-        const Eigen::MatrixXd &atomicPositions,
-        const Eigen::Vector3i &qCoarseMesh);
-  static Eigen::Tensor<std::complex<double>, 3>
-    polarCorrectionPart2(const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x);
+
 };
 
 #endif
