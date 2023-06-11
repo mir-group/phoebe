@@ -269,11 +269,14 @@ void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
                         }
                       }
                     }
-                  } else {
+                  } else {  
+                    // Note: we double check that the indices are local, 
+                    // but because we selected pairs which were local to supply to the function call, 
+                    // this isn't really necessary   
                     if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
+                      matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
                     }
-                    matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
                 } else if (switchCase == 1) {
                   // case of matrix-vector multiplication

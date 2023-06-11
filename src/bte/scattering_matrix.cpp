@@ -1342,9 +1342,8 @@ void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
   }
 }
 
-
+// helper to precompute particle occupations 
 Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandStructure) {
-                                 //     StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
   auto numIrrStates = int(bandStructure.irrStateIterator().size());
