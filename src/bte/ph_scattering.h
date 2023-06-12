@@ -7,7 +7,7 @@
  // these live in ph_scattering.cpp
  // TODO write docstrings for these
 
-void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
+void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int &switchCase,
@@ -15,9 +15,11 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
+                                PhononH0* phononH0,
+                                Interaction3Ph *coupling3Ph,
                                 VectorBTE *linewidth);
 
-void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context,
+void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, int &switchCase,
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator,

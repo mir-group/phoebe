@@ -13,7 +13,8 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
                                        PhononH0 &h0_,
                                        InteractionElPhWan *couplingElPhWan_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
-      couplingElPhWan(couplingElPhWan_), h0(h0_) {
+     BaseElScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
+      couplingElPhWan(couplingElPhWan_), phononH0(h0_) {
 
   isMatrixOmega = true;
   highMemory = context.getScatteringMatrixInMemory();
@@ -70,11 +71,11 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // add scattering contributions ---------------------------------------
   // add elph scattering
   // TODO are we sure this should get two Fermi's and not have one of them be a Bose? 
-  addElPhScattering(*this, context, inPopulations, outPopulations,
-                                  kPairIterator, switchCase,
-                                  innerFermi, outerFermi,
-                                  innerBandStructure, outerBandStructure,
-                                  linewidth);
+  addElPhScattering(*this, context, inPopulations, outPopulations, switchCase, 
+                                  kPairIterator, innerFermi, outerFermi,
+                                  innerBandStructure, outerBandStructure, phononH0, 
+                                  couplingElPhWan, linewidth);
+
   // TODO was there previously an all reduce between these two on
   //the linewidths? why is that?
 

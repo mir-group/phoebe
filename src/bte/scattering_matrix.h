@@ -31,6 +31,9 @@ public:
    */
   ~ScatteringMatrix();
 
+  /** Default constructor */
+  ScatteringMatrix(); // = default;
+
   /** This method needs to be called right after the constructor.
    * It will setup variables of the scattering matrix, and compute at least
    * the linewidths.
@@ -162,6 +165,12 @@ public:
    */
   void symmetrize();
 
+  /** Output relaxons scattering matrix quantities to file (particularly the tau values)
+  * Jenny's note: However, I have a feeling this should be elsewhere, as we're actually passing
+  * the eigenvalues back into this function. 
+  * @param fileName: the name of the file to write out to
+  * @param eigenvalues: the tau values from a relaxons solve
+  **/
   void relaxonsToJSON(const std::string& fileName, const Eigen::VectorXd& eigenvalues);
 
   /** Average the coupling for degenerate states.
@@ -180,6 +189,7 @@ public:
 
 
  protected:
+
   Context &context;
   StatisticsSweep &statisticsSweep;
 
@@ -265,9 +275,9 @@ public:
    * owned by an MPI process. Otherwise, we trivially parallelize over the outer
    * loop on points.
    */
-  std::vector<std::tuple<std::vector<int>, int>>
-  getIteratorWavevectorPairs(const int &switchCase,
-                             const bool &rowMajor = false);
+  std::vector<std::tuple<std::vector<int>, int>> getIteratorWavevectorPairs(
+                                                const int &switchCase,
+                                                const bool &rowMajor = false);
 
   /** Performs an average of the linewidths over degenerate states.
    * This is necessary since the coupling |V_3| is not averaged over different

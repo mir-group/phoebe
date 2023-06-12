@@ -5,21 +5,25 @@
 #include "interaction_elph.h"
 #include "phel_scattering_matrix.h"
 
-const double phononCutoff = 5. / ryToCmm1; // used to discard small phonon energies
+const double phononCutoff = 0.001 / ryToCmm1; // used to discard small phonon energies
 
-void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
+void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
                 std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
-                VectorBTE *linewidth) {
+                BaseBandStructure& phBandStructure,
+                BaseBandStructure& elBandStructure,
+                ElectronH0Wannier* electronH0,
+                InteractionElPhWan* couplingElPhWan,
+                VectorBTE* linewidth) {
 
   // TODO wish there was a good way to not always call matrix.getPh or El bandstruct
   // should we use exclude indices in here?
 
   Particle elParticle(Particle::electron);
-  InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
-  ElectronH0Wannier *electronH0 = matrix.electronH0;
-  int numAtoms = matrix.getPhBandStructure().getPoints().getCrystal().getNumAtoms();
+  //InteractionElPhWan* couplingElPhWan = matrix.couplingElPhWan;
+  //ElectronH0Wannier* electronH0 = matrix.electronH0;
+  int numAtoms = phBandStructure.getPoints().getCrystal().getNumAtoms();
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
-  DeltaFunction *smearing = matrix.smearing;
+  DeltaFunction* smearing = matrix.smearing;
 
   Eigen::VectorXd temperatures(numCalculations);
   for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
@@ -35,11 +39,11 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
   double norm = 1. / context.getKMesh().prod();
 
   // precompute Fermi-Dirac factors
-  int numKPoints = matrix.getElBandStructure().getNumPoints();
+  int numKPoints = elBandStructure.getNumPoints();
   int nb1Max = 0;
   for (int ik=0; ik<numKPoints; ++ik) {
     WavevectorIndex ikIdx(ik);
-    nb1Max = std::max(nb1Max, int(matrix.getElBandStructure().getEnergies(ikIdx).size()));
+    nb1Max = std::max(nb1Max, int(elBandStructure.getEnergies(ikIdx).size()));
   }
 
   // NOTE statistics sweep is the one for electrons
@@ -51,7 +55,7 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
   #pragma omp parallel for
   for (int ik : mpi->divideWorkIter(numKPoints)) {
     WavevectorIndex ikIdx(ik);
-    Eigen::VectorXd energies = matrix.getElBandStructure().getEnergies(ikIdx);
+    Eigen::VectorXd energies = elBandStructure.getEnergies(ikIdx);
     int nb1 = energies.size();
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto calcStat = matrix.statisticsSweep.getCalcStatistics(iCalc);
@@ -65,17 +69,17 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
   mpi->allReduceSum(&fermiTerm);
 
   // precompute the q-dependent part of the polar correction ---------
-  int numQPoints = matrix.getPhBandStructure().getNumPoints();
-  auto qPoints = matrix.getPhBandStructure().getPoints();
+  int numQPoints = phBandStructure.getNumPoints();
+  auto qPoints = phBandStructure.getPoints();
   // we just set this to the largest possible number of phonons
-  int nb3Max = 3 * matrix.getPhBandStructure().getPoints().getCrystal().getNumAtoms();
+  int nb3Max = 3 * phBandStructure.getPoints().getCrystal().getNumAtoms();
   Eigen::MatrixXcd polarData(numQPoints, nb3Max);
   polarData.setZero();
   #pragma omp parallel for
   for (int iq : mpi->divideWorkIter(numQPoints)){
     WavevectorIndex iqIdx(iq);
-    auto q3C = matrix.getPhBandStructure().getWavevector(iqIdx);
-    auto ev3 = matrix.getPhBandStructure().getEigenvectors(iqIdx);
+    auto q3C = phBandStructure.getWavevector(iqIdx);
+    auto ev3 = phBandStructure.getEigenvectors(iqIdx);
     Eigen::VectorXcd thisPolar = couplingElPhWan->polarCorrectionPart1(q3C, ev3);
     for (int i=0; i<thisPolar.size(); ++i) {
       polarData(iq, i) = thisPolar(i);
@@ -120,16 +124,16 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
     }
 
     // store k1 energies, velocities, eigenvectors from elBandstructure
-    Eigen::Vector3d k1C = matrix.getElBandStructure().getWavevector(ik1Idx);
-    Eigen::VectorXd state1Energies = matrix.getElBandStructure().getEnergies(ik1Idx);
+    Eigen::Vector3d k1C = elBandStructure.getWavevector(ik1Idx);
+    Eigen::VectorXd state1Energies = elBandStructure.getEnergies(ik1Idx);
     auto nb1 = int(state1Energies.size());
-    Eigen::MatrixXd v1s = matrix.getElBandStructure().getGroupVelocities(ik1Idx);
-    Eigen::MatrixXcd eigenVector1 = matrix.getElBandStructure().getEigenvectors(ik1Idx);
+    Eigen::MatrixXd v1s = elBandStructure.getGroupVelocities(ik1Idx);
+    Eigen::MatrixXcd eigenVector1 = elBandStructure.getEigenvectors(ik1Idx);
     // unlike in el-ph scattering, here we only loop over irr points.
     // This means we need to multiply by the weights of the irr k1s
     // in our integration over the BZ. This returns the list of kpoints
     // that map to this irr kpoint
-    double k1Weight = matrix.getElBandStructure().getPoints().
+    double k1Weight = elBandStructure.getPoints().
                                 getReducibleStarFromIrreducible(ik1).size();
 
     // precompute first fourier transform + rotation by k1
@@ -164,8 +168,8 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
         WavevectorIndex iq3Idx(iq3);
 
         allPolarData[iq3Batch] = polarData.row(iq3);
-        allEigenVectors3[iq3Batch] = matrix.getPhBandStructure().getEigenvectors(iq3Idx);
-        allQ3C[iq3Batch] = matrix.getPhBandStructure().getWavevector(iq3Idx);
+        allEigenVectors3[iq3Batch] = phBandStructure.getEigenvectors(iq3Idx);
+        allQ3C[iq3Batch] = phBandStructure.getWavevector(iq3Idx);
       }
 
       // precompute the k2 indices such that k2-k1=q3, where k1 is fixed
@@ -175,7 +179,7 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
 
         int iq3 = iq3Indexes[start + iq3Batch];
         auto iq3Index = WavevectorIndex(iq3);
-        Eigen::Vector3d q3C = matrix.getPhBandStructure().getWavevector(iq3Index);
+        Eigen::Vector3d q3C = phBandStructure.getWavevector(iq3Index);
 
         // k' = k + q : phonon absorption
         Eigen::Vector3d k2C = q3C + k1C;
@@ -207,7 +211,7 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
         Eigen::VectorXd state2Energies = allStates2Energies[iq3Batch];
         auto nb2 = int(state2Energies.size());
         // for gpu would replace with compute OTF
-        Eigen::VectorXd state3Energies = matrix.getPhBandStructure().getEnergies(iq3Idx); // iq3Idx
+        Eigen::VectorXd state3Energies = phBandStructure.getEnergies(iq3Idx); // iq3Idx
 
         // NOTE: these loops are already set up to be applicable to gpus
         // the precomputaton of the smearing values and the open mp loops could
@@ -256,12 +260,12 @@ void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
-            int is3 = matrix.getPhBandStructure().getIndex(iq3Idx, BandIndex(ib3));
+            int is3 = phBandStructure.getIndex(iq3Idx, BandIndex(ib3));
             // the BTE index is an irr point which indexes VectorBTE objects
             // like the linewidths + scattering matrix -- as these are
             // only allocated for irr points when sym is on
             StateIndex isIdx3(is3);
-            BteIndex ibteIdx3= matrix.getPhBandStructure().stateToBte(isIdx3);
+            BteIndex ibteIdx3 = phBandStructure.stateToBte(isIdx3);
             int ibte3 = ibteIdx3.get();
 
             for (int ib1 = 0; ib1 < nb1; ib1++) {

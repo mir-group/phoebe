@@ -4,14 +4,14 @@
 #include "electron_h0_wannier.h"
 #include "interaction_elph.h"
 #include "phonon_h0.h"
-#include "scattering_matrix.h"
+#include "base_el_scattering_matrix.h"
 #include "vector_bte.h"
 
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
  * We also include boundary scattering effects.
  */
-class ElScatteringMatrix : public ScatteringMatrix {
+class ElScatteringMatrix : virtual public BaseElScatteringMatrix {
 public:
   /** Default constructor
    *
@@ -34,8 +34,9 @@ public:
                      InteractionElPhWan *couplingElPhWan_ = nullptr);
 
 protected:
+
   InteractionElPhWan *couplingElPhWan;
-  PhononH0 &h0;
+  PhononH0 &phononH0;
 
   /** Function with the detailed calculation of the scattering matrix.
    *
@@ -50,25 +51,29 @@ protected:
   void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
-
+  // TODO write docstrings for these
   // friend functions for adding scattering rates,
   // these live in el_scattering.cpp
 
- // TODO finish adding doxygen strings to these
-  /**
-   * @param matrix: a el scattering matrix object
-   * @param context: object with user parameters for this calculation
-   * @param inPopulations:
-   * */
-
-  friend void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
+  friend void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations,
-                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                        int &switchCase,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                        Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
+                       BaseBandStructure &outerBandStructure,
+                       PhononH0 &phononH0,
+                       InteractionElPhWan *couplingElPhWan,
+                       VectorBTE *linewidth);
+
+  friend void addDragTerm(BaseElScatteringMatrix &matrix, Context &context,
+                  std::vector<std::tuple<std::vector<int>, int>> kqPairIterator,
+                  int dragTermType,
+                  ElectronH0Wannier* electronH0,
+                  InteractionElPhWan *couplingElPhWan,
+                  BaseBandStructure &innerBandStructure,
+                  BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
 
 };
 

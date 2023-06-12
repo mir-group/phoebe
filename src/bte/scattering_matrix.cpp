@@ -50,9 +50,10 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     return;
   }
 
-  // we only output U and N in RTA, as otherwise we would need to do
+  // we only output U and N in RTA, as otherwise we would need to do either:
   // 1) the full scattering matrix calc multiple times
-  // 2) store 3 copies of the scattering matrix, both of which are bad options
+  // 2) store 3 copies of the scattering matrix, 
+  // both of which are bad options
   if ( context.getOutputUNTimes() ) {
 
     outputUNTimes = true;
@@ -1342,9 +1343,8 @@ void ScatteringMatrix::symmetrizeCoupling(Eigen::Tensor<double,3>& coupling,
   }
 }
 
-
+// helper to precompute particle occupations 
 Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandStructure) {
-                                 //     StatisticsSweep &statisticsSweep) {
 
   int numCalculations = statisticsSweep.getNumCalculations();
   auto numIrrStates = int(bandStructure.irrStateIterator().size());

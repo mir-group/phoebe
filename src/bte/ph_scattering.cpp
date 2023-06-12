@@ -15,8 +15,10 @@
 // auxiliary variable for deciding how to apply low energy cutoff
 const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small
 
+// TODO check to see how we can simplify this function  
+
 // function to add phph scattering to a scattering matrix
-void addPhPhScattering(PhScatteringMatrix &matrix, Context &context, 
+void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context, 
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations, 
                                  int &switchCase, 
@@ -24,6 +26,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
                                  Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                  BaseBandStructure &innerBandStructure,
                                  BaseBandStructure &outerBandStructure,
+                                 PhononH0* phononH0, 
+                                 Interaction3Ph *coupling3Ph, 
                                  VectorBTE *linewidth) {
   
   // notes: + process is (1+2) -> 3
@@ -33,8 +37,8 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices; 
   DeltaFunction *smearing = matrix.smearing; 
-  Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
-  PhononH0 *h0 = matrix.h0;
+  // Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
+  //  PhononH0 *h0 = matrix.h0;
   bool outputUNTimes = matrix.outputUNTimes;
 
   // determine if this is lifetimes on a path or regular mesh
@@ -53,7 +57,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
   double norm = 1. / context.getQMesh().prod();
 
   Helper3rdState pointHelper(innerBandStructure, outerBandStructure, outerBose,
-                             matrix.statisticsSweep, smearing->getType(), h0);
+                             matrix.statisticsSweep, smearing->getType(), phononH0);
   LoopPrint loopPrint("computing ph-ph contribution to scattering matrix", "q-point pairs",
                       int(qPairIterator.size()));
 
@@ -521,7 +525,7 @@ void addPhPhScattering(PhScatteringMatrix &matrix, Context &context,
 
 // ISOTOPE SCATTERING =====================================================
 
-void addIsotopeScattering(PhScatteringMatrix &matrix, Context &context, 
+void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context, 
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations, int &switchCase, 
                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
