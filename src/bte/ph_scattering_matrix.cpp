@@ -79,7 +79,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(*this, context, inPopulations, outPopulations,
+      addBoundaryScattering(*this, context, qPairIterator, inPopulations, outPopulations,
                                   switchCase, outerBandStructure, linewidth);
     }
   }

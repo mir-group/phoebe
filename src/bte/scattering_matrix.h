@@ -167,7 +167,7 @@ public:
 
   /** Output relaxons scattering matrix quantities to file (particularly the tau values)
   * Jenny's note: However, I have a feeling this should be elsewhere, as we're actually passing
-  * the eigenvalues back into this function. 
+  * the eigenvalues back into this function.
   * @param fileName: the name of the file to write out to
   * @param eigenvalues: the tau values from a relaxons solve
   **/
@@ -309,6 +309,7 @@ public:
 
   // friend functions for scattering
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<std::tuple<std::vector<int>, int>> pairIterator,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,

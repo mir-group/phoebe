@@ -9,6 +9,7 @@
 // NOTE: this requires an allReduceSum afterwards on the linewidhts, as is
 // currently done after it is called in electron and phonon scattering matrices
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
+                                std::vector<std::tuple<std::vector<int>, int>> pairIterator,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,

@@ -70,10 +70,10 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
 
   // add scattering contributions ---------------------------------------
   // add elph scattering
-  // TODO are we sure this should get two Fermi's and not have one of them be a Bose? 
-  addElPhScattering(*this, context, inPopulations, outPopulations, switchCase, 
+  // TODO are we sure this should get two Fermi's and not have one of them be a Bose?
+  addElPhScattering(*this, context, inPopulations, outPopulations, switchCase,
                                   kPairIterator, innerFermi, outerFermi,
-                                  innerBandStructure, outerBandStructure, phononH0, 
+                                  innerBandStructure, outerBandStructure, phononH0,
                                   couplingElPhWan, linewidth);
 
   // TODO was there previously an all reduce between these two on
@@ -82,7 +82,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
-      addBoundaryScattering(*this, context, inPopulations, outPopulations,
+      addBoundaryScattering(*this, context, kPairIterator, inPopulations, outPopulations,
                             switchCase, outerBandStructure, linewidth);
     }
   }
