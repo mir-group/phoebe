@@ -17,31 +17,31 @@
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
 
-const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small
-// TODO why is this different from the phonon class's? 
-//   double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
+const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small ph energies
 
-void addElPhScattering(ElScatteringMatrix &matrix, Context &context, 
+void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context, 
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations, 
-                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
                        int &switchCase,                                 
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
                        Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
-                       BaseBandStructure &outerBandStructure, 
+                       BaseBandStructure &outerBandStructure,
+                       PhononH0 &phononH0,  
+                       InteractionElPhWan *couplingElPhWan,
                        VectorBTE *linewidth) {
 
   // TODO check that inner and outer here correc
 
   StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
   Particle particle = outerBandStructure.getParticle();
-  InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
+  //InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
   DeltaFunction *smearing = matrix.smearing; 
  
   // generate the intermediate points to be summed over
   bool rowMajor = true;
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                    statisticsSweep, smearing->getType(), matrix.h0, couplingElPhWan);
+                    statisticsSweep, smearing->getType(), phononH0, couplingElPhWan);
 
   bool withSymmetries = context.getUseSymmetries();
   int numCalculations = statisticsSweep.getNumCalculations();

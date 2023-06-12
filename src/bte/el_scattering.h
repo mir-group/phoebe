@@ -1,7 +1,7 @@
 #ifndef EL_SCATTERING_H
 #define EL_SCATTERING_H
 
-#include "el_scattering_matrix.h"
+#include "base_el_scattering_matrix.h"
 
 // friend functions for adding scattering rates,
 // these live in el_scattering.cpp
@@ -13,13 +13,16 @@
  * @param inPopulations:
  **/
 
-void addElPhScattering(ElScatteringMatrix &matrix, Context &context,
+void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                   std::vector<VectorBTE> &inPopulations,
                   std::vector<VectorBTE> &outPopulations,
-                  std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                   int &switchCase,
+                  std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                   Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                   BaseBandStructure &innerBandStructure,
-                  BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
+                  BaseBandStructure &outerBandStructure, 
+                  PhononH0 &phononH0, 
+                  InteractionElPhWan *couplingElPhWan,
+                  VectorBTE *linewidth);
 
 #endif

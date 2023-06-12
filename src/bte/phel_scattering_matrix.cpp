@@ -36,6 +36,7 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
                                            InteractionElPhWan *couplingElPhWan_,
                                            ElectronH0Wannier *electronH0_)
     : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
+     BasePhScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
       couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
   isMatrixOmega = true;
@@ -65,7 +66,9 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                                                 = getIrrWavevectorPairs();
 
   // compute the phonon electron lifetimes
-  addPhElScattering(*this, context, kqPairIterator, linewidth);
+  addPhElScattering(*this, context, kqPairIterator, 
+                        getElBandStructure(), getPhBandStructure(), 
+                        electronH0, couplingElPhWan, linewidth);
 
   // TODO could we compute boundary or isotope scattering_matrix.here?
   // I think they are diagonal terms, so this would work.

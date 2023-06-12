@@ -1,0 +1,73 @@
+#ifndef BASE_PH_SCATTERING_MATRIX_H
+#define BASE_PH_SCATTERING_MATRIX_H
+
+#include "interaction_elph.h"
+#include "interaction_3ph.h"
+#include "phonon_h0.h"
+#include "electron_h0_wannier.h"
+#include "scattering_matrix.h"
+#include "vector_bte.h"
+
+/** class representing the phonon scattering matrix.
+ * This class contains the logic to compute the phonon scattering matrix.
+ * The parent class ScatteringMatrix instead contains the logic for managing
+ * the operations with phonon distribution vectors.
+ */
+class BasePhScatteringMatrix : virtual public ScatteringMatrix {
+ public:
+  /** Default constructor
+   */
+  //BasePhScatteringMatrix(); 
+
+  //~BasePhScatteringMatrix() = default;
+
+  /** Constructor that just calls the constructor of scattering matrix */
+  BasePhScatteringMatrix(Context &context_,
+                                   StatisticsSweep &statisticsSweep_,
+                                   BaseBandStructure &innerBandStructure_,
+                                   BaseBandStructure &outerBandStructure_);
+
+  /** Getter functions to return intial and final banstructures */
+  //virtual BaseBandStructure initialPhBandStructure(); 
+  //virtual BaseBandStructure finalPhBandStructure(); 
+
+  //PhononH0 phononH0;
+
+ protected:
+
+ // friend functions for adding scattering rates,
+ // these live in ph_scattering.cpp
+ // TODO write docstrings for these
+
+  friend void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations,
+                                int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure,
+                                PhononH0* phononH0,
+                                Interaction3Ph *coupling3Ph,
+                                VectorBTE *linewidth);
+
+  friend void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
+                                std::vector<VectorBTE> &inPopulations,
+                                std::vector<VectorBTE> &outPopulations, int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
+                                Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
+                                BaseBandStructure &innerBandStructure,
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth);
+
+  friend void addPhElScattering(BasePhScatteringMatrix& matrix, Context& context,
+                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
+                BaseBandStructure& phBandStructure,
+                BaseBandStructure& elBandStructure,
+                ElectronH0Wannier* electronH0,
+                InteractionElPhWan* couplingElPhWan,
+                VectorBTE* linewidth);
+
+};
+
+#endif

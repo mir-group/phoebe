@@ -1,4 +1,4 @@
-#include "ph_scattering_matrix.h"
+//#include "ph_scattering_matrix.h"
 #include "constants.h"
 #include "helper_3rd_state.h"
 #include "io.h"
@@ -12,13 +12,15 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
                                        BaseBandStructure &innerBandStructure_,
                                        BaseBandStructure &outerBandStructure_,
                                        Interaction3Ph *coupling3Ph_,
-                                       PhononH0 *h0_)
+                                       PhononH0 *phononH0_)
     : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
-      coupling3Ph(coupling3Ph_), h0(h0_) {
+     BasePhScatteringMatrix(context_, statisticsSweep_, innerBandStructure_, outerBandStructure_),
+      coupling3Ph(coupling3Ph_), phononH0(phononH0_) {
 
-  if (&innerBandStructure != &outerBandStructure && h0 == nullptr) {
-    Error("Developer error: PhScatteringMatrix needs h0 for incommensurate grids");
+  if (&innerBandStructure != &outerBandStructure && phononH0 == nullptr) {
+    Error("Developer error: PhScatteringMatrix needs phononh0 for incommensurate grids");
   }
+
 }
 
 void PhScatteringMatrix::builder(VectorBTE *linewidth,
@@ -35,7 +37,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   int switchCase = 0;
   if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() &&
       outPopulations.empty()) {
-    switchCase = 0;
+    switchCase = 0;  // build matrix and linewidths
   } else if (theMatrix.rows() == 0 && linewidth == nullptr &&
              !inPopulations.empty() && !outPopulations.empty()) {
     switchCase = 1;
@@ -65,7 +67,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                   switchCase, qPairIterator,
                                   innerBose, outerBose,
                                   innerBandStructure, outerBandStructure,
-                                  linewidth);
+                                  phononH0, coupling3Ph, linewidth);
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
     addIsotopeScattering(*this, context, inPopulations, outPopulations,

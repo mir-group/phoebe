@@ -3,7 +3,7 @@
 
 #include "electron_h0_wannier.h"
 #include "phonon_h0.h"
-#include "scattering_matrix.h"
+#include "base_ph_scattering_matrix.h"
 #include "vector_bte.h"
 #include "interaction_elph.h"
 //#include "phel_scattering.cpp"
@@ -12,7 +12,7 @@
  * The most important part is the assembly of the electron-phonon scattering.
  * We also include boundary scattering effects.
  */
-class PhElScatteringMatrix : public ScatteringMatrix {
+class PhElScatteringMatrix : public BasePhScatteringMatrix {
 public:
 
   /** Default constructor
@@ -64,8 +64,13 @@ protected:
   // TODO describe this function
   std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
 
-  friend void addPhElScattering(PhElScatteringMatrix &matrix, Context &context,
-                 std::vector<std::tuple<int, std::vector<int>>> kqPairs, VectorBTE *linewidth);
+  friend void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
+                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
+                BaseBandStructure &phBandStructure,
+                BaseBandStructure &elBandStructure,
+                ElectronH0Wannier* electronH0,
+                InteractionElPhWan *couplingElPhWan,
+                VectorBTE *linewidth);
 
 };
 

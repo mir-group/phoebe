@@ -50,9 +50,10 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
     return;
   }
 
-  // we only output U and N in RTA, as otherwise we would need to do
+  // we only output U and N in RTA, as otherwise we would need to do either:
   // 1) the full scattering matrix calc multiple times
-  // 2) store 3 copies of the scattering matrix, both of which are bad options
+  // 2) store 3 copies of the scattering matrix, 
+  // both of which are bad options
   if ( context.getOutputUNTimes() ) {
 
     outputUNTimes = true;
