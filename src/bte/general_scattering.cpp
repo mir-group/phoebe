@@ -12,13 +12,15 @@
 // only linewidth is passed: we compute only the linewidths
 
 // BOUNDARY SCATTERING ==============================================
+// Important NOTE: this is looped over parallel Irr states,
+// so after using it, one must call allReduceSum on the linewidths,
+// as is currently done in electron and phonon scattering matrixes
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,
                                 BaseBandStructure &outerBandStructure,
                                 VectorBTE *linewidth) {
-
   if(mpi->mpiHead()) {
     std::cout <<
         "Adding boundary scattering to the scattering matrix." << std::endl;
