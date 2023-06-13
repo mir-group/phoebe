@@ -16,7 +16,7 @@
 // so after using it, one must call allReduceSum on the linewidths,
 // as is currently done in electron and phonon scattering matrixes
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                std::vector<std::tuple<std::vector<int>, int>> pairIterator,
+                                //std::vector<std::tuple<std::vector<int>, int>> pairIterator,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,
@@ -38,20 +38,10 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
   // loop over only parallel states, because later the linewidths will be allReduceSum'd
   std::vector<int> is1s = bandStructure.parallelIrrStateIterator();
 
-//  #pragma omp parallel for default(none) shared(                            \
-//   bandStructure, numCalculations, statisticsSweep, boundaryLength,   \
-//   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices, pairIterator)
+  #pragma omp parallel for default(none) shared(                            \
+   bandStructure, numCalculations, statisticsSweep, boundaryLength,   \
+   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices, is1s)
   for (int is1 : is1s ) {
-  //for ( auto isPair : pairIterator ) {
-
-   // std::vector<int> iStates1 = std::get<0>(isPair);
-   // int is2 = std::get<1>(isPair);
-
-    // we want just diagonal states, so we check the list for them
-    //for (int is1 : iStates1) {
-
-      // if this isn't a state along the diagonal skip it
-//      if(is1 != is2) { continue; }
 
       StateIndex is1Idx(is1);
       auto vel = bandStructure.getGroupVelocity(is1Idx);
@@ -75,7 +65,6 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
           rate = vel.squaredNorm() / boundaryLength * termPop;
         } else {
           rate = vel.squaredNorm() / boundaryLength;
-      std::cout << is1 << " rate " << rate << " " << vel.squaredNorm() <<  "  " << boundaryLength  << std::endl;
         }
 
         if (switchCase == 0) {// case of matrix construction

@@ -17,27 +17,25 @@
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
 
-const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small ph energies
+const double phEnergyCutoff = 5 / ryToCmm1; // discard states with small ph energies
 
-void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context, 
+void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,
-                       std::vector<VectorBTE> &outPopulations, 
-                       int &switchCase,                                 
-                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator, 
+                       std::vector<VectorBTE> &outPopulations,
+                       int &switchCase,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                        Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure,
-                       PhononH0 &phononH0,  
+                       PhononH0 &phononH0,
                        InteractionElPhWan *couplingElPhWan,
                        VectorBTE *linewidth) {
-
-  // TODO check that inner and outer here correc
 
   StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
   Particle particle = outerBandStructure.getParticle();
   //InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
-  DeltaFunction *smearing = matrix.smearing; 
- 
+  DeltaFunction *smearing = matrix.smearing;
+
   // generate the intermediate points to be summed over
   bool rowMajor = true;
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
@@ -49,7 +47,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   double norm = 1. / context.getKMesh().prod();
 
-  LoopPrint loopPrint("computing el-ph contribution to the scattering matrix", 
+  LoopPrint loopPrint("computing el-ph contribution to the scattering matrix",
                                         "k-points", int(kPairIterator.size()));
 
   for (auto t1 : kPairIterator) {
@@ -244,6 +242,9 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                       coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
                       * norm / en3 * pi;
 
+                //std::cout << rate << " "<<  iBte1 << " " << iBte2 << " " << ib1 << " " << ib2 << " " << ib3 << " " << coupling(ib1, ib2, ib3) << " "
+                //        << bose3Symm << " " << delta1 << " " << delta2 << " " << norm << " " << en3 << " " << fermi2 << " " << bose3 << std::endl;
+
                 // double rateOffDiagonal = -
                 // coupling(ib1, ib2, ib3)
                 // * ((1 + bose3 - fermi1) * delta1 + (bose3 + fermi1) * delta2)
@@ -269,10 +270,10 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                         }
                       }
                     }
-                  } else {  
-                    // Note: we double check that the indices are local, 
-                    // but because we selected pairs which were local to supply to the function call, 
-                    // this isn't really necessary   
+                  } else {
+                    // Note: we double check that the indices are local,
+                    // but because we selected pairs which were local to supply to the function call,
+                    // this isn't really necessary
                     if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
                       matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
