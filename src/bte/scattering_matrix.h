@@ -25,7 +25,8 @@ public:
    */
   ScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
                    BaseBandStructure &innerBandStructure_,
-                   BaseBandStructure &outerBandStructure_);
+                   BaseBandStructure &outerBandStructure_, 
+                   bool isCoupled = false);
 
   /** Destructor
    */
@@ -228,7 +229,6 @@ public:
   ParallelMatrix<double> theMatrix;
 
   int numStates; // number of Bloch states (i.e. the size of theMatrix)
-  int numPoints; // number of wavevectors
   int numCalculations;  // number of "Calculations", i.e. number of temperatures and
   // chemical potentials on which we compute scattering.
   int dimensionality_;

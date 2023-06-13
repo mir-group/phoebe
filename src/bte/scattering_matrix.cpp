@@ -13,14 +13,14 @@
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
                                    BaseBandStructure &innerBandStructure_,
-                                   BaseBandStructure &outerBandStructure_)
+                                   BaseBandStructure &outerBandStructure_, 
+                                   bool isCoupled)
     : context(context_), statisticsSweep(statisticsSweep_),
       innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_),
       internalDiagonal(statisticsSweep, outerBandStructure, 1) {
 
   numStates = int(outerBandStructure.irrStateIterator().size());
-  numPoints = int(outerBandStructure.irrPointsIterator().size());
   numCalculations = statisticsSweep.getNumCalculations();
 
   dimensionality_ = int(context.getDimensionality());
@@ -33,6 +33,7 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
       auto iBteIdx = BteIndex(iBte);
       StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
       double en = outerBandStructure.getEnergy(isIdx);
+      // TODO need to standardize this
       if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
         excludeIndices.push_back(iBte);
       }
