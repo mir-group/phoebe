@@ -59,6 +59,6 @@ export LIBRARY_PATH=/path/to/libgfortran/
 If using homebrew installed gcc, you might need to add the cellar copy rather than the
 one located with gcc:
 ```
-export LIBRARY_PATH=/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/
+export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/Cellar/gcc/12.2.0/lib/gcc/12/
 ```
 
