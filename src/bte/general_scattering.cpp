@@ -39,7 +39,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
 
   #pragma omp parallel for default(none) shared(                            \
    bandStructure, numCalculations, statisticsSweep, boundaryLength,   \
-   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices, is1s)
+   particle, outPopulations, inPopulations, linewidth, switchCase, excludeIndices, is1s, matrix)
   for (int is1 : is1s ) {
 
       StateIndex is1Idx(is1);
@@ -50,7 +50,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
       if(matrix.isCoupled) {
         std::tuple<int,int> tup =
                matrix.shiftToCoupledIndices(iBte1, iBte1, particle, particle);
-        iBte1 = std::get<0>(tup); // this time we only need diagonal 
+        iBte1 = std::get<0>(tup); // this time we only need diagonal
       }
 
       // this applies only to phonons
