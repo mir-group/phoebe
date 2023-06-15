@@ -28,6 +28,8 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 
   // we want to know the state index of acoustic modes at gamma,
   // so that we can set their populations to zero
+  // TODO shouldn't we check both bandstructures? 
+  // Or move this to specific subclasses
   if (outerBandStructure.getParticle().isPhonon()) {
     for (int iBte = 0; iBte < numStates; iBte++) {
       auto iBteIdx = BteIndex(iBte);
@@ -911,8 +913,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto tup2 = getSMatrixIndex(iMat2);
           BteIndex iBte1 = std::get<0>(tup1);
           BteIndex iBte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to band structure
-          // index
+          // map the index on the irr points of BTE to band structure index
           StateIndex is1 = outerBandStructure.bteToState(iBte1);
           StateIndex is2 = outerBandStructure.bteToState(iBte2);
           auto tuple1 = outerBandStructure.getIndex(is1);
@@ -921,8 +922,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           WavevectorIndex ik2Index = std::get<0>(tuple2);
           int ik1Irr = ik1Index.get();
           int ik2Irr = ik2Index.get();
-          for (int ik2 :
-               outerBandStructure.getReducibleStarFromIrreducible(ik2Irr)) {
+          for (int ik2 : outerBandStructure.getReducibleStarFromIrreducible(ik2Irr)) {
             std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
             localPairsPrivate.push_back(xx);
           }
@@ -1098,8 +1098,7 @@ int ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex,
   }
 }
 
-std::tuple<BteIndex, CartIndex>
-ScatteringMatrix::getSMatrixIndex(const int &iMat) {
+std::tuple<BteIndex, CartIndex> ScatteringMatrix::getSMatrixIndex(const int &iMat) {
   if (context.getUseSymmetries()) {
     auto t = decompress2Indices(iMat, numStates, 3);
     return std::make_tuple(BteIndex(std::get<0>(t)), CartIndex(std::get<1>(t)));
@@ -1372,3 +1371,37 @@ Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandS
   mpi->allReduceSum(&occupations);
   return occupations;
 }
+
+std::vector<int> ScatteringMatrix::getExcludeIndices(BaseBandStructure& bandStructure) {
+  // we want to know the state index of acoustic modes at gamma,
+  // so that we can set their populations to zero
+  std::vector<int> indices; 
+  int bsNumStates = int(bandStructure.irrStateIterator().size());
+  if (bandStructure.getParticle().isPhonon()) {
+    for (int iBte = 0; iBte < bsNumStates; iBte++) {
+      auto iBteIdx = BteIndex(iBte);
+      StateIndex isIdx = bandStructure.bteToState(iBteIdx);
+      double en = bandStructure.getEnergy(isIdx);
+      // TODO need to standardize this
+      if (en < 0.1 / ryToCmm1) { // cutoff at 0.1 cm^-1
+        indices.push_back(iBte);
+      }
+
+      Eigen::Vector3d k = bandStructure.getWavevector(isIdx);
+      if (k.squaredNorm() > 1e-8 && en < 0.) {
+        Warning("Found a phonon mode q!=0 with negative energies."
+                "omega = " + std::to_string(en) + 
+                "k = " + std::to_string(k[0]) + std::to_string(k[1]) + std::to_string(k[2]) +
+                "Consider improving the quality of your DFT phonon calculation.\n");
+      }
+    }
+  }
+  return indices;
+}
+
+std::tuple<int,int> ScatteringMatrix::shiftToCoupledIndices(
+                                        int iBte1, int iBte2, Particle p1, Particle p2) {
+  return std::make_tuple(iBte1, iBte2);
+}
+
+

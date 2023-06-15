@@ -40,6 +40,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
   // Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
   //  PhononH0 *h0 = matrix.h0;
   bool outputUNTimes = matrix.outputUNTimes;
+  Particle particle = innerBandStructure.getParticle();
 
   // determine if this is lifetimes on a path or regular mesh
   bool outerEqualInnerMesh = false; // case of lifetimes on a path
@@ -287,6 +288,15 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     couplingPlus(ib1, ib2, ib3) * deltaPlus *
                     norm / enProd;
 
+                if(matrix.isCoupled) {
+                  std::tuple<int,int> tup =  
+                        matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
+                  iBte1 = std::get<0>(tup);
+                  iBte2 = std::get<1>(tup); 
+                  iBte1Idx = BteIndex(iBte1);
+                  iBte2Idx = BteIndex(iBte2);
+                }
+
                 if (switchCase == 0) { // case of matrix construction
                   if (context.getUseSymmetries()) {
                     for (int i : {0, 1, 2}) {
@@ -300,8 +310,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                             linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                           }
                           if (is1 != is2Irr) {
-                            matrix.theMatrix(iMat1, iMat2) +=
-                                rotation.inverse()(i, j) * ratePlus;
+                            matrix.theMatrix(iMat1, iMat2) += rotation.inverse()(i, j) * ratePlus;
                           }
                         }
                       }
@@ -547,6 +556,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
   // generate basic properties from the function arguments 
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
+  Particle particle = innerBandStructure.getParticle();
 
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
@@ -596,6 +606,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
 
     // this index is MPI parallelized over
     for (auto iq1 : iq1Indexes) {
+
       WavevectorIndex iq1Index(iq1);
 
       // note: for computing linewidths on a path, we must distinguish
@@ -620,11 +631,13 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
         // stop the calculation for indices which are 
         // acoustic modes at the gamma point 
         if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
-            excludeIndices.end())
+            excludeIndices.end()) {
           continue;
+        }
         if (en1 < phEnergyCutoff) {  continue; }
 
         for (int ib2 = 0; ib2 < nb2; ib2++) {
+
           double en2 = state2Energies(ib2);
           int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
                                                      BandIndex(ib2));
@@ -634,13 +647,12 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           StateIndex is2Idx(is2);
           int iBte2 = innerBandStructure.stateToBte(is2IrrIdx).get();
 
+          // remove gamma point acoustic phonon frequencies 
           if (std::find(excludeIndices.begin(), excludeIndices.end(),
-                          iBte2) != excludeIndices.end())
-            continue;
-
-          if (en2 < phEnergyCutoff) {
+                          iBte2) != excludeIndices.end()) {
             continue;
           }
+          if (en2 < phEnergyCutoff) { continue; }
 
           double deltaIso;
           if (smearing->getType() == DeltaFunction::gaussian) {
@@ -663,13 +675,20 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           }
           termIso *= pi * 0.5 * norm * en1 * en2 * deltaIso;
 
-
           for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
             double bose1 = outerBose(iCalc, iBte1);
             double bose2 = innerBose(iCalc, iBte2);
 
-            double rateIso =
-                termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+            double rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
+
+            // shift the indices if it's necessary
+            if(matrix.isCoupled) {
+              std::tuple<int,int> tup =
+                    matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
+              iBte1 = std::get<0>(tup);
+              iBte2 = std::get<1>(tup);
+            }
 
             if (switchCase == 0) { // case of matrix construction
               if (context.getUseSymmetries()) {

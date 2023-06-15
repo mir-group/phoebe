@@ -220,6 +220,9 @@ public:
   // In the case of electrons, A_out = linewidht
   bool isMatrixOmega = false; // whether the matrix is Omega or A
 
+  // if we're using the coupled matrix, we need to use this to 
+  // save the scattering rates differently
+  bool isCoupled = false;
 
   // we save the diagonal matrix element in a dedicated vector
   VectorBTE internalDiagonal;
@@ -299,13 +302,28 @@ public:
    */
   VectorBTE getTimesFromVectorBTE(VectorBTE& diagonal);
 
-
   /** Function to precompute particle populations before scattering rates
    * are calculated.
    * @param Bandstructure: bandstructure of the particle species
    * @return MatrixXd occupationFactors: contains the occupations for all states
    */
   Eigen::MatrixXd precomputeOccupations(BaseBandStructure &bandStructure);
+
+  /** Method which for a phonon bandstructure returns the indices to be 
+  * discarded in a phonon calculation due to very low phonon frequencies
+  * @param bandStructure: bandstructure to compute indices for 
+  * @return excludeIndices: the irr indices to be excluded in ph calculations 
+  */
+  std::vector<int> getExcludeIndices(BaseBandStructure& bandStructure);
+
+  /* If we have a coupled scattering matrix, we need to shift the bte indices
+  * before using them, to correspond to the quadrant of the smatrix for ee, pp, ep, or pe 
+  * rates. Otherwise, this function does nothing.
+  * @param iBte1, iBte2: the bte indices used to index this quadrant.
+  * @param p1, p2: the particle types indicating the desired quadrant 
+  * @return: a tuple containing the shifted indices 
+  */
+  std::tuple<int,int> shiftToCoupledIndices(int iBte1, int iBte2, Particle p1, Particle p2); 
 
   // friend functions for scattering
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,

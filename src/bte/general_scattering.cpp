@@ -16,7 +16,6 @@
 // so after using it, one must call allReduceSum on the linewidths,
 // as is currently done in electron and phonon scattering matrixes
 void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
-                                //std::vector<std::tuple<std::vector<int>, int>> pairIterator,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,
@@ -46,6 +45,13 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
       StateIndex is1Idx(is1);
       auto vel = bandStructure.getGroupVelocity(is1Idx);
       int iBte1 = bandStructure.stateToBte(is1Idx).get();
+
+      // shift the indices if it's necessary
+      if(matrix.isCoupled) {
+        std::tuple<int,int> tup =
+               matrix.shiftToCoupledIndices(iBte1, iBte1, particle, particle);
+        iBte1 = std::get<0>(tup); // this time we only need diagonal 
+      }
 
       // this applies only to phonons
       if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) != excludeIndices.end()) {
@@ -82,7 +88,6 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
         }
       }
     }
- // }
   Kokkos::Profiling::popRegion();
 }
 
