@@ -15,11 +15,6 @@
  */
 class BasePhScatteringMatrix : virtual public ScatteringMatrix {
  public:
-  /** Default constructor
-   */
-  //BasePhScatteringMatrix(); 
-
-  //~BasePhScatteringMatrix() = default;
 
   /** Constructor that just calls the constructor of scattering matrix */
   BasePhScatteringMatrix(Context &context_,
@@ -27,18 +22,10 @@ class BasePhScatteringMatrix : virtual public ScatteringMatrix {
                                    BaseBandStructure &innerBandStructure_,
                                    BaseBandStructure &outerBandStructure_);
 
-  /** Getter functions to return intial and final banstructures */
-  //virtual BaseBandStructure initialPhBandStructure(); 
-  //virtual BaseBandStructure finalPhBandStructure(); 
-
-  //PhononH0 phononH0;
-
  protected:
 
- // friend functions for adding scattering rates,
- // these live in ph_scattering.cpp
- // TODO write docstrings for these
-
+  // friend functions for adding scattering rates,
+  // these live in ph_scattering.cpp, descriptions in ph_scattering.h
   friend void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
                                 std::vector<VectorBTE> &outPopulations,
