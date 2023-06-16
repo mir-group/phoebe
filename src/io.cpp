@@ -231,7 +231,7 @@ void LoopPrint::update(const bool &withTimeEstimate) {
     strftime(s, 200, "%F, %T", p);
 
     time_delta elapsedTime = currentTime - initialTime;
-    double timeLeft;
+    double timeLeft = 0;
 
     if (currentStep == 2) { // we compare with the third step
       deltaTime = elapsedTime;

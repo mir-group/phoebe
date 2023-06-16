@@ -24,7 +24,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &outPopulations,
                        int &switchCase,
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
-                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       Eigen::MatrixXd &innerFermi, //Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,
@@ -32,12 +32,9 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        VectorBTE *linewidth) {
 
   StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
-  Particle particle = outerBandStructure.getParticle();
-  //InteractionElPhWan *couplingElPhWan = matrix.couplingElPhWan;
   DeltaFunction *smearing = matrix.smearing;
 
   // generate the intermediate points to be summed over
-  bool rowMajor = true;
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
                     statisticsSweep, smearing->getType(), phononH0, couplingElPhWan);
 

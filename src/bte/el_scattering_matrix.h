@@ -60,7 +60,7 @@ protected:
                        std::vector<VectorBTE> &outPopulations,
                        int &switchCase,
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
-                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       Eigen::MatrixXd &innerFermi, //Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,

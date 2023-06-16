@@ -446,7 +446,7 @@ ElectronH0Fourier::getGroupVelocityFromCoordinates(Eigen::Vector3d &wavevector,
 }
 
 StridedComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
-    const DoubleView2D &cartesianCoordinates) {
+  [[maybe_unused]] const DoubleView2D &cartesianCoordinates) {
   Error("Kokkos not implemented in ElectronH0Fourier");
   // dummy return to silence a warning
   StridedComplexView3D temp;
@@ -455,7 +455,7 @@ StridedComplexView3D ElectronH0Fourier::kokkosBatchedBuildBlochHamiltonian(
 
 std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D>
 ElectronH0Fourier::kokkosBatchedDiagonalizeWithVelocities(
-    const DoubleView2D &cartesianCoordinates) {
+  [[maybe_unused]]  const DoubleView2D &cartesianCoordinates) {
   Error("Kokkos not implemented in ElectronH0Fourier");
   std::tuple<DoubleView2D, StridedComplexView3D, ComplexView4D> temp;
   return temp;
@@ -463,7 +463,7 @@ ElectronH0Fourier::kokkosBatchedDiagonalizeWithVelocities(
 
 std::tuple<DoubleView2D, StridedComplexView3D>
 ElectronH0Fourier::kokkosBatchedDiagonalizeFromCoordinates(
-    const DoubleView2D &cartesianCoordinates, const bool withMassScaling) {
+  [[maybe_unused]]  const DoubleView2D &cartesianCoordinates, [[maybe_unused]] const bool withMassScaling) {
   Error("Kokkos not implemented in ElectronH0Fourier");
   std::tuple<DoubleView2D, StridedComplexView3D> temp;
   return temp;

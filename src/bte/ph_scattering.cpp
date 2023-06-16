@@ -15,30 +15,28 @@
 // auxiliary variable for deciding how to apply low energy cutoff
 const double phEnergyCutoff = 0.001 / ryToCmm1; // discard states with small
 
-// TODO check to see how we can simplify this function  
+// TODO check to see how we can simplify this function
 
 // function to add phph scattering to a scattering matrix
-void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context, 
+void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                                  std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations, 
-                                 int &switchCase, 
-                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                 std::vector<VectorBTE> &outPopulations,
+                                 int &switchCase,
+                                 std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
                                  Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                  BaseBandStructure &innerBandStructure,
                                  BaseBandStructure &outerBandStructure,
-                                 PhononH0* phononH0, 
-                                 Interaction3Ph *coupling3Ph, 
+                                 PhononH0* phononH0,
+                                 Interaction3Ph *coupling3Ph,
                                  VectorBTE *linewidth) {
-  
+
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
 
   // copy a few small things that don't take
   // much memory but will keep the code easier to read
-  auto excludeIndices = matrix.excludeIndices; 
-  DeltaFunction *smearing = matrix.smearing; 
-  // Interaction3Ph *coupling3Ph = matrix.coupling3Ph;
-  //  PhononH0 *h0 = matrix.h0;
+  auto excludeIndices = matrix.excludeIndices;
+  DeltaFunction *smearing = matrix.smearing;
   bool outputUNTimes = matrix.outputUNTimes;
   Particle particle = innerBandStructure.getParticle();
 
@@ -49,8 +47,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
     outerEqualInnerMesh = true;
   }
 
-  // generate basic properties from the function arguments 
-  int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
+  // generate basic properties from the function arguments
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
 
   // note: innerNumFullPoints is the number of points in the full grid
@@ -176,7 +173,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
 
       // calculate batch of couplings
       auto tuple1 = coupling3Ph->getCouplingsSquared(
-          q1_v, q2, ev1_v, ev2, ev3Plus_v, ev3Minus_v, 
+          q1_v, q2, ev1_v, ev2, ev3Plus_v, ev3Minus_v,
           nb1_v, nb2, nb3Plus_v, nb3Minus_v);
       auto couplingPlus_v = std::get<0>(tuple1);
       auto couplingMinus_v = std::get<1>(tuple1);
@@ -289,10 +286,10 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     norm / enProd;
 
                 if(matrix.isCoupled) {
-                  std::tuple<int,int> tup =  
+                  std::tuple<int,int> tup =
                         matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
                   iBte1 = std::get<0>(tup);
-                  iBte2 = std::get<1>(tup); 
+                  iBte2 = std::get<1>(tup);
                   iBte1Idx = BteIndex(iBte1);
                   iBte2Idx = BteIndex(iBte2);
                 }
@@ -534,26 +531,26 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
 
 // ISOTOPE SCATTERING =====================================================
 
-void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context, 
+void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
-                                std::vector<VectorBTE> &outPopulations, int &switchCase, 
-                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator, 
+                                std::vector<VectorBTE> &outPopulations, int &switchCase,
+                                std::vector<std::tuple<std::vector<int>, int>> qPairIterator,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
-                                BaseBandStructure &outerBandStructure, 
-                                VectorBTE *linewidth) { 
+                                BaseBandStructure &outerBandStructure,
+                                VectorBTE *linewidth) {
 
   if(mpi->mpiHead()) {
-    std::cout << 
+    std::cout <<
         "Adding isotope scattering to the scattering matrix." << std::endl;
   }
 
   // copy a few small things that don't take
   // much memory but will keep the code easier to read
-  auto excludeIndices = matrix.excludeIndices; 
+  auto excludeIndices = matrix.excludeIndices;
   auto smearing = matrix.smearing;
 
-  // generate basic properties from the function arguments 
+  // generate basic properties from the function arguments
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
   Particle particle = innerBandStructure.getParticle();
@@ -581,7 +578,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
     }
   }
 
-  // loop over points pairs 
+  // loop over points pairs
   for (auto tup : qPairIterator) {
 
     auto iq1Indexes = std::get<0>(tup);
@@ -628,8 +625,8 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
         StateIndex is1Idx(is1);
         int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
 
-        // stop the calculation for indices which are 
-        // acoustic modes at the gamma point 
+        // stop the calculation for indices which are
+        // acoustic modes at the gamma point
         if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
             excludeIndices.end()) {
           continue;
@@ -647,7 +644,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           StateIndex is2Idx(is2);
           int iBte2 = innerBandStructure.stateToBte(is2IrrIdx).get();
 
-          // remove gamma point acoustic phonon frequencies 
+          // remove gamma point acoustic phonon frequencies
           if (std::find(excludeIndices.begin(), excludeIndices.end(),
                           iBte2) != excludeIndices.end()) {
             continue;
@@ -747,7 +744,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
               if(outputUNTimes) {
                 Point q1 = outerBandStructure.getPoint(iq1);
                 Point q2 = innerBandStructure.getPoint(iq2);
-                // check if this process is umklapp 
+                // check if this process is umklapp
                 // TODO put this in hasUmklapp function
                 Eigen::Vector3d q1Cart = q1.getCoordinates(Points::cartesianCoordinates);
                 Eigen::Vector3d q2Cart = q2.getCoordinates(Points::cartesianCoordinates);

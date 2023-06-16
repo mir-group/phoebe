@@ -19,9 +19,6 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
   // should we use exclude indices in here?
 
   Particle elParticle(Particle::electron);
-  //InteractionElPhWan* couplingElPhWan = matrix.couplingElPhWan;
-  //ElectronH0Wannier* electronH0 = matrix.electronH0;
-  int numAtoms = phBandStructure.getPoints().getCrystal().getNumAtoms();
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
   DeltaFunction* smearing = matrix.smearing;
 

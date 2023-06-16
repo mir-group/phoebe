@@ -14,35 +14,22 @@
 class BaseElScatteringMatrix : virtual public ScatteringMatrix {
  public:
 
-  /** Default constructor */
-  //BaseElScatteringMatrix(); 
-
   /** Constructor that just calls the constructor of scattering matrix */
   BaseElScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
                                    BaseBandStructure &innerBandStructure_,
                                    BaseBandStructure &outerBandStructure_);
 
-  //~BaseElScatteringMatrix() = default;
-
-  /** Getter functions to return intial and final banstructures */
-  //virtual BaseBandStructure initialElBandStructure(); 
-  //virtual BaseBandStructure finalElBandStructure(); 
-
-  //ElectronH0Wannier electronH0;
-
  protected:
 
-  // TODO write docstrings for these
   // friend functions for adding scattering rates,
-  // these live in el_scattering.cpp
-
+  // these live in el_scattering.cpp. See el_scattering header file for more info.
   friend void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations,
                        int &switchCase,
                        std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
-                       Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
+                       Eigen::MatrixXd &innerFermi, //Eigen::MatrixXd &outerBose,
                        BaseBandStructure &innerBandStructure,
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,

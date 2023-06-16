@@ -72,7 +72,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   buildIndices();
 
   std::vector<size_t> iks = mpi->divideWorkIter(numPoints);
-  int niks = iks.size();
+  size_t niks = iks.size();
 
   DoubleView2D qs("qs", niks, 3);
   auto qs_h = Kokkos::create_mirror_view(qs);
@@ -95,8 +95,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
   // divide the q-points into batches, do all diagonalizations in parallel
   // with Kokkos for each batch
   Kokkos::Profiling::pushRegion("diagonalization loop");
-  for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
-    int stop_iik = std::min(niks, start_iik + approx_batch_size);
+  for(size_t start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
+    size_t stop_iik = std::min(niks, size_t(start_iik + approx_batch_size));
 
     Kokkos::Profiling::pushRegion("call diagonalization");
     auto tup = h0->kokkosBatchedDiagonalizeFromCoordinates(Kokkos::subview(qs, Kokkos::make_pair(start_iik, stop_iik), Kokkos::ALL));
@@ -150,8 +150,8 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
     int approx_batch_size = h0->estimateBatchSize(true);
 
     // loop over points, do everything in parallel for all points in a batch
-    for(int start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
-      int stop_iik = std::min(niks, start_iik + approx_batch_size);
+    for(size_t start_iik = 0; start_iik < niks; start_iik += approx_batch_size){
+      size_t stop_iik = std::min(niks, size_t(start_iik + approx_batch_size));
 
       // compute batch of velocities
       auto tup = h0->kokkosBatchedDiagonalizeWithVelocities(Kokkos::subview(qs, Kokkos::make_pair(start_iik, stop_iik), Kokkos::ALL));

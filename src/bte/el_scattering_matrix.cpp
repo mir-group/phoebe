@@ -50,9 +50,6 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     Error("Developer error: The linewidths shouldn't have dimensionality");
   }
 
-  auto particle = outerBandStructure.getParticle();
-  int numCalculations = statisticsSweep.getNumCalculations();
-
   if (smearing->getType() == DeltaFunction::tetrahedron) {
     Error("Developer error: Tetrahedron method not supported by electron scattering");
     // that's because it doesn't work with the window the way it's implemented,
@@ -60,7 +57,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   }
 
   // precompute particle occupations
-  Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
+  //Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
   Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
 
   // compute wavevector pairs for the calculation
@@ -72,7 +69,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
   // add elph scattering
   // TODO are we sure this should get two Fermi's and not have one of them be a Bose?
   addElPhScattering(*this, context, inPopulations, outPopulations, switchCase,
-                                  kPairIterator, innerFermi, outerFermi,
+                                  kPairIterator, innerFermi, //outerFermi,
                                   innerBandStructure, outerBandStructure, phononH0,
                                   couplingElPhWan, linewidth);
 
