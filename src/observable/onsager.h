@@ -4,7 +4,7 @@
 #include "bandstructure.h"
 #include "context.h"
 #include "crystal.h"
-#include "el_scattering_matrix.h"
+#include "el_scattering.h"
 #include "statistics_sweep.h"
 #include "vector_bte.h"
 #include "vector_epa.h"
@@ -65,7 +65,7 @@ public:
    * this function evaluates the transport coefficients such as electrical
    * conductivity, Seebeck and thermal conductivity.
    */
-  //void calcTransportCoefficients();
+  void calcTransportCoefficients();
 
   /** Evaluation of the Onsager coefficients within the EPA approximation.
    *
@@ -123,3 +123,4 @@ protected:
 };
 
 #endif
+

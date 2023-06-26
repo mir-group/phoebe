@@ -25,6 +25,16 @@ class WignerElCoefficients : public OnsagerCoefficients {
                        Context &context_,
                        VectorBTE &relaxationTimes);
 
+  /** Copy constructor
+   *
+   */
+  WignerElCoefficients(const WignerElCoefficients &that);
+
+  /** Copy assignment operator
+   *
+   */
+  WignerElCoefficients &operator=(const WignerElCoefficients &that);
+
   /** Compute the thermal conductivity from the phonon populations
    * @param n: the phonon population out-of-equilibrium. Note that this
    * method uses the absolute value of phonon populations n.
@@ -43,3 +53,4 @@ class WignerElCoefficients : public OnsagerCoefficients {
 };
 
 #endif
+
