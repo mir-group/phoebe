@@ -26,9 +26,9 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                                  Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                  BaseBandStructure &innerBandStructure,
                                  BaseBandStructure &outerBandStructure,
-                                 PhononH0* phononH0,
+                                 PhononH0& phononH0,
                                  Interaction3Ph *coupling3Ph,
-                                 VectorBTE *linewidth) {
+                                 std::shared_ptr<VectorBTE> linewidth) {
 
   // notes: + process is (1+2) -> 3
   //        - processes are (1+3)->2 and (3+2)->1
@@ -68,6 +68,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
    */
   // outer loop over q2
   for (auto tup : qPairIterator) {
+
     std::vector<int> iq1Indexes = std::get<0>(tup);
     int iq2 = std::get<1>(tup);
     WavevectorIndex iq2Index(iq2);
@@ -82,8 +83,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
     auto nq1 = int(iq1Indexes.size());
 
     auto t = innerBandStructure.getRotationToIrreducible(
-        q2Point.getCoordinates(Points::cartesianCoordinates),
-        Points::cartesianCoordinates);
+        q2Point.getCoordinates(Points::cartesianCoordinates), Points::cartesianCoordinates);
     int iq2Irr = std::get<0>(t);
     WavevectorIndex iq2IrrIndex(iq2Irr);
     Eigen::Matrix3d rotation = std::get<1>(t);
@@ -102,6 +102,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
     // later we will loop over the q1s inside each batch
     // this is done to optimize the usage and data transfer of a GPU
     for (int iBatch = 0; iBatch < numBatches; iBatch++) {
+
       // start and end point for current batch
       int start = nq1 * iBatch / numBatches;
       int end = nq1 * (iBatch + 1) / numBatches;
@@ -128,6 +129,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
       // store stuff needed for couplings later
 #pragma omp parallel for default(none) shared(v3sMinus_v, v3sPlus_v, bose3MinusData_v, bose3PlusData_v, energies3Minus_v, energies3Plus_v, ev1_v, ev3Minus_v, ev3Plus_v, q1_v, nb1_v, nb3Minus_v, nb3Plus_v, batch_size, iq1Indexes, start, pointHelper, q2Point, v1s_v, energies1_v, outerBandStructure)
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
+
         int iq1 = iq1Indexes[start + iq1Batch];
         WavevectorIndex iq1Index(iq1);
 
@@ -188,6 +190,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
 
       // do postprocessing loop with batch of couplings
       for (int iq1Batch = 0; iq1Batch < batch_size; iq1Batch++) {
+
         int iq1 = iq1Indexes[start + iq1Batch];
         WavevectorIndex iq1Index(iq1);
         auto couplingPlus = couplingPlus_v[iq1Batch];
@@ -207,29 +210,32 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
         auto bose3MinusData = bose3MinusData_v[iq1Batch];
 
         for (int ib1 = 0; ib1 < nb1; ib1++) {
+
           double en1 = energies1(ib1);
           int is1 = outerBandStructure.getIndex(iq1Index, BandIndex(ib1));
           StateIndex is1Idx(is1);
           BteIndex iBte1Idx = outerBandStructure.stateToBte(is1Idx);
           int iBte1 = iBte1Idx.get();
 
+          // discard states near gamma that might cause divergence
           if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte1) !=
-              excludeIndices.end())
+              excludeIndices.end()) {
             continue;
+         }
 
           for (int ib2 = 0; ib2 < nb2; ib2++) {
+
             double en2 = energies2(ib2);
             int is2 = innerBandStructure.getIndex(iq2Index, BandIndex(ib2));
-            int is2Irr =
-                innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
+            int is2Irr = innerBandStructure.getIndex(iq2IrrIndex, BandIndex(ib2));
             StateIndex is2Idx(is2);
             StateIndex is2IrrIdx(is2Irr);
             BteIndex iBte2Idx = innerBandStructure.stateToBte(is2IrrIdx);
             int iBte2 = iBte2Idx.get();
 
-            if (std::find(excludeIndices.begin(), excludeIndices.end(),
-                          iBte2) != excludeIndices.end())
+            if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte2) != excludeIndices.end()) {
               continue;
+            }
 
             for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
 
@@ -249,49 +255,54 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
               //    offset. Note anyway that the difference between the two
               //    criteria should disappear when huge q-meshes are used
               if (outerEqualInnerMesh) {
-                if (en1 < phEnergyCutoff || en2 < phEnergyCutoff ||
-                    en3Plus < phEnergyCutoff) {
+                if (en1 < phEnergyCutoff || en2 < phEnergyCutoff || en3Plus < phEnergyCutoff) {
                   continue;
                 }
               } else {
-                if (enProd < phEnergyCutoff) {
-                  continue;
-                }
+                if (enProd < phEnergyCutoff) { continue; }
               }
 
               double deltaPlus;
               if (smearing->getType() == DeltaFunction::gaussian) {
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus);
-              } else if (smearing->getType() ==
-                         DeltaFunction::adaptiveGaussian) {
+              } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
                 Eigen::Vector3d v = v2s.row(ib2) - v3sPlus.row(ib3);
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
               } else {
                 deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
               }
 
-              if (deltaPlus <= 0.) {
-                continue;
-              }
+              if (deltaPlus <= 0.) { continue; }
 
               // loop on temperature
               for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
                 double bose1 = outerBose(iCalc, iBte1);
                 double bose2 = innerBose(iCalc, iBte2);
                 double bose3Plus = bose3PlusData(iCalc, ib3);
 
                 // Calculate transition probability W+
                 double ratePlus = pi * 0.25 * bose1 * bose2 * (bose3Plus + 1.) *
-                    couplingPlus(ib1, ib2, ib3) * deltaPlus *
-                    norm / enProd;
+                    couplingPlus(ib1, ib2, ib3) * deltaPlus * norm / enProd;
 
+                // if it's not a coupled matrix, these will be just iBte1 and iBte2
+                // We have to define shifted versions, or they will be further
+                // shifted every loop.
+                //
+                // Additionally, these are only needed in no-sym case,
+                // as coupled matrix never has sym, is always case = 0
+                int iBte1Shift = iBte1;
+                int iBte2Shift = iBte2;
+                BteIndex iBte1ShiftIdx(iBte1);
+                BteIndex iBte2ShiftIdx(iBte2);
                 if(matrix.isCoupled) {
+                  // translate these into the phonon-phonon quadrant if it's a coupled bte
                   std::tuple<int,int> tup =
                         matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
-                  iBte1 = std::get<0>(tup);
-                  iBte2 = std::get<1>(tup);
-                  iBte1Idx = BteIndex(iBte1);
-                  iBte2Idx = BteIndex(iBte2);
+                  iBte1Shift = std::get<0>(tup);
+                  iBte2Shift = std::get<1>(tup);
+                  iBte1ShiftIdx = BteIndex(iBte1Shift);
+                  iBte2ShiftIdx = BteIndex(iBte2Shift);
                 }
 
                 if (switchCase == 0) { // case of matrix construction
@@ -313,10 +324,10 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                       }
                     }
                   } else {
-                    if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                      linewidth->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
+                    if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
+                      linewidth->operator()(iCalc, 0, iBte1Shift) += 0.5 * ratePlus;
+                      matrix.theMatrix(iBte1Shift, iBte2Shift) += ratePlus;
                     }
-                    matrix.theMatrix(iBte1, iBte2) += ratePlus;
                   }
 
                 } else if (switchCase == 1) { // case of matrix-vector multiplication
@@ -334,12 +345,10 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     }
                     for (int i : {0, 1, 2}) {
                       if (is1 != is2Irr) {
-                        outPopulations[iInput](iCalc, i, iBte1) +=
-                            ratePlus * inPopRot(i);
+                        outPopulations[iInput](iCalc, i, iBte1) += ratePlus * inPopRot(i);
                       }
                       outPopulations[iInput](iCalc, i, iBte1) +=
-                          0.5 * ratePlus *
-                          inPopulations[iInput](iCalc, i, iBte1);
+                          0.5 * ratePlus * inPopulations[iInput](iCalc, i, iBte1);
                     }
                   }
 
@@ -356,9 +365,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     Eigen::Vector3d q3Cart = q1WS + q2WS;
                     Eigen::Vector3d q3fold = outerBandStructure.getPoints().bzToWs(q3Cart, Points::cartesianCoordinates);
                     bool isUmklapp = false;
-                    if(abs((q3Cart-q3fold).norm()) > 1e-6) {
-                      isUmklapp = true;
-                    }
+                    if(abs((q3Cart-q3fold).norm()) > 1e-6) { isUmklapp = true; }
                     if(isUmklapp) {
                       matrix.internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += 0.5 * ratePlus;
                     } else {
@@ -370,6 +377,7 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
             }
 
             for (int ib3 = 0; ib3 < nb3Minus; ib3++) {
+
               double en3Minus = energies3Minus(ib3);
               double enProd = en1 * en2 * en3Minus;
 
@@ -386,22 +394,18 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
               //    offset. Note anyway that the difference between the two
               //    criteria should disappear when huge q-meshes are used
               if (outerEqualInnerMesh) {
-                if (en1 < phEnergyCutoff || en2 < phEnergyCutoff ||
-                    en3Minus < phEnergyCutoff) {
+                if (en1 < phEnergyCutoff || en2 < phEnergyCutoff || en3Minus < phEnergyCutoff) {
                   continue;
                 }
               } else {
-                if (enProd < phEnergyCutoff) {
-                  continue;
-                }
+                if (enProd < phEnergyCutoff) { continue; }
               }
 
               double deltaMinus1, deltaMinus2;
               if (smearing->getType() == DeltaFunction::gaussian) {
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2);
                 deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1);
-              } else if (smearing->getType() ==
-                         DeltaFunction::adaptiveGaussian) {
+              } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
                 Eigen::Vector3d v = v2s.row(ib2) - v3sMinus.row(ib3);
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2, v);
                 deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1, v);
@@ -411,14 +415,13 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                 deltaMinus2 = smearing->getSmearing(en1 - en3Minus, is2Idx);
               }
 
-              if (deltaMinus1 <= 0. && deltaMinus2 <= 0.)
-                continue;
-              if (deltaMinus1 < 0.)
-                deltaMinus1 = 0.;
-              if (deltaMinus2 < 0.)
-                deltaMinus2 = 0.;
+              if (deltaMinus1 <= 0. && deltaMinus2 <= 0.)  continue;
+              if (deltaMinus1 < 0.) deltaMinus1 = 0.;
+              if (deltaMinus2 < 0.) deltaMinus2 = 0.;
 
+                // TODO somehow bose3minus is ZERO! but only when we do coupled...
               for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
                 double bose1 = outerBose(iCalc, iBte1);
                 double bose2 = innerBose(iCalc, iBte2);
                 double bose3Minus = bose3MinusData(iCalc, ib3);
@@ -430,6 +433,18 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                 double rateMinus2 =
                     pi * 0.25 * bose2 * bose3Minus * (bose1 + 1.) *
                     couplingMinus(ib1, ib2, ib3) * deltaMinus2 * norm / enProd;
+
+                // if it's coupled we translate the indices to the ph-ph quadrant
+                int iBte1Shift = iBte1;   BteIndex iBte1ShiftIdx(iBte1);
+                int iBte2Shift = iBte2;   BteIndex iBte2ShiftIdx(iBte2);
+                if(matrix.isCoupled) {
+                  std::tuple<int,int> tup =
+                        matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
+                  iBte1Shift = std::get<0>(tup);
+                  iBte2Shift = std::get<1>(tup);
+                  iBte1ShiftIdx = BteIndex(iBte1Shift);
+                  iBte2ShiftIdx = BteIndex(iBte2Shift);
+                }
 
                 if (switchCase == 0) { // case of matrix construction
                   if (context.getUseSymmetries()) {
@@ -446,23 +461,21 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                           }
                           if (is1 != is2Irr) {
                             matrix.theMatrix(iMat1, iMat2) -=
-                                rotation.inverse()(i, j) *
-                                (rateMinus1 + rateMinus2);
+                                rotation.inverse()(i, j) * (rateMinus1 + rateMinus2);
                           }
                         }
                       }
                     }
                   } else {
-                    if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                      linewidth->operator()(iCalc, 0, iBte1) +=
-                          0.5 * (rateMinus1 + rateMinus2);
+                    // these are unshifted if it's not coupled
+                    if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
+                      linewidth->operator()(iCalc, 0, iBte1Shift) += 0.5 * (rateMinus1 + rateMinus2);
+                      matrix.theMatrix(iBte1Shift, iBte2Shift) -= rateMinus1 + rateMinus2;
                     }
-                    matrix.theMatrix(iBte1, iBte2) -= rateMinus1 + rateMinus2;
-                  }
 
+                  }
                 } else if (switchCase == 1) { // matrix-vector multiplication
-                  for (unsigned int iInput = 0; iInput < inPopulations.size();
-                       iInput++) {
+                  for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
                     Eigen::Vector3d inPopRot;
                     inPopRot.setZero();
                     for (int i : {0, 1, 2}) {
@@ -538,11 +551,12 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth) {
+                                std::shared_ptr<VectorBTE> linewidth) {
+
+  // TODO add developer safety checks on these functions to make ssure it's bose , ph bands , etc
 
   if(mpi->mpiHead()) {
-    std::cout <<
-        "Adding isotope scattering to the scattering matrix." << std::endl;
+    std::cout << "\nAdding isotope scattering to the scattering matrix." << std::endl;
   }
 
   // copy a few small things that don't take
@@ -586,17 +600,13 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
 
     // collect information about s2
     WavevectorIndex iq2Index(iq2);
-     Eigen::VectorXd state2Energies = innerBandStructure.getEnergies(iq2Index);
+    Eigen::VectorXd state2Energies = innerBandStructure.getEnergies(iq2Index);
     auto nb2 = int(state2Energies.size());
-    Eigen::Tensor<std::complex<double>, 3> ev2 =
-          innerBandStructure.getPhEigenvectors(iq2Index);
+    Eigen::Tensor<std::complex<double>, 3> ev2 = innerBandStructure.getPhEigenvectors(iq2Index);
     Eigen::MatrixXd v2s = innerBandStructure.getGroupVelocities(iq2Index);
 
-    auto q2 = innerBandStructure.getPoint(iq2).getCoordinates(
-          Points::cartesianCoordinates);
-
-    auto t = innerBandStructure.getRotationToIrreducible(
-          q2, Points::cartesianCoordinates);
+    auto q2 = innerBandStructure.getPoint(iq2).getCoordinates(Points::cartesianCoordinates);
+    auto t = innerBandStructure.getRotationToIrreducible(q2, Points::cartesianCoordinates);
     // rotation such that qIrr = R * qRed
     int iq2Irr = std::get<0>(t);
     Eigen::Matrix3d rotation = std::get<1>(t);
@@ -613,8 +623,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
       // gather s1 information
       Eigen::VectorXd state1Energies = outerBandStructure.getEnergies(iq1Index);
       auto nb1 = int(state1Energies.size());
-      Eigen::Tensor<std::complex<double>, 3> ev1 =
-            outerBandStructure.getPhEigenvectors(iq1Index);
+      Eigen::Tensor<std::complex<double>, 3> ev1 = outerBandStructure.getPhEigenvectors(iq1Index);
       Eigen::MatrixXd v1s = outerBandStructure.getGroupVelocities(iq1Index);
 
       for (int ib1 = 0; ib1 < nb1; ib1++) {
@@ -638,8 +647,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           double en2 = state2Energies(ib2);
           int is2Irr = innerBandStructure.getIndex(WavevectorIndex(iq2Irr),
                                                      BandIndex(ib2));
-          int is2 = innerBandStructure.getIndex(WavevectorIndex(iq2),
-                                                  BandIndex(ib2));
+          int is2 = innerBandStructure.getIndex(WavevectorIndex(iq2), BandIndex(ib2));
           StateIndex is2IrrIdx(is2Irr);
           StateIndex is2Idx(is2);
           int iBte2 = innerBandStructure.stateToBte(is2IrrIdx).get();
@@ -680,11 +688,12 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
             double rateIso = termIso * (bose1 * bose2 + 0.5 * (bose1 + bose2));
 
             // shift the indices if it's necessary
+            int iBte1Shift = iBte1;   int iBte2Shift = iBte2;
             if(matrix.isCoupled) {
               std::tuple<int,int> tup =
                     matrix.shiftToCoupledIndices(iBte1, iBte2, particle, particle);
-              iBte1 = std::get<0>(tup);
-              iBte2 = std::get<1>(tup);
+              iBte1Shift = std::get<0>(tup);
+              iBte2Shift = std::get<1>(tup);
             }
 
             if (switchCase == 0) { // case of matrix construction
@@ -709,15 +718,14 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                   }
                 }
               } else {
-                if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
-                  linewidth->operator()(iCalc, 0, iBte1) += rateIso;
+                if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
+                  linewidth->operator()(iCalc, 0, iBte1Shift) += rateIso;
+                  matrix.theMatrix(iBte1Shift, iBte2Shift) += rateIso;
                 }
-                matrix.theMatrix(iBte1, iBte2) += rateIso;
               }
 
             } else if (switchCase == 1) { // case of matrix-vector multiplication
-              for (unsigned int iInput = 0; iInput < inPopulations.size();
-                   iInput++) {
+              for (unsigned int iInput = 0; iInput < inPopulations.size(); iInput++) {
 
                 // here we rotate the populations from the irreducible point
                 Eigen::Vector3d inPopRot;
@@ -730,8 +738,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                 }
                 for (int i : {0, 1, 2}) {
                   if (is1 != is2Irr) {
-                    outPopulations[iInput](iCalc, i, iBte1) +=
-                        rateIso * inPopRot(i);
+                    outPopulations[iInput](iCalc, i, iBte1) += rateIso * inPopRot(i);
                   }
                   outPopulations[iInput](iCalc, i, iBte1) +=
                       rateIso * inPopulations[iInput](iCalc, i, iBte1);
@@ -739,6 +746,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
               }
 
             } else { // case of linewidth construction
+
               linewidth->operator()(iCalc, 0, iBte1) += rateIso;
 
               if(outputUNTimes) {
@@ -753,9 +761,7 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                 Eigen::Vector3d q3Cart = q1WS + q2WS;
                 Eigen::Vector3d q3fold = outerBandStructure.getPoints().bzToWs(q3Cart, Points::cartesianCoordinates);
                 bool isUmklapp = false;
-                if(abs((q3Cart-q3fold).norm()) > 1e-6) {
-                  isUmklapp = true;
-                }
+                if(abs((q3Cart-q3fold).norm()) > 1e-6) { isUmklapp = true; }
                 if(isUmklapp) {
                   matrix.internalDiagonalUmklapp->operator()(iCalc, 0, iBte1) += rateIso;
                 } else {

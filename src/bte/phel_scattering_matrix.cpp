@@ -46,7 +46,7 @@ PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
 
 // In the phononElectron case, we only compute the diagonal of the
 // scattering matrix. Therefore, we compute only the linewidths
-void PhElScatteringMatrix::builder(VectorBTE *linewidth,
+void PhElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                    std::vector<VectorBTE> &inPopulations,
                                    std::vector<VectorBTE> &outPopulations) {
   (void) inPopulations;
@@ -66,8 +66,8 @@ void PhElScatteringMatrix::builder(VectorBTE *linewidth,
                                                 = getIrrWavevectorPairs();
 
   // compute the phonon electron lifetimes
-  addPhElScattering(*this, context, kqPairIterator, 
-                        getElBandStructure(), getPhBandStructure(), 
+  addPhElScattering(*this, context, kqPairIterator,
+                        getElBandStructure(), getPhBandStructure(),
                         electronH0, couplingElPhWan, linewidth);
 
   // TODO could we compute boundary or isotope scattering_matrix.here?

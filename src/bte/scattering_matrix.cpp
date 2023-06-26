@@ -9,6 +9,10 @@
 #include <numeric> // std::iota
 #include <set>
 #include <utility>
+#include "io.h"
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
 
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
@@ -16,8 +20,10 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    BaseBandStructure &outerBandStructure_)
     : context(context_), statisticsSweep(statisticsSweep_),
       innerBandStructure(innerBandStructure_),
-      outerBandStructure(outerBandStructure_),
-      internalDiagonal(statisticsSweep, outerBandStructure, 1) {
+      outerBandStructure(outerBandStructure_)  { //,
+    //  internalDiagonal(statisticsSweep, outerBandStructure, 1) {
+
+  internalDiagonal = std::make_shared<VectorBTE>(statisticsSweep, outerBandStructure, 1);
 
   numStates = int(outerBandStructure.irrStateIterator().size());
   numCalculations = statisticsSweep.getNumCalculations();
@@ -78,21 +84,20 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
   }
 }
 
-ScatteringMatrix::~ScatteringMatrix() {
+/*ScatteringMatrix::~ScatteringMatrix() {
   if (context.getConstantRelaxationTime() > 0.) {
     return; // smearing is not assigned in CRT case
   } else {
     delete smearing;
   }
-}
+}*/
 
 void ScatteringMatrix::setup() {
   // note: here we want to build the matrix or its diagonal
   // builder is a pure virtual function, which is implemented in subclasses
   // c++ discourages calls to pure virtual functions in the constructor
 
-  if (constantRTA)
-    return; // nothing to construct
+  if (constantRTA) return; // nothing to construct
 
   std::vector<VectorBTE> emptyVector;
 
@@ -128,11 +133,12 @@ void ScatteringMatrix::setup() {
         "You are likely running out of memory.");
     }
 
-    // calc matrix and linewidth.
-    builder(&internalDiagonal, emptyVector, emptyVector);
+    // linewidth and matrix construction
+    builder(internalDiagonal, emptyVector, emptyVector);
+
   } else {
     // calc linewidths only
-    builder(&internalDiagonal, emptyVector, emptyVector);
+    builder(internalDiagonal, emptyVector, emptyVector);
   }
 }
 
@@ -144,7 +150,7 @@ VectorBTE ScatteringMatrix::diagonal() {
     diagonal.setConst(twoPi / context.getConstantRelaxationTime());
     return diagonal;
   } else {
-    return internalDiagonal;
+    return *internalDiagonal;
   }
 }
 
@@ -212,7 +218,7 @@ VectorBTE ScatteringMatrix::offDiagonalDot(VectorBTE &inPopulation) {
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
-          outPopulation(iCalc, iDim, iBte) -= internalDiagonal(iCalc, 0, iBte) *
+          outPopulation(iCalc, iDim, iBte) -= internalDiagonal->operator()(iCalc, 0, iBte) *
                                               inPopulation(iCalc, iDim, iBte);
         }
       }
@@ -231,7 +237,7 @@ ScatteringMatrix::offDiagonalDot(std::vector<VectorBTE> &inPopulations) {
       for (int iDim = 0; iDim < 3; iDim++) {
         for (int iBte = 0; iBte < numStates; iBte++) {
           outPopulations[iVec](iCalc, iDim, iBte) -=
-              internalDiagonal(iCalc, 0, iBte) *
+              internalDiagonal->operator()(iCalc, 0, iBte) *
               inPopulations[iVec](iCalc, iDim, iBte);
         }
       }
@@ -336,6 +342,7 @@ ScatteringMatrix::dot(std::vector<VectorBTE> &inPopulations) {
 
 // set,unset the scaling of omega = A/sqrt(bose1*bose1+1)/sqrt(bose2*bose2+1)
 void ScatteringMatrix::a2Omega() {
+
   if (!highMemory) {
     Error("a2Omega only works if the matrix is stored in memory");
   }
@@ -397,7 +404,7 @@ void ScatteringMatrix::a2Omega() {
     double term2 = particle.getPopPopPm1(en2, temp, chemPot);
 
     if (iBte1 == iBte2) {
-      internalDiagonal(0, 0, iBte1) /= term1;
+      internalDiagonal->operator()(0, 0, iBte1) /= term1;
     }
 
     theMatrix(iMat1, iMat2) /= sqrt(term1 * term2);
@@ -494,7 +501,7 @@ VectorBTE ScatteringMatrix::getSingleModeTimes(int whichTimes) {
   } else if(whichTimes == 2) { // umklapp internal diagonal
     return getTimesFromVectorBTE(*internalDiagonalUmklapp);
   } else { // regular internal diagonal of scattering matrix
-    return getTimesFromVectorBTE(internalDiagonal);
+    return getTimesFromVectorBTE(*internalDiagonal);
   }
 }
 
@@ -505,7 +512,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
     linewidths.excludeIndices = excludeIndices;
     return linewidths;
   } else {
-    VectorBTE linewidths = internalDiagonal;
+    VectorBTE linewidths = *internalDiagonal;
     linewidths.excludeIndices = excludeIndices;
     auto particle = outerBandStructure.getParticle();
 
@@ -523,14 +530,14 @@ VectorBTE ScatteringMatrix::getLinewidths() {
         auto iBteIdx = BteIndex(iBte);
         StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
         double en = outerBandStructure.getEnergy(isIdx);
-        for (int iCalc = 0; iCalc < internalDiagonal.numCalculations; iCalc++) {
+        for (int iCalc = 0; iCalc < internalDiagonal->numCalculations; iCalc++) {
           auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
           double temp = calcStatistics.temperature;
           double chemPot = calcStatistics.chemicalPotential;
           // n(n+1) for bosons, n(1-n) for fermions
           double popTerm = particle.getPopPopPm1(en, temp, chemPot);
           linewidths(iCalc, 0, iBte) =
-              internalDiagonal(iCalc, 0, iBte) / popTerm;
+              internalDiagonal->operator()(iCalc, 0, iBte) / popTerm;
         }
       }
       linewidths.excludeIndices = excludeIndices;
@@ -546,11 +553,11 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
   // because when we add phonon contributions to phonon scattering matrix,
   // they will exclude the same indices so long as numStates is the same
 
-  if(internalDiagonal.numCalculations != linewidths.numCalculations) {
+  if(internalDiagonal->numCalculations != linewidths.numCalculations) {
     Error("Attempted setting scattering matrix diagonal with"
         " an incorrect number of calculations.");
   }
-  if(internalDiagonal.numStates != linewidths.numStates) {
+  if(internalDiagonal->numStates != linewidths.numStates) {
     Error("Attempted setting scattering matrix diagonal with"
         " an incorrect number of states.");
   }
@@ -559,7 +566,7 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
     // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
     // because the get function removed these population factors,
     // the set function should add them back in
-    internalDiagonal = linewidths;
+    internalDiagonal =  std::make_shared<VectorBTE>(linewidths);
    } else {  // phonons
     auto particle = outerBandStructure.getParticle();
     #pragma omp parallel for
@@ -573,7 +580,7 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
         double chemPot = calcStatistics.chemicalPotential;
         // n(n+1) for bosons, n(1-n) for fermions
         double popTerm = particle.getPopPopPm1(en, temp, chemPot);
-        internalDiagonal(iCalc, 0, iBte) = linewidths(iCalc, 0, iBte) * popTerm;
+        internalDiagonal->operator()(iCalc, 0, iBte) = linewidths(iCalc, 0, iBte) * popTerm;
       }
     }
   }
@@ -597,15 +604,84 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
             int iMatj = getSMatrixIndex(iBteIdx, jCart);
             theMatrix(iMati, iMatj) = 0.;
           }
-          theMatrix(iMati, iMati) += internalDiagonal(iCalc, 0, iBte);
+          theMatrix(iMati, iMati) += internalDiagonal->operator()(iCalc, 0, iBte);
         }
       }
     } else {
       for (int is = 0; is < numStates; is++) {
-        theMatrix(is, is) = internalDiagonal(iCalc, 0, is);
+        theMatrix(is, is) = internalDiagonal->operator()(iCalc, 0, is);
       }
     }
   }
+}
+
+void ScatteringMatrix::outputToHDF5(const std::string &outFileName) {
+
+  // output the matrix elements owned by this process to file.
+  // The only tricky part here is that we need to sort them
+  // Appropriately in the file without all reducing. This is nearly
+  // impossible to do efficiently because of how HighFive is written,
+  // wherein it expects chunks of data -- which we cannot expect to have
+  // in a block-cyclic distribution of the matrix. Therefore, we do something
+  // terrible and we write single elements at a time.
+
+  #ifndef HDF5_AVAIL
+    Error("Need Phoebe compiled with parallel HDF5 to write SMatrix to file.");
+  #elif HDF5_SERIAL
+    Error("Need Phoebe compiled with parallel HDF5 to write SMatrix to file.");
+  #else
+
+   try {
+
+      // Create the file to write to, first removing if it exists already
+      std::remove(&outFileName[0]);
+      HighFive::FileAccessProps fapl;
+      fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
+      HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
+
+      // setup the dataset
+      unsigned int globalSize = theMatrix.size();
+
+      // Create the data-space to write gWannier to
+      std::vector<size_t> dims(2);
+      dims[0] = 1;
+      dims[1] = size_t(globalSize);
+      HighFive::DataSet dsMatrix= file.createDataSet<double>(
+                "/scatteringMatrix", HighFive::DataSpace(dims));
+
+      LoopPrint loopPrint("writing the scattering matrix to HDF5",
+             "matrix elements / MPI process", theMatrix.getAllLocalStates().size());
+
+      // now we loop over the matrix elements and write them to file
+      for(auto matEl : theMatrix.getAllLocalStates()) {
+
+        loopPrint.update();
+
+        // get matrix row and col indices
+        size_t iMat1 = std::get<0>(matEl);
+        size_t iMat2 = std::get<1>(matEl);
+        // convert to 1d index, used on the underlying dataset
+        //size_t iGlobal = theMatrix.global2Local(iMat1, iMat2);
+        size_t iGlobal = iMat2*theMatrix.cols() + iMat1;
+        // get the actuall value of the matrix element
+        double value = theMatrix(iMat1,iMat2);
+
+        // write the single element to the dataset
+        // here, the offset is the global index, and the count is of course 1
+        dsMatrix.select({0, iGlobal}, {1, 1}).write(value);
+      }
+
+      loopPrint.close();
+
+      // ensure everything has been written
+      file.flush();
+
+    } catch (std::exception &error) {
+      // catch and print any HDF5 error
+      std::cerr << error.what() << std::endl;
+      Error("An HDF5 error occurred while trying to write scattering matrix to HDF5.");
+    }
+  #endif
 }
 
 void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
@@ -862,7 +938,7 @@ ScatteringMatrix::diagonalize() {
   auto eigenvalues = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
 
-  // place eigenvalues in an VectorBTE object
+  // place eigenvalues in an eigen vector
   Eigen::VectorXd eigenValues(theMatrix.rows());
   for (int is = 0; is < eigenValues.size(); is++) {
     eigenValues(is) = eigenvalues[is];
@@ -874,6 +950,7 @@ ScatteringMatrix::diagonalize() {
 std::vector<std::tuple<std::vector<int>, int>>
 ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
                                              const bool &rowMajor) {
+
   if (rowMajor) { // case for el-ph scattering
     std::vector<std::tuple<std::vector<int>, int>> pairIterator;
 
@@ -1086,8 +1163,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
   }
 }
 
-int ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex,
-                                      CartIndex &cartIndex) {
+int ScatteringMatrix::getSMatrixIndex(BteIndex &bteIndex, CartIndex &cartIndex) {
   if (context.getUseSymmetries()) {
     int is = bteIndex.get();
     int alpha = cartIndex.get();
@@ -1190,7 +1266,7 @@ void ScatteringMatrix::symmetrize() {
   }
 }
 
-void ScatteringMatrix::degeneracyAveragingLinewidths(VectorBTE *linewidth) {
+void ScatteringMatrix::degeneracyAveragingLinewidths(std::shared_ptr<VectorBTE> linewidth) {
   for (int ik : outerBandStructure.irrPointsIterator()) {
     WavevectorIndex ikIdx(ik);
     Eigen::VectorXd en = outerBandStructure.getEnergies(ikIdx);
@@ -1363,7 +1439,9 @@ Eigen::MatrixXd ScatteringMatrix::precomputeOccupations(BaseBandStructure &bandS
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
       auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double temp = calcStat.temperature;
-      double chemPot = calcStat.chemicalPotential;
+      // need to do this because even if it's an el bandstructure
+      // you could need ph occupations, and statSweep would have a non-zero mu
+      double chemPot = (particle.isPhonon()) ? 0 : calcStat.chemicalPotential;
       occupations(iCalc, iBte) = particle.getPopulation(energy, temp, chemPot);
     }
   }
@@ -1400,8 +1478,29 @@ std::vector<int> ScatteringMatrix::getExcludeIndices(BaseBandStructure& bandStru
 
 /* probably never called on regular Scattering matrix, but this is here just in case */
 std::tuple<int,int> ScatteringMatrix::shiftToCoupledIndices(
-            int iBte1, int iBte2, [[maybe_unused]] Particle p1, [[maybe_unused]] Particle p2) {
-  return std::make_tuple(iBte1, iBte2);
+            const int& iBte1, const int& iBte2, const Particle& p1, const Particle& p2) {
+
+  // we shift the iBte indices into the relevant quadrant before savign things to the
+  // scattering matrix in the coupled case
+  // ibte1 = row, ibte2 = col
+
+  int iBte1Shift = iBte1;
+  int iBte2Shift = iBte2;
+  if(isCoupled) {
+    if(!p1.isPhonon() && p2.isPhonon()) { // electron-phonon drag
+      iBte2Shift += numElStates;
+    }
+    else if(p1.isPhonon() && !p2.isPhonon()) { // phonon-electron drag
+      iBte1Shift += numElStates;
+    }
+    else if(p1.isPhonon() && p2.isPhonon()) { // phonon-self quadrant
+      iBte1Shift += numElStates;
+      iBte2Shift += numElStates;
+    }
+    return std::make_tuple(iBte1Shift, iBte2Shift);
+  }
+  Error("Developer error: there's no reason to shift regular scattering matrix indices!");
+  return std::make_tuple(iBte1Shift, iBte2Shift);
 }
 
 

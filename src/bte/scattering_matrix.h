@@ -27,9 +27,6 @@ public:
                    BaseBandStructure &innerBandStructure_,
                    BaseBandStructure &outerBandStructure_);
 
-  /** Destructor */
-  ~ScatteringMatrix();
-
   /** Default constructor */
   ScatteringMatrix();
 
@@ -124,10 +121,15 @@ public:
    */
   std::tuple<Eigen::VectorXd, ParallelMatrix<double>> diagonalize();
 
-  /** Outputs the quantity to a json file.
+  /** Outputs the lifetimes to a json file.
    * @param outFileName: string representing the name of the json file
    */
   void outputToJSON(const std::string &outFileName);
+
+  /** Outputs the matrix to an hdf5 file.
+   * @param outFileName: string representing the name of the json file
+   */
+  void outputToHDF5(const std::string &outFileName);
 
   /** Function to combine a BTE index and a cartesian index into one index of
    * the scattering matrix. If no symmetries are used, the output is equal to
@@ -223,7 +225,7 @@ public:
   bool isCoupled = false;
 
   // we save the diagonal matrix element in a dedicated vector
-  VectorBTE internalDiagonal;
+  std::shared_ptr<VectorBTE> internalDiagonal;
   std::shared_ptr<VectorBTE> internalDiagonalUmklapp;
   std::shared_ptr<VectorBTE> internalDiagonalNormal;
   // the scattering matrix, initialized if highMemory==true
@@ -233,6 +235,13 @@ public:
   int numCalculations;  // number of "Calculations", i.e. number of temperatures and
   // chemical potentials on which we compute scattering.
   int dimensionality_;
+
+  // number of states for shifting to the coupled matrix
+  int numElStates; // this will never be used unless it's a coupled matrix
+  // however, it still needs to be here because the coupled
+  // shift incides function unfortunately also has to be here. For the case of the
+  // ph matrix, we call phScattering using the BasePh object -- even if the
+  // matrix supplied is a Coupled matrix, the base class's function is called.
 
   // this is to exclude problematic Bloch states, e.g. acoustic phonon modes
   // at gamma, which have zero frequencies and thus have several non-analytic
@@ -251,7 +260,7 @@ public:
    * populations, we compute outPopulation = scatteringMatrix * inPopulation.
    * This doesn't require to store the matrix in memory.
    */
-  virtual void builder(VectorBTE *linewidth,
+  virtual void builder(std::shared_ptr<VectorBTE> linewidth,
                        std::vector<VectorBTE> &inPopulations,
                        std::vector<VectorBTE> &outPopulations) = 0;
 
@@ -291,7 +300,7 @@ public:
    * @param linewidth: a pointer (the one passed to builder()) containing the
    * linewidths to be averaged.
    */
-  void degeneracyAveragingLinewidths(VectorBTE *linewidth);
+  void degeneracyAveragingLinewidths(std::shared_ptr<VectorBTE> linewidth);
 
   /** Internal helper to formats single mode times stored in vectorBTE
    * object based on if the matrix isOmega or not.
@@ -321,7 +330,8 @@ public:
   * @param p1, p2: the particle types indicating the desired quadrant
   * @return: a tuple containing the shifted indices
   */
-  std::tuple<int,int> shiftToCoupledIndices(int iBte1, int iBte2, Particle p1, Particle p2);
+  std::tuple<int,int> shiftToCoupledIndices(
+        const int& iBte1, const int& iBte2, const Particle& p1, const Particle& p2);
 
   // friend functions for scattering
   friend void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
@@ -330,7 +340,7 @@ public:
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,
                                 BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth);
+                                std::shared_ptr<VectorBTE> linewidth);
 };
 
 #endif

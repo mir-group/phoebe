@@ -34,9 +34,9 @@ class BasePhScatteringMatrix : virtual public ScatteringMatrix {
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
-                                PhononH0* phononH0,
+                                PhononH0& phononH0,
                                 Interaction3Ph *coupling3Ph,
-                                VectorBTE *linewidth);
+                                std::shared_ptr<VectorBTE> linewidth);
 
   friend void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
@@ -45,7 +45,7 @@ class BasePhScatteringMatrix : virtual public ScatteringMatrix {
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth);
+                                std::shared_ptr<VectorBTE> linewidth);
 
   friend void addPhElScattering(BasePhScatteringMatrix& matrix, Context& context,
                 std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
@@ -53,7 +53,7 @@ class BasePhScatteringMatrix : virtual public ScatteringMatrix {
                 BaseBandStructure& elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan* couplingElPhWan,
-                VectorBTE* linewidth);
+                std::shared_ptr<VectorBTE> linewidth);
 
 };
 

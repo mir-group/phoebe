@@ -20,9 +20,9 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                   std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
                   Eigen::MatrixXd &innerFermi, Eigen::MatrixXd &outerBose,
                   BaseBandStructure &innerBandStructure,
-                  BaseBandStructure &outerBandStructure, 
-                  PhononH0 &phononH0, 
+                  BaseBandStructure &outerBandStructure,
+                  PhononH0 &phononH0,
                   InteractionElPhWan *couplingElPhWan,
-                  VectorBTE *linewidth);
+                  std::shared_ptr<VectorBTE> linewidth);
 
 #endif

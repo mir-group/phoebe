@@ -20,7 +20,7 @@ void addBoundaryScattering(ScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &outPopulations,
                                 int switchCase,
                                 BaseBandStructure &bandStructure,
-                                VectorBTE *linewidth) {
+                                std::shared_ptr<VectorBTE> linewidth) {
   if(mpi->mpiHead()) {
     std::cout <<
         "Adding boundary scattering to the scattering matrix." << std::endl;

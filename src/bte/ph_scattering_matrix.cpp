@@ -23,7 +23,7 @@ PhScatteringMatrix::PhScatteringMatrix(Context &context_,
 
 }
 
-void PhScatteringMatrix::builder(VectorBTE *linewidth,
+void PhScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
 
@@ -61,13 +61,15 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   // generate the points on which these processes will be computed
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
-
+/*
   // here we call the function to add ph-ph scattering
   addPhPhScattering(*this, context, inPopulations, outPopulations,
                                   switchCase, qPairIterator,
                                   innerBose, outerBose,
                                   innerBandStructure, outerBandStructure,
-                                  phononH0, coupling3Ph, linewidth);
+                                  *phononH0, coupling3Ph, linewidth);
+*/
+
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
     addIsotopeScattering(*this, context, inPopulations, outPopulations,
@@ -76,6 +78,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                   innerBandStructure, outerBandStructure,
                                   linewidth);
   }
+
+/*
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
@@ -83,7 +87,7 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
                                   switchCase, outerBandStructure, linewidth);
     }
   }
-
+*/
   // TODO add phel scattering
   //if(!context.getElphFileName().empty()) {
       // this is a weird case because it requires another band structure object,
@@ -112,8 +116,8 @@ void PhScatteringMatrix::builder(VectorBTE *linewidth,
   if (switchCase == 2) {
     degeneracyAveragingLinewidths(linewidth);
     if(outputUNTimes) {
-      degeneracyAveragingLinewidths(internalDiagonalUmklapp.get());
-      degeneracyAveragingLinewidths(internalDiagonalNormal.get());
+      degeneracyAveragingLinewidths(internalDiagonalUmklapp);
+      degeneracyAveragingLinewidths(internalDiagonalNormal);
     }
   }
 

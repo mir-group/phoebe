@@ -29,7 +29,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,
                        InteractionElPhWan *couplingElPhWan,
-                       VectorBTE *linewidth) {
+                       std::shared_ptr<VectorBTE> linewidth) {
 
   StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
   DeltaFunction *smearing = matrix.smearing;
@@ -89,6 +89,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
     // later we will loop over the q1s inside each batch
     // this is done to optimize the usage and data transfer of a GPU
     for (int iBatch = 0; iBatch < numBatches; iBatch++) {
+
       // start and end point for current batch
       int start = nk2 * iBatch / numBatches;
       int end = nk2 * (iBatch + 1) / numBatches;
@@ -145,14 +146,13 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
       Kokkos::Profiling::pushRegion("postprocessing loop");
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
+
         int ik2 = ik2Indexes[start + ik2Batch];
 
-        Eigen::Tensor<double, 3>& coupling =
-            couplingElPhWan->getCouplingSquared(ik2Batch);
+        Eigen::Tensor<double, 3>& coupling = couplingElPhWan->getCouplingSquared(ik2Batch);
 
         Eigen::Vector3d k2C = allK2C[ik2Batch];
-        auto t3 = innerBandStructure.getRotationToIrreducible(
-            k2C, Points::cartesianCoordinates);
+        auto t3 = innerBandStructure.getRotationToIrreducible(k2C, Points::cartesianCoordinates);
         int ik2Irr = std::get<0>(t3);
         Eigen::Matrix3d rotation = std::get<1>(t3);
 
@@ -180,6 +180,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
         }
 
         for (int ib2 = 0; ib2 < nb2; ib2++) {
+
           double en2 = state2Energies(ib2);
           int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
           int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
@@ -189,6 +190,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
           int iBte2 = ind2Idx.get();
 
           for (int ib1 = 0; ib1 < nb1; ib1++) {
+
             double en1 = state1Energies(ib1);
             int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
             StateIndex is1Idx(is1);
@@ -196,19 +198,17 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
             int iBte1 = ind1Idx.get();
 
             for (int ib3 = 0; ib3 < nb3; ib3++) {
+
               double en3 = state3Energies(ib3);
 
               // remove small divergent phonon energies
-              if (en3 < phEnergyCutoff) {
-                continue;
-              }
+              if (en3 < phEnergyCutoff) { continue; }
 
               double delta1, delta2;
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
               } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-                // Eigen::Vector3d smear = v3s.row(ib3);
                 Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
                 delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
                 delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
@@ -217,9 +217,7 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                 delta2 = smearing->getSmearing(en3 - en1, is2Idx);
               }
 
-              if (delta1 <= 0. && delta2 <= 0.) {
-                continue;
-              }
+              if (delta1 <= 0. && delta2 <= 0.) { continue; } // doesn't contribute
 
               // loop on temperature
               for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
@@ -238,9 +236,6 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                 double rateOffDiagonal = -
                       coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
                       * norm / en3 * pi;
-
-                //std::cout << rate << " "<<  iBte1 << " " << iBte2 << " " << ib1 << " " << ib2 << " " << ib3 << " " << coupling(ib1, ib2, ib3) << " "
-                //        << bose3Symm << " " << delta1 << " " << delta2 << " " << norm << " " << en3 << " " << fermi2 << " " << bose3 << std::endl;
 
                 // double rateOffDiagonal = -
                 // coupling(ib1, ib2, ib3)
@@ -306,9 +301,9 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
             }
           }
         }
-      }
+      } // loop over ik2s in the batch
       Kokkos::Profiling::popRegion();
-    }
-  }
+    } // loop over batches
+  } // kpair iterator loop (defines k1)
   loopPrint.close();
 }

@@ -53,7 +53,7 @@ protected:
   InteractionElPhWan *couplingElPhWan;
   ElectronH0Wannier *electronH0;
 
-  void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
+  void builder(std::shared_ptr<VectorBTE> linewidth, std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
   // to prevent mistakes in which these two outer and inner BS could
@@ -70,7 +70,7 @@ protected:
                 BaseBandStructure &elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan *couplingElPhWan,
-                VectorBTE *linewidth);
+                std::shared_ptr<VectorBTE> linewidth);
 
 };
 

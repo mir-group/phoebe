@@ -48,7 +48,8 @@ protected:
    * @param inPopulations
    * @param outPopulations
    */
-  void builder(VectorBTE *linewidth, std::vector<VectorBTE> &inPopulations,
+  void builder(std::shared_ptr<VectorBTE> linewidth,
+               std::vector<VectorBTE> &inPopulations,
                std::vector<VectorBTE> &outPopulations) override;
 
   // TODO write docstrings for these
@@ -65,7 +66,7 @@ protected:
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,
                        InteractionElPhWan *couplingElPhWan,
-                       VectorBTE *linewidth);
+                       std::shared_ptr<VectorBTE> linewidth);
 
   friend void addDragTerm(BaseElScatteringMatrix &matrix, Context &context,
                   std::vector<std::tuple<std::vector<int>, int>> kqPairIterator,
@@ -73,7 +74,7 @@ protected:
                   ElectronH0Wannier* electronH0,
                   InteractionElPhWan *couplingElPhWan,
                   BaseBandStructure &innerBandStructure,
-                  BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
+                  BaseBandStructure &outerBandStructure, std::shared_ptr<VectorBTE> linewidth);
 
 };
 

@@ -34,15 +34,7 @@ class BaseElScatteringMatrix : virtual public ScatteringMatrix {
                        BaseBandStructure &outerBandStructure,
                        PhononH0 &phononH0,
                        InteractionElPhWan *couplingElPhWan,
-                       VectorBTE *linewidth);
-
-  friend void addDragTerm(BaseElScatteringMatrix &matrix, Context &context,
-                  std::vector<std::tuple<std::vector<int>, int>> kqPairIterator,
-                  int dragTermType,
-                  ElectronH0Wannier* electronH0,
-                  InteractionElPhWan *couplingElPhWan,
-                  BaseBandStructure &innerBandStructure,
-                  BaseBandStructure &outerBandStructure, VectorBTE *linewidth);
+                       std::shared_ptr<VectorBTE> linewidth);
 
 };
 

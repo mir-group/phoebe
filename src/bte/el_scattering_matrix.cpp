@@ -20,7 +20,7 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
   highMemory = context.getScatteringMatrixInMemory();
 }
 
-void ElScatteringMatrix::builder(VectorBTE *linewidth,
+void ElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                  std::vector<VectorBTE> &inPopulations,
                                  std::vector<VectorBTE> &outPopulations) {
 

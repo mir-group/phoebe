@@ -13,7 +13,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
                 BaseBandStructure& elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan* couplingElPhWan,
-                VectorBTE* linewidth) {
+                std::shared_ptr<VectorBTE> linewidth) {
 
   // TODO wish there was a good way to not always call matrix.getPh or El bandstruct
   // should we use exclude indices in here?

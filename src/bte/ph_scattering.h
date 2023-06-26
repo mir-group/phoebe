@@ -15,9 +15,9 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
-                                PhononH0* phononH0,
+                                PhononH0& phononH0,
                                 Interaction3Ph *coupling3Ph,
-                                VectorBTE *linewidth);
+                                std::shared_ptr<VectorBTE> linewidth);
 
 void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 std::vector<VectorBTE> &inPopulations,
@@ -26,6 +26,6 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                                 Eigen::MatrixXd &innerBose, Eigen::MatrixXd &outerBose,
                                 BaseBandStructure &innerBandStructure,
                                 BaseBandStructure &outerBandStructure,
-                                VectorBTE *linewidth);
+                                std::shared_ptr<VectorBTE> linewidth);
 
 #endif
