@@ -61,15 +61,17 @@ void PhScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
   // generate the points on which these processes will be computed
   std::vector<std::tuple<std::vector<int>, int>> qPairIterator =
                                         getIteratorWavevectorPairs(switchCase);
-/*
+
   // here we call the function to add ph-ph scattering
   addPhPhScattering(*this, context, inPopulations, outPopulations,
                                   switchCase, qPairIterator,
                                   innerBose, outerBose,
                                   innerBandStructure, outerBandStructure,
                                   *phononH0, coupling3Ph, linewidth);
-*/
 
+  // NOTE: this is very slightly OMP thread num dependent.
+  // That's because it uses the phonon eigenvectors, which can be slightly
+  // different phase-wise when diagonalized with a different number of threads
   // Isotope scattering
   if (context.getWithIsotopeScattering()) {
     addIsotopeScattering(*this, context, inPopulations, outPopulations,
@@ -79,7 +81,7 @@ void PhScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                   linewidth);
   }
 
-/*
+
   // Add boundary scattering
   if (!std::isnan(context.getBoundaryLength())) {
     if (context.getBoundaryLength() > 0.) {
@@ -87,7 +89,7 @@ void PhScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                   switchCase, outerBandStructure, linewidth);
     }
   }
-*/
+
   // TODO add phel scattering
   //if(!context.getElphFileName().empty()) {
       // this is a weird case because it requires another band structure object,
