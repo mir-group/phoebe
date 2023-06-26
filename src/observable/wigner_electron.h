@@ -53,4 +53,3 @@ class WignerElCoefficients : public OnsagerCoefficients {
 };
 
 #endif
-
