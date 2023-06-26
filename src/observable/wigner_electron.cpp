@@ -1,6 +1,7 @@
 #include "wigner_electron.h"
 #include "constants.h"
 #include <iomanip>
+#include "onsager_utilities.h"
 
 WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
                                            Crystal &crystal_,
@@ -120,26 +121,6 @@ WignerElCoefficients::WignerElCoefficients(StatisticsSweep &statisticsSweep_,
   mpi->allReduceSum(&correctionLTT);
 }
 
-// copy constructor
-WignerElCoefficients::WignerElCoefficients(const WignerElCoefficients &that)
-    : OnsagerCoefficients(that), smaRelTimes(that.smaRelTimes),
-      correctionLEE(that.correctionLEE), correctionLTE(that.correctionLTE),
-      correctionLET(that.correctionLET), correctionLTT(that.correctionLTT) {}
-
-// copy assignment
-WignerElCoefficients &
-WignerElCoefficients::operator=(const WignerElCoefficients &that) {
-  OnsagerCoefficients::operator=(that);
-  if (this != &that) {
-    smaRelTimes = that.smaRelTimes;
-    correctionLEE = that.correctionLEE;
-    correctionLTE = that.correctionLTE;
-    correctionLET = that.correctionLET;
-    correctionLTT = that.correctionLTT;
-  }
-  return *this;
-}
-
 void WignerElCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   OnsagerCoefficients::calcFromPopulation(nE, nT);
   LEE += correctionLEE;
@@ -148,7 +129,8 @@ void WignerElCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   LTT += correctionLTT;
   // calcTransportCoefficients is called twice, also in base calcFromPopulation.
   // Could this be improved?
-  calcTransportCoefficients();
+  onsagerToTransportCoeffs(statisticsSweep, dimensionality,
+                        LEE, LTE, LET, LTT, kappa, sigma, mobility, seebeck);
 }
 
 void WignerElCoefficients::print() {

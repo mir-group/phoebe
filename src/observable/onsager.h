@@ -65,7 +65,7 @@ public:
    * this function evaluates the transport coefficients such as electrical
    * conductivity, Seebeck and thermal conductivity.
    */
-  void calcTransportCoefficients();
+  //void calcTransportCoefficients();
 
   /** Evaluation of the Onsager coefficients within the EPA approximation.
    *
