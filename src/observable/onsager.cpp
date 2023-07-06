@@ -376,7 +376,7 @@ void OnsagerCoefficients::calcFromRelaxons(
     mpi->allReduceSum(&nT.data);
 
   } else { // with symmetries
-    Error("Not sure relaxons with symmetries would work");
+    Error("Developer error: Theoretically, relaxons with symmetries may not work.");
     Eigen::MatrixXd fE(3, eigenvectors.cols());
     Eigen::MatrixXd fT(3, eigenvectors.cols());
     fE.setZero();

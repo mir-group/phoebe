@@ -428,7 +428,7 @@ void PhononThermalConductivity::calcFromRelaxons(
       }
     }
   }
-  // now calculate the thermal conductivity using the relaxons population
+  // now calculate the thermal conductivity using the standard phonon population
   calcFromPopulation(population);
 }
 

@@ -162,6 +162,7 @@ tensordxdxdxd = tensordxdxdxd + tmpTensor;
   }
 void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     ParallelMatrix<double> &eigenvectors) {
+
   if (numCalculations > 1) {
     Error("Developer error: Electron viscosity cannot be calculated for more than one T.");
   }

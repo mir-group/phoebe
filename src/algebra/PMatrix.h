@@ -20,6 +20,9 @@ using ParallelMatrix = SerialMatrix<T>;
 #include <utility>
 #include <set>
 
+// https://www.ibm.com/docs/en/pessl/5.5?topic=programs-application-program-outline
+// TODO we could remove the sq proc grid requirement as done here
+
 /** Class for managing a matrix MPI-distributed in memory.
  *
  * This class uses the Scalapack library for matrix-matrix multiplication and
