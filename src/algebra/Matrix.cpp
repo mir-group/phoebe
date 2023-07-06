@@ -62,6 +62,26 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
   return std::make_tuple(eigenvalues, eigenvectors);
 }
 
+// diagonalize for only some eigenvalues
+template <>
+std::tuple<std::vector<double>, Matrix<double>>
+                        Matrix<double>::diagonalize(int numEigenvalues) {
+
+  std::vector<double> eigenvalues;
+  Matrix<double> eigenvectors(*this);
+
+  if(isDistributed) {
+    auto tup = pmat->diagonalize(numEigenvalues);
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.pmat = &(std::get<1>(tup)); // returns a pMat, need the pointer to it
+  } else{
+    auto tup = mat->diagonalize(numEigenvalues);
+    eigenvalues = std::get<0>(tup);
+    eigenvectors.mat = &(std::get<1>(tup));
+  }
+  return std::make_tuple(eigenvalues, eigenvectors);
+}
+
 // Explicit specialization of norm for doubles
 template <>
 double Matrix<double>::norm() {
