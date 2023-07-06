@@ -49,6 +49,7 @@ void PhononThermalConductivity::calcFromCanonicalPopulation(VectorBTE &f) {
 }
 
 void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
+
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
 
@@ -62,6 +63,7 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
   Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxd_k(tensordxd.data(), numCalculations, 3, 3);
   Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxd(tensordxd_k);
   Kokkos::parallel_for("phonon_thermal_cond", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+
       auto tensorPrivate = scatter_tensordxd.access();
 
       int is = iss[iis];
@@ -78,10 +80,10 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
 
       auto rots = bandStructure.getRotationsStar(isIdx);
       for (const Eigen::Matrix3d &rot : rots) {
+
         auto vel = rot * velIrr;
 
-        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations();
-             iCalc++) {
+        for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
 
           Eigen::Vector3d nRot;
           for (int i : {0, 1, 2}) {
@@ -223,34 +225,68 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
   tensordxd = 2 * y2 - y1;
 }
 
+// TODO this should be commented better to make it more understandable -- Jenny
 void PhononThermalConductivity::calcFromRelaxons(
     Context &context, StatisticsSweep &statisticsSweep,
     ParallelMatrix<double> &eigenvectors, PhScatteringMatrix &scatteringMatrix,
     const Eigen::VectorXd &eigenvalues) {
 
+  // Comments are Jenny attempting to trace a function written by Andrea
+  // See Cepellotti 2016 PRX about relaxons
+  // This function calculates the relaxon population delta n
+  // defined in that paper, and then supplies it to the thermal conductivity
+  // calculator.
+  //
+  // Here,
+  // alpha = relaxons eigenvalue index
+  // iMat1 = phonon state index
+
+  int numEigenvalues = eigenvalues.size();
   auto particle = bandStructure.getParticle();
 
-  int iCalc = 0;
+  int iCalc = 0; // relaxons only allows one calc in memory
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
-
   VectorBTE population(statisticsSweep, bandStructure, 3);
 
+  // if we only calculated some eigenvalues,
+  // we should not include any alpha
+  // values past that -- scalapack required the memory in eigenvectors to be allocated,
+  // however, for alpha>numEigenvalues, it contains zeros or nonsense.
+  // we also need to discard any negative states
+  std::vector<std::tuple<int, int>> allLocalStates = eigenvectors.getAllLocalStates();
+  std::vector<std::tuple<int, int>> localStates;
+  for(auto state : allLocalStates) {
+    int alpha = std::get<1>(state);
+    if (eigenvalues(alpha) <= 0. || alpha >= numEigenvalues) {
+      continue;
+    }
+    localStates.push_back(state);
+  }
+  int nlocalStates = localStates.size();
+
+  // now, use these states to calcuate the populations
+  // first, we calculate the relaxon populations f_alpha
   if (context.getUseSymmetries()) {
 
-    Eigen::VectorXd relPopulation(eigenvalues.size());
-    relPopulation.setZero();
+    // relaxons population f_alpha
+    Eigen::VectorXd relaxonsPopulation(numEigenvalues);
+    relaxonsPopulation.setZero();
 
-    std::vector<std::tuple<int, int>> localStates = eigenvectors.getAllLocalStates();
-    int nlocalStates = localStates.size();
 #pragma omp parallel default(none)                                             \
-    shared(relPopulation, temp, chemPot, scatteringMatrix, eigenvectors,       \
+    shared(relaxonsPopulation, temp, chemPot, scatteringMatrix, eigenvectors,       \
            eigenvalues, particle, localStates, nlocalStates)
     {
-      Eigen::VectorXd relPopPrivate(eigenvalues.size());
-      relPopPrivate.setZero();
+      // each omp process needs its own copy
+      Eigen::VectorXd relaxonsPopPrivate(eigenvalues.size());
+      relaxonsPopPrivate.setZero();
+
 #pragma omp for nowait
       for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
+
+        // calculate related state indices (need to use SMatrix for this when sym present)
+        // scalapack required eigenvectors to be the same size as
+        // the SMatrix, so this indexing works for eigenvectors, too.
         std::tuple<int,int> tup0 = localStates[ilocalState];
         int iMat1 = std::get<0>(tup0);
         int alpha = std::get<1>(tup0);
@@ -259,30 +295,32 @@ void PhononThermalConductivity::calcFromRelaxons(
         CartIndex dimIdx = std::get<1>(tup1);
         StateIndex isIdx = bandStructure.bteToState(iBteIdx);
         int iDim = dimIdx.get();
-        //
+
         auto vel = bandStructure.getGroupVelocity(isIdx);
         double en = bandStructure.getEnergy(isIdx);
         double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
         double dndt = particle.getDndt(en, temp, chemPot);
+        // Not sure which equation this comes from in 2016 PRX,
+        // maybe should check 2020
         if (eigenvalues(alpha) > 0. && en > 0.) {
-          relPopPrivate(alpha) += dndt / term * vel(iDim) *
+          //  sum(alpha, i) dn/dT * (1/sqrt(n(n+1)))
+          //                        * v_i * theta_mu,alpha * tau_alpha
+          relaxonsPopPrivate(alpha) += dndt / term * vel(iDim) *
                                   eigenvectors(iMat1, alpha) /
                                   eigenvalues(alpha);
         }
       }
 #pragma omp critical
       for (int alpha = 0; alpha < eigenvalues.size(); alpha++) {
-        relPopulation(alpha) += relPopPrivate(alpha);
+        relaxonsPopulation(alpha) += relaxonsPopPrivate(alpha);
       }
     }
-    mpi->allReduceSum(&relPopulation);
+    mpi->allReduceSum(&relaxonsPopulation);
 
     // back rotate to phonon coordinates
 
-    localStates = eigenvectors.getAllLocalStates();
-    nlocalStates = localStates.size();
 #pragma omp parallel default(none)                                             \
-    shared(bandStructure, eigenvectors, relPopulation, population,             \
+    shared(bandStructure, eigenvectors, relaxonsPopulation, population,             \
            scatteringMatrix, iCalc, localStates, nlocalStates)
     {
       Eigen::MatrixXd popPrivate(3, bandStructure.irrStateIterator().size());
@@ -299,7 +337,7 @@ void PhononThermalConductivity::calcFromRelaxons(
         int iBte = iBteIndex.get();
         int iDim = dimIndex.get();
         popPrivate(iDim, iBte) +=
-            eigenvectors(iMat1, alpha) * relPopulation(alpha);
+            eigenvectors(iMat1, alpha) * relaxonsPopulation(alpha);
       }
 
 #pragma omp critical
@@ -313,20 +351,17 @@ void PhononThermalConductivity::calcFromRelaxons(
 
   } else { // case without symmetries ------------------------------------------
 
-    Eigen::MatrixXd relPopulation(eigenvalues.size(), 3);
-    relPopulation.setZero();
-    std::vector<std::tuple<int,int>> localStates = eigenvectors.getAllLocalStates();
-    int nlocalStates = localStates.size();
+    Eigen::MatrixXd relaxonsPopulation(eigenvalues.size(), 3);
+    relaxonsPopulation.setZero();
 #pragma omp parallel default(none)                                             \
-    shared(eigenvectors, eigenvalues, temp, chemPot, particle, relPopulation, localStates, nlocalStates)
+    shared(eigenvectors, eigenvalues, temp, chemPot, particle, relaxonsPopulation, localStates, nlocalStates)
     {
-      Eigen::MatrixXd relPopPrivate(eigenvalues.size(), 3);
-      relPopPrivate.setZero();
+      Eigen::MatrixXd relaxonsPopPrivate(eigenvalues.size(), 3);
+      relaxonsPopPrivate.setZero();
 #pragma omp for nowait
       for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
         std::tuple<int,int> tup0 = localStates[ilocalState];
         int is = std::get<0>(tup0);
-
         StateIndex isIdx(is);
         int alpha = std::get<1>(tup0);
         double en = bandStructure.getEnergy(isIdx);
@@ -335,7 +370,7 @@ void PhononThermalConductivity::calcFromRelaxons(
           double term = sqrt(particle.getPopPopPm1(en, temp, chemPot));
           double dndt = particle.getDndt(en, temp, chemPot);
           for (int i = 0; i < 3; i++) {
-            relPopPrivate(alpha, i) += dndt / term * vel(i) *
+            relaxonsPopPrivate(alpha, i) += dndt / term * vel(i) *
                                        eigenvectors(is, alpha) /
                                        eigenvalues(alpha);
           }
@@ -344,27 +379,26 @@ void PhononThermalConductivity::calcFromRelaxons(
 #pragma omp critical
       for (int alpha = 0; alpha < eigenvalues.size(); alpha++) {
         for (int i = 0; i < 3; i++) {
-          relPopulation(alpha, i) += relPopPrivate(alpha, i);
+          relaxonsPopulation(alpha, i) += relaxonsPopPrivate(alpha, i);
         }
       }
     }
-    mpi->allReduceSum(&relPopulation);
-    localStates = eigenvectors.getAllLocalStates();
-    nlocalStates = localStates.size();
+    mpi->allReduceSum(&relaxonsPopulation);
+
     // back rotate to phonon coordinates
 #pragma omp parallel default(none)                                             \
-    shared(eigenvectors, relPopulation, population, iCalc, localStates, nlocalStates)
+    shared(eigenvectors, relaxonsPopulation, population, iCalc, localStates, nlocalStates)
     {
       Eigen::MatrixXd popPrivate(3, bandStructure.getNumStates());
       popPrivate.setZero();
+
 #pragma omp for nowait
       for(int ilocalState = 0; ilocalState < nlocalStates; ilocalState++){
         std::tuple<int,int> tup0 = localStates[ilocalState];
         int is = std::get<0>(tup0);
         int alpha = std::get<1>(tup0);
         for (int i = 0; i < 3; i++) {
-          popPrivate(i, is) +=
-              eigenvectors(is, alpha) * relPopulation(alpha, i);
+          popPrivate(i, is) += eigenvectors(is, alpha) * relaxonsPopulation(alpha, i);
         }
       }
 #pragma omp critical
@@ -376,8 +410,8 @@ void PhononThermalConductivity::calcFromRelaxons(
     }
     mpi->allReduceSum(&population.data);
   }
-  // put back the rescaling factor
 
+  // put back the rescaling factor
   std::vector<int> iss = bandStructure.irrStateIterator();
   int niss = iss.size();
 #pragma omp parallel for default(none)                                         \
@@ -394,7 +428,7 @@ void PhononThermalConductivity::calcFromRelaxons(
       }
     }
   }
-
+  // now calculate the thermal conductivity using the standard phonon population
   calcFromPopulation(population);
 }
 

@@ -923,7 +923,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
 }
 
 std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
-ScatteringMatrix::diagonalize() {
+ScatteringMatrix::diagonalize(int numEigenvalues) {
 
   // user info about memory
   {
@@ -938,13 +938,23 @@ ScatteringMatrix::diagonalize() {
                 << std::endl;
     }
   }
-
-  auto tup = theMatrix.diagonalize();
+  // diagonalize
+  std::tuple<std::vector<double>, ParallelMatrix<double>> tup;
+  if(numEigenvalues > numStates) { // not possible
+    Error("You have requested to calculate more relaxons eigenvalues"
+        " than your number of particle states.");
+  }
+  if(numEigenvalues > 0 && numEigenvalues != numStates) { // zero is default, calculates all of them
+    // calculate some of the eigenvalues
+    tup = theMatrix.diagonalize(numEigenvalues);
+  } else { // calculate all
+    tup = theMatrix.diagonalize();
+  }
   auto eigenvalues = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
 
-  // place eigenvalues in an eigen vector
-  Eigen::VectorXd eigenValues(theMatrix.rows());
+  // place eigenvalues in an VectorBTE object
+  Eigen::VectorXd eigenValues(eigenvalues.size());
   for (int is = 0; is < eigenValues.size(); is++) {
     eigenValues(is) = eigenvalues[is];
   }

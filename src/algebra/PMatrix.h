@@ -20,6 +20,9 @@ using ParallelMatrix = SerialMatrix<T>;
 #include <utility>
 #include <set>
 
+// https://www.ibm.com/docs/en/pessl/5.5?topic=programs-application-program-outline
+// TODO we could remove the sq proc grid requirement as done here
+
 /** Class for managing a matrix MPI-distributed in memory.
  *
  * This class uses the Scalapack library for matrix-matrix multiplication and
@@ -66,6 +69,9 @@ class ParallelMatrix {
   std::tuple<int, int> local2Global(const int& k) const;
   std::tuple<int, int> local2Global(const int& i, const int& j) const;
 
+  /** Set the blacsContext for cases where two descriptors must share the same one */
+  void setBlacsContext(int blacsContext);
+
  public:
   /** Converts a global row/column index of the global matrix into a local
    * one-dimensional storage index (MPI-dependent),
@@ -86,7 +92,8 @@ class ParallelMatrix {
    * @param numBLocksCols: column size of the block for Blacs distribution
    */
   ParallelMatrix(const int& numRows, const int& numCols,
-                 const int& numBlocksRows = 0, const int& numBlocksCols = 0);
+                 const int& numBlocksRows = 0, const int& numBlocksCols = 0,
+                 const int& blacsContext = -1);
 
   /** Empty constructor
    */
@@ -110,7 +117,8 @@ class ParallelMatrix {
   * If both are zero, this function falls back to create a square
   * blacs process grid.
   */
-  void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0);
+  void initBlacs(const int& numBlasRows = 0, const int& numBlasCols = 0,
+                                                const int& initBlacsContext = -1);
 
   /** Find the global indices of the matrix elements that are stored locally
    * by the current MPI process.
@@ -205,6 +213,7 @@ class ParallelMatrix {
    * By default, it operates on the upper-triangular part of the matrix.
    */
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
+  std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize(int numEigenvalues);
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
@@ -230,14 +239,15 @@ class ParallelMatrix {
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
                                   const int& numBlocksRows,
-                                  const int& numBlocksCols) {
+                                  const int& numBlocksCols,
+                                  const int& blacsContext) {
 
   // call initBlacs to set all blacs related variables and contruct
   // the blacs context and process grid setup.
   // If numBlocksRows or numBlocksCols is not zero, this will
   // initialize blacs with a square process grid
   // (and number of processors must be a square number)
-  initBlacs(numBlocksRows,numBlocksCols);
+  initBlacs(numBlocksRows, numBlocksCols, blacsContext);
 
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
@@ -279,6 +289,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
   descinit_(descMat_, &numRows_, &numCols_, &blockSizeRows_, &blockSizeCols_,
             &iZero, &iZero, &blacsContext_, &lddA, &info);
+
   if (info != 0) {
     Error("Something wrong calling descinit", info);
   }
@@ -380,17 +391,27 @@ ParallelMatrix<T>::~ParallelMatrix() {
 }
 
 template <typename T>
-void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols) {
+void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols,
+                                                        const int& inputBlacsContext) {
 
   int size = mpi->getSize(); // temp variable for mpi world size, used in setup
 
+  // TODO if we only give this the nearest square number of processors,
+  // will it disregard the others for us? Could this fix the
+  // sq process thing?
+  //       NPROW = INT(SQRT(REAL(NNODES)))
+  //    NPCOL = NNODES/NPROW
+  //  IF (MYROW .LT. NPROW .AND. MYCOL .LT. NPCOL) THEN
+  //  https://www.ibm.com/docs/en/pessl/5.5?topic=programs-application-program-outline
   blacs_pinfo_(&blasRank_, &size);
   int iZero = 0;
-  blacs_get_(&iZero, &iZero, &blacsContext_);  // -> Create context
+  if( inputBlacsContext == -1) { // no context has been created/supplied
+    blacs_get_(&iZero, &iZero, &blacsContext_);  // -> get default system context
+  }
 
   // kill the code if we asked for more blas rows/cols than there are procs
   if (mpi->getSize() < numBlasRows * numBlasCols) {
-     Error("initBlacs requested too many MPI processes.");
+     Error("Developer error: initBlacs requested too many MPI processes.");
   }
 
   // Cases for a blacs grid where we specified rows, cols, both,
@@ -417,9 +438,13 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
       Error("Phoebe needs a square number of MPI processes");
     }
   }
-
-  blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_,
-                    &numBlasCols_);
+  // if no context is given, create one.
+  // Otherwise, use the one supplied
+  if( inputBlacsContext == -1) { // no context has been created/supplied
+    blacs_gridinit_(&blacsContext_, &blacsLayout_, &numBlasRows_, &numBlasCols_);
+  } else {
+    blacsContext_ = inputBlacsContext;
+  }
   // Context -> Context grid info (# procs row/col, current procs row/col)
   blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
                     &myBlasCol_);
@@ -664,6 +689,11 @@ ParallelMatrix<T> ParallelMatrix<T>::operator-() const {
     *(result.mat + i) = -*(result.mat + i);
   }
   return result;
+}
+// function to make sure two matrices share a blacs context...
+template <typename T>
+void ParallelMatrix<T>::setBlacsContext(int blacsContext) {
+  blacsContext_ = blacsContext;
 }
 
 #endif  // include safeguard

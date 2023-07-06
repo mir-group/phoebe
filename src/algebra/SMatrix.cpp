@@ -89,6 +89,15 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
   return std::make_tuple(eigenvalues, eigenvectors);
 }
 
+template <>
+std::tuple<std::vector<double>, SerialMatrix<double>>
+                        SerialMatrix<double>::diagonalize([[maybe_unused]] int numEigenvalues) {
+
+    Warning("Partial eigenvalue diagonalization currently not implemented "
+                "for the serial case. Reporting all eigenvalues.");
+    diagonalize();
+}
+
 // Explicit specialization of norm for doubles
 template <>
 double SerialMatrix<double>::norm() {

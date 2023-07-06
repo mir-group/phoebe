@@ -79,7 +79,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
 
   // store the full list of points for later use
 #pragma omp parallel for
-  for (size_t iik = 0; iik < niks; iik++) {
+  for (size_t iik = 0; iik < size_t(niks); iik++) {
     size_t ik = iks[iik];
     Point point = points.getPoint(ik);
     Eigen::Vector3d q = point.getCoordinates(Points::cartesianCoordinates);
@@ -119,7 +119,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
       Eigen::VectorXd energies(numBands);
       Eigen::MatrixXcd eigenvectors(numBands, numBands);
 #pragma omp for
-      for (size_t iik = 0; iik < stop_iik-start_iik; iik++) {
+      for (size_t iik = 0; iik < size_t(stop_iik-start_iik); iik++) {
         size_t ik = iks[start_iik+iik];
         Point point = points.getPoint(ik);
 
@@ -165,7 +165,7 @@ ActiveBandStructure::ActiveBandStructure(const Points &points_,
         int numBands = velocities_h.extent(1);;
         Eigen::Tensor<std::complex<double>,3> velocities(numBands, numBands,3);
 #pragma omp for
-        for (size_t iik = 0; iik < stop_iik-start_iik; iik++) {
+        for (size_t iik = 0; iik < size_t(stop_iik-start_iik); iik++) {
           size_t ik = iks[start_iik+iik];
           Point point = points.getPoint(ik);
 
