@@ -9,10 +9,10 @@ BasePhScatteringMatrix::BasePhScatteringMatrix(Context &context_,
 }
 
 /*BaseBandStructure BaseElScatteringMatrix::initialElBandStructure() {
-  return innerBandStructure; 
+  return innerBandStructure;
 }*/
 
 /*BaseBandStructure BaseElScatteringMatrix::finalElBandStructure() {
-  return outerBandStructure; 
+  return outerBandStructure;
 }*/
 

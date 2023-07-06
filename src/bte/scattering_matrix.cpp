@@ -505,7 +505,11 @@ VectorBTE ScatteringMatrix::getSingleModeTimes(int whichTimes) {
   }
 }
 
+// return the diagonal of the scattering matrix,
+// converting first to conventional lifetimes if the matrix is
+// symmetrized
 VectorBTE ScatteringMatrix::getLinewidths() {
+
   if (constantRTA) {
     VectorBTE linewidths(statisticsSweep, outerBandStructure, 1);
     linewidths.setConst(twoPi / context.getConstantRelaxationTime());
@@ -520,7 +524,7 @@ VectorBTE ScatteringMatrix::getLinewidths() {
       return linewidths;
 
     } else {
-      // A_nu,nu = Gamma / N(1+N) for phonons, A_nu,nu = Gamma for electrons
+      // A_nu,nu = Gamma / N(1+N) for phonons, Omega_nu,nu = Gamma for electrons
       if (particle.isElectron()) {
         Error("Attempting to use a numerically unstable quantity");
         // popTerm could be = 0
@@ -690,6 +694,7 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
     return;
 
   VectorBTE times = getSingleModeTimes();
+  // this will remove the factor of pop(pop +/- 1) if it's symmetrized
   VectorBTE tmpLinewidths = getLinewidths();
   std::shared_ptr<VectorBTE> timesN;
   std::shared_ptr<VectorBTE> timesU;

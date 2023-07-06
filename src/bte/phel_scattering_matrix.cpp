@@ -4,41 +4,24 @@
 #include "mpiHelper.h"
 #include "periodic_table.h"
 
-// TODO... love this get el and get ph bandstructure thing.
+// TODO el and get ph bandstructure getters are nice.
 // Could we perhaps extend this to all the scattering matrix objects?
-// We could also write things like... get phInner and getPhOuter
-// instead of inner and outer bandstructures, would be way clearer
 
-// helper function to generate kpoint pairs for phel scattering
-// This generates irr points for the ik1, iq3 indices
-std::vector<std::tuple<int, std::vector<int>>> PhElScatteringMatrix::getIrrWavevectorPairs() {
-
-  std::vector<std::tuple<int, std::vector<int>>> pairIterator;
-
-  // here I parallelize over ik1 which is the outer loop on q-points
-  std::vector<int> k1Iterator = getElBandStructure().parallelIrrPointsIterator();
-
-  // I don't parallelize the inner band structure, the inner loop
-  // populate vector with integers from 0 to numPoints-1
-  std::vector<int> q3Iterator = getPhBandStructure().irrPointsIterator();
-
-  for (size_t ik1 : k1Iterator) {
-    auto t = std::make_tuple(int(ik1), q3Iterator);
-    pairIterator.push_back(t);
-  }
-  return pairIterator;
-}
+// this matrix class is just essentially a linewidths container,
+// as in the phel linewidths + ph ph scattering thermal conductivity app,
+// it's nice to separate and print out the two contributions.
 
 PhElScatteringMatrix::PhElScatteringMatrix(Context &context_,
                                            StatisticsSweep &statisticsSweep_,
-                                           BaseBandStructure &elBandStructure_,
                                            BaseBandStructure &phBandStructure_,
                                            InteractionElPhWan *couplingElPhWan_,
                                            ElectronH0Wannier *electronH0_)
-    : ScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
-     BasePhScatteringMatrix(context_, statisticsSweep_, elBandStructure_, phBandStructure_),
+    : ScatteringMatrix(context_, statisticsSweep_, phBandStructure_, phBandStructure_),
+     BasePhScatteringMatrix(context_, statisticsSweep_, phBandStructure_, phBandStructure_),
       couplingElPhWan(couplingElPhWan_), electronH0(electronH0_) {
 
+  // this is true as the symmetrization isn't relevant here, this is
+  // diagonal only and doesn't have any n^2 terms as the other phonon transport methods do
   isMatrixOmega = true;
   // automatically false, as phel scattering is only the diagonal
   highMemory = false;
@@ -59,20 +42,10 @@ void PhElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
     Error("Linewidths shouldn't have dimensionality");
   }
 
-  // generate the kq pairs to be used -- TODO can we replace this with one
-  // generic pair generating function?
-
-  std::vector<std::tuple<int, std::vector<int>>> kqPairIterator
-                                                = getIrrWavevectorPairs();
-
   // compute the phonon electron lifetimes
-  addPhElScattering(*this, context, kqPairIterator,
-                        getElBandStructure(), getPhBandStructure(),
+  addPhElScattering(*this, context, getPhBandStructure(),
                         electronH0, couplingElPhWan, linewidth);
-
-  // TODO could we compute boundary or isotope scattering_matrix.here?
-  // I think they are diagonal terms, so this would work.
-
+  // reduce as this is parallelized over mpi processes for wavevectrors
   mpi->allReduceSum(&linewidth->data);
 
   // Average over degenerate eigenstates.

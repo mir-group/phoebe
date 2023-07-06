@@ -7,20 +7,49 @@
 
 const double phononCutoff = 0.001 / ryToCmm1; // used to discard small phonon energies
 
+/** Method to construct the kq pair iterator for this class.
+* Slightly different than the others, so we calculate it internally.
+* This is especially because the intermediate state band structure
+* is created in the scattering function.
+*/
+std::vector<std::tuple<int, std::vector<int>>> getPhElIterator(
+                                        BaseBandStructure& elBandStructure,
+                                        BaseBandStructure& phBandStructure) {
+
+  std::vector<std::tuple<int, std::vector<int>>> pairIterator;
+
+  // TODO for the scattering matrix case this isn't really ideal.
+  // We'd like to parallelize over the local diagonal states...
+  // Why is having the kpoints be the outer loop important?
+
+  // here I parallelize over ik1 which is the outer loop on k-points
+  std::vector<int> k1Iterator = elBandStructure.parallelIrrPointsIterator();
+
+  // I don't parallelize the inner band structure, the inner loop
+  // populate vector with integers from 0 to numPoints-1
+  std::vector<int> q3Iterator = phBandStructure.irrPointsIterator();
+
+  for (size_t ik1 : k1Iterator) {
+    auto t = std::make_tuple(int(ik1), q3Iterator);
+    pairIterator.push_back(t);
+  }
+  return pairIterator;
+}
+
 void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
-                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
                 BaseBandStructure& phBandStructure,
-                BaseBandStructure& elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan* couplingElPhWan,
                 std::shared_ptr<VectorBTE> linewidth) {
 
-  // TODO wish there was a good way to not always call matrix.getPh or El bandstruct
-  // should we use exclude indices in here?
+  // TODO throw error if it's not a ph band structure
+  // TODO should we be using exclude indices here?
 
   Particle elParticle(Particle::electron);
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
   DeltaFunction* smearing = matrix.smearing;
+  Crystal crystalPh = phBandStructure.getPoints().getCrystal();
+  Particle particle = phBandStructure.getParticle();
 
   Eigen::VectorXd temperatures(numCalculations);
   for (int iCalc=0; iCalc<numCalculations; ++iCalc) {
@@ -33,7 +62,77 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   // note: in the equations for this rate, because there's an integraton over k,
   // this rate is actually 1/NK (sometimes written N_eFermi).
-  double norm = 1. / context.getKMesh().prod();
+  double norm = 1. / context.getKMeshPhEl().prod();
+
+  // compute the elBand structure on the fine grid -------------------------
+  if (mpi->mpiHead()) {
+    std::cout << "\nComputing electronic band structure for ph-el scattering.\n"
+              << std::endl;
+  }
+
+  // update the window so that it's only a very narrow
+  // scale slice around mu, 1.25* the max phonon energy
+  double maxPhEnergy = phBandStructure.getMaxEnergy();
+  auto inputWindowType = context.getWindowType();
+  context.setWindowType("muCenteredEnergy");
+  if(mpi->mpiHead()) {
+    std::cout << "Of the active phonon modes, the maximum energy state is " <<
+       maxPhEnergy*energyRyToEv*1e3 << " meV." <<
+        "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
+        << " of max/min electronic mu values." << std::endl;
+  }
+  Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
+  context.setWindowEnergyLimit(range);
+
+  // construct electronic band structure
+  Points fullPoints(crystalPh, context.getKMeshPhEl());
+  auto t3 = ActiveBandStructure::builder(context, *electronH0, fullPoints);
+  auto elBandStructure = std::get<0>(t3);
+  auto statisticsSweep = std::get<1>(t3);
+
+  // don't proceed if we use more than one doping concentration --
+  // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly
+  int numMu = statisticsSweep.getNumChemicalPotentials();
+  if (numMu != 1) {
+      Error("Can currenly only add ph-el scattering one doping "
+        "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
+  }
+
+  // TODO move this to bandstructure and make a printStats function
+  // print some info about how window and symmetries have reduced el bands
+  if (mpi->mpiHead()) {
+    if(elBandStructure.hasWindow() != 0) {
+        std::cout << "Window selection reduced electronic band structure from "
+                << fullPoints.getNumPoints() * electronH0->getNumBands() << " to "
+                << elBandStructure.getNumStates() << " states."  << std::endl;
+    }
+    if(context.getUseSymmetries()) {
+      std::cout << "Symmetries reduced electronic band structure from "
+        << elBandStructure.getNumStates() << " to "
+        << elBandStructure.irrStateIterator().size() << " states." << std::endl;
+    }
+    std::cout << "Done computing electronic band structure.\n" << std::endl;
+  }
+  // TODO maybe this should be phonon states, actually...?
+  if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
+      Error("Cannot calculate PhEl scattering matrix with fewer el states than\n"
+      "number of MPI processes. Reduce the number of MPI processes,\n"
+        "perhaps use more OMP threads instead.");
+  }
+  // switch back to the window type that was originally input by the user
+  context.setWindowType(inputWindowType);
+
+  // now that we have the band structure, we can generate the kqPairs
+  // to iterate over in parallel
+  // TODO for now this parallelizes over the electronic states.
+  // As this function only adds to the diagonal, this is ok -- we can
+  // just update the linewidths object here, as the Smatrix diagonal is
+  // replaced after an all-reduce at the end of the smatrix calculations.
+  // it's (according to Andrea) better to parallelize the outer
+  // loop over el states, though I suppose if one was motivated this could
+  // be switched to parallelize over local phScattering matrix diagonal states
+  std::vector<std::tuple<int,std::vector<int>>> kqPairIterator
+                = getPhElIterator(elBandStructure, phBandStructure);
 
   // precompute Fermi-Dirac factors
   int numKPoints = elBandStructure.getNumPoints();
@@ -55,7 +154,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
     Eigen::VectorXd energies = elBandStructure.getEnergies(ikIdx);
     int nb1 = energies.size();
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      auto calcStat = matrix.statisticsSweep.getCalcStatistics(iCalc);
+      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
       double temp = calcStat.temperature;
       double chemPot = calcStat.chemicalPotential;
       for (int ib=0; ib<nb1; ++ib) {
@@ -89,7 +188,6 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
   // k1, k2 are the electronic states, q3 is the phonon
   // this helper returns pairs of the form vector<idxK1, std::vector(allQ3idxs)>
   LoopPrint loopPrint("computing ph-el linewidths","k,q pairs", kqPairIterator.size());
-
 
   // iterate over vector<idxK1, std::vector(allK2idxs)>
   // In this loop, k1 is fixed at the top, and we compute
@@ -285,8 +383,22 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
                     * smearingValues(ib1, ib2, ib3)
                     * norm / temperatures(iCalc) * pi * k1Weight;
 
+                // if it's not a coupled matrix, this will be ibte3
+                // We have to define shifted ibte3, or it will be further
+                // shifted every loop.
+                //
+                // Additionally, these are only needed in no-sym case,
+                // as coupled matrix never has sym, is always case = 0
+                int iBte3Shift = ibte3;
+                if(matrix.isCoupled) {
+                  // translate into the phonon-self quadrant if it's a coupled bte
+                  std::tuple<int,int> tup =
+                        matrix.shiftToCoupledIndices(ibte3, ibte3, particle, particle);
+                  iBte3Shift = std::get<0>(tup);
+                }
+
                 // case of linewidth construction (the only case, for ph-el)
-                linewidth->operator()(iCalc, 0, ibte3) += rate;
+                linewidth->operator()(iCalc, 0, iBte3Shift) += rate;
 
                 //NOTE: for eliashberg function, we could here add another vectorBTE object
                 // as done with the linewidths here, slightly modified

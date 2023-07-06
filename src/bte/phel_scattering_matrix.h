@@ -6,8 +6,9 @@
 #include "base_ph_scattering_matrix.h"
 #include "vector_bte.h"
 #include "interaction_elph.h"
-//#include "phel_scattering.cpp"
 
+// TODO realistically this should be just absorbed
+// as a diagonal only case for ph scattering matrix!
 /** This class describes the construction of the electron scattering matrix.
  * The most important part is the assembly of the electron-phonon scattering.
  * We also include boundary scattering effects.
@@ -31,7 +32,7 @@ public:
    * @param couplingElPhWan_: object with the electron-phonon coupling.
    */
   PhElScatteringMatrix(Context &context_, StatisticsSweep &statisticsSweep_,
-                       BaseBandStructure &elBandStructure_,
+                       //BaseBandStructure &elBandStructure_,
                        BaseBandStructure &phBandStructure_,
                        InteractionElPhWan *couplingElPhWan_,
                        ElectronH0Wannier *electronH0_);
@@ -61,13 +62,8 @@ protected:
   BaseBandStructure& getPhBandStructure() { return outerBandStructure; };
   BaseBandStructure& getElBandStructure() { return innerBandStructure; };
 
-  // TODO describe this function
-  std::vector<std::tuple<int, std::vector<int>>> getIrrWavevectorPairs();
-
   friend void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
-                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
                 BaseBandStructure &phBandStructure,
-                BaseBandStructure &elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan *couplingElPhWan,
                 std::shared_ptr<VectorBTE> linewidth);

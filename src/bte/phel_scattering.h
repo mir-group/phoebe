@@ -8,11 +8,9 @@
  // TODO write docstrings for these
 
  void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
-                std::vector<std::tuple<int, std::vector<int>>> kqPairIterator,
                 BaseBandStructure &phBandStructure,
-                BaseBandStructure &elBandStructure,
                 ElectronH0Wannier* electronH0,
                 InteractionElPhWan *couplingElPhWan,
-                std::shared_ptr<VectorBTE> linewidth) {
+                std::shared_ptr<VectorBTE> linewidth);
 
 #endif
