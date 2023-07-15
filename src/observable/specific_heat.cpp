@@ -14,7 +14,8 @@ SpecificHeat::SpecificHeat(Context &context_, StatisticsSweep &statisticsSweep_,
 
   scalar = Eigen::VectorXd::Zero(numCalculations);
 
-  if (context.getHasSpinOrbit() && bandStructure.getParticle().isElectron()) {
+  if ((context.getHasSpinOrbit() && bandStructure.getParticle().isElectron())
+                        || bandStructure.getParticle().isPhonon()) {
     spinFactor = 1.;
   } else {
     // TODO: for spin polarized calculations, we will have to set this
