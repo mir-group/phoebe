@@ -6,6 +6,7 @@
 #include "interaction_elph.h"
 #include "el_scattering_matrix.h"
 #include "vector_bte.h"
+#include "delta_function.h"
 
 // TODO maybe remove some of these that are not necessary
 
@@ -32,7 +33,13 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                        std::shared_ptr<VectorBTE> linewidth) {
 
   StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
-  DeltaFunction *smearing = matrix.smearing;
+
+  DeltaFunction *smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+   if ( // innerBandStructure != outerBandStructure &&
+       smearing->getType() == DeltaFunction::tetrahedron) {
+     Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
+     // May work for linewidths. Although this should be double-checked
+   }
 
   // generate the intermediate points to be summed over
   HelperElScattering pointHelper(innerBandStructure, outerBandStructure,

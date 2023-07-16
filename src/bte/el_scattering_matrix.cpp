@@ -50,11 +50,13 @@ void ElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
     Error("Developer error: The linewidths shouldn't have dimensionality");
   }
 
-  if (smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Developer error: Tetrahedron method not supported by electron scattering");
+  // this is blocked currently in each scattering rate function,
+  // but the matrix no longer has the smearing object, so we comment it out here for now
+  //if (smearing->getType() == DeltaFunction::tetrahedron) {
+  //  Error("Developer error: Tetrahedron method not supported by electron scattering");
     // that's because it doesn't work with the window the way it's implemented,
     // and we will almost always have a window for electrons
-  }
+  //}
 
   // precompute particle occupations
   //Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);

@@ -47,7 +47,6 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
 
   Particle elParticle(Particle::electron);
   int numCalculations = matrix.statisticsSweep.getNumCalculations();
-  DeltaFunction* smearing = matrix.smearing;
   Crystal crystalPh = phBandStructure.getPoints().getCrystal();
   Particle particle = phBandStructure.getParticle();
 
@@ -89,6 +88,12 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
   auto t3 = ActiveBandStructure::builder(context, *electronH0, fullPoints);
   auto elBandStructure = std::get<0>(t3);
   auto statisticsSweep = std::get<1>(t3);
+
+  // setup smearing using newly made electron band structure
+  DeltaFunction *smearing = DeltaFunction::smearingFactory(context, elBandStructure);
+  if (smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
+  }
 
   // don't proceed if we use more than one doping concentration --
   // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly

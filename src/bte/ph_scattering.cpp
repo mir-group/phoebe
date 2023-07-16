@@ -36,9 +36,16 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
   // copy a few small things that don't take
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices;
-  DeltaFunction *smearing = matrix.smearing;
   bool outputUNTimes = matrix.outputUNTimes;
   Particle particle = innerBandStructure.getParticle();
+
+  // setup smearing using phonon band structure
+  DeltaFunction *smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+  if ( // innerBandStructure != outerBandStructure &&
+     smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
+    // May work for linewidths. Although this should be double-checked
+  }
 
   // determine if this is lifetimes on a path or regular mesh
   bool outerEqualInnerMesh = false; // case of lifetimes on a path
@@ -562,7 +569,12 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
   // copy a few small things that don't take
   // much memory but will keep the code easier to read
   auto excludeIndices = matrix.excludeIndices;
-  auto smearing = matrix.smearing;
+
+  // setup smearing using phonon band structure
+  DeltaFunction *smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+  if (smearing->getType() == DeltaFunction::tetrahedron) {
+    Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
+  }
 
   // generate basic properties from the function arguments
   int numAtoms = innerBandStructure.getPoints().getCrystal().getNumAtoms();

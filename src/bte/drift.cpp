@@ -5,6 +5,7 @@ BulkTDrift::BulkTDrift(StatisticsSweep &statisticsSweep_,
                        const int &dimensionality_,
                        const bool& symmetrize)
     : VectorBTE(statisticsSweep_, bandStructure_, dimensionality_) {
+
   Particle particle = bandStructure.getParticle();
   std::vector<int> iss = bandStructure.parallelIrrStateIterator();
   int niss = iss.size();
@@ -58,7 +59,8 @@ BulkEDrift::BulkEDrift(StatisticsSweep &statisticsSweep_,
   mpi->allReduceSum(&data);
 }
 
-Vector0::Vector0(StatisticsSweep &statisticsSweep_,
+// Currently unused, never tested
+/*Vector0::Vector0(StatisticsSweep &statisticsSweep_,
                  BaseBandStructure &bandStructure_, SpecificHeat &specificHeat,
                  const bool& symmetrize)
     : VectorBTE(statisticsSweep_, bandStructure_, 1) {
@@ -84,4 +86,4 @@ Vector0::Vector0(StatisticsSweep &statisticsSweep_,
     }
   }
   mpi->allReduceSum(&data);
-}
+}*/
