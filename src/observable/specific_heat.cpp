@@ -120,7 +120,8 @@ void SpecificHeat::outputToJSON(const std::string &outFileName) {
   }
 
   // this has units of energy over volume
-  double conversion = energyRyToEv / pow(bohrRadiusSi, dimensionality);
+  // TODO this should be double checked for 2D material
+  double conversion = rydbergSi / pow(bohrRadiusSi, 3);
   auto particle = bandStructure.getParticle();
 
   std::vector<double> temps;
