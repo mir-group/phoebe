@@ -55,7 +55,8 @@ template <>
 ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
     const ParallelMatrix<std::complex<double>>& that, const char& trans1,
     const char& trans2) {
-  ParallelMatrix<std::complex<double>> result(numRows_, numCols_,
+
+  ParallelMatrix<std::complex<double>> result(numRows_, numCols_, 0, 0,
                                               numBlocksRows_, numBlocksCols_);
   if(cols() != that.rows()) {
     Error("Cannot multiply matrices for which lhs.cols != rhs.rows.");
@@ -108,7 +109,8 @@ ParallelMatrix<double>::diagonalize() {
   allocate(eigenvalues, numRows_);
 
   // Make a new PMatrix to receive the output
-  ParallelMatrix<double> eigenvectors(numRows_,numCols_,
+  // zeros here trigger a the default blacs process grid (a square one)
+  ParallelMatrix<double> eigenvectors(numRows_,numCols_, 0, 0,
                               numBlocksRows_,numBlocksCols_, blacsContext_);
 
   char jobz = 'V';  // also eigenvectors
@@ -133,21 +135,34 @@ ParallelMatrix<double>::diagonalize() {
   pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
           eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
           work, &lwork, iwork, &liwork, &info);
-  lwork=int(work[0])*100; // automatic detection finds the minimum needed
-  if(lwork<0) lwork = 2147483647; // check for overflow
+
+  //size_t tempWork = int(work[0]);
+  // automatic detection finds the minimum needed,
+  // we actually pretty much always need way more than this!
+  //if(tempWork > 2147483640) { lwork = 2147483640; } // check for overflow
+  //else { lwork = tempWork; }
+
+  lwork = int(work[0]);
   delete[] work;
-  allocate(work, lwork);
+  try{ allocate(work, lwork); }
+  catch (std::bad_alloc& ba) {
+    Error("PDSYEVD lwork array allocation failed.");
+  }
 
-  if(mpi->mpiHead()) mpi->time();
-
+  if(mpi->mpiHead()) {
+     std::cout << "Starting matrix diagonalization." << std::endl;
+     mpi->time();
+  }
 
   // call the function to now diagonalize
   pdsyevd_(&jobz, &uplo, &numRows_, mat, &ia, &ja, &descMat_[0], eigenvalues,
           eigenvectors.mat, &ia, &ja, &eigenvectors.descMat_[0],
           work, &lwork, iwork, &liwork, &info);
 
-  if(mpi->mpiHead()) mpi->time();
-
+  if(mpi->mpiHead()) {
+     std::cout << "Matrix diagonalization completed." << std::endl;
+     mpi->time();
+  }
 
   if(info != 0) {
     if (mpi->mpiHead()) {
@@ -198,8 +213,9 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
   double* eigenvalues = nullptr;
   eigenvalues = new double[numRows_];
 
+  // the two zeros here trigger the default square blacs process grid in initBlacs
   ParallelMatrix<std::complex<double>> eigenvectors(
-      numRows_, numCols_, numBlocksRows_, numBlocksCols_);
+      numRows_, numCols_, 0, 0, numBlocksRows_, numBlocksCols_);
 
   // find the value of lwork and lrwork. These are internal "scratch" arrays
   int NB = descMat_[5];
@@ -267,7 +283,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
   // can get around this.
   // Make a new PMatrix to receive the output
   ParallelMatrix<double> eigenvectors(numRows_, numCols_,
-                                numBlocksRows_,numBlocksCols_, blacsContext_);
+                        0, 0, numBlocksRows_,numBlocksCols_, blacsContext_);
 
   char jobz = 'V';  // also eigenvectors
   char uplo = 'U';  // upper triangular
@@ -315,6 +331,7 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // first, call and report any negative eigenvalues ------------------------------
   // we want to note these for convergence reasons
+  // TODO could add a variable to turn this on or off
   //if(context.getNegativeRelaxons()) {
 
   if(mpi->mpiHead()) mpi->time();
