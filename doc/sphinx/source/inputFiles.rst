@@ -147,6 +147,7 @@ Phonon BTE Solver
 
 * :ref:`useSymmetries`
 
+* :ref:`numRelaxonsEigenvalues`
 
 
 .. raw:: html
@@ -156,15 +157,19 @@ Phonon BTE Solver
 ::
 
   appName = "phononTransport"
+
   phFC2FileName = "./ForceConstants2nd"
-  sumRuleFC2 = "crystal"
   phFC3FileName = "./ForceConstants3rd"
+  sumRuleFC2 = "crystal"
   qMesh = [10,10,10]
   temperatures = [300.]
   smearingMethod = "adaptiveGaussian"
   solverBTE = ["variational","relaxons"]
   scatteringMatrixInMemory = true
   boundaryLength = 10. mum
+
+  #if using RTA or iterative solvers only, uncomment this
+  #useSymmetries = true
 
 -------------------------------------
 
@@ -240,6 +245,9 @@ Electron BTE Solver
 
 * :ref:`useSymmetries`
 
+* :ref:`numRelaxonsEigenvalues`
+
+
 .. raw:: html
 
   <h3>Sample input file</h3>
@@ -247,10 +255,11 @@ Electron BTE Solver
 ::
 
   appName = "electronWannierTransport"
+
   phFC2FileName = "./silicon.fc"
-  sumRuleFC2 = "crystal"
   electronH0Name = "./si_tb.dat",
   elphFileName = "silicon.phoebe.elph.dat"
+  sumRuleFC2 = "crystal"
   kMesh = [15,15,15]
   temperatures = [300.]
   dopings = [1.e21]
@@ -976,9 +985,10 @@ symmetrizeMatrix
 numRelaxonsEigenvalues
 ^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Compute the relaxons solver using only the ``numRelaxonsEigenvalues`` largest eigenvalues + corresponding eigenvectors. This can dramatically reduce the cost of the calculation, as the largest eigenvalues comprise most of the result. However, you have to be careful to converge the calculation with respect to this parameter as well if you use it.
+* **Description:** Compute the relaxons solver using only the ``numRelaxonsEigenvalues`` largest eigenvalues + corresponding eigenvectors. This can dramatically reduce the cost of the calculation, as the largest eigenvalues comprise most of the result. However, you have to be careful to converge the calculation with respect to this parameter as well if you use it. It's great for testing your calculation, perhaps using ~25% of the eigenvalues, with your final production result using a full calculation.
+Additionally, note that this leads to a second ScaLAPACK call to check for negative eigenvalues, which reduces the benefit of partial eigenvalue calculation. If you want to turn this check off, open a git discussion.
 
-* **Format:** *intger*
+* **Format:** *integer*
 
 * **Required:** no
 
