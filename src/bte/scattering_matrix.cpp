@@ -77,9 +77,14 @@ ScatteringMatrix::ScatteringMatrix(Context &context_,
 }
 
 void ScatteringMatrix::setup() {
+
   // note: here we want to build the matrix or its diagonal
   // builder is a pure virtual function, which is implemented in subclasses
   // c++ discourages calls to pure virtual functions in the constructor
+
+  if(numStates == 0) {
+    Error("Cannot construct the scattering matrix with zero states.");
+  }
 
   if (constantRTA) return; // nothing to construct
 
