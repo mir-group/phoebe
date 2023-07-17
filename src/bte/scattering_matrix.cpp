@@ -124,15 +124,13 @@ void ScatteringMatrix::setup() {
       // There may be logic to how to choose these sizes,
       // but for now I cannot find advice on this online.
 
-      // As an additional note, if the matrix is very small, we need to scale
-      // the blocksize accordingly to avoid scalapack throwing an error
-      int nBlocks = int(matSize/64);
-      // TODO this is a bit of a mystery, but it seems that scalapack can
-      // have an error if the matrix is very small and the blocksize is big by comparison...
-      // Should we move this to PMatrix constructor instead?
-      if(nBlocks < mpi->getSize()) {
-        nBlocks = int(sqrt(matSize));
-      }
+      int nBlocks = int(matSize/64.);
+      // TODO Should we move this to PMatrix constructor instead?
+      // seems tiny number of blocks is a problem, but it should
+      // only come up for very tiny cases where speed is not an issue,
+      // therefore, we default to 4 blocks if this happens.
+      // Seems like this is maybe a bug in scalapack?
+      if(nBlocks < 4) nBlocks = 4;
 
       theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, nBlocks, nBlocks);
 
