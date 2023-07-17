@@ -120,7 +120,19 @@ void ScatteringMatrix::setup() {
     }
 
     try {
-      theMatrix = ParallelMatrix<double>(matSize, matSize);
+      // The block size of this matrix can really change the performance
+      // of the diagonalization method, and also the parallelization
+      // of the scattering rate calculation in the full matrix case!
+      // Choosing numBlocks = matSize --> perfectly cyclic matrix
+      // Choosing numBlocks = numMPIProcs (the default) --> perfectly block
+      //
+      // Jenny's note: I've benchmarked several values of block size, and
+      // blocksize ~between 10-100 is the best. Hopefully this is universally true,
+      // benchmarks were done in the phonon case with a matrix with matSize=~31k, 81 MPI procs
+      // 64 ended up giving me slightly better performance than 16 or 176.
+      // There may be logic to how to choose these sizes,
+      // but for now I cannot find advice on this online.
+      theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, int(matSize/64.),int(matSize/64.));
     } catch(std::bad_alloc&) {
       Error("Failed to allocate memory for the scattering matrix.\n"
         "You are likely running out of memory.");

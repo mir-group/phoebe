@@ -92,6 +92,7 @@ class ParallelMatrix {
    * @param numBLocksCols: column size of the block for Blacs distribution
    */
   ParallelMatrix(const int& numRows, const int& numCols,
+                 const int& numBlasRows = 0, const int& numBlasCols = 0,
                  const int& numBlocksRows = 0, const int& numBlocksCols = 0,
                  const int& blacsContext = -1);
 
@@ -238,6 +239,8 @@ class ParallelMatrix {
 
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
+                                  const int& numBlasRows,
+                                  const int& numBlasCols,
                                   const int& numBlocksRows,
                                   const int& numBlocksCols,
                                   const int& blacsContext) {
@@ -246,8 +249,8 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
   // the blacs context and process grid setup.
   // If numBlocksRows or numBlocksCols is not zero, this will
   // initialize blacs with a square process grid
-  // (and number of processors must be a square number)
-  initBlacs(numBlocksRows, numBlocksCols, blacsContext);
+  // (and number of processors must be a square number if we're doing lin alg ops)
+  initBlacs(numBlasRows, numBlasCols, blacsContext);
 
   // initialize number of rows and columns of the global matrix
   numRows_ = numRows;
@@ -255,10 +258,18 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
   // determine the number of blocks (for parallel distribution) along rows/cols
   // numBlocksRows_/Cols_ -- the number of blocks we divide r/c of the matrix into
-  numBlocksRows_ = numBlasRows_;
-  numBlocksCols_ = numBlasCols_;
+  // For example, if numBlocksRows = 1, there's one "block" of rows.
+  // If numBlocksRows = numRows, there's numRows of "blocks" of elements.
+  //
+  // If block size values are not supplied, the default is to make the
+  // block sizes the same as the blacs grid divisions
+  if(numBlocksRows == 0) { numBlocksRows_ = numBlasRows_; }
+  else { numBlocksRows_ = numBlocksRows; }
+  if(numBlocksCols == 0) { numBlocksCols_ = numBlasCols_; }
+  else { numBlocksCols_ = numBlocksCols; }
 
   // compute the block size (chunks of rows/cols over which matrix is distributed)
+  // if blockSizeRows_ = 1, there's each row element is a block.
   blockSizeRows_ = numRows_ / numBlocksRows_;
   if (numRows_ % numBlocksRows_ != 0) blockSizeRows_ += 1;
   blockSizeCols_ = numCols_ / numBlocksCols_;
@@ -417,27 +428,32 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
   // Cases for a blacs grid where we specified rows, cols, both,
   // or the default, neither, which results in a square proc grid
   if(numBlasRows != 0 && numBlasCols == 0) {
-      numBlasRows_ = numBlasRows;
-      numBlasCols_ = mpi->getSize()/numBlasRows;
+    numBlasRows_ = numBlasRows;
+    numBlasCols_ = mpi->getSize()/numBlasRows;
   }
   else if(numBlasRows == 0 && numBlasCols != 0) {
-      numBlasRows_ = mpi->getSize()/numBlasCols;
-      numBlasCols_ = numBlasCols;
+    numBlasRows_ = mpi->getSize()/numBlasCols;
+    numBlasCols_ = numBlasCols;
   }
   else if(numBlasRows !=0 && numBlasCols !=0 ) {
-      numBlasRows_ = numBlasRows;
-      numBlasCols_ = numBlasCols;
+    numBlasRows_ = numBlasRows;
+    numBlasCols_ = numBlasCols;
   }
-  else { // set up a square procs grid, as the default
+  else {
+    // set up a square procs grid, as the default
     numBlasRows_ = (int)(sqrt(size)); // int does rounding down (intentional!)
     numBlasCols_ = numBlasRows_;
 
+    // TODO will this just work ( not using all procs for matrix )
+    // if we remove this error???
+    //
     // Throw an error if we tried to set up a square proc grid with
     // a non-square number of processors
     if (mpi->getSize() > numBlasRows_ * numBlasCols_) {
       Error("Phoebe needs a square number of MPI processes");
     }
   }
+
   // if no context is given, create one.
   // Otherwise, use the one supplied
   if( inputBlacsContext == -1) { // no context has been created/supplied
@@ -445,9 +461,9 @@ void ParallelMatrix<T>::initBlacs(const int& numBlasRows, const int& numBlasCols
   } else {
     blacsContext_ = inputBlacsContext;
   }
+  // Create the Blacs context
   // Context -> Context grid info (# procs row/col, current procs row/col)
-  blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,
-                    &myBlasCol_);
+  blacs_gridinfo_(&blacsContext_, &numBlasRows_, &numBlasCols_, &myBlasRow_,&myBlasCol_);
 }
 
 template <typename T>
