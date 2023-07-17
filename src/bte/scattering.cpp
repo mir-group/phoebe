@@ -132,7 +132,19 @@ void ScatteringMatrix::setup() {
       // 64 ended up giving me slightly better performance than 16 or 176.
       // There may be logic to how to choose these sizes,
       // but for now I cannot find advice on this online.
-      theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, int(matSize/64.),int(matSize/64.));
+
+      // As an additional note, if the matrix is very small, we need to scale
+      // the blocksize accordingly to avoid scalapack throwing an error
+      int nBlocks = int(matSize/64);
+      // TODO this is a bit of a mystery, but it seems that scalapack can
+      // have an error if the matrix is very small and the blocksize is big by comparison...
+      // Should we move this to PMatrix constructor instead?
+      if(nBlocks < mpi->getSize()) {
+        nBlocks = int(sqrt(matSize));
+      }
+
+      theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, nBlocks, nBlocks);
+
     } catch(std::bad_alloc&) {
       Error("Failed to allocate memory for the scattering matrix.\n"
         "You are likely running out of memory.");
