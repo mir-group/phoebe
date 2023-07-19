@@ -189,7 +189,7 @@ public:
   // Smearing is a pointer created in constructor with a smearing factory
   // Used in the construction of the scattering matrix to approximate the
   // Dirac-delta function in transition rates.
-  //DeltaFunction *smearing; // moved to specific ph and el base scatteringMatrix objs
+  DeltaFunction *smearing;
 
   BaseBandStructure &innerBandStructure;
   BaseBandStructure &outerBandStructure;
