@@ -65,7 +65,8 @@ std::tuple<std::vector<double>, Matrix<double>> Matrix<double>::diagonalize() {
 // diagonalize for only some eigenvalues
 template <>
 std::tuple<std::vector<double>, Matrix<double>>
-                        Matrix<double>::diagonalize(int numEigenvalues) {
+                        Matrix<double>::diagonalize(int numEigenvalues,
+                                        bool checkNegativeEigenvalues) {
 
   std::vector<double> eigenvalues;
   Matrix<double> eigenvectors(*this);

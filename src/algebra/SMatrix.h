@@ -163,7 +163,8 @@ class SerialMatrix {
    * for only some of its eigenvalues.
    * Note: this isn't implemented for now and just calls the diagonalize() function
    */
-  std::tuple<std::vector<double>, SerialMatrix<T>> diagonalize(int numEigenvalues);
+  std::tuple<std::vector<double>, SerialMatrix<T>> diagonalize(int numEigenvalues,
+                                                bool checkNegativeEigenvalues = true);
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
