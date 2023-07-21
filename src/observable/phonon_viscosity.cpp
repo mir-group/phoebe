@@ -45,7 +45,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
 
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
-  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+  Kokkos::parallel_for("phonon_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
       auto tmpTensor = scatter_tensordxdxdxd.access();
       int is = iss[iis];
       auto isIdx = StateIndex(is);
@@ -115,21 +115,19 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
-void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
-                                       Eigen::VectorXd &eigenvalues,
-                                       PhScatteringMatrix &sMatrix,
+void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                                        ParallelMatrix<double> &eigenvectors) {
 
+  // to simplify, here I do everything considering there is a single
+  // temperature (due to memory constraints)
   if (numCalculations > 1) {
-    Error("Viscosity for relaxons only for 1 temperature");
+    Error("Developer error: Viscosity for relaxons only for 1 temperature.");
   }
 
   double volume = crystal.getVolumeUnitCell(dimensionality);
   int numStates = bandStructure.getNumStates();
+  int numRelaxons = eigenvalues.size();
   auto particle = bandStructure.getParticle();
-
-  // to simplify, here I do everything considering there is a single
-  // temperature (due to memory constraints)
 
   Eigen::VectorXd A(dimensionality);
   A.setZero();
@@ -139,6 +137,34 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
   double temp = calcStat.temperature;
   double chemPot = calcStat.chemicalPotential;
 
+  // Code by Andrea, annotation by Jenny
+  // Here we are calculating Eq. 9 from the PRX Simoncelli 2020
+  //    mu_ijkl = (eta_ijkl + eta_ilkj)/2
+  // where
+  //   eta_ijkl =
+  //    sqrt(A_i A_j) \sum_(alpha > 0) w_i,alpha^j * w_k,alpha^l * tau_alpha
+  //
+  // For this, we will need three quantities:
+  //    A_i = specific momentum in direction i
+  //        = (1/kBT*vol) \sum_nu n_nu (n_nu+1) (hbar q_i)^2
+  //    w^j_i,alpha = velocity tensor
+  //        = 1/vol * \sum_nu phi_nu^i v_nu^j theta_nu^alpha
+  //    phi^i_nu = drift eigenvectors  (appendix eq A12)
+  //             = zero eigenvectors linked to momentum conservation
+  //             = sqrt(n(n+1)/kbT * A_i) * hbar * q_i
+  //
+  // And here the definitions are:
+  //    alpha = relaxons eigenlabel index
+  //    ijkl = cartesian direction indices
+  //    nu  = phonon mode index
+  //    n   = bose factor
+  //    phi = special zero eigenvectors linked to momentum conservation
+  //        = drift eigenvectors -- see appendix eq A12
+  //    q   = wavevector
+  //    theta = relaxons eigenvector
+  //    tau = relaxons eigenvalues/relaxation times
+
+  // calculate first A_i
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
     auto en = bandStructure.getEnergy(isIdx);
@@ -151,6 +177,9 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
   A /= temp * context.getQMesh().prod() * volume;
   mpi->allReduceSum(&A);
 
+  // then calculate the drift eigenvectors, phi (eq A12)
+  // NOTE: from Jenny -- doesn't plugging Ai into
+  // phi basically cancel out? Why compute both of these at all?
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
@@ -159,117 +188,86 @@ void PhononViscosity::calcFromRelaxons(Vector0 &vector0,
     auto q = bandStructure.getWavevector(isIdx);
     for (auto iDim : {0, 1, 2}) {
       if (A(iDim) != 0.) {
-        driftEigenvector(0, iDim, is) = q(iDim) * sqrt(boseP1 / temp / A(iDim));
+        driftEigenvector(0, iDim, is) = q(iDim) * sqrt(boseP1 / (temp * A(iDim)));
       }
     }
   }
   mpi->allReduceSum(&driftEigenvector.data);
 
-  Eigen::MatrixXd D(3, 3);
-  D.setZero();
-  //    D = driftEigenvector * sMatrix.dot(driftEigenvector.transpose());
-  VectorBTE tmp = sMatrix.dot(driftEigenvector);
-  for (int is : bandStructure.parallelStateIterator()) {
-    for (auto i : {0, 1, 2}) {
-      for (auto j : {0, 1, 2}) {
-        D(i, j) += driftEigenvector(0, i, is) * tmp(0, j, is);
-      }
-    }
-  }
-  D /= volume * context.getQMesh().prod();
-  mpi->allReduceSum(&D);
-
+  // calculate the first part of w^j_i,alpha
   Eigen::Tensor<double, 3> tmpDriftEigvecs(3, 3, numStates);
   tmpDriftEigvecs.setZero();
-  Eigen::MatrixXd W(3, 3);
-  W.setZero();
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
     auto v = bandStructure.getGroupVelocity(isIdx);
     for (int i : {0, 1, 2}) {
       for (int j : {0, 1, 2}) {
         tmpDriftEigvecs(i, j, is) = driftEigenvector(0, j, is) * v(i);
-        W(i, j) += vector0(0, 0, is) * v(i) * driftEigenvector(0, j, is);
       }
     }
   }
-  W /= volume * context.getQMesh().prod();
-  mpi->allReduceSum(&W);
   mpi->allReduceSum(&tmpDriftEigvecs);
 
+  // now we're calculating w
   Eigen::Tensor<double, 3> w(3, 3, numStates);
   w.setZero();
   for (auto i : {0, 1, 2}) {
     for (auto j : {0, 1, 2}) {
+      // drift eigenvectors * v -- only have phonon state indices
+      // and cartesian directions
       Eigen::VectorXd x(numStates);
       for (int is = 0; is < numStates; is++) {
         x(is) = tmpDriftEigvecs(i, j, is);
       }
 
-      // auto x2 = x.transpose() * eigenvectors;
-
-      std::vector<double> x2(numStates, 0.);
+      // w^j_i,alpha = sum_is1 phi*v*theta
+      std::vector<double> x2(numRelaxons, 0.);
       for (auto tup : eigenvectors.getAllLocalStates()) {
         auto is1 = std::get<0>(tup);
-        auto is2 = std::get<1>(tup);
-        x2[is2] += x(is1) * eigenvectors(is1, is2);
+        auto alpha = std::get<1>(tup);
+        if(alpha >= numRelaxons) continue; // wasn't calculated
+        x2[alpha] += x(is1) * eigenvectors(is1, alpha);
       }
       mpi->allReduceSum(&x2);
 
-      for (int is = 0; is < numStates; is++) {
-        w(i, j, is) = x2[is] / sqrt(volume) / sqrt(context.getQMesh().prod());
+      // normalize by 1/(Nq*Volume)
+      for (int ialpha = 0; ialpha < numRelaxons; ialpha++) {
+        w(i, j, ialpha) = x2[ialpha] / ( sqrt(volume) * sqrt(context.getQMesh().prod()) );
       }
-      // note: in Eq. 9 of PRX, w is normalized by V*N_q
+      // Andrea's note: in Eq. 9 of PRX, w is normalized by V*N_q
       // here however I normalize the eigenvectors differently:
       // \sum_state theta_s^2 = 1, instead of 1/VN_q \sum_state theta_s^2 = 1
     }
   }
 
-  // Eq. 9, Simoncelli PRX (2019)
+  // Eq. 9, Simoncelli PRX (2020)
   tensordxdxdxd.setZero();
-  std::vector<int> iss = bandStructure.parallelIrrStateIterator();
+  // eigenvectors and values may only be calculated up to numRelaxons, < numStates
+  std::vector<size_t> iss = mpi->divideWorkIter(numRelaxons);
   int niss = iss.size();
 
+// TODO why would we do this rather than a kokkos parallel for?
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
   Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
       auto tmpTensor = scatter_tensordxdxdxd.access();
-      int is = iss[iis];
-      if (eigenvalues(is) <= 0.) { // avoid division by zero
+      int ialpha = iss[iis];
+      if (eigenvalues(ialpha) <= 0.) { // avoid division by zero
         return;
       }
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {
             for (int l = 0; l < dimensionality; l++) {
-            tmpTensor(iCalc, i, j, k, l) +=
-            0.5 *
-            (w(i, j, is) * w(k, l, is) + w(i, l, is) * w(k, j, is)) *
-            A(i) * A(k) / eigenvalues(is);
+            tmpTensor(iCalc, i, j, k, l) += 0.5 *
+            (w(i, j, ialpha) * w(k, l, ialpha) + w(i, l, ialpha) * w(k, j, ialpha)) *
+            A(i) * A(k) / eigenvalues(ialpha);
             }
           }
         }
       }
     });
   Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
-  /*
-#pragma omp parallel default(none) shared(tensordxdxdxd,bandStructure,dimensionality,eigenvalues,w,A,iCalc)
-  {
-    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
-#pragma omp for nowait
-    for (int is : bandStructure.parallelStateIterator()) {
-#pragma omp critical
-    for (int i = 0; i < dimensionality; i++) {
-      for (int j = 0; j < dimensionality; j++) {
-        for (int k = 0; k < dimensionality; k++) {
-          for (int l = 0; l < dimensionality; l++) {
-            tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
-          }
-        }
-      }
-    }
-  }
-  */
   mpi->allReduceSum(&tensordxdxdxd);
 }
 

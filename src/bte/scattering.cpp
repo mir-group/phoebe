@@ -120,7 +120,29 @@ void ScatteringMatrix::setup() {
     }
 
     try {
-      theMatrix = ParallelMatrix<double>(matSize, matSize);
+      // The block size of this matrix can really change the performance
+      // of the diagonalization method, and also the parallelization
+      // of the scattering rate calculation in the full matrix case!
+      // Choosing numBlocks = matSize --> perfectly cyclic matrix
+      // Choosing numBlocks = numMPIProcs (the default) --> perfectly block
+      //
+      // Jenny's note: I've benchmarked several values of block size, and
+      // blocksize ~between 10-100 is the best. Hopefully this is universally true,
+      // benchmarks were done in the phonon case with a matrix with matSize=~31k, 81 MPI procs
+      // 64 ended up giving me slightly better performance than 16 or 176.
+      // There may be logic to how to choose these sizes,
+      // but for now I cannot find advice on this online.
+
+      int nBlocks = int(matSize/64.);
+      // TODO Should we move this to PMatrix constructor instead?
+      // seems tiny number of blocks is a problem, but it should
+      // only come up for very tiny cases where speed is not an issue,
+      // therefore, we default to 4 blocks if this happens.
+      // Seems like this is maybe a bug in scalapack?
+      if(nBlocks < 4) nBlocks = 4;
+
+      theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, nBlocks, nBlocks);
+
     } catch(std::bad_alloc&) {
       Error("Failed to allocate memory for the scattering matrix.\n"
         "You are likely running out of memory.");
@@ -837,7 +859,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
 }
 
 std::tuple<Eigen::VectorXd, ParallelMatrix<double>>
-ScatteringMatrix::diagonalize() {
+ScatteringMatrix::diagonalize(int numEigenvalues) {
 
   // user info about memory
   {
@@ -852,13 +874,23 @@ ScatteringMatrix::diagonalize() {
                 << std::endl;
     }
   }
-
-  auto tup = theMatrix.diagonalize();
+  // diagonalize
+  std::tuple<std::vector<double>, ParallelMatrix<double>> tup;
+  if(numEigenvalues > numStates) { // not possible
+    Error("You have requested to calculate more relaxons eigenvalues"
+        " than your number of particle states.");
+  }
+  if(numEigenvalues > 0 && numEigenvalues != numStates) { // zero is default, calculates all of them
+    // calculate some of the eigenvalues
+    tup = theMatrix.diagonalize(numEigenvalues, context.getCheckNegativeRelaxons());
+  } else { // calculate all
+    tup = theMatrix.diagonalize();
+  }
   auto eigenvalues = std::get<0>(tup);
   auto eigenvectors = std::get<1>(tup);
 
   // place eigenvalues in an VectorBTE object
-  Eigen::VectorXd eigenValues(theMatrix.rows());
+  Eigen::VectorXd eigenValues(eigenvalues.size());
   for (int is = 0; is < eigenValues.size(); is++) {
     eigenValues(is) = eigenvalues[is];
   }
