@@ -214,7 +214,8 @@ class ParallelMatrix {
    * By default, it operates on the upper-triangular part of the matrix.
    */
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
-  std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize(int numEigenvalues);
+  std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize(int numEigenvalues,
+                                                bool checkNegativeEigenvalues = true);
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)

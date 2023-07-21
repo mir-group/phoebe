@@ -259,7 +259,8 @@ ParallelMatrix<std::complex<double>>::diagonalize() {
 // function to only compute some eigenvectors/values
 template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
-                ParallelMatrix<double>::diagonalize(int numEigenvalues_) {
+                ParallelMatrix<double>::diagonalize(int numEigenvalues_,
+                                                    bool checkNegativeEigenvalues) {
 
   int numEigenvalues = numEigenvalues_;
 
@@ -331,44 +332,45 @@ std::tuple<std::vector<double>, ParallelMatrix<double>>
 
   // first, call and report any negative eigenvalues ------------------------------
   // we want to note these for convergence reasons
-  // TODO could add a variable to turn this on or off
-  //if(context.getNegativeRelaxons()) {
+  if(checkNegativeEigenvalues) {
 
-  if(mpi->mpiHead()) mpi->time();
-  if(mpi->mpiHead())
-    std::cout << "Checking scattering matrix for negative eigenvalues." << std::endl;
+    if(mpi->mpiHead()) mpi->time();
+    if(mpi->mpiHead())
+      std::cout << "Checking scattering matrix for negative eigenvalues." << std::endl;
 
-  eigenvectors = *this; // use the space of this matrix first to
+    eigenvectors = *this; // use the space of this matrix first to
                 // placehold the actual matrix, as it's changed by pdsyevr
-  range = 'V';
-  jobz = 'N';
-  vl = -1.;
-  vu = 1e-16;
-  pdsyevr_(&jobz, &range, &uplo,  &numRows_, eigenvectors.mat, &ia, &ja, &descMat_[0],
-        &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
-        eigenvectors.mat, &iz, &jz, &descMat_[0],
-        work, &lwork, iwork, &liwork, &info);
+    range = 'V';
+    jobz = 'N';
+    vl = -1.;
+    vu = 1e-16;
+    pdsyevr_(&jobz, &range, &uplo,  &numRows_, eigenvectors.mat, &ia, &ja, &descMat_[0],
+          &vl, &vu, &il, &iu, &m, &nz, eigenvalues,
+          eigenvectors.mat, &iz, &jz, &descMat_[0],
+          work, &lwork, iwork, &liwork, &info);
 
-  if( m > 3 ) { // more than just the zero eigenmode was found
-    if(mpi->mpiHead()) {
-      Warning("Relaxons diagonalization found " + std::to_string(m) +
-             " in the range -1 < eigenvalues <= 0."
-                "\n\tThis can happen when there's a bit of numerical noise on the scattering matrix,"
-                "\n\tand finding them may indicate the calculation is unconverged."
-                "\n\tWhile we simply do not include these when computing transport, "
-                "\n\tand likely if they are small the calculation will be unaffected, "
-                "\n\tyou may want to consider using with more wavevectors or an improved DFT calculation."
-                "\n\tAdditionally, setting symmetrizeMatrix = true in your input file will help.");
-      std::cout << "These eigenvalues are (in atomic units):" << std::endl;
+    if( m > 3 ) { // more than just the zero eigenmode was found
+      if(mpi->mpiHead()) {
+        Warning("Relaxons diagonalization found " + std::to_string(m) +
+               " in the range -1 < eigenvalues <= 0."
+                  "\n\tThis can happen when there's a bit of numerical noise on the scattering matrix,"
+                  "\n\tand finding them may indicate the calculation is unconverged."
+                  "\n\tWhile we simply do not include these when computing transport, "
+                  "\n\tand likely if they are small the calculation will be unaffected, "
+                  "\n\tyou may want to consider using with more wavevectors or an improved DFT calculation."
+                  "\n\tAdditionally, setting symmetrizeMatrix = true in your input file will help.");
+        std::cout << "These eigenvalues are (in atomic units):" << std::endl;
 
-      for (int i = 0; i < m; i++) {
-        std::cout << i << " " << eigenvalues[i] << std::endl;
+        for (int i = 0; i < m; i++) {
+          std::cout << i << " " << eigenvalues[i] << std::endl;
+        }
+        std::cout << std::endl;
       }
-      std::cout << std::endl;
     }
   }
-  if(mpi->mpiHead()) mpi->time();
+
   // now we perform the regular call to get the largest ones ---------------------
+  if(mpi->mpiHead()) mpi->time();
   if(mpi->mpiHead()) {
     std::cout << "Now computing first " << numEigenvalues <<
         " eigenvalues and vectors of the scattering matrix." << std::endl;

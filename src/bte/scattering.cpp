@@ -882,7 +882,7 @@ ScatteringMatrix::diagonalize(int numEigenvalues) {
   }
   if(numEigenvalues > 0 && numEigenvalues != numStates) { // zero is default, calculates all of them
     // calculate some of the eigenvalues
-    tup = theMatrix.diagonalize(numEigenvalues);
+    tup = theMatrix.diagonalize(numEigenvalues, context.getCheckNegativeRelaxons());
   } else { // calculate all
     tup = theMatrix.diagonalize();
   }
