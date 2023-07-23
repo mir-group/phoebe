@@ -65,7 +65,7 @@ void ElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
   // compute wavevector pairs for the calculation
   bool rowMajor = true;
   std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
-      getIteratorWavevectorPairs(switchCase, rowMajor);
+                                 getIteratorWavevectorPairs(switchCase, rowMajor);
 
   // add scattering contributions ---------------------------------------
   // add elph scattering

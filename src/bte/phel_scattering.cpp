@@ -33,6 +33,23 @@ std::vector<std::tuple<int, std::vector<int>>> getPhElIterator(
     auto t = std::make_tuple(int(ik1), q3Iterator);
     pairIterator.push_back(t);
   }
+
+  // add some dummy indices to each MPI procs iterator of indices
+  // to make sure they have the same number
+  // If this isn't the case, a pooled calculation will hang
+  if (mpi->getSize(mpi->intraPoolComm) > 1) {
+    auto myNumK1 = int(pairIterator.size());
+    int numK1 = myNumK1;
+    mpi->allReduceMax(&numK1, mpi->intraPoolComm);
+
+    while (myNumK1 < numK1) {
+      std::vector<int> dummyVec;
+      dummyVec.push_back(-1);
+      auto tt = std::make_tuple(-1, dummyVec);
+      pairIterator.push_back(tt);
+      myNumK1++;
+    }
+  }
   return pairIterator;
 }
 
@@ -214,7 +231,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
     // the 2nd process call calcCouplingSquared 7 times as well.
     if (ik1 == -1) {
       Eigen::Vector3d k1C = Eigen::Vector3d::Zero();
-      int numWannier = couplingElPhWan->getCouplingDimensions()(0);
+      int numWannier = couplingElPhWan->getCouplingDimensions()(4);
       Eigen::MatrixXcd eigenVector1 = Eigen::MatrixXcd::Zero(numWannier, 1);
       couplingElPhWan->cacheElPh(eigenVector1, k1C);
       // since this is just a dummy call used to help other MPI processes
