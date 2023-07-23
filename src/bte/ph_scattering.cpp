@@ -786,5 +786,8 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
       }
     }
   }
+  if(mpi->mpiHead()) {
+    std::cout << "Finished adding isotope scattering to the scattering matrix.\n" << std::endl;
+  }
 }
 
