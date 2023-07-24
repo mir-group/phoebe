@@ -12,5 +12,6 @@ smearingMethod = "gaussian"
 smearingWidth = 0.5 eV
 windowType = "population"
 
+symmetrizeMatrix = true
 scatteringMatrixInMemory=true
 solverBTE = ["iterative","variational","relaxons"]
