@@ -91,7 +91,8 @@ std::tuple<std::vector<double>, SerialMatrix<double>> SerialMatrix<double>::diag
 
 template <>
 std::tuple<std::vector<double>, SerialMatrix<double>>
-                        SerialMatrix<double>::diagonalize([[maybe_unused]] int numEigenvalues) {
+                        SerialMatrix<double>::diagonalize([[maybe_unused]] int numEigenvalues,
+                                [[maybe_unused]] bool checkNegativeEigenvalues) {
 
     Warning("Partial eigenvalue diagonalization currently not implemented "
                 "for the serial case. Reporting all eigenvalues.");

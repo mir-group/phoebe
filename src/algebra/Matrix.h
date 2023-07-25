@@ -160,7 +160,8 @@ class Matrix {
    * for only some of it's eigenvalues.
    * Nota bene: we don't check if it's hermitian/symmetric.
    */
-  std::tuple<std::vector<double>, Matrix<T>> diagonalize(int numEigenvalues);
+  std::tuple<std::vector<double>, Matrix<T>> diagonalize(int numEigenvalues,
+                                                bool checkNegativeEigenvalues = true);
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)

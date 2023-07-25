@@ -149,6 +149,7 @@ Phonon BTE Solver
 
 * :ref:`numRelaxonsEigenvalues`
 
+* :ref:`checkNegativeRelaxons`
 
 .. raw:: html
 
@@ -246,6 +247,8 @@ Electron BTE Solver
 * :ref:`useSymmetries`
 
 * :ref:`numRelaxonsEigenvalues`
+
+* :ref:`checkNegativeRelaxons`
 
 
 .. raw:: html
@@ -986,13 +989,27 @@ numRelaxonsEigenvalues
 ^^^^^^^^^^^^^^^^^^^^^^
 
 * **Description:** Compute the relaxons solver using only the ``numRelaxonsEigenvalues`` largest eigenvalues + corresponding eigenvectors. This can dramatically reduce the cost of the calculation, as the largest eigenvalues comprise most of the result. However, you have to be careful to converge the calculation with respect to this parameter as well if you use it. It's great for testing your calculation, perhaps using ~25% of the eigenvalues, with your final production result using a full calculation.
-Additionally, note that this leads to a second ScaLAPACK call to check for negative eigenvalues, which reduces the benefit of partial eigenvalue calculation. If you want to turn this check off, open a git discussion.
+Additionally, note that this leads to a second ScaLAPACK call to check for negative eigenvalues, which reduces the benefit of partial eigenvalue calculation. If you want to turn this off for additional cost reduction (though it's good to check this to ensure the quality of the scattering matrix) you can do so with :ref:`checkNegativeRelaxons` = false.
 
 * **Format:** *integer*
 
 * **Required:** no
 
 * **Default:** `0` (this indicates the code should compute all eigenvalues)
+
+.. _checkNegativeRelaxons:
+
+checkNegativeRelaxons
+^^^^^^^^^^^^^^^^^^^^^
+
+* **Description:** When using the relaxons solver for only ``numRelaxonsEigenvalues`` largest relaxon eigenvalues, the check for negative eigenvalues (to ensure the quality of the calculation) is done by a second ScaLAPACK call. Thoguh it's good to inspect the output of this check, if you want to turn this off, set this variable to false for additional speedup.
+
+* **Format:** *bool*
+
+* **Required:** no
+
+* **Default:** `true`
+
 
 .. _distributedElPhCoupling:
 
