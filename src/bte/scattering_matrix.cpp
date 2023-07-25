@@ -135,7 +135,7 @@ void ScatteringMatrix::setup() {
       // only come up for very tiny cases where speed is not an issue,
       // therefore, we default to 4 blocks if this happens.
       // Seems like this is maybe a bug in scalapack?
-      if(nBlocks < 4) nBlocks = 4;
+      if(nBlocks < int(sqrt(mpi->getSize()))) nBlocks = int(sqrt(mpi->getSize())) * 2;
 
       theMatrix = ParallelMatrix<double>(matSize, matSize, 0, 0, nBlocks, nBlocks);
 
