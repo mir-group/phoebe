@@ -12,6 +12,7 @@ smearingMethod = "gaussian"
 smearingWidth = 0.5 eV
 windowType = "population"
 
+# for a production relaxons run, use this -- otherwise, false
 symmetrizeMatrix = true
 scatteringMatrixInMemory=true
 solverBTE = ["iterative","variational","relaxons"]
