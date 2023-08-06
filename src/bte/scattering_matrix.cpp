@@ -9,10 +9,10 @@
 #include <numeric> // std::iota
 #include <set>
 #include <utility>
-#include "io.h"
-#ifdef HDF5_AVAIL
-#include <highfive/H5Easy.hpp>
-#endif
+//#include "io.h"
+//#ifdef HDF5_AVAIL
+//#include <highfive/H5Easy.hpp>
+//#endif
 
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,
@@ -631,72 +631,9 @@ void ScatteringMatrix::setLinewidths(VectorBTE &linewidths) {
 }
 
 void ScatteringMatrix::outputToHDF5(const std::string &outFileName) {
+  // just call the pmatrix function on the scattering matrix
+  theMatrix.outputToHDF5(outFileName, "/scatteringMatrix");
 
-  // output the matrix elements owned by this process to file.
-  // The only tricky part here is that we need to sort them
-  // Appropriately in the file without all reducing. This is nearly
-  // impossible to do efficiently because of how HighFive is written,
-  // wherein it expects chunks of data -- which we cannot expect to have
-  // in a block-cyclic distribution of the matrix. Therefore, we do something
-  // terrible and we write single elements at a time.
-
-  #ifndef HDF5_AVAIL
-    Error("Need Phoebe compiled with parallel HDF5 to write SMatrix to file.");
-  #elif HDF5_SERIAL
-    Error("Need Phoebe compiled with parallel HDF5 to write SMatrix to file.");
-  #else
-
-   try {
-
-      // Create the file to write to, first removing if it exists already
-      std::remove(&outFileName[0]);
-      HighFive::FileAccessProps fapl;
-      fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
-      HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
-
-      // setup the dataset
-      unsigned int globalSize = theMatrix.size();
-
-      // Create the data-space to write gWannier to
-      std::vector<size_t> dims(2);
-      dims[0] = 1;
-      dims[1] = size_t(globalSize);
-      HighFive::DataSet dsMatrix= file.createDataSet<double>(
-                "/scatteringMatrix", HighFive::DataSpace(dims));
-
-      LoopPrint loopPrint("writing the scattering matrix to HDF5",
-             "matrix elements / MPI process", theMatrix.getAllLocalStates().size());
-
-      // now we loop over the matrix elements and write them to file
-      for(auto matEl : theMatrix.getAllLocalStates()) {
-
-        loopPrint.update();
-
-        // get matrix row and col indices
-        size_t iMat1 = std::get<0>(matEl);
-        size_t iMat2 = std::get<1>(matEl);
-        // convert to 1d index, used on the underlying dataset
-        //size_t iGlobal = theMatrix.global2Local(iMat1, iMat2);
-        size_t iGlobal = iMat2*theMatrix.cols() + iMat1;
-        // get the actual value of the matrix element
-        double value = theMatrix(iMat1,iMat2);
-
-        // write the single element to the dataset
-        // here, the offset is the global index, and the count is of course 1
-        dsMatrix.select({0, iGlobal}, {1, 1}).write(value);
-      }
-
-      loopPrint.close();
-
-      // ensure everything has been written
-      file.flush();
-
-    } catch (std::exception &error) {
-      // catch and print any HDF5 error
-      std::cerr << error.what() << std::endl;
-      Error("An HDF5 error occurred while trying to write scattering matrix to HDF5.");
-    }
-  #endif
 }
 
 void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
@@ -877,7 +814,6 @@ void ScatteringMatrix::outputToJSON(const std::string &outFileName) {
 }
 
 // TODO this feels redundant with above function, maybe could be simplified --
-// plus, it's missing a bunch of things including energies!
 void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
                                       const Eigen::VectorXd &eigenvalues) {
   if (!mpi->mpiHead()) {
@@ -887,7 +823,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
   Eigen::VectorXd times = 1. / eigenvalues.array();
 
   std::string particleType;
-  auto particle = outerBandStructure.getParticle();
+  Particle particle = outerBandStructure.getParticle();
   if (particle.isPhonon()) {
     particleType = "phonon";
   } else {
@@ -927,7 +863,7 @@ void ScatteringMatrix::relaxonsToJSON(const std::string &outFileName,
   output["chemicalPotentials"] = chemPots;
   output["relaxationTimes"] = outTimes;
   output["relaxationTimeUnit"] = "fs";
-  output["particleType"] = particleType;
+  if(!isCoupled) output["particleType"] = particleType;
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
@@ -966,6 +902,7 @@ ScatteringMatrix::diagonalize(int numEigenvalues) {
 
   // place eigenvalues in an VectorBTE object
   Eigen::VectorXd eigenValues(eigenvalues.size());
+  eigenValues.setZero();
   for (int is = 0; is < eigenValues.size(); is++) {
     eigenValues(is) = eigenvalues[is];
   }

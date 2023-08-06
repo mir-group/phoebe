@@ -7,6 +7,11 @@
 #include "exceptions.h"
 #include "constants.h"
 #include "mpiHelper.h"
+#include "io.h"
+
+#ifdef HDF5_AVAIL
+#include <highfive/H5Easy.hpp>
+#endif
 
 #include "SMatrix.h"
 
@@ -216,6 +221,14 @@ class ParallelMatrix {
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize(int numEigenvalues,
                                                 bool checkNegativeEigenvalues = true);
+
+  /** Write contents of the matrix to file. Note, this is for testing because
+   * it's very slow and in a production case could make an unreasonably large file.
+   * @param outFileName: string naming the output file
+   * @param dataSetName: keyname for data in the output file
+   */
+  void outputToHDF5(const std::string &outFileName,
+                                   const std::string &dataSetName);
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
@@ -712,6 +725,78 @@ template <typename T>
 void ParallelMatrix<T>::setBlacsContext(int blacsContext) {
   blacsContext_ = blacsContext;
 }
+
+template <typename T>
+void ParallelMatrix<T>::outputToHDF5(const std::string &outFileName,
+                                   const std::string &dataSetName) {
+
+  // output the matrix elements owned by this process to file.
+  // The only tricky part here is that we need to sort them
+  // Appropriately in the file without all reducing. This is nearly
+  // impossible to do efficiently because of how HighFive is written,
+  // wherein it expects chunks of data -- which we cannot expect to have
+  // in a block-cyclic distribution of the matrix. Therefore, we do something
+  // terrible and we write single elements at a time.
+
+  #ifndef HDF5_AVAIL
+    Error("Need Phoebe compiled with parallel HDF5 to write parallel matrix to file.");
+  #elif HDF5_SERIAL
+    Error("Need Phoebe compiled with parallel HDF5 to write parallle matrix to file.");
+  #else
+
+   try {
+
+      // Create the file to write to, first removing if it exists already
+      std::remove(&outFileName[0]);
+      HighFive::FileAccessProps fapl;
+      fapl.add(HighFive::MPIOFileAccess<MPI_Comm, MPI_Info>(MPI_COMM_WORLD, MPI_INFO_NULL));
+      HighFive::File file(outFileName, HighFive::File::Overwrite, fapl);
+
+      // setup the dataset
+      unsigned int globalSize = size();
+
+      // Create the data-space to write gWannier to
+      std::vector<size_t> dims(2);
+      dims[0] = 1;
+      dims[1] = size_t(globalSize);
+      HighFive::DataSet dsMatrix= file.createDataSet<double>(
+                dataSetName, HighFive::DataSpace(dims));
+
+      LoopPrint loopPrint("writing the " + dataSetName + " to HDF5",
+             "matrix elements", getAllLocalStates().size());
+
+      // now we loop over the matrix elements and write them to file
+      for(auto matEl : getAllLocalStates()) {
+
+        loopPrint.update();
+
+        // get matrix row and col indices
+        size_t iMat1 = std::get<0>(matEl);
+        size_t iMat2 = std::get<1>(matEl);
+        // convert to 1d index, used on the underlying dataset
+        //size_t iGlobal = theMatrix.global2Local(iMat1, iMat2);
+        size_t iGlobal = iMat2*cols() + iMat1;
+        // get the actual value of the matrix element
+        double value = this->operator()(iMat1,iMat2);
+
+        // write the single element to the dataset
+        // here, the offset is the global index, and the count is of course 1
+        dsMatrix.select({0, iGlobal}, {1, 1}).write(value);
+      }
+
+      loopPrint.close();
+
+      // ensure everything has been written
+      file.flush();
+
+    } catch (std::exception &error) {
+      // catch and print any HDF5 error
+      std::cerr << error.what() << std::endl;
+      Error("An HDF5 error occurred while trying to write a distributed matrix to HDF5.");
+    }
+  #endif
+}
+
 
 #endif  // include safeguard
 
