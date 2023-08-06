@@ -284,8 +284,12 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
   // Corner cases
   // if numElectronsDoped > numBands, it's a non-valid doping
   if (numElectronsDoped > float(numBands)) {
-    Error("The number of occupied states is larger than the "
-          "bands present in the Hamiltonian");
+    Error("The requested number of occupied states is larger than the "
+          "bands present in the Hamiltonian.\n"
+          "numBands: " + std::to_string(numBands) + " numElectrons: " + std::to_string(numElectronsDoped)
+          + "\nThis likely means you've selected a non-physical doping value, such as\n"
+          "a very small doping for a metal, or you didn't Wannierize enough bands."
+          "\nThis can also happen if somehow your *elph.phoebe.hdf5 file doesn't have numElectrons in it.");
   }
   if (numElectronsDoped < 0.) {
     Error("The number of occupied states is negative");
