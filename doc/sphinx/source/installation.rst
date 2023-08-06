@@ -158,7 +158,7 @@ MacOS
 
   In particular, if you are using a version of gcc installed using homebrew, you might need to link the "Cellar" copy of libgfortran. As an example working for gcc v9.3.0_1 is::
 
-    export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/Cellar/gcc/9.3.0_1/lib/gcc/9/)
+    export LIBRARY_PATH=$LIBRARY_PATH:/opt/homebrew/Cellar/gcc/12.2.0/lib/gcc/12/
 
 * Additonally, there exists an issue when building with the Apple Clang compiler
   and the Eigen library, specifically when Eigen is built using OpenMP with a c++ std>11. We recommend either building without OpenMP (``cmake -DOMP_AVAIL=OFF ../``), or using a different compiler.

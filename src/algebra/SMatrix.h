@@ -49,8 +49,9 @@ class SerialMatrix {
    * @param numBlocksRows, numBlocksCols: these parameters are ignored and are
    * put here for mirroring the interface of ParallelMatrix.
    */
-  SerialMatrix(const int& numRows, const int& numCols, const int& numBlocksRows = 0,
-         const int& numBlocksCols = 0);
+  SerialMatrix(const int& numRows, const int& numCols,
+                 const int& numBlasRows = 0, const int& numBlasCols = 0,
+                 const int& numBlocksRows = 0, const int& numBlocksCols = 0);
 
   /** Default constructor
    */
@@ -158,6 +159,13 @@ class SerialMatrix {
    */
   std::tuple<std::vector<double>, SerialMatrix<T>> diagonalize();
 
+  /** Diagonalize a complex-hermitian / real sym matrix
+   * for only some of its eigenvalues.
+   * Note: this isn't implemented for now and just calls the diagonalize() function
+   */
+  std::tuple<std::vector<double>, SerialMatrix<T>> diagonalize(int numEigenvalues,
+                                                bool checkNegativeEigenvalues = true);
+
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
    */
@@ -182,9 +190,14 @@ class SerialMatrix {
 // A default constructor to build a dense matrix of zeros to be filled
 template <typename T>
 SerialMatrix<T>::SerialMatrix(const int& numRows, const int& numCols,
+                  const int& numBlasRows, const int& numBlasCols,
                   const int& numBlocksRows, const int& numBlocksCols) {
+  // these are used only the in the pmatrix case
   (void) numBlocksRows;
   (void) numBlocksCols;
+  (void) numBlasRows;
+  (void) numBlasCols;
+
   numRows_ = numRows;
   numCols_ = numCols;
   numElements_ = numRows_ * numCols_;

@@ -93,7 +93,7 @@ Specifically, we build it as:
 .. math::
    \sigma = \frac{1}{\sqrt{12}} \sqrt{ \sum_{\beta} \left(\sum_{\alpha} (v_2-v_3) \frac{M_{\alpha \beta}}{N_{\beta}}  \right)^2 }
 
-where :math:`M` is a matrix comprised of the primitive cell lattice vectors (each column is a lattice vector), :math:`v_2` and :math:`v_3` are phonon group velocities, and :math:`N_{\beta}` is the number of wavevectors sampled along direction :math:`\beta`.
+where :math:`M` is a matrix comprised of the primitive cell lattice vectors (each column is a lattice vector), :math:`v_2` and :math:`v_3` are the electron or phonon group velocities, and :math:`N_{\beta}` is the number of wavevectors sampled along direction :math:`\beta`.
 
 Note that the adaptive scheme may be critical in the case where the velocity sum to zero: in that case, we skip the scattering event, unless we have an exact energy conservation taking place.
 

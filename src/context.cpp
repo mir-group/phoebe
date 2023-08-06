@@ -640,6 +640,14 @@ void Context::setupFromInput(const std::string &fileName) {
         symmetrizeMatrix = parseBool(val);
       }
 
+      if (parameterName == "numRelaxonsEigenvalues") {
+        numRelaxonsEigenvalues = parseInt(val);
+      }
+
+      if (parameterName == "checkNegativeRelaxons") {
+        checkNegativeRelaxons = parseBool(val);
+      }
+
       if (parameterName == "useSymmetries") {
         useSymmetries = parseBool(val);
       }
@@ -1258,6 +1266,15 @@ bool Context::getSymmetrizeMatrix() const {
 void Context::setSymmetrizeMatrix(const bool &x) {
   symmetrizeMatrix = x;
 }
+
+int Context::getNumRelaxonsEigenvalues() const {
+  return numRelaxonsEigenvalues;
+}
+void Context::setNumRelaxonsEigenvalues(const int &x) {
+  numRelaxonsEigenvalues = x;
+}
+
+bool Context::getCheckNegativeRelaxons() const { return checkNegativeRelaxons; }
 
 bool Context::getUseSymmetries() const { return useSymmetries; }
 void Context::setUseSymmetries(const bool &x) { useSymmetries = x; }

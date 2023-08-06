@@ -48,6 +48,20 @@ void pzheev_(char *, char *, int *, std::complex<double> *, int *, int *, int *,
              double *, std::complex<double> *, int *, int *, int *,
              std::complex<double> *, int *, std::complex<double> *, int *,
              int *);
+void pdsygvx_(const int *, const char*, const char*, const char*, const int*,
+                double*, int*, int*, int*, double*, int*, int*, int*, double*,
+                double*, int*, int*, double*, int*, int*,
+                double*, double*, double*, int*, int*, int*, double*,
+                int*, int*, int*, int*, int*, double*, int*);
+// calculate some eigenvalues of a parallel matrix of doubles
+void pdsyevr_(const char*, const char*, const char*, const int*, double*, int*, int*, int*,
+        double*, double*, int*, int*, int*, int*,
+        double*, double*, int*, int*, int*,
+        double*, int*, int*, int*, int*);
+// calculate all eigenvalues and vectors by divide and conquer algorithm
+void pdsyevd_(char *, char *, int *, double *, int *, int *, int *, double *,
+             double *, int *, int *, int *, double *, int *, int *, int *, int *);
+
 }
 
 #endif /* BLACS_H */

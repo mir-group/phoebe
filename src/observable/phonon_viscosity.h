@@ -44,14 +44,12 @@ public:
   void outputToJSON(const std::string& outFileName);
 
   /** Computes the viscosity from the scattering matrix eigenvectors.
-   * Following Simoncelli PRX 2020. Stores it internally.
-   * @param vector0: VectorBTE object with the energy-conserving eigenvector.
+   * Following Simoncelli PRX 2020.
    * @param relTimes: the VectorBTE object with relaxon relaxation times.
-   * @oaram sMatrix: the scattering matrix.
-   * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
+   * @param eigenvectors: the eigenvectors of the scattering matrix above.
    */
-  void calcFromRelaxons(Vector0 &vector0, Eigen::VectorXd &eigenvalues,
-                        PhScatteringMatrix &sMatrix,
+   // previously used vector0: VectorBTE object with the energy-conserving eigenvector.
+  void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);
 
 protected:

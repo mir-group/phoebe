@@ -305,11 +305,16 @@ StatisticsSweep::findChemicalPotentialFromDoping(const double &doping,
     }
   }
 
-  // I choose the following (generous) boundaries
-  double aX = *min_element(energies.begin(), energies.end()) - 1.;
-  double bX = *max_element(energies.begin(), energies.end()) + 1.;
-  // note: +-1 Ry = 13 eV should work for most dopings and temperatures,
-  // even in corner cases
+  double aX = 0; double bX = 0;
+  // if this is a weird case where this processor has zero
+  // states, the below lines will cause a seg fault
+  if(energies.size() > 0) {
+    // I choose the following (generous) boundaries
+    aX = *min_element(energies.begin(), energies.end()) - 1.;
+    bX = *max_element(energies.begin(), energies.end()) + 1.;
+    // note: +-1 Ry = 13 eV should work for most dopings and temperatures,
+    // even in corner cases
+  }
 
   // if energies are distributed, each process needs to have the global
   // minimum and maximum of the energies
