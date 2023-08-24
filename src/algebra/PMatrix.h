@@ -774,8 +774,7 @@ void ParallelMatrix<T>::outputToHDF5(const std::string &outFileName,
         size_t iMat1 = std::get<0>(matEl);
         size_t iMat2 = std::get<1>(matEl);
         // convert to 1d index, used on the underlying dataset
-        //size_t iGlobal = theMatrix.global2Local(iMat1, iMat2);
-        size_t iGlobal = iMat2*cols() + iMat1;
+        size_t iGlobal = iMat1*cols() + iMat2;
         // get the actual value of the matrix element
         double value = this->operator()(iMat1,iMat2);
 

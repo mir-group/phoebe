@@ -285,7 +285,7 @@ class MPIcontroller {
   void errorReport(int errCode) const;  // collect errors from processes and
                                         // reports them, then kills the code
 
-  /** Function to return the time elapsed since the mpi environment started.
+  /** Function to print the time elapsed since the mpi environment started.
   */
   void time() const;
 
@@ -453,6 +453,7 @@ struct containerType;
     static inline bool allowsAutoWorkDivs() { return true; }
   };
 
+  //Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::Device<Kokkos::OpenMP, Kokkos::HostSpace>, Kokkos::Experimental::EmptyViewHooks> >
   template<>
   struct containerType<Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace>> {
     static inline Kokkos::complex<double> *getAddress(Kokkos::View<Kokkos::complex<double>****, Kokkos::LayoutRight, Kokkos::HostSpace> *data) { return data->data(); }
