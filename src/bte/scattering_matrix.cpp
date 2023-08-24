@@ -962,6 +962,10 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           int ik1Irr = ik1Index.get();
           int ik2Irr = ik2Index.get();
           for (int ik2 : outerBandStructure.getReducibleStarFromIrreducible(ik2Irr)) {
+            // if we're not symmetrizing the matrix, we only need the upper triangle
+            if(ik1Irr > ik2 && !context.getSymmetrizeMatrix() && context.getUseUpperTriangle())
+              continue;
+
             std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
             localPairsPrivate.push_back(xx);
           }
@@ -1003,7 +1007,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq2);
         } else {
-          Error("iq1 not found, not supposed to happen");
+          Error("Developer error: ik1 not found, not supposed to happen.");
         }
       }
     }
@@ -1065,8 +1069,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           auto tup2 = getSMatrixIndex(iMat2);
           BteIndex iBte1 = std::get<0>(tup1);
           BteIndex iBte2 = std::get<0>(tup2);
-          // map the index on the irreducible points of BTE to band structure
-          // index
+          // map the index on the irreducible points of BTE to band structure index
           StateIndex is1 = outerBandStructure.bteToState(iBte1);
           StateIndex is2 = outerBandStructure.bteToState(iBte2);
           auto tuple1 = outerBandStructure.getIndex(is1);
@@ -1075,8 +1078,12 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           WavevectorIndex iq2Index = std::get<0>(tuple2);
           int iq1Irr = iq1Index.get();
           int iq2Irr = iq2Index.get();
-          for (int iq2 :
-               outerBandStructure.getReducibleStarFromIrreducible(iq2Irr)) {
+          for (int iq2 : outerBandStructure.getReducibleStarFromIrreducible(iq2Irr)) {
+          // we skip adding the pair if only half the matrix is needed
+          if(iq1Irr > iq2 && !context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+            continue;
+          }
+
             std::pair<int, int> xx = std::make_pair(iq1Irr, iq2);
             localPairsPrivate.push_back(xx);
           }
@@ -1118,7 +1125,7 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           // note: get<> returns a reference to the tuple elements
           std::get<0>(pairIterator[i]).push_back(iq1);
         } else {
-          Error("iq2 not found, not supposed to happen");
+          Error("Developer error: iq2 not found, not supposed to happen.");
         }
       }
       return pairIterator;

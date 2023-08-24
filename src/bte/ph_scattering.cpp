@@ -334,6 +334,13 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
                       linewidth->operator()(iCalc, 0, iBte1Shift) += 0.5 * ratePlus;
                       matrix.theMatrix(iBte1Shift, iBte2Shift) += ratePlus;
+
+                      // if we're not symmetrizing the matrix, and we have
+                      // dropped down to only using the upper triangle of the matrix, we must fill
+                      // in linewidths twice, using detailed balance, in order to get the right ratest
+                      if(!context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+                        linewidth->operator()(iCalc, 0, iBte2Shift) += 0.5 * ratePlus;
+                      }
                     }
                   }
 
@@ -478,6 +485,13 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                     if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
                       linewidth->operator()(iCalc, 0, iBte1Shift) += 0.5 * (rateMinus1 + rateMinus2);
                       matrix.theMatrix(iBte1Shift, iBte2Shift) -= rateMinus1 + rateMinus2;
+
+                      // if we're not symmetrizing the matrix, and we have
+                      // dropped down to only using the upper triangle of the matrix, we must fill
+                      // in linewidths twice, using detailed balance, in order to get the right ratest
+                      if(!context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+                        linewidth->operator()(iCalc, 0, iBte2Shift) += 0.5 * (rateMinus1 + rateMinus2);
+                      }
                     }
 
                   }
@@ -733,6 +747,13 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
                 if (matrix.theMatrix.indicesAreLocal(iBte1Shift, iBte2Shift)) {
                   linewidth->operator()(iCalc, 0, iBte1Shift) += rateIso;
                   matrix.theMatrix(iBte1Shift, iBte2Shift) += rateIso;
+
+                  // if we're not symmetrizing the matrix, and we have
+                  // dropped down to only using the upper triangle of the matrix, we must fill
+                  // in linewidths twice, using detailed balance, in order to get the right ratest
+                  if(!context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+                    linewidth->operator()(iCalc, 0, iBte2Shift) += rateIso;
+                  }
                 }
               }
 
