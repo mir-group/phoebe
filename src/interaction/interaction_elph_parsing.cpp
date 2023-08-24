@@ -257,7 +257,7 @@ std::tuple<int, int, int, Eigen::MatrixXd, Eigen::MatrixXd, std::vector<size_t>,
     mpi->bcast(&phBravaisVectors_, mpi->interPoolComm);
     mpi->bcast(&phBravaisVectorsDegeneracies_, mpi->interPoolComm);
   } catch (std::exception &error) {
-    Error("Issue reading elph Wannier representation from hdf5.");
+    Error("Issue reading elph Wannier representation header data from hdf5.");
   }
 
   return std::make_tuple(numElBands, numPhBands, totalNumElBravaisVectors, elBravaisVectors_,

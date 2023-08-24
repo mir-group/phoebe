@@ -11,6 +11,8 @@ smearingMethod = "gaussian"
 smearingWidth = 10. cmm1
 
 solverBTE = ["iterative", "variational","relaxons"]
+ # for a production relaxons run, use this -- otherwise, false
+symmetrizeMatrix = true
 scatteringMatrixInMemory = true
 
 boundaryLength = 1. mum
