@@ -1155,6 +1155,11 @@ void ScatteringMatrix::symmetrize() {
     // not only, probably it doesn't make sense. To be checked
   }
 
+  if(mpi->mpiHead()) {
+    std::cout << "Starting scattering matrix symmetrization." << std::endl;
+    mpi->time();
+  }
+
   if (highMemory) {
     ParallelMatrix<double> newMatrix = theMatrix;
     newMatrix *= 0.;
@@ -1226,6 +1231,10 @@ void ScatteringMatrix::symmetrize() {
       }
     }
     theMatrix = newMatrix;
+  }
+  if(mpi->mpiHead()) {
+    std::cout << "Finished symmetrization." << std::endl;
+    mpi->time();
   }
 }
 
