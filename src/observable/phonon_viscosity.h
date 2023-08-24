@@ -3,7 +3,7 @@
 
 #include "drift.h"
 #include "observable.h"
-#include "ph_scattering.h"
+#include "ph_scattering_matrix.h"
 
 /** Object to compute and store the phonon viscosity.
  * TODO: test if electron viscosity works with this class as well.

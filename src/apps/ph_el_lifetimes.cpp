@@ -1,7 +1,7 @@
 #include "ph_el_lifetimes.h"
 #include "bandstructure.h"
 #include "context.h"
-#include "phel_scattering.h"
+#include "phel_scattering_matrix.h"
 #include "exceptions.h"
 #include "parser.h"
 
@@ -31,6 +31,7 @@ void PhElLifetimesApp::run(Context &context) {
   Points qPoints(crystal, context.getQMesh());
   auto t3 = ActiveBandStructure::builder(context, phononH0, qPoints, withEigenvectors, withVelocities);
   auto phBandStructure = std::get<0>(t3);
+  StatisticsSweep statisticsSweep = std::get<1>(t3);
 
   // print some info about how window and symmetries have reduced things
   if (mpi->mpiHead()) {
@@ -47,48 +48,10 @@ void PhElLifetimesApp::run(Context &context) {
     std::cout << "Done computing phonon band structure.\n" << std::endl;
   }
 
-  // compute the el band structure on the fine grid -----------------------------
-  if (mpi->mpiHead()) {
-    std::cout << "Computing electronic band structure.\n" << std::endl;
-  }
-
-  // manually setting the window to 1.25 the maximum phonon
-  double maxPhEnergy = phBandStructure.getMaxEnergy();
-  auto inputWindowType = context.getWindowType();
-  context.setWindowType("muCenteredEnergy");
-  if(mpi->mpiHead()) {
-    std::cout << "Of the active phonon modes, the maximum energy state is " <<
-        maxPhEnergy * energyRyToEv * 1e3 << " meV." <<
-        "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
-        << " of max/min electronic mu values." << std::endl;
-  }
-  Eigen::Vector2d range = {-1.25*maxPhEnergy, 1.25*maxPhEnergy};
-  context.setWindowEnergyLimit(range);
-
-  Points kPoints(crystal, context.getKMesh());
-  auto t4 = ActiveBandStructure::builder(context, electronH0, kPoints);
-  auto elBandStructure = std::get<0>(t4);
-  auto statisticsSweep = std::get<1>(t4);
-
-  // print some info about how window and symmetries have reduced things
-  if (mpi->mpiHead()) {
-    if(elBandStructure.hasWindow() != 0) {
-        std::cout << "Window selection reduced electronic band structure from "
-          << kPoints.getNumPoints() * electronH0.getNumBands() << " to "
-          << elBandStructure.getNumStates() << " states."  << std::endl;
-    }
-    if(context.getUseSymmetries()) {
-      std::cout << "Symmetries reduced electronic band structure from "
-          << elBandStructure.getNumStates() << " to "
-          << elBandStructure.irrStateIterator().size() << " states.\n" << std::endl;
-    }
-    std::cout << "Done computing electronic band structure.\n" << std::endl;
-  }
-
   // build/initialize the scattering matrix and the smearing
   PhElScatteringMatrix scatteringMatrix(context, statisticsSweep,
-                                        elBandStructure, phBandStructure,
-                                        couplingElPh, electronH0);
+                                        phBandStructure,
+                                        &couplingElPh, &electronH0);
   scatteringMatrix.setup();
   scatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
 

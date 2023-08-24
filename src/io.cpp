@@ -205,8 +205,8 @@ LoopPrint::LoopPrint(const std::string &task_, const std::string &step_,
   initialTime = std::chrono::steady_clock::now();
 
   std::cout << "\n";
-  std::cout << "Started " << task << " with " << numSteps << " " << step
-            << "." << std::endl;
+  std::cout << "Started " << task << " with ~" << numSteps << " " << step
+            << " per/MPI process." << std::endl;
 
   stepDigits = int(log10(numSteps)) + 1; // number of digits in numSteps
 }
@@ -231,7 +231,7 @@ void LoopPrint::update(const bool &withTimeEstimate) {
     strftime(s, 200, "%F, %T", p);
 
     time_delta elapsedTime = currentTime - initialTime;
-    double timeLeft;
+    double timeLeft = 0;
 
     if (currentStep == 2) { // we compare with the third step
       deltaTime = elapsedTime;

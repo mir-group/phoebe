@@ -2,7 +2,7 @@
 #include "bandstructure.h"
 #include "context.h"
 #include "drift.h"
-#include "el_scattering.h"
+#include "el_scattering_matrix.h"
 #include "electron_viscosity.h"
 #include "exceptions.h"
 #include "observable.h"

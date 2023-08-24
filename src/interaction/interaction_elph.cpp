@@ -120,6 +120,46 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
   return polarCorrectionPart2(ev1, ev2, x);
 }
 
+// compute the q dependent part of the polar elph correction for all the phonon
+// wavevectors in a given bandstucture.
+// 
+// * NOTE: this could be changed to calculate it for a specific q list if needed
+// * TODO additionally, could store this polar correction internally and use it directly
+// when calcCouplingSquared is called. However, for now we let the external 
+// scattering rate calculation class handle it and pass it back to the calcCoupling 
+// function. This is because currently in el-ph coupling, the polar data is 
+// calculated by the external pointsHelper class, rather than as a precomputation
+// over q at the start of the scattering rate calculation/
+Eigen::MatrixXcd InteractionElPhWan::precomputeQDependentPolar(
+                                                BaseBandStructure &phBandStructure) { 
+
+  if(!phBandStructure.getParticle().isPhonon()) { 
+    Error("Developer error: cannot use electron bands to "
+                "precompute q-dept part of polar correction.");
+  }
+
+  // precompute the q-dependent part of the polar correction ---------
+  int numQPoints = phBandStructure.getNumPoints(); 
+  auto qPoints = phBandStructure.getPoints();
+  // we just set this to the largest possible number of phonons
+  int nbQMax = 3 * phBandStructure.getPoints().getCrystal().getNumAtoms();
+  Eigen::MatrixXcd polarData(numQPoints, nbQMax);
+  polarData.setZero();
+  #pragma omp parallel for
+  // Fine to divide over qpoints as all processes have pairs k1, allQpoints
+  for (int iq : mpi->divideWorkIter(numQPoints)){ 
+    WavevectorIndex iqIdx(iq);
+    auto qC = phBandStructure.getWavevector(iqIdx);
+    auto evQ = phBandStructure.getEigenvectors(iqIdx);
+    Eigen::VectorXcd thisPolar = polarCorrectionPart1(qC, evQ);
+    for (int i=0; i<thisPolar.size(); ++i) {
+      polarData(iq, i) = thisPolar(i);
+    }
+  }
+  mpi->allReduceSum(&polarData);
+  return polarData; 
+}
+
 Eigen::Tensor<std::complex<double>, 3>
 InteractionElPhWan::getPolarCorrectionStatic(
     const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,

@@ -8,7 +8,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
                                BaseBandStructure &outerBandStructure_,
                                Eigen::MatrixXd &outerBose_,
                                StatisticsSweep &statisticsSweep_,
-                               const int &smearingType_, PhononH0 *h0_)
+                               const int &smearingType_, PhononH0& h0_)
     : innerBandStructure(innerBandStructure_),
       outerBandStructure(outerBandStructure_), outerBose(outerBose_),
       statisticsSweep(statisticsSweep_), smearingType(smearingType_), h0(h0_) {
@@ -114,7 +114,7 @@ Helper3rdState::Helper3rdState(BaseBandStructure &innerBandStructure_,
     bool withEigenvectors = true;
     bool withVelocities = true;
     bandStructure3 = std::make_unique<ActiveBandStructure>(
-        activePoints3, h0, withEigenvectors, withVelocities);
+        activePoints3, &h0, withEigenvectors, withVelocities);
   }
 }
 
@@ -185,10 +185,11 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcStatistics.temperature;
-        double chemPot = calcStatistics.chemicalPotential;
+        // phonon chem potential is always zero
+        double chemPot = 0; //calcStatistics.chemicalPotential;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) =
-              h0->getParticle().getPopulation(energies3(ib3), temp, chemPot);
+              h0.getParticle().getPopulation(energies3(ib3), temp, chemPot);
         }
       }
     }
@@ -225,8 +226,8 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
   }
 }
 
-void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
-                             const int &iq2) {
+void Helper3rdState::prepare(const std::vector<int> &q1Indexes, const int &iq2) {
+
   if (!storedAllQ3) {
     auto numPoints = int(q1Indexes.size());
     cacheOffset = q1Indexes[0];
@@ -241,7 +242,7 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
     cacheMinusBose.resize(numPoints);
     cacheMinusVelocity.resize(numPoints);
 
-    Particle particle = h0->getParticle();
+    Particle particle = h0.getParticle();
 
     int iq1Counter = -1;
     for (int iq1 : q1Indexes) {
@@ -254,10 +255,10 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
       Eigen::Vector3d q3Plus = q1 + q2;
       Eigen::Vector3d q3Minus = q1 - q2;
 
-      auto tup = h0->diagonalizeFromCoordinates(q3Plus);
+      auto tup = h0.diagonalizeFromCoordinates(q3Plus);
       auto energies3Plus = std::get<0>(tup);
       auto eigenVectors3Plus = std::get<1>(tup);
-      auto tup1 = h0->diagonalizeFromCoordinates(q3Minus);
+      auto tup1 = h0.diagonalizeFromCoordinates(q3Minus);
       auto energies3Minus = std::get<0>(tup1);
       auto eigenVectors3Minus = std::get<1>(tup1);
 
@@ -271,7 +272,8 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
         double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
-        double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
+        // phonon chem potential is zero
+        double chemPot = 0; //statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
         for (int ib3 = 0; ib3 < nb3Plus; ib3++) {
           bose3DataPlus(iCalc, ib3) =
               particle.getPopulation(energies3Plus(ib3), temp, chemPot);
@@ -288,9 +290,9 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes,
       v3sMinus.setZero();
       if (smearingType == DeltaFunction::adaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmpPlus =
-            h0->diagonalizeVelocityFromCoordinates(q3Plus);
+            h0.diagonalizeVelocityFromCoordinates(q3Plus);
         Eigen::Tensor<std::complex<double>, 3> v3sTmpMinus =
-            h0->diagonalizeVelocityFromCoordinates(q3Minus);
+            h0.diagonalizeVelocityFromCoordinates(q3Minus);
 
         // we only need the diagonal elements of the velocity operator
         // i.e. the group velocity

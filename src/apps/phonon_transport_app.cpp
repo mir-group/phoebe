@@ -6,8 +6,8 @@
 #include "ifc3_parser.h"
 #include "observable.h"
 #include "parser.h"
-#include "phel_scattering.h"
-#include "ph_scattering.h"
+#include "phel_scattering_matrix.h"
+#include "ph_scattering_matrix.h"
 #include "phonon_thermal_cond.h"
 #include "phonon_viscosity.h"
 #include "points.h"
@@ -68,6 +68,7 @@ void PhononTransportApp::run(Context &context) {
   PhScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
+  //scatteringMatrix.outputToHDF5("ph.scatteringMatrix.hdf5");
 
   // if requested in input, load the phononElectron information
   // we save only a vector BTE to add to the phonon scattering matrix,
@@ -86,13 +87,14 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "\nStarting phonon-electron scattering calculation." << std::endl;
     }
     VectorBTE phElLinewidths = getPhononElectronLinewidth(context, crystal,
-                                                        bandStructure, phononH0);
+                                         bandStructure, statisticsSweep, phononH0);
 
     // if we're using both phel and phph times, we should output
     // each independent linewidth set. PhEl is output above.
     scatteringMatrix.outputToJSON("rta_phph_relaxation_times.json");
 
     // add in the phel linewidths -- use getLinewidths to remove pop factors
+    // when adding the two values
     VectorBTE totalRates = scatteringMatrix.getLinewidths();
     totalRates = totalRates + phElLinewidths;
     scatteringMatrix.setLinewidths(totalRates);
@@ -102,7 +104,6 @@ void PhononTransportApp::run(Context &context) {
   // solve the BTE at the relaxation time approximation level
   // we always do this, as it's the cheapest solver and is required to know
   // the diagonal for the exact method.
-
   if (mpi->mpiHead()) {
     std::cout << "\n" << std::string(80, '-') << "\n\n"
               << "Solving BTE within the relaxation time approximation."
@@ -419,6 +420,7 @@ void PhononTransportApp::run(Context &context) {
 // helper function to generate phEl rates
 VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Crystal& crystalPh,
                                                          ActiveBandStructure &phBandStructure,
+                                                         StatisticsSweep& statisticsSweep,
                                                          PhononH0& phononH0) {
 
     // load electron band structure
@@ -438,67 +440,14 @@ VectorBTE PhononTransportApp::getPhononElectronLinewidth(Context& context, Cryst
     // which is needed to understand where to place the fermi level
     auto couplingElPh = InteractionElPhWan::parse(context, crystalPh, &phononH0);
 
-    // compute the band structure on the fine grid
-    if (mpi->mpiHead()) {
-      std::cout << "\nComputing electronic band structure for ph-el scattering.\n"
-                << std::endl;
-    }
+    // TODO unsure if we should allow this variable to be set by the user in place of
+    // the standard kmesh, to be consistent with other uses.
+    context.setKMeshPhEl(context.getKMesh());
 
-    // update the window so that it's only a very narrow
-    // scale slice around mu, 1.25* the max phonon energy
-    double maxPhEnergy = phBandStructure.getMaxEnergy();
-    auto inputWindowType = context.getWindowType();
-    context.setWindowType("muCenteredEnergy");
-    if(mpi->mpiHead()) {
-      std::cout << "Of the active phonon modes, the maximum energy state is " <<
-          maxPhEnergy*energyRyToEv*1e3 << " meV." <<
-          "\nSelecting states within +/- 1.25 x " << maxPhEnergy*energyRyToEv*1e3 << " meV"
-          << " of max/min electronic mu values." << std::endl;
-    }
-    Eigen::Vector2d range = {-1.25*maxPhEnergy,1.25*maxPhEnergy};
-    context.setWindowEnergyLimit(range);
-
-    // construct electronic band structure
-    Points fullPoints(crystalPh, context.getKMesh());
-    auto t3 = ActiveBandStructure::builder(context, electronH0, fullPoints);
-    auto elBandStructure = std::get<0>(t3);
-    auto statisticsSweep = std::get<1>(t3);
-
-    // don't proceed if we use more than one doping concentration --
-    // phph scattering only has 1 mu value, therefore the linewidths won't add to it correctly
-    int numMu = statisticsSweep.getNumChemicalPotentials();
-    if (numMu != 1) {
-        Error("Can currenly only add ph-el scattering one doping "
-          "concentration at the time. Let us know if you want to have multiple mu values as a feature.");
-    }
-
-    // print some info about how window and symmetries have reduced el bands
-    if (mpi->mpiHead()) {
-      if(elBandStructure.hasWindow() != 0) {
-          std::cout << "Window selection reduced electronic band structure from "
-                  << fullPoints.getNumPoints() * electronH0.getNumBands() << " to "
-                  << elBandStructure.getNumStates() << " states."  << std::endl;
-      }
-      if(context.getUseSymmetries()) {
-        std::cout << "Symmetries reduced electronic band structure from "
-          << elBandStructure.getNumStates() << " to "
-          << elBandStructure.irrStateIterator().size() << " states." << std::endl;
-      }
-      std::cout << "Done computing electronic band structure.\n" << std::endl;
-    }
-
-    // build/initialize the scattering matrix and the smearing
-    // it shouldn't take up too much memory, as it's just
-    // the diagonal -- be careful to put elBandStruct first
+    // setup the scattering matrix
     PhElScatteringMatrix phelScatteringMatrix(context, statisticsSweep,
-                                              elBandStructure, phBandStructure,
-                                              couplingElPh, electronH0);
-
-    if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
-      Error("Cannot calculate PhEl scattering matrix with fewer states than\n"
-        "number of MPI processes. Reduce the number of MPI processes,\n"
-        "perhaps use more OMP threads instead.");
-    }
+                                              phBandStructure,
+                                              &couplingElPh, &electronH0);
     phelScatteringMatrix.setup();
     phelScatteringMatrix.outputToJSON("rta_phel_relaxation_times.json");
 

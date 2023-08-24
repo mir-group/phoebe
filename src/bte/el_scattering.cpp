@@ -1,32 +1,14 @@
-#include "el_scattering.h"
-
 #include "constants.h"
 #include "helper_el_scattering.h"
 #include "io.h"
 #include "mpiHelper.h"
 #include "periodic_table.h"
+#include "interaction_elph.h"
+#include "el_scattering_matrix.h"
+#include "vector_bte.h"
+#include "delta_function.h"
 
-ElScatteringMatrix::ElScatteringMatrix(Context &context_,
-                                       StatisticsSweep &statisticsSweep_,
-                                       BaseBandStructure &innerBandStructure_,
-                                       BaseBandStructure &outerBandStructure_,
-                                       PhononH0 &h0_,
-                                       InteractionElPhWan *couplingElPhWan_)
-    : ScatteringMatrix(context_, statisticsSweep_, innerBandStructure_,
-                       outerBandStructure_),
-      couplingElPhWan(couplingElPhWan_), h0(h0_) {
-
-  doBoundary = false;
-  boundaryLength = context.getBoundaryLength();
-  if (!std::isnan(boundaryLength)) {
-    if (boundaryLength > 0.) {
-      doBoundary = true;
-    }
-  }
-
-  isMatrixOmega = true;
-  highMemory = context.getScatteringMatrixInMemory();
-}
+// TODO maybe remove some of these that are not necessary
 
 // 3 cases:
 // theMatrix and linewidth is passed: we compute and store in memory the
@@ -35,103 +17,48 @@ ElScatteringMatrix::ElScatteringMatrix(Context &context_,
 // inPopulation+outPopulation is passed: we compute the action of the
 //       scattering matrix on the in vector, returning outVec = sMatrix*vector
 // only linewidth is passed: we compute only the linewidths
-void ElScatteringMatrix::builder(VectorBTE *linewidth,
-                                 std::vector<VectorBTE> &inPopulations,
-                                 std::vector<VectorBTE> &outPopulations) {
-  Kokkos::Profiling::pushRegion("ElScatteringMatrix::builder");
 
-  int switchCase = 0;
-  if (theMatrix.rows() != 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
-    switchCase = 0;
-  } else if (theMatrix.rows() == 0 && linewidth == nullptr && !inPopulations.empty() && !outPopulations.empty()) {
-    switchCase = 1;
-  } else if (theMatrix.rows() == 0 && linewidth != nullptr && inPopulations.empty() && outPopulations.empty()) {
-    switchCase = 2;
-  } else {
-    Error("builder3Ph found a non-supported case");
-  }
+const double phEnergyCutoff = 5 / ryToCmm1; // discard states with small ph energies
 
-  if ((linewidth != nullptr) && (linewidth->dimensionality != 1)) {
-    Error("The linewidths shouldn't have dimensionality");
-  }
+void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
+                       std::vector<VectorBTE> &inPopulations,
+                       std::vector<VectorBTE> &outPopulations,
+                       int &switchCase,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
+                       Eigen::MatrixXd &innerFermi, //Eigen::MatrixXd &outerBose,
+                       BaseBandStructure &innerBandStructure,
+                       BaseBandStructure &outerBandStructure,
+                       PhononH0 &phononH0,
+                       InteractionElPhWan *couplingElPhWan,
+                       std::shared_ptr<VectorBTE> linewidth) {
 
-  auto particle = outerBandStructure.getParticle();
+  StatisticsSweep &statisticsSweep = matrix.statisticsSweep;
 
+  DeltaFunction *smearing = DeltaFunction::smearingFactory(context, innerBandStructure);
+   if ( // innerBandStructure != outerBandStructure &&
+       smearing->getType() == DeltaFunction::tetrahedron) {
+     Error("Developer error: Tetrahedron smearing for transport untested and thus blocked");
+     // May work for linewidths. Although this should be double-checked
+   }
+
+  // generate the intermediate points to be summed over
+  HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
+                    statisticsSweep, smearing->getType(), phononH0, couplingElPhWan);
+
+  bool withSymmetries = context.getUseSymmetries();
   int numCalculations = statisticsSweep.getNumCalculations();
-
   // note: innerNumFullPoints is the number of points in the full grid
   // may be larger than innerNumPoints, when we use ActiveBandStructure
   double norm = 1. / context.getKMesh().prod();
 
-  // precompute Fermi-Dirac populations
-  auto numOuterIrrStates = int(outerBandStructure.irrStateIterator().size());
-  Eigen::MatrixXd outerFermi(numCalculations, numOuterIrrStates);
-  outerFermi.setZero();
-  std::vector<size_t> iBtes = mpi->divideWorkIter(numOuterIrrStates);
-  int niBtes = iBtes.size();
-#pragma omp parallel for default(none)                                \
-    shared(mpi, outerBandStructure, numCalculations, statisticsSweep, \
-           particle, outerFermi, numOuterIrrStates, niBtes, iBtes)
-  for (int iiBte = 0; iiBte < niBtes; iiBte++) {
-    int iBte = iBtes[iiBte];
-    BteIndex iBteIdx = BteIndex(iBte);
-    StateIndex isIdx = outerBandStructure.bteToState(iBteIdx);
-    double energy = outerBandStructure.getEnergy(isIdx);
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double temp = calcStat.temperature;
-      double chemPot = calcStat.chemicalPotential;
-      outerFermi(iCalc, iBte) = particle.getPopulation(energy, temp, chemPot);
-    }
-  }
-  mpi->allReduceSum(&outerFermi);
-
-  auto numInnerIrrStates = int(innerBandStructure.irrStateIterator().size());
-  Eigen::MatrixXd innerFermi(numCalculations, numInnerIrrStates);
-  innerFermi.setZero();
-  iBtes = mpi->divideWorkIter(numInnerIrrStates);
-  niBtes = iBtes.size();
-#pragma omp parallel for default(none)                                  \
-    shared(numInnerIrrStates, mpi, innerBandStructure, statisticsSweep, \
-           particle, innerFermi, numCalculations, niBtes, iBtes)
-  for (int iiBte = 0; iiBte < niBtes; iiBte++) {
-    int iBte = iBtes[iiBte];
-    BteIndex iBteIdx = BteIndex(iBte);
-    StateIndex isIdx = innerBandStructure.bteToState(iBteIdx);
-    double energy = innerBandStructure.getEnergy(isIdx);
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double temp = calcStat.temperature;
-      double chemPot = calcStat.chemicalPotential;
-      innerFermi(iCalc, iBte) = particle.getPopulation(energy, temp, chemPot);
-    }
-  }
-  mpi->allReduceSum(&innerFermi);
-
-  if (smearing->getType() == DeltaFunction::tetrahedron) {
-    Error("Tetrahedron method not supported by electron scattering");
-    // that's because it doesn't work with the window the way it's implemented,
-    // and we will almost always have a window for electrons
-  }
-
-  bool rowMajor = true;
-  std::vector<std::tuple<std::vector<int>, int>> kPairIterator =
-      getIteratorWavevectorPairs(switchCase, rowMajor);
-
-  HelperElScattering pointHelper(innerBandStructure, outerBandStructure,
-                                 statisticsSweep, smearing->getType(), h0, couplingElPhWan);
-
-  bool withSymmetries = context.getUseSymmetries();
-
-  double phononCutoff = 5. / ryToCmm1;// used to discard small phonon energies
-
-  LoopPrint loopPrint("computing scattering matrix", "k-points",
-                      int(kPairIterator.size()));
+  LoopPrint loopPrint("computing el-ph contribution to the scattering matrix",
+                                        "k-points", int(kPairIterator.size()));
 
   for (auto t1 : kPairIterator) {
+
     loopPrint.update();
-    auto ik2Indexes = std::get<0>(t1);
     int ik1 = std::get<1>(t1);
+    auto ik2Indexes = std::get<0>(t1);
     WavevectorIndex ik1Idx(ik1);
 
     // dummy call to make pooled coupling calculation work. We need to make sure
@@ -169,6 +96,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
     // later we will loop over the q1s inside each batch
     // this is done to optimize the usage and data transfer of a GPU
     for (int iBatch = 0; iBatch < numBatches; iBatch++) {
+
       // start and end point for current batch
       int start = nk2 * iBatch / numBatches;
       int end = nk2 * (iBatch + 1) / numBatches;
@@ -190,7 +118,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Kokkos::Profiling::pushRegion("preprocessing loop");
       // do prep work for all values of q1 in current batch,
       // store stuff needed for couplings later
-#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C, allPolarData)
+#pragma omp parallel for default(none) shared(allNb3, allEigenVectors3, allV3s, allBose3Data, ik2Indexes, pointHelper, allQ3C, allStates3Energies, batch_size, start, allK2C, allState2Energies, allV2s, allEigenVectors2, k1C, allPolarData,innerBandStructure)
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
         int ik2 = ik2Indexes[start + ik2Batch];
         WavevectorIndex ik2Idx(ik2);
@@ -215,7 +143,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Kokkos::Profiling::pushRegion("symmetrize coupling");
 #pragma omp parallel for
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
-        symmetrizeCoupling(
+        matrix.symmetrizeCoupling(
             couplingElPhWan->getCouplingSquared(ik2Batch),
             state1Energies, allState2Energies[ik2Batch], allStates3Energies[ik2Batch]
         );
@@ -225,14 +153,13 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
       Kokkos::Profiling::pushRegion("postprocessing loop");
       // do postprocessing loop with batch of couplings
       for (int ik2Batch = 0; ik2Batch < batch_size; ik2Batch++) {
+
         int ik2 = ik2Indexes[start + ik2Batch];
 
-        Eigen::Tensor<double, 3>& coupling =
-            couplingElPhWan->getCouplingSquared(ik2Batch);
+        Eigen::Tensor<double, 3>& coupling = couplingElPhWan->getCouplingSquared(ik2Batch);
 
         Eigen::Vector3d k2C = allK2C[ik2Batch];
-        auto t3 = innerBandStructure.getRotationToIrreducible(
-            k2C, Points::cartesianCoordinates);
+        auto t3 = innerBandStructure.getRotationToIrreducible(k2C, Points::cartesianCoordinates);
         int ik2Irr = std::get<0>(t3);
         Eigen::Matrix3d rotation = std::get<1>(t3);
 
@@ -260,6 +187,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
         }
 
         for (int ib2 = 0; ib2 < nb2; ib2++) {
+
           double en2 = state2Energies(ib2);
           int is2 = innerBandStructure.getIndex(ik2Idx, BandIndex(ib2));
           int is2Irr = innerBandStructure.getIndex(ik2IrrIdx, BandIndex(ib2));
@@ -269,6 +197,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
           int iBte2 = ind2Idx.get();
 
           for (int ib1 = 0; ib1 < nb1; ib1++) {
+
             double en1 = state1Energies(ib1);
             int is1 = outerBandStructure.getIndex(ik1Idx, BandIndex(ib1));
             StateIndex is1Idx(is1);
@@ -276,19 +205,17 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             int iBte1 = ind1Idx.get();
 
             for (int ib3 = 0; ib3 < nb3; ib3++) {
+
               double en3 = state3Energies(ib3);
 
               // remove small divergent phonon energies
-              if (en3 < phononCutoff) {
-                continue;
-              }
+              if (en3 < phEnergyCutoff) { continue; }
 
               double delta1, delta2;
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
               } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-                // Eigen::Vector3d smear = v3s.row(ib3);
                 Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
                 delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
                 delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
@@ -297,9 +224,7 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 delta2 = smearing->getSmearing(en3 - en1, is2Idx);
               }
 
-              if (delta1 <= 0. && delta2 <= 0.) {
-                continue;
-              }
+              if (delta1 <= 0. && delta2 <= 0.) { continue; } // doesn't contribute
 
               // loop on temperature
               for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
@@ -312,10 +237,8 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                 // Calculate transition probability W+
 
                 double rate =
-                    coupling(ib1, ib2, ib3)
-                    * ((fermi2 + bose3) * delta1
-                       + (1. - fermi2 + bose3) * delta2)
-                    * norm / en3 * pi;
+                    coupling(ib1, ib2, ib3) * ((fermi2 + bose3) * delta1
+                       + (1. - fermi2 + bose3) * delta2) * norm / en3 * pi;
 
                 double rateOffDiagonal = -
                       coupling(ib1, ib2, ib3) * bose3Symm * (delta1 + delta2)
@@ -331,26 +254,29 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
                   if (withSymmetries) {
                     for (int i : {0, 1, 2}) {
                       CartIndex iIndex(i);
-                      int iMat1 = getSMatrixIndex(ind1Idx, iIndex);
+                      int iMat1 = matrix.getSMatrixIndex(ind1Idx, iIndex);
                       for (int j : {0, 1, 2}) {
                         CartIndex jIndex(j);
-                        int iMat2 = getSMatrixIndex(ind2Idx, jIndex);
-                        if (theMatrix.indicesAreLocal(iMat1, iMat2)) {
+                        int iMat2 = matrix.getSMatrixIndex(ind2Idx, jIndex);
+                        if (matrix.theMatrix.indicesAreLocal(iMat1, iMat2)) {
                           if (i == 0 && j == 0) {
                             linewidth->operator()(iCalc, 0, iBte1) += rate;
                           }
                           if (is1 != is2Irr) {
-                            theMatrix(iMat1, iMat2) +=
+                            matrix.theMatrix(iMat1, iMat2) +=
                                 rotation.inverse()(i, j) * rateOffDiagonal;
                           }
                         }
                       }
                     }
                   } else {
-                    if (theMatrix.indicesAreLocal(iBte1, iBte2)) {
+                    // Note: we double check that the indices are local,
+                    // but because we selected pairs which were local to supply to the function call,
+                    // this isn't really necessary
+                    if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
+                      matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
                     }
-                    theMatrix(iBte1, iBte2) += rateOffDiagonal;
                   }
                 } else if (switchCase == 1) {
                   // case of matrix-vector multiplication
@@ -382,91 +308,9 @@ void ElScatteringMatrix::builder(VectorBTE *linewidth,
             }
           }
         }
-      }
+      } // loop over ik2s in the batch
       Kokkos::Profiling::popRegion();
-    }
-  }
-
-  if (switchCase == 1) {
-    for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-      mpi->allReduceSum(&outPopulations[iVec].data);
-    }
-  } else {
-    mpi->allReduceSum(&linewidth->data);
-  }
-  // I prefer to close loopPrint after the MPI barrier: all MPI are synced here
+    } // loop over batches
+  } // kpair iterator loop (defines k1)
   loopPrint.close();
-
-  // Average over degenerate eigenstates.
-  // we turn it off for now and leave the code if needed in the future
-  if (switchCase == 2) {
-    degeneracyAveragingLinewidths(linewidth);
-  }
-
-  // Add boundary scattering
-
-  if (doBoundary) {
-    Kokkos::Profiling::pushRegion("boundary scattering");
-    std::vector<int> is1s = outerBandStructure.irrStateIterator();
-    int nis1s = is1s.size();
-#pragma omp parallel for default(none) shared(                            \
-    outerBandStructure, numCalculations, statisticsSweep, boundaryLength, \
-    particle, outPopulations, inPopulations, linewidth, switchCase, nis1s, is1s)
-    for (int iis1 = 0; iis1 < nis1s; iis1++) {
-      int is1 = is1s[iis1];
-      StateIndex is1Idx(is1);
-      auto vel = outerBandStructure.getGroupVelocity(is1Idx);
-      int iBte1 = outerBandStructure.stateToBte(is1Idx).get();
-      double rate = vel.squaredNorm() / boundaryLength;
-
-      for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-        if (switchCase == 0) {// case of matrix construction
-          linewidth->operator()(iCalc, 0, iBte1) += rate;
-
-        } else if (switchCase == 1) {// case of matrix-vector multiplication
-          for (unsigned int iVec = 0; iVec < inPopulations.size(); iVec++) {
-            for (int i = 0; i < 3; i++) {
-              outPopulations[iVec](iCalc, i, iBte1) +=
-                  rate * inPopulations[iVec](iCalc, i, iBte1);
-            }
-          }
-
-        } else {// case of linewidth construction
-          // case of linewidth construction
-          linewidth->operator()(iCalc, 0, iBte1) += rate;
-        }
-      }
-    }
-    Kokkos::Profiling::popRegion();
-  }
-
-  // we place the linewidths back in the diagonal of the scattering matrix
-  // this because we may need an MPI_allReduce on the linewidths
-  if (switchCase == 0) {// case of matrix construction
-    int iCalc = 0;
-    if (context.getUseSymmetries()) {
-      // numStates is defined in scattering.cpp as # of irrStates
-      // from the outer band structure
-      for (int iBte = 0; iBte < numStates; iBte++) {
-        BteIndex iBteIdx(iBte);
-        // zero the diagonal of the matrix
-        for (int i : {0, 1, 2}) {
-          CartIndex iCart(i);
-          int iMati = getSMatrixIndex(iBteIdx, iCart);
-          for (int j : {0, 1, 2}) {
-            CartIndex jCart(j);
-            int iMatj = getSMatrixIndex(iBteIdx, jCart);
-            theMatrix(iMati, iMatj) = 0.;
-          }
-          theMatrix(iMati, iMati) += linewidth->operator()(iCalc, 0, iBte);
-        }
-      }
-    } else {
-      for (int is = 0; is < numStates; is++) {
-        theMatrix(is, is) = linewidth->operator()(iCalc, 0, is);
-      }
-    }
-  }
-  Kokkos::Profiling::popRegion();
 }

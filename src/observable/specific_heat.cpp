@@ -11,36 +11,32 @@ SpecificHeat::SpecificHeat(Context &context_, StatisticsSweep &statisticsSweep_,
                            Crystal &crystal_, BaseBandStructure &bandStructure_)
     : Observable(context_, statisticsSweep_, crystal_),
       bandStructure(bandStructure_) {
+
   scalar = Eigen::VectorXd::Zero(numCalculations);
-}
 
-// copy constructor
-SpecificHeat::SpecificHeat(const SpecificHeat &that)
-    : Observable(that), bandStructure(that.bandStructure) {}
-
-// copy assignment
-SpecificHeat &SpecificHeat::operator=(const SpecificHeat &that) {
-  Observable::operator=(that);
-  if (this != &that) {
-    bandStructure = that.bandStructure;
+  if ((context.getHasSpinOrbit() && bandStructure.getParticle().isElectron())
+                        || bandStructure.getParticle().isPhonon()) {
+    spinFactor = 1.;
+  } else {
+    // TODO: for spin polarized calculations, we will have to set this
+    // to 1.
+    spinFactor = 2.;
   }
-  return *this;
 }
 
+// C = 1/(V*N) * sum(states) * dn/dT * energy
+//   = 1/(V*N) * sum(states) * n(n+/-1) * energy^2 / kB T^2
 void SpecificHeat::calc() {
 
   auto particle = bandStructure.getParticle();
   double norm = 1. / crystal.getVolumeUnitCell(dimensionality);
 
-  if (particle.isPhonon()) {
-    norm /= context.getQMesh().prod();
-  }
-  if (particle.isElectron()) {
-    norm /= context.getKMesh().prod();
-  }
+  if (particle.isPhonon())   { norm /= context.getQMesh().prod(); }
+  if (particle.isElectron()) { norm /= context.getKMesh().prod(); }
   scalar.setZero();
 
   for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
+
     auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
     double temp = calcStat.temperature;
     double chemPot = calcStat.chemicalPotential;
@@ -50,10 +46,12 @@ void SpecificHeat::calc() {
     int niss = iss.size();
 #pragma omp parallel for reduction(+ : sum) default(none) shared(bandStructure,particle,temp,norm,chemPot,iss,niss,ryToCmm1)
     for(int iis = 0; iis < niss; iis++){
+
       int is = iss[iis];
       StateIndex isIdx(is);
       auto en = bandStructure.getEnergy(isIdx);
 
+      // TODO phononCutoff should be standardized!
       // exclude acoustic phonons, cutoff at 0.1 cm^-1
       if (en < 0.1 / ryToCmm1 && particle.isPhonon()) {
         continue;
@@ -61,16 +59,19 @@ void SpecificHeat::calc() {
 
       auto dndt = particle.getDndt(en, temp, chemPot);
       auto rots = bandStructure.getRotationsStar(isIdx);
-
+      // here the number of symmetry rotations is used to
+      // weight components to the sum
       sum += abs(dndt) * abs(en-chemPot) * norm * rots.size();
     }
-    scalar(iCalc) = sum;
+    // as T is actually KBT, we need to add this extra factor here
+    // as a result
+    scalar(iCalc) = sum * kBoltzmannRy * spinFactor;
   }
 }
 
 void SpecificHeat::print() {
-  if (!mpi->mpiHead())
-    return;
+
+  if (!mpi->mpiHead()) return;
 
   std::string units;
   if (dimensionality == 1) {
@@ -118,7 +119,9 @@ void SpecificHeat::outputToJSON(const std::string &outFileName) {
     units = "J / K / m^3";
   }
 
-  double conversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+  // this has units of energy over volume
+  // TODO this should be double checked for 2D material
+  double conversion = rydbergSi / pow(bohrRadiusSi, 3);
   auto particle = bandStructure.getParticle();
 
   std::vector<double> temps;

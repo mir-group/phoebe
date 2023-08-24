@@ -46,6 +46,7 @@ class Context {
 
   Eigen::Vector3i qMesh = Eigen::Vector3i::Zero();
   Eigen::Vector3i kMesh = Eigen::Vector3i::Zero();
+  Eigen::Vector3i kMeshPhEl = Eigen::Vector3i::Zero();
 
   double fermiLevel = std::numeric_limits<double>::quiet_NaN();
   double numOccupiedStates = std::numeric_limits<double>::quiet_NaN();
@@ -209,6 +210,15 @@ public:
    * @return path: an array with 3 integers representing the k-point mesh.
    */
   Eigen::Vector3i getKMesh();
+
+  /** getter for the kMesh used to sample the fermi surface
+  * in phEl scattering calculation
+  * @return mesh: the Kmesh used in phEl scattering calculation */
+  Eigen::Vector3i getKMeshPhEl();
+  /** setter for the kMesh used to sample the fermi surface
+  * in phEl scattering calculation
+  * @param kmesh: the Kmesh used in phEl scattering calculation */
+  void setKMeshPhEl(Eigen::Vector3i newKMeshPhEl);
 
   /** gets the Window type to be used to filter out states that don't
    * contribute to transport.

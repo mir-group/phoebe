@@ -14,15 +14,14 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
       statisticsSweep(statisticsSweep_),
       smearingType(smearingType_),
       h0(h0_), couplingElPhWan(coupling) {
-  // three conditions must be met to avoid recomputing q3
-  // 1 - q1 and q2 mesh must be the same
+
+  // three conditions must be met to avoid recomputing k3
+  // 1 - k1 and k2 mesh must be the same
   // 2 - the mesh is gamma-centered
-  // 3 - the mesh is complete (if q1 and q2 are only around 0, q3 might be
-  //     at the border)
+  // 3 - the mesh is complete (if k1 and k2 are only around 0, k3 might be at the border)
 
-
+  // outerband structure is the phonon band structure
   auto t1 = outerBandStructure.getPoints().getMesh();
-//  auto mesh = std::get<0>(t1);
   auto offset = std::get<1>(t1);
   storedAllQ3 = false;
 

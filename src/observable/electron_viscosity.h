@@ -2,7 +2,7 @@
 #define ELECTRON_VISCOSITY_H
 
 #include "drift.h"
-#include "el_scattering.h"
+#include "el_scattering_matrix.h"
 #include "observable.h"
 
 /** Object to compute and store the electron viscosity.

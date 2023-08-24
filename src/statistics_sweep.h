@@ -10,6 +10,7 @@
 
 /** Container for temperature, chemical potential, doping, to be used.
  * To be used for loops over temperature and chemical potentials.
+ * Note, temperatures here are in Ry, so this is kB*T
  */
 struct CalcStatistics {
   double temperature;
@@ -23,6 +24,7 @@ struct CalcStatistics {
  * accessed to repeat calculations on a range of parameters.
  */
 class StatisticsSweep {
+
  public:
   /** Constructor of the loop over temperatures and chemical potentials.
    * For phonons, the constructor simply stores the temperatures.
@@ -82,6 +84,7 @@ class StatisticsSweep {
   void printInfo();
 
  protected:
+
   Particle particle;
   int numCalculations = 0;
   Eigen::MatrixXd infoCalculations;

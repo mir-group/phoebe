@@ -195,9 +195,6 @@ TEST(ActiveBandStructureTest, WindowFilter) {
   auto crystal = std::get<0>(tup);
   auto phH0 = std::get<1>(tup);
 
-  // Number of atoms
-  int numAtoms = crystal.getNumAtoms();
-
   // setup parameters for active band structure creation
   Points points(crystal, qMesh);
 

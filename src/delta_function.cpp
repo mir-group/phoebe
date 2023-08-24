@@ -16,8 +16,8 @@ int TetrahedronDeltaFunction::getType() { return id; }
 
 // app factory
 DeltaFunction *
-DeltaFunction::smearingFactory(Context &context,
-                               BaseBandStructure &fullBandStructure) {
+DeltaFunction::smearingFactory(Context &context, BaseBandStructure &fullBandStructure) {
+
   auto choice = context.getSmearingMethod();
   if (choice == gaussian) {
     return new GaussianDeltaFunction(context);
@@ -53,7 +53,8 @@ double GaussianDeltaFunction::getSmearing(const double &energy,
 }
 
 AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
-    BaseBandStructure &bandStructure, double broadeningCutoff_) {
+            BaseBandStructure &bandStructure, double broadeningCutoff_) {
+
   auto tup = bandStructure.getPoints().getMesh();
   auto mesh = std::get<0>(tup);
   qTensor = bandStructure.getPoints().getCrystal().getReciprocalUnitCell();
@@ -61,6 +62,7 @@ AdaptiveGaussianDeltaFunction::AdaptiveGaussianDeltaFunction(
   qTensor.row(1) /= mesh(1);
   qTensor.row(2) /= mesh(2);
   broadeningCutoff = broadeningCutoff_;
+
 }
 
 double
@@ -103,8 +105,7 @@ double AdaptiveGaussianDeltaFunction::getSmearing(const double &energy,
   return 1.;
 }
 
-TetrahedronDeltaFunction::TetrahedronDeltaFunction(
-    BaseBandStructure &fullBandStructure_)
+TetrahedronDeltaFunction::TetrahedronDeltaFunction(BaseBandStructure &fullBandStructure_)
     : fullBandStructure(fullBandStructure_),
       fullPoints(fullBandStructure_.getPoints()) {
   auto tup = fullPoints.getMesh();
