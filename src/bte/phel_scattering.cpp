@@ -135,6 +135,14 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
     }
     std::cout << "Done computing electronic band structure.\n" << std::endl;
   }
+  // just return if no states are found
+  if(int(elBandStructure.irrStateIterator().size()) == 0) {
+    if(mpi->mpiHead()) {
+      std::cout << "Exiting ph-el scattering function, zero el states found which can participate." << std::endl;
+    }
+    return;
+  }
+
   // TODO maybe this should be phonon states, actually...?
   if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
       Error("Cannot calculate PhEl scattering matrix with fewer el states than\n"
@@ -187,6 +195,8 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
   mpi->allReduceSum(&fermiTerm);
 
   // precompute the q-dependent part of the polar correction ---------
+  // see the precomputeQPolarCorrection function in interaction, could be
+  // used here instead
   int numQPoints = phBandStructure.getNumPoints();
   auto qPoints = phBandStructure.getPoints();
   // we just set this to the largest possible number of phonons
@@ -309,6 +319,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
         withVelocities = true;
       }
       bool withEigenvectors = true; // we need these below to calculate coupling
+      // TODO can we actually just use the stored band structure? why not?
       auto tHelp = electronH0->populate(allK2C, withVelocities, withEigenvectors);
 
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
@@ -358,6 +369,8 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta = smearing->getSmearing(en1 - en2 + en3);
               } else {
+                // adaptive gaussian for delta(omega - (Ek' - Ek))
+                // has width of W = a | v2 - v1 |
                 Eigen::Vector3d smear = v1s.row(ib1);
                 for (int i : {0,1,2}) {
                   smear(i) -= allStates2Velocities[iq3Batch](ib2, ib2, i).real();

@@ -34,12 +34,10 @@ class Matrix {
  /** Underlying ParallelMatrix instantiated only if isDistributed = true
  */
  ParallelMatrix<T>* pmat = nullptr;
-//  ParallelMatrix<T>* pmat = new ParallelMatrix<T>();
 
  /** Underlying SerialMatrix instantiated only if isDistributed = false
  */
  SerialMatrix<T>* mat = nullptr;
-//  SerialMatrix<T>* mat = new SerialMatrix<T>();
 
  public:
   /** Default Matrix constructor.
@@ -182,6 +180,11 @@ class Matrix {
   /** Unary negation
    */
   Matrix<T> operator-() const;
+
+  /** A function to write the matrix to HDF5. Only
+   * for debugging, and only written for PMatrix. */
+  void outputToHDF5();
+
 };
 
 /* ------------------ constructor implementations -------------- */
@@ -358,6 +361,12 @@ template <typename T>
 T Matrix<T>::dot(const Matrix<T>& that) {
   if(isDistributed) return pmat->dot(that.pmat);
   else{ return mat->dot(that.mat); }
+}
+
+template <typename T>
+void Matrix<T>::outputToHDF5() {
+  if(isDistributed) pmat->outputToHDF5();
+  else{ Error("Write to HDF5 not implemented for SMatrix."); }
 }
 
 #endif  // MATRIX_H

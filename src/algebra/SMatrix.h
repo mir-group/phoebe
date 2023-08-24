@@ -101,6 +101,13 @@ class SerialMatrix {
    */
   const T& operator()(const int &row, const int &col) const;
 
+  /** A dummy function not implemented, only for PMatrix currently
+   * @param outFileName: string naming the output file
+   * @param dataSetName: keyname for data in the output file
+   */
+  void outputToHDF5(const std::string &outFileName,
+                                   const std::string &dataSetName) {}
+
   /** Matrix-matrix multiplication.
    * Computes result = trans1(*this) * trans2(that)
    * where trans(1/2( can be "N" (matrix as is), "T" (transpose) or "C" adjoint
@@ -283,7 +290,7 @@ int SerialMatrix<T>::size() const {
 template <typename T>
 T& SerialMatrix<T>::operator()(const int &row, const int &col) {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
-    Error("Attempted to reference a matrix element out of bounds.");
+    Error("Developer Error: Attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
 }
@@ -291,15 +298,18 @@ T& SerialMatrix<T>::operator()(const int &row, const int &col) {
 template <typename T>
 const T& SerialMatrix<T>::operator()(const int &row, const int &col) const {
   if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
-    Error("Attempted to reference a matrix element out of bounds.");
+    Error("Developer Error: Attempted to reference a matrix element out of bounds.");
   }
   return mat[global2Local(row, col)];
 }
 
 template <typename T>
 bool SerialMatrix<T>::indicesAreLocal(const int& row, const int& col) {
-  (void) row;
-  (void) col;
+  if(row >= numRows_ || col >= numCols_ || row < 0 || col < 0) {
+    Error("Developer Error: Indices are out of bounds.");
+  }
+  //(void) row;
+  //(void) col;
   return true;
 }
 

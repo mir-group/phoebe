@@ -96,7 +96,7 @@ std::tuple<std::vector<double>, SerialMatrix<double>>
 
     Warning("Partial eigenvalue diagonalization currently not implemented "
                 "for the serial case. Reporting all eigenvalues.");
-    diagonalize();
+    return diagonalize();
 }
 
 // Explicit specialization of norm for doubles
