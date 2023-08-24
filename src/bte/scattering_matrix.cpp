@@ -1026,7 +1026,8 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           int ik2Irr = ik2Index.get();
           for (int ik2 : outerBandStructure.getReducibleStarFromIrreducible(ik2Irr)) {
             // if we're not symmetrizing the matrix, we only need the upper triangle
-            if(ik1Irr > ik2 && !context.getSymmetrizeMatrix()) continue;
+            if(ik1Irr > ik2 && !context.getSymmetrizeMatrix() && context.getUseUpperTriangle())
+              continue;
 
             std::pair<int, int> xx = std::make_pair(ik1Irr, ik2);
             localPairsPrivate.push_back(xx);
@@ -1142,7 +1143,9 @@ ScatteringMatrix::getIteratorWavevectorPairs(const int &switchCase,
           int iq2Irr = iq2Index.get();
           for (int iq2 : outerBandStructure.getReducibleStarFromIrreducible(iq2Irr)) {
           // we skip adding the pair if only half the matrix is needed
-          if(iq1Irr > iq2 && !context.getSymmetrizeMatrix()) { continue; }
+          if(iq1Irr > iq2 && !context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+            continue;
+          }
 
             std::pair<int, int> xx = std::make_pair(iq1Irr, iq2);
             localPairsPrivate.push_back(xx);

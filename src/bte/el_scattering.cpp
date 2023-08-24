@@ -276,6 +276,14 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                     if (matrix.theMatrix.indicesAreLocal(iBte1, iBte2)) {
                       linewidth->operator()(iCalc, 0, iBte1) += rate;
                       matrix.theMatrix(iBte1, iBte2) += rateOffDiagonal;
+
+                      // if we're not symmetrizing the matrix, and we have
+                      // dropped down to only using the upper triangle of the matrix, we must fill
+                      // in linewidths twice, using detailed balance, in order to get the right ratest
+                      if(!context.getSymmetrizeMatrix() && context.getUseUpperTriangle()) {
+                        linewidth->operator()(iCalc, 0, iBte2) += rate;
+                      }
+
                     }
                   }
                 } else if (switchCase == 1) {
