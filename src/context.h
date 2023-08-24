@@ -119,6 +119,9 @@ class Context {
 
   // if true, enforce the symmetrization of the scattering matrix
   bool symmetrizeMatrix = false;
+  // if true, and symmetrize matrix = false,
+  // only compute the upper triangle of the matrix
+  bool useUpperTriangle = false;
 
   // number of eigenvalues to use the in the relaxons solver
   int numRelaxonsEigenvalues = 0;
@@ -359,6 +362,9 @@ public:
 
   bool getSymmetrizeMatrix() const;
   void setSymmetrizeMatrix(const bool &x);
+
+  bool getUseUpperTriangle() const;
+  void setUseUpperTriangle(const bool &x);
 
   int getNumRelaxonsEigenvalues() const;
   void setNumRelaxonsEigenvalues(const int &x);

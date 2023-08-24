@@ -647,6 +647,12 @@ void Context::setupFromInput(const std::string &fileName) {
         symmetrizeMatrix = parseBool(val);
       }
 
+      if (parameterName == "useUpperTriangle") {
+        useUpperTriangle = parseBool(val);
+        // this shouldn't be used if we're symmetrizing
+        if(getSymmetrizeMatrix()) useUpperTriangle = false;
+      }
+
       if (parameterName == "numRelaxonsEigenvalues") {
         numRelaxonsEigenvalues = parseInt(val);
       }
@@ -1241,19 +1247,15 @@ bool Context::getOutputEigendisplacements() const { return outputEigendisplaceme
 bool Context::getOutputUNTimes() const { return outputUNTimes; }
 
 double Context::getFermiLevel() const { return fermiLevel; }
-
 void Context::setFermiLevel(const double &x) { fermiLevel = x; }
 
 double Context::getNumOccupiedStates() const { return numOccupiedStates; }
-
 void Context::setNumOccupiedStates(const double &x) { numOccupiedStates = x; }
 
 bool Context::getHasSpinOrbit() const { return hasSpinOrbit; }
-
 void Context::setHasSpinOrbit(const bool &x) { hasSpinOrbit = x; }
 
 int Context::getSmearingMethod() const { return smearingMethod; }
-
 double Context::getSmearingWidth() const { return smearingWidth; }
 void Context::setSmearingWidth(const double &x) { smearingWidth = x; }
 
@@ -1273,6 +1275,13 @@ bool Context::getSymmetrizeMatrix() const {
 }
 void Context::setSymmetrizeMatrix(const bool &x) {
   symmetrizeMatrix = x;
+}
+
+bool Context::getUseUpperTriangle() const {
+  return useUpperTriangle;
+}
+void Context::setUseUpperTriangle(const bool &x) {
+  useUpperTriangle = x;
 }
 
 int Context::getNumRelaxonsEigenvalues() const {
