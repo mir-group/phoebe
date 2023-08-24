@@ -33,7 +33,7 @@ phono3py --qe --dim="2 2 2" -c prim-scf.in --sym-fc
 # 5) check the phonon bands with Phoebe:
 mpirun -np 4 /path/to/phoebe/build/phoebe -in phononBands.in
 # to plot the output, use the bands.py script from scripts/plotScripts
-python bands.py phonon_bands.json
+python /path/to/phoebe/scripts/plotScripts/bands.py phonon_bands.json
 # make sure it looks right!
 
 # now you can calculate thermal conductivity with phonon thermal conductivity
