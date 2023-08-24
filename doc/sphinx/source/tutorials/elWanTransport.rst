@@ -226,6 +226,7 @@ The input file used above to run Wannier90 is a bit more involved::
 	write_tb = true
 	write_u_matrices = true
 
+  !exclude_bands = 0
 	bands_plot        = true
 
 	num_bands         = 12
@@ -281,6 +282,12 @@ The k-point list at the end of the calculation is the same list used in the nscf
      write_u_matrices = true
 
    These will write to file the Hamiltonian in the Wannier representation and the rotation matrices :math:`U` that are needed to run Phoebe.
+
+.. note::
+   If you have core states which are below your disentanglement window, you MUST set exclude bands to remove these from the output Wannierization. If you don't set this, Wannier90 does not provide any information about the number of electrons used in the calculation, and you may see errors from Phoebe about your Hamiltonian not having enough bands, or find that your Fermi level in Phoebe is nonsensical.
+
+   If you forgot to set this parameter, you can probably rectify it during the Phoebe calculation by setting the :ref:`numOccupiedStates` input variable to the number of electrons in your DFT calculation - the bands under the disentanglement window. Then make sure the Fermi level calculated by Phoebe approximately matches the one from your scf output."
+
 
 The variable ``num_bands`` should match the value of ``nbnd`` set in ``scf.in`` and ``nscf.in``.
 
