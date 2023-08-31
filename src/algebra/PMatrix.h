@@ -741,7 +741,7 @@ void ParallelMatrix<T>::outputToHDF5(const std::string &outFileName,
   #ifndef HDF5_AVAIL
     Error("Need Phoebe compiled with parallel HDF5 to write parallel matrix to file.");
   #elif HDF5_SERIAL
-    Error("Need Phoebe compiled with parallel HDF5 to write parallle matrix to file.");
+    Error("Need Phoebe compiled with parallel HDF5 to write parallel matrix to file.");
   #else
 
    try {
@@ -755,7 +755,7 @@ void ParallelMatrix<T>::outputToHDF5(const std::string &outFileName,
       // setup the dataset
       unsigned int globalSize = size();
 
-      // Create the data-space to write gWannier to
+      // Create the data-space to write the elements to
       std::vector<size_t> dims(2);
       dims[0] = 1;
       dims[1] = size_t(globalSize);
