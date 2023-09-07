@@ -974,13 +974,13 @@ scatteringMatrixInMemory
 symmetrizeMatrix
 ^^^^^^^^^^^^^^^^
 
-* **Description:** If true, we enforce the symmetrix property of the scattering matrix A by doing A=(A^T+A)/2, where the transpose operation is made with respect to the wavevector indices. This operation increases the stability of the variational and relaxon solvers. Set this variable to false to increase the speed of the simulation in exchange for additional numerical noise.
+* **Description:** If true, we enforce the symmetrix property of the scattering matrix A by doing A=(A^T+A)/2, where the transpose operation is made with respect to the wavevector indices. This operation increases the stability of the variational and relaxon solvers, but is computationally expensive in large system sizes. If you find your calculation has many negative relaxons eigenvalues, you might want to turn this on. This may also be favorable for your final production calculations.
 
 * **Format:** *bool*
 
 * **Required:** no
 
-* **Default:** `true`
+* **Default:** `false`
 
 
 .. _numRelaxonsEigenvalues:
