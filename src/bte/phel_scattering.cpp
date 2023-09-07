@@ -143,12 +143,6 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
     return;
   }
 
-  // TODO maybe this should be phonon states, actually...?
-  if(int(elBandStructure.irrStateIterator().size()) < mpi->getSize()) {
-      Error("Cannot calculate PhEl scattering matrix with fewer el states than\n"
-      "number of MPI processes. Reduce the number of MPI processes,\n"
-        "perhaps use more OMP threads instead.");
-  }
   // switch back to the window type that was originally input by the user
   context.setWindowType(inputWindowType);
 

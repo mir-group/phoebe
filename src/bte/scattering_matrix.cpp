@@ -9,10 +9,6 @@
 #include <numeric> // std::iota
 #include <set>
 #include <utility>
-//#include "io.h"
-//#ifdef HDF5_AVAIL
-//#include <highfive/H5Easy.hpp>
-//#endif
 
 ScatteringMatrix::ScatteringMatrix(Context &context_,
                                    StatisticsSweep &statisticsSweep_,

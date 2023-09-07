@@ -20,15 +20,20 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
   // 2 - the mesh is gamma-centered
   // 3 - the mesh is complete (if k1 and k2 are only around 0, k3 might be at the border)
 
-  // outerband structure is the phonon band structure
+  // this mesh is the kmesh
   auto t1 = outerBandStructure.getPoints().getMesh();
   auto offset = std::get<1>(t1);
   storedAllQ3 = false;
 
+  // we calculate a new phonon band structure with the same points mesh as the el one
   if (mpi->mpiHead()) {
     std::cout << "Computing phonon band structure." << std::endl;
   }
 
+  // all initial and final kstates are the same (as in the matrix construction)
+  // and there's no filtering window, so the states are the same
+  // in this case, if we make a bandstructure, all qpoints connecting them
+  // will be stored in the new bandstructure object
   if ((&innerBandStructure == &outerBandStructure) && (offset.norm() == 0.) &&
       innerBandStructure.hasWindow() == 0) {
 
@@ -53,6 +58,9 @@ HelperElScattering::HelperElScattering(BaseBandStructure &innerBandStructure_,
                                                withEigenvectors);
     bandStructure3 = std::make_unique<FullBandStructure>(bs);
 
+  // final and initial state meshes are the same, as for matrix construction,
+  // but now we have a filtering window and it's not assured we will
+  // have every state on each mesh
   } else if ((&innerBandStructure == &outerBandStructure) &&
              (offset.norm() == 0.) && innerBandStructure.hasWindow() != 0) {
 

@@ -122,24 +122,24 @@ Eigen::Tensor<std::complex<double>, 3> InteractionElPhWan::getPolarCorrection(
 
 // compute the q dependent part of the polar elph correction for all the phonon
 // wavevectors in a given bandstucture.
-// 
+//
 // * NOTE: this could be changed to calculate it for a specific q list if needed
 // * TODO additionally, could store this polar correction internally and use it directly
-// when calcCouplingSquared is called. However, for now we let the external 
-// scattering rate calculation class handle it and pass it back to the calcCoupling 
-// function. This is because currently in el-ph coupling, the polar data is 
+// when calcCouplingSquared is called. However, for now we let the external
+// scattering rate calculation class handle it and pass it back to the calcCoupling
+// function. This is because currently in el-ph coupling, the polar data is
 // calculated by the external pointsHelper class, rather than as a precomputation
 // over q at the start of the scattering rate calculation/
 Eigen::MatrixXcd InteractionElPhWan::precomputeQDependentPolar(
-                                                BaseBandStructure &phBandStructure) { 
+                                                BaseBandStructure &phBandStructure) {
 
-  if(!phBandStructure.getParticle().isPhonon()) { 
+  if(!phBandStructure.getParticle().isPhonon()) {
     Error("Developer error: cannot use electron bands to "
                 "precompute q-dept part of polar correction.");
   }
 
   // precompute the q-dependent part of the polar correction ---------
-  int numQPoints = phBandStructure.getNumPoints(); 
+  int numQPoints = phBandStructure.getNumPoints();
   auto qPoints = phBandStructure.getPoints();
   // we just set this to the largest possible number of phonons
   int nbQMax = 3 * phBandStructure.getPoints().getCrystal().getNumAtoms();
@@ -147,7 +147,7 @@ Eigen::MatrixXcd InteractionElPhWan::precomputeQDependentPolar(
   polarData.setZero();
   #pragma omp parallel for
   // Fine to divide over qpoints as all processes have pairs k1, allQpoints
-  for (int iq : mpi->divideWorkIter(numQPoints)){ 
+  for (int iq : mpi->divideWorkIter(numQPoints)){
     WavevectorIndex iqIdx(iq);
     auto qC = phBandStructure.getWavevector(iqIdx);
     auto evQ = phBandStructure.getEigenvectors(iqIdx);
@@ -157,7 +157,7 @@ Eigen::MatrixXcd InteractionElPhWan::precomputeQDependentPolar(
     }
   }
   mpi->allReduceSum(&polarData);
-  return polarData; 
+  return polarData;
 }
 
 Eigen::Tensor<std::complex<double>, 3>
@@ -268,6 +268,7 @@ void InteractionElPhWan::calcCouplingSquared(
     const std::vector<Eigen::MatrixXcd> &eigvecs3,
     const std::vector<Eigen::Vector3d> &q3Cs,
     const std::vector<Eigen::VectorXcd> &polarData) {
+
   Kokkos::Profiling::pushRegion("calcCouplingSquared");
   int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
@@ -310,7 +311,6 @@ void InteractionElPhWan::calcCouplingSquared(
   Kokkos::deep_copy(nb2s_k, nb2s_h);
 
   // Polar corrections are computed on the CPU and then transferred to GPU
-
   IntView1D usePolarCorrections("usePolarCorrections", numLoops);
   ComplexView4D polarCorrections(Kokkos::ViewAllocateWithoutInitializing("polarCorrections"),
                                  numLoops, numPhBands, nb1, nb2max);
@@ -388,6 +388,8 @@ void InteractionElPhWan::calcCouplingSquared(
 
   // now we finish the Wannier transform. We have to do the Fourier transform
   // on the lattice degrees of freedom, and then do two rotations (at k2 and q)
+  // -------------------------------------------------------------------------
+  // set up the phases
   ComplexView2D phases("phases", numLoops, numPhBravaisVectors);
   Kokkos::complex<double> complexI(0.0, 1.0);
   Kokkos::parallel_for(
@@ -402,6 +404,7 @@ void InteractionElPhWan::calcCouplingSquared(
      });
    Kokkos::fence();
 
+  // apply phases
   ComplexView4D g3(Kokkos::ViewAllocateWithoutInitializing("g3"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
       "g3", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
@@ -414,6 +417,7 @@ void InteractionElPhWan::calcCouplingSquared(
       });
   Kokkos::realloc(phases, 0, 0);
 
+  // rotate using phonon eigenvectors
   ComplexView4D g4(Kokkos::ViewAllocateWithoutInitializing("g4"), numLoops, numPhBands, nb1, numWannier);
   Kokkos::parallel_for(
       "g4", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, numWannier}),
@@ -426,6 +430,7 @@ void InteractionElPhWan::calcCouplingSquared(
       });
   Kokkos::realloc(g3, 0, 0, 0, 0);
 
+  // rotate using U^dagger eigenvectors
   ComplexView4D gFinal(Kokkos::ViewAllocateWithoutInitializing("gFinal"), numLoops, numPhBands, nb1, nb2max);
   Kokkos::parallel_for(
       "gFinal", Range4D({0, 0, 0, 0}, {numLoops, numPhBands, nb1, nb2max}),
