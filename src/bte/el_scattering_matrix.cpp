@@ -50,14 +50,6 @@ void ElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
     Error("Developer error: The linewidths shouldn't have dimensionality");
   }
 
-  // this is blocked currently in each scattering rate function,
-  // but the matrix no longer has the smearing object, so we comment it out here for now
-  //if (smearing->getType() == DeltaFunction::tetrahedron) {
-  //  Error("Developer error: Tetrahedron method not supported by electron scattering");
-    // that's because it doesn't work with the window the way it's implemented,
-    // and we will almost always have a window for electrons
-  //}
-
   // precompute particle occupations
   //Eigen::MatrixXd outerFermi = precomputeOccupations(outerBandStructure);
   Eigen::MatrixXd innerFermi = precomputeOccupations(innerBandStructure);
@@ -75,6 +67,11 @@ void ElScatteringMatrix::builder(std::shared_ptr<VectorBTE> linewidth,
                                   innerBandStructure, outerBandStructure, phononH0,
                                   couplingElPhWan, linewidth);
 
+  // add charged impurity electron scattering  -------------------
+/*  addChargedImpurityScattering(*this, context, inPopulations, outPopulations,
+                       switchCase, kPairIterator,
+                       innerBandStructure, outerBandStructure, linewidth);
+*/
   // TODO was there previously an all reduce between these two on
   //the linewidths? why is that?
 

@@ -25,4 +25,13 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                   InteractionElPhWan *couplingElPhWan,
                   std::shared_ptr<VectorBTE> linewidth);
 
+void addChargedImpurityScattering(BaseElScatteringMatrix &matrix, Context &context,
+                       std::vector<VectorBTE> &inPopulations,
+                       std::vector<VectorBTE> &outPopulations,
+                       int &switchCase,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
+                       BaseBandStructure &innerBandStructure,
+                       BaseBandStructure &outerBandStructure,
+                       std::shared_ptr<VectorBTE> linewidth);
+
 #endif

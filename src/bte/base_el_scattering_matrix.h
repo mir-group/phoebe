@@ -36,6 +36,15 @@ class BaseElScatteringMatrix : virtual public ScatteringMatrix {
                        InteractionElPhWan *couplingElPhWan,
                        std::shared_ptr<VectorBTE> linewidth);
 
+  friend void addChargedImpurityScattering(BaseElScatteringMatrix &matrix, Context &context,
+                       std::vector<VectorBTE> &inPopulations,
+                       std::vector<VectorBTE> &outPopulations,
+                       int &switchCase,
+                       std::vector<std::tuple<std::vector<int>, int>> kPairIterator,
+                       BaseBandStructure &innerBandStructure,
+                       BaseBandStructure &outerBandStructure,
+                       std::shared_ptr<VectorBTE> linewidth);
+
 };
 
 #endif

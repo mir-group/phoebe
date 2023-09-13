@@ -20,13 +20,6 @@ public:
   PhononViscosity(Context &context_, StatisticsSweep &statisticsSweep_,
                   Crystal &crystal_, BaseBandStructure &bandStructure_);
 
-  /** copy constructor
-   */
-  PhononViscosity(const PhononViscosity &that);
-
-  /** copy assignment
-   */
-  PhononViscosity &operator=(const PhononViscosity &that);
 
   /** Compute the viscosity within the relaxation time approximation
    * Stores it internally.
@@ -45,7 +38,7 @@ public:
 
   /** Computes the viscosity from the scattering matrix eigenvectors.
    * Following Simoncelli PRX 2020.
-   * @param relTimes: the VectorBTE object with relaxon relaxation times.
+   * @param eigenvalues: the VectorBTE object with relaxon eigenvalues.
    * @param eigenvectors: the eigenvectors of the scattering matrix above.
    */
    // previously used vector0: VectorBTE object with the energy-conserving eigenvector.

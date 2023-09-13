@@ -1,6 +1,7 @@
 #include "phonon_viscosity.h"
 #include "constants.h"
 #include "mpiHelper.h"
+//#include "viscosity_io.h"
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -18,22 +19,12 @@ PhononViscosity::PhononViscosity(Context &context_,
   tensordxdxdxd.setZero();
 }
 
-// copy constructor
-PhononViscosity::PhononViscosity(const PhononViscosity &that)
-    : Observable(that), bandStructure(that.bandStructure) {}
-
-// copy assignment
-PhononViscosity &PhononViscosity::operator=(const PhononViscosity &that) {
-  Observable::operator=(that);
-  if (this != &that) {
-    bandStructure = that.bandStructure;
-  }
-  return *this;
-}
-
 void PhononViscosity::calcRTA(VectorBTE &tau) {
+
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
+
+  //if(mpi->mpiHead()) std::cout << "volume " << crystal.getVolumeUnitCell(dimensionality) << std::endl;
 
   auto particle = bandStructure.getParticle();
   tensordxdxdxd.setZero();
@@ -52,8 +43,7 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
       int iBte = bandStructure.stateToBte(isIdx).get();
 
       // skip the acoustic phonons
-      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) !=
-          excludeIndices.end())
+      if (std::find(excludeIndices.begin(), excludeIndices.end(), iBte) != excludeIndices.end())
         return;
 
       auto en = bandStructure.getEnergy(isIdx);
@@ -64,28 +54,29 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
       for (const Eigen::Matrix3d& rotation : rotations) {
 
       Eigen::Vector3d q = rotation * qIrr;
+      q = bandStructure.getPoints().foldToBz(q,Points::cartesianCoordinates);
+      q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
       Eigen::Vector3d vel = rotation * velIrr;
 
       for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
         auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-        double temperature = calcStat.temperature;
-        double chemPot = calcStat.chemicalPotential;
-        double boseP1 = particle.getPopPopPm1(en, temperature, chemPot);
+        double kBT = calcStat.temperature;
+        double chemPot = 0; //calcStat.chemicalPotential; For phel this will cause a bug! Must be zero.
+        double boseP1 = particle.getPopPopPm1(en, kBT, chemPot);
 
         for (int i = 0; i < dimensionality; i++) {
           for (int j = 0; j < dimensionality; j++) {
             for (int k = 0; k < dimensionality; k++) {
               for (int l = 0; l < dimensionality; l++) {
                 tmpTensor(iCalc, i, j, k, l) +=
-                  q(i) * vel(j) * q(k) * vel(l) * boseP1 *
-                  tau(iCalc, 0, iBte) / temperature * norm;
+                  q(i) * vel(j) * q(k) * vel(l) * boseP1 * tau(iCalc, 0, iBte) / kBT * norm;
               }
             }
           }
         }
       }
-      }
+    }
   });
   Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
 
@@ -135,7 +126,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   int iCalc = 0;
   auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
   double temp = calcStat.temperature;
-  double chemPot = calcStat.chemicalPotential;
+  double chemPot = 0.; //calcStat.chemicalPotential; // will cause a bug if phel is added in
 
   // Code by Andrea, annotation by Jenny
   // Here we are calculating Eq. 9 from the PRX Simoncelli 2020
@@ -170,6 +161,8 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     auto en = bandStructure.getEnergy(isIdx);
     double boseP1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(isIdx);
+    q = bandStructure.getPoints().foldToBz(q,Points::cartesianCoordinates);
+    q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
     for (int iDim = 0; iDim < dimensionality; iDim++) {
       A(iDim) += boseP1 * q(iDim) * q(iDim);
     }
@@ -177,15 +170,31 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   A /= temp * context.getQMesh().prod() * volume;
   mpi->allReduceSum(&A);
 
+/*
+if(mpi->mpiHead()) {
+  std::cout << "num states " << bandStructure.irrStateIterator().size() << std::endl;
+  for (int is : bandStructure.irrStateIterator()) {
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    double boseP1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
+    auto q = bandStructure.getWavevector(isIdx);
+    q = bandStructure.getPoints().foldToBz(q,Points::cartesianCoordinates);
+    q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
+    std::cout << "idx en q " << is << " " << en << " " << q.transpose() << std::endl;
+  }
+}
+mpi->barrier();
+if(mpi->mpiHead()) std::cout << "Ai " << A.transpose() << std::endl;
+*/
   // then calculate the drift eigenvectors, phi (eq A12)
-  // NOTE: from Jenny -- doesn't plugging Ai into
-  // phi basically cancel out? Why compute both of these at all?
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
   for (int is : bandStructure.parallelStateIterator()) {
     auto isIdx = StateIndex(is);
     auto en = bandStructure.getEnergy(isIdx);
     double boseP1 = particle.getPopPopPm1(en, temp, chemPot); // = n(n+1)
     auto q = bandStructure.getWavevector(isIdx);
+    q = bandStructure.getPoints().foldToBz(q,Points::cartesianCoordinates);
+    q = bandStructure.getPoints().bzToWs(q,Points::cartesianCoordinates);
     for (auto iDim : {0, 1, 2}) {
       if (A(iDim) != 0.) {
         driftEigenvector(0, iDim, is) = q(iDim) * sqrt(boseP1 / (temp * A(iDim)));
@@ -249,10 +258,17 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
 // TODO why would we do this rather than a kokkos parallel for?
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
-  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+
+  Kokkos::parallel_for("phonon_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+
       auto tmpTensor = scatter_tensordxdxdxd.access();
       int ialpha = iss[iis];
       if (eigenvalues(ialpha) <= 0.) { // avoid division by zero
+        return; // return is here continue for kokkos
+      }
+      // TODO this must be improved, we're here trying to discard the bose eigenvector contribution,
+      // which has a divergent lifetime and should not be counted
+      if(ialpha == 3) {
         return;
       }
       for (int i = 0; i < dimensionality; i++) {
@@ -267,6 +283,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
         }
       }
     });
+
   Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
   mpi->allReduceSum(&tensordxdxdxd);
 }
@@ -334,6 +351,9 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
       units = "Pa s";
     }
 
+    // NOTE: conversion checked because brute force check produces the same answer
+    //double conversion = 2.9421015697e13 * 2.4188843265857e-17;
+
     double conversion =
         pow(hBarSi, 2)                        // momentum is hBar q
         / pow(distanceRyToSi, dimensionality) // volume conversion
@@ -343,8 +363,7 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
 
     std::vector<double> temps;
     // this vector mess is of shape (iCalculations, iRows, iColumns, k, l)
-    std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
-        viscosity;
+    std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>> viscosity;
 
     for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
 
