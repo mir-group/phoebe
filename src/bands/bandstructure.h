@@ -249,6 +249,10 @@ class BaseBandStructure {
    */
   virtual std::vector<int> parallelIrrPointsIterator() = 0;
 
+  /** Returns number of irr points for this band structure
+  */
+  virtual int getNumIrrStates() = 0;
+
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
    *
@@ -316,6 +320,10 @@ class FullBandStructure : public BaseBandStructure {
   /** Assignment operator
    */
   FullBandStructure &operator=(const FullBandStructure &that);
+
+  /** Symmetrizes the full band structure energies.
+  **/
+  void symmetrize();
 
   /** Get the Particle object associated with this class
    * @return particle: a Particle object, describing e.g. whether this
@@ -641,6 +649,10 @@ class FullBandStructure : public BaseBandStructure {
    * points.
    */
   std::vector<int> parallelIrrPointsIterator() override;
+
+  /** Returns the number of irreducible points for this band structure
+  */
+  int getNumIrrStates() override;
 
   /** Find the index of a point in the reducible list of points, given its
    * coordinates in the crystal basis.
