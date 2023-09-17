@@ -1183,6 +1183,8 @@ ActiveBandStructure::getReducibleStarFromIrreducible(const int &ik) {
 void ActiveBandStructure::symmetrize(Context &context,
                                      const bool &withVelocities) {
 
+  if(mpi->mpiHead()) std::cout << "Symmetrize the energies and velocities." << std::endl;
+
   Kokkos::Profiling::pushRegion("Symmetrize bandstructure");
 
   // symmetrize band velocities, energies, and eigenvectors
@@ -1203,6 +1205,11 @@ void ActiveBandStructure::symmetrize(Context &context,
   auto atomicSpecies = lowSymCrystal.getAtomicSpecies();
   auto speciesNames = lowSymCrystal.getSpeciesNames();
   auto speciesMasses = lowSymCrystal.getSpeciesMasses();
+
+  // temporarily set symmetries = true, then turn off after this.
+  bool useSymmetries = context.getUseSymmetries();
+  context.setUseSymmetries(true);
+
   Crystal highSymCrystal(context, directCell, atomicPositions,
                          atomicSpecies, speciesNames, speciesMasses);
   Points highSymPoints = points;
@@ -1308,15 +1315,16 @@ void ActiveBandStructure::symmetrize(Context &context,
       setVelocities(point, avgVelocitiesRed);
     }
   }
+  context.setUseSymmetries(useSymmetries);
   Kokkos::Profiling::popRegion();
 }
 
 void ActiveBandStructure::enforceBandNumSymmetry(
-    Context &context, const int &numFullBands,
-    const std::vector<int> &myFilteredPoints,
+    Context &context, const int &numFullBands, const std::vector<int> &myFilteredPoints,
     Eigen::MatrixXi &filteredBands,
     const std::vector<int> &displacements, HarmonicHamiltonian &h0,
     const bool &withVelocities) {
+
   // edit the filteredBands list used in constructors so that each sym eq point
   // has the same number of bands
   //
@@ -1325,17 +1333,22 @@ void ActiveBandStructure::enforceBandNumSymmetry(
   // make a copy of the points class which uses
   // the full crystal symmetries
   // TODO seems like there should be a more elegant way to do this
-  Crystal bfieldCrystal = points.getCrystal();
+  Crystal lowSymCrystal = points.getCrystal();
 
-  auto directCell = bfieldCrystal.getDirectUnitCell();
-  auto atomicPositions = bfieldCrystal.getAtomicPositions();
-  auto atomicSpecies = bfieldCrystal.getAtomicSpecies();
-  auto speciesNames = bfieldCrystal.getSpeciesNames();
-  auto speciesMasses = bfieldCrystal.getSpeciesMasses();
-  Crystal noFieldCrystal(context, directCell, atomicPositions,
+  auto directCell = lowSymCrystal.getDirectUnitCell();
+  auto atomicPositions = lowSymCrystal.getAtomicPositions();
+  auto atomicSpecies = lowSymCrystal.getAtomicSpecies();
+  auto speciesNames = lowSymCrystal.getSpeciesNames();
+  auto speciesMasses = lowSymCrystal.getSpeciesMasses();
+
+  // temporarily set symmetries = true, then turn off after this.
+  bool useSymmetries = context.getUseSymmetries();
+  context.setUseSymmetries(true);
+
+  Crystal highSymCrystal(context, directCell, atomicPositions,
                          atomicSpecies, speciesNames, speciesMasses);
-  Points noFieldPoints = points;
-  noFieldPoints.swapCrystal(noFieldCrystal);
+  Points highSymPoints = points;
+  highSymPoints.swapCrystal(highSymCrystal);
 
   // first,  collect velocities to set up the points class symmetries
   if (withVelocities) {
@@ -1383,22 +1396,22 @@ void ActiveBandStructure::enforceBandNumSymmetry(
       Eigen::VectorXd tmpE = allEnergies.row(ik);
       allEns.push_back(tmpE);
     }
-    noFieldPoints.setIrreduciblePoints(&allVels, &allEns);
+    highSymPoints.setIrreduciblePoints(&allVels, &allEns);
   } else {
-    noFieldPoints.setIrreduciblePoints();
+    highSymPoints.setIrreduciblePoints();
   }
 
   // for each irr point, enforce matching band limitations
   #pragma omp parallel
   {
-  for (int ikIrr : noFieldPoints.irrPointsIterator()) {
-    auto reducibleList = noFieldPoints.getReducibleStarFromIrreducible(ikIrr);
+  for (int ikIrr : highSymPoints.irrPointsIterator()) {
+    auto reducibleList = highSymPoints.getReducibleStarFromIrreducible(ikIrr);
 
     std::vector<int> minBandList;
     std::vector<int> maxBandList;
 
     if (reducibleList.empty()) {
-      Error("EnforceSymmetry: reducible star is empty.");
+      Error("Developer error: enforceSymmetry reducible star is empty.");
     }
 
     for (int ikRed : reducibleList) {
@@ -1419,5 +1432,6 @@ void ActiveBandStructure::enforceBandNumSymmetry(
     }
   }
   } // end OMP parallel block
+  context.setUseSymmetries(useSymmetries);
 }
 
