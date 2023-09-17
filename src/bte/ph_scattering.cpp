@@ -685,12 +685,12 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           }
           if (en2 < phEnergyCutoff) { continue; }
 
-          double deltaIso;
+          double deltaIso = 0;
           if (smearing->getType() == DeltaFunction::gaussian) {
             deltaIso = smearing->getSmearing(en1 - en2);
           } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-            deltaIso = smearing->getSmearing(en1 - en2, v2s.row(ib2));
-            deltaIso = smearing->getSmearing(en1 - en2, v1s.row(ib1));
+            deltaIso += smearing->getSmearing(en1 - en2, v2s.row(ib2));
+            deltaIso += smearing->getSmearing(en1 - en2, v1s.row(ib1));
             deltaIso *= 0.5;
           } else {
             deltaIso = smearing->getSmearing(en1, is2Idx);
