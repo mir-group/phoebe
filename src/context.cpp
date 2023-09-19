@@ -626,6 +626,8 @@ void Context::setupFromInput(const std::string &fileName) {
           smearingMethod = 1;
         } else if (x_ == "tetrahedron") {
           smearingMethod = 2;
+        } else if (x_ == "symAdaptiveGaussian") {
+          smearingMethod = 3;
         } else {
           smearingMethod = -1;
         }
@@ -941,6 +943,8 @@ void Context::printInputSummary(const std::string &fileName) {
       std::cout << "adaptiveGaussian" << std::endl;
     else if (smearingMethod == 2)
       std::cout << "tetrahedron" << std::endl;
+    else if (smearingMethod == 3)
+      std::cout << "symAdaptiveGaussian" << std::endl;
     else {
       std::cout << "none" << std::endl;
     }

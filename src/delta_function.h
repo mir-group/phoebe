@@ -32,20 +32,25 @@ public:
   static const int gaussian = 0;
   static const int adaptiveGaussian = 1;
   static const int tetrahedron = 2;
+  static const int symAdaptiveGaussian = 3;
 
   /** Method for obtaining a smearing value (approximating \delta).
    * @param energy: the energy difference of the dirac delta
-   * @param velocity optional: a vector of velocity (used for adaptive
-   * smearing schemes).
+   * @param velocity optional: a vector of velocity (used for adaptive smearing schemes).
+   * @param velocity optional: a vector of velocity (used for sym adaptive smearing scheme).
+   * @param velocity optional: a vector of velocity (used for sym adaptive smearing scheme).
    */
   virtual double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) = 0;
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity2 = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity3 = Eigen::Vector3d::Zero()) = 0;
 
   /** Method for obtaining a smearing value (approximating \delta).
    * Overloads the previous one, and is used by the tetrahedron method.
    * @param energy: the energy difference of the dirac delta.
-   * @param is: state index
+   * @param iq: wavevector index.
+   * @param ib: band index.
    */
   virtual double getSmearing(const double &energy, StateIndex &is) = 0;
 
@@ -71,11 +76,14 @@ public:
   /** Method to obtain the value of smearing.
    * @param energy: the energy difference.
    * @param[optional] velocity: ignored parameter.
+   * @param[optional] velocity: ignored parameter.
+   * @param[optional] velocity: ignored parameter.
    * @return smearing: the approximation to the dirac-delta.
    */
-  double
-  getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
+  double getSmearing(const double &energy,
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity2 = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity3 = Eigen::Vector3d::Zero()) override;
 
   /** phantom method that should not be used. Will throw an error.
    */
@@ -108,13 +116,17 @@ public:
   /** Method to obtain the value of smearing.
    * @param energy: the energy difference.
    * @param velocity; the velocity (difference) of the quasi-particles.
+   * @param[optional] velocity: ignored parameter used by sym adaptive.
+   * @param[optional] velocity: ignored parameter used by sym adaptive.
    * @return smearing: the approximation to the dirac-delta
    */
   double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity2 = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity3 = Eigen::Vector3d::Zero()) override;
 
-  /** phantom method that should not be used. Will throw an error.
+  /** Phantom method that should not be used. Will throw an error.
    */
   double getSmearing(const double &energy, StateIndex &is)  override;
 
@@ -181,7 +193,9 @@ public:
    */
   double
   getSmearing(const double &energy,
-              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero()) override;
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity2 = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity3 = Eigen::Vector3d::Zero()) override;
 
 protected:
   BaseBandStructure &fullBandStructure;
@@ -189,6 +203,37 @@ protected:
   int id = DeltaFunction::tetrahedron;
   Eigen::MatrixXd subCellShift;
   Eigen::MatrixXi vertices;
+};
+
+/** Adaptive smearing scheme which should respect symmetry of the scattering matrix.
+ * Uses the state group velocities to adjust the width of a gaussian approx to the dirac-delta.
+ * See Ref doi: 10.1103/PhysRevB.75.195121 (for regular adaptive smearing)
+ * and 3.3.1 of Ref https://doi.org/10.1016/j.cpc.2022.108504 for this updated version
+ */
+class SymAdaptiveGaussianDeltaFunction : public AdaptiveGaussianDeltaFunction {
+public:
+  /** Constructor of the sym adaptive gaussian smearing scheme.
+   * @param bandStructure: mainly to see what mesh of points and crystal is
+   * being used, and to prepare a suitable scaling of velocities.
+   */
+  explicit SymAdaptiveGaussianDeltaFunction(BaseBandStructure &bandStructure,
+                                         double broadeningCutoff_=0.0001 / energyRyToEv);
+
+  /** Method to obtain the value of smearing.
+   * @param energy: the energy difference.
+   * @param velocity; the velocity of quasiparticle state 1
+   * @param velocity; the velocity of quasiparticle state 2
+   * @param velocity; the velocity of quasiparticle state 3
+   * @return smearing: the approximation to the dirac-delta
+   */
+  double getSmearing(const double &energy,
+              const Eigen::Vector3d &velocity = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity2 = Eigen::Vector3d::Zero(),
+              const Eigen::Vector3d &velocity3 = Eigen::Vector3d::Zero()) override;
+
+protected:
+  // Most of this object is inherited from parent adaptive gaussian
+  int id = DeltaFunction::symAdaptiveGaussian;
 };
 
 #endif
