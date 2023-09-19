@@ -1,6 +1,7 @@
 #include "electron_viscosity.h"
 #include "constants.h"
 #include "mpiHelper.h"
+#include "viscosity_io.h"
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -166,6 +167,11 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelM
 
 void ElectronViscosity::print() {
 
+  std::string viscosityName = "Electronic";
+  printViscosity(viscosityName);
+
+
+/*
   if (!mpi->mpiHead()) return;
 
   std::string units;
@@ -200,12 +206,19 @@ void ElectronViscosity::print() {
       }
     }
     std::cout << std::endl;
-  }
+  }*/
 }
 
 // TODO replace with general one
 void ElectronViscosity::outputToJSON(const std::string &outFileName) {
 
+  bool append = false; // it's a new file to write to
+  bool isPhonon = false;
+  std::string viscosityName = "electronViscosity";
+  outputViscosityToJSON(outfileName, viscosity,
+                viscosityTensor, isPhonon, append, statisticsSweep, dimensionality);
+
+/*
   if (!mpi->mpiHead()) return;
 
   std::string units;
@@ -254,6 +267,7 @@ void ElectronViscosity::outputToJSON(const std::string &outFileName) {
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
+*/
 }
 
 int ElectronViscosity::whichType() { return is4Tensor; }

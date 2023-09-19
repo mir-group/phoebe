@@ -273,6 +273,10 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
 
 void PhononViscosity::print() {
 
+  std::string viscosityName = "Phonon";
+  printViscosity(viscosityName);
+
+/*
   if (!mpi->mpiHead()) return;
 
   std::string units;
@@ -308,12 +312,20 @@ void PhononViscosity::print() {
     }
     std::cout << std::endl;
   }
+*/
 }
 
-// TODO replace with general one
 void PhononViscosity::outputToJSON(const std::string& outFileName) {
 
-  if (!mpi->mpiHead()) return;
+//  if (!mpi->mpiHead()) return;
+
+  bool append = false; // it's a new file to write to
+  bool isPhonon = true;
+  std::string viscosityName = "phononViscosity";
+  outputViscosityToJSON(outfileName, viscosity,
+                viscosityTensor, isPhonon, append, statisticsSweep, dimensionality);
+
+/*
 
   std::string units;
   if (dimensionality == 1) {      units = "Pa s / m^2"; } // 3d
@@ -361,6 +373,7 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
+*/
 }
 
 int PhononViscosity::whichType() { return is4Tensor; }
