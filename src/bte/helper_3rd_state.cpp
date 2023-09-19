@@ -157,7 +157,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       energies3 = innerBandStructure.getEnergies(iq3Index);
       eigenVectors3 = innerBandStructure.getEigenvectors(iq3Index);
 
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
+      if (smearingType == DeltaFunction::adaptiveGaussian || smearingType == DeltaFunction::symAdaptiveGaussian) {
         v3s = innerBandStructure.getGroupVelocities(iq3Index);
       }
       nb3 = int(energies3.size());
@@ -177,7 +177,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
       auto iq3Index = WavevectorIndex(iq3);
       energies3 = bandStructure3->getEnergies(iq3Index);
       eigenVectors3 = bandStructure3->getEigenvectors(iq3Index);
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
+      if (smearingType == DeltaFunction::adaptiveGaussian || smearingType == DeltaFunction::symAdaptiveGaussian) {
         v3s = bandStructure3->getGroupVelocities(iq3Index);
       }
       nb3 = int(energies3.size());
@@ -186,7 +186,7 @@ Helper3rdState::get(Point &point1, Point &point2, const int &thisCase) {
         auto calcStatistics = statisticsSweep.getCalcStatistics(iCalc);
         double temp = calcStatistics.temperature;
         // phonon chem potential is always zero
-        double chemPot = 0; //calcStatistics.chemicalPotential;
+        double chemPot = 0;
         for (int ib3 = 0; ib3 < nb3; ib3++) {
           bose3Data(iCalc, ib3) =
               h0.getParticle().getPopulation(energies3(ib3), temp, chemPot);
@@ -288,7 +288,7 @@ void Helper3rdState::prepare(const std::vector<int> &q1Indexes, const int &iq2) 
       Eigen::MatrixXd v3sMinus(nb3Minus, 3);
       v3sPlus.setZero();
       v3sMinus.setZero();
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
+      if (smearingType == DeltaFunction::adaptiveGaussian || smearingType == DeltaFunction::symAdaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmpPlus =
             h0.diagonalizeVelocityFromCoordinates(q3Plus);
         Eigen::Tensor<std::complex<double>, 3> v3sTmpMinus =

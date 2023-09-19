@@ -275,6 +275,11 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
               } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
                 Eigen::Vector3d v = v2s.row(ib2) - v3sPlus.row(ib3);
                 deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v);
+              } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+                Eigen::Vector3d v1 = v1s.row(ib1);
+                Eigen::Vector3d v2 = v2s.row(ib2);
+                Eigen::Vector3d v3 = v3sPlus.row(ib3);
+                deltaPlus = smearing->getSmearing(en1 + en2 - en3Plus, v1, v2, v3);
               } else {
                 deltaPlus = smearing->getSmearing(en3Plus - en1, is2Idx);
               }
@@ -423,6 +428,12 @@ void addPhPhScattering(BasePhScatteringMatrix &matrix, Context &context,
                 Eigen::Vector3d v = v2s.row(ib2) - v3sMinus.row(ib3);
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2, v);
                 deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1, v);
+              } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+                Eigen::Vector3d v1 = v1s.row(ib1);
+                Eigen::Vector3d v2 = v2s.row(ib2);
+                Eigen::Vector3d v3 = v3sMinus.row(ib3);
+                deltaMinus1 = smearing->getSmearing(en1 + en3Minus - en2, v1, v2, v3);
+                deltaMinus2 = smearing->getSmearing(en2 + en3Minus - en1, v1, v2, v3);
               } else {
                 // Note: here I require inner == outer band structure
                 deltaMinus1 = smearing->getSmearing(en1 + en3Minus, is2Idx);
@@ -688,10 +699,16 @@ void addIsotopeScattering(BasePhScatteringMatrix &matrix, Context &context,
           double deltaIso = 0;
           if (smearing->getType() == DeltaFunction::gaussian) {
             deltaIso = smearing->getSmearing(en1 - en2);
+          // TODO double check the smearing on this
           } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
             deltaIso += smearing->getSmearing(en1 - en2, v2s.row(ib2));
             deltaIso += smearing->getSmearing(en1 - en2, v1s.row(ib1));
             deltaIso *= 0.5;
+          } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+            Eigen::Vector3d v1 = v1s.row(ib1);
+            Eigen::Vector3d v2 = v2s.row(ib2);
+            Eigen::Vector3d v3; // feed zeros for the third one, as this transition has only two
+            deltaIso = smearing->getSmearing(en1 - en2, v1, v2, v3);
           } else {
             deltaIso = smearing->getSmearing(en1, is2Idx);
           }

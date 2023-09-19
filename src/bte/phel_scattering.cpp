@@ -276,6 +276,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
 
       std::vector<Eigen::Vector3d> allQ3C(batch_size);
       std::vector<Eigen::MatrixXcd> allEigenVectors3(batch_size);
+      std::vector<Eigen::MatrixXd> allV3s(batch_size);
       std::vector<Eigen::VectorXcd> allPolarData(batch_size);
 
       // do prep work for all values of q3 in current batch,
@@ -290,6 +291,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
 
         allPolarData[iq3Batch] = polarData.row(iq3);
         allEigenVectors3[iq3Batch] = phBandStructure.getEigenvectors(iq3Idx);
+        allV3s[iq3Batch] = phBandStructure.getGroupVelocities(iq3Idx);
         allQ3C[iq3Batch] = phBandStructure.getWavevector(iq3Idx);
       }
 
@@ -309,7 +311,8 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
 
       // calculate the state energies, vs, eigs of all k2 points
       bool withVelocities = false;
-      if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
+      if (smearing->getType() == DeltaFunction::adaptiveGaussian ||
+                        smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
         withVelocities = true;
       }
       bool withEigenvectors = true; // we need these below to calculate coupling
@@ -318,7 +321,7 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
 
       std::vector<Eigen::VectorXd> allStates2Energies = std::get<0>(tHelp);
       std::vector<Eigen::MatrixXcd> allEigenVectors2 = std::get<1>(tHelp);
-      std::vector<Eigen::Tensor<std::complex<double>,3>> allStates2Velocities = std::get<2>(tHelp);
+      std::vector<Eigen::Tensor<std::complex<double>,3>> allV2s = std::get<2>(tHelp);
 
       // Generate couplings for fixed k1, all k2s and all Q3Cs
       couplingElPhWan->calcCouplingSquared(eigenVector1, allEigenVectors2,
@@ -355,21 +358,33 @@ void addPhElScattering(BasePhScatteringMatrix &matrix, Context &context,
                 smearingValues(ib1, ib2, ib3) = 0.;
                 continue;
               }
-              double delta;
+              double delta = 0;
 
               // NOTE: for gpus, if statements need to be moved outside, as
               // this creates load balancing issues for gpu threads and cpu must
               // dispatch this decision info
               if (smearing->getType() == DeltaFunction::gaussian) {
                 delta = smearing->getSmearing(en1 - en2 + en3);
-              } else {
-                // adaptive gaussian for delta(omega - (Ek' - Ek))
-                // has width of W = a | v2 - v1 |
-                Eigen::Vector3d smear = v1s.row(ib1);
+
+              } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+                Eigen::Vector3d v1 = v1s.row(ib1);
+                Eigen::Vector3d v2;
                 for (int i : {0,1,2}) {
-                  smear(i) -= allStates2Velocities[iq3Batch](ib2, ib2, i).real();
+                   v2(i) = allV2s[iq3Batch](ib2, ib2, i).real();
                 }
-                delta = smearing->getSmearing(en1 - en2 + en3, smear);
+                Eigen::Vector3d v3 = allV3s[iq3Batch].row(ib3);
+                delta = smearing->getSmearing(en1 - en2 + en3, v1, v2, v3);
+
+              // adaptive gaussian for delta(omega - (Ek' - Ek))
+              // has width of W = a | v2 - v1 |
+              } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
+                Eigen::Vector3d vdiff = v1s.row(ib1);
+                for (int i : {0,1,2}) {
+                  vdiff(i) -= allV2s[iq3Batch](ib2, ib2, i).real();
+                }
+                delta = smearing->getSmearing(en1 - en2 + en3, vdiff);
+              } else {
+                Error("Tetrahedron smearing is currently not tested with phel scattering.");
               }
               smearingValues(ib1, ib2, ib3) = std::max(delta, 0.);
             }

@@ -258,7 +258,8 @@ std::tuple<Eigen::Vector3d, Eigen::VectorXd, int, Eigen::MatrixXcd,
     Eigen::VectorXd energies3 = bandStructure3->getEnergies(iq3Index);
     Eigen::MatrixXcd eigenVectors3 = bandStructure3->getEigenvectors(iq3Index);
     Eigen::MatrixXd v3s;
-    if (smearingType == DeltaFunction::adaptiveGaussian) {
+    // These later are used by the adaptive schemes
+    if (smearingType == DeltaFunction::adaptiveGaussian || smearingType == DeltaFunction::symAdaptiveGaussian) {
       v3s = bandStructure3->getGroupVelocities(iq3Index);
     }
     int nb3 = int(energies3.size());
@@ -331,7 +332,7 @@ void HelperElScattering::prepare(const Eigen::Vector3d &k1,
 
       Eigen::MatrixXd v3s(nb3, 3);
       v3s.setZero();
-      if (smearingType == DeltaFunction::adaptiveGaussian) {
+      if (smearingType == DeltaFunction::adaptiveGaussian || smearingType == DeltaFunction::symAdaptiveGaussian) {
         Eigen::Tensor<std::complex<double>, 3> v3sTmp =
             h0.diagonalizeVelocityFromCoordinates(q3);
 

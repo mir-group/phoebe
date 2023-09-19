@@ -215,9 +215,15 @@ void addElPhScattering(BaseElScatteringMatrix &matrix, Context &context,
                 delta1 = smearing->getSmearing(en1 - en2 + en3);
                 delta2 = smearing->getSmearing(en1 - en2 - en3);
               } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-                Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
-                delta1 = smearing->getSmearing(en1 - en2 + en3, smear);
-                delta2 = smearing->getSmearing(en1 - en2 - en3, smear);
+                Eigen::Vector3d vdiff = v1s.row(ib1) - v2s.row(ib2);
+                delta1 = smearing->getSmearing(en1 - en2 + en3, vdiff);
+                delta2 = smearing->getSmearing(en1 - en2 - en3, vdiff);
+              } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+                Eigen::Vector3d v1 = v1s.row(ib1);
+                Eigen::Vector3d v2 = v2s.row(ib2);
+                Eigen::Vector3d v3 = v3s.row(ib3);
+                delta1 = smearing->getSmearing(en1 - en2 + en3, v1, v2, v3);
+                delta2 = smearing->getSmearing(en1 - en2 - en3, v1, v2, v3);
               } else {
                 delta1 = smearing->getSmearing(en3 + en1, is2Idx);
                 delta2 = smearing->getSmearing(en3 - en1, is2Idx);
@@ -425,11 +431,14 @@ void addChargedImpurityScattering(BaseElScatteringMatrix &matrix, Context &conte
             delta = smearing->getSmearing(en2 - en1);
           // TODO set up adaptive smearing properly here
           } else if (smearing->getType() == DeltaFunction::adaptiveGaussian) {
-            //Eigen::Vector3d smear = v1s.row(ib1) - v2s.row(ib2);
-            //delta = smearing->getSmearing(en2 - en1, smear);
             delta += smearing->getSmearing(en1 - en2, v2s.row(ib2));
             delta += smearing->getSmearing(en1 - en2, v1s.row(ib1));
             delta *= 0.5;
+          } else if (smearing->getType() == DeltaFunction::symAdaptiveGaussian) {
+            Eigen::Vector3d v1 = v1s.row(ib1);
+            Eigen::Vector3d v2 = v2s.row(ib2);
+            Eigen::Vector3d v3; // feed zeros for the third one, as this transition has only two
+            delta = smearing->getSmearing(en1 - en2, v1, v2, v3);
           } else {
             // TODO is this ok NOTE I don't think this is ever called, but
             // I'm following what was done in isotope smearing's delta
