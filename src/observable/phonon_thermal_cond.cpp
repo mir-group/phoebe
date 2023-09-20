@@ -100,41 +100,13 @@ void PhononThermalConductivity::calcFromPopulation(VectorBTE &n) {
       }
     });
   Kokkos::Experimental::contribute(tensordxd_k, scatter_tensordxd);
-  /*
 
-#pragma omp parallel default(none) shared(excludeIndices, n, norm)
-  {
-    // we do manually the reduction, to avoid custom type declaration
-    // which is not always allowed by the compiler e.g. by clang
-
-    // first omp parallel for on a private variable
-    Eigen::Tensor<double, 3> tensorPrivate(numCalculations, dimensionality,
-                                           dimensionality);
-    tensorPrivate.setZero();
-
-#pragma omp for nowait
-    for (int is : bandStructure.parallelIrrStateIterator()) {
-
-// now we do the reduction thread by thread
-#pragma omp critical
-    {
-      for (int j : {0, 1, 2}) {
-        for (int i : {0, 1, 2}) {
-          for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations();
-               iCalc++) {
-            tensordxd(iCalc, i, j) += tensorPrivate(iCalc, i, j);
-          }
-        }
-      }
-    }
-  }
-  */
   // lastly, the states were distributed with MPI
   mpi->allReduceSum(&tensordxd);
 }
 
-void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
-                                                VectorBTE &b) {
+void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f, VectorBTE &b) {
+
   double norm = 1. / context.getQMesh().prod() /
                 crystal.getVolumeUnitCell(dimensionality);
   auto excludeIndices = f.excludeIndices;
@@ -152,7 +124,7 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
   Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> y1_k(y1.data(), numCalculations, 3, 3),
     y2_k(y2.data(), numCalculations, 3, 3);
   Kokkos::Experimental::ScatterView<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_y1(y1_k), scatter_y2(y2_k);
-  Kokkos::parallel_for("electron_viscosity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
+  Kokkos::parallel_for("variational thermal conductivity", Kokkos::RangePolicy<Kokkos::HostSpace::execution_space>(0, niss), [&] (int iis){
       auto x1 = scatter_y1.access();
       auto x2 = scatter_y2.access();
 
@@ -197,28 +169,6 @@ void PhononThermalConductivity::calcVariational(VectorBTE &af, VectorBTE &f,
     });
   Kokkos::Experimental::contribute(y1_k, scatter_y1);
   Kokkos::Experimental::contribute(y2_k, scatter_y2);
-  /*
-#pragma omp parallel default(none) shared(                                     \
-    excludeIndices, bandStructure, y1, y2, norm, af, f, b, numCalculations)
-  {
-    Eigen::Tensor<double, 3> x1(numCalculations, 3, 3);
-    Eigen::Tensor<double, 3> x2(numCalculations, 3, 3);
-    x1.setConstant(0.);
-    x2.setConstant(0.);
-#pragma omp for nowait
-    for (int is : bandStructure.parallelIrrStateIterator()) {
-
-#pragma omp critical
-    for (int j = 0; j < dimensionality; j++) {
-      for (int i = 0; i < dimensionality; i++) {
-        for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-          y1(iCalc, i, j) += x1(iCalc, i, j);
-          y2(iCalc, i, j) += x2(iCalc, i, j);
-        }
-      }
-    }
-  }
-  */
   mpi->allReduceSum(&y1);
   mpi->allReduceSum(&y2);
 

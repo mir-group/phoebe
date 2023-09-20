@@ -198,43 +198,7 @@ void OnsagerCoefficients::calcFromPopulation(VectorBTE &nE, VectorBTE &nT) {
   Kokkos::Experimental::contribute(LET_k, scatter_LET_k);
   Kokkos::Experimental::contribute(LTE_k, scatter_LTE_k);
   Kokkos::Experimental::contribute(LTT_k, scatter_LTT_k);
-  // same code as above, but without Kokkos
-  // in this code, we aren't using OMP threads
-  /*
-  for (int is : bandStructure.parallelIrrStateIterator()) {
-    StateIndex isIdx(is);
-    double energy = bandStructure.getEnergy(isIdx);
-    Eigen::Vector3d velIrr = bandStructure.getGroupVelocity(isIdx);
-    int iBte = bandStructure.stateToBte(isIdx).get();
-    auto rotations = bandStructure.getRotationsStar(isIdx);
 
-    for (int iCalc = 0; iCalc < statisticsSweep.getNumCalculations(); iCalc++) {
-      auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-      double en = energy - calcStat.chemicalPotential;
-
-      for (const Eigen::Matrix3d& r : rotations) {
-        Eigen::Vector3d thisNE = Eigen::Vector3d::Zero();
-        Eigen::Vector3d thisNT = Eigen::Vector3d::Zero();
-        for (int i : {0, 1, 2}) {
-          thisNE(i) += nE(iCalc, i, iBte);
-          thisNT(i) += nT(iCalc, i, iBte);
-        }
-        thisNE = r * thisNE;
-        thisNT = r * thisNT;
-        Eigen::Vector3d vel = r * velIrr;
-
-        for (int i : {0, 1, 2}) {
-          for (int j : {0, 1, 2}) {
-            LEE(iCalc, i, j) += thisNE(i) * vel(j) * norm;
-            LET(iCalc, i, j) += thisNT(i) * vel(j) * norm;
-            LTE(iCalc, i, j) += thisNE(i) * vel(j) * en * norm;
-            LTT(iCalc, i, j) += thisNT(i) * vel(j) * en * norm;
-          }
-        }
-      }
-    }
-  }
-  */
   // lastly, the states were distributed with MPI
   mpi->allReduceSum(&LEE);
   mpi->allReduceSum(&LTE);
@@ -250,7 +214,6 @@ void OnsagerCoefficients::calcFromRelaxons(
     ElScatteringMatrix &scatteringMatrix) {
 
   int numEigenvalues = eigenvalues.size();
-
   int iCalc = 0;
   double chemPot = statisticsSweep.getCalcStatistics(iCalc).chemicalPotential;
   double temp = statisticsSweep.getCalcStatistics(iCalc).temperature;
