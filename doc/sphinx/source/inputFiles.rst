@@ -1074,12 +1074,13 @@ windowEnergyLimit
 windowPopulationLimit
 ^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Required if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
+* **Description:** Used if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
 
 * **Format:** *double*
 
 * **Required:** no (optional if :ref:`windowType` = "population")
 
+* **Default:** `1e-10`
 
 .. _maxIterationsBTE:
 
