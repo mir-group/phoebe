@@ -1,7 +1,10 @@
 #include "viscosity_io.h"
+#include <fstream>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
-
-void printViscosity(std::string& viscosityName) {
+void printViscosity(std::string& viscosityName, Eigen::Tensor<double, 5>& viscosityTensor,
+                                StatisticsSweep& statisticsSweep, int& dimensionality) {
 
   if (!mpi->mpiHead()) return;
 
@@ -9,6 +12,8 @@ void printViscosity(std::string& viscosityName) {
   if (dimensionality == 1)      { units = "Pa s / m^2"; } // 3d
   else if (dimensionality == 2) { units = "Pa s / m";   } // 2d
   else                          { units = "Pa s";       } // 1d
+
+  int numCalculations = statisticsSweep.getNumCalculations();
 
   std::cout << "\n";
   std::cout << viscosityName << " viscosity (" << units << ")\n";
@@ -30,7 +35,7 @@ void printViscosity(std::string& viscosityName) {
           std::cout << i << " " << j << " " << k;
           for (int l = 0; l < dimensionality; l++) {
             std::cout << " " << std::setw(12) << std::right
-                      << tensordxdxdxd(iCalc, i, j, k, l) * viscosityAuToSi;
+                      << viscosityTensor(iCalc, i, j, k, l) * viscosityAuToSi;
           }
           std::cout << "\n";
         }

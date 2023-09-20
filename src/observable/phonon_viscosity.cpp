@@ -1,9 +1,9 @@
 #include "phonon_viscosity.h"
 #include "constants.h"
 #include "mpiHelper.h"
-#include <fstream>
+#include "viscosity_io.h"
+//#include <fstream>
 #include <iomanip>
-#include <nlohmann/json.hpp>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_ScatterView.hpp>
 
@@ -75,30 +75,6 @@ void PhononViscosity::calcRTA(VectorBTE &tau) {
     }
   });
   Kokkos::Experimental::contribute(tensordxdxdxd_k, scatter_tensordxdxdxd);
-
-  /*
-#pragma omp parallel default(none) shared(tensordxdxdxd,bandStructure,excludeIndices,numCalculations,statisticsSweep,particle,norm,tau)
-  {
-    Eigen::Tensor<double, 5> tmpTensor = tensordxdxdxd.constant(0.);
-
-#pragma omp for nowait
-    for (int is : bandStructure.parallelIrrStateIterator()) {
-
-    }
-#pragma omp critical
-    for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-      for (int i = 0; i < dimensionality; i++) {
-        for (int j = 0; j < dimensionality; j++) {
-          for (int k = 0; k < dimensionality; k++) {
-            for (int l = 0; l < dimensionality; l++) {
-              tensordxdxdxd(iCalc, i, j, k, l) += tmpTensor(iCalc, i, j, k, l);
-            }
-          }
-        }
-      }
-    }
-  }
-  */
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
@@ -274,7 +250,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
 void PhononViscosity::print() {
 
   std::string viscosityName = "Phonon";
-  printViscosity(viscosityName);
+  printViscosity(viscosityName,tensordxdxdxd, statisticsSweep, dimensionality);
 
 /*
   if (!mpi->mpiHead()) return;
@@ -322,8 +298,8 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
   bool append = false; // it's a new file to write to
   bool isPhonon = true;
   std::string viscosityName = "phononViscosity";
-  outputViscosityToJSON(outfileName, viscosity,
-                viscosityTensor, isPhonon, append, statisticsSweep, dimensionality);
+  outputViscosityToJSON(outFileName, viscosityName,
+                tensordxdxdxd, isPhonon, append, statisticsSweep, dimensionality);
 
 /*
 

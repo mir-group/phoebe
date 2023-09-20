@@ -1,12 +1,12 @@
 #ifndef VISCOSITY_IO_H
 #define VISCOSITY_IO_H
-#include <nlohmann/json.hpp>
 #include "statistics_sweep.h"
 
   /** Prints the viscosity tensor to std out
    * @param viscosityName: string which is used to print the name of the viscosity tensor
    */
-  void printViscosity(std::string& viscosityName);
+  void printViscosity(std::string& viscosityName,
+        Eigen::Tensor<double, 5>& viscosityTensor, StatisticsSweep& statisticsSweep, int& dimensionality);
 
   /** Outputs the viscosity to a json file.
    * @param outFileName: string representing the name of the json file
