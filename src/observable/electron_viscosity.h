@@ -2,11 +2,10 @@
 #define ELECTRON_VISCOSITY_H
 
 #include "drift.h"
-#include "el_scattering.h"
+//#include "el_scattering.h"
 #include "observable.h"
 
 /** Object to compute and store the electron viscosity.
- * TODO: test if electron viscosity works with this class as well.
  */
 class ElectronViscosity : public Observable {
 public:
@@ -47,15 +46,26 @@ public:
    * Stores it internally.
    * @param vector0: VectorBTE object with the energy-conserving eigenvector.
    * @param relTimes: the VectorBTE object with relaxon relaxation times.
-   * @oaram sMatrix: the scattering matrix.
-   * @oaram eigenvectors: the eigenvectors of the scattering matrix above.
+   * @param sMatrix: the scattering matrix.
+   * @param eigenvectors: the eigenvectors of the scattering matrix above.
    */
   void calcFromRelaxons(Eigen::VectorXd &eigenvalues,
                         ParallelMatrix<double> &eigenvectors);
 
+  /** Helper function to print information about the scalar products with the
+   * special eigenvectors.
+   * @param eigenvectors: eigenvectors of the scattering matrix
+   * @param numRelaxons: the number of relaxons which have been calculated
+   */
+  void relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors, int& numRelaxons);
+
+
 protected:
   int whichType() override;
   BaseBandStructure &bandStructure;
+  int alpha0 = -1; // the index of the energy eigenvector, to skip it
+  int alpha_e = -1; // the index of the charge eigenvector, to skip it
+
 };
 
 #endif

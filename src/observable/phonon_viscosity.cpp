@@ -103,6 +103,9 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   double kBT = calcStat.temperature;
   double chemPot = 0.;
 
+  // search for the indices of the special eigenvectors and print info about them
+  relaxonEigenvectorsCheck(eigenvectors, numRelaxons);
+
   // Code by Andrea, annotation by Jenny
   // Here we are calculating Eq. 9 from the PRX Simoncelli 2020
   //    mu_ijkl = (eta_ijkl + eta_ilkj)/2
@@ -228,9 +231,9 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
       if (eigenvalues(ialpha) <= 0.) { // avoid division by zero
         return; // return is here continue for kokkos
       }
-      // TODO this must be improved, we're here trying to discard the bose eigenvector contribution,
+      // discard the bose eigenvector contribution,
       // which has a divergent lifetime and should not be counted
-      //if(ialpha == 3) { return; }
+      if(ialpha == alpha0) { return; }
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {
@@ -247,53 +250,80 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   mpi->allReduceSum(&tensordxdxdxd);
 }
 
+void PhononViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvectors,
+                                                        int& numRelaxons) {
+
+  // goal is to print and save the indices and scalar products of the special eigenvectors
+
+  double volume = crystal.getVolumeUnitCell(dimensionality);
+  auto particle = bandStructure.getParticle();
+  double Nq = context.getQMesh().prod();
+  int numStates = bandStructure.getNumStates();
+
+  int iCalc = 0; // set to zero because of relaxons
+  auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
+  double kBT = calcStat.temperature;
+  double T = calcStat.temperature / kBoltzmannRy;
+  double chemPot = 0;
+
+  // calculate the special eigenvectors' product with eigenvectors ----------------
+  // to report it's index and overlap + remove it from the calculation
+  double C = 0;
+  Eigen::VectorXd theta0(numStates);  theta0.setZero();
+  for (int is : bandStructure.parallelStateIterator()) {
+
+    auto isIdx = StateIndex(is);
+    auto en = bandStructure.getEnergy(isIdx);
+    double popM1 = particle.getPopPopPm1(en, kBT, chemPot);
+
+    theta0(is) = sqrt(popM1) * (en - chemPot);
+    C += popM1 * (en - chemPot) * (en - chemPot);
+  }
+  mpi->allReduceSum(&theta0);
+  mpi->allReduceSum(&C);
+  // apply normalizations
+  C *= 1. / (volume * Nq * kBT * T);
+  theta0 *= 1./sqrt(kBT * T * volume * Nq * C);
+
+  // calculate the overlaps with special eigenvectors
+  Eigen::VectorXd prodTheta0(numRelaxons); prodTheta0.setZero();
+  for (auto tup : eigenvectors.getAllLocalStates()) {
+
+    auto is = std::get<0>(tup);
+    auto gamma = std::get<1>(tup);
+    prodTheta0(gamma) += eigenvectors(is,gamma) * theta0(is);
+
+  }
+  mpi->allReduceSum(&prodTheta0);
+
+  // find the element with the maximum product
+  prodTheta0 = prodTheta0.cwiseAbs();
+  Eigen::Index maxCol0, idxAlpha0;
+  float maxTheta0 = prodTheta0.maxCoeff(&idxAlpha0, &maxCol0);
+
+  if(mpi->mpiHead()) {
+    std::cout << std::fixed;
+    std::cout << std::setprecision(4);
+    std::cout << "Maximum scalar product theta_0.theta_alpha = " << maxTheta0 << " at index " << idxAlpha0 << "." << std::endl;
+    std::cout << "First ten products with theta_0:";
+    for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodTheta0(gamma); }
+  }
+
+  // save these indices to the class objects
+  // if they weren't really found, we leave these indices
+  // as -1 so that no relaxons are skipped
+  if(maxTheta0 >= 0.75) alpha0 = idxAlpha0;
+
+}
+
 void PhononViscosity::print() {
 
   std::string viscosityName = "Phonon";
   printViscosity(viscosityName,tensordxdxdxd, statisticsSweep, dimensionality);
 
-/*
-  if (!mpi->mpiHead()) return;
-
-  std::string units;
-  if (dimensionality == 1) {      units = "Pa s / m^2"; } // 3d
-  else if (dimensionality == 2) { units = "Pa s / m";   } // 2d
-  else {                          units = "Pa s";       } // 1d
-
-  std::cout << "\n";
-  std::cout << "Thermal Viscosity (" << units << ")\n";
-  std::cout << "i, j, k, eta[i,j,k,0], eta[i,j,k,1], eta[i,j,k,2]\n";
-
-  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-    double temp = calcStat.temperature;
-
-    std::cout << std::fixed;
-    std::cout.precision(2);
-    std::cout << "Temperature: " << temp * temperatureAuToSi << " (K)\n";
-    std::cout.precision(5);
-    std::cout << std::scientific;
-    for (int i = 0; i < dimensionality; i++) {
-      for (int j = 0; j < dimensionality; j++) {
-        for (int k = 0; k < dimensionality; k++) {
-          std::cout << i << " " << j << " " << k;
-          for (int l = 0; l < dimensionality; l++) {
-            std::cout << " " << std::setw(12) << std::right
-                      << tensordxdxdxd(iCalc, i, j, k, l) * viscosityAuToSi;
-          }
-          std::cout << "\n";
-        }
-      }
-    }
-    std::cout << std::endl;
-  }
-*/
 }
 
 void PhononViscosity::outputToJSON(const std::string& outFileName) {
-
-//  if (!mpi->mpiHead()) return;
 
   bool append = false; // it's a new file to write to
   bool isPhonon = true;
@@ -301,55 +331,6 @@ void PhononViscosity::outputToJSON(const std::string& outFileName) {
   outputViscosityToJSON(outFileName, viscosityName,
                 tensordxdxdxd, isPhonon, append, statisticsSweep, dimensionality);
 
-/*
-
-  std::string units;
-  if (dimensionality == 1) {      units = "Pa s / m^2"; } // 3d
-  else if (dimensionality == 2) { units = "Pa s / m";   } // 2d
-  else {                          units = "Pa s";       } // 1d
-
-  std::vector<double> temps;
-  // this vector mess is of shape (iCalculations, iRows, iColumns, k, l)
-  std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>> viscosity;
-
-  for (int iCalc = 0; iCalc < numCalculations; iCalc++) {
-
-    // store temperatures
-    auto calcStat = statisticsSweep.getCalcStatistics(iCalc);
-    double temp = calcStat.temperature;
-    temps.push_back(temp * temperatureAuToSi);
-
-    // store viscosity
-    std::vector<std::vector<std::vector<std::vector<double>>>> rows;
-    for (int i = 0; i < dimensionality; i++) {
-      std::vector<std::vector<std::vector<double>>> cols;
-      for (int j = 0; j < dimensionality; j++) {
-        std::vector<std::vector<double>> ijk;
-        for (int k = 0; k < dimensionality; k++) {
-          std::vector<double> ijkl;
-          for (int l = 0; l < dimensionality; l++) {
-            ijkl.push_back(tensordxdxdxd(iCalc, i, j, k, l) * viscosityAuToSi);
-          }
-          ijk.push_back(ijkl);
-        }
-        cols.push_back(ijk);
-      }
-      rows.push_back(cols);
-    }
-    viscosity.push_back(rows);
-  }
-
-  // output to json
-  nlohmann::json output;
-  output["temperatures"] = temps;
-  output["phononViscosity"] = viscosity;
-  output["temperatureUnit"] = "K";
-  output["phononViscosityUnit"] = units;
-  output["particleType"] = "phonon";
-  std::ofstream o(outFileName);
-  o << std::setw(3) << output << std::endl;
-  o.close();
-*/
 }
 
 int PhononViscosity::whichType() { return is4Tensor; }
