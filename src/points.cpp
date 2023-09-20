@@ -8,11 +8,10 @@
 const int Points::crystalCoordinates = crystalCoordinates_;
 const int Points::cartesianCoordinates = cartesianCoordinates_;
 
-// default constructors
-
-Points::Points(Crystal &crystalObj_, const Eigen::Vector3i &mesh_,
-               const Eigen::Vector3d &offset_)
+// constructors
+Points::Points(Crystal &crystalObj_, const Eigen::Vector3i &mesh_, const Eigen::Vector3d &offset_)
     : crystalObj{crystalObj_} {
+
   setMesh(mesh_, offset_);
   setupGVectors();
 }
