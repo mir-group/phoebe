@@ -145,9 +145,12 @@ void ElectronViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues, ParallelM
   Eigen::Tensor<double, 3> f(3, 3, bandStructure.getNumStates());
   f.setZero();
   for (auto tup0 : eigenvectors.getAllLocalStates()) {
+
     int is = std::get<0>(tup0);
     int alpha = std::get<1>(tup0);
     if (eigenvalues(alpha) <= 0. || alpha >= numRelaxons) { continue; }
+    if (alpha == alpha0) continue; // skip the energy eigenvector
+
     for (int i : {0, 1, 2}) {
       for (int j : {0, 1, 2}) {
         f(i, j, is) += eigenvectors(is, alpha) * fRelaxons(i, j, alpha);

@@ -87,8 +87,6 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
     Error("Developer error: Viscosity for relaxons only for 1 temperature.");
   }
 
-  if(mpi->mpiHead()) std::cout << "Calculating phonon viscosity from relaxons." << std::endl;
-
   double volume = crystal.getVolumeUnitCell(dimensionality);
   int numStates = bandStructure.getNumStates();
   int numRelaxons = eigenvalues.size();
@@ -147,7 +145,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   }
   A /= kBT * Nq * volume;
   mpi->allReduceSum(&A);
-  if(mpi->mpiHead()) std::cout << "A: " << A.transpose() << std::endl;
+  //if(mpi->mpiHead()) std::cout << "A: " << A.transpose() << std::endl;
 
   // then calculate the drift eigenvectors, phi (eq A12)
   VectorBTE driftEigenvector(statisticsSweep, bandStructure, 3);
@@ -220,7 +218,6 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
   std::vector<size_t> iss = mpi->divideWorkIter(numRelaxons);
   int niss = iss.size();
 
-// TODO why would we do this rather than a kokkos parallel for?
   Kokkos::View<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> tensordxdxdxd_k(tensordxdxdxd.data(), numCalculations, dimensionality, dimensionality, dimensionality, dimensionality);
   Kokkos::Experimental::ScatterView<double*****, Kokkos::LayoutLeft, Kokkos::HostSpace> scatter_tensordxdxdxd(tensordxdxdxd_k);
 
@@ -234,6 +231,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
       // discard the bose eigenvector contribution,
       // which has a divergent lifetime and should not be counted
       if(ialpha == alpha0) { return; }
+
       for (int i = 0; i < dimensionality; i++) {
         for (int j = 0; j < dimensionality; j++) {
           for (int k = 0; k < dimensionality; k++) {
@@ -307,6 +305,7 @@ void PhononViscosity::relaxonEigenvectorsCheck(ParallelMatrix<double>& eigenvect
     std::cout << "Maximum scalar product theta_0.theta_alpha = " << maxTheta0 << " at index " << idxAlpha0 << "." << std::endl;
     std::cout << "First ten products with theta_0:";
     for(int gamma = 0; gamma < 10; gamma++) { std::cout << " " << prodTheta0(gamma); }
+    std::cout << std::endl;
   }
 
   // save these indices to the class objects
