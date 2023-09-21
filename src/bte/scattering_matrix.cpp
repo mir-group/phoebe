@@ -149,6 +149,11 @@ void ScatteringMatrix::setup() {
   }
 }
 
+// Get/set elements
+double& ScatteringMatrix::operator()(const int &row, const int &col) {
+  return theMatrix(row,col);
+}
+
 // NOTE: this is returning the raw diagonal.
 // This includes whatever factors there are if it's Omega or not!
 VectorBTE ScatteringMatrix::diagonal() {
@@ -1476,6 +1481,12 @@ std::tuple<int,int> ScatteringMatrix::shiftToCoupledIndices(
   }
   Error("Developer error: there's no reason to shift regular scattering matrix indices!");
   return std::make_tuple(iBte1Shift, iBte2Shift);
+}
+
+std::vector<std::tuple<int, int>> ScatteringMatrix::getAllLocalStates() {
+
+  return theMatrix.getAllLocalStates();
+
 }
 
 
