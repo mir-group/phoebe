@@ -68,7 +68,6 @@ void PhononTransportApp::run(Context &context) {
   PhScatteringMatrix scatteringMatrix(context, statisticsSweep, bandStructure,
                                       bandStructure, &coupling3Ph, &phononH0);
   scatteringMatrix.setup();
-  //scatteringMatrix.outputToHDF5("ph.scatteringMatrix.hdf5");
 
   // if requested in input, load the phononElectron information
   // we save only a vector BTE to add to the phonon scattering matrix,
@@ -386,6 +385,7 @@ void PhononTransportApp::run(Context &context) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
     scatteringMatrix.a2Omega();
+    //scatteringMatrix.outputToHDF5("ph.scatteringMatrix.hdf5");
 
     // NOTE: scattering matrix is destroyed in this process, do not use it afterwards!
     auto tup2 = scatteringMatrix.diagonalize(context.getNumRelaxonsEigenvalues());
@@ -394,14 +394,13 @@ void PhononTransportApp::run(Context &context) {
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
-    // TODO what is the scattering matrix doing here
     phTCond.calcFromRelaxons(context, statisticsSweep, eigenvectors,
                              scatteringMatrix, eigenvalues);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
 
     // output relaxation times
-    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json", eigenvalues);
+    scatteringMatrix.relaxonsToJSON("ph_relaxons_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
       phViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
