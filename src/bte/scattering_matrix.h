@@ -46,6 +46,13 @@ public:
    */
   VectorBTE diagonal();
 
+  /** Get and set operator.
+   * Returns the stored value if the matrix element (row,col) is stored in
+   * memory by the MPI process, otherwise returns zero.
+   * Just calls this on the underlying PMatrix object
+   */
+  double& operator()(const int &row, const int &col);
+
   /** Computes the product A*f - diagonal(A)*f
    * where A is the scattering matrix and f is the vector of quasiparticle
    * populations.
@@ -190,6 +197,12 @@ public:
                         const Eigen::VectorXd& energies1,
                         const Eigen::VectorXd& energies2,
                         const Eigen::VectorXd& energies3);
+
+  /** Call the underlying PMatrix function to return the iterator of all elements of the
+   * matrix which are local
+   * @return: an iterator of local state index pairs
+   **/
+  std::vector<std::tuple<int, int>> getAllLocalStates();
 
 
  protected:
