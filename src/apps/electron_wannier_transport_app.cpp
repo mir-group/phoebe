@@ -170,6 +170,8 @@ void ElectronWannierTransportApp::run(Context &context) {
       }
     }
   }
+  //scatteringMatrix.outputToHDF5("el.scatteringMatrix.hdf5");
+
 
   if (doIterative) {
     runIterativeMethod(context, crystal, statisticsSweep, bandStructure,
@@ -198,7 +200,7 @@ void ElectronWannierTransportApp::run(Context &context) {
                                            scatteringMatrix);
     transportCoefficients.print();
     transportCoefficients.outputToJSON("relaxons_onsager_coefficients.json");
-    scatteringMatrix.relaxonsToJSON("exact_relaxation_times.json", eigenvalues);
+    scatteringMatrix.relaxonsToJSON("el_relaxons_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
       elViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
