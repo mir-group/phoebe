@@ -8,45 +8,6 @@
 ActiveBandStructure::ActiveBandStructure(Particle &particle_, Points &points_)
     : particle(particle_), points(points_) {}
 
-// copy constructor
-ActiveBandStructure::ActiveBandStructure(const ActiveBandStructure &that)
-    : particle(that.particle), points(that.points), energies(that.energies),
-      velocities(that.velocities), eigenvectors(that.eigenvectors),
-      hasEigenvectors(that.hasEigenvectors), numStates(that.numStates),
-      numIrrStates(that.numIrrStates), numIrrPoints(that.numIrrPoints),
-      numPoints(that.numPoints), numBands(that.numBands),
-      numFullBands(that.numFullBands), windowMethod(that.windowMethod),
-      auxBloch2Comb(that.auxBloch2Comb),
-      cumulativeKbOffset(that.cumulativeKbOffset),
-      bteAuxBloch2Comb(that.bteAuxBloch2Comb),
-      bteCumulativeKbOffset(that.bteCumulativeKbOffset),
-      cumulativeKbbOffset(that.cumulativeKbbOffset) {}
-
-ActiveBandStructure &ActiveBandStructure::operator=(
-    const ActiveBandStructure &that) { // assignment operator
-  if (this != &that) {
-    particle = that.particle;
-    points = that.points;
-    energies = that.energies;
-    velocities = that.velocities;
-    eigenvectors = that.eigenvectors;
-    hasEigenvectors = that.hasEigenvectors;
-    numStates = that.numStates;
-    numIrrStates = that.numIrrStates;
-    numIrrPoints = that.numIrrPoints;
-    numPoints = that.numPoints;
-    numBands = that.numBands;
-    numFullBands = that.numFullBands;
-    windowMethod = that.windowMethod;
-    auxBloch2Comb = that.auxBloch2Comb;
-    cumulativeKbOffset = that.cumulativeKbOffset;
-    bteAuxBloch2Comb = that.bteAuxBloch2Comb;
-    bteCumulativeKbOffset = that.bteCumulativeKbOffset;
-    cumulativeKbbOffset = that.cumulativeKbbOffset;
-  }
-  return *this;
-}
-
 ActiveBandStructure::ActiveBandStructure(const Points &points_,
                                          HarmonicHamiltonian *h0,
                                          const bool &withEigenvectors,
