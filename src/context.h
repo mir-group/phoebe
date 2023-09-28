@@ -117,7 +117,12 @@ class Context {
   // currently only support parallelization of the qe2Phoebe app
 
   // if true, enforce the symmetrization of the scattering matrix
-  bool symmetrizeMatrix = true;
+  bool symmetrizeMatrix = false;
+
+  // number of eigenvalues to use the in the relaxons solver
+  int numRelaxonsEigenvalues = 0;
+  // toggle the check for negative relaxons eigenvalues in few eigenvalues case
+  bool checkNegativeRelaxons = true;
 
   int hdf5ElphFileFormat = 1;
   std::string wsVecFileName;
@@ -344,6 +349,11 @@ public:
 
   bool getSymmetrizeMatrix() const;
   void setSymmetrizeMatrix(const bool &x);
+
+  int getNumRelaxonsEigenvalues() const;
+  void setNumRelaxonsEigenvalues(const int &x);
+
+  bool getCheckNegativeRelaxons() const;
 
   int getHdf5ElPhFileFormat() const;
   void setHdf5ElPhFileFormat(const int &x);

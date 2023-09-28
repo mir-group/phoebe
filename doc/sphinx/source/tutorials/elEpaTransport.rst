@@ -166,7 +166,7 @@ If the code run successfully, you should see a new file ``silicon.fc``.
 Step 5: Non-self-consistent run
 -------------------------------
 
-Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an non-self-consistent run run to calculate the electronic properties on the k-point mesh.
+Before we can run Phoebe, we need to complete one more step using Quantum ESPRESSO. We need to use an non-self-consistent run to calculate the electronic properties on the k-point mesh.
 We do so using the input file ``bands.in`` in the ``Silicon-epa`` example folder::
 
   &control

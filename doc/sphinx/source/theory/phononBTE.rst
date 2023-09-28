@@ -27,7 +27,7 @@ The balance equation, namely the Boltzmann Transport Equation (BTE), formulated 
 
 with the first term indicating the phonon diffusion due to the temperature gradient and the second term the scattering rate due to all the scattering processes.
 This equation has to be solved self consistently.
-In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population :math:`\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T ` where `\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}`, while the scattering term can be expanded about its equilibrium value in terms of a first-order perturbation, :math:`f^{\mathrm{EX}}`,
+In the general approach, for small perturbation from the equilibrium, the temperature gradient of the perturbed phonon population is replaced with the temperature gradient of the equilibrium phonon population :math:`\partial n_{\boldsymbol{q} j} / \partial T = \partial \bar{n}_{\boldsymbol{q} j} / \partial T` where :math:`\bar{n}_{\boldsymbol{q} j} = (e^{\hbar \omega_{\boldsymbol{q} j} /k_BT} - 1)^{-1}`, while the scattering term can be expanded about its equilibrium value in terms of a first-order perturbation, :math:`f^{\mathrm{EX}}`,
 
 .. math::
    n_{\boldsymbol{q} j} \simeq \bar{n}_{\boldsymbol{q} j}+\bar{n}_{\boldsymbol{q} j}(\bar{n}_{\boldsymbol{q} j}+1) \frac{\partial T}{\partial \boldsymbol{x}}\cdot f^{\mathrm{EX}}_{\boldsymbol{q} j}

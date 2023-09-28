@@ -147,8 +147,7 @@ void PhononTransportApp::run(Context &context) {
     std::cout << "\n" << std::string(80, '-') << "\n" << std::endl;
   }
 
-  // if requested, we solve the BTE exactly
-
+  // if requested, we solve the BTE exactly -----------------------------
   std::vector<std::string> solverBTE = context.getSolverBTE();
 
   bool doIterative = false;
@@ -191,7 +190,6 @@ void PhononTransportApp::run(Context &context) {
         // A -> ( A^T + A ) / 2
         // this helps removing negative eigenvalues which may appear due to noise
         scatteringMatrix.symmetrize();
-        // it may not be necessary, so it's commented out
       }
     }
   }
@@ -386,27 +384,26 @@ void PhononTransportApp::run(Context &context) {
     if (mpi->mpiHead()) {
       std::cout << "Starting relaxons BTE solver" << std::endl;
     }
-
     scatteringMatrix.a2Omega();
 
-    auto tup2 = scatteringMatrix.diagonalize();
+    // NOTE: scattering matrix is destroyed in this process, do not use it afterwards!
+    auto tup2 = scatteringMatrix.diagonalize(context.getNumRelaxonsEigenvalues());
     auto eigenvalues = std::get<0>(tup2);
     auto eigenvectors = std::get<1>(tup2);
     // EV such that Omega = V D V^-1
     // eigenvectors(phonon index, eigenvalue index)
 
+    // TODO what is the scattering matrix doing here
     phTCond.calcFromRelaxons(context, statisticsSweep, eigenvectors,
                              scatteringMatrix, eigenvalues);
     phTCond.print();
     phTCond.outputToJSON("relaxons_phonon_thermal_cond.json");
+
     // output relaxation times
-    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json",
-                                    eigenvalues);
+    scatteringMatrix.relaxonsToJSON("relaxons_relaxation_times.json", eigenvalues);
 
     if (!context.getUseSymmetries()) {
-      Vector0 boseEigenvector(statisticsSweep, bandStructure, specificHeat);
-      phViscosity.calcFromRelaxons(boseEigenvector, eigenvalues,
-                                   scatteringMatrix, eigenvectors);
+      phViscosity.calcFromRelaxons(eigenvalues, eigenvectors);
       phViscosity.print();
       phViscosity.outputToJSON("relaxons_phonon_viscosity.json");
     }

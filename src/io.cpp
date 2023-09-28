@@ -168,7 +168,7 @@ void IO::goodbye(Context &context) {
     // written by F. Mauri, but it's unclear when and for what article
   }
   // phonon isotope scattering
-  if(context.getWithIsotopeScattering()) {
+  if(context.getWithIsotopeScattering() && context.getAppName() == "phononTransport") {
     std::cout << "  For use of phonon-isotope scattering:" << std::endl;
     std::cout << "\tJ. Garg, N. Bonini, B. Kozinsky, and N. Marzari.\n" <<
     // Role of Disorder and Anharmonicity in the Thermal Conductivity of

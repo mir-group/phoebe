@@ -239,7 +239,7 @@ void InteractionElPhWan::calcCouplingSquared(
   if(pool_size > 1 && mpi_requests[0] != MPI_REQUEST_NULL){
       Kokkos::Profiling::pushRegion("wait for reductions");
       // wait for MPI_Ireduces from cacheCoupling
-      MPI_Waitall(pool_size, mpi_requests.data(), MPI_STATUSES_IGNORE);
+      //MPI_Waitall(pool_size, mpi_requests.data(), MPI_STATUSES_IGNORE);
       Kokkos::Profiling::popRegion();
 
       Kokkos::Profiling::pushRegion("copy to GPU");
@@ -660,11 +660,13 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
 #ifdef MPI_AVAIL
       // start reduction for current iteration
       Kokkos::Profiling::pushRegion("call MPI_Ireduce");
+      // previously, we had tried non-blocking collectives here.
+      // However, this resulted in some segfaults, so we fell back to standard reduce.
       if (pool_rank == iPool) {
-        MPI_Ireduce(MPI_IN_PLACE, poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
+        MPI_Reduce(MPI_IN_PLACE, poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm)); //, &mpi_requests[iPool]);
       }
       else{
-        MPI_Ireduce(poolElPhCached_h.data(), poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
+        MPI_Reduce(poolElPhCached_h.data(), poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm)); //, &mpi_requests[iPool]);
       }
       Kokkos::Profiling::popRegion();
 #endif
