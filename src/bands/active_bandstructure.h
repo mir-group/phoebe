@@ -395,6 +395,7 @@ public:
   std::vector<std::complex<double>> eigenvectors;
 
   bool hasEigenvectors = false;
+  bool hasVelocities = false;
   int numStates = 0;
   int numIrrStates;
   int numIrrPoints;
