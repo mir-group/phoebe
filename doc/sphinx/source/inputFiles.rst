@@ -1016,7 +1016,7 @@ checkNegativeRelaxons
 distributedElPhCoupling
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes, helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used). If false, the electron-phonon coupling tensor is not distributed over MPI processes: calculations will be faster, but in exchange for a much larger memory requirement that can cause segmentation faults for some large use cases.
+* **Description:** If true, the electron-phonon coupling in the Wannier representation is distributed over MPI processes in the QE to Phoebe application (the transform of the el-ph matrix elements to the real-space Wannier basis), helping reducing the memory requirements of a run. The MPI parallelization takes place over the number of irreducible q-points of the phonon calculation (which sets the upper number of MPI processes that can be used). If false, the electron-phonon coupling tensor is not distributed over MPI processes: calculations will be faster, but in exchange for a much larger memory requirement that can cause segmentation faults for some large use cases. The maximum possible distribution is num MPI processes = num dyn files. 
 
 * **Format:** *bool*
 
@@ -1073,12 +1073,13 @@ windowEnergyLimit
 windowPopulationLimit
 ^^^^^^^^^^^^^^^^^^^^^
 
-* **Description:** Required if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
+* **Description:** Used if :ref:`windowType` = "population". Cutoff values for discarding states (phonon or electron, depending on the calculation type) based on their equilibrium phonon occupation number, such that :math:`\frac{\partial \bar{n}}{\partial T} <` windowPopulationLimit.
 
 * **Format:** *double*
 
 * **Required:** no (optional if :ref:`windowType` = "population")
 
+* **Default:** `1e-10`
 
 .. _maxIterationsBTE:
 
