@@ -546,8 +546,12 @@ void ActiveBandStructure::buildOnTheFly(Window &window, Points points_,
   std::vector<int> filteredThreadPoints;
   std::vector<std::vector<int>> filteredThreadBands;
 
+  std::vector<size_t> pointsIter = mpi->divideWorkIter(points_.getNumPoints()); 
   #pragma omp for nowait schedule(static)
-  for (int ik : mpi->divideWorkIter(points_.getNumPoints())) {
+  for (size_t iik = 0; iik < pointsIter.size(); iik++) { 
+
+    int ik = pointsIter[iik];
+
     Point point = points_.getPoint(ik);
     // diagonalize harmonic hamiltonian
     auto tup = h0.diagonalize(point);
@@ -820,7 +824,9 @@ StatisticsSweep ActiveBandStructure::buildAsPostprocessing(
   std::vector<std::vector<int>> filteredThreadBands;
 
   #pragma omp for nowait schedule(static)
-  for (int ik : parallelIter) {
+  for (int iik = 0; iik < parallelIter.size(); iik++) {
+
+    int ik = parallelIter[iik];
 
     auto ikIdx = WavevectorIndex(ik);
     //    Eigen::VectorXd theseEnergies =
