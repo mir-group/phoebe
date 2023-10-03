@@ -28,13 +28,12 @@
  */
 // TODO: add flag to let user decide whether to use or not polar corrections
 class InteractionElPhWan {
+
   Crystal &crystal;
   PhononH0 *phononH0 = nullptr;
 
   int numPhBands, numElBands, numElBravaisVectors, numPhBravaisVectors;
-
   std::vector<Eigen::Tensor<double, 3>> cacheCoupling;
-
   bool usePolarCorrection = false;
 
   /** Add polar correction to the electron-phonon coupling.
@@ -182,15 +181,6 @@ public:
   static InteractionElPhWan parse(Context &context, Crystal &crystal,
                                   PhononH0 *phononH0_ = nullptr);
 
-  static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
-      const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
-      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
-      const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
-      const Eigen::Matrix3d &epsilon,
-      const Eigen::Tensor<double, 3> &bornCharges,
-      const Eigen::MatrixXd &atomicPositions,
-      const Eigen::Vector3i &qCoarseMesh);
-
   /** Auxiliary function to return the shape of the electron-phonon tensor
    * @return (numWannier,numWannier,numPhModes,numElVectors,numPhVectors)
    */
@@ -204,18 +194,37 @@ public:
    */
   int estimateNumBatches(const int &nk2, const int &nb1);
 
-  Eigen::VectorXcd
-    polarCorrectionPart1(
-        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3);
-  static Eigen::VectorXcd
-    polarCorrectionPart1Static(
+  // functions to help with the calculation of the polar correction
+  // as described in doi:10.1103/physRevLett.115.176401, Eq. 4
+
+  // This calculates the long range V_L component of g_L, to be used
+  // in the qe->Wannier transformation
+  static Eigen::Tensor<std::complex<double>, 3> getPolarCorrectionStatic(
+      const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev1,
+      const Eigen::MatrixXcd &ev2, const Eigen::MatrixXcd &ev3,
+      const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
+      const Eigen::Matrix3d &epsilon,
+      const Eigen::Tensor<double, 3> &bornCharges,
+      const Eigen::MatrixXd &atomicPositions,
+      const Eigen::Vector3i &qCoarseMesh);
+
+  // this function calculates V_L for the "static" case used in the bloch->Wannier transform
+  static Eigen::VectorXcd polarCorrectionPart1Static(
         const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3,
         const double &volume, const Eigen::Matrix3d &reciprocalUnitCell,
         const Eigen::Matrix3d &epsilon, const Eigen::Tensor<double, 3> &bornCharges,
         const Eigen::MatrixXd &atomicPositions,
         const Eigen::Vector3i &qCoarseMesh);
-  static Eigen::Tensor<std::complex<double>, 3>
-    polarCorrectionPart2(const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x);
+
+  // Sets up a call to polarCorrectionPart1Static for the calculation of V_L
+  // during wannier interpolation of the matrix elements
+  Eigen::VectorXcd polarCorrectionPart1(
+        const Eigen::Vector3d &q3, const Eigen::MatrixXcd &ev3);
+
+  // adds the transformation of V_L to the wannier gauge
+  // regardless of the use case, this calculates <psi|e^{i(G+q).r}|psi> part of polar correction
+  static Eigen::Tensor<std::complex<double>, 3> polarCorrectionPart2(
+        const Eigen::MatrixXcd &ev1, const Eigen::MatrixXcd &ev2, const Eigen::VectorXcd &x);
 };
 
 #endif
