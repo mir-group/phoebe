@@ -1,5 +1,6 @@
 #include "interaction_elph.h"
 #include <Kokkos_Core.hpp>
+#include <KokkosBlas2_gemv.hpp>
 
 #ifdef HDF5_AVAIL
 #include <Kokkos_ScatterView.hpp>
@@ -588,6 +589,22 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
         });
    Kokkos::fence();
 #else
+
+  // Here we create a view to the elph matrix elements which represents it
+  // in 2D, so that we can use a matrix-vector product with the phases to accelerate
+  // an otherwise very expensive loop
+  //
+  // tutorial description of this gemv function:
+  // https://youtu.be/_qD4X66MQF8?t=2434
+  // read me about gemv https://github.com/kokkos/kokkos-kernels/wiki/BLAS-2%3A%3Agemv
+
+  // product of phase factor with g
+  Kokkos::View<Kokkos::complex<double>*> g1_1D(g1.data(), numPhBravaisVectors*numPhBands*numElBands*numElBands);
+  Kokkos::View<Kokkos::complex<double>**, Kokkos::LayoutRight> coupling_2D(couplingWannier_k.data(), numElBravaisVectors, numPhBravaisVectors*numPhBands*numElBands*numElBands);
+  KokkosBlas::gemv("T", Kokkos::complex<double>(1.0), coupling_2D, phases_k, Kokkos::complex<double>(0.0), g1_1D);
+
+/*
+  // Previous method -- slower than the gemv call
     Kokkos::deep_copy(g1, Kokkos::complex<double>(0.0, 0.0));
     Kokkos::Experimental::ScatterView<Kokkos::complex<double> ****> g1scatter(g1);
     Kokkos::parallel_for(
@@ -599,6 +616,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
           g1(irP, nu, iw1, iw2) += couplingWannier_k(irE, irP, nu, iw1, iw2) * phases_k(irE);
         });
     Kokkos::Experimental::contribute(g1, g1scatter);
+*/
 #endif
 
     // now we need to add the rotation on the electronic coordinates
