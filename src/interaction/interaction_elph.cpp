@@ -157,6 +157,8 @@ Eigen::VectorXcd InteractionElPhWan::polarCorrectionPart1Static(
     const Eigen::MatrixXd &atomicPositions, const Eigen::Vector3i &qCoarseMesh) {
   // doi:10.1103/physRevLett.115.176401, Eq. 4, is implemented here
 
+  Kokkos::Profiling::pushRegion("polarCorrectionPart1Static");
+
   auto numAtoms = int(atomicPositions.rows());
 
   // auxiliary terms
@@ -199,6 +201,7 @@ Eigen::VectorXcd InteractionElPhWan::polarCorrectionPart1Static(
       }
     }
   }
+  Kokkos::Profiling::popRegion();
   return x;
 }
 
@@ -487,6 +490,7 @@ int InteractionElPhWan::estimateNumBatches(const int &nk2, const int &nb1) {
 }
 
 void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen::Vector3d &k1C) {
+
   Kokkos::Profiling::pushRegion("cacheElPh");
   //  int numWannier = numElBands;
   auto nb1 = int(eigvec1.cols());
@@ -537,6 +541,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
       poolK1C = k1C;
       poolEigvec1 = eigvec1;
     }
+    // broadcast to other processes on this pool
     mpi->bcast(&poolK1C, mpi->intraPoolComm, iPool);
     mpi->bcast(&poolEigvec1, mpi->intraPoolComm, iPool);
 
@@ -544,8 +549,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     ComplexView2D eigvec1_k("ev1", poolNb1, numElBands);
     DoubleView1D poolK1C_k("k", 3);
     {
-      HostComplexView2D eigvec1_h((Kokkos::complex<double> *) poolEigvec1.data(),
-                                  poolNb1, numElBands);
+      HostComplexView2D eigvec1_h((Kokkos::complex<double> *) poolEigvec1.data(), poolNb1, numElBands);
       HostDoubleView1D poolK1C_h(poolK1C.data(), 3);
       Kokkos::deep_copy(eigvec1_k, eigvec1_h);
       Kokkos::deep_copy(poolK1C_k, poolK1C_h);
@@ -565,10 +569,10 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
           for (int j = 0; j < 3; j++) {
             arg += poolK1C_k(j) * elBravaisVectors_k(irE, j);
           }
-          phases_k(irE) =
-              exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
+          phases_k(irE) = exp(complexI * arg) / elBravaisVectorsDegeneracies_k(irE);
         });
-   Kokkos::fence();
+    Kokkos::fence();
+    Kokkos::Profiling::popRegion();
 
     // now we complete the Fourier transform
     // We have to write two codes: one for when the GPU runs on CUDA,
@@ -626,8 +630,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     // elPhCached. Otherwise, we need to do an MPI reduction
 
     if (pool_size == 1) {
-      Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1,
-                      numElBands);
+      Kokkos::realloc(elPhCached, numPhBravaisVectors, numPhBands, poolNb1, numElBands);
 
       Kokkos::parallel_for(
           "elPhCached",
@@ -645,8 +648,7 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
     } else {
 
       ComplexView4D poolElPhCached_k(Kokkos::ViewAllocateWithoutInitializing("poolElPhCached"),
-                                   numPhBravaisVectors, numPhBands, poolNb1,
-                                   numElBands);
+                                   numPhBravaisVectors, numPhBands, poolNb1, numElBands);
 
       Kokkos::parallel_for(
           "elPhCached",
@@ -663,7 +665,6 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
       // note: we do the reduction after the rotation, so that the tensor
       // may be a little smaller when windows are applied (nb1<numWannier)
 
-
       // do a mpi->allReduce across the pool
       //mpi->allReduceSum(&poolElPhCached_h, mpi->intraPoolComm);
 
@@ -677,14 +678,16 @@ void InteractionElPhWan::cacheElPh(const Eigen::MatrixXcd &eigvec1, const Eigen:
 
 #ifdef MPI_AVAIL
       // start reduction for current iteration
-      Kokkos::Profiling::pushRegion("call MPI_Ireduce");
+      Kokkos::Profiling::pushRegion("call MPI_reduce");
       // previously, we had tried non-blocking collectives here.
       // However, this resulted in some segfaults, so we fell back to standard reduce.
       if (pool_rank == iPool) {
+        //MPI_Ireduce(MPI_IN_PLACE, poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
         MPI_Reduce(MPI_IN_PLACE, poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm)); //, &mpi_requests[iPool]);
       }
       else{
         MPI_Reduce(poolElPhCached_h.data(), poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm)); //, &mpi_requests[iPool]);
+        //MPI_Ireduce(poolElPhCached_h.data(), poolElPhCached_h.data(), poolElPhCached_h.size(), MPI_COMPLEX16, MPI_SUM, iPool, mpi->getComm(mpi->intraPoolComm), &mpi_requests[iPool]);
       }
       Kokkos::Profiling::popRegion();
 #endif
