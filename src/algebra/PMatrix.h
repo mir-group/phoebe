@@ -45,16 +45,20 @@ class ParallelMatrix {
 
   // BLACS variables
   // numBlocksRows/Cols -- the number of units we divide nrows/ncols into
-  int numBlocksRows_, numBlocksCols_;
+  int numBlocksRows_ = 0;
+  int numBlocksCols_ = 0;
   // blockSizeRows/Cols -- the size of each unit we divide nrows/ncols into
-  int blockSizeRows_, blockSizeCols_;
+  int blockSizeRows_ = 0;
+  int blockSizeCols_ = 0;
   // numBlasRows/Cols - the number of rows/cols in the process grid
-  int numBlasRows_, numBlasCols_;
+  int numBlasRows_ = 0;
+  int numBlasCols_ = 0;
   // myBlasRow/Col - this process's row/col in the process grid
-  int myBlasRow_, myBlasCol_;
+  int myBlasRow_ = 0;
+  int myBlasCol_ = 0;
   int descMat_[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-  int blasRank_;
-  int blacsContext_;
+  int blasRank_ = 0;
+  int blacsContext_ = 0;
   char blacsLayout_ = 'R';  // block cyclic, row major processor mapping
 
   // dummy values to return when accessing elements not available locally
@@ -216,6 +220,13 @@ class ParallelMatrix {
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize();
   std::tuple<std::vector<double>, ParallelMatrix<T>> diagonalize(int numEigenvalues,
                                                 bool checkNegativeEigenvalues = true);
+
+  /** Functions which actually diagonalize the matrix, which one is
+   * called is determined by the main diagonalize call, and if ELPA_AVAIL
+   * is defined.
+   */
+  std::tuple<std::vector<double>, ParallelMatrix<T>> elpaDiagonalize();
+  std::tuple<std::vector<double>, ParallelMatrix<T>> scalapackDiagonalize();
 
   /** Computes the squared Frobenius norm of the matrix
    * (or Euclidean norm, or L2 norm of the matrix)
