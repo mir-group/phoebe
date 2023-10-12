@@ -39,9 +39,11 @@ class ParallelMatrix {
  private:
 
   /// Class variables
-  int numRows_, numCols_;
-  int numLocalRows_, numLocalCols_;
-  int numLocalElements_;
+  int numRows_ = 0;
+  int numCols_ = 0;
+  int numLocalRows_ = 0;
+  int numLocalCols_ = 0;
+  int numLocalElements_ = 0;
 
   // BLACS variables
   // numBlocksRows/Cols -- the number of units we divide nrows/ncols into
@@ -320,7 +322,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix()  {
-  numRows_ = 0;
+/*  numRows_ = 0;
   numCols_ = 0;
   numLocalRows_ = 0;
   numLocalCols_ = 0;
@@ -334,7 +336,7 @@ ParallelMatrix<T>::ParallelMatrix()  {
   myBlasRow_ = 0;
   myBlasCol_ = 0;
   blasRank_ = 0;
-  blacsContext_ = 0;
+  blacsContext_ = 0; */
 }
 
 template <typename T>
