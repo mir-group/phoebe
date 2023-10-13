@@ -170,12 +170,16 @@ endif()
 
 ############### ELPA #################
 if(ELPA_AVAIL)
-  find_library(ELPA_LIB NAMES libelpa_openmp.so PATHS "${ELPA_DIR}/lib/")
-  message(STATUS "Found ELPA: ${ELPA_LIB}")
-  include_directories("/n/holystore01/LABS/kozinsky_lab/Lab/User/jcoulter/codes/elpa/build/include/elpa_openmp-2023.05.001/")
-  target_link_libraries(phoebe ${ELPA_LIB})
-  target_link_libraries(runTests ${ELPA_LIB})
-  add_definitions("-DELPA_AVAIL")
+    find_library(ELPA_LIBSO NAMES libelpa_openmp.so PATHS "${ELPA_LIB}/")
+  if(${ELPA_LIBSO} MATCHES NOTFOUND)
+    message(FATAL_ERROR "ELPA not found, but ELPA_AVAIL was set.")
+  else()
+    message(STATUS "Found ELPA: ${ELPA_LIBSO}")
+    include_directories("${ELPA_INCLUDE}")
+    target_link_libraries(phoebe ${ELPA_LIBSO})
+    target_link_libraries(runTests ${ELPA_LIBSO})
+    add_definitions("-DELPA_AVAIL")
+  endif()
 endif()
 
 ############# DOCS ############
