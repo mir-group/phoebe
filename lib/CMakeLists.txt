@@ -1,4 +1,5 @@
 add_subdirectory(lib/kokkos)
+add_subdirectory(lib/kokkos-kernels)
 
 include(ExternalProject)
 include(FetchContent)
@@ -80,6 +81,7 @@ if(HDF5_AVAIL)
           -DHIGHFIVE_USE_OPENCV=OFF
           -DHIGHFIVE_USE_XTENSOR=OFF
           -DEIGEN3_INCLUDE_DIRS=${CMAKE_CURRENT_BINARY_DIR}/eigen_src
+          -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
 )
 endif()
 
