@@ -322,21 +322,7 @@ ParallelMatrix<T>::ParallelMatrix(const int& numRows, const int& numCols,
 
 template <typename T>
 ParallelMatrix<T>::ParallelMatrix()  {
-/*  numRows_ = 0;
-  numCols_ = 0;
-  numLocalRows_ = 0;
-  numLocalCols_ = 0;
-  numLocalElements_ = 0;
-  numBlocksRows_ = 0;
-  numBlocksCols_ = 0;
-  blockSizeRows_ = 0;
-  blockSizeCols_ = 0;
-  numBlasRows_ = 0;
-  numBlasCols_ = 0;
-  myBlasRow_ = 0;
-  myBlasCol_ = 0;
-  blasRank_ = 0;
-  blacsContext_ = 0; */
+
 }
 
 template <typename T>

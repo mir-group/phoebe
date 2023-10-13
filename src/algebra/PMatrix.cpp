@@ -96,19 +96,8 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
           &one, &result.descMat_[0]);
   return result;
 }
-/*
-template <>
-std::tuple<std::vector<double>, ParallelMatrix<double>>
-ParallelMatrix<double>::diagonalize() {
 
-  #ifdef ELPA_AVAIL
-    return elpaDiagonalize();
-  #else
-    return scalapackDiagonalize();
-  #endif
 
-}
-*/
 template <>
 std::tuple<std::vector<double>, ParallelMatrix<double>>
 ParallelMatrix<double>::elpaDiagonalize() {
@@ -130,33 +119,36 @@ ParallelMatrix<double>::elpaDiagonalize() {
   if ( numBlasRows_ != numBlasCols_ ) {
     Error("Cannot diagonalize via scalapack with a non-square process grid!");
   }
+  if (numBlocksRows_ != numBlocksCols_ ) {
+    Error("Cannot diagonalize via ELPA with nonsquare blocksize!");
+  }
 
   // set up elpa
-  elpa_t handle;
+  elpa_t handle = 0;
   int error;
-  bool elpaSuccess = true;
+  //bool elpaSuccess = true;
   std::string elpaErrorStr = "";
 
-  error = elpa_init(ELPA_API_VERSION);
-  assert_elpa_ok(error, "ELPA API version not supported", elpaSuccess, elpaErrorStr);
+  //error = elpa_init(ELPA_API_VERSION);
+  //assert_elpa_ok(error, "ELPA API version not supported", elpaSuccess, elpaErrorStr);
 
-  handle = elpa_allocate(&error);
-  assert_elpa_ok(error, "ELPA instance allocation failed", elpaSuccess, elpaErrorStr);
+  //handle = elpa_allocate(&error);
+  //assert_elpa_ok(error, "ELPA instance allocation failed", elpaSuccess, elpaErrorStr);
 
   // set parameters
   elpa_set(handle, "na", numRows_, &error);
   elpa_set(handle, "nev", numRows_, &error);
-  elpa_set(handle, "local_nrows", numRowsLoc_, &error);
-  elpa_set(handle, "local_ncols", numColsLoc_, &error);
-  elpa_set(handle, "nblk", blockSize_, &error);
+  elpa_set(handle, "local_nrows", numLocalRows_, &error);
+  elpa_set(handle, "local_ncols", numLocalCols_, &error);
+  elpa_set(handle, "nblk", numBlocksRows_, &error);
   // here we should always use the main commworld
   elpa_set(handle, "mpi_comm_parent", MPI_Comm_c2f(MPI_COMM_WORLD), &error);
   elpa_set(handle, "process_row", myBlasRow_, &error);
   elpa_set(handle, "process_col", myBlasCol_, &error);
 
-  assert_elpa_ok(error, "ELPA matrix initialization failed", elpaSuccess, elpaErrorStr);
-  error = elpa_setup(handle);
-  assert_elpa_ok(error, "ELPA setup failed", elpaSuccess, elpaErrorStr);
+  //assert_elpa_ok(error, "ELPA matrix initialization failed", elpaSuccess, elpaErrorStr);
+  //error = elpa_setup(handle);
+  //assert_elpa_ok(error, "ELPA setup failed", elpaSuccess, elpaErrorStr);
 
   // set tunable run-time options
   elpa_set(handle, "solver", ELPA_SOLVER_2STAGE, &error);
@@ -170,7 +162,7 @@ ParallelMatrix<double>::elpaDiagonalize() {
   Kokkos::Profiling::pushRegion("elpa diag");
 
   // do the diagonalization
-  elpa_eigenvectors(handle, mat, eigenvalues, eigenvecs_.mat, &error);
+  elpa_eigenvectors(handle, mat, eigenvalues, eigenvectors.mat, &error);
 
   Kokkos::Profiling::popRegion();
 
