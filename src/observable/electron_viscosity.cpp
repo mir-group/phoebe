@@ -287,7 +287,7 @@ void ElectronViscosity::outputToJSON(const std::string &outFileName) {
   bool isPhonon = false;
   std::string viscosityName = "electronViscosity";
   outputViscosityToJSON(outFileName, viscosityName,
-                tensordxdxdxd, isPhonon, append, statisticsSweep, dimensionality);
+                tensordxdxdxd, append, statisticsSweep, dimensionality);
 
 }
 
