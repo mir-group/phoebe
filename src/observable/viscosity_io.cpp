@@ -91,6 +91,7 @@ void outputViscosityToJSON(const std::string& outFileName, const std::string& vi
   }
 
   // output to json
+  // TODO need to update this with low dim viscosities
   nlohmann::json output;
   if(append) { // we're going to add this to an existing one (as in the coupled case)
     std::ifstream f(outFileName);
@@ -100,23 +101,27 @@ void outputViscosityToJSON(const std::string& outFileName, const std::string& vi
   output[viscosityName] = viscosity;
   output["temperatureUnit"] = "K";
   output["viscosityUnit"] = units;
-  //output["particleType"] = "phonon";
   std::ofstream o(outFileName);
   o << std::setw(3) << output << std::endl;
   o.close();
 }
 
+
+// TODO we need to fix the dimensionality to work for
+// low dim materials in all the coefficients!
 void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
                                 BaseBandStructure& bandStructure,
                                 StatisticsSweep& statisticsSweep,
                                 Eigen::VectorXd& theta0,
                                 Eigen::VectorXd& theta_e,
-                                Eigen::MatrixXd& phi) {
+                                Eigen::MatrixXd& phi,
+                                double& C, Eigen::Vector3d& A) {
 
   // write D to file before diagonalizing, as the scattering matrix
   // will be destroyed by scalapack
 
   bool isPhonon = bandStructure.getParticle().isPhonon();
+  int dimensionality = bandStructure.getPoints().getCrystal().getDimensionality();
 
   auto calcStat = statisticsSweep.getCalcStatistics(0); // only one calc for relaxons
   double kBT = calcStat.temperature;
@@ -175,6 +180,29 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     vecWjie.push_back(temp3);
   }
 
+  // convert Ai to SI, in units of picograms/(mu m^3)
+  double Aconversion = 1./rydbergSi * // convert kBT
+                        hBarSi * 1./std::pow(bohrRadiusSi,2) * // convert hbar * q^2
+                        1./std::pow(bohrRadiusSi, dimensionality) * // convert 1/V
+                        1e-12 / std::pow(1e-6,dimensionality); // converting to pico and mu
+  if(mpi->mpiHead()) std::cout << Aconversion << std::endl;
+
+  std::string specificHeatUnits;
+  std::string AiUnits;
+  if (dimensionality == 1) {
+    specificHeatUnits = "J / K / m";
+    AiUnits = "pg/(mum)";
+  } else if (dimensionality == 2) {
+    specificHeatUnits = "J / K / m^2";
+    AiUnits = "pg/(mum)^2";
+  } else {
+    specificHeatUnits = "J / K / m^3";
+    AiUnits = "pg/(mum)^3";
+  }
+
+  double specificHeatConversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+  auto particle = bandStructure.getParticle();
+
   if(mpi->mpiHead()) {
     // output to json
     std::string outFileName = "electron_relaxons_real_space_coeffs.json";
@@ -187,6 +215,15 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     output["temperatureUnit"] = "K";
     output["wUnit"] = "m/s";
     output["DuUnit"] = "eV";
+    output["specificHeat"] = C * specificHeatConversion;
+    output["specificHeatUnit"] = specificHeatUnits;
+    output["particleType"] = particle.isPhonon() ? "phonon" : "electron";
+    std::vector<double> Atemp;
+    for(int i = 0; i < 3; i++) {
+      Atemp.push_back(A(i) * Aconversion );
+    }
+    output["Ai"] = Atemp;
+    output["AiUnit"] = AiUnits;
     std::ofstream o(outFileName);
     o << std::setw(3) << output << std::endl;
     o.close();

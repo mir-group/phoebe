@@ -355,7 +355,7 @@ void PhononViscosity::outputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix) 
 
   // call the function in viscosity io
   genericOutputRealSpaceToJSON(scatteringMatrix, bandStructure, statisticsSweep,
-                                theta0, theta_e, phi);
+                                theta0, theta_e, phi, C, A);
 
 }
 
