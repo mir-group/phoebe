@@ -390,6 +390,7 @@ void PhononTransportApp::run(Context &context) {
     // to calculate D we need the phi vectors, so we here calculate ahead of time
     // here -- they are saved internally to the class
     phViscosity.calcSpecialEigenvectors();
+    // create the real space solver transport coefficients
     phViscosity.outputRealSpaceToJSON(scatteringMatrix);
 
     // NOTE: scattering matrix is destroyed in this process, do not use it afterwards!
