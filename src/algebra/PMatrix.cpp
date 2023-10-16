@@ -102,11 +102,15 @@ ParallelMatrix<std::complex<double>> ParallelMatrix<std::complex<double>>::prod(
 void assert_elpa_ok(const int error, const std::string& errorStr,
                     bool& success, std::string& errorMsg) {
 
+#ifdef ELPA_AVAIL
+
   if (error != ELPA_OK) {
     success = false;
     errorMsg = errorStr;
     if(mpi->mpiHead()) std::cout << errorStr << std::endl; 
   }
+#endif 
+  
 }
 
 template <>
