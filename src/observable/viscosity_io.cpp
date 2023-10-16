@@ -181,10 +181,11 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   }
 
   // convert Ai to SI, in units of picograms/(mu m^3)
-  double Aconversion = 1./rydbergSi * // convert kBT
-                        hBarSi * 1./std::pow(bohrRadiusSi,2) * // convert hbar * q^2
-                        1./std::pow(bohrRadiusSi, dimensionality) * // convert 1/V
-                        1e-12 / std::pow(1e-6,dimensionality); // converting to pico and mu
+  double Aconversion = electronMassSi / 2. / std::pow(distanceBohrToMum,dimensionality) *
+                        1e12;  //1./rydbergSi * // convert kBT
+                        //hBarSi * 1./std::pow(bohrRadiusSi,2) * // convert hbar * q^2
+                        //1./std::pow(bohrRadiusSi, dimensionality) * // convert 1/V
+                        //1e12 / std::pow(1e6,dimensionality); // converting to pico and mu
   if(mpi->mpiHead()) std::cout << Aconversion << std::endl;
 
   std::string specificHeatUnits;
@@ -200,13 +201,15 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
     AiUnits = "pg/(mum)^3";
   }
 
-  double specificHeatConversion = kBoltzmannSi / pow(bohrRadiusSi, 3);
+  // this extra kBoltzmannRy is required when we calculate specific heat ...
+  // TODO need to keep track of this and figure out where it's coming from
+  double specificHeatConversion = kBoltzmannSi / pow(bohrRadiusSi, 3) / kBoltzmannRy;
   auto particle = bandStructure.getParticle();
 
   if(mpi->mpiHead()) {
     // output to json
-    std::string outFileName = "electron_relaxons_real_space_coeffs.json";
-    if(isPhonon) outFileName = "phonon_relaxons_real_space_coeffs.json";
+    std::string outFileName = "el_relaxons_real_space_coeffs.json";
+    if(isPhonon) outFileName = "ph_relaxons_real_space_coeffs.json";
     nlohmann::json output;
     output["temperature"] = kBT * temperatureAuToSi;
     output["Wji0"] = vecWji0;
