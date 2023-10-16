@@ -181,12 +181,16 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   }
 
   // convert Ai to SI, in units of picograms/(mu m^3)
-  double Aconversion = electronMassSi / 2. / std::pow(distanceBohrToMum,dimensionality) *
-                        1e12;  //1./rydbergSi * // convert kBT
-                        //hBarSi * 1./std::pow(bohrRadiusSi,2) * // convert hbar * q^2
-                        //1./std::pow(bohrRadiusSi, dimensionality) * // convert 1/V
-                        //1e12 / std::pow(1e6,dimensionality); // converting to pico and mu
-  if(mpi->mpiHead()) std::cout << Aconversion << std::endl;
+  double Aconversion = electronMassSi /
+                       std::pow(distanceBohrToMum,dimensionality) * // convert AU mass / V -> SI
+                       2 *   // factor of two is a Ry->Ha conversion required here
+                       1e15; // convert electronMassSi in kg to pico g
+
+                       // Michele's version of this, gives thes same answer
+                       // double altConv =  1./rydbergSi * // convert kBT
+                       // std::pow(hBarSi/bohrRadiusSi,2) * // convert (hbar * q)^2
+                       // 1./std::pow(bohrRadiusSi, dimensionality) * // convert 1/V
+                       // 1e-3; //convert from kg->pg, 1/m^3 -> 1/mum^3; // converting to pico and mu
 
   std::string specificHeatUnits;
   std::string AiUnits;
