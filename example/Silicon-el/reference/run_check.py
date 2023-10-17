@@ -108,6 +108,29 @@ if __name__ == "__main__":
                 print("max element % difference", numpy.max(k1-k2)/numpy.max(k1))
                 print(filename)
                 sys.exit(1)
+            k1 = numpy.array(data1['energies'])
+            k2 = numpy.array(data2['energies'])
+            diff = ((k1 - k2)/numpy.max(k1)).sum()
+            if abs(diff) > tol:
+                print(diff)
+                print(filename)
+                sys.exit(1)
+            k1 = numpy.array(data1['velocities'])
+            k2 = numpy.array(data2['velocities'])
+            diff = ((k1 - k2)/numpy.max(k1)).sum()
+            if abs(diff) > tol:
+                print(diff)
+                print(filename)
+                sys.exit(1)
+            k1 = numpy.array(data1['relaxationTimes'])
+            k2 = numpy.array(data2['relaxationTimes'])
+            k1[numpy.where(k1 == None)] = 0
+            k2[numpy.where(k2 == None)] = 0
+            diff = ((k1 - k2)/numpy.max(k1)).sum()
+            if abs(diff) > tol:
+                print(diff)
+                print(filename)
+                sys.exit(1)
 
         if "viscosity" in filename:
             k1 = numpy.array(data1['electronViscosity'])
