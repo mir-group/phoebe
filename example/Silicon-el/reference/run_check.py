@@ -31,12 +31,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1["electricalConductivity"])
             k2 = numpy.array(data2["electricalConductivity"])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -46,14 +46,14 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['electronicThermalConductivity'])
             k2 = numpy.array(data2['electronicThermalConductivity'])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > tol:
+            if abs(diff) > tol:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
             k1 = numpy.array(data1['seebeckCoefficient'])
             k2 = numpy.array(data2['seebeckCoefficient'])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > tol:
+            if abs(diff) > tol:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
@@ -62,12 +62,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1["energies"])
             k2 = numpy.array(data2["energies"])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001:
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
                 print("max element % difference", numpy.max(k1-k2)/numpy.max(k1))
@@ -79,12 +79,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1["dos"])
             k2 = numpy.array(data2["dos"])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -96,12 +96,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1["linewidths"])
             k2 = numpy.array(data2["linewidths"])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -113,12 +113,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['electronViscosity'])
             k2 = numpy.array(data2['electronViscosity'])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001: # viscosities are small
+            if abs(diff) > 0.00001: # viscosities are small
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001: # viscosities are small
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -130,12 +130,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['specificHeat'])
             k2 = numpy.array(data2['specificHeat'])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001: # viscosities are small
+            if abs(diff) > 0.00001: # viscosities are small
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001:
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -146,12 +146,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['Ai'])
             k2 = numpy.array(data2['Ai'])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001: # viscosities are small
+            if abs(diff2) > 0.00001: # viscosities are small
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -162,12 +162,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['Du'])
             k2 = numpy.array(data2['Du'])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001:
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))
@@ -178,12 +178,12 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['Wji0'])
             k2 = numpy.array(data2['Wji0'])
             diff = ((k1 - k2)/numpy.max(k1)).sum()
-            if diff > 0.00001:
+            if abs(diff) > 0.00001:
                 print(diff)
                 print(filename)
                 sys.exit(1)
             diff2 = (numpy.max(k1) - numpy.max(k2))/numpy.max(k1)
-            if diff2 > 0.00001:
+            if abs(diff2) > 0.00001:
                 print("failed max element check",diff2)
                 print("max element, run vs. ref ", numpy.max(k1), numpy.max(k2))
                 print("max element difference", numpy.max(k1-k2))

@@ -27,21 +27,21 @@ if __name__ == "__main__":
             k1 = numpy.array(data1['electricalConductivity'])
             k2 = numpy.array(data2['electricalConductivity'])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > tol:
+            if abs(diff) > tol:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
             k1 = numpy.array(data1['electronicThermalConductivity'])
             k2 = numpy.array(data2['electronicThermalConductivity'])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > tol:
+            if abs(diff) > tol:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
             k1 = numpy.array(data1['seebeckCoefficient'])
             k2 = numpy.array(data2['seebeckCoefficient'])
             diff = ((k1 - k2)/max(k1)).sum()
-            if diff > tol:
+            if abs(diff) > tol:
                 print(diff, k1, k2, sep="\n")
                 print(filename)
                 sys.exit(1)
