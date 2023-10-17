@@ -13,6 +13,7 @@ if __name__ == "__main__":
     for filename in listOfJsons:
 
         filename2 = os.path.join("reference", filename)
+        tol = 1e-5
 
         with open(filename) as f1:
             data1 = json.load(f1)
