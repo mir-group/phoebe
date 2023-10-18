@@ -304,6 +304,8 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   // write D to file before diagonalizing, as the scattering matrix
   // will be destroyed by scalapack
 
+  if(mpi->mpiHead()) std::cout << "\nWriting real-space solver quantities to file.\n" << std::endl;
+
   bool isPhonon = bandStructure.getParticle().isPhonon();
   int dimensionality = bandStructure.getPoints().getCrystal().getDimensionality();
 
@@ -355,7 +357,7 @@ void genericOutputRealSpaceToJSON(ScatteringMatrix& scatteringMatrix,
   for (auto i : {0, 1, 2}) {
     std::vector<double> temp1,temp2,temp3;
     for (auto j : {0, 1, 2}) {
-      temp1.push_back(Du(i,j) * energyRyToFs);
+      temp1.push_back(Du(i,j) / (energyRyToFs / twoPi));
       temp2.push_back(Wji0(i,j) * velocityRyToSi);
       temp3.push_back(Wjie(i,j) * velocityRyToSi);
     }
