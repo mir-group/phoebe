@@ -165,7 +165,7 @@ void PhononViscosity::calcFromRelaxons(Eigen::VectorXd &eigenvalues,
       // this normalization is needed to make the overall normalization work
       // given that scalapack normalizes the eigenvectors to theta*theta = 1
       for (int ialpha = 0; ialpha < numRelaxons; ialpha++) {
-        w(i, j, ialpha) = x2[ialpha] / ( sqrt(volume) * sqrt(context.getQMesh().prod()) );
+        w(i, j, ialpha) = x2[ialpha];// / ( sqrt(volume) * sqrt(context.getQMesh().prod()) );
       }
       // Andrea's note: in Eq. 9 of PRX, w is normalized by V*N_q
       // here however I normalize the eigenvectors differently:
